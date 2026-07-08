@@ -62,10 +62,13 @@ live smoke confirmed `GET /api/v1/metrics/current` returns `404`, while
 
 | Drift | Current state | Decision |
 |---|---|---|
-| Disk detail | `MetricsService.GetDiskDetail` exists but remains unimplemented; stale UI/docs mention `/api/v1/metrics/disk/details`. | Keep as follow-up product work, not a migration blocker. |
 | Process kill | UI references `POST /processes/{pid}/kill`, but no API route exists. | Keep as follow-up safety design work. |
 
 ### Resolved
+
+#### F0: Disk detail Connect method implemented (LOW)
+- **Handler** (`api/internal/handlers/metrics.go`): `MetricsService.GetDiskDetail` now returns read-only partition/detail data.
+- **Boundary**: Response notes point remediation to cleanup-manager plan/apply; system-monitor still observes only and does not mutate disk state.
 
 #### F1: Hardcoded `localhost:port` in investigation prompt and handler response (HIGH)
 - **Handler** (`api/internal/handlers/investigations.go`): `resolveAPIBaseURL()` derives URL from forwarded headers (resolved 2026-02-17).

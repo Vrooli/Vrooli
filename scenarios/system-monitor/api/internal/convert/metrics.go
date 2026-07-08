@@ -83,6 +83,21 @@ func InfrastructureMonitorDataToProto(m *models.InfrastructureMonitorData) *metr
 	}
 }
 
+func DiskDetailResponseToProto(m *models.DiskDetailResponse) *metricspb.DiskDetailResponse {
+	if m == nil {
+		return nil
+	}
+	return &metricspb.DiskDetailResponse{
+		Partitions:     diskPartitionInfoSliceToProto(m.Partitions),
+		ActiveMount:    m.ActiveMount,
+		Depth:          int32(m.Depth),
+		TopDirectories: diskUsageEntrySliceToProto(m.TopDirectories),
+		LargestFiles:   diskUsageEntrySliceToProto(m.LargestFiles),
+		Notes:          m.Notes,
+		Timestamp:      timestamppb.New(m.Timestamp),
+	}
+}
+
 func ProcessTimelineResponseToProto(windowSeconds int, owner string, top int, entries []repository.ProcessTimelineEntry) *metricspb.ProcessTimelineResponse {
 	pbEntries := make([]*metricspb.ProcessTimelineEntry, 0, len(entries))
 	for _, e := range entries {
@@ -227,6 +242,37 @@ func gpuProcessInfoSliceToProto(ms []models.GPUProcessInfo) []*metricspb.GPUProc
 			pb.SmUtilizationPercent = m.SMUtilization
 		}
 		result[i] = pb
+	}
+	return result
+}
+
+func diskPartitionInfoSliceToProto(ms []models.DiskPartitionInfo) []*metricspb.DiskPartitionInfo {
+	result := make([]*metricspb.DiskPartitionInfo, len(ms))
+	for i, m := range ms {
+		result[i] = &metricspb.DiskPartitionInfo{
+			Device:         m.Device,
+			MountPoint:     m.MountPoint,
+			SizeBytes:      m.SizeBytes,
+			SizeHuman:      m.SizeHuman,
+			UsedBytes:      m.UsedBytes,
+			UsedHuman:      m.UsedHuman,
+			AvailableBytes: m.AvailableBytes,
+			AvailableHuman: m.AvailableHuman,
+			UsePercent:     m.UsePercent,
+		}
+	}
+	return result
+}
+
+func diskUsageEntrySliceToProto(ms []models.DiskUsageEntry) []*metricspb.DiskUsageEntry {
+	result := make([]*metricspb.DiskUsageEntry, len(ms))
+	for i, m := range ms {
+		result[i] = &metricspb.DiskUsageEntry{
+			Path:      m.Path,
+			SizeBytes: m.SizeBytes,
+			SizeHuman: m.SizeHuman,
+			Category:  m.Category,
+		}
 	}
 	return result
 }

@@ -129,9 +129,15 @@ func (h *MetricsHandler) GetMetricsTimeline(ctx context.Context, req *connect.Re
 	}), nil
 }
 
-// GetDiskDetail is proto-authored but not backed by a service operation yet.
-func (h *MetricsHandler) GetDiskDetail(context.Context, *connect.Request[metricspb.GetDiskDetailRequest]) (*connect.Response[metricspb.GetDiskDetailResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("disk detail metrics are not implemented"))
+// GetDiskDetail handles the typed Connect-RPC disk detail contract.
+func (h *MetricsHandler) GetDiskDetail(ctx context.Context, _ *connect.Request[metricspb.GetDiskDetailRequest]) (*connect.Response[metricspb.GetDiskDetailResponse], error) {
+	detail, err := h.monitorSvc.GetDiskDetail(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&metricspb.GetDiskDetailResponse{
+		Data: convert.DiskDetailResponseToProto(detail),
+	}), nil
 }
 
 // HandleGetCurrentMetrics handles GET /api/v1/metrics/current.

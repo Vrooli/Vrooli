@@ -15,7 +15,6 @@
 ## Open Issues
 
 - **Process kill endpoint not implemented**: the UI process monitor has a kill confirmation dialog, but `POST /api/v1/processes/{pid}/kill` is not registered in the router (`api/internal/server/router.go`). The kill action currently no-ops. Tracked as P0 operational target OT-P0-009 (process-monitoring) — see `requirements/09-process-monitoring-and-management/`. Severity: medium.
-- **Disk partition detail endpoint not implemented**: the disk detail view references partition-level data that has no backing endpoint; it degrades gracefully (shows aggregate only). Severity: low.
 - **In-memory storage by default**: the API uses the in-memory repository by default; the PostgreSQL/SQLite repository interface is defined and wired but not the runtime default. Data is lost on API restart unless a persistent repo is selected. Severity: medium.
 - **No authentication**: all API endpoints are publicly accessible; no auth middleware is enabled. Acceptable for the current local-monitoring posture but must be addressed before any networked deployment. Severity: medium (deployment-gated).
 - **HTTP polling, no WebSocket**: the UI polls (5s metrics, 60s detailed, 4s agents) rather than streaming. Introduces latency vs real-time; acceptable for V1. Severity: low.
@@ -35,5 +34,6 @@ The remaining **~0.04** gap is **not** system-monitor's own code. The dashboard 
 
 ## Cleanup History
 
+- 2026-07-08: Implemented the proto-owned `MetricsService.GetDiskDetail` path with read-only partition, directory, and largest-file attribution plus cleanup-manager handoff notes. Removed the disk-detail missing-endpoint issue from the open ledger; cleanup execution remains outside system-monitor.
 - 2026-06-22: Phase-5 health pass — reconciled this file with the current codebase (most 2026-02-16 items were already fixed); migrated `docs/manifest.json` to `scenario-docs-manifest/v2`; restructured `PRD.md` to the canonical template and linked all P0/P1 operational targets to requirements; added `bas/registry.json`; added `minimumReleaseAge` to `ui/pnpm-workspace.yaml`; cleared the six gating tidiness errors; fixed the four UI lifecycle bugs; split the god hook; code-split the UI bundle. The lone residual red (`performance` Lighthouse `0.66–0.68 < 0.70`) is documented above as fleet/platform infrastructure debt (api-base no-gzip, bug knw-1782155812312310344), not scenario code.
 - 2026-02-16: Previous spec-sync sessions corrected script count (70+ → 30), removed non-existent timeline endpoint from API contract, documented placeholder endpoints, corrected polling interval descriptions.

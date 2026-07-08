@@ -16,6 +16,7 @@ type MonitorQuerier interface {
 	GetCurrentMetrics(ctx context.Context) (*models.MetricsResponse, error)
 	GetCurrentMetricsFresh(ctx context.Context) (*models.MetricsResponse, error)
 	GetDetailedMetrics(ctx context.Context) (*models.DetailedMetrics, error)
+	GetDiskDetail(ctx context.Context) (*models.DiskDetailResponse, error)
 	GetMetricsTimeline(ctx context.Context, windowSeconds, sampleIntervalSeconds int) (*models.MetricsTimelineResponse, error)
 	GetProcessMonitorData(ctx context.Context) (*models.ProcessMonitorData, error)
 	GetProcessTimeline(ctx context.Context, window time.Duration, owner string, top int) ([]repository.ProcessTimelineEntry, error)

@@ -53,6 +53,11 @@
           "type": "string",
           "description": "Routing scope (e.g. 'SCOPE_PROJECT')"
         },
+        "class": {
+          "type": "string",
+          "enum": ["local_index", "local_live", "external", "async"],
+          "description": "Operability class — the descriptor policy that tells Search Hub what control/latency posture to expect, with no scenario-name special-casing. local_index: a tunable, locally-owned indexed corpus (must expose reindex_endpoint; config_endpoint optional, pinned for hybrid-by-construction). local_live: computed live, no tunable index (no reindex/config expected). external: third-party provider, e.g. web search (no local index/control/status expected, looser latency budget). async: locally-owned corpus rebuilt asynchronously (must expose reindex_endpoint). Required for active providers by Search Hub maturity certification."
+        },
         "endpoint": {
           "$ref": "#/definitions/endpoint",
           "description": "Search endpoint descriptor (search-hub registry shape)"
@@ -69,6 +74,14 @@
           "$ref": "#/definitions/endpoint",
           "description": "Secured control-plane target for the shared SearchControlService.WriteConfig verb (the sweep's write-back of a winning tuning block into this file). Token-gated; absent for providers that are not config-writable."
         },
+        "config_writable": {
+          "type": "boolean",
+          "description": "Whether Search Hub may write tuning back through config_endpoint. Indexed providers with intentionally fixed tuning set this false and provide config_pinned_reason."
+        },
+        "config_pinned_reason": {
+          "type": "string",
+          "description": "Required when config_writable is false; explains why tuning is intentionally non-writable."
+        },
         "result_mapping": {
           "type": "object",
           "description": "How to map the provider's response into normalized hits. Core keys mirror search-hub.v1.registry.ResultMapping: results_path, id_field, title_field, score_field, snippet_field, path_field, score_scale, filter_field/filter_value, presence_field, measure_field, attestation_field, confidence_field (object with weak/regime), locations_field (array of project-root-relative locations), weak_field, and regime_field.",
@@ -76,6 +89,7 @@
         },
         "tuning": { "$ref": "#/definitions/tuning" },
         "scoring": { "$ref": "#/definitions/scoring" },
+        "performance": { "$ref": "#/definitions/performance" },
         "tests": { "$ref": "#/definitions/tests" }
       }
     },
@@ -155,6 +169,28 @@
         }
       }
     },
+    "performance": {
+      "type": "object",
+      "description": "Latency/reliability budget. The provider's operability class (see provider.class) is the latency class; this block tightens the class default or opts into telemetry. Omitted ⇒ the class default p95 budget applies (local_index/local_live=1500ms, external=4000ms, async=15000ms).",
+      "additionalProperties": false,
+      "properties": {
+        "p95_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "p95 query-latency budget in milliseconds. 0/omitted ⇒ use the class default. Certification reads the latest eval run's p95 latency and reports SEARCH_PERF_BUDGET_BREACH (advisory) when it exceeds this budget."
+        },
+        "degraded_rate_max": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum tolerated fraction of queries that return no result. Omitted ⇒ not checked. When declared, certification reports SEARCH_PERF_DEGRADED (advisory) if the latest run's empty-result rate exceeds it."
+        },
+        "telemetry_required": {
+          "type": "boolean",
+          "description": "When true, certification requires latency evidence to exist: SEARCH_PERF_BUDGET_UNPROVEN (required) fails the provider if no run latency can be measured."
+        }
+      }
+    },
     "tests": {
       "type": "object",
       "description": "The evaluation corpus — the SSOT that search-hub's eval store mirrors. One labelled corpus per provider; one case list (negatives are cases with expect_no_strong_hit). Maps 1:1 onto the search-hub eval proto's EvalSuite (modulo store-assigned suite metadata), so a scenario self-registers it at boot and every mutation writes back here.",
@@ -166,10 +202,52 @@
         },
         "name": { "type": "string", "description": "Human-facing suite name mirrored into the store" },
         "description": { "type": "string", "description": "Human-facing suite description mirrored into the store" },
+        "coverage": {
+          "$ref": "#/definitions/coverage",
+          "description": "Provider-owned production coverage contract. Required tags/groups must be satisfied by reviewed positive cases before Search Hub production maturity is clean."
+        },
         "cases": {
           "type": "array",
           "description": "The whole corpus: positive labelled queries AND negatives (a negative is a case with expect_no_strong_hit)",
           "items": { "$ref": "#/definitions/test_case" }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Each tag must appear on at least one reviewed positive case. Candidate/generated positives and negatives do not count."
+        },
+        "required_tag_groups": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/coverage_group" },
+          "description": "Named provider question families. A group is satisfied by reviewed positive cases carrying any of its tags."
+        }
+      }
+    },
+    "coverage_group": {
+      "type": "object",
+      "required": ["id", "tags"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Stable coverage-family id, e.g. 'incident-response'." },
+        "description": { "type": "string", "description": "Human-readable statement of what this question family proves." },
+        "tags": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Any tag in this set counts toward the group when present on a reviewed positive case."
+        },
+        "min_reviewed_positive": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of reviewed positive cases required across the group's tags. 0/default means 1."
         }
       }
     },

@@ -12,10 +12,11 @@ import (
 // LoadFromManifest builds a SubcommandGroup from this shape; tests use
 // RequireProtoServiceCoverage to assert proto methods are bound or omitted.
 type Manifest struct {
-	Name        string             `json:"name"`
-	Description string             `json:"description,omitempty"`
-	Groups      []ManifestGroup    `json:"groups"`
-	Omitted     []ManifestOmission `json:"omitted,omitempty"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	Groups      []ManifestGroup     `json:"groups"`
+	Omitted     []ManifestOmission  `json:"omitted,omitempty"`
+	Exceptions  []ManifestException `json:"exceptions,omitempty"`
 }
 
 type ManifestGroup struct {
@@ -25,12 +26,60 @@ type ManifestGroup struct {
 }
 
 type ManifestCommand struct {
-	Name        string               `json:"name"`
-	Description string               `json:"description,omitempty"`
-	Positionals []ManifestPositional `json:"positionals,omitempty"`
-	Flags       []ManifestFlag       `json:"flags,omitempty"`
-	Binding     ManifestBinding      `json:"binding"`
-	Governance  ManifestGovernance   `json:"governance"`
+	Name         string                `json:"name"`
+	Description  string                `json:"description,omitempty"`
+	Positionals  []ManifestPositional  `json:"positionals,omitempty"`
+	Flags        []ManifestFlag        `json:"flags,omitempty"`
+	Binding      ManifestBinding       `json:"binding"`
+	Governance   ManifestGovernance    `json:"governance"`
+	Architecture *ManifestArchitecture `json:"architecture,omitempty"`
+}
+
+// ManifestArchitecture is the optional command-architecture classification a
+// manifest command may declare. Mirrors the "Architecture" $def in
+// cli-manifest.schema.json. Absent metadata means legacy/unknown maturity.
+type ManifestArchitecture struct {
+	Primitive string                      `json:"primitive,omitempty"`
+	Exception *ManifestArchitectureExcept `json:"exception,omitempty"`
+}
+
+// ManifestArchitectureExcept is a special-case exception declared on an
+// otherwise proto-bound command.
+type ManifestArchitectureExcept struct {
+	Class  string `json:"class"`
+	Reason string `json:"reason"`
+}
+
+// ManifestException declares one legitimate special-case command that lives
+// outside the manifest binding path (top-level exceptions[]). Command is the
+// runtime command path ("execute", "runs follow").
+type ManifestException struct {
+	Command string `json:"command"`
+	Class   string `json:"class"`
+	Reason  string `json:"reason"`
+}
+
+// CommandArchitecture converts the manifest architecture block into the
+// canonical CommandArchitecture used for validation and Command wiring.
+func (a *ManifestArchitecture) CommandArchitecture() CommandArchitecture {
+	if a == nil {
+		return CommandArchitecture{}
+	}
+	out := CommandArchitecture{Primitive: PrimitiveClass(a.Primitive)}
+	if a.Exception != nil {
+		out.Exception = ExceptionClass(a.Exception.Class)
+		out.ExceptionReason = a.Exception.Reason
+	}
+	return out
+}
+
+// CommandArchitecture converts a top-level exceptions[] entry into the canonical
+// CommandArchitecture (exception class + reason).
+func (e ManifestException) CommandArchitecture() CommandArchitecture {
+	return CommandArchitecture{
+		Exception:       ExceptionClass(e.Class),
+		ExceptionReason: e.Reason,
+	}
 }
 
 type ManifestPositional struct {
@@ -121,6 +170,21 @@ func ParseManifest(raw []byte) (*Manifest, error) {
 			default:
 				return nil, fmt.Errorf("cli manifest %q: command %s/%s governance.effect %q not in {read,write,destructive}", m.Name, g.Name, c.Name, c.Governance.Effect)
 			}
+			if err := c.Architecture.CommandArchitecture().Validate(); err != nil {
+				return nil, fmt.Errorf("cli manifest %q: command %s/%s architecture: %w", m.Name, g.Name, c.Name, err)
+			}
+		}
+	}
+	for i, e := range m.Exceptions {
+		if strings.TrimSpace(e.Command) == "" {
+			return nil, fmt.Errorf("cli manifest %q: exceptions[%d] missing command path", m.Name, i)
+		}
+		arch := e.CommandArchitecture()
+		if arch.Exception == "" {
+			return nil, fmt.Errorf("cli manifest %q: exception for %q missing class", m.Name, e.Command)
+		}
+		if err := arch.Validate(); err != nil {
+			return nil, fmt.Errorf("cli manifest %q: exception for %q: %w", m.Name, e.Command, err)
 		}
 	}
 	return &m, nil
@@ -156,6 +220,43 @@ func (b ManifestBinding) BindingKey() string {
 // (see RequireProtoServiceCoverage); broken manifests still fail loudly at
 // startup via ParseManifest.
 func LoadFromManifest(raw []byte, groupName string, bindings map[string]func(RunContext) error) (SubcommandGroup, error) {
+	bound := make(map[string]boundHandler, len(bindings))
+	for k, h := range bindings {
+		bound[k] = boundHandler{run: h}
+	}
+	return loadFromManifest(raw, groupName, bound)
+}
+
+// LoadFromManifestPrimitives is the evidence-carrying variant of LoadFromManifest:
+// each binding is a PrimitiveHandler built by a cli-core primitive, so the
+// observed primitive class travels onto the resulting Command.PrimitiveEvidence.
+// This is how a command reaches verified primitive maturity — the manifest
+// declares architecture.primitive and the handler proves it structurally.
+//
+// It fails fast on a contradiction: if a command declares one primitive class in
+// the manifest but its handler was built from a different one, that is malformed
+// architecture (EvidenceContradiction), not advisory debt. A missing declaration
+// (handler has evidence, manifest declares nothing) is allowed and left for CLI
+// Health to classify as observed-only.
+func LoadFromManifestPrimitives(raw []byte, groupName string, bindings map[string]PrimitiveHandler) (SubcommandGroup, error) {
+	bound := make(map[string]boundHandler, len(bindings))
+	for k, h := range bindings {
+		if h.Run == nil {
+			return SubcommandGroup{}, fmt.Errorf("cli manifest: primitive handler for binding %q has a nil Run", k)
+		}
+		bound[k] = boundHandler{run: h.Run, evidence: h.primitive}
+	}
+	return loadFromManifest(raw, groupName, bound)
+}
+
+// boundHandler is the internal binding shape shared by LoadFromManifest (no
+// evidence) and LoadFromManifestPrimitives (with observed primitive evidence).
+type boundHandler struct {
+	run      func(RunContext) error
+	evidence PrimitiveClass
+}
+
+func loadFromManifest(raw []byte, groupName string, bindings map[string]boundHandler) (SubcommandGroup, error) {
 	m, err := ParseManifest(raw)
 	if err != nil {
 		return SubcommandGroup{}, err
@@ -175,15 +276,22 @@ func LoadFromManifest(raw []byte, groupName string, bindings map[string]func(Run
 		}
 		used[key] = struct{}{}
 
+		declared := c.Architecture.CommandArchitecture()
+		if ClassifyPrimitiveEvidence(declared.Primitive, handler.evidence) == EvidenceContradiction {
+			return SubcommandGroup{}, fmt.Errorf("cli manifest %q: command %s/%s declares architecture.primitive %q but the handler was built with the %q primitive", m.Name, group.Name, c.Name, declared.Primitive, handler.evidence)
+		}
+
 		args, err := ManifestArgs(c)
 		if err != nil {
 			return SubcommandGroup{}, fmt.Errorf("cli manifest %q: command %s/%s: %w", m.Name, group.Name, c.Name, err)
 		}
 		subs = append(subs, Command{
-			Name:        c.Name,
-			Description: c.Description,
-			Args:        args,
-			RunCtx:      handler,
+			Name:              c.Name,
+			Description:       c.Description,
+			Args:              args,
+			RunCtx:            handler.run,
+			Architecture:      declared,
+			primitiveEvidence: handler.evidence,
 		})
 	}
 	var unused []string

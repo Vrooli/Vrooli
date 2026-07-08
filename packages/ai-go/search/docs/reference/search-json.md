@@ -48,10 +48,12 @@ One entry per searchable corpus a scenario exposes (most scenarios expose one).
 | `type` | scenario | Result kind (`command`, `doc`, …). |
 | `description` | scenario | One line the router shows + the classifier reads. |
 | `scope` | scenario | Visibility scope (`SCOPE_PROJECT`, …). |
+| `class` | scenario | **Operability class** (`local_index` / `local_live` / `external` / `async`). Descriptor policy that drives Search Hub's control/latency posture with no scenario-name special-casing (see below). Required for active providers under maturity certification. |
 | `endpoint` | descriptor | How the router calls the provider's **public search** RPC. Opaque registry `Endpoint` shape (mapped to the proto by `searchregister-go`). |
 | `status_endpoint` | descriptor | How the router polls index status. |
 | `reindex_endpoint` | descriptor | Token-gated `SearchControlService.Reindex` target. Absent ⇒ provider is routable but **not index-time tunable**. |
 | `config_endpoint` | descriptor | Token-gated `SearchControlService.WriteConfig` target — where a sweep writes a winning `tuning` block back. Absent ⇒ provider is **not config-writable** by the sweep. |
+| `config_writable` / `config_pinned_reason` | scenario | Explicit non-writable posture for indexed providers whose tuning is intentionally fixed by construction. |
 | `tuning` | **this package** | The factor values (§3). Read at boot; written back by the sweep. |
 | `tests` | **this package** | The unified evaluation corpus (§4). |
 
@@ -60,6 +62,24 @@ The descriptor sub-objects (`endpoint` / `status_endpoint` / `result_mapping` /
 search-hub's registry vocabulary, kept here as raw JSON so this package stays free
 of transport/registry types. `result_mapping` projects a provider's native result
 fields onto the router's unified result shape.
+
+### Operability `class` — what posture Search Hub expects
+
+`class` is how a provider declares its operational shape so Search Hub can hold it
+to the right bar **without hard-coding scenario names**. It is required for active
+providers under search maturity certification; a `capability_gap` stub is exempt.
+
+| `class` | Means | Control-plane posture Search Hub enforces |
+|---|---|---|
+| `local_index` | Tunable, locally-owned indexed corpus | `reindex_endpoint` **required** (the corpus must be reconcilable); `config_endpoint` required unless `config_writable:false` and `config_pinned_reason` explain a fixed/hybrid-by-construction provider; `status_endpoint` advisory. |
+| `async` | Locally-owned corpus rebuilt asynchronously | Same as `local_index` — `reindex_endpoint` **required**. |
+| `local_live` | Computed live, no tunable index | No `reindex_endpoint` / `config_endpoint` expected; `status_endpoint` advisory. |
+| `external` | Third-party / external provider (e.g. web search) | No local `status_endpoint` / `reindex_endpoint` / `config_endpoint` expected; latency/reliability budget is looser (see the performance policy). |
+
+A missing or unknown class on an active provider fails certification with
+`SEARCH_PROVIDER_CLASS_MISSING`; an indexed class without a reindex endpoint fails
+with `SEARCH_REINDEX_ENDPOINT_MISSING`. Model web/external behaviour by declaring
+`class: external`, never by scenario name.
 
 ## 3. `tuning` — the control-surface dashboard
 
@@ -126,6 +146,17 @@ One labelled corpus per provider, in **one canonical rank-centric shape** that i
   "suite_id": "cli-health.commands.primary",  // optional; default "<provider_id>.primary"
   "name": "cli-health commands — primary",     // optional suite metadata (mirrored)
   "description": "rank-centric golden corpus",  // optional
+  "coverage": {
+    "required_tags": ["lifecycle"],
+    "required_tag_groups": [
+      {
+        "id": "operator-workflows",
+        "description": "Common operator tasks this provider promises to answer.",
+        "tags": ["lifecycle", "diagnostics"],
+        "min_reviewed_positive": 2
+      }
+    ]
+  },
   "cases": [
     {
       "id": "restart-scenario",
@@ -165,15 +196,19 @@ One labelled corpus per provider, in **one canonical rank-centric shape** that i
 - **Provenance rides `tags`.** `"generated"` is the load-bearing marker the sweep
   **always holds out of the tuning fold** (overfit guard #2): a tuning can never be
   selected on cases a machine wrote for it. There is no separate `source` field.
+- **Coverage is provider-owned.** `coverage.required_tags` and
+  `coverage.required_tag_groups` declare the question families this provider must
+  prove for production maturity. Only reviewed positive cases satisfy coverage;
+  candidate/generated positives and negatives do not count.
 - **Deleted vs. the old shape:** `expected_paths` (one label shape now — `expect_ids`),
   the separate `negatives[]` array, and `source` (now a tag) were removed
   (greenfield). Gate policy moved to the provider `scoring` block.
 
 **Adequacy, not just well-formedness.** Parsing only checks the suite is
-*well-formed*. Search-hub additionally **grades** the corpus (warn-level, never
-gating): too few cases (< 12), no negatives, all-one-difficulty, duplicate
-queries, stale labels, and coverage gaps against the live index. Thin or stale
-corpora are the central overfit risk, so the warnings fire loudly on
+*well-formed*. Search-hub additionally **grades** the corpus: no reviewed
+positives and no negatives are hard failures; duplicate queries, single-band
+difficulty, and missing declared coverage groups are required production-maturity
+debt. Thin or stale corpora are the central overfit risk, so the findings fire on
 `evals show` / `evals run` / `evals validate` / `evals generate` — see the
 [search-hub tuning recipe](../../../../scenarios/search-hub/docs/reference/configuration.md#search-tuning-control-surface).
 

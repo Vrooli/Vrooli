@@ -176,7 +176,8 @@ Other scenarios can leverage system-monitor for:
 - **CLI JSON Parsing**: Uses regex (grep/cut) instead of jq; fragile
 - **CLI report bug**: Calls `/api/reports/generate` (missing `/v1/` prefix) — will 404
 - **Storage Default**: API defaults to in-memory; PostgreSQL/QuestDB configured but fallback
-- **Missing API endpoints**: UI references `/api/v1/metrics/timeline`, `/api/v1/metrics/disk/details`, and `POST /processes/{pid}/kill` but none exist in the API router — process kill silently fails
+- **Missing API endpoint**: UI references `POST /processes/{pid}/kill`, but no process-kill route exists in the API router — process kill silently fails
+- **Disk remediation boundary**: Disk detail is read-only; broad cleanup routes through cleanup-manager preview/apply rather than system-monitor deletion paths
 - **Script API placeholders**: Script list/get/execute endpoints return empty/404; scripts run via investigation agent, not API
 - **Test Coverage**: test/ directory is empty; tests defined via test-genie but not populated
 - **simulate command**: References test endpoint that doesn't exist in API

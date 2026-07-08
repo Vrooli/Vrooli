@@ -28,6 +28,11 @@
       "description": "RPCs intentionally not exposed as CLI commands. Each entry documents one (service, method) pair with a reason. RequireProtoServiceCoverage treats these as covered.",
       "items": { "$ref": "#/$defs/Omission" }
     },
+    "exceptions": {
+      "type": "array",
+      "description": "Legitimate special-case CLI commands that are NOT plain manifest-bound proto commands (streaming, upload, passthrough, external delegation, durable runs). These are appended outside the manifest binding path (see register.go) and declared here so CLI Health's command_architecture capability distinguishes a known special case from unknown legacy debt. See scenarios/cli-health/docs/reference/cli-architecture-maturity.md.",
+      "items": { "$ref": "#/$defs/ArchitectureExceptionDecl" }
+    },
     "measures": { "$ref": "#/$defs/Measures" }
   },
   "$defs": {
@@ -62,7 +67,56 @@
         },
         "binding": { "$ref": "#/$defs/Binding" },
         "governance": { "$ref": "#/$defs/Governance" },
+        "architecture": { "$ref": "#/$defs/Architecture" },
         "measure": { "$ref": "#/$defs/Measure" }
+      }
+    },
+    "Architecture": {
+      "type": "object",
+      "description": "Optional command-architecture classification for CLI Health's command_architecture maturity capability. Missing metadata defaults to legacy/unknown maturity, so every existing manifest stays valid. A command declares EITHER a normal primitive class (proto_list/proto_mutation/operational/action) OR, for a proto-bound command that also carries a special lifecycle, an explicit exception — never both, and never a special-case class as a primitive (plan decision D4). This block declares INTENT only; declaring a primitive here is forgeable manifest text and does NOT by itself reach verified maturity (L4). Verified maturity requires matching cli-core primitive evidence: build the handler with the corresponding cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives, so the observed primitive class is stamped onto the command's evidence by construction (the evidence field is unexported and only a cli-core builder can set it). CLI Health compares the declared primitive to that observed evidence — agreement is verified (L4), a declaration with no evidence is advisory not-yet-verified debt (arch.primitive_unverified, capped at L3), and a disagreement is a gating error (arch.primitive_mismatch). The vocabulary here is the single source of truth mirrored by packages/cli-core/cliapp (DeclarablePrimitiveClasses/ValidExceptionClasses). See scenarios/cli-health/docs/reference/cli-architecture-maturity.md.",
+      "additionalProperties": false,
+      "properties": {
+        "primitive": {
+          "type": "string",
+          "enum": ["proto_list", "proto_mutation", "operational", "action"],
+          "description": "The NORMAL cli-core primitive class this command is built on (declared intent). Only normal command classes are declared here; a special-case lifecycle (upload/passthrough/streaming/durable_run) is declared as an exception (this block's `exception`, or the top-level `exceptions[]`), never as architecture.primitive (plan decision D4). Proto classes (proto_list/proto_mutation/operational) require the command's connect-rpc binding. Reaching verified maturity requires the handler to actually be built from this primitive via cliapp.LoadFromManifestPrimitives; a declaration that disagrees with the observed cli-core primitive is a gating arch.primitive_mismatch. This enum mirrors cliapp.DeclarablePrimitiveClasses."
+        },
+        "exception": {
+          "type": "object",
+          "required": ["class", "reason"],
+          "additionalProperties": false,
+          "description": "Declares a special-case lifecycle on an otherwise proto-bound command. Requires a reason.",
+          "properties": {
+            "class": {
+              "type": "string",
+              "enum": ["streaming", "upload", "passthrough", "external_delegation", "durable_run"]
+            },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "ArchitectureExceptionDecl": {
+      "type": "object",
+      "description": "Declares one legitimate special-case command that lives outside the manifest binding path.",
+      "required": ["command", "class", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The command path as exposed at runtime, e.g. \"execute\" or \"runs follow\" (space-separated group + command)."
+        },
+        "class": {
+          "type": "string",
+          "enum": ["streaming", "upload", "passthrough", "external_delegation", "durable_run"],
+          "description": "The exception class from the closed vocabulary."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why this command legitimately cannot be a plain proto command."
+        }
       }
     },
     "Positional": {

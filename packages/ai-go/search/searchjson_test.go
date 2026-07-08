@@ -14,6 +14,8 @@ const sampleSearchJSON = `{
     "type": "command",
     "description": "demo",
     "scope": "SCOPE_PROJECT",
+    "config_writable": false,
+    "config_pinned_reason": "demo provider pins tuning for parser coverage",
     "endpoint": {"http_json": {"path": "/x"}},
     "result_mapping": {"id_field": "name"},
     "tuning": {
@@ -28,6 +30,12 @@ const sampleSearchJSON = `{
     "tests": {
       "name": "demo commands — primary",
       "description": "rank-centric demo corpus",
+      "coverage": {
+        "required_tags": ["strong"],
+        "required_tag_groups": [
+          {"id": "operator-workflows", "description": "Common operator command intents.", "tags": ["strong", "workflow"], "min_reviewed_positive": 1}
+        ]
+      },
       "cases": [
         {"id": "c1", "query": "restart a scenario", "scope": "scenario:cli-health", "expect_ids": ["restart"], "tags": ["strong"], "expect_within_top_k": 3},
         {"id": "n1", "query": "asdf qwer", "expect_no_strong_hit": true, "expect_max_score": 0.1, "tags": ["gibberish"]}
@@ -51,6 +59,9 @@ func TestParseSearchFile(t *testing.T) {
 	if p.Tuning.Engine != EngineDense || !p.Tuning.EmbedTaskPrefix || !p.Tuning.RerankBlend {
 		t.Errorf("tuning not parsed: %+v", p.Tuning)
 	}
+	if p.ConfigWritable == nil || *p.ConfigWritable || p.ConfigPinnedReason == "" {
+		t.Errorf("config writability not parsed: writable=%v reason=%q", p.ConfigWritable, p.ConfigPinnedReason)
+	}
 	if scoring := p.ResolvedScoring(); scoring.GateK != 5 || scoring.RecallTarget != 0.8 || scoring.DeepK != 50 {
 		t.Errorf("scoring not parsed: %+v", scoring)
 	}
@@ -64,6 +75,12 @@ func TestParseSearchFile(t *testing.T) {
 	}
 	if p.Tests.ResolvedSuiteID("demo.commands") != "demo.commands.primary" {
 		t.Errorf("default suite id not derived: %q", p.Tests.ResolvedSuiteID("demo.commands"))
+	}
+	if len(p.Tests.Coverage.RequiredTags) != 1 || p.Tests.Coverage.RequiredTags[0] != "strong" {
+		t.Errorf("coverage required tags not parsed: %+v", p.Tests.Coverage)
+	}
+	if len(p.Tests.Coverage.RequiredTagGroups) != 1 || p.Tests.Coverage.RequiredTagGroups[0].ID != "operator-workflows" {
+		t.Errorf("coverage groups not parsed: %+v", p.Tests.Coverage)
 	}
 	c := p.Tests.Cases[0]
 	if len(c.ExpectIDs) != 1 || c.ExpectWithinTopK != 3 || c.ResolvedScope().Kind != ScopeScenario {
@@ -89,7 +106,13 @@ func TestParseSearchFileRejectsBad(t *testing.T) {
 		{"bad status", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"cases":[{"id":"c","query":"q","status":"maybe"}]}}]}`},
 		{"bad scope", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"cases":[{"id":"c","query":"q","scope":"scenario:"}]}}]}`},
 		{"positive without ids", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"cases":[{"id":"c","query":"q","expect_within_top_k":5}]}}]}`},
+		{"empty coverage tag", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"coverage":{"required_tags":[""]},"cases":[{"id":"c","query":"q"}]}}]}`},
+		{"coverage group no tags", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"coverage":{"required_tag_groups":[{"id":"empty"}]},"cases":[{"id":"c","query":"q"}]}}]}`},
 		{"unknown field", `{"version":"1.0.0","wat":1,"providers":[{"provider_id":"a","tuning":{"engine":"dense"}}]}`},
+		{"bad class", `{"version":"1.0.0","providers":[{"provider_id":"a","class":"turbo","tuning":{"engine":"dense"}}]}`},
+		{"bad perf p95", `{"version":"1.0.0","providers":[{"provider_id":"a","performance":{"p95_ms":-1},"tuning":{"engine":"dense"}}]}`},
+		{"bad perf degraded", `{"version":"1.0.0","providers":[{"provider_id":"a","performance":{"degraded_rate_max":2},"tuning":{"engine":"dense"}}]}`},
+		{"missing pinned reason", `{"version":"1.0.0","providers":[{"provider_id":"a","config_writable":false,"tuning":{"engine":"dense"}}]}`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -97,6 +120,42 @@ func TestParseSearchFileRejectsBad(t *testing.T) {
 				t.Errorf("expected error for %s", tc.name)
 			}
 		})
+	}
+}
+
+func TestProviderClassTaxonomy(t *testing.T) {
+	for _, class := range KnownProviderClasses {
+		if !ValidProviderClass(class) {
+			t.Errorf("known class %q reported invalid", class)
+		}
+	}
+	if ValidProviderClass("") || ValidProviderClass("turbo") {
+		t.Error("empty/unknown class must be invalid")
+	}
+	if !IndexedClass(ClassLocalIndex) || !IndexedClass(ClassAsync) {
+		t.Error("local_index/async must be indexed classes")
+	}
+	if IndexedClass(ClassLocalLive) || IndexedClass(ClassExternal) {
+		t.Error("local_live/external must not be indexed classes")
+	}
+	// A valid class parses.
+	if _, err := ParseSearchFile([]byte(`{"version":"1.0.0","providers":[{"provider_id":"a","class":"external","tuning":{"engine":"dense"}}]}`)); err != nil {
+		t.Errorf("valid class rejected: %v", err)
+	}
+}
+
+func TestPerformancePolicyDefaults(t *testing.T) {
+	if DefaultP95BudgetMs(ClassExternal) <= DefaultP95BudgetMs(ClassLocalIndex) {
+		t.Error("external budget must be looser than local_index")
+	}
+	if DefaultP95BudgetMs(ClassAsync) <= DefaultP95BudgetMs(ClassExternal) {
+		t.Error("async budget must be the loosest")
+	}
+	if err := (PerformanceConfig{P95Ms: 800, DegradedRateMax: 0.1, TelemetryRequired: true}).Validate(); err != nil {
+		t.Errorf("valid performance rejected: %v", err)
+	}
+	if _, err := ParseSearchFile([]byte(`{"version":"1.0.0","providers":[{"provider_id":"a","class":"external","performance":{"p95_ms":4000},"tuning":{"engine":"dense"}}]}`)); err != nil {
+		t.Errorf("valid performance block rejected: %v", err)
 	}
 }
 

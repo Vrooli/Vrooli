@@ -13,6 +13,7 @@ type MonitorQuerier struct {
 	metrics          *models.MetricsResponse
 	freshMetrics     *models.MetricsResponse
 	detailedMetrics  *models.DetailedMetrics
+	diskDetail       *models.DiskDetailResponse
 	timelineResponse *models.MetricsTimelineResponse
 	processData      *models.ProcessMonitorData
 	processTimeline  []repository.ProcessTimelineEntry
@@ -37,6 +38,11 @@ func (m *MonitorQuerier) WithFreshMetrics(metrics *models.MetricsResponse) *Moni
 
 func (m *MonitorQuerier) WithDetailedMetrics(metrics *models.DetailedMetrics) *MonitorQuerier {
 	m.detailedMetrics = metrics
+	return m
+}
+
+func (m *MonitorQuerier) WithDiskDetail(detail *models.DiskDetailResponse) *MonitorQuerier {
+	m.diskDetail = detail
 	return m
 }
 
@@ -78,6 +84,10 @@ func (m *MonitorQuerier) GetCurrentMetricsFresh(_ context.Context) (*models.Metr
 
 func (m *MonitorQuerier) GetDetailedMetrics(_ context.Context) (*models.DetailedMetrics, error) {
 	return m.detailedMetrics, m.err
+}
+
+func (m *MonitorQuerier) GetDiskDetail(_ context.Context) (*models.DiskDetailResponse, error) {
+	return m.diskDetail, m.err
 }
 
 func (m *MonitorQuerier) GetMetricsTimeline(_ context.Context, _, _ int) (*models.MetricsTimelineResponse, error) {

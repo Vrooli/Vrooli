@@ -20,6 +20,10 @@ A scenario whose main job is to improve Vrooli itself by enhancing testing, depl
 
 A reusable piece of problem-solving power that the system can invoke again later. In Vrooli, scenarios, workflows, packages, and well-structured tooling can all become capabilities.
 
+## Operating Mode
+
+A reusable, inspectable, testable **methodology loop for agentic software engineering** — the repeatable state-machine a human runs when driving coding agents (what unit of work an operator-and-agent pair operates on, in what phases, with what checkpoints, and how the loop reacts when a phase doesn't converge). Operating modes are a core project capability because `swarm-manager` is the surface through which all agentic work runs, so *how* that work is driven must be first-class: a mode is **data** (a folder validated by a JSON Schema) interpreted by **one generic engine**, not hardcoded logic — legible at a glance, simulable before use, and robust against unreliable model output via a resolution ladder. Three modes exist today: `item-level`, `holistic-loop`, `phased-plan-drain`. See [`scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`](../../scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md).
+
 ## Projection
 
 One of three measurable views of how ready the project is for self-driven software engineering: **Answer** (can the project be understood? — owned by `search-hub`), **Validate** (can a change be verified and auto-fixed? — owned by `test-genie`), and **Guide** (is there a skill to guide each task? — owned by `prompt-manager`). Projections partition the *questions* an engineer asks, not the tools that answer them. Each is measured against a **space** — its denominator, the enumerable set of everything it should eventually cover — and a capability matures along the gradient Guide → Validate → Answer. See [`RECURSIVE_SELF_IMPROVEMENT.md`](RECURSIVE_SELF_IMPROVEMENT.md).

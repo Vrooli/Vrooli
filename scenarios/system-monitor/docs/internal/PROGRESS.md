@@ -63,10 +63,16 @@
 - PRD.md: Corrected script count (70+ → 30), removed non-existent timeline endpoint, added missing endpoints, documented CLI bugs, fixed design decisions
 - README.md: Matched corrections from PRD sync
 
+### 2026-07-08 Cleanup-Manager Integration Slice
+
+- Implemented the proto-owned `MetricsService.GetDiskDetail` handler and service path with read-only partition, largest-directory, and largest-file attribution.
+- Added cleanup-manager handoff notes to disk detail responses so system-monitor surfaces pressure while cleanup-manager owns preview/apply/audit.
+- Validation: `go test ./...` passed in `scenarios/system-monitor/api`.
+
 ### Unresolved Discrepancies
 
 1. **CLI report endpoint bug**: CLI calls `/api/reports/generate` (wrong path). Actual API route is `/api/v1/reports/generate`. Needs code fix.
-2. **UI references non-existent endpoints**: `/api/v1/metrics/timeline`, `/api/v1/metrics/disk/details`, and `POST /processes/{pid}/kill` are called by UI code but not registered in the API router. Needs API implementation or UI fallback handling.
+2. **UI references non-existent process endpoint**: `POST /processes/{pid}/kill` is called by UI code but not registered in the API router. Needs API implementation or UI fallback handling.
 3. **Script API not implemented**: API has placeholder handlers for script list/get/execute. 30 scripts exist on disk but aren't served via API.
 4. **Empty test/ directory**: Tests defined via test-genie but no test phases populated.
 5. **No validation references**: All requirement modules have empty `ref` fields for validation entries — no actual test files to reference.

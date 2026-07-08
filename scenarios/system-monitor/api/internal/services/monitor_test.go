@@ -8,6 +8,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
 
@@ -231,5 +232,16 @@ func TestMonitorServiceSelfMetricsRecordedAfterCollection(t *testing.T) {
 
 	if self["recorded_at"] == "0001-01-01T00:00:00Z" {
 		t.Fatal("recorded_at was not updated")
+	}
+}
+
+func TestHighestDiskPressureUsesPeakPartitionUsage(t *testing.T) {
+	pressure := highestDiskPressure([]models.DiskPartitionInfo{
+		{MountPoint: "/", UsePercent: 72.5},
+		{MountPoint: "/var", UsePercent: 91.25},
+		{MountPoint: "/tmp", UsePercent: 12},
+	})
+	if pressure != 91.25 {
+		t.Fatalf("pressure = %v, want 91.25", pressure)
 	}
 }

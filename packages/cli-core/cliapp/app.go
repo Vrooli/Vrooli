@@ -31,6 +31,40 @@ type Command struct {
 	Args            ArgSchema
 	Run             func(args []string) error
 	RunCtx          func(ctx RunContext) error
+	// Architecture declares the command's renderer-separated primitive class
+	// (or an explicit exception class for legitimate special cases). It is
+	// optional and additive: a zero value means "unclassified/legacy" and
+	// carries no behavioral effect. It is the machine-recognizable evidence
+	// cli-health classifies command architecture maturity from, mirrored at
+	// runtime from the manifest's architecture block (see LoadFromManifest).
+	Architecture CommandArchitecture
+	// primitiveEvidence is the cli-core primitive class that ACTUALLY built the
+	// handler, stamped by construction by the primitive builders (see
+	// PrimitiveHandler / LoadFromManifestPrimitives / WithPrimitive). An empty
+	// value means no machine-verifiable evidence — a legacy or hand-rolled
+	// handler. Unlike Architecture (which a manifest can declare freely),
+	// primitiveEvidence is UNEXPORTED: only a cli-core builder in this package can
+	// set it, so scenario code cannot forge verified maturity through a struct
+	// literal or field assignment (plan decision D3). CLI Health treats a
+	// declaration that matches the observed evidence as verified rather than
+	// self-certified. Read it via PrimitiveEvidence(); see ClassifyPrimitiveEvidence.
+	primitiveEvidence PrimitiveClass
+}
+
+// PrimitiveEvidence returns the cli-core primitive class the command's handler
+// was built from (empty when the handler carries no evidence). Read-only: the
+// evidence can only be stamped by a cli-core primitive builder via WithPrimitive,
+// WithLegacyPrimitive, or LoadFromManifestPrimitives.
+func (c Command) PrimitiveEvidence() PrimitiveClass { return c.primitiveEvidence }
+
+// WithPrimitive wires a PrimitiveHandler onto the command: it sets RunCtx to the
+// handler closure and records the primitive class as observed implementation
+// evidence. Use it for non-manifest RunCtx commands so the evidence travels with
+// the command rather than being restated by scenario code.
+func (c Command) WithPrimitive(ph PrimitiveHandler) Command {
+	c.RunCtx = ph.Run
+	c.primitiveEvidence = ph.primitive
+	return c
 }
 
 // CommandGroup bundles related commands for help output.
@@ -154,7 +188,7 @@ func (a *App) Run(args []string) error {
 	if !ok {
 		return fmt.Errorf("Unknown command: %s%s%s", remaining[0], a.suggestCommand(remaining[0]), a.unknownCommandHint(remaining))
 	}
-	if cmd.RunCtx == nil && wantsHelp(remaining[1:]) {
+	if wantsHelp(remaining[1:]) {
 		a.printCommandHelp(a.opts.Name, cmd)
 		return nil
 	}
@@ -217,7 +251,7 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		return fmt.Errorf("Unknown subcommand: %s %s%s%s\nRun '%s %s help' for available subcommands",
 			group.Name, args[0], suggestSubcommand(group, args[0]), a.unknownCommandHint(path), a.opts.Name, group.Name)
 	}
-	if cmd.RunCtx == nil && wantsHelp(args[1:]) {
+	if wantsHelp(args[1:]) {
 		a.printCommandHelp(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd)
 		return nil
 	}

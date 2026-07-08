@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -8,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
+	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	handlermocks "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers/mocks"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
@@ -188,6 +191,39 @@ func TestGetMetricsTimeline_Error(t *testing.T) {
 
 	handler.HandleGetMetricsTimeline(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusInternalServerError)
+}
+
+func TestGetDiskDetailConnectReturnsCleanupManagerHandoff(t *testing.T) {
+	mock := handlermocks.NewMonitorQuerier().
+		WithDiskDetail(&models.DiskDetailResponse{
+			Partitions: []models.DiskPartitionInfo{
+				{
+					Device:         "/dev/test",
+					MountPoint:     "/",
+					SizeBytes:      100,
+					UsedBytes:      90,
+					AvailableBytes: 10,
+					UsePercent:     90,
+				},
+			},
+			ActiveMount: "/",
+			Depth:       2,
+			Notes:       []string{"Suggested handoff: cleanup-manager cleanup plan --profile conservative"},
+			Timestamp:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		})
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+
+	res, err := handler.GetDiskDetail(context.Background(), connect.NewRequest(&metricspb.GetDiskDetailRequest{}))
+	if err != nil {
+		t.Fatalf("GetDiskDetail returned error: %v", err)
+	}
+	if res.Msg.GetData().GetPartitions()[0].GetUsePercent() != 90 {
+		t.Fatalf("disk pressure = %v, want 90", res.Msg.GetData().GetPartitions()[0].GetUsePercent())
+	}
+	notes := res.Msg.GetData().GetNotes()
+	if len(notes) != 1 || notes[0] != "Suggested handoff: cleanup-manager cleanup plan --profile conservative" {
+		t.Fatalf("notes = %v, want cleanup-manager handoff", notes)
+	}
 }
 
 var _ MonitorQuerier = (*handlermocks.MonitorQuerier)(nil)

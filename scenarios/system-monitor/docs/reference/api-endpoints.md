@@ -35,6 +35,7 @@ probes, development pprof, logs, and forensics.
 | GET | `/api/v1/metrics/processes` | Process monitoring data (zombies, high-thread, leak candidates) |
 | GET | `/api/v1/metrics/processes/timeline` | Ranked process consumers over a time window, grouped by owner/scenario |
 | GET | `/api/v1/metrics/infrastructure` | Infrastructure monitoring (DB pools, HTTP pools, queues, storage I/O) |
+| GET | `/api/v1/metrics/disk` | Disk partition and usage detail through the generated Connect method |
 
 ### GET /api/v1/metrics/current
 
@@ -186,8 +187,12 @@ Configurable fields: `runner`, `model`, `max_turns`, `timeout`, `tools`, `skip_p
 
 The following endpoints are referenced by the UI but do not exist in the API:
 
-- `GET /api/v1/metrics/disk/details` -- referenced by UI disk detail view
 - `POST /api/v1/processes/{pid}/kill` -- referenced by UI process kill dialog (silently fails)
+
+Disk detail is implemented through `MetricsService.GetDiskDetail`
+(`/vrooli.system_monitor.v1.metrics.MetricsService/GetDiskDetail`) and is
+read-only. Its response may include cleanup-manager handoff notes when disk
+pressure is high; system-monitor does not delete files or apply cleanup.
 
 ## Connect Migration Notes
 

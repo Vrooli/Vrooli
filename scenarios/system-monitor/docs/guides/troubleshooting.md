@@ -50,9 +50,11 @@ The following endpoints are referenced by the UI but are not implemented:
 
 | Endpoint | Referenced By |
 |----------|--------------|
-| `GET /api/v1/metrics/timeline` | Sparkline charts |
-| `GET /api/v1/metrics/disk/details` | Disk detail view |
 | `POST /api/v1/processes/{pid}/kill` | Process kill dialog |
+
+Disk detail is served by the generated Connect path
+`/vrooli.system_monitor.v1.metrics.MetricsService/GetDiskDetail`. It is
+read-only and points cleanup remediation to cleanup-manager.
 
 ## No Authentication
 

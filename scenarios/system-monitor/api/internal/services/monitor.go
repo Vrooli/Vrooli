@@ -593,6 +593,73 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	return detailed, nil
 }
 
+// GetDiskDetail returns read-only disk usage detail plus cleanup-manager
+// remediation guidance. It observes pressure and attribution only; cleanup
+// execution remains owned by cleanup-manager policy/audit.
+func (s *MonitorService) GetDiskDetail(_ context.Context) (*models.DiskDetailResponse, error) {
+	partitions, err := collectors.GetDiskPartitions()
+	if err != nil {
+		return nil, err
+	}
+
+	detail := &models.DiskDetailResponse{
+		Partitions:  diskPartitionsFromMaps(partitions),
+		ActiveMount: "/",
+		Depth:       2,
+		Timestamp:   s.clock.Now(),
+		Notes: []string{
+			"Disk detail is observational only; broad cleanup is delegated to cleanup-manager plan/apply.",
+			"Suggested handoff: cleanup-manager cleanup plan --profile conservative",
+		},
+	}
+	if highestDiskPressure(detail.Partitions) >= 85 {
+		detail.Notes = append(detail.Notes, "High disk pressure detected; request a cleanup-manager preview before applying remediation.")
+	}
+
+	topDirs, dirErr := collectors.GetLargestDirectories(detail.ActiveMount, detail.Depth, 8)
+	if dirErr != nil {
+		detail.Notes = append(detail.Notes, "Directory attribution unavailable: "+dirErr.Error())
+	} else {
+		detail.TopDirectories = topDirs
+	}
+	largestFiles, fileErr := collectors.GetLargestFiles(detail.ActiveMount, 8)
+	if fileErr != nil {
+		detail.Notes = append(detail.Notes, "Largest-file attribution unavailable: "+fileErr.Error())
+	} else {
+		detail.LargestFiles = largestFiles
+	}
+
+	return detail, nil
+}
+
+func diskPartitionsFromMaps(rows []map[string]interface{}) []models.DiskPartitionInfo {
+	partitions := make([]models.DiskPartitionInfo, 0, len(rows))
+	for _, row := range rows {
+		partitions = append(partitions, models.DiskPartitionInfo{
+			Device:         getStringValue(row, "device"),
+			MountPoint:     getStringValue(row, "mount_point"),
+			SizeBytes:      getInt64Value(row, "size_bytes"),
+			SizeHuman:      getStringValue(row, "size_human"),
+			UsedBytes:      getInt64Value(row, "used_bytes"),
+			UsedHuman:      getStringValue(row, "used_human"),
+			AvailableBytes: getInt64Value(row, "available_bytes"),
+			AvailableHuman: getStringValue(row, "available_human"),
+			UsePercent:     getFloat64Value(row, "use_percent"),
+		})
+	}
+	return partitions
+}
+
+func highestDiskPressure(partitions []models.DiskPartitionInfo) float64 {
+	var highest float64
+	for _, partition := range partitions {
+		if partition.UsePercent > highest {
+			highest = partition.UsePercent
+		}
+	}
+	return highest
+}
+
 // populateCPUDetails fills the CPU section of detailed from the cpu collector data.
 func populateCPUDetails(detailed *models.DetailedMetrics, cpuData *collectors.MetricData, topCPUProcs []map[string]interface{}) {
 	if cpuData == nil {

@@ -27,6 +27,52 @@ type SearchFile struct {
 	Providers []ProviderConfig `json:"providers"`
 }
 
+// Provider operability classes. class is a scenario-owned descriptor policy
+// field that tells Search Hub what operational posture to expect of a provider
+// with no scenario-name special-casing:
+//   - ClassLocalIndex — a locally-owned, tunable, indexed corpus. Search Hub
+//     expects a reindex control endpoint (the corpus must be reconcilable);
+//     config write-back is optional (hybrid-by-construction providers pin it).
+//   - ClassLocalLive  — a locally-owned provider that computes results live with
+//     no tunable index; no reindex/config control plane is expected.
+//   - ClassExternal   — a third-party/external provider (e.g. web search); no
+//     local index, control plane, or status endpoint is expected, and its
+//     latency/reliability budget is looser (see the performance policy).
+//   - ClassAsync      — a locally-owned corpus rebuilt asynchronously; like
+//     ClassLocalIndex it must expose a reindex endpoint.
+const (
+	ClassLocalIndex = "local_index"
+	ClassLocalLive  = "local_live"
+	ClassExternal   = "external"
+	ClassAsync      = "async"
+)
+
+// KnownProviderClasses is the closed set of provider operability classes.
+var KnownProviderClasses = []string{ClassLocalIndex, ClassLocalLive, ClassExternal, ClassAsync}
+
+// ValidProviderClass reports whether class is one of the known operability
+// classes. The empty string is not valid; whether an empty class is tolerated is
+// the consumer's policy (Search Hub requires it for active providers).
+func ValidProviderClass(class string) bool {
+	switch strings.TrimSpace(class) {
+	case ClassLocalIndex, ClassLocalLive, ClassExternal, ClassAsync:
+		return true
+	default:
+		return false
+	}
+}
+
+// IndexedClass reports whether the class owns a rebuildable corpus that must
+// expose a reindex control endpoint.
+func IndexedClass(class string) bool {
+	switch strings.TrimSpace(class) {
+	case ClassLocalIndex, ClassAsync:
+		return true
+	default:
+		return false
+	}
+}
+
 // ProviderConfig is one provider's full descriptor + tuning + test corpus.
 type ProviderConfig struct {
 	ProviderID    string `json:"provider_id"`
@@ -35,6 +81,10 @@ type ProviderConfig struct {
 	Type          string `json:"type"`
 	Description   string `json:"description"`
 	Scope         string `json:"scope"`
+	// Class is the operability class (one of the Class* constants). Optional in
+	// this shared parser so capability-gap stubs and legacy descriptors still
+	// load; Search Hub requires it for active providers.
+	Class string `json:"class,omitempty"`
 
 	// Descriptor sub-objects — opaque to aisearch-go (search-hub registry shapes).
 	Endpoint       json.RawMessage `json:"endpoint,omitempty"`
@@ -48,14 +98,64 @@ type ProviderConfig struct {
 	// reindex/config-write to it. Absent for routable-but-not-tunable providers.
 	ReindexEndpoint json.RawMessage `json:"reindex_endpoint,omitempty"`
 	ConfigEndpoint  json.RawMessage `json:"config_endpoint,omitempty"`
+	// ConfigWritable declares whether Search Hub may write tuning back through a
+	// config endpoint. Indexed providers with no config_endpoint set this false
+	// with ConfigPinnedReason when tuning is intentionally fixed by construction.
+	ConfigWritable     *bool  `json:"config_writable,omitempty"`
+	ConfigPinnedReason string `json:"config_pinned_reason,omitempty"`
 
 	// Tuning is the factor values the adopter reads at boot and the sweep writes.
 	Tuning TuningConfig `json:"tuning"`
 	// Scoring is the provider's corpus gate policy. Defaults apply when omitted.
 	Scoring ScoringConfig `json:"scoring,omitempty"`
+	// Performance is the provider's latency/reliability budget. Optional: an
+	// omitted block runs on the class default budget (DefaultP95BudgetMs).
+	Performance PerformanceConfig `json:"performance,omitempty"`
 	// Tests is the scenario's evaluation corpus — the SSOT for the suite that
 	// search-hub's eval store mirrors (see searchregister.RegisterCorpus).
 	Tests TestSuite `json:"tests"`
+}
+
+// PerformanceConfig is a provider's declared latency/reliability budget. The
+// provider's operability class (see class) is the latency class; this block
+// tightens the class default or opts into telemetry.
+type PerformanceConfig struct {
+	// P95Ms is the p95 query-latency budget in milliseconds. 0 ⇒ use the class
+	// default (DefaultP95BudgetMs).
+	P95Ms int `json:"p95_ms,omitempty"`
+	// DegradedRateMax is the maximum tolerated fraction (0..1) of queries that
+	// return no result. 0 ⇒ not checked (no declared reliability budget).
+	DegradedRateMax float64 `json:"degraded_rate_max,omitempty"`
+	// TelemetryRequired opts the provider into a hard requirement that latency
+	// evidence exist: certification fails if no run latency can be measured.
+	TelemetryRequired bool `json:"telemetry_required,omitempty"`
+}
+
+// Validate bounds-checks the performance policy.
+func (p PerformanceConfig) Validate() error {
+	if p.P95Ms < 0 {
+		return fmt.Errorf("performance.p95_ms must be >= 0")
+	}
+	if p.DegradedRateMax < 0 || p.DegradedRateMax > 1 {
+		return fmt.Errorf("performance.degraded_rate_max must be between 0 and 1")
+	}
+	return nil
+}
+
+// DefaultP95BudgetMs is the conservative p95 latency budget for a provider class
+// when the descriptor declares no explicit performance.p95_ms. External and async
+// providers get looser budgets by class — no scenario-name special-casing.
+func DefaultP95BudgetMs(class string) int {
+	switch strings.TrimSpace(class) {
+	case ClassLocalIndex, ClassLocalLive:
+		return 1500
+	case ClassExternal:
+		return 4000
+	case ClassAsync:
+		return 15000
+	default:
+		return 2000
+	}
 }
 
 // ScoringConfig is the JSON shape for a provider's corpus gate policy.
@@ -84,6 +184,28 @@ type TestSuite struct {
 	// negative is just a case with ExpectNoStrongHit set; the sweep optimizes
 	// against the positives and validates that negatives stay rejected.
 	Cases []TestCase `json:"cases"`
+	// Coverage declares the provider-owned question families/tags the reviewed
+	// positive corpus must cover before production certification.
+	Coverage CoverageConfig `json:"coverage,omitempty"`
+}
+
+// CoverageConfig declares corpus breadth requirements. Search Hub enforces
+// these against reviewed positive cases only; candidates, generated cases, and
+// negatives do not count as production acceptance evidence.
+type CoverageConfig struct {
+	// RequiredTags requires at least one reviewed positive for each tag.
+	RequiredTags []string `json:"required_tags,omitempty"`
+	// RequiredTagGroups lets a provider name a family and satisfy it with any one
+	// of several tags. MinReviewedPositive defaults to 1.
+	RequiredTagGroups []CoverageTagGroup `json:"required_tag_groups,omitempty"`
+}
+
+// CoverageTagGroup is one provider-owned question family.
+type CoverageTagGroup struct {
+	ID                  string   `json:"id"`
+	Description         string   `json:"description,omitempty"`
+	Tags                []string `json:"tags"`
+	MinReviewedPositive int      `json:"min_reviewed_positive,omitempty"`
 }
 
 // TestCase is one labelled query in the canonical RANK-CENTRIC shape. A positive
@@ -230,6 +352,9 @@ func (s TestSuite) ResolvedSuiteID(providerID string) string {
 // corpus is rank-centric data, not typed config; deeper adequacy (count floor,
 // negatives, coverage) is search-hub's warn-level job, never a hard gate here.
 func (s TestSuite) Validate() error {
+	if err := s.Coverage.Validate(); err != nil {
+		return err
+	}
 	seen := make(map[string]bool, len(s.Cases))
 	for i, c := range s.Cases {
 		if strings.TrimSpace(c.ID) == "" {
@@ -266,6 +391,50 @@ func (s TestSuite) Validate() error {
 			return fmt.Errorf("tests.cases: duplicate id %q", c.ID)
 		}
 		seen[c.ID] = true
+	}
+	return nil
+}
+
+// Validate checks that coverage declarations are coherent while leaving adequacy
+// decisions to Search Hub's maturity validator.
+func (c CoverageConfig) Validate() error {
+	seenTags := make(map[string]bool, len(c.RequiredTags))
+	for i, tag := range c.RequiredTags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			return fmt.Errorf("tests.coverage.required_tags[%d] is empty", i)
+		}
+		if seenTags[tag] {
+			return fmt.Errorf("tests.coverage.required_tags: duplicate tag %q", tag)
+		}
+		seenTags[tag] = true
+	}
+	seenGroups := make(map[string]bool, len(c.RequiredTagGroups))
+	for i, group := range c.RequiredTagGroups {
+		if strings.TrimSpace(group.ID) == "" {
+			return fmt.Errorf("tests.coverage.required_tag_groups[%d].id is required", i)
+		}
+		if seenGroups[group.ID] {
+			return fmt.Errorf("tests.coverage.required_tag_groups: duplicate id %q", group.ID)
+		}
+		seenGroups[group.ID] = true
+		if len(group.Tags) == 0 {
+			return fmt.Errorf("tests.coverage.required_tag_groups[%d].tags must not be empty", i)
+		}
+		seenGroupTags := make(map[string]bool, len(group.Tags))
+		for j, tag := range group.Tags {
+			tag = strings.TrimSpace(tag)
+			if tag == "" {
+				return fmt.Errorf("tests.coverage.required_tag_groups[%d].tags[%d] is empty", i, j)
+			}
+			if seenGroupTags[tag] {
+				return fmt.Errorf("tests.coverage.required_tag_groups[%d].tags: duplicate tag %q", i, tag)
+			}
+			seenGroupTags[tag] = true
+		}
+		if group.MinReviewedPositive < 0 {
+			return fmt.Errorf("tests.coverage.required_tag_groups[%d].min_reviewed_positive must be >= 0", i)
+		}
 	}
 	return nil
 }
@@ -336,11 +505,20 @@ func (f SearchFile) Validate() error {
 			return fmt.Errorf("search.json: duplicate provider_id %q", p.ProviderID)
 		}
 		seen[p.ProviderID] = true
+		if strings.TrimSpace(p.Class) != "" && !ValidProviderClass(p.Class) {
+			return fmt.Errorf("search.json: provider %q: class %q must be one of %s", p.ProviderID, p.Class, strings.Join(KnownProviderClasses, ", "))
+		}
 		if err := p.Tuning.Validate(); err != nil {
 			return fmt.Errorf("search.json: provider %q: %w", p.ProviderID, err)
 		}
 		if err := p.Scoring.Validate(); err != nil {
 			return fmt.Errorf("search.json: provider %q: %w", p.ProviderID, err)
+		}
+		if err := p.Performance.Validate(); err != nil {
+			return fmt.Errorf("search.json: provider %q: %w", p.ProviderID, err)
+		}
+		if p.ConfigWritable != nil && !*p.ConfigWritable && strings.TrimSpace(p.ConfigPinnedReason) == "" {
+			return fmt.Errorf("search.json: provider %q: config_pinned_reason is required when config_writable is false", p.ProviderID)
 		}
 		if err := p.Tests.Validate(); err != nil {
 			return fmt.Errorf("search.json: provider %q: %w", p.ProviderID, err)

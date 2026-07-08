@@ -12,14 +12,26 @@ import (
 // CLI exits with status 0.
 var ErrHelpRequested = errors.New("help requested")
 
-// RunContext is the surface a Command's RunCtx handler sees. It carries the
-// parsed flags/positionals plus shortcuts for the renderers and the API
-// client.
+// OperationContext is the narrow surface a renderer-separated primitive's
+// operation callback sees (the `call`/`report` funcs passed to ProtoList,
+// ProtoMutation, ProtoOperational, DurableRun, …). It exposes exactly the inputs
+// an operation needs to build its request and map its response — parsed
+// flags/positionals, flag bindings, and the API client via Core — and NOTHING
+// that reveals the output format.
 //
-// Accessors panic on undeclared names. The schema is the source of truth,
-// so a typo in a handler ("titel" vs "title") fails fast at the first
-// invocation rather than silently returning empty strings.
-type RunContext interface {
+// It deliberately omits JSON(), the Render* helpers, and Stdout()/Stderr(): an
+// operation callback that cannot observe --json physically cannot branch its
+// behavior on the output mode. --json is an output contract owned by the
+// primitive (which renders from the single operation result), not an operation
+// selector. This is the structural guarantee behind the L4 rung of the
+// command-architecture maturity ladder (see
+// scenarios/cli-health/docs/reference/cli-architecture-maturity.md) — it is
+// enforced at compile time by the callback signatures, not by convention.
+//
+// Accessors panic on undeclared names. The schema is the source of truth, so a
+// typo in a handler ("titel" vs "title") fails fast at the first invocation
+// rather than silently returning empty strings.
+type OperationContext interface {
 	// Flag returns the value of a valued flag. If the flag was not provided,
 	// returns the schema's Default.
 	Flag(name string) string
@@ -43,20 +55,6 @@ type RunContext interface {
 	// handlers that need a passthrough fallback.
 	Args() []string
 
-	// JSON reports whether --json was passed (the parser reserves --json
-	// as a built-in pseudo-flag for any command using ArgSchema).
-	JSON() bool
-
-	// RenderList routes a ListReport to either JSON or human output based on
-	// the --json flag.
-	RenderList(report ListReport) error
-
-	// RenderMutation routes a MutationReport to either JSON or human output.
-	RenderMutation(report MutationReport) error
-
-	// RenderOperational routes an OperationalReport to either JSON or human output.
-	RenderOperational(report OperationalReport) error
-
 	// FlagBindings returns the subset of declared flags with non-zero
 	// Bind metadata. Generic dispatchers (protodispatch) use this to
 	// project --foo-file / --request-payload style flags onto specific
@@ -71,6 +69,31 @@ type RunContext interface {
 	// Core returns the underlying ScenarioApp for handlers that need direct
 	// API access beyond Call[Req,Resp].
 	Core() *ScenarioApp
+}
+
+// RunContext is the surface a Command's RunCtx handler sees. It is the full
+// dispatch surface: an OperationContext (the parsed inputs and API client) plus
+// the output-mode selector and renderers that a top-level handler owns.
+//
+// Renderer-separated primitive operation callbacks receive only the embedded
+// OperationContext, never this wider surface, so they cannot reach JSON() or the
+// Render* helpers.
+type RunContext interface {
+	OperationContext
+
+	// JSON reports whether --json was passed (the parser reserves --json
+	// as a built-in pseudo-flag for any command using ArgSchema).
+	JSON() bool
+
+	// RenderList routes a ListReport to either JSON or human output based on
+	// the --json flag.
+	RenderList(report ListReport) error
+
+	// RenderMutation routes a MutationReport to either JSON or human output.
+	RenderMutation(report MutationReport) error
+
+	// RenderOperational routes an OperationalReport to either JSON or human output.
+	RenderOperational(report OperationalReport) error
 
 	// Stdout / Stderr expose the writers; tests inject these to capture
 	// output.

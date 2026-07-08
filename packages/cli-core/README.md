@@ -150,6 +150,71 @@ packages, documented in [Shared Package Testing](../../docs/agent-system/SHARED_
 - Pretty-print JSON responses with `cliutil.PrintJSON` / `PrintJSONMap`.
 - Keep `NeedsAPI` set on commands so the stale-checker can trigger auto-rebuilds before API calls and `--auto-start` can recover a stopped scenario automatically. In agent-controlled contexts, `--auto-start` refuses lifecycle startup and reports the operator command to run outside the agent session.
 
+## Command architecture primitives
+
+A high-maturity command is **renderer-separated**: it runs one operation and
+only *then* chooses a renderer, so `--json` is an output contract, never an
+operation selector. cli-core provides typed primitives that own the
+parse → call → render lifecycle. The operation callbacks receive a narrow
+`cliapp.OperationContext` — parsed flags/positionals, flag bindings, and `Core()`,
+but **no** `JSON()`, no `Render*`, and no writers — so a handler *physically
+cannot* observe the output format. Renderer separation is enforced by the callback
+signature at compile time, not by convention:
+
+```go
+// register.go — bind a manifest command to a renderer-separated primitive and
+// register through LoadFromManifestPrimitives so the observed primitive class is
+// stamped onto the command's evidence by construction (the evidence is held in an
+// unexported field only a cli-core builder can set — scenario code cannot forge it).
+bindings := map[string]cliapp.PrimitiveHandler{
+    "SearchService.Search": cliapp.ProtoList(
+        func(ctx cliapp.OperationContext) (*searchv1.SearchResponse, error) {
+            return callSearch(ctx) // build request + call the Connect client
+        },
+        func(ctx cliapp.OperationContext, resp *searchv1.SearchResponse) cliapp.ListReport {
+            return cliapp.ListReport{Summary: ..., Results: ...} // human report only
+        },
+    ),
+}
+group, err := cliapp.LoadFromManifestPrimitives(manifestBytes, "search", bindings)
+```
+
+- `ProtoList` / `ProtoMutation` / `ProtoOperational` — one read / write / diagnostic
+  RPC; `--json` emits the proto wire shape, human mode emits the matching
+  report contract. `ProtoListOutcome` is a read whose exit code is derived from
+  the response payload (renders, then returns a payload-derived error identically
+  in both modes). These are the normal command classes.
+- `durable_run` — a server-owned start → follow/wait → reattach run. Build it with
+  `cliapp.RunDurable` (a mode-blind `Start` plus per-mode renderers), so human,
+  `--json`, and `--jsonl` share one run path and the mode selects only the
+  renderer. A legacy (non-`RunCtx`) durable command carries evidence via
+  `cliapp.DurableRunLegacy` + `Command.WithLegacyPrimitive` (see
+  `test-genie execute`).
+- Declare the matching class in the command's manifest `architecture.primitive`
+  (`proto_list`, `proto_mutation`, `operational`, `action`) so cli-health can
+  classify the command's maturity structurally.
+- Special-case classes (streaming, upload, passthrough, external delegation,
+  durable runs) are **only** declared as an `architecture.exception`
+  (`{ class, reason }`), never as `architecture.primitive` — `architecture.primitive`
+  accepts only the normal classes. The vocabulary lives in `cliapp`
+  (`DeclarablePrimitiveClasses` for the normal declarable set, `ValidExceptionClasses`
+  for exceptions) and is the single source of truth shared with the manifest schema
+  and the cli-health classifier.
+- **Verified maturity comes from a committed static artifact, never from running
+  the command.** Export your command tree's observed primitives with
+  `cliapp.BuildPrimitiveEvidence` and commit the result at the canonical generated
+  path `cliapp.EvidenceArtifactPath(scenarioRoot)`
+  (`.vrooli/generated/cli-primitive-evidence.json`, schema `cli-primitive-evidence/v1`).
+  The artifact is generated, not handwritten: it carries a `do_not_edit` banner and
+  a `source_manifest` provenance field. Keep it fresh with a golden test using
+  `cliapptest.RequirePrimitiveEvidence` (`UPDATE_CLI_EVIDENCE=1` regenerates). CLI
+  Health reads this file statically to award verified L4 — it must never execute
+  the scenario's commands to collect evidence.
+- The full maturity ladder, exception taxonomy, and rollout policy live in
+  `scenarios/cli-health/docs/reference/cli-architecture-maturity.md`.
+- Test renderer separation with `cliapptest.RunPrimitiveModes`, which drives a
+  handler under both human and `--json` modes and returns both renderings.
+
 ## Resource wiring checklist
 - Use `cliapp.StandardResourceEnv("<resource-name>", ...)` to derive source-root and `vrooli` control-plane env vars consistently.
 - Build the core with `cliapp.NewResourceApp`, then use `StandardLifecycleCommands()` for thin delegation through `vrooli resource ...`.
@@ -166,6 +231,7 @@ packages, documented in [Shared Package Testing](../../docs/agent-system/SHARED_
 - Config: `ResolveConfigDir`, `LoadAPIConfig`, `ConfigFile` (JSON load/save).
 - Output: `PrintJSON`, `PrintJSONMap`.
 - Output contracts: `RenderOperationalReport`, `RenderListReport`, `RenderMutationReport`, `PrintReportJSON`.
+- Renderer-separated primitives: `ProtoList`, `ProtoMutation`, `ProtoOperational`, `ProtoListOutcome` (own parse→call→render; operation callbacks take the narrow `OperationContext`; pair with `RenderProtoList`/`RenderProtoMutation`/`RenderProtoOperational`). Durable runs: `RunDurable` + `DurableRunSpec`/`DurableRunMode`, `DurableRunLegacy` + `Command.WithLegacyPrimitive`. Static evidence: `BuildPrimitiveEvidence`, `WritePrimitiveEvidence`, `ParsePrimitiveEvidence`, `EvidenceArtifactPath` (canonical generated path; `EvidenceArtifactFilename` is the deprecated fallback basename), `cliapptest.RequirePrimitiveEvidence`. Architecture vocabulary: `PrimitiveClass`, `ExceptionClass`, `CommandArchitecture`, `DeclarablePrimitiveClasses`, `ValidPrimitiveClasses`, `ValidExceptionClasses`.
 - Ports: `DetectPortFromVrooli("<scenario>", "API_PORT")`.
 - Apps: `App` (command router with global flags and meta commands), `ScenarioApp` (scenario wiring + token preflight), `ConfigureCommand` (standard config UX).
 
