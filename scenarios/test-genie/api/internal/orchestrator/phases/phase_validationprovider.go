@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 const phaseSourceValidationProvider = "validation-provider"
@@ -179,12 +180,16 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 	var summary validationprovider.Summary
 	var findings []*architecturev1.ArchitectureFinding
 	var execMetrics *commonv1.ExecutionMetrics
+	var standing *runspb.PhaseMaturityStanding
+	var findingsSummary *runspb.PhaseFindingsSummary
 	report := RunPhase(ctx, logWriter, provider.Phase,
 		func() (*validationprovider.Result, error) {
 			result := client(ctx, env, logWriter, provider)
 			if result != nil {
 				findings = result.Findings
 				execMetrics = result.Metrics
+				standing = result.Standing
+				findingsSummary = result.FindingsSummary
 			}
 			return result, nil
 		},
@@ -213,6 +218,8 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 
 	report.Findings = findings
 	report.Metrics = execMetrics
+	report.MaturityStanding = standing
+	report.FindingsSummary = findingsSummary
 	if provider.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
 		report.FindingSource = findingid.SourceToken(provider.FindingSource)
 	}

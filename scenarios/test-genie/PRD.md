@@ -18,6 +18,7 @@
   - Make test execution legible through queue telemetry, execution history, and per-phase artifacts
   - Provide a single control surface for local test generation, execution, fixing, and requirement sync
   - Raise the baseline quality bar for every scenario that ships through Vrooli
+  - Be the self-describing front door for climbing every scenario's maturity ladder: after any run, surface per phase where each capability stands and the single next move, via the [Phase Capability Contract](docs/concepts/phase-capability-contract.md)
 
 ## 🎯 Operational Targets
 
@@ -83,4 +84,5 @@
 - `OT-P0-001` is the architectural foundation and is expected to stay complete.
 - `OT-P0-002` is still in progress because the AI generation workflow exists, but the delegation/control surfaces are not yet consistently reliable enough to treat as finished.
 - `OT-P1-003` remains planned because the current UI only partially exposes coverage and vault guidance.
+- The [Phase Capability Contract](docs/concepts/phase-capability-contract.md) is the SSOT for how phases declare their maturity ladder, North Star, and structured remediation docs, and how the provider-computed per-phase standing reaches the agent at the end of a run. Providers own the ladder + docs; Test Genie only aggregates and renders (guard-tested — no phase-specific knowledge in Test Genie). The provider-conformance phase enforces the contract (advisory first, gating for compliant phases; native phases carry an explicit documented exemption).
 - Success means the provider-backed phase catalog remains authoritative, metadata stays truthful enough for standards to be high-signal, and operators can understand queue state, execution state, and next actions without digging through implementation details.

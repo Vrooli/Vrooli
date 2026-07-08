@@ -11,12 +11,14 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -120,6 +122,387 @@ Add --json to any command for machine-readable output.`)
 
 func client(apiClient *cliutil.APIClient) (runs_v1connect.RunsServiceClient, error) {
 	return newClient(apiClient)
+}
+
+// Register returns the manifest-backed runs command group with cli-core
+// primitive evidence for single-call RPC commands. Long-lived follow/wait
+// commands remain in omitted manifest coverage until streaming primitives exist.
+func Register(manifest []byte, apiClient *cliutil.APIClient) (cliapp.SubcommandGroup, error) {
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, "runs", map[string]cliapp.PrimitiveHandler{
+		"RunsService.ListRuns":       cliapp.ProtoList(listRunsCall(apiClient), listRunsReport),
+		"RunsService.GetRun":         cliapp.ProtoList(getRunCall(apiClient), getRunReport),
+		"RunsService.DeleteRun":      cliapp.ProtoMutation(deleteRunCall(apiClient), deleteRunReport),
+		"RunsService.PinRun":         cliapp.ProtoMutation(pinRunCall(apiClient), pinRunReport),
+		"RunsService.UnpinRun":       cliapp.ProtoMutation(unpinRunCall(apiClient), unpinRunReport),
+		"RunsService.CompareRuns":    cliapp.ProtoListOutcome(compareRunsCall(apiClient), compareRunsReport, compareExitFromResponse),
+		"RunsService.CheckFreshness": cliapp.ProtoListOutcome(checkFreshnessCall(apiClient), checkFreshnessReport, freshnessExit),
+		"RunsService.GetRunFindings": cliapp.ProtoList(getRunFindingsCall(apiClient), getRunFindingsReport),
+		"RunsService.GetSelfHealth":  cliapp.ProtoOperational(selfHealthCall(apiClient), selfHealthReport),
+		"RunsService.GetFleetHealth": cliapp.ProtoOperational(fleetHealthCall(apiClient), fleetHealthReport),
+		"RunsService.AbortRun":       cliapp.ProtoMutation(abortRunCall(apiClient), abortRunReport),
+		"RunsService.GetRunStatus":   cliapp.ProtoOperational(runStatusCall(apiClient), runStatusReport),
+	})
+	if err != nil {
+		return cliapp.SubcommandGroup{}, err
+	}
+	group.Subcommands = append(group.Subcommands,
+		cliapp.Command{
+			Name:        "wait",
+			NeedsAPI:    true,
+			Description: "Block until a server-owned run is terminal",
+			Architecture: cliapp.CommandArchitecture{
+				Exception:       cliapp.ExceptionDurableRun,
+				ExceptionReason: "waits on an existing server-owned durable run and maps the terminal run state to the command exit code",
+			},
+		}.WithLegacyPrimitive(cliapp.DurableRunLegacy(func(args []string) error {
+			return runWait(apiClient, args, os.Stdout)
+		})),
+		cliapp.Command{
+			Name:        "wait-all",
+			NeedsAPI:    true,
+			Description: "Block until all named server-owned runs are terminal",
+			Architecture: cliapp.CommandArchitecture{
+				Exception:       cliapp.ExceptionDurableRun,
+				ExceptionReason: "waits on multiple existing server-owned durable runs and maps their aggregate terminal state to the command exit code",
+			},
+		}.WithLegacyPrimitive(cliapp.DurableRunLegacy(func(args []string) error {
+			return runWaitAll(apiClient, args, os.Stdout)
+		})),
+		cliapp.Command{
+			Name:        "follow",
+			NeedsAPI:    true,
+			Description: "Stream live events for a server-owned run",
+			Architecture: cliapp.CommandArchitecture{
+				Exception:       cliapp.ExceptionStreaming,
+				ExceptionReason: "owns a long-lived server-stream follow lifecycle rather than a single unary RPC call",
+			},
+		}.WithLegacyPrimitive(cliapp.StreamingLegacy(func(args []string) error {
+			return runFollow(apiClient, args, os.Stdout)
+		})),
+	)
+	return group, nil
+}
+
+func listRunsCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.ListRunsResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.ListRunsResponse, error) {
+		limit, err := intFlag(ctx, "limit")
+		if err != nil {
+			return nil, err
+		}
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{
+			Scenario: strings.TrimSpace(ctx.Flag("scenario")),
+			Status:   strings.TrimSpace(ctx.Flag("status")),
+			Limit:    int32(limit),
+		}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func listRunsReport(_ cliapp.OperationContext, msg *runspb.ListRunsResponse) cliapp.ListReport {
+	if len(msg.GetRuns()) == 0 {
+		return cliapp.ListReport{Summary: []string{"No runs recorded."}}
+	}
+	results := make([]string, 0, len(msg.GetRuns()))
+	for _, r := range msg.GetRuns() {
+		pinMark := ""
+		if len(r.GetPins()) > 0 {
+			pinMark = "  [pinned]"
+		}
+		results = append(results, fmt.Sprintf("%s  %-11s  %s%s", r.GetRunId(), r.GetStatus(), r.GetStartedAt(), pinMark))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d run(s) recorded.", len(results))}, ResultsHeading: "Runs", Results: results}
+}
+
+func getRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.GetRunResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.GetRunResponse, error) {
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: ctx.Flag("scenario"), RunId: ctx.Positional("run_id")}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func getRunReport(_ cliapp.OperationContext, msg *runspb.GetRunResponse) cliapp.ListReport {
+	r := msg.GetRun()
+	summary := []string{
+		fmt.Sprintf("Run: %s", r.GetRunId()),
+		fmt.Sprintf("Status: %s", r.GetStatus()),
+		fmt.Sprintf("Started: %s", r.GetStartedAt()),
+	}
+	if r.GetCompletedAt() != "" {
+		summary = append(summary, fmt.Sprintf("Ended: %s", r.GetCompletedAt()))
+	}
+	results := make([]string, 0, len(r.GetPhases())+len(r.GetPins()))
+	for _, p := range r.GetPhases() {
+		results = append(results, fmt.Sprintf("phase %-14s %s", p.GetName(), p.GetStatus()))
+	}
+	for _, p := range r.GetPins() {
+		results = append(results, fmt.Sprintf("pin %s (%s)", p.GetPinnedBy(), p.GetReason()))
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Details", Results: results}
+}
+
+func deleteRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.DeleteRunResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.DeleteRunResponse, error) {
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.DeleteRun(context.Background(), connect.NewRequest(&runspb.DeleteRunRequest{
+			Scenario: ctx.Flag("scenario"),
+			RunId:    ctx.Positional("run_id"),
+			Force:    ctx.BoolFlag("force"),
+		}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func deleteRunReport(ctx cliapp.OperationContext, _ *runspb.DeleteRunResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Deleted run %s", ctx.Positional("run_id"))}}
+}
+
+func pinRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.PinRunResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.PinRunResponse, error) {
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.PinRun(context.Background(), connect.NewRequest(&runspb.PinRunRequest{
+			Scenario: ctx.Flag("scenario"),
+			RunId:    ctx.Positional("run_id"),
+			PinnedBy: strings.TrimSpace(ctx.Flag("by")),
+			Reason:   strings.TrimSpace(ctx.Flag("reason")),
+		}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func pinRunReport(ctx cliapp.OperationContext, _ *runspb.PinRunResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Pinned run %s by %s", ctx.Positional("run_id"), ctx.Flag("by"))}}
+}
+
+func unpinRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.UnpinRunResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.UnpinRunResponse, error) {
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.UnpinRun(context.Background(), connect.NewRequest(&runspb.UnpinRunRequest{
+			Scenario: ctx.Flag("scenario"),
+			RunId:    ctx.Positional("run_id"),
+			PinnedBy: strings.TrimSpace(ctx.Flag("by")),
+		}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func unpinRunReport(ctx cliapp.OperationContext, _ *runspb.UnpinRunResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Unpinned run %s (%s)", ctx.Positional("run_id"), ctx.Flag("by"))}}
+}
+
+func compareRunsCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.CompareRunsResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.CompareRunsResponse, error) {
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{
+			Scenario: ctx.Flag("scenario"),
+			RunIdA:   ctx.Positional("left_run_id"),
+			RunIdB:   ctx.Positional("right_run_id"),
+			Phase:    strings.TrimSpace(ctx.Flag("phase")),
+		}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func compareRunsReport(_ cliapp.OperationContext, msg *runspb.CompareRunsResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.GetPhases()))
+	for _, p := range msg.GetPhases() {
+		results = append(results, fmt.Sprintf("%-14s %s (%s -> %s)", p.GetPhase(), p.GetVerdict(), p.GetStatusA(), p.GetStatusB()))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Verdict: %s", msg.GetVerdict())}, ResultsHeading: "Phases", Results: results}
+}
+
+func compareExitFromResponse(msg *runspb.CompareRunsResponse) error {
+	return compareExit(msg.GetVerdict())
+}
+
+func checkFreshnessCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.CheckFreshnessResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.CheckFreshnessResponse, error) {
+		scenario := strings.TrimSpace(ctx.Flag("scenario"))
+		if scenario == "" {
+			scenario = strings.TrimSpace(ctx.Positional("scenario_arg"))
+		}
+		if scenario == "" {
+			return nil, errors.New("scenario is required")
+		}
+		phases := splitCSV(ctx.Flag("phases"))
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.CheckFreshness(context.Background(), connect.NewRequest(&runspb.CheckFreshnessRequest{Scenario: scenario, Phases: phases}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func checkFreshnessReport(_ cliapp.OperationContext, msg *runspb.CheckFreshnessResponse) cliapp.ListReport {
+	stale := countNotFresh(msg)
+	results := make([]string, 0, len(msg.GetPhases()))
+	for _, p := range msg.GetPhases() {
+		detail := ""
+		if p.GetStatus() != "fresh" && p.GetLastRunCompletedAt() != "" {
+			detail = fmt.Sprintf(" (last passed %s, before the latest changes)", p.GetLastRunCompletedAt())
+		}
+		results = append(results, fmt.Sprintf("%-14s %s%s", p.GetPhase(), p.GetStatus(), detail))
+	}
+	summary := []string{fmt.Sprintf("%d phase(s) checked; %d stale or unknown.", len(msg.GetPhases()), stale)}
+	hints := []string{}
+	if stale > 0 && msg.GetSuggestedCommand() != "" {
+		hints = append(hints, msg.GetSuggestedCommand())
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Phases", Results: results, RetrievalHints: hints}
+}
+
+func selfHealthCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.GetSelfHealthResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.GetSelfHealthResponse, error) {
+		window, err := intFlag(ctx, "window-days")
+		if err != nil {
+			return nil, err
+		}
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.GetSelfHealth(context.Background(), connect.NewRequest(&runspb.GetSelfHealthRequest{WindowDays: int32(window)}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func selfHealthReport(_ cliapp.OperationContext, msg *runspb.GetSelfHealthResponse) cliapp.OperationalReport {
+	return cliapp.OperationalReport{Status: []string{fmt.Sprintf("self health present: %t", msg.GetSelfHealth() != nil)}}
+}
+
+func fleetHealthCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.GetFleetHealthResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.GetFleetHealthResponse, error) {
+		window, err := intFlag(ctx, "window-days")
+		if err != nil {
+			return nil, err
+		}
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.GetFleetHealth(context.Background(), connect.NewRequest(&runspb.GetFleetHealthRequest{
+			WindowDays:    int32(window),
+			IncludeRoster: ctx.BoolFlag("roster"),
+		}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func fleetHealthReport(_ cliapp.OperationContext, msg *runspb.GetFleetHealthResponse) cliapp.OperationalReport {
+	return cliapp.OperationalReport{Status: []string{fmt.Sprintf("fleet health present: %t", msg.GetFleetHealth() != nil)}}
+}
+
+func abortRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.AbortRunResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.AbortRunResponse, error) {
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.AbortRun(context.Background(), connect.NewRequest(&runspb.AbortRunRequest{Scenario: ctx.Positional("scenario"), RunId: ctx.Positional("run_id")}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func abortRunReport(ctx cliapp.OperationContext, msg *runspb.AbortRunResponse) cliapp.MutationReport {
+	status := "aborted"
+	if msg.GetStatus() != nil && msg.GetStatus().GetStatus() != "" {
+		status = msg.GetStatus().GetStatus()
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Run %s is %s", ctx.Positional("run_id"), status)}}
+}
+
+func runStatusCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.RunLiveStatus, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.RunLiveStatus, error) {
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.GetRunStatus(context.Background(), connect.NewRequest(&runspb.GetRunStatusRequest{Scenario: ctx.Positional("scenario"), RunId: ctx.Positional("run_id")}))
+		if err != nil {
+			return nil, &exitErr{code: exitNotComparable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func runStatusReport(_ cliapp.OperationContext, msg *runspb.RunLiveStatus) cliapp.OperationalReport {
+	status := "(unknown)"
+	if msg.GetStatus() != "" {
+		status = msg.GetStatus()
+	}
+	return cliapp.OperationalReport{Status: []string{fmt.Sprintf("Run status: %s", status)}}
+}
+
+func intFlag(ctx cliapp.OperationContext, name string) (int, error) {
+	value := strings.TrimSpace(ctx.Flag(name))
+	if value == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("--%s must be an integer: %w", name, err)
+	}
+	return n, nil
+}
+
+func splitCSV(value string) []string {
+	var out []string
+	for _, part := range strings.Split(value, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func requireScenario(s string) (string, error) {

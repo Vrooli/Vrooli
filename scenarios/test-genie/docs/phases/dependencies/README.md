@@ -13,6 +13,62 @@ scenario-validation/v1.ScenarioValidationService.ValidateScenario
 
 Scenario Dependency Analyzer owns dependency interpretation. Test Genie only orchestrates the phase, maps returned assessment findings into `FINDING_SOURCE_DEPENDENCY`, and stores the phase pointer. SDA's own CLI still exposes the native detail with `scenario-dependency-analyzer health <scenario>`.
 
+This phase declares a [Phase Capability Contract](../../concepts/phase-capability-contract.md); the sections below follow the required remediation-doc skeleton.
+
+## North Star
+
+Every declared dependency is **real, governed, and healthy**: dependency surfaces are fully inventoried, required runtime resources and scenario dependencies are present, running, and healthy, package metadata and local install state are clean, new package versions are held behind the default release-age cooldown with governed exceptions, observed direct dependencies all carry valid governance decisions, and the declared dependency graph matches observed import/interface evidence. At maximum maturity the scenario's dependency posture is provably accurate and safe.
+
+## The rungs and their gates
+
+SDA reports a ladder per capability. The rungs are monotone — each implies the one below.
+
+| Capability | Rungs | Top rung (aspiration) | Key next unlock |
+|---|---|---|---|
+| Surface Inventory | L0–L3 | Dependency surface inventory is clean and ready for downstream checks. | Readable target → classified surfaces → clean inventory. |
+| Runtime Dependencies | L0–L4 | Runtime dependencies are present, running, and healthy. | Manifest readable → present → running → healthy. |
+| Package Readiness | L0–L4 | Package readiness is clean across discovered dependency surfaces. | Toolchain → metadata present → coherent (lockfiles/replaces/install) → clean. |
+| Release Age Policy | L0–L4 | Release-age policy and exceptions are governed. | Policy readable → minimum configured → meets cooldown → exclusions governed. |
+| Dependency Governance | L0–L3 | Dependency governance is clean for the target scenario. | Registry readable → observed deps governed → no blocking findings. |
+| Graph Accuracy | L0–L2 | Declared dependency graph matches observed evidence. | Graph comparable → no undeclared usage or stale declarations. |
+
+## What each finding means
+
+Each finding caps the capability it names at a rung; only ERROR/BLOCKER severities fail the phase, so WARNING/INFO findings are honest, non-failing debt. Representative codes (full inventory in the descriptor):
+
+| Code | Capability | Caps at | Severity | Fails phase? |
+|---|---|---|---|---|
+| `dependency.runtime.manifest_readable` | runtime_dependencies | L0 | ERROR | Yes |
+| `dependency.runtime.resource_healthy` | runtime_dependencies | L4 | ERROR | Yes |
+| `dependency.runtime.scenario_healthy` | runtime_dependencies | L4 | ERROR | Yes |
+| `dependency.go.build` | package_readiness | L3 | ERROR | Yes |
+| `dependency.node.lockfile_present` | package_readiness | L3 | ERROR | Yes |
+| `dependency.release_age.minimum_value` | release_age_policy | L3 | ERROR | Yes |
+| `dependency.release_age.exclude_governed` | release_age_policy | L4 | ERROR | Yes |
+| `dependency.governance.registry_readable` | dependency_governance | L0 | ERROR | Yes |
+| `dependency.governance.approved_dependency` | dependency_governance | L2 | WARNING | No |
+| `dependency.graph.undeclared` | graph_accuracy | L2 | WARNING | No |
+
+## The canonical fix
+
+- **Surface-inventory findings** (`dependency.surfaces.none`, `dependency.surface.unsupported*`) → make dependency surfaces discoverable, or accept the explicit unsupported classification.
+- **Runtime findings** (`dependency.runtime.*`) → make the `.vrooli/service.json` manifest readable, then start/restart the required resource or scenario dependency until it reports present, running, and healthy.
+- **Package-readiness findings** (`dependency.go.*`, `dependency.node.*`, `dependency.command.available`, `dependency.gomod.replace.missing`) → install missing toolchain commands, add the package metadata (`go.mod`/`package.json`), fix Go module tidy/build and local replaces, and ensure a single Node lockfile with coherent install state. `dependency.gomod.replace.missing` is auto-fixable.
+- **Release-age findings** (`dependency.release_age.*`) → make the pnpm policy readable, configure a `minimumReleaseAge` that meets Vrooli's default cooldown, and record approved governance for any exclusions.
+- **Governance findings** (`dependency.governance.*`) → never hand-edit the approved-dependency JSON; use `scenario-dependency-analyzer deps approved explain <ecosystem>/<pkg>` then `approve-observed --apply` / `widen-range` / `deny-vulnerable` as appropriate.
+- **Graph-accuracy findings** (`dependency.graph.*`, `dependency.undeclared-but-used`, `dependency.declared-without-import-evidence`) → reconcile `.vrooli/service.json` declarations with observed import/interface evidence: declare undeclared usage or remove stale declarations.
+
+## How to verify
+
+```bash
+# See the current rung, gaps, and next move for every capability:
+scenario-dependency-analyzer validate scenario <scenario>
+
+# Or drive it through Test Genie and read the per-phase scorecard:
+test-genie execute <scenario> --phases dependencies
+test-genie runs findings --scenario <scenario>
+```
+
 ## What Gets Checked
 
 SDA health currently reports these machine-readable sections:

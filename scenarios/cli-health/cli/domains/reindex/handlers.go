@@ -35,76 +35,94 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 
 // controlToken resolves the control token from the --control-token flag, falling
 // back to the CLI_HEALTH_SEARCH_CONTROL_TOKEN env var.
-func controlToken(ctx cliapp.RunContext) string {
+func controlToken(ctx cliapp.OperationContext) string {
 	if t := strings.TrimSpace(ctx.Flag("control-token")); t != "" {
 		return t
 	}
 	return strings.TrimSpace(os.Getenv(controlTokenEnv))
 }
 
-// run calls the shared SearchControlService.Reindex method. The legacy
-// --scenario flag maps onto the contract's provider-defined `scope` filter.
-func (h *handlers) run(ctx cliapp.RunContext) error {
+// runCall calls the shared SearchControlService.Reindex method. The legacy
+// --scenario flag maps onto the contract's provider-defined `scope` filter. It
+// is the operation half of the proto_mutation primitive; runReport renders it.
+func (h *handlers) runCall(ctx cliapp.OperationContext) (*controlv1.ReindexResponse, error) {
 	resp, err := h.client.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{
 		Scope:        ctx.Flag("scenario"),
 		DryRun:       ctx.BoolFlag("dry-run"),
 		ControlToken: controlToken(ctx),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("reindex run", err, nil)
+		return nil, cliapp.WrapAPIError("reindex run", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no reindex response")
+		return nil, fmt.Errorf("server returned no reindex response")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Started reindex job %s (dry_run=%v).", resp.Msg.JobId, resp.Msg.DryRun)},
-		Changes: []string{
-			fmt.Sprintf("planned_upserts=%d", resp.Msg.PlannedUpserts),
-			fmt.Sprintf("planned_deletes=%d", resp.Msg.PlannedDeletes),
-		},
-		NextCommand: []string{
-			fmt.Sprintf("`reindex status %s` — poll job progress", resp.Msg.JobId),
-			fmt.Sprintf("`reindex cancel %s` — cooperatively cancel the job", resp.Msg.JobId),
-		},
-	})
+	return resp.Msg, nil
 }
 
-// status calls the shared SearchControlService.ReindexStatus method.
-func (h *handlers) status(ctx cliapp.RunContext) error {
+// runReport maps the reindex response to the human MutationReport.
+func (h *handlers) runReport(_ cliapp.OperationContext, msg *controlv1.ReindexResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Started reindex job %s (dry_run=%v).", msg.JobId, msg.DryRun)},
+		Changes: []string{
+			fmt.Sprintf("planned_upserts=%d", msg.PlannedUpserts),
+			fmt.Sprintf("planned_deletes=%d", msg.PlannedDeletes),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("`reindex status %s` — poll job progress", msg.JobId),
+			fmt.Sprintf("`reindex cancel %s` — cooperatively cancel the job", msg.JobId),
+		},
+	}
+}
+
+// statusCall runs SearchControlService.ReindexStatus (operation half of the
+// proto_list primitive); statusReport renders it.
+func (h *handlers) statusCall(ctx cliapp.OperationContext) (*controlv1.ReindexStatusResponse, error) {
 	jobID := ctx.Positional("job_id")
 	resp, err := h.client.ReindexStatus(context.Background(), connect.NewRequest(&controlv1.ReindexStatusRequest{
 		JobId:        jobID,
 		ControlToken: controlToken(ctx),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("reindex status %q", jobID), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("reindex status %q", jobID), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no status response")
+		return nil, fmt.Errorf("server returned no status response")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	return resp.Msg, nil
+}
+
+// statusReport maps the status response to the human ListReport.
+func (h *handlers) statusReport(_ cliapp.OperationContext, msg *controlv1.ReindexStatusResponse) cliapp.ListReport {
+	return cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Job %s: state=%s processed=%d/%d", resp.Msg.JobId, resp.Msg.State, resp.Msg.Processed, resp.Msg.Total),
+			fmt.Sprintf("Job %s: state=%s processed=%d/%d", msg.JobId, msg.State, msg.Processed, msg.Total),
 		},
 		ResultsHeading: "Status",
 		Results:        []string{},
-	})
+	}
 }
 
-// cancel calls the shared SearchControlService.ReindexCancel method.
-func (h *handlers) cancel(ctx cliapp.RunContext) error {
+// cancelCall runs SearchControlService.ReindexCancel (operation half of the
+// proto_mutation primitive); cancelReport renders it.
+func (h *handlers) cancelCall(ctx cliapp.OperationContext) (*controlv1.ReindexCancelResponse, error) {
 	jobID := ctx.Positional("job_id")
 	resp, err := h.client.ReindexCancel(context.Background(), connect.NewRequest(&controlv1.ReindexCancelRequest{
 		JobId:        jobID,
 		ControlToken: controlToken(ctx),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("reindex cancel %q", jobID), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("reindex cancel %q", jobID), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no cancel response")
+		return nil, fmt.Errorf("server returned no cancel response")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Cancel job %s: cancelled=%v", resp.Msg.JobId, resp.Msg.Cancelled)},
-	})
+	return resp.Msg, nil
+}
+
+// cancelReport maps the cancel response to the human MutationReport.
+func (h *handlers) cancelReport(_ cliapp.OperationContext, msg *controlv1.ReindexCancelResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Cancel job %s: cancelled=%v", msg.JobId, msg.Cancelled)},
+	}
 }

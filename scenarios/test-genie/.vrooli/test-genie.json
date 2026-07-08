@@ -249,6 +249,45 @@
         "fix_class": "manual",
         "reason": "Phase documentation must explain provider-specific semantics only the owner knows."
       },
+      "PROVIDER_DOCS_SKELETON_INCOMPLETE": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "documentation-health"
+        ],
+        "fix_class": "manual",
+        "reason": "The remediation doc must follow the Phase Capability Contract skeleton so run doc-search topics resolve to the right section."
+      },
+      "PROVIDER_NORTH_STAR_MISSING": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "documentation-health"
+        ],
+        "fix_class": "manual",
+        "reason": "The ladder's top rung must state a first-class North Star aspiration only the provider owner can author."
+      },
+      "PROVIDER_LADDER_INCOMPLETE": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "documentation-health"
+        ],
+        "fix_class": "manual",
+        "reason": "Every ladder rung needs entry/exit gates and a next_unlock so the standing can direct the next move."
+      },
       "PROVIDER_AUTOFIX_DECLARATION_INCOMPLETE": {
         "capability_id": "provider_contract",
         "local_level_impact": "L2",

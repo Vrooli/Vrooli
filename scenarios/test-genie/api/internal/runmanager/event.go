@@ -7,7 +7,11 @@
 // through (blocking REST, the SSE gateway, and the Connect run surface).
 package runmanager
 
-import "test-genie/internal/orchestrator"
+import (
+	"test-genie/internal/orchestrator"
+
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+)
 
 // Canonical run-event kinds. This is the one event vocabulary all followers
 // (the SSE gateway, the Connect FollowRun stream, the CLI) observe, regardless
@@ -53,6 +57,13 @@ type Event struct {
 	Success bool   `json:"success,omitempty"`
 	Verdict string `json:"verdict,omitempty"`
 	Error   string `json:"error,omitempty"`
+
+	// Phase-completed maturity standing + findings summary (Phase Capability
+	// Contract). Present on phase_completed/phase_failed events for phases whose
+	// provider declares a maturity ladder. Not serialized into the canonical line
+	// stream; transports that carry the rich shape read them directly.
+	MaturityStanding *runspb.PhaseMaturityStanding `json:"-"`
+	FindingsSummary  *runspb.PhaseFindingsSummary  `json:"-"`
 
 	// Result is the full terminal result on run_completed (nil otherwise). It is
 	// not serialized into the canonical line stream; transports that need the

@@ -3,7 +3,9 @@ package domains
 import (
 	"test-genie/cli/domains/local"
 	"test-genie/cli/domains/suites"
+	"test-genie/cli/eligibility"
 	"test-genie/cli/internal/deps"
+	"test-genie/cli/runs"
 
 	"github.com/vrooli/api-core/spacecli"
 	"github.com/vrooli/api-core/spacedoc"
@@ -22,4 +24,17 @@ func CommandGroups(runtime deps.Runtime) []cliapp.CommandGroup {
 		// contract meta-optimization-manager consumes.
 		spacecli.CommandGroup(spacecli.Config{Owner: "test-genie", Projection: spacedoc.ProjectionValidate}),
 	}
+}
+
+// SubcommandGroups returns manifest-backed hierarchical command groups.
+func SubcommandGroups(manifest []byte, runtime deps.Runtime) ([]cliapp.SubcommandGroup, error) {
+	runsGroup, err := runs.Register(manifest, runtime.APIClient)
+	if err != nil {
+		return nil, err
+	}
+	eligibilityGroup, err := eligibility.Register(manifest, runtime.APIClient)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{runsGroup, eligibilityGroup}, nil
 }

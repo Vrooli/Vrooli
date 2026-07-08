@@ -190,6 +190,63 @@ func TestGetPhaseArtifact(t *testing.T) {
 	}
 }
 
+func TestGetRunFindings(t *testing.T) {
+	svc, root := newTestService(t)
+	scenarioDir := filepath.Join(root, "demo")
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "r1", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed})
+
+	runDir := sharedartifacts.RunDir(scenarioDir, "r1")
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A findings.json carrying a per-phase maturity standing, as written by the
+	// orchestrator (encoding/json using the proto json tags).
+	findings := `{
+	  "scenario": "demo",
+	  "runId": "r1",
+	  "verdict": "pass",
+	  "phases": [
+	    {"name": "contracts", "status": "passed", "findingSource": "cli",
+	     "maturityStanding": {"provider": "cli-health", "phase": "contracts", "current_level": "L3", "next_level": "L4", "ceiling_level": "L4", "north_star": "Verified primitives.", "next_move": "Prove the primitive.", "blocking_finding_codes": ["arch.primitive_unverified"]},
+	     "findingsSummary": {"warnings": 1, "total": 1}}
+	  ]
+	}`
+	if err := os.WriteFile(sharedartifacts.RunFindingsArtifactPath(scenarioDir, "r1"), []byte(findings), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "r1"}))
+	if err != nil {
+		t.Fatalf("GetRunFindings: %v", err)
+	}
+	if len(resp.Msg.GetPhases()) != 1 {
+		t.Fatalf("want 1 phase, got %d", len(resp.Msg.GetPhases()))
+	}
+	st := resp.Msg.GetPhases()[0].GetMaturityStanding()
+	if st == nil || st.GetCurrentLevel() != "L3" || st.GetNextLevel() != "L4" || st.GetNorthStar() != "Verified primitives." {
+		t.Fatalf("standing not read back from findings.json: %+v", st)
+	}
+	if st.GetNextMove() != "Prove the primitive." || len(st.GetBlockingFindingCodes()) != 1 {
+		t.Fatalf("standing detail missing: %+v", st)
+	}
+
+	// "latest" resolves via the latest mirror.
+	if err := os.MkdirAll(sharedartifacts.LatestDirPath(scenarioDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sharedartifacts.LatestFindingsArtifactPath(scenarioDir), []byte(findings), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "latest"})); err != nil {
+		t.Fatalf("GetRunFindings latest: %v", err)
+	}
+
+	// Missing artifact → NotFound.
+	if _, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "nope"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("expected NotFound, got %v", err)
+	}
+}
+
 // FindRun returns the newest completed run that matches every shape filter, and
 // found=false when none does. It is the reuse primitive git-control-tower
 // queries: only a clean, comprehensive+baseline run at the requested sha should

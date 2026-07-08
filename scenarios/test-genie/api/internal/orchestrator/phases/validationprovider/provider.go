@@ -21,6 +21,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 type GateMode string
@@ -125,6 +126,13 @@ type Result struct {
 	// resources, host environment), present only when the provider has adopted
 	// the metrics contract. nil for un-migrated providers.
 	Metrics *commonv1.ExecutionMetrics
+	// Standing is the compact per-phase maturity standing projected from the
+	// provider's MaturityAssessment (Phase Capability Contract). nil when the
+	// provider declares no phase-level ladder.
+	Standing *runspb.PhaseMaturityStanding
+	// FindingsSummary is the per-severity tally for this phase (non-nil whenever
+	// an assessment was returned; all-zero for a clean phase).
+	FindingsSummary *runspb.PhaseFindingsSummary
 }
 
 type Client interface {
@@ -196,8 +204,10 @@ func translate(provider Provider, fallbackScenario string, resp *scenariovalidat
 			Summary:      summary,
 			Observations: observations(provider, resp.GetAssessment()),
 		},
-		Findings: findings,
-		Metrics:  resp.GetMetrics(),
+		Findings:        findings,
+		Metrics:         resp.GetMetrics(),
+		Standing:        buildStanding(provider, resp.GetAssessment()),
+		FindingsSummary: buildFindingsSummary(summary),
 	}
 	switch resp.GetStatus() {
 	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED:

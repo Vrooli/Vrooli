@@ -11,6 +11,7 @@ type (
 	Response     = execTypes.Response
 	Phase        = execTypes.Phase
 	PhaseSummary = execTypes.PhaseSummary
+	RunHandle    = execTypes.RunHandle
 )
 
 // Args holds parsed CLI inputs for the execute command.

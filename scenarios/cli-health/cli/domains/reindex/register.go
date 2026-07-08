@@ -17,12 +17,16 @@ const GroupName = "reindex"
 // and wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"SearchControlService.Reindex":       h.run,
-		"SearchControlService.ReindexStatus": h.status,
-		"SearchControlService.ReindexCancel": h.cancel,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		// Every command is built with the cli-core primitive its manifest command
+		// declares, so its operation runs outside any output-format branch and the
+		// observed primitive proves the declaration (LoadFromManifestPrimitives
+		// fails fast on any mismatch). This is a verified-L4 reference adopter.
+		"SearchControlService.Reindex":       cliapp.ProtoMutation(h.runCall, h.runReport),
+		"SearchControlService.ReindexStatus": cliapp.ProtoList(h.statusCall, h.statusReport),
+		"SearchControlService.ReindexCancel": cliapp.ProtoMutation(h.cancelCall, h.cancelReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("reindex: load from manifest: %w", err)
 	}

@@ -15,10 +15,10 @@ const GroupName = "validate"
 // and wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"ScenarioValidationService.ValidateScenario": h.validateScenario,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"ScenarioValidationService.ValidateScenario": cliapp.ProtoListOutcome(h.scenarioCall, h.scenarioReport, h.scenarioOutcome),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("validate: load from manifest: %w", err)
 	}

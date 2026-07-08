@@ -571,7 +571,7 @@ func (m *Manager) onOrchestratorEvent(ar *activeRun, ev orchestrator.ExecutionEv
 		if ev.Status != "passed" && ev.Status != "skipped" {
 			kind = EventPhaseFailed
 		}
-		ar.bc.publish(Event{Kind: kind, ElapsedSeconds: elapsed, Phase: ev.Phase, Status: ev.Status, DurationSeconds: ev.DurationSeconds, Error: ev.Error})
+		ar.bc.publish(Event{Kind: kind, ElapsedSeconds: elapsed, Phase: ev.Phase, Status: ev.Status, DurationSeconds: ev.DurationSeconds, Error: ev.Error, MaturityStanding: ev.MaturityStanding, FindingsSummary: ev.FindingsSummary})
 	case orchestrator.EventObservation, orchestrator.EventProgress:
 		if strings.TrimSpace(ev.Message) == "" {
 			return

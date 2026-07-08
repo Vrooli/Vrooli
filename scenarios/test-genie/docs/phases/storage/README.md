@@ -18,6 +18,84 @@ phases). Test Genie calls `storage-health validate scenario <scenario>`, maps
 the returned `MaturityAssessment` findings into the `FINDING_SOURCE_STORAGE`
 channel, and gates the phase on finding severity.
 
+This phase declares a [Phase Capability Contract](../../concepts/phase-capability-contract.md); the sections below follow the required remediation-doc skeleton.
+
+## North Star
+
+Every storage-owning scenario is **isolation-safe and persistence-clean**:
+destructive end-to-end flows are statically routed to isolated, variant-aware
+test storage (never production data), embedded schemas are per-domain,
+idempotent, `ALTER`-free, and wired through the supported seam, all persistence
+goes through the routed repository seam with no raw `sql.Open`, unclosed rows, or
+SQLite single-connection deadlocks, and backup/migration posture is clean or
+intentionally not applicable. At maximum maturity the safety throughline —
+`isolation_safety` — is L3 (clean) and the supporting ladders
+(`target_classification`, `schema_substrate`, `persistence_hygiene`,
+`operational_readiness`) are each at their top rung, so the `workflow` phase can
+run mutating flows safely.
+
+## The rungs and their gates
+
+The phase aggregates five per-capability ladders; the safety-critical one is
+`isolation_safety` (its L2 verdict gates whether destructive workflow flows may
+run). The rungs are monotone.
+
+| Rung (isolation_safety) | Gate | Next unlock |
+|---|---|---|
+| L0 Unknown | Storage isolation cannot be evaluated. | Routed storage seams can be inspected. |
+| L1 Inspectable | Isolation seams and namespace usage can be inspected. | Prove routed seams and variant-aware namespaces. |
+| L2 Safe | Destructive E2E playbooks are statically routed to isolated test storage. | Clear the remaining isolation findings. |
+| L3 Clean | Storage isolation checks are clean. | Maximum isolation-safety maturity reached. |
+
+The other capabilities share the same L0→top shape: schema must be coherent
+(`schema_substrate`), persistence hygienic (`persistence_hygiene` — the fallback
+capability), the target classifiable (`target_classification`), and backup/migration
+posture visible (`operational_readiness`).
+
+## What each finding means
+
+Each finding caps the capability it names at a rung; only ERROR/BLOCKER
+severities fail the phase, so many hygiene/advisory findings are honest,
+non-failing debt.
+
+| Code | Capability | Caps at | Severity | Fails phase? |
+|---|---|---|---|---|
+| `ROUTED_SEAMS_UNWIRED` | isolation_safety | L2 | ERROR | Yes |
+| `STORAGE_ISOLATION_UNVERIFIED` | isolation_safety | L2 | WARNING | No |
+| `SCHEMA_CENTRALIZED` | schema_substrate | L2 | ERROR | Yes |
+| `SCHEMA_NOT_IDEMPOTENT` | schema_substrate | L2 | ERROR | Yes |
+| `RAW_SQL_OPEN` | persistence_hygiene | L2 | ERROR | Yes |
+| `ROUTED_DRIVER_IMPORT` | persistence_hygiene | L2 | ERROR | Yes |
+| `DB_ROWS_NOT_CLOSED` | persistence_hygiene | L2 | ERROR | Yes |
+| `SQLITE_POOL_DEADLOCK` | persistence_hygiene | L2 | ERROR | Yes |
+| `BACKUP_TARGET_MISSING` | operational_readiness | L1 | INFO | No |
+| `MIGRATION_DEBT` | operational_readiness | L1 | INFO | No |
+
+The full finding inventory (schema layout, cross-domain FKs, per-domain
+ownership, handle capture, namespace hardcoding, direct SQL in handlers) is
+declared in the descriptor's `maturity.findings` block.
+
+## The canonical fix
+
+- **Isolation** (`ROUTED_SEAMS_UNWIRED`) → wire the four routed test-DB seams (`database.Open`→`*RoutedDB`, `database.EnsureSchemas`, `apihttp.TestModeMiddleware`, `devrouting.Register`); `STORAGE_ISOLATION_UNVERIFIED` on a non-Go API means porting to the Go seams or adding an equivalent verifiable mechanism.
+- **Schema** (`SCHEMA_CENTRALIZED`, `SCHEMA_NOT_IDEMPOTENT`, `SCHEMA_HAS_ALTER`, `ENSURE_SCHEMAS_NOT_WIRED`) → split into per-domain `schema.sql`, make DDL idempotent (`IF NOT EXISTS`), relocate `ALTER` into a migration, and wire schemas through the supported seam. Several are auto-fixable.
+- **Persistence** (`RAW_SQL_OPEN`, `ROUTED_DRIVER_IMPORT`, `SQL_DB_HANDLE_CAPTURE`, `DB_ROWS_NOT_CLOSED`, `DIRECT_SQL_IN_HANDLERS`, `SQLITE_POOL_DEADLOCK`) → route access through the `api-core/database` repository seam, close rows, and restructure `MaxOpenConns:1` nested-query flows. `DB_ROWS_NOT_CLOSED` is auto-fixable.
+- **Operational** (`BACKUP_TARGET_MISSING`, `MIGRATION_DEBT`) → advisory: register a data-backup-manager target or author a stage-appropriate migration; these never fail the phase.
+
+Many findings are auto-fixable — `storage-health fix preview|apply <scenario>`
+previews/applies format-preserving repairs (dry-run by default).
+
+## How to verify
+
+```bash
+# See the current rung, gaps, and next move for every capability:
+storage-health validate scenario <scenario>
+
+# Or drive it through Test Genie and read the per-phase scorecard:
+test-genie execute <scenario> --phases storage
+test-genie runs findings --scenario <scenario>
+```
+
 ## What Gets Validated
 
 storage-health runs static, Go-first analyzers across four concerns:

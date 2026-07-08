@@ -12,6 +12,64 @@ This is the **cohesion axis** of the audit battery. The per-surface phases
 surface built right?"; the `architecture` phase asks "does the whole scenario
 cohere?".
 
+This phase declares a [Phase Capability Contract](../../concepts/phase-capability-contract.md); the sections below follow the required remediation-doc skeleton, so a doc-search topic emitted in a run's scorecard resolves to the exact remediation section.
+
+## North Star
+
+The scenario's code screams its product's capabilities: a fresh graph extracts without tool errors; curated, high-confidence domain authority (e.g. `docs/concepts/DOMAINS.md`) makes every finding routeable to an intentional owner; the domains hold together with no import cycles, layering violations, cross-scenario private imports, coupling smells, or mislocated files; the declared API, CLI, UI, and implementation surfaces agree with domain authority and archetype expectations; and PRD/requirement intent claims align with owned domains, operational targets, and domain vocabulary. At maximum maturity every capability ladder — graph extraction, domain authority, boundary integrity, surface coherence, intent alignment — is at **L3 Complete**, clean enough for recurring fleet drift-monitoring.
+
+## The rungs and their gates
+
+architecture-cartographer reports a ladder per capability (`graph_extraction`, `domain_authority`, `boundary_integrity`, `surface_coherence`, `intent_alignment`). The rungs are monotone — each implies the one below — and all five capabilities share the same shape.
+
+| Rung | Gate (what it means) | Next unlock |
+|---|---|---|
+| L0 Unavailable | The graph, domain authority, or comparison evidence the capability needs cannot be produced. | Make the source graph and domain authority readable and extractable without tool errors. |
+| L1 Foundation | Findings are stable enough to route (codes, locations, domains), but drift remains. | Resolve the deterministic blocker/error findings for the capability. |
+| L2 Ready | No deterministic blocker/error findings remain in active code paths. | Eliminate or deliberately suppress the remaining heuristic debt. |
+| L3 Complete | No provider-owned blocking or debt findings remain. | Maximum maturity reached — clean enough for recurring drift monitoring. |
+
+## What each finding means
+
+Each finding caps the capability it names at the rung shown; only ERROR/BLOCKER severities fail the phase (and, per this phase's confidence gate, only when authority confidence is high), so `WARNING`/`INFO` findings are honest, non-failing debt.
+
+| Code | Capability | Caps at | Severity | Fails phase? |
+|---|---|---|---|---|
+| `graph.extract_failed` | graph_extraction | L0 | ERROR | Yes |
+| `domain_authority/missing` | domain_authority | L0 | WARNING | No |
+| `domain_authority/low` | domain_authority | L1 | INFO | No |
+| `domains_doc_parse_warning` | domain_authority | L1 | WARNING | No |
+| `cycle` / `cycle/cross-domain` / `layering` | boundary_integrity | L2 | ERROR | Yes |
+| `cross_scenario` | boundary_integrity | L2 | ERROR (safety) | Yes |
+| `coupling_smell` / `mislocated_file` / `naming` / `glossary_drift` | boundary_integrity | L3 | WARNING | No |
+| `convergence_drift` / `surface_coherence` | surface_coherence | L2 | WARNING | No |
+| `intent.req_unowned_domain` | intent_alignment | L2 | ERROR | Yes |
+| `intent.domain_unrequired` / `intent.ot_no_domain` | intent_alignment | L2 | WARNING | No |
+| `intent.req_transport_owned` / `intent.vocab_drift` | intent_alignment | L2 | INFO / WARNING | No |
+
+## The canonical fix
+
+- **Graph-extraction findings** (`graph.extract_failed`) → repair the extraction failure (unparseable source, tool crash) so a graph snapshot can be produced; debug with `prompt-manager skill read scientific-debugging`.
+- **Domain-authority findings** (`domain_authority/missing`, `domain_authority/low`, `domains_doc_parse_warning`) → add or curate a domain authority source such as `docs/concepts/DOMAINS.md` and fix its parse warnings so findings route to intentional owners.
+- **Boundary-integrity findings** (`cycle`, `cycle/cross-domain`, `layering`, `cross_scenario`, `coupling_smell`, `mislocated_file`, `naming`, `glossary_drift`) → break import cycles, respect layering, replace cross-scenario private imports with the owner's API contract, and relocate/rename mislocated or misnamed files; load `prompt-manager skill read boundary-of-responsibility-enforcement`.
+- **Surface-coherence findings** (`convergence_drift`, `surface_coherence`) → reconcile missing, stale, or undeclared API/CLI/UI/implementation surfaces so declared and observed surfaces agree with domain authority.
+- **Intent-alignment findings** (`intent.req_unowned_domain`, `intent.domain_unrequired`, `intent.ot_no_domain`, `intent.req_transport_owned`, `intent.vocab_drift`) → reconcile requirement and PRD claims, operational targets, and domain vocabulary with the owned domain map; load `prompt-manager skill read requirements-traceability-steer`.
+
+The `screaming-architecture-audit` skill is the umbrella remediation guide for this phase.
+
+## How to verify
+
+```bash
+# See the current rung, gaps, and next move for every architecture capability:
+architecture-cartographer audit run <scenario>
+
+# Or drive it through Test Genie and read the per-phase scorecard:
+test-genie execute <scenario> --phases architecture
+test-genie runs findings --scenario <scenario>
+```
+
+The `architecture` line in the scorecard shows the current rung, the single highest-unlock next move, and a runnable doc-search topic that resolves back to the sections above.
+
 ## How It Runs
 
 Test Genie resolves the architecture-cartographer base URL via service discovery

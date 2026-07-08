@@ -1,8 +1,6 @@
 package execute
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -26,6 +24,18 @@ func HelpText() string {
 survives this command being interrupted: the run id and a re-attach command are
 printed up front, and a known-long run is launched in the background (use --wait
 to always block inline). Re-attach with 'test-genie runs wait <scenario> <id>'.
+
+Run-handle timing by output mode (all three share one server-owned StartRun):
+  human   run id + re-attach command printed to stderr immediately; a known-long
+          run auto-backgrounds (unless --wait).
+  --jsonl first stdout event is run_started (carries run_id); each phase event
+          streams as one JSON line; last event is run_completed.
+  --json  blocks to completion and prints one final SuiteExecutionResult object
+          to stdout (with executionId + runHandle). Because stdout stays a single
+          object, the early run handle is emitted as one run_started JSON line on
+          stderr at start, so a long run is never opaque until it finishes. Start
+          and follow failures print a parseable {"success":false,...} object with
+          the scenario (and run id, once started).
 
 Examples:
   test-genie execute swarm-manager
@@ -82,6 +92,14 @@ func Run(client *Client, args []string) error {
 		return RunDurable(baseURL, req, DurableOptions{JSONL: true})
 	}
 
+	// --json: block to completion over the same durable run path and emit the
+	// final Response as one JSON object. Shares StartRun with the human and
+	// JSONL modes — no separate blocking execution path — so --json is purely an
+	// output contract. Skips the human pre-execution preview/printer entirely.
+	if parsed.JSON {
+		return RunDurable(baseURL, req, DurableOptions{JSON: true})
+	}
+
 	var (
 		preview        execTypes.PlanPreview
 		previewReady   bool
@@ -91,7 +109,8 @@ func Run(client *Client, args []string) error {
 		preview = planned
 		previewReady = true
 		progressPhases = plannedPhaseNames(planned)
-	} else if !parsed.JSON {
+	} else {
+		// Human path only (--json/--jsonl returned above).
 		fmt.Fprintf(os.Stderr, "Warning: unable to preview execution plan (%v)\n", err)
 		if len(parsed.Phases) > 0 {
 			progressPhases = append([]string(nil), parsed.Phases...)
@@ -117,44 +136,14 @@ func Run(client *Client, args []string) error {
 	}
 
 	// Print header and test plan IMMEDIATELY (before the run starts) so the
-	// user sees what will run before any work begins.
-	if !parsed.JSON {
-		pr.PrintPreExecution(progressPhases)
-	}
-
-	// --json: programmatic block-to-verdict over the blocking REST adapter (the
-	// run is still server-owned and cancel-survivable). Returns the full result
-	// schema unchanged for existing consumers.
-	if parsed.JSON {
-		resp, raw, err := client.Run(req)
-		if err != nil {
-			printJSONExecutionError(raw, err)
-			return err
-		}
-		cliutil.PrintJSON(raw)
-		return executionResultError(resp)
-	}
+	// user sees what will run before any work begins. (--json/--jsonl already
+	// returned above; only the human path reaches here.)
+	pr.PrintPreExecution(progressPhases)
 
 	// Default human path: a server-owned, cancel-survivable run. Prints the run
 	// id + re-attach command up front, auto-backgrounds known-long runs (unless
 	// --wait), and follows inline otherwise.
 	return RunDurable(baseURL, req, DurableOptions{Wait: parsed.Wait, Printer: pr})
-}
-
-func printJSONExecutionError(raw []byte, err error) {
-	if json.Valid(bytes.TrimSpace(raw)) {
-		cliutil.PrintJSON(raw)
-		return
-	}
-	payload, marshalErr := json.Marshal(map[string]interface{}{
-		"success": false,
-		"error":   err.Error(),
-	})
-	if marshalErr != nil {
-		fmt.Printf("{\"success\":false,\"error\":%q}\n", err.Error())
-		return
-	}
-	cliutil.PrintJSON(payload)
 }
 
 func executionResultError(resp Response) error {

@@ -53,6 +53,23 @@ const (
 	// server setup directly.
 	CodeCLIMainUnreadable = "cli.main_unreadable"
 	CodeCLIMainHeavy      = "cli.main_heavy"
+
+	// Command-architecture maturity codes. Classify a CLI's convergence on
+	// cli-core renderer-separated primitives from declared manifest metadata and
+	// structural evidence — never handler AST heuristics or live command-parity
+	// probing. See scenarios/cli-health/docs/reference/cli-architecture-maturity.md.
+	// The un-migrated-fleet codes are WARNING + clean_requirement=required: they
+	// cap the capability rung and count as honest maturity debt, but do NOT fail
+	// the phase (only ERROR/BLOCKER do). The two ERROR codes fire only after a
+	// scenario opts into architecture metadata and declares it wrong.
+	CodeArchUnclassifiable    = "arch.unclassifiable"             // has a CLI/proto surface but no manifest to classify from
+	CodeArchPrimitiveUndecl   = "arch.primitive_undeclared"       // manifest-bound command declares no architecture.primitive
+	CodeArchPrimitiveUnverif  = "arch.primitive_unverified"       // command declares a primitive but cli-core reported no matching evidence
+	CodeArchPrimitiveMismatch = "arch.primitive_mismatch"         // declared primitive and cli-core-observed primitive disagree (gating)
+	CodeArchMetadataInvalid   = "arch.metadata_invalid"           // exceptions[]/architecture metadata is stale or malformed
+	CodeArchClaimedViolation  = "arch.claimed_maturity_violation" // exceptions[] entry contradicts a normal manifest-bound proto command
+	CodeArchEvidenceMalformed = "arch.evidence_malformed"         // the static primitive-evidence artifact exists but is unparseable/wrong-schema (gating)
+	CodeArchEvidenceStale     = "arch.evidence_stale"             // the artifact's manifest hash no longer matches cli/manifest.json (advisory; regenerate)
 )
 
 // Finding is a single validation result.

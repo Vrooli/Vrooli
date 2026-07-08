@@ -57,6 +57,46 @@ var adoptingScenarios = []string{
 	"ecosystem-manager",
 }
 
+// TestIntegration_CLIHealthReachesVerifiedL4 proves the full maturity loop for
+// the reference adopter: with the production static-evidence provider wired,
+// cli-health validating ITSELF has zero command_architecture debt — every
+// declared primitive is verified against the committed cli/primitive-evidence.json
+// (no undeclared/unverified/mismatch, and the artifact is neither stale nor
+// malformed). No scenario command is executed; the evidence is read statically.
+func TestIntegration_CLIHealthReachesVerifiedL4(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode")
+	}
+	requireBuf(t)
+
+	root := findRepoRoot(t)
+	svc := New(Deps{
+		Manifests:            NewFilesystemManifestLoader(root),
+		Schema:               NewJSONSchemaValidator(root),
+		Protos:               NewBufProtoLoader(root),
+		ArchitectureEvidence: NewFilesystemArchitectureEvidence(root),
+	})
+
+	r, err := svc.ValidateScenario(context.Background(), "cli-health")
+	if err != nil {
+		t.Fatalf("ValidateScenario(cli-health): %v", err)
+	}
+
+	archDebt := map[string]bool{
+		CodeArchPrimitiveUndecl:   true,
+		CodeArchPrimitiveUnverif:  true,
+		CodeArchPrimitiveMismatch: true,
+		CodeArchEvidenceStale:     true,
+		CodeArchEvidenceMalformed: true,
+		CodeArchClaimedViolation:  true,
+	}
+	for _, f := range r.Findings {
+		if archDebt[f.Code] {
+			t.Errorf("cli-health should be a verified-L4 reference adopter but has %s: %s @ %s", f.Code, f.Message, f.Location)
+		}
+	}
+}
+
 func TestIntegration_AdoptingScenariosAllPass(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode")

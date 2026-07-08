@@ -130,6 +130,12 @@ func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
 		manifestvalidation.CodeCLICommandUndeclared,
 		manifestvalidation.CodeCLIMainUnreadable,
 		manifestvalidation.CodeCLIMainHeavy,
+		manifestvalidation.CodeArchUnclassifiable,
+		manifestvalidation.CodeArchPrimitiveUndecl,
+		manifestvalidation.CodeArchPrimitiveUnverif,
+		manifestvalidation.CodeArchPrimitiveMismatch,
+		manifestvalidation.CodeArchMetadataInvalid,
+		manifestvalidation.CodeArchClaimedViolation,
 	} {
 		mapping, ok := spec.Findings[code]
 		if !ok {
@@ -142,8 +148,8 @@ func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
 			t.Fatalf("maturity spec finding %q must declare clean_requirement", code)
 		}
 	}
-	if len(spec.Capabilities) != 6 {
-		t.Fatalf("capabilities = %d, want 6", len(spec.Capabilities))
+	if len(spec.Capabilities) != 7 {
+		t.Fatalf("capabilities = %d, want 7", len(spec.Capabilities))
 	}
 	if len(spec.Levels) == 0 {
 		t.Fatal("maturity spec must declare local levels")
@@ -215,4 +221,93 @@ func testMaturitySpec() *assessment.Spec {
 		panic(err)
 	}
 	return spec
+}
+
+// cliHealthScenarioDir resolves scenarios/cli-health from this test file's
+// location so tests can load the real provider descriptor.
+func cliHealthScenarioDir(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+}
+
+// TestRealDescriptor_CommandArchitectureCapability loads the real
+// .vrooli/test-genie.json descriptor (LoadSpecFromScenario validates the whole
+// maturity spec) and asserts the new command_architecture capability and its
+// finding mappings are present and well-formed.
+func TestRealDescriptor_CommandArchitectureCapability(t *testing.T) {
+	spec, err := assessment.LoadSpecFromScenario(cliHealthScenarioDir(t))
+	if err != nil {
+		t.Fatalf("load + validate real cli-health descriptor: %v", err)
+	}
+	var capSpec *assessment.CapabilitySpec
+	for i := range spec.Capabilities {
+		if spec.Capabilities[i].ID == "command_architecture" {
+			capSpec = &spec.Capabilities[i]
+		}
+	}
+	if capSpec == nil {
+		t.Fatal("real descriptor is missing the command_architecture capability")
+	}
+	wantLevels := []string{"L0", "L1", "L2", "L3", "L4"}
+	if len(capSpec.Levels) != len(wantLevels) {
+		t.Fatalf("command_architecture has %d levels, want %d", len(capSpec.Levels), len(wantLevels))
+	}
+	for i, l := range capSpec.Levels {
+		if l.ID != wantLevels[i] {
+			t.Errorf("level[%d] id = %q, want %q", i, l.ID, wantLevels[i])
+		}
+	}
+	for _, code := range []string{
+		manifestvalidation.CodeArchUnclassifiable,
+		manifestvalidation.CodeArchPrimitiveUndecl,
+		manifestvalidation.CodeArchPrimitiveUnverif,
+		manifestvalidation.CodeArchPrimitiveMismatch,
+		manifestvalidation.CodeArchMetadataInvalid,
+		manifestvalidation.CodeArchClaimedViolation,
+	} {
+		m, ok := spec.Findings[code]
+		if !ok {
+			t.Errorf("real descriptor does not map arch finding %q", code)
+			continue
+		}
+		if m.CapabilityID != "command_architecture" {
+			t.Errorf("finding %q maps to capability %q, want command_architecture", code, m.CapabilityID)
+		}
+	}
+}
+
+// TestRealDescriptor_PrimitiveUndeclaredCapsAtL3 proves end-to-end scoring
+// through the real descriptor: a single advisory arch.primitive_undeclared
+// finding caps the command_architecture capability at L3 (renderer separation
+// not yet confirmed) without failing the phase — the honest-debt contract.
+func TestRealDescriptor_PrimitiveUndeclaredCapsAtL3(t *testing.T) {
+	spec, err := assessment.LoadSpecFromScenario(cliHealthScenarioDir(t))
+	if err != nil {
+		t.Fatalf("load spec: %v", err)
+	}
+	rep := manifestvalidation.Report{
+		Scenario: "target",
+		Findings: []manifestvalidation.Finding{{
+			Severity: manifestvalidation.SeverityWarning,
+			Code:     manifestvalidation.CodeArchPrimitiveUndecl,
+			Message:  "command declares no primitive",
+		}},
+	}
+	a, err := buildMaturityAssessment(rep, spec)
+	if err != nil {
+		t.Fatalf("build assessment: %v", err)
+	}
+	got := ""
+	for _, c := range a.GetCapabilities() {
+		if c.GetId() == "command_architecture" {
+			got = c.GetCurrentLevel()
+		}
+	}
+	if got != "L3" {
+		t.Fatalf("command_architecture current level = %q, want L3", got)
+	}
 }

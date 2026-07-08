@@ -21,7 +21,23 @@ type Service struct {
 	protos       ProtoLoader
 	measures     MeasureSchemaReader
 	runtimeProbe RuntimeProbe
+	archEvidence ArchitectureEvidenceProvider
 	logger       *log.Logger
+}
+
+// ArchitectureEvidenceProvider observes the cli-core primitive class each of a
+// scenario's commands was actually built from, so cli-health can compare that
+// unforgeable evidence against the manifest's declared architecture.primitive.
+// It is the structural proof channel behind verified primitive maturity: a
+// declaration cannot reach verified (L4) maturity on manifest text alone.
+//
+// seam: optional. A nil provider (the default during rollout) means no observed
+// evidence is available, so every declared primitive classifies as
+// not-yet-verified maturity debt (arch.primitive_unverified) rather than
+// falsely-clean verified adoption. Evidence returns the observed evidence for a
+// scenario; an error degrades to empty evidence (still valid, still not verified).
+type ArchitectureEvidenceProvider interface {
+	Evidence(ctx context.Context, scenario string) (ArchitectureEvidence, error)
 }
 
 // Deps holds the seams the service needs. Loaders can be nil to use the
@@ -38,7 +54,11 @@ type Deps struct {
 	// when wired, the probe runs only when the caller requests execution
 	// (include_execution) and the scenario declares a CLI surface.
 	RuntimeProbe RuntimeProbe
-	Logger       *log.Logger
+	// ArchitectureEvidence observes the cli-core primitive each command was built
+	// from so declared primitives can be verified (not just trusted). Optional:
+	// nil leaves declared primitives at not-yet-verified maturity debt.
+	ArchitectureEvidence ArchitectureEvidenceProvider
+	Logger               *log.Logger
 }
 
 // New returns a service bound to the given dependencies. Callers pass nil
@@ -53,6 +73,7 @@ func New(d Deps) *Service {
 		protos:       d.Protos,
 		measures:     d.Measures,
 		runtimeProbe: d.RuntimeProbe,
+		archEvidence: d.ArchitectureEvidence,
 		logger:       d.Logger,
 	}
 }
@@ -108,6 +129,12 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	m, parseErr := cliapp.ParseManifest(raw)
 	if parseErr != nil {
 		parse.End()
+		// Surface architecture-metadata problems as arch.* codes so the
+		// command_architecture capability is impacted precisely, not only the
+		// generic manifest.parse_error. Both are legitimate: the manifest is
+		// unusable (parse error) AND, when the cause is architecture, the metadata
+		// is invalid (a command_architecture finding).
+		findings = append(findings, architectureParseFindings(raw, path)...)
 		findings = append(findings, Finding{
 			Severity: SeverityError,
 			Code:     CodeManifestParseError,
@@ -142,6 +169,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	cross := collector.Stage("cross-check")
 	findings = append(findings, crossCheck(m, surface, path)...)
 	findings = append(findings, s.measureCheck(raw, path)...)
+	findings = append(findings, architectureStaticFindings(m, s.architectureEvidence(ctx, scenario), path)...)
 	cross.Gauge("findings", float64(len(findings)))
 	cross.End()
 
@@ -165,12 +193,30 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 			})
 		} else {
 			findings = append(findings, runtimeFindings(obs, m, path)...)
+			findings = append(findings, architectureRuntimeFindings(m, obs, path)...)
 		}
 		probe.Gauge("findings", float64(len(findings)))
 		probe.End()
 	}
 
 	return finalize(scenario, findings), nil
+}
+
+// architectureEvidence resolves the cli-core primitive evidence for a scenario
+// via the optional provider seam. A nil provider or a provider error degrades to
+// empty evidence: declared primitives then classify as not-yet-verified debt
+// (never verified), which is the honest rollout state when no evidence channel
+// is wired for the target scenario.
+func (s *Service) architectureEvidence(ctx context.Context, scenario string) ArchitectureEvidence {
+	if s.archEvidence == nil {
+		return ArchitectureEvidence{}
+	}
+	ev, err := s.archEvidence.Evidence(ctx, scenario)
+	if err != nil {
+		s.logger.Printf("validation: architecture evidence for %q degraded: %v", scenario, err)
+		return ArchitectureEvidence{}
+	}
+	return ev
 }
 
 // missingManifest decides the verdict when a scenario has no cli/manifest.json.
@@ -182,13 +228,27 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 // built) keeps the soft skip-with-warning.
 func (s *Service) missingManifest(ctx context.Context, scenario string) Report {
 	if surface, protoErr := s.protos.Load(ctx, scenario); protoErr == nil && surface.HasAnyMethod() {
-		return finalize(scenario, []Finding{{
-			Severity:   SeverityError,
-			Code:       CodeManifestRequired,
-			Location:   defaultManifestRel(scenario),
-			Message:    "scenario exposes proto RPC services but has no cli/manifest.json — the single source of truth for its CLI surface",
-			Suggestion: "add cli/manifest.json binding every proto method to a command (or listing it in omitted[] with a reason)",
-		}})
+		return finalize(scenario, []Finding{
+			{
+				Severity:   SeverityError,
+				Code:       CodeManifestRequired,
+				Location:   defaultManifestRel(scenario),
+				Message:    "scenario exposes proto RPC services but has no cli/manifest.json — the single source of truth for its CLI surface",
+				Suggestion: "add cli/manifest.json binding every proto method to a command (or listing it in omitted[] with a reason)",
+			},
+			{
+				// Without a manifest there is nothing to classify command
+				// architecture from, so the capability sits at L0 instead of
+				// falsely reporting top maturity by absence of findings. WARNING +
+				// required marks honest debt without failing the phase beyond the
+				// manifest.required error above.
+				Severity:   SeverityWarning,
+				Code:       CodeArchUnclassifiable,
+				Location:   defaultManifestRel(scenario),
+				Message:    "scenario exposes a CLI/proto surface but has no manifest, so command architecture cannot be classified",
+				Suggestion: "add cli/manifest.json and declare each command's architecture.primitive",
+			},
+		})
 	}
 	return finalize(scenario, []Finding{{
 		Severity:   SeverityWarning,

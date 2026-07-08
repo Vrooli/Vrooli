@@ -35,7 +35,13 @@ func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.
 		Protos:       manifestvalidation.NewBufProtoLoader(repoRoot),
 		Measures:     manifestscan.NewDescriptorSchemaReader(repoRoot),
 		RuntimeProbe: manifestvalidation.NewCLIRuntimeProbe(5 * time.Second),
-		Logger:       logger,
+		// Static primitive-evidence provider: reads each scenario's committed
+		// generated artifact (.vrooli/generated/cli-primitive-evidence.json, with a
+		// fallback to the deprecated cli/primitive-evidence.json) to verify declared
+		// architecture primitives against unforgeable cli-core evidence, without
+		// ever executing commands.
+		ArchitectureEvidence: manifestvalidation.NewFilesystemArchitectureEvidence(repoRoot),
+		Logger:               logger,
 	})
 	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "cli-health"))
 	if err != nil && logger != nil {

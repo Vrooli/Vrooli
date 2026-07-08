@@ -283,6 +283,52 @@
             "capability_summary": "CLI discovery readiness is clean."
           }
         ]
+      },
+      {
+        "id": "command_architecture",
+        "label": "Command Architecture",
+        "description": "Commands converge on cli-core renderer-separated primitives; special cases declare explicit exceptions instead of bespoke output-format control flow. Classified from declared manifest metadata and structural evidence, never handler AST or live command-parity probing.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Command architecture unclassifiable",
+            "status_label": "Unavailable",
+            "description": "There is no manifest to classify command architecture from.",
+            "capability_summary": "Command architecture cannot be classified.",
+            "next_unlock": "A manifest-backed CLI surface."
+          },
+          {
+            "id": "L1",
+            "name": "cli-core shell",
+            "status_label": "Foundation",
+            "description": "Commands run on the cli-core app shell.",
+            "capability_summary": "Commands run on the cli-core shell.",
+            "next_unlock": "Declarative RunCtx + ArgSchema commands."
+          },
+          {
+            "id": "L2",
+            "name": "Declarative commands",
+            "status_label": "Ready",
+            "description": "Commands parse declaratively through RunCtx + ArgSchema.",
+            "capability_summary": "Commands parse declaratively.",
+            "next_unlock": "Manifest/API-bound command declarations."
+          },
+          {
+            "id": "L3",
+            "name": "Declared, not yet verified",
+            "status_label": "Ready",
+            "description": "Commands bind to proto methods through the manifest and may declare a renderer-separated primitive class, but that declaration is not yet verified against cli-core primitive evidence (declared primitives cannot reach top maturity on manifest text alone).",
+            "capability_summary": "Commands declare architecture but it is not yet verified.",
+            "next_unlock": "Prove each declared primitive with matching cli-core evidence (build handlers with cli-core primitives and register via LoadFromManifestPrimitives)."
+          },
+          {
+            "id": "L4",
+            "name": "Verified renderer-separated primitives",
+            "status_label": "Complete",
+            "description": "Every command's declared primitive class (or reasoned exception) is verified by matching cli-core primitive evidence, so operation execution lives outside any output-format branch and cannot be claimed by manifest text alone.",
+            "capability_summary": "Commands are verified renderer-separated primitives."
+          }
+        ]
       }
     ],
     "findings": {
@@ -503,6 +549,114 @@
         "clean_requirement": "advisory",
         "fix_class": "manual",
         "reason": "Extracting arbitrary main() setup changes function boundaries, defers, imports, and exit/error semantics; cli-health should identify the smell but not rewrite it without scenario-specific judgment.",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "arch.unclassifiable": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L0",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Adding a manifest and choosing a per-command primitive is scenario-specific architecture work; cli-health identifies the gap but cannot author the manifest.",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "arch.primitive_undeclared": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Choosing the correct primitive class and moving a handler onto it changes handler boundaries and requires scenario-specific judgment; cli-health flags the missing declaration but does not rewrite the handler.",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "change-axis-and-evolution-resilience-audit"
+        ]
+      },
+      "arch.primitive_unverified": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A declared primitive is forgeable manifest text; reaching verified maturity requires building the handler with the matching cli-core primitive and registering it via LoadFromManifestPrimitives, which is scenario-specific handler work cli-health cannot perform.",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "change-axis-and-evolution-resilience-audit"
+        ]
+      },
+      "arch.primitive_mismatch": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The declared primitive and the cli-core-observed primitive disagree — a contradiction between manifest and implementation; resolving which side is correct needs scenario-specific judgment.",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "change-axis-and-evolution-resilience-audit"
+        ]
+      },
+      "arch.metadata_invalid": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A stale exceptions[] declaration must be corrected by the author to match the real runtime surface; the correct command path is not machine-derivable.",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "arch.claimed_maturity_violation": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A false special-case claim is a contradiction between declared and real command shape; resolving it (remove the exception or move the command) needs scenario-specific judgment.",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "change-axis-and-evolution-resilience-audit"
+        ]
+      },
+      "arch.evidence_malformed": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The committed static primitive-evidence artifact is unparseable or carries an unrecognized schema, so verified maturity cannot be derived from it; it must be regenerated from the scenario's evidence generator rather than hand-edited.",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "arch.evidence_stale": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The static primitive-evidence artifact's recorded manifest hash no longer matches cli/manifest.json, so its evidence describes an older command surface; regenerating it after the manifest/handler change restores verified maturity.",
         "recommended_skill_ids": [
           "cli-steer"
         ]

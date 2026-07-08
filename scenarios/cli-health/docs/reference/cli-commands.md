@@ -39,7 +39,10 @@ manifest don't need hand-classified action-safety lists.
 `binding.kind` is currently `connect-rpc` only. REST-exception
 commands, if a future domain needs them, should be appended to the
 loaded group outside the manifest path in the domain's `register.go`
-and documented in the manifest's `omitted[]` array.
+and declared in the manifest's top-level `exceptions[]` array
+(`{ command, class, reason }`) so CLI Health's `command_architecture`
+capability recognizes them as legitimate special cases. Use `omitted[]`
+for proto *methods* deliberately not exposed as commands.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -194,6 +197,15 @@ non-proto report, use the `RunContext` render helpers directly
 (`ctx.RenderList`, `ctx.RenderMutation`, or the operational report
 helpers).
 
+**`--json` is an output contract, never an operation selector.** A command
+must run the same operation regardless of `--json`; the renderer is chosen at
+the end. CLI Health formalizes this as the `command_architecture` maturity
+capability — see [`cli-architecture-maturity.md`](cli-architecture-maturity.md)
+for the rung ladder (cli-core shell → declarative → manifest-bound →
+renderer-separated primitives), the exception taxonomy for legitimate special
+cases (streaming, upload, passthrough, external delegation, durable runs), and
+the advisory-vs-gating rollout policy.
+
 ## Adding a new command
 
 For a new domain, copy the smallest current manifest-backed command
@@ -208,8 +220,16 @@ For a command inside an existing domain:
 2. Add a command entry to the matching group in
    [`cli/manifest.json`](../../cli/manifest.json): `name`, optional
    `description`, `positionals` / `flags`, the `binding` (service +
-   method), and the `governance` block (`effect`, `run_eligible`,
-   `permissions`, optional `requires_confirmation`). The schema in
+   method), the `governance` block (`effect`, `run_eligible`,
+   `permissions`, optional `requires_confirmation`), and an
+   `architecture` block declaring the command's renderer-separated
+   primitive: `{ "primitive": "proto_list" | "proto_mutation" |
+   "operational" | "action" }`. Match the primitive to the renderer
+   (`proto_list` ↔ `RenderProtoList`, `proto_mutation` ↔
+   `RenderProtoMutation`, `operational` ↔ `RenderProtoOperational`). A
+   command without an `architecture` block earns the advisory
+   `arch.primitive_undeclared` maturity debt — see
+   [`cli-architecture-maturity.md`](cli-architecture-maturity.md). The schema in
    `.vrooli/schemas/cli-manifest.schema.json` is authoritative.
 3. Implement the handler in `cli/domains/<domain>/handlers.go` (or a
    focused sibling file) with signature
@@ -218,16 +238,33 @@ For a command inside an existing domain:
    `ctx.JSON()`.
 4. Add the handler to the bindings map in
    `cli/domains/<domain>/register.go` keyed by `"<Service>.<Method>"`
-   so `cliapp.LoadFromManifest` can wire it. Missing handler or
-   dead handler both fail at startup.
+   so `cliapp.LoadFromManifestPrimitives` can wire it. Missing handler,
+   dead handler, or a primitive that contradicts the manifest's
+   `architecture.primitive` all fail at startup.
 5. Handler implementation should:
    - Construct generated Connect clients with
      `cliapp.NewConnectHTTPClient(core)` for proto-typed operations.
+   - Build every command with a cli-core primitive and register it through
+     `cliapp.LoadFromManifestPrimitives`: bind
+     `cliapp.ProtoList(call, report)` /
+     `cliapp.ProtoMutation(call, report)` /
+     `cliapp.ProtoOperational(call, report)` (or `cliapp.ProtoListOutcome`
+     for a read whose exit code is payload-derived, e.g. `validate scenario`)
+     in `register.go` (see the `search`, `reindex`, `command`, and `validate`
+     domains for reference). The `call`/`report` halves take a narrow
+     `cliapp.OperationContext` — no `JSON()`, no renderers — so the operation
+     *cannot* branch on `--json`. Only this path carries the observed primitive
+     evidence that reaches **verified** L4; an inline `cliapp.RenderProtoList`
+     handler is renderer-separated but carries no evidence, so it stays at
+     `arch.primitive_unverified` (declared, not verified) until built with a
+     primitive and captured in the committed generated artifact at
+     `.vrooli/generated/cli-primitive-evidence.json`.
    - Use `cliapp.UploadFile` only for documented multipart REST
-     exceptions (append those outside the manifest path in
-     `register.go` and document them in the manifest's `omitted[]`).
-   - Render proto-backed responses with `cliapp.RenderProtoList` or
-     `cliapp.RenderProtoMutation`.
+     exceptions. Special-case commands (upload, passthrough, streaming,
+     external delegation, durable runs) are appended outside the manifest
+     binding path in `register.go` and declared in the manifest's
+     top-level `exceptions[]` (`{ command, class, reason }`) so CLI Health
+     classifies them as known special cases, not unknown legacy debt.
 6. Add endpoint metadata in the API handler module and add a matching
    row to `api/cmd/gen-endpoints/cli_commands_seed.json`. Then run
    `make endpoints`; do not edit [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)
@@ -255,6 +292,7 @@ For a command inside an existing domain:
 
 ## Cross-references
 
+- [`cli-architecture-maturity.md`](cli-architecture-maturity.md) — the command_architecture maturity ladder, exception taxonomy, and renderer-separation contract
 - [`api-endpoints.md`](api-endpoints.md) — API endpoints these commands mirror
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary

@@ -49,53 +49,6 @@ func NewClient(api *cliutil.APIClient, httpClient *cliutil.HTTPClient) *Client {
 	}
 }
 
-// Run submits an execution request with an extended timeout suitable for test suites.
-func (c *Client) Run(req Request) (Response, []byte, error) {
-	// Get base URL from the api client
-	baseURL := c.resolveBaseURL()
-	if baseURL == "" {
-		return Response{}, nil, fmt.Errorf("api base URL not configured")
-	}
-
-	// Marshal request body
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return Response{}, nil, fmt.Errorf("encode request: %w", err)
-	}
-
-	// Create request with context
-	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
-	defer cancel()
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/executions", bytes.NewReader(payload))
-	if err != nil {
-		return Response{}, nil, fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	// Execute with the extended timeout client
-	resp, err := c.executionClient.Do(httpReq)
-	if err != nil {
-		return Response{}, nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return Response{}, nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		return Response{}, body, fmt.Errorf("api error (%d): %s", resp.StatusCode, extractErrorMessage(body))
-	}
-
-	result, err := parseRunResponse(body)
-	if err != nil {
-		return Response{}, body, err
-	}
-	return result, body, nil
-}
-
 // BaseURL returns the resolved API base URL (HTTP client first, then the API
 // client), used to construct the durable run-lifecycle Connect client.
 func (c *Client) BaseURL() string {
@@ -163,10 +116,6 @@ func joinUnique(parts []string, sep string) string {
 		unique = append(unique, part)
 	}
 	return strings.Join(unique, sep)
-}
-
-func parseRunResponse(body []byte) (Response, error) {
-	return apijson.Parse[Response](body, "parse response")
 }
 
 // PreviewPlan resolves the actual phase plan and timing guidance for an execution request.

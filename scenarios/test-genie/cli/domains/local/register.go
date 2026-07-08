@@ -1,7 +1,6 @@
 package local
 
 import (
-	"test-genie/cli/eligibility"
 	"test-genie/cli/fix"
 	"test-genie/cli/fleet"
 	"test-genie/cli/health"
@@ -12,7 +11,6 @@ import (
 	"test-genie/cli/registry"
 	"test-genie/cli/requirements"
 	"test-genie/cli/runlocal"
-	"test-genie/cli/runs"
 	"test-genie/cli/storage"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -46,18 +44,6 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				NeedsAPI:    false,
 				Description: "Validate provider maturity assessment contracts",
 				Run:         func(args []string) error { return providercontract.Run(args) },
-			},
-			{
-				Name:        "eligibility",
-				NeedsAPI:    true,
-				Description: "Check whether a scenario qualifies for the routed test-db path",
-				Run:         func(args []string) error { return eligibility.Run(runtime.APIClient, args) },
-			},
-			{
-				Name:        "runs",
-				NeedsAPI:    true,
-				Description: "Inspect, pin, compare, delete, and check freshness of recorded test runs",
-				Run:         func(args []string) error { return runs.Run(runtime.APIClient, args) },
 			},
 			{
 				Name:        "health",

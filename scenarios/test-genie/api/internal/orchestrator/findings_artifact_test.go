@@ -7,6 +7,7 @@ import (
 	"time"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
@@ -79,5 +80,80 @@ func TestWriteFindingsArtifact(t *testing.T) {
 		if len(art.Phases[0].Findings) != 1 || art.Phases[0].Findings[0].GetCode() != "missing_field" {
 			t.Errorf("%s: structure findings not round-tripped: %+v", path, art.Phases[0].Findings)
 		}
+	}
+}
+
+// TestFindingsArtifactCarriesStandingAndStaysIngestible verifies (a) the per-phase
+// maturity standing round-trips through findings.json, and (b) the additive
+// standing does not break architecture-cartographer's --from-audit ingest, which
+// reads only phases[].findings and ignores unknown fields.
+func TestFindingsArtifactCarriesStandingAndStaysIngestible(t *testing.T) {
+	dir := t.TempDir()
+	runID := "run-standing"
+	completed := time.Date(2026, 7, 8, 12, 0, 0, 0, time.UTC)
+
+	results := []PhaseExecutionResult{
+		{
+			Name:          "contracts",
+			Status:        "passed",
+			FindingSource: "cli",
+			Findings: []*architecturev1.ArchitectureFinding{
+				{Scenario: "cli-health", Source: architecturev1.FindingSource_FINDING_SOURCE_CLI, Code: "arch.primitive_unverified", Locations: []string{"cli/manifest.json"}},
+			},
+			MaturityStanding: &runspb.PhaseMaturityStanding{
+				Provider:             "cli-health",
+				Phase:                "contracts",
+				CurrentLevel:         "L3",
+				NextLevel:            "L4",
+				CeilingLevel:         "L4",
+				NorthStar:            "Verified renderer-separated primitives.",
+				NextMove:             "Prove each declared primitive with cli-core evidence.",
+				BlockingFindingCodes: []string{"arch.primitive_unverified"},
+			},
+			FindingsSummary: &runspb.PhaseFindingsSummary{Warnings: 1, Total: 1},
+		},
+	}
+
+	o := &SuiteOrchestrator{}
+	if err := o.writeFindingsArtifact(dir, "cli-health", runID, SuiteVerdictPass, completed, buildPhaseResultViews("", results)); err != nil {
+		t.Fatalf("writeFindingsArtifact: %v", err)
+	}
+	raw, err := os.ReadFile(sharedartifacts.RunFindingsArtifactPath(dir, runID))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	// (a) Standing round-trips.
+	var art findingsArtifact
+	if err := json.Unmarshal(raw, &art); err != nil {
+		t.Fatalf("unmarshal full: %v", err)
+	}
+	st := art.Phases[0].MaturityStanding
+	if st == nil {
+		t.Fatal("maturity standing dropped from findings.json")
+	}
+	if st.GetCurrentLevel() != "L3" || st.GetNextLevel() != "L4" || st.GetNorthStar() == "" {
+		t.Fatalf("standing fields not round-tripped: %+v", st)
+	}
+	if art.Phases[0].FindingsSummary.GetTotal() != 1 {
+		t.Fatalf("findings summary not round-tripped: %+v", art.Phases[0].FindingsSummary)
+	}
+
+	// (b) Backward-compat: the cartographer ingest contract (phases[].findings)
+	// still parses when the record only knows the pre-standing fields.
+	var legacy struct {
+		Phases []struct {
+			Name     string `json:"name"`
+			Status   string `json:"status"`
+			Findings []struct {
+				Code string `json:"code"`
+			} `json:"findings"`
+		} `json:"phases"`
+	}
+	if err := json.Unmarshal(raw, &legacy); err != nil {
+		t.Fatalf("legacy ingest unmarshal broke: %v", err)
+	}
+	if len(legacy.Phases) != 1 || len(legacy.Phases[0].Findings) != 1 || legacy.Phases[0].Findings[0].Code != "arch.primitive_unverified" {
+		t.Fatalf("cartographer ingest shape regressed: %+v", legacy)
 	}
 }

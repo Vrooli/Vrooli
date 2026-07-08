@@ -1,8 +1,12 @@
 package generate
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 func TestParseArgsParsesSupportedFlags(t *testing.T) {
@@ -64,5 +68,56 @@ func TestIsAllowedPriorityIsCaseInsensitive(t *testing.T) {
 	}
 	if isAllowedPriority("later") {
 		t.Fatal("expected unsupported priority to be rejected")
+	}
+}
+
+func TestRequestFromContextUsesCliCoreParsedInputs(t *testing.T) {
+	dir := t.TempDir()
+	notesPath := filepath.Join(dir, "notes.txt")
+	if err := os.WriteFile(notesPath, []byte("focus on regressions"), 0o644); err != nil {
+		t.Fatalf("write notes: %v", err)
+	}
+	ctx, err := cliapp.NewTestRunContextFromArgs(ArgsSchema, []string{
+		"demo",
+		"--types", "unit,integration",
+		"--coverage", "90",
+		"--priority", "High",
+		"--notes", "ignored",
+		"--notes-file", notesPath,
+		"--json",
+	}, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+
+	got, err := RequestFromContext(ctx)
+	if err != nil {
+		t.Fatalf("RequestFromContext: %v", err)
+	}
+	if got.ScenarioName != "demo" {
+		t.Fatalf("scenario = %q, want demo", got.ScenarioName)
+	}
+	if strings.Join(got.RequestedTypes, ",") != "unit,integration" {
+		t.Fatalf("types = %#v", got.RequestedTypes)
+	}
+	if got.CoverageTarget == nil || *got.CoverageTarget != 90 {
+		t.Fatalf("coverage = %v, want 90", got.CoverageTarget)
+	}
+	if got.Priority != "high" {
+		t.Fatalf("priority = %q, want high", got.Priority)
+	}
+	if got.Notes != "focus on regressions" {
+		t.Fatalf("notes = %q", got.Notes)
+	}
+}
+
+func TestRequestFromContextRejectsInvalidCoverage(t *testing.T) {
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Schema:      ArgsSchema,
+		Positionals: map[string]string{"scenario": "demo"},
+		Flags:       map[string]string{"coverage": "90x"},
+	})
+	if _, err := RequestFromContext(ctx); err == nil || !strings.Contains(err.Error(), "coverage must be between 0 and 100") {
+		t.Fatalf("expected coverage validation error, got %v", err)
 	}
 }

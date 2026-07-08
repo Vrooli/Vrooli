@@ -397,6 +397,23 @@
           }
         },
         {
+          "path": "reference/cli-architecture-maturity.md",
+          "docType": "reference",
+          "title": "CLI Architecture Maturity",
+          "aliases": ["architecture-maturity", "command-architecture", "maturity-ladder"],
+          "description": "Design SSOT for the command_architecture maturity ladder, finding codes, exception taxonomy, and rollout policy",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["cli-architecture-maturity"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "optional",
+          "ownerSkills": ["cli-steer"],
+          "validation": {
+            "requiredHeadings": ["The maturity ladder", "Finding-code inventory", "Exception taxonomy", "Primitive taxonomy (cli-core side)", "Rollout policy (advisory vs gating)", "Cross-references"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
           "path": "reference/configuration.md",
           "docType": "configuration-reference",
           "title": "Configuration",

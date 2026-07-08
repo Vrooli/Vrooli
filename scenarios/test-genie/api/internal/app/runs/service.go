@@ -6,6 +6,7 @@ package runs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -328,6 +329,69 @@ func (s *Service) GetPhaseArtifact(ctx context.Context, req *connect.Request[run
 	return connect.NewResponse(&runspb.GetPhaseArtifactResponse{
 		Content:     string(data),
 		ContentType: "application/json",
+	}), nil
+}
+
+// findingsArtifactDoc mirrors the on-disk findings.json shape (writer:
+// orchestrator.writeFindingsArtifact) for the fields GetRunFindings surfaces.
+// The proto standing/summary round-trip because they were written with
+// encoding/json using their proto json tags.
+type findingsArtifactDoc struct {
+	Scenario    string `json:"scenario"`
+	RunID       string `json:"runId"`
+	Verdict     string `json:"verdict"`
+	CompletedAt string `json:"completedAt"`
+	Phases      []struct {
+		Name             string                        `json:"name"`
+		Status           string                        `json:"status"`
+		FindingSource    string                        `json:"findingSource"`
+		MaturityStanding *runspb.PhaseMaturityStanding `json:"maturityStanding"`
+		FindingsSummary  *runspb.PhaseFindingsSummary  `json:"findingsSummary"`
+	} `json:"phases"`
+}
+
+// GetRunFindings returns the per-phase maturity standing (Phase Capability
+// Contract) persisted in the run's findings.json, so an agent can revisit where
+// each capability stands without re-running the suite.
+func (s *Service) GetRunFindings(ctx context.Context, req *connect.Request[runspb.GetRunFindingsRequest]) (*connect.Response[runspb.GetRunFindingsResponse], error) {
+	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	if err != nil {
+		return nil, err
+	}
+	runID := strings.TrimSpace(req.Msg.GetRunId())
+	var path string
+	if runID == "" || strings.EqualFold(runID, "latest") {
+		path = sharedartifacts.LatestFindingsArtifactPath(dir)
+	} else {
+		path = sharedartifacts.RunFindingsArtifactPath(dir, runID)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no findings artifact for run %q", runID))
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	var doc findingsArtifactDoc
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("parse findings artifact: %w", err))
+	}
+	phases := make([]*runspb.RunFindingsPhase, 0, len(doc.Phases))
+	for _, p := range doc.Phases {
+		phases = append(phases, &runspb.RunFindingsPhase{
+			Name:             p.Name,
+			Status:           p.Status,
+			FindingSource:    p.FindingSource,
+			MaturityStanding: p.MaturityStanding,
+			FindingsSummary:  p.FindingsSummary,
+		})
+	}
+	return connect.NewResponse(&runspb.GetRunFindingsResponse{
+		Scenario:    doc.Scenario,
+		RunId:       doc.RunID,
+		Verdict:     doc.Verdict,
+		CompletedAt: doc.CompletedAt,
+		Phases:      phases,
 	}), nil
 }
 

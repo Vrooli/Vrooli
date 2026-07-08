@@ -13,6 +13,8 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/cli-core/cliapp"
+
 	"test-genie/cli/execute/report"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -38,7 +40,12 @@ type DurableOptions struct {
 	// JSONL emits the canonical newline-delimited event stream to stdout instead
 	// of human rendering.
 	JSONL bool
-	// Printer renders the final human summary (nil in JSONL mode).
+	// JSON blocks to completion and emits the final execute Response as a single
+	// JSON object to stdout. Like JSONL it shares the durable StartRun path — the
+	// only difference from the human and JSONL modes is rendering, so --json is an
+	// output contract, not a separate execution path.
+	JSON bool
+	// Printer renders the final human summary (nil in JSONL/JSON mode).
 	Printer *report.Printer
 }
 
@@ -47,53 +54,110 @@ type DurableOptions struct {
 // known-long run without --wait — launches it in the background and returns
 // immediately with the re-attach command. The run is NEVER aborted by this
 // process exiting or being interrupted.
+//
+// It is built on the cli-core durable_run primitive (cliapp.RunDurable): the run
+// STARTS mode-blind, and the output mode selects ONLY the renderer. Human,
+// --json, and --jsonl therefore share one server-owned StartRun/follow path by
+// construction — --json cannot select a separate synchronous execution lifecycle.
 func RunDurable(baseURL string, req Request, opts DurableOptions) error {
 	client := newRunsClient(baseURL)
-	ctx := context.Background()
+	mode := cliapp.DurableRunModeFrom(opts.JSON, opts.JSONL)
 
-	start, err := client.StartRun(ctx, connect.NewRequest(toStartRunRequest(req)))
-	if err != nil {
-		if msg, ok := runBusyGuidance(err); ok {
-			fmt.Fprint(os.Stderr, msg)
-			return fmt.Errorf("scenario %s is busy with another run", req.ScenarioName)
-		}
-		return fmt.Errorf("start run: %w", err)
-	}
-	runID := start.Msg.GetRunId()
-	eta := int(start.Msg.GetEstimatedTotalSeconds())
-	etaKnown := start.Msg.GetEtaKnown()
+	return cliapp.RunDurable(mode, cliapp.DurableRunSpec[*startedRun]{
+		Start: func() (*startedRun, error) {
+			start, err := client.StartRun(context.Background(), connect.NewRequest(toStartRunRequest(req)))
+			if err != nil {
+				return nil, err
+			}
+			runID := start.Msg.GetRunId()
+			coalesced := start.Msg.GetCoalesced()
+			return &startedRun{
+				client:    client,
+				req:       req,
+				opts:      opts,
+				runID:     runID,
+				eta:       int(start.Msg.GetEstimatedTotalSeconds()),
+				etaKnown:  start.Msg.GetEtaKnown(),
+				coalesced: coalesced,
+				handle:    newRunHandle(req.ScenarioName, runID, coalesced),
+			}, nil
+		},
+		RenderStartError: func(mode cliapp.DurableRunMode, err error) error {
+			if mode == cliapp.DurableRunJSON {
+				// Machine consumers get a JSON error object on stdout, matching the
+				// success-path shape, carrying the scenario (run id is unknown before a
+				// successful start) instead of the human busy-guidance block.
+				emitJSONError(os.Stdout, req.ScenarioName, "", err)
+				return fmt.Errorf("start run: %w", err)
+			}
+			if msg, ok := runBusyGuidance(err); ok {
+				fmt.Fprint(os.Stderr, msg)
+				return fmt.Errorf("scenario %s is busy with another run", req.ScenarioName)
+			}
+			return fmt.Errorf("start run: %w", err)
+		},
+		Human: func(sr *startedRun) error { return sr.renderHuman() },
+		JSON:  func(sr *startedRun) error { return sr.renderJSON() },
+		JSONL: func(sr *startedRun) error { return sr.renderJSONL() },
+	})
+}
 
+// startedRun is the durable_run handle: everything the per-mode renderers need
+// once the mode-blind StartRun has returned.
+type startedRun struct {
+	client    runs_v1connect.RunsServiceClient
+	req       Request
+	opts      DurableOptions
+	runID     string
+	eta       int
+	etaKnown  bool
+	coalesced bool
+	handle    RunHandle
+}
+
+// renderJSONL streams the canonical newline-delimited event vocabulary.
+func (sr *startedRun) renderJSONL() error {
+	return followJSONL(context.Background(), sr.client, sr.req.ScenarioName, sr.runID, os.Stdout)
+}
+
+// renderJSON emits the early run handle to stderr (so a long run is never opaque)
+// and blocks to a single final JSON object on stdout.
+func (sr *startedRun) renderJSON() error {
+	emitStartHandle(os.Stderr, sr.handle, sr.eta, sr.etaKnown)
+	return followJSONFinal(context.Background(), sr.client, sr.req.ScenarioName, sr.runID, sr.handle, os.Stdout)
+}
+
+// renderHuman prints the run banner and either auto-backgrounds a known/unknown
+// long run (unless --wait) or follows it inline.
+func (sr *startedRun) renderHuman() error {
 	// Coalesced: this request matched an already-in-flight identical run and rode
 	// it instead of starting a second suite (the one-run-per-scenario guard).
-	if start.Msg.GetCoalesced() {
-		fmt.Fprintf(os.Stderr, "↻ Re-attached to in-flight run %s for %s (identical request already running — no second suite).\n", runID, req.ScenarioName)
+	if sr.coalesced {
+		fmt.Fprintf(os.Stderr, "↻ Re-attached to in-flight run %s for %s (identical request already running — no second suite).\n", sr.runID, sr.req.ScenarioName)
 	}
 
-	printRunBanner(os.Stderr, req.ScenarioName, runID, eta, etaKnown)
-
-	if opts.JSONL {
-		return followJSONL(ctx, client, req.ScenarioName, runID, os.Stdout)
-	}
+	// The banner is human/stderr guidance.
+	printRunBanner(os.Stderr, sr.req.ScenarioName, sr.runID, sr.eta, sr.etaKnown)
 
 	// Auto-background a known-long run — or a run whose ETA is unknown (which
 	// could be long) — unless the caller forced --wait. A known-short run follows
 	// inline. This keeps an agent's tool from blocking past its timeout on a long
 	// or unestimatable run.
 	threshold, enabled := autoBackgroundThreshold()
-	knownLong := etaKnown && eta >= threshold
-	unknownLong := !etaKnown && autoBackgroundOnUnknownETA()
-	if !opts.Wait && enabled && (knownLong || unknownLong) {
-		if etaKnown {
-			fmt.Fprintf(os.Stderr, "\n⏳ Estimated at %s — running in the background so your shell returns now.\n", humanDuration(eta))
+	knownLong := sr.etaKnown && sr.eta >= threshold
+	unknownLong := !sr.etaKnown && autoBackgroundOnUnknownETA()
+	if !sr.opts.Wait && enabled && (knownLong || unknownLong) {
+		if sr.etaKnown {
+			fmt.Fprintf(os.Stderr, "\n⏳ Estimated at %s — running in the background so your shell returns now.\n", humanDuration(sr.eta))
 		} else {
 			fmt.Fprintf(os.Stderr, "\n⏳ ETA unknown (treating as long) — running in the background so your shell returns now.\n")
 		}
-		fmt.Fprintf(os.Stderr, "   Block on the result (quiet, exits with the verdict) with:\n     %s\n", reattachCommand(req.ScenarioName, runID))
-		fmt.Fprintf(os.Stderr, "   Or watch live progress with:\n     %s\n", followCommand(req.ScenarioName, runID))
+		fmt.Fprintf(os.Stderr, "   Block on the result (quiet, exits with the verdict) with:\n     %s\n", reattachCommand(sr.req.ScenarioName, sr.runID))
+		fmt.Fprintf(os.Stderr, "   Or watch live progress with:\n     %s\n", followCommand(sr.req.ScenarioName, sr.runID))
 		return nil
 	}
 
-	return followInline(ctx, client, req.ScenarioName, runID, opts)
+	return followInline(context.Background(), sr.client, sr.req.ScenarioName, sr.runID, sr.opts)
 }
 
 // followInline streams the run to completion, rendering progress. A SIGINT/
@@ -164,7 +228,7 @@ func followJSONL(ctx context.Context, client runs_v1connect.RunsServiceClient, s
 		Scenario: scenario, RunId: runID, SuppressHeartbeats: true,
 	}))
 	if err != nil {
-		_ = emitEventLine(out, map[string]any{"event": evRunCompleted, "success": false, "error": err.Error()})
+		_ = emitEventLine(out, jsonlErrorEvent(scenario, runID, err))
 		return err
 	}
 	var terminal *runspb.RunEvent
@@ -178,13 +242,141 @@ func followJSONL(ctx context.Context, client runs_v1connect.RunsServiceClient, s
 		}
 	}
 	if streamErr := stream.Err(); streamErr != nil {
-		_ = emitEventLine(out, map[string]any{"event": evRunCompleted, "success": false, "error": streamErr.Error()})
+		_ = emitEventLine(out, jsonlErrorEvent(scenario, runID, streamErr))
 		return streamErr
 	}
 	if terminal != nil && !terminal.GetSuccess() {
 		return errors.New("suite execution completed with failures")
 	}
 	return nil
+}
+
+// followJSONFinal follows the durable run to completion (no human rendering) and
+// emits the assembled execute Response as one indented JSON object on stdout.
+// This is the durable replacement for the legacy blocking `client.Run` path:
+// human, --json, and --jsonl now all start from StartRun and differ only in how
+// they render the same server-owned run. The Response carries success, verdict,
+// the run id (as executionId), the per-phase results, and any terminal error.
+func followJSONFinal(ctx context.Context, client runs_v1connect.RunsServiceClient, scenario, runID string, handle RunHandle, out io.Writer) error {
+	stream, err := client.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
+		Scenario: scenario, RunId: runID, SuppressHeartbeats: true,
+	}))
+	if err != nil {
+		emitJSONError(out, scenario, runID, err)
+		return fmt.Errorf("follow run: %w", err)
+	}
+	var phasesAcc []Phase
+	var terminal *runspb.RunEvent
+	for stream.Receive() {
+		ev := stream.Msg()
+		switch ev.GetEvent() {
+		case evPhaseCompleted, evPhaseFailed:
+			phasesAcc = append(phasesAcc, phaseFromEvent(ev))
+		case evRunCompleted:
+			terminal = ev
+		}
+	}
+	if streamErr := stream.Err(); streamErr != nil {
+		emitJSONError(out, scenario, runID, streamErr)
+		return fmt.Errorf("follow run: %w", streamErr)
+	}
+
+	resp := buildResponse(terminal, phasesAcc)
+	if resp.ExecutionID == "" {
+		resp.ExecutionID = runID
+	}
+	// The terminal object carries the durable run identity + reattach/follow
+	// commands so a consumer can reattach or audit from the final object alone.
+	h := handle
+	resp.RunHandle = &h
+	if err := writeResponseJSON(out, resp); err != nil {
+		return err
+	}
+	return executionResultError(resp)
+}
+
+// writeResponseJSON emits the execute Response as indented JSON with a trailing
+// newline, matching the pretty-printed shape the legacy --json path produced.
+func writeResponseJSON(out io.Writer, resp Response) error {
+	body, err := json.MarshalIndent(resp, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal execute response: %w", err)
+	}
+	_, err = fmt.Fprintf(out, "%s\n", body)
+	return err
+}
+
+// emitJSONError writes a {"success":false,"error":...,"scenario":...,"runId":...}
+// object so a --json consumer always receives parseable, actionable JSON on
+// stdout even on a start/follow failure. The scenario is always known; runID is
+// included only once a run has started (empty before StartRun succeeds), so a
+// busy/coalescing/follow failure carries the id needed to reattach or abort.
+func emitJSONError(out io.Writer, scenario, runID string, cause error) {
+	fields := map[string]any{"success": false, "error": cause.Error()}
+	if scenario != "" {
+		fields["scenario"] = scenario
+	}
+	if runID != "" {
+		fields["runId"] = runID
+	}
+	body, err := json.MarshalIndent(fields, "", "  ")
+	if err != nil {
+		fmt.Fprintf(out, "{\"success\":false,\"error\":%q}\n", cause.Error())
+		return
+	}
+	fmt.Fprintf(out, "%s\n", body)
+}
+
+// newRunHandle builds the structured, server-owned run identity shared by the
+// early start-handle and the terminal --json object.
+func newRunHandle(scenario, runID string, coalesced bool) RunHandle {
+	return RunHandle{
+		RunID:     runID,
+		Scenario:  scenario,
+		Reattach:  reattachCommand(scenario, runID),
+		Follow:    followCommand(scenario, runID),
+		Coalesced: coalesced,
+	}
+}
+
+// emitStartHandle writes the early run-handle as one structured JSON line so a
+// long --json run exposes its durable run identity immediately (on stderr —
+// stdout stays the single terminal SuiteExecutionResult object). It mirrors the
+// JSONL run_started event: event marker + identity + ETA + reattach breadcrumb.
+func emitStartHandle(out io.Writer, handle RunHandle, eta int, etaKnown bool) {
+	fields := map[string]any{
+		"event":     evRunStarted,
+		"run_id":    handle.RunID,
+		"scenario":  handle.Scenario,
+		"reattach":  handle.Reattach,
+		"follow":    handle.Follow,
+		"eta_known": etaKnown,
+	}
+	if etaKnown {
+		fields["estimated_total_seconds"] = eta
+	}
+	if handle.Coalesced {
+		fields["coalesced"] = true
+	}
+	line, err := json.Marshal(fields)
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(out, "%s\n", line)
+}
+
+// jsonlErrorEvent builds the terminal run_completed error line for the JSONL
+// stream, carrying the run identity so a consumer can reattach/abort instead of
+// receiving only an opaque error string.
+func jsonlErrorEvent(scenario, runID string, cause error) map[string]any {
+	m := map[string]any{"event": evRunCompleted, "success": false, "error": cause.Error()}
+	if scenario != "" {
+		m["scenario"] = scenario
+	}
+	if runID != "" {
+		m["run_id"] = runID
+	}
+	return m
 }
 
 func emitEventLine(out io.Writer, fields map[string]any) error {
@@ -257,10 +449,12 @@ func renderLiveEvent(w io.Writer, ev *runspb.RunEvent, phasesAcc *[]Phase) {
 
 func phaseFromEvent(ev *runspb.RunEvent) Phase {
 	return Phase{
-		Name:            ev.GetPhase(),
-		Status:          ev.GetStatus(),
-		DurationSeconds: float64(ev.GetDurationSeconds()),
-		Error:           ev.GetError(),
+		Name:             ev.GetPhase(),
+		Status:           ev.GetStatus(),
+		DurationSeconds:  float64(ev.GetDurationSeconds()),
+		Error:            ev.GetError(),
+		MaturityStanding: standingFromProto(ev.GetMaturityStanding()),
+		FindingsSummary:  findingsSummaryFromProto(ev.GetFindingsSummary()),
 	}
 }
 

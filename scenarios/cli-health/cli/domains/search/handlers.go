@@ -26,10 +26,10 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-// query calls the generated Connect SearchService.Search method. Phase 1
-// surfaces the server's Unimplemented response; Phase 3 wires real
-// rendering.
-func (h *handlers) query(ctx cliapp.RunContext) error {
+// searchCall runs the SearchService.Search RPC. It is the operation half of the
+// proto_list primitive: it never sees the output format, so it cannot branch on
+// --json. searchReport supplies the human rendering.
+func (h *handlers) searchCall(ctx cliapp.OperationContext) (*searchv1.SearchResponse, error) {
 	text := ctx.Positional("text")
 	limit := int32(10)
 	if v := strings.TrimSpace(ctx.Flag("limit")); v != "" {
@@ -45,13 +45,19 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 		Mode:  mode,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("search %q", text), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("search %q", text), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no search response")
+		return nil, fmt.Errorf("server returned no search response")
 	}
-	results := make([]string, 0, len(resp.Msg.Results))
-	for i, r := range resp.Msg.Results {
+	return resp.Msg, nil
+}
+
+// searchReport maps the search response to the human ListReport (the render half
+// of the proto_list primitive). --json consumers get the proto wire shape.
+func (h *handlers) searchReport(_ cliapp.OperationContext, msg *searchv1.SearchResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Results))
+	for i, r := range msg.Results {
 		// Prefer the server's canonical full_path; fall back to assembling the
 		// pieces for any result that predates the field.
 		full := strings.TrimSpace(r.FullPath)
@@ -71,11 +77,11 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 	if len(results) == 0 {
 		results = append(results, "(no matches)")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d result(s) (mode=%s).", len(resp.Msg.Results), resp.Msg.ModeUsed.String())},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d result(s) (mode=%s).", len(msg.Results), msg.ModeUsed.String())},
 		ResultsHeading: "Results",
 		Results:        results,
-	})
+	}
 }
 
 func truncate(s string, max int) string {
@@ -86,28 +92,33 @@ func truncate(s string, max int) string {
 	return s[:max] + "…"
 }
 
-// status calls the generated Connect SearchService.Status method.
-func (h *handlers) status(ctx cliapp.RunContext) error {
+// statusCall runs the SearchService.Status RPC (operation half of the
+// operational primitive).
+func (h *handlers) statusCall(ctx cliapp.OperationContext) (*searchv1.StatusResponse, error) {
 	resp, err := h.client.Status(context.Background(), connect.NewRequest(&searchv1.StatusRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("search status", err, nil)
+		return nil, cliapp.WrapAPIError("search status", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no status response")
+		return nil, fmt.Errorf("server returned no status response")
 	}
-	reranker := resp.Msg.Reranker
+	return resp.Msg, nil
+}
+
+// statusReport renders backend availability through the operational contract
+// (Status -> Triage -> Next Steps); --json consumers get the proto wire shape.
+func (h *handlers) statusReport(_ cliapp.OperationContext, msg *searchv1.StatusResponse) cliapp.OperationalReport {
+	reranker := msg.Reranker
 	if reranker == "" {
 		reranker = "none"
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary: []string{
-			fmt.Sprintf("Available: %v", resp.Msg.Available),
-			fmt.Sprintf("Ollama: %v  Qdrant: %v  Indexed: %d", resp.Msg.Ollama, resp.Msg.Qdrant, resp.Msg.IndexedCount),
+	return cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Available: %v", msg.Available),
+			fmt.Sprintf("Ollama: %v  Qdrant: %v  Indexed: %d", msg.Ollama, msg.Qdrant, msg.IndexedCount),
 			fmt.Sprintf("Reranker: %s", reranker),
 		},
-		ResultsHeading: "Backend status",
-		Results:        []string{},
-	})
+	}
 }
 
 // parseMode maps the CLI --mode flag to the proto enum. Empty / unknown

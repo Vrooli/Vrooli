@@ -16,11 +16,12 @@ import (
 	"test-genie/cli/internal/apijson"
 )
 
-const usage = `usage: test-genie phases <list|inspect|applicability|plan> ...
+const usage = `usage: test-genie phases <list|inspect|applicability|plan|scaffold> ...
   list [--json]
   inspect <phase> [--json]
   applicability <target> [--phase <phase>] [--preset <preset>] [--json]
-  plan <target> [--preset <preset>] [--phase <phase>] [--skip <phase>] [--json]`
+  plan <target> [--preset <preset>] [--phase <phase>] [--skip <phase>] [--json]
+  scaffold <phase> [--provider <id>] [--docs-out <path>] [--maturity-out <path>]`
 
 type phaseList struct {
 	Items []phaseDescriptor `json:"items"`
@@ -69,6 +70,8 @@ func run(api *cliutil.APIClient, args []string, w io.Writer) error {
 		return runApplicability(api, args[1:], w)
 	case "plan":
 		return runPlan(api, args[1:], w)
+	case "scaffold":
+		return runScaffold(args[1:], w)
 	default:
 		return errors.New(usage)
 	}

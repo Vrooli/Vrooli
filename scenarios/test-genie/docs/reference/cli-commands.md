@@ -288,6 +288,20 @@ decoupled from the request/process lifecycle:
 Re-attach / inspect a run by handle with the `runs` verbs below
 (`test-genie runs wait <scenario> <run-id>`, etc.).
 
+**Machine run-handle timing.** All three output modes share one server-owned
+`StartRun`, and every machine mode exposes the durable run id as structured JSON
+at start — never only on human stderr:
+
+- `--jsonl`: the first stdout event is `run_started` (carries `run_id`); the last
+  is `run_completed`. A follow failure emits a terminal `run_completed` line
+  carrying `run_id` + `scenario`.
+- `--json`: stdout stays a single terminal object (`executionId` + a `runHandle`
+  of `{runId, scenario, reattach, follow, coalesced}`), so the early handle is
+  written as one `run_started` JSON line on **stderr** at start — a long `--json`
+  run is not opaque until it completes. Start/follow failures print a parseable
+  `{"success":false,"error":…,"scenario":…,"runId":…}` object (`runId` present
+  once the run has started).
+
 ### Options
 
 | Option | Default | Description |
@@ -297,8 +311,8 @@ Re-attach / inspect a run by handle with the `runs` verbs below
 | `--skip <phases>` | none | Phases to skip |
 | `--fail-fast` | `false` | Stop on first failure |
 | `--wait` | `false` | Block to completion inline; never auto-background (CI / scripted use) |
-| `--json` | `false` | Block to verdict and emit the full result blob |
-| `--jsonl` | `false` | Stream canonical newline-delimited phase events (run_started…run_completed) for TUIs |
+| `--json` | `false` | Block to verdict and emit the full result blob (one object on stdout: `success`, `verdict`, `executionId`, `runHandle`, …); an early `run_started` handle is emitted as JSON on stderr at start |
+| `--jsonl` | `false` | Stream canonical newline-delimited phase events (first is `run_started` with `run_id`, last is `run_completed`) for TUIs |
 | `--request-id <uuid>` | | Link to queued suite request |
 | `--scenario-path <path>` | resolved from scenario name | Absolute physical scenario directory to read and write |
 | `--logical-repo-root <path>` | none | Absolute repo root to use for repo-relative validation |

@@ -83,6 +83,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario, path string) (
 	report.Phase = descriptor.Phase
 
 	s.validateDocs(&report, descriptor)
+	validateMaturityContract(&report, descriptor)
 	validateAutofixDeclaration(&report, descriptor)
 	s.probeContract(ctx, &report, descriptor)
 
@@ -134,7 +135,10 @@ func (s *Service) validateDocs(report *Report, descriptor providerdescriptor.Des
 			Location:    providerdescriptor.RelPath + ":docs.path",
 			Remediation: "Create the referenced phase documentation or fix docs.path.",
 		})
+		return
 	}
+	// The doc exists — enforce the required remediation-doc skeleton.
+	validateDocsSkeleton(report, resolved, docsPath)
 }
 
 func validateAutofixDeclaration(report *Report, descriptor providerdescriptor.Descriptor) {

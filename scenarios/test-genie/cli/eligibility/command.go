@@ -16,6 +16,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 
 	eligpb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility"
@@ -59,6 +60,54 @@ Commands:
 
 Run 'test-genie eligibility <command> -h' for command-specific options.`)
 	return nil
+}
+
+// Register returns the manifest-backed eligibility command group.
+func Register(manifest []byte, apiClient *cliutil.APIClient) (cliapp.SubcommandGroup, error) {
+	return cliapp.LoadFromManifestPrimitives(manifest, "eligibility", map[string]cliapp.PrimitiveHandler{
+		"EligibilityService.Check": cliapp.ProtoListOutcome(checkCall(apiClient), checkReport, checkExit),
+	})
+}
+
+func checkCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*eligpb.CheckResponse, error) {
+	return func(ctx cliapp.OperationContext) (*eligpb.CheckResponse, error) {
+		resp, err := callCheck(context.Background(), apiClient, strings.TrimSpace(ctx.Positional("scenario")))
+		if err != nil {
+			return nil, &exitErr{code: ExitUnreachable, err: err}
+		}
+		return resp.Msg, nil
+	}
+}
+
+func checkReport(_ cliapp.OperationContext, msg *eligpb.CheckResponse) cliapp.ListReport {
+	if msg.GetRouted() {
+		return cliapp.ListReport{Summary: []string{"Routed: yes (scenario qualifies for the routed test-db path)"}}
+	}
+	results := make([]string, 0, len(msg.GetDisqualifyingReasons())+len(msg.GetViolations())+1)
+	for _, reason := range msg.GetDisqualifyingReasons() {
+		results = append(results, reason)
+	}
+	for _, v := range msg.GetViolations() {
+		loc := v.GetFile()
+		if v.GetLine() > 0 {
+			loc = fmt.Sprintf("%s:%d", loc, v.GetLine())
+		}
+		if loc == "" {
+			loc = "(no location)"
+		}
+		results = append(results, fmt.Sprintf("[%s] %s  %s", strings.ToUpper(v.GetSeverity()), v.GetRuleId(), loc))
+	}
+	if ra := msg.GetRuleAssertion(); ra != nil && len(ra.GetMissingRules()) > 0 {
+		results = append(results, fmt.Sprintf("Missing auditor rules: %s", strings.Join(ra.GetMissingRules(), ", ")))
+	}
+	return cliapp.ListReport{Summary: []string{"Routed: no"}, ResultsHeading: "Reasons", Results: results}
+}
+
+func checkExit(msg *eligpb.CheckResponse) error {
+	if msg.GetRouted() {
+		return nil
+	}
+	return &exitErr{code: ExitNotRouted, err: errors.New("scenario not eligible for routed test-db path")}
 }
 
 func runCheck(httpClient *cliutil.APIClient, args []string, w io.Writer) error {

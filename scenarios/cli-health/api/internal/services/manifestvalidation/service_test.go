@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // stubLoader / stubSchema / stubProto are minimal seams for unit tests.
@@ -49,7 +51,8 @@ const validManifest = `{
         {
           "name": "do",
           "binding": {"kind":"connect-rpc","service":"Svc","method":"Do"},
-          "governance": {"effect":"read","run_eligible":true}
+          "governance": {"effect":"read","run_eligible":true},
+          "architecture": {"primitive":"proto_list"}
         }
       ]
     }
@@ -96,8 +99,20 @@ func TestValidateScenario_ManifestMissing_ProtoBearingIsError(t *testing.T) {
 	if r.Passed {
 		t.Fatalf("missing manifest for a proto-bearing scenario must fail (passed=false), got passed=true")
 	}
-	if len(r.Findings) != 1 || r.Findings[0].Code != CodeManifestRequired || r.Findings[0].Severity != SeverityError {
-		t.Fatalf("expected one manifest_required error, got %+v", r.Findings)
+	// A proto-bearing scenario without a manifest yields the manifest.required
+	// error plus an arch.unclassifiable warning: there is no manifest to classify
+	// command architecture from, so the capability sits at L0 rather than falsely
+	// reporting top maturity by absence of findings.
+	if !findingHasCode(r.Findings, CodeManifestRequired) {
+		t.Fatalf("expected manifest_required error, got %+v", r.Findings)
+	}
+	req := findingByCode(r.Findings, CodeManifestRequired)
+	if req == nil || req.Severity != SeverityError {
+		t.Fatalf("expected manifest_required to be an error, got %+v", req)
+	}
+	unclass := findingByCode(r.Findings, CodeArchUnclassifiable)
+	if unclass == nil || unclass.Severity != SeverityWarning {
+		t.Fatalf("expected arch.unclassifiable warning, got %+v", r.Findings)
 	}
 }
 
@@ -266,7 +281,41 @@ func TestValidateScenario_DuplicateBinding(t *testing.T) {
 	}
 }
 
+// stubArchEvidence is a fake ArchitectureEvidenceProvider returning canned
+// cli-core primitive evidence, so service tests can prove verified-vs-unverified
+// classification through the real ValidateScenario flow.
+type stubArchEvidence struct {
+	ev  ArchitectureEvidence
+	err error
+}
+
+func (s stubArchEvidence) Evidence(context.Context, string) (ArchitectureEvidence, error) {
+	return s.ev, s.err
+}
+
 func TestValidateScenario_HappyPath(t *testing.T) {
+	// A fully-verified scenario: the declared proto_list primitive is proven by
+	// matching cli-core evidence, so there is no not-yet-verified debt.
+	svc := New(Deps{
+		Manifests: stubLoader{raw: []byte(validManifest), path: "fixture/cli/manifest.json"},
+		Schema:    stubSchema{},
+		Protos:    stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do"}}}}},
+		ArchitectureEvidence: stubArchEvidence{ev: ArchitectureEvidence{Primitives: map[string]cliapp.PrimitiveClass{
+			"g1 do": cliapp.PrimitiveProtoList,
+		}}},
+	})
+	r, _ := svc.ValidateScenario(context.Background(), "s")
+	if !r.Passed {
+		t.Fatalf("happy path should pass; findings=%+v", r.Findings)
+	}
+	if len(r.Findings) != 0 {
+		t.Fatalf("happy path should be empty; got %+v", r.Findings)
+	}
+}
+
+// Without an evidence provider, a declared primitive is not-yet-verified debt:
+// an advisory warning that does not fail the phase (Passed stays true).
+func TestValidateScenario_DeclaredPrimitiveUnverifiedWithoutEvidence(t *testing.T) {
 	svc := newServiceWith(
 		stubLoader{raw: []byte(validManifest), path: "fixture/cli/manifest.json"},
 		stubSchema{},
@@ -274,10 +323,31 @@ func TestValidateScenario_HappyPath(t *testing.T) {
 	)
 	r, _ := svc.ValidateScenario(context.Background(), "s")
 	if !r.Passed {
-		t.Fatalf("happy path should pass; findings=%+v", r.Findings)
+		t.Fatalf("unverified declared primitive is advisory debt, must not fail the phase; findings=%+v", r.Findings)
 	}
-	if len(r.Findings) != 0 {
-		t.Fatalf("happy path should be empty; got %+v", r.Findings)
+	f := findingByCode(r.Findings, CodeArchPrimitiveUnverif)
+	if f == nil || f.Severity != SeverityWarning {
+		t.Fatalf("expected an advisory primitive_unverified warning, got %+v", r.Findings)
+	}
+}
+
+// A provider whose observed primitive contradicts the declaration is a gating
+// error (Passed=false) surfaced through the full validation flow.
+func TestValidateScenario_PrimitiveMismatchIsGating(t *testing.T) {
+	svc := New(Deps{
+		Manifests: stubLoader{raw: []byte(validManifest), path: "fixture/cli/manifest.json"},
+		Schema:    stubSchema{},
+		Protos:    stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do"}}}}},
+		ArchitectureEvidence: stubArchEvidence{ev: ArchitectureEvidence{Primitives: map[string]cliapp.PrimitiveClass{
+			"g1 do": cliapp.PrimitiveProtoMutation,
+		}}},
+	})
+	r, _ := svc.ValidateScenario(context.Background(), "s")
+	if r.Passed {
+		t.Fatalf("primitive mismatch must fail the phase, got passed=true; findings=%+v", r.Findings)
+	}
+	if findingByCode(r.Findings, CodeArchPrimitiveMismatch) == nil {
+		t.Fatalf("expected primitive_mismatch, got %+v", r.Findings)
 	}
 }
 
@@ -289,12 +359,16 @@ func TestValidateScenario_RequiresName(t *testing.T) {
 }
 
 func findingHasCode(findings []Finding, code string) bool {
-	for _, f := range findings {
-		if f.Code == code {
-			return true
+	return findingByCode(findings, code) != nil
+}
+
+func findingByCode(findings []Finding, code string) *Finding {
+	for i := range findings {
+		if findings[i].Code == code {
+			return &findings[i]
 		}
 	}
-	return false
+	return nil
 }
 
 func findingMessageContains(findings []Finding, code, needle string) bool {

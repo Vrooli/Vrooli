@@ -12,6 +12,7 @@ import (
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 // Name identifies a single orchestrator phase.
@@ -202,6 +203,13 @@ type RunReport struct {
 	// channel. This mirrors ExecutionResult.FindingSource and lets phase pointer
 	// artifacts retain covered-source information.
 	FindingSource string
+	// MaturityStanding is the compact per-phase maturity standing projected from
+	// the delegated provider's MaturityAssessment (Phase Capability Contract). nil
+	// for native phases and providers that declare no ladder.
+	MaturityStanding *runspb.PhaseMaturityStanding
+	// FindingsSummary is the per-severity finding tally for the phase (non-nil
+	// whenever a delegated provider returned an assessment).
+	FindingsSummary *runspb.PhaseFindingsSummary
 }
 
 // Runner is the function signature every catalog phase must satisfy.
@@ -354,6 +362,14 @@ type ExecutionResult struct {
 	// artifact and the SQLite phases blob. Absent for phases whose provider has
 	// not adopted the metrics contract. Proto JSON (snake_case) on the wire.
 	Metrics *commonv1.ExecutionMetrics `json:"metrics,omitempty"`
+	// MaturityStanding is the compact per-phase maturity standing (Phase
+	// Capability Contract) projected from the provider's MaturityAssessment. It is
+	// carried into the phase-completed run event, the terminal response, and the
+	// findings.json artifact so the human scorecard and --json output derive from
+	// one server payload. nil for native phases / providers with no ladder.
+	MaturityStanding *runspb.PhaseMaturityStanding `json:"maturityStanding,omitempty"`
+	// FindingsSummary is the per-severity finding tally for the phase.
+	FindingsSummary *runspb.PhaseFindingsSummary `json:"findingsSummary,omitempty"`
 }
 
 // NormalizeName standardizes arbitrary input into a canonical Name.

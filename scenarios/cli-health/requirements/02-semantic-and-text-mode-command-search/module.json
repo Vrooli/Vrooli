@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T16:46:14-04:00"
+    "last_validated_at": "2026-07-07T13:30:53-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-004",
       "title": "AI Semantic Search via Qdrant and Ollama Role Policy",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "description": "The `cli-health search \"\u003cquery\u003e\"` command (default mode) must embed the query using the Ollama `embedding.default` role, query the Qdrant vector store for the top-K nearest command embeddings across all indexed scenarios, and return results ranked by cosine similarity. Results must include at minimum: command name, scenario name, short description, and similarity score. The command must achieve recall@5 ≥ 0.8 on the labelled query corpus stored in the scenario-owned SSOT `scenarios/cli-health/.vrooli/search.json` (provider `cli-health.commands`, `tests` block).",
@@ -14,19 +14,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Given a mocked Ollama embed response and mocked Qdrant search response, search returns results sorted descending by similarity score"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Given a Qdrant result set, the output includes command name, scenario name, description, and score for each hit"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Unit test for the manifest scan discovery source: given a synthetic manifest, all non-omitted commands are emitted as indexable documents"
         },
         {
@@ -67,19 +67,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Given --text flag, the Qdrant and Ollama clients are never invoked"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Given a set of synthetic manifests and a query matching a command description substring, --text search returns that command in results"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Given --text flag, results are ranked by relevance heuristic (e.g., term frequency or string similarity score)"
         },
         {

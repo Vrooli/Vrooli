@@ -58,6 +58,16 @@ func NewApp() (*App, error) {
 				APIClient:  core.APIClient,
 			})
 		},
+		SubcommandGroups: func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+			app.core = core
+			groups, err := domains.SubcommandGroups(manifestBytes, deps.Runtime{
+				APIClient: core.APIClient,
+			})
+			if err != nil {
+				panic(err)
+			}
+			return groups
+		},
 	})
 	if err != nil {
 		return nil, err

@@ -5,25 +5,27 @@ import (
 	"testing"
 )
 
-func TestParseRunResponseRejectsEmptyBody(t *testing.T) {
-	_, err := parseRunResponse(nil)
-	if err == nil {
-		t.Fatal("expected empty response body to fail")
-	}
-	if !strings.Contains(err.Error(), "empty response body") {
-		t.Fatalf("expected empty-body diagnostic, got %v", err)
+// extractErrorMessage backs the PreviewPlan error path (the execute run itself
+// now flows through the durable runs RPCs, not the blocking REST adapter). These
+// tests pin the message extraction that surfaces a scenario API error to the user.
+
+func TestExtractErrorMessage_PrefersTypedEnvelope(t *testing.T) {
+	msg := extractErrorMessage([]byte(`{"error":{"message":"boom"}}`))
+	if msg != "boom" {
+		t.Fatalf("expected typed envelope message, got %q", msg)
 	}
 }
 
-func TestParseRunResponseSuccess(t *testing.T) {
-	resp, err := parseRunResponse([]byte(`{"success":true,"executionId":"exec-123"}`))
-	if err != nil {
-		t.Fatalf("expected success, got %v", err)
+func TestExtractErrorMessage_FallsBackToRawBody(t *testing.T) {
+	msg := extractErrorMessage([]byte("plain text failure"))
+	if !strings.Contains(msg, "plain text failure") {
+		t.Fatalf("expected raw body fallback, got %q", msg)
 	}
-	if !resp.Success {
-		t.Fatal("expected success=true")
-	}
-	if resp.ExecutionID != "exec-123" {
-		t.Fatalf("expected execution id exec-123, got %q", resp.ExecutionID)
+}
+
+func TestExtractErrorMessage_DeduplicatesParts(t *testing.T) {
+	msg := extractErrorMessage([]byte(`{"error":"dup","message":"dup"}`))
+	if msg != "dup" {
+		t.Fatalf("expected deduplicated single message, got %q", msg)
 	}
 }

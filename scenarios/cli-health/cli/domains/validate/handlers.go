@@ -28,21 +28,25 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-// validateScenario calls ScenarioValidationService.ValidateScenario, renders the
-// returned assessment findings, and returns a non-nil error when the shared
-// status fails so shells get a non-zero exit code without duplicated stderr.
-func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
+// scenarioCall runs ScenarioValidationService.ValidateScenario (operation half of
+// the proto_list primitive); scenarioReport renders it and scenarioOutcome
+// derives the exit code from the response.
+func (h *handlers) scenarioCall(ctx cliapp.OperationContext) (*scenariovalidationv1.ValidateScenarioResponse, error) {
 	name := ctx.Positional("name")
 	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario: name,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", name), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", name), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no validation response")
+		return nil, fmt.Errorf("server returned no validation response")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
+
+// scenarioReport maps the assessment to the human ListReport.
+func (h *handlers) scenarioReport(_ cliapp.OperationContext, msg *scenariovalidationv1.ValidateScenarioResponse) cliapp.ListReport {
 	assessment := msg.GetAssessment()
 	results := make([]string, 0, len(assessment.GetFindings()))
 	summaryLines := []string{
@@ -60,15 +64,20 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 			results = append(results, assessmentReport.Results...)
 		}
 	}
-	if err := cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        summaryLines,
 		ResultsHeading: "Findings",
 		Results:        results,
-	}); err != nil {
-		return err
 	}
+}
+
+// scenarioOutcome returns a non-nil error when the shared status is FAILED so
+// shells get a non-zero exit code. It runs AFTER rendering, in both output modes,
+// so the exit code is identical for human and --json — the failure signal is a
+// property of the response, not of the output format.
+func (h *handlers) scenarioOutcome(msg *scenariovalidationv1.ValidateScenarioResponse) error {
 	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
-		return fmt.Errorf("scenario %s did not pass validation (%d error finding(s))", msg.GetScenario(), severityCount(assessment, "SEVERITY_ERROR"))
+		return fmt.Errorf("scenario %s did not pass validation (%d error finding(s))", msg.GetScenario(), severityCount(msg.GetAssessment(), "SEVERITY_ERROR"))
 	}
 	return nil
 }

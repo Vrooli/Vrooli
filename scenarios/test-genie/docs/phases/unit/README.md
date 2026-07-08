@@ -13,6 +13,62 @@ test discovery (via Code Facts), bounded execution, coverage parsing, and
 provider-local test maturity, and Test Genie normalizes its findings into the
 shared maturity assessment contract.
 
+This phase declares a [Phase Capability Contract](../../concepts/phase-capability-contract.md); the sections below follow the required remediation-doc skeleton.
+
+## North Star
+
+Every testable surface is **discovered, executed, and trusted**: workspaces are enumerable with unsupported parse units explicit, tests run to completion without failures, hangs, or misconfiguration, frameworks are canonical and coverage-capable, and the test architecture is clean — tests are co-located, share utilities, never leak production helpers, and exercise injectable seams. At maximum maturity unit-health reports each capability at its top rung: discovery, execution, framework config, test architecture, coverage/quality depth, and stability/traceability are all clean, so the suite is a durable, requirement-linked safety net rather than a fragile checkbox.
+
+## The rungs and their gates
+
+unit-health reports a monotone ladder per capability (each rung implies the one below).
+
+| Capability | Ceiling | L1 → next unlock | Top-rung ("clean") aspiration |
+|---|---|---|---|
+| Surface Discovery | L2 | Surfaces discovered, unsupported units explicit → discovery clean | Test surface discovery is clean. |
+| Execution Readiness | L2 | Commands runnable → complete without failures/hangs/misconfig | Test execution is clean. |
+| Framework Config | L3 | Framework configured → canonical + coverage-capable → package-manager/config aligned | Framework configuration is clean. |
+| Test Architecture | L3 | Architecture comparable → co-location + shared utils → clean helper boundaries + seams | Test architecture is clean. |
+| Coverage Quality | L2 | Coverage measured → coverage/assertion/quality findings addressed | Coverage and test-quality depth are clean. |
+| Stability Traceability | L2 | History measured → flake/runtime-growth/requirement-linkage addressed | Test stability and requirement traceability are clean. |
+
+## What each finding means
+
+Each finding caps its capability at a rung; only `ERROR`/`BLOCKER` severities fail the phase (`WARNING`/`INFO` are honest, non-failing debt or advisories).
+
+| Code(s) | Capability | Caps at | Severity | Fails phase? |
+|---|---|---|---|---|
+| `TEST_SURFACE_ABSENT` / `UNIT_REQUIRED_ROLE_MISSING` | surface_discovery | L0 | ERROR | Yes |
+| `UNIT_SURFACE_UNGOVERNED` / `UNSUPPORTED_PARSE_UNIT` | surface_discovery | L1 | WARNING / INFO | No |
+| `TEST_DEPENDENCY_MISSING` / `TEST_EXECUTION_FAILURE` / `TEST_TIMEOUT_HANG` | execution_readiness | L0–L2 | ERROR | Yes |
+| `TEST_MISCONFIGURATION` | execution_readiness | L1 | WARNING | No |
+| `TEST_FRAMEWORK_MISSING` / `UNIT_POLICY_PROFILE_INVALID` / `TEST_FRAMEWORK_NONCANONICAL` / `UNIT_POLICY_WEAKENED` / `UNIT_POLICY_WAIVER_INVALID` / `UNIT_POLICY_PROJECTION_DRIFT` / `COVERAGE_CONFIG_MISSING` | framework_config | L0–L2 | ERROR | Yes |
+| `PACKAGE_MANAGER_MISMATCH` | framework_config | L3 | WARNING | No |
+| `TEST_HELPER_FROM_PRODUCTION` | test_architecture | L3 | ERROR | Yes |
+| `TEST_NOT_COLOCATED` / `TEST_UTIL_MISSING` / `MISSING_INJECTABLE_SEAM` | test_architecture | L2–L3 | WARNING | No |
+| `LOW_COVERAGE` / `COVERAGE_ABSENT` / `TEST_SKIPPED_OR_ONLY` / `TEST_NO_ASSERTION` / `TEST_RENDER_ONLY` / `TEST_MISSING_EDGE_CASES` | coverage_quality | L0–L2 | WARNING / INFO | No |
+| `TEST_FLAKE_SUSPECTED` / `TEST_RUNTIME_GROWTH` / `TEST_UNTAGGED_REQUIREMENT` | stability_traceability | L2 | WARNING / INFO | No |
+
+## The canonical fix
+
+- **Surface-discovery findings** → add a test surface / required-role tests where absent; govern discovered surfaces so nothing is silently untested (skills: `test`, `unit-testing-architecture-steer`).
+- **Execution-readiness findings** → install missing test dependencies, fix the failing tests, and eliminate hangs (bound or remove the deadlocking test); repair local execution misconfiguration (skills: `test`, `scientific-debugging`).
+- **Framework-config findings** → configure a canonical framework (Go `go test`, React/Vite `vitest`, Python `pytest`) with coverage-capable config, a valid policy profile, and aligned package manager; never weaken policy or file an invalid waiver (skill: `unit-testing-architecture-steer`).
+- **Test-architecture findings** → co-locate tests with source, add the shared test util, and stop importing production helpers from tests; add injectable seams so behavior is testable (skills: `unit-testing-architecture-steer`, `seam-discovery-and-enforcement`).
+- **Coverage-quality findings** → raise per-file coverage, strengthen assertions, un-skip tests, replace render-only/snapshot-heavy tests with behavioral ones, and cover edge cases (skill: `test`).
+- **Stability/traceability findings** → de-flake suspected tests, investigate runtime growth, and add `[REQ:ID]` tags so requirement coverage stays traceable (skills: `scientific-debugging`, `requirements-traceability-steer`).
+
+## How to verify
+
+```bash
+# Current rung, gaps, and next move for every capability:
+unit-health validate scenario <scenario>
+
+# Or drive it through Test Genie and read the per-phase scorecard:
+test-genie execute <scenario> --phases unit
+test-genie runs findings --scenario <scenario>
+```
+
 ## How It Works
 
 ```mermaid

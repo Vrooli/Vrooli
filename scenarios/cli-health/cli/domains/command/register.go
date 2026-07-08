@@ -10,10 +10,10 @@ const GroupName = "command"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"CommandReferenceValidationService.ValidateCommandReference": h.validate,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"CommandReferenceValidationService.ValidateCommandReference": cliapp.ProtoList(h.validateCall, h.validateReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("command: load from manifest: %w", err)
 	}

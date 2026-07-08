@@ -80,6 +80,12 @@ type Response struct {
 	Links          map[string]any `json:"links"`
 	Metadata       map[string]any `json:"metadata"`
 	CampaignNudge  *CampaignNudge `json:"campaignNudge,omitempty"`
+	// RunHandle carries the durable, server-owned run identity plus the reattach
+	// and follow commands, so a --json consumer can reattach to or audit the run
+	// from the terminal object alone — without parsing human stderr. Additive:
+	// ExecutionID stays the canonical run id for existing consumers. Populated on
+	// the durable machine-output path.
+	RunHandle *RunHandle `json:"runHandle,omitempty"`
 	// Requirements summarizes PRD operational-target and requirement status for
 	// the scenario. Present whenever the scenario has a requirements/ tree. Nil
 	// otherwise. Mirrors the API's orchestrator.requirements.SyncOutcome.
@@ -281,6 +287,83 @@ type Phase struct {
 	RunnabilityVerdict string          `json:"runnabilityVerdict"`
 	RunnabilityReason  string          `json:"runnabilityReason"`
 	Observations       ObservationList `json:"observations"`
+	// MaturityStanding is the per-phase Phase Capability Contract standing. Both
+	// the human scorecard and the --json output derive from this single mapping of
+	// the server's RunEvent.maturity_standing, so the two modes never diverge. Nil
+	// for native phases / providers that declare no ladder.
+	MaturityStanding *MaturityStanding `json:"maturityStanding,omitempty"`
+	// FindingsSummary is the per-severity finding tally for the phase.
+	FindingsSummary *FindingsSummary `json:"findingsSummary,omitempty"`
+}
+
+// MaturityStanding is the CLI projection of the server's per-phase maturity
+// standing. The concise human scorecard reads the phase-level fields plus the
+// single next move; --json additionally exposes the per-capability depth.
+type MaturityStanding struct {
+	Provider                string   `json:"provider,omitempty"`
+	Phase                   string   `json:"phase,omitempty"`
+	CurrentLevel            string   `json:"currentLevel,omitempty"`
+	CurrentLevelLabel       string   `json:"currentLevelLabel,omitempty"`
+	NextLevel               string   `json:"nextLevel,omitempty"`
+	CeilingLevel            string   `json:"ceilingLevel,omitempty"`
+	Clean                   bool     `json:"clean"`
+	UnknownCount            int32    `json:"unknownCount,omitempty"`
+	BlockingFindingCodes    []string `json:"blockingFindingCodes,omitempty"`
+	NextMove                string   `json:"nextMove,omitempty"`
+	NextMoveReason          string   `json:"nextMoveReason,omitempty"`
+	PriorityCapabilityID    string   `json:"priorityCapabilityId,omitempty"`
+	PriorityCapabilityLabel string   `json:"priorityCapabilityLabel,omitempty"`
+	NorthStar               string   `json:"northStar,omitempty"`
+	AtMaximum               bool     `json:"atMaximum,omitempty"`
+	// DocSearchTopics are runnable search-hub queries that resolve to the phase's
+	// structured remediation doc (Phase Capability Contract skeleton). Derived
+	// CLI-side from the phase identity and blocking codes.
+	DocSearchTopics []string             `json:"docSearchTopics,omitempty"`
+	Capabilities    []CapabilityStanding `json:"capabilities,omitempty"`
+}
+
+// CapabilityStanding is one capability's standing within a phase (--json depth).
+type CapabilityStanding struct {
+	ID                   string   `json:"id"`
+	Label                string   `json:"label,omitempty"`
+	CurrentLevel         string   `json:"currentLevel,omitempty"`
+	CurrentLevelLabel    string   `json:"currentLevelLabel,omitempty"`
+	NextLevel            string   `json:"nextLevel,omitempty"`
+	CurrentSummary       string   `json:"currentSummary,omitempty"`
+	NextUnlock           string   `json:"nextUnlock,omitempty"`
+	Clean                bool     `json:"clean"`
+	BlockingFindingCount int32    `json:"blockingFindingCount,omitempty"`
+	BlockingFindingCodes []string `json:"blockingFindingCodes,omitempty"`
+	PriorityRank         int32    `json:"priorityRank,omitempty"`
+	PriorityReason       string   `json:"priorityReason,omitempty"`
+}
+
+// FindingsSummary is the per-severity finding tally for a phase.
+type FindingsSummary struct {
+	Blockers int32 `json:"blockers,omitempty"`
+	Errors   int32 `json:"errors,omitempty"`
+	Warnings int32 `json:"warnings,omitempty"`
+	Infos    int32 `json:"infos,omitempty"`
+	Total    int32 `json:"total,omitempty"`
+}
+
+// RunHandle is the durable, server-owned run identity a machine consumer needs
+// to reattach to, follow, or audit a run without parsing human stderr. It rides
+// on the final --json Response and is also emitted as the early start-handle so
+// a long --json run is not opaque until completion (see execute.StartHandle).
+type RunHandle struct {
+	// RunID is the durable run id (also mirrored to Response.ExecutionID).
+	RunID string `json:"runId"`
+	// Scenario is the scenario the run belongs to.
+	Scenario string `json:"scenario"`
+	// Reattach is the exact `runs wait --json` command that blocks quietly and
+	// exits with the verdict — the agent-safe reattach breadcrumb.
+	Reattach string `json:"reattach"`
+	// Follow is the `runs follow` command for live human progress.
+	Follow string `json:"follow"`
+	// Coalesced reports that this request rode an already-in-flight identical run
+	// (the one-run-per-scenario guard) instead of starting a second suite.
+	Coalesced bool `json:"coalesced,omitempty"`
 }
 
 // PhaseSummary provides aggregate phase statistics.

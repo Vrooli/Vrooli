@@ -154,6 +154,11 @@ func runtimeFindings(obs RuntimeObservation, m *cliapp.Manifest, manifestPath st
 // outside any manifest group) never trip it, and a help-parse gap that drops a
 // whole group does not falsely report that group's commands as missing.
 func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifestPath string) []Finding {
+	// Commands declared as legitimate special cases in the manifest's top-level
+	// exceptions[] are not "undeclared": they live outside the binding path on
+	// purpose. Treat them like framework built-ins so declaring an exception
+	// silences the undeclared-command finding for that command.
+	declaredExceptions := exceptionCommandPaths(m)
 	manifestByGroup := map[string]map[string]bool{}
 	for _, g := range m.Groups {
 		set := manifestByGroup[g.Name]
@@ -203,7 +208,7 @@ func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifest
 		// Undeclared-accepted: the binary exposes a command under a manifest group
 		// that the manifest neither binds nor (for built-ins) needs to.
 		for _, name := range sortedKeys(runtime) {
-			if declared[name] || builtinCommands[name] {
+			if declared[name] || builtinCommands[name] || declaredExceptions[normalizeCommandPath(groupCmd(group, name))] {
 				continue
 			}
 			findings = append(findings, Finding{
@@ -211,7 +216,7 @@ func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifest
 				Code:       CodeCLICommandUndeclared,
 				Location:   commandLocation(manifestPath, group, name),
 				Message:    fmt.Sprintf("binary exposes command %q at runtime but the manifest does not declare it (manifest is the CLI SSOT)", groupCmd(group, name)),
-				Suggestion: "add the command to the manifest under its group/binding, or remove it from the CLI",
+				Suggestion: "add the command to the manifest under its group/binding, declare it in exceptions[] if it is a legitimate special case (streaming/upload/passthrough/durable run), or remove it from the CLI",
 			})
 		}
 	}

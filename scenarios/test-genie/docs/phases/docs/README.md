@@ -7,6 +7,71 @@
 
 The docs phase validates Markdown health before any runtime-dependent tests run. It catches broken docs that block agents: malformed Markdown, invalid mermaid diagrams, broken links (local and external), absolute filesystem paths that hurt portability, broken bidirectional code↔documentation references, and broken marked inline `path` / `doc` references.
 
+This phase declares a [Phase Capability Contract](../../concepts/phase-capability-contract.md); the sections below follow the required remediation-doc skeleton.
+
+## North Star
+
+At maximum maturity the scenario's documentation is a **trustworthy, navigable knowledge surface an agent can act on without verification**: a scenario-owned docs contract and manifest that validate, every required doc present and correctly placed, readable and structurally sound Markdown, clean local links, and code/doc/marked references that resolve to real targets. The deepest agent-facing capabilities — `content_quality` and `reference_integrity` — reach their L3 "Advisory-ready" rung, meaning no maturity-blocking findings remain and the remaining debt is visible, triaged advisory rather than a trap that silently misleads a reader.
+
+## The rungs and their gates
+
+Each of the seven capabilities carries its own monotone L0→L3 ladder (L0 is uniformly "Blocked — the contract/content/links cannot be trusted"; each rung implies the one below).
+
+| Capability | L1 | L2 | L3 top rung — North Star | Next unlock from L1 |
+|---|---|---|---|---|
+| `doc_contract` | Contract discoverable (readable) | Contract valid, fallback-tolerant | **Contract clean** — valid and scenario-owned | Make the docs manifest and all contract metadata schema-valid |
+| `required_docs` | Required docs present | Placement managed | **Placement clean** — present, correctly placed, no residue | Retire temporary docs; register or remove extra docs |
+| `append_log_integrity` | Append-log contracts valid | Append-log managed | **Append-log clean** — safe to use | Keep append-log contracts synced with target docs |
+| `content_quality` | Content readable | Content managed | **Advisory-ready** — no maturity-blocking findings | Resolve markdown, Mermaid, absolute-path, and number findings |
+| `link_health` | Local links healthy | Links managed | **Links clean** | Resolve or triage external link warnings and failures |
+| `reference_integrity` | References resolvable | References managed | **Advisory-ready** — no maturity-blocking findings | Resolve partial/unknown marked-ref or command-snippet validation |
+| `manifest_coverage` | Coverage present | Coverage managed | **Coverage clean** | Register orphaned docs or remove obsolete files |
+
+## What each finding means
+
+Each finding caps its capability at the named rung; only ERROR severities fail the phase (docs emits no BLOCKER), so broken references and links fail while quality/advisory debt stays non-failing.
+
+| Code | Capability | Caps at | Severity | Fails phase? |
+|---|---|---|---|---|
+| `contract_missing` / `schema_violation` / `manifest_missing` / `invalid_contract_kind` | doc_contract | L1 | ERROR | **Yes** |
+| `scenario_manifest_missing` | doc_contract | L2 | WARNING | No |
+| `misplaced_doc` / `missing_doc` | required_docs | L1 | WARNING | No |
+| `extra_doc` / `temporary_doc` | required_docs | L2 | INFO / WARNING | No |
+| `append_log_missing_heading` / `append_log_invalid_fields` | append_log_integrity | L1 | ERROR | **Yes** |
+| `file_read_error` | content_quality | L1 | ERROR | **Yes** |
+| `markdown_unclosed_fence` | content_quality | L1 | WARNING | No |
+| `mermaid_invalid` / `absolute_path` / `unmarked_number` | content_quality | L2 | WARNING | No |
+| `broken_local_link` | link_health | L1 | ERROR | **Yes** |
+| `broken_link_parse` | link_health | L1 | WARNING | No |
+| `external_link_warning` / `broken_external_link` | link_health | L2 | WARNING (advisory) | No |
+| `broken_code_ref` / `broken_doc_ref` / `broken_marked_ref` | reference_integrity | L1 | ERROR | **Yes** |
+| `unknown_marked_ref` / `unknown_cli_ref` / `unknown_command_snippet` | reference_integrity | L2 | WARNING/INFO (advisory) | No |
+| `manifest_missing_doc` | manifest_coverage | L1 | ERROR | **Yes** |
+| `manifest_orphaned_doc` | manifest_coverage | L2 | WARNING (advisory) | No |
+
+## The canonical fix
+
+- **Doc contract (`contract_missing`, `schema_load_error`, `schema_violation`, `manifest_missing`, `invalid_contract_*`, `missing_*` metadata, `scenario_manifest_missing`)** → resolve or author the scenario-owned `docs/manifest.json` and make its schema, kind, stage, maturity, and per-document metadata validate; promoting from template fallback to a scenario manifest is an ownership decision.
+- **Required docs (`missing_doc`, `misplaced_doc`, `extra_doc`, `temporary_doc`)** → create missing docs with scenario-specific content, move misplaced docs to their contract paths (auto), and retire temporary docs or register/remove extra ones.
+- **Append-log integrity (`append_log_missing_heading`, `append_log_invalid_fields`, `append_log_invalid_date_source`, `append_log_invalid_format`)** → align each append-log operation's target heading, fields, date source, and format with the document it writes to.
+- **Content quality (`file_read_error`, `markdown_unclosed_fence`, `mermaid_invalid`, `absolute_path`, `unmarked_number`, `number_marker_without_reason`)** → fix read errors and unclosed fences, correct Mermaid semantics, replace OS-rooted absolute paths with portable references, and tag or remove derived numbers with a source-of-truth rationale.
+- **Link health (`broken_local_link`, `broken_link_parse`, `external_link_warning`, `broken_external_link`)** → repair or remove broken local targets and malformed link syntax; triage external warnings (decide whether the source is still authoritative).
+- **Reference integrity (`broken_code_ref`, `broken_doc_ref`, `broken_marked_ref`, `broken_command_snippet`, `unknown_*`, `partial_*`)** → point each broken code/doc/marked reference and command snippet at its correct current target, and register or rewrite unknown markers/CLI refs.
+- **Manifest coverage (`manifest_missing_doc`, `manifest_orphaned_doc`)** → add missing docs or correct their manifest registration, and register orphaned Markdown or delete obsolete files.
+
+## How to verify
+
+```bash
+# See the current rung, gaps, and next move for every docs capability:
+knowledge-observatory validate scenario <scenario>
+
+# Or drive it through Test Genie and read the per-phase scorecard:
+test-genie execute <scenario> --phases docs
+test-genie runs findings --scenario <scenario>
+```
+
+The `docs` line in the scorecard shows the current rung, the single highest-unlock next move, and a runnable doc-search topic that resolves back to the sections above.
+
 ## Pipeline Position
 
 ```

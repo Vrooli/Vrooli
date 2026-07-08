@@ -16,6 +16,27 @@ import (
 
 // fixtureRepo lays out <root>/scenarios/<name>/.vrooli/test-genie.json plus a
 // docs file so a mutation-free descriptor validates clean.
+// conformantDoc is a remediation doc that satisfies the required skeleton (all
+// five H2 headings), so the shared fixture is Phase Capability Contract-clean and
+// individual tests break only what they assert.
+const conformantDoc = `# Fixture
+
+## North Star
+Everything is verified.
+
+## The rungs and their gates
+L0 → L4.
+
+## What each finding means
+Each code caps a rung.
+
+## The canonical fix
+Do the thing.
+
+## How to verify
+Run the check.
+`
+
 func fixtureRepo(t *testing.T, scenario string, mutate func(map[string]any)) (repoRoot, scenarioDir string) {
 	t.Helper()
 	repoRoot = t.TempDir()
@@ -24,7 +45,7 @@ func fixtureRepo(t *testing.T, scenario string, mutate func(map[string]any)) (re
 		t.Fatal(err)
 	}
 	docsRel := filepath.ToSlash(filepath.Join("scenarios", scenario, "README.md"))
-	if err := os.WriteFile(filepath.Join(scenarioDir, "README.md"), []byte("# fixture\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, "README.md"), []byte(conformantDoc), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	descriptor := map[string]any{
@@ -58,8 +79,8 @@ func fixtureRepo(t *testing.T, scenario string, mutate func(map[string]any)) (re
 					"label":       "Capability",
 					"description": "Fixture capability.",
 					"levels": []any{
-						map[string]any{"id": "L0", "name": "zero"},
-						map[string]any{"id": "L1", "name": "one"},
+						map[string]any{"id": "L0", "name": "zero", "entry_criteria": []any{"start"}, "exit_criteria": []any{"leave L0"}, "next_unlock": "reach L1"},
+						map[string]any{"id": "L1", "name": "one", "entry_criteria": []any{"enter L1"}, "exit_criteria": []any{"stay clean"}, "capability_summary": "The fixture capability is fully realized."},
 					},
 				},
 			},

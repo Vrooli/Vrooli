@@ -521,6 +521,11 @@ func (p *Printer) printPhaseResults(phasesData []execTypes.Phase) {
 				fmt.Fprintf(p.w, "     docs: %s\n", doc)
 			}
 		}
+
+		// Uniform per-phase maturity scorecard (Phase Capability Contract): every
+		// phase with a standing shows more than a status row — its rung, the single
+		// next move, and a runnable doc-search topic.
+		p.printPhaseStanding(phase)
 	}
 	fmt.Fprintln(p.w)
 }

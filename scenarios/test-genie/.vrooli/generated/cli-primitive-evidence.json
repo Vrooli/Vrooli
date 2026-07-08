@@ -1,0 +1,147 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "test-genie",
+  "generator": "v1.0.0",
+  "manifest_hash": "3d6188c4c3f588f1c9cb3b5aab58cb936bf0c50d6c0f98cfcf0b12fa7fbe7ee1",
+  "commands": [
+    {
+      "path": "eligibility check",
+      "group": "eligibility",
+      "command": "check",
+      "binding": "EligibilityService.Check",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "execute",
+      "command": "execute",
+      "declared_exception": "durable_run",
+      "observed_primitive": "durable_run"
+    },
+    {
+      "path": "generate",
+      "command": "generate",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "runs abort",
+      "group": "runs",
+      "command": "abort",
+      "binding": "RunsService.AbortRun",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs compare",
+      "group": "runs",
+      "command": "compare",
+      "binding": "RunsService.CompareRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs delete",
+      "group": "runs",
+      "command": "delete",
+      "binding": "RunsService.DeleteRun",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs findings",
+      "group": "runs",
+      "command": "findings",
+      "binding": "RunsService.GetRunFindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs fleet-health",
+      "group": "runs",
+      "command": "fleet-health",
+      "binding": "RunsService.GetFleetHealth",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "runs follow",
+      "group": "runs",
+      "command": "follow",
+      "declared_exception": "streaming",
+      "observed_primitive": "streaming"
+    },
+    {
+      "path": "runs freshness",
+      "group": "runs",
+      "command": "freshness",
+      "binding": "RunsService.CheckFreshness",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs list",
+      "group": "runs",
+      "command": "list",
+      "binding": "RunsService.ListRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs pin",
+      "group": "runs",
+      "command": "pin",
+      "binding": "RunsService.PinRun",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs self-health",
+      "group": "runs",
+      "command": "self-health",
+      "binding": "RunsService.GetSelfHealth",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "runs show",
+      "group": "runs",
+      "command": "show",
+      "binding": "RunsService.GetRun",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs status",
+      "group": "runs",
+      "command": "status",
+      "binding": "RunsService.GetRunStatus",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "runs unpin",
+      "group": "runs",
+      "command": "unpin",
+      "binding": "RunsService.UnpinRun",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs wait",
+      "group": "runs",
+      "command": "wait",
+      "declared_exception": "durable_run",
+      "observed_primitive": "durable_run"
+    },
+    {
+      "path": "runs wait-all",
+      "group": "runs",
+      "command": "wait-all",
+      "declared_exception": "durable_run",
+      "observed_primitive": "durable_run"
+    }
+  ]
+}

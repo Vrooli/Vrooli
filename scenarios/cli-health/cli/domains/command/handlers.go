@@ -25,7 +25,9 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) validate(ctx cliapp.RunContext) error {
+// validateCall runs CommandReferenceValidationService.ValidateCommandReference
+// (operation half of the proto_list primitive); validateReport renders it.
+func (h *handlers) validateCall(ctx cliapp.OperationContext) (*commandv1.ValidateCommandReferenceResponse, error) {
 	commandText := strings.TrimSpace(ctx.Flag("command"))
 	if commandText == "" {
 		commandText = strings.TrimSpace(ctx.Positional("command-ref"))
@@ -37,12 +39,17 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 		RefreshPolicy: parseRefreshPolicy(ctx.Flag("refresh")),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("validate command reference", err, nil)
+		return nil, cliapp.WrapAPIError("validate command reference", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Result == nil {
-		return fmt.Errorf("server returned no command validation result")
+		return nil, fmt.Errorf("server returned no command validation result")
 	}
-	r := resp.Msg.Result
+	return resp.Msg, nil
+}
+
+// validateReport maps the validation response to the human ListReport.
+func (h *handlers) validateReport(_ cliapp.OperationContext, msg *commandv1.ValidateCommandReferenceResponse) cliapp.ListReport {
+	r := msg.Result
 	results := []string{
 		fmt.Sprintf("Command: %s", r.CommandText),
 		fmt.Sprintf("Verdict: %s", trimEnum(r.Verdict.String(), "COMMAND_REFERENCE_VERDICT_")),
@@ -60,11 +67,11 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 	for _, guidance := range r.Guidance {
 		results = append(results, "Next: "+guidance)
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Command reference validation: %s.", strings.ToLower(trimEnum(r.Verdict.String(), "COMMAND_REFERENCE_VERDICT_")))},
 		ResultsHeading: "Validation",
 		Results:        results,
-	})
+	}
 }
 
 func parseRefreshPolicy(s string) commandv1.CommandReferenceRefreshPolicy {
