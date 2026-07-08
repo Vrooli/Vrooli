@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowUpRight,
+  Activity,
   CheckCircle2,
   Info,
   Layers,
@@ -26,6 +27,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { CompactTabBar, type CompactTabItem } from "../components/ui/compact-tab-bar";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
@@ -39,6 +41,7 @@ import { initiativeDetailPath } from "../app/routes/route-paths";
 import { selectors } from "../consts/selectors";
 import type {
   OperatingModeDetail,
+  OperatingModeLinkedInitiative,
   OperatingModePhaseTransition,
   OperatingModeRound,
   OperatingModeSimulation,
@@ -68,6 +71,7 @@ import { operatingModeOption } from "../components/session/context/session-conte
 const EMPTY_LENSES: never[] = [];
 
 type PhasesView = "list" | "graph";
+type OperatingModeTab = "overview" | "phases" | "execution" | "guidance";
 
 const HIGHLIGHT_DURATION_MS = 1500;
 const SIMULATION_STEP_MS = 900;
@@ -144,6 +148,10 @@ export function OperatingModeDetailsPage() {
   const [phasesView, setPhasesView] = useUrlState<PhasesView>("view", "graph", {
     validate: (value): value is PhasesView => value === "list" || value === "graph",
   });
+  const [activeTab, setActiveTab] = useUrlState<OperatingModeTab>("tab", "overview", {
+    validate: (value): value is OperatingModeTab =>
+      value === "overview" || value === "phases" || value === "execution" || value === "guidance",
+  });
   const [highlightedPhaseId, setHighlightedPhaseId] = useState<string | null>(null);
   const [simulationIndex, setSimulationIndex] = useState(0);
   const [simulationPlaying, setSimulationPlaying] = useState(false);
@@ -212,10 +220,7 @@ export function OperatingModeDetailsPage() {
       highlightTimerRef.current = null;
     }, HIGHLIGHT_DURATION_MS);
     if (typeof document !== "undefined") {
-      document.getElementById(phaseCardDomId(phase))?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      scrollElementIntoNearestContainer(document.getElementById(phaseCardDomId(phase)));
     }
   };
 
@@ -254,6 +259,28 @@ export function OperatingModeDetailsPage() {
     ? buildLiveTrace(liveActiveRound, liveWorkspace, entry.phaseGraph?.transitions ?? [])
     : null;
   const selectedPhaseId = highlightedPhaseId ?? liveTrace?.phase ?? activeSimulationStep?.phase ?? null;
+  const tabs: CompactTabItem<OperatingModeTab>[] = [
+    { value: "overview", label: "Overview", icon: Layers },
+    { value: "phases", label: "Phases", icon: Network, count: phases.length },
+    { value: "execution", label: "Execution", icon: Activity, badge: linkedInitiatives.length > 0 ? (
+      <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-500/25 px-1 text-[10px] font-semibold text-cyan-300">
+        {linkedInitiatives.length}
+      </span>
+    ) : null },
+    { value: "guidance", label: "Guidance", icon: CheckCircle2 },
+  ];
+  const tabBar = (
+    <div className="border-t border-slate-800/50" data-testid={selectors.initiativeDetails.modeDetailsTabRow}>
+      <CompactTabBar
+        items={tabs}
+        activeValue={activeTab}
+        onValueChange={setActiveTab}
+        aria-label="Operating mode detail sections"
+        className="px-3"
+        tabTestIdPrefix="operating-mode-details-tab"
+      />
+    </div>
+  );
 
   const handleSave = () => {
     const trimmedLabel = labelDraft.trim();
@@ -290,99 +317,122 @@ export function OperatingModeDetailsPage() {
             </span>
           }
           actions={attachToSession.button}
+          tabBar={tabBar}
         />
       }
     >
       {attachToSession.sheet}
-      <DetailSection
-        title="Overview"
-        icon={Layers}
-        hideDivider
-        action={
-          isEditing ? (
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={handleCancel} disabled={updateMutation.isPending}>
-                <X className="mr-1 h-3.5 w-3.5" />Cancel
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending || !labelDraft.trim()}>
-                {updateMutation.isPending ? "Saving..." : "Save"}
-              </Button>
-            </div>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-              <Pencil className="mr-1 h-3.5 w-3.5" />Edit
-            </Button>
-          )
-        }
-      >
-        {isEditing ? (
-          <div className="space-y-3">
-            <label className="block text-sm">
-              <span className="mb-1 block text-xs font-medium text-slate-400">Display label</span>
-              <input
-                type="text"
-                value={labelDraft}
-                onChange={(e) => setLabelDraft(e.target.value)}
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
-                data-testid="operating-mode-label-input"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-xs font-medium text-slate-400">Description</span>
-              <textarea
-                value={descriptionDraft}
-                onChange={(e) => setDescriptionDraft(e.target.value)}
-                rows={4}
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
-                data-testid="operating-mode-description-input"
-              />
-            </label>
-            {updateMutation.isError && (
-              <p className="text-sm text-red-400">{(updateMutation.error).message}</p>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3 text-sm text-slate-200">
-            {entry.description ? (
-              <p className="whitespace-pre-wrap">{entry.description}</p>
+      {activeTab === "overview" && (
+        <>
+          <DetailSection
+            title="Overview"
+            icon={Layers}
+            hideDivider
+            action={
+              isEditing ? (
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={handleCancel} disabled={updateMutation.isPending}>
+                    <X className="mr-1 h-3.5 w-3.5" />Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending || !labelDraft.trim()}>
+                    {updateMutation.isPending ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil className="mr-1 h-3.5 w-3.5" />Edit
+                </Button>
+              )
+            }
+          >
+            {isEditing ? (
+              <div className="space-y-3">
+                <label className="block text-sm">
+                  <span className="mb-1 block text-xs font-medium text-slate-400">Display label</span>
+                  <input
+                    type="text"
+                    value={labelDraft}
+                    onChange={(e) => setLabelDraft(e.target.value)}
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
+                    data-testid="operating-mode-label-input"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-1 block text-xs font-medium text-slate-400">Description</span>
+                  <textarea
+                    value={descriptionDraft}
+                    onChange={(e) => setDescriptionDraft(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
+                    data-testid="operating-mode-description-input"
+                  />
+                </label>
+                {updateMutation.isError && (
+                  <p className="text-sm text-red-400">{(updateMutation.error).message}</p>
+                )}
+              </div>
             ) : (
-              <p className="italic text-slate-500">No description set.</p>
+              <div className="space-y-3 text-sm text-slate-200">
+                {entry.description ? (
+                  <p className="whitespace-pre-wrap">{entry.description}</p>
+                ) : (
+                  <p className="italic text-slate-500">No description set.</p>
+                )}
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400 md:grid-cols-4">
+                  <div>
+                    <ExplainableLabel
+                      label="Scope"
+                      onOpen={() => setActiveExplainer(SCOPE_KIND_EXPLAINER)}
+                      testId={selectors.initiativeDetails.modeDetailsScopeInfoIcon}
+                    />
+                    <dd className="text-slate-200">{humanizeScopeKind(entry.scopeKind)}</dd>
+                  </div>
+                  <div>
+                    <ExplainableLabel
+                      label="Run strategy"
+                      onOpen={() => setActiveExplainer(RUN_STRATEGY_EXPLAINER)}
+                      testId={selectors.initiativeDetails.modeDetailsRunStrategyInfoIcon}
+                    />
+                    <dd className="text-slate-200">{humanizeRunStrategy(entry.runStrategy)}</dd>
+                  </div>
+                  <div>
+                    <ExplainableLabel
+                      label="Default"
+                      onOpen={() => setActiveExplainer(DEFAULT_FLAG_EXPLAINER)}
+                      testId={selectors.initiativeDetails.modeDetailsDefaultInfoIcon}
+                    />
+                    <dd className="text-slate-200">{entry.default ? "yes" : "no"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Usage</dt>
+                    <dd className="text-slate-200">{entry.usageCount} initiative{entry.usageCount === 1 ? "" : "s"}</dd>
+                  </div>
+                </dl>
+              </div>
             )}
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400 md:grid-cols-4">
-              <div>
-                <ExplainableLabel
-                  label="Scope"
-                  onOpen={() => setActiveExplainer(SCOPE_KIND_EXPLAINER)}
-                  testId={selectors.initiativeDetails.modeDetailsScopeInfoIcon}
-                />
-                <dd className="text-slate-200">{humanizeScopeKind(entry.scopeKind)}</dd>
-              </div>
-              <div>
-                <ExplainableLabel
-                  label="Run strategy"
-                  onOpen={() => setActiveExplainer(RUN_STRATEGY_EXPLAINER)}
-                  testId={selectors.initiativeDetails.modeDetailsRunStrategyInfoIcon}
-                />
-                <dd className="text-slate-200">{humanizeRunStrategy(entry.runStrategy)}</dd>
-              </div>
-              <div>
-                <ExplainableLabel
-                  label="Default"
-                  onOpen={() => setActiveExplainer(DEFAULT_FLAG_EXPLAINER)}
-                  testId={selectors.initiativeDetails.modeDetailsDefaultInfoIcon}
-                />
-                <dd className="text-slate-200">{entry.default ? "yes" : "no"}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Usage</dt>
-                <dd className="text-slate-200">{entry.usageCount} initiative{entry.usageCount === 1 ? "" : "s"}</dd>
-              </div>
-            </dl>
-          </div>
-        )}
-      </DetailSection>
+          </DetailSection>
+          <DetailSection
+            title="Capabilities"
+            action={
+              <button
+                type="button"
+                onClick={() => setActiveExplainer(CAPABILITY_EXPLAINER)}
+                className="rounded p-1 text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200"
+                aria-label="What capability flags mean"
+              >
+                <Info className="h-4 w-4" />
+              </button>
+            }
+          >
+            <div data-testid={selectors.initiativeDetails.modeDetailsCapabilitiesSection}>
+              <CapabilityList capabilities={entry.capabilities} variant="full" />
+            </div>
+          </DetailSection>
+          <LinkedInitiativesSection linkedInitiatives={linkedInitiatives} onNavigate={navigate} />
+        </>
+      )}
 
-      {phases.length > 0 && (
+      {activeTab === "phases" && phases.length > 0 && (
         <DetailSection
           title="Phases"
           action={
@@ -426,7 +476,19 @@ export function OperatingModeDetailsPage() {
                 onSelectPhase={handleSelectPhase}
               />
             )}
-            {hasPhaseGraph && (
+            <PhaseList
+              phases={phases}
+              transitions={entry.phaseGraph?.transitions}
+              highlightedPhaseId={selectedPhaseId}
+            />
+          </div>
+        </DetailSection>
+      )}
+
+      {activeTab === "execution" && (
+        <div className="space-y-4">
+          {hasPhaseGraph ? (
+            <>
               <OperatingModeSimulationPanel
                 simulation={simulationQuery.data}
                 isLoading={simulationQuery.isLoading}
@@ -444,8 +506,6 @@ export function OperatingModeDetailsPage() {
                   setSimulationIndex(0);
                 }}
               />
-            )}
-            {hasPhaseGraph && (
               <OperatingModeLivePanel
                 linkedInitiatives={linkedInitiatives}
                 selectedInitiative={selectedLiveInitiative}
@@ -456,124 +516,80 @@ export function OperatingModeDetailsPage() {
                 error={liveWorkspaceQuery.error}
                 onRefresh={() => void liveWorkspaceQuery.refetch()}
               />
-            )}
-            <PhaseList
-              phases={phases}
-              transitions={entry.phaseGraph?.transitions}
-              highlightedPhaseId={selectedPhaseId}
-            />
-          </div>
-        </DetailSection>
+            </>
+          ) : (
+            <DetailSection title="Execution" hideDivider>
+              <p className="text-sm italic text-slate-500">This mode does not define phase execution traces.</p>
+            </DetailSection>
+          )}
+        </div>
       )}
 
-      <DetailSection
-        title="Capabilities"
-        action={
-          <button
-            type="button"
-            onClick={() => setActiveExplainer(CAPABILITY_EXPLAINER)}
-            className="rounded p-1 text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200"
-            aria-label="What capability flags mean"
-          >
-            <Info className="h-4 w-4" />
-          </button>
-        }
-      >
-        <div data-testid={selectors.initiativeDetails.modeDetailsCapabilitiesSection}>
-          <CapabilityList capabilities={entry.capabilities} variant="full" />
-        </div>
-      </DetailSection>
+      {activeTab === "guidance" && (
+        <>
+          <DetailSection title="When to use" hideDivider>
+            <ul
+              className="space-y-2"
+              data-testid={selectors.initiativeDetails.modeDetailsBestForSection}
+            >
+              {entry.bestFor.map((item, idx) => (
+                <li key={`best-${idx}`} className="flex items-start gap-2 text-sm text-slate-200">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </DetailSection>
 
-      <DetailSection title="When to use">
-        <ul
-          className="space-y-2"
-          data-testid={selectors.initiativeDetails.modeDetailsBestForSection}
-        >
-          {entry.bestFor.map((item, idx) => (
-            <li key={`best-${idx}`} className="flex items-start gap-2 text-sm text-slate-200">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </DetailSection>
+          <DetailSection title="When not to use">
+            <ul
+              className="space-y-2"
+              data-testid={selectors.initiativeDetails.modeDetailsNotForSection}
+            >
+              {entry.notFor.map((item, idx) => (
+                <li key={`not-${idx}`} className="flex items-start gap-2 text-sm text-slate-200">
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </DetailSection>
 
-      <DetailSection title="When not to use">
-        <ul
-          className="space-y-2"
-          data-testid={selectors.initiativeDetails.modeDetailsNotForSection}
-        >
-          {entry.notFor.map((item, idx) => (
-            <li key={`not-${idx}`} className="flex items-start gap-2 text-sm text-slate-200">
-              <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </DetailSection>
+          <DetailSection title="Tradeoffs">
+            <ul
+              className="space-y-2"
+              data-testid={selectors.initiativeDetails.modeDetailsTradeoffsSection}
+            >
+              {entry.tradeoffs.map((item, idx) => (
+                <li key={`trade-${idx}`} className="flex items-start gap-2 text-sm text-slate-200">
+                  <Scale className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" aria-hidden="true" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </DetailSection>
 
-      <DetailSection title="Tradeoffs">
-        <ul
-          className="space-y-2"
-          data-testid={selectors.initiativeDetails.modeDetailsTradeoffsSection}
-        >
-          {entry.tradeoffs.map((item, idx) => (
-            <li key={`trade-${idx}`} className="flex items-start gap-2 text-sm text-slate-200">
-              <Scale className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" aria-hidden="true" />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </DetailSection>
+          <DetailSection title="Learn more">
+            <LearnMoreLinks
+              mode={entry.mode}
+              executionModesUrl={docsExecutionModesUrl}
+              holisticLoopUrl={docsHolisticLoopUrl}
+              phasedPlanDrainUrl={docsPhasedPlanDrainUrl}
+            />
+          </DetailSection>
 
-      <DetailSection title="Learn more">
-        <LearnMoreLinks
-          mode={entry.mode}
-          executionModesUrl={docsExecutionModesUrl}
-          holisticLoopUrl={docsHolisticLoopUrl}
-          phasedPlanDrainUrl={docsPhasedPlanDrainUrl}
-        />
-      </DetailSection>
-
-      <DetailSection title="Compare to other modes" hideDivider>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setHowToChooseOpen(true)}
-          data-testid={selectors.initiativeDetails.modeDetailsHowToChooseButton}
-        >
-          How does this compare to other modes?
-        </Button>
-      </DetailSection>
-
-      <DetailSection title="Linked Initiatives">
-        {linkedInitiatives.length === 0 ? (
-          <p className="text-sm italic text-slate-500">No initiatives currently use this mode.</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {linkedInitiatives.map((init) => (
-              <li key={init.name}>
-                <button
-                  type="button"
-                  onClick={() => navigate(initiativeDetailPath(init.name))}
-                  className="flex w-full items-start justify-between gap-2 rounded-md border border-slate-800 bg-slate-900/40 px-3 py-2 text-left text-sm transition-colors hover:border-slate-700 hover:bg-slate-800/60"
-                  data-testid="operating-mode-linked-initiative"
-                >
-                  <div>
-                    <p className="font-medium text-slate-100">{init.title || init.name}</p>
-                    <p className="text-xs text-slate-500">{init.name}</p>
-                  </div>
-                  {init.status && (
-                    <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300">
-                      {init.status}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </DetailSection>
+          <DetailSection title="Compare to other modes" hideDivider>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setHowToChooseOpen(true)}
+              data-testid={selectors.initiativeDetails.modeDetailsHowToChooseButton}
+            >
+              How does this compare to other modes?
+            </Button>
+          </DetailSection>
+        </>
+      )}
 
       <ConceptExplainerDialog
         isOpen={activeExplainer !== null}
@@ -590,6 +606,64 @@ export function OperatingModeDetailsPage() {
       />
     </DetailPageLayout>
   );
+}
+
+function LinkedInitiativesSection({
+  linkedInitiatives,
+  onNavigate,
+}: {
+  linkedInitiatives: OperatingModeLinkedInitiative[];
+  onNavigate: (to: string) => void;
+}) {
+  return (
+    <DetailSection title="Linked Initiatives">
+      {linkedInitiatives.length === 0 ? (
+        <p className="text-sm italic text-slate-500">No initiatives currently use this mode.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {linkedInitiatives.map((init) => (
+            <li key={init.name}>
+              <button
+                type="button"
+                onClick={() => onNavigate(initiativeDetailPath(init.name))}
+                className="flex w-full items-start justify-between gap-2 rounded-md border border-slate-800 bg-slate-900/40 px-3 py-2 text-left text-sm transition-colors hover:border-slate-700 hover:bg-slate-800/60"
+                data-testid="operating-mode-linked-initiative"
+              >
+                <div>
+                  <p className="font-medium text-slate-100">{init.title || init.name}</p>
+                  <p className="text-xs text-slate-500">{init.name}</p>
+                </div>
+                {init.status && (
+                  <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300">
+                    {init.status}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </DetailSection>
+  );
+}
+
+function scrollElementIntoNearestContainer(element: HTMLElement | null) {
+  if (!element) return;
+  let parent = element.parentElement;
+  while (parent) {
+    const style = window.getComputedStyle(parent);
+    const scrollableY = /(auto|scroll)/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight;
+    if (scrollableY) {
+      const containerRect = parent.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const top = elementRect.top - containerRect.top + parent.scrollTop - (parent.clientHeight / 2) + (elementRect.height / 2);
+      parent.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      return;
+    }
+    parent = parent.parentElement;
+  }
+  const absoluteTop = element.getBoundingClientRect().top + window.scrollY - (window.innerHeight / 2) + (element.offsetHeight / 2);
+  window.scrollTo({ top: Math.max(0, absoluteTop), behavior: "smooth" });
 }
 
 interface OperatingModeSimulationPanelProps {

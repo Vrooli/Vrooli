@@ -476,6 +476,7 @@ export const literalSelectors = {
     // sections. The picker and how-to-choose dialog also share the explainer
     // primitive via these selectors.
     conceptExplainerDialog: "concept-explainer-dialog",
+    modeDetailsTabRow: "operating-mode-details-tab-row",
     modeDetailsScopeInfoIcon: "operating-mode-details-scope-info",
     modeDetailsRunStrategyInfoIcon: "operating-mode-details-run-strategy-info",
     modeDetailsDefaultInfoIcon: "operating-mode-details-default-info",

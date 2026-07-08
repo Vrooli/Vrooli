@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "./tabs";
 
 export interface CompactTabItem<TValue extends string> {
   value: TValue;
@@ -17,6 +18,7 @@ interface CompactTabBarProps<TValue extends string> {
   "aria-label": string;
   className?: string;
   tabTestIdPrefix?: string;
+  "data-testid"?: string;
 }
 
 export function CompactTabBar<TValue extends string>({
@@ -26,25 +28,21 @@ export function CompactTabBar<TValue extends string>({
   "aria-label": ariaLabel,
   className,
   tabTestIdPrefix,
+  "data-testid": testId,
 }: CompactTabBarProps<TValue>) {
   return (
-    <div className={cn("flex overflow-x-auto scrollbar-none", className)} role="tablist" aria-label={ariaLabel}>
+    <Tabs value={activeValue} onValueChange={(value) => onValueChange(value as TValue)} data-testid={testId}>
+      <TabsList className={className} aria-label={ariaLabel}>
       {items.map((item) => {
         const isActive = activeValue === item.value;
         const Icon = item.icon;
         return (
-          <button
+          <TabsTrigger
             key={item.value}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            data-state={isActive ? "active" : "inactive"}
+            value={item.value}
             onClick={() => onValueChange(item.value)}
             className={cn(
-              "shrink-0 px-3 py-2 text-xs font-medium transition-colors",
-              isActive
-                ? "border-b-2 border-cyan-400 text-cyan-300"
-                : "border-b-2 border-transparent text-slate-400 hover:text-slate-200",
+              isActive ? "border-cyan-400 text-cyan-300" : "border-transparent text-slate-400",
             )}
             data-testid={tabTestIdPrefix ? `${tabTestIdPrefix}-${item.value}` : undefined}
           >
@@ -58,9 +56,10 @@ export function CompactTabBar<TValue extends string>({
               </span>
             )}
             {item.badge}
-          </button>
+          </TabsTrigger>
         );
       })}
-    </div>
+      </TabsList>
+    </Tabs>
   );
 }

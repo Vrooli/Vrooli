@@ -43,8 +43,8 @@ vi.mock("../app/shell/AppShellContext", () => ({
 beforeAll(() => {
   installResizeObserverMock();
   installMatchMediaMock();
-  // jsdom doesn't implement scrollIntoView; the page calls it on graph clicks.
-  Element.prototype.scrollIntoView = vi.fn();
+  // jsdom doesn't implement smooth scrolling APIs used by the page helpers.
+  window.scrollTo = vi.fn();
 });
 
 function renderPage(mode = "holistic-loop", search = "") {
@@ -313,16 +313,19 @@ describe("OperatingModeDetailsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Holistic Loop")).toBeInTheDocument();
+    expect(screen.getByTestId("operating-mode-details-tab-row")).toBeInTheDocument();
+    expect(screen.getByTestId("operating-mode-details-tab-overview")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Investigate→plan→execute cycles")).toBeInTheDocument();
     expect(screen.getByText("Initiative")).toBeInTheDocument();
     expect(screen.getByText("Operator-gated loop")).toBeInTheDocument();
     expect(screen.getAllByText("Initiative A").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Initiative B").length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("operating-mode-simulation-panel")).not.toBeInTheDocument();
   });
 
   it("renders phase cards with clean label, purpose, and chips", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage("holistic-loop", "?view=list");
+    renderPage("holistic-loop", "?tab=phases&view=list");
 
     expect(await screen.findByRole("heading", { name: "Investigate" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Holistic Loop Investigate" })).not.toBeInTheDocument();
@@ -339,7 +342,7 @@ describe("OperatingModeDetailsPage", () => {
 
   it("toggles list/graph view via the action buttons", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage();
+    renderPage("holistic-loop", "?tab=phases");
 
     // Default is graph view; the graph container should be present.
     await waitFor(() => {
@@ -356,7 +359,7 @@ describe("OperatingModeDetailsPage", () => {
 
   it("renders simulation trace controls and advances the highlighted phase", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage();
+    renderPage("holistic-loop", "?tab=execution");
 
     const panel = await screen.findByTestId("operating-mode-simulation-panel");
     expect(panel).toBeInTheDocument();
@@ -372,7 +375,7 @@ describe("OperatingModeDetailsPage", () => {
 
   it("renders live round payloads on the shared phase trace substrate", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage();
+    renderPage("holistic-loop", "?tab=execution");
 
     const panel = await screen.findByTestId("operating-mode-live-panel");
     expect(workspaceMock).toHaveBeenCalledWith("init-a");
@@ -389,7 +392,7 @@ describe("OperatingModeDetailsPage", () => {
 
   it("switches the live viewer between linked initiative workspaces", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage();
+    renderPage("holistic-loop", "?tab=execution");
 
     const select = await screen.findByLabelText("Live initiative");
     fireEvent.change(select, { target: { value: "init-b" } });
@@ -401,7 +404,7 @@ describe("OperatingModeDetailsPage", () => {
 
   it("opens phase internals disclosure when clicked", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage("holistic-loop", "?view=list");
+    renderPage("holistic-loop", "?tab=phases&view=list");
 
     const disclosure = await screen.findByTestId("phase-internals-investigate");
     expect(disclosure).not.toHaveAttribute("open");
@@ -461,13 +464,12 @@ describe("OperatingModeDetailsPage", () => {
 
   it("renders decision-support sections from the catalog metadata", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage();
+    renderPage("holistic-loop", "?tab=guidance");
 
     await screen.findByText("Holistic Loop");
     expect(screen.getByTestId("operating-mode-details-best-for")).toHaveTextContent("Coupled work");
     expect(screen.getByTestId("operating-mode-details-not-for")).toHaveTextContent("Independent items");
     expect(screen.getByTestId("operating-mode-details-tradeoffs")).toHaveTextContent("One plan, not N");
-    expect(screen.getByTestId("operating-mode-details-capabilities")).toBeInTheDocument();
     expect(screen.getByTestId("operating-mode-details-learn-more")).toBeInTheDocument();
   });
 
@@ -487,7 +489,7 @@ describe("OperatingModeDetailsPage", () => {
 
   it("renders the disabled docs fallback when the docs URL is unavailable", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage();
+    renderPage("holistic-loop", "?tab=guidance");
 
     await screen.findByText("Holistic Loop");
     const learnMore = screen.getByTestId("operating-mode-details-learn-more");

@@ -7,7 +7,7 @@ describe("LensNav", () => {
     render(<LensNav activeLens="stats" onLensChange={vi.fn()} />);
 
     expect(screen.getByTestId("lens-nav").className).not.toContain("border");
-    expect(screen.getByTestId("lens-stats").className).toContain("after:bg-cyan-400");
+    expect(screen.getByTestId("lens-stats").className).toContain("border-cyan-400");
     expect(screen.getByTestId("lens-plan")).toBeInTheDocument();
     expect(screen.getByTestId("lens-graph")).toBeInTheDocument();
     expect(screen.getByTestId("lens-stats")).toBeInTheDocument();
