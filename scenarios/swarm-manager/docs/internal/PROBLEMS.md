@@ -37,6 +37,45 @@ A second polish pass landed five UI-side phases (clickable mode chip + Info-tab 
 
 ## Recently Resolved
 
+### Operating-mode "Execution" tab → Flow, with interpretable trace + simulation presets (2026-07-07)
+
+**Problem**: The operating-mode detail page's third tab was labeled "Execution",
+which overloaded the term with backlog execution records and read as an
+unfinished developer diagnostic panel. Its trace showed a count grid (items,
+artifacts, prior rounds, criteria) plus a raw JSON `Emits` blob — useful to
+developers, opaque to operators trying to understand *why* a mode works, what
+each phase consumes, and how branches (replan / continue / blocked / review /
+reconcile) behave. The simulation was a single implicit happy path and the UI
+never said the data was fixture-driven rather than a real initiative trace.
+
+**Resolution** (plan `improve-operating-mode-trace-ux-and-simulation`):
+
+- Renamed the tab **Execution → Flow** (greenfield rename of the internal
+  `tab=flow` route value, no compat shim). Icon `Workflow`, a compact Flow intro,
+  and a **Guide** button (shared `ConceptExplainerDialog`, `FLOW_GUIDE_EXPLAINER`)
+  that distinguishes simulation fixtures from live traces and defines round /
+  phase / reads / emits / transition / artifact / handoff.
+- Backend simulation grew from one happy path into **named deterministic
+  presets** ([CODE: api/internal/operatingmode/simulation.go]) that seed
+  different phase outputs to exercise real transition guards: holistic-loop
+  (clean pass, replan-after-execute, review-not-accepted) and phased-plan-drain
+  (drains-in-one-slice, continue-next-slice, replan-plan, blocked). Presets still
+  walk the registered graph via the same guard path a live round uses — no agent,
+  prompt, lock, or persistence. Selected by `?preset=` on the simulate endpoint.
+- Replaced the count-grid + raw-JSON panel with shared **semantic trace
+  components** ([CODE: ui/src/components/initiative/operating-mode/phase-trace-panel.tsx]
+  + helpers in `phase-interpretability.ts`): reads-by-category cards, an emits
+  summary (handoffs, progress, verdict, replan, artifacts, backlog sync,
+  readiness), and a transition explanation derived from backend guard data. Raw
+  payload stays behind a "View raw payload" disclosure. Simulation and live use
+  the same components — no forked UIs.
+
+**Why keep it this way**: The Flow tab must stay operator-facing. Do not regress
+it to a raw JSON dump above static prose, and do not make the simulation appear
+to use real initiative data — presets are labeled fixtures. Transition logic is
+backend-owned; the UI only selects/phrases guard data, so new modes and branches
+surface without mode-specific UI.
+
 ### Runtime-home data migration completed (2026-05-28)
 
 The 2026-05-27 commit `0b225a5556` ("swarm-manager data to ~/.vrooli") moved domain data from the repo source path to `~/.vrooli/data/vrooli/swarm-manager/...` but left the API still constructing its stores against `scenarioRoot` — so the UI saw an empty world even though 1300+ items were intact on disk. Today's plan (`finish-swarm-manager-runtime-home-data-migration-data-path-vs-repo-anchor-split`) closed the loop:

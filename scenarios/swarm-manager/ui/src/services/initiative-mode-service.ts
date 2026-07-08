@@ -17,10 +17,12 @@ import type {
   OperatingModePhaseResult,
   OperatingModePhaseKind,
   OperatingModePhaseTransition,
+  OperatingModeRenderedPrompt,
   OperatingModeRound,
   OperatingModeRoundItem,
   OperatingModeSimulation,
   OperatingModeSimulationInputs,
+  OperatingModeSimulationPreset,
   OperatingModeSimulationStep,
   OperatingModeTransitionConditionKind,
   OperatingModeWorkspace,
@@ -393,9 +395,19 @@ function normalizeSimulationInputs(raw: unknown): OperatingModeSimulationInputs 
   };
 }
 
+function normalizeStringMap(raw: unknown): Record<string, string> {
+  const record = recordValue(raw);
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (typeof value === "string") out[key] = value;
+  }
+  return out;
+}
+
 function normalizeSimulationStep(raw: unknown): OperatingModeSimulationStep {
   const step = recordValue(raw);
   const transition = step.transition ? normalizeTransition(step.transition) : undefined;
+  const promptVariables = normalizeStringMap(step.prompt_variables ?? step.promptVariables);
   return {
     index: numberValue(step.index, 0) ?? 0,
     phase: stringValue(step.phase),
@@ -412,6 +424,9 @@ function normalizeSimulationStep(raw: unknown): OperatingModeSimulationStep {
       progressDecision: transition.progressDecision,
     } : undefined,
     terminal: boolValue(step.terminal, undefined),
+    skillId: stringValue(step.skill_id ?? step.skillId, undefined),
+    profileKey: stringValue(step.profile_key ?? step.profileKey, undefined),
+    promptVariables: Object.keys(promptVariables).length > 0 ? promptVariables : undefined,
   };
 }
 
@@ -428,13 +443,27 @@ function normalizeHandoff(raw: unknown): OperatingModeHandoff {
   };
 }
 
+function normalizeSimulationPreset(raw: unknown): OperatingModeSimulationPreset {
+  const preset = recordValue(raw);
+  return {
+    id: stringValue(preset.id),
+    label: stringValue(preset.label),
+    description: stringValue(preset.description),
+    branch: stringValue(preset.branch),
+    scenario: stringValue(preset.scenario),
+  };
+}
+
 function normalizeSimulation(raw: unknown): OperatingModeSimulation {
   const simulation = recordValue(raw);
   const initiative = recordValue(simulation.initiative);
   const trace = simulation.trace;
+  const presets = simulation.presets;
   return {
     mode: stringValue(simulation.mode, "item-level"),
     label: stringValue(simulation.label),
+    presets: Array.isArray(presets) ? presets.map(normalizeSimulationPreset) : [],
+    activePreset: stringValue(simulation.active_preset ?? simulation.activePreset),
     initiative: {
       name: stringValue(initiative.name),
       title: stringValue(initiative.title),
@@ -444,6 +473,27 @@ function normalizeSimulation(raw: unknown): OperatingModeSimulation {
       acceptanceCriteria: stringArray(initiative.acceptance_criteria ?? initiative.acceptanceCriteria),
     },
     trace: Array.isArray(trace) ? trace.map(normalizeSimulationStep) : [],
+  };
+}
+
+function normalizeRenderedPrompt(raw: unknown): OperatingModeRenderedPrompt {
+  const rendered = recordValue(raw);
+  const variables = recordValue(rendered.variables);
+  const normalizedVariables: Record<string, string> = {};
+  for (const [key, value] of Object.entries(variables)) {
+    if (typeof value === "string") normalizedVariables[key] = value;
+  }
+  return {
+    mode: stringValue(rendered.mode, "item-level"),
+    preset: stringValue(rendered.preset, undefined),
+    stepIndex: numberValue(rendered.step_index ?? rendered.stepIndex, undefined),
+    phase: stringValue(rendered.phase),
+    skillId: stringValue(rendered.skill_id ?? rendered.skillId),
+    profileKey: stringValue(rendered.profile_key ?? rendered.profileKey),
+    variables: normalizedVariables,
+    prompt: stringValue(rendered.prompt),
+    degraded: boolValue(rendered.degraded) ?? false,
+    degradedReason: stringValue(rendered.degraded_reason ?? rendered.degradedReason, undefined),
   };
 }
 
@@ -551,7 +601,9 @@ export interface IInitiativeModeService {
   catalog(): Promise<OperatingModeCatalog>;
   getMode(mode: string): Promise<OperatingModeDetail>;
   updateMode(mode: string, args: UpdateOperatingModeArgs): Promise<OperatingModeDetail>;
-  simulateMode(mode: string): Promise<OperatingModeSimulation>;
+  simulateMode(mode: string, preset?: string): Promise<OperatingModeSimulation>;
+  renderSimulationPrompt(mode: string, preset: string, stepIndex: number): Promise<OperatingModeRenderedPrompt>;
+  renderLivePrompt(name: string, phase: string, round?: number, note?: string): Promise<OperatingModeRenderedPrompt>;
   workspace(name: string): Promise<OperatingModeWorkspace>;
   switchMode(name: string, args: SwitchOperatingModeArgs): Promise<SwitchOperatingModeResult>;
   startPhase(name: string, phase: string, args?: StartOperatingModePhaseArgs): Promise<OperatingModeRound>;
@@ -624,9 +676,40 @@ export function createInitiativeModeService(
       return normalizeModeDetail(raw);
     },
 
-    async simulateMode(mode: string): Promise<OperatingModeSimulation> {
-      const raw = await apiClient.post<unknown>(API_ENDPOINTS.operatingModeSimulate(mode), {});
+    async simulateMode(mode: string, preset?: string): Promise<OperatingModeSimulation> {
+      const raw = await apiClient.post<unknown>(
+        API_ENDPOINTS.operatingModeSimulate(mode, preset),
+        {},
+      );
       return normalizeSimulation(raw);
+    },
+
+    async renderSimulationPrompt(
+      mode: string,
+      preset: string,
+      stepIndex: number,
+    ): Promise<OperatingModeRenderedPrompt> {
+      const raw = await apiClient.post<unknown>(
+        API_ENDPOINTS.operatingModeSimulateRender(mode),
+        { preset, step_index: stepIndex },
+      );
+      return normalizeRenderedPrompt(raw);
+    },
+
+    async renderLivePrompt(
+      name: string,
+      phase: string,
+      round?: number,
+      note?: string,
+    ): Promise<OperatingModeRenderedPrompt> {
+      const body: Record<string, unknown> = {};
+      if (typeof round === "number" && round > 0) body.round = round;
+      if (note && note.trim()) body.note = note.trim();
+      const raw = await apiClient.post<unknown>(
+        API_ENDPOINTS.initiativeOperatingModeRenderPrompt(name, phase),
+        body,
+      );
+      return normalizeRenderedPrompt(raw);
     },
 
     async workspace(name: string): Promise<OperatingModeWorkspace> {

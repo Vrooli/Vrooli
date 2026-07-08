@@ -7,13 +7,13 @@
  * overlay store.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowUpRight,
-  Activity,
   CheckCircle2,
+  HelpCircle,
   Info,
   Layers,
   List,
@@ -23,10 +23,12 @@ import {
   RotateCcw,
   Scale,
   StepForward,
+  Workflow,
   X,
   XCircle,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { cn } from "../lib/utils";
 import { CompactTabBar, type CompactTabItem } from "../components/ui/compact-tab-bar";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
@@ -42,19 +44,27 @@ import { selectors } from "../consts/selectors";
 import type {
   OperatingModeDetail,
   OperatingModeLinkedInitiative,
-  OperatingModePhaseTransition,
   OperatingModeRound,
   OperatingModeSimulation,
+  OperatingModeSimulationPreset,
   OperatingModeSimulationStep,
   OperatingModeWorkspace,
 } from "../types/operating-mode";
 import { PhaseGraph } from "../components/initiative/operating-mode/phase-graph";
 import { PhaseList } from "../components/initiative/operating-mode/phase-list";
-import { PhaseTracePanel, type PhaseTraceData } from "../components/initiative/operating-mode/phase-trace-panel";
+import { PhaseViewer } from "../components/initiative/operating-mode/phase-viewer";
+import {
+  contractPhaseView,
+  livePhaseView,
+  simulationPhaseView,
+  type PhaseView,
+  type PhaseViewSource,
+} from "../components/initiative/operating-mode/phase-view";
 import { CapabilityList } from "../components/initiative/operating-mode/capability-list";
 import {
   CAPABILITY_EXPLAINER,
   DEFAULT_FLAG_EXPLAINER,
+  FLOW_GUIDE_EXPLAINER,
   RUN_STRATEGY_EXPLAINER,
   SCOPE_KIND_EXPLAINER,
   type ConceptExplainer,
@@ -71,7 +81,7 @@ import { operatingModeOption } from "../components/session/context/session-conte
 const EMPTY_LENSES: never[] = [];
 
 type PhasesView = "list" | "graph";
-type OperatingModeTab = "overview" | "phases" | "execution" | "guidance";
+type OperatingModeTab = "overview" | "phases" | "flow" | "guidance";
 
 const HIGHLIGHT_DURATION_MS = 1500;
 const SIMULATION_STEP_MS = 900;
@@ -103,6 +113,9 @@ export function OperatingModeDetailsPage() {
   const [labelDraft, setLabelDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [selectedLiveInitiative, setSelectedLiveInitiative] = useState("");
+  const [activePreset, setActivePreset] = useState("");
+  const [flowSource, setFlowSource] = useState<PhaseViewSource>("simulation");
+  const [flowGuideOpen, setFlowGuideOpen] = useState(false);
 
   useEffect(() => {
     if (data) {
@@ -135,8 +148,8 @@ export function OperatingModeDetailsPage() {
   const phases = useMemo(() => data?.entry.phases ?? [], [data]);
   const hasPhaseGraph = Boolean(data?.entry.phaseGraph && phases.length > 0);
   const simulationQuery = useQuery<OperatingModeSimulation>({
-    queryKey: ["operating-modes", "simulation", mode],
-    queryFn: () => initiativeModeService.simulateMode(mode),
+    queryKey: ["operating-modes", "simulation", mode, activePreset],
+    queryFn: () => initiativeModeService.simulateMode(mode, activePreset || undefined),
     enabled: Boolean(mode && hasPhaseGraph),
   });
   const liveWorkspaceQuery = useQuery<OperatingModeWorkspace>({
@@ -150,7 +163,7 @@ export function OperatingModeDetailsPage() {
   });
   const [activeTab, setActiveTab] = useUrlState<OperatingModeTab>("tab", "overview", {
     validate: (value): value is OperatingModeTab =>
-      value === "overview" || value === "phases" || value === "execution" || value === "guidance",
+      value === "overview" || value === "phases" || value === "flow" || value === "guidance",
   });
   const [highlightedPhaseId, setHighlightedPhaseId] = useState<string | null>(null);
   const [simulationIndex, setSimulationIndex] = useState(0);
@@ -253,16 +266,27 @@ export function OperatingModeDetailsPage() {
   }
 
   const { entry, linkedInitiatives } = data;
+  const transitions = entry.phaseGraph?.transitions ?? [];
   const simulationTrace = simulationQuery.data?.trace ?? [];
   const activeSimulationStep = simulationTrace[simulationIndex] ?? null;
-  const liveTrace = liveWorkspace
-    ? buildLiveTrace(liveActiveRound, liveWorkspace, entry.phaseGraph?.transitions ?? [])
+  const liveView = liveWorkspace && liveActiveRound
+    ? livePhaseView(liveActiveRound, liveWorkspace, transitions, selectedLiveInitiative)
     : null;
-  const selectedPhaseId = highlightedPhaseId ?? liveTrace?.phase ?? activeSimulationStep?.phase ?? null;
+  const activePresetId = simulationQuery.data?.activePreset ?? activePreset;
+  const flowPhaseView: PhaseView | null = (() => {
+    if (flowSource === "live") return liveView;
+    if (!activeSimulationStep) return null;
+    if (flowSource === "contract") {
+      const phase = phases.find((candidate) => candidate.phase === activeSimulationStep.phase);
+      return phase ? contractPhaseView(phase, transitions) : null;
+    }
+    return simulationPhaseView(activeSimulationStep, mode, activePresetId);
+  })();
+  const selectedPhaseId = highlightedPhaseId ?? liveView?.phase ?? activeSimulationStep?.phase ?? null;
   const tabs: CompactTabItem<OperatingModeTab>[] = [
     { value: "overview", label: "Overview", icon: Layers },
     { value: "phases", label: "Phases", icon: Network, count: phases.length },
-    { value: "execution", label: "Execution", icon: Activity, badge: linkedInitiatives.length > 0 ? (
+    { value: "flow", label: "Flow", icon: Workflow, badge: linkedInitiatives.length > 0 ? (
       <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-500/25 px-1 text-[10px] font-semibold text-cyan-300">
         {linkedInitiatives.length}
       </span>
@@ -485,41 +509,80 @@ export function OperatingModeDetailsPage() {
         </DetailSection>
       )}
 
-      {activeTab === "execution" && (
+      {activeTab === "flow" && (
         <div className="space-y-4">
           {hasPhaseGraph ? (
             <>
-              <OperatingModeSimulationPanel
-                simulation={simulationQuery.data}
-                isLoading={simulationQuery.isLoading}
-                error={simulationQuery.error}
-                activeIndex={simulationIndex}
-                isPlaying={simulationPlaying}
-                onPlay={() => setSimulationPlaying(true)}
-                onPause={() => setSimulationPlaying(false)}
-                onStep={() => {
+              <FlowIntro onOpenGuide={() => setFlowGuideOpen(true)} />
+              <FlowControls
+                source={flowSource}
+                onChangeSource={(next) => {
                   setSimulationPlaying(false);
-                  setSimulationIndex((current) => Math.min(current + 1, Math.max(0, simulationTrace.length - 1)));
+                  setFlowSource(next);
                 }}
-                onReset={() => {
-                  setSimulationPlaying(false);
-                  setSimulationIndex(0);
-                }}
-              />
-              <OperatingModeLivePanel
-                linkedInitiatives={linkedInitiatives}
-                selectedInitiative={selectedLiveInitiative}
-                onSelectInitiative={setSelectedLiveInitiative}
-                workspace={liveWorkspace}
-                trace={liveTrace}
-                isLoading={liveWorkspaceQuery.isLoading}
-                error={liveWorkspaceQuery.error}
-                onRefresh={() => void liveWorkspaceQuery.refetch()}
-              />
+                hasLive={linkedInitiatives.length > 0}
+                stepControls={
+                  flowSource !== "live" ? (
+                    <SimulationStepControls
+                      isPlaying={simulationPlaying}
+                      isLoading={simulationQuery.isLoading}
+                      hasError={Boolean(simulationQuery.error)}
+                      activeIndex={simulationIndex}
+                      traceLength={simulationTrace.length}
+                      onPlay={() => setSimulationPlaying(true)}
+                      onPause={() => setSimulationPlaying(false)}
+                      onStep={() => {
+                        setSimulationPlaying(false);
+                        setSimulationIndex((current) =>
+                          Math.min(current + 1, Math.max(0, simulationTrace.length - 1)),
+                        );
+                      }}
+                      onReset={() => {
+                        setSimulationPlaying(false);
+                        setSimulationIndex(0);
+                      }}
+                    />
+                  ) : null
+                }
+              >
+                {flowSource === "simulation" && (
+                  <SimulationPresetSelector
+                    presets={simulationQuery.data?.presets ?? []}
+                    selected={(simulationQuery.data?.presets ?? []).find((preset) => preset.id === activePresetId)}
+                    disabled={simulationQuery.isLoading || Boolean(simulationQuery.error)}
+                    onSelect={(preset) => {
+                      setSimulationPlaying(false);
+                      setSimulationIndex(0);
+                      setActivePreset(preset);
+                    }}
+                  />
+                )}
+                {flowSource === "live" && linkedInitiatives.length > 0 && (
+                  <LiveInitiativeSelector
+                    linkedInitiatives={linkedInitiatives}
+                    selected={selectedLiveInitiative}
+                    onSelect={setSelectedLiveInitiative}
+                    onRefresh={() => void liveWorkspaceQuery.refetch()}
+                  />
+                )}
+              </FlowControls>
+              {flowPhaseView ? (
+                <PhaseViewer view={flowPhaseView} subtitle={flowSubtitle(flowSource, activeSimulationStep, simulationTrace.length, selectedLiveInitiative, liveWorkspace?.rounds ?? [])} />
+              ) : (
+                <FlowEmptyState
+                  source={flowSource}
+                  simulationLoading={simulationQuery.isLoading}
+                  simulationError={simulationQuery.error}
+                  liveLoading={liveWorkspaceQuery.isLoading}
+                  liveError={liveWorkspaceQuery.error}
+                  hasLinked={linkedInitiatives.length > 0}
+                  selectedInitiative={selectedLiveInitiative}
+                />
+              )}
             </>
           ) : (
-            <DetailSection title="Execution" hideDivider>
-              <p className="text-sm italic text-slate-500">This mode does not define phase execution traces.</p>
+            <DetailSection title="Flow" hideDivider>
+              <p className="text-sm italic text-slate-500">This mode does not run as a phase graph, so it has no flow trace.</p>
             </DetailSection>
           )}
         </div>
@@ -604,6 +667,15 @@ export function OperatingModeDetailsPage() {
         onClose={() => setHowToChooseOpen(false)}
         catalog={catalogModes}
       />
+
+      <ConceptExplainerDialog
+        isOpen={flowGuideOpen}
+        onClose={() => setFlowGuideOpen(false)}
+        title={FLOW_GUIDE_EXPLAINER.title}
+        intro={FLOW_GUIDE_EXPLAINER.intro}
+        sections={FLOW_GUIDE_EXPLAINER.sections}
+        testId={selectors.initiativeDetails.flowGuideDialog}
+      />
     </DetailPageLayout>
   );
 }
@@ -666,103 +738,286 @@ function scrollElementIntoNearestContainer(element: HTMLElement | null) {
   window.scrollTo({ top: Math.max(0, absoluteTop), behavior: "smooth" });
 }
 
-interface OperatingModeSimulationPanelProps {
-  simulation?: OperatingModeSimulation;
-  isLoading: boolean;
-  error: Error | null;
-  activeIndex: number;
-  isPlaying: boolean;
-  onPlay: () => void;
-  onPause: () => void;
-  onStep: () => void;
-  onReset: () => void;
+function FlowIntro({ onOpenGuide }: { onOpenGuide: () => void }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2.5">
+      <div className="min-w-0">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">
+          <Workflow className="h-4 w-4 text-cyan-300" aria-hidden="true" />
+          How this mode flows
+        </h2>
+        <p className="mt-0.5 text-xs leading-relaxed text-slate-400">
+          One phase viewer, three data sources. See the agent's <span className="text-slate-200">Instructions</span>,
+          Reads, Emits, and Transition for the <span className="text-slate-200">Contract</span> template, a stepped
+          <span className="text-slate-200"> Simulation</span> preset, or a <span className="text-slate-200">Live</span> round.
+        </p>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onOpenGuide}
+        data-testid={selectors.initiativeDetails.flowGuideButton}
+      >
+        <HelpCircle className="mr-1 h-3.5 w-3.5" />
+        Guide
+      </Button>
+    </div>
+  );
 }
 
-function OperatingModeSimulationPanel({
-  simulation,
-  isLoading,
-  error,
-  activeIndex,
+const FLOW_SOURCES: Array<{ value: PhaseViewSource; label: string; testId: string }> = [
+  { value: "contract", label: "Contract", testId: selectors.initiativeDetails.flowSourceContract },
+  { value: "simulation", label: "Simulation", testId: selectors.initiativeDetails.flowSourceSimulation },
+  { value: "live", label: "Live", testId: selectors.initiativeDetails.flowSourceLive },
+];
+
+// FlowControls is the single data-source control that replaces the two stacked
+// Simulation + Live panels: a Contract / Simulation / Live toggle plus the
+// source-specific step controls and selectors, all feeding one PhaseViewer.
+function FlowControls({
+  source,
+  onChangeSource,
+  hasLive,
+  stepControls,
+  children,
+}: {
+  source: PhaseViewSource;
+  onChangeSource: (next: PhaseViewSource) => void;
+  hasLive: boolean;
+  stepControls?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div
+          className="inline-flex rounded-md border border-slate-800 bg-slate-950/60 p-0.5"
+          role="tablist"
+          aria-label="Flow data source"
+          data-testid={selectors.initiativeDetails.flowSourceToggle}
+        >
+          {FLOW_SOURCES.map((option) => {
+            const disabled = option.value === "live" && !hasLive;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="tab"
+                aria-selected={source === option.value}
+                disabled={disabled}
+                data-testid={option.testId}
+                onClick={() => onChangeSource(option.value)}
+                title={disabled ? "No initiatives use this mode yet" : undefined}
+                className={cn(
+                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                  source === option.value
+                    ? "bg-cyan-500/20 text-cyan-200"
+                    : "text-slate-400 hover:text-slate-200",
+                  disabled && "cursor-not-allowed opacity-40 hover:text-slate-400",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        {stepControls}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SimulationStepControls({
   isPlaying,
+  isLoading,
+  hasError,
+  activeIndex,
+  traceLength,
   onPlay,
   onPause,
   onStep,
   onReset,
-}: OperatingModeSimulationPanelProps) {
-  const trace = simulation?.trace ?? [];
-  const activeStep = trace[activeIndex] ?? null;
-  const atEnd = trace.length === 0 || activeIndex >= trace.length - 1;
-
+}: {
+  isPlaying: boolean;
+  isLoading: boolean;
+  hasError: boolean;
+  activeIndex: number;
+  traceLength: number;
+  onPlay: () => void;
+  onPause: () => void;
+  onStep: () => void;
+  onReset: () => void;
+}) {
+  const atEnd = traceLength === 0 || activeIndex >= traceLength - 1;
   return (
-    <PhaseTracePanel
-      title="Simulation"
-      subtitle={activeStep ? `${activeIndex + 1} / ${trace.length} · ${activeStep.phase}` : "No trace"}
-      trace={activeStep ? simulationStepTrace(activeStep) : null}
-      testId="operating-mode-simulation-panel"
-      controls={
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={isPlaying ? onPause : onPlay}
-            disabled={isLoading || Boolean(error) || trace.length === 0 || (isPlaying ? false : atEnd)}
-          >
-            <Play className="mr-1 h-3.5 w-3.5" />
-            {isPlaying ? "Pause" : "Play"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onStep}
-            disabled={isLoading || Boolean(error) || atEnd}
-          >
-            <StepForward className="mr-1 h-3.5 w-3.5" />
-            Step
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onReset}
-            disabled={isLoading || Boolean(error) || activeIndex === 0}
-          >
-            <RotateCcw className="mr-1 h-3.5 w-3.5" />
-            Reset
-          </Button>
-        </div>
-      }
-    >
-      {isLoading && <p className="mt-3 text-sm text-slate-400">Loading simulation...</p>}
-      {error && <p className="mt-3 text-sm text-red-400">{error.message}</p>}
-    </PhaseTracePanel>
+    <div className="flex items-center gap-1">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={isPlaying ? onPause : onPlay}
+        disabled={isLoading || hasError || traceLength === 0 || (isPlaying ? false : atEnd)}
+      >
+        <Play className="mr-1 h-3.5 w-3.5" />
+        {isPlaying ? "Pause" : "Play"}
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={onStep} disabled={isLoading || hasError || atEnd}>
+        <StepForward className="mr-1 h-3.5 w-3.5" />
+        Step
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onReset}
+        disabled={isLoading || hasError || activeIndex === 0}
+      >
+        <RotateCcw className="mr-1 h-3.5 w-3.5" />
+        Reset
+      </Button>
+    </div>
   );
 }
 
-function simulationStepTrace(step: OperatingModeSimulationStep): PhaseTraceData {
-  return {
-    phase: step.phase,
-    status: step.round.status,
-    reads: {
-      items: step.inputs.items,
-      artifacts: step.inputs.artifacts,
-      priorRounds: step.inputs.priorRounds,
-      acceptanceCriteria: step.inputs.acceptanceCriteria,
-    },
-    output: step.output,
-    transition: step.transition
-      ? {
-          from: step.transition.from,
-          to: step.transition.to ?? "",
-          conditionKind: step.transition.conditionKind,
-          label: step.transition.label,
-          payloadKey: step.transition.payloadKey,
-          progressDecision: step.transition.progressDecision,
-        }
-      : undefined,
-    terminal: step.terminal,
-  };
+function LiveInitiativeSelector({
+  linkedInitiatives,
+  selected,
+  onSelect,
+  onRefresh,
+}: {
+  linkedInitiatives: Array<{ name: string; title: string }>;
+  selected: string;
+  onSelect: (name: string) => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <label className="text-[11px] font-medium uppercase tracking-wide text-slate-400" htmlFor="flow-live-select">
+        Initiative
+      </label>
+      <select
+        id="flow-live-select"
+        value={selected}
+        onChange={(event) => onSelect(event.target.value)}
+        className="min-w-0 flex-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+        aria-label="Live initiative"
+      >
+        {linkedInitiatives.map((initiative) => (
+          <option key={initiative.name} value={initiative.name}>
+            {initiative.title || initiative.name}
+          </option>
+        ))}
+      </select>
+      <Button type="button" variant="ghost" size="sm" onClick={onRefresh} disabled={!selected}>
+        <RotateCcw className="mr-1 h-3.5 w-3.5" />
+        Refresh
+      </Button>
+    </div>
+  );
+}
+
+function flowSubtitle(
+  source: PhaseViewSource,
+  activeStep: OperatingModeSimulationStep | null,
+  traceLength: number,
+  selectedInitiative: string,
+  rounds: OperatingModeRound[],
+): string {
+  if (source === "live") {
+    if (!selectedInitiative) return "Real data · select a linked initiative";
+    const round = rounds.length > 0 ? rounds[rounds.length - 1] : undefined;
+    return `Real data · ${selectedInitiative}${round ? ` · round ${round.round}` : ""}`;
+  }
+  if (!activeStep) return source === "contract" ? "Template with unfilled slots" : "Preset data · no trace";
+  const position = `step ${activeStep.index + 1} / ${traceLength}`;
+  return source === "contract"
+    ? `Template with unfilled slots · ${position}`
+    : `Preset data · ${position}`;
+}
+
+function FlowEmptyState({
+  source,
+  simulationLoading,
+  simulationError,
+  liveLoading,
+  liveError,
+  hasLinked,
+  selectedInitiative,
+}: {
+  source: PhaseViewSource;
+  simulationLoading: boolean;
+  simulationError: Error | null;
+  liveLoading: boolean;
+  liveError: Error | null;
+  hasLinked: boolean;
+  selectedInitiative: string;
+}) {
+  const message = (() => {
+    if (source === "live") {
+      if (liveLoading) return "Loading live rounds…";
+      if (liveError) return liveError.message;
+      if (!hasLinked) return "No initiatives use this mode yet. Switch an initiative to this mode to replay its real rounds here.";
+      if (!selectedInitiative) return "Select a linked initiative to render its live phase prompt.";
+      return `${selectedInitiative} has no live or completed rounds yet.`;
+    }
+    if (simulationLoading) return "Loading simulation…";
+    if (simulationError) return simulationError.message;
+    return "No phase to show.";
+  })();
+  const tone = source === "live" && liveError ? "text-red-400" : "text-slate-500";
+  return (
+    <section className="rounded-lg border border-slate-800 bg-slate-950/50 p-4">
+      <p className={cn("text-sm italic", tone)}>{message}</p>
+    </section>
+  );
+}
+
+function SimulationPresetSelector({
+  presets,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  presets: OperatingModeSimulationPreset[];
+  selected?: OperatingModeSimulationPreset;
+  disabled: boolean;
+  onSelect: (preset: string) => void;
+}) {
+  if (presets.length === 0) return null;
+  return (
+    <div className="mt-3 rounded-md border border-slate-800 bg-slate-900/40 p-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-[11px] font-medium uppercase tracking-wide text-slate-400" htmlFor="flow-preset-select">
+          Scenario
+        </label>
+        <select
+          id="flow-preset-select"
+          value={selected?.id ?? ""}
+          disabled={disabled}
+          onChange={(event) => onSelect(event.target.value)}
+          className="min-w-0 flex-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 disabled:opacity-60"
+          data-testid={selectors.initiativeDetails.flowPresetSelect}
+          aria-label="Simulation scenario preset"
+        >
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {selected && (
+        <div className="mt-1.5" data-testid={selectors.initiativeDetails.flowPresetScenario}>
+          <p className="text-[11px] leading-relaxed text-slate-400">{selected.description}</p>
+          {selected.branch && (
+            <p className="mt-0.5 text-[11px] font-medium text-cyan-300/90">Demonstrates: {selected.branch}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function selectLiveRound(rounds: OperatingModeRound[]): OperatingModeRound | undefined {
@@ -771,130 +1026,6 @@ function selectLiveRound(rounds: OperatingModeRound[]): OperatingModeRound | und
 
 function isLiveRoundActive(round: OperatingModeRound): boolean {
   return round.status === "reserved" || round.status === "agent_running";
-}
-
-function buildLiveTrace(
-  round: OperatingModeRound | undefined,
-  workspace: OperatingModeWorkspace,
-  transitions: OperatingModePhaseTransition[],
-): PhaseTraceData | null {
-  if (!round) return null;
-  const priorRounds = workspace.rounds.filter((candidate) => candidate.round < round.round);
-  return {
-    phase: round.phase,
-    status: round.status,
-    reads: {
-      items: round.items ?? [],
-      artifacts: workspace.artifacts,
-      priorRounds,
-      acceptanceCriteria: stringArrayFromRecord(round.payload, "acceptance_criteria"),
-    },
-    output: round.payload,
-    transition: round.status === "completed"
-      ? selectLiveTransition(round, transitions)
-      : undefined,
-    terminal: round.status === "completed" && !selectLiveTransition(round, transitions),
-  };
-}
-
-function selectLiveTransition(
-  round: OperatingModeRound,
-  transitions: OperatingModePhaseTransition[],
-): OperatingModePhaseTransition | undefined {
-  const outgoing = transitions.filter((transition) => transition.from === round.phase);
-  return outgoing.find((transition) => transitionMatchesPayload(transition, round.payload ?? {}));
-}
-
-function transitionMatchesPayload(
-  transition: OperatingModePhaseTransition,
-  payload: Record<string, unknown>,
-): boolean {
-  switch (transition.conditionKind) {
-    case "payload_bool":
-      return Boolean(transition.payloadKey && payload[transition.payloadKey] === true);
-    case "progress_decision": {
-      const progress = objectFromRecord(payload, "progress");
-      return progress.decision === transition.progressDecision;
-    }
-    case "always":
-      return true;
-  }
-}
-
-function objectFromRecord(record: Record<string, unknown> | undefined, key: string): Record<string, unknown> {
-  const value = record?.[key];
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-}
-
-function stringArrayFromRecord(record: Record<string, unknown> | undefined, key: string): string[] {
-  const value = record?.[key];
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-}
-
-function OperatingModeLivePanel({
-  linkedInitiatives,
-  selectedInitiative,
-  onSelectInitiative,
-  workspace,
-  trace,
-  isLoading,
-  error,
-  onRefresh,
-}: {
-  linkedInitiatives: Array<{ name: string; title: string }>;
-  selectedInitiative: string;
-  onSelectInitiative: (name: string) => void;
-  workspace?: OperatingModeWorkspace;
-  trace: PhaseTraceData | null;
-  isLoading: boolean;
-  error: Error | null;
-  onRefresh: () => void;
-}) {
-  const rounds = workspace?.rounds ?? [];
-  const activeLabel = trace
-    ? `Round ${rounds.find((round) => round.phase === trace.phase)?.round ?? "?"} · ${trace.phase}`
-    : rounds.length > 0
-      ? `${rounds.length} round${rounds.length === 1 ? "" : "s"} recorded`
-      : "No rounds yet";
-
-  return (
-    <PhaseTracePanel
-      title="Live execution"
-      subtitle={selectedInitiative ? `${selectedInitiative} · ${activeLabel}` : "No linked initiative"}
-      trace={trace}
-      testId="operating-mode-live-panel"
-      controls={
-        <div className="flex flex-wrap items-center gap-1.5">
-          {linkedInitiatives.length > 0 && (
-            <select
-              value={selectedInitiative}
-              onChange={(event) => onSelectInitiative(event.target.value)}
-              className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
-              aria-label="Live initiative"
-            >
-              {linkedInitiatives.map((initiative) => (
-                <option key={initiative.name} value={initiative.name}>
-                  {initiative.title || initiative.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <Button type="button" variant="ghost" size="sm" onClick={onRefresh} disabled={!selectedInitiative}>
-            <RotateCcw className="mr-1 h-3.5 w-3.5" />
-            Refresh
-          </Button>
-        </div>
-      }
-    >
-      {isLoading && <p className="mt-3 text-sm text-slate-400">Loading live rounds...</p>}
-      {error && <p className="mt-3 text-sm text-red-400">{error.message}</p>}
-      {!isLoading && !error && selectedInitiative && !trace && (
-        <p className="mt-3 text-sm italic text-slate-500">No live or completed rounds to show yet.</p>
-      )}
-    </PhaseTracePanel>
-  );
 }
 
 function ExplainableLabel({

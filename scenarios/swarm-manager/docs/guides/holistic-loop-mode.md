@@ -41,6 +41,25 @@ Rules:
 8. Use `complete-items` or `apply-backlog-sync` for any backlog status or scope
    reconciliation. Agents must not edit member item `spec.json` files directly.
 
+## Preview the flow (simulation presets)
+
+The operating-mode detail page's **Flow** tab can walk this graph deterministically
+without running agents. Holistic-loop ships these presets
+([CODE: api/internal/operatingmode/simulation.go]):
+
+- **Clean pass** — `investigate → plan → execute → review → reconcile` with no
+  replanning; execute reports `replan_needed=false`.
+- **Execute triggers replan** — execute reports `replan_needed=true`, so the real
+  payload-bool guard routes back to `investigate`; the second pass completes.
+- **Review requests changes** — review records a non-accepting verdict
+  (`changes_requested`). Routing is unchanged (review always advances to
+  reconcile), but the verdict is surfaced and reconcile still proposes follow-ups.
+
+Presets are deterministic previews, not real initiative rounds. In the Flow tab,
+the data-source control swaps the same phase viewer between the **Contract**
+template, a **Simulation** preset, and a **Live** round; the Instructions tab
+renders the literal agent prompt for whichever source is selected.
+
 ## Control Boundaries
 
 - Registry and phase graph: [CODE: api/internal/operatingmode/registry.go]

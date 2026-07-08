@@ -49,6 +49,26 @@ Rules:
 9. Use `complete-items` or `apply-backlog-sync` for audited backlog
    reconciliation. Agents must not edit member item `spec.json` files directly.
 
+## Preview the flow (simulation presets)
+
+The operating-mode detail page's **Flow** tab can walk this graph deterministically
+without running agents. Phased-plan-drain ships these presets
+([CODE: api/internal/operatingmode/simulation.go]), each driving `classify_progress`
+to a different progress decision through the real transition guard:
+
+- **Drains in one slice** — classify reports `complete` → `review` → `reconcile`.
+- **Continue to next slice** — classify reports `continue`, routing back to
+  `execute_next`; the next slice then classifies `complete`.
+- **Progress forces a replan** — classify reports `replan`, routing back to
+  `prepare_plan`; the revised plan drains cleanly.
+- **Work is blocked** — classify reports `blocked`, a terminal decision with no
+  downstream target; the cycle ends before review for operator intervention.
+
+Presets are deterministic previews, not real initiative rounds. In the Flow tab,
+the data-source control swaps the same phase viewer between the **Contract**
+template, a **Simulation** preset, and a **Live** round; the Instructions tab
+renders the literal agent prompt for whichever source is selected.
+
 ## Control Boundaries
 
 - Registry and phase graph: [CODE: api/internal/operatingmode/registry.go]

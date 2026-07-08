@@ -125,6 +125,52 @@ What changes is that they are no longer *independent execution units*. Their `pl
 
 This is the load-bearing distinction. We keep items as the unit of *visibility* and *scope* while changing the unit of *execution* and *validation*.
 
+## Understanding a mode: the Flow tab
+
+The operating-mode detail page has a **Flow** tab (formerly labeled "Execution",
+which overloaded the term with backlog execution records). Flow is the
+operator-facing place to *understand* how a phase mode behaves — what an agent is
+told to do, what each phase reads, what it emits, and why the next phase is
+chosen — without reading raw JSON first.
+
+Flow renders **one shared phase viewer** with four concern tabs —
+**Instructions / Reads / Emits / Transition** — and a **data-source control**
+that swaps the fill without changing the view. The same viewer backs the
+**Phases** tab (in Contract source), so a phase is understood through one surface
+everywhere. The three sources:
+
+- **Contract** — the phase's static contract. Instructions shows the agent skill
+  template with its `{{VARIABLE}}` slots still unfilled; Reads/Emits/Transition
+  show what the phase is *defined* to consume, produce, and route to. No
+  initiative data is substituted.
+- **Simulation preset** — deterministic, in-memory walks of the phase graph
+  against illustrative data. Presets seed different phase outputs to exercise
+  real transition branches (clean pass, replan, continue, blocked, non-accepting
+  review, backlog reconcile) but never spawn agents, acquire locks, or persist
+  initiative state. Presets are defined server-side in
+  [CODE: api/internal/operatingmode/simulation.go]; the render endpoint fills the
+  prompt lazily per step.
+- **Live round** — the actual rounds recorded for a linked initiative. This is
+  real data.
+
+The **Instructions** tab is the most explanatory artifact: the literal agent
+prompt for the selected source, plus the agent profile that would run it. For
+Simulation and Live the prompt is rendered server-side through the *same*
+`renderPhasePrompt` seam the real spawn path uses
+([CODE: api/internal/operatingmode/prompt.go]) — a Go parity test asserts the
+preview is byte-identical to what an agent receives. When the prompt-manager seam
+is unavailable the tab degrades to the resolved variable map rather than erroring.
+
+**Reads** shows one card per prompt variable (`MEMBER_ITEMS_JSON`,
+`MODE_ARTIFACTS_JSON`, `PRIOR_ROUNDS_JSON`, `ACCEPTANCE_CRITERIA`) — the same
+vocabulary in every source. **Emits** shows the declared schema (Contract) or the
+actual structured result (Simulation/Live), with raw payloads behind a "View raw
+payload" disclosure. **Transition** shows every declared outgoing route
+(Contract) or the single fired transition (Simulation/Live), explained from the
+same backend guard a live round uses. The full vocabulary is explained in-app via
+the Flow tab's **Guide** button. Because presets, prompts, and transitions are
+backend-owned, adding a mode or a branch surfaces in Flow without mode-specific UI.
+
 ## When to use each mode
 
 The right mode is a property of how the work is shaped, not its size. A 10-item initiative composed of independent SKU-level changes is appropriately backlog-item-level. A 3-item initiative whose items all touch the same auth middleware is appropriately initiative-level.

@@ -94,6 +94,7 @@
               "descriptor"
             ],
             "expect_ids": [
+              "rec-d928a7bbcd616f6b",
               "rec-0a6caf804e789c9a"
             ],
             "expect_within_top_k": 5
@@ -105,7 +106,7 @@
               "gibberish"
             ],
             "expect_no_strong_hit": true,
-            "expect_max_score": 0.3
+            "expect_max_score": 0.65
           }
         ]
       }

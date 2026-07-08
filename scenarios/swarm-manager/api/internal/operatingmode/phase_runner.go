@@ -2,6 +2,7 @@ package operatingmode
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -152,6 +153,69 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 	}
 	s.emitPhaseStarted(round)
 	return round, nil
+}
+
+// RenderLivePrompt renders the literal agent prompt for one phase of a real
+// linked initiative through the shared renderPhasePrompt seam — the same code
+// path a live spawn uses, so the preview is byte-identical to what an agent
+// receives. It performs no spawning, locking, or persistence. When the
+// prompt-manager seam is unavailable it returns a typed degraded response
+// (Degraded=true, Variables populated) rather than an error.
+//
+// roundNumber selects which round the prompt represents: prior rounds are
+// filtered to those before it (matching the live trace's Reads projection), so
+// the substituted PRIOR_ROUNDS_JSON is consistent with what the operator sees.
+// A non-positive roundNumber renders the next round.
+func (s *Service) RenderLivePrompt(ctx context.Context, initiativeName, phase string, roundNumber int, note string) (RenderPromptResponse, error) {
+	init, def, phaseDef, err := s.resolvePhase(initiativeName, phase)
+	if err != nil {
+		return RenderPromptResponse{}, err
+	}
+	if def.Mode == ModeItemLevel {
+		return RenderPromptResponse{}, fmt.Errorf("item-level mode has no operating-mode phase prompt to render")
+	}
+	ctxData, err := s.collectPhaseContext(init, def, phaseDef)
+	if err != nil {
+		return RenderPromptResponse{}, err
+	}
+	effectiveRound := roundNumber
+	if effectiveRound <= 0 {
+		effectiveRound = len(ctxData.rounds) + 1
+	}
+	priorRounds := make([]RoundEnvelope, 0, len(ctxData.rounds))
+	for _, r := range ctxData.rounds {
+		if r.Round < effectiveRound {
+			priorRounds = append(priorRounds, r)
+		}
+	}
+	ctxData.rounds = priorRounds
+	round := RoundEnvelope{
+		Round:           effectiveRound,
+		Mode:            string(def.Mode),
+		InitiativeName:  init.Name,
+		ScopeID:         init.Name,
+		Phase:           string(phaseDef.Phase),
+		AgentProfileKey: phaseDef.ProfileKey,
+	}
+	resp := RenderPromptResponse{
+		Mode:       string(def.Mode),
+		Phase:      string(phaseDef.Phase),
+		SkillID:    phaseDef.SkillID,
+		ProfileKey: phaseDef.ProfileKey,
+		Variables:  promptVariables(ctxData, round, note),
+	}
+	rendered, err := s.renderPhasePrompt(ctx, ctxData, round, note)
+	if err != nil {
+		if errors.Is(err, ErrPromptRenderUnavailable) {
+			resp.Degraded = true
+			resp.DegradedReason = err.Error()
+			return resp, nil
+		}
+		return RenderPromptResponse{}, err
+	}
+	resp.Prompt = rendered.Prompt
+	resp.Variables = rendered.Variables
+	return resp, nil
 }
 
 func (s *Service) persistPhaseStartFailure(round RoundEnvelope, err error, timestampKey string) RoundEnvelope {

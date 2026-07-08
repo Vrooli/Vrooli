@@ -18,6 +18,9 @@ const catalogMock = vi.fn();
 const simulateModeMock = vi.fn();
 const workspaceMock = vi.fn();
 const refreshRoundMock = vi.fn();
+const renderSimulationPromptMock = vi.fn();
+const renderLivePromptMock = vi.fn();
+const getSkillMock = vi.fn();
 const navigateMock = vi.fn();
 
 vi.mock("react-router-dom", async () => {
@@ -30,11 +33,20 @@ vi.mock("../services", () => ({
     catalog: () => catalogMock(),
     getMode: (mode: string) => getModeMock(mode),
     updateMode: (mode: string, args: unknown) => updateModeMock(mode, args),
-    simulateMode: (mode: string) => simulateModeMock(mode),
+    simulateMode: (mode: string, preset?: string) => simulateModeMock(mode, preset),
     workspace: (name: string) => workspaceMock(name),
     refreshRound: (name: string, mode: string, round: number) => refreshRoundMock(name, mode, round),
+    renderSimulationPrompt: (mode: string, preset: string, step: number) =>
+      renderSimulationPromptMock(mode, preset, step),
+    renderLivePrompt: (name: string, phase: string, round?: number) =>
+      renderLivePromptMock(name, phase, round),
   },
 }));
+
+vi.mock("../services/prompt-service", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, promptService: { getSkill: (id: string) => getSkillMock(id) } };
+});
 
 vi.mock("../app/shell/AppShellContext", () => ({
   useAppShell: () => ({ openSidebar: () => {}, closeSidebar: () => {} }),
@@ -190,10 +202,51 @@ describe("OperatingModeDetailsPage", () => {
     simulateModeMock.mockReset();
     workspaceMock.mockReset();
     refreshRoundMock.mockReset();
+    renderSimulationPromptMock.mockReset();
+    renderLivePromptMock.mockReset();
+    getSkillMock.mockReset();
+    renderSimulationPromptMock.mockResolvedValue({
+      mode: "holistic-loop",
+      preset: "happy-path",
+      stepIndex: 0,
+      phase: "investigate",
+      skillId: "swarm-manager-holistic-loop-investigate",
+      profileKey: "swarm-manager/deep-work",
+      variables: { INITIATIVE_TITLE: "Holistic Loop Simulation" },
+      prompt: "Rendered simulation prompt for Holistic Loop Simulation.",
+      degraded: false,
+    });
+    renderLivePromptMock.mockResolvedValue({
+      mode: "holistic-loop",
+      phase: "execute",
+      skillId: "swarm-manager-holistic-loop-execute",
+      profileKey: "swarm-manager/deep-work",
+      variables: { INITIATIVE_TITLE: "Initiative A" },
+      prompt: "Rendered live prompt for Initiative A.",
+      degraded: false,
+    });
+    getSkillMock.mockResolvedValue({ id: "skill", name: "Skill", current_content: "Template {{INITIATIVE_TITLE}}." });
     catalogMock.mockResolvedValue({ modes: [SAMPLE_DETAIL.entry] });
     simulateModeMock.mockResolvedValue({
       mode: "holistic-loop",
       label: "Holistic Loop",
+      activePreset: "happy-path",
+      presets: [
+        {
+          id: "happy-path",
+          label: "Clean pass",
+          description: "Investigate → plan → execute → review → reconcile.",
+          branch: "execute → review (replan not needed)",
+          scenario: "A clean pass with no replanning.",
+        },
+        {
+          id: "replan-after-execute",
+          label: "Execute triggers replan",
+          description: "Execution loops back to investigate before finishing.",
+          branch: "execute → investigate (replan_needed)",
+          scenario: "The first plan misses something material.",
+        },
+      ],
       initiative: {
         name: "simulation-sandbox",
         title: "Holistic Loop Simulation",
@@ -334,10 +387,12 @@ describe("OperatingModeDetailsPage", () => {
     expect(screen.getByText("start")).toBeInTheDocument();
     // terminal chip on review
     expect(screen.getByText("terminal")).toBeInTheDocument();
-    // output schema is shown on phase cards
-    expect(screen.getAllByText("verdict").length).toBeGreaterThan(0);
     // writes-repo chip on execute
     expect(screen.getByText("writes repo")).toBeInTheDocument();
+    // each phase card composes the shared viewer in contract source
+    const viewers = screen.getAllByTestId("operating-mode-phase-viewer");
+    expect(viewers.length).toBe(SAMPLE_DETAIL.entry.phases.length);
+    expect(viewers[0]).toHaveAttribute("data-source", "contract");
   });
 
   it("toggles list/graph view via the action buttons", async () => {
@@ -357,43 +412,123 @@ describe("OperatingModeDetailsPage", () => {
     });
   });
 
-  it("renders simulation trace controls and advances the highlighted phase", async () => {
+  it("renders the Flow tab, not an Execution tab", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage("holistic-loop", "?tab=execution");
+    renderPage("holistic-loop", "?tab=flow");
 
-    const panel = await screen.findByTestId("operating-mode-simulation-panel");
-    expect(panel).toBeInTheDocument();
-    expect(simulateModeMock).toHaveBeenCalledWith("holistic-loop");
-    expect(screen.getByText("1 / 2 · investigate")).toBeInTheDocument();
+    expect(await screen.findByTestId("operating-mode-details-tab-flow")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.queryByTestId("operating-mode-details-tab-execution")).not.toBeInTheDocument();
+    // The Flow intro states the two data sources.
+    expect(screen.getByText(/How this mode flows/i)).toBeInTheDocument();
+  });
+
+  it("opens the Flow guide dialog", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage("holistic-loop", "?tab=flow");
+
+    fireEvent.click(await screen.findByTestId("operating-mode-flow-guide-button"));
+    const guide = await screen.findByTestId("operating-mode-flow-guide-dialog");
+    expect(guide).toHaveAttribute("role", "dialog");
+    expect(within(guide).getByText(/deterministic, in-memory walk/i)).toBeInTheDocument();
+    expect(within(guide).getByText(/actual rounds recorded/i)).toBeInTheDocument();
+  });
+
+  it("renders one source-toggled viewer with step controls that advance the phase", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage("holistic-loop", "?tab=flow");
+
+    const viewer = await screen.findByTestId("operating-mode-phase-viewer");
+    expect(simulateModeMock).toHaveBeenCalledWith("holistic-loop", undefined);
+    // Default source is the simulation preset; the viewer shows the first phase.
+    expect(viewer).toHaveAttribute("data-source", "simulation");
+    expect(viewer).toHaveAttribute("data-phase", "investigate");
+    expect(screen.getByText(/step 1 \/ 2/i)).toBeInTheDocument();
+    // Both stacked panels are gone; there is exactly one flow viewer.
+    expect(screen.getAllByTestId("operating-mode-phase-viewer")).toHaveLength(1);
+    expect(screen.queryByTestId("operating-mode-simulation-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operating-mode-live-panel")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /step/i }));
 
-    expect(screen.getByText("2 / 2 · execute")).toBeInTheDocument();
-    expect(within(panel).getByText("terminal")).toBeInTheDocument();
-    expect(within(panel).getByText(/executed/i)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("operating-mode-phase-viewer")).toHaveAttribute("data-phase", "execute"),
+    );
+    // Semantic transition + emit rendering behind the concern tabs.
+    fireEvent.click(screen.getByTestId("operating-mode-phase-viewer-tab-transition"));
+    expect(screen.getByTestId("operating-mode-flow-trace-transition")).toHaveTextContent(/terminal phase/i);
+    fireEvent.click(screen.getByTestId("operating-mode-phase-viewer-tab-emits"));
+    expect(screen.getByTestId("operating-mode-flow-trace-emits")).toHaveTextContent(/executed/i);
   });
 
-  it("renders live round payloads on the shared phase trace substrate", async () => {
+  it("toggles the flow source to Contract to reveal the unfilled template slots", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage("holistic-loop", "?tab=execution");
+    renderPage("holistic-loop", "?tab=flow");
 
-    const panel = await screen.findByTestId("operating-mode-live-panel");
-    expect(workspaceMock).toHaveBeenCalledWith("init-a");
+    fireEvent.click(await screen.findByTestId("operating-mode-flow-source-contract"));
+    await waitFor(() =>
+      expect(screen.getByTestId("operating-mode-phase-viewer")).toHaveAttribute("data-source", "contract"),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("operating-mode-phase-viewer-prompt")).toHaveTextContent("{{INITIATIVE_TITLE}}"),
+    );
+  });
+
+  it("selects a simulation preset and re-runs the simulation", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage("holistic-loop", "?tab=flow");
+
+    const select = await screen.findByTestId("operating-mode-flow-preset-select");
+    // The active preset's demonstrated branch is shown.
+    expect(screen.getByTestId("operating-mode-flow-preset-scenario")).toHaveTextContent(
+      "execute → review",
+    );
+
+    fireEvent.change(select, { target: { value: "replan-after-execute" } });
     await waitFor(() => {
-      expect(panel).toHaveTextContent("Round 1 · execute");
+      expect(simulateModeMock).toHaveBeenCalledWith("holistic-loop", "replan-after-execute");
     });
-    expect(panel).toHaveTextContent("init-a");
-    expect(panel).toHaveTextContent("Items");
-    expect(panel).toHaveTextContent("Artifacts");
-    expect(panel).toHaveTextContent("verdict");
-    expect(panel).toHaveTextContent("backlog_sync");
-    expect(panel).toHaveTextContent("execute -> review (always)");
+  });
+
+  it("renders live round payloads as semantic reads/emits/transition when the Live source is selected", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage("holistic-loop", "?tab=flow");
+
+    fireEvent.click(await screen.findByTestId("operating-mode-flow-source-live"));
+    await waitFor(() => expect(workspaceMock).toHaveBeenCalledWith("init-a"));
+    await waitFor(() =>
+      expect(screen.getByTestId("operating-mode-phase-viewer")).toHaveAttribute("data-source", "live"),
+    );
+    const viewer = screen.getByTestId("operating-mode-phase-viewer");
+    expect(viewer).toHaveAttribute("data-phase", "execute");
+
+    // Semantic read categories, not bare "Items"/"Artifacts" counts.
+    fireEvent.click(within(viewer).getByTestId("operating-mode-phase-viewer-tab-reads"));
+    expect(within(viewer).getByTestId("operating-mode-flow-trace-reads")).toHaveTextContent("Member items");
+    expect(within(viewer).getByTestId("operating-mode-flow-trace-reads")).toHaveTextContent("Mode artifacts");
+
+    fireEvent.click(within(viewer).getByTestId("operating-mode-phase-viewer-tab-emits"));
+    const emits = within(viewer).getByTestId("operating-mode-flow-trace-emits");
+    expect(emits).toHaveTextContent("verdict");
+    expect(emits).toHaveTextContent("backlog_sync");
+    // Raw payload stays available behind disclosure.
+    expect(within(viewer).getByTestId("operating-mode-flow-trace-raw-toggle")).toHaveTextContent(
+      "View raw payload",
+    );
+
+    fireEvent.click(within(viewer).getByTestId("operating-mode-phase-viewer-tab-transition"));
+    expect(within(viewer).getByTestId("operating-mode-flow-trace-transition")).toHaveTextContent(
+      "execute → review",
+    );
   });
 
   it("switches the live viewer between linked initiative workspaces", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
-    renderPage("holistic-loop", "?tab=execution");
+    renderPage("holistic-loop", "?tab=flow");
 
+    fireEvent.click(await screen.findByTestId("operating-mode-flow-source-live"));
     const select = await screen.findByLabelText("Live initiative");
     fireEvent.change(select, { target: { value: "init-b" } });
 

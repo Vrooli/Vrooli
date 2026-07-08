@@ -10,32 +10,69 @@ import (
 	"swarm-manager/internal/operatingmode/promptcatalog"
 )
 
-func (s *Service) buildPrompt(ctx context.Context, data phaseContext, round RoundEnvelope, note string) (string, error) {
+// ErrPromptRenderUnavailable signals the no-spawn render seam cannot run
+// because the prompt client or catalog resolver is not wired. Callers that can
+// degrade gracefully (the render-preview endpoint) map it to a typed response
+// so the UI can fall back to the resolved variable map instead of surfacing a
+// 500.
+var ErrPromptRenderUnavailable = errors.New("operating-mode prompt render seam unavailable")
+
+// renderedPhasePrompt is the fully substituted agent prompt together with the
+// inputs that produced it. Both the real spawn path (buildPrompt) and the
+// render-preview endpoint build it from renderPhasePrompt so a preview is
+// byte-identical to what an agent actually receives.
+type renderedPhasePrompt struct {
+	SkillID    string
+	ProfileKey string
+	Variables  map[string]string
+	Prompt     string
+}
+
+// renderPhasePrompt is the single seam that resolves a phase's skill, validates
+// it against the prompt catalog, substitutes the phase context into the
+// template, and returns the literal prompt with its inputs. It performs no
+// spawning, locking, or persistence, so it is safe to call from both the live
+// phase runner and the simulation-preview endpoint.
+func (s *Service) renderPhasePrompt(ctx context.Context, data phaseContext, round RoundEnvelope, note string) (renderedPhasePrompt, error) {
 	if s.prompts == nil {
-		return "", errors.New("prompt client not wired")
+		return renderedPhasePrompt{}, fmt.Errorf("%w: prompt client not wired", ErrPromptRenderUnavailable)
+	}
+	if s.promptCatalog == nil {
+		return renderedPhasePrompt{}, fmt.Errorf("%w: prompt catalog resolver not wired", ErrPromptRenderUnavailable)
 	}
 	skillID := data.phaseDef.SkillID
-	if s.promptCatalog == nil {
-		return "", errors.New("prompt catalog resolver not wired")
-	}
 	entry, ok := s.promptCatalog(string(data.def.Mode), string(data.phaseDef.Phase))
 	if !ok {
-		return "", fmt.Errorf("prompt catalog missing entry for mode %q phase %q", data.def.Mode, data.phaseDef.Phase)
+		return renderedPhasePrompt{}, fmt.Errorf("prompt catalog missing entry for mode %q phase %q", data.def.Mode, data.phaseDef.Phase)
 	}
 	if strings.TrimSpace(entry.CatalogID) != data.phaseDef.CatalogID {
-		return "", fmt.Errorf("prompt catalog ID mismatch for mode %q phase %q: registry=%q catalog=%q", data.def.Mode, data.phaseDef.Phase, data.phaseDef.CatalogID, entry.CatalogID)
+		return renderedPhasePrompt{}, fmt.Errorf("prompt catalog ID mismatch for mode %q phase %q: registry=%q catalog=%q", data.def.Mode, data.phaseDef.Phase, data.phaseDef.CatalogID, entry.CatalogID)
 	}
 	if strings.TrimSpace(entry.SkillID) != skillID {
-		return "", fmt.Errorf("prompt catalog skill mismatch for mode %q phase %q: registry=%q catalog=%q", data.def.Mode, data.phaseDef.Phase, skillID, entry.SkillID)
+		return renderedPhasePrompt{}, fmt.Errorf("prompt catalog skill mismatch for mode %q phase %q: registry=%q catalog=%q", data.def.Mode, data.phaseDef.Phase, skillID, entry.SkillID)
 	}
-	prompt, err := s.prompts.ReadSkill(ctx, skillID, promptVariables(data, round, note), false)
+	variables := promptVariables(data, round, note)
+	prompt, err := s.prompts.ReadSkill(ctx, skillID, variables, false)
+	if err != nil {
+		return renderedPhasePrompt{}, err
+	}
+	if strings.TrimSpace(prompt) == "" {
+		return renderedPhasePrompt{}, fmt.Errorf("prompt skill %q rendered empty content", skillID)
+	}
+	return renderedPhasePrompt{
+		SkillID:    skillID,
+		ProfileKey: data.phaseDef.ProfileKey,
+		Variables:  variables,
+		Prompt:     prompt,
+	}, nil
+}
+
+func (s *Service) buildPrompt(ctx context.Context, data phaseContext, round RoundEnvelope, note string) (string, error) {
+	rendered, err := s.renderPhasePrompt(ctx, data, round, note)
 	if err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(prompt) == "" {
-		return "", fmt.Errorf("prompt skill %q rendered empty content", skillID)
-	}
-	return prompt, nil
+	return rendered.Prompt, nil
 }
 
 func promptVariables(data phaseContext, round RoundEnvelope, note string) map[string]string {

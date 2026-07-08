@@ -283,13 +283,61 @@ export interface OperatingModeSimulationStep {
   round: OperatingModeRound;
   transition?: OperatingModeSimulationTransition;
   terminal?: boolean;
+  /** Agent skill this phase would spawn. */
+  skillId?: string;
+  /** Agent profile this phase would spawn. */
+  profileKey?: string;
+  /**
+   * Resolved prompt template variables for this step, computed server-side
+   * without a render call. Used to show what was substituted (and as the
+   * Instructions fallback when the render endpoint is unavailable).
+   */
+  promptVariables?: Record<string, string>;
+}
+
+/**
+ * Operator-facing metadata for one deterministic simulation scenario. Presets
+ * seed different phase outputs to exercise real transition branches (replan,
+ * continue, blocked, review, reconcile); they never bypass the registered
+ * phase graph. Mirrors `operatingmode.SimulationPreset` on the backend.
+ */
+export interface OperatingModeSimulationPreset {
+  id: string;
+  label: string;
+  description: string;
+  /** One-line "what branch this demonstrates". */
+  branch: string;
+  /** Longer work-story note shown in the guide/help surface. */
+  scenario: string;
 }
 
 export interface OperatingModeSimulation {
   mode: InitiativeOperatingMode;
   label: string;
+  presets: OperatingModeSimulationPreset[];
+  activePreset: string;
   initiative: OperatingModeSimulationInputs["initiative"];
   trace: OperatingModeSimulationStep[];
+}
+
+/**
+ * A literal, data-filled agent prompt rendered without spawning — the same
+ * prompt an agent would receive for a phase. Returned by the simulation and
+ * live render endpoints. When `degraded` is true the prompt-manager seam was
+ * unavailable, so `prompt` is empty and callers fall back to `variables`.
+ * Mirrors `operatingmode.RenderPromptResponse` on the backend.
+ */
+export interface OperatingModeRenderedPrompt {
+  mode: string;
+  preset?: string;
+  stepIndex?: number;
+  phase: string;
+  skillId: string;
+  profileKey: string;
+  variables: Record<string, string>;
+  prompt: string;
+  degraded: boolean;
+  degradedReason?: string;
 }
 
 export interface OperatingModeLockHolder {

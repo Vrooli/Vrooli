@@ -1,6 +1,7 @@
 package operatingmode
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -54,9 +55,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/operating-modes/{mode}", h.GetMode).Methods("GET")
 	r.HandleFunc("/api/v1/operating-modes/{mode}", h.UpdateMode).Methods("PATCH")
 	r.HandleFunc("/api/v1/operating-modes/{mode}/simulate", h.SimulateMode).Methods("POST")
+	r.HandleFunc("/api/v1/operating-modes/{mode}/simulate/render", h.RenderSimulationPrompt).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/workspace", h.Workspace).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/switch", h.SwitchMode).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/phases/{phase}/start", h.StartPhase).Methods("POST")
+	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/phases/{phase}/render", h.RenderLivePrompt).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/refresh", h.RefreshRound).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/cancel", h.CancelRound).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/complete-items", h.CompleteItems).Methods("POST")
@@ -77,12 +80,116 @@ func (h *Handler) SimulateMode(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[operating-mode] simulate", apierr.NotFound("unknown operating mode %q", rawMode))
 		return
 	}
-	result, err := h.service.SimulateMode(r.Context(), NormalizeMode(rawMode))
+	preset := simulationPresetParam(r)
+	result, err := h.service.SimulateMode(r.Context(), NormalizeMode(rawMode), preset)
 	if err != nil {
 		mapOperatingModeError(w, "[operating-mode] simulate", err)
 		return
 	}
 	writeOperatingModeJSON(w, "[operating-mode] simulate", result)
+}
+
+type renderPromptBody struct {
+	Preset    string `json:"preset,omitempty"`
+	StepIndex int    `json:"step_index,omitempty"`
+}
+
+// POST /api/v1/operating-modes/{mode}/simulate/render — render the literal
+// agent prompt for one step of a preset simulation trace, with fixture data
+// substituted. The server re-derives the deterministic step context, so the
+// client only supplies {preset, step_index}; no arbitrary skill/variables are
+// accepted. An unavailable prompt-manager seam returns a typed degraded body
+// (HTTP 200 with degraded=true), not a 500, so the UI can fall back to the
+// resolved variables.
+func (h *Handler) RenderSimulationPrompt(w http.ResponseWriter, r *http.Request) {
+	rawMode := strings.TrimSpace(mux.Vars(r)["mode"])
+	if rawMode == "" {
+		apierr.MapError(w, "[operating-mode] simulate render", apierr.BadRequest("mode is required"))
+		return
+	}
+	if !ValidateMode(rawMode) {
+		apierr.MapError(w, "[operating-mode] simulate render", apierr.NotFound("unknown operating mode %q", rawMode))
+		return
+	}
+	preset, stepIndex := renderPromptParams(r)
+	result, err := h.service.RenderSimulationPrompt(r.Context(), NormalizeMode(rawMode), preset, stepIndex)
+	if err != nil {
+		mapOperatingModeError(w, "[operating-mode] simulate render", err)
+		return
+	}
+	writeOperatingModeJSON(w, "[operating-mode] simulate render", result)
+}
+
+// renderPromptParams reads preset + step_index from the query string first (the
+// UI's canonical channel) and falls back to the JSON body so the endpoint stays
+// curl-friendly. An empty/unknown preset resolves to happy-path server-side and
+// an unparseable step_index defaults to 0, so parse failures are ignored.
+func renderPromptParams(r *http.Request) (string, int) {
+	var body renderPromptBody
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	preset := strings.TrimSpace(body.Preset)
+	if q := strings.TrimSpace(r.URL.Query().Get("preset")); q != "" {
+		preset = q
+	}
+	stepIndex := body.StepIndex
+	if q := strings.TrimSpace(r.URL.Query().Get("step_index")); q != "" {
+		if parsed, err := strconv.Atoi(q); err == nil {
+			stepIndex = parsed
+		}
+	}
+	return preset, stepIndex
+}
+
+type renderLivePromptBody struct {
+	Round int    `json:"round,omitempty"`
+	Note  string `json:"note,omitempty"`
+}
+
+// POST /api/v1/initiatives/{name}/operating-mode/phases/{phase}/render — render
+// the literal agent prompt for one phase of a real linked initiative with its
+// live data substituted. Optional {round, note} scope the render; an
+// unavailable prompt-manager seam returns a typed degraded body (HTTP 200 with
+// degraded=true), not a 500.
+func (h *Handler) RenderLivePrompt(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(mux.Vars(r)["name"])
+	phase := strings.TrimSpace(mux.Vars(r)["phase"])
+	if name == "" || phase == "" {
+		apierr.MapError(w, "[operating-mode] render live prompt", apierr.BadRequest("initiative name and phase are required"))
+		return
+	}
+	var body renderLivePromptBody
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	round := body.Round
+	if q := strings.TrimSpace(r.URL.Query().Get("round")); q != "" {
+		if parsed, err := strconv.Atoi(q); err == nil {
+			round = parsed
+		}
+	}
+	result, err := h.service.RenderLivePrompt(r.Context(), name, phase, round, body.Note)
+	if err != nil {
+		mapOperatingModeError(w, "[operating-mode] render live prompt", err)
+		return
+	}
+	writeOperatingModeJSON(w, "[operating-mode] render live prompt", result)
+}
+
+// simulationPresetParam reads the requested preset id from the query string
+// first (the UI's canonical channel) and falls back to a JSON body field so
+// the endpoint stays curl-friendly. An empty/unknown id resolves to the
+// happy-path preset server-side, so parse failures are intentionally ignored.
+func simulationPresetParam(r *http.Request) string {
+	if preset := strings.TrimSpace(r.URL.Query().Get("preset")); preset != "" {
+		return preset
+	}
+	var body SimulationRequest
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	return strings.TrimSpace(body.Preset)
 }
 
 // writeOperatingModeJSON encodes payload as the success response, mapping an
@@ -388,7 +495,7 @@ func mapOperatingModeError(w http.ResponseWriter, ctx string, err error) {
 		strings.Contains(err.Error(), "must be kind/name"), strings.Contains(err.Error(), "is not a member"),
 		strings.Contains(err.Error(), "does not allow"), strings.Contains(err.Error(), "no backlog_sync"),
 		strings.Contains(err.Error(), "proposal"), strings.Contains(err.Error(), "mode is required"),
-		strings.Contains(err.Error(), "round actions require"):
+		strings.Contains(err.Error(), "round actions require"), strings.Contains(err.Error(), "out of range"):
 		apierr.MapError(w, ctx, apierr.BadRequest("%s", err.Error()))
 	case errors.Is(err, agentmanager.ErrNotAvailable):
 		apierr.MapError(w, ctx, apierr.Unavailable("agent-manager is not available"))

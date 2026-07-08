@@ -148,12 +148,19 @@ type fakePrompts struct {
 	calls []string
 	err   error
 	text  string
+	// render, when set, deterministically substitutes variables so tests can
+	// assert fixture data reaches the prompt. It also lets the parity test prove
+	// the spawn path and preview path pass an identical variable map.
+	render func(skillID string, variables map[string]string) string
 }
 
-func (f *fakePrompts) ReadSkill(_ context.Context, skillID string, _ map[string]string, _ bool) (string, error) {
+func (f *fakePrompts) ReadSkill(_ context.Context, skillID string, variables map[string]string, _ bool) (string, error) {
 	f.calls = append(f.calls, skillID)
 	if f.err != nil {
 		return "", f.err
+	}
+	if f.render != nil {
+		return f.render(skillID, variables), nil
 	}
 	if f.text != "" {
 		return f.text, nil

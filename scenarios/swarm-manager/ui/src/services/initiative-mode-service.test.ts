@@ -143,6 +143,23 @@ describe("Initiative Mode Service", () => {
     vi.mocked(api.post).mockResolvedValue({
       mode: "phased-plan-drain",
       label: "Phased Plan Drain",
+      active_preset: "happy-path",
+      presets: [
+        {
+          id: "happy-path",
+          label: "Drains in one slice",
+          description: "Prepare → execute → classify → review → reconcile.",
+          branch: "classify_progress → review (complete)",
+          scenario: "A stable plan a single slice can drain.",
+        },
+        {
+          id: "blocked",
+          label: "Work is blocked",
+          description: "Classify reports blocked; the cycle ends before review.",
+          branch: "classify_progress → (blocked, terminal)",
+          scenario: "A drain that stalls on an external blocker.",
+        },
+      ],
       initiative: {
         name: "simulation-sandbox",
         title: "Phased Plan Drain Simulation",
@@ -200,11 +217,30 @@ describe("Initiative Mode Service", () => {
 
     expect(api.post).toHaveBeenCalledWith("/operating-modes/phased-plan-drain/simulate", {});
     expect(simulation.mode).toBe("phased-plan-drain");
+    expect(simulation.activePreset).toBe("happy-path");
+    expect(simulation.presets.map((preset) => preset.id)).toEqual(["happy-path", "blocked"]);
+    expect(simulation.presets[1]?.branch).toBe("classify_progress → (blocked, terminal)");
     expect(simulation.initiative.acceptanceCriteria).toEqual(["review output"]);
     expect(simulation.trace[0]?.phaseKind).toBe("review");
     expect(simulation.trace[0]?.inputs.items[0]?.ref).toBe("execute/item-1");
     expect(simulation.trace[0]?.output.progress?.decision).toBe("complete");
     expect(simulation.trace[0]?.transition?.progressDecision).toBe("complete");
+  });
+
+  it("passes the selected preset id as a query param", async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      mode: "phased-plan-drain",
+      label: "Phased Plan Drain",
+      active_preset: "blocked",
+      presets: [],
+      initiative: { name: "simulation-sandbox", mode: "phased-plan-drain", items: [], acceptance_criteria: [] },
+      trace: [],
+    });
+
+    const simulation = await service.simulateMode("phased-plan-drain", "blocked");
+
+    expect(api.post).toHaveBeenCalledWith("/operating-modes/phased-plan-drain/simulate?preset=blocked", {});
+    expect(simulation.activePreset).toBe("blocked");
   });
 
   it("normalizes catalog decision-support metadata", async () => {

@@ -247,6 +247,102 @@ func TestSimulateModeEndpointReturnsTrace(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"condition_kind"`) {
 		t.Fatalf("response missing transition guard metadata: %s", rec.Body.String())
 	}
+	if len(got.Presets) == 0 || got.ActivePreset != "happy-path" {
+		t.Fatalf("presets=%+v active=%q, want happy-path default", got.Presets, got.ActivePreset)
+	}
+
+	// The preset query param selects a branch-covering scenario.
+	presetReq := httptest.NewRequest(http.MethodPost, "/api/v1/operating-modes/phased-plan-drain/simulate?preset=blocked", nil)
+	presetRec := httptest.NewRecorder()
+	router.ServeHTTP(presetRec, presetReq)
+	if presetRec.Code != http.StatusOK {
+		t.Fatalf("preset status = %d, want 200; body=%s", presetRec.Code, presetRec.Body.String())
+	}
+	var blocked SimulationResponse
+	if err := json.Unmarshal(presetRec.Body.Bytes(), &blocked); err != nil {
+		t.Fatalf("decode preset response: %v", err)
+	}
+	if blocked.ActivePreset != "blocked" {
+		t.Fatalf("active preset = %q, want blocked", blocked.ActivePreset)
+	}
+	last := blocked.Trace[len(blocked.Trace)-1]
+	if last.Phase != "classify_progress" || !last.Terminal {
+		t.Fatalf("blocked terminal step = %q terminal=%v, want classify_progress terminal", last.Phase, last.Terminal)
+	}
+}
+
+func TestRenderSimulationPromptEndpoint(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{prompts: &fakePrompts{render: echoRender}})
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/operating-modes/holistic-loop/simulate/render?preset=happy-path&step_index=0", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var got RenderPromptResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.Degraded {
+		t.Fatalf("response degraded unexpectedly: %s", got.DegradedReason)
+	}
+	if got.Phase == "" || got.SkillID == "" || got.Prompt == "" {
+		t.Fatalf("render response missing phase/skill/prompt: %+v", got)
+	}
+	if !strings.Contains(got.Prompt, "Unify the audio-session lifecycle") {
+		t.Fatalf("prompt missing substituted title: %s", got.Prompt)
+	}
+
+	// Body-supplied preset + step index keep the endpoint curl-friendly.
+	body := bytes.NewBufferString(`{"preset":"happy-path","step_index":1}`)
+	bodyReq := httptest.NewRequest(http.MethodPost, "/api/v1/operating-modes/holistic-loop/simulate/render", body)
+	bodyReq.Header.Set("Content-Type", "application/json")
+	bodyRec := httptest.NewRecorder()
+	router.ServeHTTP(bodyRec, bodyReq)
+	if bodyRec.Code != http.StatusOK {
+		t.Fatalf("body request status = %d, want 200; body=%s", bodyRec.Code, bodyRec.Body.String())
+	}
+	var second RenderPromptResponse
+	if err := json.Unmarshal(bodyRec.Body.Bytes(), &second); err != nil {
+		t.Fatalf("decode body response: %v", err)
+	}
+	if second.StepIndex != 1 {
+		t.Fatalf("step index = %d, want 1", second.StepIndex)
+	}
+
+	// An out-of-range step is a client error, not a rendered prompt.
+	badReq := httptest.NewRequest(http.MethodPost, "/api/v1/operating-modes/holistic-loop/simulate/render?step_index=999", nil)
+	badRec := httptest.NewRecorder()
+	router.ServeHTTP(badRec, badReq)
+	if badRec.Code != http.StatusBadRequest {
+		t.Fatalf("out-of-range status = %d, want 400; body=%s", badRec.Code, badRec.Body.String())
+	}
+}
+
+func TestRenderSimulationPromptEndpointDegradesWithoutPromptClient(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{prompts: &fakePrompts{render: echoRender}})
+	svc.prompts = nil
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/operating-modes/holistic-loop/simulate/render?step_index=0", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("degraded status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var got RenderPromptResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !got.Degraded || got.Prompt != "" || len(got.Variables) == 0 {
+		t.Fatalf("degraded response = %+v, want degraded with variables and no prompt", got)
+	}
 }
 
 func TestPatchModeAppliesOverlay(t *testing.T) {

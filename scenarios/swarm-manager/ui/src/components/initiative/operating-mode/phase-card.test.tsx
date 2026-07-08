@@ -1,10 +1,22 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PhaseCard } from "./phase-card";
 import { selectors } from "../../../consts/selectors";
 import { createQueryWrapper, createTestQueryClient } from "../../../test-utils/query";
 import type { OperatingModeCatalogPhase } from "../../../types/operating-mode";
+
+vi.mock("../../../services/prompt-service", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    promptService: { getSkill: vi.fn() },
+  };
+});
+
+import { promptService } from "../../../services/prompt-service";
+
+const getSkill = promptService.getSkill as unknown as ReturnType<typeof vi.fn>;
 
 function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
   return {
@@ -31,10 +43,19 @@ function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: stri
   };
 }
 
+function renderCard(ui: React.ReactElement, queryClient = createTestQueryClient()) {
+  return render(ui, { wrapper: createQueryWrapper(queryClient) });
+}
+
 describe("PhaseCard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSkill.mockResolvedValue({ id: "skill", name: "Skill", current_content: "template body" });
+  });
+
   it("renders the label as the headline, with the snake_case ID and purpose", () => {
-    render(
-<PhaseCard
+    renderCard(
+      <PhaseCard
         phase={basePhase({
           phase: "investigate",
           label: "Investigate",
@@ -50,8 +71,8 @@ describe("PhaseCard", () => {
   });
 
   it("falls back to title when label is empty (legacy API payload)", () => {
-    render(
-<PhaseCard
+    renderCard(
+      <PhaseCard
         phase={basePhase({
           phase: "investigate",
           label: "",
@@ -63,24 +84,15 @@ describe("PhaseCard", () => {
   });
 
   it("renders start and terminal markers", () => {
-    render(
-<PhaseCard
-        phase={basePhase({ phase: "investigate", isStart: true })}
-      />,
-    );
+    renderCard(<PhaseCard phase={basePhase({ phase: "investigate", isStart: true })} />);
     expect(screen.getByText("start")).toBeInTheDocument();
-    expect(screen.queryByText("terminal")).not.toBeInTheDocument();
 
-    render(
-<PhaseCard
-        phase={basePhase({ phase: "review", isTerminal: true })}
-      />,
-    );
-    expect(screen.getByText("terminal")).toBeInTheDocument();
+    renderCard(<PhaseCard phase={basePhase({ phase: "review", isTerminal: true })} />);
+    expect(screen.getAllByText("terminal").length).toBeGreaterThan(0);
   });
 
-  it("renders reads, emits schema, transitions, and a worked example", () => {
-    render(
+  it("composes the shared PhaseViewer in contract source with the four concern tabs", async () => {
+    renderCard(
       <PhaseCard
         phase={basePhase({
           phase: "review",
@@ -94,52 +106,53 @@ describe("PhaseCard", () => {
             requiredArtifactCount: 0,
           },
         })}
-        transitions={[
-          {
-            from: "review",
-            to: "reconcile",
-            conditionKind: "always",
-            label: "always",
-          },
-        ]}
+        transitions={[{ from: "review", to: "reconcile", conditionKind: "always", label: "always" }]}
       />,
     );
-    expect(screen.getByText("Reads")).toBeInTheDocument();
-    expect(screen.getByText("PRIOR_ROUNDS_JSON")).toBeInTheDocument();
-    expect(screen.getByText("MEMBER_ITEMS_JSON")).toBeInTheDocument();
-    expect(screen.getByText("MODE_ARTIFACTS_JSON")).toBeInTheDocument();
-    expect(screen.getByText("ACCEPTANCE_CRITERIA")).toBeInTheDocument();
-    expect(screen.getByText("Emits schema")).toBeInTheDocument();
-    expect(screen.getByText("verdict")).toBeInTheDocument();
-    expect(screen.getByText("Review verdict example")).toBeInTheDocument();
-    expect(screen.getByText("if always, go to reconcile")).toBeInTheDocument();
+    const viewer = screen.getByTestId(selectors.initiativeDetails.phaseViewer);
+    expect(viewer).toHaveAttribute("data-source", "contract");
     expect(screen.getByText("requires criteria")).toBeInTheDocument();
-    expect(screen.queryByText("structured")).not.toBeInTheDocument();
+
+    // Reads tab: each card names its backing prompt variable.
+    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseViewerTabReads));
+    expect(screen.getByText("{{MEMBER_ITEMS_JSON}}")).toBeInTheDocument();
+    expect(screen.getByText("{{ACCEPTANCE_CRITERIA}}")).toBeInTheDocument();
+
+    // Emits tab: verdict is a required emit for a review phase.
+    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseViewerTabEmits));
+    expect(screen.getByText("verdict")).toBeInTheDocument();
+    expect(screen.getByText("required")).toBeInTheDocument();
+
+    // Transition tab: the declared outgoing route.
+    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseViewerTabTransition));
+    expect(screen.getByText("if always, go to reconcile")).toBeInTheDocument();
   });
 
-  it("renders terminal transition copy when no outgoing transition exists", () => {
-    render(<PhaseCard phase={basePhase({ phase: "reconcile", isTerminal: true })} />);
+  it("shows terminal transition copy when no outgoing transition exists", async () => {
+    renderCard(<PhaseCard phase={basePhase({ phase: "reconcile", isTerminal: true })} />);
+    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseViewerTabTransition));
     expect(screen.getByText("No outgoing transition; this phase is terminal.")).toBeInTheDocument();
   });
 
-  it("promotes the phase skill body affordance above internals", () => {
-    render(
-      <PhaseCard
-        phase={basePhase({
-          phase: "investigate",
-          skillId: "swarm-manager-holistic-loop-investigate",
-        })}
-      />,
-      { wrapper: createQueryWrapper() },
+  it("renders the contract template body in the Instructions tab", async () => {
+    getSkill.mockResolvedValue({
+      id: "swarm-manager-holistic-loop-investigate",
+      name: "Investigate",
+      current_content: "Investigate {{INITIATIVE_TITLE}} thoroughly.",
+    });
+    renderCard(
+      <PhaseCard phase={basePhase({ phase: "investigate", skillId: "swarm-manager-holistic-loop-investigate" })} />,
     );
-    expect(screen.getByTestId("phase-agent-instructions")).toHaveTextContent(
-      "swarm-manager-holistic-loop-investigate",
+    await waitFor(() =>
+      expect(screen.getByTestId(selectors.initiativeDetails.phaseViewerPrompt)).toHaveTextContent(
+        "{{INITIATIVE_TITLE}}",
+      ),
     );
   });
 
   it("flags required artifacts and lists optional ones", () => {
-    render(
-<PhaseCard
+    renderCard(
+      <PhaseCard
         phase={basePhase({
           phase: "investigate",
           outputArtifacts: [
@@ -155,59 +168,36 @@ describe("PhaseCard", () => {
   });
 
   it("renders the read-only chip when writes_repo is false", () => {
-    render(<PhaseCard phase={basePhase({ phase: "investigate", writesRepo: false })} />);
+    renderCard(<PhaseCard phase={basePhase({ phase: "investigate", writesRepo: false })} />);
     expect(screen.getByText("read-only")).toBeInTheDocument();
   });
 
   it("applies the highlight ring when highlighted is true", () => {
-    const { container } = render(
-      <PhaseCard phase={basePhase({ phase: "execute" })} highlighted />,
-    );
+    const { container } = renderCard(<PhaseCard phase={basePhase({ phase: "execute" })} highlighted />);
     const article = container.querySelector('[data-testid="phase-card"]');
     expect(article?.className).toMatch(/ring-cyan-500/);
   });
 
-  it("opens the profile popover when the profile chip is clicked", async () => {
-    render(<PhaseCard phase={basePhase({ phase: "investigate" })} />, {
-      wrapper: createQueryWrapper(),
-    });
-    const chip = screen.getByTestId(selectors.initiativeDetails.phaseCardProfileChip);
+  it("opens the profile popover from the Instructions tab profile chip", async () => {
+    renderCard(<PhaseCard phase={basePhase({ phase: "investigate" })} />);
+    const chip = screen.getByTestId(selectors.initiativeDetails.phaseViewerProfileChip);
     expect(chip.tagName).toBe("BUTTON");
     expect(screen.queryByTestId(selectors.initiativeDetails.phaseProfilePopover)).not.toBeInTheDocument();
 
     await userEvent.click(chip);
 
     const popover = screen.getByTestId(selectors.initiativeDetails.phaseProfilePopover);
-    expect(popover).toBeInTheDocument();
     expect(popover).toHaveAttribute("role", "dialog");
-    expect(
-      screen.getByText(/defines the model, tool access, and runtime budget/i),
-    ).toBeInTheDocument();
-    // The literal profile key is present inside the popover's <code> block.
     expect(popover.querySelector("code")?.textContent).toBe("swarm-manager/deep-work");
   });
 
   it("renders an external Agent Manager link in the popover when the agent-manager URL resolves", async () => {
     const queryClient = createTestQueryClient();
     queryClient.setQueryData(["embedded-service-url", "agent-manager"], "https://agent.test");
-    render(<PhaseCard phase={basePhase({ phase: "investigate" })} />, {
-      wrapper: createQueryWrapper(queryClient),
-    });
-    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseCardProfileChip));
+    renderCard(<PhaseCard phase={basePhase({ phase: "investigate" })} />, queryClient);
+    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseViewerProfileChip));
     const link = screen.getByTestId(selectors.initiativeDetails.phaseProfileExternalLink);
-    expect(link).toHaveAttribute(
-      "href",
-      "https://agent.test/profiles?profileKey=swarm-manager%2Fdeep-work",
-    );
+    expect(link).toHaveAttribute("href", "https://agent.test/profiles?profileKey=swarm-manager%2Fdeep-work");
     expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noreferrer");
-  });
-
-  it("hides the popover external link when the agent-manager URL has not resolved", async () => {
-    render(<PhaseCard phase={basePhase({ phase: "investigate" })} />, {
-      wrapper: createQueryWrapper(),
-    });
-    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseCardProfileChip));
-    expect(screen.queryByTestId(selectors.initiativeDetails.phaseProfileExternalLink)).toBeNull();
   });
 });

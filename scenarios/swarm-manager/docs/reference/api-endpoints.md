@@ -380,6 +380,34 @@ capabilities) are immutable. Returns the same shape as the GET endpoint.
 { "label": "Holistic Loop (renamed)", "description": "Updated for our team." }
 ```
 
+`POST /api/v1/operating-modes/{mode}/simulate?preset={preset}`
+
+Backs the operating-mode detail page's **Flow** tab. Deterministically walks a
+phase mode's registered graph against an ephemeral fixture initiative and returns
+the same structured-result projection live rounds use — without spawning agents,
+rendering prompts, acquiring locks, or persisting initiative state. Rejects
+`item-level` (no phase graph) with a `400`.
+
+The optional `preset` query param (or `{"preset": "..."}` body field) selects a
+named branch-covering scenario; an empty/unknown id falls back to the first
+(happy-path) preset. The response lists all `presets` for the mode and echoes the
+resolved `active_preset`. Presets seed different phase outputs to exercise real
+transition guards (replan, continue, blocked, non-accepting review, reconcile).
+
+```json
+{
+  "mode": "phased-plan-drain",
+  "label": "Phased Plan Drain",
+  "active_preset": "blocked",
+  "presets": [
+    { "id": "happy-path", "label": "Drains in one slice", "branch": "classify_progress → review (complete)" },
+    { "id": "blocked", "label": "Work is blocked", "branch": "classify_progress → (blocked, terminal)" }
+  ],
+  "initiative": { "name": "simulation-sandbox", "…": "…" },
+  "trace": [ { "phase": "prepare_plan", "inputs": {}, "output": {}, "transition": {} } ]
+}
+```
+
 ## Initiative Operating Mode Switch
 
 `POST /api/v1/initiatives/{name}/operating-mode/switch`

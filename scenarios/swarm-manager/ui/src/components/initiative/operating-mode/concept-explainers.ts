@@ -55,6 +55,69 @@ export const RUN_STRATEGY_EXPLAINER: ConceptExplainer = {
   ],
 };
 
+export const FLOW_GUIDE_EXPLAINER: ConceptExplainer = {
+  title: "Reading the Flow tab",
+  intro:
+    "Flow shows how a mode moves through its phases through one shared phase viewer with four tabs — Instructions, Reads, Emits, Transition. A data-source control swaps the fill without changing the view: the Contract template, a Simulation preset, or a Live round.",
+  sections: [
+    {
+      heading: "Data sources",
+      label: "Contract",
+      body: "The phase's static contract. Instructions shows the agent skill template with its {{VARIABLE}} slots still unfilled, and Reads/Emits/Transition show what the phase is defined to consume, produce, and route to — no initiative data substituted.",
+    },
+    {
+      heading: "Data sources",
+      label: "Simulation preset",
+      body: "A deterministic, in-memory walk of the phase graph against illustrative data. Presets seed different phase outputs to exercise real branches (replan, continue, blocked, review, reconcile) but never run agents, acquire locks, or touch real initiative state. Instructions shows the literal prompt with the preset's data substituted.",
+    },
+    {
+      heading: "Data sources",
+      label: "Live round",
+      body: "The actual rounds recorded for a linked initiative. Pick an initiative to render its most recent active or completed round. This is real data — the prompt, reads, emits, and transition come from what agents actually produced.",
+    },
+    {
+      heading: "Tabs",
+      label: "Instructions",
+      body: "The literal agent prompt for the selected source, plus the agent profile that would run it. Contract shows the unfilled template; Simulation and Live show the prompt with data substituted — byte-identical to what an agent actually receives.",
+    },
+    {
+      heading: "Vocabulary",
+      label: "Round",
+      body: "One agent run of a single phase. Rounds accumulate as the mode advances; each round records the phase it ran, the items in scope, and the structured result it emitted.",
+    },
+    {
+      heading: "Vocabulary",
+      label: "Phase",
+      body: "A named step in the mode's graph (investigate, plan, execute, review, reconcile, …). Each phase has a fixed contract for what it reads and must emit.",
+    },
+    {
+      heading: "Vocabulary",
+      label: "Reads",
+      body: "The context a phase consumes, one card per prompt variable: member items (MEMBER_ITEMS_JSON), durable mode artifacts (MODE_ARTIFACTS_JSON), prior rounds/handoffs (PRIOR_ROUNDS_JSON), and acceptance criteria (ACCEPTANCE_CRITERIA).",
+    },
+    {
+      heading: "Vocabulary",
+      label: "Emits",
+      body: "The structured result a phase produces: artifacts, a handoff, a progress decision, an acceptance verdict, a replan signal, a readiness report, or a backlog-sync proposal.",
+    },
+    {
+      heading: "Vocabulary",
+      label: "Transition",
+      body: "Why the next phase was selected. Transitions are decided by backend guards — an unconditional 'always', a boolean payload signal (e.g. replan_needed), or a progress decision (continue / replan / complete / blocked). A blocked decision has no downstream target and ends the cycle.",
+    },
+    {
+      heading: "Vocabulary",
+      label: "Artifact",
+      body: "A durable file a phase writes under modes/<mode>/. Later phases read these to maintain continuity across rounds.",
+    },
+    {
+      heading: "Vocabulary",
+      label: "Handoff",
+      body: "A summary one round leaves for the next: what was completed, changed files, tests, blockers, and the intended next step. Sequential modes rely on handoffs for continuity.",
+    },
+  ],
+};
+
 export const DEFAULT_FLAG_EXPLAINER: ConceptExplainer = {
   title: "Default mode",
   intro:
