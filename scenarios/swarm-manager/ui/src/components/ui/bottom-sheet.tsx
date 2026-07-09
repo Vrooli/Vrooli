@@ -7,6 +7,7 @@
 
 import { useId, type ReactNode } from "react";
 import { cn } from "../../lib/utils";
+import { useIsMobile } from "../../hooks/useMediaQuery";
 import { Dialog } from "./dialog";
 
 interface BottomSheetProps {
@@ -46,6 +47,7 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const titleElementId = useId();
   const descriptionElementId = useId();
+  const isMobile = useIsMobile();
 
   return (
     <Dialog
@@ -55,12 +57,20 @@ export function BottomSheet({
       testId={testId}
       titleId={title ? titleElementId : undefined}
       descriptionId={description ? descriptionElementId : undefined}
-      containerClassName={cn("!items-end", containerClassName)}
+      // Mobile: bottom sheet (anchored to viewport bottom).
+      // Desktop: fall through to Dialog's centered (vertical + horizontal) modal.
+      containerClassName={cn(isMobile && "!items-end", containerClassName)}
       className={cn(
-        "flex !max-h-[calc(100dvh-0.75rem)] flex-col !overflow-hidden",
-        "!mx-0 !mb-0 !rounded-b-none rounded-t-2xl !p-0",
-        "!animate-none",
-        "animate-in slide-in-from-bottom duration-200",
+        "flex flex-col !overflow-hidden !p-0",
+        isMobile
+          ? [
+              "!max-h-[calc(100dvh-0.75rem)]",
+              "!mx-0 !mb-0 !rounded-b-none rounded-t-2xl",
+              "!animate-none",
+              "animate-in slide-in-from-bottom duration-200",
+            ]
+          : // Desktop keeps Dialog defaults: mx-4, rounded-xl, max-h-[85vh], zoom-in.
+            null,
         className,
       )}
     >

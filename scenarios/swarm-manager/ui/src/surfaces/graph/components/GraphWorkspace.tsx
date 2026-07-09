@@ -28,6 +28,8 @@ import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
 import { useQueryClient } from "@tanstack/react-query";
 import { GraphCanvas } from "./GraphCanvas";
 import { PlanBoard, PlanHelpPanel } from "../../plan";
+import { usePlanDataStore } from "../../plan/stores/plan-data-store";
+import { CreateWorkFromPlanDialog } from "../../../components/plan/CreateWorkFromPlanDialog";
 import { ClarificationPanel } from "../../../components/backlog/clarification-panel";
 import { useSpatialNav } from "../../../hooks/useSpatialNav";
 import { SpatialGroup } from "../../../hooks/SpatialGroup";
@@ -52,6 +54,7 @@ export function GraphWorkspace() {
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [launcherError, setLauncherError] = useState<string | null>(null);
   const [launcherStatus, setLauncherStatus] = useState<string | null>(null);
+  const [createFromPlanOpen, setCreateFromPlanOpen] = useState(false);
 
   const { openSidebar, toggleQuickCapture } = useAppShell();
 
@@ -186,6 +189,19 @@ export function GraphWorkspace() {
           onPlanWork={() => void handleCreateAgentSession("meta_orchestration")}
           onManageSwarm={() => void handleCreateAgentSession("swarm_operations")}
           onAuthorOperatingMode={() => void handleCreateAgentSession("operating_mode_authoring")}
+          onCreateFromPlan={() => {
+            setLauncherError(null);
+            setLauncherStatus(null);
+            setCreateFromPlanOpen(true);
+          }}
+        />
+
+        {/* Plan import lives in the shared action launcher so it's reachable
+            from every lens, not just the Plan board. */}
+        <CreateWorkFromPlanDialog
+          isOpen={createFromPlanOpen}
+          onClose={() => setCreateFromPlanOpen(false)}
+          onImported={() => void usePlanDataStore.getState().fetchBoard({ force: true })}
         />
 
         {/* Single workspace mount for the clarification thread (workshop

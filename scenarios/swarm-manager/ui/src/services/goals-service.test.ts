@@ -51,12 +51,19 @@ describe("Goals Service", () => {
     expect(res.eta?.laneCapacity).toBe(3);
   });
 
-  it("unwraps a list envelope and tolerates a bare array", async () => {
-    vi.mocked(mockApiClient.get).mockResolvedValueOnce({ goals: [{ goal: { name: "a", title: "A", status: "active" }, scope: {} }] });
+  it("unwraps the `items` list envelope emitted by the API", async () => {
+    // The Go handler responds with {"items": [...]} — the real wire shape.
+    vi.mocked(mockApiClient.get).mockResolvedValueOnce({ items: [{ goal: { name: "a", title: "A", status: "active" }, scope: {} }] });
     const wrapped = await service.list();
     expect(wrapped).toHaveLength(1);
     expect(wrapped[0]?.goal.name).toBe("a");
     expect(wrapped[0]?.eta).toBeNull();
+  });
+
+  it("tolerates a legacy `goals` envelope and a bare array", async () => {
+    vi.mocked(mockApiClient.get).mockResolvedValueOnce({ goals: [{ goal: { name: "g", title: "G", status: "active" }, scope: {} }] });
+    const legacy = await service.list();
+    expect(legacy[0]?.goal.name).toBe("g");
 
     vi.mocked(mockApiClient.get).mockResolvedValueOnce([{ goal: { name: "b", title: "B", status: "active" }, scope: {} }]);
     const bare = await service.list();

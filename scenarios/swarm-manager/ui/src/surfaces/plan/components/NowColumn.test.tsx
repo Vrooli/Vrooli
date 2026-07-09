@@ -76,6 +76,23 @@ describe("NowColumn", () => {
     expect(screen.getAllByTestId(selectors.operationsCenter.laneBar)).toHaveLength(4);
   });
 
+  it("collapses and expands the lane utilization row", async () => {
+    await loadView([
+      row({ activityId: "a1", runId: "r1", ownerTitle: "Exec item", lane: "execute" }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<NowColumn />);
+
+    // Lanes start expanded.
+    expect(screen.getAllByTestId(selectors.operationsCenter.laneBar)).toHaveLength(4);
+
+    await user.click(screen.getByTestId(selectors.plan.nowLanesToggle));
+    expect(screen.queryAllByTestId(selectors.operationsCenter.laneBar)).toHaveLength(0);
+
+    await user.click(screen.getByTestId(selectors.plan.nowLanesToggle));
+    expect(screen.getAllByTestId(selectors.operationsCenter.laneBar)).toHaveLength(4);
+  });
+
   it("switches to by-phase lane buckets", async () => {
     await loadView([
       row({ activityId: "a1", runId: "r1", ownerTitle: "Exec item", lane: "execute" }),

@@ -7,12 +7,11 @@
  */
 
 import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, Clock, FilePlus2, MessageCircleQuestion, Play } from "lucide-react";
+import { AlertTriangle, ChevronDown, Clock, MessageCircleQuestion, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { OpsBulkActions } from "../../../components/operations/OpsBulkActions";
 import type { RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
 import { Button } from "../../../components/ui/button";
-import { CreateWorkFromPlanDialog } from "../../../components/plan/CreateWorkFromPlanDialog";
 import { Popover } from "../../../components/ui/popover";
 import { cn } from "../../../lib/utils";
 import { graphPath } from "../../../app/routes/route-paths";
@@ -31,6 +30,7 @@ import {
 } from "../lib/plan-presentation";
 import type { PlanBoardMetaData, PlanCardData } from "../types";
 import { GoalPicker } from "../../../components/goals/GoalPicker";
+import { EtaExplainerContent } from "../../../components/stats/EtaExplainer";
 import { NowColumn } from "./NowColumn";
 import { PlanBoardActions } from "./PlanBoardActions";
 import { usePlanCardActions } from "./plan-card-actions-context";
@@ -252,33 +252,18 @@ function EtaStrip({ eta, goal }: { eta: PlanBoardMetaData["eta"]; goal: string }
         testId="plan-eta-popover"
       >
         <div className="space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-100">ETA basis</h3>
-            <p className="mt-1 text-slate-400">
-              Completion band from current remaining work and execute-lane capacity.
-            </p>
-          </div>
-          <dl className="grid grid-cols-2 gap-2">
-            <div className="rounded bg-slate-950/70 p-2">
-              <dt className="text-slate-500">p50</dt>
-              <dd className="font-medium text-slate-100">{eta.p50Label}</dd>
-            </div>
-            <div className="rounded bg-slate-950/70 p-2">
-              <dt className="text-slate-500">p80</dt>
-              <dd className="font-medium text-slate-100">{eta.p80Label}</dd>
-            </div>
-            <div className="rounded bg-slate-950/70 p-2">
-              <dt className="text-slate-500">Remaining</dt>
-              <dd className="font-medium text-slate-100">{eta.remainingItems} items</dd>
-            </div>
-            <div className="rounded bg-slate-950/70 p-2">
-              <dt className="text-slate-500">Execute lanes</dt>
-              <dd className="font-medium text-slate-100">{eta.laneCapacity}</dd>
-            </div>
-          </dl>
-          <p className={cn("text-xs", tone)}>
-            {eta.confidence} confidence · {eta.basisLabel}
-          </p>
+          <h3 className="text-sm font-semibold text-slate-100">How the ETA is computed</h3>
+          <EtaExplainerContent
+            band={{
+              p50Label: eta.p50Label,
+              p80Label: eta.p80Label,
+              remainingItems: eta.remainingItems,
+              laneCapacity: eta.laneCapacity,
+              basis: eta.basis,
+              basisLabel: eta.basisLabel,
+              confidence: eta.confidence,
+            }}
+          />
           <button
             type="button"
             onClick={() => {
@@ -323,7 +308,6 @@ export function PlanBoard() {
   const snoozedKeys = useSnoozedKeys();
   const filterDrawerOpen = usePlanDataStore((s) => s.filterDrawerOpen);
   const setFilterDrawerOpen = usePlanDataStore((s) => s.setFilterDrawerOpen);
-  const [createFromPlanOpen, setCreateFromPlanOpen] = useState(false);
 
   // Now-column cards ride the operations polling path (D5).
   useOperationsPolling();
@@ -367,17 +351,6 @@ export function PlanBoard() {
     <div className="flex h-full min-h-0 flex-col" data-testid="plan-board">
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <GoalPicker goal={urlState.goal} onSelect={urlState.setGoal} />
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-8 gap-1.5 px-3"
-          onClick={() => setCreateFromPlanOpen(true)}
-          data-testid="plan-board-create-from-plan"
-        >
-          <FilePlus2 className="h-4 w-4" aria-hidden />
-          Create from plan
-        </Button>
         <CycleWarning cycles={cycles} />
         {hiddenSnoozed > 0 && (
           <span className="text-xs text-slate-600" data-testid="plan-snoozed-hidden-count">
@@ -448,11 +421,6 @@ export function PlanBoard() {
         onViewModeChange={urlState.setViewMode}
         onShowSnoozedChange={urlState.setShowSnoozed}
         onReset={urlState.resetFilters}
-      />
-      <CreateWorkFromPlanDialog
-        isOpen={createFromPlanOpen}
-        onClose={() => setCreateFromPlanOpen(false)}
-        onImported={() => void refresh()}
       />
     </div>
     </PlanBoardActions>

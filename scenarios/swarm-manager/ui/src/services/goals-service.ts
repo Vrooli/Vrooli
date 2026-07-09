@@ -166,10 +166,12 @@ export interface IGoalsService {
 export function createGoalsService(apiClient: IApiClient = defaultApiClient): IGoalsService {
   return {
     async list(): Promise<GoalWithScope[]> {
-      const resp = await apiClient.get<{ goals?: RawGoalWithScope[] } | RawGoalWithScope[]>(
-        API_ENDPOINTS.goals,
-      );
-      const raw = Array.isArray(resp) ? resp : (resp.goals ?? []);
+      const resp = await apiClient.get<
+        { items?: RawGoalWithScope[]; goals?: RawGoalWithScope[] } | RawGoalWithScope[]
+      >(API_ENDPOINTS.goals);
+      // The API envelopes the list under `items` (matching the initiatives domain).
+      // Keep `goals` + bare-array fallbacks for forward/backward compatibility.
+      const raw = Array.isArray(resp) ? resp : (resp.items ?? resp.goals ?? []);
       return raw.map(normalizeWithScope);
     },
 

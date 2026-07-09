@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Loader2, MessageSquarePlus, Plus, X } from "lucide-react";
+import { FilePlus2, Loader2, MessageSquarePlus, Plus, X } from "lucide-react";
 import { BottomSheet } from "../../../components/ui/bottom-sheet";
 import { FloatingActionButton } from "../../../components/ui/floating-action-button";
 import { cn } from "../../../lib/utils";
@@ -19,6 +19,7 @@ interface GraphActionLauncherProps {
   onPlanWork: () => void;
   onManageSwarm: () => void;
   onAuthorOperatingMode: () => void;
+  onCreateFromPlan: () => void;
 }
 
 export function GraphActionLauncher({
@@ -30,6 +31,7 @@ export function GraphActionLauncher({
   onPlanWork,
   onManageSwarm,
   onAuthorOperatingMode,
+  onCreateFromPlan,
 }: GraphActionLauncherProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -75,6 +77,12 @@ export function GraphActionLauncher({
             description={SESSION_KIND_DESCRIPTIONS.operating_mode_authoring}
             onClick={() => runAction(onAuthorOperatingMode)}
             disabled={isBusy}
+          />
+          <LauncherItem
+            icon={<FilePlus2 className="h-5 w-5" />}
+            label="Create from plan"
+            description="Bind a canonical plan to backlog work or an initiative."
+            onClick={() => runAction(onCreateFromPlan)}
           />
         </div>
       </BottomSheet>

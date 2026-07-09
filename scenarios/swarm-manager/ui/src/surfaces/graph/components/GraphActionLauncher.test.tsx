@@ -8,6 +8,7 @@ describe("GraphActionLauncher", () => {
     const onPlanWork = vi.fn();
     const onManageSwarm = vi.fn();
     const onAuthorOperatingMode = vi.fn();
+    const onCreateFromPlan = vi.fn();
 
     render(
       <GraphActionLauncher
@@ -15,6 +16,7 @@ describe("GraphActionLauncher", () => {
         onPlanWork={onPlanWork}
         onManageSwarm={onManageSwarm}
         onAuthorOperatingMode={onAuthorOperatingMode}
+        onCreateFromPlan={onCreateFromPlan}
       />,
     );
 
@@ -40,6 +42,10 @@ describe("GraphActionLauncher", () => {
     fireEvent.click(screen.getByTestId("graph-action-fab"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Author Operating Mode" }));
     expect(onAuthorOperatingMode).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTestId("graph-action-fab"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Create from plan" }));
+    expect(onCreateFromPlan).toHaveBeenCalledTimes(1);
   });
 
   it("disables session actions while busy and shows launcher status outside the menu", () => {
@@ -51,6 +57,7 @@ describe("GraphActionLauncher", () => {
         onPlanWork={vi.fn()}
         onManageSwarm={vi.fn()}
         onAuthorOperatingMode={vi.fn()}
+        onCreateFromPlan={vi.fn()}
       />,
     );
 
@@ -75,6 +82,7 @@ describe("GraphActionLauncher", () => {
         onPlanWork={vi.fn()}
         onManageSwarm={vi.fn()}
         onAuthorOperatingMode={vi.fn()}
+        onCreateFromPlan={vi.fn()}
       />,
     );
 
@@ -91,6 +99,7 @@ describe("GraphActionLauncher", () => {
         onPlanWork={vi.fn()}
         onManageSwarm={vi.fn()}
         onAuthorOperatingMode={vi.fn()}
+        onCreateFromPlan={vi.fn()}
       />,
     );
 

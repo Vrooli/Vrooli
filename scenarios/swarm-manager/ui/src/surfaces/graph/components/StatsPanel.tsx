@@ -29,6 +29,7 @@ import { MiniBarChart } from "../../../components/stats/mini-bar-chart";
 import { ProgressBar } from "../../../components/stats/progress-bar";
 import { SectionLabel } from "../../../components/stats/section-label";
 import { StatsCard as StatCard } from "../../../components/stats/stats-card";
+import { EtaExplainerTrigger, type EtaExplainerBand } from "../../../components/stats/EtaExplainer";
 import { StatsEmptyState } from "../../../components/stats/stats-empty-state";
 import { StatsMetricCard } from "../../../components/stats/stats-metric-card";
 import { CompactTabBar } from "../../../components/ui/compact-tab-bar";
@@ -52,10 +53,24 @@ import type {
   TimingStats,
 } from "../../../types/stats";
 import type { CompactTabItem } from "../../../components/ui/compact-tab-bar";
+import type { StatsEtaBand } from "../../../types/stats";
 
 // ---------------------------------------------------------------------------
 // Tab config
 // ---------------------------------------------------------------------------
+
+/** Map the snake_case Stats ETA band onto the shared explainer's normalized shape. */
+function toExplainerBand(eta: StatsEtaBand): EtaExplainerBand {
+  return {
+    p50Label: eta.p50_label,
+    p80Label: eta.p80_label,
+    remainingItems: eta.remaining_items,
+    laneCapacity: eta.lane_capacity,
+    basis: eta.basis,
+    basisLabel: eta.basis_label,
+    confidence: eta.confidence,
+  };
+}
 
 const STATS_TABS: CompactTabItem<StatsCategory>[] = [
   { value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -189,7 +204,9 @@ function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eve
             subtext={`${eta.remaining_items.toLocaleString()} items · ${eta.basis_label}`}
             icon={Clock3}
             testId="stat-weeks-remaining"
-          />
+          >
+            <EtaExplainerTrigger band={toExplainerBand(eta)} testId="stat-weeks-remaining-explainer" />
+          </StatCard>
         ) : (
           <InsufficientDataCard
             label="Est. Remaining"
@@ -306,7 +323,9 @@ function ThroughputTab({ data, dashboard }: { data: ThroughputStats; dashboard: 
             subtext={`${eta.remaining_items.toLocaleString()} items · ${eta.basis_label}`}
             icon={Clock3}
             testId="stat-throughput-burndown"
-          />
+          >
+            <EtaExplainerTrigger band={toExplainerBand(eta)} testId="stat-throughput-burndown-explainer" />
+          </StatCard>
         ) : (
           <InsufficientDataCard
             label="Burndown"

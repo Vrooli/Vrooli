@@ -668,6 +668,8 @@ export const literalSelectors = {
     nowSelectToggle: "plan-now-select-toggle",
     nowRefresh: "plan-now-refresh",
     nowSpawn: "plan-now-spawn",
+    nowLanesToggle: "plan-now-lanes-toggle",
+    nowLanesHelp: "plan-now-lanes-help",
     filterDrawer: "plan-filter-drawer",
     filterSearch: "plan-filter-search",
     filterStatus: "plan-filter-status",
