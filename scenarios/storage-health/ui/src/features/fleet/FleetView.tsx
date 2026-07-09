@@ -15,6 +15,10 @@ import { EngineChips, IsolationBadge } from "../storage/format";
 type FleetView = "all" | "isolation" | "no-backup" | "engines" | "stages";
 const VIEWS: readonly FleetView[] = ["all", "isolation", "no-backup", "engines", "stages"];
 type DataSource = "scan" | "snapshot";
+type FleetScenarioEntryWithDataDir = FleetScenarioEntry & {
+  dataDirBytes?: bigint | number;
+  dataDirOverBudget?: boolean;
+};
 
 const VIEW_LABEL: Record<FleetView, (typeof strings.fleet.view)[keyof typeof strings.fleet.view]> = {
   all: strings.fleet.view.all,
@@ -255,6 +259,7 @@ function FleetTable({ rows, showBackup }: { rows: FleetScenarioEntry[]; showBack
             <th scope="col" className="px-3 py-2 text-start font-medium">{t(strings.fleet.col.stage)}</th>
             <th scope="col" className="px-3 py-2 text-start font-medium">{t(strings.fleet.col.isolation)}</th>
             <th scope="col" className="px-3 py-2 text-end font-medium">{t(strings.fleet.col.findings)}</th>
+            <th scope="col" className="px-3 py-2 text-end font-medium">{t(strings.fleet.col.data)}</th>
             {showBackup && (
               <th scope="col" className="px-3 py-2 text-start font-medium">{t(strings.fleet.col.backup)}</th>
             )}
@@ -279,6 +284,9 @@ function FleetTable({ rows, showBackup }: { rows: FleetScenarioEntry[]; showBack
               <td className="px-3 py-2 text-app-muted-foreground">{e.storageStage || "—"}</td>
               <td className="px-3 py-2"><IsolationBadge ready={e.isolationReady} /></td>
               <td className="px-3 py-2 text-end tabular-nums">{e.findingCount}</td>
+              <td className={["px-3 py-2 text-end tabular-nums", dataDirOverBudget(e) ? "text-app-danger" : "text-app-muted-foreground"].join(" ")}>
+                {formatBytes(dataDirBytes(e))}
+              </td>
               {showBackup && (
                 <td className="px-3 py-2 text-app-muted-foreground">
                   {e.hasBackupTarget ? t(strings.fleet.backup.present) : t(strings.fleet.backup.missing)}
@@ -290,6 +298,28 @@ function FleetTable({ rows, showBackup }: { rows: FleetScenarioEntry[]; showBack
       </table>
     </div>
   );
+}
+
+function dataDirBytes(entry: FleetScenarioEntry): number {
+  const value = (entry as FleetScenarioEntryWithDataDir).dataDirBytes;
+  if (typeof value === "bigint") return Number(value);
+  return typeof value === "number" ? value : 0;
+}
+
+function dataDirOverBudget(entry: FleetScenarioEntry): boolean {
+  return (entry as FleetScenarioEntryWithDataDir).dataDirOverBudget === true;
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
 function IsolationScorecard({ rows }: { rows: FleetScenarioEntry[] }) {

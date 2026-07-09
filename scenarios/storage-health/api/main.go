@@ -26,6 +26,7 @@ import (
 	fleetH "storage-health/handlers/fleet"
 	healthH "storage-health/handlers/health"
 	validationH "storage-health/handlers/validation"
+	fleetstore "storage-health/internal/fleet"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -112,7 +113,12 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+	ctx := context.Background()
+	if err := fleetstore.MigrateSchema(ctx, db.Primary()); err != nil {
+		log.Fatalf("fleet schema migration failed: %v", err)
+	}
+
+	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 

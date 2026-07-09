@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestSQLStoreRoundTrip(t *testing.T) {
 	in := Result{
 		ScannedAt: now,
 		Entries: []ScenarioEntry{
-			{Scenario: "alpha", Engines: []string{"postgres", "redis"}, PrimaryEngine: "postgres", Language: "go", StorageStage: "production", IsolationReady: false, IsolationReason: "seams unwired", NamespaceAdopted: true, HasBackupTarget: false, FindingCount: 2, ErrorCount: 1, AutofixableCount: 1},
+			{Scenario: "alpha", Engines: []string{"postgres", "redis"}, PrimaryEngine: "postgres", Language: "go", StorageStage: "production", IsolationReady: false, IsolationReason: "seams unwired", NamespaceAdopted: true, HasBackupTarget: false, FindingCount: 2, ErrorCount: 1, AutofixableCount: 1, DataDirBytes: 12, DataDirBudget: 10, DataDirUtil: 1.2, DataDirOverBudget: true, DataDirSeverity: "warning", DataDirPaths: []string{"/tmp/alpha/data"}},
 			{Scenario: "beta", Engines: []string{"sqlite"}, PrimaryEngine: "sqlite", Language: "go", StorageStage: "greenfield", IsolationReady: true, NamespaceAdopted: true, HasBackupTarget: true},
 		},
 	}
@@ -68,9 +69,62 @@ func TestSQLStoreRoundTrip(t *testing.T) {
 	if got.FindingCount != 2 {
 		t.Fatalf("finding_count: got %d want 2", got.FindingCount)
 	}
+	if got.DataDirOverBudgetCount != 1 {
+		t.Fatalf("data_dir_over_budget_count: got %d want 1", got.DataDirOverBudgetCount)
+	}
 	alpha := got.Entries[0]
 	if alpha.Scenario != "alpha" || len(alpha.Engines) != 2 || alpha.IsolationReady {
 		t.Fatalf("alpha round-trip mismatch: %+v", alpha)
+	}
+	if !alpha.DataDirOverBudget || alpha.DataDirBytes != 12 || alpha.DataDirBudget != 10 || alpha.DataDirSeverity != "warning" || len(alpha.DataDirPaths) != 1 {
+		t.Fatalf("alpha data-dir budget round-trip mismatch: %+v", alpha)
+	}
+}
+
+func TestMigrateSchemaAddsBudgetColumnsToLegacyFleetTable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fleet.db")
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)")
+	if err != nil {
+		t.Fatalf("open legacy db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.ExecContext(context.Background(), `CREATE TABLE fleet_entries (
+		scenario TEXT PRIMARY KEY,
+		engines TEXT NOT NULL DEFAULT '',
+		primary_engine TEXT NOT NULL DEFAULT '',
+		language TEXT NOT NULL DEFAULT '',
+		storage_stage TEXT NOT NULL DEFAULT '',
+		isolation_ready INTEGER NOT NULL DEFAULT 0,
+		isolation_reason TEXT NOT NULL DEFAULT '',
+		namespace_adopted INTEGER NOT NULL DEFAULT 0,
+		has_backup_target INTEGER NOT NULL DEFAULT 0,
+		finding_count INTEGER NOT NULL DEFAULT 0,
+		error_count INTEGER NOT NULL DEFAULT 0,
+		autofixable_count INTEGER NOT NULL DEFAULT 0,
+		scanned_at TEXT NOT NULL DEFAULT ''
+	)`); err != nil {
+		t.Fatalf("seed legacy table: %v", err)
+	}
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO fleet_entries (scenario, scanned_at) VALUES ('legacy', '2026-07-09T00:00:00Z')`); err != nil {
+		t.Fatalf("seed legacy row: %v", err)
+	}
+
+	if err := MigrateSchema(context.Background(), db); err != nil {
+		t.Fatalf("first migrate: %v", err)
+	}
+	if err := MigrateSchema(context.Background(), db); err != nil {
+		t.Fatalf("second migrate: %v", err)
+	}
+	if err := apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatalf("ensure after migrate: %v", err)
+	}
+
+	var bytes int64
+	if err := db.QueryRowContext(context.Background(), `SELECT data_dir_bytes FROM fleet_entries WHERE scenario = 'legacy'`).Scan(&bytes); err != nil {
+		t.Fatalf("scan migrated column: %v", err)
+	}
+	if bytes != 0 {
+		t.Fatalf("data_dir_bytes = %d, want default 0", bytes)
 	}
 }
 

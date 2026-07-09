@@ -132,6 +132,7 @@
       "response": {
         "type": "object",
         "properties": {
+          "data_dir_over_budget_count": "int32",
           "engine_distribution": "array<EngineCount>",
           "entries": "array<FleetScenarioEntry>",
           "errors": "array<FleetScanError>",

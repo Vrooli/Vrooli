@@ -66,8 +66,8 @@ func render(ctx cliapp.RunContext, msg *fleetv1.ScanFleetResponse) error {
 		view = "all"
 	}
 	summary := []string{fmt.Sprintf(
-		"%d scenario(s): %d isolation-unready, %d data-persisting without a backup target, %d total finding(s).",
-		msg.GetScenarioCount(), msg.GetIsolationUnreadyCount(), msg.GetNoBackupCount(), msg.GetFindingCount(),
+		"%d scenario(s): %d isolation-unready, %d data-persisting without a backup target, %d over data-dir budget, %d total finding(s).",
+		msg.GetScenarioCount(), msg.GetIsolationUnreadyCount(), msg.GetNoBackupCount(), msg.GetDataDirOverBudgetCount(), msg.GetFindingCount(),
 	)}
 	if msg.GetScannedAt() != "" {
 		summary = append(summary, "Snapshot: "+msg.GetScannedAt())
@@ -113,8 +113,12 @@ func render(ctx cliapp.RunContext, msg *fleetv1.ScanFleetResponse) error {
 			if dataPersisting(e.GetEngines()) && !e.GetHasBackupTarget() {
 				backup = " no-backup"
 			}
-			results = append(results, fmt.Sprintf("%s — engines=%s stage=%s %s findings=%d%s",
-				e.GetScenario(), strings.Join(e.GetEngines(), ","), e.GetStorageStage(), iso, e.GetFindingCount(), backup))
+			dataBudget := ""
+			if e.GetDataDirOverBudget() {
+				dataBudget = fmt.Sprintf(" data-dir=%s %.1f%%", e.GetDataDirSeverity(), e.GetDataDirUtilization()*100)
+			}
+			results = append(results, fmt.Sprintf("%s — engines=%s stage=%s %s findings=%d%s%s",
+				e.GetScenario(), strings.Join(e.GetEngines(), ","), e.GetStorageStage(), iso, e.GetFindingCount(), backup, dataBudget))
 		}
 	}
 	if len(results) == 0 {

@@ -118,6 +118,12 @@ func TestNewHealthResponse_OptOrderIndependent(t *testing.T) {
 // the generated proto type, not a hand-rolled mirror. Compile-time
 // guarantee that we never silently drift back to a parallel struct.
 func TestHealthResponse_TypeAlias(t *testing.T) {
-	var _ HealthResponse = healthv1.Response{}
-	var _ DependencyStatus = healthv1.DependencyStatus{}
+	var response HealthResponse = healthv1.Response{}
+	var dependency DependencyStatus = healthv1.DependencyStatus{}
+	if got, want := string(response.ProtoReflect().Descriptor().FullName()), "vrooli.storage_health.v1.shared.Response"; got != want {
+		t.Errorf("HealthResponse descriptor = %q, want %q", got, want)
+	}
+	if got, want := string(dependency.ProtoReflect().Descriptor().FullName()), "vrooli.storage_health.v1.shared.DependencyStatus"; got != want {
+		t.Errorf("DependencyStatus descriptor = %q, want %q", got, want)
+	}
 }

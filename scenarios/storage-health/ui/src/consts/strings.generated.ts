@@ -111,6 +111,7 @@ export const strings = {
       stage: "fleet.col.stage",
       isolation: "fleet.col.isolation",
       findings: "fleet.col.findings",
+      data: "fleet.col.data",
       backup: "fleet.col.backup",
       count: "fleet.col.count",
     },

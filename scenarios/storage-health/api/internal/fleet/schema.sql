@@ -18,5 +18,11 @@ CREATE TABLE IF NOT EXISTS fleet_entries (
     finding_count     INTEGER NOT NULL DEFAULT 0,
     error_count       INTEGER NOT NULL DEFAULT 0,
     autofixable_count INTEGER NOT NULL DEFAULT 0,
+    data_dir_bytes    INTEGER NOT NULL DEFAULT 0,
+    data_dir_budget   INTEGER NOT NULL DEFAULT 0,
+    data_dir_util     REAL    NOT NULL DEFAULT 0,
+    data_dir_over_budget INTEGER NOT NULL DEFAULT 0,
+    data_dir_severity TEXT    NOT NULL DEFAULT '',
+    data_dir_paths    TEXT    NOT NULL DEFAULT '',
     scanned_at        TEXT    NOT NULL DEFAULT ''
 );

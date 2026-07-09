@@ -1,6 +1,7 @@
 {
   "name": "Storage Health",
   "short_name": "storage-health",
+  "id": "/storage-health/",
   "description": "Owns all storage judgment: schema layout, migration hygiene, persistence-seam adoption, and test-isolation safety.",
   "start_url": ".",
   "scope": ".",

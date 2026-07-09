@@ -27,7 +27,7 @@ func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk cloc
 	// manifest, domains from api/internal/<domain> layout) is used instead of the
 	// per-call code-facts parse the single-scenario producer can afford.
 	validator := validation.New(validation.Deps{RepoRoot: repoRoot, Detector: validation.FilesystemDetector{}, Logger: logger})
-	svc := fleet.NewService(newClassifier(validator), newCLIEnumerator(), fleet.NewSQLStore(db), clk)
+	svc := fleet.NewService(newClassifier(validator, fleet.DataDirBudgetChecker{RepoRoot: repoRoot}), newCLIEnumerator(), fleet.NewSQLStore(db), clk)
 	handler := NewHandler(svc, logger)
 	path, connectHandler := fleetconnect.NewFleetServiceHandler(handler)
 	return module.Module{
@@ -51,7 +51,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenarios": "array<string>"}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{
 			"entries": "array<FleetScenarioEntry>", "engine_distribution": "array<EngineCount>", "stage_distribution": "array<StageCount>",
-			"scenario_count": "int32", "isolation_unready_count": "int32", "no_backup_count": "int32", "finding_count": "int32",
+			"scenario_count": "int32", "isolation_unready_count": "int32", "no_backup_count": "int32", "finding_count": "int32", "data_dir_over_budget_count": "int32",
 			"errors": "array<FleetScanError>", "scanned_at": "string",
 		}},
 		Errors: []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Fleet scan failure"}},

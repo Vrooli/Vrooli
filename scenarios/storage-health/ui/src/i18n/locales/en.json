@@ -99,6 +99,7 @@
       "stage": "Stage",
       "isolation": "Isolation",
       "findings": "Findings",
+      "data": "Data",
       "backup": "Backup",
       "count": "Scenarios"
     },

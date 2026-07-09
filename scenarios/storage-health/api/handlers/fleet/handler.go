@@ -56,28 +56,35 @@ func (h *Handler) GetInventory(ctx context.Context, _ *connect.Request[fleetv1.G
 // toProto projects the engine Result onto the wire response.
 func toProto(res internalfleet.Result) *fleetv1.ScanFleetResponse {
 	out := &fleetv1.ScanFleetResponse{
-		ScenarioCount:         int32(res.ScenarioCount),
-		IsolationUnreadyCount: int32(res.IsolationUnreadyCount),
-		NoBackupCount:         int32(res.NoBackupCount),
-		FindingCount:          int32(res.FindingCount),
+		ScenarioCount:          int32(res.ScenarioCount),
+		IsolationUnreadyCount:  int32(res.IsolationUnreadyCount),
+		NoBackupCount:          int32(res.NoBackupCount),
+		FindingCount:           int32(res.FindingCount),
+		DataDirOverBudgetCount: int32(res.DataDirOverBudgetCount),
 	}
 	if !res.ScannedAt.IsZero() {
 		out.ScannedAt = res.ScannedAt.UTC().Format(time.RFC3339)
 	}
 	for _, e := range res.Entries {
 		out.Entries = append(out.Entries, &fleetv1.FleetScenarioEntry{
-			Scenario:         e.Scenario,
-			Engines:          e.Engines,
-			PrimaryEngine:    e.PrimaryEngine,
-			Language:         e.Language,
-			StorageStage:     e.StorageStage,
-			IsolationReady:   e.IsolationReady,
-			IsolationReason:  e.IsolationReason,
-			NamespaceAdopted: e.NamespaceAdopted,
-			HasBackupTarget:  e.HasBackupTarget,
-			FindingCount:     int32(e.FindingCount),
-			ErrorCount:       int32(e.ErrorCount),
-			AutofixableCount: int32(e.AutofixableCount),
+			Scenario:           e.Scenario,
+			Engines:            e.Engines,
+			PrimaryEngine:      e.PrimaryEngine,
+			Language:           e.Language,
+			StorageStage:       e.StorageStage,
+			IsolationReady:     e.IsolationReady,
+			IsolationReason:    e.IsolationReason,
+			NamespaceAdopted:   e.NamespaceAdopted,
+			HasBackupTarget:    e.HasBackupTarget,
+			FindingCount:       int32(e.FindingCount),
+			ErrorCount:         int32(e.ErrorCount),
+			AutofixableCount:   int32(e.AutofixableCount),
+			DataDirBytes:       e.DataDirBytes,
+			DataDirBudgetBytes: e.DataDirBudget,
+			DataDirUtilization: e.DataDirUtil,
+			DataDirOverBudget:  e.DataDirOverBudget,
+			DataDirSeverity:    e.DataDirSeverity,
+			DataDirPaths:       e.DataDirPaths,
 		})
 	}
 	for _, d := range res.EngineDistribution {

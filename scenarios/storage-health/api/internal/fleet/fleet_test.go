@@ -3,6 +3,8 @@ package fleet
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -98,4 +100,63 @@ func TestScanUnwiredService(t *testing.T) {
 	if _, err := svc.Scan(context.Background(), []string{"x"}); err == nil {
 		t.Fatal("expected error from nil service")
 	}
+}
+
+func TestDataDirBudgetCheckerMeasuresScenarioAndRuntimeDirs(t *testing.T) {
+	scenarioDir := t.TempDir()
+	homeDir := t.TempDir()
+	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"storage_health":{"data_dir_budget_bytes":100}}`)
+	writeFile(t, filepath.Join(scenarioDir, "data", "local.bin"), stringsOfLen(80))
+	writeFile(t, filepath.Join(homeDir, ".vrooli", "data", "vrooli", "alpha", "runtime.bin"), stringsOfLen(70))
+
+	got, err := (DataDirBudgetChecker{HomeDir: homeDir}).Check(context.Background(), "alpha", scenarioDir)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if got.Bytes != 150 {
+		t.Fatalf("bytes = %d, want 150", got.Bytes)
+	}
+	if got.BudgetBytes != 100 {
+		t.Fatalf("budget = %d, want override 100", got.BudgetBytes)
+	}
+	if !got.OverBudget || got.Severity != "warning" {
+		t.Fatalf("over/severity = %v/%q, want warning", got.OverBudget, got.Severity)
+	}
+	if len(got.Paths) != 2 {
+		t.Fatalf("paths = %v, want local and runtime dirs", got.Paths)
+	}
+}
+
+func TestDataDirSeverityScalesWithOvershoot(t *testing.T) {
+	cases := []struct {
+		bytes int64
+		want  string
+	}{
+		{101, "warning"},
+		{200, "serious"},
+		{400, "critical"},
+	}
+	for _, tc := range cases {
+		if got := dataDirSeverity(tc.bytes, 100); got != tc.want {
+			t.Fatalf("dataDirSeverity(%d, 100) = %q, want %q", tc.bytes, got, tc.want)
+		}
+	}
+}
+
+func writeFile(t *testing.T, path string, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func stringsOfLen(n int) string {
+	buf := make([]byte, n)
+	for i := range buf {
+		buf[i] = 'x'
+	}
+	return string(buf)
 }

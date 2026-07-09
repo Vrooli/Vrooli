@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"database/sql"
 	_ "embed"
 	"fmt"
 	"strings"
@@ -16,6 +17,42 @@ var fleetSchemaSQL string
 // Schema returns the fleet domain's embedded, idempotent per-domain schema.
 // Registered in modules.AllSchemas so EnsureSchemas creates it at boot.
 func Schema() string { return fleetSchemaSQL }
+
+type schemaExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// MigrateSchema applies one-shot additive migrations required before
+// EnsureSchemas runs its drift check. SQLite ignores new columns added only to
+// CREATE TABLE IF NOT EXISTS for pre-existing tables, so changed table shapes
+// need explicit guarded ALTER TABLE statements.
+func MigrateSchema(ctx context.Context, db schemaExecer) error {
+	if db == nil {
+		return nil
+	}
+	exists, err := tableExists(ctx, db, "fleet_entries")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+	for _, column := range fleetBudgetColumns() {
+		exists, err := columnExists(ctx, db, "fleet_entries", column.name)
+		if err != nil {
+			return err
+		}
+		if exists {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, fmt.Sprintf(`ALTER TABLE fleet_entries ADD COLUMN %s %s`, column.name, column.definition)); err != nil {
+			return fmt.Errorf("fleet schema migration: add column %s: %w", column.name, err)
+		}
+	}
+	return nil
+}
 
 // SQLStore persists the latest fleet snapshot to storage-health's own SQLite
 // store. It satisfies the Store seam.
@@ -46,6 +83,9 @@ func (s *SQLStore) Save(ctx context.Context, res Result) error {
 	if s == nil {
 		return nil
 	}
+	if err := s.ensureBudgetColumns(ctx); err != nil {
+		return err
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("fleet store: begin: %w", err)
@@ -62,13 +102,15 @@ func (s *SQLStore) Save(ctx context.Context, res Result) error {
 	const insert = `INSERT INTO fleet_entries
 		(scenario, engines, primary_engine, language, storage_stage,
 		 isolation_ready, isolation_reason, namespace_adopted, has_backup_target,
-		 finding_count, error_count, autofixable_count, scanned_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		 finding_count, error_count, autofixable_count, data_dir_bytes, data_dir_budget,
+		 data_dir_util, data_dir_over_budget, data_dir_severity, data_dir_paths, scanned_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 	for _, e := range res.Entries {
 		if _, err := tx.ExecContext(ctx, insert,
 			e.Scenario, strings.Join(e.Engines, ","), e.PrimaryEngine, e.Language, e.StorageStage,
 			boolToInt(e.IsolationReady), e.IsolationReason, boolToInt(e.NamespaceAdopted), boolToInt(e.HasBackupTarget),
-			e.FindingCount, e.ErrorCount, e.AutofixableCount, stamp,
+			e.FindingCount, e.ErrorCount, e.AutofixableCount, e.DataDirBytes, e.DataDirBudget,
+			e.DataDirUtil, boolToInt(e.DataDirOverBudget), e.DataDirSeverity, strings.Join(e.DataDirPaths, "\n"), stamp,
 		); err != nil {
 			return fmt.Errorf("fleet store: insert %q: %w", e.Scenario, err)
 		}
@@ -85,10 +127,14 @@ func (s *SQLStore) Load(ctx context.Context) (Result, error) {
 	if s == nil {
 		return Result{}, nil
 	}
+	if err := s.ensureBudgetColumns(ctx); err != nil {
+		return Result{}, err
+	}
 	rows, err := s.db.QueryContext(ctx, `SELECT
 		scenario, engines, primary_engine, language, storage_stage,
 		isolation_ready, isolation_reason, namespace_adopted, has_backup_target,
-		finding_count, error_count, autofixable_count, scanned_at
+		finding_count, error_count, autofixable_count, data_dir_bytes, data_dir_budget,
+		data_dir_util, data_dir_over_budget, data_dir_severity, data_dir_paths, scanned_at
 		FROM fleet_entries ORDER BY scenario`)
 	if err != nil {
 		return Result{}, fmt.Errorf("fleet store: query: %w", err)
@@ -100,17 +146,20 @@ func (s *SQLStore) Load(ctx context.Context) (Result, error) {
 	var scannedAt string
 	for rows.Next() {
 		var (
-			e         ScenarioEntry
-			engines   string
-			isoReady  int
-			nsAdopted int
-			hasBackup int
-			rowStamp  string
+			e          ScenarioEntry
+			engines    string
+			isoReady   int
+			nsAdopted  int
+			hasBackup  int
+			overBudget int
+			dataPaths  string
+			rowStamp   string
 		)
 		if err := rows.Scan(
 			&e.Scenario, &engines, &e.PrimaryEngine, &e.Language, &e.StorageStage,
 			&isoReady, &e.IsolationReason, &nsAdopted, &hasBackup,
-			&e.FindingCount, &e.ErrorCount, &e.AutofixableCount, &rowStamp,
+			&e.FindingCount, &e.ErrorCount, &e.AutofixableCount, &e.DataDirBytes, &e.DataDirBudget,
+			&e.DataDirUtil, &overBudget, &e.DataDirSeverity, &dataPaths, &rowStamp,
 		); err != nil {
 			return Result{}, fmt.Errorf("fleet store: scan: %w", err)
 		}
@@ -120,6 +169,10 @@ func (s *SQLStore) Load(ctx context.Context) (Result, error) {
 		e.IsolationReady = isoReady != 0
 		e.NamespaceAdopted = nsAdopted != 0
 		e.HasBackupTarget = hasBackup != 0
+		e.DataDirOverBudget = overBudget != 0
+		if dataPaths != "" {
+			e.DataDirPaths = strings.Split(dataPaths, "\n")
+		}
 		entries = append(entries, e)
 		if rowStamp != "" {
 			scannedAt = rowStamp
@@ -135,6 +188,9 @@ func (s *SQLStore) Load(ctx context.Context) (Result, error) {
 	for _, e := range entries {
 		res.ScenarioCount++
 		res.FindingCount += e.FindingCount
+		if e.DataDirOverBudget {
+			res.DataDirOverBudgetCount++
+		}
 		if !e.IsolationReady {
 			res.IsolationUnreadyCount++
 		}
@@ -170,4 +226,61 @@ func boolToInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+func (s *SQLStore) ensureBudgetColumns(ctx context.Context) error {
+	return MigrateSchema(ctx, s.db)
+}
+
+type fleetBudgetColumn struct {
+	name       string
+	definition string
+}
+
+func fleetBudgetColumns() []fleetBudgetColumn {
+	return []fleetBudgetColumn{
+		{name: "data_dir_bytes", definition: "INTEGER NOT NULL DEFAULT 0"},
+		{name: "data_dir_budget", definition: "INTEGER NOT NULL DEFAULT 0"},
+		{name: "data_dir_util", definition: "REAL NOT NULL DEFAULT 0"},
+		{name: "data_dir_over_budget", definition: "INTEGER NOT NULL DEFAULT 0"},
+		{name: "data_dir_severity", definition: "TEXT NOT NULL DEFAULT ''"},
+		{name: "data_dir_paths", definition: "TEXT NOT NULL DEFAULT ''"},
+	}
+}
+
+func tableExists(ctx context.Context, db schemaExecer, table string) (bool, error) {
+	var name string
+	err := db.QueryRowContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name)
+	if err == nil {
+		return true, nil
+	}
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return false, fmt.Errorf("fleet schema migration: inspect table %s: %w", table, err)
+}
+
+func columnExists(ctx context.Context, db schemaExecer, table string, name string) (bool, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf(`PRAGMA table_info(%s)`, table))
+	if err != nil {
+		return false, fmt.Errorf("fleet schema migration: inspect columns: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var cid int
+		var column, typ string
+		var notNull int
+		var defaultValue any
+		var pk int
+		if err := rows.Scan(&cid, &column, &typ, &notNull, &defaultValue, &pk); err != nil {
+			return false, fmt.Errorf("fleet schema migration: scan column: %w", err)
+		}
+		if column == name {
+			return true, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, fmt.Errorf("fleet schema migration: inspect columns: %w", err)
+	}
+	return false, nil
 }

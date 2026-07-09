@@ -99,6 +99,7 @@
       "stage": "ステージ",
       "isolation": "分離",
       "findings": "指摘",
+      "data": "データ",
       "backup": "バックアップ",
       "count": "シナリオ"
     },

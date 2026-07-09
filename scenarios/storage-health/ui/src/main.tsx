@@ -15,6 +15,15 @@ if (window.parent !== window) {
 // keyboard/gamepad control flows.
 initSpatialNav();
 
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  const serviceWorkerURL = new URL(`${import.meta.env.BASE_URL}sw.js`, window.location.href);
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register(serviceWorkerURL, {
+      scope: import.meta.env.BASE_URL,
+    });
+  });
+}
+
 const rootEl = document.getElementById("root");
 if (!rootEl) {
   throw new Error("Missing #root element in index.html");

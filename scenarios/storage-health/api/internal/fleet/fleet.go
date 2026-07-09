@@ -15,25 +15,37 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"sort"
 	"time"
 )
 
+const DefaultDataDirBudgetBytes int64 = 5 * 1024 * 1024 * 1024
+
 // ScenarioEntry is one scenario's storage rollup.
 type ScenarioEntry struct {
-	Scenario         string
-	Engines          []string
-	PrimaryEngine    string
-	Language         string
-	StorageStage     string
-	IsolationReady   bool
-	IsolationReason  string
-	NamespaceAdopted bool
-	HasBackupTarget  bool
-	FindingCount     int
-	ErrorCount       int
-	AutofixableCount int
+	Scenario          string
+	Engines           []string
+	PrimaryEngine     string
+	Language          string
+	StorageStage      string
+	IsolationReady    bool
+	IsolationReason   string
+	NamespaceAdopted  bool
+	HasBackupTarget   bool
+	FindingCount      int
+	ErrorCount        int
+	AutofixableCount  int
+	DataDirBytes      int64
+	DataDirBudget     int64
+	DataDirUtil       float64
+	DataDirOverBudget bool
+	DataDirSeverity   string
+	DataDirPaths      []string
 }
 
 // EngineCount counts scenarios using a given engine.
@@ -56,15 +68,16 @@ type ScanError struct {
 
 // Result is a fleet scan rollup.
 type Result struct {
-	Entries               []ScenarioEntry
-	EngineDistribution    []EngineCount
-	StageDistribution     []StageCount
-	ScenarioCount         int
-	IsolationUnreadyCount int
-	NoBackupCount         int
-	FindingCount          int
-	Errors                []ScanError
-	ScannedAt             time.Time
+	Entries                []ScenarioEntry
+	EngineDistribution     []EngineCount
+	StageDistribution      []StageCount
+	ScenarioCount          int
+	IsolationUnreadyCount  int
+	NoBackupCount          int
+	FindingCount           int
+	DataDirOverBudgetCount int
+	Errors                 []ScanError
+	ScannedAt              time.Time
 }
 
 // Classifier produces one ScenarioEntry per scenario. The real classifier
@@ -88,6 +101,20 @@ type Store interface {
 // Clock is the minimal wall-clock seam used to stamp a snapshot.
 type Clock interface {
 	Now() time.Time
+}
+
+type DataDirBudgetChecker struct {
+	RepoRoot string
+	HomeDir  string
+}
+
+type DataDirBudgetResult struct {
+	Bytes       int64
+	BudgetBytes int64
+	Utilization float64
+	OverBudget  bool
+	Severity    string
+	Paths       []string
 }
 
 // Service is the fleet engine.
@@ -136,6 +163,9 @@ func (s *Service) Scan(ctx context.Context, scenarios []string) (Result, error) 
 		res.Entries = append(res.Entries, entry)
 		res.ScenarioCount++
 		res.FindingCount += entry.FindingCount
+		if entry.DataDirOverBudget {
+			res.DataDirOverBudgetCount++
+		}
 		if !entry.IsolationReady {
 			res.IsolationUnreadyCount++
 		}
@@ -258,4 +288,117 @@ func stageDistribution(counts map[string]int) []StageCount {
 		return out[i].Stage < out[j].Stage
 	})
 	return out
+}
+
+func (c DataDirBudgetChecker) Check(ctx context.Context, scenario string, scenarioDir string) (DataDirBudgetResult, error) {
+	budget := dataDirBudgetFromServiceJSON(scenarioDir, DefaultDataDirBudgetBytes)
+	paths := c.dataDirPaths(scenario, scenarioDir)
+	var total int64
+	for _, path := range paths {
+		if err := ctx.Err(); err != nil {
+			return DataDirBudgetResult{}, err
+		}
+		size, err := dirSize(path)
+		if err != nil {
+			return DataDirBudgetResult{}, err
+		}
+		total += size
+	}
+	utilization := float64(0)
+	if budget > 0 {
+		utilization = float64(total) / float64(budget)
+	}
+	return DataDirBudgetResult{
+		Bytes:       total,
+		BudgetBytes: budget,
+		Utilization: utilization,
+		OverBudget:  budget > 0 && total > budget,
+		Severity:    dataDirSeverity(total, budget),
+		Paths:       paths,
+	}, nil
+}
+
+func (c DataDirBudgetChecker) dataDirPaths(scenario string, scenarioDir string) []string {
+	paths := make([]string, 0, 2)
+	if scenarioDir != "" {
+		paths = append(paths, filepath.Join(scenarioDir, "data"))
+	}
+	home := c.HomeDir
+	if home == "" {
+		if resolved, err := os.UserHomeDir(); err == nil {
+			home = resolved
+		}
+	}
+	if home != "" && scenario != "" {
+		paths = append(paths, filepath.Join(home, ".vrooli", "data", "vrooli", scenario))
+	}
+	return paths
+}
+
+func dirSize(root string) (int64, error) {
+	if root == "" {
+		return 0, nil
+	}
+	info, err := os.Stat(root)
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	if !info.IsDir() {
+		return info.Size(), nil
+	}
+	var total int64
+	err = filepath.WalkDir(root, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		total += info.Size()
+		return nil
+	})
+	return total, err
+}
+
+func dataDirSeverity(bytes, budget int64) string {
+	if budget <= 0 || bytes <= budget {
+		return ""
+	}
+	switch {
+	case bytes >= budget*4:
+		return "critical"
+	case bytes >= budget*2:
+		return "serious"
+	default:
+		return "warning"
+	}
+}
+
+func dataDirBudgetFromServiceJSON(scenarioDir string, fallback int64) int64 {
+	if scenarioDir == "" {
+		return fallback
+	}
+	data, err := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "service.json"))
+	if err != nil {
+		return fallback
+	}
+	var cfg struct {
+		StorageHealth struct {
+			DataDirBudgetBytes int64 `json:"data_dir_budget_bytes"`
+		} `json:"storage_health"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return fallback
+	}
+	if cfg.StorageHealth.DataDirBudgetBytes > 0 {
+		return cfg.StorageHealth.DataDirBudgetBytes
+	}
+	return fallback
 }

@@ -24,9 +24,12 @@ type validator interface {
 // the inverse of a STORAGE_NAMESPACE_HARDCODED finding.
 type classifier struct {
 	validator validator
+	budgets   fleet.DataDirBudgetChecker
 }
 
-func newClassifier(v validator) *classifier { return &classifier{validator: v} }
+func newClassifier(v validator, budgets fleet.DataDirBudgetChecker) *classifier {
+	return &classifier{validator: v, budgets: budgets}
+}
 
 var _ fleet.Classifier = (*classifier)(nil)
 
@@ -45,6 +48,22 @@ func (c *classifier) Classify(ctx context.Context, scenario string) (fleet.Scena
 		IsolationReady:   true,
 		NamespaceAdopted: true,
 		HasBackupTarget:  report.ScenarioDir != "" && validation.HasBackupTarget(report.ScenarioDir),
+	}
+	budget, err := c.budgets.Check(ctx, scenario, report.ScenarioDir)
+	if err != nil {
+		return fleet.ScenarioEntry{}, err
+	}
+	entry.DataDirBytes = budget.Bytes
+	entry.DataDirBudget = budget.BudgetBytes
+	entry.DataDirUtil = budget.Utilization
+	entry.DataDirOverBudget = budget.OverBudget
+	entry.DataDirSeverity = budget.Severity
+	entry.DataDirPaths = budget.Paths
+	if entry.DataDirOverBudget {
+		entry.FindingCount++
+		if entry.DataDirSeverity == "serious" || entry.DataDirSeverity == "critical" {
+			entry.ErrorCount++
+		}
 	}
 
 	for _, f := range report.Findings {
