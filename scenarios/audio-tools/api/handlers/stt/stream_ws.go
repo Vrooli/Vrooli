@@ -35,6 +35,106 @@ const (
 	wsMsgVadState = "vad-state"
 )
 
+// wsWriterDrainTimeout bounds how long teardown waits for the coalescing
+// writer to flush queued durable messages to a slow consumer before the socket
+// is force-closed. Committed text is flushed within this window; a dead
+// consumer cannot hang teardown past it.
+const wsWriterDrainTimeout = 5 * time.Second
+
+// wsCoalescingWriter owns every write to the browser socket. It applies the
+// event-durability contract to the browser-facing egress so a slow or stalled
+// consumer can never back-pressure the upstream relay — and therefore can never
+// wedge the kyutai socket reader. Durable messages (status, segment-final,
+// rejection, error, final, done, vad-state) are queued losslessly and in
+// order; partial messages coalesce into a single latest slot and may be dropped
+// under backpressure. The events loop enqueues without ever blocking on the
+// socket; only this one goroutine blocks on a slow consumer.
+// See docs/domains/stt/streaming-pipeline.md#event-durability-contract.
+type wsCoalescingWriter struct {
+	conn    *websocket.Conn
+	mu      sync.Mutex
+	durable []wsMessage
+	partial *wsMessage
+	closed  bool
+	signal  chan struct{}
+	done    chan struct{}
+}
+
+func newWSCoalescingWriter(conn *websocket.Conn) *wsCoalescingWriter {
+	w := &wsCoalescingWriter{conn: conn, signal: make(chan struct{}, 1), done: make(chan struct{})}
+	go w.run()
+	return w
+}
+
+func (w *wsCoalescingWriter) wake() {
+	select {
+	case w.signal <- struct{}{}:
+	default:
+	}
+}
+
+// enqueue classifies a message per the durability contract and never blocks on
+// the socket. Partial → coalesce-to-latest (droppable); everything else →
+// durable ordered queue. A committed/terminal durable (segment-final / final)
+// supersedes any unsent interim partial so stale text is never re-shown.
+func (w *wsCoalescingWriter) enqueue(m wsMessage) {
+	w.mu.Lock()
+	if m.Type == wsMsgPartial {
+		mm := m
+		w.partial = &mm
+	} else {
+		if m.Type == wsMsgSegmentFinal || m.Type == wsMsgFinal {
+			w.partial = nil
+		}
+		w.durable = append(w.durable, m)
+	}
+	w.mu.Unlock()
+	w.wake()
+}
+
+func (w *wsCoalescingWriter) run() {
+	defer close(w.done)
+	for range w.signal {
+		for {
+			w.mu.Lock()
+			var next wsMessage
+			has := false
+			switch {
+			case len(w.durable) > 0:
+				next, w.durable = w.durable[0], w.durable[1:]
+				has = true
+			case w.partial != nil:
+				next, w.partial = *w.partial, nil
+				has = true
+			}
+			finished := w.closed && !has
+			w.mu.Unlock()
+			if !has {
+				if finished {
+					return
+				}
+				break // wait for the next wake
+			}
+			_ = w.conn.WriteJSON(next) // may block on a slow consumer — only here
+		}
+	}
+}
+
+// close signals end-of-events and drains queued durables within the bounded
+// window; a dead consumer is force-unblocked by closing the conn.
+func (w *wsCoalescingWriter) close(timeout time.Duration) {
+	w.mu.Lock()
+	w.closed = true
+	w.mu.Unlock()
+	w.wake()
+	select {
+	case <-w.done:
+	case <-time.After(timeout):
+		_ = w.conn.Close()
+		<-w.done
+	}
+}
+
 type wsMessage struct {
 	Type string `json:"type"`
 	Text string `json:"text,omitempty"`
@@ -97,13 +197,12 @@ func StreamWSHandler(d Deps) http.Handler {
 
 		chunks := make(chan sttchain.AudioChunk, 16)
 		events := make(chan sttchain.StreamEvent, 16)
-		var writeMu sync.Mutex
-		writeJSON := func(m wsMessage) {
-			writeMu.Lock()
-			defer writeMu.Unlock()
-			_ = conn.WriteJSON(m)
-		}
-		writeJSON(wsMessage{Type: wsMsgStatus, Code: "stream_connected", Text: "Streaming transcription connected."})
+		// The browser-facing egress is decoupled through a coalescing writer:
+		// the events loop enqueues without ever blocking on the socket, so a
+		// slow/stalled consumer can never back-pressure the relay and wedge the
+		// kyutai reader. Partials coalesce/drop; durables are ordered/lossless.
+		writer := newWSCoalescingWriter(conn)
+		writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "stream_connected", Text: "Streaming transcription connected."})
 
 		start := buildStreamStart(r)
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)
@@ -169,11 +268,11 @@ func StreamWSHandler(d Deps) http.Handler {
 			switch ev.Kind {
 			case sttchain.StreamEventPartial:
 				if ev.Partial != nil {
-					writeJSON(wsMessage{Type: wsMsgPartial, Text: ev.Partial.Text})
+					writer.enqueue(wsMessage{Type: wsMsgPartial, Text: ev.Partial.Text})
 				}
 			case sttchain.StreamEventSegment:
 				if ev.Segment != nil {
-					writeJSON(wsMessage{Type: wsMsgSegmentFinal, Text: ev.Segment.Text, SegmentIndex: segIdx})
+					writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: ev.Segment.Text, SegmentIndex: segIdx})
 					segIdx++
 				}
 			case sttchain.StreamEventVadState:
@@ -183,7 +282,7 @@ func StreamWSHandler(d Deps) http.Handler {
 					timeout := ev.VadState.SilenceTimeoutMs
 					seq := ev.VadState.TickSeq
 					timedOut := ev.VadState.SilenceTimedOut
-					writeJSON(wsMessage{
+					writer.enqueue(wsMessage{
 						Type:             wsMsgVadState,
 						Voiced:           &voiced,
 						SilenceElapsedMs: &elapsed,
@@ -194,7 +293,7 @@ func StreamWSHandler(d Deps) http.Handler {
 				}
 			case sttchain.StreamEventSpeakerRejection:
 				if ev.SpeakerRejection != nil {
-					writeJSON(wsMessage{
+					writer.enqueue(wsMessage{
 						Type:      wsMsgSegmentRejected,
 						Score:     ev.SpeakerRejection.Score,
 						Threshold: ev.SpeakerRejection.Threshold,
@@ -205,7 +304,7 @@ func StreamWSHandler(d Deps) http.Handler {
 				if ev.Error != nil {
 					msg = ev.Error.Error()
 				}
-				writeJSON(wsMessage{Type: wsMsgError, Text: msg, Code: streamErrorCode(ev.Error)})
+				writer.enqueue(wsMessage{Type: wsMsgError, Text: msg, Code: streamErrorCode(ev.Error)})
 			case sttchain.StreamEventDone:
 				if ev.Done != nil {
 					finalText = ev.Done.FinalText
@@ -221,11 +320,17 @@ func StreamWSHandler(d Deps) http.Handler {
 		// transition state without re-appending. Plain non-segmenting
 		// strategies (passthrough, buffered fallback) still need finalText.
 		if segIdx > 0 {
-			writeJSON(wsMessage{Type: wsMsgFinal, Text: ""})
+			writer.enqueue(wsMessage{Type: wsMsgFinal, Text: ""})
 		} else {
-			writeJSON(wsMessage{Type: wsMsgFinal, Text: finalText})
+			writer.enqueue(wsMessage{Type: wsMsgFinal, Text: finalText})
 		}
-		writeJSON(wsMessage{Type: wsMsgDone})
+		writer.enqueue(wsMessage{Type: wsMsgDone})
+
+		// Drain-then-close the browser egress: flush queued durables (including
+		// the terminal final + done) to the consumer within the bounded window,
+		// then stop the writer. A dead consumer is force-unblocked by closing
+		// the conn so teardown never hangs.
+		writer.close(wsWriterDrainTimeout)
 
 		<-runErr
 		// The reader goroutine always sends exactly once on readerErr before it

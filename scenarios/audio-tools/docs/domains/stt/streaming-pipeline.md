@@ -318,6 +318,50 @@ disables force-commit → legacy pause-or-flush-only) and
 `KYUTAI_STT_SILENCE_COMMIT_FRAMES` (default `16`). The whisper
 `VADSegment` strategy keeps parity with the same drain-then-close seam.
 
+## Event-durability contract
+
+**This is the single, authoritative statement of the streaming-audio delivery
+rule. Every hop reads it; no other document restates it — they cross-reference
+here.** It governs both directions of real-time audio (STT segment/partial
+delivery *and* TTS paragraph playback) so the whole pipeline is backpressure-safe
+without three ad-hoc buffers.
+
+A streaming session emits two classes of event:
+
+- **Disposable — `partial` only.** Interim hypotheses. They may be
+  **coalesced to the latest value or dropped** under consumer backpressure, and
+  they **MUST NEVER back-pressure their producer**. A slow or stalled consumer
+  therefore can never freeze the decode loop by making a partial write block —
+  the producer enqueues the latest partial and keeps stepping. Losing an
+  intermediate partial is invisible (the next one supersedes it).
+- **Durable — everything else** (`segment`, `segment-rejected`/speaker
+  rejection, `error`, `done`, and the ancillary `wake_word` / `vad_state`).
+  These are **ordered and lossless**: they are delivered in emission order and
+  are never dropped, even under sustained backpressure. Because durables are
+  low-rate, buffering them losslessly is cheap; a producer must never drop a
+  durable to relieve pressure — it drops/coalesces partials instead.
+
+**Why this closes the wedge.** The failure this pipeline previously suffered was
+a fully-synchronous, tiny-buffer chain across two WebSocket hops: a slow browser
+consumer back-pressured every hop until the kyutai decode loop stopped consuming
+audio — total loss of everything spoken thereafter, not just a tail. The contract
+removes the coupling at its root: partials cannot block a producer, and the relay
+always drains the backend socket, so the decode loop is immune to consumer speed
+while committed text remains lossless and ordered.
+
+**One rule, one code encoding.** All three Go hops (the kyutai provider adapter,
+the relay egress buffer, and the browser WS handler) consume the single predicate
+`sttchain.StreamEvent.Durable()` / `IsDroppable()`
+(`internal/ai/sttchain/interface.go`) rather than re-deriving the rule inline.
+The kyutai resource (`resources/kyutai-stt/docker/server.py`) applies the same
+semantics on its send worker, and the web-console client renders `partial`
+disposably (coalesced) while treating `segment`/`final` durably.
+
+**TTS twin.** A synthesized spoken reply is N ordered paragraphs; each paragraph
+is a **durable ordered unit**. A single-paragraph fault is isolated (surfaced on
+that unit) and MUST NOT truncate the paragraphs after it — the same durable-
+ordered-delivery rule as an STT segment, applied to playback.
+
 ## Why decouple? — and what it costs
 
 **Benefits.**

@@ -161,31 +161,60 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 	events := make(chan StreamEvent, 16)
 	model := p.Model()
 
-	// streamDone is closed by the reader when it returns; the ctx watcher
-	// selects on it so it never outlives the session.
+	// streamDone is closed by the reader when it returns; the ctx watcher and
+	// the writer select on it so neither outlives the session.
 	streamDone := make(chan struct{})
 
-	// All writes to conn are serialized: the pump writes binary/end frames and
-	// the ctx watcher may write the end marker on cancel, and gorilla forbids
-	// concurrent writers. endOnce guarantees the end marker is sent exactly
-	// once no matter which path (graceful chunks-close or cancel) reaches it.
-	var writeMu sync.Mutex
+	// DEDICATED WRITER. gorilla forbids concurrent writers, but serializing
+	// writes behind a mutex meant a blocked WriteMessage (a stalled consumer)
+	// was held WHILE LOCKED, so the cancel path's end marker could never be
+	// sent and teardown wedged forever. Instead a single writer goroutine owns
+	// all conn writes, fed by a buffered channel. NOTHING is held across a
+	// blocking write, so the pump and the cancel watcher always make progress;
+	// a wedged write is unblocked by conn.Close() from the drain-then-close
+	// watcher (event-durability contract: never back-pressure the producer via
+	// a blocking write).
+	type writeReq struct {
+		mt   int
+		data []byte
+	}
+	writeCh := make(chan writeReq, 16)
+	writerGone := make(chan struct{})
+	// send hands a frame to the writer without ever blocking on the socket. It
+	// returns false once the writer has stopped (conn closing) so callers stop.
+	send := func(mt int, data []byte) bool {
+		select {
+		case writeCh <- writeReq{mt: mt, data: data}:
+			return true
+		case <-writerGone:
+			return false
+		case <-streamDone:
+			return false
+		}
+	}
 	var endOnce sync.Once
-	writeFrame := func(mt int, data []byte) error {
-		writeMu.Lock()
-		defer writeMu.Unlock()
-		return conn.WriteMessage(mt, data)
-	}
 	sendEnd := func() {
-		endOnce.Do(func() {
-			_ = writeFrame(websocket.TextMessage, []byte(`{"type":"end"}`))
-		})
+		endOnce.Do(func() { send(websocket.TextMessage, []byte(`{"type":"end"}`)) })
 	}
+	go func() {
+		defer close(writerGone)
+		for {
+			select {
+			case req := <-writeCh:
+				if err := conn.WriteMessage(req.mt, req.data); err != nil {
+					return
+				}
+			case <-streamDone:
+				return
+			}
+		}
+	}()
 
 	// ctx watcher: DRAIN-THEN-CLOSE. Cancelling the session must not cold-close
 	// the socket (that drops kyutai's flush and the trailing segment). Instead
-	// send the end marker so the server flushes, give the reader a bounded
-	// window to receive that flush/done, and only then close the conn.
+	// enqueue the end marker so the server flushes, give the reader a bounded
+	// window to receive that flush/done, and only then close the conn — which
+	// also unblocks a wedged write.
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -199,9 +228,9 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		}
 	}()
 
-	// Pump: inbound PCM chunks -> WS binary frames; on clean close send the end
-	// marker so the server flushes its tail. On ctx cancel the pump just stops
-	// writing — the watcher owns the cancel-path end marker + drain.
+	// Pump: inbound PCM chunks -> WS binary frames; on clean close enqueue the
+	// end marker so the server flushes its tail. On ctx cancel the pump just
+	// stops — the watcher owns the cancel-path end marker + drain.
 	go func(ctx context.Context) {
 		for {
 			select {
@@ -212,7 +241,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 					sendEnd()
 					return
 				}
-				if err := writeFrame(websocket.BinaryMessage, ch.Audio); err != nil {
+				if !send(websocket.BinaryMessage, ch.Audio) {
 					return
 				}
 			}

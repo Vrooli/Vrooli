@@ -253,6 +253,22 @@ type StreamEvent struct {
 	VadState         *VadStateEvent
 }
 
+// Durable reports whether this event must be delivered losslessly and in
+// order across every hop of the streaming pipeline. It is the single code
+// encoding of the event-durability contract documented in
+// docs/domains/stt/streaming-pipeline.md#event-durability-contract: Partial is
+// the SOLE disposable class (it may be coalesced-to-latest or dropped under
+// consumer backpressure and MUST NEVER back-pressure its producer); every
+// other event kind — Segment, SpeakerRejection, Error, Done, WakeWord,
+// VadState — is durable (ordered, lossless). All three Go hops (the kyutai
+// provider adapter, the relay egress buffer, and the browser WS handler) read
+// this one predicate instead of re-deriving the rule inline.
+func (e StreamEvent) Durable() bool { return e.Kind != StreamEventPartial }
+
+// IsDroppable is the inverse of Durable: true only for Partial events, the one
+// class the pipeline may coalesce or drop to stay backpressure-safe.
+func (e StreamEvent) IsDroppable() bool { return !e.Durable() }
+
 type PartialEvent struct {
 	Text string
 }

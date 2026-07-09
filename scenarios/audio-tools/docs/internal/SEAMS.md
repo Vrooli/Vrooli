@@ -208,6 +208,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Production wiring** | `main.go` builds the three concrete tiers (`NewLocalProvider`, `NewBYOKProvider`, `NewVrooliProvider`) and hands them to `sttchain.NewChain(Options{…})`. Per-request, `Chain.Execute` selects the first eligible tier in BYOK → Vrooli → Local order. |
 | **Test fake** | `internal/ai/sttchain/mocks::FakeProvider` (configurable `Tier`, `Traits`, `Result` / `Err`, optional `TranscribeFn` / `StreamFn`, `Calls` counter). |
 | **Why it exists** | Each tier has a different upstream (Whisper binary, vendor adapters, LPBS gateway) and a different failure mode. Putting the precedence + fallback + insufficient-credits short-circuit in `Chain` keeps that policy in one place; the per-tier struct only translates its own backend. Chain-orchestration tests in `chain_test.go` substitute `FakeProvider` to assert routing without spinning real backends. |
+| **Event-durability** | Streaming events crossing this seam obey the one event-durability contract — [`../domains/stt/streaming-pipeline.md#event-durability-contract`](../domains/stt/streaming-pipeline.md#event-durability-contract). A `Stream`-capable adapter emits `partial` disposably (never blocking its producer) and `segment`/`error`/`done` durably (ordered, lossless); code reads `StreamEvent.Durable()`/`IsDroppable()`, never re-derives the rule. |
 
 ### sttchain.BYOKAdapter (per-vendor STT adapter)
 
@@ -586,6 +587,12 @@ an actionable diff showing exactly which entries diverged.
   and assert the emitted event sequence; parity test runs the same
   WAV through both transports' Segmenter wiring and asserts equivalent
   event projections.
+- **Event-durability:** the events crossing this relay (provider →
+  strategy → egress → transport) obey the one event-durability contract —
+  [`../domains/stt/streaming-pipeline.md#event-durability-contract`](../domains/stt/streaming-pipeline.md#event-durability-contract).
+  `partial` is coalesced/droppable and must never back-pressure the
+  provider's decode; `segment`/rejection/`error`/`done` are durable
+  (ordered, lossless). The relay always drains the backend socket.
 
 ### `stt.StrategySelector` (decision boundary)
 - **Owner:** `api/internal/stt/selector.go`.

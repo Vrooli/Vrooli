@@ -629,6 +629,87 @@ in-image `python -m unittest` suites and live curl checks.
 
 **Owner:** unassigned (shared resource-test harness).
 
+### 2026-07-08 — Continuous-speech streaming loses all text under load (RESOLVED)
+
+**Symptom:** Dictating continuously into web-console with kyutai (default since
+2026-07-06) worked for ~10 s, then live updates stopped and ALL further speech
+was lost — even after stopping the mic; only a pause temporarily cleared it. Its
+TTS twin: a fault in one paragraph of a multi-paragraph spoken reply truncated
+every remaining paragraph.
+
+**Root cause:** A fully-synchronous, tiny-buffer streaming chain across two
+WebSocket hops with blocking writes at every stage. A browser consumer that
+couldn't sustain the unthrottled partial firehose back-pressured every hop
+(~32 slots of egress buffer) until the kyutai decode loop froze mid-emit and
+STOPPED consuming audio — total loss, not a tail. Two aggravating bugs made it
+unrecoverable on stop: the provider held `writeMu` across a blocking write (so
+cancel's `sendEnd` deadlocked and drain-then-close never ran), and the client's
+single-slot trailing-partial could only recover the last stale partial. A wedged
+session then starved the next recording via kyutai's 1-stream model lock.
+
+**Real fix (shipped):** One documented event-durability contract applied at
+every hop (`docs/domains/stt/streaming-pipeline.md#event-durability-contract`,
+predicate `sttchain.StreamEvent.Durable()`): partials are disposable
+(coalesce-to-latest, droppable, never back-pressure their producer); segments /
+rejections / errors / done are durable (ordered, lossless). Decode is decoupled
+from send at each hop — kyutai `server.py` send worker + bounded queue + lock
+reap; the provider's dedicated writer goroutine (no lock across a blocking
+write); the browser WS handler's coalescing writer; and the client's
+committed-length cursor (`uncommittedRemainder`) + rAF-coalesced partial render
++ bounded `allChunks`. The TTS twin was already isolated per-paragraph in the
+client `speakSequence` (retry → browser-fallback → skip-with-notice, continues
+in order); it is now cross-referenced to the same contract. Guarded permanently
+by red-first oracles at every layer plus an always-on continuous-speech delivery
+assertion wired to the drop counter.
+
+**Owner:** shipped — `~/.vrooli/plans/streaming-stt-continuous-speech-backpressure-wedge-proper.md`.
+
+**Live validation (DONE 2026-07-08):** verified end-to-end against the DEPLOYED
+stack (rebuilt kyutai-stt image + restarted audio-tools relay; GPU is present —
+RTX 4070 Ti SUPER — so this needs no special hardware beyond the running host). A
+synthetic client streamed the real web-console wire format (webm/opus, 250 ms
+timeslices, real-time paced) into `/api/v1/voice/stream` for 65 s of continuous
+speech: (a) baseline fast-reader → 17 segments + done, full coverage; (b) the
+wedge trigger — the browser consumer FROZE (stopped reading) for a full 20 s
+mid-stream, far past the old ~10 s wedge point → on resume every segment spoken
+during the freeze burst out losslessly in order, **17 segments total (identical
+to baseline), zero loss, clean done**; (c) starvation — a stalled session
+abandoned mid-stream did NOT block the next recording (fresh session transcribed
++ done immediately). Direct kyutai probe confirms the resource itself decouples
+decode from send (37 partials / 3 segments / done through a slow consumer).
+Remaining genuinely-optional check: a physical-mic dogfood (real getUserMedia),
+which the automated webm/opus path already stands in for at the protocol level.
+
+**Refs:** `resources/kyutai-stt/docker/server.py`,
+`internal/ai/sttchain/provider_kyutai.go`, `handlers/stt/stream_ws.go`,
+`scenarios/web-console/ui/src/audio-integration/hooks/{useVoiceCore.ts,voice/trailingPartial.ts,voice/VoiceStreamProvider.ts,tts/KokoroProvider.ts}`.
+
+**Follow-up REVEALED by this fix (2026-07-08, web-console client, under triage):**
+With the backpressure wedge closed, mid-recording text is no longer lost — but a
+*different* symptom surfaced: during continuous speech the **microphone abruptly
+stops** ~10 s in (the mic-state is now honestly synced to transcription, so a
+premature turn-end is visible instead of masked by the frozen decode loop).
+Root cause is CLIENT-side, not this relay: **kyutai/passthrough emits NO
+`vad-state`** (grep `server.py`/`provider_kyutai.go` — none), so on the browser
+the auto-stop SSOT (`decideAutoStop` §2) falls back to the **client RMS VAD as
+the sole turn-ending authority**. Under whisper-VADSegment the server VAD was
+authoritative and vetoed the client VAD's known "stops while I'm still talking"
+false positives; under kyutai that veto is gone. A client-VAD silence verdict
+then ends the whole turn whenever the analyser reads silence — a **muted mic
+track** (sleep/wake, default-device change, another app seizing the mic; the
+`ended` event does NOT fire for muting — see web-console `streamHealth.ts`), a
+**suspended AudioContext**, or an adaptive `speechThreshold` risen above the
+user's real speech RMS. Relay evidence: sessions close `graceful=true
+tailFinalDelivered=true` in a regular ~10–12 s cadence (client-initiated stops,
+not backend kills). The frequent kyutai "reaping wedged prior streaming session"
+warnings are a *separate*, benign-but-noisy lock-release-latency issue (the relay
+dials kyutai + takes `MODEL.lock` the instant the browser WS connects — including
+the mount-time pre-connect — so overlapping/rapid sessions reap already-delivered
+holders; not the cause of the mic stop). Web-console side owns the fix; see its
+`PROBLEMS.md §8c`. First step done: full client instrumentation + honest
+track-mute/ended/recorder-error handling + a guard that suppresses a client-VAD
+auto-stop when the audio source is not delivering samples.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
