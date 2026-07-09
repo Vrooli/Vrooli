@@ -359,6 +359,8 @@ const literalSelectors = {
       shaHash: "components-editor-sha-hash",
       savedToast: "components-editor-saved-toast",
       modeSwitch: "components-editor-mode-switch",
+      previewModeButton: "components-editor-preview-mode-button",
+      codeModeButton: "components-editor-code-mode-button",
       preview: "components-editor-preview",
       previewFrame: "components-editor-preview-frame",
       previewBadge: "components-editor-preview-badge",

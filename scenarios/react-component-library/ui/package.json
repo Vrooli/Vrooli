@@ -14,6 +14,7 @@
     "type-check": "pnpm strings:check && tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:preview-e2e": "node scripts/preview-e2e.mjs",
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check"
   },

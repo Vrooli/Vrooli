@@ -31,7 +31,8 @@ import { I18nextProvider } from "react-i18next";
 import { MemoryRouter } from "react-router-dom";
 
 import { i18n } from "../i18n";
-import { ThemeProvider, type ThemeChoice } from "../theme/ThemeProvider";
+import { ThemeProvider } from "../theme/ThemeProvider";
+import type { ThemeChoice } from "../theme/themeContext";
 
 export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
   /**

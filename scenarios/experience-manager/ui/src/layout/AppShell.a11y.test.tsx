@@ -25,6 +25,7 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
+    expect(container.querySelector("main")).not.toBeNull();
     await expectNoA11yViolations(container);
   });
 });

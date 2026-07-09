@@ -1,0 +1,89 @@
+{
+  "metadata": {
+    "name": "preview-renders-component",
+    "description": "Navigates to the seeded StatusBadge component editor, switches to Preview, and asserts the host reaches the Rendered state. This fails when the iframe recursively loads the app shell or when the preview runtime reports a browser render error.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "component-editor-preview",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1400,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-status-badge-editor",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "{{SCENARIO_ID}}",
+          "scenario_path": "/components/bc29677f-b48c-440f-9f95-0fe2901f5f5e",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open StatusBadge editor" }
+      }
+    },
+    {
+      "id": "wait-editor-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/components.editor.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Editor panel visible" }
+      }
+    },
+    {
+      "id": "switch-preview",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/components.editor.previewModeButton"
+        },
+        "metadata": { "label": "Switch to Preview mode" }
+      }
+    },
+    {
+      "id": "assert-rendered",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.editor.previewBadge",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Preview never reached the Rendered badge. Check for iframe app-shell recursion, /preview route proxying, and React runtime named-export errors."
+        },
+        "metadata": { "label": "Preview reached rendered state" }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-navigate-wait",
+      "source": "navigate-status-badge-editor",
+      "target": "wait-editor-panel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-wait-preview",
+      "source": "wait-editor-panel",
+      "target": "switch-preview",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-preview-assert",
+      "source": "switch-preview",
+      "target": "assert-rendered",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

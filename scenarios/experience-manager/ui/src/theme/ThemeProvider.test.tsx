@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 
-import { ThemeProvider, useTheme, type ThemeChoice } from "./ThemeProvider";
+import { ThemeProvider } from "./ThemeProvider";
+import { useTheme, type ThemeChoice } from "./themeContext";
 
 const STORAGE_KEY = "vrooli.theme";
 

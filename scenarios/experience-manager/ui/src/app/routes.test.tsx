@@ -8,11 +8,17 @@ import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
-import { TestAppRouter } from "./routes";
+import { AppRouter, TestAppRouter } from "./routes";
 
 describe("AppRouter", () => {
   afterEach(() => {
     cleanup();
+  });
+
+  it("mounts the production browser router", () => {
+    window.history.pushState({}, "", "/");
+    renderWithProviders(<AppRouter />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.fleet)).toBeInTheDocument();
   });
 
   it("renders the fleet page at / [REQ:EXPERIEN-P0-005]", () => {

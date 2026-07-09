@@ -47,7 +47,7 @@ func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
 		// SIGTERM is not portable to Windows; the e2e test is gated to
 		// Unix-likes. Windows CI (when added) gets a separate variant
 		// that uses os.Process.Kill or sends Ctrl+Break via taskkill.
-		t.Skip("e2e binary boot test relies on SIGTERM; not portable to Windows")
+		t.Fatalf("e2e binary boot test relies on SIGTERM; not portable to Windows")
 	}
 
 	binary := buildBinary(t)

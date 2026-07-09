@@ -21,7 +21,7 @@ import { SettingsPage } from "../pages/SettingsPage";
  *
  * Add new pages by appending to the `children` array.
  */
-export const routes: RouteObject[] = [
+const routes: RouteObject[] = [
   {
     path: "/",
     element: <AppShell />,

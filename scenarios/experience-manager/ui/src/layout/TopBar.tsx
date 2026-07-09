@@ -1,7 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import { useTheme, type ThemeChoice } from "../theme/themeContext";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 

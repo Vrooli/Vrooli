@@ -52,20 +52,13 @@ func (h *RuntimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "preview runtime unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	source := filepath.Join(root, entry)
-	result := esbuild.Build(esbuild.BuildOptions{
-		EntryPoints: []string{source},
-		Bundle:      true,
-		Format:      esbuild.FormatESModule,
-		Platform:    esbuild.PlatformBrowser,
-		Target:      esbuild.ES2020,
-		External:    runtimeExternals(moduleName),
-		Define: map[string]string{
-			"process.env.NODE_ENV": `"development"`,
-		},
-		Write:    false,
-		LogLevel: esbuild.LogLevelSilent,
-	})
+	source, err := filepath.Abs(filepath.Join(root, entry))
+	if err != nil {
+		h.logger.Printf("preview.runtime source %s@%s/%s: %v", moduleName, version, runtimePath, err)
+		http.Error(w, "preview runtime unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	result := buildRuntimeESM(source, runtimeWrapper(moduleName, runtimePath), runtimeExternals(moduleName))
 	if len(result.Errors) > 0 {
 		h.logger.Printf("preview.runtime bundle %s@%s/%s: %s", moduleName, version, runtimePath, result.Errors[0].Text)
 		http.Error(w, "preview runtime bundle failed", http.StatusInternalServerError)
@@ -78,6 +71,115 @@ func (h *RuntimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	_, _ = w.Write(result.OutputFiles[0].Contents)
+}
+
+func buildRuntimeESM(source, wrapper string, externals []string) esbuild.BuildResult {
+	opts := esbuild.BuildOptions{
+		Bundle:   true,
+		Format:   esbuild.FormatESModule,
+		Platform: esbuild.PlatformBrowser,
+		Target:   esbuild.ES2020,
+		External: externals,
+		Define: map[string]string{
+			"process.env.NODE_ENV": `"development"`,
+		},
+		Write:    false,
+		LogLevel: esbuild.LogLevelSilent,
+	}
+	if wrapper != "" {
+		opts.Stdin = &esbuild.StdinOptions{
+			Contents:   fmt.Sprintf(wrapper, jsImportString(filepath.ToSlash(source))),
+			ResolveDir: filepath.Dir(source),
+			Sourcefile: "preview-runtime-wrapper.js",
+			Loader:     esbuild.LoaderJS,
+		}
+	} else {
+		opts.EntryPoints = []string{source}
+	}
+	return esbuild.Build(opts)
+}
+
+func runtimeWrapper(moduleName, runtimePath string) string {
+	switch moduleName {
+	case "react":
+		switch runtimePath {
+		case "index.js":
+			return `import runtime from %s;
+export default runtime;
+export const Children = runtime.Children;
+export const Component = runtime.Component;
+export const Fragment = runtime.Fragment;
+export const Profiler = runtime.Profiler;
+export const PureComponent = runtime.PureComponent;
+export const StrictMode = runtime.StrictMode;
+export const Suspense = runtime.Suspense;
+export const cloneElement = runtime.cloneElement;
+export const createContext = runtime.createContext;
+export const createElement = runtime.createElement;
+export const createFactory = runtime.createFactory;
+export const createRef = runtime.createRef;
+export const forwardRef = runtime.forwardRef;
+export const isValidElement = runtime.isValidElement;
+export const lazy = runtime.lazy;
+export const memo = runtime.memo;
+export const startTransition = runtime.startTransition;
+export const useCallback = runtime.useCallback;
+export const useContext = runtime.useContext;
+export const useDebugValue = runtime.useDebugValue;
+export const useDeferredValue = runtime.useDeferredValue;
+export const useEffect = runtime.useEffect;
+export const useId = runtime.useId;
+export const useImperativeHandle = runtime.useImperativeHandle;
+export const useInsertionEffect = runtime.useInsertionEffect;
+export const useLayoutEffect = runtime.useLayoutEffect;
+export const useMemo = runtime.useMemo;
+export const useReducer = runtime.useReducer;
+export const useRef = runtime.useRef;
+export const useState = runtime.useState;
+export const useSyncExternalStore = runtime.useSyncExternalStore;
+export const useTransition = runtime.useTransition;
+export const version = runtime.version;
+`
+		case "jsx-runtime.js", "jsx-dev-runtime.js":
+			return `import runtime from %s;
+export default runtime;
+export const Fragment = runtime.Fragment;
+export const jsx = runtime.jsx;
+export const jsxs = runtime.jsxs;
+export const jsxDEV = runtime.jsxDEV;
+`
+		}
+	case "react-dom":
+		switch runtimePath {
+		case "index.js":
+			return `import runtime from %s;
+export default runtime;
+export const createPortal = runtime.createPortal;
+export const flushSync = runtime.flushSync;
+export const findDOMNode = runtime.findDOMNode;
+export const hydrate = runtime.hydrate;
+export const render = runtime.render;
+export const unmountComponentAtNode = runtime.unmountComponentAtNode;
+export const unstable_batchedUpdates = runtime.unstable_batchedUpdates;
+export const version = runtime.version;
+`
+		case "client.js":
+			return `import runtime from %s;
+export default runtime;
+export const createRoot = runtime.createRoot;
+export const hydrateRoot = runtime.hydrateRoot;
+`
+		}
+	}
+	return ""
+}
+
+func jsImportString(s string) string {
+	raw, err := json.Marshal(s)
+	if err != nil {
+		return `""`
+	}
+	return string(raw)
 }
 
 func (h *RuntimeHandler) servePackageRuntime(w http.ResponseWriter, moduleName, version, runtimePath string) {
@@ -104,7 +206,12 @@ func (h *RuntimeHandler) servePackageRuntime(w http.ResponseWriter, moduleName, 
 		http.Error(w, "preview runtime unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	source := filepath.Join(root, entry)
+	source, err := filepath.Abs(filepath.Join(root, entry))
+	if err != nil {
+		h.logger.Printf("preview.runtime source %s@%s/%s: %v", moduleName, version, runtimePath, err)
+		http.Error(w, "preview runtime unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	result := esbuild.Build(esbuild.BuildOptions{
 		EntryPoints: []string{source},
 		Bundle:      true,
@@ -157,9 +264,6 @@ func runtimeEntry(moduleName, runtimePath string) (string, bool) {
 }
 
 func runtimeExternals(moduleName string) []string {
-	if moduleName == "react-dom" {
-		return []string{"react"}
-	}
 	return nil
 }
 

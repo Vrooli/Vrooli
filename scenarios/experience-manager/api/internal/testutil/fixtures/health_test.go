@@ -120,4 +120,9 @@ func TestNewHealthResponse_OptOrderIndependent(t *testing.T) {
 func TestHealthResponse_TypeAlias(t *testing.T) {
 	var _ HealthResponse = healthv1.Response{}
 	var _ DependencyStatus = healthv1.DependencyStatus{}
+
+	got := HealthResponse{Status: "healthy"}
+	if got.GetStatus() != "healthy" {
+		t.Fatalf("HealthResponse.GetStatus() = %q, want healthy", got.GetStatus())
+	}
 }

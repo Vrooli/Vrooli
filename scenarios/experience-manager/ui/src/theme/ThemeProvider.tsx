@@ -1,18 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export type ThemeChoice = "light" | "dark" | "system";
+import { ThemeContext, type ThemeChoice, type ThemeContextValue } from "./themeContext";
 
 const STORAGE_KEY = "vrooli.theme";
-
-interface ThemeContextValue {
-  /** The user's stated choice (light/dark/system). */
-  choice: ThemeChoice;
-  /** The currently-applied theme; `system` resolves to light or dark via media query. */
-  resolved: "light" | "dark";
-  setTheme: (choice: ThemeChoice) => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const readStoredChoice = (): ThemeChoice => {
   const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -70,12 +60,4 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   const value = useMemo<ThemeContextValue>(() => ({ choice, resolved, setTheme }), [choice, resolved, setTheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-}
-
-export function useTheme(): ThemeContextValue {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) {
-    throw new Error("useTheme must be called inside <ThemeProvider>");
-  }
-  return ctx;
 }

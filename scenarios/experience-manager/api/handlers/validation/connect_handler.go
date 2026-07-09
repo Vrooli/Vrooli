@@ -15,6 +15,7 @@ import (
 	"experience-manager/internal/attestation"
 	localautofix "experience-manager/internal/autofix"
 	"experience-manager/internal/checks"
+	"experience-manager/internal/envx"
 	"experience-manager/internal/fleet"
 	"experience-manager/internal/spec"
 
@@ -34,6 +35,7 @@ type Deps struct {
 	Logger                *log.Logger
 	Engine                Engine
 	Builder               *localassessment.Builder
+	Env                   envx.Env
 	Fixers                *autofix.Registry
 	RepoRoot              string
 	Environment           *commonv1.CaptureEnvironment
@@ -47,6 +49,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Env == nil {
+		d.Env = envx.OS{}
 	}
 	return &connectHandler{deps: d}
 }
@@ -182,7 +187,7 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		return nil, err
 	}
 	native := nativeReport(report)
-	resp, err := maturity.BuildValidationResponse(report.Scenario, maturityAssessment, native, execMetrics, maturity.WithValidationStatus(sharedStatus(report.Findings)))
+	resp, err := maturity.BuildValidationResponse(report.Scenario, maturityAssessment, native, execMetrics, maturity.WithValidationStatus(h.sharedStatus(report.Findings)))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
@@ -310,8 +315,8 @@ func protoAttestation(a attestation.Attestation) *contractv1.ManualAttestation {
 	}
 }
 
-func sharedStatus(findings []spec.Finding) scenariovalidationv1.ValidationStatus {
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("EXPERIENCE_ALIGNMENT_GATE")), "strict") {
+func (h *connectHandler) sharedStatus(findings []spec.Finding) scenariovalidationv1.ValidationStatus {
+	if strings.EqualFold(strings.TrimSpace(h.deps.Env.Getenv("EXPERIENCE_ALIGNMENT_GATE")), "strict") {
 		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
 	}
 	// The shared provider remains advisory by default: native experience

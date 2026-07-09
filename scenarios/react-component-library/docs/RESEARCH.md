@@ -148,3 +148,19 @@ served the React Component Library `index.html` into the iframe, making
 the preview recursively render the library UI. The UI server now proxies
 both `/preview/{id}/harness.html` and `/preview/runtime/...` paths to the
 Go API unchanged, before static assets and SPA fallback run.
+
+The follow-up browser run exposed the actual runtime error that the
+route-level tests still missed: bundling React CommonJS entrypoints with
+esbuild produced default-only ESM, while compiled JSX imports named
+exports from `react/jsx-runtime`. ReactDOM's client bundle also cannot
+leave `react` as a dynamic CommonJS require in a browser ESM module. The
+runtime handler now wraps the vendored React and ReactDOM entrypoints
+with explicit ESM named exports (`jsx`, `jsxs`, `createRoot`, hooks,
+etc.) and bundles ReactDOM with React included. `pnpm run
+test:preview-e2e` drives Chrome through the real UI, clicks Preview for
+the StatusBadge component, asserts the iframe URL is `/preview/...`,
+checks the rendered DOM, and fails on the browser errors that caused the
+visible preview failure. The BAS playbook
+`preview-renders-component` covers the same user-visible contract at the
+test-genie workflow layer by asserting the host reaches the Rendered
+badge after switching the known component editor into Preview mode.

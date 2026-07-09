@@ -19,8 +19,8 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
-          "notes": "BAS flow `preview-renders-component` loads a known component, asserts the iframe DOM contains expected rendered output."
+          "status": "complete",
+          "notes": "BAS flow `preview-renders-component` loads the seeded StatusBadge component editor, switches to Preview, and asserts the host reaches the Rendered badge. ui/scripts/preview-e2e.mjs adds a deeper Chrome check that the iframe URL is /preview/..., the StatusBadge DOM renders inside #root, and no host or in-iframe preview error appears."
         }
       ]
     },
@@ -54,7 +54,7 @@
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/handlers/preview/module_test.go asserts the harness route returns HTML with same-origin /preview/runtime imports and the runtime route serves JavaScript. ui/src/features/components/ComponentEditor.test.tsx asserts the iframe uses the harness URL and sandbox attributes. ui/server.test.js asserts the production UI server proxies /preview harness and runtime paths to the API before SPA fallback, preventing recursive loading of the library UI inside the iframe."
+          "notes": "api/handlers/preview/module_test.go asserts the harness route returns HTML with same-origin /preview/runtime imports and the runtime route serves JavaScript. ui/src/features/components/ComponentEditor.test.tsx asserts the iframe uses the harness URL and sandbox attributes. ui/server.test.js asserts the production UI server proxies /preview harness and runtime paths to the API before SPA fallback, preventing recursive loading of the library UI inside the iframe. bas/cases/preview/preview-renders-component.json catches the user-visible recursion symptom through test-genie playbooks. ui/scripts/preview-e2e.mjs drives Chrome through the real UI and asserts the preview iframe URL remains /preview/... instead of a recursive /components route."
         }
       ]
     },
@@ -71,7 +71,7 @@
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/internal/deps/semver_test.go covers range-to-latest resolution for wildcard, caret, tilde, comparator, compound, exact, missing, and unparseable ranges. api/handlers/preview/static_test.go verifies React imports point at same-origin /preview/runtime URLs, unavailable vendored runtime versions render diagnostics while falling back to React 18.3.1, harness CSS contains the design tokens/Tailwind app utilities, and runtime/component import failures are inside a catchable dynamic-import path. api/handlers/preview/module_test.go verifies the runtime route serves JavaScript without esm.sh."
+          "notes": "api/internal/deps/semver_test.go covers range-to-latest resolution for wildcard, caret, tilde, comparator, compound, exact, missing, and unparseable ranges. api/handlers/preview/static_test.go verifies React imports point at same-origin /preview/runtime URLs, unavailable vendored runtime versions render diagnostics while falling back to React 18.3.1, harness CSS contains the design tokens/Tailwind app utilities, and runtime/component import failures are inside a catchable dynamic-import path. api/handlers/preview/module_test.go verifies the React runtime routes serve ESM with the named exports consumed by compiled JSX and ReactDOM client (`jsx`, `jsxs`, `Fragment`, `createRoot`, `hydrateRoot`) without esm.sh or dynamic CommonJS require leakage."
         }
       ]
     },
@@ -113,7 +113,7 @@
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/handlers/preview/static_test.go asserts harness render failures post `preview-error`. ui/src/features/components/ComponentEditor.test.tsx asserts a `preview-error` message renders the failure panel and retry reloads the iframe with a fresh retry key. `pnpm type-check`, `pnpm lint`, and targeted Go preview tests passed."
+          "notes": "api/handlers/preview/static_test.go asserts harness render failures post `preview-error`. ui/src/features/components/ComponentEditor.test.tsx asserts a `preview-error` message renders the failure panel and retry reloads the iframe with a fresh retry key. ui/scripts/preview-e2e.mjs asserts the live preview reaches the Rendered badge and has no host or in-iframe preview error. `pnpm type-check`, `pnpm lint`, targeted Go preview tests, and `pnpm run test:preview-e2e` passed."
         }
       ]
     }

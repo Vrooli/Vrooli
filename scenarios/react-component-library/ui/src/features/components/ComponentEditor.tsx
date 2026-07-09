@@ -250,6 +250,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
             className="flex shrink-0 overflow-hidden rounded-md border border-white/10"
           >
             <Button
+              data-testid={selectors.components.editor.previewModeButton}
               type="button"
               variant={mode === "preview" ? "default" : "outline"}
               className="h-7 gap-1.5 rounded-none px-2 text-xs"
@@ -259,6 +260,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
               {t(strings.components.editor.previewMode)}
             </Button>
             <Button
+              data-testid={selectors.components.editor.codeModeButton}
               type="button"
               variant={mode === "code" ? "default" : "outline"}
               className="h-7 gap-1.5 rounded-none px-2 text-xs"

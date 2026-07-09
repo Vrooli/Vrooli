@@ -131,7 +131,37 @@ func TestModule_RuntimeReactServesVendoredESM(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Header().Get("Content-Type"), "application/javascript")
 	require.Contains(t, rec.Body.String(), "export")
+	require.Contains(t, rec.Body.String(), "createElement")
 	require.NotContains(t, rec.Body.String(), "https://esm.sh")
+}
+
+func TestModule_RuntimeReactJSXRuntimeServesNamedExports(t *testing.T) {
+	r, _ := setupModule(t)
+	req, _ := http.NewRequest(http.MethodGet, "/preview/runtime/react@18.3.1/jsx-runtime.js", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	body := rec.Body.String()
+	require.Contains(t, body, "export {")
+	require.Contains(t, body, "  jsx,")
+	require.Contains(t, body, "  jsxs")
+	require.Contains(t, body, "  Fragment,")
+	require.NotContains(t, body, "https://esm.sh")
+}
+
+func TestModule_RuntimeReactDOMClientServesNamedExports(t *testing.T) {
+	r, _ := setupModule(t)
+	req, _ := http.NewRequest(http.MethodGet, "/preview/runtime/react-dom@18.3.1/client.js", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	body := rec.Body.String()
+	require.Contains(t, body, "export {")
+	require.Contains(t, body, "  createRoot,")
+	require.Contains(t, body, "  hydrateRoot")
+	require.NotContains(t, body, `Dynamic require of "react" is not supported`)
+	require.NotContains(t, body, `__require("react")`)
+	require.NotContains(t, body, "https://esm.sh")
 }
 
 func TestModule_HarnessNotFound(t *testing.T) {
