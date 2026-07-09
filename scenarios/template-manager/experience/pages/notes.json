@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "notes",
+    "title": "Notes",
+    "routes": ["/notes"],
+    "purpose": "Expose the removable notes example as a concrete route while the scenario's real product domain is still being shaped.",
+    "prd_refs": ["OT-P0-001"]
+  }
+}

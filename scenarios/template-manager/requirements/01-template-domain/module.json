@@ -1,0 +1,284 @@
+{
+  "_metadata": {
+    "description": "Operational requirements for Template Manager's accountable ownership of Vrooli template handling.",
+    "last_validated_at": "2026-07-09T00:04:11-04:00",
+    "module": "template-domain",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TM-P0-001",
+      "title": "Template Registry Store",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "Persist scenario, design-kit, and resource-template records with kind, id, version, manifest metadata, provenance hashes, and discoverable API/CLI read surfaces.",
+      "tags": [
+        "registry",
+        "storage",
+        "templates"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "docs/concepts/DOMAINS.md",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Repository and service tests round-trip seeded template records through migration-owned SQLite storage."
+        },
+        {
+          "type": "test",
+          "ref": "cli/manifest.json",
+          "phase": "contracts",
+          "status": "implemented",
+          "notes": "CLI manifest commands list/show registry records through generated Connect clients."
+        }
+      ]
+    },
+    {
+      "id": "TM-P0-002",
+      "title": "Validation Runs And Debt Ledger",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Record template validation runs, drift snapshots, version lag, and stable deduplicated debt entries so template quality trends persist after each run.",
+      "tags": [
+        "validation",
+        "debt",
+        "drift"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "docs/concepts/FLOWS.md",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fake-runner tests cover parse, persist, deduplicate, and update behavior for validation findings."
+        },
+        {
+          "type": "test",
+          "ref": "docs/concepts/DATA.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A live shallow validation run is persisted and queryable through API and CLI."
+        }
+      ]
+    },
+    {
+      "id": "TM-P0-003",
+      "title": "Test Genie Templates Phase Provider",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "Expose scenario-validation/v1 ValidateScenario plus PreviewFix/ApplyFix for missing generation provenance, keeping validation static and acyclic.",
+      "tags": [
+        "test-genie",
+        "scenario-validation",
+        "autofix"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "docs/concepts/INTEGRATIONS.md",
+          "phase": "contracts",
+          "status": "implemented",
+          "notes": "Provider descriptor and live probe pass the Phase Capability Contract."
+        },
+        {
+          "type": "test",
+          "ref": "PRD.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Preview and apply modes stamp adopted generation provenance idempotently."
+        }
+      ]
+    },
+    {
+      "id": "TM-P0-004",
+      "title": "Orientation Guidance Surface",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Return the next incomplete orientation gate, its checks, contract text, and remediation pointers for any pre-finalize scenario.",
+      "tags": [
+        "orientation",
+        "guidance",
+        "agents"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "docs/concepts/FLOWS.md",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Guidance service tests select the correct next gate and finalized state from fixtures."
+        },
+        {
+          "type": "test",
+          "ref": "docs/START-HERE.md",
+          "phase": "contracts",
+          "status": "implemented",
+          "notes": "CLI returns structured gate data without requiring agents to read START-HERE prose."
+        }
+      ]
+    },
+    {
+      "id": "TM-P1-001",
+      "title": "Factory Documentation Service",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "docs",
+      "criticality": "P1",
+      "description": "Own and index factory docs covering maintenance, generation contract, validation modes, drift, cleanup, migration, and debt workflows.",
+      "tags": [
+        "docs",
+        "search-hub",
+        "factory"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "docs/manifest.json",
+          "phase": "docs",
+          "status": "failing",
+          "notes": "search-hub queries return Template Manager factory docs and debt entries from the scenario provider."
+        }
+      ]
+    },
+    {
+      "id": "TM-P1-002",
+      "title": "Dashboard And Measures",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "Render fleet standing, validation history, debt trends, and template registry data in the UI while exposing matching measures through /measures and typed CLI/API surfaces.",
+      "tags": [
+        "ui",
+        "measures",
+        "dashboard"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/App.tsx",
+          "phase": "ui-health",
+          "status": "implemented",
+          "notes": "UI tests cover loading, empty, error, a11y, and data-rendering states for all dashboard surfaces."
+        },
+        {
+          "type": "test",
+          "ref": ".vrooli/endpoints.json",
+          "phase": "measures",
+          "status": "failing",
+          "notes": "Measures declarations and typed MeasuresService return identical computed values."
+        }
+      ]
+    },
+    {
+      "id": "TM-P1-003",
+      "title": "Recurring Deep Validate Monitor",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "operations",
+      "criticality": "P1",
+      "description": "Run serialized scheduled deep validation for registered templates, persist scheduler-attributed results, and expose monitor status through API, CLI, and UI.",
+      "tags": [
+        "scheduler",
+        "monitor",
+        "deep-validate"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "docs/concepts/FLOWS.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Short-interval test proves one scheduler-attributed deep validation run is persisted."
+        }
+      ]
+    },
+    {
+      "id": "TM-P1-004",
+      "title": "Scenario Template And Design Cutover",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "migration",
+      "criticality": "P1",
+      "description": "Move scenario-template and design-kit lifecycle handling into Template Manager API/CLI, carry existing engine tests, and delete old vrooli command/proto owners.",
+      "tags": [
+        "cutover",
+        "generation",
+        "design"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "docs/concepts/INTEGRATIONS.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Throwaway scenario lifecycle succeeds entirely through Template Manager commands."
+        },
+        {
+          "type": "test",
+          "ref": "docs/concepts/DOMAINS.md",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Moved generation, orientation, detemplate, design, hash, and drift suites pass in their new home."
+        }
+      ]
+    },
+    {
+      "id": "TM-P2-001",
+      "title": "Resource Template Cutover",
+      "status": "complete",
+      "prd_ref": "OT-P2-001",
+      "category": "migration",
+      "criticality": "P2",
+      "description": "Move resource-template handling into Template Manager, expose resource-template API/CLI commands, and unify duplicate substitution/text-detection engines.",
+      "tags": [
+        "resource-templates",
+        "cutover",
+        "engine"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "docs/concepts/DOMAINS.md",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Resource template tests pass and repo grep proves only one renderTemplateString implementation remains."
+        }
+      ]
+    },
+    {
+      "id": "TM-P2-002",
+      "title": "Orientation Gate Stewardship",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "governance",
+      "criticality": "P2",
+      "description": "Own the orientation gate schema, shared check vocabulary, and evaluation engine while templates retain declarative per-template gate data.",
+      "tags": [
+        "orientation",
+        "governance",
+        "templates"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "docs/concepts/FLOWS.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Fresh throwaway scenarios show content-quality gates incomplete until real work satisfies each contract."
+        }
+      ]
+    }
+  ]
+}
