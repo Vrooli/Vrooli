@@ -49,6 +49,41 @@ message DeleteConfirmationSettings {
   DeleteConfirmLevel capture = 3;
 }
 
+// AutoFilerSettings controls governed automatic filing of maintenance findings
+// into the backlog.
+message AutoFilerSettings {
+  bool enabled = 1;
+  string mode = 2 [(buf.validate.field).string = {
+    in: [
+      "suggest",
+      "auto_add"
+    ]
+  }];
+  string strategy = 3 [(buf.validate.field).string = {
+    in: [
+      "feature_pending",
+      "importance"
+    ]
+  }];
+  int32 max_open_auto_filed = 4 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 100
+  }];
+  int32 velocity_window_days = 5 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 90
+  }];
+  int32 min_velocity_transitions = 6 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 1000
+  }];
+  int32 interval_minutes = 7 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 1440
+  }];
+  string goal_name = 8 [(buf.validate.field).string.min_len = 1];
+}
+
 // Settings captures persisted configuration for Swarm Manager.
 message Settings {
   // UI theme preference.
@@ -173,10 +208,8 @@ message Settings {
       "block"
     ]
   }];
-  // When true, queuing a feature item onto a scenario with no known open fix
-  // work triggers an async on-demand readiness review that auto-files fixes.
-  bool fix_before_feature_discovery = 36;
+  AutoFilerSettings auto_filer = 38;
 
-  reserved 25;
+  reserved 25, 36;
   reserved "max_concurrent_executions";
 }

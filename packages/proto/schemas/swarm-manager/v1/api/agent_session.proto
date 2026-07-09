@@ -138,7 +138,7 @@ message ContinueAgentSessionResponse {
 // as context for a single session message.
 message AgentSessionContextRef {
   // Context type.
-  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief
+  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief, goal
   string type = 1 [(buf.validate.field).string = {
     in: [
       "backlog_item",
@@ -150,7 +150,8 @@ message AgentSessionContextRef {
       "operating_mode",
       "session",
       "operations_briefing",
-      "startup_brief"
+      "startup_brief",
+      "goal"
     ]
   }];
 

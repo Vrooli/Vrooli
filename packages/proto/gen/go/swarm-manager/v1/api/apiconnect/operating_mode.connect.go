@@ -57,6 +57,9 @@ const (
 	// OperatingModeServiceStartPhaseProcedure is the fully-qualified name of the OperatingModeService's
 	// StartPhase RPC.
 	OperatingModeServiceStartPhaseProcedure = "/swarm_manager.v1.OperatingModeService/StartPhase"
+	// OperatingModeServiceStartTargetPhaseProcedure is the fully-qualified name of the
+	// OperatingModeService's StartTargetPhase RPC.
+	OperatingModeServiceStartTargetPhaseProcedure = "/swarm_manager.v1.OperatingModeService/StartTargetPhase"
 	// OperatingModeServiceRenderLivePromptProcedure is the fully-qualified name of the
 	// OperatingModeService's RenderLivePrompt RPC.
 	OperatingModeServiceRenderLivePromptProcedure = "/swarm_manager.v1.OperatingModeService/RenderLivePrompt"
@@ -72,6 +75,12 @@ const (
 	// OperatingModeServiceApplyBacklogSyncProcedure is the fully-qualified name of the
 	// OperatingModeService's ApplyBacklogSync RPC.
 	OperatingModeServiceApplyBacklogSyncProcedure = "/swarm_manager.v1.OperatingModeService/ApplyBacklogSync"
+	// OperatingModeServiceScaffoldModeProcedure is the fully-qualified name of the
+	// OperatingModeService's ScaffoldMode RPC.
+	OperatingModeServiceScaffoldModeProcedure = "/swarm_manager.v1.OperatingModeService/ScaffoldMode"
+	// OperatingModeServiceValidateModeProcedure is the fully-qualified name of the
+	// OperatingModeService's ValidateMode RPC.
+	OperatingModeServiceValidateModeProcedure = "/swarm_manager.v1.OperatingModeService/ValidateMode"
 )
 
 // OperatingModeServiceClient is a client for the swarm_manager.v1.OperatingModeService service.
@@ -100,6 +109,12 @@ type OperatingModeServiceClient interface {
 	// StartPhase reserves and dispatches a round for one phase of a linked
 	// initiative.
 	StartPhase(context.Context, *connect.Request[api.OperatingModeStartPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error)
+	// StartTargetPhase is the plan-first entry point: it starts a mode round
+	// directly on a non-initiative target (a plan-manager plan by execution
+	// id/slug, or a plan-ref path) — no initiative created, no backlog
+	// ceremony. Initiative-target modes are rejected here; they start through
+	// StartPhase.
+	StartTargetPhase(context.Context, *connect.Request[api.OperatingModeStartTargetPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error)
 	// RenderLivePrompt renders the literal agent prompt for one phase of a real
 	// linked initiative with its live data substituted.
 	RenderLivePrompt(context.Context, *connect.Request[api.OperatingModeRenderLiveRequest]) (*connect.Response[api.OperatingModeRenderPromptResponse], error)
@@ -111,6 +126,14 @@ type OperatingModeServiceClient interface {
 	CompleteItems(context.Context, *connect.Request[api.OperatingModeCompleteItemsRequest]) (*connect.Response[api.OperatingModeBacklogSyncResult], error)
 	// ApplyBacklogSync applies an operator-accepted reconcile proposal for a round.
 	ApplyBacklogSync(context.Context, *connect.Request[api.OperatingModeApplyBacklogSyncRequest]) (*connect.Response[api.OperatingModeBacklogSyncResult], error)
+	// ScaffoldMode writes a new mode folder (mode.json + a happy-path example-run)
+	// from the built-in template. Self-serve authoring entry point — the mode is
+	// simulatable immediately and executable after a restart, with no Go edits.
+	ScaffoldMode(context.Context, *connect.Request[api.OperatingModeScaffoldRequest]) (*connect.Response[api.OperatingModeScaffoldResponse], error)
+	// ValidateMode loads a mode fresh from disk through the real loader/validator
+	// and reports whether it is valid, so an author gets immediate structural
+	// feedback without a restart.
+	ValidateMode(context.Context, *connect.Request[api.OperatingModeValidateRequest]) (*connect.Response[api.OperatingModeValidateResponse], error)
 }
 
 // NewOperatingModeServiceClient constructs a client for the swarm_manager.v1.OperatingModeService
@@ -172,6 +195,12 @@ func NewOperatingModeServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(operatingModeServiceMethods.ByName("StartPhase")),
 			connect.WithClientOptions(opts...),
 		),
+		startTargetPhase: connect.NewClient[api.OperatingModeStartTargetPhaseRequest, api.OperatingModeRoundEnvelope](
+			httpClient,
+			baseURL+OperatingModeServiceStartTargetPhaseProcedure,
+			connect.WithSchema(operatingModeServiceMethods.ByName("StartTargetPhase")),
+			connect.WithClientOptions(opts...),
+		),
 		renderLivePrompt: connect.NewClient[api.OperatingModeRenderLiveRequest, api.OperatingModeRenderPromptResponse](
 			httpClient,
 			baseURL+OperatingModeServiceRenderLivePromptProcedure,
@@ -202,6 +231,18 @@ func NewOperatingModeServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(operatingModeServiceMethods.ByName("ApplyBacklogSync")),
 			connect.WithClientOptions(opts...),
 		),
+		scaffoldMode: connect.NewClient[api.OperatingModeScaffoldRequest, api.OperatingModeScaffoldResponse](
+			httpClient,
+			baseURL+OperatingModeServiceScaffoldModeProcedure,
+			connect.WithSchema(operatingModeServiceMethods.ByName("ScaffoldMode")),
+			connect.WithClientOptions(opts...),
+		),
+		validateMode: connect.NewClient[api.OperatingModeValidateRequest, api.OperatingModeValidateResponse](
+			httpClient,
+			baseURL+OperatingModeServiceValidateModeProcedure,
+			connect.WithSchema(operatingModeServiceMethods.ByName("ValidateMode")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -215,11 +256,14 @@ type operatingModeServiceClient struct {
 	getWorkspace           *connect.Client[api.OperatingModeWorkspaceRequest, api.OperatingModeWorkspace]
 	switchMode             *connect.Client[api.OperatingModeSwitchRequest, api.OperatingModeSwitchResult]
 	startPhase             *connect.Client[api.OperatingModeStartPhaseRequest, api.OperatingModeRoundEnvelope]
+	startTargetPhase       *connect.Client[api.OperatingModeStartTargetPhaseRequest, api.OperatingModeRoundEnvelope]
 	renderLivePrompt       *connect.Client[api.OperatingModeRenderLiveRequest, api.OperatingModeRenderPromptResponse]
 	refreshRound           *connect.Client[api.OperatingModeRoundActionRequest, api.OperatingModeRoundEnvelope]
 	cancelRound            *connect.Client[api.OperatingModeRoundActionRequest, api.OperatingModeRoundEnvelope]
 	completeItems          *connect.Client[api.OperatingModeCompleteItemsRequest, api.OperatingModeBacklogSyncResult]
 	applyBacklogSync       *connect.Client[api.OperatingModeApplyBacklogSyncRequest, api.OperatingModeBacklogSyncResult]
+	scaffoldMode           *connect.Client[api.OperatingModeScaffoldRequest, api.OperatingModeScaffoldResponse]
+	validateMode           *connect.Client[api.OperatingModeValidateRequest, api.OperatingModeValidateResponse]
 }
 
 // Catalog calls swarm_manager.v1.OperatingModeService.Catalog.
@@ -262,6 +306,11 @@ func (c *operatingModeServiceClient) StartPhase(ctx context.Context, req *connec
 	return c.startPhase.CallUnary(ctx, req)
 }
 
+// StartTargetPhase calls swarm_manager.v1.OperatingModeService.StartTargetPhase.
+func (c *operatingModeServiceClient) StartTargetPhase(ctx context.Context, req *connect.Request[api.OperatingModeStartTargetPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error) {
+	return c.startTargetPhase.CallUnary(ctx, req)
+}
+
 // RenderLivePrompt calls swarm_manager.v1.OperatingModeService.RenderLivePrompt.
 func (c *operatingModeServiceClient) RenderLivePrompt(ctx context.Context, req *connect.Request[api.OperatingModeRenderLiveRequest]) (*connect.Response[api.OperatingModeRenderPromptResponse], error) {
 	return c.renderLivePrompt.CallUnary(ctx, req)
@@ -285,6 +334,16 @@ func (c *operatingModeServiceClient) CompleteItems(ctx context.Context, req *con
 // ApplyBacklogSync calls swarm_manager.v1.OperatingModeService.ApplyBacklogSync.
 func (c *operatingModeServiceClient) ApplyBacklogSync(ctx context.Context, req *connect.Request[api.OperatingModeApplyBacklogSyncRequest]) (*connect.Response[api.OperatingModeBacklogSyncResult], error) {
 	return c.applyBacklogSync.CallUnary(ctx, req)
+}
+
+// ScaffoldMode calls swarm_manager.v1.OperatingModeService.ScaffoldMode.
+func (c *operatingModeServiceClient) ScaffoldMode(ctx context.Context, req *connect.Request[api.OperatingModeScaffoldRequest]) (*connect.Response[api.OperatingModeScaffoldResponse], error) {
+	return c.scaffoldMode.CallUnary(ctx, req)
+}
+
+// ValidateMode calls swarm_manager.v1.OperatingModeService.ValidateMode.
+func (c *operatingModeServiceClient) ValidateMode(ctx context.Context, req *connect.Request[api.OperatingModeValidateRequest]) (*connect.Response[api.OperatingModeValidateResponse], error) {
+	return c.validateMode.CallUnary(ctx, req)
 }
 
 // OperatingModeServiceHandler is an implementation of the swarm_manager.v1.OperatingModeService
@@ -314,6 +373,12 @@ type OperatingModeServiceHandler interface {
 	// StartPhase reserves and dispatches a round for one phase of a linked
 	// initiative.
 	StartPhase(context.Context, *connect.Request[api.OperatingModeStartPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error)
+	// StartTargetPhase is the plan-first entry point: it starts a mode round
+	// directly on a non-initiative target (a plan-manager plan by execution
+	// id/slug, or a plan-ref path) — no initiative created, no backlog
+	// ceremony. Initiative-target modes are rejected here; they start through
+	// StartPhase.
+	StartTargetPhase(context.Context, *connect.Request[api.OperatingModeStartTargetPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error)
 	// RenderLivePrompt renders the literal agent prompt for one phase of a real
 	// linked initiative with its live data substituted.
 	RenderLivePrompt(context.Context, *connect.Request[api.OperatingModeRenderLiveRequest]) (*connect.Response[api.OperatingModeRenderPromptResponse], error)
@@ -325,6 +390,14 @@ type OperatingModeServiceHandler interface {
 	CompleteItems(context.Context, *connect.Request[api.OperatingModeCompleteItemsRequest]) (*connect.Response[api.OperatingModeBacklogSyncResult], error)
 	// ApplyBacklogSync applies an operator-accepted reconcile proposal for a round.
 	ApplyBacklogSync(context.Context, *connect.Request[api.OperatingModeApplyBacklogSyncRequest]) (*connect.Response[api.OperatingModeBacklogSyncResult], error)
+	// ScaffoldMode writes a new mode folder (mode.json + a happy-path example-run)
+	// from the built-in template. Self-serve authoring entry point — the mode is
+	// simulatable immediately and executable after a restart, with no Go edits.
+	ScaffoldMode(context.Context, *connect.Request[api.OperatingModeScaffoldRequest]) (*connect.Response[api.OperatingModeScaffoldResponse], error)
+	// ValidateMode loads a mode fresh from disk through the real loader/validator
+	// and reports whether it is valid, so an author gets immediate structural
+	// feedback without a restart.
+	ValidateMode(context.Context, *connect.Request[api.OperatingModeValidateRequest]) (*connect.Response[api.OperatingModeValidateResponse], error)
 }
 
 // NewOperatingModeServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -382,6 +455,12 @@ func NewOperatingModeServiceHandler(svc OperatingModeServiceHandler, opts ...con
 		connect.WithSchema(operatingModeServiceMethods.ByName("StartPhase")),
 		connect.WithHandlerOptions(opts...),
 	)
+	operatingModeServiceStartTargetPhaseHandler := connect.NewUnaryHandler(
+		OperatingModeServiceStartTargetPhaseProcedure,
+		svc.StartTargetPhase,
+		connect.WithSchema(operatingModeServiceMethods.ByName("StartTargetPhase")),
+		connect.WithHandlerOptions(opts...),
+	)
 	operatingModeServiceRenderLivePromptHandler := connect.NewUnaryHandler(
 		OperatingModeServiceRenderLivePromptProcedure,
 		svc.RenderLivePrompt,
@@ -412,6 +491,18 @@ func NewOperatingModeServiceHandler(svc OperatingModeServiceHandler, opts ...con
 		connect.WithSchema(operatingModeServiceMethods.ByName("ApplyBacklogSync")),
 		connect.WithHandlerOptions(opts...),
 	)
+	operatingModeServiceScaffoldModeHandler := connect.NewUnaryHandler(
+		OperatingModeServiceScaffoldModeProcedure,
+		svc.ScaffoldMode,
+		connect.WithSchema(operatingModeServiceMethods.ByName("ScaffoldMode")),
+		connect.WithHandlerOptions(opts...),
+	)
+	operatingModeServiceValidateModeHandler := connect.NewUnaryHandler(
+		OperatingModeServiceValidateModeProcedure,
+		svc.ValidateMode,
+		connect.WithSchema(operatingModeServiceMethods.ByName("ValidateMode")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/swarm_manager.v1.OperatingModeService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OperatingModeServiceCatalogProcedure:
@@ -430,6 +521,8 @@ func NewOperatingModeServiceHandler(svc OperatingModeServiceHandler, opts ...con
 			operatingModeServiceSwitchModeHandler.ServeHTTP(w, r)
 		case OperatingModeServiceStartPhaseProcedure:
 			operatingModeServiceStartPhaseHandler.ServeHTTP(w, r)
+		case OperatingModeServiceStartTargetPhaseProcedure:
+			operatingModeServiceStartTargetPhaseHandler.ServeHTTP(w, r)
 		case OperatingModeServiceRenderLivePromptProcedure:
 			operatingModeServiceRenderLivePromptHandler.ServeHTTP(w, r)
 		case OperatingModeServiceRefreshRoundProcedure:
@@ -440,6 +533,10 @@ func NewOperatingModeServiceHandler(svc OperatingModeServiceHandler, opts ...con
 			operatingModeServiceCompleteItemsHandler.ServeHTTP(w, r)
 		case OperatingModeServiceApplyBacklogSyncProcedure:
 			operatingModeServiceApplyBacklogSyncHandler.ServeHTTP(w, r)
+		case OperatingModeServiceScaffoldModeProcedure:
+			operatingModeServiceScaffoldModeHandler.ServeHTTP(w, r)
+		case OperatingModeServiceValidateModeProcedure:
+			operatingModeServiceValidateModeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -481,6 +578,10 @@ func (UnimplementedOperatingModeServiceHandler) StartPhase(context.Context, *con
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.OperatingModeService.StartPhase is not implemented"))
 }
 
+func (UnimplementedOperatingModeServiceHandler) StartTargetPhase(context.Context, *connect.Request[api.OperatingModeStartTargetPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.OperatingModeService.StartTargetPhase is not implemented"))
+}
+
 func (UnimplementedOperatingModeServiceHandler) RenderLivePrompt(context.Context, *connect.Request[api.OperatingModeRenderLiveRequest]) (*connect.Response[api.OperatingModeRenderPromptResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.OperatingModeService.RenderLivePrompt is not implemented"))
 }
@@ -499,4 +600,12 @@ func (UnimplementedOperatingModeServiceHandler) CompleteItems(context.Context, *
 
 func (UnimplementedOperatingModeServiceHandler) ApplyBacklogSync(context.Context, *connect.Request[api.OperatingModeApplyBacklogSyncRequest]) (*connect.Response[api.OperatingModeBacklogSyncResult], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.OperatingModeService.ApplyBacklogSync is not implemented"))
+}
+
+func (UnimplementedOperatingModeServiceHandler) ScaffoldMode(context.Context, *connect.Request[api.OperatingModeScaffoldRequest]) (*connect.Response[api.OperatingModeScaffoldResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.OperatingModeService.ScaffoldMode is not implemented"))
+}
+
+func (UnimplementedOperatingModeServiceHandler) ValidateMode(context.Context, *connect.Request[api.OperatingModeValidateRequest]) (*connect.Response[api.OperatingModeValidateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.OperatingModeService.ValidateMode is not implemented"))
 }

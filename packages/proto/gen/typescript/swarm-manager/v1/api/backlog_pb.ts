@@ -9,13 +9,15 @@ import type { BacklogFile, BacklogItem, ClarificationThread } from "../domain/ba
 import { file_swarm_manager_v1_domain_backlog } from "../domain/backlog_pb";
 import type { ReviewEvidenceRound } from "../domain/execution_pb";
 import { file_swarm_manager_v1_domain_execution } from "../domain/execution_pb";
+import type { PlanRef } from "../domain/plan_ref_pb";
+import { file_swarm_manager_v1_domain_plan_ref } from "../domain/plan_ref_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file swarm-manager/v1/api/backlog.proto.
  */
 export const file_swarm_manager_v1_api_backlog: GenFile = /*@__PURE__*/
-  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL2FwaS9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIoYEChhDcmVhdGVCYWNrbG9nSXRlbVJlcXVlc3QSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIWCgV0aXRsZRgCIAEoCUIHukgEcgIQARIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBEiAKCHByaW9yaXR5GAQgASgFQgm6SAYaBBgKKAFIAYgBARIWCgR0YWdzGAUgAygJQgi6SAWSAQIYARI4CgRraW5kGAYgASgJQiq6SCdyJVIEaWRlYVIIcmVzZWFyY2hSA2ZpeFIHZXhlY3V0ZVIFY2hvcmUSEgoKZGVwZW5kc19vbhgIIAMoCRIXCgppbml0aWF0aXZlGAkgASgJSAKIAQESKwoGZWZmb3J0GAsgASgJQha6SBNyEVICWFNSAVNSAU1SAUxSAlhMSAOIAQESGAoQYWNjZXB0YW5jZV9hbGxvdxgNIAMoCRIXCg9hY2NlcHRhbmNlX2RlbnkYDiADKAkSGQoMc3Bhd25lZF9mcm9tGA8gASgJSASIAQESEQoEbm90ZRgQIAEoCUgFiAEBEg8KB2NyZWF0ZXMYESADKAlCDgoMX2Rlc2NyaXB0aW9uQgsKCV9wcmlvcml0eUINCgtfaW5pdGlhdGl2ZUIJCgdfZWZmb3J0Qg8KDV9zcGF3bmVkX2Zyb21CBwoFX25vdGVKBAgHEAhKBAgKEAtKBAgMEA0irAQKGFVwZGF0ZUJhY2tsb2dJdGVtUmVxdWVzdBIbCgV0aXRsZRgBIAEoCUIHukgEcgIQAUgAiAEBEhgKC2Rlc2NyaXB0aW9uGAIgASgJSAGIAQESXwoGc3RhdHVzGAMgASgJQkq6SEdyRVIHYmFja2xvZ1ILcmVzZWFyY2hpbmdSBXJlYWR5UgZxdWV1ZWRSC2luX3Byb2dyZXNzUgljb21wbGV0ZWRSBmZhaWxlZEgCiAEBEiAKCHByaW9yaXR5GAQgASgFQgm6SAYaBBgKKAFIA4gBARIWCgR0YWdzGAUgAygJQgi6SAWSAQIYARISCgpkZXBlbmRzX29uGAcgAygJEhcKCmluaXRpYXRpdmUYCCABKAlIBIgBARItCgZlZmZvcnQYCSABKAlCGLpIFXITUgBSAlhTUgFTUgFNUgFMUgJYTEgFiAEBEhgKEGFjY2VwdGFuY2VfYWxsb3cYCyADKAkSFwoPYWNjZXB0YW5jZV9kZW55GAwgAygJEhkKDHNwYXduZWRfZnJvbRgNIAEoCUgGiAEBEhEKBG5vdGUYDiABKAlIB4gBARIPCgdjcmVhdGVzGA8gAygJQggKBl90aXRsZUIOCgxfZGVzY3JpcHRpb25CCQoHX3N0YXR1c0ILCglfcHJpb3JpdHlCDQoLX2luaXRpYXRpdmVCCQoHX2VmZm9ydEIPCg1fc3Bhd25lZF9mcm9tQgcKBV9ub3RlSgQIBhAHSgQIChALIjQKDkJsb2NraW5nUmVhc29uEg8KB21lc3NhZ2UYASABKAkSEQoJZm9yY2VhYmxlGAIgASgIIlUKEEl0ZW1CbG9ja2luZ0luZm8SDwoHYmxvY2tlZBgBIAEoCBIZChFibG9ja2luZ19kZXBfa2V5cxgCIAMoCRIVCg1hbGxfZm9yY2VhYmxlGAMgASgIIukBChhMaXN0QmFja2xvZ0l0ZW1zUmVzcG9uc2USLAoFaXRlbXMYASADKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dJdGVtEkoKCGJsb2NraW5nGAIgAygLMjguc3dhcm1fbWFuYWdlci52MS5MaXN0QmFja2xvZ0l0ZW1zUmVzcG9uc2UuQmxvY2tpbmdFbnRyeRpTCg1CbG9ja2luZ0VudHJ5EgsKA2tleRgBIAEoCRIxCgV2YWx1ZRgCIAEoCzIiLnN3YXJtX21hbmFnZXIudjEuSXRlbUJsb2NraW5nSW5mbzoCOAEiUwoTQmFja2xvZ0l0ZW1SZXNwb25zZRIrCgRpdGVtGAEgASgLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nSXRlbRIPCgdkZWR1cGVkGAIgASgIIkUKFUdldEJhY2tsb2dJdGVtUmVxdWVzdBIVCgRraW5kGAEgASgJQge6SARyAhABEhUKBG5hbWUYAiABKAlCB7pIBHICEAEiRAoUQmFja2xvZ0ZpbGVzUmVzcG9uc2USLAoFZmlsZXMYASADKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dGaWxlIkIKE0JhY2tsb2dGaWxlUmVzcG9uc2USKwoEZmlsZRgBIAEoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0ZpbGUipQEKG0JhY2tsb2dGaWxlT3BlcmF0aW9uUmVxdWVzdBI0CglvcGVyYXRpb24YASABKAlCIbpIHnIcUgZyZW5hbWVSBG1vdmVSBGNvcHlSBmRlbGV0ZRIcCgtzb3VyY2VfcGF0aBgCIAEoCUIHukgEcgIQARIdChBkZXN0aW5hdGlvbl9wYXRoGAMgASgJSACIAQFCEwoRX2Rlc3RpbmF0aW9uX3BhdGgihQEKHEJhY2tsb2dGaWxlT3BlcmF0aW9uUmVzcG9uc2USMAoEZmlsZRgBIAEoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0ZpbGVIAIgBARIZCgxkZWxldGVkX3BhdGgYAiABKAlIAYgBAUIHCgVfZmlsZUIPCg1fZGVsZXRlZF9wYXRoIvoBChdRdWV1ZUJhY2tsb2dJdGVtUmVxdWVzdBIyCglvcGVyYXRpb24YASABKAlCGrpIF3IVUglnZW5lcmF0b3JSCGltcHJvdmVySACIAQESJgoEbW9kZRgCIAEoCUITukgQcg5SBm1hbnVhbFIEeW9sb0gBiAEBEhcKCnN0YXJ0ZWRfYnkYBCABKAlIAogBARIUCgdjb25maXJtGAUgASgISAOIAQESEgoFZm9yY2UYBiABKAhIBIgBAUIMCgpfb3BlcmF0aW9uQgcKBV9tb2RlQg0KC19zdGFydGVkX2J5QgoKCF9jb25maXJtQggKBl9mb3JjZUoECAMQBCLIAgoYUXVldWVCYWNrbG9nSXRlbVJlc3BvbnNlEisKBGl0ZW0YASABKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dJdGVtEg8KB3Rhc2tfaWQYAiABKAkSDgoGcnVuX2lkGAMgASgJEhAKCGJhc2VfdXJsGAQgASgJEg8KB2NyZWF0ZWQYBSABKAkSDwoHZHJ5X3J1bhgGIAEoCBIOCgZxdWV1ZWQYByABKAgSDwoHbWVzc2FnZRgIIAEoCRI6ChBibG9ja2luZ19yZWFzb25zGAkgAygLMiAuc3dhcm1fbWFuYWdlci52MS5CbG9ja2luZ1JlYXNvbhIcChR1bmFuc3dlcmVkX3F1ZXN0aW9ucxgKIAEoBRIbChNwZW5kaW5nX3N1Z2dlc3Rpb25zGAsgASgFEhIKCmFkdmlzb3JpZXMYDCADKAki4gIKFkJhY2tsb2dSZXNlYXJjaFJlcXVlc3QSEwoGcHJvbXB0GAEgASgJSACIAQESGQoMcHJvamVjdF9yb290GAMgASgJSAGIAQESUwoEbW9kZRgEIAEoCUJAukg9cjtSB2NsYXJpZnlSB3N1Z2dlc3RSB2VuaGFuY2VSCGZpbmFsaXplUgppbml0aWFsaXplUgh3b3Jrc2hvcEgCiAEBEhUKDWNvbnRleHRfcGF0aHMYBiADKAkSGgoSY29udGV4dF90YXJnZXRfaWRzGAcgAygJEh8KF2NvbnRleHRfcmVxdWlyZW1lbnRfaWRzGAggAygJEhQKB2NvbmZpcm0YCSABKAhIA4gBARISCgVmb3JjZRgKIAEoCEgEiAEBQgkKB19wcm9tcHRCDwoNX3Byb2plY3Rfcm9vdEIHCgVfbW9kZUIKCghfY29uZmlybUIICgZfZm9yY2VKBAgCEANKBAgFEAYizAEKF0JhY2tsb2dSZXNlYXJjaFJlc3BvbnNlEg8KB3Rhc2tfaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEhAKCGJhc2VfdXJsGAMgASgJEg8KB2NyZWF0ZWQYBCABKAkSDwoHZHJ5X3J1bhgFIAEoCBIPCgdzdGFydGVkGAYgASgIEg8KB21lc3NhZ2UYByABKAkSOgoQYmxvY2tpbmdfcmVhc29ucxgIIAMoCzIgLnN3YXJtX21hbmFnZXIudjEuQmxvY2tpbmdSZWFzb24i0wMKFEV4cG9ydEJhY2tsb2dSZXF1ZXN0Eg0KBWtpbmRzGAEgAygJEhAKCHN0YXR1c2VzGAIgAygJEg0KBW5hbWVzGAMgAygJEiQKDHByaW9yaXR5X21heBgEIAEoBUIJukgGGgQYCigBSACIAQESDAoEdGFncxgFIAMoCRIYCgtpbmNsdWRlX3ByZBgGIAEoCEgBiAEBEiEKFGluY2x1ZGVfcmVxdWlyZW1lbnRzGAcgASgISAKIAQESJgoZaW5jbHVkZV9jbGFyaWZ5X3F1ZXN0aW9ucxgIIAEoCEgDiAEBEiAKE2luY2x1ZGVfc3VnZ2VzdGlvbnMYCSABKAhIBIgBARIaCg1pbmNsdWRlX25vdGVzGAogASgISAWIAQESHQoQaW5jbHVkZV90ZW1wbGF0ZRgLIAEoCEgGiAEBQg8KDV9wcmlvcml0eV9tYXhCDgoMX2luY2x1ZGVfcHJkQhcKFV9pbmNsdWRlX3JlcXVpcmVtZW50c0IcChpfaW5jbHVkZV9jbGFyaWZ5X3F1ZXN0aW9uc0IWChRfaW5jbHVkZV9zdWdnZXN0aW9uc0IQCg5faW5jbHVkZV9ub3Rlc0ITChFfaW5jbHVkZV90ZW1wbGF0ZSJ6ChVJbXBvcnRCYWNrbG9nUmVzcG9uc2USDwoHZHJ5X3J1bhgBIAEoCBIvCgdjaGFuZ2VzGAIgAygLMh4uc3dhcm1fbWFuYWdlci52MS5JbXBvcnRDaGFuZ2USDgoGZXJyb3JzGAMgAygJEg8KB3N1bW1hcnkYBCABKAkiPQoMSW1wb3J0Q2hhbmdlEgwKBGl0ZW0YASABKAkSDgoGYWN0aW9uGAIgASgJEg8KB2RldGFpbHMYAyADKAkiVAoTV29ya3Nob3BTYXZlUmVxdWVzdBIdCgxyb3VuZF9udW1iZXIYASABKAVCB7pIBBoCKAESGAoHY29udGVudBgCIAEoCUIHukgEcgIQAUoECAMQBCKAAQoUV29ya3Nob3BTYXZlUmVzcG9uc2USKwoEZmlsZRgBIAEoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0ZpbGUSOwoMYXV0b19hZHZhbmNlGAIgASgLMiUuc3dhcm1fbWFuYWdlci52MS5Xb3Jrc2hvcEF1dG9BZHZhbmNlIosCChNXb3Jrc2hvcEF1dG9BZHZhbmNlEhEKCXRyaWdnZXJlZBgBIAEoCBITCgZydW5faWQYAiABKAlIAIgBARIUCgd0YXNrX2lkGAMgASgJSAGIAQESDgoGcmVhc29uGAQgASgJEjEKCW5leHRfbW9kZRgFIAEoCUIZukgWchRSCHdvcmtzaG9wUghmaW5hbGl6ZUgCiAEBEg8KB3BlbmRpbmcYBiABKAgSFwoKYWR2YW5jZV9hdBgHIAEoCUgDiAEBEhUKDWRlbGF5X3NlY29uZHMYCCABKAVCCQoHX3J1bl9pZEIKCghfdGFza19pZEIMCgpfbmV4dF9tb2RlQg0KC19hZHZhbmNlX2F0IjkKJFdvcmtzaG9wQ2FuY2VsUGVuZGluZ0FkdmFuY2VSZXNwb25zZRIRCgljYW5jZWxsZWQYASABKAgiOwoaV29ya3Nob3BEZWxldGVSb3VuZFJlcXVlc3QSHQoMcm91bmRfbnVtYmVyGAEgASgFQge6SAQaAigBIk4KG1dvcmtzaG9wRGVsZXRlUm91bmRSZXNwb25zZRIVCg1kZWxldGVkX3JvdW5kGAEgASgFEhgKEHJlbWFpbmluZ19yb3VuZHMYAiABKAUiFgoUV29ya3Nob3BSZXNldFJlcXVlc3QiSAoVV29ya3Nob3BSZXNldFJlc3BvbnNlEhYKDmRlbGV0ZWRfcm91bmRzGAEgASgFEhcKD3N0YXR1c19yZXZlcnRlZBgCIAEoCCJ+ChpDcmVhdGVDbGFyaWZpY2F0aW9uUmVxdWVzdBIdCgxyb3VuZF9udW1iZXIYASABKAVCB7pIBBoCKAESGAoHaXRlbV9pZBgCIAEoCUIHukgEcgIQARIPCgdtZXNzYWdlGAMgASgJEhYKDmF0dGFjaG1lbnRfaWRzGAQgAygJIlQKG0NyZWF0ZUNsYXJpZmljYXRpb25SZXNwb25zZRI1CgZ0aHJlYWQYASABKAsyJS5zd2FybV9tYW5hZ2VyLnYxLkNsYXJpZmljYXRpb25UaHJlYWQiUAocQ29udGludWVDbGFyaWZpY2F0aW9uUmVxdWVzdBIYCgdtZXNzYWdlGAEgASgJQge6SARyAhABEhYKDmF0dGFjaG1lbnRfaWRzGAIgAygJIlYKHUNvbnRpbnVlQ2xhcmlmaWNhdGlvblJlc3BvbnNlEjUKBnRocmVhZBgBIAEoCzIlLnN3YXJtX21hbmFnZXIudjEuQ2xhcmlmaWNhdGlvblRocmVhZCJRChhHZXRDbGFyaWZpY2F0aW9uUmVzcG9uc2USNQoGdGhyZWFkGAEgASgLMiUuc3dhcm1fbWFuYWdlci52MS5DbGFyaWZpY2F0aW9uVGhyZWFkIqUBChpDbGFyaWZpY2F0aW9uQWN0aW9uUmVxdWVzdBJRCgZhY3Rpb24YASABKAlCQbpIPnI8UgZnb3RfaXRSD3VwZGF0ZV9kZWNpc2lvblIPcmVtb3ZlX2RlY2lzaW9uUhBpbnZhbGlkYXRlX3JvdW5kEh4KEXVwZGF0ZWRfaXRlbV9qc29uGAIgASgJSACIAQFCFAoSX3VwZGF0ZWRfaXRlbV9qc29uIpEBChtDbGFyaWZpY2F0aW9uQWN0aW9uUmVzcG9uc2USDgoGYWN0aW9uGAEgASgJEg8KB3N1Y2Nlc3MYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRITCgZydW5faWQYBCABKAlIAIgBARIUCgd0YXNrX2lkGAUgASgJSAGIAQFCCQoHX3J1bl9pZEIKCghfdGFza19pZCJRChhMaXN0UmV2aWV3Um91bmRzUmVzcG9uc2USNQoGcm91bmRzGAEgAygLMiUuc3dhcm1fbWFuYWdlci52MS5SZXZpZXdFdmlkZW5jZVJvdW5kIikKFVZlcmlmeUV2aWRlbmNlUmVxdWVzdBIQCgh2ZXJpZmllZBgBIAEoCCJgChpSZXF1ZXN0TW9yZUV2aWRlbmNlUmVxdWVzdBIYCgdtZXNzYWdlGAEgASgJQge6SARyAhABEhgKC2V2aWRlbmNlX2lkGAIgASgJSACIAQFCDgoMX2V2aWRlbmNlX2lkIjAKG1JlcXVlc3RNb3JlRXZpZGVuY2VSZXNwb25zZRIRCgl0aHJlYWRfaWQYASABKAkiOgoeQ29udGludWVFdmlkZW5jZVJlcXVlc3RSZXF1ZXN0EhgKB21lc3NhZ2UYASABKAlCB7pIBHICEAEyzAEKDkJhY2tsb2dTZXJ2aWNlEl8KCkNyZWF0ZUl0ZW0SKi5zd2FybV9tYW5hZ2VyLnYxLkNyZWF0ZUJhY2tsb2dJdGVtUmVxdWVzdBolLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0l0ZW1SZXNwb25zZRJZCgdHZXRJdGVtEicuc3dhcm1fbWFuYWdlci52MS5HZXRCYWNrbG9nSXRlbVJlcXVlc3QaJS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dJdGVtUmVzcG9uc2VCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_backlog, file_swarm_manager_v1_domain_execution]);
+  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL2FwaS9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIsUEChhDcmVhdGVCYWNrbG9nSXRlbVJlcXVlc3QSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIWCgV0aXRsZRgCIAEoCUIHukgEcgIQARIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBEiAKCHByaW9yaXR5GAQgASgFQgm6SAYaBBgKKAFIAYgBARIWCgR0YWdzGAUgAygJQgi6SAWSAQIYARI4CgRraW5kGAYgASgJQiq6SCdyJVIEaWRlYVIIcmVzZWFyY2hSA2ZpeFIHZXhlY3V0ZVIFY2hvcmUSEgoKZGVwZW5kc19vbhgIIAMoCRIXCgppbml0aWF0aXZlGAkgASgJSAKIAQESKwoGZWZmb3J0GAsgASgJQha6SBNyEVICWFNSAVNSAU1SAUxSAlhMSAOIAQESGAoQYWNjZXB0YW5jZV9hbGxvdxgNIAMoCRIXCg9hY2NlcHRhbmNlX2RlbnkYDiADKAkSGQoMc3Bhd25lZF9mcm9tGA8gASgJSASIAQESEQoEbm90ZRgQIAEoCUgFiAEBEg8KB2NyZWF0ZXMYESADKAkSMAoIcGxhbl9yZWYYEiABKAsyGS5zd2FybV9tYW5hZ2VyLnYxLlBsYW5SZWZIBogBAUIOCgxfZGVzY3JpcHRpb25CCwoJX3ByaW9yaXR5Qg0KC19pbml0aWF0aXZlQgkKB19lZmZvcnRCDwoNX3NwYXduZWRfZnJvbUIHCgVfbm90ZUILCglfcGxhbl9yZWZKBAgHEAhKBAgKEAtKBAgMEA0iowUKGFVwZGF0ZUJhY2tsb2dJdGVtUmVxdWVzdBIbCgV0aXRsZRgBIAEoCUIHukgEcgIQAUgAiAEBEhgKC2Rlc2NyaXB0aW9uGAIgASgJSAGIAQESlgEKBnN0YXR1cxgDIAEoCUKAAbpIfXJ7UglzdWdnZXN0ZWRSB2JhY2tsb2dSC3Jlc2VhcmNoaW5nUgVyZWFkeVIGcXVldWVkUgtpbl9wcm9ncmVzc1IJaW5fcmV2aWV3Ug5yZXZpZXdfcGVuZGluZ1IJY29tcGxldGVkUgZmYWlsZWRSDm5lZWRzX2ZvbGxvd3VwSAKIAQESIAoIcHJpb3JpdHkYBCABKAVCCbpIBhoEGAooAUgDiAEBEhYKBHRhZ3MYBSADKAlCCLpIBZIBAhgBEhIKCmRlcGVuZHNfb24YByADKAkSFwoKaW5pdGlhdGl2ZRgIIAEoCUgEiAEBEi0KBmVmZm9ydBgJIAEoCUIYukgVchNSAFICWFNSAVNSAU1SAUxSAlhMSAWIAQESGAoQYWNjZXB0YW5jZV9hbGxvdxgLIAMoCRIXCg9hY2NlcHRhbmNlX2RlbnkYDCADKAkSGQoMc3Bhd25lZF9mcm9tGA0gASgJSAaIAQESEQoEbm90ZRgOIAEoCUgHiAEBEg8KB2NyZWF0ZXMYDyADKAkSMAoIcGxhbl9yZWYYECABKAsyGS5zd2FybV9tYW5hZ2VyLnYxLlBsYW5SZWZICIgBAUIICgZfdGl0bGVCDgoMX2Rlc2NyaXB0aW9uQgkKB19zdGF0dXNCCwoJX3ByaW9yaXR5Qg0KC19pbml0aWF0aXZlQgkKB19lZmZvcnRCDwoNX3NwYXduZWRfZnJvbUIHCgVfbm90ZUILCglfcGxhbl9yZWZKBAgGEAdKBAgKEAsiNAoOQmxvY2tpbmdSZWFzb24SDwoHbWVzc2FnZRgBIAEoCRIRCglmb3JjZWFibGUYAiABKAgiVQoQSXRlbUJsb2NraW5nSW5mbxIPCgdibG9ja2VkGAEgASgIEhkKEWJsb2NraW5nX2RlcF9rZXlzGAIgAygJEhUKDWFsbF9mb3JjZWFibGUYAyABKAgi6QEKGExpc3RCYWNrbG9nSXRlbXNSZXNwb25zZRIsCgVpdGVtcxgBIAMoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0l0ZW0SSgoIYmxvY2tpbmcYAiADKAsyOC5zd2FybV9tYW5hZ2VyLnYxLkxpc3RCYWNrbG9nSXRlbXNSZXNwb25zZS5CbG9ja2luZ0VudHJ5GlMKDUJsb2NraW5nRW50cnkSCwoDa2V5GAEgASgJEjEKBXZhbHVlGAIgASgLMiIuc3dhcm1fbWFuYWdlci52MS5JdGVtQmxvY2tpbmdJbmZvOgI4ASJTChNCYWNrbG9nSXRlbVJlc3BvbnNlEisKBGl0ZW0YASABKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dJdGVtEg8KB2RlZHVwZWQYAiABKAgiRQoVR2V0QmFja2xvZ0l0ZW1SZXF1ZXN0EhUKBGtpbmQYASABKAlCB7pIBHICEAESFQoEbmFtZRgCIAEoCUIHukgEcgIQASIYChZBdXRvRmlsZXJTdGF0dXNSZXF1ZXN0IhgKFkF1dG9GaWxlclJ1bk5vd1JlcXVlc3QijwEKE0F1dG9GaWxlckJyYWtlU3RhdGUSEwoLd2luZG93X2RheXMYASABKAUSDwoHbWluaW11bRgCIAEoBRIQCghvYnNlcnZlZBgDIAEoBRIOCgZicmFrZWQYBCABKAgSGAoQd2luZG93X3N0YXJ0X3V0YxgFIAEoCRIWCg53aW5kb3dfZW5kX3V0YxgGIAEoCSKdAwoXQXV0b0ZpbGVyU3RhdHVzUmVzcG9uc2USDwoHZW5hYmxlZBgBIAEoCBIMCgRtb2RlGAIgASgJEhAKCHN0cmF0ZWd5GAMgASgJEhcKD2xhc3RfY3ljbGVfdGltZRgEIAEoCRISCgpsYXN0X2Vycm9yGAUgASgJEhIKCmNhbmRpZGF0ZXMYBiABKAUSEAoIZmluZGluZ3MYByABKAUSDwoHY3JlYXRlZBgIIAEoBRIZChFza2lwcGVkX2Rpc21pc3NlZBgJIAEoBRIXCg9vcGVuX2F1dG9fZmlsZWQYCiABKAUSGwoTbWF4X29wZW5fYXV0b19maWxlZBgLIAEoBRIYChByZW1haW5pbmdfYnVkZ2V0GAwgASgFEjQKBWJyYWtlGA0gASgLMiUuc3dhcm1fbWFuYWdlci52MS5BdXRvRmlsZXJCcmFrZVN0YXRlEhcKD2Rpc21pc3NhbF9jb3VudBgOIAEoBRIZChFyZWNvbmNpbGVkX2Nsb3NlZBgPIAEoBRIYChByZWNvbmNpbGVkX25vdGVkGBAgASgFIpQBCiFEaXNtaXNzQXV0b0ZpbGVyU3VnZ2VzdGlvblJlcXVlc3QSOAoEa2luZBgBIAEoCUIqukgnciVSBGlkZWFSCHJlc2VhcmNoUgNmaXhSB2V4ZWN1dGVSBWNob3JlEhUKBG5hbWUYAiABKAlCB7pIBHICEAESEwoGcmVhc29uGAMgASgJSACIAQFCCQoHX3JlYXNvbiJkCiJEaXNtaXNzQXV0b0ZpbGVyU3VnZ2VzdGlvblJlc3BvbnNlEisKBGl0ZW0YASABKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dJdGVtEhEKCWRpc21pc3NlZBgCIAEoCCJEChRCYWNrbG9nRmlsZXNSZXNwb25zZRIsCgVmaWxlcxgBIAMoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0ZpbGUiQgoTQmFja2xvZ0ZpbGVSZXNwb25zZRIrCgRmaWxlGAEgASgLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nRmlsZSKlAQobQmFja2xvZ0ZpbGVPcGVyYXRpb25SZXF1ZXN0EjQKCW9wZXJhdGlvbhgBIAEoCUIhukgechxSBnJlbmFtZVIEbW92ZVIEY29weVIGZGVsZXRlEhwKC3NvdXJjZV9wYXRoGAIgASgJQge6SARyAhABEh0KEGRlc3RpbmF0aW9uX3BhdGgYAyABKAlIAIgBAUITChFfZGVzdGluYXRpb25fcGF0aCKFAQocQmFja2xvZ0ZpbGVPcGVyYXRpb25SZXNwb25zZRIwCgRmaWxlGAEgASgLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nRmlsZUgAiAEBEhkKDGRlbGV0ZWRfcGF0aBgCIAEoCUgBiAEBQgcKBV9maWxlQg8KDV9kZWxldGVkX3BhdGgi+gEKF1F1ZXVlQmFja2xvZ0l0ZW1SZXF1ZXN0EjIKCW9wZXJhdGlvbhgBIAEoCUIaukgXchVSCWdlbmVyYXRvclIIaW1wcm92ZXJIAIgBARImCgRtb2RlGAIgASgJQhO6SBByDlIGbWFudWFsUgR5b2xvSAGIAQESFwoKc3RhcnRlZF9ieRgEIAEoCUgCiAEBEhQKB2NvbmZpcm0YBSABKAhIA4gBARISCgVmb3JjZRgGIAEoCEgEiAEBQgwKCl9vcGVyYXRpb25CBwoFX21vZGVCDQoLX3N0YXJ0ZWRfYnlCCgoIX2NvbmZpcm1CCAoGX2ZvcmNlSgQIAxAEIsgCChhRdWV1ZUJhY2tsb2dJdGVtUmVzcG9uc2USKwoEaXRlbRgBIAEoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0l0ZW0SDwoHdGFza19pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSEAoIYmFzZV91cmwYBCABKAkSDwoHY3JlYXRlZBgFIAEoCRIPCgdkcnlfcnVuGAYgASgIEg4KBnF1ZXVlZBgHIAEoCBIPCgdtZXNzYWdlGAggASgJEjoKEGJsb2NraW5nX3JlYXNvbnMYCSADKAsyIC5zd2FybV9tYW5hZ2VyLnYxLkJsb2NraW5nUmVhc29uEhwKFHVuYW5zd2VyZWRfcXVlc3Rpb25zGAogASgFEhsKE3BlbmRpbmdfc3VnZ2VzdGlvbnMYCyABKAUSEgoKYWR2aXNvcmllcxgMIAMoCSLiAgoWQmFja2xvZ1Jlc2VhcmNoUmVxdWVzdBITCgZwcm9tcHQYASABKAlIAIgBARIZCgxwcm9qZWN0X3Jvb3QYAyABKAlIAYgBARJTCgRtb2RlGAQgASgJQkC6SD1yO1IHY2xhcmlmeVIHc3VnZ2VzdFIHZW5oYW5jZVIIZmluYWxpemVSCmluaXRpYWxpemVSCHdvcmtzaG9wSAKIAQESFQoNY29udGV4dF9wYXRocxgGIAMoCRIaChJjb250ZXh0X3RhcmdldF9pZHMYByADKAkSHwoXY29udGV4dF9yZXF1aXJlbWVudF9pZHMYCCADKAkSFAoHY29uZmlybRgJIAEoCEgDiAEBEhIKBWZvcmNlGAogASgISASIAQFCCQoHX3Byb21wdEIPCg1fcHJvamVjdF9yb290QgcKBV9tb2RlQgoKCF9jb25maXJtQggKBl9mb3JjZUoECAIQA0oECAUQBiLMAQoXQmFja2xvZ1Jlc2VhcmNoUmVzcG9uc2USDwoHdGFza19pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSEAoIYmFzZV91cmwYAyABKAkSDwoHY3JlYXRlZBgEIAEoCRIPCgdkcnlfcnVuGAUgASgIEg8KB3N0YXJ0ZWQYBiABKAgSDwoHbWVzc2FnZRgHIAEoCRI6ChBibG9ja2luZ19yZWFzb25zGAggAygLMiAuc3dhcm1fbWFuYWdlci52MS5CbG9ja2luZ1JlYXNvbiLTAwoURXhwb3J0QmFja2xvZ1JlcXVlc3QSDQoFa2luZHMYASADKAkSEAoIc3RhdHVzZXMYAiADKAkSDQoFbmFtZXMYAyADKAkSJAoMcHJpb3JpdHlfbWF4GAQgASgFQgm6SAYaBBgKKAFIAIgBARIMCgR0YWdzGAUgAygJEhgKC2luY2x1ZGVfcHJkGAYgASgISAGIAQESIQoUaW5jbHVkZV9yZXF1aXJlbWVudHMYByABKAhIAogBARImChlpbmNsdWRlX2NsYXJpZnlfcXVlc3Rpb25zGAggASgISAOIAQESIAoTaW5jbHVkZV9zdWdnZXN0aW9ucxgJIAEoCEgEiAEBEhoKDWluY2x1ZGVfbm90ZXMYCiABKAhIBYgBARIdChBpbmNsdWRlX3RlbXBsYXRlGAsgASgISAaIAQFCDwoNX3ByaW9yaXR5X21heEIOCgxfaW5jbHVkZV9wcmRCFwoVX2luY2x1ZGVfcmVxdWlyZW1lbnRzQhwKGl9pbmNsdWRlX2NsYXJpZnlfcXVlc3Rpb25zQhYKFF9pbmNsdWRlX3N1Z2dlc3Rpb25zQhAKDl9pbmNsdWRlX25vdGVzQhMKEV9pbmNsdWRlX3RlbXBsYXRlInoKFUltcG9ydEJhY2tsb2dSZXNwb25zZRIPCgdkcnlfcnVuGAEgASgIEi8KB2NoYW5nZXMYAiADKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkltcG9ydENoYW5nZRIOCgZlcnJvcnMYAyADKAkSDwoHc3VtbWFyeRgEIAEoCSI9CgxJbXBvcnRDaGFuZ2USDAoEaXRlbRgBIAEoCRIOCgZhY3Rpb24YAiABKAkSDwoHZGV0YWlscxgDIAMoCSJUChNXb3Jrc2hvcFNhdmVSZXF1ZXN0Eh0KDHJvdW5kX251bWJlchgBIAEoBUIHukgEGgIoARIYCgdjb250ZW50GAIgASgJQge6SARyAhABSgQIAxAEIoABChRXb3Jrc2hvcFNhdmVSZXNwb25zZRIrCgRmaWxlGAEgASgLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nRmlsZRI7CgxhdXRvX2FkdmFuY2UYAiABKAsyJS5zd2FybV9tYW5hZ2VyLnYxLldvcmtzaG9wQXV0b0FkdmFuY2UiiwIKE1dvcmtzaG9wQXV0b0FkdmFuY2USEQoJdHJpZ2dlcmVkGAEgASgIEhMKBnJ1bl9pZBgCIAEoCUgAiAEBEhQKB3Rhc2tfaWQYAyABKAlIAYgBARIOCgZyZWFzb24YBCABKAkSMQoJbmV4dF9tb2RlGAUgASgJQhm6SBZyFFIId29ya3Nob3BSCGZpbmFsaXplSAKIAQESDwoHcGVuZGluZxgGIAEoCBIXCgphZHZhbmNlX2F0GAcgASgJSAOIAQESFQoNZGVsYXlfc2Vjb25kcxgIIAEoBUIJCgdfcnVuX2lkQgoKCF90YXNrX2lkQgwKCl9uZXh0X21vZGVCDQoLX2FkdmFuY2VfYXQiOQokV29ya3Nob3BDYW5jZWxQZW5kaW5nQWR2YW5jZVJlc3BvbnNlEhEKCWNhbmNlbGxlZBgBIAEoCCI7ChpXb3Jrc2hvcERlbGV0ZVJvdW5kUmVxdWVzdBIdCgxyb3VuZF9udW1iZXIYASABKAVCB7pIBBoCKAEiTgobV29ya3Nob3BEZWxldGVSb3VuZFJlc3BvbnNlEhUKDWRlbGV0ZWRfcm91bmQYASABKAUSGAoQcmVtYWluaW5nX3JvdW5kcxgCIAEoBSIWChRXb3Jrc2hvcFJlc2V0UmVxdWVzdCJIChVXb3Jrc2hvcFJlc2V0UmVzcG9uc2USFgoOZGVsZXRlZF9yb3VuZHMYASABKAUSFwoPc3RhdHVzX3JldmVydGVkGAIgASgIIn4KGkNyZWF0ZUNsYXJpZmljYXRpb25SZXF1ZXN0Eh0KDHJvdW5kX251bWJlchgBIAEoBUIHukgEGgIoARIYCgdpdGVtX2lkGAIgASgJQge6SARyAhABEg8KB21lc3NhZ2UYAyABKAkSFgoOYXR0YWNobWVudF9pZHMYBCADKAkiVAobQ3JlYXRlQ2xhcmlmaWNhdGlvblJlc3BvbnNlEjUKBnRocmVhZBgBIAEoCzIlLnN3YXJtX21hbmFnZXIudjEuQ2xhcmlmaWNhdGlvblRocmVhZCJQChxDb250aW51ZUNsYXJpZmljYXRpb25SZXF1ZXN0EhgKB21lc3NhZ2UYASABKAlCB7pIBHICEAESFgoOYXR0YWNobWVudF9pZHMYAiADKAkiVgodQ29udGludWVDbGFyaWZpY2F0aW9uUmVzcG9uc2USNQoGdGhyZWFkGAEgASgLMiUuc3dhcm1fbWFuYWdlci52MS5DbGFyaWZpY2F0aW9uVGhyZWFkIlEKGEdldENsYXJpZmljYXRpb25SZXNwb25zZRI1CgZ0aHJlYWQYASABKAsyJS5zd2FybV9tYW5hZ2VyLnYxLkNsYXJpZmljYXRpb25UaHJlYWQipQEKGkNsYXJpZmljYXRpb25BY3Rpb25SZXF1ZXN0ElEKBmFjdGlvbhgBIAEoCUJBukg+cjxSBmdvdF9pdFIPdXBkYXRlX2RlY2lzaW9uUg9yZW1vdmVfZGVjaXNpb25SEGludmFsaWRhdGVfcm91bmQSHgoRdXBkYXRlZF9pdGVtX2pzb24YAiABKAlIAIgBAUIUChJfdXBkYXRlZF9pdGVtX2pzb24ikQEKG0NsYXJpZmljYXRpb25BY3Rpb25SZXNwb25zZRIOCgZhY3Rpb24YASABKAkSDwoHc3VjY2VzcxgCIAEoCBIPCgdtZXNzYWdlGAMgASgJEhMKBnJ1bl9pZBgEIAEoCUgAiAEBEhQKB3Rhc2tfaWQYBSABKAlIAYgBAUIJCgdfcnVuX2lkQgoKCF90YXNrX2lkIlEKGExpc3RSZXZpZXdSb3VuZHNSZXNwb25zZRI1CgZyb3VuZHMYASADKAsyJS5zd2FybV9tYW5hZ2VyLnYxLlJldmlld0V2aWRlbmNlUm91bmQiKQoVVmVyaWZ5RXZpZGVuY2VSZXF1ZXN0EhAKCHZlcmlmaWVkGAEgASgIImAKGlJlcXVlc3RNb3JlRXZpZGVuY2VSZXF1ZXN0EhgKB21lc3NhZ2UYASABKAlCB7pIBHICEAESGAoLZXZpZGVuY2VfaWQYAiABKAlIAIgBAUIOCgxfZXZpZGVuY2VfaWQiMAobUmVxdWVzdE1vcmVFdmlkZW5jZVJlc3BvbnNlEhEKCXRocmVhZF9pZBgBIAEoCSI6Ch5Db250aW51ZUV2aWRlbmNlUmVxdWVzdFJlcXVlc3QSGAoHbWVzc2FnZRgBIAEoCUIHukgEcgIQATLMAQoOQmFja2xvZ1NlcnZpY2USXwoKQ3JlYXRlSXRlbRIqLnN3YXJtX21hbmFnZXIudjEuQ3JlYXRlQmFja2xvZ0l0ZW1SZXF1ZXN0GiUuc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nSXRlbVJlc3BvbnNlElkKB0dldEl0ZW0SJy5zd2FybV9tYW5hZ2VyLnYxLkdldEJhY2tsb2dJdGVtUmVxdWVzdBolLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0l0ZW1SZXNwb25zZTLTAgoQQXV0b0ZpbGVyU2VydmljZRJgCglHZXRTdGF0dXMSKC5zd2FybV9tYW5hZ2VyLnYxLkF1dG9GaWxlclN0YXR1c1JlcXVlc3QaKS5zd2FybV9tYW5hZ2VyLnYxLkF1dG9GaWxlclN0YXR1c1Jlc3BvbnNlEn4KEURpc21pc3NTdWdnZXN0aW9uEjMuc3dhcm1fbWFuYWdlci52MS5EaXNtaXNzQXV0b0ZpbGVyU3VnZ2VzdGlvblJlcXVlc3QaNC5zd2FybV9tYW5hZ2VyLnYxLkRpc21pc3NBdXRvRmlsZXJTdWdnZXN0aW9uUmVzcG9uc2USXQoGUnVuTm93Eiguc3dhcm1fbWFuYWdlci52MS5BdXRvRmlsZXJSdW5Ob3dSZXF1ZXN0Gikuc3dhcm1fbWFuYWdlci52MS5BdXRvRmlsZXJTdGF0dXNSZXNwb25zZUJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_backlog, file_swarm_manager_v1_domain_execution, file_swarm_manager_v1_domain_plan_ref]);
 
 /**
  * CreateBacklogItemRequest defines the payload for creating a new backlog item.
@@ -123,6 +125,13 @@ export type CreateBacklogItemRequest = Message<"swarm_manager.v1.CreateBacklogIt
    * @generated from field: repeated string creates = 17;
    */
   creates: string[];
+
+  /**
+   * Canonical plan-manager plan backing this work item.
+   *
+   * @generated from field: optional swarm_manager.v1.PlanRef plan_ref = 18;
+   */
+  planRef?: PlanRef | undefined;
 };
 
 /**
@@ -160,7 +169,7 @@ export type UpdateBacklogItemRequest = Message<"swarm_manager.v1.UpdateBacklogIt
 
   /**
    * Lifecycle status.
-   * @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
+   * @constraint one of: suggested, backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
    *
    * @generated from field: optional string status = 3;
    */
@@ -236,6 +245,13 @@ export type UpdateBacklogItemRequest = Message<"swarm_manager.v1.UpdateBacklogIt
    * @generated from field: repeated string creates = 15;
    */
   creates: string[];
+
+  /**
+   * Canonical plan-manager plan backing this work item. Set empty strings to clear.
+   *
+   * @generated from field: optional swarm_manager.v1.PlanRef plan_ref = 16;
+   */
+  planRef?: PlanRef | undefined;
 };
 
 /**
@@ -394,6 +410,215 @@ export const GetBacklogItemRequestSchema: GenMessage<GetBacklogItemRequest> = /*
   messageDesc(file_swarm_manager_v1_api_backlog, 6);
 
 /**
+ * @generated from message swarm_manager.v1.AutoFilerStatusRequest
+ */
+export type AutoFilerStatusRequest = Message<"swarm_manager.v1.AutoFilerStatusRequest"> & {
+};
+
+/**
+ * Describes the message swarm_manager.v1.AutoFilerStatusRequest.
+ * Use `create(AutoFilerStatusRequestSchema)` to create a new message.
+ */
+export const AutoFilerStatusRequestSchema: GenMessage<AutoFilerStatusRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_backlog, 7);
+
+/**
+ * @generated from message swarm_manager.v1.AutoFilerRunNowRequest
+ */
+export type AutoFilerRunNowRequest = Message<"swarm_manager.v1.AutoFilerRunNowRequest"> & {
+};
+
+/**
+ * Describes the message swarm_manager.v1.AutoFilerRunNowRequest.
+ * Use `create(AutoFilerRunNowRequestSchema)` to create a new message.
+ */
+export const AutoFilerRunNowRequestSchema: GenMessage<AutoFilerRunNowRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_backlog, 8);
+
+/**
+ * @generated from message swarm_manager.v1.AutoFilerBrakeState
+ */
+export type AutoFilerBrakeState = Message<"swarm_manager.v1.AutoFilerBrakeState"> & {
+  /**
+   * @generated from field: int32 window_days = 1;
+   */
+  windowDays: number;
+
+  /**
+   * @generated from field: int32 minimum = 2;
+   */
+  minimum: number;
+
+  /**
+   * @generated from field: int32 observed = 3;
+   */
+  observed: number;
+
+  /**
+   * @generated from field: bool braked = 4;
+   */
+  braked: boolean;
+
+  /**
+   * @generated from field: string window_start_utc = 5;
+   */
+  windowStartUtc: string;
+
+  /**
+   * @generated from field: string window_end_utc = 6;
+   */
+  windowEndUtc: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.AutoFilerBrakeState.
+ * Use `create(AutoFilerBrakeStateSchema)` to create a new message.
+ */
+export const AutoFilerBrakeStateSchema: GenMessage<AutoFilerBrakeState> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_backlog, 9);
+
+/**
+ * @generated from message swarm_manager.v1.AutoFilerStatusResponse
+ */
+export type AutoFilerStatusResponse = Message<"swarm_manager.v1.AutoFilerStatusResponse"> & {
+  /**
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: string mode = 2;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: string strategy = 3;
+   */
+  strategy: string;
+
+  /**
+   * @generated from field: string last_cycle_time = 4;
+   */
+  lastCycleTime: string;
+
+  /**
+   * @generated from field: string last_error = 5;
+   */
+  lastError: string;
+
+  /**
+   * @generated from field: int32 candidates = 6;
+   */
+  candidates: number;
+
+  /**
+   * @generated from field: int32 findings = 7;
+   */
+  findings: number;
+
+  /**
+   * @generated from field: int32 created = 8;
+   */
+  created: number;
+
+  /**
+   * @generated from field: int32 skipped_dismissed = 9;
+   */
+  skippedDismissed: number;
+
+  /**
+   * @generated from field: int32 open_auto_filed = 10;
+   */
+  openAutoFiled: number;
+
+  /**
+   * @generated from field: int32 max_open_auto_filed = 11;
+   */
+  maxOpenAutoFiled: number;
+
+  /**
+   * @generated from field: int32 remaining_budget = 12;
+   */
+  remainingBudget: number;
+
+  /**
+   * @generated from field: swarm_manager.v1.AutoFilerBrakeState brake = 13;
+   */
+  brake?: AutoFilerBrakeState | undefined;
+
+  /**
+   * @generated from field: int32 dismissal_count = 14;
+   */
+  dismissalCount: number;
+
+  /**
+   * @generated from field: int32 reconciled_closed = 15;
+   */
+  reconciledClosed: number;
+
+  /**
+   * @generated from field: int32 reconciled_noted = 16;
+   */
+  reconciledNoted: number;
+};
+
+/**
+ * Describes the message swarm_manager.v1.AutoFilerStatusResponse.
+ * Use `create(AutoFilerStatusResponseSchema)` to create a new message.
+ */
+export const AutoFilerStatusResponseSchema: GenMessage<AutoFilerStatusResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_backlog, 10);
+
+/**
+ * @generated from message swarm_manager.v1.DismissAutoFilerSuggestionRequest
+ */
+export type DismissAutoFilerSuggestionRequest = Message<"swarm_manager.v1.DismissAutoFilerSuggestionRequest"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: optional string reason = 3;
+   */
+  reason?: string | undefined;
+};
+
+/**
+ * Describes the message swarm_manager.v1.DismissAutoFilerSuggestionRequest.
+ * Use `create(DismissAutoFilerSuggestionRequestSchema)` to create a new message.
+ */
+export const DismissAutoFilerSuggestionRequestSchema: GenMessage<DismissAutoFilerSuggestionRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_backlog, 11);
+
+/**
+ * @generated from message swarm_manager.v1.DismissAutoFilerSuggestionResponse
+ */
+export type DismissAutoFilerSuggestionResponse = Message<"swarm_manager.v1.DismissAutoFilerSuggestionResponse"> & {
+  /**
+   * @generated from field: swarm_manager.v1.BacklogItem item = 1;
+   */
+  item?: BacklogItem | undefined;
+
+  /**
+   * @generated from field: bool dismissed = 2;
+   */
+  dismissed: boolean;
+};
+
+/**
+ * Describes the message swarm_manager.v1.DismissAutoFilerSuggestionResponse.
+ * Use `create(DismissAutoFilerSuggestionResponseSchema)` to create a new message.
+ */
+export const DismissAutoFilerSuggestionResponseSchema: GenMessage<DismissAutoFilerSuggestionResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_backlog, 12);
+
+/**
  * BacklogFilesResponse returns the file tree for a backlog item.
  *
  * @generated from message swarm_manager.v1.BacklogFilesResponse
@@ -410,7 +635,7 @@ export type BacklogFilesResponse = Message<"swarm_manager.v1.BacklogFilesRespons
  * Use `create(BacklogFilesResponseSchema)` to create a new message.
  */
 export const BacklogFilesResponseSchema: GenMessage<BacklogFilesResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 7);
+  messageDesc(file_swarm_manager_v1_api_backlog, 13);
 
 /**
  * BacklogFileResponse returns a single file node.
@@ -429,7 +654,7 @@ export type BacklogFileResponse = Message<"swarm_manager.v1.BacklogFileResponse"
  * Use `create(BacklogFileResponseSchema)` to create a new message.
  */
 export const BacklogFileResponseSchema: GenMessage<BacklogFileResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 8);
+  messageDesc(file_swarm_manager_v1_api_backlog, 14);
 
 /**
  * BacklogFileOperationRequest applies a filesystem operation within a backlog item.
@@ -466,7 +691,7 @@ export type BacklogFileOperationRequest = Message<"swarm_manager.v1.BacklogFileO
  * Use `create(BacklogFileOperationRequestSchema)` to create a new message.
  */
 export const BacklogFileOperationRequestSchema: GenMessage<BacklogFileOperationRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 9);
+  messageDesc(file_swarm_manager_v1_api_backlog, 15);
 
 /**
  * BacklogFileOperationResponse reports the result of a file operation.
@@ -494,7 +719,7 @@ export type BacklogFileOperationResponse = Message<"swarm_manager.v1.BacklogFile
  * Use `create(BacklogFileOperationResponseSchema)` to create a new message.
  */
 export const BacklogFileOperationResponseSchema: GenMessage<BacklogFileOperationResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 10);
+  messageDesc(file_swarm_manager_v1_api_backlog, 16);
 
 /**
  * QueueBacklogItemRequest queues a backlog item for processing.
@@ -545,7 +770,7 @@ export type QueueBacklogItemRequest = Message<"swarm_manager.v1.QueueBacklogItem
  * Use `create(QueueBacklogItemRequestSchema)` to create a new message.
  */
 export const QueueBacklogItemRequestSchema: GenMessage<QueueBacklogItemRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 11);
+  messageDesc(file_swarm_manager_v1_api_backlog, 17);
 
 /**
  * QueueBacklogItemResponse returns queue results.
@@ -634,7 +859,7 @@ export type QueueBacklogItemResponse = Message<"swarm_manager.v1.QueueBacklogIte
  * Use `create(QueueBacklogItemResponseSchema)` to create a new message.
  */
 export const QueueBacklogItemResponseSchema: GenMessage<QueueBacklogItemResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 12);
+  messageDesc(file_swarm_manager_v1_api_backlog, 18);
 
 /**
  * BacklogResearchRequest captures optional fields for spawning a research agent.
@@ -705,7 +930,7 @@ export type BacklogResearchRequest = Message<"swarm_manager.v1.BacklogResearchRe
  * Use `create(BacklogResearchRequestSchema)` to create a new message.
  */
 export const BacklogResearchRequestSchema: GenMessage<BacklogResearchRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 13);
+  messageDesc(file_swarm_manager_v1_api_backlog, 19);
 
 /**
  * BacklogResearchResponse returns agent-manager identifiers for research runs.
@@ -767,7 +992,7 @@ export type BacklogResearchResponse = Message<"swarm_manager.v1.BacklogResearchR
  * Use `create(BacklogResearchResponseSchema)` to create a new message.
  */
 export const BacklogResearchResponseSchema: GenMessage<BacklogResearchResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 14);
+  messageDesc(file_swarm_manager_v1_api_backlog, 20);
 
 /**
  * ExportBacklogRequest defines filter criteria for exporting backlog items to markdown.
@@ -858,7 +1083,7 @@ export type ExportBacklogRequest = Message<"swarm_manager.v1.ExportBacklogReques
  * Use `create(ExportBacklogRequestSchema)` to create a new message.
  */
 export const ExportBacklogRequestSchema: GenMessage<ExportBacklogRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 15);
+  messageDesc(file_swarm_manager_v1_api_backlog, 21);
 
 /**
  * ImportBacklogResponse reports the results of importing an edited markdown export.
@@ -900,7 +1125,7 @@ export type ImportBacklogResponse = Message<"swarm_manager.v1.ImportBacklogRespo
  * Use `create(ImportBacklogResponseSchema)` to create a new message.
  */
 export const ImportBacklogResponseSchema: GenMessage<ImportBacklogResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 16);
+  messageDesc(file_swarm_manager_v1_api_backlog, 22);
 
 /**
  * ImportChange describes a single change from an import operation.
@@ -935,7 +1160,7 @@ export type ImportChange = Message<"swarm_manager.v1.ImportChange"> & {
  * Use `create(ImportChangeSchema)` to create a new message.
  */
 export const ImportChangeSchema: GenMessage<ImportChange> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 17);
+  messageDesc(file_swarm_manager_v1_api_backlog, 23);
 
 /**
  * WorkshopSaveRequest saves a workshop round's responses and optionally
@@ -964,7 +1189,7 @@ export type WorkshopSaveRequest = Message<"swarm_manager.v1.WorkshopSaveRequest"
  * Use `create(WorkshopSaveRequestSchema)` to create a new message.
  */
 export const WorkshopSaveRequestSchema: GenMessage<WorkshopSaveRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 18);
+  messageDesc(file_swarm_manager_v1_api_backlog, 24);
 
 /**
  * WorkshopSaveResponse returns the result of saving a workshop round.
@@ -992,7 +1217,7 @@ export type WorkshopSaveResponse = Message<"swarm_manager.v1.WorkshopSaveRespons
  * Use `create(WorkshopSaveResponseSchema)` to create a new message.
  */
 export const WorkshopSaveResponseSchema: GenMessage<WorkshopSaveResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 19);
+  messageDesc(file_swarm_manager_v1_api_backlog, 25);
 
 /**
  * WorkshopAutoAdvance reports whether and why auto-advance was triggered.
@@ -1063,7 +1288,7 @@ export type WorkshopAutoAdvance = Message<"swarm_manager.v1.WorkshopAutoAdvance"
  * Use `create(WorkshopAutoAdvanceSchema)` to create a new message.
  */
 export const WorkshopAutoAdvanceSchema: GenMessage<WorkshopAutoAdvance> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 20);
+  messageDesc(file_swarm_manager_v1_api_backlog, 26);
 
 /**
  * WorkshopCancelPendingAdvanceResponse is the response from cancelling a pending advance.
@@ -1082,7 +1307,7 @@ export type WorkshopCancelPendingAdvanceResponse = Message<"swarm_manager.v1.Wor
  * Use `create(WorkshopCancelPendingAdvanceResponseSchema)` to create a new message.
  */
 export const WorkshopCancelPendingAdvanceResponseSchema: GenMessage<WorkshopCancelPendingAdvanceResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 21);
+  messageDesc(file_swarm_manager_v1_api_backlog, 27);
 
 /**
  * WorkshopDeleteRoundRequest deletes an entire workshop round and renumbers
@@ -1104,7 +1329,7 @@ export type WorkshopDeleteRoundRequest = Message<"swarm_manager.v1.WorkshopDelet
  * Use `create(WorkshopDeleteRoundRequestSchema)` to create a new message.
  */
 export const WorkshopDeleteRoundRequestSchema: GenMessage<WorkshopDeleteRoundRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 22);
+  messageDesc(file_swarm_manager_v1_api_backlog, 28);
 
 /**
  * WorkshopDeleteRoundResponse reports the result of deleting a workshop round.
@@ -1132,7 +1357,7 @@ export type WorkshopDeleteRoundResponse = Message<"swarm_manager.v1.WorkshopDele
  * Use `create(WorkshopDeleteRoundResponseSchema)` to create a new message.
  */
 export const WorkshopDeleteRoundResponseSchema: GenMessage<WorkshopDeleteRoundResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 23);
+  messageDesc(file_swarm_manager_v1_api_backlog, 29);
 
 /**
  * WorkshopResetRequest resets an entire workshop, deleting all rounds,
@@ -1149,7 +1374,7 @@ export type WorkshopResetRequest = Message<"swarm_manager.v1.WorkshopResetReques
  * Use `create(WorkshopResetRequestSchema)` to create a new message.
  */
 export const WorkshopResetRequestSchema: GenMessage<WorkshopResetRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 24);
+  messageDesc(file_swarm_manager_v1_api_backlog, 30);
 
 /**
  * WorkshopResetResponse reports the result of resetting a workshop.
@@ -1177,7 +1402,7 @@ export type WorkshopResetResponse = Message<"swarm_manager.v1.WorkshopResetRespo
  * Use `create(WorkshopResetResponseSchema)` to create a new message.
  */
 export const WorkshopResetResponseSchema: GenMessage<WorkshopResetResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 25);
+  messageDesc(file_swarm_manager_v1_api_backlog, 31);
 
 /**
  * CreateClarificationRequest starts a new clarification thread for a decision.
@@ -1219,7 +1444,7 @@ export type CreateClarificationRequest = Message<"swarm_manager.v1.CreateClarifi
  * Use `create(CreateClarificationRequestSchema)` to create a new message.
  */
 export const CreateClarificationRequestSchema: GenMessage<CreateClarificationRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 26);
+  messageDesc(file_swarm_manager_v1_api_backlog, 32);
 
 /**
  * CreateClarificationResponse returns the newly created thread.
@@ -1238,7 +1463,7 @@ export type CreateClarificationResponse = Message<"swarm_manager.v1.CreateClarif
  * Use `create(CreateClarificationResponseSchema)` to create a new message.
  */
 export const CreateClarificationResponseSchema: GenMessage<CreateClarificationResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 27);
+  messageDesc(file_swarm_manager_v1_api_backlog, 33);
 
 /**
  * ContinueClarificationRequest sends a follow-up message in an existing thread.
@@ -1266,7 +1491,7 @@ export type ContinueClarificationRequest = Message<"swarm_manager.v1.ContinueCla
  * Use `create(ContinueClarificationRequestSchema)` to create a new message.
  */
 export const ContinueClarificationRequestSchema: GenMessage<ContinueClarificationRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 28);
+  messageDesc(file_swarm_manager_v1_api_backlog, 34);
 
 /**
  * ContinueClarificationResponse returns the updated thread.
@@ -1285,7 +1510,7 @@ export type ContinueClarificationResponse = Message<"swarm_manager.v1.ContinueCl
  * Use `create(ContinueClarificationResponseSchema)` to create a new message.
  */
 export const ContinueClarificationResponseSchema: GenMessage<ContinueClarificationResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 29);
+  messageDesc(file_swarm_manager_v1_api_backlog, 35);
 
 /**
  * GetClarificationResponse returns an existing clarification thread.
@@ -1304,7 +1529,7 @@ export type GetClarificationResponse = Message<"swarm_manager.v1.GetClarificatio
  * Use `create(GetClarificationResponseSchema)` to create a new message.
  */
 export const GetClarificationResponseSchema: GenMessage<GetClarificationResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 30);
+  messageDesc(file_swarm_manager_v1_api_backlog, 36);
 
 /**
  * ClarificationActionRequest applies a post-clarification action.
@@ -1333,7 +1558,7 @@ export type ClarificationActionRequest = Message<"swarm_manager.v1.Clarification
  * Use `create(ClarificationActionRequestSchema)` to create a new message.
  */
 export const ClarificationActionRequestSchema: GenMessage<ClarificationActionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 31);
+  messageDesc(file_swarm_manager_v1_api_backlog, 37);
 
 /**
  * ClarificationActionResponse reports the result of a clarification action.
@@ -1382,7 +1607,7 @@ export type ClarificationActionResponse = Message<"swarm_manager.v1.Clarificatio
  * Use `create(ClarificationActionResponseSchema)` to create a new message.
  */
 export const ClarificationActionResponseSchema: GenMessage<ClarificationActionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 32);
+  messageDesc(file_swarm_manager_v1_api_backlog, 38);
 
 /**
  * ListReviewRoundsResponse returns all review evidence rounds for a backlog item.
@@ -1401,7 +1626,7 @@ export type ListReviewRoundsResponse = Message<"swarm_manager.v1.ListReviewRound
  * Use `create(ListReviewRoundsResponseSchema)` to create a new message.
  */
 export const ListReviewRoundsResponseSchema: GenMessage<ListReviewRoundsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 33);
+  messageDesc(file_swarm_manager_v1_api_backlog, 39);
 
 /**
  * VerifyEvidenceRequest marks an evidence item as verified or unverified.
@@ -1420,7 +1645,7 @@ export type VerifyEvidenceRequest = Message<"swarm_manager.v1.VerifyEvidenceRequ
  * Use `create(VerifyEvidenceRequestSchema)` to create a new message.
  */
 export const VerifyEvidenceRequestSchema: GenMessage<VerifyEvidenceRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 34);
+  messageDesc(file_swarm_manager_v1_api_backlog, 40);
 
 /**
  * RequestMoreEvidenceRequest asks the review agent for additional evidence.
@@ -1446,7 +1671,7 @@ export type RequestMoreEvidenceRequest = Message<"swarm_manager.v1.RequestMoreEv
  * Use `create(RequestMoreEvidenceRequestSchema)` to create a new message.
  */
 export const RequestMoreEvidenceRequestSchema: GenMessage<RequestMoreEvidenceRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 35);
+  messageDesc(file_swarm_manager_v1_api_backlog, 41);
 
 /**
  * RequestMoreEvidenceResponse returns the created thread ID.
@@ -1465,7 +1690,7 @@ export type RequestMoreEvidenceResponse = Message<"swarm_manager.v1.RequestMoreE
  * Use `create(RequestMoreEvidenceResponseSchema)` to create a new message.
  */
 export const RequestMoreEvidenceResponseSchema: GenMessage<RequestMoreEvidenceResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 36);
+  messageDesc(file_swarm_manager_v1_api_backlog, 42);
 
 /**
  * ContinueEvidenceRequestRequest sends a follow-up message in a request thread.
@@ -1484,7 +1709,7 @@ export type ContinueEvidenceRequestRequest = Message<"swarm_manager.v1.ContinueE
  * Use `create(ContinueEvidenceRequestRequestSchema)` to create a new message.
  */
 export const ContinueEvidenceRequestRequestSchema: GenMessage<ContinueEvidenceRequestRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 37);
+  messageDesc(file_swarm_manager_v1_api_backlog, 43);
 
 /**
  * =============================================================================
@@ -1528,4 +1753,48 @@ export const BacklogService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_swarm_manager_v1_api_backlog, 0);
+
+/**
+ * AutoFilerService exposes the governed backlog auto-filer operator surface.
+ *
+ * @stability beta
+ *
+ * @generated from service swarm_manager.v1.AutoFilerService
+ */
+export const AutoFilerService: GenService<{
+  /**
+   * GetStatus returns the current policy settings plus the latest cycle
+   * outcome and brake/cap accounting.
+   *
+   * @generated from rpc swarm_manager.v1.AutoFilerService.GetStatus
+   */
+  getStatus: {
+    methodKind: "unary";
+    input: typeof AutoFilerStatusRequestSchema;
+    output: typeof AutoFilerStatusResponseSchema;
+  },
+  /**
+   * DismissSuggestion archives a suggested auto-filed item and remembers its
+   * finding_ref so the same finding is not suggested again.
+   *
+   * @generated from rpc swarm_manager.v1.AutoFilerService.DismissSuggestion
+   */
+  dismissSuggestion: {
+    methodKind: "unary";
+    input: typeof DismissAutoFilerSuggestionRequestSchema;
+    output: typeof DismissAutoFilerSuggestionResponseSchema;
+  },
+  /**
+   * RunNow forces one governed auto-filer cycle immediately and returns the
+   * resulting status snapshot.
+   *
+   * @generated from rpc swarm_manager.v1.AutoFilerService.RunNow
+   */
+  runNow: {
+    methodKind: "unary";
+    input: typeof AutoFilerRunNowRequestSchema;
+    output: typeof AutoFilerStatusResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_swarm_manager_v1_api_backlog, 1);
 

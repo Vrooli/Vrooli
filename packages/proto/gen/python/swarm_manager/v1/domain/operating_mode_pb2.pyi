@@ -9,11 +9,12 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class OperatingModeScopeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class OperatingModeTargetKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    OPERATING_MODE_SCOPE_KIND_UNSPECIFIED: _ClassVar[OperatingModeScopeKind]
-    OPERATING_MODE_SCOPE_KIND_BACKLOG_ITEM: _ClassVar[OperatingModeScopeKind]
-    OPERATING_MODE_SCOPE_KIND_INITIATIVE: _ClassVar[OperatingModeScopeKind]
+    OPERATING_MODE_TARGET_KIND_UNSPECIFIED: _ClassVar[OperatingModeTargetKind]
+    OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN: _ClassVar[OperatingModeTargetKind]
+    OPERATING_MODE_TARGET_KIND_PLAN_REF: _ClassVar[OperatingModeTargetKind]
+    OPERATING_MODE_TARGET_KIND_INITIATIVE: _ClassVar[OperatingModeTargetKind]
 
 class OperatingModeRunStrategyKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -79,9 +80,10 @@ class OperatingModeResultBindingKind(int, metaclass=_enum_type_wrapper.EnumTypeW
     __slots__ = ()
     OPERATING_MODE_RESULT_BINDING_KIND_UNSPECIFIED: _ClassVar[OperatingModeResultBindingKind]
     OPERATING_MODE_RESULT_BINDING_KIND_PROGRESS_ARTIFACT: _ClassVar[OperatingModeResultBindingKind]
-OPERATING_MODE_SCOPE_KIND_UNSPECIFIED: OperatingModeScopeKind
-OPERATING_MODE_SCOPE_KIND_BACKLOG_ITEM: OperatingModeScopeKind
-OPERATING_MODE_SCOPE_KIND_INITIATIVE: OperatingModeScopeKind
+OPERATING_MODE_TARGET_KIND_UNSPECIFIED: OperatingModeTargetKind
+OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN: OperatingModeTargetKind
+OPERATING_MODE_TARGET_KIND_PLAN_REF: OperatingModeTargetKind
+OPERATING_MODE_TARGET_KIND_INITIATIVE: OperatingModeTargetKind
 OPERATING_MODE_RUN_STRATEGY_KIND_UNSPECIFIED: OperatingModeRunStrategyKind
 OPERATING_MODE_RUN_STRATEGY_KIND_EXISTING_ITEM_FLOW: OperatingModeRunStrategyKind
 OPERATING_MODE_RUN_STRATEGY_KIND_SINGLE_PHASE_RUN: OperatingModeRunStrategyKind
@@ -128,7 +130,7 @@ OPERATING_MODE_RESULT_BINDING_KIND_UNSPECIFIED: OperatingModeResultBindingKind
 OPERATING_MODE_RESULT_BINDING_KIND_PROGRESS_ARTIFACT: OperatingModeResultBindingKind
 
 class OperatingMode(_message.Message):
-    __slots__ = ("id", "label", "description", "best_for", "not_for", "tradeoffs", "when_in_doubt_pick_instead", "scope", "run_strategy", "phase_graph", "prompt", "artifact", "profile", "backlog_sync", "metrics", "lock", "ui", "schema_version")
+    __slots__ = ("id", "label", "description", "best_for", "not_for", "tradeoffs", "when_in_doubt_pick_instead", "target", "run_strategy", "phase_graph", "prompt", "artifact", "profile", "backlog_sync", "metrics", "lock", "ui", "schema_version")
     ID_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -136,7 +138,7 @@ class OperatingMode(_message.Message):
     NOT_FOR_FIELD_NUMBER: _ClassVar[int]
     TRADEOFFS_FIELD_NUMBER: _ClassVar[int]
     WHEN_IN_DOUBT_PICK_INSTEAD_FIELD_NUMBER: _ClassVar[int]
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     RUN_STRATEGY_FIELD_NUMBER: _ClassVar[int]
     PHASE_GRAPH_FIELD_NUMBER: _ClassVar[int]
     PROMPT_FIELD_NUMBER: _ClassVar[int]
@@ -154,7 +156,7 @@ class OperatingMode(_message.Message):
     not_for: _containers.RepeatedScalarFieldContainer[str]
     tradeoffs: _containers.RepeatedScalarFieldContainer[str]
     when_in_doubt_pick_instead: str
-    scope: OperatingModeScope
+    target: OperatingModeTarget
     run_strategy: OperatingModeRunStrategy
     phase_graph: OperatingModePhaseGraph
     prompt: OperatingModePromptPolicy
@@ -165,13 +167,23 @@ class OperatingMode(_message.Message):
     lock: OperatingModeLockPolicy
     ui: OperatingModeUiPolicy
     schema_version: str
-    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., best_for: _Optional[_Iterable[str]] = ..., not_for: _Optional[_Iterable[str]] = ..., tradeoffs: _Optional[_Iterable[str]] = ..., when_in_doubt_pick_instead: _Optional[str] = ..., scope: _Optional[_Union[OperatingModeScope, _Mapping]] = ..., run_strategy: _Optional[_Union[OperatingModeRunStrategy, _Mapping]] = ..., phase_graph: _Optional[_Union[OperatingModePhaseGraph, _Mapping]] = ..., prompt: _Optional[_Union[OperatingModePromptPolicy, _Mapping]] = ..., artifact: _Optional[_Union[OperatingModeArtifactPolicy, _Mapping]] = ..., profile: _Optional[_Union[OperatingModeProfilePolicy, _Mapping]] = ..., backlog_sync: _Optional[_Union[OperatingModeBacklogSyncPolicy, _Mapping]] = ..., metrics: _Optional[_Union[OperatingModeMetricsPolicy, _Mapping]] = ..., lock: _Optional[_Union[OperatingModeLockPolicy, _Mapping]] = ..., ui: _Optional[_Union[OperatingModeUiPolicy, _Mapping]] = ..., schema_version: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., best_for: _Optional[_Iterable[str]] = ..., not_for: _Optional[_Iterable[str]] = ..., tradeoffs: _Optional[_Iterable[str]] = ..., when_in_doubt_pick_instead: _Optional[str] = ..., target: _Optional[_Union[OperatingModeTarget, _Mapping]] = ..., run_strategy: _Optional[_Union[OperatingModeRunStrategy, _Mapping]] = ..., phase_graph: _Optional[_Union[OperatingModePhaseGraph, _Mapping]] = ..., prompt: _Optional[_Union[OperatingModePromptPolicy, _Mapping]] = ..., artifact: _Optional[_Union[OperatingModeArtifactPolicy, _Mapping]] = ..., profile: _Optional[_Union[OperatingModeProfilePolicy, _Mapping]] = ..., backlog_sync: _Optional[_Union[OperatingModeBacklogSyncPolicy, _Mapping]] = ..., metrics: _Optional[_Union[OperatingModeMetricsPolicy, _Mapping]] = ..., lock: _Optional[_Union[OperatingModeLockPolicy, _Mapping]] = ..., ui: _Optional[_Union[OperatingModeUiPolicy, _Mapping]] = ..., schema_version: _Optional[str] = ...) -> None: ...
 
-class OperatingModeScope(_message.Message):
-    __slots__ = ("kind",)
+class OperatingModeTarget(_message.Message):
+    __slots__ = ("kind", "plan_ref")
     KIND_FIELD_NUMBER: _ClassVar[int]
-    kind: OperatingModeScopeKind
-    def __init__(self, kind: _Optional[_Union[OperatingModeScopeKind, str]] = ...) -> None: ...
+    PLAN_REF_FIELD_NUMBER: _ClassVar[int]
+    kind: OperatingModeTargetKind
+    plan_ref: OperatingModePlanRefPolicy
+    def __init__(self, kind: _Optional[_Union[OperatingModeTargetKind, str]] = ..., plan_ref: _Optional[_Union[OperatingModePlanRefPolicy, _Mapping]] = ...) -> None: ...
+
+class OperatingModePlanRefPolicy(_message.Message):
+    __slots__ = ("required", "role")
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    required: bool
+    role: str
+    def __init__(self, required: _Optional[bool] = ..., role: _Optional[str] = ...) -> None: ...
 
 class OperatingModeRunStrategy(_message.Message):
     __slots__ = ("kind",)
@@ -190,10 +202,12 @@ class OperatingModePhaseGraph(_message.Message):
     def __init__(self, start_phase: _Optional[str] = ..., terminal: _Optional[_Iterable[str]] = ..., phases: _Optional[_Iterable[_Union[OperatingModePhaseDefinition, _Mapping]]] = ...) -> None: ...
 
 class OperatingModePhaseDefinition(_message.Message):
-    __slots__ = ("id", "kind", "activity_purpose", "lock_purpose", "auto_start_after", "writes_repo", "requires_criteria", "profile_key", "prompt", "declared_output", "output_artifacts", "result_bindings", "transitions", "metrics")
+    __slots__ = ("id", "kind", "executed_by", "activity_purpose", "reads", "lock_purpose", "auto_start_after", "writes_repo", "requires_criteria", "profile_key", "prompt", "declared_output", "output_artifacts", "result_bindings", "transitions", "metrics")
     ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_BY_FIELD_NUMBER: _ClassVar[int]
     ACTIVITY_PURPOSE_FIELD_NUMBER: _ClassVar[int]
+    READS_FIELD_NUMBER: _ClassVar[int]
     LOCK_PURPOSE_FIELD_NUMBER: _ClassVar[int]
     AUTO_START_AFTER_FIELD_NUMBER: _ClassVar[int]
     WRITES_REPO_FIELD_NUMBER: _ClassVar[int]
@@ -207,7 +221,9 @@ class OperatingModePhaseDefinition(_message.Message):
     METRICS_FIELD_NUMBER: _ClassVar[int]
     id: str
     kind: OperatingModePhaseKind
+    executed_by: str
     activity_purpose: str
+    reads: _containers.RepeatedScalarFieldContainer[str]
     lock_purpose: str
     auto_start_after: _containers.RepeatedScalarFieldContainer[str]
     writes_repo: bool
@@ -219,7 +235,7 @@ class OperatingModePhaseDefinition(_message.Message):
     result_bindings: _containers.RepeatedCompositeFieldContainer[OperatingModeResultBinding]
     transitions: _containers.RepeatedCompositeFieldContainer[OperatingModeTransition]
     metrics: OperatingModePhaseMetrics
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[OperatingModePhaseKind, str]] = ..., activity_purpose: _Optional[str] = ..., lock_purpose: _Optional[str] = ..., auto_start_after: _Optional[_Iterable[str]] = ..., writes_repo: _Optional[bool] = ..., requires_criteria: _Optional[bool] = ..., profile_key: _Optional[str] = ..., prompt: _Optional[_Union[OperatingModePhasePrompt, _Mapping]] = ..., declared_output: _Optional[_Union[OperatingModeDeclaredOutput, _Mapping]] = ..., output_artifacts: _Optional[_Iterable[_Union[OperatingModeArtifact, _Mapping]]] = ..., result_bindings: _Optional[_Iterable[_Union[OperatingModeResultBinding, _Mapping]]] = ..., transitions: _Optional[_Iterable[_Union[OperatingModeTransition, _Mapping]]] = ..., metrics: _Optional[_Union[OperatingModePhaseMetrics, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[OperatingModePhaseKind, str]] = ..., executed_by: _Optional[str] = ..., activity_purpose: _Optional[str] = ..., reads: _Optional[_Iterable[str]] = ..., lock_purpose: _Optional[str] = ..., auto_start_after: _Optional[_Iterable[str]] = ..., writes_repo: _Optional[bool] = ..., requires_criteria: _Optional[bool] = ..., profile_key: _Optional[str] = ..., prompt: _Optional[_Union[OperatingModePhasePrompt, _Mapping]] = ..., declared_output: _Optional[_Union[OperatingModeDeclaredOutput, _Mapping]] = ..., output_artifacts: _Optional[_Iterable[_Union[OperatingModeArtifact, _Mapping]]] = ..., result_bindings: _Optional[_Iterable[_Union[OperatingModeResultBinding, _Mapping]]] = ..., transitions: _Optional[_Iterable[_Union[OperatingModeTransition, _Mapping]]] = ..., metrics: _Optional[_Union[OperatingModePhaseMetrics, _Mapping]] = ...) -> None: ...
 
 class OperatingModePhasePrompt(_message.Message):
     __slots__ = ("template", "suffix", "title", "trigger", "purpose")

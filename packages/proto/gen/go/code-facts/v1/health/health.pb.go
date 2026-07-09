@@ -9,6 +9,7 @@ package health_v1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -119,7 +120,10 @@ type Response struct {
 	// Per-dependency status reports, keyed by dependency name (e.g.,
 	// "database"). Critical dependencies flip readiness to false when
 	// they're not connected.
-	Dependencies  map[string]*DependencyStatus `protobuf:"bytes,7,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Dependencies map[string]*DependencyStatus `protobuf:"bytes,7,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Runtime and scenario-specific counters. Code Facts adds cache byte budget
+	// metrics here so operators can observe retention without a Connect client.
+	Metrics       map[string]*structpb.Value `protobuf:"bytes,8,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -203,17 +207,24 @@ func (x *Response) GetDependencies() map[string]*DependencyStatus {
 	return nil
 }
 
+func (x *Response) GetMetrics() map[string]*structpb.Value {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
 var File_code_facts_v1_health_health_proto protoreflect.FileDescriptor
 
 const file_code_facts_v1_health_health_proto_rawDesc = "" +
 	"\n" +
-	"!code-facts/v1/health/health.proto\x12\x1bvrooli.code_facts.v1.health\"\x81\x01\n" +
+	"!code-facts/v1/health/health.proto\x12\x1bvrooli.code_facts.v1.health\x1a\x1cgoogle/protobuf/struct.proto\"\x81\x01\n" +
 	"\x10DependencyStatus\x12\x1c\n" +
 	"\tconnected\x18\x01 \x01(\bR\tconnected\x12\x1d\n" +
 	"\n" +
 	"latency_ms\x18\x02 \x01(\x01R\tlatencyMs\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bdatabase\x18\x04 \x01(\tR\bdatabase\"\x86\x03\n" +
+	"\bdatabase\x18\x04 \x01(\tR\bdatabase\"\xa8\x04\n" +
 	"\bResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1c\n" +
@@ -221,10 +232,14 @@ const file_code_facts_v1_health_health_proto_rawDesc = "" +
 	"\treadiness\x18\x04 \x01(\bR\treadiness\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\tR\aversion\x12%\n" +
 	"\x0euptime_seconds\x18\x06 \x01(\x01R\ruptimeSeconds\x12[\n" +
-	"\fdependencies\x18\a \x03(\v27.vrooli.code_facts.v1.health.Response.DependenciesEntryR\fdependencies\x1an\n" +
+	"\fdependencies\x18\a \x03(\v27.vrooli.code_facts.v1.health.Response.DependenciesEntryR\fdependencies\x12L\n" +
+	"\ametrics\x18\b \x03(\v22.vrooli.code_facts.v1.health.Response.MetricsEntryR\ametrics\x1an\n" +
 	"\x11DependenciesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12C\n" +
-	"\x05value\x18\x02 \x01(\v2-.vrooli.code_facts.v1.health.DependencyStatusR\x05value:\x028\x01BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/health;health_v1b\x06proto3"
+	"\x05value\x18\x02 \x01(\v2-.vrooli.code_facts.v1.health.DependencyStatusR\x05value:\x028\x01\x1aR\n" +
+	"\fMetricsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/health;health_v1b\x06proto3"
 
 var (
 	file_code_facts_v1_health_health_proto_rawDescOnce sync.Once
@@ -238,20 +253,24 @@ func file_code_facts_v1_health_health_proto_rawDescGZIP() []byte {
 	return file_code_facts_v1_health_health_proto_rawDescData
 }
 
-var file_code_facts_v1_health_health_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_code_facts_v1_health_health_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_code_facts_v1_health_health_proto_goTypes = []any{
 	(*DependencyStatus)(nil), // 0: vrooli.code_facts.v1.health.DependencyStatus
 	(*Response)(nil),         // 1: vrooli.code_facts.v1.health.Response
 	nil,                      // 2: vrooli.code_facts.v1.health.Response.DependenciesEntry
+	nil,                      // 3: vrooli.code_facts.v1.health.Response.MetricsEntry
+	(*structpb.Value)(nil),   // 4: google.protobuf.Value
 }
 var file_code_facts_v1_health_health_proto_depIdxs = []int32{
 	2, // 0: vrooli.code_facts.v1.health.Response.dependencies:type_name -> vrooli.code_facts.v1.health.Response.DependenciesEntry
-	0, // 1: vrooli.code_facts.v1.health.Response.DependenciesEntry.value:type_name -> vrooli.code_facts.v1.health.DependencyStatus
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 1: vrooli.code_facts.v1.health.Response.metrics:type_name -> vrooli.code_facts.v1.health.Response.MetricsEntry
+	0, // 2: vrooli.code_facts.v1.health.Response.DependenciesEntry.value:type_name -> vrooli.code_facts.v1.health.DependencyStatus
+	4, // 3: vrooli.code_facts.v1.health.Response.MetricsEntry.value:type_name -> google.protobuf.Value
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_code_facts_v1_health_health_proto_init() }
@@ -265,7 +284,7 @@ func file_code_facts_v1_health_health_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_code_facts_v1_health_health_proto_rawDesc), len(file_code_facts_v1_health_health_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

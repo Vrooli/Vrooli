@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.code_facts.v1.health;
 
+import "google/protobuf/struct.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/health;health_v1";
 
 // =============================================================================
@@ -32,10 +34,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v
 //          via `create(ResponseSchema, overrides)` for component tests.
 //
 // Notes:
-//   - The `metrics` field on api-core/health.Response is omitted here
-//     because `map<string, google.protobuf.Value>` requires importing
-//     the well-known Any/Value types. The template doesn't ship metrics;
-//     scenarios that wire real metrics extend this proto when they do.
+//   - Metrics uses google.protobuf.Value because the api-core health envelope
+//     carries runtime metrics plus scenario-specific counters in one JSON map.
 //   - Optional numeric fields use plain `double` rather than wrapper
 //     types — the template's only consumer (DependencyStatus.latency_ms)
 //     treats absence as zero and that matches the api-core JSON encoding.
@@ -87,4 +87,8 @@ message Response {
   // "database"). Critical dependencies flip readiness to false when
   // they're not connected.
   map<string, DependencyStatus> dependencies = 7;
+
+  // Runtime and scenario-specific counters. Code Facts adds cache byte budget
+  // metrics here so operators can observe retention without a Connect client.
+  map<string, google.protobuf.Value> metrics = 8;
 }

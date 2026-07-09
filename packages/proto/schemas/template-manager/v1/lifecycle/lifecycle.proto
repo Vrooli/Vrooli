@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package vrooli.template_manager.v1.lifecycle;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/lifecycle;lifecycle_v1";
+
+// TemplateLifecycleService owns scenario template lifecycle operations that
+// previously lived under `vrooli scenario generate|orient|detemplate|template`.
+service TemplateLifecycleService {
+  rpc GenerateScenario(GenerateScenarioRequest) returns (GenerateScenarioResponse);
+  rpc OrientScenario(OrientScenarioRequest) returns (OrientScenarioResponse);
+  rpc DetemplateScenario(DetemplateScenarioRequest) returns (DetemplateScenarioResponse);
+  rpc ValidateTemplate(ValidateTemplateRequest) returns (ValidateTemplateResponse);
+  rpc DriftReport(DriftReportRequest) returns (DriftReportResponse);
+  rpc CleanupRuns(CleanupRunsRequest) returns (CleanupRunsResponse);
+}
+
+// DesignKitService owns design-kit discovery and validation.
+service DesignKitService {
+  rpc ListDesignKits(ListDesignKitsRequest) returns (ListDesignKitsResponse);
+  rpc GetDesignKit(GetDesignKitRequest) returns (GetDesignKitResponse);
+  rpc ValidateDesignKits(ValidateDesignKitsRequest) returns (ValidateDesignKitsResponse);
+}
+
+message GenerateScenarioRequest {
+  string template = 1;
+  string id = 2;
+  string display_name = 3;
+  string description = 4;
+  string destination = 5;
+  string design = 6;
+  bool force = 7;
+  bool dry_run = 8;
+  bool run_hooks = 9;
+  map<string, string> values = 10;
+}
+
+message GenerateScenarioResponse {
+  string template = 1;
+  string display_name = 2;
+  string destination = 3;
+  bool dry_run = 4;
+  bool run_hooks = 5;
+  string manifest_version = 6;
+  string design_kit = 7;
+}
+
+message OrientScenarioRequest {
+  string scenario = 1;
+  bool finalize = 2;
+}
+
+message OrientScenarioResponse {
+  string scenario = 1;
+  string scenario_path = 2;
+  bool finalized = 3;
+  int32 completed = 4;
+  int32 required = 5;
+  bool finalize_required = 6;
+  string next_step = 7;
+  string message = 8;
+}
+
+message DetemplateScenarioRequest {
+  string scenario = 1;
+  bool dry_run = 2;
+}
+
+message DetemplateScenarioResponse {
+  string scenario = 1;
+  string scenario_path = 2;
+  string marker = 3;
+  bool dry_run = 4;
+  int32 blocks_removed = 5;
+  int32 lines_stripped = 6;
+  repeated string paths_deleted = 7;
+  string message = 8;
+}
+
+message ValidateTemplateRequest {
+  string template = 1;
+  string mode = 2;
+  string test_preset = 3;
+  string warning_policy = 4;
+  bool retain_temp = 5;
+}
+
+message TemplateValidationIssue {
+  string template = 1;
+  string path = 2;
+  string message = 3;
+}
+
+message ValidateTemplateResponse {
+  string mode = 1;
+  string template = 2;
+  int32 count = 3;
+  repeated TemplateValidationIssue issues = 4;
+}
+
+message DriftReportRequest {
+  string scenario = 1;
+  bool all = 2;
+  bool verbose = 3;
+}
+
+message DriftScenario {
+  string scenario = 1;
+  string template = 2;
+  string status = 3;
+  bool manifest_drifted = 4;
+  bool content_drifted = 5;
+  string message = 6;
+}
+
+message DriftReportResponse {
+  repeated DriftScenario scenarios = 1;
+}
+
+message CleanupRunsRequest {
+  bool dry_run = 1;
+  string older_than = 2;
+  bool include_retained = 3;
+  string run_id = 4;
+}
+
+message CleanupRunsResponse {
+  int32 matched = 1;
+  int32 removed = 2;
+  bool dry_run = 3;
+  string message = 4;
+}
+
+message ListDesignKitsRequest {}
+
+message DesignKit {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  bool default = 4;
+  string description = 5;
+  repeated string tags = 6;
+  repeated string adapters = 7;
+}
+
+message ListDesignKitsResponse {
+  repeated DesignKit kits = 1;
+}
+
+message GetDesignKitRequest {
+  string id = 1;
+}
+
+message GetDesignKitResponse {
+  DesignKit kit = 1;
+}
+
+message ValidateDesignKitsRequest {
+  string id = 1;
+  bool all = 2;
+}
+
+message DesignValidationIssue {
+  string kit = 1;
+  string adapter = 2;
+  string path = 3;
+  string message = 4;
+}
+
+message ValidateDesignKitsResponse {
+  int32 count = 1;
+  repeated DesignValidationIssue issues = 2;
+}

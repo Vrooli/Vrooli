@@ -67,6 +67,8 @@ message ScanFleetResponse {
   // RFC3339 timestamp the snapshot was produced (empty for a never-scanned
   // GetInventory).
   string scanned_at = 9;
+  // Scenarios whose measured data directory bytes exceed their resolved budget.
+  int32 data_dir_over_budget_count = 10;
 }
 
 // FleetScenarioEntry is one scenario's storage rollup.
@@ -98,6 +100,19 @@ message FleetScenarioEntry {
   int32 error_count = 11;
   // Findings a registered storage-health autofix can remediate.
   int32 autofixable_count = 12;
+  // Bytes measured under scenario-local and runtime data directories.
+  int64 data_dir_bytes = 13;
+  // Resolved byte budget for the scenario data directories.
+  int64 data_dir_budget_bytes = 14;
+  // data_dir_bytes / data_dir_budget_bytes. Zero when no budget is configured.
+  double data_dir_utilization = 15;
+  // True when data_dir_bytes is greater than data_dir_budget_bytes.
+  bool data_dir_over_budget = 16;
+  // Severity for the data-directory budget finding: warning, serious, critical,
+  // or empty when under budget.
+  string data_dir_severity = 17;
+  // Directories included in data_dir_bytes.
+  repeated string data_dir_paths = 18;
 }
 
 // EngineCount counts scenarios using a given engine.

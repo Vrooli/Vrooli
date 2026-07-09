@@ -13,11 +13,12 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/operating_mode.proto.
  */
 export const file_swarm_manager_v1_domain_operating_mode: GenFile = /*@__PURE__*/
-  fileDesc("Cixzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9vcGVyYXRpbmdfbW9kZS5wcm90bxIQc3dhcm1fbWFuYWdlci52MSLTBgoNT3BlcmF0aW5nTW9kZRITCgJpZBgBIAEoCUIHukgEcgIQARIWCgVsYWJlbBgCIAEoCUIHukgEcgIQARIcCgtkZXNjcmlwdGlvbhgDIAEoCUIHukgEcgIQARIaCghiZXN0X2ZvchgEIAMoCUIIukgFkgECCAESGQoHbm90X2ZvchgFIAMoCUIIukgFkgECCAESGwoJdHJhZGVvZmZzGAYgAygJQgi6SAWSAQIIARIiChp3aGVuX2luX2RvdWJ0X3BpY2tfaW5zdGVhZBgHIAEoCRIzCgVzY29wZRgIIAEoCzIkLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVNjb3BlEkAKDHJ1bl9zdHJhdGVneRgJIAEoCzIqLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVJ1blN0cmF0ZWd5Ej4KC3BoYXNlX2dyYXBoGAogASgLMikuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlUGhhc2VHcmFwaBI7CgZwcm9tcHQYCyABKAsyKy5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVQcm9tcHRQb2xpY3kSPwoIYXJ0aWZhY3QYDCABKAsyLS5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVBcnRpZmFjdFBvbGljeRI9Cgdwcm9maWxlGA0gASgLMiwuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlUHJvZmlsZVBvbGljeRJGCgxiYWNrbG9nX3N5bmMYDiABKAsyMC5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVCYWNrbG9nU3luY1BvbGljeRI9CgdtZXRyaWNzGA8gASgLMiwuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlTWV0cmljc1BvbGljeRI3CgRsb2NrGBAgASgLMikuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlTG9ja1BvbGljeRIzCgJ1aRgRIAEoCzInLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVVpUG9saWN5EhYKDnNjaGVtYV92ZXJzaW9uGBIgASgJIkwKEk9wZXJhdGluZ01vZGVTY29wZRI2CgRraW5kGAEgASgOMiguc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlU2NvcGVLaW5kIlgKGE9wZXJhdGluZ01vZGVSdW5TdHJhdGVneRI8CgRraW5kGAEgASgOMi4uc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlUnVuU3RyYXRlZ3lLaW5kIooBChdPcGVyYXRpbmdNb2RlUGhhc2VHcmFwaBITCgtzdGFydF9waGFzZRgBIAEoCRIQCgh0ZXJtaW5hbBgCIAMoCRJICgZwaGFzZXMYAyADKAsyLi5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVQaGFzZURlZmluaXRpb25CCLpIBZIBAggBIpkFChxPcGVyYXRpbmdNb2RlUGhhc2VEZWZpbml0aW9uEhMKAmlkGAEgASgJQge6SARyAhABEjYKBGtpbmQYAiABKA4yKC5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVQaGFzZUtpbmQSIQoQYWN0aXZpdHlfcHVycG9zZRgDIAEoCUIHukgEcgIQARIUCgxsb2NrX3B1cnBvc2UYBCABKAkSIgoQYXV0b19zdGFydF9hZnRlchgFIAMoCUIIukgFkgECEAESEwoLd3JpdGVzX3JlcG8YBiABKAgSGQoRcmVxdWlyZXNfY3JpdGVyaWEYByABKAgSEwoLcHJvZmlsZV9rZXkYCCABKAkSOgoGcHJvbXB0GAkgASgLMiouc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlUGhhc2VQcm9tcHQSRgoPZGVjbGFyZWRfb3V0cHV0GAogASgLMi0uc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlRGVjbGFyZWRPdXRwdXQSQQoQb3V0cHV0X2FydGlmYWN0cxgLIAMoCzInLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZUFydGlmYWN0EkUKD3Jlc3VsdF9iaW5kaW5ncxgMIAMoCzIsLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVJlc3VsdEJpbmRpbmcSPgoLdHJhbnNpdGlvbnMYDSADKAsyKS5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVUcmFuc2l0aW9uEjwKB21ldHJpY3MYDiABKAsyKy5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVQaGFzZU1ldHJpY3MibQoYT3BlcmF0aW5nTW9kZVBoYXNlUHJvbXB0EhAKCHRlbXBsYXRlGAEgASgJEg4KBnN1ZmZpeBgCIAEoCRINCgV0aXRsZRgDIAEoCRIPCgd0cmlnZ2VyGAQgASgJEg8KB3B1cnBvc2UYBSABKAki2AEKG09wZXJhdGluZ01vZGVEZWNsYXJlZE91dHB1dBIUCgxlbnZlbG9wZV9rZXkYASABKAkSIgoacmVxdWlyZXNfc3RydWN0dXJlZF9yZXN1bHQYAiABKAgSOgoGZmllbGRzGAMgAygLMiouc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlT3V0cHV0RmllbGQSQwoKcmVzb2x1dGlvbhgEIAEoCzIvLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVJlc29sdXRpb25Qb2xpY3kikwMKGE9wZXJhdGluZ01vZGVPdXRwdXRGaWVsZBIVCgRuYW1lGAEgASgJQge6SARyAhABEjwKBHR5cGUYAiABKA4yLi5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVPdXRwdXRGaWVsZFR5cGUSEAoIcmVxdWlyZWQYAyABKAgSKwoLZW51bV92YWx1ZXMYBCADKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSFAoHbWluaW11bRgFIAEoAUgAiAEBEhQKB21heGltdW0YBiABKAFIAYgBARIXCgptaW5fbGVuZ3RoGAcgASgDSAKIAQESFwoKbWF4X2xlbmd0aBgIIAEoA0gDiAEBEhMKC2Rlc2NyaXB0aW9uGAkgASgJEjoKBmZpZWxkcxgKIAMoCzIqLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZU91dHB1dEZpZWxkQgoKCF9taW5pbXVtQgoKCF9tYXhpbXVtQg0KC19taW5fbGVuZ3RoQg0KC19tYXhfbGVuZ3RoIt4BCh1PcGVyYXRpbmdNb2RlUmVzb2x1dGlvblBvbGljeRImChlkZXRlY3RfdHJ1ZV9maW5hbF9tZXNzYWdlGAEgASgISACIAQESKgoUc2Nhbl9sYXN0X25fbWVzc2FnZXMYAiABKAVCB7pIBBoCKAFIAYgBARIdChBhbGxvd19jbGFzc2lmaWVyGAMgASgISAKIAQFCHAoaX2RldGVjdF90cnVlX2ZpbmFsX21lc3NhZ2VCFwoVX3NjYW5fbGFzdF9uX21lc3NhZ2VzQhMKEV9hbGxvd19jbGFzc2lmaWVyIlkKF09wZXJhdGluZ01vZGVUcmFuc2l0aW9uEjIKBHdoZW4YASABKAsyJC5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVHdWFyZBIKCgJ0bxgCIAMoCSLcAQoST3BlcmF0aW5nTW9kZUd1YXJkEjIKAm9wGAEgASgOMiYuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlR3VhcmRPcBINCgVmaWVsZBgCIAEoCRIlCgV2YWx1ZRgDIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRImCgZ2YWx1ZXMYBCADKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSNAoGZ3VhcmRzGAUgAygLMiQuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlR3VhcmQiVgoVT3BlcmF0aW5nTW9kZUFydGlmYWN0EhUKBHBhdGgYASABKAlCB7pIBHICEAESFAoMY29udGVudF90eXBlGAIgASgJEhAKCHJlcXVpcmVkGAMgASgIIpcBChpPcGVyYXRpbmdNb2RlUmVzdWx0QmluZGluZxI+CgRraW5kGAEgASgOMjAuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlUmVzdWx0QmluZGluZ0tpbmQSOQoIYXJ0aWZhY3QYAiABKAsyJy5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVBcnRpZmFjdCJbChlPcGVyYXRpbmdNb2RlUGhhc2VNZXRyaWNzEhwKFGNvdW50c19yZXBsYW5fc2FtcGxlGAEgASgIEiAKGGNvdW50c19hY2NlcHRhbmNlX3NhbXBsZRgCIAEoCCIzChlPcGVyYXRpbmdNb2RlUHJvbXB0UG9saWN5EhYKDmNhdGFsb2dfcHJlZml4GAEgASgJIj8KG09wZXJhdGluZ01vZGVBcnRpZmFjdFBvbGljeRIMCgRyb290GAEgASgJEhIKCnJvdW5kX3Jvb3QYAiABKAkiOQoaT3BlcmF0aW5nTW9kZVByb2ZpbGVQb2xpY3kSGwoTZGVmYXVsdF9wcm9maWxlX2tleRgBIAEoCSLyAQoeT3BlcmF0aW5nTW9kZUJhY2tsb2dTeW5jUG9saWN5EkYKDGNhcGFiaWxpdGllcxgBIAMoDjIwLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZUJhY2tsb2dDYXBhYmlsaXR5EhcKD3JlcXVpcmVzX3J1bl9pZBgCIAEoCBIbChNyZXF1aXJlc19tZW1iZXJzaGlwGAMgASgIEhQKDGV2ZW50X3NvdXJjZRgEIAEoCRI8CgphcHBseV9tb2RlGAUgASgOMiguc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlQXBwbHlNb2RlIk0KGk9wZXJhdGluZ01vZGVNZXRyaWNzUG9saWN5EhQKDGV2ZW50X3NvdXJjZRgBIAEoCRIZChFhY2NlcHRlZF92ZXJkaWN0cxgCIAMoCSI3ChdPcGVyYXRpbmdNb2RlTG9ja1BvbGljeRIcChRpbml0aWF0aXZlX2V4Y2x1c2l2ZRgBIAEoCCIxChVPcGVyYXRpbmdNb2RlVWlQb2xpY3kSGAoQd29ya3NwYWNlX3RhYl9pZBgBIAEoCSLIAQoXT3BlcmF0aW5nTW9kZUV4YW1wbGVSdW4SEwoCaWQYASABKAlCB7pIBHICEAESFQoEbW9kZRgCIAEoCUIHukgEcgIQARINCgVsYWJlbBgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRI8CgVzdGVwcxgFIAMoCzItLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZUV4YW1wbGVSdW5TdGVwEh8KDWV4cGVjdGVkX3BhdGgYBiADKAlCCLpIBZIBAggBImwKG09wZXJhdGluZ01vZGVFeGFtcGxlUnVuU3RlcBIWCgVwaGFzZRgBIAEoCUIHukgEcgIQARInCgZvdXRwdXQYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBG5vdGUYAyABKAkqmQEKFk9wZXJhdGluZ01vZGVTY29wZUtpbmQSKQolT1BFUkFUSU5HX01PREVfU0NPUEVfS0lORF9VTlNQRUNJRklFRBAAEioKJk9QRVJBVElOR19NT0RFX1NDT1BFX0tJTkRfQkFDS0xPR19JVEVNEAESKAokT1BFUkFUSU5HX01PREVfU0NPUEVfS0lORF9JTklUSUFUSVZFEAIqswIKHE9wZXJhdGluZ01vZGVSdW5TdHJhdGVneUtpbmQSMAosT1BFUkFUSU5HX01PREVfUlVOX1NUUkFURUdZX0tJTkRfVU5TUEVDSUZJRUQQABI3CjNPUEVSQVRJTkdfTU9ERV9SVU5fU1RSQVRFR1lfS0lORF9FWElTVElOR19JVEVNX0ZMT1cQARI1CjFPUEVSQVRJTkdfTU9ERV9SVU5fU1RSQVRFR1lfS0lORF9TSU5HTEVfUEhBU0VfUlVOEAISNwozT1BFUkFUSU5HX01PREVfUlVOX1NUUkFURUdZX0tJTkRfU0VRVUVOVElBTF9IQU5ET0ZGEAMSOAo0T1BFUkFUSU5HX01PREVfUlVOX1NUUkFURUdZX0tJTkRfT1BFUkFUT1JfR0FURURfTE9PUBAEKuQBChZPcGVyYXRpbmdNb2RlUGhhc2VLaW5kEikKJU9QRVJBVElOR19NT0RFX1BIQVNFX0tJTkRfVU5TUEVDSUZJRUQQABIpCiVPUEVSQVRJTkdfTU9ERV9QSEFTRV9LSU5EX0lOVkVTVElHQVRFEAESJQohT1BFUkFUSU5HX01PREVfUEhBU0VfS0lORF9FWEVDVVRFEAISJAogT1BFUkFUSU5HX01PREVfUEhBU0VfS0lORF9SRVZJRVcQAxInCiNPUEVSQVRJTkdfTU9ERV9QSEFTRV9LSU5EX1JFQ09OQ0lMRRAEKpgEChRPcGVyYXRpbmdNb2RlR3VhcmRPcBInCiNPUEVSQVRJTkdfTU9ERV9HVUFSRF9PUF9VTlNQRUNJRklFRBAAEiIKHk9QRVJBVElOR19NT0RFX0dVQVJEX09QX0FMV0FZUxABEh4KGk9QRVJBVElOR19NT0RFX0dVQVJEX09QX0VREAISHgoaT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfTkUQAxIeChpPUEVSQVRJTkdfTU9ERV9HVUFSRF9PUF9HVBAEEh8KG09QRVJBVElOR19NT0RFX0dVQVJEX09QX0dURRAFEh4KGk9QRVJBVElOR19NT0RFX0dVQVJEX09QX0xUEAYSHwobT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfTFRFEAcSHgoaT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfSU4QCBIiCh5PUEVSQVRJTkdfTU9ERV9HVUFSRF9PUF9OT1RfSU4QCRIiCh5PUEVSQVRJTkdfTU9ERV9HVUFSRF9PUF9FWElTVFMQChImCiJPUEVSQVRJTkdfTU9ERV9HVUFSRF9PUF9OT1RfRVhJU1RTEAsSHwobT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfQUxMEAwSHwobT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfQU5ZEA0SHwobT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfTk9UEA4q3wIKHE9wZXJhdGluZ01vZGVPdXRwdXRGaWVsZFR5cGUSMAosT1BFUkFUSU5HX01PREVfT1VUUFVUX0ZJRUxEX1RZUEVfVU5TUEVDSUZJRUQQABIrCidPUEVSQVRJTkdfTU9ERV9PVVRQVVRfRklFTERfVFlQRV9TVFJJTkcQARIsCihPUEVSQVRJTkdfTU9ERV9PVVRQVVRfRklFTERfVFlQRV9CT09MRUFOEAISLAooT1BFUkFUSU5HX01PREVfT1VUUFVUX0ZJRUxEX1RZUEVfSU5URUdFUhADEisKJ09QRVJBVElOR19NT0RFX09VVFBVVF9GSUVMRF9UWVBFX05VTUJFUhAEEisKJ09QRVJBVElOR19NT0RFX09VVFBVVF9GSUVMRF9UWVBFX09CSkVDVBAFEioKJk9QRVJBVElOR19NT0RFX09VVFBVVF9GSUVMRF9UWVBFX0FSUkFZEAYq3gIKHk9wZXJhdGluZ01vZGVCYWNrbG9nQ2FwYWJpbGl0eRIxCi1PUEVSQVRJTkdfTU9ERV9CQUNLTE9HX0NBUEFCSUxJVFlfVU5TUEVDSUZJRUQQABIvCitPUEVSQVRJTkdfTU9ERV9CQUNLTE9HX0NBUEFCSUxJVFlfUkVBRF9PTkxZEAESNwozT1BFUkFUSU5HX01PREVfQkFDS0xPR19DQVBBQklMSVRZX1BST1BPU0VfTVVUQVRJT05TEAISMwovT1BFUkFUSU5HX01PREVfQkFDS0xPR19DQVBBQklMSVRZX01BUktfQ09NUExFVEUQAxI2CjJPUEVSQVRJTkdfTU9ERV9CQUNLTE9HX0NBUEFCSUxJVFlfQ1JFQVRFX0ZPTExPV1VQUxAEEjIKLk9QRVJBVElOR19NT0RFX0JBQ0tMT0dfQ0FQQUJJTElUWV9VUERBVEVfU0NPUEUQBSrOAQoWT3BlcmF0aW5nTW9kZUFwcGx5TW9kZRIpCiVPUEVSQVRJTkdfTU9ERV9BUFBMWV9NT0RFX1VOU1BFQ0lGSUVEEAASLAooT1BFUkFUSU5HX01PREVfQVBQTFlfTU9ERV9PUEVSQVRPUl9HQVRFRBABEi0KKU9QRVJBVElOR19NT0RFX0FQUExZX01PREVfQVVUT19BUFBMWV9TQUZFEAISLAooT1BFUkFUSU5HX01PREVfQVBQTFlfTU9ERV9BVVRPX0FQUExZX0FMTBADKo4BCh5PcGVyYXRpbmdNb2RlUmVzdWx0QmluZGluZ0tpbmQSMgouT1BFUkFUSU5HX01PREVfUkVTVUxUX0JJTkRJTkdfS0lORF9VTlNQRUNJRklFRBAAEjgKNE9QRVJBVElOR19NT0RFX1JFU1VMVF9CSU5ESU5HX0tJTkRfUFJPR1JFU1NfQVJUSUZBQ1QQAUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("Cixzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9vcGVyYXRpbmdfbW9kZS5wcm90bxIQc3dhcm1fbWFuYWdlci52MSLVBgoNT3BlcmF0aW5nTW9kZRITCgJpZBgBIAEoCUIHukgEcgIQARIWCgVsYWJlbBgCIAEoCUIHukgEcgIQARIcCgtkZXNjcmlwdGlvbhgDIAEoCUIHukgEcgIQARIaCghiZXN0X2ZvchgEIAMoCUIIukgFkgECCAESGQoHbm90X2ZvchgFIAMoCUIIukgFkgECCAESGwoJdHJhZGVvZmZzGAYgAygJQgi6SAWSAQIIARIiChp3aGVuX2luX2RvdWJ0X3BpY2tfaW5zdGVhZBgHIAEoCRI1CgZ0YXJnZXQYCCABKAsyJS5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVUYXJnZXQSQAoMcnVuX3N0cmF0ZWd5GAkgASgLMiouc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlUnVuU3RyYXRlZ3kSPgoLcGhhc2VfZ3JhcGgYCiABKAsyKS5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVQaGFzZUdyYXBoEjsKBnByb21wdBgLIAEoCzIrLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVByb21wdFBvbGljeRI/CghhcnRpZmFjdBgMIAEoCzItLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZUFydGlmYWN0UG9saWN5Ej0KB3Byb2ZpbGUYDSABKAsyLC5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVQcm9maWxlUG9saWN5EkYKDGJhY2tsb2dfc3luYxgOIAEoCzIwLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZUJhY2tsb2dTeW5jUG9saWN5Ej0KB21ldHJpY3MYDyABKAsyLC5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVNZXRyaWNzUG9saWN5EjcKBGxvY2sYECABKAsyKS5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVMb2NrUG9saWN5EjMKAnVpGBEgASgLMicuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlVWlQb2xpY3kSFgoOc2NoZW1hX3ZlcnNpb24YEiABKAkijgEKE09wZXJhdGluZ01vZGVUYXJnZXQSNwoEa2luZBgBIAEoDjIpLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVRhcmdldEtpbmQSPgoIcGxhbl9yZWYYAiABKAsyLC5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVQbGFuUmVmUG9saWN5IjwKGk9wZXJhdGluZ01vZGVQbGFuUmVmUG9saWN5EhAKCHJlcXVpcmVkGAEgASgIEgwKBHJvbGUYAiABKAkiWAoYT3BlcmF0aW5nTW9kZVJ1blN0cmF0ZWd5EjwKBGtpbmQYASABKA4yLi5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVSdW5TdHJhdGVneUtpbmQiigEKF09wZXJhdGluZ01vZGVQaGFzZUdyYXBoEhMKC3N0YXJ0X3BoYXNlGAEgASgJEhAKCHRlcm1pbmFsGAIgAygJEkgKBnBoYXNlcxgDIAMoCzIuLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVBoYXNlRGVmaW5pdGlvbkIIukgFkgECCAEitAUKHE9wZXJhdGluZ01vZGVQaGFzZURlZmluaXRpb24SEwoCaWQYASABKAlCB7pIBHICEAESNgoEa2luZBgCIAEoDjIoLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVBoYXNlS2luZBITCgtleGVjdXRlZF9ieRgQIAEoCRIYChBhY3Rpdml0eV9wdXJwb3NlGAMgASgJEg0KBXJlYWRzGA8gAygJEhQKDGxvY2tfcHVycG9zZRgEIAEoCRIiChBhdXRvX3N0YXJ0X2FmdGVyGAUgAygJQgi6SAWSAQIQARITCgt3cml0ZXNfcmVwbxgGIAEoCBIZChFyZXF1aXJlc19jcml0ZXJpYRgHIAEoCBITCgtwcm9maWxlX2tleRgIIAEoCRI6CgZwcm9tcHQYCSABKAsyKi5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVQaGFzZVByb21wdBJGCg9kZWNsYXJlZF9vdXRwdXQYCiABKAsyLS5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVEZWNsYXJlZE91dHB1dBJBChBvdXRwdXRfYXJ0aWZhY3RzGAsgAygLMicuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlQXJ0aWZhY3QSRQoPcmVzdWx0X2JpbmRpbmdzGAwgAygLMiwuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlUmVzdWx0QmluZGluZxI+Cgt0cmFuc2l0aW9ucxgNIAMoCzIpLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVRyYW5zaXRpb24SPAoHbWV0cmljcxgOIAEoCzIrLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZVBoYXNlTWV0cmljcyJtChhPcGVyYXRpbmdNb2RlUGhhc2VQcm9tcHQSEAoIdGVtcGxhdGUYASABKAkSDgoGc3VmZml4GAIgASgJEg0KBXRpdGxlGAMgASgJEg8KB3RyaWdnZXIYBCABKAkSDwoHcHVycG9zZRgFIAEoCSLYAQobT3BlcmF0aW5nTW9kZURlY2xhcmVkT3V0cHV0EhQKDGVudmVsb3BlX2tleRgBIAEoCRIiChpyZXF1aXJlc19zdHJ1Y3R1cmVkX3Jlc3VsdBgCIAEoCBI6CgZmaWVsZHMYAyADKAsyKi5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVPdXRwdXRGaWVsZBJDCgpyZXNvbHV0aW9uGAQgASgLMi8uc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlUmVzb2x1dGlvblBvbGljeSKTAwoYT3BlcmF0aW5nTW9kZU91dHB1dEZpZWxkEhUKBG5hbWUYASABKAlCB7pIBHICEAESPAoEdHlwZRgCIAEoDjIuLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZU91dHB1dEZpZWxkVHlwZRIQCghyZXF1aXJlZBgDIAEoCBIrCgtlbnVtX3ZhbHVlcxgEIAMoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIUCgdtaW5pbXVtGAUgASgBSACIAQESFAoHbWF4aW11bRgGIAEoAUgBiAEBEhcKCm1pbl9sZW5ndGgYByABKANIAogBARIXCgptYXhfbGVuZ3RoGAggASgDSAOIAQESEwoLZGVzY3JpcHRpb24YCSABKAkSOgoGZmllbGRzGAogAygLMiouc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlT3V0cHV0RmllbGRCCgoIX21pbmltdW1CCgoIX21heGltdW1CDQoLX21pbl9sZW5ndGhCDQoLX21heF9sZW5ndGgi3gEKHU9wZXJhdGluZ01vZGVSZXNvbHV0aW9uUG9saWN5EiYKGWRldGVjdF90cnVlX2ZpbmFsX21lc3NhZ2UYASABKAhIAIgBARIqChRzY2FuX2xhc3Rfbl9tZXNzYWdlcxgCIAEoBUIHukgEGgIoAUgBiAEBEh0KEGFsbG93X2NsYXNzaWZpZXIYAyABKAhIAogBAUIcChpfZGV0ZWN0X3RydWVfZmluYWxfbWVzc2FnZUIXChVfc2Nhbl9sYXN0X25fbWVzc2FnZXNCEwoRX2FsbG93X2NsYXNzaWZpZXIiWQoXT3BlcmF0aW5nTW9kZVRyYW5zaXRpb24SMgoEd2hlbhgBIAEoCzIkLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZUd1YXJkEgoKAnRvGAIgAygJItwBChJPcGVyYXRpbmdNb2RlR3VhcmQSMgoCb3AYASABKA4yJi5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVHdWFyZE9wEg0KBWZpZWxkGAIgASgJEiUKBXZhbHVlGAMgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEiYKBnZhbHVlcxgEIAMoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRI0CgZndWFyZHMYBSADKAsyJC5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVHdWFyZCJWChVPcGVyYXRpbmdNb2RlQXJ0aWZhY3QSFQoEcGF0aBgBIAEoCUIHukgEcgIQARIUCgxjb250ZW50X3R5cGUYAiABKAkSEAoIcmVxdWlyZWQYAyABKAgilwEKGk9wZXJhdGluZ01vZGVSZXN1bHRCaW5kaW5nEj4KBGtpbmQYASABKA4yMC5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVSZXN1bHRCaW5kaW5nS2luZBI5CghhcnRpZmFjdBgCIAEoCzInLnN3YXJtX21hbmFnZXIudjEuT3BlcmF0aW5nTW9kZUFydGlmYWN0IlsKGU9wZXJhdGluZ01vZGVQaGFzZU1ldHJpY3MSHAoUY291bnRzX3JlcGxhbl9zYW1wbGUYASABKAgSIAoYY291bnRzX2FjY2VwdGFuY2Vfc2FtcGxlGAIgASgIIjMKGU9wZXJhdGluZ01vZGVQcm9tcHRQb2xpY3kSFgoOY2F0YWxvZ19wcmVmaXgYASABKAkiPwobT3BlcmF0aW5nTW9kZUFydGlmYWN0UG9saWN5EgwKBHJvb3QYASABKAkSEgoKcm91bmRfcm9vdBgCIAEoCSI5ChpPcGVyYXRpbmdNb2RlUHJvZmlsZVBvbGljeRIbChNkZWZhdWx0X3Byb2ZpbGVfa2V5GAEgASgJIvIBCh5PcGVyYXRpbmdNb2RlQmFja2xvZ1N5bmNQb2xpY3kSRgoMY2FwYWJpbGl0aWVzGAEgAygOMjAuc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlQmFja2xvZ0NhcGFiaWxpdHkSFwoPcmVxdWlyZXNfcnVuX2lkGAIgASgIEhsKE3JlcXVpcmVzX21lbWJlcnNoaXAYAyABKAgSFAoMZXZlbnRfc291cmNlGAQgASgJEjwKCmFwcGx5X21vZGUYBSABKA4yKC5zd2FybV9tYW5hZ2VyLnYxLk9wZXJhdGluZ01vZGVBcHBseU1vZGUiTQoaT3BlcmF0aW5nTW9kZU1ldHJpY3NQb2xpY3kSFAoMZXZlbnRfc291cmNlGAEgASgJEhkKEWFjY2VwdGVkX3ZlcmRpY3RzGAIgAygJIjcKF09wZXJhdGluZ01vZGVMb2NrUG9saWN5EhwKFGluaXRpYXRpdmVfZXhjbHVzaXZlGAEgASgIIjEKFU9wZXJhdGluZ01vZGVVaVBvbGljeRIYChB3b3Jrc3BhY2VfdGFiX2lkGAEgASgJIsgBChdPcGVyYXRpbmdNb2RlRXhhbXBsZVJ1bhITCgJpZBgBIAEoCUIHukgEcgIQARIVCgRtb2RlGAIgASgJQge6SARyAhABEg0KBWxhYmVsGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEjwKBXN0ZXBzGAUgAygLMi0uc3dhcm1fbWFuYWdlci52MS5PcGVyYXRpbmdNb2RlRXhhbXBsZVJ1blN0ZXASHwoNZXhwZWN0ZWRfcGF0aBgGIAMoCUIIukgFkgECCAEibAobT3BlcmF0aW5nTW9kZUV4YW1wbGVSdW5TdGVwEhYKBXBoYXNlGAEgASgJQge6SARyAhABEicKBm91dHB1dBgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDAoEbm90ZRgDIAEoCSrLAQoXT3BlcmF0aW5nTW9kZVRhcmdldEtpbmQSKgomT1BFUkFUSU5HX01PREVfVEFSR0VUX0tJTkRfVU5TUEVDSUZJRUQQABIwCixPUEVSQVRJTkdfTU9ERV9UQVJHRVRfS0lORF9QTEFOX01BTkFHRVJfUExBThABEicKI09QRVJBVElOR19NT0RFX1RBUkdFVF9LSU5EX1BMQU5fUkVGEAISKQolT1BFUkFUSU5HX01PREVfVEFSR0VUX0tJTkRfSU5JVElBVElWRRADKrMCChxPcGVyYXRpbmdNb2RlUnVuU3RyYXRlZ3lLaW5kEjAKLE9QRVJBVElOR19NT0RFX1JVTl9TVFJBVEVHWV9LSU5EX1VOU1BFQ0lGSUVEEAASNwozT1BFUkFUSU5HX01PREVfUlVOX1NUUkFURUdZX0tJTkRfRVhJU1RJTkdfSVRFTV9GTE9XEAESNQoxT1BFUkFUSU5HX01PREVfUlVOX1NUUkFURUdZX0tJTkRfU0lOR0xFX1BIQVNFX1JVThACEjcKM09QRVJBVElOR19NT0RFX1JVTl9TVFJBVEVHWV9LSU5EX1NFUVVFTlRJQUxfSEFORE9GRhADEjgKNE9QRVJBVElOR19NT0RFX1JVTl9TVFJBVEVHWV9LSU5EX09QRVJBVE9SX0dBVEVEX0xPT1AQBCrkAQoWT3BlcmF0aW5nTW9kZVBoYXNlS2luZBIpCiVPUEVSQVRJTkdfTU9ERV9QSEFTRV9LSU5EX1VOU1BFQ0lGSUVEEAASKQolT1BFUkFUSU5HX01PREVfUEhBU0VfS0lORF9JTlZFU1RJR0FURRABEiUKIU9QRVJBVElOR19NT0RFX1BIQVNFX0tJTkRfRVhFQ1VURRACEiQKIE9QRVJBVElOR19NT0RFX1BIQVNFX0tJTkRfUkVWSUVXEAMSJwojT1BFUkFUSU5HX01PREVfUEhBU0VfS0lORF9SRUNPTkNJTEUQBCqYBAoUT3BlcmF0aW5nTW9kZUd1YXJkT3ASJwojT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfVU5TUEVDSUZJRUQQABIiCh5PUEVSQVRJTkdfTU9ERV9HVUFSRF9PUF9BTFdBWVMQARIeChpPUEVSQVRJTkdfTU9ERV9HVUFSRF9PUF9FURACEh4KGk9QRVJBVElOR19NT0RFX0dVQVJEX09QX05FEAMSHgoaT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfR1QQBBIfChtPUEVSQVRJTkdfTU9ERV9HVUFSRF9PUF9HVEUQBRIeChpPUEVSQVRJTkdfTU9ERV9HVUFSRF9PUF9MVBAGEh8KG09QRVJBVElOR19NT0RFX0dVQVJEX09QX0xURRAHEh4KGk9QRVJBVElOR19NT0RFX0dVQVJEX09QX0lOEAgSIgoeT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfTk9UX0lOEAkSIgoeT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfRVhJU1RTEAoSJgoiT1BFUkFUSU5HX01PREVfR1VBUkRfT1BfTk9UX0VYSVNUUxALEh8KG09QRVJBVElOR19NT0RFX0dVQVJEX09QX0FMTBAMEh8KG09QRVJBVElOR19NT0RFX0dVQVJEX09QX0FOWRANEh8KG09QRVJBVElOR19NT0RFX0dVQVJEX09QX05PVBAOKt8CChxPcGVyYXRpbmdNb2RlT3V0cHV0RmllbGRUeXBlEjAKLE9QRVJBVElOR19NT0RFX09VVFBVVF9GSUVMRF9UWVBFX1VOU1BFQ0lGSUVEEAASKwonT1BFUkFUSU5HX01PREVfT1VUUFVUX0ZJRUxEX1RZUEVfU1RSSU5HEAESLAooT1BFUkFUSU5HX01PREVfT1VUUFVUX0ZJRUxEX1RZUEVfQk9PTEVBThACEiwKKE9QRVJBVElOR19NT0RFX09VVFBVVF9GSUVMRF9UWVBFX0lOVEVHRVIQAxIrCidPUEVSQVRJTkdfTU9ERV9PVVRQVVRfRklFTERfVFlQRV9OVU1CRVIQBBIrCidPUEVSQVRJTkdfTU9ERV9PVVRQVVRfRklFTERfVFlQRV9PQkpFQ1QQBRIqCiZPUEVSQVRJTkdfTU9ERV9PVVRQVVRfRklFTERfVFlQRV9BUlJBWRAGKt4CCh5PcGVyYXRpbmdNb2RlQmFja2xvZ0NhcGFiaWxpdHkSMQotT1BFUkFUSU5HX01PREVfQkFDS0xPR19DQVBBQklMSVRZX1VOU1BFQ0lGSUVEEAASLworT1BFUkFUSU5HX01PREVfQkFDS0xPR19DQVBBQklMSVRZX1JFQURfT05MWRABEjcKM09QRVJBVElOR19NT0RFX0JBQ0tMT0dfQ0FQQUJJTElUWV9QUk9QT1NFX01VVEFUSU9OUxACEjMKL09QRVJBVElOR19NT0RFX0JBQ0tMT0dfQ0FQQUJJTElUWV9NQVJLX0NPTVBMRVRFEAMSNgoyT1BFUkFUSU5HX01PREVfQkFDS0xPR19DQVBBQklMSVRZX0NSRUFURV9GT0xMT1dVUFMQBBIyCi5PUEVSQVRJTkdfTU9ERV9CQUNLTE9HX0NBUEFCSUxJVFlfVVBEQVRFX1NDT1BFEAUqzgEKFk9wZXJhdGluZ01vZGVBcHBseU1vZGUSKQolT1BFUkFUSU5HX01PREVfQVBQTFlfTU9ERV9VTlNQRUNJRklFRBAAEiwKKE9QRVJBVElOR19NT0RFX0FQUExZX01PREVfT1BFUkFUT1JfR0FURUQQARItCilPUEVSQVRJTkdfTU9ERV9BUFBMWV9NT0RFX0FVVE9fQVBQTFlfU0FGRRACEiwKKE9QRVJBVElOR19NT0RFX0FQUExZX01PREVfQVVUT19BUFBMWV9BTEwQAyqOAQoeT3BlcmF0aW5nTW9kZVJlc3VsdEJpbmRpbmdLaW5kEjIKLk9QRVJBVElOR19NT0RFX1JFU1VMVF9CSU5ESU5HX0tJTkRfVU5TUEVDSUZJRUQQABI4CjRPUEVSQVRJTkdfTU9ERV9SRVNVTFRfQklORElOR19LSU5EX1BST0dSRVNTX0FSVElGQUNUEAFCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct]);
 
 /**
  * OperatingMode is one operating mode expressed as data — identity + decision
- * metadata, scope, run strategy, the phase graph, and per-concern policy blocks.
+ * metadata, target (unit of work), run strategy, the phase graph, and
+ * per-concern policy blocks.
  * Mirrors a `modes/<id>/mode.json` (schema kind: operating-mode).
  *
  * @generated from message swarm_manager.v1.OperatingMode
@@ -74,9 +75,9 @@ export type OperatingMode = Message<"swarm_manager.v1.OperatingMode"> & {
   whenInDoubtPickInstead: string;
 
   /**
-   * @generated from field: swarm_manager.v1.OperatingModeScope scope = 8;
+   * @generated from field: swarm_manager.v1.OperatingModeTarget target = 8;
    */
-  scope?: OperatingModeScope | undefined;
+  target?: OperatingModeTarget | undefined;
 
   /**
    * @generated from field: swarm_manager.v1.OperatingModeRunStrategy run_strategy = 9;
@@ -84,7 +85,8 @@ export type OperatingMode = Message<"swarm_manager.v1.OperatingMode"> & {
   runStrategy?: OperatingModeRunStrategy | undefined;
 
   /**
-   * The phase state-machine. Absent for backlog_item-scoped modes (item-level).
+   * The phase state-machine. Absent for modes owned by the backlog execution
+   * flow (run strategy existing_item_flow, i.e. item-level).
    *
    * @generated from field: swarm_manager.v1.OperatingModePhaseGraph phase_graph = 10;
    */
@@ -141,23 +143,60 @@ export const OperatingModeSchema: GenMessage<OperatingMode> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_operating_mode, 0);
 
 /**
- * OperatingModeScope declares the unit of work.
+ * OperatingModeTarget declares the unit of work plus adapter-specific
+ * configuration. The nested plan_ref block is initiative-adapter
+ * configuration (the bound plan-manager plan contract), deliberately distinct
+ * from the plan-ref target kind.
  *
- * @generated from message swarm_manager.v1.OperatingModeScope
+ * @generated from message swarm_manager.v1.OperatingModeTarget
  */
-export type OperatingModeScope = Message<"swarm_manager.v1.OperatingModeScope"> & {
+export type OperatingModeTarget = Message<"swarm_manager.v1.OperatingModeTarget"> & {
   /**
-   * @generated from field: swarm_manager.v1.OperatingModeScopeKind kind = 1;
+   * @generated from field: swarm_manager.v1.OperatingModeTargetKind kind = 1;
    */
-  kind: OperatingModeScopeKind;
+  kind: OperatingModeTargetKind;
+
+  /**
+   * @generated from field: swarm_manager.v1.OperatingModePlanRefPolicy plan_ref = 2;
+   */
+  planRef?: OperatingModePlanRefPolicy | undefined;
 };
 
 /**
- * Describes the message swarm_manager.v1.OperatingModeScope.
- * Use `create(OperatingModeScopeSchema)` to create a new message.
+ * Describes the message swarm_manager.v1.OperatingModeTarget.
+ * Use `create(OperatingModeTargetSchema)` to create a new message.
  */
-export const OperatingModeScopeSchema: GenMessage<OperatingModeScope> = /*@__PURE__*/
+export const OperatingModeTargetSchema: GenMessage<OperatingModeTarget> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_operating_mode, 1);
+
+/**
+ * OperatingModePlanRefPolicy is the initiative adapter's bound-plan contract:
+ * when required, non-start phases refuse to run until the initiative binds a
+ * canonical plan-manager reference, consumed through the PLAN_CONTEXT_JSON
+ * read.
+ *
+ * @generated from message swarm_manager.v1.OperatingModePlanRefPolicy
+ */
+export type OperatingModePlanRefPolicy = Message<"swarm_manager.v1.OperatingModePlanRefPolicy"> & {
+  /**
+   * @generated from field: bool required = 1;
+   */
+  required: boolean;
+
+  /**
+   * Semantic role of the referenced plan (operating_mode_plan).
+   *
+   * @generated from field: string role = 2;
+   */
+  role: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.OperatingModePlanRefPolicy.
+ * Use `create(OperatingModePlanRefPolicySchema)` to create a new message.
+ */
+export const OperatingModePlanRefPolicySchema: GenMessage<OperatingModePlanRefPolicy> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 2);
 
 /**
  * OperatingModeRunStrategy declares how rounds are dispatched and gated.
@@ -176,7 +215,7 @@ export type OperatingModeRunStrategy = Message<"swarm_manager.v1.OperatingModeRu
  * Use `create(OperatingModeRunStrategySchema)` to create a new message.
  */
 export const OperatingModeRunStrategySchema: GenMessage<OperatingModeRunStrategy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 2);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 3);
 
 /**
  * OperatingModePhaseGraph is the phase state-machine: nodes, start, terminals.
@@ -213,7 +252,7 @@ export type OperatingModePhaseGraph = Message<"swarm_manager.v1.OperatingModePha
  * Use `create(OperatingModePhaseGraphSchema)` to create a new message.
  */
 export const OperatingModePhaseGraphSchema: GenMessage<OperatingModePhaseGraph> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 3);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 4);
 
 /**
  * OperatingModePhaseDefinition is one node in the phase graph.
@@ -234,11 +273,34 @@ export type OperatingModePhaseDefinition = Message<"swarm_manager.v1.OperatingMo
   kind: OperatingModePhaseKind;
 
   /**
-   * Stable activity purpose token for the spawned agent run (audit provenance).
+   * Sub-mode id that executes this phase (phase delegation, `executed_by`,
+   * EXECUTION-MODES.md D3). Empty for regular phases. A delegated phase
+   * declares NO reads/prompt/declared_output/artifacts/purposes/profile of
+   * its own — the sub-mode's phases own the execution surface — and exactly
+   * one composition level is allowed (the loader rejects nesting,
+   * self-delegation, unknown sub-modes, and target-incompatible delegation).
+   *
+   * @generated from field: string executed_by = 16;
+   */
+  executedBy: string;
+
+  /**
+   * Stable activity purpose token for the spawned agent run (audit
+   * provenance). Required on regular phases; empty on delegated phases (the
+   * sub-mode's phases carry the purposes).
    *
    * @generated from field: string activity_purpose = 3;
    */
   activityPurpose: string;
+
+  /**
+   * The phase's declared input contract: the named variables its prompt
+   * template may reference (generic-base provider ∪ target-adapter provider).
+   * Load-validated against the mode's composed provider set.
+   *
+   * @generated from field: repeated string reads = 15;
+   */
+  reads: string[];
 
   /**
    * Lock purpose token; defaults to activity_purpose when empty.
@@ -318,7 +380,7 @@ export type OperatingModePhaseDefinition = Message<"swarm_manager.v1.OperatingMo
  * Use `create(OperatingModePhaseDefinitionSchema)` to create a new message.
  */
 export const OperatingModePhaseDefinitionSchema: GenMessage<OperatingModePhaseDefinition> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 4);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 5);
 
 /**
  * OperatingModePhasePrompt is prompt routing for a phase.
@@ -361,7 +423,7 @@ export type OperatingModePhasePrompt = Message<"swarm_manager.v1.OperatingModePh
  * Use `create(OperatingModePhasePromptSchema)` to create a new message.
  */
 export const OperatingModePhasePromptSchema: GenMessage<OperatingModePhasePrompt> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 5);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 6);
 
 /**
  * OperatingModeDeclaredOutput is the per-phase contract for what a round emits —
@@ -405,7 +467,7 @@ export type OperatingModeDeclaredOutput = Message<"swarm_manager.v1.OperatingMod
  * Use `create(OperatingModeDeclaredOutputSchema)` to create a new message.
  */
 export const OperatingModeDeclaredOutputSchema: GenMessage<OperatingModeDeclaredOutput> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 6);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 7);
 
 /**
  * OperatingModeOutputField is one declared output field: name/type/required/
@@ -484,7 +546,7 @@ export type OperatingModeOutputField = Message<"swarm_manager.v1.OperatingModeOu
  * Use `create(OperatingModeOutputFieldSchema)` to create a new message.
  */
 export const OperatingModeOutputFieldSchema: GenMessage<OperatingModeOutputField> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 7);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 8);
 
 /**
  * OperatingModeResolutionPolicy is per-phase resolution-ladder tuning.
@@ -524,7 +586,7 @@ export type OperatingModeResolutionPolicy = Message<"swarm_manager.v1.OperatingM
  * Use `create(OperatingModeResolutionPolicySchema)` to create a new message.
  */
 export const OperatingModeResolutionPolicySchema: GenMessage<OperatingModeResolutionPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 8);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 9);
 
 /**
  * OperatingModeTransition is a guarded edge. When `when` matches the completed
@@ -551,7 +613,7 @@ export type OperatingModeTransition = Message<"swarm_manager.v1.OperatingModeTra
  * Use `create(OperatingModeTransitionSchema)` to create a new message.
  */
 export const OperatingModeTransitionSchema: GenMessage<OperatingModeTransition> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 9);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 10);
 
 /**
  * OperatingModeGuard is a generic field-predicate over a round's structured
@@ -602,7 +664,7 @@ export type OperatingModeGuard = Message<"swarm_manager.v1.OperatingModeGuard"> 
  * Use `create(OperatingModeGuardSchema)` to create a new message.
  */
 export const OperatingModeGuardSchema: GenMessage<OperatingModeGuard> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 10);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 11);
 
 /**
  * OperatingModeArtifact is a file a phase produces or a binding writes.
@@ -637,7 +699,7 @@ export type OperatingModeArtifact = Message<"swarm_manager.v1.OperatingModeArtif
  * Use `create(OperatingModeArtifactSchema)` to create a new message.
  */
 export const OperatingModeArtifactSchema: GenMessage<OperatingModeArtifact> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 11);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 12);
 
 /**
  * OperatingModeResultBinding persists a structured-result field into a durable
@@ -662,7 +724,7 @@ export type OperatingModeResultBinding = Message<"swarm_manager.v1.OperatingMode
  * Use `create(OperatingModeResultBindingSchema)` to create a new message.
  */
 export const OperatingModeResultBindingSchema: GenMessage<OperatingModeResultBinding> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 12);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 13);
 
 /**
  * OperatingModePhaseMetrics carries per-phase flags aggregated into the mode's
@@ -687,7 +749,7 @@ export type OperatingModePhaseMetrics = Message<"swarm_manager.v1.OperatingModeP
  * Use `create(OperatingModePhaseMetricsSchema)` to create a new message.
  */
 export const OperatingModePhaseMetricsSchema: GenMessage<OperatingModePhaseMetrics> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 13);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 14);
 
 /**
  * OperatingModePromptPolicy is mode-level prompt routing.
@@ -708,7 +770,7 @@ export type OperatingModePromptPolicy = Message<"swarm_manager.v1.OperatingModeP
  * Use `create(OperatingModePromptPolicySchema)` to create a new message.
  */
 export const OperatingModePromptPolicySchema: GenMessage<OperatingModePromptPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 14);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 15);
 
 /**
  * OperatingModeArtifactPolicy is mode-level artifact roots.
@@ -736,7 +798,7 @@ export type OperatingModeArtifactPolicy = Message<"swarm_manager.v1.OperatingMod
  * Use `create(OperatingModeArtifactPolicySchema)` to create a new message.
  */
 export const OperatingModeArtifactPolicySchema: GenMessage<OperatingModeArtifactPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 15);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 16);
 
 /**
  * OperatingModeProfilePolicy is mode-level profile defaults.
@@ -757,7 +819,7 @@ export type OperatingModeProfilePolicy = Message<"swarm_manager.v1.OperatingMode
  * Use `create(OperatingModeProfilePolicySchema)` to create a new message.
  */
 export const OperatingModeProfilePolicySchema: GenMessage<OperatingModeProfilePolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 16);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 17);
 
 /**
  * OperatingModeBacklogSyncPolicy declares how a mode reads and reconciles the
@@ -801,7 +863,7 @@ export type OperatingModeBacklogSyncPolicy = Message<"swarm_manager.v1.Operating
  * Use `create(OperatingModeBacklogSyncPolicySchema)` to create a new message.
  */
 export const OperatingModeBacklogSyncPolicySchema: GenMessage<OperatingModeBacklogSyncPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 17);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 18);
 
 /**
  * OperatingModeMetricsPolicy is mode-level metrics configuration. Sample-phase
@@ -830,7 +892,7 @@ export type OperatingModeMetricsPolicy = Message<"swarm_manager.v1.OperatingMode
  * Use `create(OperatingModeMetricsPolicySchema)` to create a new message.
  */
 export const OperatingModeMetricsPolicySchema: GenMessage<OperatingModeMetricsPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 18);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 19);
 
 /**
  * OperatingModeLockPolicy is the initiative locking posture.
@@ -851,7 +913,7 @@ export type OperatingModeLockPolicy = Message<"swarm_manager.v1.OperatingModeLoc
  * Use `create(OperatingModeLockPolicySchema)` to create a new message.
  */
 export const OperatingModeLockPolicySchema: GenMessage<OperatingModeLockPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 19);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 20);
 
 /**
  * OperatingModeUiPolicy carries UI surfacing hints.
@@ -872,7 +934,7 @@ export type OperatingModeUiPolicy = Message<"swarm_manager.v1.OperatingModeUiPol
  * Use `create(OperatingModeUiPolicySchema)` to create a new message.
  */
 export const OperatingModeUiPolicySchema: GenMessage<OperatingModeUiPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 20);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 21);
 
 /**
  * OperatingModeExampleRun is a mode-owned simulation fixture: it seeds each
@@ -932,7 +994,7 @@ export type OperatingModeExampleRun = Message<"swarm_manager.v1.OperatingModeExa
  * Use `create(OperatingModeExampleRunSchema)` to create a new message.
  */
 export const OperatingModeExampleRunSchema: GenMessage<OperatingModeExampleRun> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 21);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 22);
 
 /**
  * OperatingModeExampleRunStep is one seeded round in an example-run.
@@ -968,38 +1030,48 @@ export type OperatingModeExampleRunStep = Message<"swarm_manager.v1.OperatingMod
  * Use `create(OperatingModeExampleRunStepSchema)` to create a new message.
  */
 export const OperatingModeExampleRunStepSchema: GenMessage<OperatingModeExampleRunStep> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_operating_mode, 22);
+  messageDesc(file_swarm_manager_v1_domain_operating_mode, 23);
 
 /**
- * OperatingModeScopeKind is the unit of work a mode operates on.
+ * OperatingModeTargetKind is the mode's declared unit of work — the thing one
+ * run of the loop operates on. Each kind has a target adapter supplying the
+ * target-specific reads, artifact scope, and lock identity; initiative is one
+ * adapter among several, not the base case.
  *
- * @generated from enum swarm_manager.v1.OperatingModeScopeKind
+ * @generated from enum swarm_manager.v1.OperatingModeTargetKind
  */
-export enum OperatingModeScopeKind {
+export enum OperatingModeTargetKind {
   /**
-   * @generated from enum value: OPERATING_MODE_SCOPE_KIND_UNSPECIFIED = 0;
+   * @generated from enum value: OPERATING_MODE_TARGET_KIND_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * Each backlog item flows through the existing item pipeline (item-level).
+   * A canonical plan-manager plan (execution id / slug).
    *
-   * @generated from enum value: OPERATING_MODE_SCOPE_KIND_BACKLOG_ITEM = 1;
+   * @generated from enum value: OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN = 1;
    */
-  BACKLOG_ITEM = 1,
+  PLAN_MANAGER_PLAN = 1,
 
   /**
-   * The whole initiative is the unit of execution and validation.
+   * A plan file/reference not imported into swarm-manager.
    *
-   * @generated from enum value: OPERATING_MODE_SCOPE_KIND_INITIATIVE = 2;
+   * @generated from enum value: OPERATING_MODE_TARGET_KIND_PLAN_REF = 2;
    */
-  INITIATIVE = 2,
+  PLAN_REF = 2,
+
+  /**
+   * A swarm-manager initiative and its member items.
+   *
+   * @generated from enum value: OPERATING_MODE_TARGET_KIND_INITIATIVE = 3;
+   */
+  INITIATIVE = 3,
 }
 
 /**
- * Describes the enum swarm_manager.v1.OperatingModeScopeKind.
+ * Describes the enum swarm_manager.v1.OperatingModeTargetKind.
  */
-export const OperatingModeScopeKindSchema: GenEnum<OperatingModeScopeKind> = /*@__PURE__*/
+export const OperatingModeTargetKindSchema: GenEnum<OperatingModeTargetKind> = /*@__PURE__*/
   enumDesc(file_swarm_manager_v1_domain_operating_mode, 0);
 
 /**

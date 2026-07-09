@@ -66,9 +66,15 @@ const (
 	// ComponentsServiceGetComponentVersionContentProcedure is the fully-qualified name of the
 	// ComponentsService's GetComponentVersionContent RPC.
 	ComponentsServiceGetComponentVersionContentProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentVersionContent"
+	// ComponentsServiceListComponentExamplesProcedure is the fully-qualified name of the
+	// ComponentsService's ListComponentExamples RPC.
+	ComponentsServiceListComponentExamplesProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentExamples"
 	// ComponentsServiceListDesignStylesProcedure is the fully-qualified name of the ComponentsService's
 	// ListDesignStyles RPC.
 	ComponentsServiceListDesignStylesProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ListDesignStyles"
+	// ComponentsServiceValidateStyleFitProcedure is the fully-qualified name of the ComponentsService's
+	// ValidateStyleFit RPC.
+	ComponentsServiceValidateStyleFitProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ValidateStyleFit"
 )
 
 // ComponentsServiceClient is a client for the
@@ -85,7 +91,9 @@ type ComponentsServiceClient interface {
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
 	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
+	ListComponentExamples(context.Context, *connect.Request[components.ListComponentExamplesRequest]) (*connect.Response[components.ListComponentExamplesResponse], error)
 	ListDesignStyles(context.Context, *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error)
+	ValidateStyleFit(context.Context, *connect.Request[components.ValidateStyleFitRequest]) (*connect.Response[components.ValidateStyleFitResponse], error)
 }
 
 // NewComponentsServiceClient constructs a client for the
@@ -166,10 +174,22 @@ func NewComponentsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(componentsServiceMethods.ByName("GetComponentVersionContent")),
 			connect.WithClientOptions(opts...),
 		),
+		listComponentExamples: connect.NewClient[components.ListComponentExamplesRequest, components.ListComponentExamplesResponse](
+			httpClient,
+			baseURL+ComponentsServiceListComponentExamplesProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("ListComponentExamples")),
+			connect.WithClientOptions(opts...),
+		),
 		listDesignStyles: connect.NewClient[components.ListDesignStylesRequest, components.ListDesignStylesResponse](
 			httpClient,
 			baseURL+ComponentsServiceListDesignStylesProcedure,
 			connect.WithSchema(componentsServiceMethods.ByName("ListDesignStyles")),
+			connect.WithClientOptions(opts...),
+		),
+		validateStyleFit: connect.NewClient[components.ValidateStyleFitRequest, components.ValidateStyleFitResponse](
+			httpClient,
+			baseURL+ComponentsServiceValidateStyleFitProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("ValidateStyleFit")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -188,7 +208,9 @@ type componentsServiceClient struct {
 	updateComponentContent     *connect.Client[components.UpdateComponentContentRequest, components.UpdateComponentContentResponse]
 	listComponentVersions      *connect.Client[components.ListComponentVersionsRequest, components.ListComponentVersionsResponse]
 	getComponentVersionContent *connect.Client[components.GetComponentVersionContentRequest, components.GetComponentVersionContentResponse]
+	listComponentExamples      *connect.Client[components.ListComponentExamplesRequest, components.ListComponentExamplesResponse]
 	listDesignStyles           *connect.Client[components.ListDesignStylesRequest, components.ListDesignStylesResponse]
+	validateStyleFit           *connect.Client[components.ValidateStyleFitRequest, components.ValidateStyleFitResponse]
 }
 
 // ListComponents calls
@@ -256,10 +278,22 @@ func (c *componentsServiceClient) GetComponentVersionContent(ctx context.Context
 	return c.getComponentVersionContent.CallUnary(ctx, req)
 }
 
+// ListComponentExamples calls
+// vrooli.react_component_library.v1.components.ComponentsService.ListComponentExamples.
+func (c *componentsServiceClient) ListComponentExamples(ctx context.Context, req *connect.Request[components.ListComponentExamplesRequest]) (*connect.Response[components.ListComponentExamplesResponse], error) {
+	return c.listComponentExamples.CallUnary(ctx, req)
+}
+
 // ListDesignStyles calls
 // vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles.
 func (c *componentsServiceClient) ListDesignStyles(ctx context.Context, req *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error) {
 	return c.listDesignStyles.CallUnary(ctx, req)
+}
+
+// ValidateStyleFit calls
+// vrooli.react_component_library.v1.components.ComponentsService.ValidateStyleFit.
+func (c *componentsServiceClient) ValidateStyleFit(ctx context.Context, req *connect.Request[components.ValidateStyleFitRequest]) (*connect.Response[components.ValidateStyleFitResponse], error) {
+	return c.validateStyleFit.CallUnary(ctx, req)
 }
 
 // ComponentsServiceHandler is an implementation of the
@@ -276,7 +310,9 @@ type ComponentsServiceHandler interface {
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
 	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
+	ListComponentExamples(context.Context, *connect.Request[components.ListComponentExamplesRequest]) (*connect.Response[components.ListComponentExamplesResponse], error)
 	ListDesignStyles(context.Context, *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error)
+	ValidateStyleFit(context.Context, *connect.Request[components.ValidateStyleFitRequest]) (*connect.Response[components.ValidateStyleFitResponse], error)
 }
 
 // NewComponentsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -352,10 +388,22 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 		connect.WithSchema(componentsServiceMethods.ByName("GetComponentVersionContent")),
 		connect.WithHandlerOptions(opts...),
 	)
+	componentsServiceListComponentExamplesHandler := connect.NewUnaryHandler(
+		ComponentsServiceListComponentExamplesProcedure,
+		svc.ListComponentExamples,
+		connect.WithSchema(componentsServiceMethods.ByName("ListComponentExamples")),
+		connect.WithHandlerOptions(opts...),
+	)
 	componentsServiceListDesignStylesHandler := connect.NewUnaryHandler(
 		ComponentsServiceListDesignStylesProcedure,
 		svc.ListDesignStyles,
 		connect.WithSchema(componentsServiceMethods.ByName("ListDesignStyles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	componentsServiceValidateStyleFitHandler := connect.NewUnaryHandler(
+		ComponentsServiceValidateStyleFitProcedure,
+		svc.ValidateStyleFit,
+		connect.WithSchema(componentsServiceMethods.ByName("ValidateStyleFit")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/vrooli.react_component_library.v1.components.ComponentsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -382,8 +430,12 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 			componentsServiceListComponentVersionsHandler.ServeHTTP(w, r)
 		case ComponentsServiceGetComponentVersionContentProcedure:
 			componentsServiceGetComponentVersionContentHandler.ServeHTTP(w, r)
+		case ComponentsServiceListComponentExamplesProcedure:
+			componentsServiceListComponentExamplesHandler.ServeHTTP(w, r)
 		case ComponentsServiceListDesignStylesProcedure:
 			componentsServiceListDesignStylesHandler.ServeHTTP(w, r)
+		case ComponentsServiceValidateStyleFitProcedure:
+			componentsServiceValidateStyleFitHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -437,6 +489,14 @@ func (UnimplementedComponentsServiceHandler) GetComponentVersionContent(context.
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent is not implemented"))
 }
 
+func (UnimplementedComponentsServiceHandler) ListComponentExamples(context.Context, *connect.Request[components.ListComponentExamplesRequest]) (*connect.Response[components.ListComponentExamplesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.ListComponentExamples is not implemented"))
+}
+
 func (UnimplementedComponentsServiceHandler) ListDesignStyles(context.Context, *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) ValidateStyleFit(context.Context, *connect.Request[components.ValidateStyleFitRequest]) (*connect.Response[components.ValidateStyleFitResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.ValidateStyleFit is not implemented"))
 }

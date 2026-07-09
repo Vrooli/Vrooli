@@ -23,6 +23,8 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// BacklogServiceName is the fully-qualified name of the BacklogService service.
 	BacklogServiceName = "swarm_manager.v1.BacklogService"
+	// AutoFilerServiceName is the fully-qualified name of the AutoFilerService service.
+	AutoFilerServiceName = "swarm_manager.v1.AutoFilerService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -38,6 +40,14 @@ const (
 	BacklogServiceCreateItemProcedure = "/swarm_manager.v1.BacklogService/CreateItem"
 	// BacklogServiceGetItemProcedure is the fully-qualified name of the BacklogService's GetItem RPC.
 	BacklogServiceGetItemProcedure = "/swarm_manager.v1.BacklogService/GetItem"
+	// AutoFilerServiceGetStatusProcedure is the fully-qualified name of the AutoFilerService's
+	// GetStatus RPC.
+	AutoFilerServiceGetStatusProcedure = "/swarm_manager.v1.AutoFilerService/GetStatus"
+	// AutoFilerServiceDismissSuggestionProcedure is the fully-qualified name of the AutoFilerService's
+	// DismissSuggestion RPC.
+	AutoFilerServiceDismissSuggestionProcedure = "/swarm_manager.v1.AutoFilerService/DismissSuggestion"
+	// AutoFilerServiceRunNowProcedure is the fully-qualified name of the AutoFilerService's RunNow RPC.
+	AutoFilerServiceRunNowProcedure = "/swarm_manager.v1.AutoFilerService/RunNow"
 )
 
 // BacklogServiceClient is a client for the swarm_manager.v1.BacklogService service.
@@ -144,4 +154,138 @@ func (UnimplementedBacklogServiceHandler) CreateItem(context.Context, *connect.R
 
 func (UnimplementedBacklogServiceHandler) GetItem(context.Context, *connect.Request[api.GetBacklogItemRequest]) (*connect.Response[api.BacklogItemResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.BacklogService.GetItem is not implemented"))
+}
+
+// AutoFilerServiceClient is a client for the swarm_manager.v1.AutoFilerService service.
+type AutoFilerServiceClient interface {
+	// GetStatus returns the current policy settings plus the latest cycle
+	// outcome and brake/cap accounting.
+	GetStatus(context.Context, *connect.Request[api.AutoFilerStatusRequest]) (*connect.Response[api.AutoFilerStatusResponse], error)
+	// DismissSuggestion archives a suggested auto-filed item and remembers its
+	// finding_ref so the same finding is not suggested again.
+	DismissSuggestion(context.Context, *connect.Request[api.DismissAutoFilerSuggestionRequest]) (*connect.Response[api.DismissAutoFilerSuggestionResponse], error)
+	// RunNow forces one governed auto-filer cycle immediately and returns the
+	// resulting status snapshot.
+	RunNow(context.Context, *connect.Request[api.AutoFilerRunNowRequest]) (*connect.Response[api.AutoFilerStatusResponse], error)
+}
+
+// NewAutoFilerServiceClient constructs a client for the swarm_manager.v1.AutoFilerService service.
+// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
+// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewAutoFilerServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AutoFilerServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	autoFilerServiceMethods := api.File_swarm_manager_v1_api_backlog_proto.Services().ByName("AutoFilerService").Methods()
+	return &autoFilerServiceClient{
+		getStatus: connect.NewClient[api.AutoFilerStatusRequest, api.AutoFilerStatusResponse](
+			httpClient,
+			baseURL+AutoFilerServiceGetStatusProcedure,
+			connect.WithSchema(autoFilerServiceMethods.ByName("GetStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		dismissSuggestion: connect.NewClient[api.DismissAutoFilerSuggestionRequest, api.DismissAutoFilerSuggestionResponse](
+			httpClient,
+			baseURL+AutoFilerServiceDismissSuggestionProcedure,
+			connect.WithSchema(autoFilerServiceMethods.ByName("DismissSuggestion")),
+			connect.WithClientOptions(opts...),
+		),
+		runNow: connect.NewClient[api.AutoFilerRunNowRequest, api.AutoFilerStatusResponse](
+			httpClient,
+			baseURL+AutoFilerServiceRunNowProcedure,
+			connect.WithSchema(autoFilerServiceMethods.ByName("RunNow")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// autoFilerServiceClient implements AutoFilerServiceClient.
+type autoFilerServiceClient struct {
+	getStatus         *connect.Client[api.AutoFilerStatusRequest, api.AutoFilerStatusResponse]
+	dismissSuggestion *connect.Client[api.DismissAutoFilerSuggestionRequest, api.DismissAutoFilerSuggestionResponse]
+	runNow            *connect.Client[api.AutoFilerRunNowRequest, api.AutoFilerStatusResponse]
+}
+
+// GetStatus calls swarm_manager.v1.AutoFilerService.GetStatus.
+func (c *autoFilerServiceClient) GetStatus(ctx context.Context, req *connect.Request[api.AutoFilerStatusRequest]) (*connect.Response[api.AutoFilerStatusResponse], error) {
+	return c.getStatus.CallUnary(ctx, req)
+}
+
+// DismissSuggestion calls swarm_manager.v1.AutoFilerService.DismissSuggestion.
+func (c *autoFilerServiceClient) DismissSuggestion(ctx context.Context, req *connect.Request[api.DismissAutoFilerSuggestionRequest]) (*connect.Response[api.DismissAutoFilerSuggestionResponse], error) {
+	return c.dismissSuggestion.CallUnary(ctx, req)
+}
+
+// RunNow calls swarm_manager.v1.AutoFilerService.RunNow.
+func (c *autoFilerServiceClient) RunNow(ctx context.Context, req *connect.Request[api.AutoFilerRunNowRequest]) (*connect.Response[api.AutoFilerStatusResponse], error) {
+	return c.runNow.CallUnary(ctx, req)
+}
+
+// AutoFilerServiceHandler is an implementation of the swarm_manager.v1.AutoFilerService service.
+type AutoFilerServiceHandler interface {
+	// GetStatus returns the current policy settings plus the latest cycle
+	// outcome and brake/cap accounting.
+	GetStatus(context.Context, *connect.Request[api.AutoFilerStatusRequest]) (*connect.Response[api.AutoFilerStatusResponse], error)
+	// DismissSuggestion archives a suggested auto-filed item and remembers its
+	// finding_ref so the same finding is not suggested again.
+	DismissSuggestion(context.Context, *connect.Request[api.DismissAutoFilerSuggestionRequest]) (*connect.Response[api.DismissAutoFilerSuggestionResponse], error)
+	// RunNow forces one governed auto-filer cycle immediately and returns the
+	// resulting status snapshot.
+	RunNow(context.Context, *connect.Request[api.AutoFilerRunNowRequest]) (*connect.Response[api.AutoFilerStatusResponse], error)
+}
+
+// NewAutoFilerServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewAutoFilerServiceHandler(svc AutoFilerServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	autoFilerServiceMethods := api.File_swarm_manager_v1_api_backlog_proto.Services().ByName("AutoFilerService").Methods()
+	autoFilerServiceGetStatusHandler := connect.NewUnaryHandler(
+		AutoFilerServiceGetStatusProcedure,
+		svc.GetStatus,
+		connect.WithSchema(autoFilerServiceMethods.ByName("GetStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	autoFilerServiceDismissSuggestionHandler := connect.NewUnaryHandler(
+		AutoFilerServiceDismissSuggestionProcedure,
+		svc.DismissSuggestion,
+		connect.WithSchema(autoFilerServiceMethods.ByName("DismissSuggestion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	autoFilerServiceRunNowHandler := connect.NewUnaryHandler(
+		AutoFilerServiceRunNowProcedure,
+		svc.RunNow,
+		connect.WithSchema(autoFilerServiceMethods.ByName("RunNow")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/swarm_manager.v1.AutoFilerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case AutoFilerServiceGetStatusProcedure:
+			autoFilerServiceGetStatusHandler.ServeHTTP(w, r)
+		case AutoFilerServiceDismissSuggestionProcedure:
+			autoFilerServiceDismissSuggestionHandler.ServeHTTP(w, r)
+		case AutoFilerServiceRunNowProcedure:
+			autoFilerServiceRunNowHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedAutoFilerServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAutoFilerServiceHandler struct{}
+
+func (UnimplementedAutoFilerServiceHandler) GetStatus(context.Context, *connect.Request[api.AutoFilerStatusRequest]) (*connect.Response[api.AutoFilerStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.AutoFilerService.GetStatus is not implemented"))
+}
+
+func (UnimplementedAutoFilerServiceHandler) DismissSuggestion(context.Context, *connect.Request[api.DismissAutoFilerSuggestionRequest]) (*connect.Response[api.DismissAutoFilerSuggestionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.AutoFilerService.DismissSuggestion is not implemented"))
+}
+
+func (UnimplementedAutoFilerServiceHandler) RunNow(context.Context, *connect.Request[api.AutoFilerRunNowRequest]) (*connect.Response[api.AutoFilerStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.AutoFilerService.RunNow is not implemented"))
 }

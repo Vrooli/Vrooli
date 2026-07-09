@@ -4,6 +4,7 @@ package swarm_manager.v1;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/agent_session.proto";
+import "swarm-manager/v1/domain/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -38,9 +39,10 @@ message BacklogItem {
   string description = 3;
 
   // Lifecycle state for the backlog item.
-  // @constraint one of: backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
+  // @constraint one of: suggested, backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
   string status = 4 [(buf.validate.field).string = {
     in: [
+      "suggested",
       "backlog",
       "researching",
       "ready",
@@ -123,9 +125,7 @@ message BacklogItem {
   // @format rfc3339
   optional string archived_at = 19;
 
-  // Raw JSON string containing the plan validation report (PlanValidationResult).
-  // Ephemeral data — regenerated on read when plan.md is newer than the report.
-  optional string plan_validation_json = 20;
+  reserved 20; // plan_validation_json — removed; plan quality is owned by plan-manager.
 
   // Skill IDs recommended by the creating agent. Workshop and execution agents
   // should read these skills before proceeding.
@@ -147,6 +147,12 @@ message BacklogItem {
   // failed, in_progress, archived) — there is no position to report.
   // @constraint 0+
   optional int32 queue_position = 24 [(buf.validate.field).int32.gte = 0];
+
+  // Canonical plan-manager plan backing this work item.
+  optional PlanRef plan_ref = 25;
+
+  // Stable programmatic finding ID that produced this item, when auto-filed.
+  optional string finding_ref = 26;
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.

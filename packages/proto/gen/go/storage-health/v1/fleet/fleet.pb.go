@@ -124,9 +124,11 @@ type ScanFleetResponse struct {
 	Errors []*FleetScanError `protobuf:"bytes,8,rep,name=errors,proto3" json:"errors,omitempty"`
 	// RFC3339 timestamp the snapshot was produced (empty for a never-scanned
 	// GetInventory).
-	ScannedAt     string `protobuf:"bytes,9,opt,name=scanned_at,json=scannedAt,proto3" json:"scanned_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ScannedAt string `protobuf:"bytes,9,opt,name=scanned_at,json=scannedAt,proto3" json:"scanned_at,omitempty"`
+	// Scenarios whose measured data directory bytes exceed their resolved budget.
+	DataDirOverBudgetCount int32 `protobuf:"varint,10,opt,name=data_dir_over_budget_count,json=dataDirOverBudgetCount,proto3" json:"data_dir_over_budget_count,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ScanFleetResponse) Reset() {
@@ -222,6 +224,13 @@ func (x *ScanFleetResponse) GetScannedAt() string {
 	return ""
 }
 
+func (x *ScanFleetResponse) GetDataDirOverBudgetCount() int32 {
+	if x != nil {
+		return x.DataDirOverBudgetCount
+	}
+	return 0
+}
+
 // FleetScenarioEntry is one scenario's storage rollup.
 type FleetScenarioEntry struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
@@ -252,8 +261,21 @@ type FleetScenarioEntry struct {
 	ErrorCount int32 `protobuf:"varint,11,opt,name=error_count,json=errorCount,proto3" json:"error_count,omitempty"`
 	// Findings a registered storage-health autofix can remediate.
 	AutofixableCount int32 `protobuf:"varint,12,opt,name=autofixable_count,json=autofixableCount,proto3" json:"autofixable_count,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Bytes measured under scenario-local and runtime data directories.
+	DataDirBytes int64 `protobuf:"varint,13,opt,name=data_dir_bytes,json=dataDirBytes,proto3" json:"data_dir_bytes,omitempty"`
+	// Resolved byte budget for the scenario data directories.
+	DataDirBudgetBytes int64 `protobuf:"varint,14,opt,name=data_dir_budget_bytes,json=dataDirBudgetBytes,proto3" json:"data_dir_budget_bytes,omitempty"`
+	// data_dir_bytes / data_dir_budget_bytes. Zero when no budget is configured.
+	DataDirUtilization float64 `protobuf:"fixed64,15,opt,name=data_dir_utilization,json=dataDirUtilization,proto3" json:"data_dir_utilization,omitempty"`
+	// True when data_dir_bytes is greater than data_dir_budget_bytes.
+	DataDirOverBudget bool `protobuf:"varint,16,opt,name=data_dir_over_budget,json=dataDirOverBudget,proto3" json:"data_dir_over_budget,omitempty"`
+	// Severity for the data-directory budget finding: warning, serious, critical,
+	// or empty when under budget.
+	DataDirSeverity string `protobuf:"bytes,17,opt,name=data_dir_severity,json=dataDirSeverity,proto3" json:"data_dir_severity,omitempty"`
+	// Directories included in data_dir_bytes.
+	DataDirPaths  []string `protobuf:"bytes,18,rep,name=data_dir_paths,json=dataDirPaths,proto3" json:"data_dir_paths,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FleetScenarioEntry) Reset() {
@@ -368,6 +390,48 @@ func (x *FleetScenarioEntry) GetAutofixableCount() int32 {
 		return x.AutofixableCount
 	}
 	return 0
+}
+
+func (x *FleetScenarioEntry) GetDataDirBytes() int64 {
+	if x != nil {
+		return x.DataDirBytes
+	}
+	return 0
+}
+
+func (x *FleetScenarioEntry) GetDataDirBudgetBytes() int64 {
+	if x != nil {
+		return x.DataDirBudgetBytes
+	}
+	return 0
+}
+
+func (x *FleetScenarioEntry) GetDataDirUtilization() float64 {
+	if x != nil {
+		return x.DataDirUtilization
+	}
+	return 0
+}
+
+func (x *FleetScenarioEntry) GetDataDirOverBudget() bool {
+	if x != nil {
+		return x.DataDirOverBudget
+	}
+	return false
+}
+
+func (x *FleetScenarioEntry) GetDataDirSeverity() string {
+	if x != nil {
+		return x.DataDirSeverity
+	}
+	return ""
+}
+
+func (x *FleetScenarioEntry) GetDataDirPaths() []string {
+	if x != nil {
+		return x.DataDirPaths
+	}
+	return nil
 }
 
 // EngineCount counts scenarios using a given engine.
@@ -536,7 +600,7 @@ const file_storage_health_v1_fleet_fleet_proto_rawDesc = "" +
 	"#storage-health/v1/fleet/fleet.proto\x12\x1evrooli.storage_health.v1.fleet\"0\n" +
 	"\x10ScanFleetRequest\x12\x1c\n" +
 	"\tscenarios\x18\x01 \x03(\tR\tscenarios\"\x15\n" +
-	"\x13GetInventoryRequest\"\xad\x04\n" +
+	"\x13GetInventoryRequest\"\xe9\x04\n" +
 	"\x11ScanFleetResponse\x12L\n" +
 	"\aentries\x18\x01 \x03(\v22.vrooli.storage_health.v1.fleet.FleetScenarioEntryR\aentries\x12\\\n" +
 	"\x13engine_distribution\x18\x02 \x03(\v2+.vrooli.storage_health.v1.fleet.EngineCountR\x12engineDistribution\x12Y\n" +
@@ -547,7 +611,9 @@ const file_storage_health_v1_fleet_fleet_proto_rawDesc = "" +
 	"\rfinding_count\x18\a \x01(\x05R\ffindingCount\x12F\n" +
 	"\x06errors\x18\b \x03(\v2..vrooli.storage_health.v1.fleet.FleetScanErrorR\x06errors\x12\x1d\n" +
 	"\n" +
-	"scanned_at\x18\t \x01(\tR\tscannedAt\"\xd2\x03\n" +
+	"scanned_at\x18\t \x01(\tR\tscannedAt\x12:\n" +
+	"\x1adata_dir_over_budget_count\x18\n" +
+	" \x01(\x05R\x16dataDirOverBudgetCount\"\xe0\x05\n" +
 	"\x12FleetScenarioEntry\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x18\n" +
 	"\aengines\x18\x02 \x03(\tR\aengines\x12%\n" +
@@ -562,7 +628,13 @@ const file_storage_health_v1_fleet_fleet_proto_rawDesc = "" +
 	" \x01(\x05R\ffindingCount\x12\x1f\n" +
 	"\verror_count\x18\v \x01(\x05R\n" +
 	"errorCount\x12+\n" +
-	"\x11autofixable_count\x18\f \x01(\x05R\x10autofixableCount\"L\n" +
+	"\x11autofixable_count\x18\f \x01(\x05R\x10autofixableCount\x12$\n" +
+	"\x0edata_dir_bytes\x18\r \x01(\x03R\fdataDirBytes\x121\n" +
+	"\x15data_dir_budget_bytes\x18\x0e \x01(\x03R\x12dataDirBudgetBytes\x120\n" +
+	"\x14data_dir_utilization\x18\x0f \x01(\x01R\x12dataDirUtilization\x12/\n" +
+	"\x14data_dir_over_budget\x18\x10 \x01(\bR\x11dataDirOverBudget\x12*\n" +
+	"\x11data_dir_severity\x18\x11 \x01(\tR\x0fdataDirSeverity\x12$\n" +
+	"\x0edata_dir_paths\x18\x12 \x03(\tR\fdataDirPaths\"L\n" +
 	"\vEngineCount\x12\x16\n" +
 	"\x06engine\x18\x01 \x01(\tR\x06engine\x12%\n" +
 	"\x0escenario_count\x18\x02 \x01(\x05R\rscenarioCount\"I\n" +

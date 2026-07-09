@@ -29,12 +29,34 @@ class OperatingModeUpdateRequest(_message.Message):
     def __init__(self, mode: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
 
 class OperatingModeSimulateRequest(_message.Message):
-    __slots__ = ("mode", "preset")
+    __slots__ = ("mode", "preset", "draft")
     MODE_FIELD_NUMBER: _ClassVar[int]
     PRESET_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_FIELD_NUMBER: _ClassVar[int]
     mode: str
     preset: str
-    def __init__(self, mode: _Optional[str] = ..., preset: _Optional[str] = ...) -> None: ...
+    draft: bool
+    def __init__(self, mode: _Optional[str] = ..., preset: _Optional[str] = ..., draft: _Optional[bool] = ...) -> None: ...
+
+class OperatingModeScaffoldRequest(_message.Message):
+    __slots__ = ("id", "label", "description", "force", "start_from")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
+    START_FROM_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    label: str
+    description: str
+    force: bool
+    start_from: str
+    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., force: _Optional[bool] = ..., start_from: _Optional[str] = ...) -> None: ...
+
+class OperatingModeValidateRequest(_message.Message):
+    __slots__ = ("mode",)
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    mode: str
+    def __init__(self, mode: _Optional[str] = ...) -> None: ...
 
 class OperatingModeRenderSimulationRequest(_message.Message):
     __slots__ = ("mode", "preset", "step_index")
@@ -77,6 +99,22 @@ class OperatingModeStartPhaseRequest(_message.Message):
     override: bool
     requested_by: str
     def __init__(self, initiative_name: _Optional[str] = ..., phase: _Optional[str] = ..., note: _Optional[str] = ..., override: _Optional[bool] = ..., requested_by: _Optional[str] = ...) -> None: ...
+
+class OperatingModeStartTargetPhaseRequest(_message.Message):
+    __slots__ = ("mode", "target_ref", "phase", "note", "override", "requested_by")
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_REF_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    OVERRIDE_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_BY_FIELD_NUMBER: _ClassVar[int]
+    mode: str
+    target_ref: str
+    phase: str
+    note: str
+    override: bool
+    requested_by: str
+    def __init__(self, mode: _Optional[str] = ..., target_ref: _Optional[str] = ..., phase: _Optional[str] = ..., note: _Optional[str] = ..., override: _Optional[bool] = ..., requested_by: _Optional[str] = ...) -> None: ...
 
 class OperatingModeRenderLiveRequest(_message.Message):
     __slots__ = ("initiative_name", "phase", "round", "note")
@@ -209,7 +247,7 @@ class OperatingModeReadinessReport(_message.Message):
     def __init__(self, dimensions: _Optional[_Iterable[_Union[OperatingModeReadinessDimension, _Mapping]]] = ..., overall_score: _Optional[float] = ..., ready: _Optional[bool] = ...) -> None: ...
 
 class OperatingModeHandoff(_message.Message):
-    __slots__ = ("summary", "completed_phases", "changed_files", "tests", "blockers", "next_step", "created_at")
+    __slots__ = ("summary", "completed_phases", "changed_files", "tests", "blockers", "next_step", "created_at", "frontier")
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_PHASES_FIELD_NUMBER: _ClassVar[int]
     CHANGED_FILES_FIELD_NUMBER: _ClassVar[int]
@@ -217,6 +255,7 @@ class OperatingModeHandoff(_message.Message):
     BLOCKERS_FIELD_NUMBER: _ClassVar[int]
     NEXT_STEP_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    FRONTIER_FIELD_NUMBER: _ClassVar[int]
     summary: str
     completed_phases: _containers.RepeatedScalarFieldContainer[str]
     changed_files: _containers.RepeatedScalarFieldContainer[str]
@@ -224,7 +263,8 @@ class OperatingModeHandoff(_message.Message):
     blockers: _containers.RepeatedScalarFieldContainer[str]
     next_step: str
     created_at: str
-    def __init__(self, summary: _Optional[str] = ..., completed_phases: _Optional[_Iterable[str]] = ..., changed_files: _Optional[_Iterable[str]] = ..., tests: _Optional[_Iterable[str]] = ..., blockers: _Optional[_Iterable[str]] = ..., next_step: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+    frontier: str
+    def __init__(self, summary: _Optional[str] = ..., completed_phases: _Optional[_Iterable[str]] = ..., changed_files: _Optional[_Iterable[str]] = ..., tests: _Optional[_Iterable[str]] = ..., blockers: _Optional[_Iterable[str]] = ..., next_step: _Optional[str] = ..., created_at: _Optional[str] = ..., frontier: _Optional[str] = ...) -> None: ...
 
 class OperatingModeRoundItem(_message.Message):
     __slots__ = ("ref", "title", "status", "priority", "effort")
@@ -300,6 +340,28 @@ class OperatingModeProgressState(_message.Message):
     updated_at: str
     def __init__(self, decision: _Optional[str] = ..., completed_phases: _Optional[_Iterable[str]] = ..., current_phase: _Optional[str] = ..., rationale: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
+class OperatingModePhaseResolutionRecord(_message.Message):
+    __slots__ = ("outcome", "layer", "chosen_message_index", "messages_scanned", "missing", "violations", "notes", "classified_field", "classified_value")
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    LAYER_FIELD_NUMBER: _ClassVar[int]
+    CHOSEN_MESSAGE_INDEX_FIELD_NUMBER: _ClassVar[int]
+    MESSAGES_SCANNED_FIELD_NUMBER: _ClassVar[int]
+    MISSING_FIELD_NUMBER: _ClassVar[int]
+    VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFIED_FIELD_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFIED_VALUE_FIELD_NUMBER: _ClassVar[int]
+    outcome: str
+    layer: str
+    chosen_message_index: int
+    messages_scanned: int
+    missing: _containers.RepeatedScalarFieldContainer[str]
+    violations: _containers.RepeatedScalarFieldContainer[str]
+    notes: _containers.RepeatedScalarFieldContainer[str]
+    classified_field: str
+    classified_value: str
+    def __init__(self, outcome: _Optional[str] = ..., layer: _Optional[str] = ..., chosen_message_index: _Optional[int] = ..., messages_scanned: _Optional[int] = ..., missing: _Optional[_Iterable[str]] = ..., violations: _Optional[_Iterable[str]] = ..., notes: _Optional[_Iterable[str]] = ..., classified_field: _Optional[str] = ..., classified_value: _Optional[str] = ...) -> None: ...
+
 class OperatingModeArtifactResult(_message.Message):
     __slots__ = ("path", "content", "content_type")
     PATH_FIELD_NUMBER: _ClassVar[int]
@@ -325,7 +387,7 @@ class OperatingModeBacklogSyncPlan(_message.Message):
     def __init__(self, completed_items: _Optional[_Iterable[str]] = ..., created_items: _Optional[_Iterable[str]] = ..., updated_items: _Optional[_Iterable[str]] = ..., proposal: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., rationale: _Optional[str] = ...) -> None: ...
 
 class OperatingModeRoundEnvelope(_message.Message):
-    __slots__ = ("round", "mode", "scope_kind", "scope_id", "initiative_name", "phase", "run_strategy", "agent_profile_key", "generated_at", "run_id", "status", "readiness", "items", "artifact_updates", "handoffs", "payload", "error")
+    __slots__ = ("round", "mode", "scope_kind", "scope_id", "initiative_name", "phase", "run_strategy", "agent_profile_key", "generated_at", "run_id", "status", "readiness", "items", "artifact_updates", "handoffs", "payload", "error", "resolution", "transition_classification")
     ROUND_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     SCOPE_KIND_FIELD_NUMBER: _ClassVar[int]
@@ -343,6 +405,8 @@ class OperatingModeRoundEnvelope(_message.Message):
     HANDOFFS_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    RESOLUTION_FIELD_NUMBER: _ClassVar[int]
+    TRANSITION_CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     round: int
     mode: str
     scope_kind: str
@@ -360,10 +424,12 @@ class OperatingModeRoundEnvelope(_message.Message):
     handoffs: _containers.RepeatedCompositeFieldContainer[OperatingModeHandoff]
     payload: _struct_pb2.Struct
     error: str
-    def __init__(self, round: _Optional[int] = ..., mode: _Optional[str] = ..., scope_kind: _Optional[str] = ..., scope_id: _Optional[str] = ..., initiative_name: _Optional[str] = ..., phase: _Optional[str] = ..., run_strategy: _Optional[str] = ..., agent_profile_key: _Optional[str] = ..., generated_at: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., readiness: _Optional[_Union[OperatingModeReadinessReport, _Mapping]] = ..., items: _Optional[_Iterable[_Union[OperatingModeRoundItem, _Mapping]]] = ..., artifact_updates: _Optional[_Iterable[_Union[OperatingModeArtifactUpdate, _Mapping]]] = ..., handoffs: _Optional[_Iterable[_Union[OperatingModeHandoff, _Mapping]]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., error: _Optional[str] = ...) -> None: ...
+    resolution: OperatingModePhaseResolutionRecord
+    transition_classification: OperatingModePhaseResolutionRecord
+    def __init__(self, round: _Optional[int] = ..., mode: _Optional[str] = ..., scope_kind: _Optional[str] = ..., scope_id: _Optional[str] = ..., initiative_name: _Optional[str] = ..., phase: _Optional[str] = ..., run_strategy: _Optional[str] = ..., agent_profile_key: _Optional[str] = ..., generated_at: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., readiness: _Optional[_Union[OperatingModeReadinessReport, _Mapping]] = ..., items: _Optional[_Iterable[_Union[OperatingModeRoundItem, _Mapping]]] = ..., artifact_updates: _Optional[_Iterable[_Union[OperatingModeArtifactUpdate, _Mapping]]] = ..., handoffs: _Optional[_Iterable[_Union[OperatingModeHandoff, _Mapping]]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., error: _Optional[str] = ..., resolution: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ..., transition_classification: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ...) -> None: ...
 
 class OperatingModeCatalogPhase(_message.Message):
-    __slots__ = ("phase", "phase_kind", "label", "title", "purpose", "trigger", "profile_key", "writes_repo", "requires_criteria", "is_start", "is_terminal", "output_artifacts", "output_contract", "catalog_id", "skill_id", "activity_purpose", "lock_purpose", "result_bindings", "samples_replan_rate", "samples_acceptance_rate", "auto_start_after")
+    __slots__ = ("phase", "phase_kind", "label", "title", "purpose", "trigger", "profile_key", "writes_repo", "requires_criteria", "is_start", "is_terminal", "output_artifacts", "output_contract", "catalog_id", "skill_id", "activity_purpose", "lock_purpose", "result_bindings", "samples_replan_rate", "samples_acceptance_rate", "auto_start_after", "reads", "executed_by", "classification")
     PHASE_FIELD_NUMBER: _ClassVar[int]
     PHASE_KIND_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
@@ -385,6 +451,9 @@ class OperatingModeCatalogPhase(_message.Message):
     SAMPLES_REPLAN_RATE_FIELD_NUMBER: _ClassVar[int]
     SAMPLES_ACCEPTANCE_RATE_FIELD_NUMBER: _ClassVar[int]
     AUTO_START_AFTER_FIELD_NUMBER: _ClassVar[int]
+    READS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_BY_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     phase: str
     phase_kind: str
     label: str
@@ -406,22 +475,46 @@ class OperatingModeCatalogPhase(_message.Message):
     samples_replan_rate: bool
     samples_acceptance_rate: bool
     auto_start_after: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, phase: _Optional[str] = ..., phase_kind: _Optional[str] = ..., label: _Optional[str] = ..., title: _Optional[str] = ..., purpose: _Optional[str] = ..., trigger: _Optional[str] = ..., profile_key: _Optional[str] = ..., writes_repo: _Optional[bool] = ..., requires_criteria: _Optional[bool] = ..., is_start: _Optional[bool] = ..., is_terminal: _Optional[bool] = ..., output_artifacts: _Optional[_Iterable[_Union[OperatingModeArtifactDefinition, _Mapping]]] = ..., output_contract: _Optional[_Union[OperatingModePhaseOutputContractSummary, _Mapping]] = ..., catalog_id: _Optional[str] = ..., skill_id: _Optional[str] = ..., activity_purpose: _Optional[str] = ..., lock_purpose: _Optional[str] = ..., result_bindings: _Optional[_Iterable[_Union[OperatingModeResultBindingSummary, _Mapping]]] = ..., samples_replan_rate: _Optional[bool] = ..., samples_acceptance_rate: _Optional[bool] = ..., auto_start_after: _Optional[_Iterable[str]] = ...) -> None: ...
+    reads: OperatingModePhaseReads
+    executed_by: str
+    classification: OperatingModeTransitionClassification
+    def __init__(self, phase: _Optional[str] = ..., phase_kind: _Optional[str] = ..., label: _Optional[str] = ..., title: _Optional[str] = ..., purpose: _Optional[str] = ..., trigger: _Optional[str] = ..., profile_key: _Optional[str] = ..., writes_repo: _Optional[bool] = ..., requires_criteria: _Optional[bool] = ..., is_start: _Optional[bool] = ..., is_terminal: _Optional[bool] = ..., output_artifacts: _Optional[_Iterable[_Union[OperatingModeArtifactDefinition, _Mapping]]] = ..., output_contract: _Optional[_Union[OperatingModePhaseOutputContractSummary, _Mapping]] = ..., catalog_id: _Optional[str] = ..., skill_id: _Optional[str] = ..., activity_purpose: _Optional[str] = ..., lock_purpose: _Optional[str] = ..., result_bindings: _Optional[_Iterable[_Union[OperatingModeResultBindingSummary, _Mapping]]] = ..., samples_replan_rate: _Optional[bool] = ..., samples_acceptance_rate: _Optional[bool] = ..., auto_start_after: _Optional[_Iterable[str]] = ..., reads: _Optional[_Union[OperatingModePhaseReads, _Mapping]] = ..., executed_by: _Optional[str] = ..., classification: _Optional[_Union[OperatingModeTransitionClassification, _Mapping]] = ...) -> None: ...
+
+class OperatingModeTransitionClassification(_message.Message):
+    __slots__ = ("field", "enum", "description")
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    ENUM_FIELD_NUMBER: _ClassVar[int]
+    FROM_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    enum: _containers.RepeatedScalarFieldContainer[str]
+    description: str
+    def __init__(self, field: _Optional[str] = ..., enum: _Optional[_Iterable[str]] = ..., description: _Optional[str] = ..., **kwargs) -> None: ...
+
+class OperatingModePhaseReads(_message.Message):
+    __slots__ = ("base", "target")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    base: _containers.RepeatedScalarFieldContainer[str]
+    target: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, base: _Optional[_Iterable[str]] = ..., target: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class OperatingModeCatalogTransition(_message.Message):
-    __slots__ = ("to", "condition_kind", "label", "field", "value")
+    __slots__ = ("to", "condition_kind", "label", "field", "value", "classified")
     FROM_FIELD_NUMBER: _ClassVar[int]
     TO_FIELD_NUMBER: _ClassVar[int]
     CONDITION_KIND_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     FIELD_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFIED_FIELD_NUMBER: _ClassVar[int]
     to: str
     condition_kind: str
     label: str
     field: str
     value: str
-    def __init__(self, to: _Optional[str] = ..., condition_kind: _Optional[str] = ..., label: _Optional[str] = ..., field: _Optional[str] = ..., value: _Optional[str] = ..., **kwargs) -> None: ...
+    classified: bool
+    def __init__(self, to: _Optional[str] = ..., condition_kind: _Optional[str] = ..., label: _Optional[str] = ..., field: _Optional[str] = ..., value: _Optional[str] = ..., classified: _Optional[bool] = ..., **kwargs) -> None: ...
 
 class OperatingModeCatalogPhaseGraph(_message.Message):
     __slots__ = ("start_phase", "terminal", "transitions", "accepted_verdicts")
@@ -436,7 +529,7 @@ class OperatingModeCatalogPhaseGraph(_message.Message):
     def __init__(self, start_phase: _Optional[str] = ..., terminal: _Optional[_Iterable[str]] = ..., transitions: _Optional[_Iterable[_Union[OperatingModeCatalogTransition, _Mapping]]] = ..., accepted_verdicts: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class OperatingModeCatalogEntry(_message.Message):
-    __slots__ = ("mode", "label", "description", "best_for", "not_for", "tradeoffs", "when_in_doubt_pick_instead", "usage_count", "scope_kind", "run_strategy", "workspace_tab_id", "capabilities", "default", "switchable", "supports_phases", "phases", "phase_graph")
+    __slots__ = ("mode", "label", "description", "best_for", "not_for", "tradeoffs", "when_in_doubt_pick_instead", "usage_count", "run_strategy", "workspace_tab_id", "capabilities", "default", "switchable", "supports_phases", "phases", "phase_graph", "target_kind")
     MODE_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -445,7 +538,6 @@ class OperatingModeCatalogEntry(_message.Message):
     TRADEOFFS_FIELD_NUMBER: _ClassVar[int]
     WHEN_IN_DOUBT_PICK_INSTEAD_FIELD_NUMBER: _ClassVar[int]
     USAGE_COUNT_FIELD_NUMBER: _ClassVar[int]
-    SCOPE_KIND_FIELD_NUMBER: _ClassVar[int]
     RUN_STRATEGY_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_TAB_ID_FIELD_NUMBER: _ClassVar[int]
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
@@ -454,6 +546,7 @@ class OperatingModeCatalogEntry(_message.Message):
     SUPPORTS_PHASES_FIELD_NUMBER: _ClassVar[int]
     PHASES_FIELD_NUMBER: _ClassVar[int]
     PHASE_GRAPH_FIELD_NUMBER: _ClassVar[int]
+    TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
     mode: str
     label: str
     description: str
@@ -462,7 +555,6 @@ class OperatingModeCatalogEntry(_message.Message):
     tradeoffs: _containers.RepeatedScalarFieldContainer[str]
     when_in_doubt_pick_instead: str
     usage_count: int
-    scope_kind: str
     run_strategy: str
     workspace_tab_id: str
     capabilities: OperatingModeCapabilities
@@ -471,7 +563,8 @@ class OperatingModeCatalogEntry(_message.Message):
     supports_phases: bool
     phases: _containers.RepeatedCompositeFieldContainer[OperatingModeCatalogPhase]
     phase_graph: OperatingModeCatalogPhaseGraph
-    def __init__(self, mode: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., best_for: _Optional[_Iterable[str]] = ..., not_for: _Optional[_Iterable[str]] = ..., tradeoffs: _Optional[_Iterable[str]] = ..., when_in_doubt_pick_instead: _Optional[str] = ..., usage_count: _Optional[int] = ..., scope_kind: _Optional[str] = ..., run_strategy: _Optional[str] = ..., workspace_tab_id: _Optional[str] = ..., capabilities: _Optional[_Union[OperatingModeCapabilities, _Mapping]] = ..., default: _Optional[bool] = ..., switchable: _Optional[bool] = ..., supports_phases: _Optional[bool] = ..., phases: _Optional[_Iterable[_Union[OperatingModeCatalogPhase, _Mapping]]] = ..., phase_graph: _Optional[_Union[OperatingModeCatalogPhaseGraph, _Mapping]] = ...) -> None: ...
+    target_kind: str
+    def __init__(self, mode: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., best_for: _Optional[_Iterable[str]] = ..., not_for: _Optional[_Iterable[str]] = ..., tradeoffs: _Optional[_Iterable[str]] = ..., when_in_doubt_pick_instead: _Optional[str] = ..., usage_count: _Optional[int] = ..., run_strategy: _Optional[str] = ..., workspace_tab_id: _Optional[str] = ..., capabilities: _Optional[_Union[OperatingModeCapabilities, _Mapping]] = ..., default: _Optional[bool] = ..., switchable: _Optional[bool] = ..., supports_phases: _Optional[bool] = ..., phases: _Optional[_Iterable[_Union[OperatingModeCatalogPhase, _Mapping]]] = ..., phase_graph: _Optional[_Union[OperatingModeCatalogPhaseGraph, _Mapping]] = ..., target_kind: _Optional[str] = ...) -> None: ...
 
 class OperatingModeCatalogResponse(_message.Message):
     __slots__ = ("modes",)
@@ -506,7 +599,7 @@ class OperatingModeStringList(_message.Message):
     def __init__(self, values: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class OperatingModeWorkspacePhase(_message.Message):
-    __slots__ = ("phase", "phase_kind", "activity_purpose", "profile_key", "writes_repo", "output_artifacts", "requires_criteria", "startable", "reason", "next", "auto_start_after")
+    __slots__ = ("phase", "phase_kind", "activity_purpose", "profile_key", "writes_repo", "output_artifacts", "requires_criteria", "startable", "reason", "next", "auto_start_after", "executed_by")
     PHASE_FIELD_NUMBER: _ClassVar[int]
     PHASE_KIND_FIELD_NUMBER: _ClassVar[int]
     ACTIVITY_PURPOSE_FIELD_NUMBER: _ClassVar[int]
@@ -518,6 +611,7 @@ class OperatingModeWorkspacePhase(_message.Message):
     REASON_FIELD_NUMBER: _ClassVar[int]
     NEXT_FIELD_NUMBER: _ClassVar[int]
     AUTO_START_AFTER_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_BY_FIELD_NUMBER: _ClassVar[int]
     phase: str
     phase_kind: str
     activity_purpose: str
@@ -529,10 +623,11 @@ class OperatingModeWorkspacePhase(_message.Message):
     reason: str
     next: bool
     auto_start_after: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, phase: _Optional[str] = ..., phase_kind: _Optional[str] = ..., activity_purpose: _Optional[str] = ..., profile_key: _Optional[str] = ..., writes_repo: _Optional[bool] = ..., output_artifacts: _Optional[_Iterable[_Union[OperatingModeArtifactDefinition, _Mapping]]] = ..., requires_criteria: _Optional[bool] = ..., startable: _Optional[bool] = ..., reason: _Optional[str] = ..., next: _Optional[bool] = ..., auto_start_after: _Optional[_Iterable[str]] = ...) -> None: ...
+    executed_by: str
+    def __init__(self, phase: _Optional[str] = ..., phase_kind: _Optional[str] = ..., activity_purpose: _Optional[str] = ..., profile_key: _Optional[str] = ..., writes_repo: _Optional[bool] = ..., output_artifacts: _Optional[_Iterable[_Union[OperatingModeArtifactDefinition, _Mapping]]] = ..., requires_criteria: _Optional[bool] = ..., startable: _Optional[bool] = ..., reason: _Optional[str] = ..., next: _Optional[bool] = ..., auto_start_after: _Optional[_Iterable[str]] = ..., executed_by: _Optional[str] = ...) -> None: ...
 
 class OperatingModeWorkspaceMode(_message.Message):
-    __slots__ = ("mode", "label", "description", "scope_kind", "capabilities", "phases", "terminal", "transitions", "run_strategy")
+    __slots__ = ("mode", "label", "description", "capabilities", "phases", "terminal", "transitions", "run_strategy", "target_kind")
     class TransitionsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -543,22 +638,22 @@ class OperatingModeWorkspaceMode(_message.Message):
     MODE_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
-    SCOPE_KIND_FIELD_NUMBER: _ClassVar[int]
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     PHASES_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_FIELD_NUMBER: _ClassVar[int]
     TRANSITIONS_FIELD_NUMBER: _ClassVar[int]
     RUN_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
     mode: str
     label: str
     description: str
-    scope_kind: str
     capabilities: OperatingModeCapabilities
     phases: _containers.RepeatedCompositeFieldContainer[OperatingModeWorkspacePhase]
     terminal: _containers.RepeatedScalarFieldContainer[str]
     transitions: _containers.MessageMap[str, OperatingModeStringList]
     run_strategy: str
-    def __init__(self, mode: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., scope_kind: _Optional[str] = ..., capabilities: _Optional[_Union[OperatingModeCapabilities, _Mapping]] = ..., phases: _Optional[_Iterable[_Union[OperatingModeWorkspacePhase, _Mapping]]] = ..., terminal: _Optional[_Iterable[str]] = ..., transitions: _Optional[_Mapping[str, OperatingModeStringList]] = ..., run_strategy: _Optional[str] = ...) -> None: ...
+    target_kind: str
+    def __init__(self, mode: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., capabilities: _Optional[_Union[OperatingModeCapabilities, _Mapping]] = ..., phases: _Optional[_Iterable[_Union[OperatingModeWorkspacePhase, _Mapping]]] = ..., terminal: _Optional[_Iterable[str]] = ..., transitions: _Optional[_Mapping[str, OperatingModeStringList]] = ..., run_strategy: _Optional[str] = ..., target_kind: _Optional[str] = ...) -> None: ...
 
 class OperatingModeLockHolder(_message.Message):
     __slots__ = ("run_id", "purpose", "round_number", "acquired_at", "acquired_by", "initiative_name")
@@ -621,6 +716,18 @@ class OperatingModeSwitchResult(_message.Message):
     requires_cancellation: bool
     operating_mode_workspace_id: str
     def __init__(self, initiative_name: _Optional[str] = ..., from_mode: _Optional[str] = ..., to_mode: _Optional[str] = ..., canceled_item_executions: _Optional[_Iterable[_Union[OperatingModeActiveItemExecution, _Mapping]]] = ..., active_item_executions: _Optional[_Iterable[_Union[OperatingModeActiveItemExecution, _Mapping]]] = ..., requires_cancellation: _Optional[bool] = ..., operating_mode_workspace_id: _Optional[str] = ...) -> None: ...
+
+class OperatingModeActiveItemExecutionsConflict(_message.Message):
+    __slots__ = ("initiative_name", "from_mode", "to_mode", "executions")
+    INITIATIVE_NAME_FIELD_NUMBER: _ClassVar[int]
+    FROM_MODE_FIELD_NUMBER: _ClassVar[int]
+    TO_MODE_FIELD_NUMBER: _ClassVar[int]
+    EXECUTIONS_FIELD_NUMBER: _ClassVar[int]
+    initiative_name: str
+    from_mode: str
+    to_mode: str
+    executions: _containers.RepeatedCompositeFieldContainer[OperatingModeActiveItemExecution]
+    def __init__(self, initiative_name: _Optional[str] = ..., from_mode: _Optional[str] = ..., to_mode: _Optional[str] = ..., executions: _Optional[_Iterable[_Union[OperatingModeActiveItemExecution, _Mapping]]] = ...) -> None: ...
 
 class OperatingModeBacklogCompletionResult(_message.Message):
     __slots__ = ("item_ref", "from_status", "to_status")
@@ -826,3 +933,31 @@ class OperatingModeRenderPromptResponse(_message.Message):
     degraded: bool
     degraded_reason: str
     def __init__(self, mode: _Optional[str] = ..., preset: _Optional[str] = ..., step_index: _Optional[int] = ..., phase: _Optional[str] = ..., skill_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., prompt: _Optional[str] = ..., degraded: _Optional[bool] = ..., degraded_reason: _Optional[str] = ...) -> None: ...
+
+class OperatingModeScaffoldResponse(_message.Message):
+    __slots__ = ("mode", "dir", "created_files")
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    DIR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FILES_FIELD_NUMBER: _ClassVar[int]
+    mode: str
+    dir: str
+    created_files: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, mode: _Optional[str] = ..., dir: _Optional[str] = ..., created_files: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class OperatingModeValidateResponse(_message.Message):
+    __slots__ = ("mode", "ok", "errors", "phase_count", "example_runs", "summary", "uncovered_branches")
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    OK_FIELD_NUMBER: _ClassVar[int]
+    ERRORS_FIELD_NUMBER: _ClassVar[int]
+    PHASE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    EXAMPLE_RUNS_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    UNCOVERED_BRANCHES_FIELD_NUMBER: _ClassVar[int]
+    mode: str
+    ok: bool
+    errors: _containers.RepeatedScalarFieldContainer[str]
+    phase_count: int
+    example_runs: int
+    summary: str
+    uncovered_branches: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, mode: _Optional[str] = ..., ok: _Optional[bool] = ..., errors: _Optional[_Iterable[str]] = ..., phase_count: _Optional[int] = ..., example_runs: _Optional[int] = ..., summary: _Optional[str] = ..., uncovered_branches: _Optional[_Iterable[str]] = ...) -> None: ...

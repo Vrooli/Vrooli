@@ -205,12 +205,14 @@ class InspectCacheRequest(_message.Message):
     def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., cache_key: _Optional[str] = ...) -> None: ...
 
 class ClearCacheRequest(_message.Message):
-    __slots__ = ("target", "dry_run")
+    __slots__ = ("target", "dry_run", "all")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    ALL_FIELD_NUMBER: _ClassVar[int]
     target: CodeTarget
     dry_run: bool
-    def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+    all: bool
+    def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., dry_run: _Optional[bool] = ..., all: _Optional[bool] = ...) -> None: ...
 
 class TargetContext(_message.Message):
     __slots__ = ("requested", "resolved_kind", "root_path", "scenario", "scenario_aware")
@@ -320,7 +322,7 @@ class Warning(_message.Message):
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., status: _Optional[_Union[EvidenceStatus, str]] = ...) -> None: ...
 
 class CacheMetadata(_message.Message):
-    __slots__ = ("cache_key", "hit", "analyzer_version", "graph_hash", "age_seconds", "state", "reason", "source_hash", "config_hash", "provider_version", "schema_version", "created_at_unix", "last_used_at_unix", "hit_count", "scope")
+    __slots__ = ("cache_key", "hit", "analyzer_version", "graph_hash", "age_seconds", "state", "reason", "source_hash", "config_hash", "provider_version", "schema_version", "created_at_unix", "last_used_at_unix", "hit_count", "scope", "logical_key", "payload_bytes", "codec")
     CACHE_KEY_FIELD_NUMBER: _ClassVar[int]
     HIT_FIELD_NUMBER: _ClassVar[int]
     ANALYZER_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -336,6 +338,9 @@ class CacheMetadata(_message.Message):
     LAST_USED_AT_UNIX_FIELD_NUMBER: _ClassVar[int]
     HIT_COUNT_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
+    LOGICAL_KEY_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CODEC_FIELD_NUMBER: _ClassVar[int]
     cache_key: str
     hit: bool
     analyzer_version: str
@@ -351,19 +356,44 @@ class CacheMetadata(_message.Message):
     last_used_at_unix: int
     hit_count: int
     scope: str
-    def __init__(self, cache_key: _Optional[str] = ..., hit: _Optional[bool] = ..., analyzer_version: _Optional[str] = ..., graph_hash: _Optional[str] = ..., age_seconds: _Optional[int] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ..., source_hash: _Optional[str] = ..., config_hash: _Optional[str] = ..., provider_version: _Optional[str] = ..., schema_version: _Optional[str] = ..., created_at_unix: _Optional[int] = ..., last_used_at_unix: _Optional[int] = ..., hit_count: _Optional[int] = ..., scope: _Optional[str] = ...) -> None: ...
+    logical_key: str
+    payload_bytes: int
+    codec: str
+    def __init__(self, cache_key: _Optional[str] = ..., hit: _Optional[bool] = ..., analyzer_version: _Optional[str] = ..., graph_hash: _Optional[str] = ..., age_seconds: _Optional[int] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ..., source_hash: _Optional[str] = ..., config_hash: _Optional[str] = ..., provider_version: _Optional[str] = ..., schema_version: _Optional[str] = ..., created_at_unix: _Optional[int] = ..., last_used_at_unix: _Optional[int] = ..., hit_count: _Optional[int] = ..., scope: _Optional[str] = ..., logical_key: _Optional[str] = ..., payload_bytes: _Optional[int] = ..., codec: _Optional[str] = ...) -> None: ...
+
+class CacheScopeSummary(_message.Message):
+    __slots__ = ("scope", "row_count", "payload_bytes")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    ROW_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_BYTES_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    row_count: int
+    payload_bytes: int
+    def __init__(self, scope: _Optional[str] = ..., row_count: _Optional[int] = ..., payload_bytes: _Optional[int] = ...) -> None: ...
 
 class CacheStatus(_message.Message):
-    __slots__ = ("target", "cache_key", "entries", "entries_metadata")
+    __slots__ = ("target", "cache_key", "entries", "entries_metadata", "total_rows", "total_payload_bytes", "budget_bytes", "utilization", "scopes", "last_sweep_at_unix")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     CACHE_KEY_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_METADATA_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_ROWS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_PAYLOAD_BYTES_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_BYTES_FIELD_NUMBER: _ClassVar[int]
+    UTILIZATION_FIELD_NUMBER: _ClassVar[int]
+    SCOPES_FIELD_NUMBER: _ClassVar[int]
+    LAST_SWEEP_AT_UNIX_FIELD_NUMBER: _ClassVar[int]
     target: CodeTarget
     cache_key: str
     entries: int
     entries_metadata: _containers.RepeatedCompositeFieldContainer[CacheMetadata]
-    def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., cache_key: _Optional[str] = ..., entries: _Optional[int] = ..., entries_metadata: _Optional[_Iterable[_Union[CacheMetadata, _Mapping]]] = ...) -> None: ...
+    total_rows: int
+    total_payload_bytes: int
+    budget_bytes: int
+    utilization: float
+    scopes: _containers.RepeatedCompositeFieldContainer[CacheScopeSummary]
+    last_sweep_at_unix: int
+    def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., cache_key: _Optional[str] = ..., entries: _Optional[int] = ..., entries_metadata: _Optional[_Iterable[_Union[CacheMetadata, _Mapping]]] = ..., total_rows: _Optional[int] = ..., total_payload_bytes: _Optional[int] = ..., budget_bytes: _Optional[int] = ..., utilization: _Optional[float] = ..., scopes: _Optional[_Iterable[_Union[CacheScopeSummary, _Mapping]]] = ..., last_sweep_at_unix: _Optional[int] = ...) -> None: ...
 
 class ClearCacheResponse(_message.Message):
     __slots__ = ("cache_key", "matched_entries", "cleared_entries", "dry_run")

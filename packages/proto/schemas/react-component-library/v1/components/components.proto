@@ -38,7 +38,9 @@ service ComponentsService {
   rpc UpdateComponentContent(UpdateComponentContentRequest) returns (UpdateComponentContentResponse);
   rpc ListComponentVersions(ListComponentVersionsRequest) returns (ListComponentVersionsResponse);
   rpc GetComponentVersionContent(GetComponentVersionContentRequest) returns (GetComponentVersionContentResponse);
+  rpc ListComponentExamples(ListComponentExamplesRequest) returns (ListComponentExamplesResponse);
   rpc ListDesignStyles(ListDesignStylesRequest) returns (ListDesignStylesResponse);
+  rpc ValidateStyleFit(ValidateStyleFitRequest) returns (ValidateStyleFitResponse);
 }
 
 // Component is the canonical wire shape for a single indexed component.
@@ -307,6 +309,7 @@ enum DesignAffinity {
 message ComponentDesignAffinity {
   string style_id = 1;
   DesignAffinity affinity = 2;
+  string reason = 3;
 }
 
 message ListComponentVersionsRequest {
@@ -328,6 +331,30 @@ message GetComponentVersionContentResponse {
   string content = 2;
 }
 
+message ComponentExample {
+  string id = 1;
+  string component_id = 2;
+  string library_id = 3;
+  string version = 4;
+  string name = 5;
+  string display_name = 6;
+  string props_json = 7;
+  string setup_json = 8;
+  string expect_json = 9;
+  string source_path = 10;
+  google.protobuf.Timestamp indexed_at = 11;
+}
+
+message ListComponentExamplesRequest {
+  string component_id = 1;
+  string version = 2;
+  int32 limit = 3;
+}
+
+message ListComponentExamplesResponse {
+  repeated ComponentExample examples = 1;
+}
+
 message DesignStyle {
   string id = 1;
   string name = 2;
@@ -339,4 +366,27 @@ message ListDesignStylesRequest {}
 
 message ListDesignStylesResponse {
   repeated DesignStyle styles = 1;
+}
+
+enum StyleFitVerdictKind {
+  STYLE_FIT_VERDICT_KIND_UNSPECIFIED = 0;
+  STYLE_FIT_VERDICT_KIND_OK = 1;
+  STYLE_FIT_VERDICT_KIND_INFO = 2;
+  STYLE_FIT_VERDICT_KIND_WARN = 3;
+}
+
+message ValidateStyleFitRequest {
+  string component_id = 1;
+  string scenario = 2;
+  string version = 3;
+}
+
+message ValidateStyleFitResponse {
+  StyleFitVerdictKind kind = 1;
+  string component_id = 2;
+  string version = 3;
+  string scenario = 4;
+  string scenario_style = 5;
+  DesignAffinity affinity = 6;
+  string detail = 7;
 }

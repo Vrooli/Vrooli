@@ -1752,712 +1752,6 @@ func (x *ResourceSchemaSyncReport) GetMissingReferences() []*ResourceScenarioRes
 	return nil
 }
 
-// ResourceTemplateVar is one template variable declaration
-// (resources.ResourceTemplateVar).
-type ResourceTemplateVar struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// CLI flag name (without leading dashes); empty if unset.
-	Flag string `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
-	// Human-readable description; empty if unset.
-	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	// Default value; empty if unset.
-	Default       string `protobuf:"bytes,3,opt,name=default,proto3" json:"default,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateVar) Reset() {
-	*x = ResourceTemplateVar{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[26]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateVar) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateVar) ProtoMessage() {}
-
-func (x *ResourceTemplateVar) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[26]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateVar.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateVar) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{26}
-}
-
-func (x *ResourceTemplateVar) GetFlag() string {
-	if x != nil {
-		return x.Flag
-	}
-	return ""
-}
-
-func (x *ResourceTemplateVar) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *ResourceTemplateVar) GetDefault() string {
-	if x != nil {
-		return x.Default
-	}
-	return ""
-}
-
-// ResourceTemplateManifest is a resource template's manifest
-// (resources.ResourceTemplateManifest). NOTE: this manifest uses camelCase JSON
-// keys in the legacy output (displayName, requiredVars, ...); the producer maps
-// each field explicitly, so proto snake_case names are translated 1:1.
-type ResourceTemplateManifest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Template name; empty if unset.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Human-readable display name; empty if unset (legacy key "displayName").
-	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// Description; empty if unset.
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// Backing driver identifier; empty if unset.
-	Driver string `protobuf:"bytes,4,opt,name=driver,proto3" json:"driver,omitempty"`
-	// Required template variables keyed by variable name (legacy key "requiredVars").
-	RequiredVars map[string]*ResourceTemplateVar `protobuf:"bytes,5,rep,name=required_vars,json=requiredVars,proto3" json:"required_vars,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Optional template variables keyed by variable name (legacy key "optionalVars").
-	OptionalVars map[string]*ResourceTemplateVar `protobuf:"bytes,6,rep,name=optional_vars,json=optionalVars,proto3" json:"optional_vars,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Documentation links keyed by label.
-	Docs map[string]string `protobuf:"bytes,7,rep,name=docs,proto3" json:"docs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Platform expectation notes (legacy key "platformExpectations").
-	PlatformExpectations []string `protobuf:"bytes,8,rep,name=platform_expectations,json=platformExpectations,proto3" json:"platform_expectations,omitempty"`
-	// True when the template is transitional/experimental.
-	Transitional  bool `protobuf:"varint,9,opt,name=transitional,proto3" json:"transitional,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateManifest) Reset() {
-	*x = ResourceTemplateManifest{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[27]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateManifest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateManifest) ProtoMessage() {}
-
-func (x *ResourceTemplateManifest) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[27]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateManifest.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateManifest) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{27}
-}
-
-func (x *ResourceTemplateManifest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *ResourceTemplateManifest) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *ResourceTemplateManifest) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *ResourceTemplateManifest) GetDriver() string {
-	if x != nil {
-		return x.Driver
-	}
-	return ""
-}
-
-func (x *ResourceTemplateManifest) GetRequiredVars() map[string]*ResourceTemplateVar {
-	if x != nil {
-		return x.RequiredVars
-	}
-	return nil
-}
-
-func (x *ResourceTemplateManifest) GetOptionalVars() map[string]*ResourceTemplateVar {
-	if x != nil {
-		return x.OptionalVars
-	}
-	return nil
-}
-
-func (x *ResourceTemplateManifest) GetDocs() map[string]string {
-	if x != nil {
-		return x.Docs
-	}
-	return nil
-}
-
-func (x *ResourceTemplateManifest) GetPlatformExpectations() []string {
-	if x != nil {
-		return x.PlatformExpectations
-	}
-	return nil
-}
-
-func (x *ResourceTemplateManifest) GetTransitional() bool {
-	if x != nil {
-		return x.Transitional
-	}
-	return false
-}
-
-// ResourceTemplateInfo is a fully-resolved template record
-// (resources.ResourceTemplateInfo).
-type ResourceTemplateInfo struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Template name.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Filesystem path to the template directory.
-	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	// The template's manifest.
-	Manifest      *ResourceTemplateManifest `protobuf:"bytes,3,opt,name=manifest,proto3" json:"manifest,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateInfo) Reset() {
-	*x = ResourceTemplateInfo{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[28]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateInfo) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateInfo) ProtoMessage() {}
-
-func (x *ResourceTemplateInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[28]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateInfo.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateInfo) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{28}
-}
-
-func (x *ResourceTemplateInfo) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *ResourceTemplateInfo) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *ResourceTemplateInfo) GetManifest() *ResourceTemplateManifest {
-	if x != nil {
-		return x.Manifest
-	}
-	return nil
-}
-
-// ResourceTemplateSummary is a condensed template record
-// (resources.ResourceTemplateSummary), used in validation + generate reports.
-type ResourceTemplateSummary struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Template name.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Human-readable display name.
-	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// Backing driver identifier.
-	Driver string `protobuf:"bytes,3,opt,name=driver,proto3" json:"driver,omitempty"`
-	// True when the template is transitional/experimental.
-	Transitional bool `protobuf:"varint,4,opt,name=transitional,proto3" json:"transitional,omitempty"`
-	// Description.
-	Description   string `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateSummary) Reset() {
-	*x = ResourceTemplateSummary{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[29]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateSummary) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateSummary) ProtoMessage() {}
-
-func (x *ResourceTemplateSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[29]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateSummary.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateSummary) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{29}
-}
-
-func (x *ResourceTemplateSummary) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *ResourceTemplateSummary) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *ResourceTemplateSummary) GetDriver() string {
-	if x != nil {
-		return x.Driver
-	}
-	return ""
-}
-
-func (x *ResourceTemplateSummary) GetTransitional() bool {
-	if x != nil {
-		return x.Transitional
-	}
-	return false
-}
-
-func (x *ResourceTemplateSummary) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-// ResourceTemplateListResponse is `resource template list --json`
-// (WriteSuccessJSON key "templates").
-type ResourceTemplateListResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the listing completed; standard CLI success envelope.
-	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// All resource templates.
-	Templates     []*ResourceTemplateInfo `protobuf:"bytes,2,rep,name=templates,proto3" json:"templates,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateListResponse) Reset() {
-	*x = ResourceTemplateListResponse{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[30]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateListResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateListResponse) ProtoMessage() {}
-
-func (x *ResourceTemplateListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[30]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateListResponse.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateListResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{30}
-}
-
-func (x *ResourceTemplateListResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *ResourceTemplateListResponse) GetTemplates() []*ResourceTemplateInfo {
-	if x != nil {
-		return x.Templates
-	}
-	return nil
-}
-
-// ResourceTemplateShowResponse is `resource template show --json`
-// (WriteSuccessJSON key "template").
-type ResourceTemplateShowResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the template was resolved; standard CLI success envelope.
-	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// The requested template record.
-	Template      *ResourceTemplateInfo `protobuf:"bytes,2,opt,name=template,proto3" json:"template,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateShowResponse) Reset() {
-	*x = ResourceTemplateShowResponse{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[31]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateShowResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateShowResponse) ProtoMessage() {}
-
-func (x *ResourceTemplateShowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[31]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateShowResponse.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateShowResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{31}
-}
-
-func (x *ResourceTemplateShowResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *ResourceTemplateShowResponse) GetTemplate() *ResourceTemplateInfo {
-	if x != nil {
-		return x.Template
-	}
-	return nil
-}
-
-// ResourceTemplateValidationResponse is `resource template validate --json`
-// (WriteSuccessJSON key "report").
-type ResourceTemplateValidationResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when validation completed; standard CLI success envelope.
-	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// The template-validation report payload.
-	Report        *ResourceTemplateValidationReport `protobuf:"bytes,2,opt,name=report,proto3" json:"report,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateValidationResponse) Reset() {
-	*x = ResourceTemplateValidationResponse{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[32]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateValidationResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateValidationResponse) ProtoMessage() {}
-
-func (x *ResourceTemplateValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[32]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateValidationResponse.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateValidationResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{32}
-}
-
-func (x *ResourceTemplateValidationResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *ResourceTemplateValidationResponse) GetReport() *ResourceTemplateValidationReport {
-	if x != nil {
-		return x.Report
-	}
-	return nil
-}
-
-// ResourceTemplateValidationReport is the template-validate report body
-// (resources.ResourceTemplateValidationReport).
-type ResourceTemplateValidationReport struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Condensed summaries of every validated template.
-	Templates []*ResourceTemplateSummary `protobuf:"bytes,1,rep,name=templates,proto3" json:"templates,omitempty"`
-	// Number of templates validated.
-	Count         int32 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateValidationReport) Reset() {
-	*x = ResourceTemplateValidationReport{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[33]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateValidationReport) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateValidationReport) ProtoMessage() {}
-
-func (x *ResourceTemplateValidationReport) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[33]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateValidationReport.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateValidationReport) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{33}
-}
-
-func (x *ResourceTemplateValidationReport) GetTemplates() []*ResourceTemplateSummary {
-	if x != nil {
-		return x.Templates
-	}
-	return nil
-}
-
-func (x *ResourceTemplateValidationReport) GetCount() int32 {
-	if x != nil {
-		return x.Count
-	}
-	return 0
-}
-
-// ResourceTemplateGenerateResponse is `resource template generate --json`
-// (WriteSuccessJSON key "report").
-type ResourceTemplateGenerateResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when generation completed; standard CLI success envelope.
-	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// The template-generate report payload.
-	Report        *ResourceTemplateGenerateReport `protobuf:"bytes,2,opt,name=report,proto3" json:"report,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateGenerateResponse) Reset() {
-	*x = ResourceTemplateGenerateResponse{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[34]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateGenerateResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateGenerateResponse) ProtoMessage() {}
-
-func (x *ResourceTemplateGenerateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[34]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateGenerateResponse.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateGenerateResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{34}
-}
-
-func (x *ResourceTemplateGenerateResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *ResourceTemplateGenerateResponse) GetReport() *ResourceTemplateGenerateReport {
-	if x != nil {
-		return x.Report
-	}
-	return nil
-}
-
-// ResourceTemplateGenerateReport is the template-generate report body
-// (resources.ResourceTemplateGenerateReport).
-type ResourceTemplateGenerateReport struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Condensed summary of the template that was generated.
-	Template *ResourceTemplateSummary `protobuf:"bytes,1,opt,name=template,proto3" json:"template,omitempty"`
-	// Blueprint slug applied during generation; empty if none (legacy key "blueprint_name").
-	BlueprintName string `protobuf:"bytes,2,opt,name=blueprint_name,json=blueprintName,proto3" json:"blueprint_name,omitempty"`
-	// Destination directory the template was generated into.
-	Destination string `protobuf:"bytes,3,opt,name=destination,proto3" json:"destination,omitempty"`
-	// Variable values applied, keyed by variable name.
-	Values map[string]string `protobuf:"bytes,4,rep,name=values,proto3" json:"values,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Files written (or that would be written under dry-run).
-	Files []string `protobuf:"bytes,5,rep,name=files,proto3" json:"files,omitempty"`
-	// True when this was a dry-run preview (legacy key "dry_run").
-	DryRun        bool `protobuf:"varint,6,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceTemplateGenerateReport) Reset() {
-	*x = ResourceTemplateGenerateReport{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[35]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTemplateGenerateReport) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTemplateGenerateReport) ProtoMessage() {}
-
-func (x *ResourceTemplateGenerateReport) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[35]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTemplateGenerateReport.ProtoReflect.Descriptor instead.
-func (*ResourceTemplateGenerateReport) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{35}
-}
-
-func (x *ResourceTemplateGenerateReport) GetTemplate() *ResourceTemplateSummary {
-	if x != nil {
-		return x.Template
-	}
-	return nil
-}
-
-func (x *ResourceTemplateGenerateReport) GetBlueprintName() string {
-	if x != nil {
-		return x.BlueprintName
-	}
-	return ""
-}
-
-func (x *ResourceTemplateGenerateReport) GetDestination() string {
-	if x != nil {
-		return x.Destination
-	}
-	return ""
-}
-
-func (x *ResourceTemplateGenerateReport) GetValues() map[string]string {
-	if x != nil {
-		return x.Values
-	}
-	return nil
-}
-
-func (x *ResourceTemplateGenerateReport) GetFiles() []string {
-	if x != nil {
-		return x.Files
-	}
-	return nil
-}
-
-func (x *ResourceTemplateGenerateReport) GetDryRun() bool {
-	if x != nil {
-		return x.DryRun
-	}
-	return false
-}
-
 // ResourceValidationIssue is one validation issue (resources.ValidationIssue).
 type ResourceValidationIssue struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2471,7 +1765,7 @@ type ResourceValidationIssue struct {
 
 func (x *ResourceValidationIssue) Reset() {
 	*x = ResourceValidationIssue{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[36]
+	mi := &file_cli_v1_resource_reports_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2483,7 +1777,7 @@ func (x *ResourceValidationIssue) String() string {
 func (*ResourceValidationIssue) ProtoMessage() {}
 
 func (x *ResourceValidationIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[36]
+	mi := &file_cli_v1_resource_reports_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2496,7 +1790,7 @@ func (x *ResourceValidationIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceValidationIssue.ProtoReflect.Descriptor instead.
 func (*ResourceValidationIssue) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{36}
+	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ResourceValidationIssue) GetSeverity() string {
@@ -2531,7 +1825,7 @@ type ResourceValidationItem struct {
 
 func (x *ResourceValidationItem) Reset() {
 	*x = ResourceValidationItem{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[37]
+	mi := &file_cli_v1_resource_reports_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2543,7 +1837,7 @@ func (x *ResourceValidationItem) String() string {
 func (*ResourceValidationItem) ProtoMessage() {}
 
 func (x *ResourceValidationItem) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[37]
+	mi := &file_cli_v1_resource_reports_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2556,7 +1850,7 @@ func (x *ResourceValidationItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceValidationItem.ProtoReflect.Descriptor instead.
 func (*ResourceValidationItem) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{37}
+	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ResourceValidationItem) GetName() string {
@@ -2605,7 +1899,7 @@ type ResourceValidationReport struct {
 
 func (x *ResourceValidationReport) Reset() {
 	*x = ResourceValidationReport{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[38]
+	mi := &file_cli_v1_resource_reports_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2617,7 +1911,7 @@ func (x *ResourceValidationReport) String() string {
 func (*ResourceValidationReport) ProtoMessage() {}
 
 func (x *ResourceValidationReport) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[38]
+	mi := &file_cli_v1_resource_reports_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2630,7 +1924,7 @@ func (x *ResourceValidationReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceValidationReport.ProtoReflect.Descriptor instead.
 func (*ResourceValidationReport) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{38}
+	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ResourceValidationReport) GetCount() int32 {
@@ -2675,7 +1969,7 @@ type ResourceValidationResponse struct {
 
 func (x *ResourceValidationResponse) Reset() {
 	*x = ResourceValidationResponse{}
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[39]
+	mi := &file_cli_v1_resource_reports_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2687,7 +1981,7 @@ func (x *ResourceValidationResponse) String() string {
 func (*ResourceValidationResponse) ProtoMessage() {}
 
 func (x *ResourceValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_reports_proto_msgTypes[39]
+	mi := &file_cli_v1_resource_reports_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2700,7 +1994,7 @@ func (x *ResourceValidationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceValidationResponse.ProtoReflect.Descriptor instead.
 func (*ResourceValidationResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{39}
+	return file_cli_v1_resource_reports_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ResourceValidationResponse) GetSuccess() bool {
@@ -2837,65 +2131,7 @@ const file_cli_v1_resource_reports_proto_rawDesc = "" +
 	"\x0eresource_count\x18\x02 \x01(\x05R\rresourceCount\x12'\n" +
 	"\x0fdefinition_path\x18\x03 \x01(\tR\x0edefinitionPath\x12#\n" +
 	"\rwritten_paths\x18\x04 \x03(\tR\fwrittenPaths\x12_\n" +
-	"\x12missing_references\x18\x05 \x03(\v20.vrooli.cli.v1.ResourceScenarioResourceReferenceR\x11missingReferences\"e\n" +
-	"\x13ResourceTemplateVar\x12\x12\n" +
-	"\x04flag\x18\x01 \x01(\tR\x04flag\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x18\n" +
-	"\adefault\x18\x03 \x01(\tR\adefault\"\xee\x05\n" +
-	"\x18ResourceTemplateManifest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
-	"\x06driver\x18\x04 \x01(\tR\x06driver\x12^\n" +
-	"\rrequired_vars\x18\x05 \x03(\v29.vrooli.cli.v1.ResourceTemplateManifest.RequiredVarsEntryR\frequiredVars\x12^\n" +
-	"\roptional_vars\x18\x06 \x03(\v29.vrooli.cli.v1.ResourceTemplateManifest.OptionalVarsEntryR\foptionalVars\x12E\n" +
-	"\x04docs\x18\a \x03(\v21.vrooli.cli.v1.ResourceTemplateManifest.DocsEntryR\x04docs\x123\n" +
-	"\x15platform_expectations\x18\b \x03(\tR\x14platformExpectations\x12\"\n" +
-	"\ftransitional\x18\t \x01(\bR\ftransitional\x1ac\n" +
-	"\x11RequiredVarsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x128\n" +
-	"\x05value\x18\x02 \x01(\v2\".vrooli.cli.v1.ResourceTemplateVarR\x05value:\x028\x01\x1ac\n" +
-	"\x11OptionalVarsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x128\n" +
-	"\x05value\x18\x02 \x01(\v2\".vrooli.cli.v1.ResourceTemplateVarR\x05value:\x028\x01\x1a7\n" +
-	"\tDocsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x83\x01\n" +
-	"\x14ResourceTemplateInfo\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\x12C\n" +
-	"\bmanifest\x18\x03 \x01(\v2'.vrooli.cli.v1.ResourceTemplateManifestR\bmanifest\"\xae\x01\n" +
-	"\x17ResourceTemplateSummary\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x16\n" +
-	"\x06driver\x18\x03 \x01(\tR\x06driver\x12\"\n" +
-	"\ftransitional\x18\x04 \x01(\bR\ftransitional\x12 \n" +
-	"\vdescription\x18\x05 \x01(\tR\vdescription\"{\n" +
-	"\x1cResourceTemplateListResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12A\n" +
-	"\ttemplates\x18\x02 \x03(\v2#.vrooli.cli.v1.ResourceTemplateInfoR\ttemplates\"y\n" +
-	"\x1cResourceTemplateShowResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12?\n" +
-	"\btemplate\x18\x02 \x01(\v2#.vrooli.cli.v1.ResourceTemplateInfoR\btemplate\"\x87\x01\n" +
-	"\"ResourceTemplateValidationResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12G\n" +
-	"\x06report\x18\x02 \x01(\v2/.vrooli.cli.v1.ResourceTemplateValidationReportR\x06report\"~\n" +
-	" ResourceTemplateValidationReport\x12D\n" +
-	"\ttemplates\x18\x01 \x03(\v2&.vrooli.cli.v1.ResourceTemplateSummaryR\ttemplates\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x05R\x05count\"\x83\x01\n" +
-	" ResourceTemplateGenerateResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12E\n" +
-	"\x06report\x18\x02 \x01(\v2-.vrooli.cli.v1.ResourceTemplateGenerateReportR\x06report\"\xea\x02\n" +
-	"\x1eResourceTemplateGenerateReport\x12B\n" +
-	"\btemplate\x18\x01 \x01(\v2&.vrooli.cli.v1.ResourceTemplateSummaryR\btemplate\x12%\n" +
-	"\x0eblueprint_name\x18\x02 \x01(\tR\rblueprintName\x12 \n" +
-	"\vdestination\x18\x03 \x01(\tR\vdestination\x12Q\n" +
-	"\x06values\x18\x04 \x03(\v29.vrooli.cli.v1.ResourceTemplateGenerateReport.ValuesEntryR\x06values\x12\x14\n" +
-	"\x05files\x18\x05 \x03(\tR\x05files\x12\x17\n" +
-	"\adry_run\x18\x06 \x01(\bR\x06dryRun\x1a9\n" +
-	"\vValuesEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"O\n" +
+	"\x12missing_references\x18\x05 \x03(\v20.vrooli.cli.v1.ResourceScenarioResourceReferenceR\x11missingReferences\"O\n" +
 	"\x17ResourceValidationIssue\x12\x1a\n" +
 	"\bseverity\x18\x01 \x01(\tR\bseverity\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\xa9\x01\n" +
@@ -2925,7 +2161,7 @@ func file_cli_v1_resource_reports_proto_rawDescGZIP() []byte {
 	return file_cli_v1_resource_reports_proto_rawDescData
 }
 
-var file_cli_v1_resource_reports_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_cli_v1_resource_reports_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_cli_v1_resource_reports_proto_goTypes = []any{
 	(*ResourceControlResultItem)(nil),             // 0: vrooli.cli.v1.ResourceControlResultItem
 	(*ResourceStartAllResponse)(nil),              // 1: vrooli.cli.v1.ResourceStartAllResponse
@@ -2953,24 +2189,10 @@ var file_cli_v1_resource_reports_proto_goTypes = []any{
 	(*ResourceSchemaValidationReport)(nil),        // 23: vrooli.cli.v1.ResourceSchemaValidationReport
 	(*ResourceSchemaSyncResponse)(nil),            // 24: vrooli.cli.v1.ResourceSchemaSyncResponse
 	(*ResourceSchemaSyncReport)(nil),              // 25: vrooli.cli.v1.ResourceSchemaSyncReport
-	(*ResourceTemplateVar)(nil),                   // 26: vrooli.cli.v1.ResourceTemplateVar
-	(*ResourceTemplateManifest)(nil),              // 27: vrooli.cli.v1.ResourceTemplateManifest
-	(*ResourceTemplateInfo)(nil),                  // 28: vrooli.cli.v1.ResourceTemplateInfo
-	(*ResourceTemplateSummary)(nil),               // 29: vrooli.cli.v1.ResourceTemplateSummary
-	(*ResourceTemplateListResponse)(nil),          // 30: vrooli.cli.v1.ResourceTemplateListResponse
-	(*ResourceTemplateShowResponse)(nil),          // 31: vrooli.cli.v1.ResourceTemplateShowResponse
-	(*ResourceTemplateValidationResponse)(nil),    // 32: vrooli.cli.v1.ResourceTemplateValidationResponse
-	(*ResourceTemplateValidationReport)(nil),      // 33: vrooli.cli.v1.ResourceTemplateValidationReport
-	(*ResourceTemplateGenerateResponse)(nil),      // 34: vrooli.cli.v1.ResourceTemplateGenerateResponse
-	(*ResourceTemplateGenerateReport)(nil),        // 35: vrooli.cli.v1.ResourceTemplateGenerateReport
-	(*ResourceValidationIssue)(nil),               // 36: vrooli.cli.v1.ResourceValidationIssue
-	(*ResourceValidationItem)(nil),                // 37: vrooli.cli.v1.ResourceValidationItem
-	(*ResourceValidationReport)(nil),              // 38: vrooli.cli.v1.ResourceValidationReport
-	(*ResourceValidationResponse)(nil),            // 39: vrooli.cli.v1.ResourceValidationResponse
-	nil,                                           // 40: vrooli.cli.v1.ResourceTemplateManifest.RequiredVarsEntry
-	nil,                                           // 41: vrooli.cli.v1.ResourceTemplateManifest.OptionalVarsEntry
-	nil,                                           // 42: vrooli.cli.v1.ResourceTemplateManifest.DocsEntry
-	nil,                                           // 43: vrooli.cli.v1.ResourceTemplateGenerateReport.ValuesEntry
+	(*ResourceValidationIssue)(nil),               // 26: vrooli.cli.v1.ResourceValidationIssue
+	(*ResourceValidationItem)(nil),                // 27: vrooli.cli.v1.ResourceValidationItem
+	(*ResourceValidationReport)(nil),              // 28: vrooli.cli.v1.ResourceValidationReport
+	(*ResourceValidationResponse)(nil),            // 29: vrooli.cli.v1.ResourceValidationResponse
 }
 var file_cli_v1_resource_reports_proto_depIdxs = []int32{
 	2,  // 0: vrooli.cli.v1.ResourceStartAllResponse.report:type_name -> vrooli.cli.v1.ResourceStartReport
@@ -2997,28 +2219,15 @@ var file_cli_v1_resource_reports_proto_depIdxs = []int32{
 	21, // 21: vrooli.cli.v1.ResourceSchemaValidationReport.missing_references:type_name -> vrooli.cli.v1.ResourceScenarioResourceReference
 	25, // 22: vrooli.cli.v1.ResourceSchemaSyncResponse.report:type_name -> vrooli.cli.v1.ResourceSchemaSyncReport
 	21, // 23: vrooli.cli.v1.ResourceSchemaSyncReport.missing_references:type_name -> vrooli.cli.v1.ResourceScenarioResourceReference
-	40, // 24: vrooli.cli.v1.ResourceTemplateManifest.required_vars:type_name -> vrooli.cli.v1.ResourceTemplateManifest.RequiredVarsEntry
-	41, // 25: vrooli.cli.v1.ResourceTemplateManifest.optional_vars:type_name -> vrooli.cli.v1.ResourceTemplateManifest.OptionalVarsEntry
-	42, // 26: vrooli.cli.v1.ResourceTemplateManifest.docs:type_name -> vrooli.cli.v1.ResourceTemplateManifest.DocsEntry
-	27, // 27: vrooli.cli.v1.ResourceTemplateInfo.manifest:type_name -> vrooli.cli.v1.ResourceTemplateManifest
-	28, // 28: vrooli.cli.v1.ResourceTemplateListResponse.templates:type_name -> vrooli.cli.v1.ResourceTemplateInfo
-	28, // 29: vrooli.cli.v1.ResourceTemplateShowResponse.template:type_name -> vrooli.cli.v1.ResourceTemplateInfo
-	33, // 30: vrooli.cli.v1.ResourceTemplateValidationResponse.report:type_name -> vrooli.cli.v1.ResourceTemplateValidationReport
-	29, // 31: vrooli.cli.v1.ResourceTemplateValidationReport.templates:type_name -> vrooli.cli.v1.ResourceTemplateSummary
-	35, // 32: vrooli.cli.v1.ResourceTemplateGenerateResponse.report:type_name -> vrooli.cli.v1.ResourceTemplateGenerateReport
-	29, // 33: vrooli.cli.v1.ResourceTemplateGenerateReport.template:type_name -> vrooli.cli.v1.ResourceTemplateSummary
-	43, // 34: vrooli.cli.v1.ResourceTemplateGenerateReport.values:type_name -> vrooli.cli.v1.ResourceTemplateGenerateReport.ValuesEntry
-	36, // 35: vrooli.cli.v1.ResourceValidationItem.issues:type_name -> vrooli.cli.v1.ResourceValidationIssue
-	37, // 36: vrooli.cli.v1.ResourceValidationReport.items:type_name -> vrooli.cli.v1.ResourceValidationItem
-	36, // 37: vrooli.cli.v1.ResourceValidationReport.issues:type_name -> vrooli.cli.v1.ResourceValidationIssue
-	38, // 38: vrooli.cli.v1.ResourceValidationResponse.report:type_name -> vrooli.cli.v1.ResourceValidationReport
-	26, // 39: vrooli.cli.v1.ResourceTemplateManifest.RequiredVarsEntry.value:type_name -> vrooli.cli.v1.ResourceTemplateVar
-	26, // 40: vrooli.cli.v1.ResourceTemplateManifest.OptionalVarsEntry.value:type_name -> vrooli.cli.v1.ResourceTemplateVar
-	41, // [41:41] is the sub-list for method output_type
-	41, // [41:41] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	26, // 24: vrooli.cli.v1.ResourceValidationItem.issues:type_name -> vrooli.cli.v1.ResourceValidationIssue
+	27, // 25: vrooli.cli.v1.ResourceValidationReport.items:type_name -> vrooli.cli.v1.ResourceValidationItem
+	26, // 26: vrooli.cli.v1.ResourceValidationReport.issues:type_name -> vrooli.cli.v1.ResourceValidationIssue
+	28, // 27: vrooli.cli.v1.ResourceValidationResponse.report:type_name -> vrooli.cli.v1.ResourceValidationReport
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_resource_reports_proto_init() }
@@ -3032,7 +2241,7 @@ func file_cli_v1_resource_reports_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_resource_reports_proto_rawDesc), len(file_cli_v1_resource_reports_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   44,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

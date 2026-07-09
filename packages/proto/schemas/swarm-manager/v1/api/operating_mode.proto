@@ -69,6 +69,13 @@ service OperatingModeService {
   // initiative.
   rpc StartPhase(OperatingModeStartPhaseRequest) returns (OperatingModeRoundEnvelope);
 
+  // StartTargetPhase is the plan-first entry point: it starts a mode round
+  // directly on a non-initiative target (a plan-manager plan by execution
+  // id/slug, or a plan-ref path) — no initiative created, no backlog
+  // ceremony. Initiative-target modes are rejected here; they start through
+  // StartPhase.
+  rpc StartTargetPhase(OperatingModeStartTargetPhaseRequest) returns (OperatingModeRoundEnvelope);
+
   // RenderLivePrompt renders the literal agent prompt for one phase of a real
   // linked initiative with its live data substituted.
   rpc RenderLivePrompt(OperatingModeRenderLiveRequest) returns (OperatingModeRenderPromptResponse);
@@ -128,11 +135,15 @@ message OperatingModeSimulateRequest {
 
 // OperatingModeScaffoldRequest names the mode to create. Only id is required;
 // label/description default from the id. force overwrites an existing folder.
+// start_from names an existing registered mode to clone as the head start
+// (its phase graph, reads, transitions, and example-runs re-homed under the new
+// id) instead of the blank built-in template — the reuse-first authoring path.
 message OperatingModeScaffoldRequest {
   string id = 1 [(buf.validate.field).string.min_len = 1];
   string label = 2;
   string description = 3;
   bool force = 4;
+  string start_from = 5;
 }
 
 // OperatingModeValidateRequest selects a mode to validate from disk.
@@ -168,6 +179,20 @@ message OperatingModeStartPhaseRequest {
   string note = 3;
   bool override = 4;
   string requested_by = 5;
+}
+
+// OperatingModeStartTargetPhaseRequest dispatches a round for a phase of a
+// non-initiative-target mode (the plan-first entry point). target_ref is the
+// handle the mode's target adapter resolves: a plan-manager execution id or
+// slug for `plan-manager-plan`, a repo-relative plan path for `plan-ref`.
+// phase defaults to the mode's start phase when empty.
+message OperatingModeStartTargetPhaseRequest {
+  string mode = 1 [(buf.validate.field).string.min_len = 1];
+  string target_ref = 2 [(buf.validate.field).string.min_len = 1];
+  string phase = 3;
+  string note = 4;
+  bool override = 5;
+  string requested_by = 6;
 }
 
 // OperatingModeRenderLiveRequest renders a live phase prompt for an initiative.
@@ -273,6 +298,11 @@ message OperatingModeHandoff {
   repeated string blockers = 5;
   string next_step = 6;
   string created_at = 7;
+  // frontier is the elastic-slice contract's declared "true frontier": the one
+  // comprehensively-completable unit the next round should advance — a whole
+  // phase or the remainder of a sliced one — so a fresh agent continues from the
+  // right place instead of re-deriving where the work stands.
+  string frontier = 8;
 }
 
 // OperatingModeRoundItem is one backlog item attached to a round.
@@ -323,6 +353,24 @@ message OperatingModeProgressState {
   string updated_at = 5;
 }
 
+// OperatingModePhaseResolutionRecord reports which resolution-ladder rung
+// resolved or abstained on a phase round. The same record shape carries a
+// classification-on-transition outcome: a non-empty classified_field marks
+// the record as a transition-owned routing-field derivation (classified_value
+// is the derived value the route guards matched on) rather than a
+// phase-output resolution.
+message OperatingModePhaseResolutionRecord {
+  string outcome = 1;
+  string layer = 2;
+  int32 chosen_message_index = 3;
+  int32 messages_scanned = 4;
+  repeated string missing = 5;
+  repeated string violations = 6;
+  repeated string notes = 7;
+  string classified_field = 8;
+  string classified_value = 9;
+}
+
 // OperatingModeArtifactResult is an artifact emitted in a phase result.
 message OperatingModeArtifactResult {
   string path = 1;
@@ -366,6 +414,12 @@ message OperatingModeRoundEnvelope {
   // Free-form structured payload carried through from the round's agent result.
   google.protobuf.Struct payload = 16;
   string error = 17;
+  OperatingModePhaseResolutionRecord resolution = 18;
+  // Classification-on-transition outcome: how the round's routing field was
+  // derived at the edge (or why derivation abstained and the round parked in
+  // needs_attention). Absent when the completed phase's transitions declare
+  // no classification contract.
+  OperatingModePhaseResolutionRecord transition_classification = 19;
 }
 
 // -----------------------------------------------------------------------------
@@ -395,6 +449,42 @@ message OperatingModeCatalogPhase {
   bool samples_replan_rate = 19;
   bool samples_acceptance_rate = 20;
   repeated string auto_start_after = 21;
+  // Declared input contract grouped by supplying provider — the Reads twin of
+  // output_contract, rendered from mode data.
+  OperatingModePhaseReads reads = 22;
+  // Sub-mode that executes this phase (phase delegation, `executed_by`).
+  // Empty for regular phases. CLI/UI render the sub-mode's flow inline under
+  // this phase; the backend engine remains the routing SSOT.
+  string executed_by = 23;
+  // Classification-on-transition contract, when one of this phase's outgoing
+  // edges derives its routing field from the handoff instead of an emitted
+  // field. Present so CLI/UI render classification as a built-in step (not an
+  // agent phase); absent when every edge routes on a directly-emitted field.
+  OperatingModeTransitionClassification classification = 24;
+}
+
+// OperatingModeTransitionClassification projects a phase's classification-on-
+// transition contract for rendering: the routing field derived at the edge, the
+// closed enum of routing values, the handoff field it is derived from, and an
+// optional operator-facing description. This is a declared contract, not a
+// phase — it costs no agent round; the engine derives the field via the
+// resolution ladder at the transition (or abstains to needs_attention).
+message OperatingModeTransitionClassification {
+  string field = 1;
+  repeated string enum = 2;
+  string from = 3;
+  string description = 4;
+}
+
+// OperatingModePhaseReads groups a phase's declared reads by supplying
+// provider: the generic-base provider (mode/phase identity, round number,
+// operator note, prior rounds, artifacts, shared snippets) vs the mode's
+// target adapter (initiative or plan scoped reads). Derived from the declared
+// contract so UI surfaces render reads from data, not a hardcoded category
+// list.
+message OperatingModePhaseReads {
+  repeated string base = 1;
+  repeated string target = 2;
 }
 
 // OperatingModeCatalogTransition is one rendered edge of a mode's phase graph.
@@ -405,6 +495,11 @@ message OperatingModeCatalogTransition {
   string label = 4;
   string field = 5;
   string value = 6;
+  // classified marks an edge whose guard field is derived by classification-on-
+  // transition (the loader expands the classified edge into an eq-guard, so the
+  // guard is ordinary; this flag records that the compared field is derived at
+  // the edge, not directly emitted by the round).
+  bool classified = 7;
 }
 
 // OperatingModeCatalogPhaseGraph carries a mode's phase graph for DAG rendering.
@@ -425,7 +520,6 @@ message OperatingModeCatalogEntry {
   repeated string tradeoffs = 6;
   string when_in_doubt_pick_instead = 7;
   int32 usage_count = 8;
-  string scope_kind = 9;
   string run_strategy = 10;
   string workspace_tab_id = 11;
   OperatingModeCapabilities capabilities = 12;
@@ -434,6 +528,14 @@ message OperatingModeCatalogEntry {
   bool supports_phases = 15;
   repeated OperatingModeCatalogPhase phases = 16;
   OperatingModeCatalogPhaseGraph phase_graph = 17;
+  // The mode's declared unit of work: plan-manager-plan | plan-ref | initiative.
+  string target_kind = 18;
+
+  // Field 9 was `scope_kind`, the legacy wire spelling of target_kind. Removed
+  // in the operating-modes v2 CLI/UI surfacing cutover; all surfaces read
+  // target_kind.
+  reserved 9;
+  reserved "scope_kind";
 }
 
 // OperatingModeCatalogResponse is the full mode catalog.
@@ -481,6 +583,9 @@ message OperatingModeWorkspacePhase {
   string reason = 9;
   bool next = 10;
   repeated string auto_start_after = 11;
+  // Sub-mode that executes this phase (phase delegation); empty for regular
+  // phases.
+  string executed_by = 12;
 }
 
 // OperatingModeWorkspaceMode is the mode definition projected for the workspace.
@@ -488,12 +593,18 @@ message OperatingModeWorkspaceMode {
   string mode = 1;
   string label = 2;
   string description = 3;
-  string scope_kind = 4;
   OperatingModeCapabilities capabilities = 5;
   repeated OperatingModeWorkspacePhase phases = 6;
   repeated string terminal = 7;
   map<string, OperatingModeStringList> transitions = 8;
   string run_strategy = 9;
+  // The mode's declared unit of work: plan-manager-plan | plan-ref | initiative.
+  string target_kind = 10;
+
+  // Field 4 was `scope_kind`, the legacy wire spelling of target_kind. Removed
+  // in the operating-modes v2 CLI/UI surfacing cutover.
+  reserved 4;
+  reserved "scope_kind";
 }
 
 // OperatingModeLockHolder projects the initiative feedback lock holder.
@@ -538,6 +649,20 @@ message OperatingModeSwitchResult {
   repeated OperatingModeActiveItemExecution active_item_executions = 5;
   bool requires_cancellation = 6;
   string operating_mode_workspace_id = 7;
+}
+
+// OperatingModeActiveItemExecutionsConflict is the structured error detail
+// attached to a FailedPrecondition when SwitchMode is called against an
+// initiative with in-flight item executions and cancel_active_item_executions
+// is false. The UI reads it from the Connect error details to list the affected
+// executions before re-submitting the switch with cancellation. This is the
+// Connect-transport equivalent of the REST `active_item_executions` conflict
+// body.
+message OperatingModeActiveItemExecutionsConflict {
+  string initiative_name = 1;
+  string from_mode = 2;
+  string to_mode = 3;
+  repeated OperatingModeActiveItemExecution executions = 4;
 }
 
 // -----------------------------------------------------------------------------
@@ -690,4 +815,10 @@ message OperatingModeValidateResponse {
   int32 phase_count = 4;
   int32 example_runs = 5;
   string summary = 6;
+  // uncovered_branches lists the guarded/classified transitions no example-run
+  // exercises — the exact branch example-runs an author still owes before the
+  // simulation walkthrough. Empty when every branch is walked by some fixture.
+  // A valid mode can still have uncovered branches (ok=true); coverage is an
+  // authoring-completeness signal, not a load error.
+  repeated string uncovered_branches = 7;
 }

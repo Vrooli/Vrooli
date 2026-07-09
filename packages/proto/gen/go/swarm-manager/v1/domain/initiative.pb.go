@@ -60,7 +60,9 @@ type Initiative struct {
 	// Initiative-scoped acceptance criteria used by non-item-level modes.
 	AcceptanceCriteria []string `protobuf:"bytes,13,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
 	// Verified provenance for the actor/session that created this initiative.
-	CreatedBy     *AgentSessionAttribution `protobuf:"bytes,14,opt,name=created_by,json=createdBy,proto3,oneof" json:"created_by,omitempty"`
+	CreatedBy *AgentSessionAttribution `protobuf:"bytes,14,opt,name=created_by,json=createdBy,proto3,oneof" json:"created_by,omitempty"`
+	// Canonical plan-manager plan backing this initiative or operating mode.
+	PlanRef       *PlanRef `protobuf:"bytes,15,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -193,6 +195,13 @@ func (x *Initiative) GetCreatedBy() *AgentSessionAttribution {
 	return nil
 }
 
+func (x *Initiative) GetPlanRef() *PlanRef {
+	if x != nil {
+		return x.PlanRef
+	}
+	return nil
+}
+
 // InitiativeRollup provides aggregated status counts for initiative items.
 type InitiativeRollup struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -288,7 +297,7 @@ var File_swarm_manager_v1_domain_initiative_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\x84\x05\n" +
+	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\xcc\x05\n" +
 	"\n" +
 	"Initiative\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
@@ -309,10 +318,12 @@ const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"item-levelR\rholistic-loopR\x11phased-plan-drainR\x04mode\x12/\n" +
 	"\x13acceptance_criteria\x18\r \x03(\tR\x12acceptanceCriteria\x12M\n" +
 	"\n" +
-	"created_by\x18\x0e \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x02R\tcreatedBy\x88\x01\x01B\a\n" +
+	"created_by\x18\x0e \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x02R\tcreatedBy\x88\x01\x01\x129\n" +
+	"\bplan_ref\x18\x0f \x01(\v2\x19.swarm_manager.v1.PlanRefH\x03R\aplanRef\x88\x01\x01B\a\n" +
 	"\x05_noteB\x0e\n" +
 	"\f_archived_atB\r\n" +
-	"\v_created_by\"\xb5\x01\n" +
+	"\v_created_byB\v\n" +
+	"\t_plan_ref\"\xb5\x01\n" +
 	"\x10InitiativeRollup\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x1c\n" +
 	"\tcompleted\x18\x02 \x01(\x05R\tcompleted\x12\x1f\n" +
@@ -339,14 +350,16 @@ var file_swarm_manager_v1_domain_initiative_proto_goTypes = []any{
 	(*Initiative)(nil),              // 0: swarm_manager.v1.Initiative
 	(*InitiativeRollup)(nil),        // 1: swarm_manager.v1.InitiativeRollup
 	(*AgentSessionAttribution)(nil), // 2: swarm_manager.v1.AgentSessionAttribution
+	(*PlanRef)(nil),                 // 3: swarm_manager.v1.PlanRef
 }
 var file_swarm_manager_v1_domain_initiative_proto_depIdxs = []int32{
 	2, // 0: swarm_manager.v1.Initiative.created_by:type_name -> swarm_manager.v1.AgentSessionAttribution
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 1: swarm_manager.v1.Initiative.plan_ref:type_name -> swarm_manager.v1.PlanRef
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_initiative_proto_init() }
@@ -355,6 +368,7 @@ func file_swarm_manager_v1_domain_initiative_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_domain_agent_session_proto_init()
+	file_swarm_manager_v1_domain_plan_ref_proto_init()
 	file_swarm_manager_v1_domain_initiative_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

@@ -32,7 +32,7 @@ type BacklogItem struct {
 	// Detailed description of the work item.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Lifecycle state for the backlog item.
-	// @constraint one of: backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
+	// @constraint one of: suggested, backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
 	Status string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	// Priority level (1 = highest, 10 = lowest).
 	// @constraint 1-10
@@ -67,9 +67,6 @@ type BacklogItem struct {
 	// Archiving is orthogonal to status — items retain their terminal status when archived.
 	// @format rfc3339
 	ArchivedAt *string `protobuf:"bytes,19,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
-	// Raw JSON string containing the plan validation report (PlanValidationResult).
-	// Ephemeral data — regenerated on read when plan.md is newer than the report.
-	PlanValidationJson *string `protobuf:"bytes,20,opt,name=plan_validation_json,json=planValidationJson,proto3,oneof" json:"plan_validation_json,omitempty"`
 	// Skill IDs recommended by the creating agent. Workshop and execution agents
 	// should read these skills before proceeding.
 	SuggestedSkills []string `protobuf:"bytes,21,rep,name=suggested_skills,json=suggestedSkills,proto3" json:"suggested_skills,omitempty"`
@@ -87,6 +84,10 @@ type BacklogItem struct {
 	// failed, in_progress, archived) — there is no position to report.
 	// @constraint 0+
 	QueuePosition *int32 `protobuf:"varint,24,opt,name=queue_position,json=queuePosition,proto3,oneof" json:"queue_position,omitempty"`
+	// Canonical plan-manager plan backing this work item.
+	PlanRef *PlanRef `protobuf:"bytes,25,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
+	// Stable programmatic finding ID that produced this item, when auto-filed.
+	FindingRef    *string `protobuf:"bytes,26,opt,name=finding_ref,json=findingRef,proto3,oneof" json:"finding_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -240,13 +241,6 @@ func (x *BacklogItem) GetArchivedAt() string {
 	return ""
 }
 
-func (x *BacklogItem) GetPlanValidationJson() string {
-	if x != nil && x.PlanValidationJson != nil {
-		return *x.PlanValidationJson
-	}
-	return ""
-}
-
 func (x *BacklogItem) GetSuggestedSkills() []string {
 	if x != nil {
 		return x.SuggestedSkills
@@ -273,6 +267,20 @@ func (x *BacklogItem) GetQueuePosition() int32 {
 		return *x.QueuePosition
 	}
 	return 0
+}
+
+func (x *BacklogItem) GetPlanRef() *PlanRef {
+	if x != nil {
+		return x.PlanRef
+	}
+	return nil
+}
+
+func (x *BacklogItem) GetFindingRef() string {
+	if x != nil && x.FindingRef != nil {
+		return *x.FindingRef
+	}
+	return ""
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -633,12 +641,12 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\x85\t\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\xc5\t\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x8d\x01\n" +
-	"\x06status\x18\x04 \x01(\tBu\xbaHrrpR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tin_reviewR\x0ereview_pendingR\tcompletedR\x06failedR\x0eneeds_followupR\x06status\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x99\x01\n" +
+	"\x06status\x18\x04 \x01(\tB\x80\x01\xbaH}r{R\tsuggestedR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tin_reviewR\x0ereview_pendingR\tcompletedR\x06failedR\x0eneeds_followupR\x06status\x12%\n" +
 	"\bpriority\x18\x05 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01R\bpriority\x12\x1c\n" +
 	"\x04tags\x18\x06 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12!\n" +
@@ -656,22 +664,25 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\fspawned_from\x18\x11 \x01(\tH\x02R\vspawnedFrom\x88\x01\x01\x12\x17\n" +
 	"\x04note\x18\x12 \x01(\tH\x03R\x04note\x88\x01\x01\x12$\n" +
 	"\varchived_at\x18\x13 \x01(\tH\x04R\n" +
-	"archivedAt\x88\x01\x01\x125\n" +
-	"\x14plan_validation_json\x18\x14 \x01(\tH\x05R\x12planValidationJson\x88\x01\x01\x12)\n" +
+	"archivedAt\x88\x01\x01\x12)\n" +
 	"\x10suggested_skills\x18\x15 \x03(\tR\x0fsuggestedSkills\x12\x18\n" +
 	"\acreates\x18\x16 \x03(\tR\acreates\x12M\n" +
 	"\n" +
-	"created_by\x18\x17 \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x06R\tcreatedBy\x88\x01\x01\x123\n" +
-	"\x0equeue_position\x18\x18 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\aR\rqueuePosition\x88\x01\x01B\r\n" +
+	"created_by\x18\x17 \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x05R\tcreatedBy\x88\x01\x01\x123\n" +
+	"\x0equeue_position\x18\x18 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x06R\rqueuePosition\x88\x01\x01\x129\n" +
+	"\bplan_ref\x18\x19 \x01(\v2\x19.swarm_manager.v1.PlanRefH\aR\aplanRef\x88\x01\x01\x12$\n" +
+	"\vfinding_ref\x18\x1a \x01(\tH\bR\n" +
+	"findingRef\x88\x01\x01B\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\x0e\n" +
-	"\f_archived_atB\x17\n" +
-	"\x15_plan_validation_jsonB\r\n" +
+	"\f_archived_atB\r\n" +
 	"\v_created_byB\x11\n" +
-	"\x0f_queue_positionJ\x04\b\n" +
-	"\x10\vJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
+	"\x0f_queue_positionB\v\n" +
+	"\t_plan_refB\x0e\n" +
+	"\f_finding_refJ\x04\b\n" +
+	"\x10\vJ\x04\b\x0e\x10\x0fJ\x04\b\x14\x10\x15\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
 	"\x04path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12*\n" +
@@ -724,17 +735,19 @@ var file_swarm_manager_v1_domain_backlog_proto_goTypes = []any{
 	(*ClarificationImpact)(nil),     // 3: swarm_manager.v1.ClarificationImpact
 	(*ClarificationThread)(nil),     // 4: swarm_manager.v1.ClarificationThread
 	(*AgentSessionAttribution)(nil), // 5: swarm_manager.v1.AgentSessionAttribution
+	(*PlanRef)(nil),                 // 6: swarm_manager.v1.PlanRef
 }
 var file_swarm_manager_v1_domain_backlog_proto_depIdxs = []int32{
 	5, // 0: swarm_manager.v1.BacklogItem.created_by:type_name -> swarm_manager.v1.AgentSessionAttribution
-	1, // 1: swarm_manager.v1.BacklogFile.children:type_name -> swarm_manager.v1.BacklogFile
-	2, // 2: swarm_manager.v1.ClarificationThread.messages:type_name -> swarm_manager.v1.ClarificationMessage
-	3, // 3: swarm_manager.v1.ClarificationThread.latest_impact:type_name -> swarm_manager.v1.ClarificationImpact
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 1: swarm_manager.v1.BacklogItem.plan_ref:type_name -> swarm_manager.v1.PlanRef
+	1, // 2: swarm_manager.v1.BacklogFile.children:type_name -> swarm_manager.v1.BacklogFile
+	2, // 3: swarm_manager.v1.ClarificationThread.messages:type_name -> swarm_manager.v1.ClarificationMessage
+	3, // 4: swarm_manager.v1.ClarificationThread.latest_impact:type_name -> swarm_manager.v1.ClarificationImpact
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_backlog_proto_init() }
@@ -743,6 +756,7 @@ func file_swarm_manager_v1_domain_backlog_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_domain_agent_session_proto_init()
+	file_swarm_manager_v1_domain_plan_ref_proto_init()
 	file_swarm_manager_v1_domain_backlog_proto_msgTypes[0].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_backlog_proto_msgTypes[1].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_backlog_proto_msgTypes[4].OneofWrappers = []any{}

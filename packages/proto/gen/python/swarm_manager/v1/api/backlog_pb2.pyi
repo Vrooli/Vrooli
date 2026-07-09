@@ -1,6 +1,7 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.domain import backlog_pb2 as _backlog_pb2
 from swarm_manager.v1.domain import execution_pb2 as _execution_pb2
+from swarm_manager.v1.domain import plan_ref_pb2 as _plan_ref_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -10,7 +11,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CreateBacklogItemRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates")
+    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -25,6 +26,7 @@ class CreateBacklogItemRequest(_message.Message):
     SPAWNED_FROM_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
     CREATES_FIELD_NUMBER: _ClassVar[int]
+    PLAN_REF_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -39,10 +41,11 @@ class CreateBacklogItemRequest(_message.Message):
     spawned_from: str
     note: str
     creates: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ...) -> None: ...
+    plan_ref: _plan_ref_pb2.PlanRef
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ...) -> None: ...
 
 class UpdateBacklogItemRequest(_message.Message):
-    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates")
+    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -56,6 +59,7 @@ class UpdateBacklogItemRequest(_message.Message):
     SPAWNED_FROM_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
     CREATES_FIELD_NUMBER: _ClassVar[int]
+    PLAN_REF_FIELD_NUMBER: _ClassVar[int]
     title: str
     description: str
     status: str
@@ -69,7 +73,8 @@ class UpdateBacklogItemRequest(_message.Message):
     spawned_from: str
     note: str
     creates: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ...) -> None: ...
+    plan_ref: _plan_ref_pb2.PlanRef
+    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ...) -> None: ...
 
 class BlockingReason(_message.Message):
     __slots__ = ("message", "forceable")
@@ -119,6 +124,84 @@ class GetBacklogItemRequest(_message.Message):
     kind: str
     name: str
     def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+
+class AutoFilerStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class AutoFilerRunNowRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class AutoFilerBrakeState(_message.Message):
+    __slots__ = ("window_days", "minimum", "observed", "braked", "window_start_utc", "window_end_utc")
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
+    MINIMUM_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_FIELD_NUMBER: _ClassVar[int]
+    BRAKED_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_START_UTC_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_END_UTC_FIELD_NUMBER: _ClassVar[int]
+    window_days: int
+    minimum: int
+    observed: int
+    braked: bool
+    window_start_utc: str
+    window_end_utc: str
+    def __init__(self, window_days: _Optional[int] = ..., minimum: _Optional[int] = ..., observed: _Optional[int] = ..., braked: _Optional[bool] = ..., window_start_utc: _Optional[str] = ..., window_end_utc: _Optional[str] = ...) -> None: ...
+
+class AutoFilerStatusResponse(_message.Message):
+    __slots__ = ("enabled", "mode", "strategy", "last_cycle_time", "last_error", "candidates", "findings", "created", "skipped_dismissed", "open_auto_filed", "max_open_auto_filed", "remaining_budget", "brake", "dismissal_count", "reconciled_closed", "reconciled_noted")
+    ENABLED_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    LAST_CYCLE_TIME_FIELD_NUMBER: _ClassVar[int]
+    LAST_ERROR_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_DISMISSED_FIELD_NUMBER: _ClassVar[int]
+    OPEN_AUTO_FILED_FIELD_NUMBER: _ClassVar[int]
+    MAX_OPEN_AUTO_FILED_FIELD_NUMBER: _ClassVar[int]
+    REMAINING_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    BRAKE_FIELD_NUMBER: _ClassVar[int]
+    DISMISSAL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RECONCILED_CLOSED_FIELD_NUMBER: _ClassVar[int]
+    RECONCILED_NOTED_FIELD_NUMBER: _ClassVar[int]
+    enabled: bool
+    mode: str
+    strategy: str
+    last_cycle_time: str
+    last_error: str
+    candidates: int
+    findings: int
+    created: int
+    skipped_dismissed: int
+    open_auto_filed: int
+    max_open_auto_filed: int
+    remaining_budget: int
+    brake: AutoFilerBrakeState
+    dismissal_count: int
+    reconciled_closed: int
+    reconciled_noted: int
+    def __init__(self, enabled: _Optional[bool] = ..., mode: _Optional[str] = ..., strategy: _Optional[str] = ..., last_cycle_time: _Optional[str] = ..., last_error: _Optional[str] = ..., candidates: _Optional[int] = ..., findings: _Optional[int] = ..., created: _Optional[int] = ..., skipped_dismissed: _Optional[int] = ..., open_auto_filed: _Optional[int] = ..., max_open_auto_filed: _Optional[int] = ..., remaining_budget: _Optional[int] = ..., brake: _Optional[_Union[AutoFilerBrakeState, _Mapping]] = ..., dismissal_count: _Optional[int] = ..., reconciled_closed: _Optional[int] = ..., reconciled_noted: _Optional[int] = ...) -> None: ...
+
+class DismissAutoFilerSuggestionRequest(_message.Message):
+    __slots__ = ("kind", "name", "reason")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    name: str
+    reason: str
+    def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class DismissAutoFilerSuggestionResponse(_message.Message):
+    __slots__ = ("item", "dismissed")
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    DISMISSED_FIELD_NUMBER: _ClassVar[int]
+    item: _backlog_pb2.BacklogItem
+    dismissed: bool
+    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., dismissed: _Optional[bool] = ...) -> None: ...
 
 class BacklogFilesResponse(_message.Message):
     __slots__ = ("files",)

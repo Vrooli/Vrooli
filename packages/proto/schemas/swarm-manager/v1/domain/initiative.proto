@@ -4,6 +4,7 @@ package swarm_manager.v1;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/agent_session.proto";
+import "swarm-manager/v1/domain/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -91,6 +92,9 @@ message Initiative {
 
   // Verified provenance for the actor/session that created this initiative.
   optional AgentSessionAttribution created_by = 14;
+
+  // Canonical plan-manager plan backing this initiative or operating mode.
+  optional PlanRef plan_ref = 15;
 }
 
 // InitiativeRollup provides aggregated status counts for initiative items.

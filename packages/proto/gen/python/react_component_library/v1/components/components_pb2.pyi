@@ -30,6 +30,13 @@ class DesignAffinity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DESIGN_AFFINITY_NATIVE: _ClassVar[DesignAffinity]
     DESIGN_AFFINITY_COMPATIBLE: _ClassVar[DesignAffinity]
     DESIGN_AFFINITY_DISCOURAGED: _ClassVar[DesignAffinity]
+
+class StyleFitVerdictKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STYLE_FIT_VERDICT_KIND_UNSPECIFIED: _ClassVar[StyleFitVerdictKind]
+    STYLE_FIT_VERDICT_KIND_OK: _ClassVar[StyleFitVerdictKind]
+    STYLE_FIT_VERDICT_KIND_INFO: _ClassVar[StyleFitVerdictKind]
+    STYLE_FIT_VERDICT_KIND_WARN: _ClassVar[StyleFitVerdictKind]
 COMPONENT_VERSION_INTENT_UNSPECIFIED: ComponentVersionIntent
 COMPONENT_VERSION_INTENT_DRAFT: ComponentVersionIntent
 COMPONENT_VERSION_INTENT_RELEASE: ComponentVersionIntent
@@ -42,6 +49,10 @@ DESIGN_AFFINITY_UNSPECIFIED: DesignAffinity
 DESIGN_AFFINITY_NATIVE: DesignAffinity
 DESIGN_AFFINITY_COMPATIBLE: DesignAffinity
 DESIGN_AFFINITY_DISCOURAGED: DesignAffinity
+STYLE_FIT_VERDICT_KIND_UNSPECIFIED: StyleFitVerdictKind
+STYLE_FIT_VERDICT_KIND_OK: StyleFitVerdictKind
+STYLE_FIT_VERDICT_KIND_INFO: StyleFitVerdictKind
+STYLE_FIT_VERDICT_KIND_WARN: StyleFitVerdictKind
 
 class Component(_message.Message):
     __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles")
@@ -295,12 +306,14 @@ class ComponentVersion(_message.Message):
     def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., status: _Optional[_Union[ComponentVersionStatus, str]] = ..., source_path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ComponentDesignAffinity(_message.Message):
-    __slots__ = ("style_id", "affinity")
+    __slots__ = ("style_id", "affinity", "reason")
     STYLE_ID_FIELD_NUMBER: _ClassVar[int]
     AFFINITY_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     style_id: str
     affinity: DesignAffinity
-    def __init__(self, style_id: _Optional[str] = ..., affinity: _Optional[_Union[DesignAffinity, str]] = ...) -> None: ...
+    reason: str
+    def __init__(self, style_id: _Optional[str] = ..., affinity: _Optional[_Union[DesignAffinity, str]] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class ListComponentVersionsRequest(_message.Message):
     __slots__ = ("component_id", "limit")
@@ -332,6 +345,48 @@ class GetComponentVersionContentResponse(_message.Message):
     content: str
     def __init__(self, version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., content: _Optional[str] = ...) -> None: ...
 
+class ComponentExample(_message.Message):
+    __slots__ = ("id", "component_id", "library_id", "version", "name", "display_name", "props_json", "setup_json", "expect_json", "source_path", "indexed_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    PROPS_JSON_FIELD_NUMBER: _ClassVar[int]
+    SETUP_JSON_FIELD_NUMBER: _ClassVar[int]
+    EXPECT_JSON_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    component_id: str
+    library_id: str
+    version: str
+    name: str
+    display_name: str
+    props_json: str
+    setup_json: str
+    expect_json: str
+    source_path: str
+    indexed_at: _timestamp_pb2.Timestamp
+    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., name: _Optional[str] = ..., display_name: _Optional[str] = ..., props_json: _Optional[str] = ..., setup_json: _Optional[str] = ..., expect_json: _Optional[str] = ..., source_path: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ListComponentExamplesRequest(_message.Message):
+    __slots__ = ("component_id", "version", "limit")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    version: str
+    limit: int
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class ListComponentExamplesResponse(_message.Message):
+    __slots__ = ("examples",)
+    EXAMPLES_FIELD_NUMBER: _ClassVar[int]
+    examples: _containers.RepeatedCompositeFieldContainer[ComponentExample]
+    def __init__(self, examples: _Optional[_Iterable[_Union[ComponentExample, _Mapping]]] = ...) -> None: ...
+
 class DesignStyle(_message.Message):
     __slots__ = ("id", "name", "tags", "supports")
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -353,3 +408,31 @@ class ListDesignStylesResponse(_message.Message):
     STYLES_FIELD_NUMBER: _ClassVar[int]
     styles: _containers.RepeatedCompositeFieldContainer[DesignStyle]
     def __init__(self, styles: _Optional[_Iterable[_Union[DesignStyle, _Mapping]]] = ...) -> None: ...
+
+class ValidateStyleFitRequest(_message.Message):
+    __slots__ = ("component_id", "scenario", "version")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    scenario: str
+    version: str
+    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
+
+class ValidateStyleFitResponse(_message.Message):
+    __slots__ = ("kind", "component_id", "version", "scenario", "scenario_style", "affinity", "detail")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_STYLE_FIELD_NUMBER: _ClassVar[int]
+    AFFINITY_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    kind: StyleFitVerdictKind
+    component_id: str
+    version: str
+    scenario: str
+    scenario_style: str
+    affinity: DesignAffinity
+    detail: str
+    def __init__(self, kind: _Optional[_Union[StyleFitVerdictKind, str]] = ..., component_id: _Optional[str] = ..., version: _Optional[str] = ..., scenario: _Optional[str] = ..., scenario_style: _Optional[str] = ..., affinity: _Optional[_Union[DesignAffinity, str]] = ..., detail: _Optional[str] = ...) -> None: ...

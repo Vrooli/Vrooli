@@ -135,12 +135,14 @@ class RenderMarkdownResponse(_message.Message):
     def __init__(self, markdown: _Optional[str] = ..., mirror: _Optional[_Union[_model_pb2.RenderedPlanMirror, _Mapping]] = ..., repaired: _Optional[bool] = ..., plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., quality_status: _Optional[str] = ..., quality_findings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class AddPhaseRequest(_message.Message):
-    __slots__ = ("plan_id", "phase")
+    __slots__ = ("plan_id", "phase", "workspace")
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     plan_id: str
     phase: _model_pb2.Phase
-    def __init__(self, plan_id: _Optional[str] = ..., phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ...) -> None: ...
+    workspace: WorkspaceScope
+    def __init__(self, plan_id: _Optional[str] = ..., phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ...) -> None: ...
 
 class AddPhaseResponse(_message.Message):
     __slots__ = ("plan",)
@@ -149,12 +151,14 @@ class AddPhaseResponse(_message.Message):
     def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
 
 class UpdatePhaseRequest(_message.Message):
-    __slots__ = ("plan_id", "phase")
+    __slots__ = ("plan_id", "phase", "workspace")
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     plan_id: str
     phase: _model_pb2.Phase
-    def __init__(self, plan_id: _Optional[str] = ..., phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ...) -> None: ...
+    workspace: WorkspaceScope
+    def __init__(self, plan_id: _Optional[str] = ..., phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ...) -> None: ...
 
 class UpdatePhaseResponse(_message.Message):
     __slots__ = ("plan",)

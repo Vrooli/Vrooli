@@ -155,6 +155,7 @@ message RenderMarkdownResponse {
 message AddPhaseRequest {
   string plan_id = 1;
   shared.Phase phase = 2;
+  WorkspaceScope workspace = 3;
 }
 
 message AddPhaseResponse {
@@ -164,6 +165,7 @@ message AddPhaseResponse {
 message UpdatePhaseRequest {
   string plan_id = 1;
   shared.Phase phase = 2;
+  WorkspaceScope workspace = 3;
 }
 
 message UpdatePhaseResponse {

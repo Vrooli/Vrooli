@@ -68,6 +68,107 @@ func (x *SettingsResponse) GetSettings() *domain.Settings {
 	return nil
 }
 
+// AutoFilerSettingsPatch applies partial updates to Settings.auto_filer.
+type AutoFilerSettingsPatch struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Enabled                *bool                  `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	Mode                   *string                `protobuf:"bytes,2,opt,name=mode,proto3,oneof" json:"mode,omitempty"`
+	Strategy               *string                `protobuf:"bytes,3,opt,name=strategy,proto3,oneof" json:"strategy,omitempty"`
+	MaxOpenAutoFiled       *int32                 `protobuf:"varint,4,opt,name=max_open_auto_filed,json=maxOpenAutoFiled,proto3,oneof" json:"max_open_auto_filed,omitempty"`
+	VelocityWindowDays     *int32                 `protobuf:"varint,5,opt,name=velocity_window_days,json=velocityWindowDays,proto3,oneof" json:"velocity_window_days,omitempty"`
+	MinVelocityTransitions *int32                 `protobuf:"varint,6,opt,name=min_velocity_transitions,json=minVelocityTransitions,proto3,oneof" json:"min_velocity_transitions,omitempty"`
+	IntervalMinutes        *int32                 `protobuf:"varint,7,opt,name=interval_minutes,json=intervalMinutes,proto3,oneof" json:"interval_minutes,omitempty"`
+	GoalName               *string                `protobuf:"bytes,8,opt,name=goal_name,json=goalName,proto3,oneof" json:"goal_name,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AutoFilerSettingsPatch) Reset() {
+	*x = AutoFilerSettingsPatch{}
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AutoFilerSettingsPatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AutoFilerSettingsPatch) ProtoMessage() {}
+
+func (x *AutoFilerSettingsPatch) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AutoFilerSettingsPatch.ProtoReflect.Descriptor instead.
+func (*AutoFilerSettingsPatch) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AutoFilerSettingsPatch) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *AutoFilerSettingsPatch) GetMode() string {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
+	}
+	return ""
+}
+
+func (x *AutoFilerSettingsPatch) GetStrategy() string {
+	if x != nil && x.Strategy != nil {
+		return *x.Strategy
+	}
+	return ""
+}
+
+func (x *AutoFilerSettingsPatch) GetMaxOpenAutoFiled() int32 {
+	if x != nil && x.MaxOpenAutoFiled != nil {
+		return *x.MaxOpenAutoFiled
+	}
+	return 0
+}
+
+func (x *AutoFilerSettingsPatch) GetVelocityWindowDays() int32 {
+	if x != nil && x.VelocityWindowDays != nil {
+		return *x.VelocityWindowDays
+	}
+	return 0
+}
+
+func (x *AutoFilerSettingsPatch) GetMinVelocityTransitions() int32 {
+	if x != nil && x.MinVelocityTransitions != nil {
+		return *x.MinVelocityTransitions
+	}
+	return 0
+}
+
+func (x *AutoFilerSettingsPatch) GetIntervalMinutes() int32 {
+	if x != nil && x.IntervalMinutes != nil {
+		return *x.IntervalMinutes
+	}
+	return 0
+}
+
+func (x *AutoFilerSettingsPatch) GetGoalName() string {
+	if x != nil && x.GoalName != nil {
+		return *x.GoalName
+	}
+	return ""
+}
+
 // UpdateSettingsRequest applies partial settings updates.
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -114,15 +215,15 @@ type UpdateSettingsRequest struct {
 	ExecutionCostCapPerRun        *float64         `protobuf:"fixed64,29,opt,name=execution_cost_cap_per_run,json=executionCostCapPerRun,proto3,oneof" json:"execution_cost_cap_per_run,omitempty"`
 	CostPerTurnEstimate           *float64         `protobuf:"fixed64,30,opt,name=cost_per_turn_estimate,json=costPerTurnEstimate,proto3,oneof" json:"cost_per_turn_estimate,omitempty"`
 	// Fix-before-feature gate controls (see domain Settings).
-	FixBeforeFeature          *string `protobuf:"bytes,35,opt,name=fix_before_feature,json=fixBeforeFeature,proto3,oneof" json:"fix_before_feature,omitempty"`
-	FixBeforeFeatureDiscovery *bool   `protobuf:"varint,36,opt,name=fix_before_feature_discovery,json=fixBeforeFeatureDiscovery,proto3,oneof" json:"fix_before_feature_discovery,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	FixBeforeFeature *string                 `protobuf:"bytes,35,opt,name=fix_before_feature,json=fixBeforeFeature,proto3,oneof" json:"fix_before_feature,omitempty"`
+	AutoFiler        *AutoFilerSettingsPatch `protobuf:"bytes,38,opt,name=auto_filer,json=autoFiler,proto3" json:"auto_filer,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
 	*x = UpdateSettingsRequest{}
-	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -134,7 +235,7 @@ func (x *UpdateSettingsRequest) String() string {
 func (*UpdateSettingsRequest) ProtoMessage() {}
 
 func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -147,7 +248,7 @@ func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSettingsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{1}
+	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *UpdateSettingsRequest) GetTheme() string {
@@ -339,11 +440,11 @@ func (x *UpdateSettingsRequest) GetFixBeforeFeature() string {
 	return ""
 }
 
-func (x *UpdateSettingsRequest) GetFixBeforeFeatureDiscovery() bool {
-	if x != nil && x.FixBeforeFeatureDiscovery != nil {
-		return *x.FixBeforeFeatureDiscovery
+func (x *UpdateSettingsRequest) GetAutoFiler() *AutoFilerSettingsPatch {
+	if x != nil {
+		return x.AutoFiler
 	}
-	return false
+	return nil
 }
 
 var File_swarm_manager_v1_api_settings_proto protoreflect.FileDescriptor
@@ -352,7 +453,27 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
 	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xfd\x15\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xc2\x04\n" +
+	"\x16AutoFilerSettingsPatch\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x123\n" +
+	"\x04mode\x18\x02 \x01(\tB\x1a\xbaH\x17r\x15R\x00R\asuggestR\bauto_addH\x01R\x04mode\x88\x01\x01\x12E\n" +
+	"\bstrategy\x18\x03 \x01(\tB$\xbaH!r\x1fR\x00R\x0ffeature_pendingR\n" +
+	"importanceH\x02R\bstrategy\x88\x01\x01\x122\n" +
+	"\x13max_open_auto_filed\x18\x04 \x01(\x05H\x03R\x10maxOpenAutoFiled\x88\x01\x01\x125\n" +
+	"\x14velocity_window_days\x18\x05 \x01(\x05H\x04R\x12velocityWindowDays\x88\x01\x01\x12=\n" +
+	"\x18min_velocity_transitions\x18\x06 \x01(\x05H\x05R\x16minVelocityTransitions\x88\x01\x01\x12.\n" +
+	"\x10interval_minutes\x18\a \x01(\x05H\x06R\x0fintervalMinutes\x88\x01\x01\x12 \n" +
+	"\tgoal_name\x18\b \x01(\tH\aR\bgoalName\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\a\n" +
+	"\x05_modeB\v\n" +
+	"\t_strategyB\x16\n" +
+	"\x14_max_open_auto_filedB\x17\n" +
+	"\x15_velocity_window_daysB\x1b\n" +
+	"\x19_min_velocity_transitionsB\x13\n" +
+	"\x11_interval_minutesB\f\n" +
+	"\n" +
+	"_goal_name\"\xe5\x15\n" +
 	"\x15UpdateSettingsRequest\x127\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12=\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x15\xbaH\x12r\x10R\x00R\x06manualR\x04yoloH\x01R\vdefaultMode\x88\x01\x01\x12\"\n" +
@@ -383,8 +504,9 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x15R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
 	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x16R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
 	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x17R\x13costPerTurnEstimate\x88\x01\x01\x12O\n" +
-	"\x12fix_before_feature\x18# \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x03offR\asuggestR\x05blockH\x18R\x10fixBeforeFeature\x88\x01\x01\x12D\n" +
-	"\x1cfix_before_feature_discovery\x18$ \x01(\bH\x19R\x19fixBeforeFeatureDiscovery\x88\x01\x01\x1aq\n" +
+	"\x12fix_before_feature\x18# \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x03offR\asuggestR\x05blockH\x18R\x10fixBeforeFeature\x88\x01\x01\x12G\n" +
+	"\n" +
+	"auto_filer\x18& \x01(\v2(.swarm_manager.v1.AutoFilerSettingsPatchR\tautoFiler\x1aq\n" +
 	"\x1dDeleteConfirmationLevelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12:\n" +
 	"\x05value\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\x05value:\x028\x01\x1aH\n" +
@@ -415,8 +537,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"!_circuit_breaker_cooldown_minutesB\x1d\n" +
 	"\x1b_execution_cost_cap_per_runB\x19\n" +
 	"\x17_cost_per_turn_estimateB\x15\n" +
-	"\x13_fix_before_featureB\x1f\n" +
-	"\x1d_fix_before_feature_discoveryJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b!\x10\"J\x04\b\x19\x10\x1aR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x13delete_confirmationR\x19max_concurrent_executionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x13_fix_before_featureJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b!\x10\"J\x04\b\x19\x10\x1aJ\x04\b$\x10%R\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x13delete_confirmationR\x19max_concurrent_executionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_settings_proto_rawDescOnce sync.Once
@@ -430,25 +551,27 @@ func file_swarm_manager_v1_api_settings_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_settings_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_swarm_manager_v1_api_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_swarm_manager_v1_api_settings_proto_goTypes = []any{
 	(*SettingsResponse)(nil),       // 0: swarm_manager.v1.SettingsResponse
-	(*UpdateSettingsRequest)(nil),  // 1: swarm_manager.v1.UpdateSettingsRequest
-	nil,                            // 2: swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
-	nil,                            // 3: swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
-	(*domain.Settings)(nil),        // 4: swarm_manager.v1.Settings
-	(domain.DeleteConfirmLevel)(0), // 5: swarm_manager.v1.DeleteConfirmLevel
+	(*AutoFilerSettingsPatch)(nil), // 1: swarm_manager.v1.AutoFilerSettingsPatch
+	(*UpdateSettingsRequest)(nil),  // 2: swarm_manager.v1.UpdateSettingsRequest
+	nil,                            // 3: swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
+	nil,                            // 4: swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
+	(*domain.Settings)(nil),        // 5: swarm_manager.v1.Settings
+	(domain.DeleteConfirmLevel)(0), // 6: swarm_manager.v1.DeleteConfirmLevel
 }
 var file_swarm_manager_v1_api_settings_proto_depIdxs = []int32{
-	4, // 0: swarm_manager.v1.SettingsResponse.settings:type_name -> swarm_manager.v1.Settings
-	2, // 1: swarm_manager.v1.UpdateSettingsRequest.delete_confirmation_levels:type_name -> swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
-	3, // 2: swarm_manager.v1.UpdateSettingsRequest.lane_concurrency_limits:type_name -> swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
-	5, // 3: swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry.value:type_name -> swarm_manager.v1.DeleteConfirmLevel
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 0: swarm_manager.v1.SettingsResponse.settings:type_name -> swarm_manager.v1.Settings
+	3, // 1: swarm_manager.v1.UpdateSettingsRequest.delete_confirmation_levels:type_name -> swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
+	4, // 2: swarm_manager.v1.UpdateSettingsRequest.lane_concurrency_limits:type_name -> swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
+	1, // 3: swarm_manager.v1.UpdateSettingsRequest.auto_filer:type_name -> swarm_manager.v1.AutoFilerSettingsPatch
+	6, // 4: swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry.value:type_name -> swarm_manager.v1.DeleteConfirmLevel
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_settings_proto_init() }
@@ -457,13 +580,14 @@ func file_swarm_manager_v1_api_settings_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_api_settings_proto_msgTypes[1].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_settings_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_settings_proto_rawDesc), len(file_swarm_manager_v1_api_settings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

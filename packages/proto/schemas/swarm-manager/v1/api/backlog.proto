@@ -5,6 +5,7 @@ package swarm_manager.v1;
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/backlog.proto";
 import "swarm-manager/v1/domain/execution.proto";
+import "swarm-manager/v1/domain/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
@@ -96,6 +97,9 @@ message CreateBacklogItemRequest {
   // paths in acceptance_allow that don't yet exist on disk. Absence means
   // "no declared new paths."
   repeated string creates = 17;
+
+  // Canonical plan-manager plan backing this work item.
+  optional PlanRef plan_ref = 18;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -113,16 +117,20 @@ message UpdateBacklogItemRequest {
   optional string description = 2;
 
   // Lifecycle status.
-  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
+  // @constraint one of: suggested, backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
   optional string status = 3 [(buf.validate.field).string = {
     in: [
+      "suggested",
       "backlog",
       "researching",
       "ready",
       "queued",
       "in_progress",
+      "in_review",
+      "review_pending",
       "completed",
-      "failed"
+      "failed",
+      "needs_followup"
     ]
   }];
 
@@ -172,6 +180,9 @@ message UpdateBacklogItemRequest {
   // Glob patterns for file paths the work plans to create. Same syntax as
   // acceptance_allow. Empty list clears the field.
   repeated string creates = 15;
+
+  // Canonical plan-manager plan backing this work item. Set empty strings to clear.
+  optional PlanRef plan_ref = 16;
 }
 
 // A single blocking reason with forceability metadata.
@@ -242,6 +253,74 @@ service BacklogService {
   // GetItem returns a single backlog item with its current status and computed
   // queue_position (items-ahead in the ranked pending set).
   rpc GetItem(GetBacklogItemRequest) returns (BacklogItemResponse);
+}
+
+// AutoFilerService exposes the governed backlog auto-filer operator surface.
+//
+// @stability beta
+service AutoFilerService {
+  // GetStatus returns the current policy settings plus the latest cycle
+  // outcome and brake/cap accounting.
+  rpc GetStatus(AutoFilerStatusRequest) returns (AutoFilerStatusResponse);
+
+  // DismissSuggestion archives a suggested auto-filed item and remembers its
+  // finding_ref so the same finding is not suggested again.
+  rpc DismissSuggestion(DismissAutoFilerSuggestionRequest) returns (DismissAutoFilerSuggestionResponse);
+
+  // RunNow forces one governed auto-filer cycle immediately and returns the
+  // resulting status snapshot.
+  rpc RunNow(AutoFilerRunNowRequest) returns (AutoFilerStatusResponse);
+}
+
+message AutoFilerStatusRequest {}
+
+message AutoFilerRunNowRequest {}
+
+message AutoFilerBrakeState {
+  int32 window_days = 1;
+  int32 minimum = 2;
+  int32 observed = 3;
+  bool braked = 4;
+  string window_start_utc = 5;
+  string window_end_utc = 6;
+}
+
+message AutoFilerStatusResponse {
+  bool enabled = 1;
+  string mode = 2;
+  string strategy = 3;
+  string last_cycle_time = 4;
+  string last_error = 5;
+  int32 candidates = 6;
+  int32 findings = 7;
+  int32 created = 8;
+  int32 skipped_dismissed = 9;
+  int32 open_auto_filed = 10;
+  int32 max_open_auto_filed = 11;
+  int32 remaining_budget = 12;
+  AutoFilerBrakeState brake = 13;
+  int32 dismissal_count = 14;
+  int32 reconciled_closed = 15;
+  int32 reconciled_noted = 16;
+}
+
+message DismissAutoFilerSuggestionRequest {
+  string kind = 1 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "research",
+      "fix",
+      "execute",
+      "chore"
+    ]
+  }];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  optional string reason = 3;
+}
+
+message DismissAutoFilerSuggestionResponse {
+  swarm_manager.v1.BacklogItem item = 1;
+  bool dismissed = 2;
 }
 
 // BacklogFilesResponse returns the file tree for a backlog item.

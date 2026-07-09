@@ -29,6 +29,30 @@ message SettingsResponse {
   Settings settings = 1;
 }
 
+// AutoFilerSettingsPatch applies partial updates to Settings.auto_filer.
+message AutoFilerSettingsPatch {
+  optional bool enabled = 1;
+  optional string mode = 2 [(buf.validate.field).string = {
+    in: [
+      "",
+      "suggest",
+      "auto_add"
+    ]
+  }];
+  optional string strategy = 3 [(buf.validate.field).string = {
+    in: [
+      "",
+      "feature_pending",
+      "importance"
+    ]
+  }];
+  optional int32 max_open_auto_filed = 4;
+  optional int32 velocity_window_days = 5;
+  optional int32 min_velocity_transitions = 6;
+  optional int32 interval_minutes = 7;
+  optional string goal_name = 8;
+}
+
 // UpdateSettingsRequest applies partial settings updates.
 message UpdateSettingsRequest {
   // Optional theme override.
@@ -113,8 +137,8 @@ message UpdateSettingsRequest {
       "block"
     ]
   }];
-  optional bool fix_before_feature_discovery = 36;
+  AutoFilerSettingsPatch auto_filer = 38;
 
-  reserved 25;
+  reserved 25, 36;
   reserved "max_concurrent_executions";
 }

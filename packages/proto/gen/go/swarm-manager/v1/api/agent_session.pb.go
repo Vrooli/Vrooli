@@ -578,7 +578,7 @@ func (x *ContinueAgentSessionResponse) GetSession() *domain.AgentSession {
 type AgentSessionContextRef struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Context type.
-	// @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief
+	// @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief, goal
 	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	// Stable entity reference.
 	Ref           string `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
@@ -1699,10 +1699,10 @@ const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12K\n" +
 	"\fcontext_refs\x18\x04 \x03(\v2(.swarm_manager.v1.AgentSessionContextRefR\vcontextRefs\"X\n" +
 	"\x1cContinueAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xd7\x01\n" +
-	"\x16AgentSessionContextRef\x12\xa1\x01\n" +
-	"\x04type\x18\x01 \x01(\tB\x8c\x01\xbaH\x88\x01r\x85\x01R\fbacklog_itemR\n" +
-	"initiativeR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x13operations_briefingR\rstartup_briefR\x04type\x12\x19\n" +
+	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xdd\x01\n" +
+	"\x16AgentSessionContextRef\x12\xa7\x01\n" +
+	"\x04type\x18\x01 \x01(\tB\x92\x01\xbaH\x8e\x01r\x8b\x01R\fbacklog_itemR\n" +
+	"initiativeR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x13operations_briefingR\rstartup_briefR\x04goalR\x04type\x12\x19\n" +
 	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\"f\n" +
 	"\"GetAgentSessionStartupBriefRequest\x12&\n" +
 	"\n" +

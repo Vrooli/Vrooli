@@ -4,13 +4,15 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Value } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file code-facts/v1/health/health.proto.
  */
 export const file_code_facts_v1_health_health: GenFile = /*@__PURE__*/
-  fileDesc("CiFjb2RlLWZhY3RzL3YxL2hlYWx0aC9oZWFsdGgucHJvdG8SG3Zyb29saS5jb2RlX2ZhY3RzLnYxLmhlYWx0aCJaChBEZXBlbmRlbmN5U3RhdHVzEhEKCWNvbm5lY3RlZBgBIAEoCBISCgpsYXRlbmN5X21zGAIgASgBEg0KBWVycm9yGAMgASgJEhAKCGRhdGFiYXNlGAQgASgJIq0CCghSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDwoHc2VydmljZRgCIAEoCRIRCgl0aW1lc3RhbXAYAyABKAkSEQoJcmVhZGluZXNzGAQgASgIEg8KB3ZlcnNpb24YBSABKAkSFgoOdXB0aW1lX3NlY29uZHMYBiABKAESTQoMZGVwZW5kZW5jaWVzGAcgAygLMjcudnJvb2xpLmNvZGVfZmFjdHMudjEuaGVhbHRoLlJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5GmIKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI8CgV2YWx1ZRgCIAEoCzItLnZyb29saS5jb2RlX2ZhY3RzLnYxLmhlYWx0aC5EZXBlbmRlbmN5U3RhdHVzOgI4AUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvZGUtZmFjdHMvdjEvaGVhbHRoO2hlYWx0aF92MWIGcHJvdG8z");
+  fileDesc("CiFjb2RlLWZhY3RzL3YxL2hlYWx0aC9oZWFsdGgucHJvdG8SG3Zyb29saS5jb2RlX2ZhY3RzLnYxLmhlYWx0aCJaChBEZXBlbmRlbmN5U3RhdHVzEhEKCWNvbm5lY3RlZBgBIAEoCBISCgpsYXRlbmN5X21zGAIgASgBEg0KBWVycm9yGAMgASgJEhAKCGRhdGFiYXNlGAQgASgJIroDCghSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDwoHc2VydmljZRgCIAEoCRIRCgl0aW1lc3RhbXAYAyABKAkSEQoJcmVhZGluZXNzGAQgASgIEg8KB3ZlcnNpb24YBSABKAkSFgoOdXB0aW1lX3NlY29uZHMYBiABKAESTQoMZGVwZW5kZW5jaWVzGAcgAygLMjcudnJvb2xpLmNvZGVfZmFjdHMudjEuaGVhbHRoLlJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5EkMKB21ldHJpY3MYCCADKAsyMi52cm9vbGkuY29kZV9mYWN0cy52MS5oZWFsdGguUmVzcG9uc2UuTWV0cmljc0VudHJ5GmIKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI8CgV2YWx1ZRgCIAEoCzItLnZyb29saS5jb2RlX2ZhY3RzLnYxLmhlYWx0aC5EZXBlbmRlbmN5U3RhdHVzOgI4ARpGCgxNZXRyaWNzRW50cnkSCwoDa2V5GAEgASgJEiUKBXZhbHVlGAIgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlOgI4AUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvZGUtZmFjdHMvdjEvaGVhbHRoO2hlYWx0aF92MWIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
  * DependencyStatus mirrors api-core/health.DependencyStatus. Reported
@@ -117,6 +119,14 @@ export type Response = Message<"vrooli.code_facts.v1.health.Response"> & {
    * @generated from field: map<string, vrooli.code_facts.v1.health.DependencyStatus> dependencies = 7;
    */
   dependencies: { [key: string]: DependencyStatus };
+
+  /**
+   * Runtime and scenario-specific counters. Code Facts adds cache byte budget
+   * metrics here so operators can observe retention without a Connect client.
+   *
+   * @generated from field: map<string, google.protobuf.Value> metrics = 8;
+   */
+  metrics: { [key: string]: Value };
 };
 
 /**

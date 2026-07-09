@@ -1,5 +1,6 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.domain import agent_session_pb2 as _agent_session_pb2
+from swarm_manager.v1.domain import plan_ref_pb2 as _plan_ref_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -9,7 +10,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Initiative(_message.Message):
-    __slots__ = ("name", "title", "description", "status", "items", "created", "updated", "note", "archived_at", "priority", "depends_on", "mode", "acceptance_criteria", "created_by")
+    __slots__ = ("name", "title", "description", "status", "items", "created", "updated", "note", "archived_at", "priority", "depends_on", "mode", "acceptance_criteria", "created_by", "plan_ref")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -24,6 +25,7 @@ class Initiative(_message.Message):
     MODE_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_FIELD_NUMBER: _ClassVar[int]
+    PLAN_REF_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -38,7 +40,8 @@ class Initiative(_message.Message):
     mode: str
     acceptance_criteria: _containers.RepeatedScalarFieldContainer[str]
     created_by: _agent_session_pb2.AgentSessionAttribution
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., items: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ..., priority: _Optional[int] = ..., depends_on: _Optional[_Iterable[str]] = ..., mode: _Optional[str] = ..., acceptance_criteria: _Optional[_Iterable[str]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ...) -> None: ...
+    plan_ref: _plan_ref_pb2.PlanRef
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., items: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ..., priority: _Optional[int] = ..., depends_on: _Optional[_Iterable[str]] = ..., mode: _Optional[str] = ..., acceptance_criteria: _Optional[_Iterable[str]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ...) -> None: ...
 
 class InitiativeRollup(_message.Message):
     __slots__ = ("total", "completed", "in_progress", "failed", "pending", "archived")

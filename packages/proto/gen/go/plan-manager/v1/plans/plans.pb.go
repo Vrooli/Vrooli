@@ -768,6 +768,7 @@ type AddPhaseRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PlanId        string                 `protobuf:"bytes,1,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
 	Phase         *shared.Phase          `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
+	Workspace     *WorkspaceScope        `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -812,6 +813,13 @@ func (x *AddPhaseRequest) GetPlanId() string {
 func (x *AddPhaseRequest) GetPhase() *shared.Phase {
 	if x != nil {
 		return x.Phase
+	}
+	return nil
+}
+
+func (x *AddPhaseRequest) GetWorkspace() *WorkspaceScope {
+	if x != nil {
+		return x.Workspace
 	}
 	return nil
 }
@@ -864,6 +872,7 @@ type UpdatePhaseRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PlanId        string                 `protobuf:"bytes,1,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
 	Phase         *shared.Phase          `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
+	Workspace     *WorkspaceScope        `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -908,6 +917,13 @@ func (x *UpdatePhaseRequest) GetPlanId() string {
 func (x *UpdatePhaseRequest) GetPhase() *shared.Phase {
 	if x != nil {
 		return x.Phase
+	}
+	return nil
+}
+
+func (x *UpdatePhaseRequest) GetWorkspace() *WorkspaceScope {
+	if x != nil {
+		return x.Workspace
 	}
 	return nil
 }
@@ -2759,15 +2775,17 @@ const file_plan_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\brepaired\x18\x03 \x01(\bR\brepaired\x127\n" +
 	"\x04plan\x18\x04 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\x12%\n" +
 	"\x0equality_status\x18\x05 \x01(\tR\rqualityStatus\x12)\n" +
-	"\x10quality_findings\x18\x06 \x03(\tR\x0fqualityFindings\"f\n" +
+	"\x10quality_findings\x18\x06 \x03(\tR\x0fqualityFindings\"\xb2\x01\n" +
 	"\x0fAddPhaseRequest\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12:\n" +
-	"\x05phase\x18\x02 \x01(\v2$.vrooli.plan_manager.v1.shared.PhaseR\x05phase\"K\n" +
+	"\x05phase\x18\x02 \x01(\v2$.vrooli.plan_manager.v1.shared.PhaseR\x05phase\x12J\n" +
+	"\tworkspace\x18\x03 \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\"K\n" +
 	"\x10AddPhaseResponse\x127\n" +
-	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"i\n" +
+	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"\xb5\x01\n" +
 	"\x12UpdatePhaseRequest\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12:\n" +
-	"\x05phase\x18\x02 \x01(\v2$.vrooli.plan_manager.v1.shared.PhaseR\x05phase\"N\n" +
+	"\x05phase\x18\x02 \x01(\v2$.vrooli.plan_manager.v1.shared.PhaseR\x05phase\x12J\n" +
+	"\tworkspace\x18\x03 \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\"N\n" +
 	"\x13UpdatePhaseResponse\x127\n" +
 	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"\x93\x01\n" +
 	"\x1aListRelevantContextRequest\x12\x0e\n" +
@@ -3018,85 +3036,87 @@ var file_plan_manager_v1_plans_plans_proto_depIdxs = []int32{
 	51, // 12: vrooli.plan_manager.v1.plans.RenderMarkdownResponse.mirror:type_name -> vrooli.plan_manager.v1.shared.RenderedPlanMirror
 	50, // 13: vrooli.plan_manager.v1.plans.RenderMarkdownResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
 	52, // 14: vrooli.plan_manager.v1.plans.AddPhaseRequest.phase:type_name -> vrooli.plan_manager.v1.shared.Phase
-	50, // 15: vrooli.plan_manager.v1.plans.AddPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	52, // 16: vrooli.plan_manager.v1.plans.UpdatePhaseRequest.phase:type_name -> vrooli.plan_manager.v1.shared.Phase
-	50, // 17: vrooli.plan_manager.v1.plans.UpdatePhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	41, // 18: vrooli.plan_manager.v1.plans.ListRelevantContextRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	53, // 19: vrooli.plan_manager.v1.plans.ListRelevantContextResponse.items:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
-	41, // 20: vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	53, // 21: vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
-	50, // 22: vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	41, // 23: vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	50, // 24: vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	41, // 25: vrooli.plan_manager.v1.plans.ListReferencesRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	54, // 26: vrooli.plan_manager.v1.plans.ListReferencesResponse.references:type_name -> vrooli.plan_manager.v1.shared.Reference
-	41, // 27: vrooli.plan_manager.v1.plans.UpdateReferenceRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	54, // 28: vrooli.plan_manager.v1.plans.UpdateReferenceRequest.reference:type_name -> vrooli.plan_manager.v1.shared.Reference
-	50, // 29: vrooli.plan_manager.v1.plans.UpdateReferenceResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	41, // 30: vrooli.plan_manager.v1.plans.RemoveReferenceRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	50, // 31: vrooli.plan_manager.v1.plans.RemoveReferenceResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	55, // 32: vrooli.plan_manager.v1.plans.GetGraphResponse.edges:type_name -> vrooli.plan_manager.v1.shared.PlanEdge
-	50, // 33: vrooli.plan_manager.v1.plans.LinkSupersessionResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	50, // 34: vrooli.plan_manager.v1.plans.LinkDependencyResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	41, // 35: vrooli.plan_manager.v1.plans.ImportPlanRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	50, // 36: vrooli.plan_manager.v1.plans.ImportPlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	50, // 37: vrooli.plan_manager.v1.plans.MigratePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	0,  // 38: vrooli.plan_manager.v1.plans.ReconcilePlansRequest.conflict_policy:type_name -> vrooli.plan_manager.v1.plans.ReconcileConflictPolicy
-	41, // 39: vrooli.plan_manager.v1.plans.ReconcilePlansRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	1,  // 40: vrooli.plan_manager.v1.plans.ReconcilePlanItem.action:type_name -> vrooli.plan_manager.v1.plans.ReconcileAction
-	51, // 41: vrooli.plan_manager.v1.plans.ReconcilePlanItem.mirror:type_name -> vrooli.plan_manager.v1.shared.RenderedPlanMirror
-	42, // 42: vrooli.plan_manager.v1.plans.ReconcilePlansResponse.items:type_name -> vrooli.plan_manager.v1.plans.ReconcilePlanItem
-	46, // 43: vrooli.plan_manager.v1.plans.ListTemplatesResponse.templates:type_name -> vrooli.plan_manager.v1.plans.PlanTemplate
-	50, // 44: vrooli.plan_manager.v1.plans.CreateFromTemplateResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	2,  // 45: vrooli.plan_manager.v1.plans.PlansService.ListPlans:input_type -> vrooli.plan_manager.v1.plans.ListPlansRequest
-	4,  // 46: vrooli.plan_manager.v1.plans.PlansService.GetPlan:input_type -> vrooli.plan_manager.v1.plans.GetPlanRequest
-	6,  // 47: vrooli.plan_manager.v1.plans.PlansService.CreatePlan:input_type -> vrooli.plan_manager.v1.plans.CreatePlanRequest
-	8,  // 48: vrooli.plan_manager.v1.plans.PlansService.UpdatePlan:input_type -> vrooli.plan_manager.v1.plans.UpdatePlanRequest
-	10, // 49: vrooli.plan_manager.v1.plans.PlansService.ArchivePlan:input_type -> vrooli.plan_manager.v1.plans.ArchivePlanRequest
-	12, // 50: vrooli.plan_manager.v1.plans.PlansService.RenderMarkdown:input_type -> vrooli.plan_manager.v1.plans.RenderMarkdownRequest
-	14, // 51: vrooli.plan_manager.v1.plans.PlansService.AddPhase:input_type -> vrooli.plan_manager.v1.plans.AddPhaseRequest
-	16, // 52: vrooli.plan_manager.v1.plans.PlansService.UpdatePhase:input_type -> vrooli.plan_manager.v1.plans.UpdatePhaseRequest
-	18, // 53: vrooli.plan_manager.v1.plans.PlansService.ListRelevantContext:input_type -> vrooli.plan_manager.v1.plans.ListRelevantContextRequest
-	20, // 54: vrooli.plan_manager.v1.plans.PlansService.UpdateRelevantContext:input_type -> vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest
-	22, // 55: vrooli.plan_manager.v1.plans.PlansService.RemoveRelevantContext:input_type -> vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest
-	24, // 56: vrooli.plan_manager.v1.plans.PlansService.ListReferences:input_type -> vrooli.plan_manager.v1.plans.ListReferencesRequest
-	26, // 57: vrooli.plan_manager.v1.plans.PlansService.UpdateReference:input_type -> vrooli.plan_manager.v1.plans.UpdateReferenceRequest
-	28, // 58: vrooli.plan_manager.v1.plans.PlansService.RemoveReference:input_type -> vrooli.plan_manager.v1.plans.RemoveReferenceRequest
-	30, // 59: vrooli.plan_manager.v1.plans.PlansService.GetGraph:input_type -> vrooli.plan_manager.v1.plans.GetGraphRequest
-	32, // 60: vrooli.plan_manager.v1.plans.PlansService.LinkSupersession:input_type -> vrooli.plan_manager.v1.plans.LinkSupersessionRequest
-	34, // 61: vrooli.plan_manager.v1.plans.PlansService.LinkDependency:input_type -> vrooli.plan_manager.v1.plans.LinkDependencyRequest
-	36, // 62: vrooli.plan_manager.v1.plans.PlansService.ImportPlan:input_type -> vrooli.plan_manager.v1.plans.ImportPlanRequest
-	38, // 63: vrooli.plan_manager.v1.plans.PlansService.MigratePlan:input_type -> vrooli.plan_manager.v1.plans.MigratePlanRequest
-	40, // 64: vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans:input_type -> vrooli.plan_manager.v1.plans.ReconcilePlansRequest
-	44, // 65: vrooli.plan_manager.v1.plans.PlansService.ListTemplates:input_type -> vrooli.plan_manager.v1.plans.ListTemplatesRequest
-	47, // 66: vrooli.plan_manager.v1.plans.PlansService.CreateFromTemplate:input_type -> vrooli.plan_manager.v1.plans.CreateFromTemplateRequest
-	3,  // 67: vrooli.plan_manager.v1.plans.PlansService.ListPlans:output_type -> vrooli.plan_manager.v1.plans.ListPlansResponse
-	5,  // 68: vrooli.plan_manager.v1.plans.PlansService.GetPlan:output_type -> vrooli.plan_manager.v1.plans.GetPlanResponse
-	7,  // 69: vrooli.plan_manager.v1.plans.PlansService.CreatePlan:output_type -> vrooli.plan_manager.v1.plans.CreatePlanResponse
-	9,  // 70: vrooli.plan_manager.v1.plans.PlansService.UpdatePlan:output_type -> vrooli.plan_manager.v1.plans.UpdatePlanResponse
-	11, // 71: vrooli.plan_manager.v1.plans.PlansService.ArchivePlan:output_type -> vrooli.plan_manager.v1.plans.ArchivePlanResponse
-	13, // 72: vrooli.plan_manager.v1.plans.PlansService.RenderMarkdown:output_type -> vrooli.plan_manager.v1.plans.RenderMarkdownResponse
-	15, // 73: vrooli.plan_manager.v1.plans.PlansService.AddPhase:output_type -> vrooli.plan_manager.v1.plans.AddPhaseResponse
-	17, // 74: vrooli.plan_manager.v1.plans.PlansService.UpdatePhase:output_type -> vrooli.plan_manager.v1.plans.UpdatePhaseResponse
-	19, // 75: vrooli.plan_manager.v1.plans.PlansService.ListRelevantContext:output_type -> vrooli.plan_manager.v1.plans.ListRelevantContextResponse
-	21, // 76: vrooli.plan_manager.v1.plans.PlansService.UpdateRelevantContext:output_type -> vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse
-	23, // 77: vrooli.plan_manager.v1.plans.PlansService.RemoveRelevantContext:output_type -> vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse
-	25, // 78: vrooli.plan_manager.v1.plans.PlansService.ListReferences:output_type -> vrooli.plan_manager.v1.plans.ListReferencesResponse
-	27, // 79: vrooli.plan_manager.v1.plans.PlansService.UpdateReference:output_type -> vrooli.plan_manager.v1.plans.UpdateReferenceResponse
-	29, // 80: vrooli.plan_manager.v1.plans.PlansService.RemoveReference:output_type -> vrooli.plan_manager.v1.plans.RemoveReferenceResponse
-	31, // 81: vrooli.plan_manager.v1.plans.PlansService.GetGraph:output_type -> vrooli.plan_manager.v1.plans.GetGraphResponse
-	33, // 82: vrooli.plan_manager.v1.plans.PlansService.LinkSupersession:output_type -> vrooli.plan_manager.v1.plans.LinkSupersessionResponse
-	35, // 83: vrooli.plan_manager.v1.plans.PlansService.LinkDependency:output_type -> vrooli.plan_manager.v1.plans.LinkDependencyResponse
-	37, // 84: vrooli.plan_manager.v1.plans.PlansService.ImportPlan:output_type -> vrooli.plan_manager.v1.plans.ImportPlanResponse
-	39, // 85: vrooli.plan_manager.v1.plans.PlansService.MigratePlan:output_type -> vrooli.plan_manager.v1.plans.MigratePlanResponse
-	43, // 86: vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans:output_type -> vrooli.plan_manager.v1.plans.ReconcilePlansResponse
-	45, // 87: vrooli.plan_manager.v1.plans.PlansService.ListTemplates:output_type -> vrooli.plan_manager.v1.plans.ListTemplatesResponse
-	48, // 88: vrooli.plan_manager.v1.plans.PlansService.CreateFromTemplate:output_type -> vrooli.plan_manager.v1.plans.CreateFromTemplateResponse
-	67, // [67:89] is the sub-list for method output_type
-	45, // [45:67] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	41, // 15: vrooli.plan_manager.v1.plans.AddPhaseRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 16: vrooli.plan_manager.v1.plans.AddPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	52, // 17: vrooli.plan_manager.v1.plans.UpdatePhaseRequest.phase:type_name -> vrooli.plan_manager.v1.shared.Phase
+	41, // 18: vrooli.plan_manager.v1.plans.UpdatePhaseRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 19: vrooli.plan_manager.v1.plans.UpdatePhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 20: vrooli.plan_manager.v1.plans.ListRelevantContextRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	53, // 21: vrooli.plan_manager.v1.plans.ListRelevantContextResponse.items:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	41, // 22: vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	53, // 23: vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	50, // 24: vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 25: vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 26: vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 27: vrooli.plan_manager.v1.plans.ListReferencesRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	54, // 28: vrooli.plan_manager.v1.plans.ListReferencesResponse.references:type_name -> vrooli.plan_manager.v1.shared.Reference
+	41, // 29: vrooli.plan_manager.v1.plans.UpdateReferenceRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	54, // 30: vrooli.plan_manager.v1.plans.UpdateReferenceRequest.reference:type_name -> vrooli.plan_manager.v1.shared.Reference
+	50, // 31: vrooli.plan_manager.v1.plans.UpdateReferenceResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 32: vrooli.plan_manager.v1.plans.RemoveReferenceRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 33: vrooli.plan_manager.v1.plans.RemoveReferenceResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	55, // 34: vrooli.plan_manager.v1.plans.GetGraphResponse.edges:type_name -> vrooli.plan_manager.v1.shared.PlanEdge
+	50, // 35: vrooli.plan_manager.v1.plans.LinkSupersessionResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	50, // 36: vrooli.plan_manager.v1.plans.LinkDependencyResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 37: vrooli.plan_manager.v1.plans.ImportPlanRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 38: vrooli.plan_manager.v1.plans.ImportPlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	50, // 39: vrooli.plan_manager.v1.plans.MigratePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	0,  // 40: vrooli.plan_manager.v1.plans.ReconcilePlansRequest.conflict_policy:type_name -> vrooli.plan_manager.v1.plans.ReconcileConflictPolicy
+	41, // 41: vrooli.plan_manager.v1.plans.ReconcilePlansRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	1,  // 42: vrooli.plan_manager.v1.plans.ReconcilePlanItem.action:type_name -> vrooli.plan_manager.v1.plans.ReconcileAction
+	51, // 43: vrooli.plan_manager.v1.plans.ReconcilePlanItem.mirror:type_name -> vrooli.plan_manager.v1.shared.RenderedPlanMirror
+	42, // 44: vrooli.plan_manager.v1.plans.ReconcilePlansResponse.items:type_name -> vrooli.plan_manager.v1.plans.ReconcilePlanItem
+	46, // 45: vrooli.plan_manager.v1.plans.ListTemplatesResponse.templates:type_name -> vrooli.plan_manager.v1.plans.PlanTemplate
+	50, // 46: vrooli.plan_manager.v1.plans.CreateFromTemplateResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	2,  // 47: vrooli.plan_manager.v1.plans.PlansService.ListPlans:input_type -> vrooli.plan_manager.v1.plans.ListPlansRequest
+	4,  // 48: vrooli.plan_manager.v1.plans.PlansService.GetPlan:input_type -> vrooli.plan_manager.v1.plans.GetPlanRequest
+	6,  // 49: vrooli.plan_manager.v1.plans.PlansService.CreatePlan:input_type -> vrooli.plan_manager.v1.plans.CreatePlanRequest
+	8,  // 50: vrooli.plan_manager.v1.plans.PlansService.UpdatePlan:input_type -> vrooli.plan_manager.v1.plans.UpdatePlanRequest
+	10, // 51: vrooli.plan_manager.v1.plans.PlansService.ArchivePlan:input_type -> vrooli.plan_manager.v1.plans.ArchivePlanRequest
+	12, // 52: vrooli.plan_manager.v1.plans.PlansService.RenderMarkdown:input_type -> vrooli.plan_manager.v1.plans.RenderMarkdownRequest
+	14, // 53: vrooli.plan_manager.v1.plans.PlansService.AddPhase:input_type -> vrooli.plan_manager.v1.plans.AddPhaseRequest
+	16, // 54: vrooli.plan_manager.v1.plans.PlansService.UpdatePhase:input_type -> vrooli.plan_manager.v1.plans.UpdatePhaseRequest
+	18, // 55: vrooli.plan_manager.v1.plans.PlansService.ListRelevantContext:input_type -> vrooli.plan_manager.v1.plans.ListRelevantContextRequest
+	20, // 56: vrooli.plan_manager.v1.plans.PlansService.UpdateRelevantContext:input_type -> vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest
+	22, // 57: vrooli.plan_manager.v1.plans.PlansService.RemoveRelevantContext:input_type -> vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest
+	24, // 58: vrooli.plan_manager.v1.plans.PlansService.ListReferences:input_type -> vrooli.plan_manager.v1.plans.ListReferencesRequest
+	26, // 59: vrooli.plan_manager.v1.plans.PlansService.UpdateReference:input_type -> vrooli.plan_manager.v1.plans.UpdateReferenceRequest
+	28, // 60: vrooli.plan_manager.v1.plans.PlansService.RemoveReference:input_type -> vrooli.plan_manager.v1.plans.RemoveReferenceRequest
+	30, // 61: vrooli.plan_manager.v1.plans.PlansService.GetGraph:input_type -> vrooli.plan_manager.v1.plans.GetGraphRequest
+	32, // 62: vrooli.plan_manager.v1.plans.PlansService.LinkSupersession:input_type -> vrooli.plan_manager.v1.plans.LinkSupersessionRequest
+	34, // 63: vrooli.plan_manager.v1.plans.PlansService.LinkDependency:input_type -> vrooli.plan_manager.v1.plans.LinkDependencyRequest
+	36, // 64: vrooli.plan_manager.v1.plans.PlansService.ImportPlan:input_type -> vrooli.plan_manager.v1.plans.ImportPlanRequest
+	38, // 65: vrooli.plan_manager.v1.plans.PlansService.MigratePlan:input_type -> vrooli.plan_manager.v1.plans.MigratePlanRequest
+	40, // 66: vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans:input_type -> vrooli.plan_manager.v1.plans.ReconcilePlansRequest
+	44, // 67: vrooli.plan_manager.v1.plans.PlansService.ListTemplates:input_type -> vrooli.plan_manager.v1.plans.ListTemplatesRequest
+	47, // 68: vrooli.plan_manager.v1.plans.PlansService.CreateFromTemplate:input_type -> vrooli.plan_manager.v1.plans.CreateFromTemplateRequest
+	3,  // 69: vrooli.plan_manager.v1.plans.PlansService.ListPlans:output_type -> vrooli.plan_manager.v1.plans.ListPlansResponse
+	5,  // 70: vrooli.plan_manager.v1.plans.PlansService.GetPlan:output_type -> vrooli.plan_manager.v1.plans.GetPlanResponse
+	7,  // 71: vrooli.plan_manager.v1.plans.PlansService.CreatePlan:output_type -> vrooli.plan_manager.v1.plans.CreatePlanResponse
+	9,  // 72: vrooli.plan_manager.v1.plans.PlansService.UpdatePlan:output_type -> vrooli.plan_manager.v1.plans.UpdatePlanResponse
+	11, // 73: vrooli.plan_manager.v1.plans.PlansService.ArchivePlan:output_type -> vrooli.plan_manager.v1.plans.ArchivePlanResponse
+	13, // 74: vrooli.plan_manager.v1.plans.PlansService.RenderMarkdown:output_type -> vrooli.plan_manager.v1.plans.RenderMarkdownResponse
+	15, // 75: vrooli.plan_manager.v1.plans.PlansService.AddPhase:output_type -> vrooli.plan_manager.v1.plans.AddPhaseResponse
+	17, // 76: vrooli.plan_manager.v1.plans.PlansService.UpdatePhase:output_type -> vrooli.plan_manager.v1.plans.UpdatePhaseResponse
+	19, // 77: vrooli.plan_manager.v1.plans.PlansService.ListRelevantContext:output_type -> vrooli.plan_manager.v1.plans.ListRelevantContextResponse
+	21, // 78: vrooli.plan_manager.v1.plans.PlansService.UpdateRelevantContext:output_type -> vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse
+	23, // 79: vrooli.plan_manager.v1.plans.PlansService.RemoveRelevantContext:output_type -> vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse
+	25, // 80: vrooli.plan_manager.v1.plans.PlansService.ListReferences:output_type -> vrooli.plan_manager.v1.plans.ListReferencesResponse
+	27, // 81: vrooli.plan_manager.v1.plans.PlansService.UpdateReference:output_type -> vrooli.plan_manager.v1.plans.UpdateReferenceResponse
+	29, // 82: vrooli.plan_manager.v1.plans.PlansService.RemoveReference:output_type -> vrooli.plan_manager.v1.plans.RemoveReferenceResponse
+	31, // 83: vrooli.plan_manager.v1.plans.PlansService.GetGraph:output_type -> vrooli.plan_manager.v1.plans.GetGraphResponse
+	33, // 84: vrooli.plan_manager.v1.plans.PlansService.LinkSupersession:output_type -> vrooli.plan_manager.v1.plans.LinkSupersessionResponse
+	35, // 85: vrooli.plan_manager.v1.plans.PlansService.LinkDependency:output_type -> vrooli.plan_manager.v1.plans.LinkDependencyResponse
+	37, // 86: vrooli.plan_manager.v1.plans.PlansService.ImportPlan:output_type -> vrooli.plan_manager.v1.plans.ImportPlanResponse
+	39, // 87: vrooli.plan_manager.v1.plans.PlansService.MigratePlan:output_type -> vrooli.plan_manager.v1.plans.MigratePlanResponse
+	43, // 88: vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans:output_type -> vrooli.plan_manager.v1.plans.ReconcilePlansResponse
+	45, // 89: vrooli.plan_manager.v1.plans.PlansService.ListTemplates:output_type -> vrooli.plan_manager.v1.plans.ListTemplatesResponse
+	48, // 90: vrooli.plan_manager.v1.plans.PlansService.CreateFromTemplate:output_type -> vrooli.plan_manager.v1.plans.CreateFromTemplateResponse
+	69, // [69:91] is the sub-list for method output_type
+	47, // [47:69] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_plans_plans_proto_init() }
