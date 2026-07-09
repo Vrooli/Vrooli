@@ -14,9 +14,10 @@ browser can load as an ES module.
 ### Options considered
 
 1. **esbuild Go API on-the-fly** — call `github.com/evanw/esbuild/pkg/api`
-   from the API process; transform the TSX file (loader `tsx`, format
-   `esm`); serve the result as `/preview/{id}/bundle.js`. React /
-   ReactDOM resolved client-side via an importmap pointing at esm.sh.
+   from the API process; bundle the TSX file (loader `tsx`, format
+   `esm`); serve the result through the preview harness. React,
+   ReactDOM, and declared package dependencies resolve client-side via
+   a same-origin importmap.
 2. **Vite SSR / dev server proxy** — run a Vite dev server child
    process; proxy `/preview/...` to it. Vite handles bundling.
 3. **Pre-bundle all components at scenario boot** — walk the registry,
@@ -41,18 +42,25 @@ running" semantics that make live preview believable.
 
 ### Resolved contracts
 
-- **Externals**: `react`, `react-dom`, `react-dom/client` are marked
-  external in the esbuild call; the harness HTML carries an importmap
-  that maps them to `https://esm.sh/react@<pinned>` etc. The pin is
-  read from a constant in `internal/preview/`; bumping it is a
-  source-edit, not a runtime concern.
-- **Working directory**: esbuild's `ResolveDir` is the configured
-  component source root (the same root the FSContentStore guards).
-  Relative imports inside a component resolve relative to that root.
+- **Externals**: bare package imports are marked external in the
+  esbuild Build call; the harness HTML carries an importmap. React
+  runtime imports are same-origin URLs under
+  `/preview/runtime/react@<version>/...` and
+  `/preview/runtime/react-dom@<version>/...`, served by the API from
+  vendored UI workspace packages bundled to ESM on demand. Non-React
+  declared dependencies resolve to same-origin
+  `/preview/runtime/npm/<package>@<version>/...` URLs when that package
+  version is present in the local UI workspace.
+- **Relative imports**: esbuild Build runs with `ResolveDir` rooted at
+  the component source directory, so `./local` and `../local` imports
+  are folded into the component module. Bare package imports stay
+  external so each preview gets its own importmap and conflicting
+  declared versions do not share a process-global resolution.
 - **Harness HTML**: served at `GET /preview/{id}/harness.html`. The
   shell renders the component's default export into a `<div id="root">`
-  via `ReactDOM.createRoot`. The component bundle is fetched at
-  `/preview/{id}/bundle.js`.
+  via `ReactDOM.createRoot`. The transformed component module is
+  embedded as a data URL in the harness so the iframe needs no second
+  component fetch.
 - **Cache-busting**: the host iframe wrapper appends a `?v=<sha256>`
   query reflecting the latest content sha; saves cause the sha to
   change which causes the iframe to reload.
@@ -67,9 +75,11 @@ running" semantics that make live preview believable.
 
 - esbuild transform exceeds the warm-preview latency budget on any
   realistic component.
-- esm.sh becomes an unacceptable network dependency for offline use —
-  if so, vendor React into the API binary as embedded files and serve
-  from `/preview/runtime/react@*.js` instead of the importmap CDN.
+- A component needs a package version that is not installed in the UI
+  workspace. The current offline contract surfaces an import-map
+  diagnostic instead of fetching a CDN fallback; adding more vendored
+  versions should happen through the scenario dependency-governance
+  flow, not ad hoc package-manager commands.
 - iframe-bridge wiring becomes blocking for any P0 feature — promote
   the bundling of `@vrooli/iframe-bridge/child` into the esbuild call
   (it's just another module to bundle in alongside the component).
@@ -103,3 +113,38 @@ component module can fail before harness code reaches its render
 `react-dom/client`, and the data-URL component module inside a single
 guarded block. CDN or module-resolution failures therefore write a
 visible `preview: render failed` diagnostic into `#preview-error`.
+
+Phase 3 of the renderer redesign removed the CDN dependency for the
+React runtime itself. The importmap now points React and ReactDOM to
+same-origin `/preview/runtime/...` URLs. The API serves those routes by
+bundling the installed UI workspace React package entrypoints into ESM
+with esbuild. Only React 18.3.1 is currently vendored; declared ranges
+that resolve to another supported candidate produce a diagnostic and
+fall back to the vendored default rather than emitting a dead URL.
+
+The harness also inlines the scenario UI's compiled stylesheet when
+available, with a token/utility fallback for test and minimal dev
+environments. This gives previewed components access to the
+`--color-*` design tokens and `bg-app-*` / `text-app-*` Tailwind
+utilities they use in source.
+
+Phase 4 completed the module-resolution side of the redesign. The
+preview bundler now uses esbuild Build rather than Transform, deriving
+`ResolveDir` from the indexed source path so relative imports are
+bundled into the component module. Bare package imports remain
+external and are resolved by the harness importmap. Non-React
+dependencies use `deps.ResolveRangeToLatest` against locally installed
+UI workspace package versions and map to same-origin
+`/preview/runtime/npm/<package>@<version>/...` runtime URLs. If a
+declared dependency range cannot be resolved locally, the harness
+renders an import-map diagnostic instead of emitting an `esm.sh` URL or
+silently dropping the dependency.
+
+The Phase 5 live-browser regression had a different root cause from
+bundling: the host iframe correctly requested `/preview/{id}/harness.html`,
+but the production UI server only proxied Connect-RPC paths. Because
+`/preview/...` was not proxied before the SPA fallback, `ui/server.js`
+served the React Component Library `index.html` into the iframe, making
+the preview recursively render the library UI. The UI server now proxies
+both `/preview/{id}/harness.html` and `/preview/runtime/...` paths to the
+Go API unchanged, before static assets and SPA fallback run.

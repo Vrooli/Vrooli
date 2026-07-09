@@ -114,6 +114,66 @@ export const Button = () => null;
 	require.Equal(t, "deprecated", res.Findings[0].Actual)
 }
 
+func TestIndexer_RunFindsHeaderVersionDisagreementWithoutRejecting(t *testing.T) {
+	tsx := `/**
+ * @libraryId react-component-library:Button
+ * @version 9.9.9
+ */
+export const Button = () => null;
+`
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(tsx)},
+	}
+	repo := mocks.NewFakeRepository()
+	idx := components.NewIndexer(repo, ".", fs)
+
+	res, err := idx.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Indexed)
+	require.Empty(t, res.Errors)
+	require.Len(t, res.Findings, 1)
+	require.Equal(t, components.IndexFindingHeaderDisagreement, res.Findings[0].Kind)
+	require.Equal(t, "version", res.Findings[0].Field)
+	require.Equal(t, "1.0.0", res.Findings[0].Expected)
+	require.Equal(t, "9.9.9", res.Findings[0].Actual)
+
+	got, err := repo.GetByLibraryID(context.Background(), "react-component-library:Button")
+	require.NoError(t, err)
+	require.Equal(t, "1.0.0", got.Version)
+	require.NotContains(t, got.Headers, "version")
+}
+
+func TestIndexer_RunFindsHeaderDepsDisagreementWithoutRejecting(t *testing.T) {
+	tsx := `/**
+ * @libraryId react-component-library:Button
+ * @version 1.0.0
+ * @deps react
+ */
+export const Button = () => null;
+`
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(tsx)},
+	}
+	repo := mocks.NewFakeRepository()
+	idx := components.NewIndexer(repo, ".", fs)
+
+	res, err := idx.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Indexed)
+	require.Empty(t, res.Errors)
+	require.Len(t, res.Findings, 1)
+	require.Equal(t, components.IndexFindingHeaderDisagreement, res.Findings[0].Kind)
+	require.Equal(t, "deps", res.Findings[0].Field)
+	require.Equal(t, "JSON object or array", res.Findings[0].Expected)
+	require.Equal(t, "react", res.Findings[0].Actual)
+
+	got, err := repo.GetByLibraryID(context.Background(), "react-component-library:Button")
+	require.NoError(t, err)
+	require.NotContains(t, got.Headers, "deps")
+}
+
 func TestIndexer_RunFlagsUnknownDesignStyleWithoutRejecting(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/Button/component.json":            {Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `[]`, `[{"styleId":"missing-style","affinity":"native"}]`))},

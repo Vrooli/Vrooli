@@ -132,7 +132,10 @@
     "previewMode": "Preview",
     "codeMode": "Code",
       "previewHeading": "Live preview",
-      "previewReady": "Rendered"
+      "previewReady": "Rendered",
+      "previewFailed": "Preview failed to render.",
+      "previewTimeout": "Preview did not report ready before the timeout.",
+      "previewRetry": "Retry"
     },
     "themeSwitcher": {
       "label": "Theme",

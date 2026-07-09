@@ -177,6 +177,12 @@ Vrooli Operational Console is the default design language for scenario applicati
 
 The interface should feel calm, technical, dense, legible, and durable. It should borrow the strongest patterns from Swarm Manager and Git Control Tower: dark operational chrome, precise status color, compact information surfaces, resizable desktop panels, mobile-first navigation adaptations, and strong support for long-running workflows. It should not feel like a marketing site, decorative dashboard, consumer social app, or generic purple-gradient AI product.
 
+## Registry Projection
+
+Component previews and catalogue surfaces must reflect the component registry's typed projection, not reinterpret source files independently. `component.json` owns stable component facts such as identity, display metadata, slot, tags, versions, and design-style affinities. Version source headers are hints for source-local metadata; structural hints such as `@version`, `@status`, `@deps`, and latest-version `@category` are validated by the indexer and either promoted into typed registry fields or reported as disagreement findings.
+
+The UI should therefore render registry facts from API read models. It should not prefer a header value over a manifest- or projection-owned value when they disagree.
+
 ## Layout
 
 Use full-width application surfaces. Prefer navigation, toolbars, tables, forms, split panes, file/code viewers, graph canvases, command bars, and compact panels over oversized hero sections or decorative cards.

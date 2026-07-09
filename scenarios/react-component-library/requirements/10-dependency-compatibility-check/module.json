@@ -57,6 +57,27 @@
           "notes": "features/adoptions/CreateAdoptionDialog.test.tsx: OK enables confirm + dispatches createAdoption; BLOCK disables confirm and lists the failing dep; WARN requires the acknowledgment checkbox before confirm enables."
         }
       ]
+    },
+    {
+      "id": "DC-004",
+      "title": "Preview dependency runtime uses the deps range resolver",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "deps",
+      "criticality": "P1",
+      "description": "The live preview import map resolves non-React declared dependency ranges with `ResolveRangeToLatest` against locally installed UI workspace runtime candidates, then maps the selected version to a same-origin `/preview/runtime/npm/<package>@<version>/...` URL. Unresolvable ranges are reported as preview diagnostics instead of falling back to a third-party CDN or silently omitting the package.",
+      "tags": [
+        "deps",
+        "preview",
+        "runtime"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/handlers/preview/static_test.go covers same-origin non-React runtime URLs, resolver-backed version selection, independent import maps for conflicting ranges, and diagnostics for unavailable dependency ranges. api/internal/deps/semver_test.go covers the shared range grammar."
+        }
+      ]
     }
   ]
 }

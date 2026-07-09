@@ -362,6 +362,8 @@ const literalSelectors = {
       preview: "components-editor-preview",
       previewFrame: "components-editor-preview-frame",
       previewBadge: "components-editor-preview-badge",
+      previewError: "components-editor-preview-error",
+      previewRetryButton: "components-editor-preview-retry-button",
     },
     emulator: {
       root: "components-emulator",

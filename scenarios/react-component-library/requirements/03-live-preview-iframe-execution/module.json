@@ -44,7 +44,7 @@
     {
       "id": "PR-003",
       "title": "Preview iframe is served same-origin from the library API with sandbox attributes",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -53,8 +53,8 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
-          "notes": "Handler test asserts harness route returns 200 with the expected origin; UI test asserts iframe sandbox attribute string."
+          "status": "complete",
+          "notes": "api/handlers/preview/module_test.go asserts the harness route returns HTML with same-origin /preview/runtime imports and the runtime route serves JavaScript. ui/src/features/components/ComponentEditor.test.tsx asserts the iframe uses the harness URL and sandbox attributes. ui/server.test.js asserts the production UI server proxies /preview harness and runtime paths to the API before SPA fallback, preventing recursive loading of the library UI inside the iframe."
         }
       ]
     },
@@ -65,13 +65,55 @@
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "The preview harness resolves declared `react` and `react-dom` dependency ranges to the newest supported runtime candidate instead of hard-pinning every component to React 18.3.1. Unresolvable runtime ranges keep the default runtime and surface an in-iframe import-map diagnostic. Runtime imports are guarded with dynamic imports so CDN/module failures render in `#preview-error` instead of leaving a blank iframe.",
+      "description": "The preview harness resolves declared `react` and `react-dom` dependency ranges to the newest supported runtime candidate, serves the vendored React runtime from same-origin `/preview/runtime/...` URLs, and surfaces an in-iframe import-map diagnostic when the resolved runtime is unavailable locally. Runtime imports are guarded with dynamic imports so module failures render in `#preview-error` instead of leaving a blank iframe.",
       "tags": ["preview", "react", "dependencies"],
       "validation": [
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/internal/deps/semver_test.go covers range-to-latest resolution for wildcard, caret, tilde, comparator, compound, exact, missing, and unparseable ranges. api/handlers/preview/static_test.go verifies React 17 declarations produce React/ReactDOM 17 import-map URLs, unresolvable React ranges render diagnostics while falling back to the default runtime, and runtime/component import failures are inside a catchable dynamic-import path."
+          "notes": "api/internal/deps/semver_test.go covers range-to-latest resolution for wildcard, caret, tilde, comparator, compound, exact, missing, and unparseable ranges. api/handlers/preview/static_test.go verifies React imports point at same-origin /preview/runtime URLs, unavailable vendored runtime versions render diagnostics while falling back to React 18.3.1, harness CSS contains the design tokens/Tailwind app utilities, and runtime/component import failures are inside a catchable dynamic-import path. api/handlers/preview/module_test.go verifies the runtime route serves JavaScript without esm.sh."
+        }
+      ]
+    },
+    {
+      "id": "PR-005",
+      "title": "Preview bundler resolves relative imports and local dependency runtimes",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The preview bundler uses esbuild Build with a source-directory ResolveDir so relative imports are bundled into the component module. Bare package imports remain external and are resolved by a per-preview import map. Non-React declared dependencies resolve through the same semver range function used by the deps domain and map to same-origin `/preview/runtime/npm/<package>@<version>/...` URLs when the package version is installed locally; unresolved ranges surface an import-map diagnostic.",
+      "tags": [
+        "preview",
+        "dependencies",
+        "bundling"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/internal/preview/service_test.go::TestEsbuilderBundlesRelativeImports proves Build-based relative import bundling. api/handlers/preview/static_test.go::TestBuildImportMapJSONPinsDeclaredDeps verifies non-React dependencies map to same-origin runtime URLs with no esm.sh, and TestBuildImportMapJSONUsesResolvedDependencyVersionPerBundle proves conflicting declared ranges produce independent import maps."
+        }
+      ]
+    },
+    {
+      "id": "PR-006",
+      "title": "Preview failures surface in the host UI",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The harness posts `preview-error` messages to the parent when render setup fails or the component has no callable export. The host editor listens for those messages, captures iframe load errors and preview timeouts, and renders a clear retryable failure state instead of leaving the preview waiting indefinitely.",
+      "tags": [
+        "preview",
+        "failure-state",
+        "iframe"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/handlers/preview/static_test.go asserts harness render failures post `preview-error`. ui/src/features/components/ComponentEditor.test.tsx asserts a `preview-error` message renders the failure panel and retry reloads the iframe with a fresh retry key. `pnpm type-check`, `pnpm lint`, and targeted Go preview tests passed."
         }
       ]
     }

@@ -176,6 +176,45 @@ describe("ComponentEditor", () => {
     });
   });
 
+  it("shows a retryable preview failure when the harness posts preview-error", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "v1", sha256: "sha-preview" }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ComponentEditor id="cmp-9" libraryId="lib:BrokenPreview" onClose={() => {}} />,
+    );
+
+    await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    window.dispatchEvent(new MessageEvent("message", {
+      data: {
+        type: "preview-error",
+        id: "cmp-9",
+        message: "preview: render failed - boom",
+      },
+    }));
+
+    const error = await screen.findByTestId(selectors.components.editor.previewError);
+    expect(error.textContent).toContain("preview: render failed - boom");
+
+    const before = screen
+      .getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame)
+      .getAttribute("src");
+    await user.click(screen.getByTestId(selectors.components.editor.previewRetryButton));
+
+    await waitFor(() => {
+      const after = screen
+        .getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame)
+        .getAttribute("src");
+      expect(after).not.toBe(before);
+      expect(after).toContain("r=1");
+    });
+  });
+
   it("invokes onClose when the Back-to-list button is clicked", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(

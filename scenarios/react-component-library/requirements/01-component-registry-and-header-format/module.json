@@ -88,7 +88,7 @@
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/internal/components/sqlite_test.go::TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet verifies header sync, structural-field exclusion, typed category promotion, and category filtering."
+          "notes": "api/internal/components/sqlite_test.go::TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet verifies header sync, structural-field exclusion, typed category promotion, and category filtering. api/internal/components/indexer_test.go covers structural header disagreement findings for @version, @status, and malformed @deps while typed projection facts remain authoritative."
         }
       ]
     }

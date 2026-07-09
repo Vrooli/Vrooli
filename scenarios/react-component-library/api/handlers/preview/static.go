@@ -8,7 +8,10 @@ import (
 	"html"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 
@@ -25,7 +28,11 @@ const (
 	defaultReactRuntimeVersion = "18.3.1"
 )
 
-var reactRuntimeCandidates = []string{"16.14.0", "17.0.2", "18.2.0", "18.3.1", "19.0.0", "19.1.0"}
+var (
+	reactRuntimeCandidates       = []string{"16.14.0", "17.0.2", "18.2.0", "18.3.1", "19.0.0", "19.1.0"}
+	vendoredReactRuntimeVersions = map[string]bool{defaultReactRuntimeVersion: true}
+	packageRuntimeCandidatesFor  = installedPackageVersionCandidates
+)
 
 // HarnessHandler serves the per-component HTML shell that the host UI
 // loads into the live-preview iframe. Inlines the transpiled module so
@@ -106,6 +113,9 @@ func renderHarnessHTML(id string, b preview.Bundle) string {
 	sb.WriteString(html.EscapeString(b.SHA256))
 	sb.WriteString(`" />
 <style>
+`)
+	sb.WriteString(previewDesignSystemCSS())
+	sb.WriteString(`
   html, body { margin: 0; padding: 0; min-height: 100vh; background: #0b0d12; color: #f5f7fa; font-family: ui-sans-serif, system-ui, sans-serif; }
   #root { padding: 16px; }
   #preview-importmap-diagnostics,
@@ -303,6 +313,13 @@ window.addEventListener("message", (ev) => {
   post({ v: 1, t: "HELLO", caps: ["inspect"] });
 })();
 const errEl = document.getElementById("preview-error");
+const showPreviewError = (message) => {
+  errEl.hidden = false;
+  errEl.textContent = message;
+  try {
+    parent.postMessage({ type: "preview-error", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, message }, "*");
+  } catch (e) {}
+};
 try {
   const [{ createRoot }, Mod, React] = await Promise.all([
     import("react-dom/client"),
@@ -311,15 +328,13 @@ try {
   ]);
   const Cmp = Mod.default ?? Mod[Object.keys(Mod).find(k => typeof Mod[k] === "function")] ?? null;
   if (!Cmp) {
-    errEl.hidden = false;
-    errEl.textContent = "preview: component file exports neither a default nor a callable named export";
+    showPreviewError("preview: component file exports neither a default nor a callable named export");
   } else {
     createRoot(document.getElementById("root")).render(React.createElement(Cmp));
     parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + ` }, "*");
   }
 } catch (e) {
-  errEl.hidden = false;
-  errEl.textContent = "preview: render failed - " + (e && e.stack || e);
+  showPreviewError("preview: render failed - " + (e && e.stack || e));
 }
 
 </script>
@@ -332,23 +347,23 @@ try {
 func buildImportMapJSON(b preview.Bundle) (string, []string) {
 	reactVersion, reactDOMVersion, warnings := resolveReactRuntimeVersions(b.Dependencies)
 	imports := map[string]string{
-		"react":                 esmURL("react", reactVersion, ""),
-		"react/jsx-runtime":     esmURL("react", reactVersion, "jsx-runtime"),
-		"react/jsx-dev-runtime": esmURL("react", reactVersion, "jsx-dev-runtime"),
-		"react-dom":             esmURL("react-dom", reactDOMVersion, ""),
-		"react-dom/client":      esmURL("react-dom", reactDOMVersion, "client"),
+		"react":                 runtimeURL("react", reactVersion, "", &warnings),
+		"react/jsx-runtime":     runtimeURL("react", reactVersion, "jsx-runtime", &warnings),
+		"react/jsx-dev-runtime": runtimeURL("react", reactVersion, "jsx-dev-runtime", &warnings),
+		"react-dom":             runtimeURL("react-dom", reactDOMVersion, "", &warnings),
+		"react-dom/client":      runtimeURL("react-dom", reactDOMVersion, "client", &warnings),
 	}
 	for _, d := range b.Dependencies {
 		name := strings.TrimSpace(d.DepName)
 		if name == "" || isReactRuntimeDep(name) {
 			continue
 		}
-		version, ok := esmVersionFromRange(d.VersionRange)
+		version, ok := internaldeps.ResolveRangeToLatest(d.VersionRange, packageRuntimeCandidatesFor(name))
 		if !ok {
 			warnings = append(warnings, fmt.Sprintf("preview: cannot pin dependency %q from range %q", name, d.VersionRange))
 			continue
 		}
-		imports[name] = "https://esm.sh/" + name + "@" + version + "?dev"
+		imports[name] = packageRuntimeURL(name, version, "", &warnings)
 	}
 	raw, err := json.MarshalIndent(map[string]map[string]string{"imports": imports}, "", "  ")
 	if err != nil {
@@ -390,24 +405,55 @@ func isReactRuntimeDep(name string) bool {
 	return name == "react" || name == "react-dom" || strings.HasPrefix(name, "react/")
 }
 
-func esmURL(name, version, subpath string) string {
-	if subpath != "" {
-		return "https://esm.sh/" + name + "@" + version + "/" + subpath + "?dev"
+func runtimeURL(name, version, subpath string, warnings *[]string) string {
+	resolvedVersion := strings.TrimSpace(version)
+	if !vendoredReactRuntimeVersions[resolvedVersion] {
+		*warnings = append(*warnings, fmt.Sprintf("preview: runtime %s@%s is not vendored; using %s", name, resolvedVersion, defaultReactRuntimeVersion))
+		resolvedVersion = defaultReactRuntimeVersion
 	}
-	return "https://esm.sh/" + name + "@" + version + "?dev"
+	if subpath != "" {
+		return "/preview/runtime/" + name + "@" + resolvedVersion + "/" + subpath + ".js"
+	}
+	return "/preview/runtime/" + name + "@" + resolvedVersion + "/index.js"
 }
 
-func esmVersionFromRange(raw string) (string, bool) {
-	v := strings.TrimSpace(raw)
-	v = strings.TrimPrefix(v, "^")
-	v = strings.TrimPrefix(v, "~")
-	v = strings.TrimPrefix(v, ">=")
-	v = strings.TrimPrefix(v, "=")
-	v = strings.TrimSpace(v)
-	if v == "" || v == "*" || strings.ContainsAny(v, " <>|") {
-		return "", false
+func packageRuntimeURL(name, version, subpath string, warnings *[]string) string {
+	name = strings.TrimSpace(name)
+	version = strings.TrimSpace(version)
+	if name == "" || version == "" {
+		*warnings = append(*warnings, "preview: dependency runtime URL missing package name or version")
+		return ""
 	}
-	return v, true
+	if subpath != "" {
+		return "/preview/runtime/npm/" + name + "@" + version + "/" + strings.TrimPrefix(subpath, "/")
+	}
+	return "/preview/runtime/npm/" + name + "@" + version + "/index.js"
+}
+
+func installedPackageVersionCandidates(name string) []string {
+	name = strings.TrimSpace(name)
+	if name == "" || strings.Contains(name, "..") || strings.HasPrefix(name, "/") {
+		return nil
+	}
+	root, err := findNodeModulesRoot()
+	if err != nil {
+		return nil
+	}
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name), "package.json"))
+	if err != nil {
+		return nil
+	}
+	var pkg struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &pkg); err != nil {
+		return nil
+	}
+	version := strings.TrimSpace(pkg.Version)
+	if version == "" {
+		return nil
+	}
+	return []string{version}
 }
 
 func renderBundleErrorHTML(err preview.ErrBundle) string {
@@ -451,3 +497,72 @@ func jsString(s string) string {
 	sb.WriteByte('"')
 	return sb.String()
 }
+
+var (
+	previewCSSOnce sync.Once
+	previewCSS     string
+)
+
+func previewDesignSystemCSS() string {
+	previewCSSOnce.Do(func() {
+		for _, pattern := range []string{
+			"../../../ui/dist/assets/*.css",
+			"../ui/dist/assets/*.css",
+			"ui/dist/assets/*.css",
+			"scenarios/react-component-library/ui/dist/assets/*.css",
+		} {
+			matches, err := filepath.Glob(pattern)
+			if err != nil || len(matches) == 0 {
+				continue
+			}
+			raw, err := os.ReadFile(matches[0])
+			if err == nil && len(raw) > 0 {
+				previewCSS = string(raw)
+				return
+			}
+		}
+		previewCSS = fallbackPreviewDesignSystemCSS
+	})
+	return previewCSS
+}
+
+const fallbackPreviewDesignSystemCSS = `
+:root {
+  --color-background: #f8fafc;
+  --color-shell: #020617;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-surface-raised: #ffffff;
+  --color-foreground: #0f172a;
+  --color-muted-foreground: #64748b;
+  --color-border: #cbd5e1;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #0891b2;
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-info: #0284c7;
+  --radius-control: 0.375rem;
+  --radius-panel: 0.5rem;
+  --radius-pill: 9999px;
+  --touch-target: 44px;
+  color-scheme: light;
+}
+.bg-app-background { background-color: var(--color-background); }
+.bg-app-shell { background-color: var(--color-shell); }
+.bg-app-surface { background-color: var(--color-surface); }
+.bg-app-surface-muted { background-color: var(--color-surface-muted); }
+.bg-app-primary { background-color: var(--color-primary); }
+.bg-app-danger { background-color: var(--color-danger); }
+.text-app-foreground { color: var(--color-foreground); }
+.text-app-muted-foreground { color: var(--color-muted-foreground); }
+.text-app-primary-foreground { color: var(--color-primary-foreground); }
+.text-app-primary { color: var(--color-primary); }
+.text-app-danger { color: var(--color-danger); }
+.border-app-border { border-color: var(--color-border); }
+.rounded-control { border-radius: var(--radius-control); }
+.rounded-panel { border-radius: var(--radius-panel); }
+.rounded-pill { border-radius: var(--radius-pill); }
+.touch-target { min-height: var(--touch-target); min-width: var(--touch-target); }
+`

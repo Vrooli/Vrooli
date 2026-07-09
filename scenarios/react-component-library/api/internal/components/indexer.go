@@ -239,10 +239,27 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 				return IndexManifestInput{}, nil, err
 			}
 			if hv := strings.TrimSpace(headers["version"]); hv != "" && hv != version {
-				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: sourcePath, Field: "version", Reason: "does not match version folder"}
+				findings = append(findings, headerDisagreementFinding(
+					sourcePath,
+					"version",
+					version,
+					hv,
+					"source header @version does not match the version folder",
+				))
 			}
 			if hid := strings.TrimSpace(headers["libraryId"]); hid != "" && hid != manifest.LibraryID {
 				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: sourcePath, Field: "libraryId", Reason: "does not match manifest"}
+			}
+			if rawDeps := strings.TrimSpace(headers["deps"]); rawDeps != "" {
+				if err := validateDepsHeaderJSON(rawDeps); err != nil {
+					findings = append(findings, headerDisagreementFinding(
+						sourcePath,
+						"deps",
+						"JSON object or array",
+						rawDeps,
+						err.Error(),
+					))
+				}
 			}
 		}
 		status := VersionStatusReleased
@@ -255,14 +272,13 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		if rawStatus := strings.TrimSpace(headers["status"]); rawStatus != "" {
 			headerStatus := ComponentVersionStatus(strings.ToLower(rawStatus))
 			if !isValidVersionStatus(headerStatus) || headerStatus != status {
-				findings = append(findings, IndexFinding{
-					Kind:       IndexFindingHeaderDisagreement,
-					SourcePath: sourcePath,
-					Field:      "status",
-					Expected:   string(status),
-					Actual:     rawStatus,
-					Detail:     "source header @status does not match manifest-derived version status",
-				})
+				findings = append(findings, headerDisagreementFinding(
+					sourcePath,
+					"status",
+					string(status),
+					rawStatus,
+					"source header @status does not match manifest-derived version status",
+				))
 			}
 		}
 		if version == manifest.LatestVersion {
@@ -298,6 +314,28 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	}
 	manifest.Category = strings.TrimSpace(latestHeaders["category"])
 	return IndexManifestInput{Manifest: manifest, Versions: versions, Headers: latestHeaders, Findings: findings}, latestHeaders, nil
+}
+
+func headerDisagreementFinding(sourcePath, field, expected, actual, detail string) IndexFinding {
+	return IndexFinding{
+		Kind:       IndexFindingHeaderDisagreement,
+		SourcePath: sourcePath,
+		Field:      field,
+		Expected:   expected,
+		Actual:     actual,
+		Detail:     detail,
+	}
+}
+
+func validateDepsHeaderJSON(raw string) error {
+	if !strings.HasPrefix(raw, "{") && !strings.HasPrefix(raw, "[") {
+		return fmt.Errorf("@deps must be a JSON object or array")
+	}
+	var v any
+	if err := json.Unmarshal([]byte(raw), &v); err != nil {
+		return fmt.Errorf("invalid @deps JSON: %w", err)
+	}
+	return nil
 }
 
 func parseManifestDesignStyles(path string, raw []manifestDesignAffinity) ([]ComponentDesignAffinity, error) {

@@ -37,10 +37,15 @@ func ModuleWithDeps(comp components.Service, depsSvc deps.Service, logger *log.L
 		Logger:  logger,
 	}))
 	harness := NewHarnessHandler(svc, logger)
+	runtime := NewRuntimeHandler(logger)
 	return module.Module{
 		Name: "preview",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			r.HandleFunc("/preview/runtime/{module:react|react-dom}@{version}", runtime.ServeHTTP).Methods("GET")
+			r.HandleFunc("/preview/runtime/{module:react|react-dom}@{version}/{path:.*}", runtime.ServeHTTP).Methods("GET")
+			r.HandleFunc("/preview/runtime/npm/{module:.+}@{version}", runtime.ServeHTTP).Methods("GET")
+			r.HandleFunc("/preview/runtime/npm/{module:.+}@{version}/{path:.*}", runtime.ServeHTTP).Methods("GET")
 			r.HandleFunc("/preview/{id}/harness.html", harness.ServeHTTP).Methods("GET")
 		},
 		Endpoints: Endpoints,

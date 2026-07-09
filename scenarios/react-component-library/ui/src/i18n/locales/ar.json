@@ -132,7 +132,10 @@
     "previewMode": "معاينة",
     "codeMode": "الشفرة",
       "previewHeading": "معاينة مباشرة",
-      "previewReady": "تم العرض"
+      "previewReady": "تم العرض",
+      "previewFailed": "فشل عرض المعاينة.",
+      "previewTimeout": "لم تُبلغ المعاينة أنها جاهزة قبل انتهاء المهلة.",
+      "previewRetry": "إعادة المحاولة"
     },
     "themeSwitcher": {
       "label": "السمة",

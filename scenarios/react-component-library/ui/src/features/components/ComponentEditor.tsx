@@ -18,16 +18,18 @@ import { EmulatorToolbar, EmulatorViewport } from "./EmulatorChrome";
 import { InspectorPanel } from "./InspectorPanel";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
+const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
+
 /**
  * Build the harness URL the iframe loads. The query param `v` is the
  * latest content sha256 — when the sha changes (i.e. after a save),
  * React's `src` diff forces the iframe to reload. The harness route is
  * served by the API at the same origin as the Connect transport.
  */
-function harnessUrl(id: string, version: string): string {
+function harnessUrl(id: string, version: string, reloadKey = 0): string {
   const base = API_BASE.replace(/\/$/, "");
   const v = encodeURIComponent(version || "initial");
-  return `${base}/preview/${encodeURIComponent(id)}/harness.html?v=${v}`;
+  return `${base}/preview/${encodeURIComponent(id)}/harness.html?v=${v}&r=${reloadKey}`;
 }
 
 interface ComponentEditorProps {
@@ -63,21 +65,29 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
   const [buffer, setBuffer] = useState<string>("");
   const [baselineSha, setBaselineSha] = useState<string>("");
   const [showSaved, setShowSaved] = useState(false);
-  const [previewReady, setPreviewReady] = useState(false);
+  const [previewState, setPreviewState] = useState<"waiting" | "ready" | "error">("waiting");
+  const [previewMessage, setPreviewMessage] = useState("");
+  const [previewReloadKey, setPreviewReloadKey] = useState(0);
   const [mode, setMode] = useState<"preview" | "code">("code");
   const [infoOpen, setInfoOpen] = useState(false);
   const savedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewReady = previewState === "ready";
 
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
-      const data = ev.data as { type?: string; id?: string } | null;
+      const data = ev.data as { type?: string; id?: string; message?: string } | null;
       if (data && data.type === "preview-ready" && data.id === id) {
-        setPreviewReady(true);
+        setPreviewState("ready");
+        setPreviewMessage("");
+      } else if (data && data.type === "preview-error" && data.id === id) {
+        setPreviewState("error");
+        setPreviewMessage(data.message || t(strings.components.editor.previewFailed));
       }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [id]);
+  }, [id, t]);
 
   // Push color-scheme into the harness whenever it changes, plus once
   // on preview-ready so a reload (new baselineSha) re-applies it.
@@ -95,8 +105,21 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
     // A new baselineSha (post-save or first fetch) means the iframe is
     // about to reload with the freshly bundled output — flip the badge
     // back to "waiting" until the harness re-announces preview-ready.
-    setPreviewReady(false);
-  }, [baselineSha]);
+    setPreviewState("waiting");
+    setPreviewMessage("");
+  }, [baselineSha, previewReloadKey]);
+
+  useEffect(() => {
+    if (!contentQuery.data || previewState !== "waiting") return undefined;
+    if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    previewTimeoutRef.current = setTimeout(() => {
+      setPreviewMessage(t(strings.components.editor.previewTimeout));
+      setPreviewState("error");
+    }, PREVIEW_LOAD_TIMEOUT_MS);
+    return () => {
+      if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    };
+  }, [baselineSha, contentQuery.data, previewReloadKey, previewState, t]);
 
   useEffect(() => {
     if (contentQuery.data) {
@@ -108,6 +131,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
   useEffect(() => {
     return () => {
       if (savedToastTimerRef.current) clearTimeout(savedToastTimerRef.current);
+      if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
     };
   }, []);
 
@@ -134,6 +158,12 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
     monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (!saveMutation.isPending) saveMutation.mutate();
     });
+  };
+
+  const handlePreviewRetry = () => {
+    setPreviewState("waiting");
+    setPreviewMessage("");
+    setPreviewReloadKey((current) => current + 1);
   };
 
   return (
@@ -308,20 +338,43 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
             data-testid={selectors.components.editor.preview}
             className={`h-full min-h-0 overflow-hidden bg-black ${mode === "preview" ? "" : "hidden"}`}
           >
-            <div className="h-full">
+            <div className="relative h-full">
               <EmulatorViewport emulator={emulator} filters={filters}>
                 <iframe
                   data-testid={selectors.components.editor.previewFrame}
                   title={t(strings.components.editor.previewHeading)}
-                  src={harnessUrl(id, baselineSha)}
+                  src={harnessUrl(id, baselineSha, previewReloadKey)}
                   sandbox="allow-scripts allow-same-origin"
                   ref={previewFrameRef}
+                  onError={() => {
+                    setPreviewState("error");
+                    setPreviewMessage(t(strings.components.editor.previewFailed));
+                  }}
                   style={{
                     width: emulator.displayWidth,
                     height: emulator.displayHeight,
                   }}
                   className="block border-0 bg-white"
                 />
+                {previewState === "error" && (
+                  <div
+                    data-testid={selectors.components.editor.previewError}
+                    className="absolute inset-3 flex items-center justify-center bg-slate-950/85 p-4 text-center"
+                  >
+                    <div className="max-w-md rounded-md border border-red-400/40 bg-red-950/90 p-4 text-red-100 shadow-xl">
+                      <p className="text-sm">{previewMessage || t(strings.components.editor.previewFailed)}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-3 h-8 rounded-md px-3 text-xs"
+                        data-testid={selectors.components.editor.previewRetryButton}
+                        onClick={handlePreviewRetry}
+                      >
+                        {t(strings.components.editor.previewRetry)}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </EmulatorViewport>
             </div>
             <InspectorPanel inspector={inspector} />

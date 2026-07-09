@@ -128,7 +128,10 @@
     "previewMode": "プレビュー",
     "codeMode": "コード",
       "previewHeading": "ライブプレビュー",
-      "previewReady": "描画済み"
+      "previewReady": "描画済み",
+      "previewFailed": "プレビューの描画に失敗しました。",
+      "previewTimeout": "タイムアウト前にプレビューの準備完了が報告されませんでした。",
+      "previewRetry": "再試行"
     },
     "themeSwitcher": {
       "label": "テーマ",

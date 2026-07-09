@@ -145,6 +145,9 @@ export const strings = {
       codeMode: "components.editor.codeMode",
       previewHeading: "components.editor.previewHeading",
       previewReady: "components.editor.previewReady",
+      previewFailed: "components.editor.previewFailed",
+      previewTimeout: "components.editor.previewTimeout",
+      previewRetry: "components.editor.previewRetry",
     },
     themeSwitcher: {
       label: "components.themeSwitcher.label",

@@ -107,7 +107,10 @@ func TestModule_HarnessHTML(t *testing.T) {
 	body := rec.Body.String()
 	require.Contains(t, body, `<!doctype html>`)
 	require.Contains(t, body, `importmap`)
-	require.Contains(t, body, `react-dom@18.3.1/client`)
+	require.Contains(t, body, `/preview/runtime/react-dom@18.3.1/client.js`)
+	require.NotContains(t, body, `https://esm.sh/react`)
+	require.Contains(t, body, `--color-primary`)
+	require.Contains(t, body, `.bg-app-primary`)
 	require.Contains(t, body, `data:text/javascript;base64,`)
 	require.Contains(t, body, `preview-ready`)
 	require.Contains(t, body, `id="root"`)
@@ -118,6 +121,17 @@ func TestModule_HarnessHTML(t *testing.T) {
 	require.Contains(t, body, `rcl-theme-apply`)
 	require.Contains(t, body, `documentElement.style.setProperty`)
 	require.Contains(t, body, `rcl-theme-applied`)
+}
+
+func TestModule_RuntimeReactServesVendoredESM(t *testing.T) {
+	r, _ := setupModule(t)
+	req, _ := http.NewRequest(http.MethodGet, "/preview/runtime/react@18.3.1/index.js", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Header().Get("Content-Type"), "application/javascript")
+	require.Contains(t, rec.Body.String(), "export")
+	require.NotContains(t, rec.Body.String(), "https://esm.sh")
 }
 
 func TestModule_HarnessNotFound(t *testing.T) {

@@ -148,6 +148,13 @@ func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *te
 		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative, Reason: "token-native baseline"},
 	}, button.DesignStyles)
 
+	fetchedButton, err := repo.Get(ctx, button.ID)
+	require.NoError(t, err)
+	require.Equal(t, []components.ComponentDesignAffinity{
+		{StyleID: "vrooli-conversion-landing", Affinity: components.DesignAffinityCompatible},
+		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative, Reason: "token-native baseline"},
+	}, fetchedButton.DesignStyles)
+
 	_, err = repo.UpsertManifest(ctx, components.IndexManifestInput{
 		Manifest: components.ComponentManifest{
 			LibraryID:     "react-component-library:DataTable",

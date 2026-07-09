@@ -3,6 +3,8 @@ package preview
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -145,4 +147,22 @@ func TestService_GetBundle_DigestStable(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, first.SHA256, second.SHA256)
 	require.Equal(t, first.JS, second.JS)
+}
+
+func TestEsbuilderBundlesRelativeImports(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "components", "Relative"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Relative", "label.ts"), []byte(`export const label = "Relative import works";`), 0o644))
+	tsx := `import { label } from "./label";
+export default function RelativeDemo() {
+  return <button>{label}</button>;
+}`
+	bundler := NewEsbuilderWithRoot(root)
+
+	js, warnings, err := bundler.BuildBundle(context.Background(), tsx, "components/Relative/RelativeDemo.tsx")
+	require.NoError(t, err)
+	require.Empty(t, warnings)
+	require.Contains(t, js, "Relative import works")
+	require.NotContains(t, js, `from "./label"`)
+	require.Contains(t, js, "react/jsx-runtime")
 }
