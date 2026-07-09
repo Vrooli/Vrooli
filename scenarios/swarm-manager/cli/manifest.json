@@ -46,6 +46,45 @@
             "params": { "window": { "type": "time_window", "default": "this_week" } },
             "result": { "kind": "scalar", "value_field": "count", "unit": "items", "summary_template": "{count} backlog items created ({window})" }
           }
+        },
+        {
+          "name": "dismiss",
+          "description": "Dismiss a suggested auto-filer item and remember its finding.",
+          "flags": [
+            { "name": "kind", "description": "Backlog item kind.", "required": true },
+            { "name": "name", "description": "Backlog item name.", "required": true },
+            { "name": "reason", "description": "Optional dismissal reason." },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AutoFilerService", "method": "DismissSuggestion" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "autofiler",
+      "description": "Backlog auto-filer operations.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show backlog auto-filer policy and latest cycle status.",
+          "flags": [
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AutoFilerService", "method": "GetStatus" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "operational" }
+        },
+        {
+          "name": "run-now",
+          "description": "Run one governed auto-filer cycle immediately.",
+          "flags": [
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AutoFilerService", "method": "RunNow" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
         }
       ]
     },

@@ -29,7 +29,7 @@ export type DeleteConfirmationSettings = Record<DeletableEntityType, DeleteConfi
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "laneConcurrencyLimits" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmationLevels" | "fixBeforeFeature"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "laneConcurrencyLimits" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmationLevels" | "fixBeforeFeature" | "autoFiler"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
@@ -74,17 +74,32 @@ export type Settings = Omit<
   /**
    * Fix-before-feature gate. "off" | "suggest" (default) | "block": when a
    * feature item is queued onto a scenario with open fix/chore work, advise
-   * or block. fixBeforeFeatureDiscovery enables async on-demand readiness
-   * discovery for scenarios with no known open fix work.
+   * or block.
    */
   fixBeforeFeature: FixBeforeFeatureMode;
-  fixBeforeFeatureDiscovery: boolean;
+  /** Governed automatic backlog filing for maintenance findings. */
+  autoFiler: AutoFilerSettings;
 };
 
 /**
  * Fix-before-feature gate modes.
  */
 export type FixBeforeFeatureMode = "off" | "suggest" | "block";
+
+export type AutoFilerMode = "suggest" | "auto_add";
+
+export type AutoFilerStrategy = "feature_pending" | "importance";
+
+export interface AutoFilerSettings {
+  enabled: boolean;
+  mode: AutoFilerMode;
+  strategy: AutoFilerStrategy;
+  maxOpenAutoFiled: number;
+  velocityWindowDays: number;
+  minVelocityTransitions: number;
+  intervalMinutes: number;
+  goalName: string;
+}
 
 /**
  * Research agent spawn response

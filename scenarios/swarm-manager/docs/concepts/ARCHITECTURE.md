@@ -42,7 +42,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 
 | Concept | Description | Lifecycle States | Implementation |
 |---------|-------------|------------------|----------------|
-| **Backlog Item** | Unit of work stored as git-tracked folders (`idea`, `research`, `fix`, `execute`, `chore`) | `backlog` -> `researching` -> `ready` -> `queued` -> `in_progress` -> `completed`/`failed`/`archived` | [CODE: ui/src/types/domain.ts#BacklogItem] |
+| **Backlog Item** | Unit of work stored as git-tracked folders (`idea`, `research`, `fix`, `execute`, `chore`) | `suggested` -> `backlog`/`ready`; normal flow: `backlog` -> `researching` -> `ready` -> `queued` -> `in_progress` -> `completed`/`failed`/`archived` | [CODE: ui/src/types/domain.ts#BacklogItem] |
 | **Initiative** | Lightweight grouping of related backlog items by a shared label plus explicit initiative metadata | Derived from member items with explicit operator-managed metadata (`name`, `title`, `description`, `status`) | [CODE: api/internal/initiatives/service.go] |
 | **Dependency** | Directed edge between backlog items (`depends_on` field in spec.json) | N/A (structural, validated on write) | [CODE: api/internal/depgraph/graph.go] |
 | **Execution Run** | Governed execution-control record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
@@ -100,20 +100,40 @@ Backlog items can declare dependencies on other items via the `depends_on` field
    Queue backlog item (manual/scheduled/yolo) -> execution record -> tracked agent activity -> agent-manager run -> status tracked in Execution page and graph
    ```
 
-5. **Graph workspace projection**
+5. **Backlog auto-filer**
+   ```
+   ticker / feature-queue wake / operator run-now
+     -> targeting strategy (feature_pending or importance)
+     -> GCT readiness finding source
+     -> policy gates (enabled, cap, velocity brake, dismissal memory)
+     -> filer/reconciler
+     -> backlog item + explicit automated-maintenance goal target
+   ```
+   The auto-filer is the governed intake loop for programmatic maintenance
+   findings. In `suggest` mode it creates `suggested` backlog items that an
+   operator can accept into the normal flow or dismiss. In `auto_add` mode it
+   creates normal backlog items while still applying the open-item cap,
+   velocity brake, and dismissal memory. Reconciliation runs through the same
+   loop: findings that no longer hold archive untouched suggestions and add a
+   note to already-accepted work instead of deleting operator history.
+
+   Implementation references: [CODE: api/internal/autofiler/sweeper.go],
+   [CODE: api/internal/autofiler/policy.go], [CODE: api/internal/autofiler/filer.go].
+
+6. **Graph workspace projection**
    ```
    GET /api/v1/plan -> proto PlanBoardResponse -> plan store -> Now/Next/Later/Done board
    GET /api/v1/graph?lens=topology -> proto GraphResponse -> typed graph store -> Graph surface (full topology by default; client-side focus mode)
    WS /ws/graph invalidate (lenses incl. "plan") -> silent refresh + runtime node pulse
    ```
 
-6. **Native agent sessions**
+7. **Native agent sessions**
    ```
    Graph launcher -> draft agent session -> composer message + context/images -> Agent Manager run -> proposal -> API-owned apply -> artifact attribution
    ```
    Agent Sessions support longer conversational planning, operations, and authoring flows inside Swarm Manager. Session details uses the shared composer also used by Quick Capture, with session-only context chips for existing backlog items, initiatives, captures, executions, agent activity, scenarios, operating modes, prior sessions, and the current operations briefing. Message context is resolved by the API before it reaches Agent Manager, and uploaded images are stored as session-owned attachments. Meta-orchestration sessions can create multiple initiatives and backlog items through the batch apply seam. Swarm operations sessions receive a bounded `operations_briefing/latest` context by default, answer broad current-status questions from that packet first, then drill down through the operations/overview/stats commands only when needed. Operating-mode authoring sessions can accept mode proposal drafts and create implementation work without letting the chat agent mutate operating-mode code directly. See [DOC: docs/internal/AGENT-SESSIONS.md].
 
-7. **UI route navigation**
+8. **UI route navigation**
    ```
    /plan -> Plan board (first-class route, default landing; ?drawer=decisions opens the decision drawer)
    /graph -> Graph surface (full topology projection by default)
@@ -132,7 +152,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
    Fullscreen operator surfaces are first-class routes inside a shared app shell. The shell owns the global sidebar. Page close/back controls use route-aware history with a direct-load fallback to `/plan`.
 
-8. **Global sidebar shell**
+9. **Global sidebar shell**
    ```
    AppShell -> persisted, resizable desktop sidebar + floating mobile sheet -> routed page outlet
    ```
@@ -166,7 +186,7 @@ The default graph mode renders the topology projection (`GET /api/v1/graph?lens=
 
 **Edges:** `depends_on`, `member_of`, `classified_as`, `targets`
 
-9. **Scenario lifecycle control**
+10. **Scenario lifecycle control**
    ```
    List scenarios -> inspect details -> start/stop/restart/delete/archive
    ```

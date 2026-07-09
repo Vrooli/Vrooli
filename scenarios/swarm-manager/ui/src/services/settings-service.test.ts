@@ -27,6 +27,15 @@ describe("Settings Service update() write path", () => {
         searchDebounceMs: 100,
         toastDurationMs: 1000,
         fixBeforeFeature: "suggest",
+        autoFiler: {
+          mode: "suggest",
+          strategy: "feature_pending",
+          maxOpenAutoFiled: 10,
+          velocityWindowDays: 7,
+          minVelocityTransitions: 1,
+          intervalMinutes: 30,
+          goalName: "automated-maintenance",
+        },
       },
     });
     service = createSettingsService(mockApiClient);
@@ -44,7 +53,16 @@ describe("Settings Service update() write path", () => {
       executionCostCapPerRun: 12.5,
       costPerTurnEstimate: 0.25,
       fixBeforeFeature: "block",
-      fixBeforeFeatureDiscovery: true,
+      autoFiler: {
+        enabled: true,
+        mode: "auto_add",
+        strategy: "importance",
+        maxOpenAutoFiled: 4,
+        velocityWindowDays: 14,
+        minVelocityTransitions: 2,
+        intervalMinutes: 5,
+        goalName: "maintenance",
+      },
     });
 
     expect(mockApiClient.put).toHaveBeenCalledTimes(1);
@@ -57,15 +75,24 @@ describe("Settings Service update() write path", () => {
       execution_cost_cap_per_run: 12.5,
       cost_per_turn_estimate: 0.25,
       fix_before_feature: "block",
-      fix_before_feature_discovery: true,
+      auto_filer: {
+        enabled: true,
+        mode: "auto_add",
+        strategy: "importance",
+        max_open_auto_filed: 4,
+        velocity_window_days: 14,
+        min_velocity_transitions: 2,
+        interval_minutes: 5,
+        goal_name: "maintenance",
+      },
     });
   });
 
-  it("omits fix-before-feature keys when not present in the patch", async () => {
+  it("omits fix-before-feature and auto-filer keys when not present in the patch", async () => {
     await service.update({ maxQueueDepth: 10 });
 
     const [, body] = vi.mocked(mockApiClient.put).mock.calls[0]!;
     expect(body).not.toHaveProperty("fix_before_feature");
-    expect(body).not.toHaveProperty("fix_before_feature_discovery");
+    expect(body).not.toHaveProperty("auto_filer");
   });
 });

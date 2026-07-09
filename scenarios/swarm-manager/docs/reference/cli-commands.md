@@ -73,6 +73,62 @@ Rules:
 - attachment destinations must be safe relative paths and are sent through the
   multipart `POST /api/v1/backlog` contract
 
+## Backlog Auto-Filer Suggestions
+
+List suggested items:
+
+```bash
+swarm-manager backlog list --status suggested
+```
+
+Inspect a suggestion before acting:
+
+```bash
+swarm-manager backlog get --kind fix --name auto-filed-example
+swarm-manager backlog get --kind fix --name auto-filed-example --json
+```
+
+Accept a suggestion by moving it into the normal backlog flow:
+
+```bash
+swarm-manager backlog update \
+  --kind fix \
+  --name auto-filed-example \
+  --data '{"status":"backlog"}'
+```
+
+Dismiss a suggestion through the auto-filer RPC. This archives the item and
+remembers its stable `finding_ref`, so the same finding is not suggested again.
+
+```bash
+swarm-manager backlog dismiss --kind fix --name auto-filed-example --reason "not actionable"
+swarm-manager backlog dismiss --kind fix --name auto-filed-example --json
+```
+
+The dismiss command is for auto-filer suggestions. Use ordinary backlog update,
+queue, review, and archive flows for accepted items.
+
+## Backlog Auto-Filer Status
+
+Read the current policy, latest cycle accounting, open-item cap, velocity brake,
+and dismissal count:
+
+```bash
+swarm-manager autofiler status
+swarm-manager autofiler status --json
+```
+
+Run one governed cycle immediately, using the same settings, cap, velocity
+brake, and reconciliation rules as the background sweeper:
+
+```bash
+swarm-manager autofiler run-now
+swarm-manager autofiler run-now --json
+```
+
+The same policy knobs live under `auto_filer` in Settings and are documented in
+[DOC: docs/reference/configuration.md#backlog-auto-filer-settings-api].
+
 ## Backlog Batch Create
 
 Preview first:

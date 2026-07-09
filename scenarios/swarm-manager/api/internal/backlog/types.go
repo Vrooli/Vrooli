@@ -35,6 +35,7 @@ import (
 type BacklogStatus string
 
 const (
+	StatusSuggested     BacklogStatus = backlogstatus.Suggested
 	StatusBacklog       BacklogStatus = backlogstatus.Backlog
 	StatusResearching   BacklogStatus = backlogstatus.Researching
 	StatusReady         BacklogStatus = backlogstatus.Ready
@@ -119,6 +120,7 @@ type BacklogItem struct {
 	Creates         []string             `json:"creates,omitempty"`
 	SpawnedFrom     string               `json:"spawned_from,omitempty"`
 	PlanRef         *PlanRef             `json:"plan_ref,omitempty"`
+	FindingRef      string               `json:"finding_ref,omitempty"`
 	Note            string               `json:"note,omitempty"`
 	SuggestedSkills []string             `json:"suggested_skills,omitempty"`
 	CreatedBy       *identity.Provenance `json:"created_by,omitempty"`
@@ -262,6 +264,9 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	if item.PlanRef != nil {
 		result.PlanRef = planRefToProto(item.PlanRef)
 	}
+	if strings.TrimSpace(item.FindingRef) != "" {
+		result.FindingRef = &item.FindingRef
+	}
 	if strings.TrimSpace(item.Note) != "" {
 		result.Note = &item.Note
 	}
@@ -276,6 +281,12 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 		result.ArchivedAt = item.ArchivedAt
 	}
 	return result
+}
+
+// ToProto converts a domain BacklogItem to its protobuf representation for
+// other typed service adapters that should not duplicate backlog wire mapping.
+func ToProto(item BacklogItem) *domainpb.BacklogItem {
+	return backlogToProto(item)
 }
 
 func planRefToProto(ref *PlanRef) *domainpb.PlanRef {

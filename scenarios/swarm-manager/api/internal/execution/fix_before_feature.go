@@ -182,9 +182,10 @@ func (s *Service) applyFixBeforeFeatureGate(item backlogItem, preflight *Process
 		}
 	}
 
-	// Discovery (Tier 2, opt-in): async-surface latent fixes for scenarios with
-	// no known open remediation work. Never blocks this queue call.
-	if gov.FixBeforeFeatureDiscovery {
-		s.maybeTriggerDiscovery(featureScenarios, openItems)
+	// Auto-filer feature-pending targeting (Tier 2, opt-in): async-surface
+	// latent fixes for scenarios with no known open remediation work. Never
+	// blocks this queue call.
+	if gov.AutoFilerEnabled && gov.AutoFilerStrategy == AutoFilerStrategyFeaturePending {
+		s.wakeAutoFiler()
 	}
 }

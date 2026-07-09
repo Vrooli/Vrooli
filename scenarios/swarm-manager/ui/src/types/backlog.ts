@@ -21,6 +21,7 @@ import type { AgentSessionAttribution } from "./agent-session";
  * - Terminal transitions (`completed`, `failed`, `needs_followup`) are user-only.
  */
 export type BacklogStatus =
+  | "suggested"
   | "backlog"
   | "researching"
   | "ready"

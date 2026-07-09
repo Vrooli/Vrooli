@@ -34,6 +34,7 @@ import (
 	"swarm-manager/internal/aisearch"
 	"swarm-manager/internal/audioports"
 	"swarm-manager/internal/autodrain"
+	"swarm-manager/internal/autofiler"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
 	"swarm-manager/internal/eventlog"
@@ -114,6 +115,8 @@ type Server struct {
 	aiSearchStopChan    chan struct{}
 	feedbackSweeperStop chan struct{}
 	reviewSweeperStop   chan struct{}
+	autoFilerSweeper    *autofiler.Sweeper
+	autoFilerStopChan   chan struct{}
 	audioToolsResolver  audiotools.URLResolver
 	opsAggregator       *operations.Aggregator
 
@@ -197,6 +200,7 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		aiSearchStopChan:    make(chan struct{}),
 		feedbackSweeperStop: make(chan struct{}),
 		reviewSweeperStop:   make(chan struct{}),
+		autoFilerStopChan:   make(chan struct{}),
 		scenarioRoot:        scenarioRoot,
 		dataRoot:            dataRoot,
 		cacheRoot:           cacheRoot,
@@ -902,6 +906,18 @@ func main() {
 		go srv.initiativeReviewSvc.StartBackgroundWorker(srv.initReviewStopChan)
 	}
 
+	if srv.autoFilerSweeper != nil {
+		go func() {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go func() {
+				<-srv.autoFilerStopChan
+				cancel()
+			}()
+			srv.autoFilerSweeper.Start(ctx)
+		}()
+	}
+
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := srv.agentSvc.Initialize(initCtx); err != nil {
@@ -926,6 +942,7 @@ func main() {
 	close(srv.aiSearchStopChan)
 	close(srv.feedbackSweeperStop)
 	close(srv.reviewSweeperStop)
+	close(srv.autoFilerStopChan)
 }
 
 // startAISearchBackground kicks off two background tasks for aisearch:

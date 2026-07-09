@@ -2,10 +2,15 @@
  * Execution settings tab - Execution defaults, governance, and agent behavior.
  */
 
+import { useCallback, useEffect, useState } from "react";
+import type { AutoFilerStatusResponse } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
+import { RefreshCw } from "lucide-react";
 import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { selectors } from "../../consts/selectors";
 import { DEFAULT_SETTINGS } from "../../services/settings-service";
+import { autoFilerService } from "../../services";
 import type { Settings } from "../../types";
 import { ToggleButtons } from "./ToggleButtons";
 import { GoalDrainToggle } from "./GoalDrainToggle";
@@ -15,7 +20,58 @@ export interface ExecutionTabProps {
   patch: (updates: Partial<Settings>) => void;
 }
 
+function formatAutoFilerTime(value: string): string {
+  if (!value) return "Not run yet";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
 export function ExecutionTab({ form, patch }: ExecutionTabProps) {
+  const [autoFilerStatus, setAutoFilerStatus] = useState<AutoFilerStatusResponse | null>(null);
+  const [autoFilerStatusError, setAutoFilerStatusError] = useState<string | null>(null);
+  const [autoFilerRunPending, setAutoFilerRunPending] = useState(false);
+
+  const loadAutoFilerStatus = useCallback(async (active: () => boolean = () => true) => {
+    setAutoFilerStatusError(null);
+    try {
+      const status = await autoFilerService.getStatus();
+      if (active()) setAutoFilerStatus(status);
+    } catch (error) {
+      if (active()) {
+        setAutoFilerStatus(null);
+        setAutoFilerStatusError(error instanceof Error ? error.message : "Unable to load auto-filer status");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void loadAutoFilerStatus(() => active);
+    return () => {
+      active = false;
+    };
+  }, [
+    loadAutoFilerStatus,
+    form.autoFiler.enabled,
+    form.autoFiler.mode,
+    form.autoFiler.strategy,
+    form.autoFiler.maxOpenAutoFiled,
+    form.autoFiler.velocityWindowDays,
+    form.autoFiler.minVelocityTransitions,
+  ]);
+
+  const handleRunAutoFilerNow = useCallback(async () => {
+    setAutoFilerRunPending(true);
+    setAutoFilerStatusError(null);
+    try {
+      setAutoFilerStatus(await autoFilerService.runNow());
+    } catch (error) {
+      setAutoFilerStatusError(error instanceof Error ? error.message : "Unable to run auto-filer cycle");
+    } finally {
+      setAutoFilerRunPending(false);
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Execution Defaults */}
@@ -199,7 +255,6 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
           </div>
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
             fixBeforeFeature: DEFAULT_SETTINGS.fixBeforeFeature,
-            fixBeforeFeatureDiscovery: DEFAULT_SETTINGS.fixBeforeFeatureDiscovery,
           })}>Reset</button>
         </div>
         <div className="mt-4 space-y-4">
@@ -220,21 +275,179 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
               onChange={(v) => patch({ fixBeforeFeature: v })}
             />
           </div>
-          <div className="border-t border-white/5 pt-4">
-            <label className="block text-sm font-medium text-slate-300">On-Demand Readiness Discovery</label>
-            <p className="mt-1 text-xs text-slate-400">
-              When enabled, scenarios with no known open fix work get an async
-              review at queue time; red/yellow findings are filed as fix items
-              for next time. Off by default to avoid extra review runs.
-            </p>
+        </div>
+      </Card>
+
+      {/* Backlog Auto-Filer */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-slate-200">Backlog Auto-Filer</h3>
+            <p className="mt-1 text-sm text-slate-400">Governed automatic filing for maintenance findings.</p>
+          </div>
+          <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
+            autoFiler: { ...DEFAULT_SETTINGS.autoFiler },
+          })}>Reset</button>
+        </div>
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Policy</label>
             <ToggleButtons
-              value={form.fixBeforeFeatureDiscovery}
+              value={form.autoFiler.enabled}
               options={[
                 { value: false as const, label: "Disabled" },
                 { value: true as const, label: "Enabled" },
               ]}
-              onChange={(v) => patch({ fixBeforeFeatureDiscovery: v })}
+              onChange={(v) => patch({ autoFiler: { ...form.autoFiler, enabled: v } })}
             />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Mode</label>
+              <ToggleButtons
+                value={form.autoFiler.mode}
+                options={[
+                  { value: "suggest" as const, label: "suggest" },
+                  { value: "auto_add" as const, label: "auto-add" },
+                ]}
+                onChange={(v) => patch({ autoFiler: { ...form.autoFiler, mode: v } })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Strategy</label>
+              <ToggleButtons
+                value={form.autoFiler.strategy}
+                options={[
+                  { value: "feature_pending" as const, label: "feature-pending" },
+                  { value: "importance" as const, label: "importance" },
+                ]}
+                onChange={(v) => patch({ autoFiler: { ...form.autoFiler, strategy: v } })}
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 border-t border-white/5 pt-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Max Open Auto-Filed</label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                className="mt-1"
+                value={form.autoFiler.maxOpenAutoFiled}
+                onChange={(e) => patch({ autoFiler: { ...form.autoFiler, maxOpenAutoFiled: Math.max(1, Math.min(100, Number(e.target.value || 1))) } })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Velocity Window Days</label>
+              <Input
+                type="number"
+                min={1}
+                max={90}
+                className="mt-1"
+                value={form.autoFiler.velocityWindowDays}
+                onChange={(e) => patch({ autoFiler: { ...form.autoFiler, velocityWindowDays: Math.max(1, Math.min(90, Number(e.target.value || 1))) } })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Min Velocity Transitions</label>
+              <Input
+                type="number"
+                min={1}
+                max={1000}
+                className="mt-1"
+                value={form.autoFiler.minVelocityTransitions}
+                onChange={(e) => patch({ autoFiler: { ...form.autoFiler, minVelocityTransitions: Math.max(1, Math.min(1000, Number(e.target.value || 1))) } })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Interval Minutes</label>
+              <Input
+                type="number"
+                min={1}
+                max={1440}
+                className="mt-1"
+                value={form.autoFiler.intervalMinutes}
+                onChange={(e) => patch({ autoFiler: { ...form.autoFiler, intervalMinutes: Math.max(1, Math.min(1440, Number(e.target.value || 1))) } })}
+              />
+            </div>
+          </div>
+          <div className="border-t border-white/5 pt-4">
+            <label className="block text-sm font-medium text-slate-300">Goal Name</label>
+            <Input
+              className="mt-1"
+              value={form.autoFiler.goalName}
+              onChange={(e) => patch({ autoFiler: { ...form.autoFiler, goalName: e.target.value } })}
+            />
+          </div>
+          <div className="border-t border-white/5 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h4 className="text-sm font-medium text-slate-300">Operator Status</h4>
+                <p className="mt-1 text-xs text-slate-500">
+                  Latest governed filing cycle and policy brakes.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-2 py-0.5 text-xs ${autoFilerStatus?.enabled ? "bg-emerald-500/10 text-emerald-300" : "bg-slate-700 text-slate-300"}`}>
+                  {autoFilerStatus?.enabled ? "enabled" : "disabled"}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleRunAutoFilerNow()}
+                  disabled={autoFilerRunPending}
+                >
+                  <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${autoFilerRunPending ? "animate-spin" : ""}`} />
+                  Run now
+                </Button>
+              </div>
+            </div>
+            {autoFilerStatusError ? (
+              <p className="mt-3 text-xs text-amber-300">{autoFilerStatusError}</p>
+            ) : (
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Last Cycle</div>
+                  <div className="mt-1 text-sm text-slate-200">{formatAutoFilerTime(autoFilerStatus?.lastCycleTime ?? "")}</div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Open / Cap</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus ? `${autoFilerStatus.openAutoFiled} / ${autoFilerStatus.maxOpenAutoFiled}` : "--"}
+                  </div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Velocity Brake</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus?.brake
+                      ? `${autoFilerStatus.brake.observed}/${autoFilerStatus.brake.minimum}${autoFilerStatus.brake.braked ? " braked" : ""}`
+                      : "--"}
+                  </div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Findings / Filed</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus ? `${autoFilerStatus.findings} / ${autoFilerStatus.created}` : "--"}
+                  </div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Dismissed</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus ? autoFilerStatus.dismissalCount : "--"}
+                  </div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Reconciled</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus ? `${autoFilerStatus.reconciledClosed} closed, ${autoFilerStatus.reconciledNoted} noted` : "--"}
+                  </div>
+                </div>
+              </div>
+            )}
+            {autoFilerStatus?.lastError ? (
+              <p className="mt-3 text-xs text-amber-300">{autoFilerStatus.lastError}</p>
+            ) : null}
           </div>
         </div>
       </Card>

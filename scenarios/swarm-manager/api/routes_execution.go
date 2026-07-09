@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/autofiler"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/planclient"
@@ -66,9 +67,9 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 	if s.agentActivitySvc != nil {
 		s.executionSvc.SetActivityLaneReader(s.agentActivitySvc)
 	}
-	// Wire the fix-before-feature discovery filer (Tier 2). It files fix items
-	// via the canonical backlog creation path. backlogHandler is registered
-	// before this route group, so its store is available here.
+	// Wire the governed backlog auto-filer. The fix-before-feature gate only
+	// wakes this sweeper; the sweeper owns policy, targeting, finding source,
+	// and filing.
 	if s.backlogHandler != nil {
 		filerCfg := backlog.ServiceConfig{
 			Store:    s.backlogHandler.Store(),
@@ -78,7 +79,32 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 			filerCfg.Events = s.emitter
 		}
 		if filerSvc, filerErr := backlog.NewService(filerCfg); filerErr == nil {
-			s.executionSvc.SetRemediationFiler(backlog.NewFixDiscoveryFiler(filerSvc))
+			source := autofiler.GCTFindingSource{
+				Client:        execution.NewHTTPReviewClient(nil),
+				Freshness:     autofiler.NewReviewFreshnessStore(dataRoot),
+				FreshnessTime: autofiler.DefaultReviewFreshness,
+			}
+			sweeper := autofiler.NewSweeper(
+				settings.NewGovernanceAdapter(s.settingsStore),
+				s.backlogHandler.Store(),
+				s.eventRepo,
+				autofiler.NewFiler(filerSvc, s.goalService),
+				source,
+			)
+			sweeper.Reconciler = filerSvc
+			dismissals := autofiler.NewDismissalStore(dataRoot)
+			sweeper.Dismissals = dismissals
+			sweeper.Feature = autofiler.FeaturePendingStrategy{
+				BacklogReader:    s.backlogHandler.Store(),
+				SelfScenarioName: "swarm-manager",
+			}
+			sweeper.Importance = autofiler.ImportanceStrategy{}
+			s.autoFilerSweeper = sweeper
+			s.executionSvc.SetAutoFilerWaker(sweeper)
+			autofiler.RegisterConnectService(
+				s.router,
+				autofiler.NewConnectService(settings.NewGovernanceAdapter(s.settingsStore), sweeper, s.backlogHandler.Store(), filerSvc, dismissals),
+			)
 		}
 	}
 	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)

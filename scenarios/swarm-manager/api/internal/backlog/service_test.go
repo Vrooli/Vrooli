@@ -31,14 +31,19 @@ func (a *fakeAttacher) RememberItem(name, ref string) error {
 // fakeEvents captures EmitBacklogCreatedFromSource so tests assert
 // attribution actor + payload.
 type fakeEvents struct {
-	mu    sync.Mutex
-	calls []emittedCreate
+	mu       sync.Mutex
+	calls    []emittedCreate
+	archives []emittedArchive
 }
 
 type emittedCreate struct {
 	entityID, kind, status, initiative, effort string
 	priority                                   int
 	actorType, actorID                         string
+}
+
+type emittedArchive struct {
+	entityID, previousStatus, archivedAt string
 }
 
 func (e *fakeEvents) EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, initiative, effort, actorType, actorID string) {
@@ -61,6 +66,12 @@ func (e *fakeEvents) EmitBacklogCreatedFromSource(entityID, kind, status string,
 // with *eventlog.Emitter).
 func (e *fakeEvents) EmitBacklogCreated(entityID, kind, status string, priority int, initiative, effort string) {
 	e.EmitBacklogCreatedFromSource(entityID, kind, status, priority, initiative, effort, "user", "")
+}
+
+func (e *fakeEvents) EmitBacklogArchived(entityID, previousStatus, archivedAt string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.archives = append(e.archives, emittedArchive{entityID: entityID, previousStatus: previousStatus, archivedAt: archivedAt})
 }
 
 type fakeWorkshop struct {
@@ -339,6 +350,65 @@ func TestService_Create_Duplicate_ReturnsErrItemExists(t *testing.T) {
 	err := env.svc.Create(sampleItem("dup"), CreationContext{Source: SourceHumanHTTP})
 	if !errors.Is(err, ErrItemExists) {
 		t.Fatalf("second Create should return ErrItemExists, got %v", err)
+	}
+}
+
+func TestServiceArchiveItem_AppendsReasonAndEmitsArchiveOnce(t *testing.T) {
+	env := newServiceTestEnv(t)
+	item := sampleItem("resolved")
+	item.Kind = KindFix
+	item.Status = StatusSuggested
+	if err := env.svc.Create(item, CreationContext{Source: SourceAutoFiler}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	archived, err := env.svc.ArchiveItem(context.Background(), KindFix, "resolved", "dismissed by operator")
+	if err != nil {
+		t.Fatalf("ArchiveItem: %v", err)
+	}
+	if archived.ArchivedAt == nil || *archived.ArchivedAt == "" {
+		t.Fatalf("ArchivedAt was not set")
+	}
+	if archived.Note != "dismissed by operator" {
+		t.Fatalf("note = %q, want reason", archived.Note)
+	}
+	if len(env.events.archives) != 1 {
+		t.Fatalf("archive events = %+v, want one", env.events.archives)
+	}
+
+	again, err := env.svc.ArchiveItem(context.Background(), KindFix, "resolved", "dismissed by operator")
+	if err != nil {
+		t.Fatalf("ArchiveItem second: %v", err)
+	}
+	if again.Note != "dismissed by operator" {
+		t.Fatalf("second note = %q, want unchanged", again.Note)
+	}
+	if len(env.events.archives) != 1 {
+		t.Fatalf("archive events after idempotent call = %+v, want still one", env.events.archives)
+	}
+}
+
+func TestServiceAnnotateItem_AppendsIdempotentNote(t *testing.T) {
+	env := newServiceTestEnv(t)
+	item := sampleItem("accepted")
+	item.Kind = KindFix
+	if err := env.svc.Create(item, CreationContext{Source: SourceAutoFiler}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	first, err := env.svc.AnnotateItem(context.Background(), KindFix, "accepted", "resolved upstream")
+	if err != nil {
+		t.Fatalf("AnnotateItem: %v", err)
+	}
+	if first.Note != "resolved upstream" {
+		t.Fatalf("note = %q, want annotation", first.Note)
+	}
+	second, err := env.svc.AnnotateItem(context.Background(), KindFix, "accepted", "resolved upstream")
+	if err != nil {
+		t.Fatalf("AnnotateItem second: %v", err)
+	}
+	if second.Note != "resolved upstream" {
+		t.Fatalf("second note = %q, want idempotent annotation", second.Note)
 	}
 }
 

@@ -38,7 +38,7 @@ import type { ReadinessIndicatorData } from "../../../../lib/maturity";
 import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
 import { backlogDetailPath } from "../../../../app/routes/route-paths";
 import { SidebarEmptyState } from "./SidebarEmptyState";
-import { backlogService } from "../../../../services";
+import { autoFilerService, backlogService } from "../../../../services";
 import { runBulkAction, summarizeBulkOutcomes, failedOutcomeIds, type BulkOutcome } from "./bulk-actions";
 
 interface BacklogTabProps {
@@ -95,6 +95,7 @@ function BacklogTabImpl({
   const snoozedKeys = useSnoozedKeys();
 
   const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
+  const [pendingDismissKey, setPendingDismissKey] = useState<string | null>(null);
 
   // Stable callbacks for the action hook so its internal memos don't churn.
   const handleSelectBacklog = useCallback(
@@ -160,6 +161,19 @@ function BacklogTabImpl({
     setRunModalTarget(undefined);
     void fetchBacklog({ force: true });
   }, [fetchBacklog]);
+  const handleDismissSuggestion = useCallback(
+    async (item: BacklogItem) => {
+      const key = `${item.kind}/${item.name}`;
+      setPendingDismissKey(key);
+      try {
+        await autoFilerService.dismissSuggestion(item.kind, item.name);
+        await fetchBacklog({ force: true });
+      } finally {
+        setPendingDismissKey(null);
+      }
+    },
+    [fetchBacklog],
+  );
   const handleCloseWorkshopConfirm = useCallback(
     () => setWorkshopBlockingConfirm(null),
     [setWorkshopBlockingConfirm],
@@ -232,7 +246,9 @@ function BacklogTabImpl({
           pendingArchiveKey={pendingArchiveKey}
           pendingWorkshop={pendingWorkshop}
           pendingStatusKey={pendingStatusKey}
+          pendingDismissKey={pendingDismissKey}
           handleStepperCompleted={handleStepperCompleted}
+          onDismissSuggestion={handleDismissSuggestion}
           onItemClick={onItemClick}
           selectionMode={selectionMode}
           selectedIds={selectedIds}
@@ -304,7 +320,9 @@ interface VirtualizedBacklogListProps {
   pendingArchiveKey: string | null;
   pendingWorkshop: { key: string; mode: "workshop" | "finalize" } | null;
   pendingStatusKey: string | null;
+  pendingDismissKey: string | null;
   handleStepperCompleted: (itemKey: string, item: BacklogItem, result: StepperCompletionResult) => void;
+  onDismissSuggestion: (item: BacklogItem) => void;
   onItemClick: (nodeId: string) => void;
   selectionMode: boolean;
   selectedIds: Set<string>;
@@ -325,7 +343,9 @@ function VirtualizedBacklogList({
   pendingArchiveKey,
   pendingWorkshop,
   pendingStatusKey,
+  pendingDismissKey,
   handleStepperCompleted,
+  onDismissSuggestion,
   onItemClick,
   selectionMode,
   selectedIds,
@@ -367,6 +387,7 @@ function VirtualizedBacklogList({
         if (!item) return null;
         const itemKey = `${item.kind}/${item.name}`;
         const readiness = readinessMap.get(itemKey);
+        const callbacks = getItemCallbacks(item);
         return (
           <div
             key={itemKey}
@@ -389,14 +410,17 @@ function VirtualizedBacklogList({
               agentRunning={activeRunKeys.has(itemKey)}
               isStepperCompleted={completedSteppers.has(itemKey)}
               transitionResult={transitionItems.get(itemKey)}
-              callbacks={getItemCallbacks(item)}
+              callbacks={callbacks}
               archivePending={pendingArchiveKey === itemKey}
+              dismissPending={pendingDismissKey === itemKey}
               finalizePending={pendingWorkshop?.key === itemKey && pendingWorkshop.mode === "finalize"}
               workshopPending={pendingWorkshop?.key === itemKey && pendingWorkshop.mode === "workshop"}
               statusChangePending={pendingStatusKey === itemKey}
               workshopLabel={(readiness?.roundsCompleted ?? 0) > 0 ? "Next Round" : "Workshop"}
               runningLabel={activeRunLabels.get(itemKey)}
               handleStepperCompleted={handleStepperCompleted}
+              onAcceptSuggestion={() => callbacks.onStatusChange("backlog")}
+              onDismissSuggestion={() => onDismissSuggestion(item)}
               onItemClick={onItemClick}
               selectionMode={selectionMode}
               selected={selectedIds.has(backlogSelectionId(item))}
@@ -425,9 +449,12 @@ interface BacklogRowProps {
    *  pending keys. Only the actively-mutating row sees these flip, so other
    *  rows preserve memo equality. */
   archivePending: boolean;
+  dismissPending: boolean;
   finalizePending: boolean;
   workshopPending: boolean;
   statusChangePending: boolean;
+  onAcceptSuggestion: () => void;
+  onDismissSuggestion: () => void;
   workshopLabel: string;
   runningLabel: string | undefined;
   handleStepperCompleted: (itemKey: string, item: BacklogItem, result: StepperCompletionResult) => void;
@@ -448,9 +475,12 @@ const BacklogRow = memo(function BacklogRow({
   transitionResult,
   callbacks,
   archivePending,
+  dismissPending,
   finalizePending,
   workshopPending,
   statusChangePending,
+  onAcceptSuggestion,
+  onDismissSuggestion,
   workshopLabel,
   runningLabel,
   handleStepperCompleted,
@@ -519,8 +549,11 @@ const BacklogRow = memo(function BacklogRow({
         onFollowUp={callbacks.onFollowUp}
         onFinalize={callbacks.onFinalize}
         onWorkshop={callbacks.onWorkshop}
+        onAcceptSuggestion={onAcceptSuggestion}
+        onDismissSuggestion={onDismissSuggestion}
         onStatusChange={callbacks.onStatusChange}
         archivePending={archivePending}
+        dismissPending={dismissPending}
         finalizePending={finalizePending}
         workshopPending={workshopPending}
         statusChangePending={statusChangePending}

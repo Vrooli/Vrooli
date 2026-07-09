@@ -6,6 +6,7 @@ import { UpdateSettingsRequestSchema } from "@vrooli/proto-types/swarm-manager/v
 import { DeleteConfirmLevel } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import type { IApiClient } from "../lib/api-client";
 import type {
+  AutoFilerSettings,
   DeleteConfirmLevel as DomainDeleteConfirmLevel,
   DeleteConfirmationSettings,
 } from "../types/settings";
@@ -67,7 +68,16 @@ export const DEFAULT_SETTINGS: Settings = {
   executionCostCapPerRun: 0,
   costPerTurnEstimate: 0.10,
   fixBeforeFeature: "suggest",
-  fixBeforeFeatureDiscovery: false,
+  autoFiler: {
+    enabled: false,
+    mode: "suggest",
+    strategy: "feature_pending",
+    maxOpenAutoFiled: 10,
+    velocityWindowDays: 7,
+    minVelocityTransitions: 1,
+    intervalMinutes: 30,
+    goalName: "automated-maintenance",
+  },
 };
 
 type SettingsPatch = Partial<Settings>;
@@ -107,6 +117,21 @@ function normalizeDeleteConfirmation(
   return out as DeleteConfirmationSettings;
 }
 
+function normalizeAutoFiler(input?: Partial<AutoFilerSettings>): AutoFilerSettings {
+  const defaults = DEFAULT_SETTINGS.autoFiler;
+  if (!input) return { ...defaults };
+  return {
+    enabled: input.enabled ?? defaults.enabled,
+    mode: input.mode === "auto_add" ? "auto_add" : defaults.mode,
+    strategy: input.strategy === "importance" ? "importance" : defaults.strategy,
+    maxOpenAutoFiled: input.maxOpenAutoFiled ?? defaults.maxOpenAutoFiled,
+    velocityWindowDays: input.velocityWindowDays ?? defaults.velocityWindowDays,
+    minVelocityTransitions: input.minVelocityTransitions ?? defaults.minVelocityTransitions,
+    intervalMinutes: input.intervalMinutes ?? defaults.intervalMinutes,
+    goalName: input.goalName?.trim() || defaults.goalName,
+  };
+}
+
 function normalizeSettings(input?: SettingsPatch): Settings {
   if (!input) return DEFAULT_SETTINGS;
   return {
@@ -138,7 +163,7 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     executionCostCapPerRun: input.executionCostCapPerRun ?? DEFAULT_SETTINGS.executionCostCapPerRun,
     costPerTurnEstimate: input.costPerTurnEstimate ?? DEFAULT_SETTINGS.costPerTurnEstimate,
     fixBeforeFeature: input.fixBeforeFeature ?? DEFAULT_SETTINGS.fixBeforeFeature,
-    fixBeforeFeatureDiscovery: input.fixBeforeFeatureDiscovery ?? DEFAULT_SETTINGS.fixBeforeFeatureDiscovery,
+    autoFiler: normalizeAutoFiler(input.autoFiler),
   };
 }
 
@@ -191,7 +216,7 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.executionCostCapPerRun !== undefined ? { executionCostCapPerRun: patch.executionCostCapPerRun } : {}),
         ...(patch.costPerTurnEstimate !== undefined ? { costPerTurnEstimate: patch.costPerTurnEstimate } : {}),
         ...(patch.fixBeforeFeature !== undefined ? { fixBeforeFeature: patch.fixBeforeFeature } : {}),
-        ...(patch.fixBeforeFeatureDiscovery !== undefined ? { fixBeforeFeatureDiscovery: patch.fixBeforeFeatureDiscovery } : {}),
+        ...(patch.autoFiler !== undefined ? { autoFiler: patch.autoFiler } : {}),
       });
       const data = await apiClient.put<unknown>(
         API_ENDPOINTS.settings,

@@ -27,6 +27,15 @@ const (
 	FixBeforeFeatureBlock   = "block"
 )
 
+// Backlog auto-filer modes and targeting strategies.
+const (
+	AutoFilerModeSuggest = "suggest"
+	AutoFilerModeAutoAdd = "auto_add"
+
+	AutoFilerStrategyFeaturePending = "feature_pending"
+	AutoFilerStrategyImportance     = "importance"
+)
+
 // deletableEntityDefaults mirrors the UI registry in
 // ui/src/lib/deletable-entities.ts. Keys are the entity-type strings shared
 // with the UI as the delete-confirmation map keys. Keep the two in sync when
@@ -107,11 +116,22 @@ type Settings struct {
 	// per this mode: "off" (silent), "suggest" (advisory in the queue
 	// response), or "block" (forceable BlockingReason). Default "suggest".
 	FixBeforeFeature string `json:"fix_before_feature"`
-	// FixBeforeFeatureDiscovery, when true, lets the gate trigger an async
-	// on-demand readiness review for a scenario that has *no* known open fix
-	// items (and no recent readiness signal), auto-filing fix items it finds.
-	// Default false.
-	FixBeforeFeatureDiscovery bool `json:"fix_before_feature_discovery"`
+
+	// AutoFiler governs automatic maintenance-intake filing.
+	AutoFiler AutoFilerSettings `json:"auto_filer"`
+}
+
+// AutoFilerSettings controls governed automatic backlog filing for
+// programmatic maintenance findings.
+type AutoFilerSettings struct {
+	Enabled                bool   `json:"enabled"`
+	Mode                   string `json:"mode"`
+	Strategy               string `json:"strategy"`
+	MaxOpenAutoFiled       int    `json:"max_open_auto_filed"`
+	VelocityWindowDays     int    `json:"velocity_window_days"`
+	MinVelocityTransitions int    `json:"min_velocity_transitions"`
+	IntervalMinutes        int    `json:"interval_minutes"`
+	GoalName               string `json:"goal_name"`
 }
 
 // SettingsPatch allows partial updates.
@@ -157,8 +177,20 @@ type SettingsPatch struct {
 	ExecutionCostCapPerRun        *float64       `json:"execution_cost_cap_per_run,omitempty"`
 	CostPerTurnEstimate           *float64       `json:"cost_per_turn_estimate,omitempty"`
 
-	FixBeforeFeature          *string `json:"fix_before_feature,omitempty"`
-	FixBeforeFeatureDiscovery *bool   `json:"fix_before_feature_discovery,omitempty"`
+	FixBeforeFeature *string                 `json:"fix_before_feature,omitempty"`
+	AutoFiler        *AutoFilerSettingsPatch `json:"auto_filer,omitempty"`
+}
+
+// AutoFilerSettingsPatch overlays a subset of the auto-filer block.
+type AutoFilerSettingsPatch struct {
+	Enabled                *bool   `json:"enabled,omitempty"`
+	Mode                   *string `json:"mode,omitempty"`
+	Strategy               *string `json:"strategy,omitempty"`
+	MaxOpenAutoFiled       *int    `json:"max_open_auto_filed,omitempty"`
+	VelocityWindowDays     *int    `json:"velocity_window_days,omitempty"`
+	MinVelocityTransitions *int    `json:"min_velocity_transitions,omitempty"`
+	IntervalMinutes        *int    `json:"interval_minutes,omitempty"`
+	GoalName               *string `json:"goal_name,omitempty"`
 }
 
 // Store persists settings on disk.
@@ -224,8 +256,21 @@ func DefaultSettings() Settings {
 		ExecutionCostCapPerRun:        0,
 		CostPerTurnEstimate:           0.10,
 
-		FixBeforeFeature:          FixBeforeFeatureSuggest,
-		FixBeforeFeatureDiscovery: false,
+		FixBeforeFeature: FixBeforeFeatureSuggest,
+		AutoFiler:        defaultAutoFilerSettings(),
+	}
+}
+
+func defaultAutoFilerSettings() AutoFilerSettings {
+	return AutoFilerSettings{
+		Enabled:                false,
+		Mode:                   AutoFilerModeSuggest,
+		Strategy:               AutoFilerStrategyFeaturePending,
+		MaxOpenAutoFiled:       10,
+		VelocityWindowDays:     7,
+		MinVelocityTransitions: 1,
+		IntervalMinutes:        30,
+		GoalName:               "automated-maintenance",
 	}
 }
 
@@ -413,7 +458,48 @@ func normalizeSettings(settings Settings) Settings {
 	default:
 		settings.FixBeforeFeature = FixBeforeFeatureSuggest
 	}
+	settings.AutoFiler = normalizeAutoFilerSettings(settings.AutoFiler)
 
+	return settings
+}
+
+func normalizeAutoFilerSettings(settings AutoFilerSettings) AutoFilerSettings {
+	defaults := defaultAutoFilerSettings()
+	switch settings.Mode {
+	case AutoFilerModeSuggest, AutoFilerModeAutoAdd:
+	default:
+		settings.Mode = defaults.Mode
+	}
+	switch settings.Strategy {
+	case AutoFilerStrategyFeaturePending, AutoFilerStrategyImportance:
+	default:
+		settings.Strategy = defaults.Strategy
+	}
+	if settings.MaxOpenAutoFiled <= 0 {
+		settings.MaxOpenAutoFiled = defaults.MaxOpenAutoFiled
+	} else {
+		settings.MaxOpenAutoFiled = clampInt(settings.MaxOpenAutoFiled, 1, 100)
+	}
+	if settings.VelocityWindowDays <= 0 {
+		settings.VelocityWindowDays = defaults.VelocityWindowDays
+	} else {
+		settings.VelocityWindowDays = clampInt(settings.VelocityWindowDays, 1, 90)
+	}
+	if settings.MinVelocityTransitions <= 0 {
+		settings.MinVelocityTransitions = defaults.MinVelocityTransitions
+	} else {
+		settings.MinVelocityTransitions = clampInt(settings.MinVelocityTransitions, 1, 1000)
+	}
+	if settings.IntervalMinutes <= 0 {
+		settings.IntervalMinutes = defaults.IntervalMinutes
+	} else {
+		settings.IntervalMinutes = clampInt(settings.IntervalMinutes, 1, 1440)
+	}
+	if strings.TrimSpace(settings.GoalName) == "" {
+		settings.GoalName = defaults.GoalName
+	} else {
+		settings.GoalName = strings.TrimSpace(settings.GoalName)
+	}
 	return settings
 }
 
@@ -565,7 +651,35 @@ func applyGovernancePatch(current *Settings, patch SettingsPatch) {
 	if patch.FixBeforeFeature != nil {
 		current.FixBeforeFeature = strings.TrimSpace(*patch.FixBeforeFeature)
 	}
-	if patch.FixBeforeFeatureDiscovery != nil {
-		current.FixBeforeFeatureDiscovery = *patch.FixBeforeFeatureDiscovery
+	if patch.AutoFiler != nil {
+		current.AutoFiler = applyAutoFilerPatch(current.AutoFiler, *patch.AutoFiler)
 	}
+}
+
+func applyAutoFilerPatch(current AutoFilerSettings, patch AutoFilerSettingsPatch) AutoFilerSettings {
+	if patch.Enabled != nil {
+		current.Enabled = *patch.Enabled
+	}
+	if patch.Mode != nil {
+		current.Mode = strings.TrimSpace(*patch.Mode)
+	}
+	if patch.Strategy != nil {
+		current.Strategy = strings.TrimSpace(*patch.Strategy)
+	}
+	if patch.MaxOpenAutoFiled != nil {
+		current.MaxOpenAutoFiled = *patch.MaxOpenAutoFiled
+	}
+	if patch.VelocityWindowDays != nil {
+		current.VelocityWindowDays = *patch.VelocityWindowDays
+	}
+	if patch.MinVelocityTransitions != nil {
+		current.MinVelocityTransitions = *patch.MinVelocityTransitions
+	}
+	if patch.IntervalMinutes != nil {
+		current.IntervalMinutes = *patch.IntervalMinutes
+	}
+	if patch.GoalName != nil {
+		current.GoalName = strings.TrimSpace(*patch.GoalName)
+	}
+	return current
 }

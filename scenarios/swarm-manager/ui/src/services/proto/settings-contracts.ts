@@ -5,6 +5,9 @@ import type {
   Settings as SettingsDomain,
   DeleteConfirmLevel as DomainDeleteConfirmLevel,
   DeleteConfirmationSettings,
+  AutoFilerMode,
+  AutoFilerSettings,
+  AutoFilerStrategy,
   ExecutionMode,
   FixBeforeFeatureMode,
   ThemePreference,
@@ -114,10 +117,42 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     executionCostCapPerRun: protoSettings.executionCostCapPerRun ?? 0,
     costPerTurnEstimate: protoSettings.costPerTurnEstimate ?? 0.10,
     fixBeforeFeature: normalizeFixBeforeFeature(protoSettings.fixBeforeFeature),
-    fixBeforeFeatureDiscovery: protoSettings.fixBeforeFeatureDiscovery ?? false,
+    autoFiler: mapAutoFilerSettings(protoSettings.autoFiler),
   };
 }
 
 function normalizeFixBeforeFeature(value: string | undefined): FixBeforeFeatureMode {
   return value === "off" || value === "block" ? value : "suggest";
+}
+
+function normalizeAutoFilerMode(value: string | undefined): AutoFilerMode {
+  return value === "auto_add" ? value : "suggest";
+}
+
+function normalizeAutoFilerStrategy(value: string | undefined): AutoFilerStrategy {
+  return value === "importance" ? value : "feature_pending";
+}
+
+type ProtoAutoFilerSettingsLike = {
+  enabled?: boolean;
+  mode?: string;
+  strategy?: string;
+  maxOpenAutoFiled?: number;
+  velocityWindowDays?: number;
+  minVelocityTransitions?: number;
+  intervalMinutes?: number;
+  goalName?: string;
+};
+
+function mapAutoFilerSettings(input?: ProtoAutoFilerSettingsLike): AutoFilerSettings {
+  return {
+    enabled: input?.enabled ?? false,
+    mode: normalizeAutoFilerMode(input?.mode),
+    strategy: normalizeAutoFilerStrategy(input?.strategy),
+    maxOpenAutoFiled: input?.maxOpenAutoFiled ?? 10,
+    velocityWindowDays: input?.velocityWindowDays ?? 7,
+    minVelocityTransitions: input?.minVelocityTransitions ?? 1,
+    intervalMinutes: input?.intervalMinutes ?? 30,
+    goalName: input?.goalName?.trim() || "automated-maintenance",
+  };
 }

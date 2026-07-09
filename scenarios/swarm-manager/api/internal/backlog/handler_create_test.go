@@ -125,6 +125,24 @@ func TestCreate_RejectsUnknownField(t *testing.T) {
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "new-test-idea", "spec.json"))
 }
 
+func TestCreate_RejectsSuggestedStatusField(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", strings.NewReader(`{
+		"name": "suggested-create",
+		"title": "Suggested Create",
+		"kind": "fix",
+		"status": "suggested"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	testutil.AssertStatusBadRequest(t, w)
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "suggested-create", "spec.json"))
+}
+
 func TestCreate_MultipartWithFiles(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 

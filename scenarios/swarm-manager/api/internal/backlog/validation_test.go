@@ -52,6 +52,13 @@ func TestValidateUpdateBacklogItemRequest(t *testing.T) {
 			wantErr: "status 'queued' and 'in_progress' can only be set by the execution system",
 		},
 		{
+			name:    "suggested target rejected",
+			kind:    KindIdea,
+			req:     &apipb.UpdateBacklogItemRequest{Status: stringPtr("suggested")},
+			fields:  backlogUpdateFieldSet{updateFieldStatus: {}},
+			wantErr: `status "suggested" is not user-settable via PATCH`,
+		},
+		{
 			name:    "invalid priority",
 			kind:    KindIdea,
 			req:     &apipb.UpdateBacklogItemRequest{Priority: int32Ptr(11)},
@@ -79,6 +86,18 @@ func TestValidateUpdateBacklogItemRequest(t *testing.T) {
 			got := validateUpdateBacklogItemRequest(tc.req, tc.fields, tc.kind, StatusBacklog)
 			if got != tc.wantErr {
 				t.Fatalf("expected %q, got %q", tc.wantErr, got)
+			}
+		})
+	}
+}
+
+func TestValidateUpdateBacklogItemRequestAcceptsSuggestedItems(t *testing.T) {
+	for _, status := range []string{"backlog", "ready"} {
+		t.Run(status, func(t *testing.T) {
+			req := &apipb.UpdateBacklogItemRequest{Status: stringPtr(status)}
+			fields := backlogUpdateFieldSet{updateFieldStatus: {}}
+			if got := validateUpdateBacklogItemRequest(req, fields, KindFix, StatusSuggested); got != "" {
+				t.Fatalf("suggested -> %s got error %q", status, got)
 			}
 		})
 	}

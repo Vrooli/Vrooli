@@ -12,6 +12,7 @@
 
 // Backlog
 export { backlogService, createBacklogService } from "./backlog-service";
+export { autoFilerService, createAutoFilerService } from "./auto-filer-service";
 export type { IBacklogService, QueueResponse } from "./backlog-service";
 
 // Captures

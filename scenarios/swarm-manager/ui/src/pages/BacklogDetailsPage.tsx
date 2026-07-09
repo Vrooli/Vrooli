@@ -7,8 +7,9 @@
 
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Activity, CircleHelp, ClipboardList, Files, Sparkles } from "lucide-react";
+import { Activity, Archive, CheckSquare, CircleHelp, ClipboardList, Files, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Button } from "../components/ui/button";
 import { PlanPanel } from "../components/backlog/plan-panel";
 import { useUrlState } from "../hooks/use-url-state";
 import { ErrorState } from "../components/ui/error-state";
@@ -46,6 +47,7 @@ import {
 } from "../stores";
 import { BACKLOG_LENSES } from "../components/detail/lens-options";
 import { backlogService } from "../services/backlog-service";
+import { autoFilerService } from "../services/auto-filer-service";
 import { reviewService } from "../services/review-service";
 import { useReviewStore } from "../stores/review-store";
 import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
@@ -125,11 +127,27 @@ export function BacklogDetailsPage() {
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
   const [workshopAutoAdvance, setWorkshopAutoAdvance] = useState<WorkshopAutoAdvance | null>(null);
+  const [dismissSuggestionPending, setDismissSuggestionPending] = useState(false);
+  const [dismissSuggestionError, setDismissSuggestionError] = useState<string | null>(null);
   const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
   const handleWorkshopSaveResult = useCallback((result: WorkshopSaveResponse) => {
     setWorkshopAutoAdvance(result.autoAdvance?.nextMode ? result.autoAdvance : null);
   }, []);
   const clearWorkshopAutoAdvance = useCallback(() => setWorkshopAutoAdvance(null), []);
+  const handleDismissSuggestion = useCallback(async () => {
+    if (!item) return;
+    setDismissSuggestionPending(true);
+    setDismissSuggestionError(null);
+    try {
+      const archived = await autoFilerService.dismissSuggestion(item.kind, item.name);
+      upsertItem(archived);
+      refetchItem();
+    } catch (error) {
+      setDismissSuggestionError(error instanceof Error ? error.message : "Unable to dismiss suggestion");
+    } finally {
+      setDismissSuggestionPending(false);
+    }
+  }, [item, refetchItem, upsertItem]);
 
   // --- Handlers hook ---
   const handlers = useBacklogHandlers({
@@ -413,6 +431,41 @@ export function BacklogDetailsPage() {
     </div>
   ) : undefined;
 
+  const suggestionActions = item?.status === "suggested" && item.archivedAt == null ? (
+    <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] px-3 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium text-cyan-200">Auto-filer suggestion</h3>
+          <p className="mt-1 text-xs text-slate-400">Accept to add it to the backlog, or dismiss to archive and remember the finding.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => data.updateStatus("backlog")}
+            disabled={data.isUpdatingStatus}
+          >
+            <CheckSquare className="mr-1 h-3.5 w-3.5" />
+            Accept
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void handleDismissSuggestion()}
+            disabled={dismissSuggestionPending}
+          >
+            <Archive className="mr-1 h-3.5 w-3.5" />
+            {dismissSuggestionPending ? "Dismissing..." : "Dismiss"}
+          </Button>
+        </div>
+      </div>
+      {dismissSuggestionError ? (
+        <p className="mt-2 text-xs text-amber-300">{dismissSuggestionError}</p>
+      ) : null}
+    </div>
+  ) : null;
+
   const fileWorkspaceElement = fileService ? (
     <FileServiceProvider value={fileService}>
       <BacklogFileWorkspace
@@ -523,6 +576,7 @@ export function BacklogDetailsPage() {
                         {deleteError || archiveError}
                       </div>
                     )}
+                    {suggestionActions}
                     {detailsPanel}
                     <BacklogScenariosPanel targetScenarios={targetScenarios} />
                     {notesPanel}
@@ -576,6 +630,7 @@ export function BacklogDetailsPage() {
 
               {/* Desktop content */}
               <div className="hidden space-y-6 lg:block">
+                {suggestionActions}
                 <BacklogDesktopHeader
                   item={item}
                   deleteError={deleteError}

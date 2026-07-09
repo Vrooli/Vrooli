@@ -37,7 +37,7 @@ func TestSubcommandGroups(t *testing.T) {
 	wantNames := []string{
 		"backlog", "scenarios", "settings", "queue", "execution", "prompts",
 		"initiatives", "operating-mode", "captures", "records", "agent-manager",
-		"operations", "portfolio", "sessions", "stats", "ai-search",
+		"operations", "portfolio", "sessions", "stats", "ai-search", "autofiler",
 	}
 	if len(groups) != len(wantNames) {
 		t.Fatalf("SubcommandGroups count = %d, want %d", len(groups), len(wantNames))

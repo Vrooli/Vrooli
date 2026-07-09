@@ -37,22 +37,31 @@ func (a *App) cmdSettingsGet(args []string) error {
 
 	var response struct {
 		Settings struct {
-			Theme                     string            `json:"theme"`
-			DefaultMode               string            `json:"default_mode"`
-			DefaultDelaySeconds       int64             `json:"default_delay_seconds"`
-			AutoFixup                 bool              `json:"auto_fixup"`
-			MaxFixupAttempts          int               `json:"max_fixup_attempts"`
-			AutoInitializeWorkshop    bool              `json:"auto_initialize_workshop"`
-			AutoAdvanceWorkshop       bool              `json:"auto_advance_workshop"`
-			AutoCascadeWorkshop       bool              `json:"auto_cascade_workshop"`
-			MaxAutoRounds             int               `json:"max_auto_rounds"`
-			AgentMaxTurns             int               `json:"agent_max_turns"`
-			AgentTimeoutSeconds       int               `json:"agent_timeout_seconds"`
-			SearchDebounceMs          int               `json:"search_debounce_ms"`
-			ToastDurationMs           int               `json:"toast_duration_ms"`
-			DeleteConfirmationLevels  map[string]string `json:"delete_confirmation_levels"`
-			FixBeforeFeature          string            `json:"fix_before_feature"`
-			FixBeforeFeatureDiscovery bool              `json:"fix_before_feature_discovery"`
+			Theme                    string            `json:"theme"`
+			DefaultMode              string            `json:"default_mode"`
+			DefaultDelaySeconds      int64             `json:"default_delay_seconds"`
+			AutoFixup                bool              `json:"auto_fixup"`
+			MaxFixupAttempts         int               `json:"max_fixup_attempts"`
+			AutoInitializeWorkshop   bool              `json:"auto_initialize_workshop"`
+			AutoAdvanceWorkshop      bool              `json:"auto_advance_workshop"`
+			AutoCascadeWorkshop      bool              `json:"auto_cascade_workshop"`
+			MaxAutoRounds            int               `json:"max_auto_rounds"`
+			AgentMaxTurns            int               `json:"agent_max_turns"`
+			AgentTimeoutSeconds      int               `json:"agent_timeout_seconds"`
+			SearchDebounceMs         int               `json:"search_debounce_ms"`
+			ToastDurationMs          int               `json:"toast_duration_ms"`
+			DeleteConfirmationLevels map[string]string `json:"delete_confirmation_levels"`
+			FixBeforeFeature         string            `json:"fix_before_feature"`
+			AutoFiler                struct {
+				Enabled                bool   `json:"enabled"`
+				Mode                   string `json:"mode"`
+				Strategy               string `json:"strategy"`
+				MaxOpenAutoFiled       int    `json:"max_open_auto_filed"`
+				VelocityWindowDays     int    `json:"velocity_window_days"`
+				MinVelocityTransitions int    `json:"min_velocity_transitions"`
+				IntervalMinutes        int    `json:"interval_minutes"`
+				GoalName               string `json:"goal_name"`
+			} `json:"auto_filer"`
 		} `json:"settings"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
@@ -69,7 +78,16 @@ func (a *App) cmdSettingsGet(args []string) error {
 	fmt.Printf("  Auto fixup: %t\n", s.AutoFixup)
 	fmt.Printf("  Max fixup attempts: %d\n", s.MaxFixupAttempts)
 	fmt.Printf("  Fix before feature: %s\n", s.FixBeforeFeature)
-	fmt.Printf("  Fix before feature discovery: %t\n", s.FixBeforeFeatureDiscovery)
+
+	printSection("Backlog Auto-Filer")
+	fmt.Printf("  Enabled: %t\n", s.AutoFiler.Enabled)
+	fmt.Printf("  Mode: %s\n", s.AutoFiler.Mode)
+	fmt.Printf("  Strategy: %s\n", s.AutoFiler.Strategy)
+	fmt.Printf("  Max open auto-filed: %d\n", s.AutoFiler.MaxOpenAutoFiled)
+	fmt.Printf("  Velocity window days: %d\n", s.AutoFiler.VelocityWindowDays)
+	fmt.Printf("  Min velocity transitions: %d\n", s.AutoFiler.MinVelocityTransitions)
+	fmt.Printf("  Interval minutes: %d\n", s.AutoFiler.IntervalMinutes)
+	fmt.Printf("  Goal name: %s\n", s.AutoFiler.GoalName)
 
 	printSection("Workshop")
 	fmt.Printf("  Auto-initialize workshop: %t\n", s.AutoInitializeWorkshop)

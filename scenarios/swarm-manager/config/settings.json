@@ -13,10 +13,13 @@
   "agent_timeout_seconds": 3600,
   "search_debounce_ms": 300,
   "toast_duration_ms": 5000,
-  "delete_confirmation": {
+  "delete_confirmation_levels": {
     "backlog": "simple",
+    "backlogFile": "simple",
+    "capture": "none",
     "initiative": "strong",
-    "capture": "none"
+    "scenario": "strong",
+    "session": "simple"
   },
   "review_code_quality_min_score": 60,
   "review_test_min_pass_rate": 1,
@@ -36,5 +39,14 @@
   "execution_cost_cap_per_run": 0,
   "cost_per_turn_estimate": 0.1,
   "fix_before_feature": "suggest",
-  "fix_before_feature_discovery": false
+  "auto_filer": {
+    "enabled": false,
+    "mode": "suggest",
+    "strategy": "feature_pending",
+    "max_open_auto_filed": 10,
+    "velocity_window_days": 7,
+    "min_velocity_transitions": 1,
+    "interval_minutes": 30,
+    "goal_name": "automated-maintenance"
+  }
 }

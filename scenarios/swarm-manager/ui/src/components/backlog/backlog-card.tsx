@@ -88,7 +88,10 @@ export interface BacklogCardProps {
   onFollowUp?: () => void;
   onFinalize?: () => void;
   onWorkshop?: () => void;
+  onAcceptSuggestion?: () => void;
+  onDismissSuggestion?: () => void;
   archivePending?: boolean;
+  dismissPending?: boolean;
   finalizePending?: boolean;
   workshopPending?: boolean;
   workshopLabel?: string;
@@ -122,7 +125,10 @@ function BacklogCardImpl({
   onFollowUp = () => {},
   onFinalize = () => {},
   onWorkshop = () => {},
+  onAcceptSuggestion = () => {},
+  onDismissSuggestion = () => {},
   archivePending = false,
+  dismissPending = false,
   finalizePending = false,
   workshopPending = false,
   workshopLabel = "Workshop",
@@ -316,6 +322,37 @@ function BacklogCardImpl({
             <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
               <Lock className="h-3 w-3" />
               {formatBacklogStatus(item.status)} — check Execution for progress.
+            </div>
+          )}
+
+          {item.status === "suggested" && !item.archivedAt && (
+            <div className={actionRowClass} data-testid="backlog-card-actions" onClick={(event) => event.preventDefault()}>
+              <Button
+                size="sm"
+                variant="default"
+                disabled={statusChangePending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onAcceptSuggestion();
+                }}
+              >
+                <CheckSquare className="mr-1 h-3 w-3" />
+                Accept
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={dismissPending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onDismissSuggestion();
+                }}
+              >
+                <Archive className="mr-1 h-3 w-3" />
+                {dismissPending ? "Dismissing..." : "Dismiss"}
+              </Button>
             </div>
           )}
 

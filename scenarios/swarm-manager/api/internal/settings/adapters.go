@@ -38,6 +38,17 @@ func NewGovernanceAdapter(store *Store) *governanceAdapter {
 	return &governanceAdapter{store: store}
 }
 
+// LoadAutoFiler returns the normalized auto-filer policy block. The auto-filer
+// re-reads this on every cycle so operators can enable, brake, or retarget it
+// without restarting swarm-manager.
+func (a *governanceAdapter) LoadAutoFiler() (AutoFilerSettings, error) {
+	s, err := a.store.Load()
+	if err != nil {
+		return AutoFilerSettings{}, err
+	}
+	return s.AutoFiler, nil
+}
+
 func (a *governanceAdapter) LoadGovernance() (execution.GovernanceSettings, error) {
 	s, err := a.store.Load()
 	if err != nil {
@@ -58,7 +69,8 @@ func (a *governanceAdapter) LoadGovernance() (execution.GovernanceSettings, erro
 		CostPerTurnEstimate:           s.CostPerTurnEstimate,
 		AgentMaxTurns:                 s.AgentMaxTurns,
 		FixBeforeFeature:              s.FixBeforeFeature,
-		FixBeforeFeatureDiscovery:     s.FixBeforeFeatureDiscovery,
+		AutoFilerEnabled:              s.AutoFiler.Enabled,
+		AutoFilerStrategy:             s.AutoFiler.Strategy,
 	}, nil
 }
 

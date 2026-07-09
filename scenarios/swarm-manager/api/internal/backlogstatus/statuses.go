@@ -8,6 +8,7 @@ package backlogstatus
 // Status string values. Kept as untyped constants so callers in either
 // package can interpolate them into typed or untyped strings freely.
 const (
+	Suggested     = "suggested"
 	Backlog       = "backlog"
 	Researching   = "researching"
 	Ready         = "ready"
@@ -23,7 +24,7 @@ const (
 // All returns every valid status value in a stable order.
 func All() []string {
 	return []string{
-		Backlog, Researching, Ready, Queued, InProgress,
+		Suggested, Backlog, Researching, Ready, Queued, InProgress,
 		InReview, ReviewPending, Completed, Failed, NeedsFollowup,
 	}
 }
@@ -31,7 +32,7 @@ func All() []string {
 // IsValid reports whether s is one of the known status strings.
 func IsValid(s string) bool {
 	switch s {
-	case Backlog, Researching, Ready, Queued, InProgress,
+	case Suggested, Backlog, Researching, Ready, Queued, InProgress,
 		InReview, ReviewPending, Completed, Failed, NeedsFollowup:
 		return true
 	}

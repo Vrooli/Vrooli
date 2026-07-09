@@ -55,6 +55,14 @@ type GovernanceProvider interface {
 	LoadGovernance() (GovernanceSettings, error)
 }
 
+// AutoFilerWaker receives feature-queue hints from the fix-before-feature gate.
+// The gate remains advisory/blocking only; this wake path just asks the
+// governed background auto-filer to run early when feature-pending strategy is
+// enabled.
+type AutoFilerWaker interface {
+	WakeAutoFiler()
+}
+
 // GoalPriorityProvider supplies per-item goal priority so the drain comparator
 // can prefer items in higher-priority goals. Optional: when unset, the drain
 // falls back to pure FIFO by CreatedAt (behavior-preserving for ungoaled work).

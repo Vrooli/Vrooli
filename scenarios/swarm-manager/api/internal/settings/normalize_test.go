@@ -37,23 +37,111 @@ func TestDefaultSettingsFixBeforeFeature(t *testing.T) {
 	if d.FixBeforeFeature != FixBeforeFeatureSuggest {
 		t.Errorf("default fix_before_feature = %q, want suggest", d.FixBeforeFeature)
 	}
-	if d.FixBeforeFeatureDiscovery {
-		t.Errorf("default fix_before_feature_discovery = true, want false")
-	}
 }
 
 func TestApplyPatchFixBeforeFeature(t *testing.T) {
 	block := FixBeforeFeatureBlock
-	enabled := true
 	patched := applyPatch(DefaultSettings(), SettingsPatch{
-		FixBeforeFeature:          &block,
-		FixBeforeFeatureDiscovery: &enabled,
+		FixBeforeFeature: &block,
 	})
 	if patched.FixBeforeFeature != FixBeforeFeatureBlock {
 		t.Errorf("patched fix_before_feature = %q, want block", patched.FixBeforeFeature)
 	}
-	if !patched.FixBeforeFeatureDiscovery {
-		t.Errorf("patched fix_before_feature_discovery = false, want true")
+}
+
+func TestDefaultSettingsAutoFiler(t *testing.T) {
+	d := DefaultSettings().AutoFiler
+	if d.Enabled {
+		t.Errorf("default auto_filer.enabled = true, want false")
+	}
+	if d.Mode != AutoFilerModeSuggest {
+		t.Errorf("default auto_filer.mode = %q, want suggest", d.Mode)
+	}
+	if d.Strategy != AutoFilerStrategyFeaturePending {
+		t.Errorf("default auto_filer.strategy = %q, want feature_pending", d.Strategy)
+	}
+	if d.MaxOpenAutoFiled != 10 {
+		t.Errorf("default auto_filer.max_open_auto_filed = %d, want 10", d.MaxOpenAutoFiled)
+	}
+	if d.VelocityWindowDays != 7 {
+		t.Errorf("default auto_filer.velocity_window_days = %d, want 7", d.VelocityWindowDays)
+	}
+	if d.MinVelocityTransitions != 1 {
+		t.Errorf("default auto_filer.min_velocity_transitions = %d, want 1", d.MinVelocityTransitions)
+	}
+	if d.IntervalMinutes != 30 {
+		t.Errorf("default auto_filer.interval_minutes = %d, want 30", d.IntervalMinutes)
+	}
+	if d.GoalName != "automated-maintenance" {
+		t.Errorf("default auto_filer.goal_name = %q, want automated-maintenance", d.GoalName)
+	}
+}
+
+func TestNormalizeAutoFilerSettings(t *testing.T) {
+	got := normalizeSettings(Settings{
+		AutoFiler: AutoFilerSettings{
+			Enabled:                true,
+			Mode:                   "bad",
+			Strategy:               "also-bad",
+			MaxOpenAutoFiled:       500,
+			VelocityWindowDays:     -1,
+			MinVelocityTransitions: 0,
+			IntervalMinutes:        0,
+			GoalName:               "  custom-goal  ",
+		},
+	}).AutoFiler
+	if !got.Enabled {
+		t.Errorf("enabled = false, want true")
+	}
+	if got.Mode != AutoFilerModeSuggest {
+		t.Errorf("mode = %q, want suggest", got.Mode)
+	}
+	if got.Strategy != AutoFilerStrategyFeaturePending {
+		t.Errorf("strategy = %q, want feature_pending", got.Strategy)
+	}
+	if got.MaxOpenAutoFiled != 100 {
+		t.Errorf("max_open_auto_filed = %d, want 100", got.MaxOpenAutoFiled)
+	}
+	if got.VelocityWindowDays != 7 {
+		t.Errorf("velocity_window_days = %d, want 7", got.VelocityWindowDays)
+	}
+	if got.MinVelocityTransitions != 1 {
+		t.Errorf("min_velocity_transitions = %d, want 1", got.MinVelocityTransitions)
+	}
+	if got.IntervalMinutes != 30 {
+		t.Errorf("interval_minutes = %d, want 30", got.IntervalMinutes)
+	}
+	if got.GoalName != "custom-goal" {
+		t.Errorf("goal_name = %q, want custom-goal", got.GoalName)
+	}
+}
+
+func TestApplyPatchAutoFiler(t *testing.T) {
+	enabled := true
+	mode := AutoFilerModeAutoAdd
+	strategy := AutoFilerStrategyImportance
+	cap := 3
+	window := 14
+	transitions := 2
+	interval := 5
+	goal := "  maintenance  "
+	patched := applyPatch(DefaultSettings(), SettingsPatch{
+		AutoFiler: &AutoFilerSettingsPatch{
+			Enabled:                &enabled,
+			Mode:                   &mode,
+			Strategy:               &strategy,
+			MaxOpenAutoFiled:       &cap,
+			VelocityWindowDays:     &window,
+			MinVelocityTransitions: &transitions,
+			IntervalMinutes:        &interval,
+			GoalName:               &goal,
+		},
+	})
+	got := normalizeSettings(patched).AutoFiler
+	if !got.Enabled || got.Mode != mode || got.Strategy != strategy || got.MaxOpenAutoFiled != cap ||
+		got.VelocityWindowDays != window || got.MinVelocityTransitions != transitions ||
+		got.IntervalMinutes != interval || got.GoalName != "maintenance" {
+		t.Fatalf("patched auto_filer = %+v", got)
 	}
 }
 

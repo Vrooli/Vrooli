@@ -212,7 +212,7 @@ type Service struct {
 	goalPriorityProvider     GoalPriorityProvider
 	goalReadyProvider        GoalReadyProvider
 	autoDrainProvider        AutoDrainProvider
-	remediationFiler         RemediationFiler
+	autoFilerWaker           AutoFilerWaker
 	processingFinalizations  map[string]struct{}
 	processingHolds          map[string]struct{}
 	runTrackers              map[string]*runTracker

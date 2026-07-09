@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/agentsessions"
 )
@@ -42,6 +43,11 @@ const (
 	// readiness discovery (Tier 2). Skips auto-workshop; the item is a
 	// pre-formed remediation stub later refined by the normal workshop flow.
 	SourceFixDiscovery Source = "fix_discovery"
+
+	// SourceAutoFiler — the governed backlog auto-filer. Skips auto-workshop;
+	// the item is a programmatic maintenance finding and must remain
+	// attributable by created_by.source / finding_ref.
+	SourceAutoFiler Source = "auto_filer"
 )
 
 // CreationContext is the per-call attribution + policy parameter passed
@@ -123,6 +129,10 @@ type CreationStore interface {
 // *eventlog.Emitter.
 type CreationEventEmitter interface {
 	EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, initiative, effort, actorType, actorID string)
+}
+
+type archiveEventEmitter interface {
+	EmitBacklogArchived(entityID, previousStatus, archivedAt string)
 }
 
 // WorkshopTrigger fires the auto-workshop policy for a freshly-created
@@ -230,6 +240,57 @@ func (s *Service) CreateWithFiles(item BacklogItem, files []PendingBacklogFile, 
 	return s.create(item, files, cc)
 }
 
+// ArchiveItem marks an item archived through the same persistence/event side
+// effects used by normal backlog mutations. It is idempotent for already
+// archived items and appends reason to the item note when provided.
+func (s *Service) ArchiveItem(ctx context.Context, kind BacklogKind, name, reason string) (BacklogItem, error) {
+	_ = ctx
+	item, err := s.store.LoadItem(kind, name)
+	if err != nil {
+		return BacklogItem{}, err
+	}
+	if item.ArchivedAt != nil && strings.TrimSpace(*item.ArchivedAt) != "" {
+		return item, nil
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	item.Note = appendNote(item.Note, reason)
+	item.ArchivedAt = &now
+	item.Updated = now
+	if err := s.store.SaveItem(item); err != nil {
+		return BacklogItem{}, err
+	}
+	if emitter, ok := s.events.(archiveEventEmitter); ok {
+		emitter.EmitBacklogArchived(string(kind)+"/"+name, string(item.Status), now)
+	}
+	if s.invalidator != nil {
+		s.invalidator.ScheduleAll()
+	}
+	return item, nil
+}
+
+// AnnotateItem appends a durable operator-visible note to an item. Repeated
+// calls with the same note are idempotent.
+func (s *Service) AnnotateItem(ctx context.Context, kind BacklogKind, name, note string) (BacklogItem, error) {
+	_ = ctx
+	item, err := s.store.LoadItem(kind, name)
+	if err != nil {
+		return BacklogItem{}, err
+	}
+	updatedNote := appendNote(item.Note, note)
+	if updatedNote == item.Note {
+		return item, nil
+	}
+	item.Note = updatedNote
+	item.Updated = time.Now().UTC().Format(time.RFC3339)
+	if err := s.store.SaveItem(item); err != nil {
+		return BacklogItem{}, err
+	}
+	if s.invalidator != nil {
+		s.invalidator.ScheduleAll()
+	}
+	return item, nil
+}
+
 // validateCreateRequest enforces required fields, kind validity, the duplicate
 // check, and dependency/cycle validation before an item is persisted.
 func (s *Service) validateCreateRequest(item BacklogItem, cc CreationContext) error {
@@ -265,6 +326,21 @@ func (s *Service) validateCreateRequest(item BacklogItem, cc CreationContext) er
 		}
 	}
 	return nil
+}
+
+func appendNote(existing, note string) string {
+	note = strings.TrimSpace(note)
+	if note == "" {
+		return strings.TrimSpace(existing)
+	}
+	existing = strings.TrimSpace(existing)
+	if existing == "" {
+		return note
+	}
+	if strings.Contains(existing, note) {
+		return existing
+	}
+	return existing + "\n\n" + note
 }
 
 func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc CreationContext) error {
@@ -416,6 +492,8 @@ func actorForSource(cc CreationContext) (string, string) {
 		return "initiative_review", cc.ReviewRoundID
 	case cc.FeedbackRoundID != "":
 		return "feedback_round", cc.FeedbackRoundID
+	case cc.Source == SourceAutoFiler:
+		return "auto_filer", cc.Entrypoint
 	default:
 		return "user", cc.DecidedBy
 	}

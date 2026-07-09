@@ -57,6 +57,11 @@ const (
 	ModeYOLO   Mode = "yolo"
 )
 
+const (
+	AutoFilerStrategyFeaturePending = "feature_pending"
+	AutoFilerStrategyImportance     = "importance"
+)
+
 // ValidateMode returns true if m is a known execution mode.
 func ValidateMode(m Mode) bool {
 	switch m {
@@ -236,11 +241,12 @@ type GovernanceSettings struct {
 	AgentMaxTurns                 int            `json:"agent_max_turns"`
 
 	// FixBeforeFeature controls the fix-before-feature gate: "off", "suggest"
-	// (default), or "block". FixBeforeFeatureDiscovery enables async on-demand
-	// readiness discovery when a feature item targets a scenario with no known
+	// (default), or "block". AutoFilerEnabled with the feature_pending
+	// strategy wakes the maintenance filing path for scenarios with no known
 	// open remediation work. See fix_before_feature.go.
-	FixBeforeFeature          string `json:"fix_before_feature"`
-	FixBeforeFeatureDiscovery bool   `json:"fix_before_feature_discovery"`
+	FixBeforeFeature  string `json:"fix_before_feature"`
+	AutoFilerEnabled  bool   `json:"auto_filer_enabled"`
+	AutoFilerStrategy string `json:"auto_filer_strategy"`
 }
 
 // DefaultGovernanceSettings returns safe defaults for governance settings.
@@ -259,7 +265,8 @@ func DefaultGovernanceSettings() GovernanceSettings {
 		CostPerTurnEstimate:           0.10,
 		AgentMaxTurns:                 600,
 		FixBeforeFeature:              FixBeforeFeatureSuggest,
-		FixBeforeFeatureDiscovery:     false,
+		AutoFilerEnabled:              false,
+		AutoFilerStrategy:             AutoFilerStrategyFeaturePending,
 	}
 }
 

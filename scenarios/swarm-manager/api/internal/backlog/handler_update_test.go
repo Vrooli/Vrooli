@@ -242,6 +242,45 @@ func TestUpdate_InProgressStatus_Rejected(t *testing.T) {
 	testutil.AssertStatus(t, w, http.StatusBadRequest)
 }
 
+func TestUpdate_SuggestedStatusRejectedAsTarget(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, newTestItem("suggested-reject", "Suggested Reject"))
+
+	w := doUpdate(t, h, "idea", "suggested-reject", map[string]any{"status": "suggested"})
+	testutil.AssertStatus(t, w, http.StatusBadRequest)
+	if !strings.Contains(w.Body.String(), `status "suggested" is not user-settable`) {
+		t.Fatalf("expected suggested rejection, got: %s", w.Body.String())
+	}
+}
+
+func TestUpdate_AcceptsSuggestedItem(t *testing.T) {
+	for _, status := range []BacklogStatus{StatusBacklog, StatusReady} {
+		t.Run(string(status), func(t *testing.T) {
+			h, rootDir := setupTestHandler(t)
+			createTestItem(t, rootDir, KindFix, BacklogItem{
+				Name:       "accept-suggested-" + string(status),
+				Title:      "Accept Suggested",
+				Status:     StatusSuggested,
+				Priority:   5,
+				FindingRef: "gct://target/readiness",
+				Created:    "2026-01-28T00:00:00Z",
+				Updated:    "2026-01-28T00:00:00Z",
+			})
+
+			w := doUpdate(t, h, "fix", "accept-suggested-"+string(status), map[string]any{"status": string(status)})
+			testutil.AssertStatusOK(t, w)
+
+			saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "fix", "accept-suggested-"+string(status), "spec.json"))
+			if saved.Status != status {
+				t.Fatalf("status = %q, want %q", saved.Status, status)
+			}
+			if saved.FindingRef != "gct://target/readiness" {
+				t.Fatalf("finding_ref = %q", saved.FindingRef)
+			}
+		})
+	}
+}
+
 func TestUpdate_ChangeDependsOn(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{

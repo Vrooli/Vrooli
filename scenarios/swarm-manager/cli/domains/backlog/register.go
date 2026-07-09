@@ -17,6 +17,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("create", "Create a backlog item (--data JSON)", deps.BacklogCreate),
 			support.APICommand("update", "Update a backlog item (--kind KIND --name NAME --data JSON)", deps.BacklogUpdate),
 			support.APICommand("delete", "Delete a backlog item (--kind KIND --name NAME)", deps.BacklogDelete),
+			support.APICommand("dismiss", "Dismiss a suggested auto-filer item (--kind KIND --name NAME [--reason MSG])", deps.BacklogDismiss),
 			support.APICommand("workshop-reset", "Reset all workshop data for a backlog item (--kind KIND --name NAME)", deps.BacklogWorkshopReset),
 			support.APICommand("re-workshop", "Reset and re-queue the workshop for a stale plan (--kind KIND --name NAME)", deps.BacklogReWorkshop),
 			support.APICommand("files", "List backlog item files (--kind KIND --name NAME)", deps.BacklogFiles),

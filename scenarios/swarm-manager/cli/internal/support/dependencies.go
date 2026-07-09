@@ -14,6 +14,7 @@ type Dependencies struct {
 	BacklogCreate           CommandFunc
 	BacklogUpdate           CommandFunc
 	BacklogDelete           CommandFunc
+	BacklogDismiss          CommandFunc
 	BacklogWorkshopReset    CommandFunc
 	BacklogReWorkshop       CommandFunc
 	BacklogFiles            CommandFunc
@@ -146,6 +147,8 @@ type Dependencies struct {
 	AISearchReconcileCan  CommandFunc
 	BacklogSearchAI       CommandFunc
 	InitiativesSearchAI   CommandFunc
+	AutoFilerStatus       CommandFunc
+	AutoFilerRunNow       CommandFunc
 	// Top-level operating-mode catalog CLI (see cmd_operating_mode.go).
 	OperatingModeList  CommandFunc
 	OperatingModeGet   CommandFunc

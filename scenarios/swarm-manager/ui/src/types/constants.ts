@@ -37,6 +37,7 @@ export const BACKLOG_KIND_ICONS: Record<BacklogKind, LucideIcon> = {
 };
 
 export const BACKLOG_STATUSES: BacklogStatus[] = [
+  "suggested",
   "backlog",
   "researching",
   "ready",
@@ -71,6 +72,7 @@ export const USER_SETTABLE_STATUSES: BacklogStatus[] = [
  * Maps backlog status to tailwind background color classes
  */
 export const BACKLOG_STATUS_COLORS: Record<BacklogStatus, string> = {
+  suggested: "bg-fuchsia-600",
   backlog: "bg-slate-600",
   researching: "bg-blue-600",
   ready: "bg-green-600",
@@ -88,6 +90,7 @@ export const BACKLOG_STATUS_COLORS: Record<BacklogStatus, string> = {
  * Used for clickable dependency chips where the full-opacity badge would be too heavy.
  */
 export const BACKLOG_STATUS_CHIP_COLORS: Record<BacklogStatus, string> = {
+  suggested: "bg-fuchsia-500/20 text-fuchsia-300",
   backlog: "bg-slate-600/20 text-slate-300",
   researching: "bg-blue-600/20 text-blue-400",
   ready: "bg-green-600/20 text-green-400",

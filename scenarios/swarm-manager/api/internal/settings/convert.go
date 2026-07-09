@@ -115,7 +115,20 @@ func settingsToProto(s Settings) *domainpb.Settings {
 		ExecutionCostCapPerRun:        s.ExecutionCostCapPerRun,
 		CostPerTurnEstimate:           s.CostPerTurnEstimate,
 		FixBeforeFeature:              s.FixBeforeFeature,
-		FixBeforeFeatureDiscovery:     s.FixBeforeFeatureDiscovery,
+		AutoFiler:                     autoFilerSettingsToProto(s.AutoFiler),
+	}
+}
+
+func autoFilerSettingsToProto(s AutoFilerSettings) *domainpb.AutoFilerSettings {
+	return &domainpb.AutoFilerSettings{
+		Enabled:                s.Enabled,
+		Mode:                   s.Mode,
+		Strategy:               s.Strategy,
+		MaxOpenAutoFiled:       int32(s.MaxOpenAutoFiled),
+		VelocityWindowDays:     int32(s.VelocityWindowDays),
+		MinVelocityTransitions: int32(s.MinVelocityTransitions),
+		IntervalMinutes:        int32(s.IntervalMinutes),
+		GoalName:               s.GoalName,
 	}
 }
 
@@ -262,10 +275,49 @@ func governancePatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsP
 		v := *req.FixBeforeFeature
 		patch.FixBeforeFeature = &v
 	}
-	if req.FixBeforeFeatureDiscovery != nil {
-		v := *req.FixBeforeFeatureDiscovery
-		patch.FixBeforeFeatureDiscovery = &v
+	if req.AutoFiler != nil {
+		patch.AutoFiler = autoFilerPatchFromProto(req.AutoFiler)
 	}
+}
+
+func autoFilerPatchFromProto(req *apipb.AutoFilerSettingsPatch) *AutoFilerSettingsPatch {
+	if req == nil {
+		return nil
+	}
+	patch := &AutoFilerSettingsPatch{}
+	if req.Enabled != nil {
+		v := *req.Enabled
+		patch.Enabled = &v
+	}
+	if req.Mode != nil {
+		v := *req.Mode
+		patch.Mode = &v
+	}
+	if req.Strategy != nil {
+		v := *req.Strategy
+		patch.Strategy = &v
+	}
+	if req.MaxOpenAutoFiled != nil {
+		v := int(*req.MaxOpenAutoFiled)
+		patch.MaxOpenAutoFiled = &v
+	}
+	if req.VelocityWindowDays != nil {
+		v := int(*req.VelocityWindowDays)
+		patch.VelocityWindowDays = &v
+	}
+	if req.MinVelocityTransitions != nil {
+		v := int(*req.MinVelocityTransitions)
+		patch.MinVelocityTransitions = &v
+	}
+	if req.IntervalMinutes != nil {
+		v := int(*req.IntervalMinutes)
+		patch.IntervalMinutes = &v
+	}
+	if req.GoalName != nil {
+		v := *req.GoalName
+		patch.GoalName = &v
+	}
+	return patch
 }
 
 func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
@@ -330,5 +382,5 @@ func isEmptyGovernanceRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.ExecutionCostCapPerRun == nil &&
 		req.CostPerTurnEstimate == nil &&
 		req.FixBeforeFeature == nil &&
-		req.FixBeforeFeatureDiscovery == nil
+		req.AutoFiler == nil
 }

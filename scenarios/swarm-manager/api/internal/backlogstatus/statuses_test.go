@@ -2,6 +2,18 @@ package backlogstatus
 
 import "testing"
 
+func TestSuggestedStatusPolicy(t *testing.T) {
+	if !IsValid(Suggested) {
+		t.Fatal("suggested should be a valid backlog status")
+	}
+	if IsUserSettable(Suggested) {
+		t.Fatal("suggested should not be directly user-settable")
+	}
+	if IsTerminal(Suggested) {
+		t.Fatal("suggested should not be terminal")
+	}
+}
+
 func TestIsValidTransition(t *testing.T) {
 	cases := []struct {
 		from, to string
@@ -19,6 +31,7 @@ func TestIsValidTransition(t *testing.T) {
 		// Newly created items.
 		{"", Backlog, true, "new item default"},
 		{"", Ready, true, "new item pre-prioritized"},
+		{"", Suggested, true, "auto-filer can create suggested items internally"},
 		{"", "whatever", false, "unknown target rejected even for new items"},
 
 		// Self-transitions: allowed (handlers may carry other field changes).
@@ -40,6 +53,8 @@ func TestIsValidTransition(t *testing.T) {
 
 		// Within non-terminal states, transitions are permissive — finer
 		// rules live in update_patch.go.
+		{Suggested, Backlog, true, "operator accepts suggestion into backlog"},
+		{Suggested, Ready, true, "operator accepts suggestion as ready"},
 		{Backlog, Ready, true, ""},
 		{Ready, Backlog, true, "user can deprioritize"},
 		{Researching, Backlog, true, ""},

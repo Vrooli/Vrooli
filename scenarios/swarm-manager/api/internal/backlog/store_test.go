@@ -120,6 +120,48 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 		}
 	})
 
+	t.Run("suggested item finding_ref round-trips", func(t *testing.T) {
+		store, rootDir := setupTestStore(t)
+		testutil.MakeDir(t, filepath.Join(rootDir, "fix", "auto-filed-finding"))
+		item := BacklogItem{
+			Name:       "auto-filed-finding",
+			Title:      "Auto-filed Finding",
+			Status:     StatusSuggested,
+			Priority:   2,
+			Tags:       []string{"auto-filer"},
+			Created:    "2026-01-01T00:00:00Z",
+			Updated:    "2026-01-01T00:00:00Z",
+			Kind:       KindFix,
+			FindingRef: "gct://scenario/readiness/docs",
+		}
+		if err := store.SaveItem(item); err != nil {
+			t.Fatalf("SaveItem: %v", err)
+		}
+
+		loaded, err := store.LoadItem(KindFix, "auto-filed-finding")
+		if err != nil {
+			t.Fatalf("LoadItem: %v", err)
+		}
+		if loaded.Status != StatusSuggested {
+			t.Fatalf("status = %q, want %q", loaded.Status, StatusSuggested)
+		}
+		if loaded.FindingRef != "gct://scenario/readiness/docs" {
+			t.Fatalf("finding_ref = %q", loaded.FindingRef)
+		}
+
+		var persisted map[string]any
+		data, err := os.ReadFile(filepath.Join(rootDir, "fix", "auto-filed-finding", "spec.json"))
+		if err != nil {
+			t.Fatalf("read spec.json: %v", err)
+		}
+		if err := json.Unmarshal(data, &persisted); err != nil {
+			t.Fatalf("unmarshal spec.json: %v", err)
+		}
+		if persisted["finding_ref"] != "gct://scenario/readiness/docs" {
+			t.Fatalf("persisted finding_ref = %#v", persisted["finding_ref"])
+		}
+	})
+
 	t.Run("missing file returns error", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		specPath := filepath.Join(rootDir, "ideas", "nonexistent", "spec.json")

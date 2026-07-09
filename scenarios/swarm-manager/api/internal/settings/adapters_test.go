@@ -35,7 +35,8 @@ func testStore(t *testing.T) *Store {
 	s.ReviewRequireScreenshots = true
 	s.ReviewRequireTests = true
 	s.FixBeforeFeature = FixBeforeFeatureBlock
-	s.FixBeforeFeatureDiscovery = true
+	s.AutoFiler.Enabled = true
+	s.AutoFiler.Strategy = AutoFilerStrategyFeaturePending
 	if err := store.Save(s); err != nil {
 		t.Fatalf("save test settings: %v", err)
 	}
@@ -114,8 +115,11 @@ func TestGovernanceAdapter(t *testing.T) {
 	if gov.FixBeforeFeature != execution.FixBeforeFeatureBlock {
 		t.Errorf("FixBeforeFeature = %q, want block", gov.FixBeforeFeature)
 	}
-	if !gov.FixBeforeFeatureDiscovery {
-		t.Errorf("FixBeforeFeatureDiscovery = false, want true")
+	if !gov.AutoFilerEnabled {
+		t.Errorf("AutoFilerEnabled = false, want true")
+	}
+	if gov.AutoFilerStrategy != execution.AutoFilerStrategyFeaturePending {
+		t.Errorf("AutoFilerStrategy = %q, want feature_pending", gov.AutoFilerStrategy)
 	}
 }
 
