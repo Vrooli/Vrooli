@@ -1,4 +1,4 @@
-package scenariovalidation
+package validation
 
 import (
 	"log"
@@ -17,9 +17,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-var ProtoFile protoreflect.FileDescriptor = scenariovalidationv1.File_scenario_validation_v1_validation_proto
+var ScenarioValidationProtoFile protoreflect.FileDescriptor = scenariovalidationv1.File_scenario_validation_v1_validation_proto
 
-func Module(repo catalog.Repository, logger *log.Logger) module.Module {
+func ScenarioValidationModule(repo catalog.Repository, logger *log.Logger) module.Module {
 	repoRoot, err := repocontract.ResolveRepoRoot()
 	if err != nil && logger != nil {
 		logger.Printf("scenario validation: repo root unavailable: %v", err)
@@ -28,7 +28,7 @@ func Module(repo catalog.Repository, logger *log.Logger) module.Module {
 	if loaded, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", templatevalidation.Provider)); err == nil {
 		spec = loaded
 	}
-	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewConnectHandler(Deps{
+	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewScenarioValidationHandler(ScenarioValidationDeps{
 		Logger:       logger,
 		Validator:    templatevalidation.NewValidator(repoRoot, repo),
 		Fixers:       templatevalidation.NewFixRegistry(repoRoot),
@@ -39,8 +39,6 @@ func Module(repo catalog.Repository, logger *log.Logger) module.Module {
 		Mount: func(r *mux.Router) {
 			r.PathPrefix(strings.TrimRight(connectPath, "/")).Handler(connectHandler)
 		},
-		Endpoints: Endpoints,
+		Endpoints: ScenarioValidationEndpoints,
 	}
 }
-
-func Schema() string { return "" }

@@ -1,4 +1,4 @@
-package scenariovalidation
+package validation
 
 import (
 	"context"
@@ -17,35 +17,35 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-type Validator interface {
+type ScenarioValidator interface {
 	ValidateScenario(ctx context.Context, scenario, explicitPath string) (templatevalidation.Report, error)
 }
 
-type Fixer interface {
+type ScenarioFixer interface {
 	Preview(root string, ruleIDs []string) ([]autofix.Candidate, error)
 	Apply(root string, ruleIDs []string) ([]autofix.Candidate, error)
 }
 
-type Deps struct {
+type ScenarioValidationDeps struct {
 	Logger       *log.Logger
-	Validator    Validator
-	Fixers       Fixer
+	Validator    ScenarioValidator
+	Fixers       ScenarioFixer
 	MaturitySpec *assessment.Spec
 	Environment  *commonv1.CaptureEnvironment
 }
 
-type connectHandler struct {
-	deps Deps
+type scenarioValidationHandler struct {
+	deps ScenarioValidationDeps
 }
 
-func NewConnectHandler(d Deps) *connectHandler {
+func NewScenarioValidationHandler(d ScenarioValidationDeps) *scenarioValidationHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
-	return &connectHandler{deps: d}
+	return &scenarioValidationHandler{deps: d}
 }
 
-func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+func (h *scenarioValidationHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	if h.deps.Validator == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("template scenario validation is not wired"))
 	}
@@ -72,15 +72,15 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(resp), nil
 }
 
-func (h *connectHandler) PreviewFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+func (h *scenarioValidationHandler) PreviewFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
 	return h.fix(ctx, req.Msg, false)
 }
 
-func (h *connectHandler) ApplyFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+func (h *scenarioValidationHandler) ApplyFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
 	return h.fix(ctx, req.Msg, true)
 }
 
-func (h *connectHandler) fix(ctx context.Context, req *scenariovalidationv1.FixRequest, apply bool) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+func (h *scenarioValidationHandler) fix(ctx context.Context, req *scenariovalidationv1.FixRequest, apply bool) (*connect.Response[scenariovalidationv1.FixResponse], error) {
 	if h.deps.Validator == nil || h.deps.Fixers == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("template fix registry is not wired"))
 	}

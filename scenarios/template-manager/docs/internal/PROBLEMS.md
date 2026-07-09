@@ -67,7 +67,7 @@ comprehensive suite and baseline diffs.
 
 **Owner:** Template Manager implementation agents.
 
-**Refs:** `/home/matthalloran8/.vrooli/plans/template-manager-scenario-owning-the-template-domain.md`.
+**Refs:** operator-local plan `template-manager-scenario-owning-the-template-domain.md`.
 
 ## Architecture Drift
 

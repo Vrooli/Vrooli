@@ -1,16 +1,14 @@
 package guidance
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 
-	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templateengine"
 )
 
 type Runner interface {
@@ -23,7 +21,12 @@ type Service struct {
 
 func NewService(runner Runner) *Service {
 	if runner == nil {
-		runner = SubprocessRunner{}
+		engine, err := templateengine.New("")
+		if err != nil {
+			runner = errorRunner{err: err}
+		} else {
+			runner = EngineRunner{Engine: engine}
+		}
 	}
 	return &Service{runner: runner}
 }
@@ -67,44 +70,37 @@ type Check struct {
 	Message  string
 }
 
-type SubprocessRunner struct {
+type EngineRunner struct {
+	Engine  *templateengine.Engine
 	Timeout time.Duration
 }
 
-func (r SubprocessRunner) NextGate(ctx context.Context, scenario string) (NextGateResult, error) {
+func (r EngineRunner) NextGate(ctx context.Context, scenario string) (NextGateResult, error) {
+	if r.Engine == nil {
+		return NextGateResult{}, fmt.Errorf("template engine unavailable")
+	}
 	timeout := r.Timeout
 	if timeout <= 0 {
 		timeout = 20 * time.Minute
 	}
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-
-	cmd := exec.CommandContext(runCtx, "vrooli", "scenario", "orient", scenario, "--json") // #nosec G204 -- executable is fixed; scenario is a CLI argument, not shell-expanded.
-	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
-		cmd.Dir = root
-	}
-	cmd.Env = os.Environ()
-	out, err := cmd.CombinedOutput()
+	report, err := r.Engine.OrientScenario(runCtx, templatecontracts.OrientationRequest{Name: scenario, JSON: true})
 	if runCtx.Err() != nil {
-		return NextGateResult{}, fmt.Errorf("vrooli scenario orient %s timed out after %s", scenario, timeout)
+		return NextGateResult{}, fmt.Errorf("orient %s timed out after %s", scenario, timeout)
 	}
-	jsonOut := trimToJSON(out)
-	if err != nil && !json.Valid(jsonOut) {
-		return NextGateResult{}, fmt.Errorf("vrooli scenario orient %s failed: %w: %s", scenario, err, strings.TrimSpace(string(out)))
+	if err != nil {
+		return NextGateResult{}, fmt.Errorf("orient %s: %w", scenario, err)
 	}
-	return ParseOrientationOutput(jsonOut)
+	return ResultFromOrientationReport(report), nil
 }
 
-func trimToJSON(out []byte) []byte {
-	out = bytes.TrimSpace(out)
-	if len(out) == 0 || out[0] == '{' {
-		return out
-	}
-	start := bytes.IndexByte(out, '{')
-	if start < 0 {
-		return out
-	}
-	return out[start:]
+type errorRunner struct {
+	err error
+}
+
+func (r errorRunner) NextGate(context.Context, string) (NextGateResult, error) {
+	return NextGateResult{}, r.err
 }
 
 type orientationJSON struct {
@@ -173,6 +169,42 @@ func ParseOrientationOutput(out []byte) (NextGateResult, error) {
 	}
 	result.Gate = gate
 	return result, nil
+}
+
+func ResultFromOrientationReport(report templatecontracts.OrientationReport) NextGateResult {
+	result := NextGateResult{
+		Scenario:         report.Scenario,
+		Finalized:        report.Finalized,
+		Complete:         report.NextStep == nil,
+		FinalizeRequired: report.FinalizeRequired,
+		Completed:        int32(report.Completed),
+		Required:         int32(report.Required),
+		Message:          report.Message,
+	}
+	if report.NextStep == nil {
+		return result
+	}
+	gate := &Gate{
+		ID:          report.NextStep.ID,
+		Title:       report.NextStep.Title,
+		Description: report.NextStep.Description,
+		Required:    report.NextStep.Required,
+		Complete:    report.NextStep.Complete,
+		Docs:        report.NextStep.Docs,
+		Remediation: remediationFor(report.NextStep.Docs),
+	}
+	for _, check := range report.NextStep.Checks {
+		gate.Checks = append(gate.Checks, Check{
+			Kind:     check.Kind,
+			Label:    check.Label,
+			Passed:   check.Passed,
+			Skipped:  check.Skipped,
+			Optional: check.Optional,
+			Message:  check.Message,
+		})
+	}
+	result.Gate = gate
+	return result
 }
 
 func remediationFor(docs []string) []string {

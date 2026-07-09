@@ -7,6 +7,7 @@ import (
 	"template-manager/cli/domains/measures"
 	"template-manager/cli/domains/monitor"
 	"template-manager/cli/domains/registry"
+	"template-manager/cli/domains/resourcetemplate"
 	"template-manager/cli/domains/runs"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -63,6 +64,11 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, registryGroup)
+	resourceTemplateGroup, err := resourcetemplate.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, resourceTemplateGroup)
 	runsGroup, err := runs.Register(core, manifest)
 	if err != nil {
 		return nil, err

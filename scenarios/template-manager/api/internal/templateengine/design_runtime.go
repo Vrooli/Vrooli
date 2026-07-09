@@ -3,7 +3,6 @@ package templateengine
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -487,21 +486,7 @@ func copyDesignFile(src, dest string, values map[string]string) error {
 	return os.WriteFile(dest, data, info.Mode())
 }
 
-func directoryExists(path string) bool {
-	stat, err := os.Stat(path)
-	return err == nil && stat.IsDir()
-}
-
 func fileExists(path string) bool {
 	stat, err := os.Stat(path)
 	return err == nil && !stat.IsDir()
-}
-
-func walkDesignFiles(root string, visit func(path string, entry fs.DirEntry) error) error {
-	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		return visit(path, entry)
-	})
 }

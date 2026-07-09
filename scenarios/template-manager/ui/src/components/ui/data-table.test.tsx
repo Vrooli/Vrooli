@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
@@ -57,10 +57,12 @@ describe("DataTable", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /name/i }));
-    const bodyRows = within(screen.getByRole("table")).getAllByRole("row").slice(1);
 
-    expect(bodyRows[0]?.textContent).toContain("Beta");
-    expect(bodyRows[1]?.textContent).toContain("Alpha");
+    await waitFor(() => {
+      const bodyRows = within(screen.getByRole("table")).getAllByRole("row").slice(1);
+      expect(bodyRows[0]?.textContent).toContain("Beta");
+      expect(bodyRows[1]?.textContent).toContain("Alpha");
+    });
   });
 
   it("filters rows through search", async () => {
@@ -111,5 +113,37 @@ describe("DataTable", () => {
     await user.click(screen.getByRole("button", { name: "Large" }));
 
     expect(container).toHaveTextContent("Nothing matched");
+  });
+
+  it("searches rendered node content and falls back for empty values", async () => {
+    const user = userEvent.setup();
+    const nodeRows = [
+      { id: "empty", label: null },
+      { id: "node", label: ["Nested", <span key="value">Value</span>, false] },
+    ];
+    const nodeColumns: Array<DataTableColumn<(typeof nodeRows)[number]>> = [
+      {
+        id: "label",
+        header: "Label",
+        accessor: (row) => row.label,
+      },
+    ];
+    const { container } = renderWithProviders(
+      <DataTable
+        rows={nodeRows}
+        columns={nodeColumns}
+        getRowKey={(row) => row.id}
+        caption="Node rows"
+        searchPlaceholder="Search nodes"
+      />,
+    );
+
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]');
+    expect(search).not.toBeNull();
+    await user.type(search as HTMLInputElement, "nested value");
+
+    expect(container).toHaveTextContent("Nested");
+    expect(container).toHaveTextContent("Value");
+    expect(container).not.toHaveTextContent("empty");
   });
 });

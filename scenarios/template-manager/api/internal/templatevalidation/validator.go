@@ -149,17 +149,11 @@ func checkOrientation(root string, report *Report) {
 	if _, err := os.Stat(orientationPath); err == nil {
 		return
 	}
-	if _, err := os.Stat(filepath.Join(root, "docs", "START-HERE.md")); err != nil {
-		return
-	}
-	report.Findings = append(report.Findings, Finding{
-		Code:        CodeOrientationStateMissing,
-		Severity:    SeverityWarn,
-		Title:       "Orientation state is not available",
-		Message:     "The scenario carries template provenance but no .vrooli/orientation.json state for static gate standing.",
-		Location:    ".vrooli/orientation.json",
-		Remediation: "Run orientation through the template lifecycle or finalize the scenario when all gates are complete.",
-	})
+	// Finalization intentionally removes .vrooli/orientation.json. Without a
+	// separate finalized marker, missing orientation metadata is advisory-only:
+	// provenance remains the required floor, and live guidance can re-evaluate
+	// non-finalized scenarios through the template engine when needed.
+	_ = report
 }
 
 func checkManifestDrift(root string, report *Report) {

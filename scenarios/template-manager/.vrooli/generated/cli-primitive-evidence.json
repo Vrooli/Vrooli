@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "template-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "b35e1dd342767a1fc7b8e3cb3e11fc8267ad1505bccac91ff9a586cf82514a58",
+  "manifest_hash": "34865fb424812c7f5492775a045332673f24dca9743eff5594d4e34443a4cad0",
   "commands": [
     {
       "path": "debt list",
@@ -106,6 +106,34 @@
       "command": "show",
       "binding": "RegistryService.GetTemplate",
       "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "resource-template generate",
+      "group": "resource-template",
+      "command": "generate",
+      "binding": "ResourceTemplateService.GenerateResourceTemplate",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "resource-template list",
+      "group": "resource-template",
+      "command": "list",
+      "binding": "ResourceTemplateService.ListResourceTemplates",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "resource-template show",
+      "group": "resource-template",
+      "command": "show",
+      "binding": "ResourceTemplateService.GetResourceTemplate",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "resource-template validate",
+      "group": "resource-template",
+      "command": "validate",
+      "binding": "ResourceTemplateService.ValidateResourceTemplates",
       "observed_primitive": "proto_list"
     },
     {

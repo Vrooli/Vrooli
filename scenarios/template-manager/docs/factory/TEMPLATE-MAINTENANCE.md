@@ -143,7 +143,7 @@ file type, never invent a synonym.
    elements whose fields equal the given `where`). Order and UTF-8 are
    preserved.
 
-`template-manager detemplate <scenario>` removes all four forms in one
+`template-manager lifecycle detemplate SCENARIO_NAME` removes all forms in one
 idempotent command (strip fenced blocks → strip marked lines → delete
 `exampleDomain.paths` → prune `jsonPrune` files → run finalizers
 `make generate` / `pnpm strings:gen` / `go mod tidy` / `gofumpt`),
@@ -170,7 +170,7 @@ The template keeps proto relocation sources under:
 templates/scenarios/react-vite/proto/v1/
 ```
 
-During `template-manager generate`, `template.json::relocations` moves
+During `template-manager lifecycle generate`, `template.json::relocations` moves
 that tree to:
 
 ```text
@@ -300,8 +300,7 @@ the retained workspace and reports a cleanup command with the run id.
 Preview or clean retained/interrupted runs with:
 
 ```bash
-template-manager template cleanup --dry-run
-template-manager template cleanup --run <run-id>
+template-manager template cleanup --run RUN_ID
 vrooli cleanup template-validation --older-than 24h
 ```
 

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Operational requirements for Template Manager's accountable ownership of Vrooli template handling.",
-    "last_validated_at": "2026-07-09T08:38:27-04:00",
+    "last_validated_at": "2026-07-09T11:46:30-04:00",
     "module": "template-domain",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "TM-P0-001",
       "title": "Template Registry Store",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "storage",
       "criticality": "P0",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "docs/concepts/DOMAINS.md",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Repository and service tests round-trip seeded template records through migration-owned SQLite storage."
         },
         {
@@ -56,7 +56,7 @@
           "type": "test",
           "ref": "docs/concepts/FLOWS.md",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Fake-runner tests cover parse, persist, deduplicate, and update behavior for validation findings."
         },
         {
@@ -101,7 +101,7 @@
     {
       "id": "TM-P0-004",
       "title": "Orientation Guidance Surface",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "api",
       "criticality": "P0",
@@ -116,7 +116,7 @@
           "type": "test",
           "ref": "docs/concepts/FLOWS.md",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Guidance service tests select the correct next gate and finalized state from fixtures."
         },
         {
@@ -131,7 +131,7 @@
     {
       "id": "TM-P1-001",
       "title": "Factory Documentation Service",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "docs",
       "criticality": "P1",
@@ -146,7 +146,7 @@
           "type": "test",
           "ref": "docs/manifest.json",
           "phase": "docs",
-          "status": "failing",
+          "status": "implemented",
           "notes": "search-hub queries return Template Manager factory docs and debt entries from the scenario provider."
         }
       ]
@@ -154,7 +154,7 @@
     {
       "id": "TM-P1-002",
       "title": "Dashboard And Measures",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "ui",
       "criticality": "P1",
@@ -169,7 +169,7 @@
           "type": "test",
           "ref": "ui/src/App.tsx",
           "phase": "ui-health",
-          "status": "failing",
+          "status": "implemented",
           "notes": "UI tests cover loading, empty, error, a11y, and data-rendering states for all dashboard surfaces."
         },
         {
@@ -229,7 +229,7 @@
           "type": "test",
           "ref": "docs/concepts/DOMAINS.md",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Moved generation, orientation, detemplate, design, hash, and drift suites pass in their new home."
         }
       ]
@@ -237,7 +237,7 @@
     {
       "id": "TM-P2-001",
       "title": "Resource Template Cutover",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-001",
       "category": "migration",
       "criticality": "P2",
@@ -252,7 +252,7 @@
           "type": "test",
           "ref": "docs/concepts/DOMAINS.md",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Resource template tests pass and repo grep proves only one renderTemplateString implementation remains."
         }
       ]

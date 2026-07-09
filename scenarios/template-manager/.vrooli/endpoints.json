@@ -237,7 +237,21 @@
       "category": "measures",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "measures-go serves a framework-neutral harvest endpoint consumed without a generated client."
+        "note": "measures-go serves a framework-neutral harvest endpoint consumed without a generated client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     },
     {
@@ -249,7 +263,21 @@
       "category": "measures",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "measures-go serves a uniform JSON execution endpoint shared across scenarios."
+        "note": "measures-go serves a uniform JSON execution endpoint shared across scenarios.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     },
     {
@@ -259,6 +287,38 @@
       "summary": "Get monitor status",
       "description": "Returns recurring deep-validation monitor status.",
       "category": "monitor"
+    },
+    {
+      "id": "resource_template_list",
+      "path": "/vrooli.template_manager.v1.resource_template.ResourceTemplateService/ListResourceTemplates",
+      "method": "POST",
+      "summary": "List resource templates",
+      "description": "Lists governed resource templates.",
+      "category": "resource_template"
+    },
+    {
+      "id": "resource_template_get",
+      "path": "/vrooli.template_manager.v1.resource_template.ResourceTemplateService/GetResourceTemplate",
+      "method": "POST",
+      "summary": "Get resource template",
+      "description": "Shows one governed resource template.",
+      "category": "resource_template"
+    },
+    {
+      "id": "resource_template_validate",
+      "path": "/vrooli.template_manager.v1.resource_template.ResourceTemplateService/ValidateResourceTemplates",
+      "method": "POST",
+      "summary": "Validate resource templates",
+      "description": "Validates governed resource templates.",
+      "category": "resource_template"
+    },
+    {
+      "id": "resource_template_generate",
+      "path": "/vrooli.template_manager.v1.resource_template.ResourceTemplateService/GenerateResourceTemplate",
+      "method": "POST",
+      "summary": "Generate resource template",
+      "description": "Generates a resource from a governed template.",
+      "category": "resource_template"
     },
     {
       "id": "scenario_validation_validate",

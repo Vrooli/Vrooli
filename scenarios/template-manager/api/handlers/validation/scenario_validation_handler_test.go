@@ -1,4 +1,4 @@
-package scenariovalidation
+package validation
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func (fakeFixer) Preview(string, []string) ([]autofix.Candidate, error) {
 func (fakeFixer) Apply(string, []string) ([]autofix.Candidate, error) { return nil, nil }
 
 func TestValidateScenarioBuildsSharedAssessmentIdentity(t *testing.T) {
-	handler := NewConnectHandler(Deps{
+	handler := NewScenarioValidationHandler(ScenarioValidationDeps{
 		Validator: fakeValidator{report: templatevalidation.Report{
 			Scenario: "legacy",
 			RootPath: t.TempDir(),
@@ -56,7 +56,7 @@ func TestValidateScenarioBuildsSharedAssessmentIdentity(t *testing.T) {
 }
 
 func TestPreviewFixReturnsCandidates(t *testing.T) {
-	handler := NewConnectHandler(Deps{
+	handler := NewScenarioValidationHandler(ScenarioValidationDeps{
 		Validator:    fakeValidator{report: templatevalidation.Report{Scenario: "legacy", RootPath: t.TempDir()}},
 		Fixers:       fakeFixer{},
 		MaturitySpec: templatevalidation.MaturitySpec(),

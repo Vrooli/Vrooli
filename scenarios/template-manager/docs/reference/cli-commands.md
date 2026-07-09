@@ -101,7 +101,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 template-manager configure api_base http://localhost:15001/api/v1
-template-manager configure token <token>
+template-manager configure token TOKEN_VALUE
 ```
 
 Read values back without an argument:
@@ -110,18 +110,14 @@ Read values back without an argument:
 template-manager configure api_base
 ```
 
-## Scenario commands — `<domain>`
+## Scenario commands — Template Manager domains
 
-Each product domain exposes its commands as a subcommand group
+Each Template Manager domain exposes its commands as a subcommand group
 (`template-manager <domain> <verb>`). Every command calls a single API
-endpoint and renders the result through one of the three output
-contracts below. Document your domain's commands here as you build
-them, one row/section per command, mirroring the endpoints they call
-in [`api-endpoints.md`](api-endpoints.md).
-
-The scaffold ships one fully worked CRUD command group as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
-<scenario>` removes it once your real domains are green.
+endpoint and renders the result through one of the output contracts
+below. The complete command list is declared in
+[`cli/manifest.json`](../../cli/manifest.json); this document explains
+the contract and maintenance workflow.
 
 ## Output contracts
 
@@ -153,8 +149,8 @@ external delegation, durable runs) go in the manifest's top-level `exceptions[]`
 
 ## Adding a new command
 
-For a new domain, copy the worked CRUD command group in the fenced
-example above first, then replace it once your real domain is green.
+For a new domain, follow the existing Template Manager domain layout and
+register the command group in the manifest.
 
 For a command inside an existing domain:
 

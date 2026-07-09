@@ -179,7 +179,7 @@ as the canonical reference. New scenarios add their first non-trivial
 mutation by copying its layering one file at a time — wire contract,
 domain types, repository, schema, service, handler, mocks, UI client,
 and CLI client — then deleting the fenced example with
-`vrooli scenario detemplate <scenario>`. The fenced example below walks
+`template-manager lifecycle detemplate SCENARIO_NAME`. The fenced example below walks
 the pattern from wire to render and pins the three-layer service-test
 split; copy its shape for `api/internal/<domain>/`.
 
@@ -273,7 +273,7 @@ ui/src/features/<domain>/
 
 Use TypeScript discriminated unions so impossible UI states are not
 representable. For example, an upload should not be able to hold both
-`{ status: "uploading" }` and a success payload through parallel
+an uploading status payload and a success payload through parallel
 booleans. Components dispatch events to the workflow and render the
 returned state; they do not duplicate transition rules in event
 handlers. Generated formal replay helpers build replay transitions with
@@ -294,7 +294,7 @@ Workflow maturity is incremental:
 
 The scaffold ships one fenced worked Level 5 flow (an attachment-upload
 workflow on the example domain) as the reference; copy its file layout
-for a real flow, then remove it with `vrooli scenario detemplate`. The
+for a real flow, then remove it with `template-manager lifecycle detemplate`. The
 generic file layout per flow is:
 
 - The `flow-verifier` scenario CLI (`flow-verifier verify check|run`, `flows list|validate|explain`)
@@ -960,7 +960,7 @@ lower the gate.
 | `httpx.NewLiveServer` for handler tests | `httptest.NewRecorder` (hides SSE-flusher bugs) |
 | `getByTestId(selectors.x.y)` for stable selectors | `getByText("Save")` (breaks the moment copy changes) |
 | `vi.mock("./api/health", async (importOriginal) => …)` inline at top of file | Helper-wrapped `vi.mock` (TDZ at hoist time) |
-| `makeHealthResponse({ status: "degraded" })` for variants | Hardcoded literal payload in three different tests |
+| `makeHealthResponse` variants for degraded status | Hardcoded literal payload in several tests |
 | Per-method error knob (`PingErr error`) on fakes | Single global "fail mode" boolean across the fake |
 | `var _ Pinger = (*sql.DB)(nil)` to lock the contract at compile time | Runtime "does this satisfy" check in init |
 | Adding new seams to [`SEAMS.md`](SEAMS.md) at the same commit | "We'll document it later" |

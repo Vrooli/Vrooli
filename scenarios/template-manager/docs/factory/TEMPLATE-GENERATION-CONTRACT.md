@@ -41,7 +41,7 @@ The template's `template.json` controls generation:
   if the declared file is not present in the generated scenario.
 - `orientation` declares the generated scenario's temporary
   initialization checklist. The generator renders it to
-  `.vrooli/orientation.json`; `template-manager orient <scenario>` reads
+  `.vrooli/orientation.json`; `template-manager lifecycle orient SCENARIO_NAME` reads
   that file, evaluates generic checks, and removes only declared cleanup
   paths when explicitly finalized.
 - `docs` advertises reference documents in `template-manager template
@@ -55,7 +55,7 @@ The template's `template.json` controls generation:
   `--run-hooks`; template deep validation also runs them because it is
   the source of truth for first-run generated scenario health.
 - `exampleDomain` declares the illustrative `notes` domain so it can be
-  removed mechanically by `template-manager detemplate`. `marker` is the
+  removed mechanically by `template-manager lifecycle detemplate`. `marker` is the
   domain slug (`notes`); `paths` enumerates the example-only files/dirs
   to delete wholesale (template-relative; the `proto/` entry is resolved
   through the same relocation mapping the generator applied). See the
@@ -165,7 +165,7 @@ When maintaining the example, preserve these properties:
 - binary uploads remain the deliberate REST multipart exception
 - every example-only artifact carries an `EXAMPLE-DOMAIN:<marker>` marker
   (doc-block fence, `exampleDomain.paths` entry, or trailing
-  registration-line comment) so `template-manager detemplate` removes the
+  registration-line comment) so `template-manager lifecycle detemplate` removes the
   product example in one idempotent command without orphan schema, blob,
   CLI, selector, or i18n residue, and the residue gate can verify zero
   markers survive
@@ -176,8 +176,7 @@ The marker vocabulary and its three placements are specified in the
 verifiable, not a manual checklist:
 
 ```bash
-template-manager detemplate <scenario>          # strip + delete + finalize
-template-manager detemplate <scenario> --dry-run # preview, no writes
+template-manager lifecycle detemplate SCENARIO_NAME
 ```
 
 If the mechanical replacement workflow changes, update
@@ -218,7 +217,7 @@ the temp workspace and reports a run-specific cleanup command. Use the
 marker-backed cleanup command after inspection:
 
 ```bash
-template-manager template cleanup --run <run-id>
+template-manager template cleanup --run RUN_ID
 ```
 
 For stale interrupted non-retained runs, use:

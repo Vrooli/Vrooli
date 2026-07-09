@@ -74,6 +74,58 @@ func TestValidateContent_TableContracts(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioDocumentationIgnoresRootArchitectureManifest(t *testing.T) {
+	scenarioPath := t.TempDir()
+	writeFile(t, filepath.Join(scenarioPath, "manifest.json"), `{
+		"contract": {
+			"kind": "scenario-architecture",
+			"schema": "scenario-architecture-manifest/v1"
+		}
+	}`)
+	writeFile(t, filepath.Join(scenarioPath, "docs", "manifest.json"), `{
+		"version": "2.0.0",
+		"contract": {
+			"kind": "scenario-docs",
+			"schema": "scenario-docs-manifest/v2",
+			"maturityValues": ["active"],
+			"stages": ["generated"]
+		},
+		"sections": [{
+			"id": "reference",
+			"title": "Reference",
+			"documents": [{
+				"path": "manifest.json",
+				"docType": "manifest",
+				"title": "Documentation Manifest",
+				"maturity": "active",
+				"requiredBy": ["generated"],
+				"completion": "required"
+			}]
+		}]
+	}`)
+
+	result, err := ValidateScenarioDocumentation(scenarioPath)
+	if err != nil {
+		t.Fatalf("ValidateScenarioDocumentation: %v", err)
+	}
+	if len(result.MisplacedDocs) != 0 {
+		t.Fatalf("expected architecture manifest to be ignored, got misplaced docs: %#v", result.MisplacedDocs)
+	}
+	if len(result.ExtraDocs) != 0 {
+		t.Fatalf("expected architecture manifest not to be treated as an extra doc, got %#v", result.ExtraDocs)
+	}
+}
+
+func writeFile(t *testing.T, path string, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
 func hasIssueContaining(issues []DocContentIssue, needle string) bool {
 	for _, issue := range issues {
 		if strings.Contains(issue.Message, needle) {

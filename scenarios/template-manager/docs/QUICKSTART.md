@@ -60,7 +60,7 @@ automatically):
 
 ```bash
 template-manager status
-template-manager <domain> <command>   # e.g. list/create commands for your domain
+template-manager registry list
 ```
 
 Or directly via HTTP:

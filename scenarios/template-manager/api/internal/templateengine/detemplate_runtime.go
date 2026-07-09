@@ -72,52 +72,97 @@ type detemplateFinalizerPlan struct {
 	Dir         string
 }
 
+type detemplateContext struct {
+	root     string
+	item     scenariomodel.Scenario
+	info     TemplateInfo
+	example  *TemplateExampleDomain
+	marker   string
+	template string
+}
+
 func runDetemplate[C any](deps HandlerDeps[C], ctx C, req DetemplateRequest) (cliout.Format, DetemplateResult, error) {
 	format := cliout.FormatHuman
 	if req.JSON {
 		format = cliout.FormatJSON
 	}
-	root := deps.Root(ctx)
-	item, err := scenariomodel.Load(root, req.Name, scenariomodel.SandboxEnvFromEnv())
+	dctx, err := loadDetemplateContext(deps.Root(ctx), req.Name)
 	if err != nil {
 		return "", DetemplateResult{}, err
 	}
-	if item.Manifest.Generation == nil || strings.TrimSpace(item.Manifest.Generation.Template.ID) == "" {
-		return "", DetemplateResult{}, fmt.Errorf("scenario %s has no template provenance; cannot determine its example domain", item.Slug)
-	}
-	templateID := item.Manifest.Generation.Template.ID
-	info, err := loadTemplate(root, templateID)
-	if err != nil {
-		return "", DetemplateResult{}, fmt.Errorf("load template %q for scenario %s: %w", templateID, item.Slug, err)
-	}
-	ex := info.Manifest.ExampleDomain
-	if ex == nil || strings.TrimSpace(ex.Marker) == "" {
-		return "", DetemplateResult{}, fmt.Errorf("template %q declares no exampleDomain; nothing to detemplate", templateID)
-	}
-	marker := ex.Marker
-
 	result := DetemplateResult{
-		Scenario:     item.Slug,
-		ScenarioPath: item.Path,
-		Marker:       marker,
+		Scenario:     dctx.item.Slug,
+		ScenarioPath: dctx.item.Path,
+		Marker:       dctx.marker,
 		DryRun:       req.DryRun,
 	}
 
-	deletions := resolveDetemplateDeletions(root, item, info, ex.Paths)
-	edits, dangling, err := planDetemplateEdits(item.Path, marker, deletions)
+	deletions := resolveDetemplateDeletions(dctx.root, dctx.item, dctx.info, dctx.example.Paths)
+	edits, dangling, err := planDetemplateEdits(dctx.item.Path, dctx.marker, deletions)
 	if err != nil {
 		return "", DetemplateResult{}, err
 	}
 	if len(dangling) > 0 {
-		return "", DetemplateResult{}, &DetemplateDanglingRefError{Marker: marker, References: dangling}
+		return "", DetemplateResult{}, &DetemplateDanglingRefError{Marker: dctx.marker, References: dangling}
 	}
-	jsonEdits, err := planDetemplateJSONPrunes(item.Path, ex.JSONPrune)
+	jsonEdits, err := planDetemplateJSONPrunes(dctx.item.Path, dctx.example.JSONPrune)
 	if err != nil {
 		return "", DetemplateResult{}, err
 	}
 	edits = append(edits, jsonEdits...)
 	sort.Slice(edits, func(i, j int) bool { return edits[i].Summary.Path < edits[j].Summary.Path })
 
+	populateDetemplateSummary(&result, edits, deletions)
+	plans := planDetemplateFinalizers(dctx.root, dctx.item, detemplateTouchesProto(deletions))
+
+	if req.DryRun {
+		populateDryRunDetemplateFinalizers(&result, plans)
+		result.Message = "Dry run: no files were written, deleted, or finalized."
+		return format, result, nil
+	}
+
+	if len(edits) == 0 && len(deletions) == 0 {
+		result.Message = fmt.Sprintf("No %q example-domain residue found; scenario is already detemplated.", dctx.marker)
+		return format, result, nil
+	}
+
+	if err := applyDetemplateChanges(edits, deletions); err != nil {
+		return "", DetemplateResult{}, err
+	}
+	runDetemplateFinalizers(deps, ctx, &result, plans)
+
+	result.Message = fmt.Sprintf("Removed the %q example domain. Run `template-manager lifecycle orient %s` to confirm the example-domain-removed gate.", dctx.marker, dctx.item.Slug)
+	return format, result, nil
+}
+
+func loadDetemplateContext(root, name string) (detemplateContext, error) {
+	item, err := scenariomodel.Load(root, name, scenariomodel.SandboxEnvFromEnv())
+	if err != nil {
+		return detemplateContext{}, err
+	}
+	if item.Manifest.Generation == nil || strings.TrimSpace(item.Manifest.Generation.Template.ID) == "" {
+		return detemplateContext{}, fmt.Errorf("scenario %s has no template provenance; cannot determine its example domain", item.Slug)
+	}
+	templateID := item.Manifest.Generation.Template.ID
+	info, err := loadTemplate(root, templateID)
+	if err != nil {
+		return detemplateContext{}, fmt.Errorf("load template %q for scenario %s: %w", templateID, item.Slug, err)
+	}
+	ex := info.Manifest.ExampleDomain
+	if ex == nil || strings.TrimSpace(ex.Marker) == "" {
+		return detemplateContext{}, fmt.Errorf("template %q declares no exampleDomain; nothing to detemplate", templateID)
+	}
+	return detemplateContext{
+		root:     root,
+		item:     item,
+		info:     info,
+		example:  ex,
+		marker:   ex.Marker,
+		template: templateID,
+	}, nil
+}
+
+func populateDetemplateSummary(result *DetemplateResult, edits []detemplateEdit, deletions []detemplateDeletion) {
 	for _, e := range edits {
 		result.FilesEdited = append(result.FilesEdited, e.Summary)
 		result.BlocksRemoved += e.Summary.BlocksRemoved
@@ -126,44 +171,42 @@ func runDetemplate[C any](deps HandlerDeps[C], ctx C, req DetemplateRequest) (cl
 	for _, d := range deletions {
 		result.PathsDeleted = append(result.PathsDeleted, d.Display)
 	}
+}
 
-	protoTouched := false
+func detemplateTouchesProto(deletions []detemplateDeletion) bool {
 	for _, d := range deletions {
 		if d.IsProto {
-			protoTouched = true
-			break
+			return true
 		}
 	}
-	plans := planDetemplateFinalizers(root, item, protoTouched)
+	return false
+}
 
-	if req.DryRun {
-		for _, p := range plans {
-			result.Finalizers = append(result.Finalizers, DetemplateFinalizer{
-				Description: p.Description,
-				Command:     p.commandLine(),
-				Ran:         false,
-			})
-		}
-		result.Message = "Dry run: no files were written, deleted, or finalized."
-		return format, result, nil
+func populateDryRunDetemplateFinalizers(result *DetemplateResult, plans []detemplateFinalizerPlan) {
+	for _, p := range plans {
+		result.Finalizers = append(result.Finalizers, DetemplateFinalizer{
+			Description: p.Description,
+			Command:     p.commandLine(),
+			Ran:         false,
+		})
 	}
+}
 
-	if len(edits) == 0 && len(deletions) == 0 {
-		result.Message = fmt.Sprintf("No %q example-domain residue found; scenario is already detemplated.", marker)
-		return format, result, nil
-	}
-
+func applyDetemplateChanges(edits []detemplateEdit, deletions []detemplateDeletion) error {
 	for _, e := range edits {
 		if err := os.WriteFile(e.Abs, e.Content, e.Mode); err != nil {
-			return "", DetemplateResult{}, fmt.Errorf("rewrite %s: %w", e.Summary.Path, err)
+			return fmt.Errorf("rewrite %s: %w", e.Summary.Path, err)
 		}
 	}
 	for _, d := range deletions {
 		if err := os.RemoveAll(d.Abs); err != nil {
-			return "", DetemplateResult{}, fmt.Errorf("delete %s: %w", d.Display, err)
+			return fmt.Errorf("delete %s: %w", d.Display, err)
 		}
 	}
+	return nil
+}
 
+func runDetemplateFinalizers[C any](deps HandlerDeps[C], ctx C, result *DetemplateResult, plans []detemplateFinalizerPlan) {
 	for _, p := range plans {
 		fin := DetemplateFinalizer{Description: p.Description, Command: p.commandLine()}
 		if deps.RunSubprocess == nil {
@@ -187,9 +230,6 @@ func runDetemplate[C any](deps HandlerDeps[C], ctx C, req DetemplateRequest) (cl
 		}
 		result.Finalizers = append(result.Finalizers, fin)
 	}
-
-	result.Message = fmt.Sprintf("Removed the %q example domain. Run `vrooli scenario orient %s` to confirm the example-domain-removed gate.", marker, item.Slug)
-	return format, result, nil
 }
 
 // resolveDetemplateDeletions maps the manifest's example-domain paths onto

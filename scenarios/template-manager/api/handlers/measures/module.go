@@ -1,7 +1,6 @@
 package measures
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -12,10 +11,7 @@ import (
 	tmmeasuresconnect "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/measures/measures_v1connect"
 )
 
-func Module(store Store, now func() time.Time, logger *log.Logger) (module.Module, error) {
-	if logger == nil {
-		logger = log.Default()
-	}
+func Module(store Store, now func() time.Time) (module.Module, error) {
 	serveHandler, err := MeasuresHandler(store, now)
 	if err != nil {
 		return module.Module{}, err
@@ -73,6 +69,11 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "measures-go serves a framework-neutral harvest endpoint consumed without a generated client.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Error:    module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+			},
 		},
 	},
 	{
@@ -85,6 +86,11 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "measures-go serves a uniform JSON execution endpoint shared across scenarios.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Response: module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Error:    module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+			},
 		},
 	},
 }

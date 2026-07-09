@@ -163,183 +163,224 @@ func evaluateOrientationCheck[C any](deps HandlerDeps[C], ctx C, scenarioRoot st
 	}
 	switch check.Kind {
 	case "file_exists":
-		path, err := resolve(check.Path)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		info, err := os.Stat(path)
-		report.Passed = err == nil && !info.IsDir()
-		if !report.Passed {
-			report.Message = "file is missing"
-		}
+		evaluateOrientationFileExists(&report, check, resolve)
 	case "file_absent":
-		path, err := resolve(check.Path)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		_, err = os.Stat(path)
-		report.Passed = os.IsNotExist(err)
-		if !report.Passed {
-			report.Message = "file exists"
-		}
+		evaluateOrientationFileAbsent(&report, check, resolve)
 	case "directory_exists":
-		path, err := resolve(check.Path)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		info, err := os.Stat(path)
-		report.Passed = err == nil && info.IsDir()
-		if !report.Passed {
-			report.Message = "directory is missing"
-		}
+		evaluateOrientationDirectoryExists(&report, check, resolve)
 	case "glob_present", "glob_absent":
-		pattern, err := resolve(check.Pattern)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		report.Passed = len(matches) > 0
-		if check.Kind == "glob_absent" {
-			report.Passed = len(matches) == 0
-		}
-		if !report.Passed {
-			report.Message = fmt.Sprintf("matched %d path(s)", len(matches))
-		}
+		evaluateOrientationGlobPresence(&report, check, resolve)
 	case "glob_min_count":
-		pattern, err := resolve(check.Pattern)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		report.Passed = len(matches) >= check.MinCount
-		if !report.Passed {
-			report.Message = fmt.Sprintf("matched %d path(s), need at least %d", len(matches), check.MinCount)
-		}
+		evaluateOrientationGlobMinCount(&report, check, resolve)
 	case "text_contains", "text_absent":
-		path, err := resolve(check.Path)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		contains := bytes.Contains(data, []byte(check.Text))
-		report.Passed = contains
-		if check.Kind == "text_absent" {
-			report.Passed = !contains
-		}
-		if !report.Passed {
-			report.Message = "text condition not satisfied"
-		}
+		evaluateOrientationTextCondition(&report, check, resolve)
 	case "text_absent_tree":
-		// Recursively scan the scenario tree (text files only, skipping
-		// vendored/build dirs) and fail if any file contains check.Text. This
-		// is the EXAMPLE-DOMAIN residue gate: a finalized scenario must carry
-		// zero example-domain markers anywhere.
-		hits, err := scanTreeForText(scenarioRoot, check.Text)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		report.Passed = len(hits) == 0
-		if !report.Passed {
-			shown := hits
-			if len(shown) > 5 {
-				shown = shown[:5]
-			}
-			report.Message = fmt.Sprintf("found %q in %d file(s): %s — run `vrooli scenario detemplate %s`",
-				check.Text, len(hits), strings.Join(shown, ", "), filepath.Base(scenarioRoot))
-		}
+		evaluateOrientationTextAbsentTree(&report, check, scenarioRoot)
 	case "json_path_exists":
-		path, err := resolve(check.Path)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		value, ok, err := orientationJSONPathValue(path, check.Query)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		report.Passed = ok && value != nil
-		if !report.Passed {
-			report.Message = "JSON path not found"
-		}
+		evaluateOrientationJSONPathExists(&report, check, resolve)
 	case "json_min_entries":
-		path, err := resolve(check.Path)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		value, ok, err := orientationJSONPathValue(path, check.Query)
-		if err != nil {
-			report.Message = err.Error()
-			return report
-		}
-		if !ok {
-			report.Message = "JSON path not found"
-			return report
-		}
-		count, ok := orientationJSONEntryCount(value)
-		report.Passed = ok && count >= check.MinCount
-		if !report.Passed {
-			if !ok {
-				report.Message = "JSON path is not an array or object"
-			} else {
-				report.Message = fmt.Sprintf("JSON path has %d entrie(s), need at least %d", count, check.MinCount)
-			}
-		}
+		evaluateOrientationJSONMinEntries(&report, check, resolve)
 	case "command":
-		timeout, err := time.ParseDuration(check.Timeout)
-		if err != nil {
-			report.Message = "invalid timeout: " + err.Error()
-			return report
-		}
-		commandCtx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-		var stdout, stderr bytes.Buffer
-		err = shell.BashCommand(check.Run, shell.Spec{
-			Context: commandCtx,
-			Dir:     scenarioRoot,
-			Env:     deps.CommandEnv(ctx),
-			Stdout:  &stdout,
-			Stderr:  &stderr,
-		}).Run()
-		report.Passed = err == nil
-		if err != nil {
-			if commandCtx.Err() == context.DeadlineExceeded {
-				report.Message = "command timed out after " + check.Timeout
-				return report
-			}
-			msg := strings.TrimSpace(stderr.String())
-			if msg == "" {
-				msg = strings.TrimSpace(stdout.String())
-			}
-			if msg == "" {
-				msg = err.Error()
-			}
-			report.Message = truncateForIssue(msg, 240)
-		}
+		evaluateOrientationCommand(&report, deps, ctx, scenarioRoot, check)
 	default:
 		report.Message = "unknown check kind"
 	}
 	return report
+}
+
+type orientationPathResolver func(string) (string, error)
+
+func evaluateOrientationFileExists(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+	path, err := resolve(check.Path)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	info, err := os.Stat(path)
+	report.Passed = err == nil && !info.IsDir()
+	if !report.Passed {
+		report.Message = "file is missing"
+	}
+}
+
+func evaluateOrientationFileAbsent(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+	path, err := resolve(check.Path)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	_, err = os.Stat(path)
+	report.Passed = os.IsNotExist(err)
+	if !report.Passed {
+		report.Message = "file exists"
+	}
+}
+
+func evaluateOrientationDirectoryExists(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+	path, err := resolve(check.Path)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	info, err := os.Stat(path)
+	report.Passed = err == nil && info.IsDir()
+	if !report.Passed {
+		report.Message = "directory is missing"
+	}
+}
+
+func evaluateOrientationGlobPresence(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+	matches, err := orientationGlobMatches(check.Pattern, resolve)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	report.Passed = len(matches) > 0
+	if check.Kind == "glob_absent" {
+		report.Passed = len(matches) == 0
+	}
+	if !report.Passed {
+		report.Message = fmt.Sprintf("matched %d path(s)", len(matches))
+	}
+}
+
+func evaluateOrientationGlobMinCount(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+	matches, err := orientationGlobMatches(check.Pattern, resolve)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	report.Passed = len(matches) >= check.MinCount
+	if !report.Passed {
+		report.Message = fmt.Sprintf("matched %d path(s), need at least %d", len(matches), check.MinCount)
+	}
+}
+
+func orientationGlobMatches(pattern string, resolve orientationPathResolver) ([]string, error) {
+	resolved, err := resolve(pattern)
+	if err != nil {
+		return nil, err
+	}
+	return filepath.Glob(resolved)
+}
+
+func evaluateOrientationTextCondition(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+	path, err := resolve(check.Path)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	contains := bytes.Contains(data, []byte(check.Text))
+	report.Passed = contains
+	if check.Kind == "text_absent" {
+		report.Passed = !contains
+	}
+	if !report.Passed {
+		report.Message = "text condition not satisfied"
+	}
+}
+
+func evaluateOrientationTextAbsentTree(report *OrientationCheckReport, check TemplateOrientationCheck, scenarioRoot string) {
+	hits, err := scanTreeForText(scenarioRoot, check.Text)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	report.Passed = len(hits) == 0
+	if report.Passed {
+		return
+	}
+	shown := hits
+	if len(shown) > 5 {
+		shown = shown[:5]
+	}
+	report.Message = fmt.Sprintf("found %q in %d file(s): %s; run `template-manager lifecycle detemplate %s`",
+		check.Text, len(hits), strings.Join(shown, ", "), filepath.Base(scenarioRoot))
+}
+
+func evaluateOrientationJSONPathExists(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+	value, ok, err := orientationResolvedJSONPathValue(check, resolve)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	report.Passed = ok && value != nil
+	if !report.Passed {
+		report.Message = "JSON path not found"
+	}
+}
+
+func evaluateOrientationJSONMinEntries(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+	value, ok, err := orientationResolvedJSONPathValue(check, resolve)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	if !ok {
+		report.Message = "JSON path not found"
+		return
+	}
+	count, ok := orientationJSONEntryCount(value)
+	report.Passed = ok && count >= check.MinCount
+	if !report.Passed {
+		report.Message = orientationJSONMinEntriesMessage(ok, count, check.MinCount)
+	}
+}
+
+func orientationResolvedJSONPathValue(check TemplateOrientationCheck, resolve orientationPathResolver) (any, bool, error) {
+	path, err := resolve(check.Path)
+	if err != nil {
+		return nil, false, err
+	}
+	return orientationJSONPathValue(path, check.Query)
+}
+
+func orientationJSONMinEntriesMessage(ok bool, count, minCount int) string {
+	if !ok {
+		return "JSON path is not an array or object"
+	}
+	return fmt.Sprintf("JSON path has %d entrie(s), need at least %d", count, minCount)
+}
+
+func evaluateOrientationCommand[C any](report *OrientationCheckReport, deps HandlerDeps[C], ctx C, scenarioRoot string, check TemplateOrientationCheck) {
+	timeout, err := time.ParseDuration(check.Timeout)
+	if err != nil {
+		report.Message = "invalid timeout: " + err.Error()
+		return
+	}
+	commandCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	var stdout, stderr bytes.Buffer
+	err = shell.BashCommand(check.Run, shell.Spec{
+		Context: commandCtx,
+		Dir:     scenarioRoot,
+		Env:     deps.CommandEnv(ctx),
+		Stdout:  &stdout,
+		Stderr:  &stderr,
+	}).Run()
+	report.Passed = err == nil
+	if err != nil {
+		report.Message = orientationCommandFailureMessage(commandCtx, check.Timeout, stdout.String(), stderr.String(), err)
+	}
+}
+
+func orientationCommandFailureMessage(ctx context.Context, timeout, stdout, stderr string, err error) string {
+	if ctx.Err() == context.DeadlineExceeded {
+		return "command timed out after " + timeout
+	}
+	msg := strings.TrimSpace(stderr)
+	if msg == "" {
+		msg = strings.TrimSpace(stdout)
+	}
+	if msg == "" {
+		msg = err.Error()
+	}
+	return truncateForIssue(msg, 240)
 }
 
 func orientationCheckLabel(check TemplateOrientationCheck) string {
@@ -396,14 +437,6 @@ func orientationJSONPathValue(path, query string) (any, bool, error) {
 		}
 	}
 	return current, true, nil
-}
-
-func orientationJSONPathExists(path, query string) (bool, error) {
-	value, ok, err := orientationJSONPathValue(path, query)
-	if err != nil {
-		return false, err
-	}
-	return ok && value != nil, nil
 }
 
 func orientationJSONEntryCount(value any) (int, bool) {

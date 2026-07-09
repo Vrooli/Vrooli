@@ -35,7 +35,7 @@ pkill -f 'node server.js'
 is the canonical command and gives the lifecycle a chance to clean
 state in order.
 
-### `vrooli: command not found`
+### Vrooli CLI command not found
 
 The Vrooli CLI isn't on your `PATH`. Run the workspace-root setup:
 
@@ -55,7 +55,7 @@ make status
 vrooli scenario port template-manager UI_PORT
 ```
 
-Then open `http://localhost:<UI_PORT>` directly. If the URL works
+Then open the localhost UI URL shown by the port command directly. If the URL works
 but `make open` doesn't, the issue is your default-browser handler,
 not the scenario.
 

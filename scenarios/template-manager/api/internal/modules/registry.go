@@ -29,7 +29,7 @@ import (
 	measuresH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/measures"
 	monitorH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/monitor"
 	registryH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/registry"
-	scenarioValidationH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/scenariovalidation"
+	resourceTemplateH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/resource_template"
 	validationH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/validation"
 	localdb "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/database"
 
@@ -40,6 +40,7 @@ import (
 	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/measures"
 	monitorv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/monitor"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/registry"
+	resourceTemplatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/resource_template"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/validation"
 )
 
@@ -57,7 +58,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, lifecycleH.Endpoints...)
 	out = append(out, measuresH.Endpoints...)
 	out = append(out, monitorH.Endpoints...)
-	out = append(out, scenarioValidationH.Endpoints...)
+	out = append(out, resourceTemplateH.Endpoints...)
+	out = append(out, validationH.ScenarioValidationEndpoints...)
 	return out
 }
 
@@ -91,6 +93,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "lifecycle", File: lifecyclev1.File_template_manager_v1_lifecycle_lifecycle_proto},
 		{Module: "measures", File: measuresv1.File_template_manager_v1_measures_measures_proto},
 		{Module: "monitor", File: monitorv1.File_template_manager_v1_monitor_monitor_proto},
+		{Module: "resource_template", File: resourceTemplatev1.File_template_manager_v1_resource_template_resource_template_proto},
 		{Module: "scenario-validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 	}
 }

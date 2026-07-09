@@ -40,7 +40,7 @@ client.
 |---|---|
 | **Auth** | None |
 | **Response** | `Response { status: string, readiness: bool, service: string, timestamp: string, version: string, uptime_seconds: int64, dependencies: map<string, DependencyStatus> }` |
-| **Errors** | None — always returns 200 with `status: "unhealthy"` if a dependency fails |
+| **Errors** | None — always returns 200 and reports an unhealthy status if a dependency fails |
 | **CLI** | `template-manager status` |
 
 ```bash
@@ -52,7 +52,7 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Domain endpoints — `<domain>`
+## Template Manager domain endpoints
 
 Each product domain exposes its endpoints under
 `POST /vrooli.template_manager.v1.<domain>.<Domain>Service/<Method>`
@@ -61,16 +61,18 @@ multipart uploads) mounted at explicit REST paths. Document your
 domain's endpoints here as you build them — one section per RPC, with
 its auth, request/response proto shapes, error codes, and CLI mirror.
 
-The scaffold ships one fully worked CRUD vertical slice as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
-<scenario>` removes it once your real domains are green.
+Template Manager exposes registry, validation run, debt, guidance,
+lifecycle, monitor, resource template, measures, and shared
+scenario-validation domains. The generated endpoint catalog is the
+complete machine-readable list; this document explains how to maintain
+the catalog without duplicating it by hand.
 
 ---
 
 ## Adding a new endpoint
 
-For a new domain, copy the worked vertical slice in the fenced example
-above first, then replace it once your real domain is green.
+For a new domain, follow the existing Template Manager domain layout and
+add the endpoint metadata beside the handler that owns it.
 
 For an endpoint inside an existing domain:
 

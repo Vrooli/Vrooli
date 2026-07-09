@@ -305,6 +305,18 @@ func ParseGenerateRequest(
 
 func ParseGenerateArgs(args []string, manifest TemplateManifest, stderr io.Writer) (GenerateOptions, error) {
 	opts := GenerateOptions{Values: map[string]string{}}
+	flagMap := generateFlagMap(manifest)
+	for index := 0; index < len(args); index++ {
+		next, err := parseGenerateArg(&opts, args, index, flagMap, stderr)
+		if err != nil {
+			return GenerateOptions{}, err
+		}
+		index = next
+	}
+	return opts, nil
+}
+
+func generateFlagMap(manifest TemplateManifest) map[string]string {
 	flagMap := make(map[string]string, len(manifest.RequiredVars)+len(manifest.OptionalVars))
 	for key, variable := range manifest.RequiredVars {
 		if variable.Flag != "" {
@@ -316,66 +328,81 @@ func ParseGenerateArgs(args []string, manifest TemplateManifest, stderr io.Write
 			flagMap[variable.Flag] = key
 		}
 	}
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--dest":
-			if index+1 >= len(args) {
-				return GenerateOptions{}, fmt.Errorf("scenario generate --dest requires a value")
-			}
-			index++
-			opts.Destination = args[index]
-		case strings.HasPrefix(arg, "--dest="):
-			opts.Destination = strings.TrimPrefix(arg, "--dest=")
-		case arg == "--design":
-			if index+1 >= len(args) {
-				return GenerateOptions{}, fmt.Errorf("scenario generate --design requires a value")
-			}
-			index++
-			opts.Design = args[index]
-		case strings.HasPrefix(arg, "--design="):
-			opts.Design = strings.TrimPrefix(arg, "--design=")
-		case arg == "--force":
-			opts.Force = true
-		case arg == "--dry-run":
-			opts.DryRun = true
-		case arg == "--run-hooks":
-			opts.RunHooks = true
-		case arg == "--var":
-			if index+1 >= len(args) {
-				return GenerateOptions{}, fmt.Errorf("scenario generate --var requires KEY=VALUE")
-			}
-			index++
-			key, value, err := ParseTemplateKeyValue(args[index])
-			if err != nil {
-				return GenerateOptions{}, err
-			}
-			opts.Values[key] = value
-		case strings.HasPrefix(arg, "--var="):
-			key, value, err := ParseTemplateKeyValue(strings.TrimPrefix(arg, "--var="))
-			if err != nil {
-				return GenerateOptions{}, err
-			}
-			opts.Values[key] = value
-		case strings.HasPrefix(arg, "--"):
-			flagName, flagValue, consumesNext, err := ParseTemplateFlag(arg, args, index)
-			if err != nil {
-				return GenerateOptions{}, err
-			}
-			if consumesNext {
-				index++
-			}
-			key, ok := flagMap[flagName]
-			if !ok {
-				_, _ = fmt.Fprintf(stderr, "Warning: unknown flag --%s; use --var KEY=VALUE for arbitrary placeholders\n", flagName)
-				continue
-			}
-			opts.Values[key] = flagValue
-		default:
-			return GenerateOptions{}, fmt.Errorf("unexpected argument: %s", arg)
-		}
+	return flagMap
+}
+
+func parseGenerateArg(opts *GenerateOptions, args []string, index int, flagMap map[string]string, stderr io.Writer) (int, error) {
+	arg := args[index]
+	switch {
+	case arg == "--dest":
+		return consumeGenerateStringArg(args, index, "scenario generate --dest", func(value string) { opts.Destination = value })
+	case strings.HasPrefix(arg, "--dest="):
+		opts.Destination = strings.TrimPrefix(arg, "--dest=")
+	case arg == "--design":
+		return consumeGenerateStringArg(args, index, "scenario generate --design", func(value string) { opts.Design = value })
+	case strings.HasPrefix(arg, "--design="):
+		opts.Design = strings.TrimPrefix(arg, "--design=")
+	case arg == "--force":
+		opts.Force = true
+	case arg == "--dry-run":
+		opts.DryRun = true
+	case arg == "--run-hooks":
+		opts.RunHooks = true
+	case arg == "--var":
+		return consumeGenerateVarArg(opts, args, index)
+	case strings.HasPrefix(arg, "--var="):
+		return index, setGenerateVar(opts, strings.TrimPrefix(arg, "--var="))
+	case strings.HasPrefix(arg, "--"):
+		return parseGenerateTemplateFlag(opts, args, index, flagMap, stderr)
+	default:
+		return index, fmt.Errorf("unexpected argument: %s", arg)
 	}
-	return opts, nil
+	return index, nil
+}
+
+func consumeGenerateStringArg(args []string, index int, label string, set func(string)) (int, error) {
+	if index+1 >= len(args) {
+		return index, fmt.Errorf("%s requires a value", label)
+	}
+	set(args[index+1])
+	return index + 1, nil
+}
+
+func consumeGenerateVarArg(opts *GenerateOptions, args []string, index int) (int, error) {
+	if index+1 >= len(args) {
+		return index, fmt.Errorf("scenario generate --var requires KEY=VALUE")
+	}
+	if err := setGenerateVar(opts, args[index+1]); err != nil {
+		return index, err
+	}
+	return index + 1, nil
+}
+
+func setGenerateVar(opts *GenerateOptions, raw string) error {
+	key, value, err := ParseTemplateKeyValue(raw)
+	if err != nil {
+		return err
+	}
+	opts.Values[key] = value
+	return nil
+}
+
+func parseGenerateTemplateFlag(opts *GenerateOptions, args []string, index int, flagMap map[string]string, stderr io.Writer) (int, error) {
+	flagName, flagValue, consumesNext, err := ParseTemplateFlag(args[index], args, index)
+	if err != nil {
+		return index, err
+	}
+	next := index
+	if consumesNext {
+		next++
+	}
+	key, ok := flagMap[flagName]
+	if !ok {
+		_, _ = fmt.Fprintf(stderr, "Warning: unknown flag --%s; use --var KEY=VALUE for arbitrary placeholders\n", flagName)
+		return next, nil
+	}
+	opts.Values[key] = flagValue
+	return next, nil
 }
 
 func ParseTemplateFlag(arg string, args []string, index int) (string, string, bool, error) {

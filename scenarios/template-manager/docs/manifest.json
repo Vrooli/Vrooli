@@ -475,7 +475,7 @@
           "requiredBy": ["generated", "implemented"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["System", "Notes (CRUD reference)", "Adding a new endpoint", "Cross-references"],
+            "requiredHeadings": ["System", "Template Manager domain endpoints", "Adding a new endpoint", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"],
             "requiredLinks": ["../../.vrooli/endpoints.json"]
           }
@@ -492,7 +492,7 @@
           "requiredBy": ["generated", "implemented"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands (auto-provided by `cli-core`)", "Scenario commands — `notes` (CRUD reference)", "Output contracts", "Adding a new command", "Cross-references"],
+            "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands (auto-provided by `cli-core`)", "Scenario commands — Template Manager domains", "Output contracts", "Adding a new command", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         },

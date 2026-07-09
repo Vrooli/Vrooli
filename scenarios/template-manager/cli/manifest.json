@@ -23,7 +23,7 @@
             {"name": "run-hooks", "description": "Run template post-generation hooks"}
           ],
           "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "GenerateScenario"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:workspace"]},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
           "architecture": {"primitive": "proto_mutation"}
         },
         {
@@ -32,7 +32,7 @@
           "positionals": [{"name": "scenario", "required": true, "description": "Scenario slug"}],
           "flags": [{"name": "finalize", "description": "Remove orientation metadata after required checks pass"}],
           "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "OrientScenario"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:workspace"]},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
           "architecture": {"primitive": "proto_list"}
         },
         {
@@ -41,7 +41,7 @@
           "positionals": [{"name": "scenario", "required": true, "description": "Scenario slug"}],
           "flags": [{"name": "dry-run", "description": "Preview removals without writing"}],
           "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "DetemplateScenario"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:workspace"]},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
           "architecture": {"primitive": "proto_mutation"}
         }
       ]
@@ -86,7 +86,7 @@
             {"name": "run", "description": "Run id"}
           ],
           "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "CleanupRuns"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:workspace"]},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
           "architecture": {"primitive": "proto_mutation"}
         }
       ]
@@ -342,6 +342,115 @@
             "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "resource-template",
+      "description": "Inspect, validate, and generate resource templates",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List resource templates",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceTemplateService",
+            "method": "ListResourceTemplates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one resource template",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Resource template id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceTemplateService",
+            "method": "GetResourceTemplate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate resource templates",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceTemplateService",
+            "method": "ValidateResourceTemplates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "generate",
+          "description": "Generate files from a resource template",
+          "positionals": [
+            {
+              "name": "template",
+              "description": "Resource template id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "from-blueprint",
+              "description": "Use a resource blueprint's suggested template and seed values"
+            },
+            {
+              "name": "dest",
+              "description": "Destination path"
+            },
+            {
+              "name": "var",
+              "description": "Template variable KEY=VALUE"
+            },
+            {
+              "name": "force",
+              "description": "Overwrite an existing destination"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview generation without writing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceTemplateService",
+            "method": "GenerateResourceTemplate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
           },
           "architecture": {
             "primitive": "proto_mutation"

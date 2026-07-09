@@ -1,9 +1,9 @@
 package testutil_test
 
 import (
-	"bufio"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,20 +76,15 @@ func TestNoProductionImports(t *testing.T) {
 // scenario, regardless of its ID).
 func readModuleName(t *testing.T) string {
 	t.Helper()
-	f, err := os.Open(filepath.Join("..", "..", "go.mod"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "go.mod"))
 	if err != nil {
-		t.Fatalf("open go.mod: %v", err)
+		t.Fatalf("read go.mod: %v", err)
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
+	for _, raw := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(raw)
 		if rest, ok := strings.CutPrefix(line, "module "); ok {
 			return strings.TrimSpace(rest)
 		}
-	}
-	if err := sc.Err(); err != nil {
-		t.Fatalf("scan go.mod: %v", err)
 	}
 	t.Fatal("module directive not found in go.mod")
 	return ""
@@ -100,19 +95,20 @@ func readModuleName(t *testing.T) string {
 // would self-flag the guardrail.
 func walk(t *testing.T, root string, fn func(path string)) {
 	t.Helper()
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		t.Fatalf("readdir %s: %v", root, err)
-	}
-	for _, e := range entries {
-		full := filepath.Join(root, e.Name())
-		if e.IsDir() {
-			if filepath.Base(full) == "testutil" {
-				continue
-			}
-			walk(t, full, fn)
-			continue
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-		fn(full)
+		if entry.IsDir() {
+			if filepath.Base(path) == "testutil" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		fn(path)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk %s: %v", root, err)
 	}
 }

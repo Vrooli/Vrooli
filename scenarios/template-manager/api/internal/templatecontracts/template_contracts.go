@@ -519,92 +519,127 @@ func RenderTemplateShowResponse(w io.Writer, format cliout.Format, info Template
 	if strings.TrimSpace(manifest.StartDocument) != "" {
 		_, _ = fmt.Fprintf(w, "Start document: %s\n", manifest.StartDocument)
 	}
-	if strings.TrimSpace(manifest.Design.Default) != "" || strings.TrimSpace(manifest.Design.Adapter) != "" || manifest.Design.Required {
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Design:")
-		if manifest.Design.Default != "" {
-			_, _ = fmt.Fprintf(w, "  default: %s\n", manifest.Design.Default)
-		}
-		if manifest.Design.Adapter != "" {
-			_, _ = fmt.Fprintf(w, "  adapter: %s\n", manifest.Design.Adapter)
-		}
-		if manifest.Design.Required {
-			_, _ = fmt.Fprintln(w, "  required: yes")
-		}
-	}
+	writeTemplateDesignSection(w, manifest.Design)
 	writeTemplateVarTable(w, "Required Variables", manifest.RequiredVars)
 	writeTemplateVarTable(w, "Optional Variables", manifest.OptionalVars)
-	if len(manifest.PostHooks) > 0 {
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Post Hooks:")
-		for _, hook := range manifest.PostHooks {
-			line := hook.Description
-			if line == "" {
-				line = hook.Cmd
-			}
-			_, _ = fmt.Fprintf(w, "  - %s\n", line)
-		}
-	}
-	if len(manifest.Relocations) > 0 {
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Relocations:")
-		for _, reloc := range manifest.Relocations {
-			label := reloc.Description
-			if label == "" {
-				label = reloc.From + " -> " + reloc.To
-			}
-			_, _ = fmt.Fprintf(w, "  - %s\n", label)
-			_, _ = fmt.Fprintf(w, "      from: %s\n", reloc.From)
-			_, _ = fmt.Fprintf(w, "      to:   %s\n", reloc.To)
-			for _, hook := range reloc.Post {
-				cmd := hook.Description
-				if cmd == "" {
-					cmd = hook.Cmd
-				}
-				_, _ = fmt.Fprintf(w, "      post: %s\n", cmd)
-			}
-		}
-	}
-	if manifest.Orientation != nil {
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Orientation:")
-		if manifest.Orientation.CopyTo != "" {
-			_, _ = fmt.Fprintf(w, "  copy to: %s\n", manifest.Orientation.CopyTo)
-		}
-		if manifest.Orientation.StartDocument != "" {
-			_, _ = fmt.Fprintf(w, "  start document: %s\n", manifest.Orientation.StartDocument)
-		}
-		if len(manifest.Orientation.Steps) > 0 {
-			_, _ = fmt.Fprintf(w, "  steps: %d\n", len(manifest.Orientation.Steps))
-		}
-	}
-	if len(manifest.Docs) > 0 {
-		docKeys := make([]string, 0, len(manifest.Docs))
-		for key := range manifest.Docs {
-			docKeys = append(docKeys, key)
-		}
-		sort.Strings(docKeys)
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Docs:")
-		for _, key := range docKeys {
-			_, _ = fmt.Fprintf(w, "  - %s: %s\n", key, manifest.Docs[key])
-		}
-	}
-	if entries, err := os.ReadDir(info.Path); err == nil {
-		names := make([]string, 0, len(entries))
-		for _, entry := range entries {
-			names = append(names, entry.Name())
-		}
-		sort.Strings(names)
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Files:")
-		for _, name := range names {
-			_, _ = fmt.Fprintf(w, "  - %s\n", name)
-		}
-	}
+	writeTemplatePostHooksSection(w, manifest.PostHooks)
+	writeTemplateRelocationsSection(w, manifest.Relocations)
+	writeTemplateOrientationSection(w, manifest.Orientation)
+	writeTemplateDocsSection(w, manifest.Docs)
+	writeTemplateFilesSection(w, info.Path)
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintf(w, "Tip: template-manager generate %s%s\n", info.Name, FormatScenarioTemplateRequiredFlags(manifest.RequiredVars))
 	return nil
+}
+
+func writeTemplateDesignSection(w io.Writer, design TemplateDesign) {
+	if strings.TrimSpace(design.Default) == "" && strings.TrimSpace(design.Adapter) == "" && !design.Required {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Design:")
+	if design.Default != "" {
+		_, _ = fmt.Fprintf(w, "  default: %s\n", design.Default)
+	}
+	if design.Adapter != "" {
+		_, _ = fmt.Fprintf(w, "  adapter: %s\n", design.Adapter)
+	}
+	if design.Required {
+		_, _ = fmt.Fprintln(w, "  required: yes")
+	}
+}
+
+func writeTemplatePostHooksSection(w io.Writer, hooks []TemplateHook) {
+	if len(hooks) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Post Hooks:")
+	for _, hook := range hooks {
+		line := hook.Description
+		if line == "" {
+			line = hook.Cmd
+		}
+		_, _ = fmt.Fprintf(w, "  - %s\n", line)
+	}
+}
+
+func writeTemplateRelocationsSection(w io.Writer, relocations []TemplateRelocation) {
+	if len(relocations) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Relocations:")
+	for _, reloc := range relocations {
+		label := reloc.Description
+		if label == "" {
+			label = reloc.From + " -> " + reloc.To
+		}
+		_, _ = fmt.Fprintf(w, "  - %s\n", label)
+		_, _ = fmt.Fprintf(w, "      from: %s\n", reloc.From)
+		_, _ = fmt.Fprintf(w, "      to:   %s\n", reloc.To)
+		writeTemplateRelocationHooks(w, reloc.Post)
+	}
+}
+
+func writeTemplateRelocationHooks(w io.Writer, hooks []TemplateHook) {
+	for _, hook := range hooks {
+		cmd := hook.Description
+		if cmd == "" {
+			cmd = hook.Cmd
+		}
+		_, _ = fmt.Fprintf(w, "      post: %s\n", cmd)
+	}
+}
+
+func writeTemplateOrientationSection(w io.Writer, orientation *TemplateOrientation) {
+	if orientation == nil {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Orientation:")
+	if orientation.CopyTo != "" {
+		_, _ = fmt.Fprintf(w, "  copy to: %s\n", orientation.CopyTo)
+	}
+	if orientation.StartDocument != "" {
+		_, _ = fmt.Fprintf(w, "  start document: %s\n", orientation.StartDocument)
+	}
+	if len(orientation.Steps) > 0 {
+		_, _ = fmt.Fprintf(w, "  steps: %d\n", len(orientation.Steps))
+	}
+}
+
+func writeTemplateDocsSection(w io.Writer, docs map[string]string) {
+	if len(docs) == 0 {
+		return
+	}
+	docKeys := make([]string, 0, len(docs))
+	for key := range docs {
+		docKeys = append(docKeys, key)
+	}
+	sort.Strings(docKeys)
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Docs:")
+	for _, key := range docKeys {
+		_, _ = fmt.Fprintf(w, "  - %s: %s\n", key, docs[key])
+	}
+}
+
+func writeTemplateFilesSection(w io.Writer, path string) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	sort.Strings(names)
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Files:")
+	for _, name := range names {
+		_, _ = fmt.Fprintf(w, "  - %s\n", name)
+	}
 }
 
 func RenderGenerateResponse(w io.Writer, format cliout.Format, result GenerateResult) error {

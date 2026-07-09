@@ -6,7 +6,6 @@ import (
 	"io"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 )
@@ -60,11 +59,4 @@ func marshalScenarioStatus(w io.Writer, msg any) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(msg)
-}
-
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.UTC().Format(time.RFC3339Nano)
 }

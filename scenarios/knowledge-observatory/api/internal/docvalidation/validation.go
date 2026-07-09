@@ -1,6 +1,7 @@
 package docvalidation
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -126,6 +127,9 @@ func ValidateScenarioWithContract(scenarioPath string, resolved *doctemplates.Re
 		doc, ok := registered[rel]
 		if ok {
 			_ = doc
+			continue
+		}
+		if isScenarioArchitectureManifest(scenarioPath, rel) {
 			continue
 		}
 		if expected, ok := misplacedCandidate(rel, resolved.Contract.Documents); ok {
@@ -277,6 +281,25 @@ func misplacedCandidate(rel string, docs []doccontract.Document) (doccontract.Do
 		return matches[0], true
 	}
 	return doccontract.Document{}, false
+}
+
+func isScenarioArchitectureManifest(scenarioPath, rel string) bool {
+	if rel != "manifest.json" {
+		return false
+	}
+	data, err := os.ReadFile(filepath.Join(scenarioPath, rel))
+	if err != nil {
+		return false
+	}
+	var payload struct {
+		Contract struct {
+			Kind string `json:"kind"`
+		} `json:"contract"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return false
+	}
+	return payload.Contract.Kind == "scenario-architecture"
 }
 
 func severityFor(doc doccontract.Document) string {

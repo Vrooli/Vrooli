@@ -53,8 +53,8 @@ When adding a shared component, search and adopt from the registry first:
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path <component-id> template-manager
-react-component-library adoptions apply <component-id> template-manager <adopted-path>
+react-component-library adoptions resolve-path COMPONENT_ID template-manager
+react-component-library adoptions apply COMPONENT_ID template-manager ADOPTED_PATH
 ```
 
 Use scenario-local custom components for genuinely scenario-specific surfaces,
@@ -87,7 +87,7 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
 
 Run `experience-manager spec validate template-manager --json` after route or
 selector changes. The generated notes page spec is example-domain content and
-is removed by `vrooli scenario detemplate template-manager`.
+is removed by `template-manager lifecycle detemplate template-manager`.
 
 ## Extending The Manifest
 

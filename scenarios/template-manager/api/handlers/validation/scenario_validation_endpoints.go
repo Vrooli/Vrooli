@@ -1,4 +1,4 @@
-package scenariovalidation
+package validation
 
 import (
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/module"
@@ -6,7 +6,7 @@ import (
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
-var Endpoints = []module.EndpointDescriptor{
+var ScenarioValidationEndpoints = []module.EndpointDescriptor{
 	{
 		ID:          "scenario_validation_validate",
 		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,

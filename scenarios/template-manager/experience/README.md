@@ -19,5 +19,5 @@ the claim can be checked by the experience phase. Manual claims need
 attestations with expiry; aspirational claims are useful intent but never gate.
 
 The generated `notes` page is part of the removable example domain. Running
-`vrooli scenario detemplate template-manager` removes its page spec and registry
+`template-manager lifecycle detemplate template-manager` removes its page spec and registry
 entry with the rest of the notes example.

@@ -32,7 +32,7 @@ import (
 	measuresH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/measures"
 	monitorH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/monitor"
 	registryH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/registry"
-	scenarioValidationH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/scenariovalidation"
+	resourceTemplateH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/resource_template"
 	validationH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/validation"
 )
 
@@ -132,7 +132,7 @@ func main() {
 	validationService := validationrunner.NewService(catalogRepo, validationRunner)
 	monitorService := monitor.NewService(catalogRepo, validationService, monitor.ConfigFromEnv(), log.Default())
 	monitorService.Start(context.Background())
-	measuresModule, err := measuresH.Module(catalogRepo, time.Now, log.Default())
+	measuresModule, err := measuresH.Module(catalogRepo, time.Now)
 	if err != nil {
 		log.Fatalf("measures module init failed: %v", err)
 	}
@@ -146,7 +146,8 @@ func main() {
 		lifecycleH.Module(log.Default()),
 		measuresModule,
 		monitorH.Module(monitorService),
-		scenarioValidationH.Module(catalogRepo, log.Default()),
+		resourceTemplateH.Module(log.Default()),
+		validationH.ScenarioValidationModule(catalogRepo, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

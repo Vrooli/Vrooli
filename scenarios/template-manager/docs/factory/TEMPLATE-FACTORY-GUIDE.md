@@ -36,7 +36,7 @@ Persist additive validation evidence through Template Manager:
 
 ```bash
 template-manager runs run --template react-vite --mode shallow
-template-manager runs show <run-id>
+template-manager runs show RUN_ID
 ```
 
 ## Drift
@@ -45,7 +45,6 @@ Fleet drift compares generated scenarios against their recorded template
 provenance and current template hashes:
 
 ```bash
-template-manager template drift --all
 template-manager runs drift-record
 template-manager runs drift --template react-vite
 ```
@@ -60,7 +59,7 @@ Deep validation can retain temporary workspaces for debugging. Remove retained
 runs after inspection:
 
 ```bash
-template-manager template cleanup --run <run-id>
+template-manager template cleanup --run RUN_ID
 ```
 
 Cleanup must be marker-backed: delete only workspaces that carry the validation
@@ -91,7 +90,7 @@ debugging them anew in each generated scenario:
 
 ```bash
 template-manager debt list --template react-vite
-template-manager debt show <stable-key>
+template-manager debt show STABLE_KEY
 ```
 
 Stable keys should describe the factory defect, not the scenario where it was
@@ -107,7 +106,7 @@ and at least one generated-scenario proof shows the defect no longer appears.
 Use the guidance surface to turn orientation into a small-model work order:
 
 ```bash
-template-manager guidance next <scenario> --json
+template-manager guidance next template-manager --json
 ```
 
 The response includes the next incomplete gate, check status, contract docs, and

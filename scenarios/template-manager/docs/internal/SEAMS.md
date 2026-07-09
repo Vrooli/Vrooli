@@ -234,7 +234,7 @@ internal/<domain>/
   service.go       # Service interface + impl (validation, defaults)
   service_test.go  # Service tests against FakeRepository
   schema.sql       # Domain-owned table DDL (Pass-3 pattern)
-  schema.go        # //go:embed schema.sql + Schema() string
+  schema.go        # Go embed directive for schema.sql + Schema() string
   schema_test.go   # Embed-content tripwire
   mocks/           # Co-located test fakes (package mocks)
     repository.go
