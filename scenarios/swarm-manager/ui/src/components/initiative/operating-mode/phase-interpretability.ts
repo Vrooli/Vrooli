@@ -4,12 +4,6 @@ import type {
   OperatingModePhaseTransition,
 } from "../../../types/operating-mode";
 
-export interface PhaseReadSpec {
-  key: string;
-  label: string;
-  meaning: string;
-}
-
 export interface PhaseEmitSpec {
   field: string;
   label: string;
@@ -17,28 +11,34 @@ export interface PhaseEmitSpec {
   required: boolean;
 }
 
-export const PHASE_READS: PhaseReadSpec[] = [
-  {
-    key: "PRIOR_ROUNDS_JSON",
-    label: "Prior rounds",
-    meaning: "Completed rounds, handoffs, payloads, and errors already recorded for this mode.",
-  },
-  {
-    key: "MEMBER_ITEMS_JSON",
-    label: "Member items",
-    meaning: "The initiative's current backlog scope: refs, titles, status, priority, and effort.",
-  },
-  {
-    key: "MODE_ARTIFACTS_JSON",
-    label: "Mode artifacts",
-    meaning: "Durable files previously produced under the mode artifact root.",
-  },
-  {
-    key: "ACCEPTANCE_CRITERIA",
-    label: "Acceptance criteria",
-    meaning: "The operator-defined criteria review phases must evaluate against.",
-  },
-];
+// READ_VARIABLE_MEANINGS is a best-effort operator gloss for known prompt-read
+// variables, keyed by the wire variable name. The Reads tab derives *which*
+// variables a phase reads from the mode's declared, composed contract (base ∪
+// target adapter) — never from this map. This is only a tooltip; an unknown
+// variable simply renders with no gloss, so adding a target adapter or read
+// surfaces in the UI with no change here.
+export const READ_VARIABLE_MEANINGS: Record<string, string> = {
+  OPERATING_MODE: "The running mode's id.",
+  MODE_LABEL: "The running mode's display label.",
+  PHASE: "The current phase id.",
+  RUN_STRATEGY: "How successive rounds relate (e.g. sequential handoff).",
+  ROUND_NUMBER: "The current round number.",
+  AGENT_PROFILE_KEY: "The agent profile this phase runs under.",
+  OPERATOR_NOTE: "The operator's free-form note for this round.",
+  PRIOR_ROUNDS_JSON: "Completed rounds, handoffs, payloads, and errors already recorded for this run.",
+  PRIOR_HANDOFFS_JSON: "The accumulated handoffs carried forward as continuity context.",
+  MODE_ARTIFACTS_JSON: "Durable files previously produced under the mode artifact root.",
+  MEMBER_ITEMS_JSON: "The initiative's current backlog scope: refs, titles, status, priority, effort.",
+  ACCEPTANCE_CRITERIA: "The operator-defined criteria review phases evaluate against.",
+  PLAN_ID: "The bound plan-manager plan's execution id.",
+  PLAN_PATH: "The plan file/reference this run drains.",
+  PLAN_CONTEXT_JSON: "The plan's phase context (phases, status, frontier).",
+  ELASTIC_SLICE_SNIPPET: "The shared elastic-slice contract snippet.",
+  BACKLOG_SYNC_PROPOSAL_SNIPPET: "The shared backlog-sync proposal snippet.",
+  INITIATIVE_NAME: "The initiative's name.",
+  INITIATIVE_TITLE: "The initiative's title.",
+  INITIATIVE_DESCRIPTION: "The initiative's description.",
+};
 
 const EMIT_MEANINGS = {
   artifacts: "Files the phase writes into the mode artifact store.",
@@ -112,31 +112,6 @@ export function formatTransition(transition: OperatingModePhaseTransition): stri
   const condition = transition.label === "always" ? "always" : transition.label;
   return `if ${condition}, go to ${transition.to}`;
 }
-
-/**
- * The four semantic categories a phase reads from. Each maps a raw context
- * blob onto operator language shared between the static phase cards and the
- * live/simulation Flow trace, so the two surfaces never drift.
- */
-export type PhaseReadCategory = "items" | "artifacts" | "priorRounds" | "acceptanceCriteria";
-
-export interface PhaseReadCategorySpec {
-  key: PhaseReadCategory;
-  label: string;
-  meaning: string;
-  /** The prompt template variable this read fills, e.g. MEMBER_ITEMS_JSON. */
-  variable: string;
-}
-
-const READ_MEANING = (key: string): string =>
-  PHASE_READS.find((read) => read.key === key)?.meaning ?? "";
-
-export const PHASE_READ_CATEGORIES: PhaseReadCategorySpec[] = [
-  { key: "items", label: "Member items", meaning: READ_MEANING("MEMBER_ITEMS_JSON"), variable: "MEMBER_ITEMS_JSON" },
-  { key: "artifacts", label: "Mode artifacts", meaning: READ_MEANING("MODE_ARTIFACTS_JSON"), variable: "MODE_ARTIFACTS_JSON" },
-  { key: "priorRounds", label: "Prior rounds", meaning: READ_MEANING("PRIOR_ROUNDS_JSON"), variable: "PRIOR_ROUNDS_JSON" },
-  { key: "acceptanceCriteria", label: "Acceptance criteria", meaning: READ_MEANING("ACCEPTANCE_CRITERIA"), variable: "ACCEPTANCE_CRITERIA" },
-];
 
 export interface TransitionExplanation {
   /** Short headline, e.g. "execute → review" or "terminal". */

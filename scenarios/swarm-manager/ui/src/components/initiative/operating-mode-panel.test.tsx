@@ -95,7 +95,7 @@ function makeCatalogEntry(overrides: Partial<OperatingModeCatalogEntry> & { mode
     notFor: [`${overrides.label} not for`],
     tradeoffs: [`${overrides.label} tradeoff`],
     usageCount: 0,
-    scopeKind: "initiative",
+    targetKind: "initiative",
     runStrategy: "operator_gated_loop",
     workspaceTabId: "operating-mode",
     capabilities: fullPhaseCapabilities,
@@ -125,7 +125,7 @@ const baseCatalog: OperatingModeCatalogEntry[] = [
   makeCatalogEntry({
     mode: "item-level",
     label: "Item Level",
-    scopeKind: "backlog_item",
+    targetKind: "initiative",
     runStrategy: "existing_item_flow",
     capabilities: itemExecutionCapabilities,
     default: true,
@@ -161,7 +161,7 @@ function makeWorkspace(overrides?: Partial<OperatingModeWorkspace>): OperatingMo
     definition: {
       mode: "holistic-loop",
       label: "Holistic Loop",
-      scopeKind: "initiative",
+      targetKind: "initiative",
       capabilities: fullPhaseCapabilities,
       runStrategy: "operator_gated_loop",
       terminal: ["review"],

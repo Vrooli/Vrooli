@@ -180,7 +180,7 @@ func syntheticHarnessDefinition(t *testing.T) Definition {
 	  "not_for": ["Anything resembling production work"],
 	  "tradeoffs": ["Test-only — never registered outside test scope"],
 	  "when_in_doubt_pick_instead": "item-level",
-	  "scope": { "kind": "initiative" },
+	  "target": { "kind": "initiative" },
 	  "run_strategy": { "kind": "operator_gated_loop" },
 	  "prompt": { "catalog_prefix": "swarm-manager-synthetic-harness" },
 	  "artifact": { "root": "modes/synthetic-harness" },
@@ -202,6 +202,7 @@ func syntheticHarnessDefinition(t *testing.T) Definition {
 	        "id": "assess",
 	        "kind": "investigate",
 	        "activity_purpose": "synthetic_harness_assess",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
 	        "profile_key": "swarm-manager/deep-work",
 	        "prompt": { "purpose": "Assess the synthetic methodology state." },
 	        "transitions": [{ "when": { "op": "always" }, "to": ["decide"] }]
@@ -210,6 +211,7 @@ func syntheticHarnessDefinition(t *testing.T) Definition {
 	        "id": "decide",
 	        "kind": "review",
 	        "activity_purpose": "synthetic_harness_decide",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
 	        "profile_key": "swarm-manager/analysis",
 	        "prompt": { "purpose": "Classify whether the synthetic methodology should replan or review." },
 	        "declared_output": {
@@ -231,6 +233,7 @@ func syntheticHarnessDefinition(t *testing.T) Definition {
 	        "id": "review",
 	        "kind": "review",
 	        "activity_purpose": "synthetic_harness_review",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
 	        "profile_key": "swarm-manager/analysis",
 	        "requires_criteria": true,
 	        "prompt": { "purpose": "Review the synthetic methodology output." },

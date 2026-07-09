@@ -29,8 +29,11 @@ import type {
   OperatingModeDetail,
   OperatingModeHandoff,
   OperatingModeLinkedInitiative,
+  OperatingModePhaseClassification,
   OperatingModePhaseGraph,
   OperatingModePhaseKind,
+  OperatingModePhaseReads,
+  OperatingModePhaseResolutionRecord,
   OperatingModePhaseResult,
   OperatingModePhaseTransition,
   OperatingModeProgressState,
@@ -173,6 +176,7 @@ function mapTransition(
     label: t?.label ?? "",
     field: orUndef(t?.field),
     value: orUndef(t?.value),
+    classified: t?.classified ? true : undefined,
   };
 }
 
@@ -202,6 +206,7 @@ function mapCatalogPhase(p: ompb.OperatingModeCatalogPhase | undefined): Operati
     isStart: p?.isStart,
     isTerminal: p?.isTerminal,
     outputArtifacts: (p?.outputArtifacts ?? []).map(mapArtifactDef),
+    reads: mapPhaseReads(p?.reads),
     outputContract: mapContractSummary(p?.outputContract),
     catalogId: p?.catalogId ?? "",
     skillId: p?.skillId ?? "",
@@ -211,6 +216,27 @@ function mapCatalogPhase(p: ompb.OperatingModeCatalogPhase | undefined): Operati
     samplesReplanRate: p?.samplesReplanRate,
     samplesAcceptanceRate: p?.samplesAcceptanceRate,
     autoStartAfter: p?.autoStartAfter ?? [],
+    executedBy: orUndef(p?.executedBy),
+    classification: mapPhaseClassification(p?.classification),
+  };
+}
+
+function mapPhaseReads(
+  r: ompb.OperatingModePhaseReads | undefined,
+): OperatingModePhaseReads | undefined {
+  if (!r || ((r.base ?? []).length === 0 && (r.target ?? []).length === 0)) return undefined;
+  return { base: r.base ?? [], target: r.target ?? [] };
+}
+
+function mapPhaseClassification(
+  c: ompb.OperatingModeTransitionClassification | undefined,
+): OperatingModePhaseClassification | undefined {
+  if (!c || !c.field) return undefined;
+  return {
+    field: c.field,
+    enum: c.enum ?? [],
+    from: orUndef(c.from),
+    description: orUndef(c.description),
   };
 }
 
@@ -225,7 +251,7 @@ function mapCatalogEntry(e: ompb.OperatingModeCatalogEntry | undefined): Operati
     tradeoffs: e?.tradeoffs ?? [],
     whenInDoubtPickInstead: e?.whenInDoubtPickInstead ? asMode(e.whenInDoubtPickInstead) : undefined,
     usageCount: e?.usageCount ?? 0,
-    scopeKind: e?.scopeKind ?? "",
+    targetKind: e?.targetKind ?? "",
     runStrategy: e?.runStrategy ?? "",
     workspaceTabId: e?.workspaceTabId ?? "",
     capabilities: mapCapabilities(e?.capabilities, supportsPhases),
@@ -266,6 +292,7 @@ function mapHandoff(h: ompb.OperatingModeHandoff | undefined): OperatingModeHand
     blockers: h?.blockers ?? [],
     nextStep: orUndef(h?.nextStep),
     createdAt: orUndef(h?.createdAt),
+    frontier: orUndef(h?.frontier),
   };
 }
 
@@ -297,6 +324,25 @@ function mapRound(r: ompb.OperatingModeRoundEnvelope | undefined): OperatingMode
     handoffs: (r?.handoffs ?? []).map(mapHandoff),
     payload: (r?.payload ?? {}) as Record<string, unknown>,
     error: orUndef(r?.error),
+    resolution: mapResolution(r?.resolution),
+    transitionClassification: mapResolution(r?.transitionClassification),
+  };
+}
+
+function mapResolution(
+  rec: ompb.OperatingModePhaseResolutionRecord | undefined,
+): OperatingModePhaseResolutionRecord | undefined {
+  if (!rec || !rec.outcome) return undefined;
+  return {
+    outcome: rec.outcome,
+    layer: orUndef(rec.layer),
+    chosenMessageIndex: rec.chosenMessageIndex,
+    messagesScanned: rec.messagesScanned,
+    missing: rec.missing ?? [],
+    violations: rec.violations ?? [],
+    notes: rec.notes ?? [],
+    classifiedField: orUndef(rec.classifiedField),
+    classifiedValue: orUndef(rec.classifiedValue),
   };
 }
 
@@ -478,6 +524,7 @@ function mapWorkspacePhase(p: ompb.OperatingModeWorkspacePhase | undefined): Ope
     reason: orUndef(p?.reason),
     next: p?.next,
     autoStartAfter: p?.autoStartAfter ?? [],
+    executedBy: orUndef(p?.executedBy),
   };
 }
 
@@ -496,7 +543,7 @@ function mapWorkspaceDefinition(m: ompb.OperatingModeWorkspaceMode | undefined):
     mode: asMode(m?.mode),
     label: m?.label ?? "",
     description: orUndef(m?.description),
-    scopeKind: m?.scopeKind ?? "",
+    targetKind: m?.targetKind ?? "",
     capabilities: mapCapabilities(m?.capabilities, (m?.phases?.length ?? 0) > 0),
     phases: (m?.phases ?? []).map(mapWorkspacePhase),
     terminal: m?.terminal ?? [],

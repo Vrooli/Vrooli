@@ -20,17 +20,11 @@ func TestSharedSnippet_RendersInBothModes(t *testing.T) {
 	if !ok {
 		t.Fatalf("holistic-loop is missing the reconcile phase")
 	}
-	phasedDrain := MustDefinition(ModePhasedPlanDrain)
-	reconcileDrain, ok := phasedDrain.PhaseGraph.Phases["reconcile"]
-	if !ok {
-		t.Fatalf("phased-plan-drain is missing the reconcile phase")
-	}
-
 	snippet := promptcatalog.BacklogSyncProposalSnippet()
 
 	check := func(t *testing.T, def Definition, phaseDef PhaseDefinition) {
 		t.Helper()
-		ctx := phaseContext{def: def, phaseDef: phaseDef}
+		ctx := RunContext{Def: def, PhaseDef: phaseDef, Target: TargetInstance{Kind: def.Target.Kind}}
 		vars := promptVariables(ctx, RoundEnvelope{Round: 1}, "")
 		got, ok := vars[promptcatalog.BacklogSyncProposalVariableKey]
 		if !ok {
@@ -42,7 +36,6 @@ func TestSharedSnippet_RendersInBothModes(t *testing.T) {
 	}
 
 	check(t, holistic, reconcileHolistic)
-	check(t, phasedDrain, reconcileDrain)
 }
 
 // TestReconcilePhases_RequireBacklogSync pins the contract: every reconcile
@@ -50,7 +43,7 @@ func TestSharedSnippet_RendersInBothModes(t *testing.T) {
 // guard for any mode author who copy-pastes a review-shaped phase and
 // forgets to flip the flag.
 func TestReconcilePhases_RequireBacklogSync(t *testing.T) {
-	for _, mode := range []Mode{ModeHolisticLoop, ModePhasedPlanDrain} {
+	for _, mode := range []Mode{ModeHolisticLoop} {
 		def := MustDefinition(mode)
 		phase, ok := def.PhaseGraph.Phases["reconcile"]
 		if !ok {
@@ -73,7 +66,7 @@ func TestReconcilePhases_RequireBacklogSync(t *testing.T) {
 // changes ApplyMode (and the auto-apply paths land), this test should fail
 // loudly so reviewers see the policy change before it goes out.
 func TestReconcilePhases_ApplyModeIsOperatorGated(t *testing.T) {
-	for _, mode := range []Mode{ModeHolisticLoop, ModePhasedPlanDrain} {
+	for _, mode := range []Mode{ModeHolisticLoop} {
 		def := MustDefinition(mode)
 		if got, want := def.BacklogSync.ApplyMode, BacklogSyncApplyOperatorGated; got != want {
 			t.Errorf("mode %q backlog_sync.apply_mode = %q, want %q (auto-apply variants are not implemented in v1)", mode, got, want)
@@ -104,7 +97,7 @@ func TestApplyBacklogSync_RejectsNonOperatorGated(t *testing.T) {
 	agent.states["run-1"] = agentmanager.RunState{RunID: "run-1", Status: "complete", Summary: summary, FinishedAt: "2026-05-02T12:05:00Z"}
 	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
 	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "plan", nil)
-	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", map[string]any{"replan_needed": false})
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", completedDrainExecutePayload("complete"))
 	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
 		InitiativeName: "init-a",
 		Phase:          "review",

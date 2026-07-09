@@ -80,8 +80,8 @@ func (a *App) cmdInitiativesModeList(args []string) error {
 			defaultMark = " [default]"
 		}
 		fmt.Printf("  - %s%s (%s)\n", mode.GetMode(), defaultMark, mode.GetLabel())
-		if mode.GetScopeKind() != "" {
-			fmt.Printf("    scope: %s\n", mode.GetScopeKind())
+		if mode.GetTargetKind() != "" {
+			fmt.Printf("    target: %s\n", mode.GetTargetKind())
 		}
 		if mode.GetRunStrategy() != "" {
 			fmt.Printf("    strategy: %s\n", mode.GetRunStrategy())

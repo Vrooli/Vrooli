@@ -1,7 +1,7 @@
 import { cn } from "../../../lib/utils";
 import { Card } from "../../ui/card";
 import type { OperatingModeCatalogEntry } from "../../../types/operating-mode";
-import { humanizeRunStrategy, humanizeScopeKind } from "./utils";
+import { humanizeRunStrategy, humanizeTargetKind } from "./utils";
 import { PickModeRow } from "../../session/context/selectable-card";
 import type { CardSelection } from "../../session/context/selectable";
 
@@ -49,7 +49,7 @@ export function OperatingModeCard({
         </p>
       )}
       <p className="mt-1.5 text-[11px] text-slate-500">
-        {humanizeScopeKind(mode.scopeKind)} · {humanizeRunStrategy(mode.runStrategy)}
+        {humanizeTargetKind(mode.targetKind)} · {humanizeRunStrategy(mode.runStrategy)}
         {mode.default ? " · default" : ""}
       </p>
     </>

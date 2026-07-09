@@ -47,7 +47,10 @@ func TestRenderPhasePromptParityWithBuildPrompt(t *testing.T) {
 		if err != nil {
 			t.Fatalf("PhaseDefinition %q: %v", step.Phase, err)
 		}
-		stepCtx := simulationStepContext(def, pd, step.Inputs)
+		stepCtx, err := simulationExecutionContext(def, pd, step.Inputs, step.Round)
+		if err != nil {
+			t.Fatalf("simulationExecutionContext %q: %v", step.Phase, err)
+		}
 
 		rendered, err := svc.renderPhasePrompt(context.Background(), stepCtx, step.Round, "")
 		if err != nil {
@@ -60,22 +63,25 @@ func TestRenderPhasePromptParityWithBuildPrompt(t *testing.T) {
 		if rendered.Prompt != built {
 			t.Fatalf("phase %q: renderPhasePrompt != buildPrompt\nrender:\n%s\nbuild:\n%s", step.Phase, rendered.Prompt, built)
 		}
-		if rendered.SkillID != pd.SkillID || rendered.ProfileKey != pd.ProfileKey {
-			t.Fatalf("phase %q: rendered skill/profile = %q/%q, want %q/%q", step.Phase, rendered.SkillID, rendered.ProfileKey, pd.SkillID, pd.ProfileKey)
+		if rendered.SkillID != step.SkillID || rendered.ProfileKey != step.ProfileKey {
+			t.Fatalf("phase %q: rendered skill/profile = %q/%q, want %q/%q", step.Phase, rendered.SkillID, rendered.ProfileKey, step.SkillID, step.ProfileKey)
 		}
 	}
 }
 
 // TestRenderSimulationPromptSubstitutesFixtureData covers the render endpoint's
 // core promise: every step of both phase modes across every preset renders a
-// prompt containing the substituted initiative title, member-item refs, and
-// acceptance criteria.
+// prompt containing the target-adapter reads the phase declares — initiative
+// title / member items / criteria for an initiative-target mode, the plan
+// handle for a plan-target mode. The composed Reads contract means the plan
+// drain's prompt must NOT carry initiative variables at all.
 func TestRenderSimulationPromptSubstitutesFixtureData(t *testing.T) {
 	root := t.TempDir()
 	svc := newTestServiceWithOptions(t, root, serviceOptions{prompts: &fakePrompts{render: echoRender}})
 
 	modes := []Mode{ModeHolisticLoop, ModePhasedPlanDrain}
 	for _, mode := range modes {
+		def := MustDefinition(mode)
 		sim, err := svc.SimulateMode(context.Background(), mode, "")
 		if err != nil {
 			t.Fatalf("SimulateMode %q: %v", mode, err)
@@ -96,20 +102,46 @@ func TestRenderSimulationPromptSubstitutesFixtureData(t *testing.T) {
 				if resp.Prompt == "" {
 					t.Fatalf("RenderSimulationPrompt %q/%q/%d empty prompt", mode, preset.ID, i)
 				}
-				// Substituted initiative title.
-				if title := presetSim.Initiative.Title; title != "" && !strings.Contains(resp.Prompt, title) {
-					t.Fatalf("%q/%q/%d prompt missing title %q:\n%s", mode, preset.ID, i, title, resp.Prompt)
-				}
-				// Substituted member-item refs (carried in MEMBER_ITEMS_JSON).
-				for _, ref := range presetSim.Initiative.Items {
-					if !strings.Contains(resp.Prompt, ref) {
-						t.Fatalf("%q/%q/%d prompt missing item ref %q:\n%s", mode, preset.ID, i, ref, resp.Prompt)
+				delegated := def.PhaseGraph.Phases[Phase(presetSim.Trace[i].Phase)].Delegated()
+				if delegated {
+					// A delegated step renders the sub-mode's prompt: the plan
+					// drain's composed reads, with no initiative variable leaking
+					// through the delegation boundary.
+					if !strings.Contains(resp.Prompt, "PLAN_ID=") {
+						t.Fatalf("%q/%q/%d delegated prompt missing PLAN_ID read:\n%s", mode, preset.ID, i, resp.Prompt)
 					}
-				}
-				// Substituted acceptance criteria.
-				for _, criterion := range presetSim.Initiative.AcceptanceCriteria {
-					if !strings.Contains(resp.Prompt, criterion) {
-						t.Fatalf("%q/%q/%d prompt missing criterion %q:\n%s", mode, preset.ID, i, criterion, resp.Prompt)
+					for _, leaked := range []string{"MEMBER_ITEMS_JSON", "INITIATIVE_NAME", "ACCEPTANCE_CRITERIA"} {
+						if strings.Contains(resp.Prompt, leaked) {
+							t.Fatalf("%q/%q/%d delegated prompt leaked initiative read %q:\n%s", mode, preset.ID, i, leaked, resp.Prompt)
+						}
+					}
+				} else if def.Target.Kind == TargetInitiative {
+					// Substituted initiative title.
+					if title := presetSim.Initiative.Title; title != "" && !strings.Contains(resp.Prompt, title) {
+						t.Fatalf("%q/%q/%d prompt missing title %q:\n%s", mode, preset.ID, i, title, resp.Prompt)
+					}
+					// Substituted member-item refs (carried in MEMBER_ITEMS_JSON).
+					for _, ref := range presetSim.Initiative.Items {
+						if !strings.Contains(resp.Prompt, ref) {
+							t.Fatalf("%q/%q/%d prompt missing item ref %q:\n%s", mode, preset.ID, i, ref, resp.Prompt)
+						}
+					}
+					// Substituted acceptance criteria.
+					for _, criterion := range presetSim.Initiative.AcceptanceCriteria {
+						if !strings.Contains(resp.Prompt, criterion) {
+							t.Fatalf("%q/%q/%d prompt missing criterion %q:\n%s", mode, preset.ID, i, criterion, resp.Prompt)
+						}
+					}
+				} else {
+					// Plan-target: the plan handle read is substituted and no
+					// initiative-shaped variable leaks into the prompt.
+					if !strings.Contains(resp.Prompt, "PLAN_ID=") {
+						t.Fatalf("%q/%q/%d prompt missing PLAN_ID read:\n%s", mode, preset.ID, i, resp.Prompt)
+					}
+					for _, leaked := range []string{"MEMBER_ITEMS_JSON", "INITIATIVE_NAME", "ACCEPTANCE_CRITERIA"} {
+						if strings.Contains(resp.Prompt, leaked) {
+							t.Fatalf("%q/%q/%d plan-target prompt leaked initiative read %q:\n%s", mode, preset.ID, i, leaked, resp.Prompt)
+						}
 					}
 				}
 				if resp.SkillID != presetSim.Trace[i].SkillID {

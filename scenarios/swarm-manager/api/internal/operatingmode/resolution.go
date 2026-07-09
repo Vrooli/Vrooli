@@ -69,6 +69,12 @@ type ResolvedPhaseResult struct {
 	Missing            []string // declared required fields still unresolved
 	Violations         []string // declared contract violations found
 	Notes              []string // human-facing diagnostics
+	// Envelope is the raw structured-result envelope the winning message
+	// decoded to (or the classifier reconstructed), as a generic map. Unlike
+	// Result it preserves fields the typed PhaseResult does not model — the
+	// classification-on-transition ladder reads emitted/inline routing fields
+	// from here.
+	Envelope map[string]any
 }
 
 // Resolved reports whether the ladder produced a usable structured result
@@ -90,6 +96,13 @@ type PhaseResolutionRecord struct {
 	Missing            []string          `json:"missing,omitempty"`
 	Violations         []string          `json:"violations,omitempty"`
 	Notes              []string          `json:"notes,omitempty"`
+	// ClassifiedField / ClassifiedValue mark a record produced by a
+	// transition-owned classification (classification-on-transition) rather
+	// than a phase-output resolution: ClassifiedField names the routing field
+	// the ladder derived at the edge, and ClassifiedValue carries the derived
+	// value the route guards matched on. Both empty on phase-output records.
+	ClassifiedField string `json:"classified_field,omitempty"`
+	ClassifiedValue string `json:"classified_value,omitempty"`
 }
 
 // Record projects the ladder outcome into its durable payload record.
@@ -142,6 +155,7 @@ func resolvePhaseOutput(ctx context.Context, phaseDef PhaseDefinition, messages 
 		if len(messages) > 0 {
 			if att := extractDeclared(messages[len(messages)-1], declared); att.ok {
 				res.Result = att.result
+				res.Envelope = att.envelope
 				res.ChosenMessageIndex = len(messages) - 1
 			}
 		}
@@ -182,6 +196,7 @@ func resolvePhaseOutput(ctx context.Context, phaseDef PhaseDefinition, messages 
 				Layer:              layer,
 				ChosenMessageIndex: idx,
 				MessagesScanned:    pos + 1,
+				Envelope:           att.envelope,
 			}
 		}
 		if bestPartial == nil {
@@ -211,6 +226,7 @@ func resolvePhaseOutput(ctx context.Context, phaseDef PhaseDefinition, messages 
 				Layer:              ResolutionLayerClassifier,
 				ChosenMessageIndex: len(messages) - 1,
 				Notes:              notes,
+				Envelope:           envelope,
 			}
 		}
 		return ResolvedPhaseResult{
@@ -221,6 +237,7 @@ func resolvePhaseOutput(ctx context.Context, phaseDef PhaseDefinition, messages 
 			Missing:            missing,
 			Violations:         violations,
 			Notes:              append(notes, "classifier could not reconstruct all required fields"),
+			Envelope:           envelope,
 		}
 	}
 
@@ -232,6 +249,7 @@ func resolvePhaseOutput(ctx context.Context, phaseDef PhaseDefinition, messages 
 	}
 	if bestPartial != nil {
 		res.Result = bestPartial.result
+		res.Envelope = bestPartial.envelope
 		res.Layer = ResolutionLayerExtract
 		res.Missing = partialMissing
 		res.Violations = partialViolations

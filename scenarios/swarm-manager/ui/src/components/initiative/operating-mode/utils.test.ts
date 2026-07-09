@@ -2,21 +2,22 @@ import { describe, expect, it } from "vitest";
 import {
   capabilityLabel,
   humanizeRunStrategy,
-  humanizeScopeKind,
+  humanizeTargetKind,
   parseAcceptanceCriteria,
   serializeAcceptanceCriteria,
 } from "./utils";
 
-describe("humanizeScopeKind", () => {
-  it("humanizes registered scope kinds", () => {
-    expect(humanizeScopeKind("backlog_item")).toBe("Backlog item");
-    expect(humanizeScopeKind("initiative")).toBe("Initiative");
+describe("humanizeTargetKind", () => {
+  it("humanizes the v2 target kinds", () => {
+    expect(humanizeTargetKind("plan-manager-plan")).toBe("Plan-manager plan");
+    expect(humanizeTargetKind("plan-ref")).toBe("Plan reference");
+    expect(humanizeTargetKind("initiative")).toBe("Initiative");
   });
   it("falls back to the raw token for unknown values", () => {
-    expect(humanizeScopeKind("project")).toBe("project");
+    expect(humanizeTargetKind("project")).toBe("project");
   });
   it("renders an em-dash for the empty string", () => {
-    expect(humanizeScopeKind("")).toBe("—");
+    expect(humanizeTargetKind("")).toBe("—");
   });
 });
 

@@ -5,7 +5,7 @@ import type {
   OperatingModeCatalogEntry,
 } from "../../../types/operating-mode";
 import { CapabilityList } from "./capability-list";
-import { capabilityLabel, humanizeRunStrategy, humanizeScopeKind } from "./utils";
+import { capabilityLabel, humanizeRunStrategy, humanizeTargetKind } from "./utils";
 
 export interface ModeComparePanelProps {
   current: OperatingModeCatalogEntry;
@@ -97,7 +97,7 @@ function Column({
         {mode.label}
       </p>
       <p className="mt-1 text-[11px] text-slate-500">
-        {humanizeScopeKind(mode.scopeKind)} · {humanizeRunStrategy(mode.runStrategy)}
+        {humanizeTargetKind(mode.targetKind)} · {humanizeRunStrategy(mode.runStrategy)}
       </p>
       <CapabilityList capabilities={mode.capabilities} variant="compact" />
     </div>

@@ -288,7 +288,6 @@ func TestOperatingModePhaseStats(t *testing.T) {
 	completedPayload := startPayload
 	completedPayload.DurationSeconds = 90
 	completedPayload.Status = "completed"
-	completedPayload.ReplanNeeded = true
 	appendEvent(t, repo, base.Add(90*time.Second), eventlog.EntityInitiative, "init-a",
 		eventlog.EventOperatingModePhaseCompleted, completedPayload)
 	appendEvent(t, repo, base.Add(91*time.Second), eventlog.EntityInitiative, "init-a",
@@ -313,8 +312,12 @@ func TestOperatingModePhaseStats(t *testing.T) {
 	if stats.Mode.CompletedByMode["holistic-loop"] != 1 {
 		t.Fatalf("completed by mode = %+v", stats.Mode.CompletedByMode)
 	}
-	if got := stats.Mode.ReplanRateByMode["holistic-loop"]; got.SampleSize != 1 || got.Rate != 1 {
-		t.Fatalf("replan rate = %+v, want n=1 rate=1", got)
+	// v2 holistic-loop delegates execution to the generic drain: the old
+	// replan_needed flag (and its per-mode replan sample) is retired, so the
+	// mode contributes no replan-rate sample. The generic mechanism stays
+	// data-driven (see TestOperatingModeAcceptanceStats's synthetic policy).
+	if got := stats.Mode.ReplanRateByMode["holistic-loop"]; got.SampleSize != 0 {
+		t.Fatalf("replan rate = %+v, want no sample (replan_needed retired)", got)
 	}
 	if stats.Mode.AvgPhaseDurationSeconds["holistic-loop"]["execute"] != 90 {
 		t.Fatalf("avg duration = %+v", stats.Mode.AvgPhaseDurationSeconds)
@@ -406,7 +409,7 @@ func TestPhaseRunsByLane_LegacyEventsKeepEmptyKey(t *testing.T) {
 	}
 }
 
-func TestOperatingModeReplanRateCountsCompletedExecutePayloadOnly(t *testing.T) {
+func TestOperatingModeReplanRateNotSampledForComposedHolisticLoop(t *testing.T) {
 	engine, repo := setupEngine(t)
 	ctx := context.Background()
 	base := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
@@ -430,9 +433,11 @@ func TestOperatingModeReplanRateCountsCompletedExecutePayloadOnly(t *testing.T) 
 	if err := engine.Rebuild(ctx); err != nil {
 		t.Fatalf("rebuild: %v", err)
 	}
+	// The composed holistic-loop declares no replan sample phases: even a
+	// legacy replan_needed payload contributes nothing.
 	got := engine.GetStats().Mode.ReplanRateByMode["holistic-loop"]
-	if got.SampleSize != 1 || got.Rate != 1 {
-		t.Fatalf("replan rate = %+v, want n=1 rate=1", got)
+	if got.SampleSize != 0 {
+		t.Fatalf("replan rate = %+v, want no sample (replan_needed retired)", got)
 	}
 }
 
@@ -458,8 +463,8 @@ func TestOperatingModeReplanRateFalseExecutePayload(t *testing.T) {
 		t.Fatalf("rebuild: %v", err)
 	}
 	got := engine.GetStats().Mode.ReplanRateByMode["holistic-loop"]
-	if got.SampleSize != 1 || got.Rate != 0 {
-		t.Fatalf("replan rate = %+v, want n=1 rate=0", got)
+	if got.SampleSize != 0 {
+		t.Fatalf("replan rate = %+v, want no sample (replan_needed retired)", got)
 	}
 }
 
@@ -470,27 +475,27 @@ func TestOperatingModeAcceptanceStats(t *testing.T) {
 
 	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-a",
 		eventlog.EventOperatingModePhaseCompleted, eventlog.OperatingModePhasePayload{
-			Mode:        "phased-plan-drain",
+			Mode:        "holistic-loop",
 			ScopeKind:   "initiative",
 			ScopeID:     "init-a",
 			Phase:       "review",
-			RunStrategy: "sequential_handoff",
+			RunStrategy: "operator_gated_loop",
 			Verdict:     "accept",
 		})
 	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-b",
 		eventlog.EventOperatingModePhaseCompleted, eventlog.OperatingModePhasePayload{
-			Mode:        "phased-plan-drain",
+			Mode:        "holistic-loop",
 			ScopeKind:   "initiative",
 			ScopeID:     "init-b",
 			Phase:       "review",
-			RunStrategy: "sequential_handoff",
+			RunStrategy: "operator_gated_loop",
 			Verdict:     "request_changes",
 		})
 
 	if err := engine.Rebuild(ctx); err != nil {
 		t.Fatalf("rebuild: %v", err)
 	}
-	got := engine.GetStats().Mode.AcceptanceRateByMode["phased-plan-drain"]
+	got := engine.GetStats().Mode.AcceptanceRateByMode["holistic-loop"]
 	if got.SampleSize != 2 || got.Rate != 0.5 {
 		t.Fatalf("acceptance rate = %+v, want n=2 rate=.5", got)
 	}

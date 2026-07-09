@@ -17,11 +17,7 @@ func TestSimulateModeReturnsDeterministicTraceForPhaseModes(t *testing.T) {
 	}{
 		{
 			mode:       ModeHolisticLoop,
-			wantPhases: []string{"investigate", "plan", "execute", "review", "reconcile"},
-		},
-		{
-			mode:       ModePhasedPlanDrain,
-			wantPhases: []string{"prepare_plan", "execute_next", "classify_progress", "review", "reconcile"},
+			wantPhases: []string{"investigate", "plan", "execute", "execute", "review", "reconcile"},
 		},
 	}
 
@@ -89,76 +85,106 @@ func TestSimulateModeUsesRealTransitionGuards(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SimulateMode holistic-loop: %v", err)
 	}
-	execute := loop.Trace[2]
-	if execute.Phase != "execute" {
-		t.Fatalf("trace[2].phase = %q, want execute", execute.Phase)
+	// The delegated execute phase walks the sub-mode's classified edge: the
+	// first slice continues (inline self-edge on the parent phase), the second
+	// completes and the PARENT guard routes to review.
+	firstExecute := loop.Trace[2]
+	if firstExecute.Phase != "execute" {
+		t.Fatalf("trace[2].phase = %q, want execute", firstExecute.Phase)
 	}
-	if execute.Transition == nil || execute.Transition.To != "review" || execute.Transition.Label != "always" {
-		t.Fatalf("execute transition = %+v, want always -> review", execute.Transition)
+	if firstExecute.Transition == nil || firstExecute.Transition.To != "execute" ||
+		firstExecute.Transition.Field != "progress" || firstExecute.Transition.Value != "continue" {
+		t.Fatalf("first execute transition = %+v, want progress=continue -> execute (inline delegation loop)", firstExecute.Transition)
+	}
+	secondExecute := loop.Trace[3]
+	if secondExecute.Phase != "execute" {
+		t.Fatalf("trace[3].phase = %q, want execute", secondExecute.Phase)
+	}
+	if secondExecute.Transition == nil || secondExecute.Transition.To != "review" ||
+		secondExecute.Transition.Field != "progress" || secondExecute.Transition.Value != "complete" {
+		t.Fatalf("second execute transition = %+v, want progress=complete -> review (parent guard)", secondExecute.Transition)
+	}
+	if got := secondExecute.SkillID; got != "swarm-manager-phased-plan-execute-next" {
+		t.Fatalf("delegated execute skill = %q, want the sub-mode's execute-next skill", got)
 	}
 
 	drain, err := svc.SimulateMode(context.Background(), ModePhasedPlanDrain, "")
 	if err != nil {
 		t.Fatalf("SimulateMode phased-plan-drain: %v", err)
 	}
-	classify := drain.Trace[2]
-	if classify.Phase != "classify_progress" {
-		t.Fatalf("trace[2].phase = %q, want classify_progress", classify.Phase)
+	if len(drain.Trace) != 2 {
+		t.Fatalf("drain trace = %v, want [execute execute]", phaseList(drain.Trace))
 	}
-	if classify.Output.Progress == nil || classify.Output.Progress.Decision != ProgressComplete {
-		t.Fatalf("classify output progress = %+v, want complete", classify.Output.Progress)
+	first := drain.Trace[0]
+	if first.Phase != "execute" || first.Terminal {
+		t.Fatalf("trace[0] = %q terminal=%v, want non-terminal execute", first.Phase, first.Terminal)
 	}
-	if classify.Transition == nil ||
-		classify.Transition.To != "review" ||
-		classify.Transition.ConditionKind != GuardOpEq ||
-		classify.Transition.Field != "progress.decision" ||
-		classify.Transition.Value != string(ProgressComplete) {
-		t.Fatalf("classify transition = %+v, want complete -> review", classify.Transition)
+	// The classified edge derived progress=continue from the handoff and the
+	// expanded eq-guard looped back to execute.
+	if first.Transition == nil ||
+		first.Transition.To != "execute" ||
+		first.Transition.ConditionKind != GuardOpEq ||
+		first.Transition.Field != "progress" ||
+		first.Transition.Value != "continue" {
+		t.Fatalf("first execute transition = %+v, want progress=continue -> execute", first.Transition)
+	}
+	// The second slice classifies complete: a matched guard with no target — a
+	// guarded stop, surfaced so the UI can explain why the loop ended.
+	last := drain.Trace[1]
+	if !last.Terminal {
+		t.Fatalf("trace[1] terminal = %v, want guarded stop", last.Terminal)
+	}
+	if last.Transition == nil || last.Transition.To != "" ||
+		last.Transition.Field != "progress" || last.Transition.Value != "complete" {
+		t.Fatalf("last execute transition = %+v, want progress=complete guarded stop", last.Transition)
 	}
 }
 
-func TestSimulateModeHolisticReplanPresetLoopsBackThenCompletes(t *testing.T) {
+func TestSimulateModeHolisticBlockedDrainPresetLoopsBackThenCompletes(t *testing.T) {
 	root := t.TempDir()
 	svc := newTestServiceWithOptions(t, root, serviceOptions{})
 
-	got, err := svc.SimulateMode(context.Background(), ModeHolisticLoop, "replan-after-execute")
+	got, err := svc.SimulateMode(context.Background(), ModeHolisticLoop, "drain-blocked-replan")
 	if err != nil {
-		t.Fatalf("SimulateMode replan preset: %v", err)
+		t.Fatalf("SimulateMode blocked-drain preset: %v", err)
 	}
-	if got.ActivePreset != "replan-after-execute" {
-		t.Fatalf("active preset = %q, want replan-after-execute", got.ActivePreset)
+	if got.ActivePreset != "drain-blocked-replan" {
+		t.Fatalf("active preset = %q, want drain-blocked-replan", got.ActivePreset)
 	}
-	// First execute must route back to investigate via the real payload-bool guard.
+	// The first delegated execute round classifies blocked: the sub-mode stops
+	// and the PARENT's blocked guard routes back to investigate (the composed
+	// replan loop).
 	firstExecute := got.Trace[2]
 	if firstExecute.Phase != "execute" {
 		t.Fatalf("trace[2].phase = %q, want execute", firstExecute.Phase)
 	}
-	if !firstExecute.Output.ReplanNeeded {
-		t.Fatalf("first execute replan_needed = false, want true")
+	if progress, _ := firstExecute.Round.Payload["progress"].(string); progress != "blocked" {
+		t.Fatalf("first execute derived progress = %q, want blocked", progress)
 	}
 	if firstExecute.Transition == nil ||
 		firstExecute.Transition.To != "investigate" ||
 		firstExecute.Transition.ConditionKind != GuardOpEq ||
-		firstExecute.Transition.Field != "replan_needed" {
-		t.Fatalf("first execute transition = %+v, want replan_needed guard -> investigate", firstExecute.Transition)
+		firstExecute.Transition.Field != "progress" ||
+		firstExecute.Transition.Value != "blocked" {
+		t.Fatalf("first execute transition = %+v, want progress=blocked guard -> investigate", firstExecute.Transition)
 	}
 	// The trace must still terminate at reconcile after the second pass.
 	last := got.Trace[len(got.Trace)-1]
 	if last.Phase != "reconcile" || !last.Terminal {
 		t.Fatalf("final step = %q terminal=%v, want reconcile terminal", last.Phase, last.Terminal)
 	}
-	// The second execute pass must not request replan again.
+	// The second delegated pass completes cleanly.
 	secondExecuteFound := false
 	for _, step := range got.Trace[3:] {
 		if step.Phase == "execute" {
 			secondExecuteFound = true
-			if step.Output.ReplanNeeded {
-				t.Fatalf("second execute still requests replan: %+v", step.Output)
+			if progress, _ := step.Round.Payload["progress"].(string); progress != "complete" {
+				t.Fatalf("second execute derived progress = %q, want complete", progress)
 			}
 		}
 	}
 	if !secondExecuteFound {
-		t.Fatalf("expected a second execute pass after replan, trace: %+v", phaseList(got.Trace))
+		t.Fatalf("expected a second execute pass after the blocked drain, trace: %+v", phaseList(got.Trace))
 	}
 }
 
@@ -167,14 +193,13 @@ func TestSimulateModePhasedPlanBranchPresets(t *testing.T) {
 	svc := newTestServiceWithOptions(t, root, serviceOptions{})
 
 	cases := []struct {
-		preset       string
-		wantDecision ProgressDecision
-		wantTerminal string
-		wantTo       string // classify_progress first-visit routing target ("" for terminal)
+		preset    string
+		wantPath  []string
+		wantValue string // classified value on the final (guarded-stop) step
 	}{
-		{preset: "continue-next-slice", wantDecision: ProgressContinue, wantTerminal: "reconcile", wantTo: "execute_next"},
-		{preset: "replan-plan", wantDecision: ProgressReplan, wantTerminal: "reconcile", wantTo: "prepare_plan"},
-		{preset: "blocked", wantDecision: ProgressBlocked, wantTerminal: "classify_progress", wantTo: ""},
+		{preset: "happy-path", wantPath: []string{"execute", "execute"}, wantValue: "continue"},
+		{preset: "complete-first-slice", wantPath: []string{"execute"}, wantValue: "complete"},
+		{preset: "blocked", wantPath: []string{"execute"}, wantValue: "blocked"},
 	}
 
 	for _, tc := range cases {
@@ -183,31 +208,30 @@ func TestSimulateModePhasedPlanBranchPresets(t *testing.T) {
 			if err != nil {
 				t.Fatalf("SimulateMode %s: %v", tc.preset, err)
 			}
-			classify := got.Trace[2]
-			if classify.Phase != "classify_progress" {
-				t.Fatalf("trace[2].phase = %q, want classify_progress", classify.Phase)
+			if len(got.Trace) != len(tc.wantPath) {
+				t.Fatalf("trace = %v, want %v", phaseList(got.Trace), tc.wantPath)
 			}
-			if classify.Output.Progress == nil || classify.Output.Progress.Decision != tc.wantDecision {
-				t.Fatalf("classify decision = %+v, want %q", classify.Output.Progress, tc.wantDecision)
-			}
-			if tc.wantTo == "" {
-				// The blocked guard matches but has no downstream target: the
-				// step is terminal, yet the transition is still surfaced so the
-				// UI can explain why the cycle stopped here.
-				if !classify.Terminal {
-					t.Fatalf("blocked classify terminal = %v, want terminal", classify.Terminal)
+			for i, phase := range tc.wantPath {
+				if got.Trace[i].Phase != phase {
+					t.Fatalf("trace = %v, want %v", phaseList(got.Trace), tc.wantPath)
 				}
-				if classify.Transition == nil || classify.Transition.To != "" ||
-					classify.Transition.Field != "progress.decision" ||
-					classify.Transition.Value != string(ProgressBlocked) {
-					t.Fatalf("blocked transition = %+v, want blocked guard with empty target", classify.Transition)
-				}
-			} else if classify.Transition == nil || classify.Transition.To != tc.wantTo {
-				t.Fatalf("classify transition = %+v, want to %q", classify.Transition, tc.wantTo)
 			}
+			first := got.Trace[0]
+			// Every branch routes through the single classified edge: the value
+			// is derived from the handoff and surfaced on the transition.
+			if first.Transition == nil || first.Transition.ConditionKind != GuardOpEq ||
+				first.Transition.Field != "progress" || first.Transition.Value != tc.wantValue {
+				t.Fatalf("first transition = %+v, want progress=%s", first.Transition, tc.wantValue)
+			}
+			// The walk always ends on a guarded stop (complete or blocked): the
+			// matched guard has no target, yet is surfaced so the UI can explain
+			// why the loop ended here.
 			last := got.Trace[len(got.Trace)-1]
-			if last.Phase != tc.wantTerminal || !last.Terminal {
-				t.Fatalf("final step = %q terminal=%v, want %q terminal", last.Phase, last.Terminal, tc.wantTerminal)
+			if !last.Terminal {
+				t.Fatalf("final step terminal = %v, want guarded stop", last.Terminal)
+			}
+			if last.Transition == nil || last.Transition.To != "" || last.Transition.Field != "progress" {
+				t.Fatalf("final transition = %+v, want guarded stop on progress", last.Transition)
 			}
 		})
 	}
@@ -292,7 +316,7 @@ func TestSimulateModeIsIsolatedFromPersistentRoundState(t *testing.T) {
 	prompts := &fakePrompts{}
 	svc := newTestService(t, root, agent, prompts)
 
-	if _, err := svc.SimulateMode(context.Background(), ModeHolisticLoop, "replan-after-execute"); err != nil {
+	if _, err := svc.SimulateMode(context.Background(), ModeHolisticLoop, "drain-blocked-replan"); err != nil {
 		t.Fatalf("SimulateMode returned error: %v", err)
 	}
 	if len(agent.spawned) != 0 {
@@ -342,18 +366,18 @@ func TestSimulationPresetsAreModeOwnedData(t *testing.T) {
 		t.Fatalf("first example-run id = %q, want happy-path (happy-path-first ordering)", def.ExampleRuns[0].ID)
 	}
 
-	got, err := svc.SimulateMode(context.Background(), ModeHolisticLoop, "replan-after-execute")
+	got, err := svc.SimulateMode(context.Background(), ModeHolisticLoop, "drain-blocked-replan")
 	if err != nil {
 		t.Fatalf("SimulateMode: %v", err)
 	}
 	var replan *SimulationPreset
 	for i := range got.Presets {
-		if got.Presets[i].ID == "replan-after-execute" {
+		if got.Presets[i].ID == "drain-blocked-replan" {
 			replan = &got.Presets[i]
 		}
 	}
 	if replan == nil {
-		t.Fatalf("replan-after-execute preset missing from %+v", got.Presets)
+		t.Fatalf("drain-blocked-replan preset missing from %+v", got.Presets)
 	}
 	// The operator narrative comes straight from the example-run JSON.
 	if replan.Branch == "" || replan.Scenario == "" || replan.Label == "" {

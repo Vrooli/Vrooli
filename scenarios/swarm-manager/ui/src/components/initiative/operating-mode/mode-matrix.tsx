@@ -9,7 +9,7 @@
 import { selectors } from "../../../consts/selectors";
 import type { OperatingModeCatalogEntry } from "../../../types/operating-mode";
 import { CapabilityList } from "./capability-list";
-import { humanizeRunStrategy, humanizeScopeKind } from "./utils";
+import { humanizeRunStrategy, humanizeTargetKind } from "./utils";
 
 export interface ModeMatrixProps {
   catalog: OperatingModeCatalogEntry[];
@@ -50,7 +50,7 @@ export function ModeMatrix({ catalog }: ModeMatrixProps) {
           </tr>
         </thead>
         <tbody>
-          <Row label="Scope" cells={catalog.map((e) => humanizeScopeKind(e.scopeKind))} />
+          <Row label="Target" cells={catalog.map((e) => humanizeTargetKind(e.targetKind))} />
           <Row
             label="Run strategy"
             cells={catalog.map((e) => humanizeRunStrategy(e.runStrategy))}

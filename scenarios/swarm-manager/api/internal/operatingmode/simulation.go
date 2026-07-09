@@ -109,10 +109,30 @@ func (s *Service) simulateDefinition(ctx context.Context, def Definition, preset
 	stepIdx := 0
 
 	phase := def.PhaseGraph.StartPhase
+	// subCur tracks the sub-mode phase while the walk is inside a delegated
+	// phase (executed_by); empty when the phase executes its own contract.
+	var subCur Phase
 	for i := 0; i < maxSimulationSteps; i++ {
 		phaseDef, err := def.PhaseDefinition(phase)
 		if err != nil {
 			return SimulationResponse{}, err
+		}
+		// Resolve the execution contract for this visit: the phase's own, or
+		// the sub-mode's current sub-phase for a delegated phase.
+		execDef, execPhaseDef := def, phaseDef
+		if phaseDef.Delegated() {
+			sub, err := delegationSubDefinition(phaseDef)
+			if err != nil {
+				return SimulationResponse{}, err
+			}
+			if subCur == "" {
+				subCur = sub.PhaseGraph.StartPhase
+			}
+			execDef = sub
+			execPhaseDef, err = sub.PhaseDefinition(subCur)
+			if err != nil {
+				return SimulationResponse{}, err
+			}
 		}
 		inputs := SimulationInputs{
 			Initiative:         init,
@@ -132,32 +152,37 @@ func (s *Service) simulateDefinition(ctx context.Context, def Definition, preset
 		} else if stepIdx < len(preset.steps) {
 			return SimulationResponse{}, fmt.Errorf("simulate %s preset %q: step %d is phase %q but the walk reached %q", def.Mode, preset.meta.ID, stepIdx, preset.steps[stepIdx].Phase, phase)
 		}
-		result, err := mergeSeededResult(cannedSimulationResult(def, phaseDef, items), seeded)
+		result, resultMap, err := mergeSeededResult(cannedSimulationResult(execDef, execPhaseDef, items), seeded)
 		if err != nil {
 			return SimulationResponse{}, fmt.Errorf("simulate %s.%s: %w", def.Mode, phaseDef.Phase, err)
 		}
-		output, err := encodePhaseResultEnvelope(result)
+		output, err := encodeEnvelopeMap(resultMap)
 		if err != nil {
 			return SimulationResponse{}, err
+		}
+		payload := map[string]any{
+			"simulation": true,
+			"skill_id":   execPhaseDef.SkillID,
+			"catalog_id": execPhaseDef.CatalogID,
+		}
+		if phaseDef.Delegated() {
+			payload[payloadDelegatedMode] = string(execDef.Mode)
+			payload[payloadDelegatedPhase] = string(execPhaseDef.Phase)
 		}
 		round := RoundEnvelope{
 			Round:           len(rounds) + 1,
 			Mode:            string(def.Mode),
-			ScopeKind:       string(def.Scope.Kind),
+			ScopeKind:       string(def.Target.Kind),
 			ScopeID:         init.Name,
 			InitiativeName:  init.Name,
 			Phase:           string(phaseDef.Phase),
 			RunStrategy:     string(def.RunStrategy.Kind),
-			AgentProfileKey: phaseDef.ProfileKey,
+			AgentProfileKey: execPhaseDef.ProfileKey,
 			GeneratedAt:     s.clock().UTC().Format(timeFormatRFC3339),
 			RunID:           fmt.Sprintf("simulation-%03d", len(rounds)+1),
 			Status:          RoundStatusCompleted,
 			Items:           append([]RoundItem(nil), items...),
-			Payload: map[string]any{
-				"simulation": true,
-				"skill_id":   phaseDef.SkillID,
-				"catalog_id": phaseDef.CatalogID,
-			},
+			Payload:         payload,
 		}
 		resolved, err := s.applyPhaseResultInMemory(ctx, def, &round, output)
 		if err != nil {
@@ -169,19 +194,40 @@ func (s *Service) simulateDefinition(ctx context.Context, def Definition, preset
 			// declared schema, which is an authoring error worth surfacing loudly.
 			return SimulationResponse{}, fmt.Errorf("simulate %s.%s: %s", def.Mode, phaseDef.Phase, resolved.AbstainReason())
 		}
-		transition := simulationTransitionForCompletedRound(def, round)
-		stepCtx := simulationStepContext(def, phaseDef, inputs)
+		// Classification-on-transition, deterministic rungs only: simulation
+		// never spawns agents or calls a live classifier, so a preset for a
+		// classified transition must short-circuit (seed the routing field) or
+		// L1-derive (carry it inline on the source object). An abstain here is a
+		// fixture authoring error, surfaced loudly like a resolution abstain.
+		if cls := s.classifyTransitionRoutingForDef(ctx, def, &round, resolved.Envelope, false); cls != nil && cls.Abstained() {
+			return SimulationResponse{}, fmt.Errorf("simulate %s.%s: %s; seed %q in the preset output", def.Mode, phaseDef.Phase, cls.AbstainReason(), cls.Field)
+		}
+		var transition *SimulationTransition
+		nextSubCur := Phase("")
+		if phaseDef.Delegated() {
+			transition, nextSubCur, err = delegatedSimulationTransition(def, execDef, phaseDef.Phase, subCur, round)
+			if err != nil {
+				return SimulationResponse{}, fmt.Errorf("simulate %s.%s: %w", def.Mode, phaseDef.Phase, err)
+			}
+		} else {
+			transition = simulationTransitionForCompletedRound(def, round)
+		}
+		subCur = nextSubCur
+		stepCtx, err := simulationExecutionContext(def, phaseDef, inputs, round)
+		if err != nil {
+			return SimulationResponse{}, fmt.Errorf("simulate %s.%s: %w", def.Mode, phaseDef.Phase, err)
+		}
 		step := SimulationStep{
 			Index:           len(trace),
 			Phase:           string(phaseDef.Phase),
-			PhaseKind:       string(phaseDef.Kind),
+			PhaseKind:       string(execPhaseDef.Kind),
 			Inputs:          inputs,
 			Output:          result,
 			Round:           round,
 			Transition:      transition,
 			Terminal:        transition == nil || strings.TrimSpace(transition.To) == "",
-			SkillID:         phaseDef.SkillID,
-			ProfileKey:      phaseDef.ProfileKey,
+			SkillID:         execPhaseDef.SkillID,
+			ProfileKey:      execPhaseDef.ProfileKey,
 			PromptVariables: promptVariables(stepCtx, round, ""),
 		}
 		trace = append(trace, step)
@@ -204,19 +250,113 @@ func (s *Service) simulateDefinition(ctx context.Context, def Definition, preset
 	return SimulationResponse{}, fmt.Errorf("simulate %s preset %q: phase graph did not terminate within %d steps", def.Mode, preset.meta.ID, maxSimulationSteps)
 }
 
-// simulationStepContext rebuilds the phaseContext that fed a simulation step
+// simulationStepContext rebuilds the RunContext that fed a simulation step
 // from its recorded inputs. It is the bridge that lets the render-preview
 // endpoint substitute the exact same fixture data the trace already shows, and
-// it is pure (no store reads), matching the isolated nature of SimulateMode.
-func simulationStepContext(def Definition, phaseDef PhaseDefinition, inputs SimulationInputs) phaseContext {
-	return phaseContext{
-		init:      inputs.Initiative,
-		def:       def,
-		phaseDef:  phaseDef,
-		items:     inputs.Items,
-		artifacts: inputs.Artifacts,
-		rounds:    inputs.PriorRounds,
+// it is pure (no store reads or adapter resolution), matching the isolated
+// nature of SimulateMode. The sandbox initiative doubles as the target
+// instance; the mode's declared target kind still drives read composition.
+func simulationStepContext(def Definition, phaseDef PhaseDefinition, inputs SimulationInputs) RunContext {
+	rc := RunContext{
+		Def:      def,
+		PhaseDef: phaseDef,
+		Target: TargetInstance{
+			Kind:        def.Target.Kind,
+			ID:          inputs.Initiative.Name,
+			Title:       inputs.Initiative.Title,
+			Description: inputs.Initiative.Description,
+			Initiative:  inputs.Initiative,
+			Items:       inputs.Items,
+		},
+		Artifacts: inputs.Artifacts,
+		Rounds:    inputs.PriorRounds,
 	}
+	if def.Target.PlanRef.Required {
+		// A bound-plan mode always has plan context by the time phases run;
+		// the simulation substitutes a deterministic fixture so PLAN_CONTEXT
+		// reads — and delegated plan-target sub-contexts — resolve without a
+		// live plan-manager call.
+		rc.Target.Plan = simulatedPlanContext()
+	}
+	return rc
+}
+
+// simulatedPlanContext is the deterministic bound-plan fixture simulation
+// substitutes for a live plan-manager resolution.
+func simulatedPlanContext() *PlanExecutionContext {
+	return &PlanExecutionContext{
+		Required:    true,
+		Source:      "simulation",
+		ExecutionID: "simulated-plan-execution",
+		PlanID:      "simulated-plan",
+		PlanRef: &PlanRef{
+			Provider: PlanRefProviderPlanManager,
+			PlanID:   "simulated-plan",
+			Role:     PlanRefRoleOperatingModePlan,
+		},
+	}
+}
+
+// simulationExecutionContext resolves the run context whose prompt/reads a
+// simulation step renders: the phase's own context, or — for a delegated
+// phase — the sub-mode context derived from it, with the sub-phase read back
+// from the simulated round's payload marker.
+func simulationExecutionContext(def Definition, phaseDef PhaseDefinition, inputs SimulationInputs, round RoundEnvelope) (RunContext, error) {
+	rc := simulationStepContext(def, phaseDef, inputs)
+	if !phaseDef.Delegated() {
+		return rc, nil
+	}
+	sub, err := delegationSubDefinition(phaseDef)
+	if err != nil {
+		return RunContext{}, err
+	}
+	subPhase, ok := delegatedRoundSubPhase(round)
+	if !ok {
+		return RunContext{}, fmt.Errorf("delegated phase %q round carries no %s marker", phaseDef.Phase, payloadDelegatedPhase)
+	}
+	subPhaseDef, err := sub.PhaseDefinition(subPhase)
+	if err != nil {
+		return RunContext{}, err
+	}
+	target, err := deriveSubTarget(def, sub, rc.Target)
+	if err != nil {
+		return RunContext{}, err
+	}
+	return RunContext{
+		Def:       sub,
+		PhaseDef:  subPhaseDef,
+		Target:    target,
+		Artifacts: rc.Artifacts,
+		Rounds:    rc.Rounds,
+	}, nil
+}
+
+// delegatedSimulationTransition routes a completed delegated round: the
+// sub-mode's guards evaluate first — an onward sub-route renders as an inline
+// self-edge on the delegating phase (the sub-loop continues there) — and a
+// sub-mode stop hands the same output to the parent's guards. Returns the
+// rendered transition plus the sub-phase the next visit should run (empty when
+// the delegation ended).
+func delegatedSimulationTransition(def, sub Definition, parentPhase, subPhase Phase, round RoundEnvelope) (*SimulationTransition, Phase, error) {
+	lookup := NewMapFieldLookup(round.Payload)
+	for _, gt := range sub.PhaseGraph.Guards[subPhase] {
+		if !gt.When.Eval(lookup) {
+			continue
+		}
+		if len(gt.To) == 0 {
+			// Guarded stop inside the sub-mode: delegation ends; the parent's
+			// guards route on the same output.
+			return simulationTransitionForCompletedRound(def, round), "", nil
+		}
+		if len(gt.To) > 1 {
+			return nil, "", fmt.Errorf("sub-mode %q phase %q routed to multiple targets %v; delegated sub-routes must be deterministic", sub.Mode, subPhase, gt.To)
+		}
+		transition := simulationTransitionFromGuard(parentPhase, gt.When)
+		transition.To = string(parentPhase)
+		return &transition, gt.To[0], nil
+	}
+	// Terminal sub-phase or no matching sub-guard: delegation ends.
+	return simulationTransitionForCompletedRound(def, round), "", nil
 }
 
 // RenderPromptResponse is the render-preview payload: the literal prompt an
@@ -268,7 +408,10 @@ func (s *Service) RenderSimulationPrompt(ctx context.Context, mode Mode, presetI
 		ProfileKey: step.ProfileKey,
 		Variables:  step.PromptVariables,
 	}
-	stepCtx := simulationStepContext(phaseDef, pd, step.Inputs)
+	stepCtx, err := simulationExecutionContext(phaseDef, pd, step.Inputs, step.Round)
+	if err != nil {
+		return RenderPromptResponse{}, err
+	}
 	rendered, err := s.renderPhasePrompt(ctx, stepCtx, step.Round, "")
 	if err != nil {
 		if errors.Is(err, ErrPromptRenderUnavailable) {
@@ -387,28 +530,35 @@ func resolveSimulationPreset(presets []simPreset, id string) simPreset {
 // `progress.decision` overrides just that leaf, not the whole progress object).
 // The merge is generic — whatever fields the example-run declares override the
 // scaffolding — so no branch-specific Go logic is needed.
-func mergeSeededResult(base PhaseResult, seeded map[string]any) (PhaseResult, error) {
-	if len(seeded) == 0 {
-		return base, nil
-	}
+//
+// It returns both the typed result (for trace display) and the merged generic
+// map (for envelope encoding). The map is the fidelity-preserving shape: a
+// seeded field the runtime does not model — e.g. a routing value carried
+// inline on the handoff for a classified transition — survives in the map even
+// though the typed round-trip drops it, matching the runtime path where the
+// raw envelope preserves emitted fields the typed PhaseResult does not.
+func mergeSeededResult(base PhaseResult, seeded map[string]any) (PhaseResult, map[string]any, error) {
 	baseBytes, err := json.Marshal(base)
 	if err != nil {
-		return PhaseResult{}, fmt.Errorf("marshal canned result: %w", err)
+		return PhaseResult{}, nil, fmt.Errorf("marshal canned result: %w", err)
 	}
 	baseMap := map[string]any{}
 	if err := json.Unmarshal(baseBytes, &baseMap); err != nil {
-		return PhaseResult{}, fmt.Errorf("decode canned result: %w", err)
+		return PhaseResult{}, nil, fmt.Errorf("decode canned result: %w", err)
+	}
+	if len(seeded) == 0 {
+		return base, baseMap, nil
 	}
 	deepMergeMap(baseMap, seeded)
 	mergedBytes, err := json.Marshal(baseMap)
 	if err != nil {
-		return PhaseResult{}, fmt.Errorf("marshal merged result: %w", err)
+		return PhaseResult{}, nil, fmt.Errorf("marshal merged result: %w", err)
 	}
 	var result PhaseResult
 	if err := json.Unmarshal(mergedBytes, &result); err != nil {
-		return PhaseResult{}, fmt.Errorf("decode merged result: %w", err)
+		return PhaseResult{}, nil, fmt.Errorf("decode merged result: %w", err)
 	}
-	return result, nil
+	return result, baseMap, nil
 }
 
 // deepMergeMap recursively overlays src onto dst: matching object keys merge,
@@ -536,8 +686,10 @@ func simulationBacklogSync(items []RoundItem) *BacklogSyncPlan {
 	return plan
 }
 
-func encodePhaseResultEnvelope(result PhaseResult) (string, error) {
-	body, err := json.Marshal(map[string]PhaseResult{resultEnvelopeKey: result})
+// encodeEnvelopeMap encodes a generic result map (typed fields plus any seeded
+// fields the runtime does not model) as the structured-result envelope string.
+func encodeEnvelopeMap(result map[string]any) (string, error) {
+	body, err := json.Marshal(map[string]any{resultEnvelopeKey: result})
 	if err != nil {
 		return "", err
 	}

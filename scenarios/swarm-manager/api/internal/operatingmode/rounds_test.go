@@ -15,6 +15,9 @@ func testStore(t *testing.T) *Store {
 		InitDir: func(name string) string {
 			return filepath.Join(root, "initiatives", name)
 		},
+		TargetDir: func(kind TargetKind, scopeID string) string {
+			return TargetScopeDir(filepath.Join(root, "data"), kind, scopeID)
+		},
 		Clock: func() time.Time {
 			return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
 		},
@@ -35,11 +38,13 @@ func TestStore_ModeScopedPaths(t *testing.T) {
 		t.Fatalf("ModeDir = %s", got)
 	}
 
-	roundPath, err := store.RoundPath("sandboxing", ModePhasedPlanDrain, 7)
+	// Plan-target rounds never live under an initiative folder: the store
+	// routes them through the target directory resolver.
+	roundPath, err := store.RoundPath("exec-1234", ModePhasedPlanDrain, 7)
 	if err != nil {
 		t.Fatalf("RoundPath: %v", err)
 	}
-	if got := filepath.ToSlash(roundPath); !hasSuffix(got, "initiatives/sandboxing/modes/phased-plan-drain/rounds/round-007.json") {
+	if got := filepath.ToSlash(roundPath); !hasSuffix(got, "data/mode-targets/plan-manager-plan/exec-1234/modes/phased-plan-drain/rounds/round-007.json") {
 		t.Fatalf("RoundPath = %s", got)
 	}
 }
@@ -48,9 +53,9 @@ func TestStore_CreateListLoadRoundPreservesEnvelope(t *testing.T) {
 	store := testStore(t)
 
 	created, err := store.CreateRound(RoundEnvelope{
-		InitiativeName:  "sandboxing",
+		ScopeID:         "sandboxing",
 		Mode:            string(ModePhasedPlanDrain),
-		Phase:           "execute_next",
+		Phase:           "execute",
 		RunID:           "run-123",
 		Status:          RoundStatusAgentRunning,
 		AgentProfileKey: ProfileDeepWork,
@@ -79,9 +84,9 @@ func TestStore_CreateListLoadRoundPreservesEnvelope(t *testing.T) {
 	}
 
 	second, err := store.CreateRound(RoundEnvelope{
-		InitiativeName: "sandboxing",
-		Mode:           string(ModePhasedPlanDrain),
-		Phase:          "classify_progress",
+		ScopeID: "sandboxing",
+		Mode:    string(ModePhasedPlanDrain),
+		Phase:   "execute",
 	})
 	if err != nil {
 		t.Fatalf("CreateRound second: %v", err)
@@ -89,8 +94,8 @@ func TestStore_CreateListLoadRoundPreservesEnvelope(t *testing.T) {
 	if second.Round != 2 {
 		t.Fatalf("second round = %d, want 2", second.Round)
 	}
-	if second.AgentProfileKey != ProfileAnalysis {
-		t.Fatalf("defaulted profile = %q, want %q", second.AgentProfileKey, ProfileAnalysis)
+	if second.AgentProfileKey != ProfileDeepWork {
+		t.Fatalf("defaulted profile = %q, want %q", second.AgentProfileKey, ProfileDeepWork)
 	}
 
 	rounds, err := store.ListRounds("sandboxing", ModePhasedPlanDrain)

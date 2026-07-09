@@ -34,7 +34,11 @@ func (s *Service) applyPhaseResultInMemory(ctx context.Context, def Definition, 
 }
 
 func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Definition, round *RoundEnvelope, messages []string, persistArtifacts bool) (ResolvedPhaseResult, error) {
-	phaseDef, err := def.PhaseDefinition(Phase(round.Phase))
+	// A delegated round resolves against the sub-mode's phase contract (the
+	// sub-phase's declared output steers the ladder and the applied-result
+	// checks); artifact paths keep resolving against the parent mode's
+	// artifact policy because the round lives in the parent run's tree.
+	_, phaseDef, err := effectiveRoundExecution(def, *round)
 	if err != nil {
 		return ResolvedPhaseResult{}, err
 	}
@@ -127,7 +131,7 @@ func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Defin
 	}
 	if persistArtifacts {
 		for _, write := range writes {
-			if _, err := s.store.WriteArtifact(staged.InitiativeName, Mode(staged.Mode), write.Path, write.Content); err != nil {
+			if _, err := s.store.WriteArtifact(firstNonEmpty(staged.ScopeID, staged.InitiativeName), Mode(staged.Mode), write.Path, write.Content); err != nil {
 				return resolved, err
 			}
 		}

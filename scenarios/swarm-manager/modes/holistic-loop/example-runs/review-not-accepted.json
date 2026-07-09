@@ -8,10 +8,22 @@
   "scenario": "The acceptance review finds the result falls short in a way the operator does not want re-executed this cycle (out of scope, or better tracked as new work). A plain non-accepting verdict is not changes_requested, so it does not loop back to execute — reconcile still runs and proposes follow-up items so the gap is captured.",
   "initiative": {
     "title": "Unify the audio-session lifecycle",
-    "description": "A pass where acceptance review is not satisfied and the gap is deferred to follow-up work.",
+    "description": "Coupled audio fixes that can only be validated together across the tab lifecycle.",
     "items": [
-      { "ref": "execute/audio-session-teardown", "title": "Tear down idle audio session", "status": "in_progress", "priority": 1, "effort": "M" },
-      { "ref": "fix/mic-wedge-regression", "title": "Fix mic wedge after backgrounding", "status": "todo", "priority": 2, "effort": "S" }
+      {
+        "ref": "execute/audio-session-teardown",
+        "title": "Tear down idle audio session",
+        "status": "in_progress",
+        "priority": 1,
+        "effort": "M"
+      },
+      {
+        "ref": "fix/mic-wedge-regression",
+        "title": "Fix mic wedge after backgrounding",
+        "status": "todo",
+        "priority": 2,
+        "effort": "S"
+      }
     ],
     "criteria": [
       "An idle tab never holds the system audio session.",
@@ -19,10 +31,55 @@
     ]
   },
   "steps": [
-    { "phase": "investigate", "note": "always → plan" },
-    { "phase": "plan", "note": "always → execute" },
-    { "phase": "execute", "output": { "replan_needed": false }, "note": "replan_needed=false → review" },
-    { "phase": "review", "output": { "verdict": "rejected" }, "note": "verdict is non-accept but not changes_requested → always → reconcile (gap recorded as follow-up)" }
+    {
+      "phase": "investigate",
+      "note": "always → plan"
+    },
+    {
+      "phase": "plan",
+      "output": {
+        "plan_ref": {
+          "provider": "plan-manager",
+          "plan_id": "audio-session-lifecycle-plan",
+          "role": "operating_mode_plan"
+        }
+      },
+      "note": "emits + binds plan_ref → always → execute"
+    },
+    {
+      "phase": "execute",
+      "output": {
+        "handoff": {
+          "summary": "Drained the plan: session teardown and mic recovery landed.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Nothing — the plan is fully drained.",
+          "changed_files": [
+            "apps/web/src/audio/session.ts"
+          ],
+          "tests": [
+            "vrooli scenario test web-console"
+          ],
+          "frontier": "None — the plan is fully drained.",
+          "progress": "complete"
+        }
+      },
+      "note": "sub-mode stop (complete) → review"
+    },
+    {
+      "phase": "review",
+      "output": {
+        "verdict": "rejected"
+      },
+      "note": "verdict is non-accept but not changes_requested → always → reconcile (gap recorded as follow-up)"
+    }
   ],
-  "expected_path": ["investigate", "plan", "execute", "review", "reconcile"]
+  "expected_path": [
+    "investigate",
+    "plan",
+    "execute",
+    "review",
+    "reconcile"
+  ]
 }

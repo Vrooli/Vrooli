@@ -62,7 +62,7 @@ function makeCatalogEntry(): OperatingModeCatalogEntry {
     notFor: ["Independent items"],
     tradeoffs: ["One plan, not N"],
     usageCount: 1,
-    scopeKind: "initiative",
+    targetKind: "initiative",
     runStrategy: "operator_gated_loop",
     workspaceTabId: "operating-mode",
     capabilities: initiativeModeCapabilities,
@@ -80,7 +80,7 @@ function makeWorkspace(overrides?: Partial<OperatingModeWorkspace>): OperatingMo
     definition: {
       mode: "holistic-loop",
       label: "Holistic Loop",
-      scopeKind: "initiative",
+      targetKind: "initiative",
       capabilities: initiativeModeCapabilities,
       runStrategy: "operator_gated_loop",
       terminal: ["review"],

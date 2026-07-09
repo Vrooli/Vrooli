@@ -27,7 +27,7 @@ function makeMode(overrides: Partial<OperatingModeCatalogEntry> = {}): Operating
     notFor: ["Coupled work"],
     tradeoffs: ["Highest parallelism"],
     usageCount: 3,
-    scopeKind: "backlog_item",
+    targetKind: "initiative",
     runStrategy: "existing_item_flow",
     workspaceTabId: "info",
     capabilities: baseCapabilities,
@@ -45,7 +45,7 @@ describe("OperatingModeCard", () => {
     expect(screen.getByText("Item Level")).toBeInTheDocument();
     expect(screen.getByText("3 init.")).toBeInTheDocument();
     expect(screen.getByText("Each backlog item runs through the existing flow.")).toBeInTheDocument();
-    expect(screen.getByText(/Backlog item · Existing item flow · default/)).toBeInTheDocument();
+    expect(screen.getByText(/Initiative · Existing item flow · default/)).toBeInTheDocument();
   });
 
   it("omits the description block when none is set", () => {

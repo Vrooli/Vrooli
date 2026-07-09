@@ -204,6 +204,7 @@ func (a *App) dependencies() support.Dependencies {
 		OperatingModeScaffold:           a.cmdOperatingModeScaffold,
 		OperatingModeValidate:           a.cmdOperatingModeValidate,
 		OperatingModeSimulate:           a.cmdOperatingModeSimulate,
+		OperatingModeStart:              a.cmdOperatingModeStart,
 		CapturesList:                    a.cmdCapturesList,
 		CapturesCreate:                  a.cmdCapturesCreate,
 		CapturesGet:                     a.cmdCapturesGet,

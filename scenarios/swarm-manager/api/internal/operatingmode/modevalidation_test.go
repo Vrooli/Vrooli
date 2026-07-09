@@ -56,7 +56,7 @@ func TestSchemaValidationRejects(t *testing.T) {
 			doc["profile"] = map[string]any{"default_profile_key": "other/thing"}
 		}},
 		{"empty best_for", func(doc map[string]any) { doc["best_for"] = []any{} }},
-		{"unknown scope kind", func(doc map[string]any) { doc["scope"] = map[string]any{"kind": "galaxy"} }},
+		{"unknown target kind", func(doc map[string]any) { doc["target"] = map[string]any{"kind": "galaxy"} }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -164,10 +164,9 @@ func TestValidateLoadedModesRejectsExampleRunDeclaredOutputViolation(t *testing.
 		ID:   "missing-handoff-frontier",
 		Mode: string(ModePhasedPlanDrain),
 		Steps: []ExampleRunStep{
-			{Phase: "prepare_plan", Output: map[string]any{"plan_ref": map[string]any{"provider": "plan-manager", "plan_id": "plan-1", "slug": "plan-1", "role": "operating_mode_plan"}}},
-			{Phase: "execute_next", Output: map[string]any{"handoff": map[string]any{"summary": "partial"}}},
+			{Phase: "execute", Output: map[string]any{"handoff": map[string]any{"summary": "partial", "progress": "complete"}}},
 		},
-		ExpectedPath: []string{"prepare_plan", "execute_next", "classify_progress"},
+		ExpectedPath: []string{"execute"},
 	})
 	defs[ModePhasedPlanDrain] = def
 	if err := ValidateLoadedModes(defs); err == nil {

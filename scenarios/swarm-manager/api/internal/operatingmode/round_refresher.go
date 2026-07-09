@@ -62,10 +62,27 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 			slog.Warn("operating mode: phase result contract failed", "err", err, "initiative", round.InitiativeName, "round", round.Round)
 			s.emitPhaseFailed(round, err.Error())
 		case resolved.Resolved():
-			round.Status = RoundStatusCompleted
-			s.emitPhaseCompleted(round)
-			s.emitParsedPhaseSignals(round)
-			completedNormally = true
+			// Classification-on-transition runs BEFORE guard routing: when the
+			// completed phase's transition declares a classification contract,
+			// derive the routing field from the round's resolved output now (no
+			// agent spawned) so the guard evaluation that routes this round —
+			// auto-start, allowed-next-phase computation, UI — reads the derived
+			// value from the persisted payload. An honest abstain parks the round
+			// in needs_attention instead of routing: a routing decision is never
+			// fabricated.
+			if cls := s.classifyTransitionRouting(ctx, &round, resolved.Envelope); cls != nil && cls.Abstained() {
+				round.Status = RoundStatusNeedsAttention
+				round.Error = cls.AbstainReason()
+				slog.Warn("operating mode: transition classification abstained",
+					"initiative", round.InitiativeName, "round", round.Round,
+					"field", cls.Field, "violations", cls.Violations)
+				s.emitPhaseFailed(round, round.Error)
+			} else {
+				round.Status = RoundStatusCompleted
+				s.emitPhaseCompleted(round)
+				s.emitParsedPhaseSignals(round)
+				completedNormally = true
+			}
 		default:
 			// Honest abstain: the ladder could not resolve or reconstruct the
 			// phase's required structured output. This is not the old
@@ -79,7 +96,7 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 				"missing", resolved.Missing, "violations", resolved.Violations)
 			s.emitPhaseFailed(round, round.Error)
 		}
-		_ = s.lock.Release(round.InitiativeName, round.RunID)
+		_ = s.lock.Release(roundOwnershipKey(round), round.RunID)
 	case "failed":
 		round.Status = RoundStatusFailed
 		round.Error = strings.TrimSpace(state.ErrorMsg)
@@ -88,12 +105,12 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 		}
 		MutableRoundPayload(&round).SetFinishedAt(finishTime(state, s.clock))
 		s.emitPhaseFailed(round, round.Error)
-		_ = s.lock.Release(round.InitiativeName, round.RunID)
+		_ = s.lock.Release(roundOwnershipKey(round), round.RunID)
 	case "cancelled":
 		round.Status = RoundStatusCanceled
 		MutableRoundPayload(&round).SetFinishedAt(finishTime(state, s.clock))
 		s.emitPhaseCanceled(round)
-		_ = s.lock.Release(round.InitiativeName, round.RunID)
+		_ = s.lock.Release(roundOwnershipKey(round), round.RunID)
 	default:
 		return round, nil
 	}
@@ -130,7 +147,7 @@ func (s *Service) CancelRound(ctx context.Context, initiativeName string, mode M
 		return RoundEnvelope{}, err
 	}
 	if round.RunID != "" {
-		_ = s.lock.Release(initiativeName, round.RunID)
+		_ = s.lock.Release(roundOwnershipKey(round), round.RunID)
 	}
 	s.emitPhaseCanceled(round)
 	return round, nil
@@ -174,6 +191,13 @@ func (s *Service) resolutionCandidates(ctx context.Context, round RoundEnvelope,
 // logged but never blow up the refresher: a missed auto-dispatch is
 // recoverable; a panicked refresher is not.
 func (s *Service) maybeAutoStartNext(ctx context.Context, round RoundEnvelope) {
+	// Auto-start dispatch is initiative-keyed (it re-enters StartPhase with an
+	// initiative name). Plan-target rounds have no initiative and no auto-start
+	// contract — their continuation is the operator's (or the composing
+	// mode's) explicit next start.
+	if strings.TrimSpace(round.InitiativeName) == "" {
+		return
+	}
 	def, err := DefinitionFor(Mode(round.Mode))
 	if err != nil {
 		slog.Warn("operating mode: auto-start lookup failed",

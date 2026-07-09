@@ -66,12 +66,12 @@ import {
   DEFAULT_FLAG_EXPLAINER,
   FLOW_GUIDE_EXPLAINER,
   RUN_STRATEGY_EXPLAINER,
-  SCOPE_KIND_EXPLAINER,
+  TARGET_KIND_EXPLAINER,
   type ConceptExplainer,
 } from "../components/initiative/operating-mode/concept-explainers";
 import {
   humanizeRunStrategy,
-  humanizeScopeKind,
+  humanizeTargetKind,
   phaseCardDomId,
 } from "../components/initiative/operating-mode/utils";
 import { useUrlState } from "../hooks/use-url-state";
@@ -267,20 +267,25 @@ export function OperatingModeDetailsPage() {
 
   const { entry, linkedInitiatives } = data;
   const transitions = entry.phaseGraph?.transitions ?? [];
+  const subModeLookup: Record<string, typeof entry> = {};
+  for (const catalogMode of catalogModes) subModeLookup[catalogMode.mode] = catalogMode;
   const simulationTrace = simulationQuery.data?.trace ?? [];
   const activeSimulationStep = simulationTrace[simulationIndex] ?? null;
+  const liveCatalogPhase = liveActiveRound
+    ? phases.find((candidate) => candidate.phase === liveActiveRound.phase)
+    : undefined;
   const liveView = liveWorkspace && liveActiveRound
-    ? livePhaseView(liveActiveRound, liveWorkspace, transitions, selectedLiveInitiative)
+    ? livePhaseView(liveActiveRound, liveWorkspace, transitions, selectedLiveInitiative, liveCatalogPhase)
     : null;
   const activePresetId = simulationQuery.data?.activePreset ?? activePreset;
   const flowPhaseView: PhaseView | null = (() => {
     if (flowSource === "live") return liveView;
     if (!activeSimulationStep) return null;
+    const stepCatalogPhase = phases.find((candidate) => candidate.phase === activeSimulationStep.phase);
     if (flowSource === "contract") {
-      const phase = phases.find((candidate) => candidate.phase === activeSimulationStep.phase);
-      return phase ? contractPhaseView(phase, transitions) : null;
+      return stepCatalogPhase ? contractPhaseView(stepCatalogPhase, transitions) : null;
     }
-    return simulationPhaseView(activeSimulationStep, mode, activePresetId);
+    return simulationPhaseView(activeSimulationStep, mode, activePresetId, stepCatalogPhase);
   })();
   const selectedPhaseId = highlightedPhaseId ?? liveView?.phase ?? activeSimulationStep?.phase ?? null;
   const tabs: CompactTabItem<OperatingModeTab>[] = [
@@ -405,11 +410,11 @@ export function OperatingModeDetailsPage() {
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400 md:grid-cols-4">
                   <div>
                     <ExplainableLabel
-                      label="Scope"
-                      onOpen={() => setActiveExplainer(SCOPE_KIND_EXPLAINER)}
+                      label="Target"
+                      onOpen={() => setActiveExplainer(TARGET_KIND_EXPLAINER)}
                       testId={selectors.initiativeDetails.modeDetailsScopeInfoIcon}
                     />
-                    <dd className="text-slate-200">{humanizeScopeKind(entry.scopeKind)}</dd>
+                    <dd className="text-slate-200">{humanizeTargetKind(entry.targetKind)}</dd>
                   </div>
                   <div>
                     <ExplainableLabel
@@ -504,6 +509,7 @@ export function OperatingModeDetailsPage() {
               phases={phases}
               transitions={entry.phaseGraph?.transitions}
               highlightedPhaseId={selectedPhaseId}
+              subModes={subModeLookup}
             />
           </div>
         </DetailSection>

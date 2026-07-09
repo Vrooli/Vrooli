@@ -191,6 +191,7 @@ func (s *ConnectService) ScaffoldMode(_ context.Context, req *connect.Request[ap
 		ID:          id,
 		Label:       req.Msg.GetLabel(),
 		Description: req.Msg.GetDescription(),
+		StartFrom:   req.Msg.GetStartFrom(),
 		Force:       req.Msg.GetForce(),
 	})
 	if err != nil {
@@ -264,6 +265,26 @@ func (s *ConnectService) StartPhase(ctx context.Context, req *connect.Request[ap
 		Note:           req.Msg.GetNote(),
 		Override:       req.Msg.GetOverride(),
 		RequestedBy:    req.Msg.GetRequestedBy(),
+	})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(roundEnvelopeToProto(round)), nil
+}
+
+func (s *ConnectService) StartTargetPhase(ctx context.Context, req *connect.Request[apipb.OperatingModeStartTargetPhaseRequest]) (*connect.Response[apipb.OperatingModeRoundEnvelope], error) {
+	mode := strings.TrimSpace(req.Msg.GetMode())
+	targetRef := strings.TrimSpace(req.Msg.GetTargetRef())
+	if mode == "" || targetRef == "" {
+		return nil, invalidArg("mode and target_ref are required")
+	}
+	round, err := s.svc.StartTargetPhase(ctx, StartTargetPhaseRequest{
+		Mode:        mode,
+		TargetRef:   targetRef,
+		Phase:       req.Msg.GetPhase(),
+		Note:        req.Msg.GetNote(),
+		Override:    req.Msg.GetOverride(),
+		RequestedBy: req.Msg.GetRequestedBy(),
 	})
 	if err != nil {
 		return nil, connectError(err)

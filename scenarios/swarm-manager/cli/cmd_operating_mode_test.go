@@ -9,7 +9,8 @@ import (
 
 func TestHumanizeOperatingModeEnum(t *testing.T) {
 	cases := map[string]string{
-		"backlog_item":        "Backlog item",
+		"plan-manager-plan":   "Plan-manager plan",
+		"plan-ref":            "Plan reference",
 		"initiative":          "Initiative",
 		"existing_item_flow":  "Existing item flow",
 		"single_phase_run":    "Single phase run",

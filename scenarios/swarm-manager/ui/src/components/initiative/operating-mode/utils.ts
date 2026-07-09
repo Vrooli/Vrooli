@@ -63,14 +63,17 @@ export function phaseCardDomId(phase: string): string {
   return `phase-row-${phase}`;
 }
 
-// humanizeScopeKind / humanizeRunStrategy use explicit switches over the known
-// enum values from api/internal/operatingmode/registry.go. If a new value is
-// added server-side and not mirrored here, the unknown branch surfaces the raw
-// token so the page does not silently render garbage.
-export function humanizeScopeKind(kind: string): string {
+// humanizeTargetKind / humanizeRunStrategy use explicit switches over the known
+// enum values from api/internal/operatingmode. If a new value is added
+// server-side and not mirrored here, the unknown branch surfaces the raw token
+// so the page does not silently render garbage. The v2 target vocabulary is
+// plan-manager-plan | plan-ref | initiative (EXECUTION-MODES.md).
+export function humanizeTargetKind(kind: string): string {
   switch (kind) {
-    case "backlog_item":
-      return "Backlog item";
+    case "plan-manager-plan":
+      return "Plan-manager plan";
+    case "plan-ref":
+      return "Plan reference";
     case "initiative":
       return "Initiative";
     default:

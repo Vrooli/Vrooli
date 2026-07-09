@@ -3,6 +3,7 @@ package planimport
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"swarm-manager/internal/identity"
@@ -216,6 +217,23 @@ func TestService_ImportAdoptsExternalMarkdown(t *testing.T) {
 	}
 }
 
+// TestService_ImportRejectsPlanTargetMode pins the server-side target-kind
+// validation: an import may not stamp an initiative with a plan-target mode.
+func TestService_ImportRejectsPlanTargetMode(t *testing.T) {
+	svc := NewService(stubFetcher{plan: fixturePlan()}, &stubLander{}, &stubInitiativeLander{firstAction: "created"})
+	_, err := svc.Import(context.Background(), Request{
+		PlanID: "my-plan",
+		Container: ContainerSpec{
+			Type: "initiative",
+			Name: "my-plan-work",
+			Mode: "phased-plan-drain",
+		},
+	}, identity.Provenance{})
+	if err == nil || !strings.Contains(err.Error(), "not an initiative") {
+		t.Fatalf("Import err = %v, want plan-target mode rejection", err)
+	}
+}
+
 func TestService_ImportInitiativeContainer(t *testing.T) {
 	lander := &stubLander{}
 	initLander := &stubInitiativeLander{firstAction: "created"}
@@ -227,7 +245,7 @@ func TestService_ImportInitiativeContainer(t *testing.T) {
 			Type:  "initiative",
 			Name:  "my-plan-work",
 			Title: "My Plan Work",
-			Mode:  "phased-plan-drain",
+			Mode:  "holistic-loop",
 		},
 	}, identity.Provenance{})
 	if err != nil {

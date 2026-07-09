@@ -24,7 +24,7 @@ describe("CreateWorkFromPlanDialog", () => {
       planId: "plan-1",
       container: "initiative",
       items: [{ kind: "execute", name: "alpha-plan-phase-1", title: "Build", action: "created" }],
-      initiative: { name: "alpha", title: "Alpha", mode: "phased-plan-drain", action: "created" },
+      initiative: { name: "alpha", title: "Alpha", mode: "holistic-loop", action: "created" },
       count: 1,
       created: 1,
       linked: 0,
@@ -53,7 +53,7 @@ describe("CreateWorkFromPlanDialog", () => {
         name: "alpha",
         title: undefined,
         description: undefined,
-        mode: "phased-plan-drain",
+        mode: "holistic-loop",
       },
     }));
     expect(onImported).toHaveBeenCalledWith(expect.objectContaining({ slug: "alpha-plan" }));

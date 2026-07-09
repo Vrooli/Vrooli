@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PHASE_READS, PHASE_RESULT_FIELDS } from "./phase-interpretability";
+import { PHASE_RESULT_FIELDS } from "./phase-interpretability";
 
 declare const require: (id: string) => {
   readFileSync?: (path: string, encoding: string) => string;
@@ -19,14 +19,11 @@ function readText(pathname: string): string {
 }
 
 describe("phase interpretability config", () => {
-  it("keeps the reads list aligned with prompt variables", () => {
-    const promptGo = readText(path.resolve?.(scenarioRoot, "api/internal/operatingmode/prompt.go") ?? "");
-
-    for (const read of PHASE_READS) {
-      expect(promptGo).toContain(`"${read.key}"`);
-    }
-  });
-
+  // In v2 the Reads tab derives from each mode's declared, composed contract
+  // (base ∪ target adapter) — there is no fixed reads vocabulary to keep in
+  // lockstep with the backend, so that alignment test is retired. The emits
+  // schema is still a fixed projection of the PhaseResult contract, so it
+  // remains pinned here.
   it("keeps the emits schema aligned with PhaseResult json fields", () => {
     const outputGo = readText(path.resolve?.(scenarioRoot, "api/internal/operatingmode/output.go") ?? "");
 

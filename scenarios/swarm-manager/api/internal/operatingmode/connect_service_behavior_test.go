@@ -96,19 +96,36 @@ func TestConnectGetModeReturnsLinkedInitiatives(t *testing.T) {
 		t.Fatalf("entry missing projected phases")
 	}
 	for _, phase := range resp.Msg.GetEntry().GetPhases() {
+		if phase.GetExecutedBy() != "" {
+			// A delegated phase carries no skill of its own; it names the
+			// sub-mode so CLI/UI can render the composed flow inline.
+			if phase.GetSkillId() != "" {
+				t.Fatalf("delegated phase %q should not carry its own skill_id (got %q)", phase.GetPhase(), phase.GetSkillId())
+			}
+			continue
+		}
 		if phase.GetSkillId() == "" {
 			t.Fatalf("phase %q missing resolved skill_id", phase.GetPhase())
 		}
 	}
-	var foundReplan bool
+	var foundExecutedBy bool
+	for _, phase := range resp.Msg.GetEntry().GetPhases() {
+		if phase.GetPhase() == "execute" && phase.GetExecutedBy() == string(ModePhasedPlanDrain) {
+			foundExecutedBy = true
+		}
+	}
+	if !foundExecutedBy {
+		t.Fatalf("expected execute phase to declare executed_by=phased-plan-drain in %+v", resp.Msg.GetEntry().GetPhases())
+	}
+	var foundBlockedReplan bool
 	for _, edge := range graph.GetTransitions() {
-		if edge.GetFrom() == "execute" && edge.GetTo() == "investigate" && strings.Contains(edge.GetLabel(), "replan_needed") {
-			foundReplan = true
+		if edge.GetFrom() == "execute" && edge.GetTo() == "investigate" && strings.Contains(edge.GetLabel(), "progress = blocked") {
+			foundBlockedReplan = true
 			break
 		}
 	}
-	if !foundReplan {
-		t.Fatalf("expected execute->investigate replan edge in %+v", graph.GetTransitions())
+	if !foundBlockedReplan {
+		t.Fatalf("expected execute->investigate blocked edge in %+v", graph.GetTransitions())
 	}
 }
 
@@ -132,8 +149,8 @@ func TestConnectSimulateBlockedPresetIsTerminal(t *testing.T) {
 		t.Fatalf("blocked trace should be non-empty")
 	}
 	last := trace[len(trace)-1]
-	if last.GetPhase() != "classify_progress" || !last.GetTerminal() {
-		t.Fatalf("blocked terminal step = %q terminal=%v, want classify_progress terminal", last.GetPhase(), last.GetTerminal())
+	if last.GetPhase() != "execute" || !last.GetTerminal() {
+		t.Fatalf("blocked terminal step = %q terminal=%v, want execute guarded stop", last.GetPhase(), last.GetTerminal())
 	}
 }
 

@@ -29,7 +29,7 @@ function makeEntry(overrides: Partial<OperatingModeCatalogEntry> = {}): Operatin
     notFor: ["Independent items"],
     tradeoffs: ["One plan, not N"],
     usageCount: 1,
-    scopeKind: "initiative",
+    targetKind: "initiative",
     runStrategy: "operator_gated_loop",
     workspaceTabId: "operating-mode",
     capabilities: itemExecutionCapabilities,

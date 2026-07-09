@@ -6,7 +6,7 @@
   "best_for": ["Proving the guard vocabulary can express arbitrary DAGs with no mode-specific branch kinds"],
   "not_for": ["Real work — this is a schema-genericity fixture"],
   "tradeoffs": ["Exists only to validate the schema's expressiveness"],
-  "scope": { "kind": "initiative" },
+  "target": { "kind": "initiative" },
   "run_strategy": { "kind": "operator_gated_loop" },
   "prompt": { "catalog_prefix": "swarm-manager-novel-triage" },
   "artifact": { "root": "modes/novel-triage-switch" },
@@ -29,6 +29,7 @@
         "id": "triage",
         "kind": "investigate",
         "activity_purpose": "novel_triage",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
         "prompt": { "title": "Triage", "purpose": "Classify the report into a disposition and severity." },
         "declared_output": {
           "fields": [
@@ -46,6 +47,7 @@
         "id": "reproduce",
         "kind": "execute",
         "activity_purpose": "novel_reproduce",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
         "writes_repo": false,
         "prompt": { "title": "Reproduce", "purpose": "Attempt to reproduce; high-severity confirmed defects route to fix, low-severity to verify, unreproducible to close." },
         "declared_output": {
@@ -64,6 +66,7 @@
         "id": "escalate",
         "kind": "review",
         "activity_purpose": "novel_escalate",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
         "prompt": { "title": "Escalate", "purpose": "Hand off to a human owner, then close the loop." },
         "transitions": [
           { "when": { "op": "always" }, "to": ["close"] }
@@ -73,6 +76,7 @@
         "id": "fix",
         "kind": "execute",
         "activity_purpose": "novel_fix",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
         "writes_repo": true,
         "prompt": { "title": "Fix", "purpose": "Implement the fix and route to verification." },
         "transitions": [
@@ -83,6 +87,7 @@
         "id": "verify",
         "kind": "review",
         "activity_purpose": "novel_verify",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
         "requires_criteria": true,
         "prompt": { "title": "Verify", "purpose": "Verify the fix; anything other than pass reloops to fix." },
         "declared_output": {
@@ -100,6 +105,7 @@
         "id": "close",
         "kind": "reconcile",
         "activity_purpose": "novel_close",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
         "auto_start_after": ["verify"],
         "prompt": { "title": "Close", "purpose": "Reconcile the backlog and end the loop." },
         "declared_output": {

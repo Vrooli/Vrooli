@@ -2,40 +2,41 @@
   "kind": "operating-mode-example-run",
   "id": "happy-path",
   "mode": "phased-plan-drain",
-  "label": "Drains in one slice",
-  "description": "Prepare → execute → classify (complete) → review → reconcile in a single pass.",
-  "branch": "classify_progress → review (complete)",
-  "scenario": "The prepared plan is small enough that one execution slice finishes it. Classify reports complete, review accepts, and reconcile aligns the backlog.",
-  "initiative": {
-    "title": "Migrate CLI commands to durable run handles",
-    "description": "A stable, well-decomposed plan that a single slice can drain.",
-    "items": [
-      { "ref": "execute/durable-run-primitive", "title": "Add durable_run primitive", "status": "in_progress", "priority": 1, "effort": "M" },
-      { "ref": "execute/migrate-test-genie-execute", "title": "Migrate test-genie execute to durable handles", "status": "todo", "priority": 2, "effort": "M" }
-    ],
-    "criteria": [
-      "Every execute command returns a durable run handle.",
-      "The legacy in-process primitive is removed."
-    ]
-  },
+  "label": "Continue, then complete",
+  "description": "Two slices drain the plan: the first handoff classifies continue and loops execute; the second classifies complete and the drain stops.",
+  "branch": "execute → execute (progress=continue), then guarded stop (progress=complete)",
+  "scenario": "A stable two-phase plan. Round 1 completes the first contiguous slice and declares the remaining phase as the frontier; round 2 finishes it and the classified edge stops the loop.",
   "steps": [
-    { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next" },
     {
-      "phase": "execute_next",
+      "phase": "execute",
       "output": {
         "handoff": {
-          "summary": "Completed the durable run migration in one slice.",
+          "summary": "Completed plan phase 1: migrated the CLI commands to durable run handles.",
           "blockers": ["none"],
-          "next_step": "Classify progress and move to acceptance review.",
+          "next_step": "Drain plan phase 2 from the declared frontier.",
           "changed_files": ["scenarios/test-genie/cli/execute/durable.go"],
           "tests": ["vrooli scenario test test-genie"],
-          "frontier": "None — the plan is fully drained."
+          "frontier": "Plan phase 2: remove the legacy in-process primitive.",
+          "progress": "continue"
         }
       },
-      "note": "always → classify_progress"
+      "note": "handoff.progress=continue L1-derives at the edge → loops execute"
     },
-    { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review" },
-    { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
+    {
+      "phase": "execute",
+      "output": {
+        "handoff": {
+          "summary": "Completed plan phase 2: removed the legacy in-process primitive.",
+          "blockers": ["none"],
+          "next_step": "Nothing — the plan is fully drained.",
+          "changed_files": ["packages/cli-core/cliapp/primitive.go"],
+          "tests": ["cd packages/cli-core && go test ./..."],
+          "frontier": "None — the plan is fully drained.",
+          "progress": "complete"
+        }
+      },
+      "note": "handoff.progress=complete L1-derives at the edge → guarded stop"
+    }
   ],
-  "expected_path": ["prepare_plan", "execute_next", "classify_progress", "review", "reconcile"]
+  "expected_path": ["execute", "execute"]
 }

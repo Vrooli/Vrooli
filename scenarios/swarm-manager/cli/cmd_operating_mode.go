@@ -49,8 +49,48 @@ func (a *App) cmdOperatingModeList(args []string) error {
 		if mode.GetDescription() != "" {
 			fmt.Printf("    %s\n", mode.GetDescription())
 		}
-		fmt.Printf("    scope=%s strategy=%s usage=%d initiative(s)\n", mode.GetScopeKind(), mode.GetRunStrategy(), mode.GetUsageCount())
+		fmt.Printf("    target=%s strategy=%s usage=%d initiative(s)\n", mode.GetTargetKind(), mode.GetRunStrategy(), mode.GetUsageCount())
 	}
+	return nil
+}
+
+// cmdOperatingModeStart is the plan-first entry point: start a round of a
+// non-initiative-target mode directly on its target (a plan-manager plan by
+// execution id/slug, or a plan-ref path) — no initiative created. Round
+// follow-up uses `initiatives mode-refresh/mode-cancel --name <scope-id>
+// --mode <mode> --round N`, where the scope id is the resolved target id
+// printed on the started round.
+func (a *App) cmdOperatingModeStart(args []string) error {
+	fs := flag.NewFlagSet("operating-mode start", flag.ContinueOnError)
+	modeFlag := fs.String("mode", "", "Operating mode ID (e.g., phased-plan-drain)")
+	targetFlag := fs.String("target", "", "Target ref: plan-manager execution id/slug, or plan-ref path")
+	phaseFlag := fs.String("phase", "", "Phase name (defaults to the mode's start phase)")
+	noteFlag := fs.String("note", "", "Operator note")
+	overrideFlag := fs.Bool("override", false, "Acquire the target lock even if it is held")
+	requestedByFlag := fs.String("requested-by", "", "Actor recorded for the phase start")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlags("mode", *modeFlag, "target", *targetFlag); err != nil {
+		return fmt.Errorf("usage: operating-mode start --mode MODE --target REF [--phase PHASE] [--note MSG] [--override] [--requested-by WHO] [--json]\n\n%s", err)
+	}
+	resp, err := a.operatingModeClient().StartTargetPhase(context.Background(), connect.NewRequest(&apipb.OperatingModeStartTargetPhaseRequest{
+		Mode:        strings.TrimSpace(*modeFlag),
+		TargetRef:   strings.TrimSpace(*targetFlag),
+		Phase:       strings.TrimSpace(*phaseFlag),
+		Note:        strings.TrimSpace(*noteFlag),
+		Override:    *overrideFlag,
+		RequestedBy: defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
+	}))
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
+	}
+	printModeRound("Started Round", resp.Msg)
+	fmt.Printf("  Follow up: swarm-manager initiatives mode-refresh --name %s --mode %s --round %d\n", resp.Msg.GetScopeId(), resp.Msg.GetMode(), resp.Msg.GetRound())
 	return nil
 }
 
@@ -85,8 +125,36 @@ func (a *App) cmdOperatingModeGet(args []string) error {
 	if *jsonOut {
 		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
-	printOperatingModeDetail(resp.Msg)
+	printOperatingModeDetail(resp.Msg, a.resolveDelegatedSubModes(resp.Msg.GetEntry()))
 	return nil
+}
+
+// resolveDelegatedSubModes fetches the catalog entry of every sub-mode a
+// phase delegates to (executed_by), so the detail printer can render the
+// composed graph inline. The backend stays the routing SSOT — this only reads
+// each sub-mode's own catalog to display its phases under the delegating phase.
+// A sub-mode that fails to resolve is simply omitted (the delegating phase
+// still renders its "delegates to" marker).
+func (a *App) resolveDelegatedSubModes(entry *apipb.OperatingModeCatalogEntry) map[string]*apipb.OperatingModeCatalogEntry {
+	if entry == nil {
+		return nil
+	}
+	out := map[string]*apipb.OperatingModeCatalogEntry{}
+	for _, phase := range entry.GetPhases() {
+		sub := phase.GetExecutedBy()
+		if sub == "" {
+			continue
+		}
+		if _, ok := out[sub]; ok {
+			continue
+		}
+		resp, err := a.operatingModeClient().GetMode(context.Background(), connect.NewRequest(&apipb.OperatingModeGetRequest{Mode: sub}))
+		if err != nil {
+			continue
+		}
+		out[sub] = resp.Msg.GetEntry()
+	}
+	return out
 }
 
 func (a *App) printOperatingModePhasePrompt(mode, phase, preset string, jsonOut bool) error {
@@ -156,14 +224,16 @@ func (a *App) cmdOperatingModeSet(args []string) error {
 	if *jsonOut {
 		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
-	printOperatingModeDetail(resp.Msg)
+	printOperatingModeDetail(resp.Msg, a.resolveDelegatedSubModes(resp.Msg.GetEntry()))
 	return nil
 }
 
 func humanizeOperatingModeEnum(value string) string {
 	switch value {
-	case "backlog_item":
-		return "Backlog item"
+	case "plan-manager-plan":
+		return "Plan-manager plan"
+	case "plan-ref":
+		return "Plan reference"
 	case "initiative":
 		return "Initiative"
 	case "existing_item_flow":
@@ -196,7 +266,7 @@ func contractChips(c *apipb.OperatingModePhaseOutputContractSummary) []string {
 	return chips
 }
 
-func printOperatingModeDetail(resp *apipb.OperatingModeDetailResponse) {
+func printOperatingModeDetail(resp *apipb.OperatingModeDetailResponse, subModes map[string]*apipb.OperatingModeCatalogEntry) {
 	entry := resp.GetEntry()
 	printSection("Operating Mode")
 	fmt.Printf("  Mode:        %s\n", entry.GetMode())
@@ -204,13 +274,13 @@ func printOperatingModeDetail(resp *apipb.OperatingModeDetailResponse) {
 	if entry.GetDescription() != "" {
 		fmt.Printf("  Description: %s\n", entry.GetDescription())
 	}
-	fmt.Printf("  Scope:       %s\n", humanizeOperatingModeEnum(entry.GetScopeKind()))
+	fmt.Printf("  Target:      %s\n", humanizeOperatingModeEnum(entry.GetTargetKind()))
 	fmt.Printf("  Strategy:    %s\n", humanizeOperatingModeEnum(entry.GetRunStrategy()))
 	fmt.Printf("  Usage:       %d initiative(s)\n", entry.GetUsageCount())
 	if len(entry.GetPhases()) > 0 {
 		fmt.Println("  Phases:")
 		for _, phase := range entry.GetPhases() {
-			printOperatingModePhase(phase)
+			printOperatingModePhase(phase, subModes)
 		}
 	}
 	if entry.GetPhaseGraph() != nil {
@@ -235,8 +305,11 @@ func printOperatingModeDetail(resp *apipb.OperatingModeDetailResponse) {
 }
 
 // printOperatingModePhase renders a single operating-mode phase block,
-// including its profile/contract summary and optional artifacts/internals.
-func printOperatingModePhase(phase *apipb.OperatingModeCatalogPhase) {
+// including its profile/contract summary and optional artifacts/internals. A
+// phase delegated to a sub-mode (executed_by) renders the sub-mode's phases
+// inline from subModes; a phase with a classification-on-transition contract
+// renders it as a built-in step rather than an agent phase.
+func printOperatingModePhase(phase *apipb.OperatingModeCatalogPhase, subModes map[string]*apipb.OperatingModeCatalogEntry) {
 	markers := ""
 	if phase.GetIsStart() {
 		markers += " [start]"
@@ -244,11 +317,18 @@ func printOperatingModePhase(phase *apipb.OperatingModeCatalogPhase) {
 	if phase.GetIsTerminal() {
 		markers += " [terminal]"
 	}
+	if phase.GetExecutedBy() != "" {
+		markers += " [delegated]"
+	}
 	title := phase.GetTitle()
 	if title == "" {
 		title = phase.GetPhase()
 	}
 	fmt.Printf("    - %s  (%s)%s\n", title, phase.GetPhase(), markers)
+	if phase.GetExecutedBy() != "" {
+		printDelegatedSubMode(phase.GetExecutedBy(), subModes)
+		return
+	}
 	if phase.GetPurpose() != "" {
 		fmt.Printf("      Purpose: %s\n", phase.GetPurpose())
 	}
@@ -261,11 +341,83 @@ func printOperatingModePhase(phase *apipb.OperatingModeCatalogPhase) {
 		fmt.Print("    Requires criteria: yes")
 	}
 	fmt.Println()
+	printOperatingModePhaseReads(phase.GetReads())
 	if chips := contractChips(phase.GetOutputContract()); len(chips) > 0 {
 		fmt.Printf("      Contract: %s\n", strings.Join(chips, "  "))
 	}
+	printOperatingModePhaseClassification(phase.GetClassification())
 	printOperatingModePhaseArtifacts(phase.GetOutputArtifacts())
 	printOperatingModePhaseInternals(phase)
+}
+
+// printOperatingModePhaseReads renders a phase's declared input contract
+// grouped by supplying provider (generic base vs target adapter), rendered
+// from data rather than a fixed category list.
+func printOperatingModePhaseReads(reads *apipb.OperatingModePhaseReads) {
+	if reads == nil || (len(reads.GetBase()) == 0 && len(reads.GetTarget()) == 0) {
+		return
+	}
+	fmt.Print("      Reads:")
+	if len(reads.GetBase()) > 0 {
+		fmt.Printf(" base[%s]", strings.Join(reads.GetBase(), ", "))
+	}
+	if len(reads.GetTarget()) > 0 {
+		fmt.Printf(" target[%s]", strings.Join(reads.GetTarget(), ", "))
+	}
+	fmt.Println()
+}
+
+// printOperatingModePhaseClassification renders the classification-on-transition
+// contract as a built-in step: the routing field derived at the edge, the
+// closed enum, and the handoff field it derives from. Costs no agent round.
+func printOperatingModePhaseClassification(c *apipb.OperatingModeTransitionClassification) {
+	if c == nil {
+		return
+	}
+	fmt.Printf("      Classification (built-in): derive %s", c.GetField())
+	if enum := c.GetEnum(); len(enum) > 0 {
+		fmt.Printf(" ∈ {%s}", strings.Join(enum, ", "))
+	}
+	if from := c.GetFrom(); from != "" {
+		fmt.Printf(" from %s", from)
+	}
+	fmt.Println()
+	if desc := c.GetDescription(); desc != "" {
+		fmt.Printf("        %s\n", desc)
+	}
+}
+
+// printDelegatedSubMode renders a delegated phase's composed graph inline: the
+// sub-mode's phases and phase graph, marked delegated. The backend remains the
+// routing SSOT; this reads the sub-mode's own catalog for display only.
+func printDelegatedSubMode(subMode string, subModes map[string]*apipb.OperatingModeCatalogEntry) {
+	fmt.Printf("      Executed by sub-mode: %s\n", subMode)
+	sub := subModes[subMode]
+	if sub == nil {
+		return
+	}
+	fmt.Printf("      Composed graph (target=%s):\n", humanizeOperatingModeEnum(sub.GetTargetKind()))
+	for _, phase := range sub.GetPhases() {
+		markers := ""
+		if phase.GetIsStart() {
+			markers += " [start]"
+		}
+		if phase.GetIsTerminal() {
+			markers += " [terminal]"
+		}
+		title := phase.GetTitle()
+		if title == "" {
+			title = phase.GetPhase()
+		}
+		fmt.Printf("        · %s  (%s)%s\n", title, phase.GetPhase(), markers)
+		if c := phase.GetClassification(); c != nil {
+			fmt.Printf("          classification: derive %s", c.GetField())
+			if enum := c.GetEnum(); len(enum) > 0 {
+				fmt.Printf(" ∈ {%s}", strings.Join(enum, ", "))
+			}
+			fmt.Println()
+		}
+	}
 }
 
 func printOperatingModeRenderedPrompt(resp *apipb.OperatingModeRenderPromptResponse) {
@@ -377,7 +529,11 @@ func printPhaseGraph(graph *apipb.OperatingModeCatalogPhaseGraph) {
 			return edges[i].GetLabel() < edges[j].GetLabel()
 		})
 		for _, edge := range edges {
-			fmt.Printf("      %s -> %s (%s)\n", edge.GetFrom(), edge.GetTo(), edge.GetLabel())
+			suffix := ""
+			if edge.GetClassified() {
+				suffix = " [classified]"
+			}
+			fmt.Printf("      %s -> %s (%s)%s\n", edge.GetFrom(), edge.GetTo(), edge.GetLabel(), suffix)
 		}
 	}
 	if len(graph.GetAcceptedVerdicts()) > 0 {

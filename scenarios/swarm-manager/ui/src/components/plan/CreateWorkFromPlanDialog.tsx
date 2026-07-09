@@ -23,8 +23,7 @@ type ContainerType = "items" | "initiative";
 
 const MODE_OPTIONS = [
   { value: "item-level", label: "Item-level", hint: "Creates phase items without a mode-wide drain." },
-  { value: "phased-plan-drain", label: "Phased drain", hint: "Binds the plan as the initiative operating-mode plan." },
-  { value: "holistic-loop", label: "Holistic loop", hint: "Creates a broad initiative around the plan." },
+  { value: "holistic-loop", label: "Holistic loop", hint: "Binds the plan and drains it through the delegated phased-plan-drain." },
 ] as const;
 
 export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: CreateWorkFromPlanDialogProps) {
@@ -40,7 +39,7 @@ export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: Create
   const [initiativeName, setInitiativeName] = useState("");
   const [initiativeTitle, setInitiativeTitle] = useState("");
   const [initiativeDescription, setInitiativeDescription] = useState("");
-  const [mode, setMode] = useState("phased-plan-drain");
+  const [mode, setMode] = useState("holistic-loop");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

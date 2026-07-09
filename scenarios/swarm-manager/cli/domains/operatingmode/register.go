@@ -18,6 +18,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("scaffold", "Scaffold a new mode folder from the template (--id MODE [--label LABEL] [--description TEXT] [--force]) [--json]", deps.OperatingModeScaffold),
 			support.APICommand("validate", "Validate a mode from disk (--mode MODE) [--json]", deps.OperatingModeValidate),
 			support.APICommand("simulate", "Simulate a mode's phase walk (--mode MODE [--preset ID] [--registered]) [--json]", deps.OperatingModeSimulate),
+			support.APICommand("start", "Start a round of a plan-target mode directly on its target (--mode MODE --target REF [--phase PHASE] [--note MSG] [--override]) [--json]", deps.OperatingModeStart),
 		},
 	}
 }

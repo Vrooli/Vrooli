@@ -134,7 +134,7 @@ func TestCmdInitiativesModeList_ReadsCatalog(t *testing.T) {
 				Modes: []*apipb.OperatingModeCatalogEntry{{
 					Mode:        "item-level",
 					Label:       "Item Level",
-					ScopeKind:   "backlog_item",
+					TargetKind:  "initiative",
 					RunStrategy: "existing_item_flow",
 					Default:     true,
 					Switchable:  true,
@@ -161,7 +161,7 @@ func TestCmdInitiativesModeWorkspace_ReadsWorkspace(t *testing.T) {
 				Mode:           "holistic-loop",
 				Definition: &apipb.OperatingModeWorkspaceMode{
 					Label:       "Holistic Loop",
-					ScopeKind:   "initiative",
+					TargetKind:  "initiative",
 					RunStrategy: "operator_gated_loop",
 					Phases: []*apipb.OperatingModeWorkspacePhase{
 						{Phase: "investigate", ProfileKey: "swarm-manager/deep-work"},

@@ -342,7 +342,7 @@ maintaining hard-coded mode lists.
       "label": "Item Level",
       "description": "Default mode. Each backlog item flows through the existing item execution pipeline...",
       "usage_count": 12,
-      "scope_kind": "backlog_item",
+      "target_kind": "initiative",
       "run_strategy": "existing_item_flow",
       "workspace_tab_id": "info",
       "default": true,
@@ -383,10 +383,11 @@ capabilities) are immutable. Returns the same shape as the GET endpoint.
 `POST /api/v1/operating-modes/{mode}/simulate?preset={preset}`
 
 Backs the operating-mode detail page's **Flow** tab. Deterministically walks a
-phase mode's registered graph against an ephemeral fixture initiative and returns
-the same structured-result projection live rounds use — without spawning agents,
-rendering prompts, acquiring locks, or persisting initiative state. Rejects
-`item-level` (no phase graph) with a `400`.
+phase mode's registered graph against an ephemeral fixture target (an initiative
+or a plan, per the mode's declared `target`) and returns the same
+structured-result projection live rounds use — without spawning agents,
+rendering prompts, acquiring locks, or persisting state. Rejects `item-level`
+(no phase graph) with a `400`.
 
 The optional `preset` query param (or `{"preset": "..."}` body field) selects a
 named branch-covering scenario; an empty/unknown id falls back to the first
@@ -400,11 +401,11 @@ transition guards (replan, continue, blocked, non-accepting review, reconcile).
   "label": "Phased Plan Drain",
   "active_preset": "blocked",
   "presets": [
-    { "id": "happy-path", "label": "Drains in one slice", "branch": "classify_progress → review (complete)" },
-    { "id": "blocked", "label": "Work is blocked", "branch": "classify_progress → (blocked, terminal)" }
+    { "id": "happy-path", "label": "Drains in one slice", "branch": "execute →(progress=continue)→ execute →(progress=complete)→ stop" },
+    { "id": "blocked", "label": "Work is blocked", "branch": "execute →(progress=blocked)→ guarded stop" }
   ],
-  "initiative": { "name": "simulation-sandbox", "…": "…" },
-  "trace": [ { "phase": "prepare_plan", "inputs": {}, "output": {}, "transition": {} } ]
+  "target": { "kind": "plan-manager-plan", "…": "…" },
+  "trace": [ { "phase": "execute", "inputs": {}, "output": {}, "transition": {} } ]
 }
 ```
 
@@ -482,9 +483,10 @@ AgentManager spawn.
 
 Response: `202 Accepted` with the created round envelope.
 
-Supported non-default phases:
-- `holistic-loop`: `investigate`, `plan`, `execute`, `review`
-- `phased-plan-drain`: `prepare_plan`, `execute_next`, `classify_progress`, `review`
+Supported non-default phases (initiative-target modes only — this surface is
+initiative-keyed and rejects plan-target modes such as `phased-plan-drain`,
+which start via `OperatingModeService.StartTargetPhase`):
+- `holistic-loop`: `investigate`, `plan`, `execute` (`executed_by: phased-plan-drain`), `review`, `reconcile`
 
 ## Initiative Operating Mode Round Control
 
@@ -494,7 +496,7 @@ Round-control endpoints are non-default-mode-only. Callers should pass
 `mode={mode}` explicitly. If the query value is omitted, the API may infer the
 mode from the initiative only when the initiative is already in a non-default
 operating mode; blank mode and `item-level` are rejected rather than treated as
-fallbacks [CODE: api/internal/operatingmode/handler.go].
+fallbacks [CODE: api/internal/operatingmode/connect_service.go].
 
 Polls AgentManager for the round's run and persists terminal state when the run
 is complete, failed, or canceled. Completed runs may include a final

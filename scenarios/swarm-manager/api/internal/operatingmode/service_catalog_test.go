@@ -84,11 +84,14 @@ func TestBuildCatalogEntry_HolisticLoop(t *testing.T) {
 	}
 
 	execute := findPhase(t, entry, "execute")
-	if !execute.WritesRepo {
-		t.Fatalf("execute.WritesRepo = false, want true")
+	if execute.ExecutedBy != string(ModePhasedPlanDrain) {
+		t.Fatalf("execute.ExecutedBy = %q, want %q (delegated to the generic drain)", execute.ExecutedBy, ModePhasedPlanDrain)
 	}
-	if !execute.SamplesReplanRate {
-		t.Fatalf("execute.SamplesReplanRate = false, want true")
+	if execute.SkillID != "" || execute.CatalogID != "" {
+		t.Fatalf("delegated execute must carry no skill/catalog of its own: %#v", execute)
+	}
+	if execute.ActivityPurpose != "" {
+		t.Fatalf("delegated execute must carry no activity purpose of its own: %q", execute.ActivityPurpose)
 	}
 	if execute.SamplesAcceptanceRate {
 		t.Fatalf("execute.SamplesAcceptanceRate = true, want false")
@@ -148,22 +151,22 @@ func TestBuildCatalogEntry_HolisticLoop_PhaseGraph(t *testing.T) {
 	if executeReplan[0].ConditionKind != GuardOpEq {
 		t.Fatalf("execute->investigate kind = %q, want eq", executeReplan[0].ConditionKind)
 	}
-	if executeReplan[0].Label != "on replan_needed = true" {
-		t.Fatalf("execute->investigate label = %q, want %q", executeReplan[0].Label, "on replan_needed = true")
+	if executeReplan[0].Label != "on progress = blocked" {
+		t.Fatalf("execute->investigate label = %q, want %q", executeReplan[0].Label, "on progress = blocked")
 	}
-	if executeReplan[0].Field != "replan_needed" || executeReplan[0].Value != "true" {
-		t.Fatalf("execute->investigate field/value = %q/%q, want replan_needed/true", executeReplan[0].Field, executeReplan[0].Value)
+	if executeReplan[0].Field != "progress" || executeReplan[0].Value != "blocked" {
+		t.Fatalf("execute->investigate field/value = %q/%q, want progress/blocked", executeReplan[0].Field, executeReplan[0].Value)
 	}
 
 	executeReview := transitionsBetween(graph, "execute", "review")
 	if len(executeReview) != 1 {
 		t.Fatalf("execute->review transitions = %v, want 1", executeReview)
 	}
-	if executeReview[0].ConditionKind != GuardOpAlways {
-		t.Fatalf("execute->review kind = %q, want always", executeReview[0].ConditionKind)
+	if executeReview[0].ConditionKind != GuardOpEq {
+		t.Fatalf("execute->review kind = %q, want eq", executeReview[0].ConditionKind)
 	}
-	if executeReview[0].Label != "always" {
-		t.Fatalf("execute->review label = %q, want always", executeReview[0].Label)
+	if executeReview[0].Label != "on progress = complete" {
+		t.Fatalf("execute->review label = %q, want %q", executeReview[0].Label, "on progress = complete")
 	}
 
 	// Edge ordering should be deterministic ((from, to, label) ascending).
@@ -185,56 +188,38 @@ func TestBuildCatalogEntry_PhasedPlanDrain_ProgressTransitions(t *testing.T) {
 		t.Fatalf("PhaseGraph is nil for phased-plan-drain")
 	}
 
-	expectations := map[string]struct{ label, value string }{
-		"execute_next": {"on progress.decision = continue", "continue"},
-		"prepare_plan": {"on progress.decision = replan", "replan"},
-		"review":       {"on progress.decision = complete", "complete"},
+	// The single classified edge expands into one eq-guard per enum value in
+	// declared order: continue loops execute; complete and blocked are guarded
+	// stops (no target), which the catalog graph does not render as edges.
+	loop := transitionsBetween(graph, "execute", "execute")
+	if len(loop) != 1 {
+		t.Fatalf("execute->execute edges = %v, want 1", loop)
 	}
-	for to, want := range expectations {
-		edges := transitionsBetween(graph, "classify_progress", to)
-		if len(edges) != 1 {
-			t.Fatalf("classify_progress->%s edges = %v, want 1", to, edges)
-		}
-		if edges[0].ConditionKind != GuardOpEq {
-			t.Fatalf("classify_progress->%s kind = %q, want eq", to, edges[0].ConditionKind)
-		}
-		if edges[0].Label != want.label {
-			t.Fatalf("classify_progress->%s label = %q, want %q", to, edges[0].Label, want.label)
-		}
-		if edges[0].Field != "progress.decision" || edges[0].Value != want.value {
-			t.Fatalf("classify_progress->%s field/value = %q/%q, want progress.decision/%q", to, edges[0].Field, edges[0].Value, want.value)
-		}
+	if loop[0].ConditionKind != GuardOpEq {
+		t.Fatalf("execute->execute kind = %q, want eq", loop[0].ConditionKind)
+	}
+	if loop[0].Label != "on progress = continue" {
+		t.Fatalf("execute->execute label = %q, want %q", loop[0].Label, "on progress = continue")
+	}
+	if loop[0].Field != "progress" || loop[0].Value != "continue" {
+		t.Fatalf("execute->execute field/value = %q/%q, want progress/continue", loop[0].Field, loop[0].Value)
 	}
 
-	executeNext := findPhase(t, entry, "execute_next")
-	if !executeNext.OutputContract.RequiresHandoff {
-		t.Fatalf("execute_next.RequiresHandoff = false, want true")
+	execute := findPhase(t, entry, "execute")
+	if !execute.OutputContract.RequiresHandoff {
+		t.Fatalf("execute.RequiresHandoff = false, want true")
 	}
-
-	classify := findPhase(t, entry, "classify_progress")
-	if !classify.OutputContract.RequiresProgress {
-		t.Fatalf("classify_progress.RequiresProgress = false, want true")
+	if got, want := execute.Label, "Execute"; got != want {
+		t.Fatalf("execute.Label = %q, want %q (humanized phase ID; no mode prefix)", got, want)
 	}
-	if got, want := classify.Label, "Classify Progress"; got != want {
-		t.Fatalf("classify_progress.Label = %q, want %q (humanized phase ID; no mode prefix)", got, want)
+	if got, want := execute.Title, "Phased Plan Execute Next"; got != want {
+		t.Fatalf("execute.Title = %q, want %q (PromptCatalog title stays mode-prefixed)", got, want)
 	}
-	if got, want := classify.Title, "Phased Plan Classify Progress"; got != want {
-		t.Fatalf("classify_progress.Title = %q, want %q (PromptCatalog title stays mode-prefixed)", got, want)
+	if len(execute.ResultBindings) != 0 {
+		t.Fatalf("execute.ResultBindings = %+v, want none", execute.ResultBindings)
 	}
-	if len(classify.ResultBindings) != 0 {
-		t.Fatalf("classify_progress.ResultBindings = %+v, want none", classify.ResultBindings)
-	}
-
-	preparePlan := findPhase(t, entry, "prepare_plan")
-	if !preparePlan.OutputContract.RequiresPlanRef {
-		t.Fatalf("prepare_plan.RequiresPlanRef = false, want true")
-	}
-	if got, want := preparePlan.Label, "Prepare Plan"; got != want {
-		t.Fatalf("prepare_plan.Label = %q, want %q", got, want)
-	}
-	executeNextPhase := findPhase(t, entry, "execute_next")
-	if got, want := executeNextPhase.Label, "Execute Next"; got != want {
-		t.Fatalf("execute_next.Label = %q, want %q", got, want)
+	if execute.OutputContract.RequiresPlanRef || execute.OutputContract.RequiresProgress {
+		t.Fatalf("execute output contract = %+v, want no plan_ref/progress requirement (progress is edge-derived)", execute.OutputContract)
 	}
 }
 

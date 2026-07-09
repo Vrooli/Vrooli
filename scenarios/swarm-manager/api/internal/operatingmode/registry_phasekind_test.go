@@ -60,10 +60,7 @@ func TestPhaseKindPhasedPlanDrainBackfillKinds(t *testing.T) {
 		t.Fatalf("DefinitionFor: %v", err)
 	}
 	want := map[Phase]PhaseKind{
-		"prepare_plan":      PhaseKindInvestigate,
-		"execute_next":      PhaseKindExecute,
-		"classify_progress": PhaseKindReview,
-		"review":            PhaseKindReview,
+		"execute": PhaseKindExecute,
 	}
 	for phase, expected := range want {
 		got := def.PhaseGraph.Phases[phase].Kind

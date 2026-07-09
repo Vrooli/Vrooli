@@ -2,39 +2,26 @@
   "kind": "operating-mode-example-run",
   "id": "blocked",
   "mode": "phased-plan-drain",
-  "label": "Work is blocked",
-  "description": "Classify reports the drain cannot proceed; the cycle ends without review.",
-  "branch": "classify_progress → (blocked, terminal)",
-  "scenario": "A slice hits an external blocker — an unavailable dependency — that the agent cannot resolve. Classify reports blocked, which is a terminal decision: the cycle stops before review so an operator can intervene.",
-  "initiative": {
-    "title": "Migrate CLI commands to durable run handles",
-    "description": "A drain that stalls on an external blocker.",
-    "items": [
-      { "ref": "execute/durable-run-primitive", "title": "Add durable_run primitive", "status": "in_progress", "priority": 1, "effort": "M" },
-      { "ref": "execute/migrate-test-genie-execute", "title": "Migrate test-genie execute to durable handles", "status": "todo", "priority": 2, "effort": "M" }
-    ],
-    "criteria": [
-      "Every execute command returns a durable run handle.",
-      "The legacy in-process primitive is removed."
-    ]
-  },
+  "label": "Blocked mid-drain",
+  "description": "The first slice hits a real blocker; the classified edge derives blocked and the drain stops for operator attention.",
+  "branch": "execute → guarded stop (progress=blocked)",
+  "scenario": "Round 1 cannot complete its slice comprehensively: a required upstream API contract is missing. The handoff records the blocker and the true frontier, and the loop stops instead of skipping ahead.",
   "steps": [
-    { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next" },
     {
-      "phase": "execute_next",
+      "phase": "execute",
       "output": {
         "handoff": {
-          "summary": "Stopped after discovering the durable run migration depends on an unavailable external service.",
-          "blockers": ["External dependency is unavailable."],
-          "next_step": "Operator resolves the dependency before another execution slice starts.",
+          "summary": "Started plan phase 1 but could not finish: the upstream start-on-plan API surface does not exist yet.",
+          "blockers": ["plan phase 1 depends on an API endpoint that has not been built"],
+          "next_step": "Operator: resolve the missing upstream contract, then restart the drain from the declared frontier.",
           "changed_files": ["none"],
-          "tests": ["not run — blocked before code changes"],
-          "frontier": "Resolve the external dependency, then resume the durable run migration."
+          "tests": ["none"],
+          "frontier": "Plan phase 1: blocked on the upstream API contract.",
+          "progress": "blocked"
         }
       },
-      "note": "always → classify_progress"
-    },
-    { "phase": "classify_progress", "output": { "progress": { "decision": "blocked" } }, "note": "progress.decision=blocked → guarded stop (terminal)" }
+      "note": "handoff.progress=blocked L1-derives at the edge → guarded stop for operator attention"
+    }
   ],
-  "expected_path": ["prepare_plan", "execute_next", "classify_progress"]
+  "expected_path": ["execute"]
 }

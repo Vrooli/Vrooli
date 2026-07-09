@@ -175,6 +175,35 @@ func TestServiceStartSwarmOperationsUsesOperationsSkillAndPurpose(t *testing.T) 
 	}
 }
 
+// TestServiceStartInitialPromptDeliversFullSkill proves the spawned agent is
+// directed to read its whole operating guide (the full skill methodology), not
+// just the attached startup-brief snapshot — the Phase 7 guarantee that the
+// authoring methodology reaches the agent verbatim.
+func TestServiceStartInitialPromptDeliversFullSkill(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindOperatingModeAuthoring,
+		Title: "Author a mode",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if _, err := svc.Start(context.Background(), ContinueRequest{
+		SessionID: draft.ID,
+		Message:   "I keep running the same review loop by hand.",
+	}); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	prompt := spawner.spawnReq.Prompt
+	if !strings.Contains(prompt, "prompt-manager skill read "+SkillOperatingModeAuthoring) {
+		t.Fatalf("initial prompt does not direct the agent to read the full skill: %s", prompt)
+	}
+}
+
 func TestServiceStartInjectsStartupBriefContextByDefault(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()

@@ -33,12 +33,11 @@ type modeDocument struct {
 	NotFor        []string           `json:"not_for"`
 	Tradeoffs     []string           `json:"tradeoffs"`
 	WhenInDoubt   string             `json:"when_in_doubt_pick_instead,omitempty"`
-	Scope         scopeDoc           `json:"scope"`
+	Target        targetDoc          `json:"target"`
 	RunStrategy   runStrategyDoc     `json:"run_strategy"`
 	PhaseGraph    *phaseGraphDoc     `json:"phase_graph,omitempty"`
 	Prompt        *promptPolicyDoc   `json:"prompt,omitempty"`
 	Artifact      *artifactPolicyDoc `json:"artifact,omitempty"`
-	PlanRef       *planRefPolicyDoc  `json:"plan_ref,omitempty"`
 	Profile       *profilePolicyDoc  `json:"profile,omitempty"`
 	BacklogSync   *backlogSyncDoc    `json:"backlog_sync,omitempty"`
 	Metrics       *metricsDoc        `json:"metrics,omitempty"`
@@ -46,8 +45,13 @@ type modeDocument struct {
 	UI            *uiDoc             `json:"ui,omitempty"`
 }
 
-type scopeDoc struct {
-	Kind string `json:"kind"`
+// targetDoc is the on-disk shape of the mode's declared unit of work. The
+// nested plan_ref block is initiative-adapter configuration (the bound
+// plan-manager plan contract), deliberately distinct from the plan-ref target
+// kind.
+type targetDoc struct {
+	Kind    string            `json:"kind"`
+	PlanRef *planRefPolicyDoc `json:"plan_ref,omitempty"`
 }
 
 type runStrategyDoc struct {
@@ -102,11 +106,13 @@ type phaseGraphDoc struct {
 type phaseDoc struct {
 	ID               string             `json:"id"`
 	Kind             string             `json:"kind"`
+	ExecutedBy       string             `json:"executed_by,omitempty"`
 	ActivityPurpose  string             `json:"activity_purpose"`
 	LockPurpose      string             `json:"lock_purpose,omitempty"`
 	AutoStartAfter   []string           `json:"auto_start_after,omitempty"`
 	WritesRepo       bool               `json:"writes_repo,omitempty"`
 	RequiresCriteria bool               `json:"requires_criteria,omitempty"`
+	Reads            []string           `json:"reads"`
 	ProfileKey       string             `json:"profile_key,omitempty"`
 	Prompt           *phasePromptDoc    `json:"prompt,omitempty"`
 	DeclaredOutput   *declaredOutputDoc `json:"declared_output,omitempty"`
@@ -161,9 +167,23 @@ type resultBindingDoc struct {
 	Artifact artifactDefDoc `json:"artifact"`
 }
 
+// transitionDoc is one on-disk edge out of a phase: either a guarded edge
+// (`when`/`to`) or a classified edge (`classify`/`routes`) — the schema's
+// Transition oneOf. A classified edge declares the classification contract for
+// the routing field and maps each enum value to its target phase(s); the
+// loader expands it into ordinary eq-guards in declared enum order.
 type transitionDoc struct {
-	When Guard    `json:"when"`
-	To   []string `json:"to"`
+	When     *Guard                     `json:"when,omitempty"`
+	To       []string                   `json:"to,omitempty"`
+	Classify *classificationContractDoc `json:"classify,omitempty"`
+	Routes   map[string][]string        `json:"routes,omitempty"`
+}
+
+type classificationContractDoc struct {
+	Field       string   `json:"field"`
+	Enum        []string `json:"enum"`
+	From        string   `json:"from,omitempty"`
+	Description string   `json:"description,omitempty"`
 }
 
 type phaseMetricsDoc struct {
@@ -198,9 +218,12 @@ func (doc modeDocument) toDefinition() (Definition, error) {
 		NotFor:                 append([]string(nil), doc.NotFor...),
 		Tradeoffs:              append([]string(nil), doc.Tradeoffs...),
 		WhenInDoubtPickInstead: Mode(doc.WhenInDoubt),
-		Scope:                  ScopePolicy{Kind: ScopeKind(doc.Scope.Kind)},
+		Target:                 doc.targetPolicy(),
 		RunStrategy:            RunStrategyPolicy{Kind: RunStrategyKind(doc.RunStrategy.Kind)},
 		UI:                     UIPolicy{WorkspaceTabID: uiTabID(doc.UI)},
+	}
+	if !IsValidTargetKind(def.Target.Kind) {
+		return Definition{}, fmt.Errorf("mode %q declares unknown target kind %q (want one of %s|%s|%s)", doc.ID, doc.Target.Kind, TargetPlanManagerPlan, TargetPlanRef, TargetInitiative)
 	}
 
 	def.Profile = ProfilePolicy{DefaultProfileKey: profileDefaultKey(doc.Profile)}
@@ -210,18 +233,17 @@ func (doc modeDocument) toDefinition() (Definition, error) {
 		def.Metrics.AcceptedVerdicts = append([]string(nil), doc.Metrics.AcceptedVerdicts...)
 	}
 
-	if doc.Scope.Kind != string(ScopeInitiative) {
+	if !def.RunsModeRounds() {
 		return def, nil
 	}
 
 	if doc.PhaseGraph == nil {
-		return Definition{}, fmt.Errorf("mode %q is initiative-scoped but declares no phase_graph", doc.ID)
+		return Definition{}, fmt.Errorf("mode %q runs mode rounds but declares no phase_graph", doc.ID)
 	}
 	if doc.Prompt != nil {
 		def.Prompt = PromptPolicy{CatalogPrefix: doc.Prompt.CatalogPrefix}
 	}
 	def.Artifact = doc.artifactPolicy()
-	def.PlanRef = doc.planRefPolicy()
 	if doc.Lock != nil {
 		def.Lock = LockPolicy{InitiativeExclusive: doc.Lock.InitiativeExclusive}
 	}
@@ -251,11 +273,19 @@ func (doc modeDocument) buildPhaseGraph(catalogPrefix, defaultProfileKey string)
 
 	for _, phaseDoc := range doc.PhaseGraph.Phases {
 		phase := Phase(phaseDoc.ID)
-		phaseDef := phaseDoc.toPhaseDefinition(catalogPrefix, defaultProfileKey)
+		phaseDef, err := phaseDoc.toPhaseDefinition(catalogPrefix, defaultProfileKey)
+		if err != nil {
+			return PhaseGraph{}, nil, nil, nil, fmt.Errorf("mode %q phase %q: %w", doc.ID, phase, err)
+		}
+
+		adjacency, guards, classification, err := phaseDoc.transitions()
+		if err != nil {
+			return PhaseGraph{}, nil, nil, nil, fmt.Errorf("mode %q phase %q: %w", doc.ID, phase, err)
+		}
+		phaseDef.TransitionClassification = classification
 		graph.Phases[phase] = phaseDef
 		phaseProfiles[phase] = phaseDef.ProfileKey
 
-		adjacency, guards := phaseDoc.transitions()
 		if len(adjacency) > 0 {
 			graph.Transitions[phase] = adjacency
 		}
@@ -275,7 +305,25 @@ func (doc modeDocument) buildPhaseGraph(catalogPrefix, defaultProfileKey string)
 	return graph, phaseProfiles, replanPhases, acceptancePhases, nil
 }
 
-func (p phaseDoc) toPhaseDefinition(catalogPrefix, defaultProfileKey string) PhaseDefinition {
+func (p phaseDoc) toPhaseDefinition(catalogPrefix, defaultProfileKey string) (PhaseDefinition, error) {
+	if executedBy := strings.TrimSpace(p.ExecutedBy); executedBy != "" {
+		// A delegated phase's execution surface (prompt, reads, emits,
+		// artifacts, purposes, profile) comes entirely from the sub-mode. The
+		// schema already forbids declaring any of it; the loader re-checks so a
+		// hand-built document cannot bypass the contract.
+		if len(p.Reads) > 0 || p.Prompt != nil || p.DeclaredOutput != nil ||
+			len(p.OutputArtifacts) > 0 || len(p.ResultBindings) > 0 || p.Metrics != nil ||
+			strings.TrimSpace(p.ActivityPurpose) != "" || strings.TrimSpace(p.LockPurpose) != "" ||
+			strings.TrimSpace(p.ProfileKey) != "" || p.WritesRepo || p.RequiresCriteria {
+			return PhaseDefinition{}, fmt.Errorf("delegated phase (executed_by=%q) must not declare reads/prompt/declared_output/output_artifacts/result_bindings/metrics/purposes/profile/writes_repo/requires_criteria: the sub-mode owns the execution surface", executedBy)
+		}
+		return PhaseDefinition{
+			Phase:          Phase(p.ID),
+			Kind:           PhaseKind(p.Kind),
+			ExecutedBy:     Mode(executedBy),
+			AutoStartAfter: toPhases(p.AutoStartAfter),
+		}, nil
+	}
 	suffix := strings.TrimSpace(promptSuffix(p))
 	if suffix == "" {
 		suffix = p.ID
@@ -300,6 +348,7 @@ func (p phaseDoc) toPhaseDefinition(catalogPrefix, defaultProfileKey string) Pha
 		Phase:           Phase(p.ID),
 		Kind:            PhaseKind(p.Kind),
 		AutoStartAfter:  toPhases(p.AutoStartAfter),
+		Reads:           append([]string(nil), p.Reads...),
 		ActivityPurpose: p.ActivityPurpose,
 		LockPurpose:     lockPurpose,
 		CatalogID:       catalogID,
@@ -316,7 +365,7 @@ func (p phaseDoc) toPhaseDefinition(catalogPrefix, defaultProfileKey string) Pha
 		OutputContract:   outputContract,
 		DeclaredOutput:   p.declaredOutput(),
 		RequiresCriteria: p.RequiresCriteria,
-	}
+	}, nil
 }
 
 // declaredOutput converts the on-disk declared_output block into the typed
@@ -417,17 +466,23 @@ func (p phaseDoc) hasRequiredField(name string) bool {
 	return false
 }
 
-func (p phaseDoc) transitions() ([]Phase, []GuardedTransition) {
+// transitions expands the phase's declared edges into the derived static
+// adjacency, the ordered guard list, and (when a classified edge is declared)
+// the phase's classification contract. A classified edge expands into one
+// eq-guard per enum value, in declared enum order, at its declared position
+// among the phase's other transitions — routing stays pure guard evaluation;
+// classification only supplies the field's value at the edge.
+func (p phaseDoc) transitions() ([]Phase, []GuardedTransition, *TransitionClassification, error) {
 	if len(p.Transitions) == 0 {
-		return nil, nil
+		return nil, nil, nil, nil
 	}
-	adjacency := make([]Phase, 0, len(p.Transitions))
+	var adjacency []Phase
 	seen := map[Phase]struct{}{}
 	guards := make([]GuardedTransition, 0, len(p.Transitions))
-	for _, t := range p.Transitions {
-		to := toPhases(t.To)
-		guards = append(guards, GuardedTransition{When: t.When, To: to})
-		for _, target := range to {
+	var classification *TransitionClassification
+	appendEdge := func(gt GuardedTransition) {
+		guards = append(guards, gt)
+		for _, target := range gt.To {
 			if _, ok := seen[target]; ok {
 				continue
 			}
@@ -435,7 +490,81 @@ func (p phaseDoc) transitions() ([]Phase, []GuardedTransition) {
 			adjacency = append(adjacency, target)
 		}
 	}
-	return adjacency, guards
+	for i, t := range p.Transitions {
+		if t.Classify != nil {
+			if classification != nil {
+				return nil, nil, nil, fmt.Errorf("transition[%d]: phase declares more than one classified transition; a phase owns at most one classification contract", i)
+			}
+			contract, expanded, err := expandClassifiedTransition(*t.Classify, t.Routes)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("transition[%d]: %w", i, err)
+			}
+			classification = contract
+			for _, gt := range expanded {
+				appendEdge(gt)
+			}
+			continue
+		}
+		if t.When == nil {
+			return nil, nil, nil, fmt.Errorf("transition[%d]: requires either when/to or classify/routes", i)
+		}
+		appendEdge(GuardedTransition{When: *t.When, To: toPhases(t.To)})
+	}
+	return adjacency, guards, classification, nil
+}
+
+// expandClassifiedTransition validates a classified edge's declaration and
+// expands its routes into eq-guards over the classification field, one per
+// enum value in declared order. Every enum value must be routed (an empty
+// target list is a guarded stop); routes may not name values outside the enum.
+func expandClassifiedTransition(doc classificationContractDoc, routes map[string][]string) (*TransitionClassification, []GuardedTransition, error) {
+	field := strings.TrimSpace(doc.Field)
+	if !isValidFieldPath(field) {
+		return nil, nil, fmt.Errorf("classify.field %q must be a dotted lowercase field-path", doc.Field)
+	}
+	if len(doc.Enum) == 0 {
+		return nil, nil, fmt.Errorf("classify.enum must declare at least one routing value")
+	}
+	enumSet := make(map[string]struct{}, len(doc.Enum))
+	for _, v := range doc.Enum {
+		if strings.TrimSpace(v) == "" {
+			return nil, nil, fmt.Errorf("classify.enum contains an empty value")
+		}
+		if _, dup := enumSet[v]; dup {
+			return nil, nil, fmt.Errorf("classify.enum declares duplicate value %q", v)
+		}
+		enumSet[v] = struct{}{}
+	}
+	from := strings.TrimSpace(doc.From)
+	if from != "" && !isValidFieldPath(from) {
+		return nil, nil, fmt.Errorf("classify.from %q must be a dotted lowercase field-path", doc.From)
+	}
+	if len(routes) == 0 {
+		return nil, nil, fmt.Errorf("classified transition requires a routes map")
+	}
+	for key := range routes {
+		if _, ok := enumSet[key]; !ok {
+			return nil, nil, fmt.Errorf("routes declares %q, which is not a classify.enum value", key)
+		}
+	}
+	guards := make([]GuardedTransition, 0, len(doc.Enum))
+	for _, v := range doc.Enum {
+		targets, ok := routes[v]
+		if !ok {
+			return nil, nil, fmt.Errorf("routes is missing enum value %q; every routing value needs a route (empty = guarded stop)", v)
+		}
+		guards = append(guards, GuardedTransition{
+			When: Guard{Op: GuardOpEq, Field: field, Value: v},
+			To:   toPhases(targets),
+		})
+	}
+	contract := &TransitionClassification{
+		Field:       field,
+		Enum:        append([]string(nil), doc.Enum...),
+		From:        from,
+		Description: strings.TrimSpace(doc.Description),
+	}
+	return contract, guards, nil
 }
 
 func (p phaseDoc) outputArtifacts() []ArtifactDefinition {
@@ -489,14 +618,15 @@ func (doc modeDocument) artifactPolicy() ArtifactPolicy {
 	return ArtifactPolicy{Root: root, RoundRoot: roundRoot}
 }
 
-func (doc modeDocument) planRefPolicy() PlanRefPolicy {
-	if doc.PlanRef == nil {
-		return PlanRefPolicy{}
+func (doc modeDocument) targetPolicy() TargetPolicy {
+	policy := TargetPolicy{Kind: TargetKind(doc.Target.Kind)}
+	if doc.Target.PlanRef != nil {
+		policy.PlanRef = PlanRefPolicy{
+			Required: doc.Target.PlanRef.Required,
+			Role:     strings.TrimSpace(doc.Target.PlanRef.Role),
+		}
 	}
-	return PlanRefPolicy{
-		Required: doc.PlanRef.Required,
-		Role:     strings.TrimSpace(doc.PlanRef.Role),
-	}
+	return policy
 }
 
 func uiTabID(ui *uiDoc) string {

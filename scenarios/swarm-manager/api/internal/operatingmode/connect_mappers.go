@@ -118,6 +118,31 @@ func catalogPhaseToProto(p ModeCatalogPhase) *apipb.OperatingModeCatalogPhase {
 		SamplesReplanRate:     p.SamplesReplanRate,
 		SamplesAcceptanceRate: p.SamplesAcceptanceRate,
 		AutoStartAfter:        p.AutoStartAfter,
+		Reads:                 phaseReadsToProto(p.Reads),
+		ExecutedBy:            p.ExecutedBy,
+		Classification:        phaseClassificationToProto(p.Classification),
+	}
+}
+
+func phaseClassificationToProto(c *PhaseClassificationSummary) *apipb.OperatingModeTransitionClassification {
+	if c == nil {
+		return nil
+	}
+	return &apipb.OperatingModeTransitionClassification{
+		Field:       c.Field,
+		Enum:        c.Enum,
+		From:        c.From,
+		Description: c.Description,
+	}
+}
+
+func phaseReadsToProto(r PhaseReadsSummary) *apipb.OperatingModePhaseReads {
+	if len(r.Base) == 0 && len(r.Target) == 0 {
+		return nil
+	}
+	return &apipb.OperatingModePhaseReads{
+		Base:   r.Base,
+		Target: r.Target,
 	}
 }
 
@@ -134,6 +159,7 @@ func catalogPhaseGraphToProto(g *ModeCatalogPhaseGraph) *apipb.OperatingModeCata
 			Label:         t.Label,
 			Field:         t.Field,
 			Value:         t.Value,
+			Classified:    t.Classified,
 		}
 	}
 	return &apipb.OperatingModeCatalogPhaseGraph{
@@ -158,7 +184,7 @@ func catalogEntryToProto(e ModeCatalogEntry) *apipb.OperatingModeCatalogEntry {
 		Tradeoffs:              e.Tradeoffs,
 		WhenInDoubtPickInstead: e.WhenInDoubtPickInstead,
 		UsageCount:             int32(e.UsageCount),
-		ScopeKind:              e.ScopeKind,
+		TargetKind:             e.TargetKind,
 		RunStrategy:            e.RunStrategy,
 		WorkspaceTabId:         e.WorkspaceTabID,
 		Capabilities:           capabilitiesToProto(e.Capabilities),
@@ -287,30 +313,34 @@ func resolutionToProto(r PhaseResolutionRecord, ok bool) *apipb.OperatingModePha
 		Missing:            r.Missing,
 		Violations:         r.Violations,
 		Notes:              r.Notes,
+		ClassifiedField:    r.ClassifiedField,
+		ClassifiedValue:    r.ClassifiedValue,
 	}
 }
 
 func roundEnvelopeToProto(r RoundEnvelope) *apipb.OperatingModeRoundEnvelope {
 	resolution, resolutionOK := RoundPayload(r.Payload).Resolution()
+	transitionClass, transitionClassOK := RoundPayload(r.Payload).TransitionClassification()
 	return &apipb.OperatingModeRoundEnvelope{
-		Round:           int32(r.Round),
-		Mode:            r.Mode,
-		ScopeKind:       r.ScopeKind,
-		ScopeId:         r.ScopeID,
-		InitiativeName:  r.InitiativeName,
-		Phase:           r.Phase,
-		RunStrategy:     r.RunStrategy,
-		AgentProfileKey: r.AgentProfileKey,
-		GeneratedAt:     r.GeneratedAt,
-		RunId:           r.RunID,
-		Status:          string(r.Status),
-		Readiness:       readinessToProto(r.Readiness),
-		Items:           roundItemsToProto(r.Items),
-		ArtifactUpdates: artifactUpdatesToProto(r.ArtifactUpdates),
-		Handoffs:        handoffsToProto(r.Handoffs),
-		Payload:         structFromMap(r.Payload),
-		Error:           r.Error,
-		Resolution:      resolutionToProto(resolution, resolutionOK),
+		Round:                    int32(r.Round),
+		Mode:                     r.Mode,
+		ScopeKind:                r.ScopeKind,
+		ScopeId:                  r.ScopeID,
+		InitiativeName:           r.InitiativeName,
+		Phase:                    r.Phase,
+		RunStrategy:              r.RunStrategy,
+		AgentProfileKey:          r.AgentProfileKey,
+		GeneratedAt:              r.GeneratedAt,
+		RunId:                    r.RunID,
+		Status:                   string(r.Status),
+		Readiness:                readinessToProto(r.Readiness),
+		Items:                    roundItemsToProto(r.Items),
+		ArtifactUpdates:          artifactUpdatesToProto(r.ArtifactUpdates),
+		Handoffs:                 handoffsToProto(r.Handoffs),
+		Payload:                  structFromMap(r.Payload),
+		Error:                    r.Error,
+		Resolution:               resolutionToProto(resolution, resolutionOK),
+		TransitionClassification: resolutionToProto(transitionClass, transitionClassOK),
 	}
 }
 
@@ -386,6 +416,7 @@ func workspacePhasesToProto(in []WorkspacePhase) []*apipb.OperatingModeWorkspace
 			Reason:           p.Reason,
 			Next:             p.Next,
 			AutoStartAfter:   p.AutoStartAfter,
+			ExecutedBy:       p.ExecutedBy,
 		}
 	}
 	return out
@@ -407,7 +438,7 @@ func workspaceModeToProto(m WorkspaceMode) *apipb.OperatingModeWorkspaceMode {
 		Mode:         m.Mode,
 		Label:        m.Label,
 		Description:  m.Description,
-		ScopeKind:    m.ScopeKind,
+		TargetKind:   m.TargetKind,
 		Capabilities: capabilitiesToProto(m.Capabilities),
 		Phases:       workspacePhasesToProto(m.Phases),
 		Terminal:     m.Terminal,
@@ -634,11 +665,12 @@ func scaffoldResultToProto(r ScaffoldResult) *apipb.OperatingModeScaffoldRespons
 
 func validationReportToProto(r ValidationReport) *apipb.OperatingModeValidateResponse {
 	return &apipb.OperatingModeValidateResponse{
-		Mode:        r.Mode,
-		Ok:          r.OK,
-		Errors:      append([]string(nil), r.Errors...),
-		PhaseCount:  int32(r.PhaseCount),
-		ExampleRuns: int32(r.ExampleRuns),
-		Summary:     r.Summary,
+		Mode:              r.Mode,
+		Ok:                r.OK,
+		Errors:            append([]string(nil), r.Errors...),
+		PhaseCount:        int32(r.PhaseCount),
+		ExampleRuns:       int32(r.ExampleRuns),
+		Summary:           r.Summary,
+		UncoveredBranches: append([]string(nil), r.UncoveredBranches...),
 	}
 }

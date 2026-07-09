@@ -158,6 +158,7 @@ type Dependencies struct {
 	OperatingModeScaffold CommandFunc
 	OperatingModeValidate CommandFunc
 	OperatingModeSimulate CommandFunc
+	OperatingModeStart    CommandFunc
 }
 
 func APICommand(name, description string, run CommandFunc) cliapp.Command {

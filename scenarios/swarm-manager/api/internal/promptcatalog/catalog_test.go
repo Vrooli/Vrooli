@@ -96,6 +96,14 @@ func TestResolveInitiativeModeSkill(t *testing.T) {
 		}
 		for phase, phaseDef := range def.PhaseGraph.Phases {
 			entry, ok := ResolveInitiativeModeSkill(string(mode), string(phase))
+			if phaseDef.Delegated() {
+				// A delegated phase has no prompt of its own — its execution
+				// surface resolves through the sub-mode's phases.
+				if ok {
+					t.Fatalf("ResolveInitiativeModeSkill(%q, %q) resolved %q for a delegated phase", mode, phase, entry.ID)
+				}
+				continue
+			}
 			if !ok {
 				t.Fatalf("ResolveInitiativeModeSkill(%q, %q) missed", mode, phase)
 			}

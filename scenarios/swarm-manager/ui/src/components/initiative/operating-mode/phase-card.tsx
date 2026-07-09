@@ -16,11 +16,13 @@
 import { cn } from "../../../lib/utils";
 import { StatusChip } from "../../ui/status-chip";
 import type {
+  OperatingModeCatalogEntry,
   OperatingModeCatalogPhase,
   OperatingModePhaseTransition,
 } from "../../../types/operating-mode";
 import { PhaseInternalsDisclosure } from "./phase-internals-disclosure";
 import { PhaseViewer } from "./phase-viewer";
+import { ComposedSubModeGraph } from "./composed-sub-mode-graph";
 import { contractPhaseView } from "./phase-view";
 import { phaseCardDomId } from "./utils";
 
@@ -29,6 +31,12 @@ interface PhaseCardProps {
   transitions?: OperatingModePhaseTransition[];
   highlighted?: boolean;
   defaultInternalsOpen?: boolean;
+  /**
+   * Lookup of sub-mode catalog entries keyed by mode id, used to render a
+   * delegated phase's composed graph inline. The backend stays the routing
+   * source of truth; this only reads each sub-mode's own catalog for display.
+   */
+  subModes?: Record<string, OperatingModeCatalogEntry>;
 }
 
 const START_COLORS = {
@@ -63,10 +71,18 @@ const CRITERIA_COLORS = {
   text: "text-amber-300",
 };
 
-export function PhaseCard({ phase, transitions = [], highlighted, defaultInternalsOpen }: PhaseCardProps) {
+const DELEGATED_COLORS = {
+  background: "bg-cyan-500/10",
+  border: "border-cyan-500/30",
+  text: "text-cyan-300",
+  dot: "bg-cyan-400",
+};
+
+export function PhaseCard({ phase, transitions = [], highlighted, defaultInternalsOpen, subModes }: PhaseCardProps) {
   const writesRepoLabel = phase.writesRepo ? "writes repo" : "read-only";
   const writesRepoColors = phase.writesRepo ? WRITES_REPO_COLORS : READ_ONLY_COLORS;
   const headline = phase.label || phase.title || phase.phase;
+  const delegated = phase.executedBy ?? "";
 
   return (
     <article
@@ -85,16 +101,25 @@ export function PhaseCard({ phase, transitions = [], highlighted, defaultInterna
         </code>
         {phase.isStart && <StatusChip label="start" colors={START_COLORS} leadingDot />}
         {phase.isTerminal && <StatusChip label="terminal" colors={TERMINAL_COLORS} leadingDot />}
+        {delegated && <StatusChip label="delegated" colors={DELEGATED_COLORS} leadingDot />}
       </header>
 
       {phase.purpose && (
         <p className="mt-2 text-sm leading-relaxed text-slate-300">{phase.purpose}</p>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <StatusChip label={writesRepoLabel} colors={writesRepoColors} />
-        {phase.requiresCriteria && <StatusChip label="requires criteria" colors={CRITERIA_COLORS} />}
-      </div>
+      {!delegated && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <StatusChip label={writesRepoLabel} colors={writesRepoColors} />
+          {phase.requiresCriteria && <StatusChip label="requires criteria" colors={CRITERIA_COLORS} />}
+        </div>
+      )}
+
+      {delegated && (
+        <div className="mt-3">
+          <ComposedSubModeGraph subModeId={delegated} subMode={subModes?.[delegated]} />
+        </div>
+      )}
 
       <div className="mt-4">
         <PhaseViewer view={contractPhaseView(phase, transitions)} hideHeader />

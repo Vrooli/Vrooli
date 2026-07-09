@@ -156,6 +156,20 @@ func allowedNextPhases(def Definition, rounds []RoundEnvelope) map[Phase]bool {
 
 func nextPhasesForCompletedRound(def Definition, last RoundEnvelope) []Phase {
 	from := Phase(last.Phase)
+	// Delegated phase: the sub-mode's guards route first. An onward sub-route
+	// (e.g. the drain's continue self-loop) keeps the delegation in progress —
+	// the next startable phase is the delegated phase itself. A sub-mode stop
+	// ends the delegation and the parent's own guards route on the same
+	// resolved output below.
+	if phaseDef, ok := def.PhaseGraph.Phases[from]; ok && phaseDef.Delegated() {
+		if sub, err := delegationSubDefinition(phaseDef); err == nil {
+			if subPhase, ok := delegatedRoundSubPhase(last); ok {
+				if _, continuing, err := delegationRouteForLookup(sub, subPhase, NewMapFieldLookup(last.Payload)); err == nil && continuing {
+					return []Phase{from}
+				}
+			}
+		}
+	}
 	if len(def.PhaseGraph.Guards[from]) > 0 {
 		next, _ := selectNextPhases(def, from, NewMapFieldLookup(last.Payload))
 		return append([]Phase(nil), next...)

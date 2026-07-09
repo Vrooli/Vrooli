@@ -31,7 +31,18 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 		slog.Warn("operating-mode: proposal applier unavailable; mutation reconciliation disabled", "err", err)
 	}
 	store := operatingmode.NewStore(s.initiativeService.InitDir)
-	lock := &initiativelock.Lock{Dir: s.initiativeService.InitDir}
+	// Plan-target runs (the plan-first entry point) store rounds and hold
+	// their exclusive lock under their own mode-targets directory — a plan run
+	// never creates or touches an initiative folder.
+	store.TargetDir = func(kind operatingmode.TargetKind, scopeID string) string {
+		return operatingmode.TargetScopeDir(s.dataRoot, kind, scopeID)
+	}
+	lock := &initiativelock.Lock{Dir: func(key string) string {
+		if kind, token, ok := operatingmode.ParseTargetOwnershipKey(key); ok {
+			return operatingmode.TargetScopeDir(s.dataRoot, kind, token)
+		}
+		return s.initiativeService.InitDir(key)
+	}}
 	overlayPath := filepath.Join(scenarioRoot, ".vrooli", "operating-modes", "overrides.json")
 	overlay := operatingmode.NewOverlayStore(overlayPath)
 	svc, err := operatingmode.NewService(operatingmode.Config{

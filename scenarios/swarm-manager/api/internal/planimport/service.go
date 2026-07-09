@@ -7,6 +7,7 @@ import (
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
+	"swarm-manager/internal/operatingmode"
 	"swarm-manager/internal/planclient"
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
@@ -147,6 +148,9 @@ func (s *Service) Import(ctx context.Context, req Request, prov identity.Provena
 	}
 	var preparedInitiative *ImportedInitiative
 	if containerType == "initiative" {
+		if err := validateInitiativeMode(req.Container.Mode); err != nil {
+			return Result{}, err
+		}
 		initSpec := initiativeSpec(req.Container, plan)
 		landed, err := s.initLander.LandInitiative(ctx, initSpec, nil, prov)
 		if err != nil {
@@ -207,6 +211,26 @@ func (s *Service) resolvePlan(ctx context.Context, req Request) (*sharedv1.Plan,
 		return nil, apierr.BadRequest("plan_id is required unless source_path or markdown is provided")
 	}
 	return s.fetcher.GetPlan(ctx, planID)
+}
+
+// validateInitiativeMode rejects an import that would stamp an initiative
+// with an unknown mode or a mode that does not target initiatives (e.g. the
+// generic plan-target phased-plan-drain): initiative-keyed surfaces reject
+// plan-target modes with typed errors, so accepting one here would create a
+// wedged initiative. Empty means the server default and is always valid.
+func validateInitiativeMode(raw string) error {
+	mode := strings.TrimSpace(raw)
+	if mode == "" {
+		return nil
+	}
+	def, err := operatingmode.DefinitionFor(operatingmode.Mode(mode))
+	if err != nil {
+		return apierr.BadRequest("unknown operating mode %q (registered: %s)", mode, operatingmode.ModeList())
+	}
+	if def.Target.Kind != operatingmode.TargetInitiative {
+		return apierr.BadRequest("mode %q targets %s, not an initiative; start it directly on the plan (operating-mode start / StartTargetPhase) or pick an initiative-target mode", def.Mode, def.Target.Kind)
+	}
+	return nil
 }
 
 func initiativeSpec(container ContainerSpec, plan *sharedv1.Plan) InitiativeSpec {

@@ -8,7 +8,12 @@ import (
 func buildInitialPrompt(session Session, message Message, attachments []Attachment) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "You are running a Swarm Manager %s agent session.\n\n", session.Kind)
-	fmt.Fprintf(&b, "Use the Prompt Manager skill `%s` as your operating guide.\n", session.SkillID)
+	// The full methodology lives in the skill, not this prompt — the startup
+	// brief attached below is only a live-state snapshot. Direct the agent to
+	// read the whole skill first so it runs on the complete procedure, not the
+	// brief alone. This keeps the deliberate lazy start (context is added before
+	// spawn) while guaranteeing the methodology reaches the agent verbatim.
+	fmt.Fprintf(&b, "Before anything else, read your operating guide in full: run `prompt-manager skill read %s`. It is the complete methodology for this session; the attached startup brief is only current state, not the procedure. Follow the skill.\n", session.SkillID)
 	fmt.Fprintf(&b, "Session ID: %s\n", session.ID)
 	if hasContextType(message.Context, ContextStartupBrief) {
 		b.WriteString("Startup brief context is attached below. For broad status, planning, or authoring questions, answer from this brief first and run at most one targeted refresh/drill-down command before the first useful answer.\n")

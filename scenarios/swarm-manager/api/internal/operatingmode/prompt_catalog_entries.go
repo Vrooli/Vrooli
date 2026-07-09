@@ -19,11 +19,16 @@ func PromptCatalogEntries() []PromptCatalogEntry {
 	entries := []PromptCatalogEntry{}
 	for _, mode := range Modes() {
 		def, err := DefinitionFor(mode)
-		if err != nil || def.Scope.Kind != ScopeInitiative {
+		if err != nil || !def.RunsModeRounds() {
 			continue
 		}
 		for _, phase := range orderedPhases(def) {
 			phaseDef := def.PhaseGraph.Phases[phase]
+			if phaseDef.Delegated() {
+				// A delegated phase has no prompt of its own — the sub-mode's
+				// phases carry the catalog entries.
+				continue
+			}
 			entries = append(entries, promptCatalogEntryForPhase(def, phaseDef))
 		}
 	}
@@ -32,11 +37,11 @@ func PromptCatalogEntries() []PromptCatalogEntry {
 
 func ExpectedPromptCatalogEntry(mode, phase string) (PromptCatalogEntry, bool) {
 	def, err := DefinitionFor(Mode(mode))
-	if err != nil || def.Scope.Kind != ScopeInitiative {
+	if err != nil || !def.RunsModeRounds() {
 		return PromptCatalogEntry{}, false
 	}
 	phaseDef, ok := def.PhaseGraph.Phases[Phase(phase)]
-	if !ok {
+	if !ok || phaseDef.Delegated() {
 		return PromptCatalogEntry{}, false
 	}
 	return promptCatalogEntryForPhase(def, phaseDef), true

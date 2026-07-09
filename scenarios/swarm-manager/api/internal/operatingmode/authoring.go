@@ -34,6 +34,13 @@ type ScaffoldRequest struct {
 	ID          string
 	Label       string
 	Description string
+	// StartFrom names an existing registered mode to clone as the head start —
+	// its phase graph, reads, transitions, and example-runs re-homed under the
+	// new id — instead of the blank built-in template. This is the reuse-first
+	// path: an author starts from the closest existing methodology (including a
+	// composed one that already delegates via executed_by) and edits, rather
+	// than assembling a mode from scratch. Empty uses the built-in template.
+	StartFrom string
 	// Force overwrites an existing mode folder instead of refusing. Off by
 	// default so an author never silently clobbers a mode they are editing.
 	Force bool
@@ -56,6 +63,11 @@ type ValidationReport struct {
 	PhaseCount  int      `json:"phase_count"`
 	ExampleRuns int      `json:"example_runs"`
 	Summary     string   `json:"summary"`
+	// UncoveredBranches lists the guarded/classified edges no example-run walks —
+	// the branch example-runs an author still owes before the simulation
+	// walkthrough. A valid mode can still carry uncovered branches; coverage is
+	// an authoring-completeness signal, not a load failure.
+	UncoveredBranches []string `json:"uncovered_branches,omitempty"`
 }
 
 // modesDir resolves the scenario's modes/ directory. It honors the service's
@@ -97,6 +109,18 @@ func (s *Service) ScaffoldMode(req ScaffoldRequest) (ScaffoldResult, error) {
 		description = fmt.Sprintf("TODO: describe the %s methodology and when to use it.", label)
 	}
 
+	var files []scaffoldFile
+	if startFrom := cleanModeID(req.StartFrom); startFrom != "" {
+		if startFrom == id {
+			return ScaffoldResult{}, fmt.Errorf("start-from mode %q must differ from the new mode id", id)
+		}
+		files, err := s.renderCloneScaffold(startFrom, id, label, description)
+		if err != nil {
+			return ScaffoldResult{}, err
+		}
+		return s.writeScaffold(id, files, req.Force)
+	}
+
 	modeJSON, exampleJSON, err := renderScaffold(id, label, description)
 	if err != nil {
 		return ScaffoldResult{}, err
@@ -106,33 +130,238 @@ func (s *Service) ScaffoldMode(req ScaffoldRequest) (ScaffoldResult, error) {
 	if err := verifyScaffoldTemplate(modeJSON, exampleJSON); err != nil {
 		return ScaffoldResult{}, fmt.Errorf("scaffold template failed self-validation: %w", err)
 	}
+	files = []scaffoldFile{
+		{RelPath: ModeFileName, Content: modeJSON},
+		{RelPath: filepath.ToSlash(filepath.Join(exampleRunsDirName, happyPathPresetID+".json")), Content: exampleJSON},
+	}
+	return s.writeScaffold(id, files, req.Force)
+}
 
+// scaffoldFile is one file a scaffold writes, keyed by its slash-separated path
+// relative to the mode folder.
+type scaffoldFile struct {
+	RelPath string
+	Content []byte
+}
+
+// writeScaffold refuses to clobber an existing folder (unless Force was honored
+// by the caller before this point), creates the folder, and writes every
+// scaffold file. It is shared by the template and clone paths so both produce an
+// identical on-disk result shape.
+func (s *Service) writeScaffold(id string, files []scaffoldFile, force bool) (ScaffoldResult, error) {
 	dir := filepath.Join(s.modesDir(), id)
-	if !req.Force {
-		if _, statErr := os.Stat(dir); statErr == nil {
+	if _, statErr := os.Stat(dir); statErr == nil {
+		if !force {
 			return ScaffoldResult{}, fmt.Errorf("mode %q already exists at %s (pass force to overwrite)", id, dir)
 		}
+		// A re-scaffold replaces the folder wholesale so stale example-runs from
+		// a prior scaffold never linger alongside the freshly written set.
+		if err := os.RemoveAll(dir); err != nil {
+			return ScaffoldResult{}, fmt.Errorf("overwrite mode dir %q: %w", dir, err)
+		}
 	}
-	exampleDir := filepath.Join(dir, exampleRunsDirName)
-	if err := os.MkdirAll(exampleDir, 0o755); err != nil {
-		return ScaffoldResult{}, fmt.Errorf("create mode dir %q: %w", dir, err)
+	created := make([]string, 0, len(files))
+	for _, file := range files {
+		abs := filepath.Join(dir, filepath.FromSlash(file.RelPath))
+		if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+			return ScaffoldResult{}, fmt.Errorf("create mode dir %q: %w", filepath.Dir(abs), err)
+		}
+		if err := os.WriteFile(abs, file.Content, 0o644); err != nil {
+			return ScaffoldResult{}, fmt.Errorf("write %q: %w", abs, err)
+		}
+		created = append(created, file.RelPath)
 	}
-	modePath := filepath.Join(dir, ModeFileName)
-	examplePath := filepath.Join(exampleDir, happyPathPresetID+".json")
-	if err := os.WriteFile(modePath, modeJSON, 0o644); err != nil {
-		return ScaffoldResult{}, fmt.Errorf("write %q: %w", modePath, err)
+	return ScaffoldResult{Mode: id, Dir: dir, CreatedFiles: created}, nil
+}
+
+// renderCloneScaffold builds the scaffold files for a reuse-first scaffold: it
+// reads an existing registered mode's folder, re-homes its identity and derived
+// fields (id, label, description, prompt catalog prefix, artifact root, event
+// sources) under the new id, and re-targets its example-runs at the new mode.
+// The rendered set is verified against the full on-disk mode set — the new
+// mode's phase graph loads and every re-homed example-run walks the real guards
+// (including one-level executed_by delegation) — before it is returned, so a
+// clone can never produce a folder that fails to load or simulate.
+func (s *Service) renderCloneScaffold(startFrom, id, label, description string) ([]scaffoldFile, error) {
+	srcDir := filepath.Join(s.modesDir(), startFrom)
+	srcModePath := filepath.Join(srcDir, ModeFileName)
+	srcModeJSON, err := os.ReadFile(srcModePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("start-from mode %q not found on disk at %s", startFrom, srcModePath)
+		}
+		return nil, fmt.Errorf("read start-from mode %q: %w", startFrom, err)
 	}
-	if err := os.WriteFile(examplePath, exampleJSON, 0o644); err != nil {
-		return ScaffoldResult{}, fmt.Errorf("write %q: %w", examplePath, err)
+	modeJSON, err := rehomeCloneMode(srcModeJSON, id, label, description)
+	if err != nil {
+		return nil, fmt.Errorf("clone mode %q: %w", startFrom, err)
 	}
-	return ScaffoldResult{
-		Mode: id,
-		Dir:  dir,
-		CreatedFiles: []string{
-			ModeFileName,
-			filepath.ToSlash(filepath.Join(exampleRunsDirName, happyPathPresetID+".json")),
-		},
-	}, nil
+
+	files := []scaffoldFile{{RelPath: ModeFileName, Content: modeJSON}}
+	exampleFiles, err := os.ReadDir(filepath.Join(srcDir, exampleRunsDirName))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("read start-from example-runs: %w", err)
+	}
+	for _, entry := range exampleFiles {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(srcDir, exampleRunsDirName, entry.Name()))
+		if err != nil {
+			return nil, fmt.Errorf("read start-from example-run %q: %w", entry.Name(), err)
+		}
+		rehomed, err := rehomeCloneExampleRun(raw, id)
+		if err != nil {
+			return nil, fmt.Errorf("clone example-run %q: %w", entry.Name(), err)
+		}
+		files = append(files, scaffoldFile{
+			RelPath: filepath.ToSlash(filepath.Join(exampleRunsDirName, entry.Name())),
+			Content: rehomed,
+		})
+	}
+
+	if err := verifyCloneScaffold(s.modesDir(), id, files); err != nil {
+		return nil, fmt.Errorf("cloned mode failed self-validation: %w", err)
+	}
+	return files, nil
+}
+
+// rehomeCloneMode rewrites a source mode.json under a new identity: id, label,
+// and description become the clone's, and the id-derived fields (prompt catalog
+// prefix, artifact root, backlog/metrics event sources) are regenerated from the
+// new id so the clone points at its own prompt skills and artifacts rather than
+// the source's. Everything else — the phase graph, reads, transitions,
+// classification, delegation — is preserved verbatim as the author's head start.
+func rehomeCloneMode(srcJSON []byte, id, label, description string) ([]byte, error) {
+	var doc map[string]any
+	if err := json.Unmarshal(srcJSON, &doc); err != nil {
+		return nil, fmt.Errorf("decode source mode.json: %w", err)
+	}
+	newRoot := "modes/" + id
+	oldRoot := ""
+	if artifact, ok := doc["artifact"].(map[string]any); ok {
+		if root, ok := artifact["root"].(string); ok {
+			oldRoot = strings.TrimSpace(root)
+		}
+		artifact["root"] = newRoot
+	}
+	doc["id"] = id
+	doc["label"] = label
+	doc["description"] = description
+	if prompt, ok := doc["prompt"].(map[string]any); ok {
+		prompt["catalog_prefix"] = "swarm-manager-" + id
+	}
+	if backlogSync, ok := doc["backlog_sync"].(map[string]any); ok {
+		if _, has := backlogSync["event_source"]; has {
+			backlogSync["event_source"] = id
+		}
+	}
+	if metrics, ok := doc["metrics"].(map[string]any); ok {
+		if _, has := metrics["event_source"]; has {
+			metrics["event_source"] = id
+		}
+	}
+	// Re-home every artifact path anchored under the source mode's artifact root
+	// (phase output_artifacts, result_binding artifacts) so they land under the
+	// clone's root — the validator rejects a path outside the mode root.
+	if oldRoot != "" && oldRoot != newRoot {
+		rehomeRootPrefix(doc, oldRoot, newRoot)
+	}
+	return marshalScaffoldJSON(doc)
+}
+
+// rehomeRootPrefix recursively rewrites every string value equal to oldRoot or
+// prefixed by oldRoot+"/" so the prefix becomes newRoot, leaving all other data
+// untouched. oldRoot is a distinctive `modes/<id>` path, so the swap is exact.
+func rehomeRootPrefix(node any, oldRoot, newRoot string) {
+	switch typed := node.(type) {
+	case map[string]any:
+		for key, value := range typed {
+			if str, ok := value.(string); ok {
+				typed[key] = swapRootPrefix(str, oldRoot, newRoot)
+				continue
+			}
+			rehomeRootPrefix(value, oldRoot, newRoot)
+		}
+	case []any:
+		for i, value := range typed {
+			if str, ok := value.(string); ok {
+				typed[i] = swapRootPrefix(str, oldRoot, newRoot)
+				continue
+			}
+			rehomeRootPrefix(value, oldRoot, newRoot)
+		}
+	}
+}
+
+func swapRootPrefix(value, oldRoot, newRoot string) string {
+	if value == oldRoot {
+		return newRoot
+	}
+	if strings.HasPrefix(value, oldRoot+"/") {
+		return newRoot + strings.TrimPrefix(value, oldRoot)
+	}
+	return value
+}
+
+// rehomeCloneExampleRun re-targets a source example-run at the clone's mode id so
+// it walks the new mode. The fixture body — seeded outputs and expected path —
+// is preserved, since the phase graph it exercises is preserved.
+func rehomeCloneExampleRun(srcJSON []byte, id string) ([]byte, error) {
+	var doc map[string]any
+	if err := json.Unmarshal(srcJSON, &doc); err != nil {
+		return nil, fmt.Errorf("decode source example-run: %w", err)
+	}
+	doc["mode"] = id
+	return marshalScaffoldJSON(doc)
+}
+
+func marshalScaffoldJSON(doc map[string]any) ([]byte, error) {
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
+}
+
+// verifyCloneScaffold proves the rendered clone loads AND passes the full
+// semantic validator before it is written: it loads the existing on-disk mode
+// set (so executed_by sub-modes resolve), overlays the new mode with its
+// re-homed example-runs, and runs ValidateLoadedModes — the same validation the
+// registry runs at startup — so a clone can never emit a folder the loader would
+// later reject.
+func verifyCloneScaffold(modesDir, id string, files []scaffoldFile) error {
+	defs, err := LoadModesFromDir(modesDir)
+	if err != nil {
+		return fmt.Errorf("load existing modes: %w", err)
+	}
+	var newDef Definition
+	for _, file := range files {
+		if file.RelPath == ModeFileName {
+			newDef, err = LoadModeDefinition(file.Content)
+			if err != nil {
+				return fmt.Errorf("load cloned mode.json: %w", err)
+			}
+		}
+	}
+	if newDef.Mode != Mode(id) {
+		return fmt.Errorf("cloned mode.json declares id %q, expected %q", newDef.Mode, id)
+	}
+	for _, file := range files {
+		if !strings.HasPrefix(file.RelPath, exampleRunsDirName+"/") {
+			continue
+		}
+		run, err := LoadExampleRun(file.Content)
+		if err != nil {
+			return fmt.Errorf("load cloned example-run %q: %w", file.RelPath, err)
+		}
+		newDef.ExampleRuns = append(newDef.ExampleRuns, run)
+	}
+	defs[newDef.Mode] = newDef
+	if err := ValidateLoadedModes(defs); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ValidateModeDraft loads the whole modes/ directory fresh from disk (so on-disk
@@ -178,13 +407,26 @@ func (s *Service) ValidateModeDraft(modeID string) (ValidationReport, error) {
 			Summary: "invalid",
 		}, nil
 	}
-	return ValidationReport{
+	report := ValidationReport{
 		Mode:        id,
 		OK:          true,
 		PhaseCount:  len(def.PhaseGraph.Phases),
 		ExampleRuns: len(def.ExampleRuns),
 		Summary:     "valid",
-	}, nil
+	}
+	// Report branch coverage so the author knows which guarded/classified paths
+	// still lack a covering example-run before the simulation walkthrough. A
+	// coverage-computation failure is not a validity failure — the mode loaded —
+	// so it degrades to a note rather than flipping OK.
+	if uncovered, covErr := modeBranchCoverage(defs, def); covErr != nil {
+		report.Summary = "valid (branch coverage unavailable: " + covErr.Error() + ")"
+	} else {
+		report.UncoveredBranches = uncovered
+		if len(uncovered) > 0 {
+			report.Summary = fmt.Sprintf("valid; %d branch(es) not covered by an example-run", len(uncovered))
+		}
+	}
+	return report, nil
 }
 
 // SimulateModeDraft simulates a mode straight from disk, loading the whole
@@ -219,7 +461,9 @@ func verifyScaffoldTemplate(modeJSON, exampleJSON []byte) error {
 	if err != nil {
 		return fmt.Errorf("load example-run: %w", err)
 	}
-	if _, err := WalkExampleRun(def, run); err != nil {
+	// Scaffolded templates contain no delegated phases, so the walk needs no
+	// wider mode set than the template itself.
+	if _, err := WalkExampleRun(map[Mode]Definition{def.Mode: def}, def, run); err != nil {
 		return fmt.Errorf("walk example-run %q: %w", run.ID, err)
 	}
 	return nil
@@ -291,7 +535,7 @@ const scaffoldModeTemplate = `{
   "tradeoffs": [
     "TODO: state the cost this mode pays for its benefit."
   ],
-  "scope": { "kind": "initiative" },
+  "target": { "kind": "initiative" },
   "run_strategy": { "kind": "operator_gated_loop" },
   "prompt": { "catalog_prefix": "swarm-manager-{{.ID}}" },
   "artifact": { "root": "modes/{{.ID}}" },
@@ -315,6 +559,7 @@ const scaffoldModeTemplate = `{
         "id": "execute",
         "kind": "execute",
         "activity_purpose": "{{.Snake}}_execute",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "INITIATIVE_TITLE", "INITIATIVE_DESCRIPTION", "MEMBER_ITEMS_JSON", "ELASTIC_SLICE_SNIPPET"],
         "profile_key": "swarm-manager/deep-work",
         "writes_repo": true,
         "prompt": {
@@ -330,6 +575,7 @@ const scaffoldModeTemplate = `{
         "id": "review",
         "kind": "review",
         "activity_purpose": "{{.Snake}}_review",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "ACCEPTANCE_CRITERIA", "MEMBER_ITEMS_JSON"],
         "profile_key": "swarm-manager/analysis",
         "requires_criteria": true,
         "prompt": {
@@ -358,6 +604,7 @@ const scaffoldModeTemplate = `{
         "id": "reconcile",
         "kind": "reconcile",
         "activity_purpose": "{{.Snake}}_reconcile",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON", "BACKLOG_SYNC_PROPOSAL_SNIPPET"],
         "profile_key": "swarm-manager/analysis",
         "auto_start_after": ["review"],
         "prompt": {

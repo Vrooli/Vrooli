@@ -54,7 +54,7 @@ func TestCmdOperatingModeList_RendersDefaultMark(t *testing.T) {
 			return &apipb.OperatingModeCatalogResponse{
 				Modes: []*apipb.OperatingModeCatalogEntry{{
 					Mode: "holistic-loop", Label: "Holistic", Description: "desc", UsageCount: 3,
-					ScopeKind: "initiative", RunStrategy: "sequential_handoff", Default: true,
+					TargetKind: "initiative", RunStrategy: "sequential_handoff", Default: true,
 				}},
 			}, nil
 		},
@@ -89,6 +89,58 @@ func TestCmdOperatingModeGet_RequiresMode(t *testing.T) {
 	}
 }
 
+func TestCmdOperatingModeGet_RendersComposedGraphAndClassification(t *testing.T) {
+	// holistic-loop delegates its execute phase to phased-plan-drain; the
+	// detail render must show the v2 target, the delegated sub-mode's phases
+	// inline, and the sub-mode's classification-on-transition as a built-in step.
+	stub := &stubOperatingModeHandler{
+		getMode: func(req *apipb.OperatingModeGetRequest) (*apipb.OperatingModeDetailResponse, error) {
+			switch req.GetMode() {
+			case "holistic-loop":
+				return &apipb.OperatingModeDetailResponse{
+					Entry: &apipb.OperatingModeCatalogEntry{
+						Mode: "holistic-loop", Label: "Holistic", TargetKind: "initiative",
+						RunStrategy: "operator_gated_loop",
+						Phases: []*apipb.OperatingModeCatalogPhase{
+							{Phase: "investigate", Reads: &apipb.OperatingModePhaseReads{
+								Base: []string{"OPERATOR_NOTE"}, Target: []string{"MEMBER_ITEMS_JSON"},
+							}},
+							{Phase: "execute", ExecutedBy: "phased-plan-drain"},
+						},
+					},
+				}, nil
+			case "phased-plan-drain":
+				return &apipb.OperatingModeDetailResponse{
+					Entry: &apipb.OperatingModeCatalogEntry{
+						Mode: "phased-plan-drain", Label: "Drain", TargetKind: "plan-manager-plan",
+						RunStrategy: "sequential_handoff",
+						Phases: []*apipb.OperatingModeCatalogPhase{
+							{Phase: "execute", IsStart: true, Classification: &apipb.OperatingModeTransitionClassification{
+								Field: "progress", Enum: []string{"continue", "complete", "blocked"}, From: "handoff",
+							}},
+						},
+					},
+				}, nil
+			}
+			return &apipb.OperatingModeDetailResponse{}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
+	out := clitest.CaptureStdout(t, func() error { return app.cmdOperatingModeGet([]string{"--mode", "holistic-loop"}) })
+	for _, want := range []string{
+		"Target:      Initiative",
+		"base[OPERATOR_NOTE] target[MEMBER_ITEMS_JSON]",
+		"[delegated]",
+		"Executed by sub-mode: phased-plan-drain",
+		"Composed graph (target=Plan-manager plan)",
+		"derive progress ∈ {continue, complete, blocked}",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("composed-graph render missing %q in:\n%s", want, out)
+		}
+	}
+}
+
 func TestCmdOperatingModeGet_RendersDetail(t *testing.T) {
 	var gotMode string
 	stub := &stubOperatingModeHandler{
@@ -96,7 +148,7 @@ func TestCmdOperatingModeGet_RendersDetail(t *testing.T) {
 			gotMode = req.GetMode()
 			return &apipb.OperatingModeDetailResponse{
 				Entry: &apipb.OperatingModeCatalogEntry{
-					Mode: "holistic-loop", Label: "Holistic", ScopeKind: "initiative",
+					Mode: "holistic-loop", Label: "Holistic", TargetKind: "initiative",
 					RunStrategy: "sequential_handoff", UsageCount: 2,
 				},
 			}, nil
@@ -135,7 +187,7 @@ func TestCmdOperatingModeGet_ShowPromptRendersSelectedPhase(t *testing.T) {
 				Preset:     "branchy",
 				StepIndex:  1,
 				Phase:      "execute",
-				SkillId:    "swarm-manager-holistic-loop-execute",
+				SkillId:    "swarm-manager-phased-plan-execute-next",
 				ProfileKey: "swarm-manager/deep-work",
 				Prompt:     "Execute the next slice.",
 			}, nil
@@ -148,7 +200,7 @@ func TestCmdOperatingModeGet_ShowPromptRendersSelectedPhase(t *testing.T) {
 	if gotRender.GetMode() != "holistic-loop" || gotRender.GetPreset() != "branchy" || gotRender.GetStepIndex() != 1 {
 		t.Fatalf("render request = %+v", gotRender)
 	}
-	if !strings.Contains(out, "SkillID: swarm-manager-holistic-loop-execute") || !strings.Contains(out, "Execute the next slice.") {
+	if !strings.Contains(out, "SkillID: swarm-manager-phased-plan-execute-next") || !strings.Contains(out, "Execute the next slice.") {
 		t.Fatalf("prompt output = %q", out)
 	}
 }

@@ -60,8 +60,11 @@ func validateDefinitions(defs map[Mode]Definition) error {
 		if err := validateDecisionMetadata(defs, mode, def); err != nil {
 			return err
 		}
-		if def.Scope.Kind == "" {
-			return fmt.Errorf("mode %q scope kind is required", mode)
+		if !IsValidTargetKind(def.Target.Kind) {
+			return fmt.Errorf("mode %q target kind must be one of %s|%s|%s (got %q)", mode, TargetPlanManagerPlan, TargetPlanRef, TargetInitiative, def.Target.Kind)
+		}
+		if def.Target.Kind != TargetInitiative && (def.Target.PlanRef.Required || strings.TrimSpace(def.Target.PlanRef.Role) != "") {
+			return fmt.Errorf("mode %q target.plan_ref is initiative-adapter configuration; target %q must not declare it", mode, def.Target.Kind)
 		}
 		if def.RunStrategy.Kind == "" {
 			return fmt.Errorf("mode %q run strategy is required", mode)
@@ -78,10 +81,10 @@ func validateDefinitions(defs map[Mode]Definition) error {
 		if err := validateDefinitionProfiles(mode, def); err != nil {
 			return err
 		}
-		if mode == ModeItemLevel {
+		if !def.RunsModeRounds() {
 			continue
 		}
-		if err := validateInitiativeModeDefinition(def); err != nil {
+		if err := validatePhaseModeDefinition(def); err != nil {
 			return err
 		}
 	}
@@ -162,7 +165,7 @@ func validateDefinitionProfiles(mode Mode, def Definition) error {
 	return nil
 }
 
-func validateInitiativeModeDefinition(def Definition) error {
+func validatePhaseModeDefinition(def Definition) error {
 	if err := validateModeTopLevel(def); err != nil {
 		return err
 	}
@@ -190,8 +193,12 @@ func validateModeTopLevel(def Definition) error {
 	if _, ok := def.PhaseGraph.Phases[def.PhaseGraph.StartPhase]; !ok {
 		return fmt.Errorf("mode %q start phase %q is not registered", def.Mode, def.PhaseGraph.StartPhase)
 	}
-	if len(def.PhaseGraph.Terminal) == 0 {
-		return fmt.Errorf("mode %q terminal phases are required", def.Mode)
+	// A mode must be able to stop: either it declares terminal phases, or at
+	// least one of its edges is a guarded stop (a matched guard with no target
+	// — e.g. the generic drain's complete/blocked routes). A single-phase
+	// self-loop mode has no terminal phase at all; its stops are guarded.
+	if len(def.PhaseGraph.Terminal) == 0 && !hasGuardedStop(def) {
+		return fmt.Errorf("mode %q must declare terminal phases or at least one guarded-stop transition (a guard routing to no phase)", def.Mode)
 	}
 	if strings.TrimSpace(def.Artifact.Root) == "" || strings.TrimSpace(def.Artifact.RoundRoot) == "" {
 		return fmt.Errorf("mode %q artifact root and round root are required", def.Mode)
@@ -199,16 +206,31 @@ func validateModeTopLevel(def Definition) error {
 	if strings.TrimSpace(def.Prompt.CatalogPrefix) == "" {
 		return fmt.Errorf("mode %q prompt catalog prefix is required", def.Mode)
 	}
-	if !def.Lock.InitiativeExclusive {
-		return fmt.Errorf("mode %q must use initiative-exclusive locking", def.Mode)
+	if def.Target.Kind == TargetInitiative {
+		if !def.Lock.InitiativeExclusive {
+			return fmt.Errorf("mode %q must use initiative-exclusive locking", def.Mode)
+		}
+		if !IsValidBacklogSyncApplyMode(def.BacklogSync.ApplyMode) {
+			return fmt.Errorf("mode %q backlog_sync apply_mode must be one of operator-gated|auto-apply-safe|auto-apply-all (got %q)", def.Mode, def.BacklogSync.ApplyMode)
+		}
 	}
-	if !IsValidBacklogSyncApplyMode(def.BacklogSync.ApplyMode) {
-		return fmt.Errorf("mode %q backlog_sync apply_mode must be one of operator-gated|auto-apply-safe|auto-apply-all (got %q)", def.Mode, def.BacklogSync.ApplyMode)
-	}
-	if def.PlanRef.Required && strings.TrimSpace(def.PlanRef.Role) != PlanRefRoleOperatingModePlan {
-		return fmt.Errorf("mode %q plan_ref role must be %q when required", def.Mode, PlanRefRoleOperatingModePlan)
+	if def.Target.PlanRef.Required && strings.TrimSpace(def.Target.PlanRef.Role) != PlanRefRoleOperatingModePlan {
+		return fmt.Errorf("mode %q target.plan_ref role must be %q when required", def.Mode, PlanRefRoleOperatingModePlan)
 	}
 	return nil
+}
+
+// hasGuardedStop reports whether any phase declares a guarded stop: a
+// transition whose guard can match but routes to no phase.
+func hasGuardedStop(def Definition) bool {
+	for _, guards := range def.PhaseGraph.Guards {
+		for _, gt := range guards {
+			if len(gt.To) == 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // validateModeTransitions checks that every terminal phase and every phase
@@ -238,6 +260,18 @@ func validateModeTransitions(def Definition) error {
 func validateModePhase(def Definition, phase Phase, phaseDef PhaseDefinition) error {
 	if phaseDef.Phase != phase {
 		return fmt.Errorf("mode %q phase map key %q contains phase %q", def.Mode, phase, phaseDef.Phase)
+	}
+	if phaseDef.Delegated() {
+		// A delegated phase carries no execution surface of its own (no
+		// prompt catalog entry, purposes, profile, artifacts, or output
+		// contract) — the sub-mode's phases own all of that and are validated
+		// in their own mode. Delegation-specific semantics (sub-mode
+		// existence, nesting, target compatibility, guard fields) are checked
+		// by validateDelegations/validateGuardGraph over the full mode set.
+		if !IsValidPhaseKind(phaseDef.Kind) {
+			return fmt.Errorf("mode %q phase %q kind must be one of investigate|execute|review|reconcile (got %q)", def.Mode, phase, phaseDef.Kind)
+		}
+		return validatePhaseAutoStartAfter(def, phaseDef)
 	}
 	if strings.TrimSpace(phaseDef.CatalogID) == "" || strings.TrimSpace(phaseDef.SkillID) == "" {
 		return fmt.Errorf("mode %q phase %q prompt catalog ID and skill ID are required", def.Mode, phase)

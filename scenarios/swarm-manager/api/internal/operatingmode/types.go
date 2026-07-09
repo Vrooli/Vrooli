@@ -1,8 +1,10 @@
 package operatingmode
 
+import "strings"
+
 type (
 	Mode                  string
-	ScopeKind             string
+	TargetKind            string
 	Phase                 string
 	PhaseKind             string
 	RunStrategyKind       string
@@ -17,10 +19,31 @@ const (
 	ModePhasedPlanDrain Mode = "phased-plan-drain"
 )
 
+// TargetKind is the mode's declared unit of work — the thing one run of the
+// loop operates on. Each kind has a target adapter that supplies the
+// target-specific reads, ownership key, and resolution; the initiative is one
+// adapter among several, not the substrate everything else is bolted onto.
 const (
-	ScopeBacklogItem ScopeKind = "backlog_item"
-	ScopeInitiative  ScopeKind = "initiative"
+	// TargetPlanManagerPlan targets a canonical plan-manager plan
+	// (execution id / slug).
+	TargetPlanManagerPlan TargetKind = "plan-manager-plan"
+	// TargetPlanRef targets a plan file or reference not imported into
+	// swarm-manager (e.g. a repo-relative plan path).
+	TargetPlanRef TargetKind = "plan-ref"
+	// TargetInitiative targets a swarm-manager initiative and its member items.
+	TargetInitiative TargetKind = "initiative"
 )
+
+// IsValidTargetKind reports whether the given kind is one of the three
+// registered target kinds. Empty is invalid; unknown values are invalid.
+func IsValidTargetKind(kind TargetKind) bool {
+	switch kind {
+	case TargetPlanManagerPlan, TargetPlanRef, TargetInitiative:
+		return true
+	default:
+		return false
+	}
+}
 
 // PhaseKind classifies a phase by the kind of work it performs. Lane
 // assignment, Operations Center column placement, and per-lane metric
@@ -102,11 +125,10 @@ type Definition struct {
 	// itself the safe default. Validator requires this to reference a
 	// registered mode and not be self.
 	WhenInDoubtPickInstead Mode
-	Scope                  ScopePolicy
+	Target                 TargetPolicy
 	PhaseGraph             PhaseGraph
 	RunStrategy            RunStrategyPolicy
 	Artifact               ArtifactPolicy
-	PlanRef                PlanRefPolicy
 	Prompt                 PromptPolicy
 	Profile                ProfilePolicy
 	BacklogSync            BacklogSyncPolicy
@@ -122,9 +144,31 @@ type Definition struct {
 	ExampleRuns []ExampleRun
 }
 
+// TargetPolicy is the mode's declared unit of work plus adapter-specific
+// configuration. It subsumes the former top-level plan_ref policy: a bound
+// plan-manager plan is initiative-adapter configuration (the initiative
+// carries a plan_ref the run consumes), which is distinct from the plan-ref
+// *target kind* (the plan itself is the unit of work).
+type TargetPolicy struct {
+	Kind TargetKind
+	// PlanRef configures the initiative adapter's bound-plan contract: when
+	// Required, non-start phases refuse to run until the initiative binds a
+	// canonical plan-manager reference, and the adapter supplies its resolved
+	// execution context through the PLAN_CONTEXT_JSON read. Only meaningful
+	// for initiative-target modes; the loader rejects it elsewhere.
+	PlanRef PlanRefPolicy
+}
+
 type PlanRefPolicy struct {
 	Required bool
 	Role     string
+}
+
+// RunsModeRounds reports whether the mode executes durable operating-mode
+// rounds through a phase graph. Item-level work owned by the existing backlog
+// execution flow (run strategy existing_item_flow) does not.
+func (d Definition) RunsModeRounds() bool {
+	return d.RunStrategy.Kind != RunStrategyExistingItemFlow
 }
 
 // ExampleRun looks up a loaded example-run by id.
@@ -135,10 +179,6 @@ func (d Definition) ExampleRun(id string) (ExampleRun, bool) {
 		}
 	}
 	return ExampleRun{}, false
-}
-
-type ScopePolicy struct {
-	Kind ScopeKind
 }
 
 type PhaseGraph struct {
@@ -165,6 +205,41 @@ type GuardedTransition struct {
 	To   []Phase
 }
 
+// TransitionClassification is a transition-owned classification contract
+// (classification-on-transition): when the routing field a guard needs was not
+// directly emitted by the completed round, the transition declares how to
+// derive it from the round's resolved output — the same resolution-ladder
+// mechanics applied at the edge instead of at the phase result. The loader
+// expands a classified transition's routes into ordinary eq-guards over Field,
+// so guard evaluation stays exactly what it is; classification only changes
+// where the field's value can come from. At most one classification contract
+// exists per phase (loader-enforced).
+//
+// Derivation precedence (documented contract, tested):
+//   - Short-circuit (not_required): the round already emitted Field (top-level
+//     payload or inside the structured-result envelope). The emitted value must
+//     satisfy Enum; an out-of-enum emitted value is a contract violation and an
+//     honest abstain, never overridden by the classifier.
+//   - L1 (deterministic): the value is carried inline on the source object at
+//     `<From>.<Field>` (e.g. handoff.progress). No model call.
+//   - L2 (classifier fallback): the JSON of the From field's value (or the whole
+//     envelope when From is empty) is classified against Enum; the classifier
+//     abstains rather than guessing.
+//   - Abstain: the round routes to needs_attention — a routing decision is never
+//     fabricated and never crashes the loop.
+type TransitionClassification struct {
+	// Field is the dotted path of the routing field to derive (e.g.
+	// progress.decision). The expanded route guards compare this field.
+	Field string
+	// Enum is the closed set of permitted routing values.
+	Enum []string
+	// From names the declared output field to derive from (e.g. handoff).
+	// Empty means the whole structured result envelope.
+	From string
+	// Description explains what the routing decision means; steers L2.
+	Description string
+}
+
 type PhaseDefinition struct {
 	Phase Phase
 	// Kind is the phase classification (investigate / execute / review /
@@ -172,13 +247,30 @@ type PhaseDefinition struct {
 	// per-lane metric grouping all key off this axis. Must be set on every
 	// initiative-scoped phase; the validator rejects empty values.
 	Kind PhaseKind
+	// ExecutedBy names the sub-mode that executes this phase (phase
+	// delegation, EXECUTION-MODES.md D3). Empty for regular phases. When set,
+	// the engine runs the sub-mode's loop as this phase — sub-rounds execute
+	// under the parent run with the sub-mode's prompts, reads, and classified
+	// edges — and the sub-mode's terminal outcome becomes this phase's
+	// resolved output for the parent's guards to route on. Exactly one level
+	// deep: the loader rejects nesting, self-delegation, unknown sub-modes,
+	// and target-incompatible delegation. A delegated phase declares no
+	// prompt/reads/declared_output of its own.
+	ExecutedBy Mode
 	// AutoStartAfter lists phases whose successful completion should
 	// automatically start this phase. Constrained to length ≤ 1 in v1; the
 	// validator rejects multi-predecessor declarations to avoid
 	// race-condition design pressure on the round refresher hook. The
 	// auto-start path fires only on RoundStatusCompleted (not Failed /
 	// Cancelled) and only after the initiative lock is released.
-	AutoStartAfter  []Phase
+	AutoStartAfter []Phase
+	// Reads is the phase's declared input contract: the named variables its
+	// prompt template may reference, symmetric with DeclaredOutput on the emit
+	// side. The composed provider set (generic base ∪ target adapter) must
+	// satisfy every declared read — the loader validates this at load time —
+	// and the renderer substitutes exactly the declared reads, so an
+	// undeclared template slot fails loudly instead of rendering empty.
+	Reads           []string
 	ActivityPurpose string
 	LockPurpose     string
 	CatalogID       string
@@ -194,8 +286,19 @@ type PhaseDefinition struct {
 	// single artifact that both validates a round's result and steers the
 	// resolution ladder; guards reference its fields by path. Populated by the
 	// data loader; the hardcoded Go definitions leave it nil.
-	DeclaredOutput   *DeclaredOutput
-	RequiresCriteria bool
+	DeclaredOutput *DeclaredOutput
+	// TransitionClassification is the phase's transition-owned classification
+	// contract, when one of its transitions is declared as a classified edge
+	// (classify/routes). Nil for phases whose transitions are all plain guarded
+	// edges. Populated by the data loader from the classified transition.
+	TransitionClassification *TransitionClassification
+	RequiresCriteria         bool
+}
+
+// Delegated reports whether the phase is executed by a sub-mode
+// (executed_by) rather than by its own prompt/reads/emits contract.
+func (p PhaseDefinition) Delegated() bool {
+	return strings.TrimSpace(string(p.ExecutedBy)) != ""
 }
 
 // DeclaredOutput is the per-phase contract for what a round is supposed to emit.

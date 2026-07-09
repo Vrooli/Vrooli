@@ -10,20 +10,27 @@ The backend computes startable phases from [CODE: api/internal/operatingmode/sta
 The UI and CLI render that state; they do not decide sequencing locally.
 
 ```text
-investigate -> plan -> execute -> review
-      ^             |
-      |             v
-      +------ replan_needed=true
+investigate -> plan -> execute (executed_by: phased-plan-drain) -> review -> reconcile
+      ^                 |  ^_|                  |
+      |                 |  progress=continue    v (verdict=changes_requested -> execute)
+      +--- progress=blocked
 ```
 
 Rules:
 
 - `investigate` is the first phase.
-- `plan` can start after completed `investigate`.
-- `execute` can start after completed `plan`.
-- `execute` with `replan_needed=false` enables `review`.
-- `execute` with `replan_needed=true` enables `investigate`.
-- `review` requires initiative acceptance criteria.
+- `plan` can start after completed `investigate`. It authors the canonical
+  plan-manager plan and binds it to the initiative (`plan_ref`, required
+  output) — that bound plan is what the delegated drain executes.
+- `execute` can start after completed `plan`. It is **delegated** to the
+  generic `phased-plan-drain` (`executed_by`): each round is one drain slice,
+  the classified edge derives `progress` from the handoff, and
+  `progress=continue` keeps `execute` startable again (the inline drain loop).
+- `execute` with `progress=complete` enables `review`.
+- `execute` with `progress=blocked` enables `investigate` (the composed
+  replan loop).
+- `review` requires initiative acceptance criteria; `changes_requested`
+  routes back to `execute` (a fresh drain entry).
 - Failed or canceled rounds do not advance the phase graph.
 - Any reserved or agent-running round blocks all new phase starts.
 
@@ -34,9 +41,11 @@ Rules:
 3. Switch mode through `mode-switch`; do not edit `mode` through generic
    initiative update.
 4. Start `investigate` and review the generated findings artifact.
-5. Start `plan` and review `modes/holistic-loop/initiative-plan.md`.
-6. Start `execute`. If the result requests replanning, loop back through
-   investigation. If not, proceed to review.
+5. Start `plan` and review the canonical plan-manager plan it binds
+   (`plan_ref` on the initiative).
+6. Start `execute` repeatedly to drain the plan (each round is one slice of
+   the delegated phased-plan-drain). A `blocked` drain routes back through
+   investigation; `complete` proceeds to review.
 7. Start `review` and validate the whole initiative against acceptance criteria.
 8. Use `complete-items` or `apply-backlog-sync` for any backlog status or scope
    reconciliation. Agents must not edit member item `spec.json` files directly.
@@ -47,11 +56,12 @@ The operating-mode detail page's **Flow** tab can walk this graph deterministica
 without running agents. Holistic-loop ships these presets as mode-owned example-run
 data ([CODE: modes/holistic-loop/example-runs/]):
 
-- **Clean pass** (`happy-path`) — `investigate → plan → execute → review → reconcile`
-  with no replanning; execute reports `replan_needed=false`.
-- **Execute triggers replan** (`replan-after-execute`) — execute reports
-  `replan_needed=true`, so the real field-predicate guard routes back to
-  `investigate`; the second pass completes.
+- **Clean composed pass** (`happy-path`) — `investigate → plan → execute →
+  execute → review → reconcile`: the delegated drain continues once, completes,
+  review accepts.
+- **Blocked drain triggers replan** (`drain-blocked-replan`) — the drain hands
+  off `progress=blocked`, so the parent guard routes back to `investigate`; the
+  revised plan drains cleanly on the second pass.
 - **Review requests changes** (`review-changes-requested`) — review returns
   `verdict=changes_requested`, so the guard routes **back to `execute`** to close the
   specific gaps; a second execute pass finishes and review then accepts before

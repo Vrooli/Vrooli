@@ -32,6 +32,7 @@ func (a *App) cmdOperatingModeScaffold(args []string) error {
 	idFlag := fs.String("id", "", "New mode id (lowercase kebab-case, e.g. my-mode)")
 	labelFlag := fs.String("label", "", "Display label (defaults from the id)")
 	descFlag := fs.String("description", "", "One-line description of the methodology")
+	startFrom := fs.String("start-from", "", "Clone an existing registered mode as the head start (reuse-first) instead of the blank template")
 	force := fs.Bool("force", false, "Overwrite an existing mode folder")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -39,12 +40,13 @@ func (a *App) cmdOperatingModeScaffold(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 	if id == "" {
-		return fmt.Errorf("usage: operating-mode scaffold --id MODE [--label LABEL] [--description TEXT] [--force] [--json]\n\n--id is required")
+		return fmt.Errorf("usage: operating-mode scaffold --id MODE [--start-from EXISTING] [--label LABEL] [--description TEXT] [--force] [--json]\n\n--id is required")
 	}
 	resp, err := a.operatingModeClient().ScaffoldMode(context.Background(), connect.NewRequest(&apipb.OperatingModeScaffoldRequest{
 		Id:          id,
 		Label:       strings.TrimSpace(*labelFlag),
 		Description: strings.TrimSpace(*descFlag),
+		StartFrom:   strings.TrimSpace(*startFrom),
 		Force:       *force,
 	}))
 	if err != nil {
@@ -62,9 +64,9 @@ func (a *App) cmdOperatingModeScaffold(args []string) error {
 	}
 	fmt.Println()
 	fmt.Println("  Next steps:")
-	fmt.Printf("    1. Edit the TODO fields in %s/mode.json and its example-runs.\n", msg.GetDir())
-	fmt.Printf("    2. operating-mode validate --mode %s\n", msg.GetMode())
-	fmt.Printf("    3. operating-mode simulate --mode %s\n", msg.GetMode())
+	fmt.Printf("    1. Shape %s/mode.json to the methodology and add an example-run per branch.\n", msg.GetDir())
+	fmt.Printf("    2. operating-mode validate --mode %s   (reports any uncovered guarded/classified branch)\n", msg.GetMode())
+	fmt.Printf("    3. operating-mode simulate --mode %s --preset <branch>   (walk each branch with the operator)\n", msg.GetMode())
 	fmt.Println("    4. Restart swarm-manager (no rebuild) so the registry loads the new mode, then run it.")
 	return nil
 }
@@ -91,6 +93,14 @@ func (a *App) cmdOperatingModeValidate(args []string) error {
 	printSection("Operating Mode Validation")
 	if msg.GetOk() {
 		fmt.Printf("  %s — VALID (%d phase(s), %d example-run(s))\n", msg.GetMode(), msg.GetPhaseCount(), msg.GetExampleRuns())
+		if uncovered := msg.GetUncoveredBranches(); len(uncovered) > 0 {
+			fmt.Printf("  Branch coverage: %d guarded/classified branch(es) not walked by any example-run — author one per branch before the simulation walkthrough:\n", len(uncovered))
+			for _, branch := range uncovered {
+				fmt.Printf("    - %s\n", branch)
+			}
+		} else {
+			fmt.Println("  Branch coverage: every guarded/classified branch is walked by an example-run.")
+		}
 		return nil
 	}
 	fmt.Printf("  %s — INVALID (%s)\n", msg.GetMode(), msg.GetSummary())

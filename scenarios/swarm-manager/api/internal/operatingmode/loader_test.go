@@ -78,17 +78,17 @@ func TestLoadedBranchingSelectsExpectedPhase(t *testing.T) {
 	}{
 		{ModeHolisticLoop, "investigate", map[string]any{}, []Phase{"plan"}},
 		{ModeHolisticLoop, "plan", map[string]any{}, []Phase{"execute"}},
-		{ModeHolisticLoop, "execute", map[string]any{"replan_needed": true}, []Phase{"investigate"}},
-		{ModeHolisticLoop, "execute", map[string]any{"replan_needed": false}, []Phase{"review"}},
-		{ModeHolisticLoop, "execute", map[string]any{}, []Phase{"review"}},
+		{ModeHolisticLoop, "execute", map[string]any{"progress": "blocked"}, []Phase{"investigate"}},
+		{ModeHolisticLoop, "execute", map[string]any{"progress": "complete"}, []Phase{"review"}},
+		// A delegated execute round with no derived progress matches no
+		// parent guard: routing waits for the edge-classified value.
+		{ModeHolisticLoop, "execute", map[string]any{}, nil},
 		{ModeHolisticLoop, "review", map[string]any{}, []Phase{"reconcile"}},
-		{ModePhasedPlanDrain, "prepare_plan", map[string]any{}, []Phase{"execute_next"}},
-		{ModePhasedPlanDrain, "execute_next", map[string]any{}, []Phase{"classify_progress"}},
-		{ModePhasedPlanDrain, "classify_progress", progressPayload("continue"), []Phase{"execute_next"}},
-		{ModePhasedPlanDrain, "classify_progress", progressPayload("replan"), []Phase{"prepare_plan"}},
-		{ModePhasedPlanDrain, "classify_progress", progressPayload("complete"), []Phase{"review"}},
-		{ModePhasedPlanDrain, "classify_progress", progressPayload("blocked"), nil},
-		{ModePhasedPlanDrain, "review", map[string]any{}, []Phase{"reconcile"}},
+		// The generic drain routes on the edge-derived `progress` field, hoisted
+		// into the round payload by classification-on-transition.
+		{ModePhasedPlanDrain, "execute", map[string]any{"progress": "continue"}, []Phase{"execute"}},
+		{ModePhasedPlanDrain, "execute", map[string]any{"progress": "complete"}, nil},
+		{ModePhasedPlanDrain, "execute", map[string]any{"progress": "blocked"}, nil},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.mode)+"/"+string(tc.phase), func(t *testing.T) {
@@ -99,10 +99,6 @@ func TestLoadedBranchingSelectsExpectedPhase(t *testing.T) {
 			}
 		})
 	}
-}
-
-func progressPayload(decision string) map[string]any {
-	return map[string]any{"progress": map[string]any{"decision": decision}}
 }
 
 // TestNovelBranchingExampleRun proves the vocabulary is generic: the fixture's
@@ -129,7 +125,7 @@ func TestNovelBranchingExampleRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load example-run: %v", err)
 	}
-	walked, err := WalkExampleRun(def, run)
+	walked, err := WalkExampleRun(map[Mode]Definition{def.Mode: def}, def, run)
 	if err != nil {
 		t.Fatalf("walk example-run: %v", err)
 	}

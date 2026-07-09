@@ -2,16 +2,28 @@
   "kind": "operating-mode-example-run",
   "id": "happy-path",
   "mode": "holistic-loop",
-  "label": "Clean pass",
-  "description": "Investigate → plan → execute → review → reconcile with no replanning.",
-  "branch": "execute → review (replan not needed)",
-  "scenario": "Investigation surfaces the full picture up front, the plan holds, execution needs no rework, and review accepts the result before the backlog is reconciled.",
+  "label": "Clean composed pass",
+  "description": "Investigate → plan (binds the plan-manager plan) → delegated drain (continue, then complete) → review → reconcile.",
+  "branch": "execute →(progress=continue) execute inline, then execute →(progress=complete) review",
+  "scenario": "Investigation surfaces the full picture, the plan phase authors and binds the canonical plan-manager plan, and the delegated phased-plan-drain drains it in two slices. The classified edge derives continue for the first handoff (the delegation loops inline) and complete for the second (the parent routes to review), review accepts, and reconcile aligns the backlog.",
   "initiative": {
     "title": "Unify the audio-session lifecycle",
     "description": "Coupled audio fixes that can only be validated together across the tab lifecycle.",
     "items": [
-      { "ref": "execute/audio-session-teardown", "title": "Tear down idle audio session", "status": "in_progress", "priority": 1, "effort": "M" },
-      { "ref": "fix/mic-wedge-regression", "title": "Fix mic wedge after backgrounding", "status": "todo", "priority": 2, "effort": "S" }
+      {
+        "ref": "execute/audio-session-teardown",
+        "title": "Tear down idle audio session",
+        "status": "in_progress",
+        "priority": 1,
+        "effort": "M"
+      },
+      {
+        "ref": "fix/mic-wedge-regression",
+        "title": "Fix mic wedge after backgrounding",
+        "status": "todo",
+        "priority": 2,
+        "effort": "S"
+      }
     ],
     "criteria": [
       "An idle tab never holds the system audio session.",
@@ -19,10 +31,77 @@
     ]
   },
   "steps": [
-    { "phase": "investigate", "note": "always → plan" },
-    { "phase": "plan", "note": "always → execute" },
-    { "phase": "execute", "output": { "replan_needed": false }, "note": "replan_needed=false → fall through to review" },
-    { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile (verdict recorded)" }
+    {
+      "phase": "investigate",
+      "note": "always → plan"
+    },
+    {
+      "phase": "plan",
+      "output": {
+        "plan_ref": {
+          "provider": "plan-manager",
+          "plan_id": "audio-session-lifecycle-plan",
+          "role": "operating_mode_plan"
+        }
+      },
+      "note": "emits + binds plan_ref → always → execute (delegated to phased-plan-drain)"
+    },
+    {
+      "phase": "execute",
+      "output": {
+        "handoff": {
+          "summary": "Completed plan phase 1: idle audio session teardown.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Drain the next slice from the declared frontier.",
+          "changed_files": [
+            "apps/web/src/audio/session.ts"
+          ],
+          "tests": [
+            "vrooli scenario test web-console"
+          ],
+          "frontier": "Plan phase 2: mic recovery after backgrounding.",
+          "progress": "continue"
+        }
+      },
+      "note": "sub-mode classified edge derives continue → delegated phase loops inline"
+    },
+    {
+      "phase": "execute",
+      "output": {
+        "handoff": {
+          "summary": "Completed plan phase 2: mic recovery after backgrounding.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Nothing — the plan is fully drained.",
+          "changed_files": [
+            "apps/web/src/audio/session.ts"
+          ],
+          "tests": [
+            "vrooli scenario test web-console"
+          ],
+          "frontier": "None — the plan is fully drained.",
+          "progress": "complete"
+        }
+      },
+      "note": "sub-mode stop (complete) → parent guard routes to review"
+    },
+    {
+      "phase": "review",
+      "output": {
+        "verdict": "accepted"
+      },
+      "note": "always → reconcile (verdict recorded)"
+    }
   ],
-  "expected_path": ["investigate", "plan", "execute", "review", "reconcile"]
+  "expected_path": [
+    "investigate",
+    "plan",
+    "execute",
+    "execute",
+    "review",
+    "reconcile"
+  ]
 }

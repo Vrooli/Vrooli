@@ -8,7 +8,7 @@ import type {
 } from "../../../types/operating-mode";
 import type { InitiativeOperatingMode } from "../../../types";
 import { operatingModeDetailPath } from "../../../app/routes/route-paths";
-import { humanizeRunStrategy, humanizeScopeKind, modeLabel } from "./utils";
+import { humanizeRunStrategy, humanizeTargetKind, modeLabel } from "./utils";
 
 export interface OperatingModeHeroProps {
   currentMode: InitiativeOperatingMode;
@@ -58,7 +58,7 @@ export function OperatingModeHero({
           </div>
           {catalogEntry && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-              <Chip>Scope: {humanizeScopeKind(catalogEntry.scopeKind)}</Chip>
+              <Chip>Target: {humanizeTargetKind(catalogEntry.targetKind)}</Chip>
               <Chip>Run strategy: {humanizeRunStrategy(catalogEntry.runStrategy)}</Chip>
               {catalogEntry.default && <Chip>Default</Chip>}
             </div>

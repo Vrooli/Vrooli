@@ -104,7 +104,15 @@ func LoadExampleRun(raw []byte) (ExampleRun, error) {
 // that no fabricated transitions occur and that the resulting path equals the
 // fixture's declared expected_path. This is the mechanism that makes a mode
 // testable before use.
-func WalkExampleRun(def Definition, run ExampleRun) ([]Phase, error) {
+//
+// defs is the mode set the walk resolves delegated sub-modes from (the set
+// being loaded/validated, never the process registry, so a fresh load
+// validates against itself). A step at a delegated phase is one sub-mode
+// round: its output validates against the sub-phase's declared output, its
+// classified edge derives the routing field, and an onward sub-route repeats
+// the delegated phase inline in the walked path while a sub-mode stop hands
+// the same output to the parent's guards.
+func WalkExampleRun(defs map[Mode]Definition, def Definition, run ExampleRun) ([]Phase, error) {
 	if run.Mode != string(def.Mode) {
 		return nil, fmt.Errorf("example-run %q targets mode %q but was walked against %q", run.ID, run.Mode, def.Mode)
 	}
@@ -120,17 +128,39 @@ func WalkExampleRun(def Definition, run ExampleRun) ([]Phase, error) {
 	walked := make([]Phase, 0, len(run.ExpectedPath))
 	stepIdx := 0
 	cur := def.PhaseGraph.StartPhase
+	// subCur tracks the sub-mode phase while the walk is inside a delegated
+	// phase; empty when the current phase executes its own contract.
+	var subCur Phase
 
 	for hop := 0; ; hop++ {
 		if hop > maxHops {
 			return nil, fmt.Errorf("example-run %q did not terminate within %d hops (guards loop?)", run.ID, maxHops)
 		}
-		if _, ok := def.PhaseGraph.Phases[cur]; !ok {
+		phaseDef, ok := def.PhaseGraph.Phases[cur]
+		if !ok {
 			return nil, fmt.Errorf("example-run %q walked into unregistered phase %q", run.ID, cur)
 		}
 		walked = append(walked, cur)
 		if _, isTerminal := terminal[cur]; isTerminal {
 			break
+		}
+
+		// Resolve the execution contract for this visit: the phase's own, or —
+		// for a delegated phase — the current sub-phase of the sub-mode.
+		execPhaseDef := phaseDef
+		var sub Definition
+		if phaseDef.Delegated() {
+			sub, ok = defs[phaseDef.ExecutedBy]
+			if !ok {
+				return nil, fmt.Errorf("example-run %q phase %q delegates to unknown sub-mode %q", run.ID, cur, phaseDef.ExecutedBy)
+			}
+			if subCur == "" {
+				subCur = sub.PhaseGraph.StartPhase
+			}
+			execPhaseDef, ok = sub.PhaseGraph.Phases[subCur]
+			if !ok {
+				return nil, fmt.Errorf("example-run %q phase %q: sub-mode %q has no phase %q", run.ID, cur, sub.Mode, subCur)
+			}
 		}
 
 		var output map[string]any
@@ -140,8 +170,28 @@ func WalkExampleRun(def Definition, run ExampleRun) ([]Phase, error) {
 		} else if stepIdx < len(run.Steps) {
 			return nil, fmt.Errorf("example-run %q step %d is phase %q but the walk reached %q", run.ID, stepIdx, run.Steps[stepIdx].Phase, cur)
 		}
-		if err := validateExampleRunStepOutput(def, run, cur, output); err != nil {
+		if err := validateExampleRunStepOutput(run, cur, execPhaseDef, output); err != nil {
 			return nil, err
+		}
+		output, err := applyWalkClassification(run, cur, execPhaseDef, output)
+		if err != nil {
+			return nil, err
+		}
+
+		if phaseDef.Delegated() {
+			next, continuing, err := delegationRouteForLookup(sub, subCur, NewMapFieldLookup(output))
+			if err != nil {
+				return nil, fmt.Errorf("example-run %q phase %q: %w", run.ID, cur, err)
+			}
+			if continuing {
+				// The sub-mode routes onward (e.g. the drain's continue
+				// self-loop): the delegated phase repeats inline.
+				subCur = next
+				continue
+			}
+			// Sub-mode stop: the delegation ends and the parent's guards route
+			// on the same resolved output below.
+			subCur = ""
 		}
 
 		next, matched := selectNextPhases(def, cur, NewMapFieldLookup(output))
@@ -170,12 +220,52 @@ func WalkExampleRun(def Definition, run ExampleRun) ([]Phase, error) {
 	return walked, nil
 }
 
-func validateExampleRunStepOutput(def Definition, run ExampleRun, phase Phase, output map[string]any) error {
-	phaseDef, ok := def.PhaseGraph.Phases[phase]
-	if !ok || phaseDef.DeclaredOutput == nil {
+// applyWalkClassification runs the deterministic rungs of the edge ladder for
+// a phase with a classified transition, returning an output map with the
+// derived routing field written in so the expanded route guards match. The
+// walk is offline — no classifier exists at load time — so a fixture whose
+// seeded output cannot short-circuit (field emitted directly) or L1-derive
+// (field inline on the source object) fails loudly with an authoring error
+// rather than silently exercising the L2 path.
+func applyWalkClassification(run ExampleRun, phase Phase, execPhaseDef PhaseDefinition, output map[string]any) (map[string]any, error) {
+	if execPhaseDef.TransitionClassification == nil {
+		return output, nil
+	}
+	contract := *execPhaseDef.TransitionClassification
+	value, _, violations, derived := deriveTransitionValue(contract, NewMapFieldLookup(output))
+	if !derived {
+		return nil, fmt.Errorf("example-run %q phase %q: classification could not derive routing field %q deterministically (violations=%v); seed %q in the step output or carry it inline on %q", run.ID, phase, contract.Field, violations, contract.Field, defaultString(contract.From, resultEnvelopeKey))
+	}
+	clone, err := deepCloneMap(output)
+	if err != nil {
+		return nil, fmt.Errorf("example-run %q phase %q: clone step output: %w", run.ID, phase, err)
+	}
+	setPayloadField(clone, contract.Field, value)
+	return clone, nil
+}
+
+// deepCloneMap deep-copies a JSON-shaped map via a marshal round-trip so the
+// walk never mutates a loaded fixture's seeded output.
+func deepCloneMap(in map[string]any) (map[string]any, error) {
+	if in == nil {
+		return map[string]any{}, nil
+	}
+	data, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func validateExampleRunStepOutput(run ExampleRun, phase Phase, execPhaseDef PhaseDefinition, output map[string]any) error {
+	if execPhaseDef.DeclaredOutput == nil {
 		return nil
 	}
-	missing, violations := validateDeclaredOutput(phaseDef.DeclaredOutput, output)
+	missing, violations := validateDeclaredOutput(execPhaseDef.DeclaredOutput, output)
 	if len(missing) == 0 && len(violations) == 0 {
 		return nil
 	}
@@ -248,12 +338,19 @@ func terminalSet(def Definition) map[Phase]struct{} {
 // dead-end the fixture should not have reached). An empty To with matched=true
 // is a guarded stop.
 func selectNextPhases(def Definition, from Phase, lookup FieldLookup) (targets []Phase, matched bool) {
-	for _, gt := range def.PhaseGraph.Guards[from] {
+	_, targets, matched = selectGuard(def, from, lookup)
+	return targets, matched
+}
+
+// selectGuard is selectNextPhases with the index of the matching guard exposed,
+// so branch-coverage accounting can identify exactly which guarded edge fired.
+func selectGuard(def Definition, from Phase, lookup FieldLookup) (index int, targets []Phase, matched bool) {
+	for i, gt := range def.PhaseGraph.Guards[from] {
 		if gt.When.Eval(lookup) {
-			return gt.To, true
+			return i, gt.To, true
 		}
 	}
-	return nil, false
+	return -1, nil, false
 }
 
 func assertPhasePath(run ExampleRun, walked []Phase) error {

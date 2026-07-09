@@ -17,7 +17,7 @@ func driveHolisticLoopToReviewCompletion(t *testing.T, svc *Service) RoundEnvelo
 	t.Helper()
 	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
 	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "plan", nil)
-	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", map[string]any{"replan_needed": false})
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", completedDrainExecutePayload("complete"))
 	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
 		InitiativeName: "init-a",
 		Phase:          "review",

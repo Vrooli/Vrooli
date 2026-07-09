@@ -84,13 +84,33 @@ var (
 	roundFileRE      = regexp.MustCompile(`^round-(\d{3})\.json$`)
 )
 
+// Store persists mode rounds and artifacts under a per-scope directory. It is
+// keyed by the round's scope id (the target instance id — the initiative name
+// for initiative targets, the plan id/path for plan targets). InitDir maps an
+// initiative-target scope id to its initiative folder; TargetDir maps a
+// non-initiative target (kind + instance id) to its own root, so a plan-first
+// run never creates an initiative directory. The mode's declared target kind
+// selects the resolver.
 type Store struct {
-	InitDir func(initiativeName string) string
-	Clock   func() time.Time
+	InitDir   func(scopeID string) string
+	TargetDir func(kind TargetKind, scopeID string) string
+	Clock     func() time.Time
 }
 
 func NewStore(initDir func(string) string) *Store {
 	return &Store{InitDir: initDir}
+}
+
+// scopeDir resolves the root directory for a scope id under the given mode's
+// declared target kind.
+func (s *Store) scopeDir(scopeID string, def Definition) (string, error) {
+	if def.Target.Kind == TargetInitiative || def.Target.Kind == "" {
+		return s.initDir(scopeID), nil
+	}
+	if s.TargetDir == nil {
+		return "", fmt.Errorf("mode %q targets %s but the round store has no target directory resolver", def.Mode, def.Target.Kind)
+	}
+	return s.TargetDir(def.Target.Kind, scopeID), nil
 }
 
 func (s *Store) ModeDir(initiativeName string, mode Mode) (string, error) {
@@ -101,7 +121,11 @@ func (s *Store) ModeDir(initiativeName string, mode Mode) (string, error) {
 	if def.Artifact.Root == "" {
 		return "", fmt.Errorf("mode %q has no artifact root", mode)
 	}
-	return filepath.Join(s.initDir(initiativeName), filepath.FromSlash(def.Artifact.Root)), nil
+	root, err := s.scopeDir(initiativeName, def)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, filepath.FromSlash(def.Artifact.Root)), nil
 }
 
 func (s *Store) RoundsDir(initiativeName string, mode Mode) (string, error) {
@@ -112,7 +136,20 @@ func (s *Store) RoundsDir(initiativeName string, mode Mode) (string, error) {
 	if def.Artifact.RoundRoot == "" {
 		return "", fmt.Errorf("mode %q has no round root", mode)
 	}
-	return filepath.Join(s.initDir(initiativeName), filepath.FromSlash(def.Artifact.RoundRoot)), nil
+	root, err := s.scopeDir(initiativeName, def)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, filepath.FromSlash(def.Artifact.RoundRoot)), nil
+}
+
+// TargetScopeDir is the default non-initiative target directory layout:
+// <dataRoot>/mode-targets/<kind>/<sanitized-instance-id>. Wired as the round
+// store's TargetDir and the lock's plan-key directory resolver so a plan-first
+// run stores rounds and holds its exclusive lock without touching any
+// initiative folder.
+func TargetScopeDir(dataRoot string, kind TargetKind, scopeID string) string {
+	return filepath.Join(dataRoot, "mode-targets", string(kind), sanitizeOwnershipToken(scopeID))
 }
 
 func (s *Store) RoundPath(initiativeName string, mode Mode, number int) (string, error) {
@@ -130,7 +167,7 @@ func (s *Store) CreateRound(round RoundEnvelope) (RoundEnvelope, error) {
 	if err := s.prepareRound(&round); err != nil {
 		return RoundEnvelope{}, err
 	}
-	dir, err := s.RoundsDir(round.InitiativeName, Mode(round.Mode))
+	dir, err := s.RoundsDir(round.ScopeID, Mode(round.Mode))
 	if err != nil {
 		return RoundEnvelope{}, err
 	}
@@ -164,7 +201,7 @@ func (s *Store) SaveRound(round RoundEnvelope) error {
 	if round.Round <= 0 {
 		return fmt.Errorf("round number must be >= 1, got %d", round.Round)
 	}
-	path, err := s.RoundPath(round.InitiativeName, Mode(round.Mode), round.Round)
+	path, err := s.RoundPath(round.ScopeID, Mode(round.Mode), round.Round)
 	if err != nil {
 		return err
 	}
@@ -253,8 +290,12 @@ func (s *Store) prepareRound(round *RoundEnvelope) error {
 		return fmt.Errorf("round is required")
 	}
 	round.InitiativeName = strings.TrimSpace(round.InitiativeName)
-	if round.InitiativeName == "" {
-		return fmt.Errorf("initiative_name is required")
+	round.ScopeID = strings.TrimSpace(round.ScopeID)
+	if round.ScopeID == "" {
+		round.ScopeID = round.InitiativeName
+	}
+	if round.ScopeID == "" {
+		return fmt.Errorf("scope_id is required")
 	}
 	def, err := DefinitionFor(Mode(round.Mode))
 	if err != nil {
@@ -265,10 +306,7 @@ func (s *Store) prepareRound(round *RoundEnvelope) error {
 		return err
 	}
 	round.Mode = string(def.Mode)
-	round.ScopeKind = string(def.Scope.Kind)
-	if strings.TrimSpace(round.ScopeID) == "" {
-		round.ScopeID = round.InitiativeName
-	}
+	round.ScopeKind = string(def.Target.Kind)
 	round.Phase = string(phaseDef.Phase)
 	round.RunStrategy = string(def.RunStrategy.Kind)
 	if strings.TrimSpace(round.AgentProfileKey) == "" {

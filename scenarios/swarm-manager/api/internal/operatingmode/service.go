@@ -230,6 +230,20 @@ type StartPhaseRequest struct {
 	RequestedBy    string
 }
 
+// StartTargetPhaseRequest starts a mode round directly on a non-initiative
+// target — the plan-first entry point. Mode names a registered plan-target
+// mode; TargetRef is the target instance handle its adapter resolves (a
+// plan-manager execution id/slug, or a plan-ref path). Phase defaults to the
+// mode's start phase.
+type StartTargetPhaseRequest struct {
+	Mode        string
+	TargetRef   string
+	Phase       string
+	Note        string
+	Override    bool
+	RequestedBy string
+}
+
 type SwitchModeRequest struct {
 	InitiativeName             string
 	Mode                       string
@@ -303,7 +317,7 @@ type WorkspaceMode struct {
 	Mode         string              `json:"mode"`
 	Label        string              `json:"label"`
 	Description  string              `json:"description,omitempty"`
-	ScopeKind    string              `json:"scope_kind"`
+	TargetKind   string              `json:"target_kind"`
 	Capabilities ModeCapabilities    `json:"capabilities"`
 	Phases       []WorkspacePhase    `json:"phases"`
 	Terminal     []string            `json:"terminal"`
@@ -340,7 +354,7 @@ type ModeCatalogEntry struct {
 	Tradeoffs              []string               `json:"tradeoffs"`
 	WhenInDoubtPickInstead string                 `json:"when_in_doubt_pick_instead,omitempty"`
 	UsageCount             int                    `json:"usage_count"`
-	ScopeKind              string                 `json:"scope_kind"`
+	TargetKind             string                 `json:"target_kind"`
 	RunStrategy            string                 `json:"run_strategy"`
 	WorkspaceTabID         string                 `json:"workspace_tab_id"`
 	Capabilities           ModeCapabilities       `json:"capabilities"`
@@ -378,17 +392,21 @@ type ModeCatalogPhase struct {
 	// PhaseKind classifies the phase (investigate / execute / review /
 	// reconcile). Operations Center column placement, lane assignment, and
 	// per-lane metrics all key off this axis.
-	PhaseKind             string                     `json:"phase_kind"`
-	Label                 string                     `json:"label"`
-	Title                 string                     `json:"title"`
-	Purpose               string                     `json:"purpose"`
-	Trigger               string                     `json:"trigger"`
-	ProfileKey            string                     `json:"profile_key"`
-	WritesRepo            bool                       `json:"writes_repo"`
-	RequiresCriteria      bool                       `json:"requires_criteria,omitempty"`
-	IsStart               bool                       `json:"is_start,omitempty"`
-	IsTerminal            bool                       `json:"is_terminal,omitempty"`
-	OutputArtifacts       []ArtifactDefinition       `json:"output_artifacts,omitempty"`
+	PhaseKind        string               `json:"phase_kind"`
+	Label            string               `json:"label"`
+	Title            string               `json:"title"`
+	Purpose          string               `json:"purpose"`
+	Trigger          string               `json:"trigger"`
+	ProfileKey       string               `json:"profile_key"`
+	WritesRepo       bool                 `json:"writes_repo"`
+	RequiresCriteria bool                 `json:"requires_criteria,omitempty"`
+	IsStart          bool                 `json:"is_start,omitempty"`
+	IsTerminal       bool                 `json:"is_terminal,omitempty"`
+	OutputArtifacts  []ArtifactDefinition `json:"output_artifacts,omitempty"`
+	// Reads is the phase's declared input contract grouped by supplying
+	// provider (generic base vs target adapter) — the Reads twin of
+	// OutputContract, rendered from data.
+	Reads                 PhaseReadsSummary          `json:"reads"`
 	OutputContract        PhaseOutputContractSummary `json:"output_contract"`
 	CatalogID             string                     `json:"catalog_id"`
 	SkillID               string                     `json:"skill_id"`
@@ -401,6 +419,28 @@ type ModeCatalogPhase struct {
 	// completion auto-starts this phase via the round-refresher hook.
 	// Length ≤ 1 in v1 (validator-enforced).
 	AutoStartAfter []string `json:"auto_start_after,omitempty"`
+	// ExecutedBy names the sub-mode that executes this phase (phase
+	// delegation). Empty for regular phases. CLI/UI render the sub-mode's
+	// flow inline under this phase; the backend stays the routing SSOT.
+	ExecutedBy string `json:"executed_by,omitempty"`
+	// Classification is the phase's classification-on-transition contract,
+	// present when one of its outgoing edges derives its routing field from the
+	// handoff instead of a directly-emitted field. Nil when every edge routes
+	// on an emitted field. Renders as a built-in step (not an agent phase).
+	Classification *PhaseClassificationSummary `json:"classification,omitempty"`
+}
+
+// PhaseClassificationSummary is the catalog-side projection of a phase's
+// classification-on-transition contract (registry TransitionClassification):
+// the routing field derived at the edge, its closed enum, the handoff field it
+// derives from, and an optional operator-facing description. It costs no agent
+// round — the engine derives the field via the resolution ladder at the
+// transition, abstaining to needs_attention rather than fabricating a route.
+type PhaseClassificationSummary struct {
+	Field       string   `json:"field"`
+	Enum        []string `json:"enum"`
+	From        string   `json:"from,omitempty"`
+	Description string   `json:"description,omitempty"`
 }
 
 // PhaseOutputContractSummary is the flat catalog-side view of the registry's
@@ -437,6 +477,9 @@ type ModeCatalogTransition struct {
 	Label         string `json:"label"`
 	Field         string `json:"field,omitempty"`
 	Value         string `json:"value,omitempty"`
+	// Classified marks an edge whose guard field is derived by
+	// classification-on-transition rather than emitted directly by the round.
+	Classified bool `json:"classified,omitempty"`
 }
 
 func summarizeContract(contract PhaseOutputContract) PhaseOutputContractSummary {
@@ -470,6 +513,9 @@ type WorkspacePhase struct {
 	// render an "auto-starts after X" badge instead of an operator-action
 	// button.
 	AutoStartAfter []string `json:"auto_start_after,omitempty"`
+	// ExecutedBy mirrors the catalog field: the sub-mode that executes this
+	// phase via delegation, empty for regular phases.
+	ExecutedBy string `json:"executed_by,omitempty"`
 }
 
 func NewService(cfg Config) (*Service, error) {

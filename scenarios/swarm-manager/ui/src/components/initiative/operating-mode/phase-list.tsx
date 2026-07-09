@@ -7,6 +7,7 @@
  */
 
 import type {
+  OperatingModeCatalogEntry,
   OperatingModeCatalogPhase,
   OperatingModePhaseTransition,
 } from "../../../types/operating-mode";
@@ -16,9 +17,11 @@ interface PhaseListProps {
   phases: OperatingModeCatalogPhase[];
   transitions?: OperatingModePhaseTransition[];
   highlightedPhaseId?: string | null;
+  /** Sub-mode catalog entries keyed by mode id, for inline composed graphs. */
+  subModes?: Record<string, OperatingModeCatalogEntry>;
 }
 
-export function PhaseList({ phases, transitions = [], highlightedPhaseId }: PhaseListProps) {
+export function PhaseList({ phases, transitions = [], highlightedPhaseId, subModes }: PhaseListProps) {
   if (phases.length === 0) {
     return <p className="text-sm italic text-slate-500">This mode has no phases.</p>;
   }
@@ -30,6 +33,7 @@ export function PhaseList({ phases, transitions = [], highlightedPhaseId }: Phas
           phase={phase}
           transitions={transitions.filter((transition) => transition.from === phase.phase)}
           highlighted={highlightedPhaseId === phase.phase}
+          subModes={subModes}
         />
       ))}
     </div>

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "operating-mode/v1",
   "title": "Operating Mode",
-  "description": "Declarative, data-driven contract for a swarm-manager operating mode — a reusable, inspectable, testable methodology loop for agentic software engineering. One generic engine interprets this data; there is NO vocabulary bespoke to a named mode. A mode lives in `scenarios/swarm-manager/modes/<id>/` as `mode.json` (this contract, kind `operating-mode`) and `example-runs/` (simulation fixtures, kind `operating-mode-example-run`). Phase prompts live as prompt-manager skills reached through `prompt.catalog_prefix` + phase prompt suffix. One schema covers both document kinds, discriminated by the top-level `kind` field.\n\nDOCTRINE (canonical: scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md):\n\n1. DATA IS THE SSOT. A methodology loop is a specification — a phase graph, checkpoints, what each phase reads and emits, how branches are chosen. It belongs in data one interpreter reads, not smeared across Go source. Adding or changing a mode is a data edit, not a code change.\n\n2. GENERIC VOCABULARY. Branching is a generic field-predicate guard model (field-path, operator, value, with all/any/not composition) that can express any phase DAG — a clean pass, a replan loop, a continue-draining branch, a blocked stop, a non-accepting review reloop. There is no closed, mode-specific set of branch kinds; a branch is just a predicate over declared output.\n\n3. DECLARED OUTPUT STEERS ROBUSTNESS. Each phase declares what a round is supposed to emit (field name/type/required/enum/bounds). That single artifact both validates a round's result and steers the resolution ladder (L0 true-final-message detection → L1 deterministic extraction → L2 AI-classifier fallback → L3 contract validation) when model output is imperfect. The mode declares WHAT good output is; the engine does HOW to obtain it.\n\n4. EXAMPLE-RUNS ARE TESTS. A mode is simulated and asserted before it is trusted: example-run documents seed phase outputs and assert the expected phase path through the REAL guards. They are also the data behind the UI's simulation presets.\n\nWhat JSON Schema cannot express is enforced by the engine's semantic validator (mirroring knowledge-observatory's validateContent): start_phase and every transition target resolve to a declared phase; auto_start_after references a declared phase; guard field-paths resolve against the source phase's declared output; profile keys are scenario-owned; example-run steps and expected_path reference declared phases; and initiative-scoped semantics (phase graph present, lock exclusive, backlog-sync apply mode set).",
+  "description": "Declarative, data-driven contract for a swarm-manager operating mode — a reusable, inspectable, testable methodology loop for agentic software engineering. One generic engine interprets this data; there is NO vocabulary bespoke to a named mode. A mode lives in `scenarios/swarm-manager/modes/<id>/` as `mode.json` (this contract, kind `operating-mode`) and `example-runs/` (simulation fixtures, kind `operating-mode-example-run`). Phase prompts live as prompt-manager skills reached through `prompt.catalog_prefix` + phase prompt suffix. One schema covers both document kinds, discriminated by the top-level `kind` field.\n\nDOCTRINE (canonical: scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md):\n\n1. DATA IS THE SSOT. A methodology loop is a specification — a phase graph, checkpoints, what each phase reads and emits, how branches are chosen. It belongs in data one interpreter reads, not smeared across Go source. Adding or changing a mode is a data edit, not a code change.\n\n2. GENERIC VOCABULARY. Branching is a generic field-predicate guard model (field-path, operator, value, with all/any/not composition) that can express any phase DAG — a clean pass, a replan loop, a continue-draining branch, a blocked stop, a non-accepting review reloop. There is no closed, mode-specific set of branch kinds; a branch is just a predicate over declared output.\n\n3. DECLARED OUTPUT STEERS ROBUSTNESS. Each phase declares what a round is supposed to emit (field name/type/required/enum/bounds). That single artifact both validates a round's result and steers the resolution ladder (L0 true-final-message detection → L1 deterministic extraction → L2 AI-classifier fallback → L3 contract validation) when model output is imperfect. The mode declares WHAT good output is; the engine does HOW to obtain it.\n\n4. EXAMPLE-RUNS ARE TESTS. A mode is simulated and asserted before it is trusted: example-run documents seed phase outputs and assert the expected phase path through the REAL guards. They are also the data behind the UI's simulation presets.\n\nWhat JSON Schema cannot express is enforced by the engine's semantic validator (mirroring knowledge-observatory's validateContent): start_phase and every transition target resolve to a declared phase; auto_start_after references a declared phase; guard field-paths resolve against the source phase's declared output; profile keys are scenario-owned; example-run steps and expected_path reference declared phases; phase reads resolve against the mode's composed provider set (generic base ∪ target adapter — read-side validation, symmetric with the emit-side checks); and per-target semantics (phase graph present for every phase mode; lock exclusive and backlog-sync apply mode set on initiative-target modes).",
   "oneOf": [
     { "$ref": "#/$defs/ModeDocument" },
     { "$ref": "#/$defs/ExampleRunDocument" }
@@ -23,6 +23,11 @@
       "pattern": "^swarm-manager/[a-z0-9]+(-[a-z0-9]+)*$",
       "description": "AgentManager profile key. Must be scenario-owned (`swarm-manager/…`); the engine rejects non-scenario-owned keys. Profile JSON remains the source of profile defaults — the mode only references which key applies."
     },
+    "ReadName": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "description": "A declared read (prompt template variable) name, e.g. `PRIOR_ROUNDS_JSON`, `MEMBER_ITEMS_JSON`, `PLAN_PATH`. The vocabulary is the union of the generic-base provider and the mode's target adapter."
+    },
     "FieldPath": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
@@ -32,8 +37,8 @@
     "ModeDocument": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "id", "label", "description", "scope", "run_strategy", "best_for", "not_for", "tradeoffs"],
-      "description": "A single operating mode expressed as data. Identity + decision metadata, scope, run strategy, the phase graph, and per-concern policy blocks. item-level (a backlog_item-scoped mode) omits `phase_graph`; initiative-scoped modes require it.",
+      "required": ["kind", "id", "label", "description", "target", "run_strategy", "best_for", "not_for", "tradeoffs"],
+      "description": "A single operating mode expressed as data. Identity + decision metadata, target (unit of work), run strategy, the phase graph, and per-concern policy blocks. item-level (run strategy existing_item_flow, owned by the backlog execution pipeline) omits `phase_graph`; every mode that runs mode rounds requires it.",
       "properties": {
         "kind": { "const": "operating-mode" },
         "schema_version": {
@@ -63,12 +68,11 @@
           "$ref": "#/$defs/Identifier",
           "description": "Mode id an operator should pick if unsure between this one and another. Omit (or empty) when this mode is itself the safe default. The engine verifies it references a registered mode and is not self."
         },
-        "scope": { "$ref": "#/$defs/ScopePolicy" },
+        "target": { "$ref": "#/$defs/TargetPolicy" },
         "run_strategy": { "$ref": "#/$defs/RunStrategyPolicy" },
         "phase_graph": { "$ref": "#/$defs/PhaseGraph" },
         "prompt": { "$ref": "#/$defs/PromptPolicy" },
         "artifact": { "$ref": "#/$defs/ArtifactPolicy" },
-        "plan_ref": { "$ref": "#/$defs/PlanRefPolicy" },
         "profile": { "$ref": "#/$defs/ProfilePolicy" },
         "backlog_sync": { "$ref": "#/$defs/BacklogSyncPolicy" },
         "metrics": { "$ref": "#/$defs/MetricsPolicy" },
@@ -77,27 +81,52 @@
       },
       "allOf": [
         {
-          "if": { "type": "object", "properties": { "scope": { "type": "object", "properties": { "kind": { "const": "initiative" } } } } },
+          "if": { "type": "object", "properties": { "run_strategy": { "type": "object", "properties": { "kind": { "const": "existing_item_flow" } } } } },
+          "then": {},
+          "else": {
+            "required": ["phase_graph", "prompt", "artifact"],
+            "description": "Every mode that runs mode rounds (any run strategy other than existing_item_flow) runs a phase graph, routes prompts through a catalog prefix, and owns an artifact root."
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "run_strategy": { "type": "object", "properties": { "kind": { "not": { "const": "existing_item_flow" } } } },
+              "target": { "type": "object", "properties": { "kind": { "const": "initiative" } } }
+            }
+          },
           "then": {
-            "required": ["phase_graph", "prompt", "artifact", "backlog_sync", "lock"],
-            "description": "Initiative-scoped modes run a phase graph, route prompts through a catalog prefix, own an artifact root, reconcile the backlog under a declared apply mode, and hold the initiative lock exclusively."
+            "required": ["backlog_sync", "lock"],
+            "description": "Initiative-target phase modes additionally reconcile the backlog under a declared apply mode and hold the initiative lock exclusively."
           }
         }
       ]
     },
 
-    "ScopePolicy": {
+    "TargetPolicy": {
       "type": "object",
       "additionalProperties": false,
       "required": ["kind"],
-      "description": "The unit of work the mode operates on.",
+      "description": "The mode's declared unit of work — what one run of the loop operates on. Each kind has a target adapter supplying the target-specific reads, artifact scope, and lock identity; initiative is one adapter among several, not the base case.",
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["backlog_item", "initiative"],
-          "description": "backlog_item = each backlog item flows through the existing item pipeline (item-level). initiative = the whole initiative is the unit of execution and validation."
+          "enum": ["plan-manager-plan", "plan-ref", "initiative"],
+          "description": "plan-manager-plan = a canonical plan-manager plan (execution id / slug). plan-ref = a plan file/reference not imported into swarm-manager (e.g. a repo-relative plan path). initiative = a swarm-manager initiative and its member items."
+        },
+        "plan_ref": { "$ref": "#/$defs/PlanRefPolicy" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "initiative" } } },
+          "then": {},
+          "else": {
+            "not": { "required": ["plan_ref"] },
+            "description": "The bound-plan contract (plan_ref) is initiative-adapter configuration; plan targets ARE plans and must not declare it."
+          }
         }
-      }
+      ]
     },
 
     "RunStrategyPolicy": {
@@ -135,10 +164,46 @@
     "PhaseDefinition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "kind", "activity_purpose"],
-      "description": "One node in the phase graph — a distinct step of the loop. Declares what it reads (via prompt template refs and prior-round context), what it emits (declared_output + output_artifacts), and where it routes (transitions).",
+      "required": ["id", "kind"],
+      "description": "One node in the phase graph — a distinct step of the loop. A regular phase declares what it reads (the `reads` input contract), what it emits (declared_output + output_artifacts), and where it routes (transitions). A DELEGATED phase instead declares `executed_by: <sub-mode-id>` — the engine runs the sub-mode's loop as that phase (its rounds use the sub-mode's prompts, reads, and classified edges under the parent's run and target), and the sub-mode's terminal outcome becomes this phase's resolved output for the parent's `transitions` to route on. A delegated phase therefore declares NO reads/prompt/declared_output/artifacts of its own; exactly one composition level is allowed (a sub-mode may not itself contain delegated phases — the loader rejects nesting, self-delegation, and unknown sub-modes).",
+      "allOf": [
+        {
+          "if": { "required": ["executed_by"] },
+          "then": {
+            "properties": {
+              "reads": false,
+              "prompt": false,
+              "declared_output": false,
+              "output_artifacts": false,
+              "result_bindings": false,
+              "metrics": false,
+              "activity_purpose": false,
+              "lock_purpose": false,
+              "profile_key": false,
+              "writes_repo": false,
+              "requires_criteria": false
+            },
+            "description": "A delegated phase's execution surface (prompt, reads, emits, artifacts, profile, purposes) comes entirely from the sub-mode's phases; declaring any of it on the delegating phase is a contradiction."
+          },
+          "else": {
+            "required": ["activity_purpose", "reads"],
+            "description": "A regular phase must declare its activity purpose and its reads input contract."
+          }
+        }
+      ],
       "properties": {
         "id": { "$ref": "#/$defs/PhaseId" },
+        "executed_by": {
+          "$ref": "#/$defs/Identifier",
+          "description": "Sub-mode id that executes this phase (phase delegation, EXECUTION-MODES.md D3). The engine runs the sub-mode's loop as this phase, one level deep: sub-rounds persist under the parent run tagged with this phase id, an onward sub-route keeps the phase in progress, and a sub-mode stop surfaces its outcome (e.g. the classified `progress` value) as this phase's result for the parent's transitions to route on. The delegating mode's target must supply the sub-mode's target context: same target kind, or an initiative-target mode with `target.plan_ref.required` delegating to a `plan-manager-plan`-target sub-mode (the initiative's bound plan is the sub-mode's plan)."
+        },
+        "reads": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ReadName" },
+          "description": "The phase's declared input contract: the named variables its prompt template may reference, symmetric with declared_output on the emit side. Composed as generic-base provider ∪ target-adapter provider — a union, never a conditional. The engine validates at load time that every declared read is satisfiable by the mode's composed provider set, and substitutes exactly the declared reads at render time."
+        },
         "kind": {
           "type": "string",
           "enum": ["investigate", "execute", "review", "reconcile"],
@@ -279,15 +344,64 @@
     },
 
     "Transition": {
+      "description": "One edge out of a phase: a guarded edge (`when`/`to`), or a classified edge (`classify`/`routes`) that derives the routing field from the completed round's output at the edge (classification-on-transition). A phase may declare at most one classified edge.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["when", "to"],
+          "description": "A guarded edge. When `when` matches the completed round's output, the loop routes to `to`.",
+          "properties": {
+            "when": { "$ref": "#/$defs/Guard" },
+            "to": {
+              "type": "array", "items": { "$ref": "#/$defs/PhaseId" }, "uniqueItems": true,
+              "description": "Target phase(s). Usually one; may be several to offer the operator a choice. Empty = a guarded stop (no onward phase)."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["classify", "routes"],
+          "description": "A classified edge. The engine derives `classify.field` from the completed round's output (emitted field short-circuits; deterministic extraction from `<from>.<field>` is L1; the schema-steered classifier is L2; an underivable field abstains and the round parks in needs_attention) and routes on it via `routes` — expanded by the loader into ordinary eq-guards in declared enum order.",
+          "properties": {
+            "classify": { "$ref": "#/$defs/ClassificationContract" },
+            "routes": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "array", "items": { "$ref": "#/$defs/PhaseId" }, "uniqueItems": true,
+                "description": "Target phase(s) for this routing value. Empty = a guarded stop (no onward phase)."
+              },
+              "description": "Map from each declared enum value to its target phase(s). Every `classify.enum` value must appear exactly once; keys outside the enum are rejected."
+            }
+          }
+        }
+      ]
+    },
+
+    "ClassificationContract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["when", "to"],
-      "description": "A guarded edge. When `when` matches the completed round's output, the loop routes to `to`.",
+      "required": ["field", "enum"],
+      "description": "A transition-owned classification contract: how to derive the routing field from the just-completed round's output when it was not directly emitted. The declaration is data — the engine owns the ladder mechanics. An emitted field always wins (classification is a fallback, not a toll); a routing decision is never fabricated.",
       "properties": {
-        "when": { "$ref": "#/$defs/Guard" },
-        "to": {
-          "type": "array", "items": { "$ref": "#/$defs/PhaseId" }, "uniqueItems": true,
-          "description": "Target phase(s). Usually one; may be several to offer the operator a choice. Empty = a guarded stop (no onward phase)."
+        "field": {
+          "$ref": "#/$defs/FieldPath",
+          "description": "Dotted path of the routing field to derive (e.g. `progress.decision`). The expanded route guards compare this field. Must not be declared REQUIRED in the phase's declared_output (a required field is always emitted, permanently short-circuiting the classification — use plain guarded transitions instead); declaring it optional is allowed."
+        },
+        "enum": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Closed set of permitted routing values. The L2 classifier is hard-constrained to this set and abstains rather than guessing outside it."
+        },
+        "from": {
+          "$ref": "#/$defs/FieldPath",
+          "description": "Declared output field of the phase to derive from (e.g. `handoff`). L1 reads the value inline at `<from>.<field>`; L2 classifies the JSON of this field's value. Omitted = the whole structured result envelope."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the routing decision means; steers the L2 classifier."
         }
       }
     },
@@ -417,7 +531,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["role"],
-      "description": "Mode-wide contract for a canonical plan-manager reference bound to the initiative. When required, the start phase may emit it and subsequent phases consume it through PLAN_CONTEXT_JSON.",
+      "description": "Initiative-adapter configuration (nested under `target`): the contract for a canonical plan-manager reference bound to the initiative. When required, the start phase may emit it and subsequent phases consume it through the PLAN_CONTEXT_JSON read. Distinct from the plan-ref target kind, where the plan itself is the unit of work.",
       "properties": {
         "required": {
           "type": "boolean",

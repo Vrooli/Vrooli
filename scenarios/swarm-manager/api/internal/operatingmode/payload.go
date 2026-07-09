@@ -17,6 +17,7 @@ const (
 	payloadPlanRef              = "plan_ref"
 	payloadReplanNeeded         = "replan_needed"
 	payloadResolution           = "resolution"
+	payloadTransitionClass      = "transition_classification"
 	payloadVerdict              = "verdict"
 )
 
@@ -118,7 +119,24 @@ func (p RoundPayloadView) SetResolution(record PhaseResolutionRecord) {
 
 // Resolution returns the durable resolution-ladder record, if one was written.
 func (p RoundPayloadView) Resolution() (PhaseResolutionRecord, bool) {
-	raw, ok := p.get(payloadResolution)
+	return p.resolutionRecord(payloadResolution)
+}
+
+// SetTransitionClassification records the classification-on-transition outcome
+// — how the round's routing field was derived at the edge (or why derivation
+// abstained) — distinct from the phase-output resolution record.
+func (p RoundPayloadView) SetTransitionClassification(record PhaseResolutionRecord) {
+	p.set(payloadTransitionClass, record)
+}
+
+// TransitionClassification returns the durable classification-on-transition
+// record, if the completed phase's transition declared a classification.
+func (p RoundPayloadView) TransitionClassification() (PhaseResolutionRecord, bool) {
+	return p.resolutionRecord(payloadTransitionClass)
+}
+
+func (p RoundPayloadView) resolutionRecord(key string) (PhaseResolutionRecord, bool) {
+	raw, ok := p.get(key)
 	if !ok {
 		return PhaseResolutionRecord{}, false
 	}

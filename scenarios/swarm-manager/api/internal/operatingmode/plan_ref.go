@@ -16,6 +16,7 @@ const (
 	PlanRefRoleOperatingModePlan    = "operating_mode_plan"
 	planContextSourceResume         = "plan-manager.resume"
 	planContextSourceMissingPrepare = "prepare_plan.pending"
+	planContextSourcePlanRef        = "plan-ref"
 )
 
 type PlanRef struct {
@@ -76,13 +77,20 @@ func validateOperatingModePlanRef(ref *PlanRef) error {
 	return nil
 }
 
+// collectPlanContext resolves the initiative adapter's bound-plan context: the
+// canonical plan-manager plan an initiative-target mode requires through its
+// target policy (Definition.Target.PlanRef).
 func (s *Service) collectPlanContext(ctx context.Context, init InitiativeSnapshot, def Definition, phaseDef PhaseDefinition) (*PlanExecutionContext, error) {
-	if !def.PlanRef.Required {
+	if !def.Target.PlanRef.Required {
 		return nil, nil
 	}
 	ref := normalizePlanRef(init.PlanRef)
 	if ref == nil {
-		if phaseDef.Phase == def.PhaseGraph.StartPhase {
+		// A missing bound plan is tolerated (surfaced as a missing context, not
+		// an error) for the start phase and for any phase whose own output
+		// contract produces the plan_ref — the phase that authors and binds the
+		// canonical plan must be able to run before the binding exists.
+		if phaseDef.Phase == def.PhaseGraph.StartPhase || phaseDef.OutputContract.RequiresPlanRef {
 			return &PlanExecutionContext{
 				Required: true,
 				Missing:  true,
@@ -94,11 +102,26 @@ func (s *Service) collectPlanContext(ctx context.Context, init InitiativeSnapsho
 	if err := validateOperatingModePlanRef(ref); err != nil {
 		return nil, fmt.Errorf("mode %q phase %q invalid initiative plan_ref: %w", def.Mode, phaseDef.Phase, err)
 	}
+	out, err := s.resumePlanExecution(ctx, def, phaseDef, firstNonEmpty(ref.PlanID, ref.Slug))
+	if err != nil {
+		return nil, err
+	}
+	out.PlanRef = ref
+	return out, nil
+}
+
+// resolvePlanManagerPlan resolves a plan-manager-plan target instance's
+// execution context from its plan/execution handle.
+func (s *Service) resolvePlanManagerPlan(ctx context.Context, def Definition, phaseDef PhaseDefinition, handle string) (*PlanExecutionContext, error) {
+	return s.resumePlanExecution(ctx, def, phaseDef, handle)
+}
+
+func (s *Service) resumePlanExecution(ctx context.Context, def Definition, phaseDef PhaseDefinition, handle string) (*PlanExecutionContext, error) {
 	if s.planExecution == nil {
 		return nil, fmt.Errorf("mode %q phase %q requires plan-manager execution client", def.Mode, phaseDef.Phase)
 	}
 	resp, err := s.planExecution.Resume(ctx, &executionv1.ResumeRequest{
-		PlanOrExecution: firstNonEmpty(ref.PlanID, ref.Slug),
+		PlanOrExecution: handle,
 	})
 	if err != nil {
 		return nil, err
@@ -106,7 +129,6 @@ func (s *Service) collectPlanContext(ctx context.Context, init InitiativeSnapsho
 	out := &PlanExecutionContext{
 		Required: true,
 		Source:   planContextSourceResume,
-		PlanRef:  ref,
 	}
 	if exec := resp.GetExecution(); exec != nil {
 		out.ExecutionID = strings.TrimSpace(exec.GetId())

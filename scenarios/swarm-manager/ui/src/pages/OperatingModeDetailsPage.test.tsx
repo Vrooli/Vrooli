@@ -86,6 +86,7 @@ function makePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: stri
     skillId: "",
     activityPurpose: "",
     lockPurpose: "",
+    reads: { base: ["OPERATOR_NOTE"], target: ["MEMBER_ITEMS_JSON", "ACCEPTANCE_CRITERIA"] },
     outputContract: {
       requiresStructuredResult: true,
       requiresProgress: false,
@@ -108,7 +109,7 @@ const SAMPLE_DETAIL: OperatingModeDetail = {
     tradeoffs: ["One plan, not N"],
     whenInDoubtPickInstead: "item-level",
     usageCount: 2,
-    scopeKind: "initiative",
+    targetKind: "initiative",
     runStrategy: "operator_gated_loop",
     workspaceTabId: "operating-mode",
     capabilities: {
@@ -504,10 +505,12 @@ describe("OperatingModeDetailsPage", () => {
     const viewer = screen.getByTestId("operating-mode-phase-viewer");
     expect(viewer).toHaveAttribute("data-phase", "execute");
 
-    // Semantic read categories, not bare "Items"/"Artifacts" counts.
+    // Reads render from the phase's declared, composed contract (looked up
+    // from the catalog phase for the live round), grouped by provider.
     fireEvent.click(within(viewer).getByTestId("operating-mode-phase-viewer-tab-reads"));
-    expect(within(viewer).getByTestId("operating-mode-flow-trace-reads")).toHaveTextContent("Member items");
-    expect(within(viewer).getByTestId("operating-mode-flow-trace-reads")).toHaveTextContent("Mode artifacts");
+    const reads = within(viewer).getByTestId("operating-mode-flow-trace-reads");
+    expect(reads).toHaveTextContent("{{MEMBER_ITEMS_JSON}}");
+    expect(within(reads).getByTestId("phase-reads-group-target")).toBeInTheDocument();
 
     fireEvent.click(within(viewer).getByTestId("operating-mode-phase-viewer-tab-emits"));
     const emits = within(viewer).getByTestId("operating-mode-flow-trace-emits");
@@ -619,7 +622,7 @@ describe("OperatingModeDetailsPage", () => {
 
     const dialog = screen.getByTestId("concept-explainer-dialog");
     expect(dialog).toHaveAttribute("role", "dialog");
-    expect(screen.getByRole("heading", { name: "Scope" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Target" })).toBeInTheDocument();
   });
 
   it("renders the disabled docs fallback when the docs URL is unavailable", async () => {

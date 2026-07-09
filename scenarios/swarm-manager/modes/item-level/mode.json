@@ -21,13 +21,25 @@
     "Per-item provenance and review surface",
     "Slowest when items aren't already well-shaped"
   ],
-  "scope": { "kind": "backlog_item" },
-  "run_strategy": { "kind": "existing_item_flow" },
-  "profile": { "default_profile_key": "swarm-manager/default" },
+  "target": {
+    "kind": "initiative"
+  },
+  "run_strategy": {
+    "kind": "existing_item_flow"
+  },
+  "profile": {
+    "default_profile_key": "swarm-manager/default"
+  },
   "backlog_sync": {
-    "capabilities": ["read_only"],
+    "capabilities": [
+      "read_only"
+    ],
     "event_source": "item-level"
   },
-  "metrics": { "event_source": "item-level" },
-  "ui": { "workspace_tab_id": "info" }
+  "metrics": {
+    "event_source": "item-level"
+  },
+  "ui": {
+    "workspace_tab_id": "info"
+  }
 }

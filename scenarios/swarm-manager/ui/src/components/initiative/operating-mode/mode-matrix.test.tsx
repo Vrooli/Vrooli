@@ -29,7 +29,7 @@ function makeMode(
     notFor: [`${overrides.label} not for`],
     tradeoffs: [`${overrides.label} tradeoff`],
     usageCount: 0,
-    scopeKind: "initiative",
+    targetKind: "initiative",
     runStrategy: "operator_gated_loop",
     workspaceTabId: "operating-mode",
     capabilities: caps(),
@@ -44,7 +44,7 @@ function makeMode(
 describe("ModeMatrix", () => {
   it("renders one column per catalog mode and rows for each aspect", () => {
     const catalog = [
-      makeMode({ mode: "item-level", label: "Item Level", scopeKind: "backlog_item", default: true }),
+      makeMode({ mode: "item-level", label: "Item Level", targetKind: "initiative", default: true }),
       makeMode({ mode: "holistic-loop", label: "Holistic Loop", capabilities: caps({ supportsPhases: true }) }),
       makeMode({ mode: "phased-plan-drain", label: "Phased Plan Drain", capabilities: caps({ supportsHandoffs: true }) }),
     ];
@@ -53,7 +53,7 @@ describe("ModeMatrix", () => {
     expect(screen.getByText("Holistic Loop")).toBeInTheDocument();
     expect(screen.getByText("Phased Plan Drain")).toBeInTheDocument();
     // Required rows
-    expect(screen.getByRole("rowheader", { name: "Scope" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: "Target" })).toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: "Run strategy" })).toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: "Best for" })).toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: "Not for" })).toBeInTheDocument();

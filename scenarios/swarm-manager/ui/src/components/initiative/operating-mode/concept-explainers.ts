@@ -3,7 +3,7 @@
  *
  * Each entry feeds <ConceptExplainerDialog> through a thin component or
  * inline opener on the details page and the picker. The labels mirror the
- * registry vocabulary (scope kinds, run strategies, capability flags) so
+ * registry vocabulary (target kinds, run strategies, capability flags) so
  * adding a new value server-side surfaces here too.
  */
 
@@ -16,18 +16,26 @@ export interface ConceptExplainer {
   sections: ConceptExplainerSection[];
 }
 
-export const SCOPE_KIND_EXPLAINER: ConceptExplainer = {
-  title: "Scope",
+export const TARGET_KIND_EXPLAINER: ConceptExplainer = {
+  title: "Target",
   intro:
-    "Scope names the unit a mode operates on per agent run. It determines what the agent reads, writes, and is reviewed against.",
+    "A mode's target is its unit of work — the thing one run of the loop operates on. Each target kind has an adapter that supplies target-specific reads, artifact roots, and locking identity. The engine's run substrate is generic; initiative is one adapter among several, not the base case.",
+  docLink: {
+    href: "/docs/swarm-manager/concepts/EXECUTION-MODES.md",
+    label: "Read the canonical operating modes doc",
+  },
   sections: [
     {
-      label: "Backlog item",
-      body: "One backlog item per agent run. Each item is workshopped, executed, and reviewed in isolation; the workshop loop is the refinement primitive. Best when items are right-sized and stable.",
+      label: "Plan-manager plan",
+      body: "A canonical plan-manager plan (execution id / slug). The plan already says what to do; the loop drains it slice by slice with accumulated handoffs — no initiative created, no backlog ceremony.",
+    },
+    {
+      label: "Plan reference",
+      body: "A plan file or reference not imported into swarm-manager (a repo-relative plan path). The loop reads the plan content directly and drains it, with a ref-derived artifact root and lock identity.",
     },
     {
       label: "Initiative",
-      body: "The whole initiative is one unit of work. The agent reads cross-item state, writes initiative-level artifacts, and is reviewed against the initiative's acceptance criteria. Best when items are coupled or the right item shape is only knowable after investigation.",
+      body: "A swarm-manager initiative and its member items. The initiative adapter layers on member-item context, acceptance criteria, and backlog reconciliation. Best when items are coupled or the right shape is only knowable after investigation.",
     },
   ],
 };
@@ -94,17 +102,22 @@ export const FLOW_GUIDE_EXPLAINER: ConceptExplainer = {
     {
       heading: "Vocabulary",
       label: "Reads",
-      body: "The context a phase consumes, one card per prompt variable: member items (MEMBER_ITEMS_JSON), durable mode artifacts (MODE_ARTIFACTS_JSON), prior rounds/handoffs (PRIOR_ROUNDS_JSON), and acceptance criteria (ACCEPTANCE_CRITERIA).",
+      body: "A phase's declared, composed input contract, rendered from the mode data — never a fixed category list. Reads are grouped by supplying provider: the generic base provider (mode/phase identity, round number, operator note, prior handoffs, artifacts) and the mode's target adapter (initiative reads like member items and acceptance criteria, or plan reads like the plan path and plan context). A plan-target phase and an initiative-target phase show different, scope-appropriate groups — the symmetric twin of Emits.",
     },
     {
       heading: "Vocabulary",
       label: "Emits",
-      body: "The structured result a phase produces: artifacts, a handoff, a progress decision, an acceptance verdict, a replan signal, a readiness report, or a backlog-sync proposal.",
+      body: "The structured result a phase is contracted to produce (declared_output): a handoff, a progress decision, an acceptance verdict, a readiness report, artifacts, or a backlog-sync proposal. Reads and Emits are symmetric declared contracts.",
     },
     {
       heading: "Vocabulary",
       label: "Transition",
-      body: "Why the next phase was selected. Transitions are decided by backend guards — a generic field-predicate over the phase's structured output: the unconditional 'always', a leaf comparison/presence/membership check (e.g. verdict = accepted, replan_needed = true, progress.decision in [continue, replan]), or a composite (all/any/not). The edge label spells out the exact guard. A matched guard with no downstream target ends the cycle for operator intervention.",
+      body: "Why the next phase was selected. Transitions are decided by backend guards — a generic field-predicate over the phase's structured output. When the routing field a guard needs is not emitted directly, the transition declares a classification-on-transition contract that derives it from the handoff via the resolution ladder — a built-in step, not an agent phase — abstaining to needs_attention rather than fabricating a route. A matched guard with no downstream target ends the cycle for operator intervention.",
+    },
+    {
+      heading: "Vocabulary",
+      label: "Composition",
+      body: "A phase can delegate to a sub-mode (executed_by): the engine runs the sub-mode's loop as that phase, one level deep. The composed sub-mode's phases render inline, marked delegated; the backend engine remains the single source of truth for routing.",
     },
     {
       heading: "Vocabulary",
@@ -184,7 +197,7 @@ export const CAPABILITY_EXPLAINER: ConceptExplainer = {
 export const OPERATING_MODE_INTRO_EXPLAINER: ConceptExplainer = {
   title: "What is an operating mode?",
   intro:
-    "An operating mode is a reusable, inspectable, testable methodology loop for driving coding agents — the repeatable way a human works with agents to get software built. Each mode is data (identity, a phase graph, per-phase output contracts, prompt skill pointers, and example runs) interpreted by one generic engine, so a new methodology is authored and simulated as data with no code change.",
+    "An operating mode is a generic, composable, plan-first, data-defined methodology loop for driving coding agents — the repeatable way a human works with agents to get software built. Each mode is data (a target, a phase graph, per-phase Reads and Emits contracts, prompt skill pointers, and example runs) interpreted by one generic engine, so a new methodology is authored and simulated as data with no code change.",
   docLink: {
     href: "/docs/swarm-manager/concepts/EXECUTION-MODES.md",
     label: "Read the canonical operating modes doc",
@@ -192,13 +205,23 @@ export const OPERATING_MODE_INTRO_EXPLAINER: ConceptExplainer = {
   sections: [
     {
       heading: "Concept",
-      label: "Phase graph",
-      body: "A mode runs as a graph of named phases (investigate, plan, execute, review, reconcile). Each phase has its own resolved prompt-manager SkillID, agent profile, and a declared output contract for what it must emit.",
+      label: "Target",
+      body: "A mode declares its unit of work — a plan-manager plan, a plan reference, or an initiative. The engine runs on a generic run context; a target adapter supplies the target-specific reads and identity. Initiative is one adapter among several, so the simplest useful run is 'point the loop at a plan and drain it', with no initiative ceremony.",
     },
     {
       heading: "Concept",
-      label: "Guard",
-      body: "Branching is a generic field-predicate over a phase's structured output — 'always', a leaf comparison/presence/membership check (verdict = accepted, replan_needed = true), or a composite (all/any/not). The same vocabulary expresses any DAG, with no mode-specific branch kinds.",
+      label: "Phase graph",
+      body: "A mode runs as a graph of named phases (investigate, plan, execute, review, reconcile). Each phase has its own resolved prompt-manager SkillID, agent profile, a declared Reads contract, and a declared output (Emits) contract.",
+    },
+    {
+      heading: "Concept",
+      label: "Guard & classification",
+      body: "Branching is a generic field-predicate over a phase's structured output — 'always', a leaf comparison/presence/membership check, or a composite (all/any/not). When the routing field is not emitted directly, the transition declares a classification-on-transition contract that derives it from the handoff via the resolution ladder — a built-in step, not an agent phase.",
+    },
+    {
+      heading: "Concept",
+      label: "Composition",
+      body: "A phase may delegate to a sub-mode (executed_by): the engine runs the sub-mode's loop as that phase, one level deep. Initiative modes compose the generic plan drain instead of duplicating execution — the composed graph renders inline, and the backend stays the routing source of truth.",
     },
     {
       heading: "Concept",

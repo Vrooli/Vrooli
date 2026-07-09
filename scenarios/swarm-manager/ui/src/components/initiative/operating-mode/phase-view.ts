@@ -9,11 +9,11 @@
  */
 
 import type {
-  OperatingModeArtifactSnapshot,
   OperatingModeCatalogPhase,
+  OperatingModePhaseClassification,
+  OperatingModePhaseResolutionRecord,
   OperatingModePhaseTransition,
   OperatingModeRound,
-  OperatingModeRoundItem,
   OperatingModeSimulationStep,
   OperatingModeWorkspace,
 } from "../../../types/operating-mode";
@@ -25,11 +25,42 @@ import {
 
 export type PhaseViewSource = "contract" | "simulation" | "live";
 
+/** One declared read: the prompt variable name and, when resolvable, its value. */
+export interface PhaseViewRead {
+  variable: string;
+  /** Resolved substitution value (simulation); undefined for contract/live. */
+  value?: string;
+}
+
+/**
+ * A phase's declared, composed read contract grouped by supplying provider —
+ * the generic-base provider vs the mode's target adapter. Derived from the
+ * phase's declared reads (OperatingModeCatalogPhase.reads groups), never from a
+ * hardcoded category list, so a plan-target phase and an initiative-target
+ * phase render different, scope-appropriate groups with no UI change.
+ */
 export interface PhaseViewReads {
-  items: OperatingModeRoundItem[];
-  artifacts: OperatingModeArtifactSnapshot[];
-  priorRounds: OperatingModeRound[];
-  acceptanceCriteria: string[];
+  base: PhaseViewRead[];
+  target: PhaseViewRead[];
+}
+
+// readsFromCatalogPhase projects the catalog phase's declared read groups into
+// the view model, overlaying resolved values (from a simulation step's prompt
+// variables) when available.
+function readsFromCatalogPhase(
+  phase: OperatingModeCatalogPhase | undefined,
+  values?: Record<string, string>,
+): PhaseViewReads | undefined {
+  if (!phase?.reads) return undefined;
+  const toReads = (names: string[] | undefined): PhaseViewRead[] =>
+    (names ?? []).map((variable) => ({
+      variable,
+      value: values && values[variable] !== undefined ? values[variable] : undefined,
+    }));
+  return {
+    base: toReads(phase.reads.base),
+    target: toReads(phase.reads.target),
+  };
 }
 
 /**
@@ -74,7 +105,11 @@ export interface PhaseView {
   profileKey: string;
   status?: string;
   terminal?: boolean;
-  /** Fixture/live data behind each Reads card; absent for the contract source. */
+  /**
+   * The phase's declared, composed read contract (base ∪ target adapter),
+   * derived from the mode data. Present for every source; simulation overlays
+   * resolved values. Absent only when the phase declares no reads.
+   */
   reads?: PhaseViewReads;
   /** Actual emitted output for simulation/live; drives the Emits cards. */
   output?: unknown;
@@ -84,6 +119,19 @@ export interface PhaseView {
   firedTransition?: PhaseTraceTransitionInput;
   /** All declared outgoing transitions for the contract source. */
   declaredTransitions?: OperatingModePhaseTransition[];
+  /**
+   * The phase's classification-on-transition contract (contract source), when
+   * one of its edges derives its routing field at the edge. Rendered on the
+   * Transition tab as a built-in step, not an agent phase.
+   */
+  classification?: OperatingModePhaseClassification;
+  /**
+   * The round's classification-on-transition outcome (simulation/live): which
+   * rung derived the routing field, or that it abstained to needs_attention.
+   */
+  transitionClassification?: OperatingModePhaseResolutionRecord;
+  /** The sub-mode that executes this phase (phase delegation), if any. */
+  executedBy?: string;
   /** How to render the Instructions tab. */
   prompt: PhasePromptRequest;
 }
@@ -100,8 +148,11 @@ export function contractPhaseView(
     skillId: phase.skillId,
     profileKey: phase.profileKey,
     terminal: phase.isTerminal,
+    reads: readsFromCatalogPhase(phase),
     emitSchema: phaseEmitSchema(phase),
     declaredTransitions: outgoing,
+    classification: phase.classification,
+    executedBy: phase.executedBy,
     prompt: {
       source: "contract",
       skillId: phase.skillId,
@@ -114,6 +165,7 @@ export function simulationPhaseView(
   step: OperatingModeSimulationStep,
   mode: string,
   preset: string,
+  catalogPhase?: OperatingModeCatalogPhase,
 ): PhaseView {
   const skillId = step.skillId ?? "";
   const profileKey = step.profileKey ?? step.round.agentProfileKey ?? "";
@@ -125,12 +177,10 @@ export function simulationPhaseView(
     profileKey,
     status: step.round.status,
     terminal: step.terminal,
-    reads: {
-      items: step.inputs.items,
-      artifacts: step.inputs.artifacts,
-      priorRounds: step.inputs.priorRounds,
-      acceptanceCriteria: step.inputs.acceptanceCriteria,
-    },
+    reads: readsFromCatalogPhase(catalogPhase, step.promptVariables),
+    classification: catalogPhase?.classification,
+    executedBy: catalogPhase?.executedBy,
+    transitionClassification: step.round.transitionClassification,
     output: step.output,
     firedTransition: step.transition
       ? {
@@ -159,8 +209,8 @@ export function livePhaseView(
   workspace: OperatingModeWorkspace,
   transitions: OperatingModePhaseTransition[],
   initiative: string,
+  catalogPhase?: OperatingModeCatalogPhase,
 ): PhaseView {
-  const priorRounds = workspace.rounds.filter((candidate) => candidate.round < round.round);
   const firedTransition = round.status === "completed"
     ? selectLiveTransition(round, transitions)
     : undefined;
@@ -173,12 +223,10 @@ export function livePhaseView(
     profileKey: round.agentProfileKey || workspacePhase?.profileKey || "",
     status: round.status,
     terminal: round.status === "completed" && !firedTransition,
-    reads: {
-      items: round.items ?? [],
-      artifacts: workspace.artifacts,
-      priorRounds,
-      acceptanceCriteria: stringArrayFromRecord(round.payload, "acceptance_criteria"),
-    },
+    reads: readsFromCatalogPhase(catalogPhase),
+    classification: catalogPhase?.classification,
+    executedBy: catalogPhase?.executedBy || workspacePhase?.executedBy,
+    transitionClassification: round.transitionClassification,
     output: round.payload,
     firedTransition: firedTransition
       ? {
@@ -308,9 +356,4 @@ function compareNumeric(op: string, value: unknown, target: string | undefined):
     default:
       return false;
   }
-}
-
-function stringArrayFromRecord(record: Record<string, unknown> | undefined, key: string): string[] {
-  const value = record?.[key];
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }

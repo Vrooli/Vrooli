@@ -1,10 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PhaseCard } from "./phase-card";
 import { selectors } from "../../../consts/selectors";
 import { createQueryWrapper, createTestQueryClient } from "../../../test-utils/query";
-import type { OperatingModeCatalogPhase } from "../../../types/operating-mode";
+import type { OperatingModeCatalogEntry, OperatingModeCatalogPhase } from "../../../types/operating-mode";
 
 vi.mock("../../../services/prompt-service", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -97,6 +97,7 @@ describe("PhaseCard", () => {
         phase={basePhase({
           phase: "review",
           requiresCriteria: true,
+          reads: { base: ["OPERATOR_NOTE"], target: ["MEMBER_ITEMS_JSON", "ACCEPTANCE_CRITERIA"] },
           outputContract: {
             requiresStructuredResult: true,
             requiresProgress: false,
@@ -113,7 +114,7 @@ describe("PhaseCard", () => {
     expect(viewer).toHaveAttribute("data-source", "contract");
     expect(screen.getByText("requires criteria")).toBeInTheDocument();
 
-    // Reads tab: each card names its backing prompt variable.
+    // Reads tab: each card names its backing prompt variable, from data.
     await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseViewerTabReads));
     expect(screen.getByText("{{MEMBER_ITEMS_JSON}}")).toBeInTheDocument();
     expect(screen.getByText("{{ACCEPTANCE_CRITERIA}}")).toBeInTheDocument();
@@ -199,5 +200,52 @@ describe("PhaseCard", () => {
     const link = screen.getByTestId(selectors.initiativeDetails.phaseProfileExternalLink);
     expect(link).toHaveAttribute("href", "https://agent.test/profiles?profileKey=swarm-manager%2Fdeep-work");
     expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("renders a delegated phase's composed sub-mode graph inline", () => {
+    const subMode: OperatingModeCatalogEntry = {
+      mode: "phased-plan-drain",
+      label: "Phased Plan Drain",
+      bestFor: [],
+      notFor: [],
+      tradeoffs: [],
+      usageCount: 0,
+      targetKind: "plan-manager-plan",
+      runStrategy: "sequential_handoff",
+      workspaceTabId: "",
+      capabilities: {
+        supportsPhases: true,
+        canStartPhases: true,
+        canCompleteItems: false,
+        canApplyBacklogSyncProposals: false,
+        requiresAcceptanceCriteria: false,
+        supportsArtifacts: true,
+        supportsHandoffs: true,
+        usesItemExecutionFlow: false,
+      },
+      default: false,
+      switchable: true,
+      supportsPhases: true,
+      phases: [
+        basePhase({
+          phase: "execute",
+          isStart: true,
+          classification: { field: "progress", enum: ["continue", "complete", "blocked"], from: "handoff" },
+        }),
+      ],
+    };
+    renderCard(
+      <PhaseCard
+        phase={basePhase({ phase: "execute", executedBy: "phased-plan-drain" })}
+        subModes={{ "phased-plan-drain": subMode }}
+      />,
+    );
+    // The delegated marker and the composed sub-mode's phases render inline.
+    expect(screen.getByText("delegated")).toBeInTheDocument();
+    const composed = screen.getByTestId("composed-sub-mode-graph");
+    expect(composed).toHaveAttribute("data-sub-mode", "phased-plan-drain");
+    expect(screen.getByTestId("composed-phase-execute")).toBeInTheDocument();
+    expect(within(composed).getByText(/target: Plan-manager plan/)).toBeInTheDocument();
+    expect(within(composed).getByText(/classifies/)).toBeInTheDocument();
   });
 });

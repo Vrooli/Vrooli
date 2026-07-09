@@ -55,7 +55,7 @@ describe("Initiative Mode Service", () => {
       definition: {
         mode: "holistic-loop",
         label: "Holistic Loop",
-        scopeKind: "initiative",
+        targetKind: "initiative",
         runStrategy: "operator_gated_loop",
         capabilities: {
           supportsPhases: true,
@@ -108,7 +108,7 @@ describe("Initiative Mode Service", () => {
 
     expect(client.getWorkspace).toHaveBeenCalledWith({ initiativeName: "initiative-a" });
     expect(workspace.initiativeName).toBe("initiative-a");
-    expect(workspace.definition.scopeKind).toBe("initiative");
+    expect(workspace.definition.targetKind).toBe("initiative");
     expect(workspace.definition.runStrategy).toBe("operator_gated_loop");
     expect(workspace.definition.capabilities.canStartPhases).toBe(true);
     expect(workspace.definition.capabilities.canApplyBacklogSyncProposals).toBe(true);
@@ -127,7 +127,7 @@ describe("Initiative Mode Service", () => {
       modes: [{
         mode: "custom-audit-loop",
         label: "Custom Audit Loop",
-        scopeKind: "initiative",
+        targetKind: "initiative",
         runStrategy: "operator_gated_loop",
         workspaceTabId: "operating-mode",
         capabilities: {
@@ -150,7 +150,7 @@ describe("Initiative Mode Service", () => {
 
     expect(client.catalog).toHaveBeenCalledWith({});
     expect(catalog.modes[0]?.mode).toBe("custom-audit-loop");
-    expect(catalog.modes[0]?.scopeKind).toBe("initiative");
+    expect(catalog.modes[0]?.targetKind).toBe("initiative");
     expect(catalog.modes[0]?.workspaceTabId).toBe("operating-mode");
     expect(catalog.modes[0]?.supportsPhases).toBe(true);
     expect(catalog.modes[0]?.capabilities.supportsHandoffs).toBe(true);
@@ -272,7 +272,7 @@ describe("Initiative Mode Service", () => {
           notFor: ["Coupled work"],
           tradeoffs: ["Highest parallelism"],
           whenInDoubtPickInstead: "", // item-level is the safe default
-          scopeKind: "backlog_item",
+          targetKind: "initiative",
           runStrategy: "existing_item_flow",
           workspaceTabId: "info",
           capabilities: {},
@@ -289,7 +289,7 @@ describe("Initiative Mode Service", () => {
           notFor: ["Independent items"],
           tradeoffs: ["One plan, not N"],
           whenInDoubtPickInstead: "item-level",
-          scopeKind: "initiative",
+          targetKind: "initiative",
           runStrategy: "operator_gated_loop",
           workspaceTabId: "operating-mode",
           capabilities: {},
@@ -514,7 +514,7 @@ describe("Initiative Mode Service", () => {
       mode: "holistic-loop",
       definition: {
         mode: "holistic-loop",
-        scopeKind: "initiative",
+        targetKind: "initiative",
         runStrategy: "operator_gated_loop",
         capabilities: {},
         phases: [

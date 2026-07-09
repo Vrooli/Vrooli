@@ -132,7 +132,7 @@ func (f *fakePlanRefBinder) BindInitiativePlanRef(name string, ref PlanRef) (Ini
 		f.refs = map[string]PlanRef{}
 	}
 	f.refs[name] = ref
-	return InitiativeSnapshot{Name: name, Mode: string(ModePhasedPlanDrain), PlanRef: &ref}, nil
+	return InitiativeSnapshot{Name: name, Mode: string(ModeHolisticLoop), PlanRef: &ref}, nil
 }
 
 type fakeItemExecutions struct {
@@ -367,7 +367,7 @@ func TestStartPhaseUsesReplanSignalForHolisticExecuteNextPhase(t *testing.T) {
 	svc := newTestService(t, root, &fakeAgent{}, &fakePrompts{})
 	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
 	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "plan", nil)
-	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", map[string]any{"replan_needed": true})
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", completedDrainExecutePayload("blocked"))
 
 	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
 		InitiativeName: "init-a",
@@ -389,16 +389,20 @@ func TestStartPhaseUsesReplanSignalForHolisticExecuteNextPhase(t *testing.T) {
 	}
 }
 
-func TestStartPhaseFollowsPhasedPlanProgressTransitions(t *testing.T) {
+// TestStartPhaseRejectsPlanTargetModeThroughInitiativeSurface pins the v2
+// boundary: the generic phased-plan-drain targets a plan-manager plan, so an
+// initiative whose mode field still names it gets a typed, actionable error
+// from every initiative-keyed phase surface instead of a bogus plan lookup
+// keyed on the initiative name.
+func TestStartPhaseRejectsPlanTargetModeThroughInitiativeSurface(t *testing.T) {
 	root := t.TempDir()
 	svc := newTestServiceWithOptions(t, root, serviceOptions{
 		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
 			"init-phased": {
 				Name:               "init-phased",
 				Title:              "Init Phased",
-				Description:        "Test phased initiative",
+				Description:        "Initiative stranded on the plan-target drain",
 				Mode:               string(ModePhasedPlanDrain),
-				PlanRef:            testOperatingModePlanRef(),
 				Items:              []string{"execute/do-thing"},
 				AcceptanceCriteria: []string{"works end to end"},
 			},
@@ -408,27 +412,13 @@ func TestStartPhaseFollowsPhasedPlanProgressTransitions(t *testing.T) {
 
 	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
 		InitiativeName: "init-phased",
-		Phase:          "execute_next",
+		Phase:          "execute",
 	})
-	if err == nil || !strings.Contains(err.Error(), `first phase must be "prepare_plan"`) {
-		t.Fatalf("StartPhase execute_next first error = %v, want start phase error", err)
+	if err == nil || !strings.Contains(err.Error(), "targets plan-manager-plan") {
+		t.Fatalf("StartPhase error = %v, want plan-target rejection", err)
 	}
-
-	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "prepare_plan", nil)
-	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "execute_next", nil)
-	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "classify_progress", map[string]any{
-		"progress": ProgressState{Decision: ProgressContinue},
-	})
-
-	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
-		InitiativeName: "init-phased",
-		Phase:          "execute_next",
-	})
-	if err != nil {
-		t.Fatalf("StartPhase execute_next after continue returned error: %v", err)
-	}
-	if round.Phase != "execute_next" {
-		t.Fatalf("round phase = %q, want execute_next", round.Phase)
+	if _, err := svc.RenderLivePrompt(context.Background(), "init-phased", "execute", 0, ""); err == nil || !strings.Contains(err.Error(), "targets plan-manager-plan") {
+		t.Fatalf("RenderLivePrompt error = %v, want plan-target rejection", err)
 	}
 }
 
@@ -759,103 +749,12 @@ func TestRefreshRoundStagesArtifactsBeforeApplyingResult(t *testing.T) {
 	}
 }
 
-func TestRefreshRoundRequiresProgressForClassifyProgress(t *testing.T) {
-	root := t.TempDir()
-	svc := newTestServiceWithOptions(t, root, serviceOptions{
-		agent: &fakeAgent{states: map[string]agentmanager.RunState{
-			"run-1": {RunID: "run-1", Status: "complete", Summary: `{"operating_mode_result":{"handoff":{"summary":"classified"}}}`, FinishedAt: "2026-04-30T12:05:00Z"},
-		}},
-		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
-			"init-phased": {
-				Name:               "init-phased",
-				Title:              "Init Phased",
-				Description:        "Test phased initiative",
-				Mode:               string(ModePhasedPlanDrain),
-				PlanRef:            testOperatingModePlanRef(),
-				Items:              []string{"execute/do-thing"},
-				AcceptanceCriteria: []string{"works end to end"},
-			},
-		}},
-		planExecution: &fakePlanExecution{},
-	})
-	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "prepare_plan", nil)
-	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "execute_next", nil)
-
-	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
-		InitiativeName: "init-phased",
-		Phase:          "classify_progress",
-	})
-	if err != nil {
-		t.Fatalf("StartPhase returned error: %v", err)
-	}
-	refreshed, err := svc.RefreshRound(context.Background(), "init-phased", ModePhasedPlanDrain, round.Round)
-	if err != nil {
-		t.Fatalf("RefreshRound returned error: %v", err)
-	}
-	// classify_progress declares progress + progress.decision required. A handoff-
-	// only envelope resolves nothing for that contract, so the ladder abstains
-	// (safe stop) with the unresolved declared fields named, and — with no message
-	// stream or classifier — the round needs attention on the abstain rather
-	// than the old bespoke "requires a valid progress decision" contract check.
-	if refreshed.Status != RoundStatusNeedsAttention || !strings.Contains(refreshed.Error, "resolution abstained") {
-		t.Fatalf("refreshed = %+v, want abstained progress resolution", refreshed)
-	}
-	if record, ok := RoundPayload(refreshed.Payload).Resolution(); !ok || record.Outcome != ResolutionAbstained {
-		t.Fatalf("resolution record = %+v (ok=%v), want abstained", record, ok)
-	}
-}
-
-func TestRefreshRoundCapturesPhasedPlanProgressWithoutArtifact(t *testing.T) {
-	root := t.TempDir()
-	svc := newTestServiceWithOptions(t, root, serviceOptions{
-		agent: &fakeAgent{states: map[string]agentmanager.RunState{
-			"run-1": {
-				RunID:      "run-1",
-				Status:     "complete",
-				Summary:    `{"operating_mode_result":{"progress":{"decision":"continue","completed_phases":["phase-1"],"current_phase":"phase-2","rationale":"keep going"}}}`,
-				FinishedAt: "2026-04-30T12:05:00Z",
-			},
-		}},
-		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
-			"init-phased": {
-				Name:               "init-phased",
-				Title:              "Init Phased",
-				Description:        "Test phased initiative",
-				Mode:               string(ModePhasedPlanDrain),
-				PlanRef:            testOperatingModePlanRef(),
-				Items:              []string{"execute/do-thing"},
-				AcceptanceCriteria: []string{"works end to end"},
-			},
-		}},
-		planExecution: &fakePlanExecution{},
-	})
-	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "prepare_plan", nil)
-	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "execute_next", nil)
-
-	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
-		InitiativeName: "init-phased",
-		Phase:          "classify_progress",
-	})
-	if err != nil {
-		t.Fatalf("StartPhase returned error: %v", err)
-	}
-	refreshed, err := svc.RefreshRound(context.Background(), "init-phased", ModePhasedPlanDrain, round.Round)
-	if err != nil {
-		t.Fatalf("RefreshRound returned error: %v", err)
-	}
-	if refreshed.Status != RoundStatusCompleted {
-		t.Fatalf("refreshed status = %q, want completed: %+v", refreshed.Status, refreshed)
-	}
-	if len(refreshed.ArtifactUpdates) != 0 {
-		t.Fatalf("artifact updates = %+v", refreshed.ArtifactUpdates)
-	}
-	state, ok := RoundPayload(refreshed.Payload).Progress()
-	if !ok || state.Decision != ProgressContinue || state.UpdatedAt == "" {
-		t.Fatalf("progress state = %+v", state)
-	}
-}
-
-func TestRefreshRoundBindsPreparePlanRef(t *testing.T) {
+// TestRefreshRoundBindsEmittedPlanRef proves the generic plan-ref binding seam:
+// any completed round whose structured result carries a valid operating-mode
+// plan_ref binds it to the initiative and persists it on the round payload.
+// (Formerly exercised through the drain's prepare_plan phase; the generic drain
+// has no plan-preparation phase, so holistic-loop investigate drives the seam.)
+func TestRefreshRoundBindsEmittedPlanRef(t *testing.T) {
 	root := t.TempDir()
 	binder := &fakePlanRefBinder{}
 	svc := newTestServiceWithOptions(t, root, serviceOptions{
@@ -863,38 +762,28 @@ func TestRefreshRoundBindsPreparePlanRef(t *testing.T) {
 			"run-1": {
 				RunID:      "run-1",
 				Status:     "complete",
-				Summary:    `{"operating_mode_result":{"plan_ref":{"provider":"plan-manager","plan_id":"plan-123","slug":"initiative-plan","role":"operating_mode_plan"},"handoff":{"summary":"plan ready"}}}`,
+				Summary:    `{"operating_mode_result":{"plan_ref":{"provider":"plan-manager","plan_id":"plan-123","slug":"initiative-plan","role":"operating_mode_plan"},"handoff":{"summary":"plan ready"},"artifacts":[{"path":"modes/holistic-loop/findings.md","content":"# Findings"}]}}`,
 				FinishedAt: "2026-04-30T12:05:00Z",
-			},
-		}},
-		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
-			"init-phased": {
-				Name:               "init-phased",
-				Title:              "Init Phased",
-				Description:        "Test phased initiative",
-				Mode:               string(ModePhasedPlanDrain),
-				Items:              []string{"execute/do-thing"},
-				AcceptanceCriteria: []string{"works end to end"},
 			},
 		}},
 		planRefBinder: binder,
 	})
 
 	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
-		InitiativeName: "init-phased",
-		Phase:          "prepare_plan",
+		InitiativeName: "init-a",
+		Phase:          "investigate",
 	})
 	if err != nil {
 		t.Fatalf("StartPhase returned error: %v", err)
 	}
-	refreshed, err := svc.RefreshRound(context.Background(), "init-phased", ModePhasedPlanDrain, round.Round)
+	refreshed, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round)
 	if err != nil {
 		t.Fatalf("RefreshRound returned error: %v", err)
 	}
 	if refreshed.Status != RoundStatusCompleted {
 		t.Fatalf("refreshed status = %q, want completed: %+v", refreshed.Status, refreshed)
 	}
-	if got := binder.refs["init-phased"].PlanID; got != "plan-123" {
+	if got := binder.refs["init-a"].PlanID; got != "plan-123" {
 		t.Fatalf("bound plan id = %q, want plan-123", got)
 	}
 	if got, _ := RoundPayload(refreshed.Payload).get(payloadPlanRef); got == nil {
@@ -1011,7 +900,7 @@ func TestApplyBacklogSyncAppliesProposalThroughProposalBoundary(t *testing.T) {
 	agent.states["run-1"] = agentmanager.RunState{RunID: "run-1", Status: "complete", Summary: summary, FinishedAt: "2026-04-30T12:05:00Z"}
 	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
 	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "plan", nil)
-	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", map[string]any{"replan_needed": false})
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", completedDrainExecutePayload("complete"))
 	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
 		InitiativeName: "init-a",
 		Phase:          "review",
@@ -1270,12 +1159,18 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 	store := NewStore(func(name string) string {
 		return filepath.Join(root, "initiatives", name)
 	})
+	store.TargetDir = func(kind TargetKind, scopeID string) string {
+		return TargetScopeDir(filepath.Join(root, "data"), kind, scopeID)
+	}
 	store.Clock = func() time.Time {
 		return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
 	}
 	lock := &initiativelock.Lock{
-		Dir: func(name string) string {
-			return filepath.Join(root, "initiatives", name)
+		Dir: func(key string) string {
+			if kind, token, ok := ParseTargetOwnershipKey(key); ok {
+				return TargetScopeDir(filepath.Join(root, "data"), kind, token)
+			}
+			return filepath.Join(root, "initiatives", key)
 		},
 		Clock: store.Clock,
 	}
@@ -1295,6 +1190,7 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 				Mode:               string(ModeHolisticLoop),
 				Items:              []string{"execute/do-thing"},
 				AcceptanceCriteria: []string{"works end to end"},
+				PlanRef:            &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: "init-a-plan", Role: PlanRefRoleOperatingModePlan},
 			},
 		}}
 	}
@@ -1322,7 +1218,7 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 		Clock:             store.Clock,
 		Classifier:        opts.classifier,
 		DisableClassifier: opts.classifier == nil,
-		PlanExecution:     opts.planExecution,
+		PlanExecution:     planExecutionOrFake(opts.planExecution),
 	})
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
@@ -1330,23 +1226,30 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 	return svc
 }
 
-func testOperatingModePlanRef() *PlanRef {
-	return &PlanRef{
-		Provider: PlanRefProviderPlanManager,
-		PlanID:   "plan-1",
-		Slug:     "initiative-plan",
-		Role:     PlanRefRoleOperatingModePlan,
+// planExecutionOrFake defaults the plan-manager execution client to the fake
+// so holistic-loop fixtures (which now require a bound plan) resolve context
+// without every test wiring one explicitly.
+func planExecutionOrFake(client PlanExecutionClient) PlanExecutionClient {
+	if client != nil {
+		return client
+	}
+	return &fakePlanExecution{}
+}
+
+// completedDrainExecutePayload is the payload a completed delegated execute
+// round carries: the delegation markers plus the edge-classified progress
+// value the parent's guards route on.
+func completedDrainExecutePayload(progress string) map[string]any {
+	return map[string]any{
+		payloadDelegatedMode:  string(ModePhasedPlanDrain),
+		payloadDelegatedPhase: "execute",
+		"progress":            progress,
 	}
 }
 
 func saveCompletedRound(t *testing.T, svc *Service, initiativeName string, mode Mode, phase Phase, payload map[string]any) RoundEnvelope {
 	t.Helper()
 	return saveCompletedRoundWith(t, svc, initiativeName, mode, phase, payload, nil)
-}
-
-func saveCompletedRoundWithHandoff(t *testing.T, svc *Service, initiativeName string, mode Mode, phase Phase, payload map[string]any) RoundEnvelope {
-	t.Helper()
-	return saveCompletedRoundWith(t, svc, initiativeName, mode, phase, payload, []Handoff{{Summary: "handoff"}})
 }
 
 func saveCompletedRoundWith(t *testing.T, svc *Service, initiativeName string, mode Mode, phase Phase, payload map[string]any, handoffs []Handoff) RoundEnvelope {

@@ -2,12 +2,12 @@
   "kind": "operating-mode",
   "id": "phased-plan-drain",
   "label": "Phased Plan Drain",
-  "description": "Prepare a stable phased plan, then drain it with sequential handoff runs that classify progress and reconcile the backlog. Use when the work decomposes cleanly upfront.",
+  "description": "Point the generic drain at a plan-manager plan and drain it slice-by-slice: each round a fresh agent executes the next drainable slice and hands off the true frontier, and a classified edge derives continue / complete / blocked from the handoff. Plan-first — no initiative required.",
   "best_for": [
+    "A stable plan already exists and the work is \"execute this plan\"",
     "Long sequential plans that agents drain over many runs",
-    "A multi-phase plan can be prepared once and stays stable",
     "Continuity across handoffs matters more than parallelism",
-    "Explicit progress classification between slices is valuable"
+    "Plan-first runs with no initiative ceremony"
   ],
   "not_for": [
     "The plan is exploratory or unstable — use holistic-loop",
@@ -16,70 +16,51 @@
   ],
   "tradeoffs": [
     "Continuity over parallelism — one slice at a time",
-    "Less planning churn than holistic loop once the plan is stable",
-    "Explicit progress classification (continue / replan / complete / blocked) between slices",
-    "Heavier upfront plan preparation than holistic loop"
+    "No plan preparation, review, or backlog reconciliation — the plan is the contract; composing initiative modes layer those on",
+    "Progress classification happens at the transition, not as a separate agent round",
+    "A blocked or underivable handoff stops the loop for operator attention"
   ],
   "when_in_doubt_pick_instead": "holistic-loop",
-  "scope": { "kind": "initiative" },
-  "run_strategy": { "kind": "sequential_handoff" },
-  "prompt": { "catalog_prefix": "swarm-manager-phased-plan" },
-  "artifact": { "root": "modes/phased-plan-drain" },
-  "plan_ref": { "required": true, "role": "operating_mode_plan" },
-  "profile": { "default_profile_key": "swarm-manager/deep-work" },
-  "backlog_sync": {
-    "capabilities": ["read_only", "propose_mutations", "mark_complete", "create_followups", "update_scope"],
-    "requires_run_id": true,
-    "requires_membership": true,
-    "event_source": "phased-plan-drain",
-    "apply_mode": "operator-gated"
+  "target": {
+    "kind": "plan-manager-plan"
   },
-  "metrics": {
-    "event_source": "phased-plan-drain",
-    "accepted_verdicts": ["accept", "accepted"]
+  "run_strategy": {
+    "kind": "sequential_handoff"
   },
-  "lock": { "initiative_exclusive": true },
-  "ui": { "workspace_tab_id": "operating-mode" },
+  "prompt": {
+    "catalog_prefix": "swarm-manager-phased-plan"
+  },
+  "artifact": {
+    "root": "modes/phased-plan-drain"
+  },
+  "profile": {
+    "default_profile_key": "swarm-manager/deep-work"
+  },
+  "ui": {
+    "workspace_tab_id": "operating-mode"
+  },
   "phase_graph": {
-    "start_phase": "prepare_plan",
-    "terminal": ["reconcile"],
+    "start_phase": "execute",
     "phases": [
       {
-        "id": "prepare_plan",
-        "kind": "investigate",
-        "activity_purpose": "phased_plan_prepare",
-        "profile_key": "swarm-manager/deep-work",
-        "prompt": {
-          "suffix": "prepare",
-          "title": "Phased Plan Prepare",
-          "trigger": "Operator starts phased-plan-drain prepare phase",
-          "purpose": "Create or update the stable phased plan used by sequential handoff execution."
-        },
-        "declared_output": {
-          "fields": [
-            {
-              "name": "plan_ref",
-              "type": "object",
-              "required": true,
-              "description": "The canonical plan-manager reference for the phased operating-mode plan."
-            }
-          ]
-        },
-        "transitions": [
-          { "when": { "op": "always" }, "to": ["execute_next"] }
-        ]
-      },
-      {
-        "id": "execute_next",
+        "id": "execute",
         "kind": "execute",
         "activity_purpose": "phased_plan_execute_next",
+        "reads": [
+          "OPERATOR_NOTE",
+          "ROUND_NUMBER",
+          "PRIOR_ROUNDS_JSON",
+          "ELASTIC_SLICE_SNIPPET",
+          "PLAN_ID",
+          "PLAN_CONTEXT_JSON"
+        ],
         "profile_key": "swarm-manager/deep-work",
         "writes_repo": true,
         "prompt": {
           "suffix": "execute-next",
           "title": "Phased Plan Execute Next",
-          "trigger": "Operator starts phased-plan-drain execute-next phase",
-          "purpose": "Execute the earliest contiguous phase block that can be completed professionally and emit a final handoff."
+          "trigger": "Operator starts (or the drain loops) the phased-plan-drain execute phase",
+          "purpose": "Execute the next drainable slice of the target plan and emit a handoff stating the true frontier."
         },
         "declared_output": {
           "fields": [
@@ -129,91 +110,27 @@
             }
           ]
         },
-        "metrics": { "counts_replan_sample": true },
         "transitions": [
-          { "when": { "op": "always" }, "to": ["classify_progress"] }
-        ]
-      },
-      {
-        "id": "classify_progress",
-        "kind": "review",
-        "activity_purpose": "phased_plan_classify_progress",
-        "profile_key": "swarm-manager/analysis",
-        "prompt": {
-          "suffix": "classify-progress",
-          "title": "Phased Plan Classify Progress",
-          "trigger": "Operator starts phased-plan-drain classify-progress phase",
-          "purpose": "Classify phased-plan progress and record backlog reconciliation intent."
-        },
-        "declared_output": {
-          "fields": [
-            { "name": "progress", "type": "object", "required": true, "description": "The progress classification state for this slice." },
-            {
-              "name": "progress.decision",
-              "type": "string",
-              "required": true,
-              "enum": ["continue", "blocked", "replan", "complete"],
-              "description": "The classifier's decision: continue draining, blocked (stop), replan, or complete."
+          {
+            "classify": {
+              "field": "progress",
+              "enum": [
+                "continue",
+                "complete",
+                "blocked"
+              ],
+              "from": "handoff",
+              "description": "Whether the drain should continue with the next slice, has fully completed the plan, or is blocked and needs operator attention."
+            },
+            "routes": {
+              "continue": [
+                "execute"
+              ],
+              "complete": [],
+              "blocked": []
             }
-          ]
-        },
-        "transitions": [
-          { "when": { "op": "eq", "field": "progress.decision", "value": "continue" }, "to": ["execute_next"] },
-          { "when": { "op": "eq", "field": "progress.decision", "value": "replan" }, "to": ["prepare_plan"] },
-          { "when": { "op": "eq", "field": "progress.decision", "value": "complete" }, "to": ["review"] },
-          { "when": { "op": "eq", "field": "progress.decision", "value": "blocked" }, "to": [] }
+          }
         ]
-      },
-      {
-        "id": "review",
-        "kind": "review",
-        "activity_purpose": "phased_plan_review",
-        "profile_key": "swarm-manager/analysis",
-        "requires_criteria": true,
-        "prompt": {
-          "title": "Phased Plan Acceptance Review",
-          "trigger": "Operator starts phased-plan-drain review phase",
-          "purpose": "Evaluate phased-plan-drain results, handoffs, and progress against acceptance criteria."
-        },
-        "declared_output": {
-          "fields": [
-            {
-              "name": "verdict",
-              "type": "string",
-              "required": true,
-              "enum": ["accepted", "changes_requested", "rejected"],
-              "description": "Acceptance verdict for the drained initiative against its acceptance criteria. Use accept / accepted when the criteria are met; changes_requested when specific fixable gaps should be re-executed before acceptance (routes back to execute_next); any other non-accepting verdict records the gap and reconciles."
-            }
-          ]
-        },
-        "metrics": { "counts_acceptance_sample": true },
-        "transitions": [
-          { "when": { "op": "eq", "field": "verdict", "value": "changes_requested" }, "to": ["execute_next"] },
-          { "when": { "op": "always" }, "to": ["reconcile"] }
-        ]
-      },
-      {
-        "id": "reconcile",
-        "kind": "reconcile",
-        "activity_purpose": "phased_plan_reconcile",
-        "profile_key": "swarm-manager/analysis",
-        "auto_start_after": ["review"],
-        "prompt": {
-          "suffix": "reconcile",
-          "title": "Phased Plan Backlog Reconcile",
-          "trigger": "Round refresher auto-starts phased-plan-drain reconcile after review completes",
-          "purpose": "Read prior round artifacts and propose backlog mutations that align the initiative with the drained plan."
-        },
-        "declared_output": {
-          "fields": [
-            {
-              "name": "backlog_sync",
-              "type": "object",
-              "required": true,
-              "description": "The proposed backlog reconciliation plan aligning the initiative with the drained plan."
-            }
-          ]
-        }
       }
     ]
   }

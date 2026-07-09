@@ -30,7 +30,7 @@ function makeMode(
     notFor: [`${overrides.label} not for`],
     tradeoffs: [`${overrides.label} tradeoff`],
     usageCount: 0,
-    scopeKind: "initiative",
+    targetKind: "initiative",
     runStrategy: "operator_gated_loop",
     workspaceTabId: "operating-mode",
     capabilities: caps(),

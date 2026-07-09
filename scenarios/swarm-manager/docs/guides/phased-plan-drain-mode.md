@@ -1,99 +1,102 @@
-# Phased Plan Drain Mode
+# Phased Plan Drain Mode (generic plan drain)
 
-Phased-plan-drain mode runs an initiative through a stable sequential plan. Use
-it when the work has an ordered handoff shape: one agent can complete the next
-safe slice, persist context, and let a later round continue without losing the
-thread.
+Phased-plan-drain is the **generic, plan-first execution loop**: point it at a
+plan-manager plan and drain it slice-by-slice. It is not an initiative mode —
+its declared target is `plan-manager-plan` (see the target concept in
+[EXECUTION-MODES](../concepts/EXECUTION-MODES.md)). No initiative, member
+items, or backlog ceremony are involved; work that warrants initiative
+tracking layers it on by composing this mode (`executed_by` — holistic-loop
+does exactly this for its execute phase, a shipped example of
+the v2 rebuild).
 
-## Phase Order
+## Shape
 
-The backend computes startable phases from [CODE: api/internal/operatingmode/state.go].
-The classifier decision after `classify_progress` determines the next phase.
+One phase, one loop. Mode data: [CODE: modes/phased-plan-drain/mode.json].
 
 ```text
-prepare_plan -> execute_next -> classify_progress
-                      ^              |
-                      |              +-- continue -> execute_next
-                      |              +-- replan   -> prepare_plan
-                      |              +-- complete -> review
-                      +--------------+-- blocked  -> no next phase
+execute --(progress=continue)--> execute
+        --(progress=complete)--> stop  (plan fully drained)
+        --(progress=blocked) --> stop  (operator attention)
 ```
 
-Rules:
+- **`execute`** — a fresh agent reads the target plan (`PLAN_ID` +
+  `PLAN_CONTEXT_JSON`), executes the next drainable slice (the earliest
+  contiguous unit it can complete comprehensively — the elastic-slice
+  contract), and emits a `handoff` (summary, blockers, next_step,
+  changed_files, tests, **frontier**).
+- **Classification-on-transition** — there is no classifier phase. The single
+  classified edge derives `progress` ∈ {continue, complete, blocked} from the
+  handoff: emitted directly → short-circuit; inline on the handoff → L1
+  deterministic extraction; otherwise the schema-steered L2 classifier;
+  underivable → honest abstain and the round parks in `needs_attention`.
+- **Stops are guarded** — the mode declares no terminal phase; `complete` and
+  `blocked` are guarded stops (a matched route with no target phase).
 
-- `prepare_plan` is the first phase.
-- `execute_next` requires a completed prior round and an initiative
-  `plan_ref` so the prompt can receive plan-manager phase context.
-- `classify_progress` starts after completed `execute_next`.
-- `classify_progress` with `continue` enables `execute_next`.
-- `classify_progress` with `replan` enables `prepare_plan`.
-- `classify_progress` with `complete` enables `review`.
-- `classify_progress` with `blocked` enables no phase until the blockage is
-  resolved by operator action or a new valid round state.
-- `review` requires initiative acceptance criteria.
-- Failed or canceled rounds do not advance the phase graph.
-- Any reserved or agent-running round blocks all new phase starts.
+## Reads
 
-## Operator Workflow
+Composed as generic-base ∪ plan-manager-plan adapter — no initiative
+variables exist for this target:
 
-1. Create or select the initiative. New initiatives start in `item-level`.
-2. Add initiative acceptance criteria before final review.
-3. Switch mode through `mode-switch`; do not edit `mode` through generic
-   initiative update.
-4. Start `prepare_plan`; it creates or updates the canonical plan-manager plan
-   and binds its `plan_ref` to the initiative.
-5. Start `execute_next` to complete the next contiguous slice of the plan.
-6. Start `classify_progress` to decide whether to continue, replan, review, or
-   stop on a blocker.
-7. Repeat execution/classification until progress is complete.
-8. Start `review` and validate the full initiative.
-9. Use `complete-items` or `apply-backlog-sync` for audited backlog
-   reconciliation. Agents must not edit member item `spec.json` files directly.
+- Base: `ROUND_NUMBER`, `OPERATOR_NOTE`, `PRIOR_ROUNDS_JSON` (the accumulated
+  handoffs — continuity between fresh agents), `ELASTIC_SLICE_SNIPPET`.
+- Plan adapter: `PLAN_ID`, `PLAN_CONTEXT_JSON` (plan-manager execution
+  context resolved via Resume).
+
+Prompt skill: `swarm-manager-phased-plan-execute-next` (prompt-manager).
 
 ## Preview the flow (simulation presets)
 
-The operating-mode detail page's **Flow** tab can walk this graph deterministically
-without running agents. Phased-plan-drain ships these presets as mode-owned
-example-run data ([CODE: modes/phased-plan-drain/example-runs/]), each walking the
-real transition guards:
+Example-runs under [CODE: modes/phased-plan-drain/example-runs/] walk the real
+guards at load time (guard-replay) and back the UI Flow tab's simulation
+presets:
 
-- **Drains in one slice** (`happy-path`) — classify reports `complete` → `review` →
-  `reconcile`.
-- **Continue to next slice** (`continue-next-slice`) — the first execute round
-  finishes one comprehensively-completable slice and hands off the true `frontier`;
-  classify reports `continue`, routing back to `execute_next` to advance the declared
-  remainder, which then classifies `complete`. This is the elastic-slice contract in
-  action.
-- **Progress forces a replan** (`replan-plan`) — classify reports `replan`, routing
-  back to `prepare_plan`; the revised plan drains cleanly.
-- **Work is blocked** (`blocked`) — classify reports `blocked`, a terminal decision
-  with no downstream target; the cycle ends before review for operator intervention.
-- **Review requests changes** (`review-changes-requested`) — after the plan drains
-  and classify reports `complete`, review returns `verdict=changes_requested`, so the
-  guard routes **back to `execute_next`** for one more slice that closes the gaps;
-  classify then reports `complete`, review accepts, and reconcile aligns the backlog.
+- **`happy-path`** — two slices: the first handoff classifies `continue` and
+  loops execute from the declared frontier; the second classifies `complete`
+  and the drain stops. The elastic-slice contract in action.
+- **`complete-first-slice`** — the whole plan drains in one round.
+- **`blocked`** — the first slice hits a real blocker; the handoff records it
+  and the loop stops for operator attention instead of skipping ahead.
 
-Presets are deterministic previews, not real initiative rounds. In the Flow tab,
-the data-source control swaps the same phase viewer between the **Contract**
-template, a **Simulation** preset, and a **Live** round; the Instructions tab
-renders the literal agent prompt for whichever source is selected.
+```bash
+swarm-manager operating-mode get --mode phased-plan-drain --phase execute --show-prompt
+swarm-manager operating-mode get --mode phased-plan-drain --phase execute --show-prompt --preset blocked
+```
+
+## Choosing it
+
+Use the drain when a stable plan already exists and the work is "execute this
+plan". If the plan is exploratory or the unit of validation is the system as
+a whole, use `holistic-loop`; if items are independent and parallelism wins,
+use `item-level`. Initiatives cannot switch to this mode — it targets a plan,
+not an initiative — and initiative-keyed phase surfaces reject it with a
+typed error.
 
 ## Control Boundaries
 
-- Registry and phase graph: [CODE: api/internal/operatingmode/registry.go]
+- Mode data (SSOT): [CODE: modes/phased-plan-drain/mode.json]
+- Loader/validation and guard expansion: [CODE: api/internal/operatingmode/loader.go]
+- Classification-on-transition: [CODE: api/internal/operatingmode/transition_classification.go]
+- Target adapters and ownership keys: [CODE: api/internal/operatingmode/target.go]
 - Sequential handoff validation: [CODE: api/internal/operatingmode/state.go]
-- Phase start and AgentManager spawn: [CODE: api/internal/operatingmode/phase_runner.go]
 - Plan-manager context injection: [CODE: api/internal/operatingmode/plan_ref.go]
 - Round persistence: [CODE: api/internal/operatingmode/rounds.go]
-- Backlog reconciliation audit: [CODE: api/internal/operatingmode/backlog_reconciler.go]
-- Workspace rendering: [CODE: ui/src/components/initiative/operating-mode/phase-composer.tsx]
 
-## Validation Checklist
+## Starting it on a bare plan
 
-- `execute_next` is rejected before `prepare_plan`.
-- `review` is rejected until `classify_progress` returns `complete` and
-  initiative acceptance criteria exist.
-- Classifier decisions change only backend-provided phase action state; the UI
-  does not duplicate that logic.
-- Completed-item and proposal-applied events carry operating-mode source
-  metadata for audit and stats.
+The plan-first entry point is `OperatingModeService.StartTargetPhase`, exposed
+as a CLI command:
+
+```bash
+swarm-manager operating-mode start --mode phased-plan-drain --target <plan-id|slug> [--note "..."]
+```
+
+The round spawns with the plan's reads (`PLAN_ID`, `PLAN_CONTEXT_JSON`),
+stores under `<dataRoot>/mode-targets/plan-manager-plan/<execution-id>/`, and
+holds the plan ownership lock (`plan--<execution-id>`). Follow up with the
+ordinary round actions, addressing the round by its resolved scope id plus an
+explicit mode:
+
+```bash
+swarm-manager initiatives mode-refresh --name <execution-id> --mode phased-plan-drain --round 1
+swarm-manager initiatives mode-cancel  --name <execution-id> --mode phased-plan-drain --round 1
+```

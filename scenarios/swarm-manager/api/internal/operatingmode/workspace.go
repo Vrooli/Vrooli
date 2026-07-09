@@ -198,7 +198,7 @@ func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 		Tradeoffs:              append([]string(nil), def.Tradeoffs...),
 		WhenInDoubtPickInstead: string(def.WhenInDoubtPickInstead),
 		UsageCount:             usageCount,
-		ScopeKind:              string(def.Scope.Kind),
+		TargetKind:             string(def.Target.Kind),
 		RunStrategy:            string(def.RunStrategy.Kind),
 		WorkspaceTabID:         def.UI.WorkspaceTabID,
 		Capabilities:           capabilities,
@@ -229,6 +229,7 @@ func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 			IsStart:               phaseName == def.PhaseGraph.StartPhase,
 			IsTerminal:            isTerminal,
 			OutputArtifacts:       phase.OutputArtifacts,
+			Reads:                 summarizePhaseReads(phase.Reads),
 			OutputContract:        summarizeContract(phase.OutputContract),
 			CatalogID:             phase.CatalogID,
 			SkillID:               phase.SkillID,
@@ -238,10 +239,27 @@ func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 			SamplesReplanRate:     def.Metrics.CountsReplanSample(phaseName),
 			SamplesAcceptanceRate: def.Metrics.CountsAcceptanceSample(phaseName),
 			AutoStartAfter:        phasesToStrings(phase.AutoStartAfter),
+			ExecutedBy:            string(phase.ExecutedBy),
+			Classification:        summarizePhaseClassification(phase.TransitionClassification),
 		})
 	}
 	entry.PhaseGraph = buildCatalogPhaseGraph(def)
 	return entry
+}
+
+// summarizePhaseClassification projects a phase's classification-on-transition
+// contract for the catalog. Nil in, nil out — a phase whose edges all route on
+// directly-emitted fields carries no classification.
+func summarizePhaseClassification(c *TransitionClassification) *PhaseClassificationSummary {
+	if c == nil {
+		return nil
+	}
+	return &PhaseClassificationSummary{
+		Field:       c.Field,
+		Enum:        append([]string(nil), c.Enum...),
+		From:        c.From,
+		Description: c.Description,
+	}
 }
 
 func buildCatalogPhaseGraph(def Definition) *ModeCatalogPhaseGraph {
@@ -251,6 +269,13 @@ func buildCatalogPhaseGraph(def Definition) *ModeCatalogPhaseGraph {
 	}
 	transitions := make([]ModeCatalogTransition, 0)
 	for _, from := range orderedPhases(def) {
+		// A phase's classified edge expands into eq-guards over the classification
+		// field; mark those guards so surfaces render them as classification-on-
+		// transition rather than a directly-emitted routing field.
+		classifiedField := ""
+		if c := def.PhaseGraph.Phases[from].TransitionClassification; c != nil {
+			classifiedField = c.Field
+		}
 		if guards := def.PhaseGraph.Guards[from]; len(guards) > 0 {
 			for _, gt := range guards {
 				kind := GuardKind(gt.When)
@@ -265,6 +290,7 @@ func buildCatalogPhaseGraph(def Definition) *ModeCatalogPhaseGraph {
 						Label:         label,
 						Field:         field,
 						Value:         value,
+						Classified:    classifiedField != "" && field == classifiedField,
 					})
 				}
 			}
@@ -325,6 +351,7 @@ func workspaceMode(def Definition, rounds []RoundEnvelope, acceptanceCriteria []
 			Reason:           action.Reason,
 			Next:             action.Next,
 			AutoStartAfter:   phasesToStrings(phase.AutoStartAfter),
+			ExecutedBy:       string(phase.ExecutedBy),
 		})
 	}
 	terminal := make([]string, 0, len(def.PhaseGraph.Terminal))
@@ -343,7 +370,7 @@ func workspaceMode(def Definition, rounds []RoundEnvelope, acceptanceCriteria []
 		Mode:         string(def.Mode),
 		Label:        def.Label,
 		Description:  def.Description,
-		ScopeKind:    string(def.Scope.Kind),
+		TargetKind:   string(def.Target.Kind),
 		Capabilities: modeCapabilities(def),
 		Phases:       phases,
 		Terminal:     terminal,

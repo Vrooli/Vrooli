@@ -50,6 +50,23 @@ export interface OperatingModeWorkspacePhase {
    * (validator-enforced server-side).
    */
   autoStartAfter?: string[];
+  /**
+   * When non-empty, names the sub-mode that executes this phase (phase
+   * delegation, `executed_by`). The composed sub-mode flow renders inline; the
+   * backend remains the routing source of truth.
+   */
+  executedBy?: string;
+}
+
+/**
+ * A phase's declared reads grouped by supplying provider: the generic-base
+ * provider (`base`) vs the mode's target adapter (`target`). Derived from the
+ * declared contract, so surfaces render reads from data, not a fixed category
+ * list.
+ */
+export interface OperatingModePhaseReads {
+  base: string[];
+  target: string[];
 }
 
 export interface PhaseOutputContractSummary {
@@ -99,6 +116,26 @@ export interface OperatingModePhaseTransition {
   field?: string;
   /** Server-rendered comparison value for the leaf guard (string form). */
   value?: string;
+  /**
+   * True when the guard field is derived by classification-on-transition (from
+   * the handoff) rather than emitted directly by the round. The guard itself is
+   * an ordinary eq-guard; this only records where the compared value comes from.
+   */
+  classified?: boolean;
+}
+
+/**
+ * A phase's classification-on-transition contract, present when one of its
+ * outgoing edges derives its routing field from the handoff instead of a
+ * directly-emitted field. It costs no agent round — the engine derives the
+ * field via the resolution ladder at the edge, abstaining to needs_attention
+ * rather than fabricating a route. Rendered as a built-in step, not a phase.
+ */
+export interface OperatingModePhaseClassification {
+  field: string;
+  enum: string[];
+  from?: string;
+  description?: string;
 }
 
 export interface OperatingModePhaseGraph {
@@ -121,6 +158,13 @@ export interface OperatingModeCatalogPhase {
   isStart?: boolean;
   isTerminal?: boolean;
   outputArtifacts?: OperatingModeArtifactDefinition[];
+  /**
+   * The phase's declared input contract grouped by supplying provider — the
+   * generic-base provider (`base`) vs the mode's target adapter (`target`).
+   * The Reads tab renders from this, symmetric with the Emits (outputContract)
+   * side. Absent for phases that declare no reads (e.g. delegated phases).
+   */
+  reads?: OperatingModePhaseReads;
   outputContract: PhaseOutputContractSummary;
   catalogId: string;
   skillId: string;
@@ -130,6 +174,17 @@ export interface OperatingModeCatalogPhase {
   samplesReplanRate?: boolean;
   samplesAcceptanceRate?: boolean;
   autoStartAfter?: string[];
+  /**
+   * When non-empty, names the sub-mode that executes this phase (phase
+   * delegation, `executed_by`). The composed sub-mode flow renders inline.
+   */
+  executedBy?: string;
+  /**
+   * The phase's classification-on-transition contract, when one of its outgoing
+   * edges derives its routing field at the edge instead of from an emitted
+   * field. Absent when every edge routes on a directly-emitted field.
+   */
+  classification?: OperatingModePhaseClassification;
 }
 
 export interface OperatingModeCapabilities {
@@ -152,7 +207,8 @@ export interface OperatingModeCatalogEntry {
   tradeoffs: string[];
   whenInDoubtPickInstead?: InitiativeOperatingMode;
   usageCount: number;
-  scopeKind: string;
+  /** The mode's declared unit of work: plan-manager-plan | plan-ref | initiative. */
+  targetKind: string;
   runStrategy: string;
   workspaceTabId: string;
   capabilities: OperatingModeCapabilities;
@@ -188,7 +244,8 @@ export interface OperatingModeWorkspaceDefinition {
   mode: InitiativeOperatingMode;
   label: string;
   description?: string;
-  scopeKind: string;
+  /** The mode's declared unit of work: plan-manager-plan | plan-ref | initiative. */
+  targetKind: string;
   capabilities: OperatingModeCapabilities;
   phases: OperatingModeWorkspacePhase[];
   terminal: string[];
@@ -220,6 +277,8 @@ export interface OperatingModeHandoff {
   blockers?: string[];
   nextStep?: string;
   createdAt?: string;
+  /** The declared "true frontier" the next round should advance (elastic slice). */
+  frontier?: string;
 }
 
 export interface OperatingModePhaseResolutionRecord {
@@ -230,6 +289,13 @@ export interface OperatingModePhaseResolutionRecord {
   missing?: string[];
   violations?: string[];
   notes?: string[];
+  /**
+   * When non-empty, marks this record as a classification-on-transition
+   * derivation (rather than a phase-output resolution): the routing field the
+   * transition derived and the derived value the route guards matched on.
+   */
+  classifiedField?: string;
+  classifiedValue?: string;
 }
 
 export interface OperatingModeRound {
@@ -250,6 +316,13 @@ export interface OperatingModeRound {
   payload?: Record<string, unknown>;
   error?: string;
   resolution?: OperatingModePhaseResolutionRecord;
+  /**
+   * Classification-on-transition outcome: how the round's routing field was
+   * derived at the edge (or why derivation abstained and the round parked in
+   * needs_attention). Absent when the completed phase's transitions declare no
+   * classification contract.
+   */
+  transitionClassification?: OperatingModePhaseResolutionRecord;
 }
 
 export interface OperatingModeBacklogSyncPlan {

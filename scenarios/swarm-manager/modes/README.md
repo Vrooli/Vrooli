@@ -18,8 +18,10 @@ modes/<id>/
 ```
 
 - **`<id>`** is the mode id (kebab-case) and matches `mode.json`'s `id`.
-- **`mode.json`** — identity + decision metadata, `scope`, `run_strategy`, the
-  `phase_graph` (phases, guarded `transitions`, per-phase `declared_output`),
+- **`mode.json`** — identity + decision metadata, `target` (the unit of work:
+  `plan-manager-plan` | `plan-ref` | `initiative`), `run_strategy`, the
+  `phase_graph` (phases, guarded `transitions`, per-phase declared `reads` and
+  `declared_output`),
   and the `prompt` / `artifact` / `profile` / `backlog_sync` / `metrics` /
   `lock` / `ui` policy blocks. Validated against `operating-mode/v1`.
 - **Prompt skills** — `mode.json` declares `prompt.catalog_prefix`, and each
@@ -48,9 +50,9 @@ and the prompt catalog commands to read the underlying skill body when needed.
 
 | Folder | Scope | Run strategy | Shape |
 |--------|-------|--------------|-------|
-| [`item-level/`](item-level/) | `backlog_item` | `existing_item_flow` | Default. Each item drains through the existing item pipeline; no mode rounds. |
-| [`holistic-loop/`](holistic-loop/) | `initiative` | `operator_gated_loop` | `investigate → plan → execute → review → reconcile`, with `execute` looping back to `investigate` when `replan_needed`, and `review` looping back to `execute` when `verdict=changes_requested`. |
-| [`phased-plan-drain/`](phased-plan-drain/) | `initiative` | `sequential_handoff` | `prepare_plan → execute_next → classify_progress → …`, branching on the progress decision (continue / replan / complete / blocked). |
+| [`item-level/`](item-level/) | `initiative` | `existing_item_flow` | Default. Each item drains through the existing item pipeline; no mode rounds. |
+| [`holistic-loop/`](holistic-loop/) | `initiative` | `operator_gated_loop` | `investigate → plan → execute → review → reconcile`. `plan` authors and binds the plan-manager plan; `execute` is `executed_by: phased-plan-drain` (composes the generic drain), routing `progress=complete → review` and `progress=blocked → investigate` (the composed replan); `review` loops back to `execute` when `verdict=changes_requested`. |
+| [`phased-plan-drain/`](phased-plan-drain/) | `plan-manager-plan` | `sequential_handoff` | The generic plan-first drain: a single `execute` phase loops on itself via one classified edge deriving `progress` (continue → execute, complete / blocked → guarded stop). No terminal phase — every stop is a guarded stop. |
 
 ## Authoring a new mode
 

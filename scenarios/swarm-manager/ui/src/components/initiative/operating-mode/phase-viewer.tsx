@@ -23,21 +23,16 @@ import {
 import { cn } from "../../../lib/utils";
 import { selectors } from "../../../consts/selectors";
 import { StatusChip } from "../../ui/status-chip";
-import type {
-  OperatingModeArtifactSnapshot,
-  OperatingModeRound,
-  OperatingModeRoundItem,
-} from "../../../types/operating-mode";
+import type { OperatingModePhaseResolutionRecord } from "../../../types/operating-mode";
 import {
   describeTransition,
   formatTransition,
-  PHASE_READ_CATEGORIES,
   phaseTraceEmits,
+  READ_VARIABLE_MEANINGS,
   type PhaseEmitSpec,
-  type PhaseReadCategory,
   type TransitionExplanation,
 } from "./phase-interpretability";
-import type { PhaseView, PhaseViewReads } from "./phase-view";
+import type { PhaseView, PhaseViewRead, PhaseViewReads } from "./phase-view";
 import { usePhasePrompt } from "./use-phase-prompt";
 import { PhaseProfilePopover } from "./phase-profile-popover";
 
@@ -254,100 +249,86 @@ function VariableTable({ variables }: { variables: Record<string, string> }) {
 
 // ── Reads ────────────────────────────────────────────────────────────────
 
+// ReadsTab renders the phase's declared, composed read contract grouped by
+// supplying provider (generic base vs the mode's target adapter). The groups
+// come straight from the mode data — a plan-target phase and an initiative-
+// target phase render different, scope-appropriate groups with no UI change.
 function ReadsTab({ reads }: { reads?: PhaseViewReads }) {
+  const base = reads?.base ?? [];
+  const target = reads?.target ?? [];
+  if (base.length === 0 && target.length === 0) {
+    return (
+      <section data-testid={selectors.initiativeDetails.flowTraceReads}>
+        <p className="text-[11px] italic text-slate-500">This phase declares no reads.</p>
+      </section>
+    );
+  }
   return (
     <section data-testid={selectors.initiativeDetails.flowTraceReads}>
       <p className="text-[11px] text-slate-500">
-        Each card is one prompt variable this phase reads from context.
+        The declared input contract, grouped by supplying provider — the symmetric twin of Emits.
       </p>
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        {PHASE_READ_CATEGORIES.map((category) => (
-          <ReadCard
-            key={category.key}
-            label={category.label}
-            meaning={category.meaning}
-            variable={category.variable}
-            category={category.key}
-            reads={reads}
-          />
-        ))}
+      <div className="mt-2 space-y-3">
+        <ReadGroup
+          title="Generic base"
+          description="Supplied by the engine for every target."
+          reads={base}
+          testId="phase-reads-group-base"
+        />
+        <ReadGroup
+          title="Target adapter"
+          description="Supplied by this mode's target (initiative or plan)."
+          reads={target}
+          testId="phase-reads-group-target"
+        />
       </div>
     </section>
   );
 }
 
-function ReadCard({
-  label,
-  meaning,
-  variable,
-  category,
+function ReadGroup({
+  title,
+  description,
   reads,
+  testId,
 }: {
-  label: string;
-  meaning: string;
-  variable: string;
-  category: PhaseReadCategory;
-  reads?: PhaseViewReads;
+  title: string;
+  description: string;
+  reads: PhaseViewRead[];
+  testId: string;
 }) {
-  const summary = reads ? readSummary(reads, category) : null;
+  if (reads.length === 0) return null;
   return (
-    <div className="rounded border border-slate-800/80 bg-slate-950/50 p-2.5" title={meaning}>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs font-medium text-slate-200">{label}</span>
-        {summary ? (
-          <span className="text-xs tabular-nums text-slate-400">{summary.count}</span>
-        ) : null}
+    <div data-testid={testId}>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{title}</p>
+      <p className="text-[11px] text-slate-600">{description}</p>
+      <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+        {reads.map((read) => (
+          <ReadCard key={read.variable} read={read} />
+        ))}
       </div>
-      <code className="mt-0.5 block truncate font-mono text-[10px] text-cyan-200/80">{`{{${variable}}}`}</code>
-      {summary && summary.details.length > 0 ? (
-        <ul className="mt-1.5 space-y-0.5">
-          {summary.details.map((detail, idx) => (
-            <li key={idx} className="truncate text-[11px] text-slate-400" title={detail}>
-              {detail}
-            </li>
-          ))}
-        </ul>
-      ) : summary ? (
-        <p className="mt-1.5 text-[11px] italic text-slate-600">none</p>
-      ) : (
-        <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">{meaning}</p>
-      )}
     </div>
   );
 }
 
-function readSummary(
-  reads: PhaseViewReads,
-  category: PhaseReadCategory,
-): { count: number; details: string[] } {
-  switch (category) {
-    case "items": {
-      const items: OperatingModeRoundItem[] = reads.items;
-      return {
-        count: items.length,
-        details: withOverflow(
-          items.map((item) => (item.title ? `${item.ref} — ${item.title}` : item.ref)),
-          3,
-        ),
-      };
-    }
-    case "artifacts": {
-      const artifacts: OperatingModeArtifactSnapshot[] = reads.artifacts;
-      return { count: artifacts.length, details: withOverflow(artifacts.map((a) => a.path), 3) };
-    }
-    case "priorRounds": {
-      const rounds: OperatingModeRound[] = reads.priorRounds;
-      const last = rounds[rounds.length - 1];
-      return {
-        count: rounds.length,
-        details: last ? [`latest: round ${last.round} · ${last.phase}`] : [],
-      };
-    }
-    case "acceptanceCriteria": {
-      const criteria = reads.acceptanceCriteria;
-      return { count: criteria.length, details: withOverflow(criteria, 2) };
-    }
-  }
+function ReadCard({ read }: { read: PhaseViewRead }) {
+  const meaning = READ_VARIABLE_MEANINGS[read.variable] ?? "";
+  return (
+    <div
+      className="rounded border border-slate-800/80 bg-slate-950/50 p-2.5"
+      data-testid={`phase-read-${read.variable}`}
+      title={meaning}
+    >
+      <code className="block truncate font-mono text-[10px] text-cyan-200/80">{`{{${read.variable}}}`}</code>
+      {read.value !== undefined ? (
+        <p className="mt-1 truncate text-[11px] text-slate-300" title={read.value}>
+          {read.value.trim() === "" ? <span className="italic text-slate-600">empty</span> : truncate(read.value, 120)}
+        </p>
+      ) : meaning ? (
+        <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{meaning}</p>
+      ) : null}
+    </div>
+  );
 }
 
 // ── Emits ────────────────────────────────────────────────────────────────
@@ -508,14 +489,21 @@ function TransitionTab({ view }: { view: PhaseView }) {
     return (
       <section data-testid={selectors.initiativeDetails.flowTraceTransition}>
         <p className="text-[11px] text-slate-500">Every outgoing route this phase can take.</p>
+        {view.classification && <ClassificationContract classification={view.classification} />}
         {view.declaredTransitions.length > 0 ? (
           <ul className="mt-2 space-y-1">
             {view.declaredTransitions.map((transition) => (
               <li
                 key={`${transition.from}-${transition.to}-${transition.label}`}
-                className="text-xs text-slate-300"
+                className="flex flex-wrap items-center gap-1.5 text-xs text-slate-300"
               >
-                {formatTransition(transition)}
+                <span>{formatTransition(transition)}</span>
+                {transition.classified && (
+                  <StatusChip
+                    label="classified"
+                    colors={{ background: "bg-cyan-500/10", border: "border-cyan-500/30", text: "text-cyan-300" }}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -531,6 +519,9 @@ function TransitionTab({ view }: { view: PhaseView }) {
   return (
     <section data-testid={selectors.initiativeDetails.flowTraceTransition}>
       <p className="text-[11px] text-slate-500">Why the next phase was chosen.</p>
+      {view.transitionClassification && (
+        <ClassificationOutcome record={view.transitionClassification} />
+      )}
       <div className="mt-2 flex items-start gap-2">
         <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone.color}`} aria-hidden="true" />
         <div className="min-w-0">
@@ -539,6 +530,72 @@ function TransitionTab({ view }: { view: PhaseView }) {
         </div>
       </div>
     </section>
+  );
+}
+
+// ClassificationContract renders a phase's classification-on-transition contract
+// as a built-in step (not an agent phase): the routing field derived at the
+// edge, the closed enum, and the handoff field it derives from.
+function ClassificationContract({
+  classification,
+}: {
+  classification: NonNullable<PhaseView["classification"]>;
+}) {
+  return (
+    <div
+      className="mt-2 rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2.5 py-2 text-[11px] text-slate-300"
+      data-testid="phase-transition-classification-contract"
+    >
+      <p className="font-medium text-cyan-200">Classification-on-transition (built-in step)</p>
+      <p className="mt-1 leading-relaxed text-slate-400">
+        Derives <code className="font-mono text-cyan-200/90">{classification.field}</code>
+        {classification.enum.length > 0 && (
+          <> ∈ {"{"}
+            {classification.enum.join(", ")}
+            {"}"}</>
+        )}
+        {classification.from && (
+          <> from <code className="font-mono text-cyan-200/90">{classification.from}</code></>
+        )}{" "}
+        at the edge via the resolution ladder — no agent round. Abstains to needs_attention rather than guessing.
+      </p>
+      {classification.description && (
+        <p className="mt-1 italic text-slate-500">{classification.description}</p>
+      )}
+    </div>
+  );
+}
+
+// ClassificationOutcome renders how a completed round's routing field was
+// derived at the edge (or that it abstained to needs_attention).
+function ClassificationOutcome({ record }: { record: OperatingModePhaseResolutionRecord }) {
+  const abstained = record.outcome === "abstain" || record.outcome === "abstained";
+  return (
+    <div
+      className={cn(
+        "mt-2 rounded-md border px-2.5 py-2 text-[11px]",
+        abstained
+          ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+          : "border-cyan-500/20 bg-cyan-500/5 text-slate-300",
+      )}
+      data-testid="phase-transition-classification-outcome"
+    >
+      <p className="font-medium text-slate-200">Classification-on-transition</p>
+      {abstained ? (
+        <p className="mt-1 leading-relaxed">
+          Derivation abstained{record.layer ? ` at ${record.layer}` : ""} — the round parked in needs_attention rather
+          than fabricating a route.
+        </p>
+      ) : (
+        <p className="mt-1 leading-relaxed text-slate-400">
+          Derived <code className="font-mono text-cyan-200/90">{record.classifiedField || "routing field"}</code>
+          {record.classifiedValue && (
+            <> = <code className="font-mono text-cyan-200/90">{record.classifiedValue}</code></>
+          )}
+          {record.layer && <> via {record.layer}</>}.
+        </p>
+      )}
+    </div>
   );
 }
 

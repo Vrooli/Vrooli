@@ -38,7 +38,7 @@ function workspace(rounds: OperatingModeRound[]): OperatingModeWorkspace {
     definition: {
       mode: "holistic-loop",
       label: "Holistic Loop",
-      scopeKind: "initiative",
+      targetKind: "initiative",
       capabilities: {
         supportsPhases: true,
         canStartPhases: true,

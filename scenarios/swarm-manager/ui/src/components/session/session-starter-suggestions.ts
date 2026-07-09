@@ -108,14 +108,17 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
     case "operating_mode_authoring":
       return [
         {
-          id: "mode-classify",
-          icon: Search,
-          text: "Classify whether this workflow deserves a new operating mode.",
+          id: "mode-describe",
+          icon: Workflow,
+          text: "Describe a workflow and I'll propose a phase graph that reuses existing modes.",
+          detail: "Name the unit of work and each step; I'll map it to a target, phases, reads, and classified transitions before writing any data.",
         },
         {
-          id: "mode-draft",
+          id: "mode-start-from",
           icon: GitPullRequestArrow,
-          text: "Scaffold a new mode folder, then validate and simulate it — no Go edits.",
+          text: "Start a new mode from the closest existing one, then adapt it.",
+          detail: "Reuse-first: clone an existing mode (or compose the generic drain via executed_by) instead of a blank template.",
+          requirements: [{ kind: "context", type: "operating_mode" }],
         },
         {
           id: "mode-compare",

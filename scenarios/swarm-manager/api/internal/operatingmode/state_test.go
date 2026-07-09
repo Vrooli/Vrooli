@@ -114,7 +114,7 @@ func buildTransitionTestMode(guards map[Phase][]GuardedTransition) Definition {
 	return Definition{
 		Mode:        "transition-test",
 		Label:       "Transition Test",
-		Scope:       ScopePolicy{Kind: ScopeInitiative},
+		Target:      TargetPolicy{Kind: TargetInitiative},
 		RunStrategy: RunStrategyPolicy{Kind: RunStrategyOperatorGatedLoop},
 		PhaseGraph: PhaseGraph{
 			StartPhase: "investigate",

@@ -31,8 +31,7 @@ func TestInitiativeModesCarryPhaseProfilePolicy(t *testing.T) {
 	}{
 		{ModeHolisticLoop, "investigate", ProfileDeepWork},
 		{ModeHolisticLoop, "review", ProfileAnalysis},
-		{ModePhasedPlanDrain, "execute_next", ProfileDeepWork},
-		{ModePhasedPlanDrain, "classify_progress", ProfileAnalysis},
+		{ModePhasedPlanDrain, "execute", ProfileDeepWork},
 	}
 
 	for _, tc := range cases {
@@ -91,7 +90,7 @@ func TestCatalogDerivesModesFromRegistry(t *testing.T) {
 		if mode.Default {
 			defaultCount++
 		}
-		if mode.Label == "" || mode.ScopeKind == "" || mode.RunStrategy == "" || mode.WorkspaceTabID == "" {
+		if mode.Label == "" || mode.TargetKind == "" || mode.RunStrategy == "" || mode.WorkspaceTabID == "" {
 			t.Fatalf("catalog mode has missing fields: %+v", mode)
 		}
 	}
@@ -210,7 +209,7 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 			name: "unknown result binding kind",
 			mutate: func(defs map[Mode]Definition) {
 				def := defs[ModePhasedPlanDrain]
-				phase := def.PhaseGraph.Phases["classify_progress"]
+				phase := def.PhaseGraph.Phases["execute"]
 				phase.ResultBindings = []ResultBinding{{
 					Kind: "mystery",
 					Artifact: ArtifactDefinition{
@@ -219,7 +218,7 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 						Required:    true,
 					},
 				}}
-				def.PhaseGraph.Phases["classify_progress"] = phase
+				def.PhaseGraph.Phases["execute"] = phase
 				defs[ModePhasedPlanDrain] = def
 			},
 			want: "unknown kind",
@@ -228,7 +227,7 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 			name: "result binding artifact must be declared output",
 			mutate: func(defs map[Mode]Definition) {
 				def := defs[ModePhasedPlanDrain]
-				phase := def.PhaseGraph.Phases["classify_progress"]
+				phase := def.PhaseGraph.Phases["execute"]
 				phase.OutputArtifacts = nil
 				phase.OutputContract.RequiredArtifacts = nil
 				phase.ResultBindings = []ResultBinding{{
@@ -239,7 +238,7 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 						Required:    true,
 					},
 				}}
-				def.PhaseGraph.Phases["classify_progress"] = phase
+				def.PhaseGraph.Phases["execute"] = phase
 				defs[ModePhasedPlanDrain] = def
 			},
 			want: "is not declared as a phase output",
@@ -362,12 +361,8 @@ func TestInitiativeModePhasesCarryStableActivityPurposes(t *testing.T) {
 	}{
 		{ModeHolisticLoop, "investigate", "holistic_loop_investigate"},
 		{ModeHolisticLoop, "plan", "holistic_loop_plan"},
-		{ModeHolisticLoop, "execute", "holistic_loop_execute"},
 		{ModeHolisticLoop, "review", "holistic_loop_review"},
-		{ModePhasedPlanDrain, "prepare_plan", "phased_plan_prepare"},
-		{ModePhasedPlanDrain, "execute_next", "phased_plan_execute_next"},
-		{ModePhasedPlanDrain, "classify_progress", "phased_plan_classify_progress"},
-		{ModePhasedPlanDrain, "review", "phased_plan_review"},
+		{ModePhasedPlanDrain, "execute", "phased_plan_execute_next"},
 	}
 
 	for _, tc := range cases {
@@ -403,7 +398,7 @@ func TestLoaderDerivesCommonAuthoringPolicy(t *testing.T) {
 	  "not_for": ["Production work"],
 	  "tradeoffs": ["Test-only"],
 	  "when_in_doubt_pick_instead": "item-level",
-	  "scope": { "kind": "initiative" },
+	  "target": { "kind": "initiative" },
 	  "run_strategy": { "kind": "single_phase_run" },
 	  "prompt": { "catalog_prefix": "swarm-manager-synthetic" },
 	  "artifact": { "root": "modes/synthetic" },
@@ -425,6 +420,7 @@ func TestLoaderDerivesCommonAuthoringPolicy(t *testing.T) {
 	        "id": "draft",
 	        "kind": "investigate",
 	        "activity_purpose": "synthetic_draft",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
 	        "profile_key": "swarm-manager/deep-work",
 	        "declared_output": {
 	          "fields": [{ "name": "progress", "type": "object", "required": true, "description": "Progress state." }]
@@ -439,6 +435,7 @@ func TestLoaderDerivesCommonAuthoringPolicy(t *testing.T) {
 	        "id": "review",
 	        "kind": "review",
 	        "activity_purpose": "synthetic_review",
+        "reads": ["OPERATING_MODE", "PHASE", "ROUND_NUMBER", "OPERATOR_NOTE", "PRIOR_ROUNDS_JSON", "INITIATIVE_NAME", "MEMBER_ITEMS_JSON"],
 	        "profile_key": "swarm-manager/analysis",
 	        "requires_criteria": true,
 	        "prompt": { "suffix": "final-review" },
@@ -457,8 +454,8 @@ func TestLoaderDerivesCommonAuthoringPolicy(t *testing.T) {
 		t.Fatalf("LoadModeDefinition: %v", err)
 	}
 
-	if def.Scope.Kind != ScopeInitiative {
-		t.Fatalf("scope = %q, want %q", def.Scope.Kind, ScopeInitiative)
+	if def.Target.Kind != TargetInitiative {
+		t.Fatalf("target = %q, want %q", def.Target.Kind, TargetInitiative)
 	}
 	if def.Artifact.RoundRoot != "modes/synthetic/rounds" {
 		t.Fatalf("round root = %q", def.Artifact.RoundRoot)
