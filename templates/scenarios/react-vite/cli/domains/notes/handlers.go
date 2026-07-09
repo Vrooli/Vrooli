@@ -19,8 +19,7 @@ import (
 // user omits --window.
 const defaultTimeWindow = "this_week"
 
-// handlers bundles the closure over *cliapp.ScenarioApp so each
-// RunCtx-func has typed access to the API client without re-resolving it.
+// handlers owns the notes API client used by the CLI command primitives.
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client notesconnect.NotesServiceClient
@@ -34,24 +33,26 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-// list calls the generated Connect-RPC Notes.List method. Output routing:
-// human consumers see a ListReport; --json consumers see the proto-typed
-// ListNotesResponse wire shape, identical to what `curl /Notes/List` returns.
-func (h *handlers) list(ctx cliapp.RunContext) error {
+// listCall runs Notes.ListNotes (the proto_list operation).
+func (h *handlers) listCall(_ cliapp.OperationContext) (*notesv1.ListNotesResponse, error) {
 	resp, err := h.client.ListNotes(context.Background(), connect.NewRequest(&notesv1.ListNotesRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("list notes", err, nil)
+		return nil, cliapp.WrapAPIError("list notes", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no notes response")
+		return nil, fmt.Errorf("server returned no notes response")
 	}
+	return resp.Msg, nil
+}
 
-	results := make([]string, 0, len(resp.Msg.Notes))
-	for _, n := range resp.Msg.Notes {
+// listReport renders the list response as the human ListReport.
+func (h *handlers) listReport(_ cliapp.OperationContext, msg *notesv1.ListNotesResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Notes))
+	for _, n := range msg.Notes {
 		results = append(results, formatNote(n))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d note(s).", len(resp.Msg.Notes))},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d note(s).", len(msg.Notes))},
 		ResultsHeading: "Notes",
 		Results:        results,
 		RetrievalHints: []string{
@@ -59,85 +60,97 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			"`notes create --title <title>` — create a new note",
 			"`notes attach <id> --file <path>` — attach a file to a note",
 		},
-	})
+	}
 }
 
-// create calls the generated Connect-RPC Notes.Create method. Required-flag
-// enforcement (--title) is handled by cli-core's parser via the ArgSchema
-// declared in register.go; this handler is reached only when the flag is
-// present.
-func (h *handlers) create(ctx cliapp.RunContext) error {
+// createCall runs Notes.CreateNote (the proto_mutation operation).
+func (h *handlers) createCall(ctx cliapp.OperationContext) (*notesv1.CreateNoteResponse, error) {
 	resp, err := h.client.CreateNote(context.Background(), connect.NewRequest(&notesv1.CreateNoteRequest{
 		Title: ctx.Flag("title"),
 		Body:  ctx.Flag("body"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("create note", err, nil)
+		return nil, cliapp.WrapAPIError("create note", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Note == nil {
-		return fmt.Errorf("server returned no note")
+		return nil, fmt.Errorf("server returned no note")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Created note %s.", resp.Msg.Note.Id)},
-		Changes: []string{formatNote(resp.Msg.Note)},
-		NextCommand: []string{
-			fmt.Sprintf("`notes get %s` — show this note", resp.Msg.Note.Id),
-			"`notes list` — show all notes",
-		},
-	})
+	return resp.Msg, nil
 }
 
-// get calls the generated Connect-RPC Notes.Get method for a single note id.
-// Required-positional enforcement is handled by cli-core's parser via the
-// ArgSchema declared in register.go.
-func (h *handlers) get(ctx cliapp.RunContext) error {
+// createReport renders the create response as the human MutationReport.
+func (h *handlers) createReport(_ cliapp.OperationContext, msg *notesv1.CreateNoteResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Created note %s.", msg.Note.Id)},
+		Changes: []string{formatNote(msg.Note)},
+		NextCommand: []string{
+			fmt.Sprintf("`notes get %s` — show this note", msg.Note.Id),
+			"`notes list` — show all notes",
+		},
+	}
+}
+
+// getCall runs Notes.GetNote for a single id (the proto_list operation).
+func (h *handlers) getCall(ctx cliapp.OperationContext) (*notesv1.GetNoteResponse, error) {
 	id := ctx.Positional("id")
 	resp, err := h.client.GetNote(context.Background(), connect.NewRequest(&notesv1.GetNoteRequest{Id: id}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("get note %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("get note %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Note == nil {
-		return fmt.Errorf("server returned no note")
+		return nil, fmt.Errorf("server returned no note")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Fetched note %s.", resp.Msg.Note.Id)},
-		ResultsHeading: "Note",
-		Results:        []string{formatNote(resp.Msg.Note)},
-	})
+	return resp.Msg, nil
 }
 
-// count calls the generated Connect-RPC Notes.CountNotes method — the
-// reference measure. It maps the --window token to the shared canonical
-// TimeWindow proto (defaulting to this_week, matching the manifest measure
-// default) so the same question answered through search-hub and through this
-// command resolve the identical range.
-func (h *handlers) count(ctx cliapp.RunContext) error {
+// getReport renders the single-note response as the human ListReport.
+func (h *handlers) getReport(_ cliapp.OperationContext, msg *notesv1.GetNoteResponse) cliapp.ListReport {
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Fetched note %s.", msg.Note.Id)},
+		ResultsHeading: "Note",
+		Results:        []string{formatNote(msg.Note)},
+	}
+}
+
+// countCall maps --window to the shared TimeWindow proto used by the manifest
+// measure, then runs Notes.CountNotes (the proto_list operation).
+func (h *handlers) countCall(ctx cliapp.OperationContext) (*notesv1.CountNotesResponse, error) {
 	window := strings.TrimSpace(ctx.Flag("window"))
 	if window == "" {
 		window = defaultTimeWindow
 	}
 	token, err := timeWindowToken(window)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp, err := h.client.CountNotes(context.Background(), connect.NewRequest(&notesv1.CountNotesRequest{
 		Window: &measuresv1.TimeWindow{Window: &measuresv1.TimeWindow_Token{Token: token}},
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("count notes", err, nil)
+		return nil, cliapp.WrapAPIError("count notes", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no count response")
+		return nil, fmt.Errorf("server returned no count response")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%d note(s) created (%s).", resp.Msg.Count, window)},
+	return resp.Msg, nil
+}
+
+// countReport renders the count response as the human ListReport. It re-derives
+// the window token for display only (the call already validated it).
+func (h *handlers) countReport(ctx cliapp.OperationContext, msg *notesv1.CountNotesResponse) cliapp.ListReport {
+	window := strings.TrimSpace(ctx.Flag("window"))
+	if window == "" {
+		window = defaultTimeWindow
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%d note(s) created (%s).", msg.Count, window)},
 		ResultsHeading: "Notes created",
-		Results:        []string{fmt.Sprintf("%d (%s)", resp.Msg.Count, window)},
+		Results:        []string{fmt.Sprintf("%d (%s)", msg.Count, window)},
 		RetrievalHints: []string{
 			"`notes count --window last_30d` — widen the window",
 			"`notes list` — show the notes themselves",
 		},
-	})
+	}
 }
 
 // timeWindowToken maps a lowercase canonical token (this_week, last_7d, …) to

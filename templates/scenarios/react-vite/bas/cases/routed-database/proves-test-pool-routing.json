@@ -6,7 +6,9 @@
     "version": "1",
     "labels": {
       "reset": "none",
-      "purpose": "routed-test-db-proof"
+      "purpose": "routed-test-db-proof",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
     "execution_mode": "mutating"
   },
@@ -21,7 +23,7 @@
         "type": "ACTION_TYPE_NAVIGATE",
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "@scenario/self",
+          "scenario": "{{SCENARIO_ID}}",
           "scenario_path": "/",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000

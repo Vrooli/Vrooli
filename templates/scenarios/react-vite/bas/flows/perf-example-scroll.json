@@ -19,7 +19,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid='app-shell']",
+          "selector": "@selector/layout.shell",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -31,7 +31,7 @@
       "action": {
         "type": "ACTION_TYPE_SCROLL",
         "scroll": {
-          "selector": "[data-testid='app-shell']",
+          "selector": "@selector/layout.shell",
           "delta_y": 2000
         },
         "metadata": { "label": "Scroll the shell (replace with the journey under audit)" }

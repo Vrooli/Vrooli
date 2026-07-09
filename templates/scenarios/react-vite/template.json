@@ -303,6 +303,11 @@
       "description": "Generate the static primitive-evidence artifact (.vrooli/generated/cli-primitive-evidence.json) so cli-health can verify command architecture from committed evidence",
       "cmd": "UPDATE_CLI_EVIDENCE=1 GOWORK=off go test -run TestPrimitiveEvidenceArtifactCurrent .",
       "cwd": "cli"
+    },
+    {
+      "description": "Install the generated CLI so runtime contract validation probes the fresh command surface",
+      "cmd": "bash ./install.sh",
+      "cwd": "cli"
     }
   ],
   "relocations": [

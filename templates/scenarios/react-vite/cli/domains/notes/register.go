@@ -1,16 +1,6 @@
-// Package notes is the CLI's notes-domain command surface. Mirrors
-// the API's Connect-RPC Notes service, plus the /api/v1/notes/{id}/attachments
-// REST exception, and the UI's api/notes.ts client.
-//
-// New domain packages copy this shape: a Register(core, manifest) returning
-// a cliapp.SubcommandGroup built from cli/manifest.json via
-// cliapp.LoadFromManifest, plus one handler per Connect-RPC subcommand in
-// handlers.go. The manifest carries the declarative surface (governance,
-// flags, positionals, RPC bindings) and is the SINGLE source of truth for
-// the command-line shape; do not hand-author SubcommandGroup literals for
-// Connect-RPC commands. The `attach` subcommand is the documented REST
-// multipart exception and is appended directly because the cli-manifest/v1
-// schema only models connect-rpc bindings.
+// Package notes is the CLI's notes-domain command surface. Connect-RPC commands
+// come from cli/manifest.json and are wired to matching cli-core primitives;
+// attach is the documented REST multipart exception.
 package notes
 
 import (
@@ -24,19 +14,16 @@ import (
 // the same manifest the runtime loads.
 const GroupName = "notes"
 
-// Register builds the notes subcommand group from the embedded manifest
-// and wires Connect-RPC bindings to handlers in handlers.go. The
-// `notes attach` REST exception is appended outside the manifest path
-// because cli-manifest/v1 only supports binding.kind=connect-rpc.
+// Register builds the notes subcommand group from the embedded manifest.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"NotesService.ListNotes":  h.list,
-		"NotesService.CreateNote": h.create,
-		"NotesService.GetNote":    h.get,
-		"NotesService.CountNotes": h.count,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"NotesService.ListNotes":  cliapp.ProtoList(h.listCall, h.listReport),
+		"NotesService.CreateNote": cliapp.ProtoMutation(h.createCall, h.createReport),
+		"NotesService.GetNote":    cliapp.ProtoList(h.getCall, h.getReport),
+		"NotesService.CountNotes": cliapp.ProtoList(h.countCall, h.countReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("notes: load from manifest: %w", err)
 	}
@@ -51,7 +38,10 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 				{Name: "file", Required: true, Description: "File path to upload"},
 			},
 		},
-		RunCtx: h.attach,
-	})
+		Architecture: cliapp.CommandArchitecture{
+			Exception:       cliapp.ExceptionUpload,
+			ExceptionReason: "REST multipart file upload",
+		},
+	}.WithPrimitive(cliapp.Upload(h.attachCall, h.attachReport)))
 	return group, nil
 }

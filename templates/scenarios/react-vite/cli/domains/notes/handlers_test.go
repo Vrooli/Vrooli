@@ -108,6 +108,25 @@ func note(id, title string) *notesv1.Note {
 	}
 }
 
+// Test helpers: invoke each command through the SAME cli-core primitive the
+// production Register wires, so the tests exercise the verified
+// renderer-separated path (operation half + render half) end to end.
+func (h *handlers) list(ctx cliapp.RunContext) error {
+	return cliapp.ProtoList(h.listCall, h.listReport).Run(ctx)
+}
+
+func (h *handlers) create(ctx cliapp.RunContext) error {
+	return cliapp.ProtoMutation(h.createCall, h.createReport).Run(ctx)
+}
+
+func (h *handlers) get(ctx cliapp.RunContext) error {
+	return cliapp.ProtoList(h.getCall, h.getReport).Run(ctx)
+}
+
+func (h *handlers) count(ctx cliapp.RunContext) error {
+	return cliapp.ProtoList(h.countCall, h.countReport).Run(ctx)
+}
+
 func TestNotesList_RendersResults(t *testing.T) {
 	svc := &notesService{listResp: &notesv1.ListNotesResponse{
 		Notes: []*notesv1.Note{note("a", "first"), note("b", "second")},
@@ -381,6 +400,44 @@ func TestNotesAttach_UploadsMultipart(t *testing.T) {
 	require.Contains(t, out.String(), "notes/abc/attachments/note.txt")
 }
 
+func TestNotesAttach_JSONIsProtoWireShape(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseMultipartForm(32<<20))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write(cliapptest.MustMarshalProto(t, &notesv1.UploadAttachmentResponse{
+			Attachment: &notesv1.Attachment{
+				Key:       "notes/abc/attachments/note.txt",
+				MimeType:  "text/plain",
+				SizeBytes: 5,
+				NoteId:    "abc",
+			},
+		}))
+	})
+	core := clitest.NewTestApp(t, handler)
+	h := newHandlers(core)
+	tmp := t.TempDir() + "/note.txt"
+	require.NoError(t, os.WriteFile(tmp, []byte("hello"), 0o600))
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "file"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"id": "abc"},
+		Flags:       map[string]string{"file": tmp},
+		JSON:        true,
+	})
+
+	require.NoError(t, h.attach(ctx))
+	require.NotContains(t, out.String(), "result",
+		"--json output must be proto wire shape, not the human MutationReport wrapper")
+
+	var got notesv1.UploadAttachmentResponse
+	require.NoError(t, protojson.Unmarshal(out.Bytes(), &got))
+	require.NotNil(t, got.Attachment)
+	require.Equal(t, "abc", got.Attachment.NoteId)
+	require.Equal(t, "notes/abc/attachments/note.txt", got.Attachment.Key)
+}
+
 func TestNotesAttach_RequiresFile(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
 	attachCmd := findSubcommand(t, registerForTest(t, core), "attach")
@@ -422,4 +479,34 @@ func TestRegister_Wiring(t *testing.T) {
 	for _, sc := range group.Subcommands {
 		require.NotNil(t, sc.RunCtx, "subcommand %s should use RunCtx", sc.Name)
 	}
+}
+
+// TestNotesCommands_CarryVerifiedPrimitiveEvidence is the golden guard that
+// protects future generated scenarios from regressing to self-certified
+// architecture metadata: every command with an architecture declaration must
+// carry matching cli-core primitive evidence, so CLI Health can verify (not
+// merely trust) the L4 claim. `attach` is the documented REST upload exception
+// appended outside the manifest binding path, and now carries upload evidence
+// through cliapp.Upload.
+func TestNotesCommands_CarryVerifiedPrimitiveEvidence(t *testing.T) {
+	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
+	group := registerForTest(t, core)
+
+	want := map[string]cliapp.PrimitiveClass{
+		"list":   cliapp.PrimitiveProtoList,
+		"create": cliapp.PrimitiveProtoMutation,
+		"get":    cliapp.PrimitiveProtoList,
+		"count":  cliapp.PrimitiveProtoList,
+	}
+	for name, prim := range want {
+		cmd := findSubcommand(t, group, name)
+		cliapptest.AssertPrimitiveEvidence(t, cmd, prim)
+		cliapptest.AssertDeclaredArchitecture(t, cmd, cliapp.CommandArchitecture{Primitive: prim})
+	}
+	attach := findSubcommand(t, group, "attach")
+	cliapptest.AssertPrimitiveEvidence(t, attach, cliapp.PrimitiveUpload)
+	cliapptest.AssertDeclaredArchitecture(t, attach, cliapp.CommandArchitecture{
+		Exception:       cliapp.ExceptionUpload,
+		ExceptionReason: "REST multipart file upload",
+	})
 }
