@@ -9,7 +9,7 @@ are still open describe the only remaining template-adoption work.
 
 Run `make orient` from this directory whenever you want a
 machine-readable progress check. It delegates to
-`vrooli scenario orient web-console`, which reads
+`template-manager orient web-console`, which reads
 `.vrooli/orientation.json`.
 
 Unlike a freshly generated scenario, web-console is **past initial

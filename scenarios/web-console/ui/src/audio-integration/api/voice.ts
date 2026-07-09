@@ -247,9 +247,14 @@ function apiBaseToWsBase(apiBase: string): string {
  */
 export function buildVoiceStreamWsUrl(language?: string): string {
   const wsBase = apiBaseToWsBase(API_BASE.replace(/\/$/, ""));
-  const url = `${wsBase}/api/v1/voice/stream`;
-  if (language) return `${url}?language=${encodeURIComponent(language)}`;
-  return url;
+  // Declare-first (audio-tools/audioformat): the web-console always records
+  // WebM/Opus via MediaRecorder, so declare `format=webm` rather than relying on
+  // the backend sniffing the first chunk. Sniffing is fragile — if the leading
+  // frame on the wire isn't the WebM/EBML header it fails with "could not
+  // determine audio codec"; declaring the codec skips the sniff entirely.
+  const params = new URLSearchParams({ format: "webm" });
+  if (language) params.set("language", language);
+  return `${wsBase}/api/v1/voice/stream?${params.toString()}`;
 }
 
 export async function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {

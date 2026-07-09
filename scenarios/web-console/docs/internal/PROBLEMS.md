@@ -123,6 +123,157 @@ This cannot *recover* an already-wedged mic (still a platform limitation, §8a),
 but it removes the app behaviours that put the session into that state. See
 [VOICE-LATENCY.md §3 (AudioContext lifecycle) + §5 (low-latency removed)].
 
+## 8c. Mic auto-stops mid-sentence under kyutai — client RMS VAD is sole authority (2026-07-08, under triage)
+
+**Symptom:** during *continuous* dictation the microphone abruptly stops ~10 s in
+(before any real timeout) and the rest of the utterance is lost. This surfaced
+right after the streaming backpressure wedge was fixed (audio-tools `PROBLEMS.md`
+2026-07-08): the fix synced mic-state to actual transcription, so a premature
+turn-end is now *visible* instead of masked by a frozen-but-still-green mic.
+
+**Root cause (diagnosed):** the live STT engine is **kyutai/passthrough**, which
+emits **no `vad-state`** events (unlike whisper-VADSegment). So on the client the
+auto-stop SSOT `decideAutoStop` (`hooks/voice/autoStopDecision.ts`) has no server
+tick (`serverVad.receivedAt === 0`) and falls to **§2: the client RMS VAD is the
+SOLE turn-ending authority**. Under whisper the server VAD was authoritative and
+vetoed the client VAD's known "stops while I'm still talking" false positives
+(both signals had to agree); under kyutai that veto is gone. A client-VAD silence
+verdict (`vadTick` → `stop` after `silenceTimeoutMs` of RMS below `speechThreshold`)
+then ends the *whole turn* whenever the analyser reads silence — which happens when
+the audio source stops delivering samples even though the user is still speaking:
+  1. **Muted mic track** — the OS/browser mutes the track on sleep/wake, a
+     default-input-device change, or another app seizing the mic. The `ended`
+     event does NOT fire for muting (`streamHealth.isTrackUsable`), so no samples
+     flow yet the track stays "live" and the analyser reads pure silence.
+  2. **Suspended AudioContext** — if the shared context suspends mid-capture
+     (`ctx.state !== "running"`), the analyser returns flat/silent data.
+  3. **Threshold miscalibration** — the adaptive `speechThreshold` (= noise floor
+     × 3) rising above the user's real speech RMS in a noisy room.
+
+Relay evidence: sessions close `graceful=true tailFinalDelivered=true` in a
+regular ~10–12 s cadence — i.e. **client-initiated** stops, not backend kills. The
+frequent kyutai `reaping wedged prior streaming session` warnings are a *separate*
+benign-but-noisy lock-release-latency issue (the relay dials kyutai and takes
+`MODEL.lock` the instant the browser WS connects — including the mount-time
+pre-connect — so overlapping/rapid sessions reap already-delivered holders; NOT
+the cause of the mic stop; tracked as a follow-up).
+
+**First changes shipped (2026-07-08):**
+- **Instrumentation to make the next repro conclusive** (`useVoiceCore.ts`): every
+  VAD/auto-stop log now carries `rms / trackAlive / trackMuted / ctx.state`; an
+  `audio-source WENT SILENT / RECOVERED` line fires the instant the source stops
+  delivering; `provider.onError` logs its triggering reason; `endCapture` logs its
+  `reason`.
+- **Honest mic-source handling** (`VoiceStreamProvider.attachCaptureLifecycleHandlers`
+  + `MediaRecorder.onerror`): a mid-capture `mute` surfaces a `mic_muted` status
+  (transient, turn kept open); a terminal `ended` recovers the retained audio via
+  HTTP fallback instead of drifting into a silent VAD stop; an encoder error is
+  surfaced. Covered by `VoiceStreamProvider.trackLifecycle.test.ts`.
+- **Guard**: a client-VAD (`client-fallback`) auto-stop is **suppressed when the
+  audio source is not delivering samples** (muted / ctx not running) — a silence
+  verdict on a non-delivering source is an artifact, not a real pause; a suspended
+  context is resumed. Terminal loss is still owned by the track handlers +
+  no-audio watchdog.
+
+**To close (needs one real-device repro with DevTools console open):** dictate
+continuously ≥30 s until the mic stops, then read the console. The decisive line
+is the `VAD client-stop` / `auto-stop` at the stop instant:
+  - `trackMuted=true` or `ctx=suspended` → the source went silent (mute/suspend);
+    the guard now keeps the turn alive — confirm dictation resumes on unmute.
+  - `trackAlive=true trackMuted=false ctx=running` with `rms` *below* `speechThresh`
+    → threshold miscalibration; the durable fix is to give kyutai a server-VAD (so
+    the client isn't the sole authority) or make the sole-authority client VAD more
+    conservative (longer sustained-silence requirement / segment-boundary-continue
+    instead of hard turn-stop). Do NOT blind-tune thresholds without this line.
+
+See audio-tools `docs/internal/PROBLEMS.md` (2026-07-08 wedge entry + follow-up).
+
+## 8d. Mic won't start — "could not determine audio codec" (2026-07-08, FIXED + live-proven)
+
+**Symptom:** the mic fails to start with `provider.onError → ending turn:
+audio-tools/audioformat: could not determine audio codec (declare input_format)`.
+Intermittent at first, then persistent (every session `segments=0` in the relay
+log).
+
+**Root cause:** the streaming path relied on the backend **sniffing** the codec
+from the first audio frame (`buildVoiceStreamWsUrl` declared no `format`). The
+backend's `audioformat.Detect` needs the first chunk's leading bytes to be the
+WebM/EBML header (`0x1A45DFA3`) — the header MediaRecorder emits in its FIRST
+`ondataavailable` chunk. But `VoiceStreamProvider.ondataavailable` sent each
+chunk via `e.data.arrayBuffer().then(send)` — **independent async promises that
+can resolve out of order**. The header chunk is the largest, so its
+`arrayBuffer()` can consistently resolve *after* the next chunk once timing
+shifts (GC/load) — putting a headerless frame on the wire first → sniff fails.
+Because it's timing-driven it presents as "worked, then persistently broke."
+
+**Fix (two parts, both shipped + live-proven against the running backend):**
+1. **Ordered delivery** (`VoiceStreamProvider`): send the Blob directly and
+   synchronously in `ondataavailable` order (`enqueueOutbound`/`flushPending`,
+   `pendingChunks: Blob[]`) — no async `arrayBuffer()` that can reorder. The
+   header chunk is now always the first frame on the wire. Regression test in
+   `VoiceStreamProvider.trackLifecycle.test.ts` ("sends audio chunks in recording
+   order as raw Blobs").
+2. **Declare-first** (`buildVoiceStreamWsUrl`): declare `format=webm` (the
+   web-console always records WebM/Opus) so the backend skips the fragile sniff
+   entirely — defense-in-depth if any frame is ever reordered/dropped.
+
+**Live proof (synthetic client → audio-tools :19630):** no-format + headerless
+first chunk → `could not determine audio codec` (reproduces the bug); `format=webm`
++ headerless first chunk → no codec error (declare-first bypasses sniff);
+`format=webm` + header-first → clean `status`, stream processes.
+
+## 8e. Mic stays live but transcription stalls mid-session (2026-07-08, instrumented, under triage)
+
+**Symptom:** the original wedge shape — after a while (tens of seconds) the mic
+stays active and audio keeps streaming, but new transcription stops appearing.
+Confirmed from a real console log: a ~110s session delivered ~17 segments then
+`Final received: 0 chars`; the WS closed only at the *end* (after the final), so
+it is **not** a kyutai reap (a reap closes the connection mid-session → client
+reconnect, which did not happen).
+
+**What it is NOT:** the send-side backpressure wedge (fixed 2026-07-08 — kyutai's
+decode enqueues to a non-blocking send worker; verified) and not the codec bug
+(§8d, fixed). Kyutai's reap warnings are a *separate* lock-release-latency issue
+that hits short overlapping sessions (0-segment closes), not this stall.
+
+**Leading hypothesis:** kyutai's streaming LM context saturating over a long
+continuous session. `server.py` force-commits at `MAX_SEGMENT_FRAMES`, so
+continuous speech normally keeps committing; a stall where partials AND segments
+both stop, correlated with session *duration* (not audio content), points to the
+streaming transformer degrading to padding-only output once its context window
+fills. To be confirmed by the new instrumentation before any server-side change.
+
+**Instrumentation shipped to make the next repro conclusive:**
+- `VoiceStreamProvider` transcription-stall watchdog: logs `⚠ transcription STALL:
+  no partial/segment for <gap>ms while still recording (chunks/bytes/segments)`
+  whenever the backend stops emitting for >4s while audio keeps streaming.
+- `segment-final #N at +Tms (gap=…): "…"` logged on every committed segment (so
+  the exact time segments stop is visible), plus per-partial event tracking.
+- **Also fixed:** all voice console logs used printf `%.4f` — NOT a browser
+  console specifier, so every such line rendered with its args shifted by one
+  (e.g. `trackAlive=running, trackMuted=true` was really ctx/trackAlive). Now
+  template literals. Prior logs from before this fix must be read de-shifted.
+
+**To close:** dictate continuously until it stalls; the console will show the last
+`segment-final` time and the `⚠ transcription STALL` gap. If segments stop at a
+consistent *elapsed time* regardless of speech, it confirms context saturation →
+fix in kyutai `server.py` (reset/rotate the LM streaming state on a bounded
+window). If it correlates with audio, look at the VAD/commit path instead.
+
+## 8f. Mid-recording empty final masked backend loss (2026-07-09, fixed in working tree)
+
+**Symptom:** the user could keep recording while the backend stream died, then the
+client accepted a `final` with empty text as successful completion. `onclose`
+then skipped reconnect/fallback because `finalReceived=true`, silently dropping
+retained audio.
+
+**Fix:** `VoiceStreamProvider` now treats any `final` received while
+`MediaRecorder.state === "recording"` and the stop was not intentional as backend
+loss: it does not set `finalReceived`, does not call `onResult`, closes the WS,
+and lets the existing reconnect-then-HTTP-fallback path recover retained audio.
+The kyutai relay also preserves typed busy as `stt_busy`, which the client
+surfaces as a visible busy status.
+
 ## 9. E2E Issues
 
 **PARTIALLY RESOLVED** (2026-02-19): Added BAS workflows for terminal command execution, route-level session persistence, reconnect replay, and multi-pane independence:

@@ -384,7 +384,7 @@ func TestStreamCloseOutcome(t *testing.T) {
 func TestEmitStreamDeliveryTelemetry_GracefulCounts(t *testing.T) {
 	rec := &captureRecorder{}
 	logger := &mocks.FakeLogger{}
-	emitStreamDeliveryTelemetry(Deps{Logger: logger, Usage: rec}, 3, true, nil)
+	emitStreamDeliveryTelemetry(Deps{Logger: logger, Usage: rec}, 3, true, nil, "provider_done")
 
 	require.Len(t, rec.rows, 1)
 	row := rec.rows[0]
@@ -400,7 +400,7 @@ func TestEmitStreamDeliveryTelemetry_GracefulCounts(t *testing.T) {
 // (cancel / read error) increments the drop metric via a populated Error.
 func TestEmitStreamDeliveryTelemetry_DropRaisesError(t *testing.T) {
 	rec := &captureRecorder{}
-	emitStreamDeliveryTelemetry(Deps{Logger: &mocks.FakeLogger{}, Usage: rec}, 1, false, context.Canceled)
+	emitStreamDeliveryTelemetry(Deps{Logger: &mocks.FakeLogger{}, Usage: rec}, 1, false, context.Canceled, "provider_done")
 
 	require.Len(t, rec.rows, 1)
 	require.Equal(t, "cancel", rec.rows[0].FallbackReason)
@@ -413,7 +413,7 @@ func TestEmitStreamDeliveryTelemetry_DropRaisesError(t *testing.T) {
 func TestEmitStreamDeliveryTelemetry_NoRecorderIsSafe(t *testing.T) {
 	logger := &mocks.FakeLogger{}
 	require.NotPanics(t, func() {
-		emitStreamDeliveryTelemetry(Deps{Logger: logger}, 2, true, nil)
+		emitStreamDeliveryTelemetry(Deps{Logger: logger}, 2, true, nil, "provider_done")
 	})
 }
 

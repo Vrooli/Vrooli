@@ -130,6 +130,85 @@ func TestKyutaiProvider_CancelDrainsTailBeforeClose(t *testing.T) {
 	require.Equal(t, 1, endCount(), "exactly one end marker sent on cancel (no double-write)")
 }
 
+func TestKyutaiProvider_ZeroAudioDoesNotDialBackend(t *testing.T) {
+	var mu sync.Mutex
+	hits := 0
+	up := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		hits++
+		mu.Unlock()
+		conn, err := up.Upgrade(w, r, nil)
+		if err == nil {
+			_ = conn.Close()
+		}
+	}))
+	defer srv.Close()
+
+	p := sttchain.NewKyutaiProvider("http://example.invalid")
+	p.StreamEndpoint = wsURL(srv.URL)
+
+	chunks := make(chan sttchain.AudioChunk)
+	close(chunks)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	events, err := p.TranscribeStreaming(ctx, sttchain.StreamStart{Language: "en"}, chunks)
+	require.NoError(t, err)
+
+	var done *sttchain.DoneEvent
+	for ev := range events {
+		if ev.Kind == sttchain.StreamEventDone {
+			done = ev.Done
+		}
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.NotNil(t, done, "zero-audio stream should complete gracefully")
+	require.Equal(t, 0, hits, "zero-audio pre-connect must not dial kyutai or contend for MODEL.lock")
+}
+
+func TestKyutaiProvider_UnexpectedBackendCloseEmitsErrorBeforeDone(t *testing.T) {
+	up := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		// Read start and one audio frame, then close without a kyutai "done".
+		_, _, _ = conn.ReadMessage()
+		_, _, _ = conn.ReadMessage()
+	}))
+	defer srv.Close()
+
+	p := sttchain.NewKyutaiProvider("http://example.invalid")
+	p.StreamEndpoint = wsURL(srv.URL)
+
+	chunks := make(chan sttchain.AudioChunk, 1)
+	chunks <- sttchain.AudioChunk{Audio: []byte{0x01, 0x02}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	events, err := p.TranscribeStreaming(ctx, sttchain.StreamStart{Language: "en"}, chunks)
+	require.NoError(t, err)
+
+	var kinds []sttchain.StreamEventKind
+	var sawErr error
+	for ev := range events {
+		kinds = append(kinds, ev.Kind)
+		if ev.Kind == sttchain.StreamEventError {
+			sawErr = ev.Error
+		}
+	}
+
+	require.NotNil(t, sawErr, "backend WS close without done must be surfaced as StreamEventError")
+	require.GreaterOrEqual(t, len(kinds), 2)
+	require.Equal(t, sttchain.StreamEventError, kinds[len(kinds)-2], "error must precede terminal done")
+	require.Equal(t, sttchain.StreamEventDone, kinds[len(kinds)-1], "stream still terminates with Done after error")
+}
+
 func TestKyutaiProvider_TranslatesEventStream(t *testing.T) {
 	srv := vendorws.NewKyutaiServer(vendorws.Options{
 		Script: []vendorws.Frame{

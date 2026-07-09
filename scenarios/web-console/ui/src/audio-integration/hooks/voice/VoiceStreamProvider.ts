@@ -34,7 +34,17 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private recordingStartTime = 0;
   /** Timestamp when stop() was called -- used to measure stop-to-final latency. */
   private stopTime = 0;
-  private pendingChunks: ArrayBuffer[] = [];
+  /**
+   * Audio chunks awaiting send (WS not yet open, reconnecting, or ordered
+   * behind an earlier chunk). Stored as Blobs and sent verbatim so recording
+   * ORDER is preserved: the first MediaRecorder chunk carries the WebM/EBML
+   * header, and the backend's codec sniff (and ffmpeg) require it to arrive
+   * first. The previous `e.data.arrayBuffer().then(send)` path used independent
+   * async promises that could resolve out of order (the header chunk is the
+   * largest, so its arrayBuffer() could resolve AFTER the next chunk), putting a
+   * headerless chunk on the wire first → `could not determine audio codec`.
+   */
+  private pendingChunks: Blob[] = [];
   /**
    * All audio chunks collected for the current turn (every segment, accepted
    * or rejected). Used for two purposes:
@@ -44,6 +54,17 @@ export class VoiceStreamProvider implements TranscriptionProvider {
    * Cleared on each new `start()`.
    */
   private allChunks: Blob[] = [];
+  /**
+   * Running byte total of `allChunks`, used to bound retention. WebM/opus is a
+   * container whose first chunk carries the header and whose clusters must stay
+   * contiguous to decode, so retention is bounded as a decodable PREFIX: once
+   * MAX_RETAINED_AUDIO_BYTES is reached we stop retaining further chunks (they
+   * still stream live over the WS) rather than dropping the header/middle. The
+   * HTTP fallback + last-turn retry therefore cover up to this bound from the
+   * start of the turn — generous enough to never trip a normal session, but it
+   * caps memory on a pathologically long or stuck one. Reset each `start()`.
+   */
+  private retainedBytes = 0;
   /**
    * Retained audio from the most recent completed turn. Snapshotted in
    * `stop()` or `dispose()` so the hook can offer a bypass-filter retry
@@ -64,6 +85,12 @@ export class VoiceStreamProvider implements TranscriptionProvider {
    */
   private tailDropArmed = false;
   private droppedChunkCount = 0;
+  /**
+   * Upper bound on retained turn audio (~66 min of 32 kbps opus). This bounds
+   * memory on a stuck/very-long session while keeping a valid decodable prefix
+   * for the HTTP fallback / retry. See `retainedBytes`.
+   */
+  private static readonly MAX_RETAINED_AUDIO_BYTES = 16 * 1024 * 1024;
   private static readonly MAX_RECONNECTS = 2;
   private static readonly RECONNECT_DELAYS = [1_000, 3_000];
   /** Timeout for pre-connected WebSocket — closed if start() isn't called. */
@@ -77,6 +104,17 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private serverAckReceived = false;
   private serverAckPendingNotified = false;
   private finalProgressPendingNotified = false;
+  /** Wall-clock of the last partial/segment/final received — drives the
+   *  transcription-stall watchdog so a mid-session stall (backend stops emitting
+   *  while audio keeps streaming and the mic stays live) is VISIBLE in the log
+   *  instead of a silent "it stopped transcribing after a while". */
+  private lastTranscriptEventTime = 0;
+  private transcriptStallTimer: ReturnType<typeof setTimeout> | null = null;
+  private segmentCount = 0;
+  /** How long without any transcription event (while still recording) before we
+   *  flag a stall. Longer than a normal partial gap, shorter than a human pause
+   *  that would auto-stop the turn. */
+  private static readonly TRANSCRIPT_STALL_MS = 4_000;
   /** True when the current WS was opened via preConnect() and hasn't been
    *  consumed by start() yet. Prevents start() from closing a pre-connected WS. */
   private isPreConnectedWs = false;
@@ -120,6 +158,64 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.stream = null;
   }
 
+  /**
+   * Wire mic-track + MediaRecorder lifecycle handlers so a mid-capture failure
+   * of the audio source is OBSERVED and handled honestly instead of silently
+   * starving the analyser (which drifts into a confusing VAD silence auto-stop —
+   * "the mic just stopped" with no cause in the logs).
+   *
+   * Three distinct source-failure modes, each previously invisible:
+   *  - `mute`  — the browser/OS mutes the track (sleep/wake, default-input-device
+   *    change, or another app seizing the mic). The `ended` event does NOT fire
+   *    for muting (see streamHealth.isTrackUsable), so no samples flow yet the
+   *    track stays "live": the analyser reads pure silence and the client RMS VAD
+   *    auto-stops mid-utterance. We log it loudly so a following auto-stop is
+   *    attributable, and surface a soft notice. Mutes are often transient, so we
+   *    do NOT end the turn here.
+   *  - `ended` — the track is terminally gone. Recover the turn's retained audio
+   *    via the HTTP fallback rather than losing it to a silent VAD stop.
+   *  - MediaRecorder `error` — the encoder itself failed; surface it as an error.
+   */
+  private attachCaptureLifecycleHandlers(): void {
+    const tracks = this.stream?.getAudioTracks?.() ?? [];
+    for (const track of tracks) {
+      if (typeof track.addEventListener !== "function") continue;
+      track.addEventListener("mute", () => {
+        console.warn(
+          "[voice] mic track MUTED mid-capture at +%dms (sleep/wake, default-input-device change, or another app seized the mic). "
+            + "The analyser now reads SILENCE — any VAD auto-stop after this is the CAUSE, not a real pause. chunks=%d",
+          Date.now() - this.recordingStartTime, this.chunkCount);
+        this.onStatus?.({
+          code: "mic_muted",
+          message: "Microphone muted by the system. If dictation stops, tap the mic again.",
+        });
+      });
+      track.addEventListener("unmute", () => {
+        console.info("[voice] mic track UNMUTED at +%dms — audio resumed", Date.now() - this.recordingStartTime);
+      });
+      track.addEventListener("ended", () => {
+        const dur = Date.now() - this.recordingStartTime;
+        console.warn(
+          "[voice] mic track ENDED mid-capture at +%dms (OS/hardware/another-app revoked the mic). "
+            + "intentionallyStopped=%s finalReceived=%s chunks=%d — recovering retained audio via HTTP.",
+          dur, this.intentionallyStopped, this.finalReceived, this.chunkCount);
+        if (this.intentionallyStopped || this.finalReceived) return;
+        // The source is terminally gone; don't drift into a silent VAD stop that
+        // discards the tail. Stop reconnect attempts and recover what we captured.
+        this.intentionallyStopped = true;
+        this.stopTime = Date.now();
+        this.clearServerAckTimer();
+        if (this.finalTimeout) { clearTimeout(this.finalTimeout); this.finalTimeout = null; }
+        this.onStatus?.({
+          code: "mic_track_ended",
+          message: "The microphone stopped unexpectedly — recovering your transcript.",
+        });
+        this.ws?.close();
+        this.attemptHttpFallback();
+      });
+    }
+  }
+
   getLastTurnAudio(): LastTurnAudio | null {
     return this.lastTurn;
   }
@@ -139,6 +235,28 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   dropTail(): void {
     this.tailDropArmed = true;
     console.info("[voice] tail-drop armed");
+  }
+
+  /**
+   * Send one audio chunk in strict recording order. Sends immediately only when
+   * the socket is open AND nothing is already queued ahead of it; otherwise it
+   * queues so it can never jump ahead of the header-bearing first chunk. Sending
+   * the Blob directly (no async arrayBuffer()) keeps ordering deterministic.
+   */
+  private enqueueOutbound(blob: Blob): void {
+    const ws = this.ws;
+    if (ws && ws.readyState === WebSocket.OPEN && this.pendingChunks.length === 0) {
+      ws.send(blob);
+    } else {
+      this.pendingChunks.push(blob);
+    }
+  }
+
+  /** Flush queued chunks to the socket in order once it is open. */
+  private flushPending(): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    for (const chunk of this.pendingChunks) this.ws.send(chunk);
+    this.pendingChunks = [];
   }
 
   /**
@@ -234,6 +352,37 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     }, 3000);
   }
 
+  private clearTranscriptStallTimer(): void {
+    if (this.transcriptStallTimer) {
+      clearTimeout(this.transcriptStallTimer);
+      this.transcriptStallTimer = null;
+    }
+  }
+
+  /** Record a transcription event and (re)arm the stall watchdog. */
+  private markTranscriptEvent(): void {
+    this.lastTranscriptEventTime = Date.now();
+    this.armTranscriptStallWatchdog();
+  }
+
+  /** Warn (and keep warning) if no transcription event arrives for
+   *  TRANSCRIPT_STALL_MS while audio is still streaming — the "mic stays live
+   *  but transcription stopped" wedge symptom, made observable. */
+  private armTranscriptStallWatchdog(): void {
+    this.clearTranscriptStallTimer();
+    this.transcriptStallTimer = setTimeout(() => {
+      if (this.finalReceived || this.intentionallyStopped) return;
+      if (this.mediaRecorder?.state !== "recording") return;
+      const gap = Date.now() - this.lastTranscriptEventTime;
+      console.warn(
+        `[voice] ⚠ transcription STALL: no partial/segment for ${gap}ms while still recording `
+        + `(chunks=${this.chunkCount}, bytes=${this.totalBytesSent}, segments=${this.segmentCount}) `
+        + `— backend stopped emitting; audio is still streaming`);
+      // Re-arm so the stall is reported until it recovers or the turn ends.
+      this.armTranscriptStallWatchdog();
+    }, VoiceStreamProvider.TRANSCRIPT_STALL_MS);
+  }
+
   private markFinalProgressComplete(): void {
     const shouldClearPendingNotice = this.finalProgressPendingNotified;
     this.finalProgressPendingNotified = false;
@@ -274,6 +423,12 @@ export class VoiceStreamProvider implements TranscriptionProvider {
             message: msg.text ?? "Streaming transcription status updated.",
           });
         } else if (msg.type === "segment-final" && msg.text !== undefined) {
+          this.segmentCount++;
+          const preview = msg.text.length > 60 ? msg.text.slice(0, 60) + "…" : msg.text;
+          console.info("[voice] segment-final #%d at +%dms (gap=%dms): \"%s\"",
+            msg.segmentIndex ?? 0, Date.now() - this.recordingStartTime,
+            this.lastTranscriptEventTime > 0 ? Date.now() - this.lastTranscriptEventTime : 0, preview);
+          this.markTranscriptEvent();
           this.onSegmentFinal?.(msg.text, msg.segmentIndex ?? 0);
         } else if (msg.type === "segment-accepted") {
           this.onSegmentAccepted?.(msg.segmentIndex ?? 0, msg.score ?? 0, msg.threshold ?? 0);
@@ -296,10 +451,21 @@ export class VoiceStreamProvider implements TranscriptionProvider {
               latency, msg.text.length > 60 ? msg.text.slice(0, 60) + "\u2026" : msg.text);
             this.firstPartialLogged = true;
           }
+          this.markTranscriptEvent();
           this.onPartial?.(msg.text);
         } else if (msg.type === "final") {
+          if (this.mediaRecorder?.state === "recording" && !this.intentionallyStopped) {
+            console.warn(
+              "[voice] Final arrived while MediaRecorder is still recording at +%dms (chars=%d). "
+                + "Treating as backend loss and routing through reconnect/fallback.",
+              Date.now() - this.recordingStartTime,
+              msg.text?.trim().length ?? 0);
+            this.ws?.close();
+            return;
+          }
           this.finalReceived = true;
           this.markFinalProgressComplete();
+          this.clearTranscriptStallTimer();
           if (this.finalTimeout) {
             clearTimeout(this.finalTimeout);
             this.finalTimeout = null;
@@ -314,6 +480,12 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           // speaker verification rejects the audio.
           this.onResult?.(text);
         } else if (msg.type === "error") {
+          if (msg.code === "stt_busy") {
+            this.onStatus?.({
+              code: "stt_busy",
+              message: "Speech model is busy with another recording. Try again in a moment.",
+            });
+          }
           // The server now sends a clean, user-actionable message for a
           // backend-down failure (no raw `dial tcp …` transport string, plan
           // L2). A "backend_starting" code means on-demand recovery is bringing
@@ -362,11 +534,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
             this.ws = newWs;
             this.setupWsHandlers(newWs);
             this.armServerAckWatchdog();
-            // Flush chunks buffered during reconnection
-            for (const chunk of this.pendingChunks) {
-              if (newWs.readyState === WebSocket.OPEN) newWs.send(chunk);
-            }
-            this.pendingChunks = [];
+            // Flush chunks buffered during reconnection (in order)
+            this.flushPending();
           };
           newWs.onerror = () => {
             clearTimeout(connTimeout);
@@ -392,6 +561,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     console.warn("[voice] Streaming failed \u2014 falling back to HTTP transcription");
     const blob = new Blob(this.allChunks, { type: "audio/webm" });
     this.allChunks = [];
+    this.retainedBytes = 0;
     const httpFallbackStart = Date.now();
     transcribeAudioWithRetry(blob, 2, this.language)
       .then((text) => {
@@ -522,12 +692,15 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.stopTime = 0;
     this.pendingChunks = [];
     this.allChunks = [];
+    this.retainedBytes = 0;
     this.chunkCount = 0;
     this.totalBytesSent = 0;
     this.lastTurn = null;
     this.tailDropArmed = false;
     this.droppedChunkCount = 0;
     this.malformedMessageCount = 0;
+    this.segmentCount = 0;
+    this.clearTranscriptStallTimer();
 
     // Start MediaRecorder IMMEDIATELY after mic acquisition.
     // Chunks are buffered in pendingChunks until the WebSocket connects.
@@ -547,23 +720,35 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         }
         this.chunkCount++;
         this.totalBytesSent += e.data.size;
-        // Keep a copy for HTTP fallback in case streaming fails entirely.
-        this.allChunks.push(e.data);
-        void e.data.arrayBuffer().then((buf) => {
-          // Capture a local reference: the turn may have ended (and the WS
-          // reassigned) between when this microtask was queued and when it
-          // runs. Reading this.ws twice across the check + send would race.
-          const ws = this.ws;
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(buf);
-          } else {
-            // Buffer until WebSocket connects (or during reconnection)
-            this.pendingChunks.push(buf);
-          }
-        });
+        // Keep a copy for HTTP fallback in case streaming fails entirely, up to
+        // the retention bound (decodable prefix — see retainedBytes).
+        if (this.retainedBytes < VoiceStreamProvider.MAX_RETAINED_AUDIO_BYTES) {
+          this.allChunks.push(e.data);
+          this.retainedBytes += e.data.size;
+        }
+        // Send in strict order (see pendingChunks) — never via an async
+        // arrayBuffer() microtask that could reorder the header chunk.
+        this.enqueueOutbound(e.data);
       }
     };
+    this.mediaRecorder.onerror = (ev) => {
+      const err = (ev as unknown as { error?: DOMException }).error;
+      console.error("[voice] MediaRecorder error at +%dms: %s",
+        Date.now() - this.recordingStartTime, err?.name ?? err?.message ?? String(err ?? "unknown"));
+      if (this.intentionallyStopped || this.finalReceived) return;
+      this.onError?.(classifyMicError(err));
+    };
     this.mediaRecorder.start(STREAM_CHUNK_INTERVAL_MS);
+
+    // Observe mid-capture source failures (mute/ended/encoder-error) so a dead
+    // audio source is handled honestly rather than surfacing as a mystery VAD
+    // stop with no cause in the logs.
+    this.attachCaptureLifecycleHandlers();
+
+    // Arm the transcription-stall watchdog: if no partial/segment arrives within
+    // TRANSCRIPT_STALL_MS while audio keeps streaming, log it — the "mic stays
+    // live but transcription stopped" wedge symptom, made observable.
+    this.markTranscriptEvent();
 
     // ── WebSocket connection ──
     // Reuse a pre-connected WebSocket if available (from preConnect()).
@@ -571,11 +756,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     if (hasPreConnectedWs && this.ws) {
       console.info("[voice] Reusing pre-connected WebSocket");
       if (this.ws.readyState === WebSocket.OPEN) this.armServerAckWatchdog();
-      // Flush any buffered chunks from the pre-connect phase
-      for (const chunk of this.pendingChunks) {
-        if (this.ws.readyState === WebSocket.OPEN) this.ws.send(chunk);
-      }
-      this.pendingChunks = [];
+      // Flush any buffered chunks from the pre-connect phase (in order)
+      this.flushPending();
       // Replace the lightweight pre-connect handlers with full recording handlers
       this.setupWsHandlers(this.ws);
     } else {
@@ -584,11 +766,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       this.ws.onopen = () => {
         console.info("[voice] WebSocket connected in %dms, flushing %d buffered chunks", Date.now() - wsConnStart, this.pendingChunks.length);
         this.armServerAckWatchdog();
-        // Flush chunks that were buffered before the WebSocket connected
-        for (const chunk of this.pendingChunks) {
-          if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(chunk);
-        }
-        this.pendingChunks = [];
+        // Flush chunks that were buffered before the WebSocket connected (in order)
+        this.flushPending();
       };
       this.setupWsHandlers(this.ws);
     }
@@ -597,6 +776,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   stop(): void {
     this.intentionallyStopped = true;
     this.stopTime = Date.now();
+    this.clearTranscriptStallTimer();
     const recordingDuration = this.stopTime - this.recordingStartTime;
     console.info("[voice] Stop: recordingDuration=%dms, chunks=%d, bytes=%d",
       recordingDuration, this.chunkCount, this.totalBytesSent);
@@ -672,6 +852,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     }
     this.clearServerAckTimer();
     this.clearFinalProgressTimer();
+    this.clearTranscriptStallTimer();
     if (this.preConnectTimer) {
       clearTimeout(this.preConnectTimer);
       this.preConnectTimer = null;

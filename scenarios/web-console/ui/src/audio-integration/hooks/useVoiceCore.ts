@@ -41,7 +41,7 @@ import { VoiceStreamProvider } from "../index";
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
 import { decidePassiveArm } from "./voice/passiveArmDecision";
-import { trailingPartialDelta } from "./voice/trailingPartial";
+import { uncommittedRemainder } from "./voice/trailingPartial";
 import { WhisperProvider } from "../index";
 import { WebSpeechProvider } from "../index";
 import { bytesToFeatures, createWakeWordEngine, PassiveListener } from "../index";
@@ -245,6 +245,16 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
    */
   const trailingPartialRef = useRef("");
   const dismissedFallbackNoticeRef = useRef<string | null>(null);
+  /**
+   * Coalesced partial RENDER, decoupled from the exact trailingPartialRef used
+   * for tail recovery. A high partial rate must not jank the main thread and
+   * re-introduce client-side backpressure, so interim partial text is throttled
+   * to one paint per animation frame; durable segment-finals still render
+   * immediately. pendingPartialRenderRef holds the latest text awaiting paint;
+   * partialRenderRafRef is the scheduled frame handle (0 = none).
+   */
+  const pendingPartialRenderRef = useRef<string | null>(null);
+  const partialRenderRafRef = useRef<number>(0);
 
   // Audio level monitoring refs -- AudioContext is reused across recording
   // sessions to avoid hitting the browser's 6-8 context limit.
@@ -415,6 +425,19 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     onTranscriptRef.current(delivered);
   }, []);
 
+  /** Cancel any scheduled coalesced partial render and drop the pending text.
+   *  Called on every turn-terminal path so a queued frame can never paint stale
+   *  partial text after the turn cleared it. Stable identity (no deps). */
+  const cancelPartialRender = useCallback(() => {
+    if (partialRenderRafRef.current !== 0) {
+      if (typeof cancelAnimationFrame === "function") {
+        cancelAnimationFrame(partialRenderRafRef.current);
+      }
+      partialRenderRafRef.current = 0;
+    }
+    pendingPartialRenderRef.current = null;
+  }, []);
+
   /** Session counter for diagnostic logging — helps correlate log lines
    *  across multiple recording sessions within the same component mount. */
   const sessionCountRef = useRef(0);
@@ -457,6 +480,16 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       levelMonitorActiveRef.current = true;
       /** Counts non-throttled ticks in this session for early diagnostic logging. */
       let tickCount = 0;
+      /** Previous audio-source health, so a mid-capture flip (track died/muted or
+       *  the AudioContext left "running") is logged the instant it happens — not
+       *  up to ~10s later on the next periodic tick. A silent audio source is the
+       *  root cause of a VAD auto-stop that otherwise looks like "the mic just
+       *  stopped for no reason". */
+      let prevSrcHealthy = true;
+      /** Set once we've suppressed an auto-stop because the audio source wasn't
+       *  delivering samples (muted / suspended). Prevents per-tick log spam;
+       *  reset when the source recovers. */
+      let unhealthyStopSuppressed = false;
 
       const tick = () => {
         // Zombie guard: if stopLevelMonitor was called (e.g. VAD-triggered
@@ -482,13 +515,27 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         const audioLevel = Math.min(1, rms * 4);
         audioLevelRef.current = audioLevel;
 
-        // Log first 5 non-throttled ticks + every 150th tick (~10s) for diagnostics
+        // Audio-source health, evaluated every tick so a mid-capture failure is
+        // caught immediately. `muted === true` means no samples flow even though
+        // readyState stays "live" (the analyser reads silence and the VAD will
+        // auto-stop) — see streamHealth.isTrackUsable.
+        const srcTracks = stream.getTracks();
+        const trackAlive = srcTracks.every((t) => t.readyState === "live");
+        const trackMuted = srcTracks.some((t) => t.muted);
+        const srcHealthy = trackAlive && !trackMuted && ctx.state === "running";
+
         tickCount++;
+        // Log the instant the source goes unhealthy (or recovers) — this is the
+        // decisive triage line for "the mic abruptly stopped mid-speech".
+        if (srcHealthy !== prevSrcHealthy) {
+          const fn = srcHealthy ? console.info : console.warn;
+          fn(`[voice] S${sessionId} tick#${tickCount} audio-source ${srcHealthy ? "RECOVERED" : "WENT SILENT"}: rms=${rms.toFixed(4)}, ctx.state=${ctx.state}, trackAlive=${trackAlive}, trackMuted=${trackMuted}, vadState=${vadActiveRef.current ? vadRef.current.state : "inactive"}`);
+          prevSrcHealthy = srcHealthy;
+          if (srcHealthy) unhealthyStopSuppressed = false;
+        }
+        // Periodic heartbeat: first 5 ticks + every 150th (~10s) for diagnostics.
         if (tickCount <= 5 || tickCount % 150 === 0) {
-          const trackAlive = stream.getTracks().every((t) => t.readyState === "live");
-          console.info("[voice] S%d tick#%d: rms=%.4f, ctx.state=%s, trackAlive=%s, vadState=%s",
-            sessionId, tickCount, rms, ctx.state, trackAlive,
-            vadActiveRef.current ? vadRef.current.state : "inactive");
+          console.info(`[voice] S${sessionId} tick#${tickCount}: rms=${rms.toFixed(4)}, ctx.state=${ctx.state}, trackAlive=${trackAlive}, trackMuted=${trackMuted}, vadState=${vadActiveRef.current ? vadRef.current.state : "inactive"}`);
         }
 
         // VAD check
@@ -521,10 +568,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
                 silenceDuration, vadRef.current.segmentSilenceMs);
             }
           } else if (result === "stop") {
-            console.info("[voice] S%d VAD client-stop: silenceElapsed=%dms, timeout=%dms, rms=%.4f, speechThresh=%.4f, silenceThresh=%.4f",
-              sessionCountRef.current, vadNow - vadRef.current.silenceStart,
-              vadSilenceTimeoutRef.current, rms,
-              vadRef.current.speechThreshold, vadRef.current.silenceThreshold);
+            const srcTracks = stream.getTracks();
+            const srcAlive = srcTracks.every((t) => t.readyState === "live");
+            const srcMuted = srcTracks.some((t) => t.muted);
+            console.info(`[voice] S${sessionCountRef.current} VAD client-stop: silenceElapsed=${vadNow - vadRef.current.silenceStart}ms, timeout=${vadSilenceTimeoutRef.current}ms, rms=${rms.toFixed(4)}, speechThresh=${vadRef.current.speechThreshold.toFixed(4)}, silenceThresh=${vadRef.current.silenceThreshold.toFixed(4)}, trackAlive=${srcAlive}, trackMuted=${srcMuted}, ctx=${ctx.state}`);
             // Persistent mode: treat as one final segment boundary then reset.
             // One-shot mode is handled below via decideAutoStop — keeps the
             // server-VAD SSOT precedence centralised.
@@ -538,8 +585,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
               vadRef.current.segmentBoundaryEmitted = false;
             }
           } else if (result === "no-speech") {
-            console.info("[voice] S%d VAD no-speech after %dms, rms=%.4f",
-              sessionCountRef.current, vadNow - vadRef.current.recordingStart, rms);
+            console.info(`[voice] S${sessionCountRef.current} VAD no-speech after ${vadNow - vadRef.current.recordingStart}ms, rms=${rms.toFixed(4)}`);
             vadActiveRef.current = false;
             vadRef.current.state = "idle";
             endCaptureRef.current?.({ reason: "auto" });
@@ -565,11 +611,25 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
               const serverAge = serverSnap.receivedAt > 0
                 ? Math.round(nowPerfMs - serverSnap.receivedAt)
                 : -1;
-              console.info("[voice] S%d auto-stop source=%s serverAge=%dms serverSilence=%d/%dms clientResult=%s",
-                sessionCountRef.current, verdict.source, serverAge,
-                serverSnap.silenceElapsedMs, serverSnap.silenceTimeoutMs,
-                result ?? "null");
-              endCaptureRef.current?.({ reason: "auto" });
+              console.info(`[voice] S${sessionCountRef.current} auto-stop source=${verdict.source} serverAge=${serverAge}ms serverSilence=${serverSnap.silenceElapsedMs}/${serverSnap.silenceTimeoutMs}ms clientResult=${result ?? "null"} rms=${rms.toFixed(4)} trackAlive=${trackAlive} trackMuted=${trackMuted} ctx=${ctx.state}`);
+              // A CLIENT-VAD silence verdict is only trustworthy when the audio
+              // source is actually delivering samples. Under kyutai/passthrough
+              // the server emits no VAD, so client VAD is the SOLE stop authority
+              // (decideAutoStop §2) — if the analyser reads silence because the
+              // track muted or the AudioContext suspended, that "silence" is an
+              // ARTIFACT, not a real pause. Suppressing the false stop keeps the
+              // turn alive (the track handlers / no-audio watchdog own true
+              // terminal loss) and we try to wake a suspended context.
+              if (verdict.source === "client-fallback" && !srcHealthy) {
+                if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+                if (!unhealthyStopSuppressed) {
+                  console.warn("[voice] S%d auto-stop SUPPRESSED: client-VAD silence but audio source not delivering (trackAlive=%s trackMuted=%s ctx=%s) — artifact, not a real pause; keeping the turn open",
+                    sessionCountRef.current, trackAlive, trackMuted, ctx.state);
+                  unhealthyStopSuppressed = true;
+                }
+              } else {
+                endCaptureRef.current?.({ reason: "auto" });
+              }
             }
           }
         }
@@ -1075,6 +1135,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         vadActiveRef.current = false;
         vadRef.current.state = "idle";
         stopLevelMonitor();
+        // A queued coalesced partial render must not repaint stale interim text
+        // after the turn cleared it.
+        cancelPartialRender();
         setState((s) => ({
           ...s,
           voiceState: "idle",
@@ -1102,18 +1165,19 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           trailingPartialRef.current = "";
         }
 
-        // Trailing-partial promotion: the turn ended with an uncommitted
-        // partial the server never flushed (empty `text` because kyutai's
-        // final is empty once any segment committed, and a teardown race
-        // dropped the flush of the last words). Promote that partial to durable
-        // transcript instead of wiping it — the silent tail-loss this fixes.
-        // handleSegmentFinal / the non-empty `text` branch above have already
-        // cleared the ref when the tail arrived normally, so trailingPartialDelta
-        // never double-appends.
-        const promoted = trailingPartialDelta({
-          trailingPartial: trailingPartialRef.current,
-          finalDelivered: Boolean(text),
-          hasSegments: segmentsRef.current.length > 0,
+        // Trailing-partial promotion via the committed-length cursor: the turn
+        // ended with an uncommitted partial the server never flushed (empty
+        // `text` because kyutai's final is empty once any segment committed, and
+        // a teardown race dropped the flush of the last words). Promote exactly
+        // the remainder of the latest partial that lies BEYOND what the durable
+        // segment-finals already committed — recovering the full uncommitted
+        // tail without ever double-appending committed words. handleSegmentFinal
+        // / the non-empty `text` branch above have already cleared the ref when
+        // the tail arrived normally, so this promotes nothing then.
+        const committedText = segmentsRef.current.map((seg) => seg.text).join(" ");
+        const promoted = uncommittedRemainder({
+          committedText,
+          latestPartial: trailingPartialRef.current,
         });
         trailingPartialRef.current = "";
         if (promoted !== null) {
@@ -1136,6 +1200,12 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         controller.shutdown("manual-stop");
       };
       provider.onError = (error) => {
+        // A provider error ENDS the turn (mic stops). Log the triggering reason
+        // so an abrupt mid-speech stop is attributable to the actual cause
+        // (backend error frame, mic-track loss, encoder failure) rather than
+        // looking like a spontaneous stop.
+        console.warn("[voice] S%d provider.onError → ending turn: %s",
+          sessionCountRef.current, error);
         // Clear cue session without playing stop cue — errors are not normal
         // recording stops. Playing a pleasant "done" chime after an error
         // would be misleading.
@@ -1144,6 +1214,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         vadActiveRef.current = false;
         vadRef.current.state = "idle";
         stopLevelMonitor();
+        cancelPartialRender();
         // Error ends the turn: if speaker verification rejected segments
         // during this turn, surface the banner so the user can still retry
         // with whatever audio was retained.
@@ -1202,11 +1273,29 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       if (provider.onPartial !== undefined) {
         provider.onPartial = (text) => {
           dismissedFallbackNoticeRef.current = null;
-          // Track the trailing (uncommitted) hypothesis so a turn that ends
-          // before the server flushes this text can promote it to durable
-          // transcript instead of dropping it (see trailingPartialRef).
+          // Track the trailing (uncommitted) hypothesis IMMEDIATELY and exactly
+          // so a turn that ends before the server flushes this text can promote
+          // it to durable transcript instead of dropping it (see
+          // trailingPartialRef + uncommittedRemainder).
           trailingPartialRef.current = text;
-          setState((s) => ({ ...s, partialTranscript: text, fallbackNotice: null }));
+          // Coalesce the RENDER to one paint per frame: at a high partial rate,
+          // a setState per partial janks the main thread and re-introduces
+          // client-side backpressure. The latest pending text wins.
+          pendingPartialRenderRef.current = text;
+          if (typeof requestAnimationFrame !== "function") {
+            setState((s) => ({ ...s, partialTranscript: text, fallbackNotice: null }));
+            return;
+          }
+          if (partialRenderRafRef.current === 0) {
+            partialRenderRafRef.current = requestAnimationFrame(() => {
+              partialRenderRafRef.current = 0;
+              const pending = pendingPartialRenderRef.current;
+              pendingPartialRenderRef.current = null;
+              if (pending !== null) {
+                setState((s) => ({ ...s, partialTranscript: pending, fallbackNotice: null }));
+              }
+            });
+          }
         };
       }
       if (provider.onStatus !== undefined) {
@@ -1258,8 +1347,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
           if (cached && cacheAge < VAD_FLOOR_CACHE_MAX_AGE_MS) {
             vadRef.current = createVadRefsFromCache(cached);
-            console.info("[voice] Noise floor cache: loaded (age=%ds, floor=%.4f)",
-              Math.round(cacheAge / 1000), cached.silenceThreshold / 1.5);
+            console.info(`[voice] Noise floor cache: loaded (age=${Math.round(cacheAge / 1000)}s, floor=${(cached.silenceThreshold / 1.5).toFixed(4)})`);
           } else {
             vadRef.current = createVadRefs();
             vadRef.current.state = "calibrating";
@@ -1308,7 +1396,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
             setState((s) => (s.voiceState === "recording" || s.voiceState === "listening")
               ? { ...s, error: message }
               : s);
-            console.warn("[voice] No audio after 2s (level=%.4f, muted=%s)", audioLevelRef.current, muted);
+            console.warn(`[voice] No audio after 2s (level=${audioLevelRef.current.toFixed(4)}, muted=${muted})`);
           }
         }, 2000);
 
@@ -1348,7 +1436,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     } finally {
       startingRef.current = false;
     }
-  }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor, handleSegmentFinal, surfacePendingRejection]);
+  }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor, handleSegmentFinal, surfacePendingRejection, cancelPartialRender]);
 
   const endCapture = useCallback((opts?: { reason?: "auto" | "user" }) => {
     const reason = opts?.reason ?? "user";
@@ -1366,7 +1454,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       return;
     }
 
-    console.info("[voice] S%d %s stopped", sessionCountRef.current, isListening ? "Listening" : "Recording");
+    console.info("[voice] S%d %s stopped (reason=%s)", sessionCountRef.current, isListening ? "Listening" : "Recording", reason);
     // Only play the stop cue if a cue session is active (start cue was played).
     // This prevents the stop sound from firing during cleanup, error recovery,
     // or any other path that disposes the provider without a preceding start cue.
@@ -1385,8 +1473,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     if (vadActiveRef.current && vadRef.current.state !== "idle") {
       const floor = extractCacheableFloor(vadRef.current);
       saveNoiseFloorCache(floor);
-      console.info("[voice] S%d Noise floor saved (speech=%.4f, silence=%.4f)",
-        sessionCountRef.current, floor.speechThreshold, floor.silenceThreshold);
+      console.info(`[voice] S${sessionCountRef.current} Noise floor saved (speech=${floor.speechThreshold.toFixed(4)}, silence=${floor.silenceThreshold.toFixed(4)})`);
     }
 
     vadActiveRef.current = false;
@@ -1454,6 +1541,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // Single-authority shutdown disposes the provider (releasing its mic lease)
     // and runs capture teardown. Callbacks were nulled above so dispose is silent.
     controller.shutdown("manual-stop");
+    cancelPartialRender();
 
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
     vadActiveRef.current = false;
@@ -1475,7 +1563,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       segments: [],
       commandSuggestion: null,
     }));
-  }, [isTranscribing, stopLevelMonitor]);
+  }, [isTranscribing, stopLevelMonitor, cancelPartialRender]);
 
   /** Dismiss a command suggestion (either confirmed or rejected). */
   const dismissCommandSuggestion = useCallback(() => {
@@ -1690,7 +1778,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       passiveListenerRef.current.dispose("unmount");
       passiveListenerRef.current = null;
     }
-  }, []);
+    // Drop any scheduled coalesced partial render so it can't paint after unmount.
+    cancelPartialRender();
+  }, [cancelPartialRender]);
 
   // ── Keep a running passive listener's threshold in sync ──
   //

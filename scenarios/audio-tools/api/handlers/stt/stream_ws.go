@@ -264,6 +264,7 @@ func StreamWSHandler(d Deps) http.Handler {
 
 		segIdx := 0
 		var finalText string
+		providerCloseReason := "provider_done"
 		for ev := range events {
 			switch ev.Kind {
 			case sttchain.StreamEventPartial:
@@ -304,7 +305,9 @@ func StreamWSHandler(d Deps) http.Handler {
 				if ev.Error != nil {
 					msg = ev.Error.Error()
 				}
-				writer.enqueue(wsMessage{Type: wsMsgError, Text: msg, Code: streamErrorCode(ev.Error)})
+				code := streamErrorCode(ev.Error)
+				providerCloseReason = "provider_error:" + code
+				writer.enqueue(wsMessage{Type: wsMsgError, Text: msg, Code: code})
 			case sttchain.StreamEventDone:
 				if ev.Done != nil {
 					finalText = ev.Done.FinalText
@@ -342,7 +345,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		case readerCloseErr = <-readerErr:
 		default:
 		}
-		emitStreamDeliveryTelemetry(d, segIdx, finalText != "", readerCloseErr)
+		emitStreamDeliveryTelemetry(d, segIdx, finalText != "", readerCloseErr, providerCloseReason)
 	})
 }
 
@@ -370,12 +373,12 @@ func streamCloseOutcome(readerCloseErr error) string {
 // `stream_session` usage row whose FallbackReason carries the close outcome
 // and whose Error is set on a non-graceful close (the drop metric). Both are
 // best-effort and must never affect the live session.
-func emitStreamDeliveryTelemetry(d Deps, segments int, tailFinalDelivered bool, readerCloseErr error) {
+func emitStreamDeliveryTelemetry(d Deps, segments int, tailFinalDelivered bool, readerCloseErr error, providerCloseReason string) {
 	outcome := streamCloseOutcome(readerCloseErr)
 	graceful := outcome == "graceful"
 	if d.Logger != nil {
-		d.Logger.Printf("voice-ws: session closed outcome=%s segments=%d tailFinalDelivered=%t graceful=%t",
-			outcome, segments, tailFinalDelivered, graceful)
+		d.Logger.Printf("voice-ws: session closed outcome=%s providerCloseReason=%s segments=%d tailFinalDelivered=%t graceful=%t",
+			outcome, providerCloseReason, segments, tailFinalDelivered, graceful)
 	}
 	if d.Usage == nil {
 		return

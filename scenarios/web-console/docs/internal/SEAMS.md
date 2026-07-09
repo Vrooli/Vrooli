@@ -233,7 +233,10 @@ version) → `useTextToSpeechCore` (provider lifecycle) → `KokoroProvider`
   isolated — retry once → per-paragraph browser-voice fallback →
   skip-with-notice — and the sequence **continues**. Only a real
   stop/dispose abort halts the tail. Non-fatal degradation surfaces via
-  `onParagraphOutcome` (observability), never gating playback.
+  `onParagraphOutcome` (observability), never gating playback. This is the
+  TTS twin of the audio-tools event-durability contract (each paragraph is a
+  durable ordered unit): see
+  [`scenarios/audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract`](../../../audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract).
   [CODE: ui/src/audio-integration/hooks/tts/KokoroProvider.ts]
 - **Playback survives pane unmount / warm-set eviction.** The workspace
   keeps only `WARM_SET_SIZE` panes mounted; an evicted pane used to
@@ -265,6 +268,28 @@ version) → `useTextToSpeechCore` (provider lifecycle) → `KokoroProvider`
   reads (previously a dead seam — replays always missed).
   [CODE: ui/src/audio-integration/api/tts.ts],
   [CODE: scenarios/audio-tools/api/handlers/tts/connect_handler.go]
+
+## STT Ingress Durability Seam (UI, added 2026-07-08)
+
+The dictation (STT) direction obeys the same audio-tools event-durability
+contract as TTS playback:
+[`scenarios/audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract`](../../../audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract).
+The client is the last hop; its durable guarantees:
+
+- **Lossless tail recovery via a committed-length cursor.** A turn that ends on
+  an uncommitted partial (a teardown race dropped the flush) promotes exactly
+  the remainder of the latest partial that lies BEYOND the durable segment-finals
+  already committed — recovering the full uncommitted tail without ever
+  double-appending committed words. Replaces the single overwritten
+  trailing-partial slot. [CODE: ui/src/audio-integration/hooks/voice/trailingPartial.ts]
+  (`uncommittedRemainder`), wired in [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts].
+- **Coalesced partial render.** Interim `partial` text is throttled to one paint
+  per animation frame (durable segment-finals still render immediately), so a
+  high partial rate cannot jank the main thread and re-introduce client-side
+  backpressure. Cancelled on every turn-terminal path. [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts]
+- **Bounded retention.** `allChunks` (HTTP-fallback / last-turn retry audio) is
+  bounded as a decodable prefix (`MAX_RETAINED_AUDIO_BYTES`) so a very long or
+  stuck session cannot grow it unbounded. [CODE: ui/src/audio-integration/hooks/voice/VoiceStreamProvider.ts]
 
 ## Testability Seams
 

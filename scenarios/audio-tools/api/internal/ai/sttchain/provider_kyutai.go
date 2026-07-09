@@ -125,11 +125,12 @@ func (p *KyutaiProvider) Traits() ProviderTraits {
 	}
 }
 
-// TranscribeStreaming opens the resource WS, sends the start header, pumps
-// canonical-PCM chunks as binary frames, sends the end marker when chunks
-// close, and translates the resource's JSON event frames into StreamEvents.
-// The returned channel is closed after the terminal Done (emitted on a
-// {"type":"done"} frame or when the WS closes).
+// TranscribeStreaming waits for the first canonical-PCM chunk before opening
+// the resource WS, then sends the start header, pumps chunks as binary frames,
+// sends the end marker when chunks close, and translates the resource's JSON
+// event frames into StreamEvents. Zero-audio sessions complete without dialing
+// kyutai, so browser pre-connects never contend for the single-session model
+// lock.
 func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
 	if p == nil || p.BaseURL == "" {
 		return nil, fmt.Errorf("audio-tools/sttchain: kyutai provider not configured")
@@ -138,122 +139,139 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 	if streamURL == "" {
 		streamURL = p.streamURL()
 	}
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, streamURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("kyutai: ws dial: %w", err)
-	}
-
-	// The resource contract is fixed at canonical 16 kHz mono s16le and rejects
-	// any other rate. Because Kyutai declares requires.pcm16kMono, the Segmenter
-	// has already normalized the inbound chunks to canonical PCM before they
-	// reach this adapter, so the wire rate is always 16000 regardless of the
-	// session's original input rate hint.
-	startMsg, _ := json.Marshal(map[string]any{
-		"type":        "start",
-		"sample_rate": 16000,
-		"language":    start.Language,
-	})
-	if err := conn.WriteMessage(websocket.TextMessage, startMsg); err != nil {
-		_ = conn.Close()
-		return nil, fmt.Errorf("kyutai: write start: %w", err)
-	}
-
 	events := make(chan StreamEvent, 16)
 	model := p.Model()
-
-	// streamDone is closed by the reader when it returns; the ctx watcher and
-	// the writer select on it so neither outlives the session.
-	streamDone := make(chan struct{})
-
-	// DEDICATED WRITER. gorilla forbids concurrent writers, but serializing
-	// writes behind a mutex meant a blocked WriteMessage (a stalled consumer)
-	// was held WHILE LOCKED, so the cancel path's end marker could never be
-	// sent and teardown wedged forever. Instead a single writer goroutine owns
-	// all conn writes, fed by a buffered channel. NOTHING is held across a
-	// blocking write, so the pump and the cancel watcher always make progress;
-	// a wedged write is unblocked by conn.Close() from the drain-then-close
-	// watcher (event-durability contract: never back-pressure the producer via
-	// a blocking write).
-	type writeReq struct {
-		mt   int
-		data []byte
-	}
-	writeCh := make(chan writeReq, 16)
-	writerGone := make(chan struct{})
-	// send hands a frame to the writer without ever blocking on the socket. It
-	// returns false once the writer has stopped (conn closing) so callers stop.
-	send := func(mt int, data []byte) bool {
-		select {
-		case writeCh <- writeReq{mt: mt, data: data}:
-			return true
-		case <-writerGone:
-			return false
-		case <-streamDone:
-			return false
-		}
-	}
-	var endOnce sync.Once
-	sendEnd := func() {
-		endOnce.Do(func() { send(websocket.TextMessage, []byte(`{"type":"end"}`)) })
-	}
 	go func() {
-		defer close(writerGone)
-		for {
+		first, ok := awaitFirstAudioChunk(ctx, chunks)
+		if !ok {
+			events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
+				LockedTier: TierLocal, ProviderID: "kyutai", ModelID: model,
+			}}
+			close(events)
+			return
+		}
+
+		dialCtx, dialCancel := context.WithTimeout(context.Background(), kyutaiDrainTimeout)
+		conn, _, err := websocket.DefaultDialer.DialContext(dialCtx, streamURL, nil)
+		dialCancel()
+		if err != nil {
+			events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: ws dial: %w", err)}
+			events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
+				LockedTier: TierLocal, ProviderID: "kyutai", ModelID: model,
+			}}
+			close(events)
+			return
+		}
+
+		// The resource contract is fixed at canonical 16 kHz mono s16le and rejects
+		// any other rate. Because Kyutai declares requires.pcm16kMono, the Segmenter
+		// has already normalized the inbound chunks to canonical PCM before they
+		// reach this adapter, so the wire rate is always 16000 regardless of the
+		// session's original input rate hint.
+		startMsg, _ := json.Marshal(map[string]any{
+			"type":        "start",
+			"sample_rate": 16000,
+			"language":    start.Language,
+		})
+		if err := conn.WriteMessage(websocket.TextMessage, startMsg); err != nil {
+			_ = conn.Close()
+			events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: write start: %w", err)}
+			events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
+				LockedTier: TierLocal, ProviderID: "kyutai", ModelID: model,
+			}}
+			close(events)
+			return
+		}
+
+		// streamDone is closed by the reader when it returns; the ctx watcher and
+		// the writer select on it so neither outlives the session.
+		streamDone := make(chan struct{})
+
+		// DEDICATED WRITER. gorilla forbids concurrent writers, but serializing
+		// writes behind a mutex meant a blocked WriteMessage (a stalled consumer)
+		// was held WHILE LOCKED, so the cancel path's end marker could never be
+		// sent and teardown wedged forever. Instead a single writer goroutine owns
+		// all conn writes, fed by a buffered channel. NOTHING is held across a
+		// blocking write, so the pump and the cancel watcher always make progress.
+		type writeReq struct {
+			mt   int
+			data []byte
+		}
+		writeCh := make(chan writeReq, 16)
+		writerGone := make(chan struct{})
+		send := func(mt int, data []byte) bool {
 			select {
-			case req := <-writeCh:
-				if err := conn.WriteMessage(req.mt, req.data); err != nil {
+			case writeCh <- writeReq{mt: mt, data: data}:
+				return true
+			case <-writerGone:
+				return false
+			case <-streamDone:
+				return false
+			}
+		}
+		var endOnce sync.Once
+		sendEnd := func() {
+			endOnce.Do(func() { send(websocket.TextMessage, []byte(`{"type":"end"}`)) })
+		}
+		go func() {
+			defer close(writerGone)
+			for {
+				select {
+				case req := <-writeCh:
+					if err := conn.WriteMessage(req.mt, req.data); err != nil {
+						return
+					}
+				case <-streamDone:
 					return
 				}
-			case <-streamDone:
-				return
 			}
-		}
-	}()
+		}()
 
-	// ctx watcher: DRAIN-THEN-CLOSE. Cancelling the session must not cold-close
-	// the socket (that drops kyutai's flush and the trailing segment). Instead
-	// enqueue the end marker so the server flushes, give the reader a bounded
-	// window to receive that flush/done, and only then close the conn — which
-	// also unblocks a wedged write.
-	go func() {
-		select {
-		case <-ctx.Done():
-			sendEnd()
-			select {
-			case <-streamDone:
-			case <-time.After(kyutaiDrainTimeout):
-			}
-			_ = conn.Close()
-		case <-streamDone:
-		}
-	}()
-
-	// Pump: inbound PCM chunks -> WS binary frames; on clean close enqueue the
-	// end marker so the server flushes its tail. On ctx cancel the pump just
-	// stops — the watcher owns the cancel-path end marker + drain.
-	go func(ctx context.Context) {
-		for {
+		// ctx watcher: DRAIN-THEN-CLOSE. Cancelling the session must not cold-close
+		// the socket (that drops kyutai's flush and the trailing segment). Instead
+		// enqueue the end marker so the server flushes, give the reader a bounded
+		// window to receive that flush/done, and only then close the conn.
+		go func() {
 			select {
 			case <-ctx.Done():
-				return
-			case ch, ok := <-chunks:
-				if !ok {
-					sendEnd()
-					return
+				sendEnd()
+				select {
+				case <-streamDone:
+				case <-time.After(kyutaiDrainTimeout):
 				}
-				if !send(websocket.BinaryMessage, ch.Audio) {
+				_ = conn.Close()
+			case <-streamDone:
+			}
+		}()
+
+		// Pump: first chunk (which triggered the lazy dial), then remaining inbound
+		// PCM chunks -> WS binary frames. On clean close enqueue end so the server
+		// flushes its tail. On ctx cancel the watcher owns end + bounded drain.
+		go func(ctx context.Context) {
+			if !send(websocket.BinaryMessage, first.Audio) {
+				return
+			}
+			for {
+				select {
+				case <-ctx.Done():
 					return
+				case ch, ok := <-chunks:
+					if !ok {
+						sendEnd()
+						return
+					}
+					if !send(websocket.BinaryMessage, ch.Audio) {
+						return
+					}
 				}
 			}
-		}
-	}(ctx)
+		}(ctx)
 
-	// Reader: WS JSON frames -> StreamEvents. It intentionally does NOT bail on
-	// ctx cancel: after a cancel the watcher has sent the end marker and the
-	// server is flushing, so the reader must keep reading to deliver that
-	// trailing segment + done. The watcher's bounded drain (conn.Close after
-	// kyutaiDrainTimeout) unblocks this read if the backend wedges.
-	go func() {
+		// Reader: WS JSON frames -> StreamEvents. It intentionally does NOT bail on
+		// ctx cancel: after a cancel the watcher has sent the end marker and the
+		// server is flushing, so the reader must keep reading to deliver that
+		// trailing segment + done. The watcher's bounded drain unblocks this read
+		// if the backend wedges.
 		defer close(events)
 		defer close(streamDone)
 		defer conn.Close()
@@ -261,6 +279,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		for {
 			_, data, err := conn.ReadMessage()
 			if err != nil {
+				events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: unexpected websocket close before done: %w", err)}
 				events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
 					FinalText: strings.TrimSpace(finalText), LockedTier: TierLocal,
 					ProviderID: "kyutai", ModelID: model,
@@ -273,6 +292,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 				StartMs int64  `json:"start_ms"`
 				EndMs   int64  `json:"end_ms"`
 				Message string `json:"message"`
+				Code    string `json:"code"`
 			}
 			if err := json.Unmarshal(data, &msg); err != nil {
 				continue
@@ -297,7 +317,11 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 					ModelID:          model,
 				}}
 			case "error":
-				events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: %s", msg.Message)}
+				if msg.Code != "" {
+					events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: %s: %s", msg.Code, msg.Message)}
+				} else {
+					events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: %s", msg.Message)}
+				}
 			case "done":
 				events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
 					FinalText: strings.TrimSpace(finalText), LockedTier: TierLocal,
@@ -308,6 +332,18 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		}
 	}()
 	return events, nil
+}
+
+func awaitFirstAudioChunk(ctx context.Context, chunks <-chan AudioChunk) (AudioChunk, bool) {
+	select {
+	case <-ctx.Done():
+		return AudioChunk{}, false
+	case ch, ok := <-chunks:
+		if !ok || len(ch.Audio) == 0 {
+			return AudioChunk{}, false
+		}
+		return ch, true
+	}
 }
 
 func (p *KyutaiProvider) endpoint(path string) string {

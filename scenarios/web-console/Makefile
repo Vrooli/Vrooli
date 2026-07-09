@@ -94,7 +94,7 @@ open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"
 
 orient: ## Show generated-scenario orientation progress
-	@vrooli scenario orient "$(SCENARIO_NAME)"
+	@template-manager orient "$(SCENARIO_NAME)"
 
 temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
 	@flow-verifier verify check --root .

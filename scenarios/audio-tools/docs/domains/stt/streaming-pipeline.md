@@ -296,6 +296,15 @@ with a drain-then-close teardown**:
   **before** the socket closes. A bounded drain deadline prevents a
   wedged backend from hanging the close forever. Measured kyutai flush
   lag is small (RTF ≈ 0.13), so awaiting it is cheap.
+- **Kyutai dials lazily.** The browser WebSocket may be opened before
+  recording starts, but the kyutai provider does not dial `/v1/stream`
+  until the first audio chunk arrives. Zero-audio pre-connects therefore
+  never take or wait on the single-session model lock.
+- **Backend death is durable.** If kyutai closes before a `done` frame,
+  the provider emits a durable `error` event before terminal `done`.
+  A typed kyutai busy rejection is preserved as `code:"stt_busy"` on
+  the browser-facing error frame; clients must treat that as a visible
+  busy state, not a successful empty final.
 - **Force-commit during continuous speech (kyutai).** Independently of
   teardown, the kyutai server force-commits a pending segment at the
   next word boundary once it has spanned `KYUTAI_STT_MAX_SEGMENT_FRAMES`

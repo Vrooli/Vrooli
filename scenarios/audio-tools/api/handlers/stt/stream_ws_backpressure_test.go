@@ -59,6 +59,7 @@ func newWedgeKyutaiServer(t *testing.T, partialCount, partialBytes int, segText 
 			return
 		}
 		close(done)
+		<-r.Context().Done()
 	})
 	srv := httptest.NewServer(m)
 	t.Cleanup(srv.Close)
@@ -120,6 +121,7 @@ func TestStreamWS_StalledConsumerDoesNotWedgeKyutaiReader(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
 	t.Cleanup(func() { _ = c.Close() })
+	require.NoError(t, c.WriteMessage(websocket.BinaryMessage, []byte{0x01, 0x02}))
 
 	// The browser consumer STALLS: after connecting it never reads a frame,
 	// modelling a consumer that cannot sustain the partial rate. A backpressure-
@@ -137,6 +139,7 @@ func TestStreamWS_StalledConsumerDoesNotWedgeKyutaiReader(t *testing.T) {
 	// delivered losslessly (partials may have been coalesced).
 	_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
 	sawSegment, sawDone := false, false
+	var receivedTypes []string
 	for !sawDone {
 		_, raw, rerr := c.ReadMessage()
 		if rerr != nil {
@@ -146,6 +149,7 @@ func TestStreamWS_StalledConsumerDoesNotWedgeKyutaiReader(t *testing.T) {
 		if json.Unmarshal(raw, &msg) != nil {
 			continue
 		}
+		receivedTypes = append(receivedTypes, msg.Type)
 		switch msg.Type {
 		case wsMsgSegmentFinal:
 			if msg.Text == "committed words" {
@@ -155,6 +159,10 @@ func TestStreamWS_StalledConsumerDoesNotWedgeKyutaiReader(t *testing.T) {
 			sawDone = true
 		}
 	}
-	require.True(t, sawSegment, "the durable committed segment must be delivered to the consumer")
-	require.True(t, sawDone, "the terminal done must be delivered to the consumer")
+	if !sawSegment {
+		t.Fatalf("the durable committed segment must be delivered to the consumer; receivedTypes=%+v", receivedTypes)
+	}
+	if !sawDone {
+		t.Fatalf("the terminal done must be delivered to the consumer; receivedTypes=%+v", receivedTypes)
+	}
 }

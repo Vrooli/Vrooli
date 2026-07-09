@@ -5,6 +5,7 @@ package stt
 
 import (
 	"errors"
+	"strings"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/protomap"
@@ -20,6 +21,9 @@ import (
 // the Connect stream-event path and the WebSocket bridge so both surfaces stay
 // in lockstep.
 func streamErrorCode(err error) string {
+	if err != nil && strings.Contains(err.Error(), "stt_busy") {
+		return "stt_busy"
+	}
 	var backendErr *sttpipeline.STTBackendError
 	if errors.As(err, &backendErr) {
 		switch backendErr.EffectiveState() {

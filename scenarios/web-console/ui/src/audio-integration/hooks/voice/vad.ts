@@ -275,8 +275,7 @@ export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs
       const ratio = newFloor / vad.cachedFloorBaseline;
       if (ratio > VAD_FLOOR_DRIFT_FACTOR || (vad.cachedFloorBaseline > 0 && ratio < 1 / VAD_FLOOR_DRIFT_FACTOR)) {
         console.info(
-          "[voice] Noise floor drift detected (cached=%.4f, live=%.4f, ratio=%.1f), resetting from live data",
-          vad.cachedFloorBaseline, newFloor, ratio,
+          `[voice] Noise floor drift detected (cached=${vad.cachedFloorBaseline.toFixed(4)}, live=${newFloor.toFixed(4)}, ratio=${ratio.toFixed(1)}), resetting from live data`,
         );
         vad.cachedFloorBaseline = 0; // Clear so this only fires once
       }

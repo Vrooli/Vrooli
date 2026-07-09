@@ -203,6 +203,14 @@ export class KokoroProvider implements TTSProvider {
    * Each paragraph is played as its own track — unlike the prior version
    * which concatenated all blobs before starting playback (which forced
    * time-to-first-audio to scale with TOTAL synth duration).
+   *
+   * TTS twin of the event-durability contract: each paragraph is a DURABLE
+   * ORDERED UNIT. A single-paragraph fault is isolated on that unit
+   * (playParagraphResilient: retry → browser-voice fallback → skip-with-notice)
+   * and MUST NOT truncate the paragraphs after it — survivors synthesize and
+   * play to completion, in order. Only a real abort (stop/dispose) halts the
+   * tail. This is the playback analogue of a durable STT segment.
+   * See scenarios/audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract.
    */
   async speakSequence(texts: string[], opts?: TTSSpeakOptions): Promise<void> {
     if (texts.length === 0) return;
