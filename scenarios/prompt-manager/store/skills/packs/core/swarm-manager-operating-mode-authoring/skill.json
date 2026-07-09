@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "swarm-manager-operating-mode-authoring",
   "name": "Swarm Manager Operating Mode Authoring",
-  "description": "Guide agents through converting an operator-described agent workflow into a static Swarm Manager operating mode with prompt skills, tests, docs, metrics, and audit-safe backlog reconciliation.",
+  "description": "Guide agents through turning an operator-described agent workflow into a Swarm Manager operating mode as data (target, composed reads/emits, classification-on-transition, executed_by composition), reusing existing modes and proving every branch with a simulation walkthrough before registration.",
   "modes": [
     "tools",
     "swarm-manager",

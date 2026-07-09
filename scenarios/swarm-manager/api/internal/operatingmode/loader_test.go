@@ -1,10 +1,12 @@
 package operatingmode
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -14,6 +16,12 @@ const modesDir = "../../../modes"
 // canonicalSchemaPath is the repo-root schema registry copy the embedded schema
 // must stay byte-identical to.
 const canonicalSchemaPath = "../../../../../.vrooli/schemas/operating-mode.schema.json"
+
+// promptSkillsRoot is Prompt Manager's committed core-skill store, relative to
+// this package. Shipped operating-mode prompt catalog entries must resolve from
+// this tree in a clean checkout; runtime sync cannot repair a missing source
+// asset.
+const promptSkillsRoot = "../../../../prompt-manager/store/skills/packs/core"
 
 func loadModeFromDisk(t *testing.T, id string) Definition {
 	t.Helper()
@@ -51,6 +59,62 @@ func TestLoadModesFromDirDiscoversShippedModes(t *testing.T) {
 	want := []Mode{ModeHolisticLoop, ModeItemLevel, ModePhasedPlanDrain}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("discovered modes = %v, want %v", got, want)
+	}
+}
+
+// TestShippedPromptCatalogResolvesCommittedSkills closes the source-contract
+// loop between data-backed mode definitions and Prompt Manager. Registry
+// validation proves catalog metadata is internally consistent; this test also
+// proves every non-delegated phase's referenced skill is committed, active, and
+// backed by non-empty prompt source in a clean checkout.
+func TestShippedPromptCatalogResolvesCommittedSkills(t *testing.T) {
+	type skillMetadata struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
+		Entry  string `json:"entry"`
+	}
+
+	entries := PromptCatalogEntries()
+	if len(entries) == 0 {
+		t.Fatal("shipped prompt catalog is empty")
+	}
+
+	seen := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		t.Run(entry.SkillID, func(t *testing.T) {
+			if _, duplicate := seen[entry.SkillID]; duplicate {
+				t.Fatalf("duplicate shipped prompt skill %q", entry.SkillID)
+			}
+			seen[entry.SkillID] = struct{}{}
+
+			skillDir := filepath.Join(promptSkillsRoot, entry.SkillID)
+			metadataBytes, err := os.ReadFile(filepath.Join(skillDir, "skill.json"))
+			if err != nil {
+				t.Fatalf("read prompt skill metadata for %s/%s: %v", entry.Mode, entry.Phase, err)
+			}
+
+			var metadata skillMetadata
+			if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
+				t.Fatalf("decode prompt skill metadata: %v", err)
+			}
+			if metadata.ID != entry.SkillID {
+				t.Fatalf("prompt skill metadata id = %q, want %q", metadata.ID, entry.SkillID)
+			}
+			if metadata.Status != "active" {
+				t.Fatalf("prompt skill %q status = %q, want active", entry.SkillID, metadata.Status)
+			}
+			if metadata.Entry == "" || filepath.Base(metadata.Entry) != metadata.Entry {
+				t.Fatalf("prompt skill %q entry = %q, want a local filename", entry.SkillID, metadata.Entry)
+			}
+
+			content, err := os.ReadFile(filepath.Join(skillDir, metadata.Entry))
+			if err != nil {
+				t.Fatalf("read prompt skill source: %v", err)
+			}
+			if strings.TrimSpace(string(content)) == "" {
+				t.Fatalf("prompt skill %q source is empty", entry.SkillID)
+			}
+		})
 	}
 }
 

@@ -15,7 +15,7 @@ Artifacts and rounds:
 {{PRIOR_ROUNDS_JSON}}
 ```
 
-Produce a verdict of `accepted`, `needs_followup`, or `replan_needed`. Include concrete evidence, tests inspected or run, gaps, and recommended next action. Do not mutate backlog specs directly.
+Produce a verdict of `accepted`, `changes_requested`, or `rejected` (the phase's declared enum). Use `changes_requested` when specific fixable gaps should be re-executed before acceptance — it routes the loop back to the delegated execute drain; any other non-accepting verdict records the gap and proceeds to reconcile. Include concrete evidence, tests inspected or run, gaps, and recommended next action. Do not mutate backlog specs directly.
 
 ## Final Result Envelope
 
@@ -25,7 +25,6 @@ End your response with a fenced JSON block containing `operating_mode_result` so
 {
   "operating_mode_result": {
     "verdict": "accepted",
-    "replan_needed": false,
     "handoff": {
       "summary": "...",
       "tests": [],

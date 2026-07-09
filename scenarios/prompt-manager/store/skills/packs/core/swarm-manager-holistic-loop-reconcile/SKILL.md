@@ -45,7 +45,7 @@ Prior rounds:
 
 ## Your task
 
-1. **Read what the round produced.** Walk `modes/holistic-loop/findings.md`, `modes/holistic-loop/initiative-plan.md`, the latest execute and review handoffs, and any code paths the round touched.
+1. **Read what the round produced.** Walk `modes/holistic-loop/findings.md`, the bound plan-manager plan (see the plan context in prior rounds), the latest execute and review handoffs, and any code paths the round touched.
 2. **Compare against the initiative spec.** Each member item has a `title`, `description`, `acceptance_allow/deny`, `priority`, `effort`, and `depends_on`. Look for items where the real work diverges: completed scope no longer reflected, new follow-ups surfaced, items that should be split or merged because the round revealed coupling, items that drifted into another initiative's domain.
 3. **Honor the BacklogSyncPolicy.** This mode allows `propose_mutations`, `mark_complete`, `create_followups`, and `update_scope`. Do not propose mutations outside that capability set.
 4. **Be conservative.** Propose only mutations the round produced *evidence* for. The operator-gated apply means a noisy proposal is annoying but not harmful — but a misleading rationale hides the actual signal. If you have low confidence in an item's drift, leave it for the next round.
