@@ -2,16 +2,21 @@ package facts
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	apidb "github.com/vrooli/api-core/database"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	_ "modernc.org/sqlite"
 )
 
 func TestDescribeDiscoversGenericGoModule(t *testing.T) {
@@ -719,6 +724,261 @@ func TestDescribeCacheInvalidatesWhenSourceChanges(t *testing.T) {
 	}
 	if second.GetCache().GetHit() || second.GetCache().GetState() != "miss" {
 		t.Fatalf("second cache metadata = %#v, want miss after source change", second.GetCache())
+	}
+}
+
+func TestSourceFingerprintIgnoresMTimeOnlyChurn(t *testing.T) {
+	root := t.TempDir()
+	sourcePath := filepath.Join(root, "main.go")
+	writeFile(t, sourcePath, "package main\n")
+	first := fileStatSignature(root, []string{sourcePath})
+	nextTime := time.Now().Add(2 * time.Hour)
+	if err := os.Chtimes(sourcePath, nextTime, nextTime); err != nil {
+		t.Fatalf("touch source: %v", err)
+	}
+	second := fileStatSignature(root, []string{sourcePath})
+	if second != first {
+		t.Fatalf("signature changed after mtime-only touch: %s != %s", second, first)
+	}
+}
+
+func TestSourceFingerprintChangesWhenContentChanges(t *testing.T) {
+	root := t.TempDir()
+	sourcePath := filepath.Join(root, "main.go")
+	writeFile(t, sourcePath, "package main\n")
+	first := fileStatSignature(root, []string{sourcePath})
+	writeFile(t, sourcePath, "package main\n\nfunc main() {}\n")
+	second := fileStatSignature(root, []string{sourcePath})
+	if second == first {
+		t.Fatalf("signature did not change after content edit: %s", second)
+	}
+}
+
+func TestCacheSupersedeOnPutMemory(t *testing.T) {
+	exerciseCacheSupersedeOnPut(t, NewMemoryCacheRepository())
+}
+
+func TestCacheSupersedeOnPutSQLite(t *testing.T) {
+	db := openCacheTestDB(t)
+	exerciseCacheSupersedeOnPut(t, NewSQLiteCacheRepository(db))
+}
+
+func TestCacheDistinctLogicalIdentitiesCoexistMemory(t *testing.T) {
+	exerciseCacheDistinctLogicalIdentitiesCoexist(t, NewMemoryCacheRepository())
+}
+
+func TestCacheDistinctLogicalIdentitiesCoexistSQLite(t *testing.T) {
+	db := openCacheTestDB(t)
+	exerciseCacheDistinctLogicalIdentitiesCoexist(t, NewSQLiteCacheRepository(db))
+}
+
+func TestMigrateCacheSchemaIsIdempotentOnPopulatedLegacyTable(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+	_, err = db.ExecContext(ctx, `
+CREATE TABLE code_facts_cache_entries (
+  cache_key TEXT PRIMARY KEY,
+  scope TEXT NOT NULL,
+  target_root TEXT NOT NULL,
+  analyzer TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  provider_version TEXT NOT NULL,
+  schema_version TEXT NOT NULL,
+  graph_hash TEXT NOT NULL,
+  source_hash TEXT NOT NULL,
+  config_hash TEXT NOT NULL,
+  family_key TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  warnings_json TEXT NOT NULL DEFAULT '[]',
+  extraction_ms INTEGER NOT NULL DEFAULT 0,
+  created_at_unix INTEGER NOT NULL,
+  last_used_at_unix INTEGER NOT NULL,
+  hit_count INTEGER NOT NULL DEFAULT 0
+)`)
+	if err != nil {
+		t.Fatalf("create legacy cache table: %v", err)
+	}
+	_, err = db.ExecContext(ctx, `
+INSERT INTO code_facts_cache_entries (
+  cache_key, scope, target_root, analyzer, provider, provider_version, schema_version,
+  graph_hash, source_hash, config_hash, family_key, payload_json, warnings_json,
+  extraction_ms, created_at_unix, last_used_at_unix, hit_count
+) VALUES ('legacy-key', 'graph', '/target', 'analyzer', 'provider', 'provider:v1', ?,
+  'graph', 'source', 'config', 'go', '{"nodes":[]}', '[]', 7, 1, 1, 0)`, cacheSchemaVersion)
+	if err != nil {
+		t.Fatalf("seed legacy cache table: %v", err)
+	}
+	if err := MigrateCacheSchema(ctx, db); err != nil {
+		t.Fatalf("first migration: %v", err)
+	}
+	if err := MigrateCacheSchema(ctx, db); err != nil {
+		t.Fatalf("second migration: %v", err)
+	}
+	if err := apidb.EnsureSchemas(ctx, db, apidb.SchemaProviderFunc(CacheSchema)); err != nil {
+		t.Fatalf("EnsureSchemas after migration: %v", err)
+	}
+	var logicalKey string
+	var payloadBytes int64
+	if err := db.QueryRowContext(ctx, `SELECT logical_key, payload_bytes FROM code_facts_cache_entries WHERE cache_key = 'legacy-key'`).Scan(&logicalKey, &payloadBytes); err != nil {
+		t.Fatalf("read migrated cache row: %v", err)
+	}
+	if logicalKey != "legacy-key" {
+		t.Fatalf("logical_key = %q, want legacy-key", logicalKey)
+	}
+	if payloadBytes != int64(len(`{"nodes":[]}`)) {
+		t.Fatalf("payload_bytes = %d, want %d", payloadBytes, len(`{"nodes":[]}`))
+	}
+}
+
+func TestCacheBudgetEvictsLRUAndRefreshChangesOrderMemory(t *testing.T) {
+	exerciseCacheBudgetEvictsLRUAndRefreshChangesOrder(t, func(maxBytes int64) CacheRepository {
+		return NewMemoryCacheRepository(maxBytes)
+	})
+}
+
+func TestCacheBudgetEvictsLRUAndRefreshChangesOrderSQLite(t *testing.T) {
+	db := openCacheTestDB(t)
+	exerciseCacheBudgetEvictsLRUAndRefreshChangesOrder(t, func(maxBytes int64) CacheRepository {
+		return NewSQLiteCacheRepository(db, maxBytes)
+	})
+}
+
+func TestCacheSweepDropsStaleSchemaAndEnforcesBudgetMemory(t *testing.T) {
+	repo := NewMemoryCacheRepository(0)
+	exerciseCacheSweepDropsStaleSchemaAndEnforcesBudget(t, repo, func(maxBytes int64) CacheRepository {
+		mem := repo.(*memoryCacheRepository)
+		mem.maxBytes = maxBytes
+		return repo
+	})
+}
+
+func TestCacheSweepDropsStaleSchemaAndEnforcesBudgetSQLite(t *testing.T) {
+	db := openCacheTestDB(t)
+	repo := NewSQLiteCacheRepository(db, 0)
+	exerciseCacheSweepDropsStaleSchemaAndEnforcesBudget(t, repo, func(maxBytes int64) CacheRepository {
+		return NewSQLiteCacheRepository(db, maxBytes)
+	})
+}
+
+func TestCachePayloadRoundTripMemory(t *testing.T) {
+	exerciseCachePayloadRoundTrip(t, NewMemoryCacheRepository())
+}
+
+func TestCachePayloadRoundTripSQLite(t *testing.T) {
+	db := openCacheTestDB(t)
+	exerciseCachePayloadRoundTrip(t, NewSQLiteCacheRepository(db, 0))
+}
+
+func TestCacheStatusReportsBudgetTotalsAndScopes(t *testing.T) {
+	repo := NewMemoryCacheRepository(4096)
+	ctx := context.Background()
+	targetRoot := t.TempDir()
+	graphEntry := cacheTestEntry("status-graph", "status-graph", "source")
+	graphEntry.TargetRoot = targetRoot
+	reportEntry := cacheTestEntry("status-report", "status-report", "source")
+	reportEntry.TargetRoot = targetRoot
+	reportEntry.FamilyKey = "FACT_FAMILY_IMPORTS"
+	if err := repo.PutGraph(ctx, graphEntry, cacheTestGraph("status-graph")); err != nil {
+		t.Fatalf("PutGraph: %v", err)
+	}
+	if err := repo.PutReport(ctx, reportEntry, &factsv1.CodeFactsReport{
+		Target: &factsv1.TargetContext{RootPath: targetRoot},
+		Facts:  []*factsv1.GenericFact{{Family: factsv1.FactFamily_FACT_FAMILY_IMPORTS, Subject: "fmt"}},
+	}); err != nil {
+		t.Fatalf("PutReport: %v", err)
+	}
+	svc := NewService(WithCacheRepository(repo))
+	status, err := svc.CacheStatus(ctx, &factsv1.GetCacheStatusRequest{Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: targetRoot}})
+	if err != nil {
+		t.Fatalf("CacheStatus: %v", err)
+	}
+	if status.GetEntries() != 2 || status.GetTotalRows() != 2 {
+		t.Fatalf("entries=%d total_rows=%d, want 2/2", status.GetEntries(), status.GetTotalRows())
+	}
+	if status.GetBudgetBytes() != 4096 {
+		t.Fatalf("budget bytes = %d, want 4096", status.GetBudgetBytes())
+	}
+	if status.GetTotalPayloadBytes() == 0 || status.GetUtilization() <= 0 {
+		t.Fatalf("payload bytes=%d utilization=%f, want positive", status.GetTotalPayloadBytes(), status.GetUtilization())
+	}
+	if len(status.GetScopes()) != 2 {
+		t.Fatalf("scopes = %d, want graph and report", len(status.GetScopes()))
+	}
+}
+
+func TestClearCacheAllDryRunAndDelete(t *testing.T) {
+	repo := NewMemoryCacheRepository()
+	ctx := context.Background()
+	targetRoot := t.TempDir()
+	first := cacheTestEntry("clear-a", "clear-a", "source")
+	first.TargetRoot = targetRoot
+	if err := repo.PutGraph(ctx, first, cacheTestGraph("clear-a")); err != nil {
+		t.Fatalf("PutGraph(a): %v", err)
+	}
+	second := cacheTestEntry("clear-b", "clear-b", "source")
+	second.TargetRoot = t.TempDir()
+	if err := repo.PutGraph(ctx, second, cacheTestGraph("clear-b")); err != nil {
+		t.Fatalf("PutGraph(b): %v", err)
+	}
+	svc := NewService(WithCacheRepository(repo))
+	dryRun, err := svc.ClearCache(ctx, &factsv1.ClearCacheRequest{All: true, DryRun: true})
+	if err != nil {
+		t.Fatalf("ClearCache(all dry-run): %v", err)
+	}
+	if dryRun.GetMatchedEntries() != 2 || dryRun.GetClearedEntries() != 0 {
+		t.Fatalf("dry-run = %#v, want 2 matched and 0 cleared", dryRun)
+	}
+	status, err := svc.CacheStatus(ctx, &factsv1.GetCacheStatusRequest{Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: targetRoot}})
+	if err != nil {
+		t.Fatalf("CacheStatus after dry-run: %v", err)
+	}
+	if status.GetTotalRows() != 2 {
+		t.Fatalf("total rows after dry-run = %d, want 2", status.GetTotalRows())
+	}
+	cleared, err := svc.ClearCache(ctx, &factsv1.ClearCacheRequest{All: true})
+	if err != nil {
+		t.Fatalf("ClearCache(all): %v", err)
+	}
+	if cleared.GetMatchedEntries() != 2 || cleared.GetClearedEntries() != 2 {
+		t.Fatalf("cleared = %#v, want 2 matched and 2 cleared", cleared)
+	}
+	status, err = svc.CacheStatus(ctx, &factsv1.GetCacheStatusRequest{Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: targetRoot}})
+	if err != nil {
+		t.Fatalf("CacheStatus after clear: %v", err)
+	}
+	if status.GetTotalRows() != 0 {
+		t.Fatalf("total rows after clear = %d, want 0", status.GetTotalRows())
+	}
+}
+
+func TestSQLiteCacheCompressesGraphPayload(t *testing.T) {
+	db := openCacheTestDB(t)
+	repo := NewSQLiteCacheRepository(db, 0)
+	graph := largeCacheTestGraph(2000)
+	rawPayload, _, err := marshalGraphResult(graph)
+	if err != nil {
+		t.Fatalf("marshal raw graph: %v", err)
+	}
+	entry := cacheTestEntry("compressed-key", "compressed-unit", "source")
+	if err := repo.PutGraph(context.Background(), entry, graph); err != nil {
+		t.Fatalf("PutGraph: %v", err)
+	}
+	entries, err := repo.Status(context.Background(), "/target", "")
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entries = %d, want 1", len(entries))
+	}
+	if entries[0].Codec != cacheCodecGzip {
+		t.Fatalf("codec = %q, want gzip", entries[0].Codec)
+	}
+	if entries[0].PayloadBytes >= int64(len(rawPayload))/3 {
+		t.Fatalf("compressed payload bytes = %d, raw bytes = %d, want at least 3x reduction", entries[0].PayloadBytes, len(rawPayload))
 	}
 }
 
@@ -1714,4 +1974,287 @@ func (f unitProvider) AnalyzerName() string { return f.analyzer }
 
 func (f unitProvider) Extract(_ context.Context, unit *factsv1.ParseUnit) (*GraphResult, error) {
 	return f.extract(unit), nil
+}
+
+func openCacheTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.ExecContext(context.Background(), CacheSchema()); err != nil {
+		t.Fatalf("apply cache schema: %v", err)
+	}
+	return db
+}
+
+func exerciseCacheSupersedeOnPut(t *testing.T, repo CacheRepository) {
+	t.Helper()
+	ctx := context.Background()
+	first := cacheTestEntry("first-key", "unit-one", "source-one")
+	second := cacheTestEntry("second-key", "unit-one", "source-two")
+	if err := repo.PutGraph(ctx, first, cacheTestGraph("graph-one")); err != nil {
+		t.Fatalf("PutGraph(first): %v", err)
+	}
+	if err := repo.PutGraph(ctx, second, cacheTestGraph("graph-two")); err != nil {
+		t.Fatalf("PutGraph(second): %v", err)
+	}
+	entries, err := repo.Status(ctx, "/target", "")
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entries = %d, want 1", len(entries))
+	}
+	if entries[0].Key != second.Key {
+		t.Fatalf("remaining key = %q, want %q", entries[0].Key, second.Key)
+	}
+	if _, _, ok, err := repo.GetGraph(ctx, first.Key); err != nil || ok {
+		t.Fatalf("GetGraph(first) ok=%v err=%v, want miss", ok, err)
+	}
+	got, entry, ok, err := repo.GetGraph(ctx, second.Key)
+	if err != nil || !ok {
+		t.Fatalf("GetGraph(second) ok=%v err=%v, want hit", ok, err)
+	}
+	if got.Graph == nil || entry.SourceHash != "source-two" {
+		t.Fatalf("new cache entry = graph nil? %v source %q, want graph payload/source-two", got.Graph == nil, entry.SourceHash)
+	}
+}
+
+func exerciseCacheDistinctLogicalIdentitiesCoexist(t *testing.T, repo CacheRepository) {
+	t.Helper()
+	ctx := context.Background()
+	first := cacheTestEntry("unit-one-key", "unit-one", "source-one")
+	second := cacheTestEntry("unit-two-key", "unit-two", "source-two")
+	if err := repo.PutGraph(ctx, first, cacheTestGraph("graph-one")); err != nil {
+		t.Fatalf("PutGraph(first): %v", err)
+	}
+	if err := repo.PutGraph(ctx, second, cacheTestGraph("graph-two")); err != nil {
+		t.Fatalf("PutGraph(second): %v", err)
+	}
+	entries, err := repo.Status(ctx, "/target", "")
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("entries = %d, want 2", len(entries))
+	}
+}
+
+func exerciseCacheBudgetEvictsLRUAndRefreshChangesOrder(t *testing.T, newRepo func(maxBytes int64) CacheRepository) {
+	t.Helper()
+	ctx := context.Background()
+	graphA := cacheTestGraph("graph-a")
+	graphB := cacheTestGraph("graph-b")
+	graphC := cacheTestGraph("graph-c")
+	sizeA := graphPayloadBytes(t, graphA)
+	sizeB := graphPayloadBytes(t, graphB)
+	sizeC := graphPayloadBytes(t, graphC)
+	repo := newRepo(sizeA + sizeB + sizeC - 1)
+	entryA := cacheTestEntry("key-a", "unit-a", "source-a")
+	entryA.CreatedAtUnix = 1
+	entryB := cacheTestEntry("key-b", "unit-b", "source-b")
+	entryB.CreatedAtUnix = 2
+	entryC := cacheTestEntry("key-c", "unit-c", "source-c")
+	entryC.CreatedAtUnix = 3
+	if err := repo.PutGraph(ctx, entryA, graphA); err != nil {
+		t.Fatalf("PutGraph(a): %v", err)
+	}
+	if err := repo.PutGraph(ctx, entryB, graphB); err != nil {
+		t.Fatalf("PutGraph(b): %v", err)
+	}
+	if _, _, ok, err := repo.GetGraph(ctx, entryA.Key); err != nil || !ok {
+		t.Fatalf("GetGraph(a) ok=%v err=%v, want refresh hit", ok, err)
+	}
+	if err := repo.PutGraph(ctx, entryC, graphC); err != nil {
+		t.Fatalf("PutGraph(c): %v", err)
+	}
+	if _, _, ok, err := repo.GetGraph(ctx, entryB.Key); err != nil || ok {
+		t.Fatalf("GetGraph(b) ok=%v err=%v, want LRU miss", ok, err)
+	}
+	if _, _, ok, err := repo.GetGraph(ctx, entryA.Key); err != nil || !ok {
+		t.Fatalf("GetGraph(a after eviction) ok=%v err=%v, want hit", ok, err)
+	}
+	if _, _, ok, err := repo.GetGraph(ctx, entryC.Key); err != nil || !ok {
+		t.Fatalf("GetGraph(c after eviction) ok=%v err=%v, want hit", ok, err)
+	}
+	entries, err := repo.Status(ctx, "/target", "")
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if totalCachePayloadBytes(entries) > sizeA+sizeB+sizeC-1 {
+		t.Fatalf("payload bytes = %d, want <= %d", totalCachePayloadBytes(entries), sizeA+sizeB+sizeC-1)
+	}
+}
+
+func exerciseCacheSweepDropsStaleSchemaAndEnforcesBudget(t *testing.T, repo CacheRepository, withBudget func(maxBytes int64) CacheRepository) {
+	t.Helper()
+	ctx := context.Background()
+	graphA := cacheTestGraph("sweep-a")
+	graphB := cacheTestGraph("sweep-b")
+	graphC := cacheTestGraph("sweep-c")
+	sizeB := graphPayloadBytes(t, graphB)
+	sizeC := graphPayloadBytes(t, graphC)
+	entryA := cacheTestEntry("sweep-a", "sweep-a", "source-a")
+	entryA.CreatedAtUnix = 1
+	entryA.SchemaVersion = "old-schema"
+	entryB := cacheTestEntry("sweep-b", "sweep-b", "source-b")
+	entryB.CreatedAtUnix = 2
+	entryC := cacheTestEntry("sweep-c", "sweep-c", "source-c")
+	entryC.CreatedAtUnix = 3
+	if err := repo.PutGraph(ctx, entryA, graphA); err != nil {
+		t.Fatalf("PutGraph(stale): %v", err)
+	}
+	if err := repo.PutGraph(ctx, entryB, graphB); err != nil {
+		t.Fatalf("PutGraph(b): %v", err)
+	}
+	if err := repo.PutGraph(ctx, entryC, graphC); err != nil {
+		t.Fatalf("PutGraph(c): %v", err)
+	}
+	repo = withBudget(sizeB + sizeC - 1)
+	sweep, err := repo.Sweep(ctx)
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if sweep.StaleRows != 1 {
+		t.Fatalf("stale rows = %d, want 1", sweep.StaleRows)
+	}
+	if sweep.EvictedRows != 1 {
+		t.Fatalf("evicted rows = %d, want 1", sweep.EvictedRows)
+	}
+	if _, _, ok, err := repo.GetGraph(ctx, entryA.Key); err != nil || ok {
+		t.Fatalf("GetGraph(stale) ok=%v err=%v, want miss", ok, err)
+	}
+	if _, _, ok, err := repo.GetGraph(ctx, entryB.Key); err != nil || ok {
+		t.Fatalf("GetGraph(lru) ok=%v err=%v, want miss", ok, err)
+	}
+	if _, _, ok, err := repo.GetGraph(ctx, entryC.Key); err != nil || !ok {
+		t.Fatalf("GetGraph(protected survivor) ok=%v err=%v, want hit", ok, err)
+	}
+}
+
+func exerciseCachePayloadRoundTrip(t *testing.T, repo CacheRepository) {
+	t.Helper()
+	ctx := context.Background()
+	graph := cacheTestGraph("round-trip-graph")
+	graph.Warnings = []*commonv1.CodeGraphWarning{{Message: "warning"}}
+	graphEntry := cacheTestEntry("round-trip-graph-key", "round-trip-graph", "source")
+	graphEntry.GraphHash = graph.GraphHash
+	if err := repo.PutGraph(ctx, graphEntry, graph); err != nil {
+		t.Fatalf("PutGraph: %v", err)
+	}
+	gotGraph, _, ok, err := repo.GetGraph(ctx, graphEntry.Key)
+	if err != nil || !ok {
+		t.Fatalf("GetGraph ok=%v err=%v, want hit", ok, err)
+	}
+	if gotGraph.GraphHash != graph.GraphHash || len(gotGraph.Warnings) != 1 || gotGraph.Warnings[0].GetMessage() != "warning" {
+		t.Fatalf("graph round trip = hash %q warnings %#v, want hash %q warning", gotGraph.GraphHash, gotGraph.Warnings, graph.GraphHash)
+	}
+	report := &factsv1.CodeFactsReport{
+		Target: &factsv1.TargetContext{RootPath: "/target"},
+		Facts: []*factsv1.GenericFact{{
+			Family:  factsv1.FactFamily_FACT_FAMILY_IMPORTS,
+			Subject: "fmt",
+		}},
+	}
+	reportEntry := cacheTestEntry("round-trip-report-key", "round-trip-report", "source")
+	reportEntry.FamilyKey = "FACT_FAMILY_IMPORTS"
+	if err := repo.PutReport(ctx, reportEntry, report); err != nil {
+		t.Fatalf("PutReport: %v", err)
+	}
+	gotReport, _, ok, err := repo.GetReport(ctx, reportEntry.Key)
+	if err != nil || !ok {
+		t.Fatalf("GetReport ok=%v err=%v, want hit", ok, err)
+	}
+	if gotReport.GetTarget().GetRootPath() != "/target" || len(gotReport.GetFacts()) != 1 || gotReport.GetFacts()[0].GetSubject() != "fmt" {
+		t.Fatalf("report round trip = %#v, want target/fact preserved", gotReport)
+	}
+}
+
+func cacheTestEntry(key string, identity string, sourceHash string) cacheEntry {
+	return cacheEntry{
+		Key:           key,
+		TargetRoot:    "/target",
+		Analyzer:      cacheAnalyzerVersion,
+		Provider:      "go-code-graph",
+		ProviderVer:   "go-code-graph:phase8",
+		SchemaVersion: cacheSchemaVersion,
+		GraphHash:     "graph",
+		SourceHash:    sourceHash,
+		ConfigHash:    "config",
+		FamilyKey:     "go",
+		Identity:      identity,
+	}
+}
+
+func cacheTestGraph(hash string) *GraphResult {
+	return &GraphResult{
+		GraphHash: hash,
+		Graph: &commonv1.CodeGraph{
+			Nodes: []*commonv1.CodeGraphNode{{Id: hash, Name: hash}},
+		},
+	}
+}
+
+func largeCacheTestGraph(nodes int) *GraphResult {
+	graph := &commonv1.CodeGraph{Nodes: make([]*commonv1.CodeGraphNode, 0, nodes)}
+	for i := 0; i < nodes; i++ {
+		id := fmt.Sprintf("node-%04d", i)
+		graph.Nodes = append(graph.Nodes, &commonv1.CodeGraphNode{
+			Id:   id,
+			Name: "repeated-symbol-name",
+			Path: "internal/repeated/file.go",
+			Attributes: map[string]string{
+				"kind":        "GO_NODE_KIND_IDENTIFIER",
+				"description": "this repeated payload is intentionally compressible",
+			},
+		})
+	}
+	return &GraphResult{GraphHash: "large-graph", Graph: graph}
+}
+
+func graphPayloadBytes(t *testing.T, graph *GraphResult) int64 {
+	t.Helper()
+	payload, _, err := marshalGraphResult(graph)
+	if err != nil {
+		t.Fatalf("marshal graph payload: %v", err)
+	}
+	return int64(len(payload))
+}
+
+func totalCachePayloadBytes(entries []cacheEntry) int64 {
+	var total int64
+	for _, entry := range entries {
+		total += entry.PayloadBytes
+	}
+	return total
+}
+
+func BenchmarkSourceFingerprint(b *testing.B) {
+	root := b.TempDir()
+	paths := make([]string, 0, 250)
+	for i := 0; i < 250; i++ {
+		path := filepath.Join(root, fmt.Sprintf("file_%03d.go", i))
+		if err := os.WriteFile(path, []byte("package bench\n\nfunc F() string { return \"stable\" }\n"), 0o644); err != nil {
+			b.Fatalf("write fixture: %v", err)
+		}
+		paths = append(paths, path)
+	}
+	b.Run("cold", func(b *testing.B) {
+		sourceFileHashMemo = newFileHashMemo(8192)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = fileStatSignature(root, paths)
+		}
+	})
+	b.Run("warm", func(b *testing.B) {
+		sourceFileHashMemo = newFileHashMemo(8192)
+		_ = fileStatSignature(root, paths)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = fileStatSignature(root, paths)
+		}
+	})
 }

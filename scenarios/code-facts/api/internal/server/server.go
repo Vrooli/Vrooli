@@ -59,6 +59,7 @@ func New(d Deps, modules ...module.Module) *Server {
 		panic("server.New requires Deps.Clock")
 	}
 	s := &Server{deps: d, router: mux.NewRouter()}
+	s.router.Use(securityHeadersMiddleware)
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
 	for _, m := range modules {
 		m.Mount(s.router)
@@ -71,4 +72,14 @@ func New(d Deps, modules ...module.Module) *Server {
 // internal/testutil/httpx.NewLiveServer wraps for handler tests.
 func (s *Server) Handler() http.Handler {
 	return handlers.RecoveryHandler()(s.router)
+}
+
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		next.ServeHTTP(w, r)
+	})
 }

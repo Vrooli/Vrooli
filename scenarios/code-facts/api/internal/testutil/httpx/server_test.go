@@ -75,7 +75,7 @@ func TestNewLiveServer_NormalisesPathPrefix(t *testing.T) {
 // under test; the module choice is incidental.
 func newHarnessServer(t *testing.T, service string) *server.Server {
 	t.Helper()
-	mod := health.Module(&mocks.FakePinger{}, service, "0.0.1")
+	mod := health.Module(&mocks.FakePinger{}, service, "0.0.1", nil)
 	return server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
 		mod,

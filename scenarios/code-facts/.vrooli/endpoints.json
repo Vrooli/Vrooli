@@ -13,6 +13,7 @@
         "type": "Response",
         "properties": {
           "dependencies": "object",
+          "metrics": "object",
           "readiness": "boolean",
           "status": "string"
         }

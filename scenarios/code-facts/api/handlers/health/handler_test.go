@@ -1,6 +1,7 @@
 package health_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -78,6 +79,13 @@ func TestHealthHandler(t *testing.T) {
 				Pinger:  pinger,
 				Service: "react-vite-test",
 				Version: "1.0.0",
+				CacheMetrics: func(context.Context) (map[string]any, error) {
+					return map[string]any{
+						"cache_total_payload_bytes": int64(1234),
+						"cache_budget_bytes":        int64(4096),
+						"cache_utilization":         0.301,
+					}, nil
+				},
 			})
 			mod := module.Module{
 				Name: "health",
@@ -103,6 +111,8 @@ func TestHealthHandler(t *testing.T) {
 			dep, ok := got.Dependencies["database"]
 			require.True(t, ok, "response.dependencies must include 'database'; got %v", got.Dependencies)
 			require.Equal(t, tc.wantConnected, dep.Connected, "dependencies.database.connected")
+			require.Equal(t, float64(1234), got.Metrics["cache_total_payload_bytes"].GetNumberValue(), "metrics.cache_total_payload_bytes")
+			require.Equal(t, float64(4096), got.Metrics["cache_budget_bytes"].GetNumberValue(), "metrics.cache_budget_bytes")
 			if tc.wantErrSubstr != "" {
 				require.Contains(t, fmt.Sprint(dep.Error), tc.wantErrSubstr, "dependencies.database.error")
 			}

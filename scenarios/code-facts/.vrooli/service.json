@@ -209,7 +209,33 @@
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {},
+    "scenarios": {
+      "architecture-cartographer": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Code-facts can query Architecture Cartographer for file-domain facts when a target needs domain partitioning beyond local source discovery.",
+        "degraded_behavior": "File-domain facts fall back to local source and import evidence when Architecture Cartographer is unavailable."
+      },
+      "go-code-graph": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Code-facts uses Go Code Graph as the analyzer backend for Go source graph extraction.",
+        "degraded_behavior": "Go graph fact families are unavailable for targets that require Go analyzer execution."
+      },
+      "typescript-code-graph": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Code-facts uses TypeScript Code Graph as the analyzer backend for TypeScript source graph extraction.",
+        "degraded_behavior": "TypeScript graph fact families are unavailable for targets that require TypeScript analyzer execution."
+      }
+    }
+  },
+  "storage_health": {
+    "data_dir_budget_bytes": 3221225472
   },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/code-facts.db"

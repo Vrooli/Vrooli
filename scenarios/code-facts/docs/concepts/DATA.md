@@ -2,7 +2,7 @@
 
 ## Purpose Of This Document
 
-Describe Code Facts data ownership, storage, and retention before implementation.
+Describe Code Facts data ownership, storage, and retention.
 
 ## Storage Overview
 
@@ -20,11 +20,11 @@ Code Facts owns derived evidence and cache metadata. Provider graph data and nor
 
 ## Schema Map
 
-Proto packages live under `packages/proto/schemas/code-facts/v1/`. The API stores cache entries in SQLite table `code_facts_cache_entries`, keyed by cache key with scope, target root, analyzer/provider versions, source/config hashes, graph hash, serialized payload, timestamps, and hit count.
+Proto packages live under `packages/proto/schemas/code-facts/v1/`. The API stores cache entries in SQLite table `code_facts_cache_entries`, keyed by cache key with scope, target root, logical identity, analyzer/provider versions, source/config hashes, graph hash, compressed serialized payload, payload byte count, timestamps, and hit count.
 
 ## Migrations And Compatibility
 
-Greenfield contracts should avoid compatibility aliases. Cache schemas may use additive migrations after storage lands.
+Greenfield contracts avoid compatibility aliases. Cache schemas use guarded additive SQLite migrations for retained columns, then startup sweep removes rows with stale cache schema versions because cache payloads are disposable derived data.
 
 ## Import / Export
 
@@ -32,7 +32,15 @@ Planned exports are JSON/proto-shaped describe reports and compact baseline summ
 
 ## Retention And Deletion
 
-Cache entries are derived data and may be cleared per target with dry-run support. Durable retention limits are deferred until usage data shows whether automatic pruning is needed.
+Cache entries are derived data and may be cleared per target, previewed with dry-run support, or cleared fleet-wide with `code-facts cache clear --all`.
+
+Retention is automatic:
+
+- Each write computes a logical identity from scope, target root, analyzer, family key, and unit identity. Older rows for the same logical identity are deleted in the same write transaction.
+- SQLite payloads are gzip-compressed and counted by compressed `payload_bytes`.
+- `CODE_FACTS_CACHE_MAX_BYTES` sets the total cache budget. The default is 2 GiB; `0` disables eviction for tests only.
+- Writes and startup sweeps evict least-recently-used rows until the table is under budget. Startup sweep also removes rows from stale cache schema versions.
+- Cache status and health metrics expose total rows, total payload bytes, budget bytes, utilization, per-scope row/byte counts, and the last startup/write sweep timestamp.
 
 ## Privacy Notes
 

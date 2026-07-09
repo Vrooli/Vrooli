@@ -8,10 +8,11 @@
  */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Textarea } from "./textarea";
+import { renderWithProviders as render } from "../../test-utils";
 
 describe("Textarea", () => {
   it("emits the base className chunk so the cn() merge contract holds", () => {

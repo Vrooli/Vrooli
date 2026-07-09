@@ -34,7 +34,11 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no cache status")
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Cache %s has %d entrie(s).", resp.Msg.GetCacheKey(), resp.Msg.GetEntries())},
+		Summary: []string{
+			fmt.Sprintf("Cache %s has %d entrie(s).", resp.Msg.GetCacheKey(), resp.Msg.GetEntries()),
+			fmt.Sprintf("Stored %d bytes across %d row(s); budget %d bytes; utilization %.2f%%.",
+				resp.Msg.GetTotalPayloadBytes(), resp.Msg.GetTotalRows(), resp.Msg.GetBudgetBytes(), resp.Msg.GetUtilization()*100),
+		},
 		ResultsHeading: "Entries",
 		Results:        cacheEntryLines(resp.Msg.GetEntriesMetadata()),
 	})
@@ -53,17 +57,29 @@ func (h *handlers) inspect(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no cache status")
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Cache %s has %d entrie(s).", resp.Msg.GetCacheKey(), resp.Msg.GetEntries())},
+		Summary: []string{
+			fmt.Sprintf("Cache %s has %d entrie(s).", resp.Msg.GetCacheKey(), resp.Msg.GetEntries()),
+			fmt.Sprintf("Stored %d bytes across %d row(s); budget %d bytes; utilization %.2f%%.",
+				resp.Msg.GetTotalPayloadBytes(), resp.Msg.GetTotalRows(), resp.Msg.GetBudgetBytes(), resp.Msg.GetUtilization()*100),
+		},
 		ResultsHeading: "Entries",
 		Results:        cacheEntryLines(resp.Msg.GetEntriesMetadata()),
 	})
 }
 
 func (h *handlers) clear(ctx cliapp.RunContext) error {
-	target := parseTarget(ctx.Positional("target"))
+	all := ctx.BoolFlag("all")
+	targetArg := strings.TrimSpace(ctx.Positional("target"))
+	if all && targetArg != "" {
+		return fmt.Errorf("--all cannot be combined with a target")
+	}
+	if !all && targetArg == "" {
+		return fmt.Errorf("target is required unless --all is set")
+	}
 	resp, err := h.client.ClearCache(context.Background(), connect.NewRequest(&factsv1.ClearCacheRequest{
-		Target: target,
+		Target: parseTarget(targetArg),
 		DryRun: ctx.BoolFlag("dry-run"),
+		All:    all,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("clear cache", err, nil)
@@ -77,6 +93,10 @@ func (h *handlers) clear(ctx cliapp.RunContext) error {
 }
 
 func parseTarget(raw string) *factsv1.CodeTarget {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
 	if scenario, ok := strings.CutPrefix(raw, "scenario:"); ok {
 		return &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: scenario}
 	}

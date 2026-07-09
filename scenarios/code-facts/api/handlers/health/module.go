@@ -1,6 +1,7 @@
 package health
 
 import (
+	"context"
 	"net/http"
 
 	"code-facts/internal/database"
@@ -15,8 +16,8 @@ import (
 // probe convention infrastructure (LB, Kubernetes) reaches for;
 // /api/v1/health is what API clients use so they only have to know
 // one base path.
-func Module(pinger database.Pinger, service, version string) module.Module {
-	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version})
+func Module(pinger database.Pinger, service, version string, cacheMetrics func(context.Context) (map[string]any, error)) module.Module {
+	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version, CacheMetrics: cacheMetrics})
 	return module.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {

@@ -310,31 +310,68 @@ func (s *Service) cacheStatus(ctx context.Context, targetReq *factsv1.CodeTarget
 	for _, entry := range entries {
 		metadata = append(metadata, entry.metadata("stored", "cache entry is reusable while key evidence remains unchanged"))
 	}
+	stats, err := s.cache.Stats(ctx)
+	if err != nil {
+		return nil, err
+	}
 	cacheKey := key
 	if cacheKey == "" {
 		cacheKey = cacheKeyForTarget(targetReq, target)
 	}
-	return &factsv1.CacheStatus{Target: targetReq, CacheKey: cacheKey, Entries: int64(len(metadata)), EntriesMetadata: metadata}, nil
+	return cacheStatusResponse(targetReq, cacheKey, metadata, stats), nil
 }
 
 func (s *Service) ClearCache(ctx context.Context, req *factsv1.ClearCacheRequest) (*factsv1.ClearCacheResponse, error) {
-	if err := validateTarget(req.GetTarget()); err != nil {
-		return nil, err
+	var targetRoot string
+	cacheKey := "all"
+	if !req.GetAll() {
+		if err := validateTarget(req.GetTarget()); err != nil {
+			return nil, err
+		}
+		target, err := resolveTarget(req.GetTarget())
+		if err != nil {
+			return nil, err
+		}
+		targetRoot = target.GetRootPath()
+		cacheKey = cacheKeyForTarget(req.GetTarget(), target)
 	}
-	target, err := resolveTarget(req.GetTarget())
-	if err != nil {
-		return nil, err
-	}
-	matched, cleared, err := s.cache.Clear(ctx, target.GetRootPath(), req.GetDryRun())
+	matched, cleared, err := s.cache.Clear(ctx, targetRoot, req.GetDryRun())
 	if err != nil {
 		return nil, err
 	}
 	return &factsv1.ClearCacheResponse{
-		CacheKey:       cacheKeyForTarget(req.GetTarget(), target),
+		CacheKey:       cacheKey,
 		MatchedEntries: matched,
 		ClearedEntries: cleared,
 		DryRun:         req.GetDryRun(),
 	}, nil
+}
+
+func cacheStatusResponse(target *factsv1.CodeTarget, cacheKey string, metadata []*factsv1.CacheMetadata, stats CacheStats) *factsv1.CacheStatus {
+	var utilization float64
+	if stats.BudgetBytes > 0 {
+		utilization = float64(stats.TotalPayloadBytes) / float64(stats.BudgetBytes)
+	}
+	scopes := make([]*factsv1.CacheScopeSummary, 0, len(stats.Scopes))
+	for _, scope := range stats.Scopes {
+		scopes = append(scopes, &factsv1.CacheScopeSummary{
+			Scope:        scope.Scope,
+			RowCount:     scope.Rows,
+			PayloadBytes: scope.PayloadBytes,
+		})
+	}
+	return &factsv1.CacheStatus{
+		Target:            target,
+		CacheKey:          cacheKey,
+		Entries:           int64(len(metadata)),
+		EntriesMetadata:   metadata,
+		TotalRows:         stats.TotalRows,
+		TotalPayloadBytes: stats.TotalPayloadBytes,
+		BudgetBytes:       stats.BudgetBytes,
+		Utilization:       utilization,
+		Scopes:            scopes,
+		LastSweepAtUnix:   stats.LastSweepAtUnix,
+	}
 }
 
 func validateTarget(target *factsv1.CodeTarget) error {
@@ -718,6 +755,7 @@ func reportCachePlan(targetReq *factsv1.CodeTarget, target *factsv1.TargetContex
 	key := cacheKey(cacheScopeReport, cacheAnalyzerVersion, cacheSchemaVersion, target.GetRootPath(), targetReq.GetKind().String(), targetReq.GetScenario(), familiesKey, fmt.Sprint(maxDepth), sourceHash, configHash, providers)
 	return cacheEntry{
 		Key:           key,
+		LogicalKey:    cacheKey(cacheScopeReport, target.GetRootPath(), cacheAnalyzerVersion, familiesKey, targetReq.GetKind().String(), targetReq.GetScenario(), targetReq.GetPath(), targetReq.GetRepoRoot(), fmt.Sprint(maxDepth), providers),
 		Scope:         cacheScopeReport,
 		TargetRoot:    target.GetRootPath(),
 		Analyzer:      cacheAnalyzerVersion,
@@ -727,6 +765,7 @@ func reportCachePlan(targetReq *factsv1.CodeTarget, target *factsv1.TargetContex
 		SourceHash:    sourceHash,
 		ConfigHash:    configHash,
 		FamilyKey:     familiesKey,
+		Identity:      cacheKey(targetReq.GetKind().String(), targetReq.GetScenario(), targetReq.GetPath(), targetReq.GetRepoRoot(), fmt.Sprint(maxDepth), providers),
 	}
 }
 
@@ -735,6 +774,7 @@ func graphCachePlan(target *factsv1.TargetContext, unit *factsv1.ParseUnit, prov
 	key := cacheKey(cacheScopeGraph, cacheAnalyzerVersion, cacheSchemaVersion, providerVer, target.GetRootPath(), unit.GetId(), unit.GetRootPath(), unit.GetConfigPath(), sourceHash, configHash)
 	return cacheEntry{
 		Key:           key,
+		LogicalKey:    cacheKey(cacheScopeGraph, target.GetRootPath(), cacheAnalyzerVersion, unit.GetLanguage(), provider.AnalyzerName(), unit.GetId(), unit.GetRootPath(), unit.GetConfigPath()),
 		Scope:         cacheScopeGraph,
 		TargetRoot:    target.GetRootPath(),
 		Analyzer:      cacheAnalyzerVersion,
@@ -744,6 +784,7 @@ func graphCachePlan(target *factsv1.TargetContext, unit *factsv1.ParseUnit, prov
 		SourceHash:    sourceHash,
 		ConfigHash:    configHash,
 		FamilyKey:     unit.GetLanguage(),
+		Identity:      cacheKey(provider.AnalyzerName(), unit.GetId(), unit.GetRootPath(), unit.GetConfigPath()),
 	}
 }
 

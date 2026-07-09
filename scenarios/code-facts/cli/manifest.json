@@ -129,12 +129,13 @@
         },
         {
           "name": "clear",
-          "description": "Clear cache entries for a target",
+          "description": "Clear cache entries for a target or all targets",
           "positionals": [
-            { "name": "target", "required": true, "description": "Target path or scenario:<name>" }
+            { "name": "target", "required": false, "description": "Target path or scenario:<name>" }
           ],
           "flags": [
-            { "name": "dry-run", "bool": true, "description": "Report matching entries without clearing them" }
+            { "name": "dry-run", "bool": true, "description": "Report matching entries without clearing them" },
+            { "name": "all", "bool": true, "description": "Clear cache entries for all targets" }
           ],
           "binding": { "kind": "connect-rpc", "service": "CodeFactsService", "method": "ClearCache" },
           "governance": {

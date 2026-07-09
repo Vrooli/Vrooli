@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"code-facts/internal/clock"
 	"code-facts/internal/modules"
@@ -78,13 +80,28 @@ func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return "", fmt.Errorf("prepare sqlite directory: %w", err)
 	}
 	return fmt.Sprintf(
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
 		path,
 	), nil
+}
+
+func cacheMaxBytesFromEnv() (int64, error) {
+	raw := strings.TrimSpace(os.Getenv("CODE_FACTS_CACHE_MAX_BYTES"))
+	if raw == "" {
+		return factsH.DefaultCacheMaxBytes(), nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse CODE_FACTS_CACHE_MAX_BYTES: %w", err)
+	}
+	if value < 0 {
+		return 0, fmt.Errorf("CODE_FACTS_CACHE_MAX_BYTES must be >= 0")
+	}
+	return value, nil
 }
 
 func main() {
@@ -109,14 +126,34 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+	ctx := context.Background()
+	if err := factsH.MigrateSchema(ctx, db.Primary()); err != nil {
+		log.Fatalf("schema migration failed: %v", err)
+	}
+	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	cacheMaxBytes, err := cacheMaxBytesFromEnv()
+	if err != nil {
+		log.Fatalf("cache configuration failed: %v", err)
+	}
+	go func() {
+		time.Sleep(10 * time.Second)
+		sweep, err := factsH.SweepCache(context.Background(), db.Primary(), cacheMaxBytes)
+		if err != nil {
+			log.Printf("code-facts cache startup sweep failed: %v", err)
+			return
+		}
+		log.Printf("code-facts cache startup sweep: stale_rows=%d evicted_rows=%d reclaimed_bytes=%d remaining_bytes=%d max_bytes=%d",
+			sweep.StaleRows, sweep.EvictedRows, sweep.ReclaimedByte, sweep.RemainingByte, cacheMaxBytes)
+	}()
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "code-facts-api", "1.0.0"),
-		factsH.Module(db.Primary(), log.Default()),
+		healthH.Module(db, "code-facts-api", "1.0.0", func(ctx context.Context) (map[string]any, error) {
+			return factsH.CacheMetrics(ctx, db.Primary(), cacheMaxBytes)
+		}),
+		factsH.Module(db.Primary(), log.Default(), cacheMaxBytes),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

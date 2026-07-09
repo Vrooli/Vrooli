@@ -16,7 +16,7 @@ import (
 	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
 )
 
-func Module(db *sql.DB, logger *log.Logger) module.Module {
+func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64) module.Module {
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
 	opts := []internalfacts.ServiceOption{
 		internalfacts.WithBroker(internalfacts.NewBroker(
@@ -26,7 +26,7 @@ func Module(db *sql.DB, logger *log.Logger) module.Module {
 		internalfacts.WithFileDomainProvider(internalfacts.NewCartographerFileDomainProvider(resolver, http.DefaultClient)),
 	}
 	if db != nil {
-		opts = append(opts, internalfacts.WithCacheRepository(internalfacts.NewSQLiteCacheRepository(db)))
+		opts = append(opts, internalfacts.WithCacheRepository(internalfacts.NewSQLiteCacheRepository(db, cacheMaxBytes)))
 	}
 	svc := internalfacts.NewService(opts...)
 	connectPath, connectHandler := factsconnect.NewCodeFactsServiceHandler(NewConnectHandler(Deps{
@@ -140,8 +140,14 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "cache",
 		Request:     targetRequestSchema(),
 		Response: &module.Schema{Type: "object", Properties: map[string]string{
-			"cache_key": "string",
-			"entries":   "int64",
+			"cache_key":           "string",
+			"entries":             "int64",
+			"total_rows":          "int64",
+			"total_payload_bytes": "int64",
+			"budget_bytes":        "int64",
+			"utilization":         "double",
+			"scopes":              "array<CacheScopeStatus>",
+			"last_sweep_at_unix":  "int64",
 		}},
 		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
 	},
@@ -171,8 +177,9 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Plans or clears cache entries for a target/options tuple.",
 		Category:    "cache",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
-			"target":  "CodeTarget (required)",
+			"target":  "CodeTarget (required unless all is true)",
 			"dry_run": "bool",
+			"all":     "bool",
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{
 			"cache_key":       "string",

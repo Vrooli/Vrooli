@@ -1,6 +1,7 @@
 {
   "name": "Code Facts",
   "short_name": "code-facts",
+  "id": "/code-facts/",
   "description": "Target-aware code evidence service for Vrooli scenarios and generic code roots",
   "start_url": ".",
   "scope": ".",

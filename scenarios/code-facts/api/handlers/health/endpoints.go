@@ -26,6 +26,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"status":       "string",
 				"readiness":    "boolean",
 				"dependencies": "object",
+				"metrics":      "object",
 			},
 		},
 		Examples: []module.Example{

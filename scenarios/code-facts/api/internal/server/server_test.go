@@ -83,6 +83,27 @@ func TestServer_HandlerNotNil(t *testing.T) {
 	require.NotNil(t, srv.Handler(), "server.Handler() must not be nil")
 }
 
+func TestServer_StampsSecurityHeaders(t *testing.T) {
+	moduleA := module.Module{
+		Name: "a",
+		Mount: func(r *mux.Router) {
+			r.HandleFunc("/a", func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}).Methods(http.MethodGet)
+		},
+	}
+
+	srv := server.New(newTestDeps(), moduleA)
+	live := httpx.NewLiveServer(t, srv)
+
+	resp, _ := live.Do(t, http.MethodGet, "/a", nil)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "max-age=31536000; includeSubDomains", resp.Header.Get("Strict-Transport-Security"))
+	require.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+	require.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	require.Equal(t, "0", resp.Header.Get("X-XSS-Protection"))
+}
+
 func TestServer_NewRequiresClock(t *testing.T) {
 	require.PanicsWithValue(t, "server.New requires Deps.Clock", func() {
 		server.New(server.Deps{Logger: log.New(io.Discard, "", 0)})
