@@ -58,7 +58,7 @@ func TestMaturitySummary_NoWorkshopRounds(t *testing.T) {
 		t.Error("expected ready=false with no rounds")
 	}
 	if item.HasPlan {
-		t.Error("expected has_plan=false with no plan.md")
+		t.Error("expected has_plan=false with no plan_ref")
 	}
 	if item.PendingSynthesis {
 		t.Error("expected pending_synthesis=false with no rounds")
@@ -70,8 +70,13 @@ func TestMaturitySummary_WithPlan(t *testing.T) {
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "has-plan", Title: "Has Plan", Status: StatusReady, Priority: 2, Tags: []string{},
+		PlanRef: &PlanRef{
+			Provider: PlanRefProviderPlanManager,
+			PlanID:   "plan-1",
+			Slug:     "has-plan",
+			Role:     PlanRefRoleExecutionSpec,
+		},
 	})
-	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "has-plan", "plan.md"), "# Plan\nTest plan.")
 
 	w := doMaturitySummary(t, h)
 	testutil.AssertStatusOK(t, w)
@@ -84,7 +89,7 @@ func TestMaturitySummary_WithPlan(t *testing.T) {
 		t.Fatalf("expected 1 item, got %d", len(resp.Items))
 	}
 	if !resp.Items[0].HasPlan {
-		t.Error("expected has_plan=true when plan.md exists")
+		t.Error("expected has_plan=true when plan_ref exists")
 	}
 }
 

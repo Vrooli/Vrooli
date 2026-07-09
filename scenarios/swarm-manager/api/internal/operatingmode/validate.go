@@ -205,6 +205,9 @@ func validateModeTopLevel(def Definition) error {
 	if !IsValidBacklogSyncApplyMode(def.BacklogSync.ApplyMode) {
 		return fmt.Errorf("mode %q backlog_sync apply_mode must be one of operator-gated|auto-apply-safe|auto-apply-all (got %q)", def.Mode, def.BacklogSync.ApplyMode)
 	}
+	if def.PlanRef.Required && strings.TrimSpace(def.PlanRef.Role) != PlanRefRoleOperatingModePlan {
+		return fmt.Errorf("mode %q plan_ref role must be %q when required", def.Mode, PlanRefRoleOperatingModePlan)
+	}
 	return nil
 }
 

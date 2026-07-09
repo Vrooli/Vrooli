@@ -19,7 +19,7 @@
     ]
   },
   "steps": [
-    { "phase": "prepare_plan", "note": "always → execute_next" },
+    { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next" },
     { "phase": "execute_next", "output": { "handoff": { "summary": "Landed the durable_run primitive; the test-genie migration is untouched.", "frontier": "Migrate test-genie execute onto durable run handles (the exact remainder of the plan)." } }, "note": "one comprehensively-completable slice done; frontier handed off; always → classify_progress" },
     { "phase": "classify_progress", "output": { "progress": { "decision": "continue" } }, "note": "progress.decision=continue → execute_next (advance the declared frontier)" },
     { "phase": "execute_next", "output": { "handoff": { "summary": "Migrated test-genie execute to durable handles; plan drained.", "frontier": "None — the plan is fully drained." } }, "note": "declared frontier advanced; always → classify_progress" },

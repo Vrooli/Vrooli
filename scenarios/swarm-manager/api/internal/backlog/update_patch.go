@@ -29,6 +29,7 @@ const (
 	updateFieldAcceptanceDeny  = "acceptance_deny"
 	updateFieldCreates         = "creates"
 	updateFieldSpawnedFrom     = "spawned_from"
+	updateFieldPlanRef         = "plan_ref"
 	updateFieldNote            = "note"
 )
 
@@ -196,6 +197,12 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 			return "creates: " + err.Error()
 		}
 	}
+	if fields.Has(updateFieldPlanRef) {
+		ref := normalizePlanRef(planRefFromProto(req.PlanRef))
+		if err := validatePlanRef(ref, PlanRefRoleExecutionSpec); err != nil {
+			return err.Error()
+		}
+	}
 
 	return ""
 }
@@ -303,6 +310,10 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 	if fields.Has(updateFieldSpawnedFrom) {
 		v := req.GetSpawnedFrom()
 		patch.SpawnedFrom = &v
+	}
+	if fields.Has(updateFieldPlanRef) {
+		patch.PlanRef = normalizePlanRef(planRefFromProto(req.PlanRef))
+		patch.PlanRefSet = true
 	}
 	if fields.Has(updateFieldNote) {
 		v := req.GetNote()

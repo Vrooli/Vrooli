@@ -25,7 +25,7 @@ The workshop system is a universal iterative refinement loop that transforms any
 │  1. Load workshop skill for this kind                               │
 │  2. Substitute variables: {{ITEM_NAME}}, {{ITEM_FOLDER}}, ...       │
 │  3. Spawn agent via agent-manager.SpawnBacklog()                    │
-│  4. Agent writes workshop/round-N.json and optionally plan.md       │
+│  4. Agent writes workshop/round-N.json and updates plan-manager     │
 └─────────────────────────┬───────────────────────────────────────────┘
                           │
                           ▼
@@ -33,8 +33,7 @@ The workshop system is a universal iterative refinement loop that transforms any
 │  Filesystem artifacts                                               │
 │                                                                     │
 │  {kind}/{name}/                                                     │
-│  ├── spec.json                    (item metadata)                   │
-│  ├── plan.md                      (primary execution artifact)      │
+│  ├── spec.json                    (metadata incl. plan_ref)         │
 │  └── workshop/                                                      │
 │      ├── round-1.json             (round 1 output)                  │
 │      ├── round-2.json             (round 2 output)                  │
@@ -71,7 +70,7 @@ Each round is a self-contained iteration. The agent generates questions, proposa
               │ all dimensions >= 3
               ▼
        ┌──────────────┐
-       │  READY       │  plan.md finalized,
+       │  READY       │  plan_ref bound,
        │              │  item can be queued
        └──────────────┘
 ```
@@ -116,7 +115,7 @@ Each round is stored as `workshop/round-N.json` with this schema:
       "text": "The existing auth-service scenario already supports OAuth 2.0"
     }
   ],
-  "plan_updates": "Optional text describing changes the agent made to plan.md"
+  "plan_updates": "Optional text describing changes the agent made to the plan-manager plan"
 }
 ```
 
@@ -198,20 +197,20 @@ backlog ──workshop──▶ researching ──readiness met──▶ ready �
 
 1. **backlog**: Item exists but has not been workshopped
 2. **researching**: Workshop agent is running (one or more rounds in progress)
-3. **ready**: All 5 readiness dimensions are at effective score 3; `plan.md` is finalized
+3. **ready**: All 5 readiness dimensions are at effective score 3; `spec.json.plan_ref` is bound to the canonical plan-manager plan
 4. **queued**: Operator has queued the item for execution
 5. **in_progress**: Execution agent is building/implementing the plan
 6. **completed/failed**: Execution finished
 
 Operators can queue items before they reach `ready` status if they judge the plan is sufficient.
 
-## plan.md: The Primary Execution Artifact
+## plan_ref: The Primary Execution Artifact
 
-The workshop loop's main output is `plan.md`, a structured implementation plan that serves as the specification handed to the execution agent (Generator/Improver). The agent updates `plan.md` with each round, incorporating answers to questions and accepted proposals.
+The non-research workshop loop's main output is a canonical plan-manager implementation plan referenced by `spec.json.plan_ref`. That plan serves as the specification handed to the execution agent (Generator/Improver). The agent updates the plan-manager plan with each round, incorporating answers to questions and accepted proposals.
 
-The mandatory section structure, convergence patterns, quality gates, and guardrails for `plan.md` are defined by the `implementation-plan-authoring` skill (`prompt-manager skill read implementation-plan-authoring`). Workshop agents load this skill as required reading and follow it when creating or updating plans.
+The mandatory section structure, convergence patterns, quality gates, and guardrails for the canonical plan are defined by the `implementation-plan-authoring` skill (`prompt-manager skill read implementation-plan-authoring`). Workshop agents load this skill as required reading and follow it when creating or updating plans.
 
-The execution agent reads `plan.md` as its primary input. Workshop rounds are supporting evidence, not the execution spec.
+The execution agent receives a rendered projection of the linked plan-manager plan as its primary input. Workshop rounds are supporting evidence, not the execution spec. Research items are the exception: they produce `conclusion.md` rather than a plan-manager implementation plan.
 
 For `idea` backlog items, swarm-manager also generates a derived `handoff/` package when execution begins:
 
@@ -231,7 +230,7 @@ That package is not a separate planning surface. It is a frozen execution bridge
 │  WORKSHOP    │ ──▶ │  GENERATOR   │ ──▶ │  IMPROVER    │
 │  Iterative   │     │  Build       │     │  Iterate     │
 │  refinement  │     │  scenario    │     │  improvements│
-│  → plan.md   │     │  from plan   │     │              │
+│  → plan_ref  │     │  from plan   │     │              │
 └──────────────┘     └──────────────┘     └──────────────┘
   Status: backlog      Status: queued       Status:
     → researching        → in_progress       in_progress

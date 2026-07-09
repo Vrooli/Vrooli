@@ -721,8 +721,8 @@ Swarm Manager owns the prompt inventory contract. Prompt-manager still owns prom
       "skill_id": "swarm-manager-workshop",
       "backlog_kinds": ["idea", "fix", "execute", "chore"],
       "modes": ["workshop"],
-      "purpose": "Run one workshop round for non-research backlog items and update plan.md.",
-      "output_paths": ["workshop/round-NNN.json", "plan.md"]
+      "purpose": "Run one workshop round for non-research backlog items and update the canonical plan-manager plan.",
+      "output_paths": ["workshop/round-NNN.json", "spec.json.plan_ref"]
     },
     {
       "id": "execution-process",

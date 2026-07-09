@@ -23,6 +23,7 @@ import (
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
 
@@ -94,6 +95,7 @@ type Handler struct {
 	agentService         AgentSpawner
 	activityChecker      AgentActivityChecker
 	promptClient         promptmanager.Client
+	planClient           planclient.Client
 	initiativeAssigner   InitiativeAssigner
 	sessionArtifacts     sessionArtifactRecorder
 	executionQueuer      ExecutionQueuer
@@ -139,6 +141,7 @@ func NewHandler(dataRoot, repoRoot string) *Handler {
 		store:        NewFileStore(dataRoot),
 		agentService: nil,
 		promptClient: promptmanager.NewHTTPClient(),
+		planClient:   planclient.NewConnectClient(nil, nil),
 	}
 }
 
@@ -154,6 +157,7 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentSpawner,
 		store:        NewFileStore(dataRoot),
 		agentService: agentService,
 		promptClient: promptClient,
+		planClient:   planclient.NewConnectClient(nil, nil),
 	}
 	if checker, ok := agentService.(AgentActivityChecker); ok {
 		h.activityChecker = checker
@@ -162,6 +166,12 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentSpawner,
 		h.promptClient = promptmanager.NewHTTPClient()
 	}
 	return h
+}
+
+// SetPlanClient injects the canonical plan-manager client used for linked-plan
+// rendering and workshop finalization.
+func (h *Handler) SetPlanClient(client planclient.Client) {
+	h.planClient = client
 }
 
 // resolveDataRootOrDefault returns dataRoot if non-empty; otherwise resolves
@@ -346,7 +356,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.UploadFile).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.OperateFile).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/validation", h.GetValidation).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-render", h.RenderLinkedPlan).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/process-preflight", h.ProcessPreflight).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Archive).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Unarchive).Methods("DELETE")

@@ -61,7 +61,7 @@ func TestStore_CreateListLoadRoundPreservesEnvelope(t *testing.T) {
 			Tests:           []string{"go test ./..."},
 			NextStep:        "Continue with phase 2",
 		}},
-		ArtifactUpdates: []ArtifactUpdate{{Path: "modes/phased-plan-drain/progress.json", ContentType: "application/json"}},
+		ArtifactUpdates: []ArtifactUpdate{{Path: "modes/phased-plan-drain/round-summary.json", ContentType: "application/json"}},
 	})
 	if err != nil {
 		t.Fatalf("CreateRound: %v", err)

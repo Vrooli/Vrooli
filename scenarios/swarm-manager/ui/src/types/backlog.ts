@@ -7,6 +7,7 @@ import type {
   BacklogFile as ProtoBacklogFile,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
 import type { ProtoMessage } from "./shared";
+import type { PlanRef } from "./shared";
 import type { AgentSessionAttribution } from "./agent-session";
 
 /**
@@ -59,6 +60,8 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   creates?: string[];
   /** Verified provenance for the actor/session that created this item. */
   createdBy?: AgentSessionAttribution;
+  /** Canonical plan-manager plan backing this work item. */
+  planRef?: PlanRef;
 };
 
 /**

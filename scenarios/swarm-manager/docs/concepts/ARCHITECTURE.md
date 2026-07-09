@@ -19,7 +19,7 @@ prompt-manager                         swarm-manager
 │                        │             │       ▼                           │
 │  Skills define how     │             │  ┌──────────┐                    │
 │  teams analyze and     │             │  │ WORKSHOP │  iterative rounds  │
-│  produce findings      │             │  │  LOOP    │  → plan.md          │
+│  produce findings      │             │  │  LOOP    │  → plan_ref         │
 │                        │             │  └────┬─────┘                    │
 └────────────────────────┘             │       │                           │
                                        │       ▼                           │
@@ -78,9 +78,10 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 1. **Backlog creation and refinement**
    ```
-   Team finding -> Backlog item (idea/fix/execute/research/chore) -> workshop loop -> plan.md -> queue
+   Team finding -> Backlog item (idea/fix/execute/chore) -> workshop loop -> plan-manager plan_ref -> queue
+   Team finding -> Research item -> research loop -> conclusion.md
    ```
-   All backlog kinds use the **workshop loop** for iterative refinement. Each round generates questions, proposals, and readiness scores across 5 dimensions. The loop continues until all dimensions reach score 3, producing `plan.md` as the primary execution artifact. See [DOC: docs/guides/workshop-workflow.md] for the full pipeline, schemas, and readiness model.
+   Non-research backlog kinds use the **workshop loop** for iterative refinement. Each round generates questions, proposals, and readiness scores across 5 dimensions. The loop continues until all dimensions reach score 3, binding a canonical plan-manager plan through `spec.json.plan_ref` as the execution artifact. Research items keep `conclusion.md` as their local deliverable. See [DOC: docs/guides/workshop-workflow.md] for the full pipeline, schemas, and readiness model.
 
 2. **Archive scenario into backlog context**
    ```
@@ -217,7 +218,7 @@ The workshop system uses a 5-dimension readiness model to measure how prepared a
 
 A **round-based boost** rewards iterative engagement: `effective = raw >= 2 ? min(3, raw + floor(rounds/N)) : raw`, where N varies by kind (1 for fix/chore, 2 for idea/research/execute). An item is **ready** when all 5 effective scores reach 3.
 
-The primary output of the workshop loop is `plan.md`, which serves as the execution specification handed to Generator/Improver agents. Workshop rounds are supporting evidence and audit trail.
+The primary output of the non-research workshop loop is a canonical plan-manager plan bound through `spec.json.plan_ref`. Execution, review, initiative review, and idea handoff render that plan from plan-manager when they need the execution specification. Workshop rounds are supporting evidence and audit trail. Research items are the exception: they keep `conclusion.md` as their canonical local deliverable.
 
 See [DOC: docs/guides/workshop-workflow.md] for the full workshop pipeline and schemas. Readiness computation lives in [CODE: api/internal/workshop/workshop.go].
 
@@ -275,7 +276,8 @@ api/internal/
 - `/api/v1/backlog/batch/queue` - batch queue (topologically sorted, dependency-aware)
 - `/api/v1/initiatives/*` - initiative CRUD with rollup status from member items
 - `/api/v1/goals/*` - goal CRUD, targets, priority; each response carries the transitive-closure scope (progress %) and a p50/p80 ETA band
-- `/api/v1/plan-import` - POST `{plan_id}`; fetches an authored plan-manager plan read-only over Connect and lands its phases as a provenance-stamped (`spawned_from plan-manager:<slug>/phase-<n>`) linear depends_on chain via the atomic batch-create
+- `/api/v1/plan-import` - POST an existing `{plan_id}` or adopted `{source_path|markdown}` plan, choose `container: "items"` or `container: "initiative"`, and land idempotent plan-bound work with `plan_ref` populated and created/linked/updated counts
+- `/api/v1/plan-import/plans` - list canonical plan-manager plans for the Create-Work-From-Plan picker
 - `/api/v1/execution/auto-drain` - GET/PUT the continuous goal-directed auto-enqueue toggle (default OFF; a scenario-local flag, not a proto setting)
 - `/api/v1/overview` - aggregated view (backlog, initiatives, dependency graph, summary stats)
 - `/api/v1/operations/brief` - bounded current operations briefing for CLI, UI, and Swarm operations session prompts

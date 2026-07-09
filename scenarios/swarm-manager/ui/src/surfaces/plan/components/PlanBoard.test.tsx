@@ -152,6 +152,8 @@ function stubService(board: PlanBoardData | Error): IPlanService {
     getBoard: board instanceof Error
       ? vi.fn().mockRejectedValue(board)
       : vi.fn().mockResolvedValue(board),
+    listCanonicalPlans: vi.fn().mockResolvedValue([]),
+    importPlan: vi.fn().mockRejectedValue(new Error("not implemented in PlanBoard tests")),
   };
 }
 
@@ -177,6 +179,8 @@ describe("PlanBoard", () => {
           resolveBoard = resolve;
         }),
       ),
+      listCanonicalPlans: vi.fn().mockResolvedValue([]),
+      importPlan: vi.fn().mockRejectedValue(new Error("not implemented in PlanBoard tests")),
     });
     renderWithProviders(<PlanBoard />);
 

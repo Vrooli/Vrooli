@@ -20,7 +20,6 @@ func TestBuildIdeaPackage(t *testing.T) {
 		t.Fatalf("mkdir archive: %v", err)
 	}
 
-	writeFile(t, filepath.Join(itemDir, "plan.md"), "# Plan\n\nShip the alpha scenario.\n")
 	writeFile(t, filepath.Join(itemDir, "spec.json"), `{"kind":"idea","name":"alpha"}`)
 	writeFile(t, filepath.Join(itemDir, "research", "summary.md"), "research summary")
 	writeFile(t, filepath.Join(itemDir, "notes.md"), "processing notes")
@@ -66,7 +65,7 @@ func TestBuildIdeaPackage(t *testing.T) {
 		BacklogTitle:            "Alpha",
 		BacklogDescription:      "Create alpha.",
 		ItemFolder:              itemDir,
-		DeliverableFileName:     "plan.md",
+		DeliverablePath:         "plan-manager:alpha",
 		TargetScenario:          "alpha",
 		Operation:               "generator",
 		SuggestedSteerProfileID: "rapid-mvp",
@@ -88,6 +87,9 @@ func TestBuildIdeaPackage(t *testing.T) {
 
 	if !strings.Contains(pkg.BriefMarkdown, "Use this `brief.md` file as the ecosystem-manager task notes.") {
 		t.Fatalf("brief missing task notes instruction:\n%s", pkg.BriefMarkdown)
+	}
+	if !strings.Contains(pkg.BriefMarkdown, "plan-manager:alpha") {
+		t.Fatalf("brief missing canonical plan path:\n%s", pkg.BriefMarkdown)
 	}
 	if !strings.Contains(pkg.BriefMarkdown, "Round 001 `d1`: Database -> SQLite") {
 		t.Fatalf("brief missing locked decision summary:\n%s", pkg.BriefMarkdown)

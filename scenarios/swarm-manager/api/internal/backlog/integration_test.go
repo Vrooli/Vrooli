@@ -98,9 +98,9 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 	p1, p2, p3 := int32(1), int32(2), int32(3)
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "item-a", Title: "Item A", Kind: "idea", Priority: &p1, Initiative: "test-initiative"},
-			{Name: "item-b", Title: "Item B", Kind: "idea", Priority: &p2, DependsOn: []string{"idea/item-a"}, Initiative: "test-initiative"},
-			{Name: "item-c", Title: "Item C", Kind: "idea", Priority: &p3, DependsOn: []string{"idea/item-b"}, Initiative: "test-initiative"},
+			{Name: "item-a", Title: "Item A", Kind: "idea", Priority: &p1, Initiative: "test-initiative", PlanRef: testPlanRef("item-a")},
+			{Name: "item-b", Title: "Item B", Kind: "idea", Priority: &p2, DependsOn: []string{"idea/item-a"}, Initiative: "test-initiative", PlanRef: testPlanRef("item-b")},
+			{Name: "item-c", Title: "Item C", Kind: "idea", Priority: &p3, DependsOn: []string{"idea/item-b"}, Initiative: "test-initiative", PlanRef: testPlanRef("item-c")},
 		},
 		Initiatives: []batchCreateInitiative{
 			{Name: "test-initiative", Title: "Test Initiative"},
@@ -126,7 +126,7 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 		t.Errorf("expected 3 items added to initiative, got %d", len(ia.addedItems["test-initiative"]))
 	}
 
-	// Phase 2: Make items queueable by setting status to "ready" and adding plan.md.
+	// Phase 2: Make items queueable by setting status to "ready" and preserving plan_ref.
 	store := NewFileStore(rootDir)
 	for _, name := range []string{"item-a", "item-b", "item-c"} {
 		item, err := store.LoadItem(KindIdea, name)
@@ -137,7 +137,6 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 		if err := store.SaveItem(item); err != nil {
 			t.Fatalf("failed to save %s: %v", name, err)
 		}
-		testutil.WriteFile(t, filepath.Join(rootDir, "ideas", name, "plan.md"), "# Plan\nTest plan.")
 	}
 
 	// Phase 3: Preview mode — all items should be ready.
@@ -211,5 +210,14 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 	// Verify the mock received 3 queue calls.
 	if len(eq.queueCalls) != 3 {
 		t.Errorf("expected 3 QueueBacklog calls, got %d", len(eq.queueCalls))
+	}
+}
+
+func testPlanRef(name string) *PlanRef {
+	return &PlanRef{
+		Provider: PlanRefProviderPlanManager,
+		PlanID:   "test-plan-" + name,
+		Slug:     "test-plan-" + name,
+		Role:     PlanRefRoleExecutionSpec,
 	}
 }

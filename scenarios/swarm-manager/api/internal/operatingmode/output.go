@@ -13,6 +13,7 @@ const resultEnvelopeKey = "operating_mode_result"
 // the agent's output and validates it against the phase's declared output schema.
 type PhaseResult struct {
 	Artifacts    []ArtifactResult `json:"artifacts,omitempty"`
+	PlanRef      *PlanRef         `json:"plan_ref,omitempty"`
 	Handoff      *Handoff         `json:"handoff,omitempty"`
 	Handoffs     []Handoff        `json:"handoffs,omitempty"`
 	Readiness    *ReadinessReport `json:"readiness,omitempty"`
@@ -44,7 +45,7 @@ var fencedJSONBlockRE = regexp.MustCompile("(?s)```(?:json)?\\s*(\\{.*?\\})\\s*`
 // hasPhaseResultContent reports whether a decoded result carries any meaningful
 // field, distinguishing a present-but-empty envelope from a real result.
 func hasPhaseResultContent(result PhaseResult) bool {
-	return len(result.Artifacts) > 0 || result.Handoff != nil || len(result.Handoffs) > 0 ||
+	return len(result.Artifacts) > 0 || result.PlanRef != nil || result.Handoff != nil || len(result.Handoffs) > 0 ||
 		result.Readiness != nil || result.Progress != nil || strings.TrimSpace(result.Verdict) != "" ||
 		result.ReplanNeeded || result.BacklogSync != nil
 }

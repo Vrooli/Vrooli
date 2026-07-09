@@ -49,7 +49,13 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 	// Check workshop readiness instead of clarify questions.
 	itemDir := s.itemDir(item.Kind, item.Name)
 	deliverablePath := deliverableForKind(item.Kind)
-	if !workshop.HasPlanByName(itemDir, deliverablePath) {
+	hasDeliverable := false
+	if deliverablePath == "conclusion.md" {
+		hasDeliverable = workshop.HasPlanByName(itemDir, deliverablePath)
+	} else {
+		hasDeliverable = hasExecutionPlanRef(item)
+	}
+	if !hasDeliverable {
 		preflight.BlockingReasons = append(preflight.BlockingReasons, missingDeliverableReason(item.Kind, deliverablePath))
 	}
 	rounds, _ := workshop.LoadRounds(itemDir)
@@ -67,9 +73,8 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 				preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("readiness dimension %q is %d/3 — needs more workshop refinement", dim, effective[dim]))
 			}
 		}
-	} else if workshop.HasPlanByName(itemDir, deliverablePath) {
-		// Primary deliverable exists but no workshop rounds — allow execution
-		// (manually created artifact).
+	} else if hasDeliverable {
+		// Primary deliverable exists but no workshop rounds — allow execution.
 	} else {
 		preflight.BlockingReasons = append(preflight.BlockingReasons, "no workshop rounds completed — run workshop or initialize first")
 	}
@@ -82,6 +87,15 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 
 	preflight.Ready = len(preflight.BlockingReasons) == 0 && len(preflight.ForceableBlockingReasons) == 0
 	return preflight
+}
+
+func hasExecutionPlanRef(item backlogItem) bool {
+	if item.PlanRef == nil {
+		return false
+	}
+	return strings.TrimSpace(item.PlanRef.Provider) == planRefProviderPlanManager &&
+		strings.TrimSpace(item.PlanRef.Role) == planRefRoleExecutionSpec &&
+		(strings.TrimSpace(item.PlanRef.PlanID) != "" || strings.TrimSpace(item.PlanRef.Slug) != "")
 }
 
 // Old clarify-based blocking question types and loading have been removed.

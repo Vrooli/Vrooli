@@ -68,6 +68,7 @@
         "phase_graph": { "$ref": "#/$defs/PhaseGraph" },
         "prompt": { "$ref": "#/$defs/PromptPolicy" },
         "artifact": { "$ref": "#/$defs/ArtifactPolicy" },
+        "plan_ref": { "$ref": "#/$defs/PlanRefPolicy" },
         "profile": { "$ref": "#/$defs/ProfilePolicy" },
         "backlog_sync": { "$ref": "#/$defs/BacklogSyncPolicy" },
         "metrics": { "$ref": "#/$defs/MetricsPolicy" },
@@ -175,7 +176,7 @@
         },
         "result_bindings": {
           "type": "array", "items": { "$ref": "#/$defs/ResultBinding" },
-          "description": "Bindings that persist a structured result field into a durable artifact (e.g. progress → progress.json)."
+          "description": "Bindings that persist a structured result field into a durable artifact."
         },
         "transitions": {
           "type": "array", "items": { "$ref": "#/$defs/Transition" },
@@ -408,6 +409,24 @@
         "round_root": {
           "type": "string",
           "description": "Per-round artifact directory. Defaults to `<root>/rounds` when omitted."
+        }
+      }
+    },
+
+    "PlanRefPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role"],
+      "description": "Mode-wide contract for a canonical plan-manager reference bound to the initiative. When required, the start phase may emit it and subsequent phases consume it through PLAN_CONTEXT_JSON.",
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "description": "True when this mode requires an initiative plan_ref before non-start phases run."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["operating_mode_plan"],
+          "description": "The semantic role of the referenced plan."
         }
       }
     },

@@ -19,17 +19,15 @@ export function filterAgentOther(options: DecisionOption[]): DecisionOption[] {
 
 /**
  * Returns the deliverable filename for a given backlog item kind.
- * Research items produce `conclusion.md`; all others produce `plan.md`.
- * Extensible: add new kind overrides here as needed.
+ * Research items produce a local `conclusion.md`; non-research plans are
+ * canonical plan-manager records referenced by plan_ref.
  */
-export function getDeliverablePath(kind: BacklogKind): string {
+export function getDeliverablePath(kind: BacklogKind): string | null {
   if (kind === "research") return "conclusion.md";
-  return "plan.md";
+  return null;
 }
 
 export const WORKSHOP_FILE_PATHS = {
-  /** @deprecated Use getDeliverablePath(kind) for kind-aware deliverable path */
-  plan: "plan.md",
   workshopDir: "workshop/",
 } as const;
 

@@ -65,6 +65,21 @@ func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Defin
 	if result.Readiness != nil {
 		staged.Readiness = result.Readiness
 	}
+	if result.PlanRef != nil {
+		ref := normalizePlanRef(result.PlanRef)
+		if err := validateOperatingModePlanRef(ref); err != nil {
+			return resolved, err
+		}
+		payload.SetPlanRef(*ref)
+		if persistArtifacts {
+			if s.planRefBinder == nil {
+				return resolved, fmt.Errorf("phase %q produced plan_ref but no initiative plan_ref binder is configured", phaseDef.Phase)
+			}
+			if _, err := s.planRefBinder.BindInitiativePlanRef(round.InitiativeName, *ref); err != nil {
+				return resolved, err
+			}
+		}
+	}
 	writes := make([]stagedArtifactWrite, 0, len(result.Artifacts)+1)
 	if result.Progress != nil {
 		result.Progress.UpdatedAt = defaultString(result.Progress.UpdatedAt, now)
@@ -186,6 +201,9 @@ func validateAppliedPhaseResult(phaseDef PhaseDefinition, result PhaseResult, ro
 	}
 	if contract.RequiresBacklogSync && result.BacklogSync == nil {
 		return fmt.Errorf("phase %q requires a backlog_sync plan", phaseDef.Phase)
+	}
+	if contract.RequiresPlanRef && result.PlanRef == nil {
+		return fmt.Errorf("phase %q requires plan_ref", phaseDef.Phase)
 	}
 	for _, required := range contract.RequiredArtifacts {
 		if strings.TrimSpace(required.Path) == "" {

@@ -260,9 +260,8 @@ func (a *feedbackSpawnerAdapter) collectItemContext(refs []string) (
 	return summaries, folders, handoffs
 }
 
-// readHandoffSummary returns the deliverable file (plan.md / conclusion.md)
-// content for a backlog item if present. Used to give the feedback agent
-// a window into what each item has converged on.
+// readHandoffSummary returns local deliverable content for backlog kinds that
+// still have one. Non-research implementation plans live in plan-manager.
 func readHandoffSummary(itemDir string, kind backlog.BacklogKind) (feedback.HandoffSummary, bool) {
 	deliverable := backlog.DeliverableForKind(kind)
 	if deliverable == "" {

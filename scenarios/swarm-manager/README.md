@@ -66,8 +66,7 @@ Backlog items are stored as git-tracked folders by kind:
 ```
 ideas/
 ├── my-scenario-idea/
-│   ├── spec.json        # Required: name, title, description, status, priority
-│   ├── plan.md          # Workshop-authored implementation plan
+│   ├── spec.json        # Required metadata incl. plan_ref for the canonical plan-manager plan
 │   ├── handoff/         # Generated at idea execution time for ecosystem-manager handoff
 │   │   ├── brief.md
 │   │   ├── manifest.json

@@ -12,6 +12,8 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/promptmanager"
+
+	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
 )
 
 type fakeInitiatives struct {
@@ -81,6 +83,30 @@ func (f *fakeProposalReconciler) ApplyBacklogSyncProposal(_ context.Context, req
 	}, nil
 }
 
+type fakePlanExecution struct {
+	resumeReqs []*executionv1.ResumeRequest
+}
+
+func (f *fakePlanExecution) Resume(_ context.Context, req *executionv1.ResumeRequest) (*executionv1.ResumeResponse, error) {
+	f.resumeReqs = append(f.resumeReqs, req)
+	return &executionv1.ResumeResponse{
+		Execution: &executionv1.Execution{
+			Id:             "exec-1",
+			PlanId:         req.GetPlanOrExecution(),
+			CurrentPhaseId: "phase-1",
+		},
+		Context: &executionv1.PhaseContext{ResumePhaseId: "phase-1"},
+	}, nil
+}
+
+func (f *fakePlanExecution) GetNext(context.Context, *executionv1.GetNextRequest) (*executionv1.GetNextResponse, error) {
+	return &executionv1.GetNextResponse{}, nil
+}
+
+func (f *fakePlanExecution) GetStatus(context.Context, *executionv1.GetStatusRequest) (*executionv1.GetStatusResponse, error) {
+	return &executionv1.GetStatusResponse{}, nil
+}
+
 type fakeModeUpdater struct {
 	updates []string
 	items   map[string]InitiativeSnapshot
@@ -95,6 +121,18 @@ func (f *fakeModeUpdater) UpdateInitiativeMode(name, mode string) (InitiativeSna
 	item.Mode = mode
 	f.items[name] = item
 	return item, nil
+}
+
+type fakePlanRefBinder struct {
+	refs map[string]PlanRef
+}
+
+func (f *fakePlanRefBinder) BindInitiativePlanRef(name string, ref PlanRef) (InitiativeSnapshot, error) {
+	if f.refs == nil {
+		f.refs = map[string]PlanRef{}
+	}
+	f.refs[name] = ref
+	return InitiativeSnapshot{Name: name, Mode: string(ModePhasedPlanDrain), PlanRef: &ref}, nil
 }
 
 type fakeItemExecutions struct {
@@ -360,10 +398,12 @@ func TestStartPhaseFollowsPhasedPlanProgressTransitions(t *testing.T) {
 				Title:              "Init Phased",
 				Description:        "Test phased initiative",
 				Mode:               string(ModePhasedPlanDrain),
+				PlanRef:            testOperatingModePlanRef(),
 				Items:              []string{"execute/do-thing"},
 				AcceptanceCriteria: []string{"works end to end"},
 			},
 		}},
+		planExecution: &fakePlanExecution{},
 	})
 
 	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
@@ -731,10 +771,12 @@ func TestRefreshRoundRequiresProgressForClassifyProgress(t *testing.T) {
 				Title:              "Init Phased",
 				Description:        "Test phased initiative",
 				Mode:               string(ModePhasedPlanDrain),
+				PlanRef:            testOperatingModePlanRef(),
 				Items:              []string{"execute/do-thing"},
 				AcceptanceCriteria: []string{"works end to end"},
 			},
 		}},
+		planExecution: &fakePlanExecution{},
 	})
 	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "prepare_plan", nil)
 	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "execute_next", nil)
@@ -763,7 +805,7 @@ func TestRefreshRoundRequiresProgressForClassifyProgress(t *testing.T) {
 	}
 }
 
-func TestRefreshRoundAppliesProgressResultBinding(t *testing.T) {
+func TestRefreshRoundCapturesPhasedPlanProgressWithoutArtifact(t *testing.T) {
 	root := t.TempDir()
 	svc := newTestServiceWithOptions(t, root, serviceOptions{
 		agent: &fakeAgent{states: map[string]agentmanager.RunState{
@@ -780,10 +822,12 @@ func TestRefreshRoundAppliesProgressResultBinding(t *testing.T) {
 				Title:              "Init Phased",
 				Description:        "Test phased initiative",
 				Mode:               string(ModePhasedPlanDrain),
+				PlanRef:            testOperatingModePlanRef(),
 				Items:              []string{"execute/do-thing"},
 				AcceptanceCriteria: []string{"works end to end"},
 			},
 		}},
+		planExecution: &fakePlanExecution{},
 	})
 	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "prepare_plan", nil)
 	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "execute_next", nil)
@@ -802,22 +846,59 @@ func TestRefreshRoundAppliesProgressResultBinding(t *testing.T) {
 	if refreshed.Status != RoundStatusCompleted {
 		t.Fatalf("refreshed status = %q, want completed: %+v", refreshed.Status, refreshed)
 	}
-	if len(refreshed.ArtifactUpdates) != 1 || refreshed.ArtifactUpdates[0].Path != "modes/phased-plan-drain/progress.json" {
+	if len(refreshed.ArtifactUpdates) != 0 {
 		t.Fatalf("artifact updates = %+v", refreshed.ArtifactUpdates)
 	}
-	if !refreshed.ArtifactUpdates[0].Required || refreshed.ArtifactUpdates[0].ContentType != "application/json" {
-		t.Fatalf("progress artifact metadata = %+v", refreshed.ArtifactUpdates[0])
-	}
-	artifact, err := svc.store.ReadArtifact("init-phased", ModePhasedPlanDrain, "modes/phased-plan-drain/progress.json")
-	if err != nil {
-		t.Fatalf("ReadArtifact: %v", err)
-	}
-	state, err := ParseProgressState([]byte(artifact.Content))
-	if err != nil {
-		t.Fatalf("ParseProgressState: %v\n%s", err, artifact.Content)
-	}
-	if state.Decision != ProgressContinue || state.UpdatedAt == "" {
+	state, ok := RoundPayload(refreshed.Payload).Progress()
+	if !ok || state.Decision != ProgressContinue || state.UpdatedAt == "" {
 		t.Fatalf("progress state = %+v", state)
+	}
+}
+
+func TestRefreshRoundBindsPreparePlanRef(t *testing.T) {
+	root := t.TempDir()
+	binder := &fakePlanRefBinder{}
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		agent: &fakeAgent{states: map[string]agentmanager.RunState{
+			"run-1": {
+				RunID:      "run-1",
+				Status:     "complete",
+				Summary:    `{"operating_mode_result":{"plan_ref":{"provider":"plan-manager","plan_id":"plan-123","slug":"initiative-plan","role":"operating_mode_plan"},"handoff":{"summary":"plan ready"}}}`,
+				FinishedAt: "2026-04-30T12:05:00Z",
+			},
+		}},
+		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
+			"init-phased": {
+				Name:               "init-phased",
+				Title:              "Init Phased",
+				Description:        "Test phased initiative",
+				Mode:               string(ModePhasedPlanDrain),
+				Items:              []string{"execute/do-thing"},
+				AcceptanceCriteria: []string{"works end to end"},
+			},
+		}},
+		planRefBinder: binder,
+	})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-phased",
+		Phase:          "prepare_plan",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase returned error: %v", err)
+	}
+	refreshed, err := svc.RefreshRound(context.Background(), "init-phased", ModePhasedPlanDrain, round.Round)
+	if err != nil {
+		t.Fatalf("RefreshRound returned error: %v", err)
+	}
+	if refreshed.Status != RoundStatusCompleted {
+		t.Fatalf("refreshed status = %q, want completed: %+v", refreshed.Status, refreshed)
+	}
+	if got := binder.refs["init-phased"].PlanID; got != "plan-123" {
+		t.Fatalf("bound plan id = %q, want plan-123", got)
+	}
+	if got, _ := RoundPayload(refreshed.Payload).get(payloadPlanRef); got == nil {
+		t.Fatalf("round payload missing plan_ref: %+v", refreshed.Payload)
 	}
 }
 
@@ -1163,9 +1244,11 @@ type serviceOptions struct {
 	lock           InitiativeLock
 	initiatives    fakeInitiatives
 	modeUpdater    InitiativeModeUpdater
+	planRefBinder  InitiativePlanRefBinder
 	itemExecutions ItemExecutionController
 	backlogMutator BacklogMutator
 	reconciler     ProposalReconciler
+	planExecution  PlanExecutionClient
 	// classifier injects an L2 resolution classifier. When nil the test service
 	// disables the live ollama classifier so unit tests never shell out.
 	classifier FieldClassifier
@@ -1223,6 +1306,7 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 		Initiatives:      initiatives,
 		InitiativeLister: initiatives,
 		ModeUpdater:      opts.modeUpdater,
+		PlanRefBinder:    opts.planRefBinder,
 		Backlog: fakeBacklog{items: map[string]BacklogItemSnapshot{
 			"execute/do-thing": {Title: "Do thing", Status: "ready", Priority: 5, Effort: "M"},
 		}},
@@ -1238,11 +1322,21 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 		Clock:             store.Clock,
 		Classifier:        opts.classifier,
 		DisableClassifier: opts.classifier == nil,
+		PlanExecution:     opts.planExecution,
 	})
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
 	return svc
+}
+
+func testOperatingModePlanRef() *PlanRef {
+	return &PlanRef{
+		Provider: PlanRefProviderPlanManager,
+		PlanID:   "plan-1",
+		Slug:     "initiative-plan",
+		Role:     PlanRefRoleOperatingModePlan,
+	}
 }
 
 func saveCompletedRound(t *testing.T, svc *Service, initiativeName string, mode Mode, phase Phase, payload map[string]any) RoundEnvelope {

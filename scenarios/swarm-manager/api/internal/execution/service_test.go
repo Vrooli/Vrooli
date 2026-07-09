@@ -11,6 +11,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/handoff"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
 )
 
@@ -43,6 +44,10 @@ type snapshotAgentService struct {
 	runStateCalls int
 }
 
+func testPlanRenderer() *fakeMarkdownRenderer {
+	return &fakeMarkdownRenderer{result: planclient.RenderMarkdownResult{Markdown: "# Rendered implementation plan\n\nTest plan content."}}
+}
+
 func (s *snapshotAgentService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
 	s.runStateCalls++
 	return agentmanager.RunState{Status: "completed", FinishedAt: "2026-05-14T00:00:00Z"}, nil
@@ -56,6 +61,7 @@ func TestListSnapshotDoesNotProcessActiveExecutions(t *testing.T) {
 	svc := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 	})
 	if err := svc.store.Save([]Record{{
@@ -100,6 +106,7 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
@@ -147,11 +154,11 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if !strings.Contains(started.PromptTrace.Prompt, "<execution-context>") {
 		t.Fatal("expected prompt to contain <execution-context> tag")
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "<implementation-plan path=\"plan.md\">") {
+	if !strings.Contains(started.PromptTrace.Prompt, "<implementation-plan path=\"plan-manager:test-plan-test-idea\">") {
 		t.Fatal("expected prompt to contain implementation plan tag")
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "Manually created plan for testing") {
-		t.Fatal("expected prompt to contain plan.md content")
+	if !strings.Contains(started.PromptTrace.Prompt, "Test plan content.") {
+		t.Fatal("expected prompt to contain rendered plan content")
 	}
 	if !strings.Contains(started.PromptTrace.Prompt, "<idea-handoff>") {
 		t.Fatal("expected prompt to contain idea handoff metadata")
@@ -186,6 +193,7 @@ func TestQueueAndStartManualExecution_ResearchUsesConclusionDeliverable(t *testi
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
@@ -227,8 +235,9 @@ func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "policy-idea")
 
 	service := NewService(ServiceConfig{
-		DataRoot:  root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		PolicyProvider: &stubPolicyProvider{policy: Policy{
 			DefaultMode: ModeManual,
 		}},
@@ -264,8 +273,9 @@ func TestQueueBacklog_AllowsArchivedIdeas(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-idea")
 
 	service := NewService(ServiceConfig{
-		DataRoot:  root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -298,6 +308,7 @@ func TestQueueBacklog_YOLORollsBackWhenSpawnFails(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
@@ -337,8 +348,9 @@ func TestCancel_RestoresArchivedIdeaStatus(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel")
 
 	service := NewService(ServiceConfig{
-		DataRoot:  root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -382,8 +394,9 @@ func TestCancel_RestoresArchivedStatusAfterForcedQueue(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel-forced")
 
 	service := NewService(ServiceConfig{
-		DataRoot:  root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -423,8 +436,9 @@ func TestCancel_ReturnsErrorWhenRestoreFails(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "cancel-restore-error")
 
 	service := NewService(ServiceConfig{
-		DataRoot:  root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -467,6 +481,16 @@ func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[str
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir backlog item: %v", err)
 	}
+	if kind != "research" {
+		if _, ok := payload["plan_ref"]; !ok {
+			payload["plan_ref"] = map[string]any{
+				"provider": "plan-manager",
+				"plan_id":  "test-plan-" + name,
+				"slug":     "test-plan-" + name,
+				"role":     "execution_spec",
+			}
+		}
+	}
 	bytes, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
@@ -477,12 +501,11 @@ func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[str
 }
 
 // mustWriteDeliverableFile creates the primary workshop artifact in the item
-// directory so that workshop readiness preflight passes (deliverable exists
-// with no rounds = manually created artifact).
+// directory for research items. Non-research readiness is driven by plan_ref.
 func mustWriteDeliverableFile(t *testing.T, root, kind, name string) {
 	t.Helper()
 	kindDir := "ideas"
-	deliverablePath := "plan.md"
+	deliverablePath := ""
 	switch kind {
 	case "research":
 		kindDir = "research"
@@ -494,14 +517,14 @@ func mustWriteDeliverableFile(t *testing.T, root, kind, name string) {
 	case "chore":
 		kindDir = "chore"
 	}
+	if deliverablePath == "" {
+		return
+	}
 	dir := filepath.Join(root, kindDir, name)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir for deliverable: %v", err)
 	}
-	content := "# Plan\nManually created plan for testing."
-	if deliverablePath == "conclusion.md" {
-		content = "# Conclusion\nManually created conclusion for testing."
-	}
+	content := "# Conclusion\nManually created conclusion for testing."
 	if err := os.WriteFile(filepath.Join(dir, deliverablePath), []byte(content), 0o644); err != nil {
 		t.Fatalf("write %s: %v", deliverablePath, err)
 	}
@@ -590,6 +613,7 @@ func TestCancel_StartingExecution(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
@@ -640,6 +664,7 @@ func TestCancel_NeedsReviewExecution(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
@@ -738,8 +763,9 @@ func TestRefreshRunning_FailedRunSetsBacklogInReview(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:  root,
-		StorePath: storePath,
+		DataRoot:     root,
+		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 	})
 	service.inspector = inspector
 
@@ -802,8 +828,9 @@ func TestRefreshRunning_CanceledRunRestoresBacklogStatus(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:  root,
-		StorePath: storePath,
+		DataRoot:     root,
+		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 	})
 	service.inspector = inspector
 
@@ -1146,7 +1173,7 @@ func TestBuildExecutionPrompt_ProcessRun(t *testing.T) {
 		Title:              "Video Studio",
 		ItemFolder:         "/path/to/ideas/video-studio",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:video-studio",
 		DeliverableContent: "# Plan\nBuild a video editor.",
 		IdeaHandoff: &handoff.Package{
 			Dir:             "/path/to/ideas/video-studio/handoff",
@@ -1175,7 +1202,7 @@ func TestBuildExecutionPrompt_ProcessRun(t *testing.T) {
 	}
 
 	// Plan tag present with content.
-	if !strings.Contains(prompt, "<implementation-plan path=\"plan.md\">") || !strings.Contains(prompt, "</implementation-plan>") {
+	if !strings.Contains(prompt, "<implementation-plan path=\"plan-manager:video-studio\">") || !strings.Contains(prompt, "</implementation-plan>") {
 		t.Error("missing implementation-plan tags")
 	}
 	if !strings.Contains(prompt, "Build a video editor.") {
@@ -1204,7 +1231,7 @@ func TestBuildExecutionPrompt_FixupRun(t *testing.T) {
 		Title:              "Fix Login Crash",
 		ItemFolder:         "/path/to/fix/login-crash",
 		RunType:            "fixup",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:login-crash",
 		DeliverableContent: "# Plan\nFix the nil pointer.",
 		ReviewFeedback:     "Tests still failing.\n- test_coverage (red): Missing edge case test",
 	})
@@ -1225,7 +1252,7 @@ func TestBuildExecutionPrompt_FixupRun(t *testing.T) {
 	}
 
 	// Plan still included.
-	if !strings.Contains(prompt, "<implementation-plan path=\"plan.md\">") {
+	if !strings.Contains(prompt, "<implementation-plan path=\"plan-manager:login-crash\">") {
 		t.Error("fixup run should still include implementation plan")
 	}
 	if !strings.Contains(prompt, "Fix the nil pointer.") {
@@ -1240,7 +1267,7 @@ func TestBuildExecutionPrompt_FollowUpRun(t *testing.T) {
 		Title:              "Update Dependencies",
 		ItemFolder:         "/path/to/execute/dependency-update",
 		RunType:            "followup",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:dependency-update",
 		DeliverableContent: "# Plan\nUpdate all Go deps.",
 		FollowUpNote:       "Focus on the swarm-manager scenario only.",
 	})
@@ -1286,7 +1313,7 @@ func TestBuildExecutionPrompt_EmptyOptionalSections(t *testing.T) {
 		Name:               "test",
 		ItemFolder:         "/tmp/test",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:test",
 		DeliverableContent: "plan content",
 		ReviewFeedback:     "",
 		FollowUpNote:       "   ",
@@ -1306,7 +1333,7 @@ func TestBuildExecutionPrompt_NoTitle(t *testing.T) {
 		Name:               "bug",
 		ItemFolder:         "/tmp/fix/bug",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:bug",
 		DeliverableContent: "fix it",
 	})
 
@@ -1322,7 +1349,7 @@ func TestBuildExecutionPrompt_SuggestedSkills(t *testing.T) {
 		Title:              "Refactor API",
 		ItemFolder:         "/tmp/execute/refactor-api",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:refactor-api",
 		DeliverableContent: "# Plan\nRefactor.",
 		SuggestedSkills:    []string{"refactor", "screaming-architecture-audit"},
 	})
@@ -1344,7 +1371,7 @@ func TestBuildExecutionPrompt_NoSuggestedSkills(t *testing.T) {
 		Name:               "bug-fix",
 		ItemFolder:         "/tmp/fix/bug-fix",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:bug-fix",
 		DeliverableContent: "fix it",
 	})
 

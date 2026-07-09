@@ -19,6 +19,7 @@ export const API_ENDPOINTS = {
   backlogFileOperations: (kind: string, name: string) => `/backlog/${kind}/${name}/files`,
   backlogFileContent: (kind: string, name: string, filePath: string) =>
     `/backlog/${kind}/${name}/files/${filePath}`,
+  backlogPlanRender: (kind: string, name: string) => `/backlog/${kind}/${name}/plan-render`,
   backlogQueue: (kind: string, name: string) => `/backlog/${kind}/${name}/queue`,
   backlogRetry: (kind: string, name: string) => `/backlog/${kind}/${name}/retry`,
   backlogResearch: (kind: string, name: string) => `/backlog/${kind}/${name}/research`,
@@ -133,6 +134,8 @@ export const API_ENDPOINTS = {
   // `services/initiative-mode-service.ts`, not this REST endpoint table.
   graph: "/graph",
   plan: "/plan",
+  planImport: "/plan-import",
+  planImportPlans: "/plan-import/plans",
   overview: "/overview",
   stats: "/stats",
   health: "/health",

@@ -6,11 +6,12 @@
  */
 
 import { useCallback, useState, type ChangeEvent, type HTMLAttributes, type Ref } from "react";
-import { ListChecks, Plus } from "lucide-react";
+import { FilePlus2, ListChecks, Plus } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { SearchBar } from "../../../../components/ui/search-bar";
 import { CreateGoalDialog } from "../../../../components/goals/CreateGoalDialog";
 import { BacklogFormDialog } from "../../../../components/backlog/backlog-form-dialog";
+import { CreateWorkFromPlanDialog } from "../../../../components/plan/CreateWorkFromPlanDialog";
 import { useAISearchStatus } from "../../../../lib/ai-search";
 import { useGraphUIStore } from "../../stores/graph-ui-store";
 import { useBacklogStore } from "../../../../stores";
@@ -70,6 +71,7 @@ export function Sidebar({
   const [state, dispatch] = useSidebarState();
   const [showCreateGoal, setShowCreateGoal] = useState(false);
   const [showCreateBacklog, setShowCreateBacklog] = useState(false);
+  const [showCreateFromPlan, setShowCreateFromPlan] = useState(false);
   const [isCreatingBacklog, setIsCreatingBacklog] = useState(false);
   const [createBacklogError, setCreateBacklogError] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(state.searchQuery);
@@ -189,7 +191,7 @@ export function Sidebar({
                 widthClass="w-full"
                 className={cn(
                   "h-8 text-[16px] md:text-sm",
-                  (aiAvailable || showSelectionControls || createAction) && "pr-28",
+                  (aiAvailable || showSelectionControls || createAction || activeTab === "backlog") && "pr-36",
                 )}
                 data-testid="sidebar-search"
               />
@@ -204,6 +206,18 @@ export function Sidebar({
                     data-testid="sidebar-create-current"
                   >
                     <Plus className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                )}
+                {activeTab === "backlog" && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateFromPlan(true)}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-700/70 hover:text-slate-100"
+                    title="Create work from plan"
+                    aria-label="Create work from plan"
+                    data-testid="sidebar-create-from-plan"
+                  >
+                    <FilePlus2 className="h-3.5 w-3.5" aria-hidden />
                   </button>
                 )}
                 <SearchModeToggle
@@ -277,6 +291,7 @@ export function Sidebar({
                   onToggleSelection={selection.toggleItem}
                   onVisibleIdsChange={selection.pruneToVisible}
                   onCreateBacklog={createAction?.tab === "backlog" ? createAction.onClick : undefined}
+                  onCreateFromPlan={() => setShowCreateFromPlan(true)}
                 />
               )}
               {activeTab === "captures" && (
@@ -376,6 +391,13 @@ export function Sidebar({
           setCreateBacklogError(null);
         }}
         onSubmit={(values) => void handleCreateBacklog(values)}
+      />
+      <CreateWorkFromPlanDialog
+        isOpen={showCreateFromPlan}
+        onClose={() => setShowCreateFromPlan(false)}
+        onImported={() => {
+          void useBacklogStore.getState().fetchBacklog({ force: true });
+        }}
       />
     </>
   );

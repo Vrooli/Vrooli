@@ -106,6 +106,7 @@ type Definition struct {
 	PhaseGraph             PhaseGraph
 	RunStrategy            RunStrategyPolicy
 	Artifact               ArtifactPolicy
+	PlanRef                PlanRefPolicy
 	Prompt                 PromptPolicy
 	Profile                ProfilePolicy
 	BacklogSync            BacklogSyncPolicy
@@ -119,6 +120,11 @@ type Definition struct {
 	// modes with no example-runs directory (the simulator then synthesizes a
 	// generic happy-path). Ordered happy-path-first.
 	ExampleRuns []ExampleRun
+}
+
+type PlanRefPolicy struct {
+	Required bool
+	Role     string
 }
 
 // ExampleRun looks up a loaded example-run by id.
@@ -250,6 +256,7 @@ type ResultBinding struct {
 type PhaseOutputContract struct {
 	RequiresStructuredResult bool
 	RequiredArtifacts        []ArtifactDefinition
+	RequiresPlanRef          bool
 	RequiresProgress         bool
 	RequiresVerdict          bool
 	RequiresHandoff          bool

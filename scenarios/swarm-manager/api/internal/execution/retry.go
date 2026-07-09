@@ -10,7 +10,6 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/idgen"
-	"swarm-manager/internal/workshop"
 )
 
 // Retry creates a new execution run from a terminal parent run, copying the
@@ -83,12 +82,15 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 	// channel for user context is the optional Note, surfaced via the
 	// FollowUpNote slot in the prompt template.
 	itemDir := s.itemDir(item.Kind, item.Name)
-	deliverablePath := deliverableForKind(item.Kind)
 	preflight := s.processPreflightForItem(item, false)
 	if !preflight.Ready && !parent.Force && hasNonForceableExecutionReasons(preflight.BlockingReasons) {
 		return Record{}, apierr.BadRequest("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
 	}
-	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, preflight)
+	deliverable, err := s.resolveExecutionDeliverable(ctx, item, itemDir)
+	if err != nil {
+		return Record{}, apierr.BadRequest("%s", err.Error())
+	}
+	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, preflight, deliverable.Path)
 	if handoffErr != nil {
 		slog.Warn("failed to build idea handoff for retry", "kind", item.Kind, "name", item.Name, "err", handoffErr)
 	}
@@ -98,8 +100,8 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		Title:              item.Title,
 		ItemFolder:         itemDir,
 		RunType:            "retry",
-		DeliverablePath:    deliverablePath,
-		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
+		DeliverablePath:    deliverable.Path,
+		DeliverableContent: deliverable.Markdown,
 		FollowUpNote:       strings.TrimSpace(req.Note),
 		IdeaHandoff:        ideaHandoff,
 		SuggestedSkills:    item.SuggestedSkills,

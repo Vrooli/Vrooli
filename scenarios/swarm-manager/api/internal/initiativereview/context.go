@@ -1,10 +1,9 @@
 package initiativereview
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -12,7 +11,6 @@ import (
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/review"
-	"swarm-manager/internal/workshop"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -25,8 +23,8 @@ import (
 //   - per-item summaries (kind, title, status, archived, deliverable path)
 //   - per-item latest review round snapshots (so the initiative review isn't
 //     redoing work the per-item reviews already did — it synthesizes)
-//   - aggregate deliverable content for completed items (union of plan.md /
-//     conclusion.md) so the agent can spot cross-item regressions
+//   - aggregate deliverable content for completed items (rendered plan-manager
+//     plans / conclusion.md) so the agent can spot cross-item regressions
 //   - the union of affected scenarios across all member items and a
 //     *fresh* GCT (git-control-tower) verdict per scenario run at review
 //     start — this is the "is the whole thing still working together?"
@@ -194,7 +192,7 @@ func (s *Service) collectItemEvidence(init *initiatives.Initiative) ([]string, [
 			reviewSnaps = append(reviewSnaps, fmt.Sprintf("## %s/%s\n\n%s", kind, item.Name, snap))
 		}
 		if item.Status == backlog.StatusCompleted {
-			if content := loadItemDeliverable(kind, itemDir); content != "" {
+			if content := s.loadItemDeliverable(item, itemDir); content != "" {
 				fmt.Fprintf(&deliverablesBuf, "## %s/%s — %s\n\n%s\n\n", kind, item.Name, item.Title, content)
 			}
 		}
@@ -249,25 +247,18 @@ func renderItemReviewSnapshot(itemDir string) string {
 	return b.String()
 }
 
-// loadItemDeliverable returns the plan.md or conclusion.md content for the
-// item (whichever matches the kind's convention), or empty string if absent.
-func loadItemDeliverable(kind backlog.BacklogKind, itemDir string) string {
-	deliverable := backlog.DeliverableForKind(kind)
-	if strings.TrimSpace(deliverable) == "" {
+func (s *Service) loadItemDeliverable(item backlog.BacklogItem, itemDir string) string {
+	if s.planContent == nil {
 		return ""
 	}
-	if content := workshop.LoadPlanContentByName(itemDir, deliverable); content != "" {
-		return content
+	content, err := s.planContent(context.Background(), item, itemDir)
+	if err != nil {
+		return ""
 	}
-	// Fallback: try a few common deliverable filenames. `backlog.DeliverableForKind`
-	// is the authoritative mapping; this catches older-shape items.
-	for _, name := range []string{"plan.md", "conclusion.md"} {
-		data, err := os.ReadFile(filepath.Join(itemDir, name))
-		if err == nil {
-			return string(data)
-		}
+	if strings.TrimSpace(content) == "" {
+		return ""
 	}
-	return ""
+	return content
 }
 
 func appendNote(atts []*domainpb.ContextAttachment, key, label, summary, content, format, priority string) []*domainpb.ContextAttachment {

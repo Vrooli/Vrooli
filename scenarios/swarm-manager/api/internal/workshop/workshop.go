@@ -255,21 +255,10 @@ func NeedsSynthesis(round *Round) bool {
 	return CountDecisionItems(round) > 0 && CountPendingDecisions(round) == 0
 }
 
-// HasPlan checks whether a plan.md file exists for the item.
-func HasPlan(itemDir string) bool {
-	return HasPlanByName(itemDir, "plan.md")
-}
-
 // HasPlanByName checks whether the named deliverable file exists for the item.
 func HasPlanByName(itemDir, filename string) bool {
 	_, err := os.Stat(filepath.Join(itemDir, filename))
 	return err == nil
-}
-
-// LoadPlanContent reads plan.md and returns its content. Returns empty string
-// if the file does not exist.
-func LoadPlanContent(itemDir string) string {
-	return LoadPlanContentByName(itemDir, "plan.md")
 }
 
 // LoadPlanContentByName reads the named deliverable file and returns its content.
@@ -358,8 +347,8 @@ func DeleteRoundAndRenumber(itemDir string, roundNum int) (remaining int, err er
 }
 
 // ResetWorkshop removes all workshop data from an item directory:
-// the workshop/ directory (rounds, clarifications, attachments) and
-// the deliverable file (plan.md or conclusion.md).
+// the workshop/ directory (rounds, clarifications, attachments) and the named
+// local deliverable file, when one still exists.
 // Returns the number of rounds that existed before deletion.
 func ResetWorkshop(itemDir string, deliverableFile string) (deletedRounds int, err error) {
 	rounds, err := LoadRounds(itemDir)

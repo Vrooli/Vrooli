@@ -90,6 +90,7 @@ func promptVariables(data phaseContext, round RoundEnvelope, note string) map[st
 		"OPERATOR_NOTE":          strings.TrimSpace(note),
 		"MEMBER_ITEMS_JSON":      mustJSON(data.items),
 		"MODE_ARTIFACTS_JSON":    mustJSON(data.artifacts),
+		"PLAN_CONTEXT_JSON":      mustJSON(data.plan),
 		"PRIOR_ROUNDS_JSON":      mustJSON(data.rounds),
 		promptcatalog.BacklogSyncProposalVariableKey: promptcatalog.BacklogSyncProposalSnippet(),
 		promptcatalog.ElasticSliceVariableKey:        promptcatalog.ElasticSliceSnippet(),

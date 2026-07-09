@@ -39,6 +39,8 @@ type BacklogItemDirResolver interface {
 	ItemDir(kind, name string) string
 }
 
+type PlanContentResolver func(ctx context.Context, kind, name, itemDir string) (string, error)
+
 // ExecutionContext captures the finalized execution data needed to launch a
 // review agent with the same context that automatic post-run checks use.
 type ExecutionContext struct {
@@ -71,6 +73,7 @@ type ServiceConfig struct {
 	ItemDirFn            func(kind, name string) string
 	LoadItemTitle        func(kind, name string) (string, error)
 	LoadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
+	PlanContentResolver  PlanContentResolver
 	// OnRoundTerminal fires when a review round transitions to complete/failed.
 	// Used to flip the backlog item's status to review_pending.
 	OnRoundTerminal RoundTerminalHandler
@@ -98,6 +101,7 @@ type Service struct {
 	itemDirFn            func(kind, name string) string
 	loadItemTitle        func(kind, name string) (string, error)
 	loadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
+	planContentResolver  PlanContentResolver
 	onRoundTerminal      RoundTerminalHandler
 	roundMaxAge          time.Duration
 	clock                func() time.Time
@@ -123,6 +127,7 @@ func NewService(cfg ServiceConfig) *Service {
 		itemDirFn:            cfg.ItemDirFn,
 		loadItemTitle:        cfg.LoadItemTitle,
 		loadExecutionContext: cfg.LoadExecutionContext,
+		planContentResolver:  cfg.PlanContentResolver,
 		onRoundTerminal:      cfg.OnRoundTerminal,
 		roundMaxAge:          roundMaxAge,
 		clock:                time.Now,
@@ -181,7 +186,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 	}
 
 	itemTitle := s.resolveItemTitle(params.BacklogKind, params.BacklogName, params.ItemTitle)
-	deliverableContent := loadReviewDeliverableContent(params.BacklogKind, params.ItemDir)
+	deliverableContent := s.loadReviewDeliverableContent(ctx, params.BacklogKind, params.BacklogName, params.ItemDir)
 
 	// Build changed paths list.
 	changedPaths := flattenChangedPaths(params.ChangedPathsByScenario)

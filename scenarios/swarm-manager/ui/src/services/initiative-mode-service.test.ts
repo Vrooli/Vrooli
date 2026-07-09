@@ -200,7 +200,7 @@ describe("Initiative Mode Service", () => {
             acceptanceCriteria: ["review output"],
           },
           items: [{ ref: "execute/item-1", title: "Item 1" }],
-          artifacts: [{ path: "modes/phased-plan-drain/progress.json", required: true }],
+          artifacts: [],
           priorRounds: [],
           acceptanceCriteria: ["review output"],
         },

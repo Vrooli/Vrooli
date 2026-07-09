@@ -49,7 +49,6 @@ import { backlogService } from "../services/backlog-service";
 import { reviewService } from "../services/review-service";
 import { useReviewStore } from "../stores/review-store";
 import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
-import { ValidationReport } from "../components/backlog/validation-report";
 import { useQueryClient } from "@tanstack/react-query";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
@@ -525,7 +524,6 @@ export function BacklogDetailsPage() {
                       </div>
                     )}
                     {detailsPanel}
-                    <ValidationReport validationJson={item.planValidationJson} />
                     <BacklogScenariosPanel targetScenarios={targetScenarios} />
                     {notesPanel}
                     {operationalTargetsSection}
@@ -606,7 +604,6 @@ export function BacklogDetailsPage() {
                   {activeTab === "info" && (
                     <div className="space-y-0 pt-3">
                       {detailsPanel}
-                      <ValidationReport validationJson={item.planValidationJson} />
                       <BacklogScenariosPanel targetScenarios={targetScenarios} />
                       {notesPanel}
                       {operationalTargetsSection}

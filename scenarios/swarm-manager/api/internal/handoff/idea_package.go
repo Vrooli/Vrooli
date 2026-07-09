@@ -33,7 +33,7 @@ type BuildRequest struct {
 	BacklogTitle            string
 	BacklogDescription      string
 	ItemFolder              string
-	DeliverableFileName     string
+	DeliverablePath         string
 	TargetScenario          string
 	Operation               string
 	SuggestedSteerProfileID string
@@ -121,13 +121,9 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 	if itemFolder == "" {
 		return nil, fmt.Errorf("item folder is required")
 	}
-	deliverableName := strings.TrimSpace(req.DeliverableFileName)
-	if deliverableName == "" {
-		deliverableName = "plan.md"
-	}
-	deliverablePath := filepath.Join(itemFolder, deliverableName)
-	if _, err := os.Stat(deliverablePath); err != nil {
-		return nil, fmt.Errorf("deliverable not available for idea handoff: %w", err)
+	deliverablePath := strings.TrimSpace(req.DeliverablePath)
+	if deliverablePath == "" {
+		return nil, fmt.Errorf("deliverable path is required for idea handoff")
 	}
 
 	generatedAt := req.GeneratedAt
@@ -159,7 +155,7 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 
 	sourceIndex := SourceIndex{
 		ItemFolder:          ref(itemFolder),
-		PlanPath:            ref(deliverablePath),
+		PlanPath:            deliverablePath,
 		SpecPath:            ref(filepath.Join(itemFolder, "spec.json")),
 		NotesPath:           ref(fileIfExists(filepath.Join(itemFolder, "notes.md"))),
 		ResearchSummaryPath: ref(fileIfExists(filepath.Join(itemFolder, "research", "summary.md"))),
@@ -179,7 +175,7 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 		TargetScenario:          strings.TrimSpace(req.TargetScenario),
 		Operation:               strings.TrimSpace(req.Operation),
 		SuggestedSteerProfileID: strings.TrimSpace(req.SuggestedSteerProfileID),
-		DeliverablePath:         ref(deliverablePath),
+		DeliverablePath:         deliverablePath,
 		ManifestPath:            ref(manifestPath),
 		BriefPath:               ref(briefPath),
 		SourceIndexPath:         ref(sourceIndexPath),
@@ -247,7 +243,7 @@ func writeBriefExecutionContract(b *strings.Builder, manifest Manifest, sourceIn
 		b.WriteString(fmt.Sprintf("- Recommended steer profile: `%s`\n", manifest.SuggestedSteerProfileID))
 	}
 	b.WriteString(fmt.Sprintf("- Item folder: `%s`\n", manifest.ItemFolder))
-	b.WriteString(fmt.Sprintf("- Plan: `%s`\n", sourceIndex.PlanPath))
+	b.WriteString(fmt.Sprintf("- Plan projection: `%s`\n", sourceIndex.PlanPath))
 	b.WriteString(fmt.Sprintf("- Manifest: `%s`\n", manifest.ManifestPath))
 	b.WriteString(fmt.Sprintf("- Source index: `%s`\n", manifest.SourceIndexPath))
 	b.WriteString("\n")
@@ -255,7 +251,7 @@ func writeBriefExecutionContract(b *strings.Builder, manifest Manifest, sourceIn
 
 func writeBriefDownstreamRequirements(b *strings.Builder) {
 	b.WriteString("## Downstream Requirements\n\n")
-	b.WriteString("- Read `plan.md` and `manifest.json` before creating the ecosystem-manager task.\n")
+	b.WriteString("- Read the rendered plan block in the execution prompt and `manifest.json` before creating the ecosystem-manager task.\n")
 	b.WriteString("- Use this `brief.md` file as the ecosystem-manager task notes.\n")
 	b.WriteString("- Preserve the origin metadata so later ecosystem-manager loops can trace back to the swarm-manager source artifacts.\n\n")
 }

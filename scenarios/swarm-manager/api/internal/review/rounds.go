@@ -144,7 +144,7 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 			defer cancel()
 
 			itemTitle := s.resolveItemTitle(kind, name, "")
-			deliverableContent := loadReviewDeliverableContent(kind, itemDir)
+			deliverableContent := s.loadReviewDeliverableContent(spawnCtx, kind, name, itemDir)
 			var changedPaths []string
 			var affectedScenarios []string
 			var gctResultsJSON string

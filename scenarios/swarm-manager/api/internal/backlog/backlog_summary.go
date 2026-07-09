@@ -115,7 +115,7 @@ func buildMaturitySummary(rounds []itemRoundData) []MaturityItemSummary {
 			Ready:            IsReady(effectiveScores),
 			PendingItems:     CountPendingDecisions(rd.round),
 			PendingSynthesis: NeedsSynthesis(rd.round),
-			HasPlan:          HasPlanByName(rd.itemDir, DeliverableForKind(rd.item.Kind)),
+			HasPlan:          hasCanonicalPlan(rd.item, rd.itemDir),
 		})
 	}
 	return items

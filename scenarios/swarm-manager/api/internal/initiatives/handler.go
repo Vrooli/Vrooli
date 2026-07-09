@@ -75,11 +75,43 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if scenarios := parseScenariosQuery(r); len(scenarios) > 0 {
 		items = filterByTargetScenarios(items, scenarios)
 	}
+	items = filterInitiativesByPlanRef(items, r)
 
 	resp := map[string]any{"items": items}
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, "[initiatives] list", apierr.Internal("failed to encode response"))
 	}
+}
+
+func filterInitiativesByPlanRef(items []InitiativeWithRollup, r *http.Request) []InitiativeWithRollup {
+	query := r.URL.Query()
+	if raw := strings.TrimSpace(query.Get("has_plan_ref")); raw != "" {
+		want := raw == "1" || strings.EqualFold(raw, "true") || strings.EqualFold(raw, "yes")
+		filtered := items[:0]
+		for _, item := range items {
+			if (item.Initiative.PlanRef != nil) == want {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+	if slug := strings.TrimSpace(query.Get("plan_ref")); slug != "" {
+		items = filterInitiativesByPlanRefSlug(items, slug)
+	}
+	if slug := strings.TrimSpace(query.Get("plan_ref_slug")); slug != "" {
+		items = filterInitiativesByPlanRefSlug(items, slug)
+	}
+	return items
+}
+
+func filterInitiativesByPlanRefSlug(items []InitiativeWithRollup, slug string) []InitiativeWithRollup {
+	filtered := items[:0]
+	for _, item := range items {
+		if item.Initiative.PlanRef != nil && item.Initiative.PlanRef.Slug == slug {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
 }
 
 // parseScenariosQuery reads the "scenario" (or "scenarios") query parameter

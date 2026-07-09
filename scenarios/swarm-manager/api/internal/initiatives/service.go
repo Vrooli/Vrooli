@@ -126,6 +126,10 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	if !ValidatePriority(req.Priority) {
 		return nil, fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", req.Priority)
 	}
+	planRef := normalizePlanRef(req.PlanRef)
+	if err := validatePlanRef(planRef, PlanRefRoleOperatingMode); err != nil {
+		return nil, validationErr("%s", err.Error())
+	}
 	dependsOn := normalizeDependsOn(req.DependsOn)
 	if err := s.validateDependsOn(name, dependsOn); err != nil {
 		return nil, err
@@ -149,6 +153,7 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 		Created:            now,
 		Updated:            now,
 		CreatedBy:          req.CreatedBy,
+		PlanRef:            planRef,
 	}
 	if err := s.store.Save(init); err != nil {
 		return nil, fmt.Errorf("save initiative: %w", err)
@@ -329,6 +334,13 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	if req.AcceptanceCriteria != nil {
 		init.AcceptanceCriteria = normalizeStringList(*req.AcceptanceCriteria)
 	}
+	if req.PlanRefSet || req.PlanRef != nil {
+		planRef := normalizePlanRef(req.PlanRef)
+		if err := validatePlanRef(planRef, PlanRefRoleOperatingMode); err != nil {
+			return nil, validationErr("%s", err.Error())
+		}
+		init.PlanRef = planRef
+	}
 	if req.Note != nil {
 		init.Note = strings.TrimSpace(*req.Note)
 	}
@@ -342,6 +354,41 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	}
 	s.invalidateTopologyGraph()
 	return init, nil
+}
+
+func normalizePlanRef(ref *PlanRef) *PlanRef {
+	if ref == nil {
+		return nil
+	}
+	normalized := &PlanRef{
+		Provider: strings.TrimSpace(ref.Provider),
+		PlanID:   strings.TrimSpace(ref.PlanID),
+		Slug:     strings.TrimSpace(ref.Slug),
+		Role:     strings.TrimSpace(ref.Role),
+	}
+	if normalized.Provider == "" && normalized.PlanID == "" && normalized.Slug == "" && normalized.Role == "" {
+		return nil
+	}
+	return normalized
+}
+
+func validatePlanRef(ref *PlanRef, role string) error {
+	if ref == nil {
+		return nil
+	}
+	if ref.Provider != PlanRefProviderPlanManager {
+		return fmt.Errorf("plan_ref.provider must be %q", PlanRefProviderPlanManager)
+	}
+	if ref.PlanID == "" {
+		return fmt.Errorf("plan_ref.plan_id is required")
+	}
+	if ref.Slug == "" {
+		return fmt.Errorf("plan_ref.slug is required")
+	}
+	if ref.Role != role {
+		return fmt.Errorf("plan_ref.role must be %q", role)
+	}
+	return nil
 }
 
 // validateStatusTransition validates a requested status change against the

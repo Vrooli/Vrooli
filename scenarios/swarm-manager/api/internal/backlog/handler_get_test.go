@@ -278,6 +278,42 @@ func TestList_FilterBySpawnedFrom(t *testing.T) {
 	}
 }
 
+func TestList_FilterByPlanRef(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	createTestItem(t, rootDir, KindExecute, BacklogItem{
+		Name: "plan-a", Title: "Plan A", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+		PlanRef: &PlanRef{
+			Provider: PlanRefProviderPlanManager,
+			PlanID:   "plan-123",
+			Slug:     "canonical-plan",
+			Role:     PlanRefRoleExecutionSpec,
+		},
+	})
+	createTestItem(t, rootDir, KindExecute, BacklogItem{
+		Name: "unlinked", Title: "Unlinked", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	})
+
+	req := httptest.NewRequest("GET", "/api/v1/backlog?has_plan_ref=true&plan_ref=canonical-plan", nil)
+	w := httptest.NewRecorder()
+
+	h.List(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	if len(resp.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(resp.Items))
+	}
+	if resp.Items[0].Name != "plan-a" {
+		t.Errorf("expected 'plan-a', got %q", resp.Items[0].Name)
+	}
+	if resp.Items[0].PlanRef == nil || resp.Items[0].PlanRef.Slug != "canonical-plan" {
+		t.Fatalf("expected plan_ref canonical-plan, got %#v", resp.Items[0].PlanRef)
+	}
+}
+
 func TestList_FilterByScenario(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 

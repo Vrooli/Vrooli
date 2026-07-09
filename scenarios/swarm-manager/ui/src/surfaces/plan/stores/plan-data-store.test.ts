@@ -23,8 +23,14 @@ function makeBoard(overrides?: Partial<PlanBoardData>): PlanBoardData {
 function stubService(impl: Partial<IPlanService>): IPlanService {
   return {
     getBoard: vi.fn().mockResolvedValue(makeBoard()),
+    listCanonicalPlans: vi.fn().mockResolvedValue([]),
+    importPlan: vi.fn().mockRejectedValue(new Error("not implemented in plan-data-store tests")),
     ...impl,
   };
+}
+
+function boardOnlyService(getBoard: IPlanService["getBoard"]): IPlanService {
+  return stubService({ getBoard });
 }
 
 function resetStore() {
@@ -72,7 +78,7 @@ describe("plan-data-store", () => {
 
   it("skips refetch while fresh unless forced", async () => {
     const getBoard = vi.fn().mockResolvedValue(makeBoard());
-    setPlanStoreService({ getBoard });
+    setPlanStoreService(boardOnlyService(getBoard));
 
     await usePlanDataStore.getState().fetchBoard();
     await usePlanDataStore.getState().fetchBoard();
@@ -84,7 +90,7 @@ describe("plan-data-store", () => {
 
   it("passes the configured window to the service and refetches on change", async () => {
     const getBoard = vi.fn().mockResolvedValue(makeBoard());
-    setPlanStoreService({ getBoard });
+    setPlanStoreService(boardOnlyService(getBoard));
 
     usePlanDataStore.getState().setWindowSeconds(3600);
     await vi.waitFor(() => {
@@ -104,7 +110,7 @@ describe("plan-data-store", () => {
       .mockResolvedValueOnce(makeBoard({
         now: { activeCount: 9, queueDepth: 0, maxQueueDepth: 10, lanes: [] },
       }));
-    setPlanStoreService({ getBoard });
+    setPlanStoreService(boardOnlyService(getBoard));
 
     const p1 = usePlanDataStore.getState().fetchBoard();
     const p2 = usePlanDataStore.getState().fetchBoard({ force: true });

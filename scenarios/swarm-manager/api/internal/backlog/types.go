@@ -4,7 +4,6 @@
 package backlog
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -119,11 +118,26 @@ type BacklogItem struct {
 	AcceptanceDeny  []string             `json:"acceptance_deny,omitempty"`
 	Creates         []string             `json:"creates,omitempty"`
 	SpawnedFrom     string               `json:"spawned_from,omitempty"`
+	PlanRef         *PlanRef             `json:"plan_ref,omitempty"`
 	Note            string               `json:"note,omitempty"`
 	SuggestedSkills []string             `json:"suggested_skills,omitempty"`
 	CreatedBy       *identity.Provenance `json:"created_by,omitempty"`
 	ArchivedAt      *string              `json:"archived_at,omitempty"`
 }
+
+// PlanRef links a swarm-manager work container to a canonical plan-manager plan.
+type PlanRef struct {
+	Provider string `json:"provider"`
+	PlanID   string `json:"plan_id"`
+	Slug     string `json:"slug"`
+	Role     string `json:"role"`
+}
+
+const (
+	PlanRefProviderPlanManager = "plan-manager"
+	PlanRefRoleExecutionSpec   = "execution_spec"
+	PlanRefRoleOperatingMode   = "operating_mode_plan"
+)
 
 // BacklogFile represents a file or directory within a backlog item folder.
 type BacklogFile struct {
@@ -211,21 +225,6 @@ func sanitizeName(name string) string {
 	return result.String()
 }
 
-// backlogToProtoWithValidation converts a BacklogItem to its protobuf representation,
-// including the plan validation report loaded from the item directory.
-func backlogToProtoWithValidation(item BacklogItem, itemDir string) *domainpb.BacklogItem {
-	result := backlogToProto(item)
-	if item.Kind != KindResearch {
-		report, err := LoadOrRefreshValidationReport(itemDir, item.Kind)
-		if err == nil && report != nil {
-			data, _ := json.Marshal(report)
-			jsonStr := string(data)
-			result.PlanValidationJson = &jsonStr
-		}
-	}
-	return result
-}
-
 // backlogToProto converts a BacklogItem to its protobuf representation.
 func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	result := &domainpb.BacklogItem{
@@ -260,6 +259,9 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	if strings.TrimSpace(item.SpawnedFrom) != "" {
 		result.SpawnedFrom = &item.SpawnedFrom
 	}
+	if item.PlanRef != nil {
+		result.PlanRef = planRefToProto(item.PlanRef)
+	}
 	if strings.TrimSpace(item.Note) != "" {
 		result.Note = &item.Note
 	}
@@ -274,4 +276,63 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 		result.ArchivedAt = item.ArchivedAt
 	}
 	return result
+}
+
+func planRefToProto(ref *PlanRef) *domainpb.PlanRef {
+	if ref == nil {
+		return nil
+	}
+	return &domainpb.PlanRef{
+		Provider: ref.Provider,
+		PlanId:   ref.PlanID,
+		Slug:     ref.Slug,
+		Role:     ref.Role,
+	}
+}
+
+func planRefFromProto(ref *domainpb.PlanRef) *PlanRef {
+	if ref == nil {
+		return nil
+	}
+	return &PlanRef{
+		Provider: strings.TrimSpace(ref.Provider),
+		PlanID:   strings.TrimSpace(ref.PlanId),
+		Slug:     strings.TrimSpace(ref.Slug),
+		Role:     strings.TrimSpace(ref.Role),
+	}
+}
+
+func normalizePlanRef(ref *PlanRef) *PlanRef {
+	if ref == nil {
+		return nil
+	}
+	normalized := &PlanRef{
+		Provider: strings.TrimSpace(ref.Provider),
+		PlanID:   strings.TrimSpace(ref.PlanID),
+		Slug:     strings.TrimSpace(ref.Slug),
+		Role:     strings.TrimSpace(ref.Role),
+	}
+	if normalized.Provider == "" && normalized.PlanID == "" && normalized.Slug == "" && normalized.Role == "" {
+		return nil
+	}
+	return normalized
+}
+
+func validatePlanRef(ref *PlanRef, role string) error {
+	if ref == nil {
+		return nil
+	}
+	if ref.Provider != PlanRefProviderPlanManager {
+		return fmt.Errorf("plan_ref.provider must be %q", PlanRefProviderPlanManager)
+	}
+	if ref.PlanID == "" {
+		return fmt.Errorf("plan_ref.plan_id is required")
+	}
+	if ref.Slug == "" {
+		return fmt.Errorf("plan_ref.slug is required")
+	}
+	if ref.Role != role {
+		return fmt.Errorf("plan_ref.role must be %q", role)
+	}
+	return nil
 }

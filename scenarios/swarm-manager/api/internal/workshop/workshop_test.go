@@ -404,41 +404,24 @@ func TestNeedsSynthesis_FinalizeRound(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// HasPlan / LoadPlanContent
+// LoadPlanContentByName
 // ---------------------------------------------------------------------------
 
-func TestHasPlan_Exists(t *testing.T) {
+func TestLoadPlanContentByName_Exists(t *testing.T) {
 	itemDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(itemDir, "plan.md"), []byte("# Plan"), 0o644); err != nil {
+	content := "# Conclusion\n\nSome details."
+	if err := os.WriteFile(filepath.Join(itemDir, "conclusion.md"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if !HasPlan(itemDir) {
-		t.Error("expected HasPlan to return true")
-	}
-}
-
-func TestHasPlan_Missing(t *testing.T) {
-	itemDir := t.TempDir()
-	if HasPlan(itemDir) {
-		t.Error("expected HasPlan to return false")
-	}
-}
-
-func TestLoadPlanContent_Exists(t *testing.T) {
-	itemDir := t.TempDir()
-	content := "# My Plan\n\nSome details."
-	if err := os.WriteFile(filepath.Join(itemDir, "plan.md"), []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got := LoadPlanContent(itemDir)
+	got := LoadPlanContentByName(itemDir, "conclusion.md")
 	if got != content {
 		t.Errorf("got %q, want %q", got, content)
 	}
 }
 
-func TestLoadPlanContent_Missing(t *testing.T) {
+func TestLoadPlanContentByName_Missing(t *testing.T) {
 	itemDir := t.TempDir()
-	got := LoadPlanContent(itemDir)
+	got := LoadPlanContentByName(itemDir, "conclusion.md")
 	if got != "" {
 		t.Errorf("expected empty string, got %q", got)
 	}
@@ -507,7 +490,7 @@ func TestResetWorkshop_HappyPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Create deliverable at item root.
-	if err := os.WriteFile(filepath.Join(itemDir, "plan.md"), []byte("# Plan"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(itemDir, "local-deliverable.md"), []byte("# Deliverable"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// Create spec.json (should survive).
@@ -515,7 +498,7 @@ func TestResetWorkshop_HappyPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deleted, err := ResetWorkshop(itemDir, "plan.md")
+	deleted, err := ResetWorkshop(itemDir, "local-deliverable.md")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -527,8 +510,8 @@ func TestResetWorkshop_HappyPath(t *testing.T) {
 		t.Error("expected workshop dir to be removed")
 	}
 	// Deliverable should be gone.
-	if _, err := os.Stat(filepath.Join(itemDir, "plan.md")); !os.IsNotExist(err) {
-		t.Error("expected plan.md to be removed")
+	if _, err := os.Stat(filepath.Join(itemDir, "local-deliverable.md")); !os.IsNotExist(err) {
+		t.Error("expected local deliverable to be removed")
 	}
 	// spec.json should still exist.
 	if _, err := os.Stat(filepath.Join(itemDir, "spec.json")); err != nil {
@@ -539,7 +522,7 @@ func TestResetWorkshop_HappyPath(t *testing.T) {
 func TestResetWorkshop_NoWorkshopDir(t *testing.T) {
 	itemDir := t.TempDir()
 
-	deleted, err := ResetWorkshop(itemDir, "plan.md")
+	deleted, err := ResetWorkshop(itemDir, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

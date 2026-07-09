@@ -15,6 +15,7 @@ import (
 	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
 )
@@ -170,6 +171,7 @@ type ServiceConfig struct {
 	ReviewClient             ReviewClient
 	BaselineClient           BaselineClient
 	BaselineEngagementRunner BaselineEngagementRunner
+	PlanRenderer             planclient.MarkdownRenderer
 	Finalization             FinalizationConfig
 }
 
@@ -193,6 +195,7 @@ type Service struct {
 	reviewClient             ReviewClient
 	baselineClient           BaselineClient
 	baselineEngagementRunner BaselineEngagementRunner
+	planRenderer             planclient.MarkdownRenderer
 	engagementStore          *EngagementStore
 	inspector                RunInspector
 	differ                   RunDiffer
@@ -299,6 +302,7 @@ func NewService(cfg ServiceConfig) *Service {
 		reviewClient:             cfg.ReviewClient,
 		baselineClient:           cfg.BaselineClient,
 		baselineEngagementRunner: cfg.BaselineEngagementRunner,
+		planRenderer:             cfg.PlanRenderer,
 		engagementStore:          NewEngagementStore(engagementStorePath(cfg.StorePath)),
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
 		scenarioHealth:           cfg.ScenarioHealthChecker,

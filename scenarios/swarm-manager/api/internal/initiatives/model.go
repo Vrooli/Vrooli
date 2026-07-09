@@ -22,9 +22,24 @@ type Initiative struct {
 	Created            string               `json:"created"`
 	Updated            string               `json:"updated"`
 	CreatedBy          *identity.Provenance `json:"created_by,omitempty"`
+	PlanRef            *PlanRef             `json:"plan_ref,omitempty"`
 	Note               string               `json:"note,omitempty"`
 	ArchivedAt         *string              `json:"archived_at,omitempty"`
 }
+
+// PlanRef links an initiative to a canonical plan-manager plan.
+type PlanRef struct {
+	Provider string `json:"provider"`
+	PlanID   string `json:"plan_id"`
+	Slug     string `json:"slug"`
+	Role     string `json:"role"`
+}
+
+const (
+	PlanRefProviderPlanManager = "plan-manager"
+	PlanRefRoleExecutionSpec   = "execution_spec"
+	PlanRefRoleOperatingMode   = "operating_mode_plan"
+)
 
 // RollupStatus provides aggregated status counts for an initiative's items.
 type RollupStatus struct {
@@ -55,6 +70,7 @@ type CreateRequest struct {
 	Items              []string             `json:"items,omitempty"`
 	AcceptanceCriteria []string             `json:"acceptance_criteria,omitempty"`
 	CreatedBy          *identity.Provenance `json:"-"`
+	PlanRef            *PlanRef             `json:"plan_ref,omitempty"`
 }
 
 // UpdateRequest holds validated fields for updating an existing initiative.
@@ -66,6 +82,8 @@ type UpdateRequest struct {
 	DependsOn          *[]string `json:"depends_on,omitempty"`
 	Items              *[]string `json:"items,omitempty"`
 	AcceptanceCriteria *[]string `json:"acceptance_criteria,omitempty"`
+	PlanRef            *PlanRef  `json:"plan_ref,omitempty"`
+	PlanRefSet         bool      `json:"-"`
 	Note               *string   `json:"note,omitempty"`
 }
 
@@ -73,7 +91,7 @@ type UpdateRequest struct {
 func (r UpdateRequest) HasChanges() bool {
 	return r.Title != nil || r.Description != nil || r.Status != nil ||
 		r.Priority != nil || r.DependsOn != nil ||
-		r.Items != nil || r.AcceptanceCriteria != nil || r.Note != nil
+		r.Items != nil || r.AcceptanceCriteria != nil || r.PlanRefSet || r.PlanRef != nil || r.Note != nil
 }
 
 // Initiative status constants. The lifecycle mirrors backlog items:

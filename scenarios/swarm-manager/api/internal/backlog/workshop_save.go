@@ -84,9 +84,13 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Post-finalization validation: write validation-report.json when a finalize round is saved.
 	if round.Mode == "finalize" && kind != KindResearch {
-		runPostFinalizationValidation(kind, name, itemDir)
+		updated, apiErr := h.bindFinalizedPlanRef(r.Context(), item, req.Content)
+		if apiErr != nil {
+			apierr.MapError(w, "[backlog] workshop-save", apiErr)
+			return
+		}
+		item = updated
 	}
 
 	autoAdvance := h.computeAutoAdvance(item, &round, kind, name, itemDir)
@@ -176,19 +180,87 @@ func checkAcceptanceValidation(item BacklogItem, itemDir string, round workshop.
 	return nil
 }
 
-// runPostFinalizationValidation writes validation-report.json after a
-// finalize round is saved. Errors are logged but not fatal — the round was
-// already committed to disk.
-func runPostFinalizationValidation(kind BacklogKind, name, itemDir string) {
-	deliverable := DeliverableForKind(kind)
-	planContent := LoadPlanContentByName(itemDir, deliverable)
-	valResult := ValidatePlanCompleteness(planContent, kind)
-	if writeErr := WriteValidationReport(itemDir, valResult); writeErr != nil {
-		slog.Error("failed to write validation report", "kind", kind, "name", name, "err", writeErr)
-	} else {
-		slog.Info("post-finalization validation", "kind", kind, "name", name, "passed", valResult.Passed,
-			"missing", len(valResult.SectionsMissing), "warnings", len(valResult.Warnings))
+type finalizePlanRefPayload struct {
+	PlanRef  *PlanRef `json:"plan_ref,omitempty"`
+	PlanID   string   `json:"plan_id,omitempty"`
+	PlanSlug string   `json:"plan_slug,omitempty"`
+}
+
+func (h *Handler) bindFinalizedPlanRef(ctx context.Context, item BacklogItem, roundContent string) (BacklogItem, *apierr.DomainError) {
+	ref, err := finalizedPlanRefFromRound(roundContent, item.PlanRef)
+	if err != nil {
+		return item, apierr.BadRequest("%s", err.Error())
 	}
+	if ref == nil {
+		return item, apierr.Conflict("finalization requires a canonical plan_ref or plan_slug from plan-manager")
+	}
+	if h.planClient == nil {
+		return item, apierr.Internal("plan-manager client is not configured")
+	}
+	lookup := firstNonBlank(ref.PlanID, ref.Slug)
+	plan, err := h.planClient.GetPlan(ctx, lookup)
+	if err != nil {
+		return item, apierr.Conflict("finalization requires a resolvable plan-manager plan_ref: %s", err.Error())
+	}
+	resolved := &PlanRef{
+		Provider: PlanRefProviderPlanManager,
+		PlanID:   strings.TrimSpace(plan.GetId()),
+		Slug:     strings.TrimSpace(plan.GetSlug()),
+		Role:     PlanRefRoleExecutionSpec,
+	}
+	if resolved.PlanID == "" {
+		resolved.PlanID = ref.PlanID
+	}
+	if resolved.Slug == "" {
+		resolved.Slug = ref.Slug
+	}
+	if err := validatePlanRef(resolved, PlanRefRoleExecutionSpec); err != nil {
+		return item, apierr.Conflict("finalization resolved invalid plan_ref: %s", err.Error())
+	}
+	item.PlanRef = resolved
+	item.Updated = time.Now().UTC().Format(time.RFC3339)
+	if err := h.store.SaveItem(item); err != nil {
+		return item, apierr.Internal("failed to save finalized plan_ref")
+	}
+	return item, nil
+}
+
+func finalizedPlanRefFromRound(roundContent string, existing *PlanRef) (*PlanRef, error) {
+	var payload finalizePlanRefPayload
+	if err := json.Unmarshal([]byte(roundContent), &payload); err != nil {
+		return nil, fmt.Errorf("content is not valid workshop round JSON")
+	}
+	ref := normalizePlanRef(payload.PlanRef)
+	if ref == nil {
+		ref = normalizePlanRef(existing)
+	}
+	if ref == nil && (strings.TrimSpace(payload.PlanID) != "" || strings.TrimSpace(payload.PlanSlug) != "") {
+		ref = &PlanRef{
+			Provider: PlanRefProviderPlanManager,
+			PlanID:   strings.TrimSpace(payload.PlanID),
+			Slug:     strings.TrimSpace(payload.PlanSlug),
+			Role:     PlanRefRoleExecutionSpec,
+		}
+	}
+	if ref == nil {
+		return nil, nil
+	}
+	if ref.Provider == "" {
+		ref.Provider = PlanRefProviderPlanManager
+	}
+	if ref.Role == "" {
+		ref.Role = PlanRefRoleExecutionSpec
+	}
+	if ref.PlanID == "" && ref.Slug == "" {
+		return nil, fmt.Errorf("plan_ref requires plan_id or slug")
+	}
+	if ref.Provider != PlanRefProviderPlanManager {
+		return nil, fmt.Errorf("plan_ref.provider must be %q", PlanRefProviderPlanManager)
+	}
+	if ref.Role != PlanRefRoleExecutionSpec {
+		return nil, fmt.Errorf("plan_ref.role must be %q", PlanRefRoleExecutionSpec)
+	}
+	return ref, nil
 }
 
 // computeAutoAdvance determines whether and how to auto-advance the workshop
@@ -419,8 +491,9 @@ func (h *Handler) WorkshopDeleteRound(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// WorkshopReset removes all workshop data (rounds, clarifications, attachments,
-// deliverable) for a backlog item while preserving its spec.
+// WorkshopReset removes workshop data (rounds, clarifications, attachments) for
+// a backlog item while preserving its spec and canonical plan_ref. Research
+// items also remove conclusion.md because that remains their local deliverable.
 func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "workshop-reset")
 	if !ok {
@@ -445,8 +518,7 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 
 	itemDir := h.store.ItemDir(kind, name)
 
-	// Determine deliverable file based on kind.
-	deliverableFile := "plan.md"
+	deliverableFile := ""
 	if strings.EqualFold(string(kind), "research") {
 		deliverableFile = "conclusion.md"
 	}
@@ -483,8 +555,8 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 }
 
 // ReWorkshop is the high-level "plan is stale, redo the workshop" trigger.
-// It clears the existing workshop rounds and plan/conclusion artifacts (same
-// as WorkshopReset), reverts status back to a draft state, and queues a
+// It clears the existing workshop rounds and local research conclusion artifact
+// (same as WorkshopReset), reverts status back to a draft state, and queues a
 // fresh workshop round. The intended caller is the UI's stale-plan panel,
 // which surfaces after spawn-time validation rejects an item with a
 // plan_stale error; the CLI mirror is `swarm-manager backlog re-workshop`.
@@ -510,7 +582,7 @@ func (h *Handler) ReWorkshop(w http.ResponseWriter, r *http.Request) {
 	}
 
 	itemDir := h.store.ItemDir(kind, name)
-	deliverableFile := "plan.md"
+	deliverableFile := ""
 	if strings.EqualFold(string(kind), "research") {
 		deliverableFile = "conclusion.md"
 	}

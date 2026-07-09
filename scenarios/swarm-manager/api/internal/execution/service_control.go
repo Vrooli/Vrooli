@@ -2,14 +2,12 @@ package execution
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"strings"
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/workshop"
 )
 
 // Start starts a pending/failed execution now.
@@ -66,13 +64,11 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	}
 
 	itemDir := s.itemDir(item.Kind, item.Name)
-	deliverablePath := deliverableForKind(item.Kind)
-	deliverableContent := workshop.LoadPlanContentByName(itemDir, deliverablePath)
-	usedFallback := strings.TrimSpace(deliverableContent) == ""
-	if usedFallback {
-		slog.Warn("deliverable empty or missing", "path", deliverablePath, "dir", itemDir)
+	deliverable, err := s.resolveExecutionDeliverable(ctx, item, itemDir)
+	if err != nil {
+		return Record{}, apierr.BadRequest("%s", err.Error())
 	}
-	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, preflight)
+	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, preflight, deliverable.Path)
 	if handoffErr != nil {
 		return Record{}, handoffErr
 	}
@@ -82,8 +78,8 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		Title:              item.Title,
 		ItemFolder:         itemDir,
 		RunType:            "process",
-		DeliverablePath:    deliverablePath,
-		DeliverableContent: deliverableContent,
+		DeliverablePath:    deliverable.Path,
+		DeliverableContent: deliverable.Markdown,
 		IdeaHandoff:        ideaHandoff,
 		SuggestedSkills:    item.SuggestedSkills,
 	})
@@ -91,7 +87,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		Purpose:        "process",
 		Prompt:         prompt,
 		PromptRevision: promptRevision(prompt),
-		UsedFallback:   usedFallback,
+		UsedFallback:   false,
 		CapturedAt:     nowRFC3339(),
 	}
 

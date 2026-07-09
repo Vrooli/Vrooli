@@ -7,6 +7,7 @@ import type {
   InitiativeRollup as ProtoInitiativeRollup,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/initiative_pb";
 import type { ProtoMessage } from "./shared";
+import type { PlanRef } from "./shared";
 import type { AgentSessionAttribution } from "./agent-session";
 
 /**
@@ -43,6 +44,8 @@ export type Initiative = Omit<ProtoMessage<ProtoInitiative>, "createdBy"> & {
   acceptanceCriteria?: string[];
   /** Verified provenance for the actor/session that created this initiative. */
   createdBy?: AgentSessionAttribution;
+  /** Canonical plan-manager plan backing this initiative or operating mode. */
+  planRef?: PlanRef;
 };
 
 /**

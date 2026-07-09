@@ -7,7 +7,7 @@ import type { Dispatch } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, X } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import type { SidebarAction } from "./useSidebarState";
-import type { BacklogFilters, CaptureFilters, ExecutionFilters, InitiativeFilters, SessionFilters, SidebarTab, SortConfig, SortDirection, SortField, ValidationStatusFilter } from "./types";
+import type { BacklogFilters, CaptureFilters, ExecutionFilters, InitiativeFilters, SessionFilters, SidebarTab, SortConfig, SortDirection, SortField } from "./types";
 import { DEFAULT_SORT } from "./types";
 
 interface FilterBarProps {
@@ -91,11 +91,6 @@ function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarT
 
 const BACKLOG_STATUSES = ["backlog", "researching", "ready", "queued", "in_progress", "completed", "failed"] as const;
 const BACKLOG_KINDS = ["idea", "research", "fix", "execute", "chore"] as const;
-const VALIDATION_STATUSES: { value: ValidationStatusFilter; label: string }[] = [
-  { value: "passed", label: "Valid" },
-  { value: "failed", label: "Invalid" },
-  { value: "none", label: "No report" },
-];
 const CAPTURE_STATUSES = ["classifying", "classified", "failed"] as const;
 const INITIATIVE_STATUSES = ["active", "completed"] as const;
 const EXECUTION_STATUSES = ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] as const;
@@ -136,22 +131,6 @@ function BacklogFilterChips({ filters, dispatch }: { filters: BacklogFilters; di
               label={k}
               active={filters.kinds.includes(k)}
               onClick={() => dispatch({ type: "SET_BACKLOG_FILTERS", filters: { kinds: toggleInArray(filters.kinds, k) } })}
-            />
-          ))}
-        </div>
-      </div>
-      <div>
-        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Validation</p>
-        <div className="flex flex-wrap gap-1">
-          {VALIDATION_STATUSES.map((vs) => (
-            <Chip
-              key={vs.value}
-              label={vs.label}
-              active={filters.validationStatus === vs.value}
-              onClick={() => dispatch({
-                type: "SET_BACKLOG_FILTERS",
-                filters: { validationStatus: filters.validationStatus === vs.value ? "" : vs.value },
-              })}
             />
           ))}
         </div>
@@ -325,7 +304,7 @@ function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captur
 
   switch (tab) {
     case "activity": return sortChanged;
-    case "backlog": return backlog.statuses.length > 0 || backlog.kinds.length > 0 || backlog.priorityMin !== null || backlog.priorityMax !== null || backlog.showArchived || backlog.validationStatus !== "" || sortChanged;
+    case "backlog": return backlog.statuses.length > 0 || backlog.kinds.length > 0 || backlog.priorityMin !== null || backlog.priorityMax !== null || backlog.showArchived || sortChanged;
     case "captures": return captures.statuses.length > 0 || sortChanged;
     case "initiatives": return initiatives.statuses.length > 0 || initiatives.showArchived || sortChanged;
     case "goals": return sortChanged;

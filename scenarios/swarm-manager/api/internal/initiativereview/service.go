@@ -82,6 +82,8 @@ type ExecutionLookup interface {
 	LatestFinalizationFor(kind backlog.BacklogKind, name string) (*ItemFinalization, error)
 }
 
+type PlanContentResolver func(ctx context.Context, item backlog.BacklogItem, itemDir string) (string, error)
+
 // Config bundles the dependencies the service needs. Fields with defaults
 // (PromptClient, Clock, GCTPollInterval, GCTPollTimeout) are optional;
 // the rest are required and validated in NewService.
@@ -114,6 +116,7 @@ type Config struct {
 	Spawner         AgentSpawner
 	Lock            *initiativelock.Lock
 	ExecutionLookup ExecutionLookup
+	PlanContent     PlanContentResolver
 	GCTClient       GCTClient
 	GCTPollInterval time.Duration
 	GCTPollTimeout  time.Duration
@@ -130,6 +133,7 @@ type Service struct {
 	inspector       RunInspector
 	lock            *initiativelock.Lock
 	executionLookup ExecutionLookup
+	planContent     PlanContentResolver
 	gctClient       GCTClient
 	gctPollInterval time.Duration
 	gctPollTimeout  time.Duration
@@ -178,6 +182,7 @@ func NewService(cfg Config) (*Service, error) {
 		spawner:         cfg.Spawner,
 		lock:            cfg.Lock,
 		executionLookup: cfg.ExecutionLookup,
+		planContent:     cfg.PlanContent,
 		gctClient:       cfg.GCTClient,
 		gctPollInterval: cfg.GCTPollInterval,
 		gctPollTimeout:  cfg.GCTPollTimeout,

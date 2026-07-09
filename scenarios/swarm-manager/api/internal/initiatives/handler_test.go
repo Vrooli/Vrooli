@@ -99,6 +99,71 @@ func TestHandler_CreateAndList(t *testing.T) {
 	}
 }
 
+func TestHandler_CreateUpdateListPlanRef(t *testing.T) {
+	h := setupTestHandler(t)
+
+	createReq := CreateRequest{
+		Name:  "plan-init",
+		Title: "Plan Initiative",
+		PlanRef: &PlanRef{
+			Provider: PlanRefProviderPlanManager,
+			PlanID:   "plan-789",
+			Slug:     "operating-plan",
+			Role:     PlanRefRoleOperatingMode,
+		},
+	}
+	rec := httptest.NewRecorder()
+	h.Create(rec, requestWithVars("POST", "/api/v1/initiatives", createReq, nil))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var createResp InitiativeWithRollup
+	if err := json.NewDecoder(rec.Body).Decode(&createResp); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if createResp.Initiative.PlanRef == nil || createResp.Initiative.PlanRef.Slug != "operating-plan" {
+		t.Fatalf("expected created plan_ref operating-plan, got %#v", createResp.Initiative.PlanRef)
+	}
+
+	nextRef := &PlanRef{
+		Provider: PlanRefProviderPlanManager,
+		PlanID:   "plan-999",
+		Slug:     "next-operating-plan",
+		Role:     PlanRefRoleOperatingMode,
+	}
+	rec = httptest.NewRecorder()
+	h.Update(rec, requestWithVars("PUT", "/api/v1/initiatives/plan-init", UpdateRequest{
+		PlanRef: nextRef,
+	}, map[string]string{"name": "plan-init"}))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var updateResp InitiativeWithRollup
+	if err := json.NewDecoder(rec.Body).Decode(&updateResp); err != nil {
+		t.Fatalf("decode update response: %v", err)
+	}
+	if updateResp.Initiative.PlanRef == nil || updateResp.Initiative.PlanRef.PlanID != "plan-999" {
+		t.Fatalf("expected updated plan_ref plan-999, got %#v", updateResp.Initiative.PlanRef)
+	}
+
+	rec = httptest.NewRecorder()
+	h.List(rec, requestWithVars("GET", "/api/v1/initiatives?has_plan_ref=true&plan_ref=next-operating-plan", nil, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var listResp struct {
+		Items []InitiativeWithRollup `json:"items"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&listResp); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if len(listResp.Items) != 1 || listResp.Items[0].Initiative.Name != "plan-init" {
+		t.Fatalf("expected one filtered initiative plan-init, got %#v", listResp.Items)
+	}
+}
+
 func TestHandler_Create_StampsCreatedByFromRequestProvenance(t *testing.T) {
 	h := setupTestHandler(t)
 	prov := identity.Provenance{

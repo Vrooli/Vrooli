@@ -3,7 +3,6 @@ package backlog
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -42,11 +41,6 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	items = filterByStatus(items, statusFilter)
 	items = filterByArchived(items, archivedFilter)
 	items = filterByScenario(items, parseScenariosQuery(r))
-	validationFilter := parseValidationStatusQuery(r)
-	if validationFilter != "" {
-		items = h.filterByValidationStatus(items, validationFilter)
-	}
-
 	if sf := r.URL.Query().Get("spawned_from"); sf != "" {
 		filtered := items[:0]
 		for _, item := range items {
@@ -56,6 +50,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		items = filtered
 	}
+	items = filterByPlanRef(items, r)
 
 	// Sort by priority (ascending) then by updated (descending)
 	sort.Slice(items, func(i, j int) bool {
@@ -67,8 +62,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	protoItems := make([]*domainpb.BacklogItem, 0, len(items))
 	for _, item := range items {
-		itemDir := h.store.ItemDir(item.Kind, item.Name)
-		protoItems = append(protoItems, backlogToProtoWithValidation(item, itemDir))
+		protoItems = append(protoItems, backlogToProto(item))
 	}
 
 	// Compute per-item blocking info from the full item set.
@@ -88,6 +82,39 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func filterByPlanRef(items []BacklogItem, r *http.Request) []BacklogItem {
+	query := r.URL.Query()
+	if raw := strings.TrimSpace(query.Get("has_plan_ref")); raw != "" {
+		want := raw == "1" || strings.EqualFold(raw, "true") || strings.EqualFold(raw, "yes")
+		filtered := items[:0]
+		for _, item := range items {
+			if (item.PlanRef != nil) == want {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+	if slug := strings.TrimSpace(query.Get("plan_ref")); slug != "" {
+		filtered := items[:0]
+		for _, item := range items {
+			if item.PlanRef != nil && item.PlanRef.Slug == slug {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+	if slug := strings.TrimSpace(query.Get("plan_ref_slug")); slug != "" {
+		filtered := items[:0]
+		for _, item := range items {
+			if item.PlanRef != nil && item.PlanRef.Slug == slug {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+	return items
+}
+
 // Get returns a single backlog item by name.
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "get")
@@ -105,53 +132,12 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	itemDir := h.store.ItemDir(kind, item.Name)
-	resp := &apipb.BacklogItemResponse{Item: backlogToProtoWithValidation(item, itemDir)}
+	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] get", apierr.Internal("failed to encode response"))
 	}
 	if h.eventLogger != nil {
 		h.eventLogger.EmitBacklogViewed(string(kind)+"/"+name, string(kind))
-	}
-}
-
-// GetValidation returns a fresh plan validation result for a backlog item.
-func (h *Handler) GetValidation(w http.ResponseWriter, r *http.Request) {
-	kind, name, ok := h.parseKindAndName(w, r, "validation")
-	if !ok {
-		return
-	}
-
-	item, err := h.store.LoadItem(kind, name)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			apierr.MapError(w, "[backlog] validation", apierr.NotFound("backlog item not found"))
-			return
-		}
-		apierr.MapError(w, "[backlog] validation", apierr.Internal("%s", err.Error()))
-		return
-	}
-
-	if kind == KindResearch {
-		result := ValidatePlanCompleteness("", KindResearch)
-		if err := httputil.JSON(w, result); err != nil {
-			apierr.MapError(w, "[backlog] validation", apierr.Internal("failed to encode response"))
-		}
-		return
-	}
-
-	itemDir := h.store.ItemDir(kind, item.Name)
-	deliverable := DeliverableForKind(kind)
-	planContent := LoadPlanContentByName(itemDir, deliverable)
-	result := ValidatePlanCompleteness(planContent, kind)
-
-	// Write the report so it's cached for future reads.
-	if writeErr := WriteValidationReport(itemDir, result); writeErr != nil {
-		slog.Warn("failed to write validation report", "kind", kind, "name", name, "err", writeErr)
-	}
-
-	if err := httputil.JSON(w, result); err != nil {
-		apierr.MapError(w, "[backlog] validation", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -304,45 +290,6 @@ func filterByScenario(items []BacklogItem, scenarios []string) []BacklogItem {
 				filtered = append(filtered, item)
 				break
 			}
-		}
-	}
-	return filtered
-}
-
-// parseValidationStatusQuery reads the "validation_status" query parameter.
-// Returns "" when not specified. Valid values: "passed", "failed", "none".
-func parseValidationStatusQuery(r *http.Request) string {
-	raw := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("validation_status")))
-	switch raw {
-	case "passed", "failed", "none":
-		return raw
-	default:
-		return ""
-	}
-}
-
-// filterByValidationStatus filters items by their plan validation status.
-func (h *Handler) filterByValidationStatus(items []BacklogItem, status string) []BacklogItem {
-	filtered := make([]BacklogItem, 0, len(items))
-	for _, item := range items {
-		if item.Kind == KindResearch {
-			if status == "passed" || status == "none" {
-				filtered = append(filtered, item)
-			}
-			continue
-		}
-		itemDir := h.store.ItemDir(item.Kind, item.Name)
-		report, err := LoadValidationReport(itemDir)
-		if err != nil || report == nil {
-			if status == "none" {
-				filtered = append(filtered, item)
-			}
-			continue
-		}
-		if status == "passed" && report.Passed {
-			filtered = append(filtered, item)
-		} else if status == "failed" && !report.Passed {
-			filtered = append(filtered, item)
 		}
 	}
 	return filtered

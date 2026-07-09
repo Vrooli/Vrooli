@@ -7,11 +7,12 @@
  */
 
 import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, Clock, MessageCircleQuestion, Play } from "lucide-react";
+import { AlertTriangle, ChevronDown, Clock, FilePlus2, MessageCircleQuestion, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { OpsBulkActions } from "../../../components/operations/OpsBulkActions";
 import type { RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
 import { Button } from "../../../components/ui/button";
+import { CreateWorkFromPlanDialog } from "../../../components/plan/CreateWorkFromPlanDialog";
 import { Popover } from "../../../components/ui/popover";
 import { cn } from "../../../lib/utils";
 import { graphPath } from "../../../app/routes/route-paths";
@@ -322,6 +323,7 @@ export function PlanBoard() {
   const snoozedKeys = useSnoozedKeys();
   const filterDrawerOpen = usePlanDataStore((s) => s.filterDrawerOpen);
   const setFilterDrawerOpen = usePlanDataStore((s) => s.setFilterDrawerOpen);
+  const [createFromPlanOpen, setCreateFromPlanOpen] = useState(false);
 
   // Now-column cards ride the operations polling path (D5).
   useOperationsPolling();
@@ -365,6 +367,17 @@ export function PlanBoard() {
     <div className="flex h-full min-h-0 flex-col" data-testid="plan-board">
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <GoalPicker goal={urlState.goal} onSelect={urlState.setGoal} />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 gap-1.5 px-3"
+          onClick={() => setCreateFromPlanOpen(true)}
+          data-testid="plan-board-create-from-plan"
+        >
+          <FilePlus2 className="h-4 w-4" aria-hidden />
+          Create from plan
+        </Button>
         <CycleWarning cycles={cycles} />
         {hiddenSnoozed > 0 && (
           <span className="text-xs text-slate-600" data-testid="plan-snoozed-hidden-count">
@@ -435,6 +448,11 @@ export function PlanBoard() {
         onViewModeChange={urlState.setViewMode}
         onShowSnoozedChange={urlState.setShowSnoozed}
         onReset={urlState.resetFilters}
+      />
+      <CreateWorkFromPlanDialog
+        isOpen={createFromPlanOpen}
+        onClose={() => setCreateFromPlanOpen(false)}
+        onImported={() => void refresh()}
       />
     </div>
     </PlanBoardActions>

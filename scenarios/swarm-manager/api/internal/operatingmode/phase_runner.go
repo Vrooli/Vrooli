@@ -20,6 +20,7 @@ type phaseContext struct {
 	items     []RoundItem
 	artifacts []ArtifactSnapshot
 	rounds    []RoundEnvelope
+	plan      *PlanExecutionContext
 }
 
 func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundEnvelope, error) {
@@ -31,7 +32,7 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 		return RoundEnvelope{}, fmt.Errorf("item-level mode phases are owned by the existing backlog execution flow")
 	}
 
-	ctxData, err := s.collectPhaseContext(init, def, phaseDef)
+	ctxData, err := s.collectPhaseContext(ctx, init, def, phaseDef)
 	if err != nil {
 		return RoundEnvelope{}, err
 	}
@@ -50,6 +51,7 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 			"operator_note": strings.TrimSpace(req.Note),
 			"skill_id":      phaseDef.SkillID,
 			"catalog_id":    phaseDef.CatalogID,
+			"plan_context":  ctxData.plan,
 		},
 	})
 	if err != nil {
@@ -174,7 +176,7 @@ func (s *Service) RenderLivePrompt(ctx context.Context, initiativeName, phase st
 	if def.Mode == ModeItemLevel {
 		return RenderPromptResponse{}, fmt.Errorf("item-level mode has no operating-mode phase prompt to render")
 	}
-	ctxData, err := s.collectPhaseContext(init, def, phaseDef)
+	ctxData, err := s.collectPhaseContext(ctx, init, def, phaseDef)
 	if err != nil {
 		return RenderPromptResponse{}, err
 	}
@@ -253,12 +255,16 @@ func (s *Service) resolvePhase(initiativeName, phase string) (InitiativeSnapshot
 	return init, def, phaseDef, nil
 }
 
-func (s *Service) collectPhaseContext(init InitiativeSnapshot, def Definition, phaseDef PhaseDefinition) (phaseContext, error) {
+func (s *Service) collectPhaseContext(ctx context.Context, init InitiativeSnapshot, def Definition, phaseDef PhaseDefinition) (phaseContext, error) {
 	rounds, err := s.store.ListRounds(init.Name, def.Mode)
 	if err != nil {
 		return phaseContext{}, err
 	}
 	artifacts, err := s.store.ListDeclaredArtifacts(init.Name, def.Mode)
+	if err != nil {
+		return phaseContext{}, err
+	}
+	planContext, err := s.collectPlanContext(ctx, init, def, phaseDef)
 	if err != nil {
 		return phaseContext{}, err
 	}
@@ -270,6 +276,7 @@ func (s *Service) collectPhaseContext(init InitiativeSnapshot, def Definition, p
 		items:     items,
 		artifacts: artifacts,
 		rounds:    rounds,
+		plan:      planContext,
 	}, nil
 }
 

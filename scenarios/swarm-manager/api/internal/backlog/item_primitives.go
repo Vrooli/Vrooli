@@ -31,6 +31,8 @@ type ItemPatch struct {
 	AcceptanceDeny  *[]string
 	Creates         *[]string
 	SpawnedFrom     *string
+	PlanRef         *PlanRef
+	PlanRefSet      bool
 	Note            *string
 }
 
@@ -75,6 +77,9 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	}
 	if patch.SpawnedFrom != nil {
 		item.SpawnedFrom = strings.TrimSpace(*patch.SpawnedFrom)
+	}
+	if patch.PlanRefSet {
+		item.PlanRef = normalizePlanRef(patch.PlanRef)
 	}
 	if patch.Note != nil {
 		item.Note = strings.TrimSpace(*patch.Note)

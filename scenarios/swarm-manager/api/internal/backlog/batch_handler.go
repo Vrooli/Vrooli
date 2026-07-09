@@ -61,6 +61,7 @@ type InitiativeSpec struct {
 	Priority    int
 	DependsOn   []string
 	CreatedBy   *identity.Provenance
+	PlanRef     *PlanRef
 }
 
 // InitiativeSnapshot captures the full persisted state of an initiative.
@@ -73,6 +74,7 @@ type InitiativeSnapshot struct {
 	DependsOn   []string
 	Items       []string
 	CreatedBy   *identity.Provenance
+	PlanRef     *PlanRef
 }
 
 // SetInitiativeAssigner injects the initiative assigner for batch operations.
@@ -104,7 +106,8 @@ type batchCreateItem struct {
 	Creates         []string `json:"creates,omitempty"`
 	// SpawnedFrom stamps provenance the way single-create already does, so
 	// batch-landed items (e.g. plan imports) carry where they came from.
-	SpawnedFrom string `json:"spawned_from,omitempty"`
+	SpawnedFrom string   `json:"spawned_from,omitempty"`
+	PlanRef     *PlanRef `json:"plan_ref,omitempty"`
 }
 
 // batchCreateInitiative describes initiative metadata supplied with a batch import.
@@ -115,6 +118,7 @@ type batchCreateInitiative struct {
 	Status      *string   `json:"status,omitempty"`
 	Priority    *int      `json:"priority,omitempty"`
 	DependsOn   *[]string `json:"depends_on,omitempty"`
+	PlanRef     *PlanRef  `json:"plan_ref,omitempty"`
 }
 
 // batchCreateInitiativeResult reports what the batch import will do or did for
@@ -472,6 +476,10 @@ func (h *Handler) validateSingleBatchItem(
 	if err := validateGlobs(raw.Creates); err != nil {
 		return validatedItem{}, apierr.BadRequest("item[%d]: creates: %s", i, err.Error())
 	}
+	planRef := normalizePlanRef(raw.PlanRef)
+	if err := validatePlanRef(planRef, PlanRefRoleExecutionSpec); err != nil {
+		return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
+	}
 
 	item := BacklogItem{
 		Name:            name,
@@ -490,6 +498,7 @@ func (h *Handler) validateSingleBatchItem(
 		AcceptanceDeny:  raw.AcceptanceDeny,
 		Creates:         raw.Creates,
 		SpawnedFrom:     strings.TrimSpace(raw.SpawnedFrom),
+		PlanRef:         planRef,
 	}
 
 	return validatedItem{item: item, kind: kind}, nil

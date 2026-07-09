@@ -16,6 +16,7 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/planclient"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
@@ -71,6 +72,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			PolicyProvider:     h.policyProvider,
 			GovernanceProvider: h.governanceProvider,
 			AgentService:       h.agentService,
+			PlanRenderer:       planclient.NewConnectClient(nil, nil),
 		})
 	}
 
@@ -273,7 +275,7 @@ func mapQueueBacklogError(w http.ResponseWriter, err error) {
 
 // collectQueueBlockingReasons gathers all blocking reasons for a queue request:
 // preflight structural/forceable reasons, pending workshop decisions, dependency
-// readiness, and plan validation. The returned slice is deduplicated. A non-nil
+// readiness. The returned slice is deduplicated. A non-nil
 // error indicates the dependency check itself failed and the queue must abort.
 func (h *Handler) collectQueueBlockingReasons(item BacklogItem, kind BacklogKind, name, itemDir string, preflight execution.ProcessPreflight, pendingDecisions int) ([]BlockingReason, error) {
 	// Convert preflight reasons to structured BlockingReasons.
@@ -309,33 +311,7 @@ func (h *Handler) collectQueueBlockingReasons(item BacklogItem, kind BacklogKind
 	}
 	blockingReasons = append(blockingReasons, depReasons...)
 
-	// Check plan validation: failed validation produces a forceable blocker.
-	if reason, ok := h.planValidationBlockingReason(itemDir, kind, name); ok {
-		blockingReasons = append(blockingReasons, reason)
-	}
 	return DedupeReasons(blockingReasons), nil
-}
-
-// planValidationBlockingReason returns a forceable blocking reason when the
-// item's plan validation report failed. The bool is false when there is no
-// blocker (report missing or passed).
-func (h *Handler) planValidationBlockingReason(itemDir string, kind BacklogKind, name string) (BlockingReason, bool) {
-	valReport, valErr := LoadValidationReport(itemDir)
-	if valErr != nil {
-		slog.Warn("failed to load validation report for queue check", "kind", kind, "name", name, "err", valErr)
-	}
-	if valReport == nil || valReport.Passed {
-		return BlockingReason{}, false
-	}
-	missingStr := strings.Join(valReport.SectionsMissing, ", ")
-	msg := "plan validation failed"
-	if missingStr != "" {
-		msg += ": missing sections: " + missingStr
-	}
-	if len(valReport.Warnings) > 0 {
-		msg += "; warnings: " + strings.Join(valReport.Warnings, "; ")
-	}
-	return BlockingReason{Message: msg, Forceable: true}, true
 }
 
 // ProcessPreflight evaluates whether a backlog item is ready for processing.
@@ -361,6 +337,7 @@ func (h *Handler) ProcessPreflight(w http.ResponseWriter, r *http.Request) {
 		PolicyProvider:     h.policyProvider,
 		GovernanceProvider: h.governanceProvider,
 		AgentService:       h.agentService,
+		PlanRenderer:       planclient.NewConnectClient(nil, nil),
 	})
 	preflight, err := executionService.ProcessPreflight(r.Context(), string(kind), name)
 	if err != nil {

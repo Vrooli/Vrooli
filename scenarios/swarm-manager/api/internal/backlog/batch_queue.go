@@ -161,6 +161,7 @@ func (h *Handler) resolveInitiativePlans(
 					Status:      existing.Status,
 					Priority:    existing.Priority,
 					DependsOn:   deps,
+					PlanRef:     existing.PlanRef,
 				},
 				existing: existing,
 				action:   "reuse",
@@ -204,6 +205,10 @@ func (h *Handler) resolveInitiativePlans(
 		case existing != nil:
 			deps = append([]string(nil), existing.DependsOn...)
 		}
+		planRef := normalizePlanRef(providedSpec.PlanRef)
+		if planRef == nil && existing != nil {
+			planRef = existing.PlanRef
+		}
 		spec := InitiativeSpec{
 			Name:        name,
 			Title:       providedSpec.Title,
@@ -211,6 +216,7 @@ func (h *Handler) resolveInitiativePlans(
 			Status:      status,
 			Priority:    priority,
 			DependsOn:   deps,
+			PlanRef:     planRef,
 		}
 		action := "create"
 		if existing != nil {
@@ -219,7 +225,8 @@ func (h *Handler) resolveInitiativePlans(
 				existing.Description != spec.Description ||
 				existing.Status != spec.Status ||
 				existing.Priority != spec.Priority ||
-				!stringSetEqual(existing.DependsOn, spec.DependsOn) {
+				!stringSetEqual(existing.DependsOn, spec.DependsOn) ||
+				!planRefsEqual(existing.PlanRef, spec.PlanRef) {
 				action = "update"
 			}
 		}
@@ -261,4 +268,16 @@ func stringSetEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func planRefsEqual(a, b *PlanRef) bool {
+	a = normalizePlanRef(a)
+	b = normalizePlanRef(b)
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.Provider == b.Provider &&
+		a.PlanID == b.PlanID &&
+		a.Slug == b.Slug &&
+		a.Role == b.Role
 }

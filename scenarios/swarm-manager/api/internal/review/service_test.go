@@ -42,6 +42,12 @@ func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 		promptClient:  &promptmanager.MockClient{Result: promptResult},
 		itemDirFn:     func(_, _ string) string { return "/tmp/test-backlog/tasks/test-item" },
 		loadItemTitle: func(_, _ string) (string, error) { return "Loaded Title", nil },
+		planContentResolver: func(_ context.Context, kind, _, itemDir string) (string, error) {
+			if kind == "research" {
+				return "", nil
+			}
+			return "# Test Plan\nDo the thing from plan-manager.", nil
+		},
 		// Disable the abandoned-round age backstop by default so tests that use
 		// fixed placeholder timestamps aren't force-failed by it. Tests that
 		// exercise the backstop set roundMaxAge + clock explicitly.
@@ -100,19 +106,16 @@ func TestRefreshGatheringRounds_InvokesOnRoundTerminal(t *testing.T) {
 	}
 }
 
-// setupItemDir creates a temporary backlog item directory with the expected
-// deliverable for the given kind.
+// setupItemDir creates a temporary backlog item directory. Research items keep
+// conclusion.md as a local deliverable; non-research plan content is resolved
+// through planContentResolver.
 func setupItemDir(t *testing.T, kind string) string {
 	t.Helper()
 	dir := t.TempDir()
-	deliverable := "plan.md"
-	content := "# Test Plan\nDo the thing."
 	if kind == "research" {
-		deliverable = "conclusion.md"
-		content = "# Test Conclusion\nResearch findings."
-	}
-	if err := os.WriteFile(filepath.Join(dir, deliverable), []byte(content), 0o644); err != nil {
-		t.Fatal(err)
+		if err := os.WriteFile(filepath.Join(dir, "conclusion.md"), []byte("# Test Conclusion\nResearch findings."), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return dir
 }

@@ -37,29 +37,44 @@ func TestStore_ArtifactPathRejectsTraversalAndWrongModeRoot(t *testing.T) {
 	if _, err := store.ArtifactPath("sandboxing", ModeHolisticLoop, "../outside.md"); err == nil {
 		t.Fatal("ArtifactPath accepted traversal")
 	}
-	if _, err := store.ArtifactPath("sandboxing", ModeHolisticLoop, "modes/phased-plan-drain/phased-plan.md"); err == nil {
+	if _, err := store.ArtifactPath("sandboxing", ModeHolisticLoop, "modes/phased-plan-drain/phase-context.json"); err == nil {
 		t.Fatal("ArtifactPath accepted artifact outside holistic-loop root")
 	}
 }
 
 func TestStore_ListDeclaredArtifactsIncludesMissingAndExisting(t *testing.T) {
 	store := testStore(t)
-	if _, err := store.WriteArtifact("sandboxing", ModePhasedPlanDrain, "modes/phased-plan-drain/phased-plan.md", []byte("plan")); err != nil {
+	if _, err := store.WriteArtifact("sandboxing", ModeHolisticLoop, "modes/holistic-loop/findings.md", []byte("findings")); err != nil {
 		t.Fatalf("WriteArtifact: %v", err)
 	}
+
+	artifacts, err := store.ListDeclaredArtifacts("sandboxing", ModeHolisticLoop)
+	if err != nil {
+		t.Fatalf("ListDeclaredArtifacts: %v", err)
+	}
+	if len(artifacts) == 0 {
+		t.Fatal("artifact count = 0, want declared artifacts")
+	}
+	var found bool
+	for _, artifact := range artifacts {
+		if artifact.Path == "modes/holistic-loop/findings.md" && artifact.Content == "findings" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("artifacts missing findings content: %+v", artifacts)
+	}
+}
+
+func TestStore_ListDeclaredArtifactsPhasedPlanDrainIsFileless(t *testing.T) {
+	store := testStore(t)
 
 	artifacts, err := store.ListDeclaredArtifacts("sandboxing", ModePhasedPlanDrain)
 	if err != nil {
 		t.Fatalf("ListDeclaredArtifacts: %v", err)
 	}
-	if len(artifacts) != 2 {
-		t.Fatalf("artifact count = %d, want 2", len(artifacts))
-	}
-	if artifacts[0].Path != "modes/phased-plan-drain/phased-plan.md" || artifacts[0].Content != "plan" {
-		t.Fatalf("first artifact = %+v", artifacts[0])
-	}
-	if artifacts[1].Path != "modes/phased-plan-drain/progress.json" || artifacts[1].Content != "" {
-		t.Fatalf("missing artifact = %+v", artifacts[1])
+	if len(artifacts) != 0 {
+		t.Fatalf("artifact count = %d, want 0: %+v", len(artifacts), artifacts)
 	}
 }
 

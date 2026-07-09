@@ -17,8 +17,8 @@ import {
 } from "../proto-contracts";
 import type { IApiClient } from "../../lib/api-client";
 import { API_ENDPOINTS } from "../../lib/api-endpoints";
-import type { BacklogFile, BacklogKind } from "../../types";
-import type { BacklogFileOperationResult } from "./types";
+import type { BacklogFile, BacklogKind, PlanRef } from "../../types";
+import type { BacklogFileOperationResult, RenderedBacklogPlan } from "./types";
 
 function createUploadFile(apiClient: IApiClient) {
   return async (
@@ -78,6 +78,23 @@ export function createFileMethods(apiClient: IApiClient) {
       return apiClient.get<string>(API_ENDPOINTS.backlogFileContent(kind, name, filePath), {
         responseType: "text",
       });
+    },
+
+    async getRenderedPlan(kind: BacklogKind, name: string): Promise<RenderedBacklogPlan> {
+      const data = await apiClient.get<{
+        path?: string;
+        markdown?: string;
+        quality_status?: string;
+        quality_findings?: string[];
+        plan_ref?: PlanRef;
+      }>(API_ENDPOINTS.backlogPlanRender(kind, name));
+      return {
+        path: data.path ?? "",
+        markdown: data.markdown ?? "",
+        qualityStatus: data.quality_status,
+        qualityFindings: data.quality_findings ?? [],
+        planRef: data.plan_ref,
+      };
     },
 
     async uploadFile(kind: BacklogKind, name: string, file: File, path?: string): Promise<BacklogFile> {

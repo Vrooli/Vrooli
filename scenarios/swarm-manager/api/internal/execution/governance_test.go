@@ -102,6 +102,7 @@ func TestConcurrencyGate_StartLocked(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
@@ -165,6 +166,7 @@ func TestQueueDepthEnforcement(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
@@ -204,6 +206,7 @@ func TestCostCapEnforcement(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
@@ -271,6 +274,7 @@ func TestYoloAtCapacity_LeavesPending(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
@@ -318,6 +322,7 @@ func TestCircuitBreakerBlocksQueue(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
@@ -356,8 +361,9 @@ func TestGovernanceStatus(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:  root,
-		StorePath: storePath,
+		DataRoot:     root,
+		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
 			LaneLimits:                    laneLimits(3),
 			MaxQueueDepth:                 50,

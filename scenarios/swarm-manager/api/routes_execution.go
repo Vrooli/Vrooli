@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/review"
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/scenarios"
@@ -53,6 +55,7 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 		ReviewClient:             execution.NewHTTPReviewClient(nil),
 		BaselineClient:           execution.NewConnectBaselineClient(nil),
 		BaselineEngagementRunner: &execution.GCTBaselineEngagementRunner{ProjectRoot: repoRootFromScenarioRoot(scenarioRoot)},
+		PlanRenderer:             planclient.NewConnectClient(nil, nil),
 		Finalization:             finalizationCfg,
 	}
 	s.executionSvc = execution.NewService(cfg)
@@ -147,6 +150,7 @@ func repoRootFromScenarioRoot(scenarioRoot string) string {
 
 func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Service) {
 	backlogStore := backlog.NewFileStore(s.dataRoot)
+	reviewPlanClient := planclient.NewConnectClient(nil, nil)
 	cfg := review.ServiceConfig{
 		DataRoot:     s.dataRoot,
 		AgentService: s.requireTrackedAgentService(),
@@ -157,6 +161,30 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 				return "", err
 			}
 			return item.Title, nil
+		},
+		PlanContentResolver: func(ctx context.Context, kind, name, _ string) (string, error) {
+			if strings.EqualFold(strings.TrimSpace(kind), string(backlog.KindResearch)) {
+				return "", nil
+			}
+			item, err := backlogStore.LoadItem(backlog.BacklogKind(kind), name)
+			if err != nil {
+				return "", err
+			}
+			if item.PlanRef == nil {
+				return "", fmt.Errorf("backlog item %s/%s has no plan_ref", kind, name)
+			}
+			planID := strings.TrimSpace(item.PlanRef.PlanID)
+			if planID == "" {
+				planID = strings.TrimSpace(item.PlanRef.Slug)
+			}
+			if planID == "" {
+				return "", fmt.Errorf("backlog item %s/%s plan_ref has no plan id or slug", kind, name)
+			}
+			rendered, err := reviewPlanClient.RenderMarkdown(ctx, planID, true)
+			if err != nil {
+				return "", err
+			}
+			return rendered.Markdown, nil
 		},
 		// When a review round finishes (complete or failed), flip the backlog
 		// item from in_review to review_pending so the user can assess and

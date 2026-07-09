@@ -223,7 +223,14 @@ func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
 
 	// Add workshop-specific variables.
 	rounds, _ := LoadWorkshopRounds(itemFolder)
-	vars["PLAN_DRAFT"] = LoadPlanContentByName(itemFolder, deliverable)
+	if item.Kind == KindResearch {
+		vars["PLAN_DRAFT"] = LoadPlanContentByName(itemFolder, deliverable)
+	} else {
+		vars["PLAN_DRAFT"] = ""
+		if item.PlanRef != nil {
+			vars["PLAN_DRAFT"] = "Canonical plan_ref: " + item.PlanRef.Slug
+		}
+	}
 	vars["WORKSHOP_HISTORY"] = BuildWorkshopHistory(rounds)
 	vars["ROUND_NUMBER"] = fmt.Sprintf("%03d", len(rounds)+1)
 
@@ -288,9 +295,9 @@ func (h *Handler) researchHandleDependencyBlocking(w http.ResponseWriter, item B
 	return false
 }
 
-// researchFinalizePrecheck enforces the finalize-mode preconditions and returns
-// the advisory pre-finalization gap report. The bool is false when a
-// precondition failed and an error response has already been written.
+// researchFinalizePrecheck enforces the finalize-mode preconditions. The bool
+// is false when a precondition failed and an error response has already been
+// written.
 func (h *Handler) researchFinalizePrecheck(w http.ResponseWriter, item BacklogItem, kind BacklogKind, name string) (string, bool) {
 	itemDir := h.store.ItemDir(kind, item.Name)
 	latestRound, roundCount, loadErr := LoadLatestRound(itemDir)
@@ -316,23 +323,7 @@ func (h *Handler) researchFinalizePrecheck(w http.ResponseWriter, item BacklogIt
 		return "", false
 	}
 
-	// Pre-finalization validation: check plan.md for gaps and pass to agent.
-	if kind == KindResearch {
-		return "", true
-	}
-	deliverable := DeliverableForKind(kind)
-	planContent := LoadPlanContentByName(itemDir, deliverable)
-	var preFinalizeGapReport string
-	if planContent == "" {
-		preFinalizeGapReport = "## Plan Validation Gaps\nplan.md does not exist yet — create all 13 mandatory sections.\n"
-	} else {
-		valResult := ValidatePlanCompleteness(planContent, kind)
-		preFinalizeGapReport = FormatGapReport(valResult)
-	}
-	if preFinalizeGapReport != "" {
-		slog.Info("pre-finalization validation gaps found", "kind", kind, "name", name)
-	}
-	return preFinalizeGapReport, true
+	return "", true
 }
 
 // appendResearchContextSections appends the request-supplied context blocks

@@ -14,6 +14,7 @@ const (
 	payloadCanceledAt           = "canceled_at"
 	payloadFinishedAt           = "finished_at"
 	payloadProgress             = "progress"
+	payloadPlanRef              = "plan_ref"
 	payloadReplanNeeded         = "replan_needed"
 	payloadResolution           = "resolution"
 	payloadVerdict              = "verdict"
@@ -85,6 +86,10 @@ func (p RoundPayloadView) SetPhaseResult(result PhaseResult) {
 
 func (p RoundPayloadView) SetProgress(progress ProgressState) {
 	p.set(payloadProgress, progress)
+}
+
+func (p RoundPayloadView) SetPlanRef(ref PlanRef) {
+	p.set(payloadPlanRef, ref)
 }
 
 func (p RoundPayloadView) Progress() (ProgressState, bool) {

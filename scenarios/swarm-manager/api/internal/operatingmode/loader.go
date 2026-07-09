@@ -38,6 +38,7 @@ type modeDocument struct {
 	PhaseGraph    *phaseGraphDoc     `json:"phase_graph,omitempty"`
 	Prompt        *promptPolicyDoc   `json:"prompt,omitempty"`
 	Artifact      *artifactPolicyDoc `json:"artifact,omitempty"`
+	PlanRef       *planRefPolicyDoc  `json:"plan_ref,omitempty"`
 	Profile       *profilePolicyDoc  `json:"profile,omitempty"`
 	BacklogSync   *backlogSyncDoc    `json:"backlog_sync,omitempty"`
 	Metrics       *metricsDoc        `json:"metrics,omitempty"`
@@ -60,6 +61,11 @@ type promptPolicyDoc struct {
 type artifactPolicyDoc struct {
 	Root      string `json:"root"`
 	RoundRoot string `json:"round_root,omitempty"`
+}
+
+type planRefPolicyDoc struct {
+	Required bool   `json:"required,omitempty"`
+	Role     string `json:"role"`
 }
 
 type profilePolicyDoc struct {
@@ -215,6 +221,7 @@ func (doc modeDocument) toDefinition() (Definition, error) {
 		def.Prompt = PromptPolicy{CatalogPrefix: doc.Prompt.CatalogPrefix}
 	}
 	def.Artifact = doc.artifactPolicy()
+	def.PlanRef = doc.planRefPolicy()
 	if doc.Lock != nil {
 		def.Lock = LockPolicy{InitiativeExclusive: doc.Lock.InitiativeExclusive}
 	}
@@ -286,6 +293,8 @@ func (p phaseDoc) toPhaseDefinition(catalogPrefix, defaultProfileKey string) Pha
 	}
 
 	outputArtifacts := mergeOutputArtifacts(p.outputArtifacts(), p.resultBindings())
+	outputContract := p.outputContract(outputArtifacts)
+	outputContract.RequiresPlanRef = p.hasRequiredField("plan_ref")
 
 	return PhaseDefinition{
 		Phase:           Phase(p.ID),
@@ -304,7 +313,7 @@ func (p phaseDoc) toPhaseDefinition(catalogPrefix, defaultProfileKey string) Pha
 		WritesRepo:       p.WritesRepo,
 		OutputArtifacts:  outputArtifacts,
 		ResultBindings:   p.resultBindings(),
-		OutputContract:   p.outputContract(outputArtifacts),
+		OutputContract:   outputContract,
 		DeclaredOutput:   p.declaredOutput(),
 		RequiresCriteria: p.RequiresCriteria,
 	}
@@ -478,6 +487,16 @@ func (doc modeDocument) artifactPolicy() ArtifactPolicy {
 		roundRoot = strings.TrimRight(root, "/") + "/rounds"
 	}
 	return ArtifactPolicy{Root: root, RoundRoot: roundRoot}
+}
+
+func (doc modeDocument) planRefPolicy() PlanRefPolicy {
+	if doc.PlanRef == nil {
+		return PlanRefPolicy{}
+	}
+	return PlanRefPolicy{
+		Required: doc.PlanRef.Required,
+		Role:     strings.TrimSpace(doc.PlanRef.Role),
+	}
 }
 
 func uiTabID(ui *uiDoc) string {

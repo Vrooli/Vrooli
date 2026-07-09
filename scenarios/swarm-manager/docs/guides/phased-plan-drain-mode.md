@@ -22,8 +22,8 @@ prepare_plan -> execute_next -> classify_progress
 Rules:
 
 - `prepare_plan` is the first phase.
-- `execute_next` requires a completed prior round with durable handoff,
-  artifact, or progress context.
+- `execute_next` requires a completed prior round and an initiative
+  `plan_ref` so the prompt can receive plan-manager phase context.
 - `classify_progress` starts after completed `execute_next`.
 - `classify_progress` with `continue` enables `execute_next`.
 - `classify_progress` with `replan` enables `prepare_plan`.
@@ -40,7 +40,8 @@ Rules:
 2. Add initiative acceptance criteria before final review.
 3. Switch mode through `mode-switch`; do not edit `mode` through generic
    initiative update.
-4. Start `prepare_plan` and review `modes/phased-plan-drain/phased-plan.md`.
+4. Start `prepare_plan`; it creates or updates the canonical plan-manager plan
+   and binds its `plan_ref` to the initiative.
 5. Start `execute_next` to complete the next contiguous slice of the plan.
 6. Start `classify_progress` to decide whether to continue, replan, review, or
    stop on a blocker.
@@ -82,7 +83,7 @@ renders the literal agent prompt for whichever source is selected.
 - Registry and phase graph: [CODE: api/internal/operatingmode/registry.go]
 - Sequential handoff validation: [CODE: api/internal/operatingmode/state.go]
 - Phase start and AgentManager spawn: [CODE: api/internal/operatingmode/phase_runner.go]
-- Progress parsing: [CODE: api/internal/operatingmode/progress.go]
+- Plan-manager context injection: [CODE: api/internal/operatingmode/plan_ref.go]
 - Round persistence: [CODE: api/internal/operatingmode/rounds.go]
 - Backlog reconciliation audit: [CODE: api/internal/operatingmode/backlog_reconciler.go]
 - Workspace rendering: [CODE: ui/src/components/initiative/operating-mode/phase-composer.tsx]

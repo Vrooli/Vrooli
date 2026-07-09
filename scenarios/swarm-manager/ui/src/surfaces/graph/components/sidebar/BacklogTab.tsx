@@ -41,27 +41,6 @@ import { SidebarEmptyState } from "./SidebarEmptyState";
 import { backlogService } from "../../../../services";
 import { runBulkAction, summarizeBulkOutcomes, failedOutcomeIds, type BulkOutcome } from "./bulk-actions";
 
-interface PlanValidationSummary {
-  passed: boolean;
-}
-
-function parsePlanValidationSummary(validationJson: string): PlanValidationSummary | null {
-  try {
-    const parsed: unknown = JSON.parse(validationJson);
-    if (
-      typeof parsed === "object"
-      && parsed !== null
-      && "passed" in parsed
-      && typeof parsed.passed === "boolean"
-    ) {
-      return { passed: parsed.passed };
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
 interface BacklogTabProps {
   searchQuery: string;
   filters: BacklogFilters;
@@ -73,6 +52,7 @@ interface BacklogTabProps {
   onToggleSelection?: (id: string) => void;
   onVisibleIdsChange?: (ids: string[]) => void;
   onCreateBacklog?: () => void;
+  onCreateFromPlan?: () => void;
 }
 
 function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogItem[] {
@@ -83,26 +63,12 @@ function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogIte
     if (filters.kinds.length > 0 && !filters.kinds.includes(item.kind)) return false;
     if (filters.priorityMin !== null && item.priority < filters.priorityMin) return false;
     if (filters.priorityMax !== null && item.priority > filters.priorityMax) return false;
-    if (filters.validationStatus) {
-      const json = item.planValidationJson;
-      if (filters.validationStatus === "none") {
-        if (json) return false;
-      } else if (filters.validationStatus === "passed") {
-        if (!json) return false;
-        const validation = parsePlanValidationSummary(json);
-        if (!validation?.passed) return false;
-      } else if (filters.validationStatus === "failed") {
-        if (!json) return false;
-        const validation = parsePlanValidationSummary(json);
-        if (validation?.passed !== false) return false;
-      }
-    }
     return true;
   });
 }
 
 function hasActiveFilters(filters: BacklogFilters): boolean {
-  return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null || filters.showArchived || filters.validationStatus !== "";
+  return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null || filters.showArchived;
 }
 
 function backlogSelectionId(item: BacklogItem): string {
@@ -120,6 +86,7 @@ function BacklogTabImpl({
   onToggleSelection,
   onVisibleIdsChange,
   onCreateBacklog,
+  onCreateFromPlan,
 }: BacklogTabProps) {
   const navigate = useNavigate();
   const items = useBacklogStore((s) => s.items);
@@ -211,17 +178,31 @@ function BacklogTabImpl({
         query={searchQuery}
         onClearSearch={onClearSearch}
         action={
-          !filtersActive && onCreateBacklog ? (
-            <Button
-              type="button"
-              size="sm"
-              className="mt-1"
-              onClick={onCreateBacklog}
-              data-testid="backlog-tab-create-item"
-            >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Create item
-            </Button>
+          !filtersActive && (onCreateBacklog || onCreateFromPlan) ? (
+            <div className="mt-1 flex flex-wrap justify-center gap-2">
+              {onCreateBacklog && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onCreateBacklog}
+                  data-testid="backlog-tab-create-item"
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Create item
+                </Button>
+              )}
+              {onCreateFromPlan && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onCreateFromPlan}
+                  data-testid="backlog-tab-create-from-plan"
+                >
+                  Create from plan
+                </Button>
+              )}
+            </div>
           ) : undefined
         }
       />

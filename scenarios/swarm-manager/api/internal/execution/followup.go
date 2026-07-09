@@ -13,7 +13,6 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/idgen"
-	"swarm-manager/internal/workshop"
 )
 
 // handleSpecSyncComplete performs the archive after a successful spec-sync run.
@@ -54,8 +53,14 @@ func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
 func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlogItem) {
 	now := nowRFC3339()
 	itemDir := s.itemDir(item.Kind, item.Name)
-	deliverablePath := deliverableForKind(item.Kind)
-	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false))
+	deliverable, deliverableErr := s.resolveExecutionDeliverable(ctx, item, itemDir)
+	if deliverableErr != nil {
+		record.Status = StatusFailed
+		record.FailureReason = "failed to render linked plan for fixup: " + deliverableErr.Error()
+		slog.Warn("failed to render linked plan for fixup", "kind", item.Kind, "name", item.Name, "err", deliverableErr)
+		return
+	}
+	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false), deliverable.Path)
 	if handoffErr != nil {
 		slog.Warn("failed to build idea handoff for fixup", "kind", item.Kind, "name", item.Name, "err", handoffErr)
 	}
@@ -66,8 +71,8 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		Title:              item.Title,
 		ItemFolder:         itemDir,
 		RunType:            "fixup",
-		DeliverablePath:    deliverablePath,
-		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
+		DeliverablePath:    deliverable.Path,
+		DeliverableContent: deliverable.Markdown,
 		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*record)),
 		IdeaHandoff:        ideaHandoff,
 		SuggestedSkills:    item.SuggestedSkills,
@@ -234,8 +239,11 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	if runType == "" {
 		runType = "followup"
 	}
-	deliverablePath := deliverableForKind(item.Kind)
-	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false))
+	deliverable, deliverableErr := s.resolveExecutionDeliverable(ctx, item, itemDir)
+	if deliverableErr != nil {
+		return Record{}, apierr.BadRequest("%s", deliverableErr.Error())
+	}
+	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false), deliverable.Path)
 	if handoffErr != nil {
 		slog.Warn("failed to build idea handoff for follow-up", "kind", item.Kind, "name", item.Name, "err", handoffErr)
 	}
@@ -245,8 +253,8 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		Title:              item.Title,
 		ItemFolder:         itemDir,
 		RunType:            runType,
-		DeliverablePath:    deliverablePath,
-		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
+		DeliverablePath:    deliverable.Path,
+		DeliverableContent: deliverable.Markdown,
 		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*parent)),
 		FollowUpNote:       strings.TrimSpace(req.Context),
 		IdeaHandoff:        ideaHandoff,

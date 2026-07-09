@@ -29,6 +29,7 @@ func (a *backlogAssignerAdapter) Get(name string) (*backlog.InitiativeSnapshot, 
 		DependsOn:   append([]string(nil), result.Initiative.DependsOn...),
 		Items:       append([]string(nil), result.Initiative.Items...),
 		CreatedBy:   result.Initiative.CreatedBy,
+		PlanRef:     planRefToBacklog(result.Initiative.PlanRef),
 	}, nil
 }
 
@@ -41,6 +42,7 @@ func (a *backlogAssignerAdapter) Create(spec backlog.InitiativeSpec) error {
 		Priority:    spec.Priority,
 		DependsOn:   append([]string(nil), spec.DependsOn...),
 		CreatedBy:   spec.CreatedBy,
+		PlanRef:     planRefFromBacklog(spec.PlanRef),
 	})
 	return err
 }
@@ -51,12 +53,15 @@ func (a *backlogAssignerAdapter) Update(spec backlog.InitiativeSpec) error {
 	status := spec.Status
 	priority := spec.Priority
 	deps := append([]string(nil), spec.DependsOn...)
+	planRef := planRefFromBacklog(spec.PlanRef)
 	_, err := a.service.Update(spec.Name, UpdateRequest{
 		Title:       &title,
 		Description: &description,
 		Status:      &status,
 		Priority:    &priority,
 		DependsOn:   &deps,
+		PlanRef:     planRef,
+		PlanRefSet:  true,
 	})
 	return err
 }
@@ -71,7 +76,32 @@ func (a *backlogAssignerAdapter) Replace(snapshot backlog.InitiativeSnapshot) er
 		DependsOn:   append([]string(nil), snapshot.DependsOn...),
 		Items:       append([]string(nil), snapshot.Items...),
 		CreatedBy:   snapshot.CreatedBy,
+		PlanRef:     planRefFromBacklog(snapshot.PlanRef),
 	})
+}
+
+func planRefFromBacklog(ref *backlog.PlanRef) *PlanRef {
+	if ref == nil {
+		return nil
+	}
+	return &PlanRef{
+		Provider: ref.Provider,
+		PlanID:   ref.PlanID,
+		Slug:     ref.Slug,
+		Role:     ref.Role,
+	}
+}
+
+func planRefToBacklog(ref *PlanRef) *backlog.PlanRef {
+	if ref == nil {
+		return nil
+	}
+	return &backlog.PlanRef{
+		Provider: ref.Provider,
+		PlanID:   ref.PlanID,
+		Slug:     ref.Slug,
+		Role:     ref.Role,
+	}
 }
 
 func (a *backlogAssignerAdapter) Delete(name string) error {

@@ -25,6 +25,7 @@
   "run_strategy": { "kind": "sequential_handoff" },
   "prompt": { "catalog_prefix": "swarm-manager-phased-plan" },
   "artifact": { "root": "modes/phased-plan-drain" },
+  "plan_ref": { "required": true, "role": "operating_mode_plan" },
   "profile": { "default_profile_key": "swarm-manager/deep-work" },
   "backlog_sync": {
     "capabilities": ["read_only", "propose_mutations", "mark_complete", "create_followups", "update_scope"],
@@ -54,9 +55,16 @@
           "trigger": "Operator starts phased-plan-drain prepare phase",
           "purpose": "Create or update the stable phased plan used by sequential handoff execution."
         },
-        "output_artifacts": [
-          { "path": "modes/phased-plan-drain/phased-plan.md", "content_type": "text/markdown", "required": true }
-        ],
+        "declared_output": {
+          "fields": [
+            {
+              "name": "plan_ref",
+              "type": "object",
+              "required": true,
+              "description": "The canonical plan-manager reference for the phased operating-mode plan."
+            }
+          ]
+        },
         "transitions": [
           { "when": { "op": "always" }, "to": ["execute_next"] }
         ]
@@ -111,12 +119,6 @@
             }
           ]
         },
-        "result_bindings": [
-          {
-            "kind": "progress_artifact",
-            "artifact": { "path": "modes/phased-plan-drain/progress.json", "content_type": "application/json", "required": true }
-          }
-        ],
         "transitions": [
           { "when": { "op": "eq", "field": "progress.decision", "value": "continue" }, "to": ["execute_next"] },
           { "when": { "op": "eq", "field": "progress.decision", "value": "replan" }, "to": ["prepare_plan"] },

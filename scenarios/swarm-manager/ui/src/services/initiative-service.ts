@@ -36,6 +36,8 @@ interface RawInitiative {
   depends_on?: string[];
   dependsOn?: string[];
   mode?: string;
+  plan_ref?: unknown;
+  planRef?: unknown;
   priority?: number;
   [key: string]: unknown;
 }
@@ -71,6 +73,7 @@ function normalizeItem(
   const acceptanceCriteria = initiative.acceptanceCriteria ?? initiative.acceptance_criteria ?? [];
   const dependsOn = initiative.dependsOn ?? initiative.depends_on ?? [];
   const mode = initiative.mode ?? "item-level";
+  const planRef = initiative.planRef ?? initiative.plan_ref;
   const priority = initiative.priority ?? 0;
   const createdBy = normalizeAttribution(initiative.createdBy ?? initiative.created_by);
   const targetScenarios = raw.targetScenarios ?? raw.target_scenarios;
@@ -80,6 +83,7 @@ function normalizeItem(
       ...initiative,
       acceptanceCriteria,
       mode,
+      ...(planRef ? { planRef } : {}),
       priority,
       dependsOn,
       ...(archivedAt ? { archivedAt } : {}),

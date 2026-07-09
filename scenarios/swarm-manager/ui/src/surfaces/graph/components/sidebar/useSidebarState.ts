@@ -95,9 +95,6 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
           priorityMin: typeof filters.backlog?.priorityMin === "number" ? filters.backlog.priorityMin : null,
           priorityMax: typeof filters.backlog?.priorityMax === "number" ? filters.backlog.priorityMax : null,
           showArchived: filters.backlog?.showArchived === true,
-          validationStatus: filters.backlog?.validationStatus === "passed" || filters.backlog?.validationStatus === "failed" || filters.backlog?.validationStatus === "none"
-            ? filters.backlog.validationStatus
-            : "",
         },
         captures: {
           statuses: restoreArray(filters.captures?.statuses),

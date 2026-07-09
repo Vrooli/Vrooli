@@ -4,7 +4,7 @@
  * Shared type definitions used across backlog service modules.
  */
 
-import type { BacklogFile, BacklogItem, BacklogKind, BlockingReason, ClarificationThread, ItemBlockingInfo } from "../../types";
+import type { BacklogFile, BacklogItem, BacklogKind, BlockingReason, ClarificationThread, ItemBlockingInfo, PlanRef } from "../../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -72,6 +72,14 @@ export interface ImportBacklogResponse {
   summary: string;
 }
 
+export interface RenderedBacklogPlan {
+  path: string;
+  markdown: string;
+  qualityStatus?: string;
+  qualityFindings?: string[];
+  planRef?: PlanRef;
+}
+
 /**
  * Interface for the backlog service.
  * This is the seam - implementations can be swapped for testing.
@@ -91,6 +99,7 @@ export interface IBacklogService {
   unarchiveItem(kind: BacklogKind, name: string): Promise<BacklogItem>;
   getFiles(kind: BacklogKind, name: string): Promise<BacklogFile[]>;
   getFileContent(kind: BacklogKind, name: string, filePath: string): Promise<string>;
+  getRenderedPlan(kind: BacklogKind, name: string): Promise<RenderedBacklogPlan>;
   uploadFile(kind: BacklogKind, name: string, file: File, path?: string): Promise<BacklogFile>;
   saveFileContent(
     kind: BacklogKind,

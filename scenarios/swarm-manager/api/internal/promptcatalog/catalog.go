@@ -81,8 +81,8 @@ var staticEntries = []Entry{
 		SkillID:      "swarm-manager-workshop",
 		BacklogKinds: []string{"idea", "fix", "execute", "chore"},
 		Modes:        []string{"workshop"},
-		Purpose:      "Run one workshop round for non-research backlog items and update plan.md.",
-		OutputPaths:  []string{"workshop/round-NNN.json", "plan.md"},
+		Purpose:      "Run one workshop round for non-research backlog items and update the canonical plan-manager plan.",
+		OutputPaths:  []string{"workshop/round-NNN.json"},
 		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
@@ -136,8 +136,8 @@ var staticEntries = []Entry{
 		SkillID:      "swarm-manager-initialize-backlog",
 		BacklogKinds: []string{"idea", "fix", "execute", "chore"},
 		Modes:        []string{"initialize"},
-		Purpose:      "Bootstrap a non-research backlog item with a plan.md scaffold and first workshop round.",
-		OutputPaths:  []string{"workshop/round-001.json", "plan.md"},
+		Purpose:      "Bootstrap a non-research backlog item with a canonical plan-manager plan and first workshop round.",
+		OutputPaths:  []string{"workshop/round-001.json"},
 		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE"},
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
@@ -155,8 +155,8 @@ var staticEntries = []Entry{
 		SkillID:      "swarm-manager-workshop-finalize",
 		BacklogKinds: []string{"idea", "fix", "execute", "chore"},
 		Modes:        []string{"finalize"},
-		Purpose:      "Fold the latest workshop answers into plan.md and write a finalize round with no new decisions.",
-		OutputPaths:  []string{"workshop/round-NNN.json", "plan.md"},
+		Purpose:      "Fold the latest workshop answers into the canonical plan-manager plan and write a finalize round with no new decisions.",
+		OutputPaths:  []string{"workshop/round-NNN.json"},
 		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
@@ -207,8 +207,8 @@ var staticEntries = []Entry{
 		Trigger:     "Execution start / retry",
 		Builder:     "execution.buildExecutionPrompt",
 		Operations:  []string{"generator", "improver"},
-		Purpose:     "Build the runtime execution prompt from the backlog deliverable (plan.md or conclusion.md).",
-		OutputPaths: []string{"plan.md", "conclusion.md"},
+		Purpose:     "Build the runtime execution prompt from the rendered plan_ref or research conclusion.",
+		OutputPaths: []string{"conclusion.md"},
 	},
 	{
 		ID:          "execution-fixup",
@@ -220,7 +220,7 @@ var staticEntries = []Entry{
 		Builder:     "execution.buildExecutionPrompt",
 		Operations:  []string{"fixup"},
 		Purpose:     "Build a fixup prompt by combining the deliverable with review feedback.",
-		OutputPaths: []string{"plan.md", "conclusion.md"},
+		OutputPaths: []string{"conclusion.md"},
 	},
 	{
 		ID:          "execution-followup",
@@ -232,7 +232,7 @@ var staticEntries = []Entry{
 		Builder:     "execution.buildExecutionPrompt",
 		Operations:  []string{"followup", "custom"},
 		Purpose:     "Build a follow-up prompt by combining the deliverable with optional operator context.",
-		OutputPaths: []string{"plan.md", "conclusion.md"},
+		OutputPaths: []string{"conclusion.md"},
 	},
 	{
 		ID:           "execution-review-agent",
@@ -289,7 +289,7 @@ var staticEntries = []Entry{
 		SourceType: SourceSkill,
 		Trigger:    "Referenced by non-research backlog prompt skills",
 		SkillID:    "implementation-plan-authoring",
-		Purpose:    "Canonical plan structure, convergence rules, and quality gates for plan.md.",
+		Purpose:    "Canonical plan-manager authoring, convergence rules, and quality gates.",
 	},
 	{
 		ID:         "support-research-conclusion-authoring",

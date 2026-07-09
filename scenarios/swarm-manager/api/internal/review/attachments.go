@@ -1,12 +1,13 @@
 package review
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 
-	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/workshop"
@@ -71,9 +72,20 @@ func redactStrings(redactor pathredact.Redactor, values []string) []string {
 	return out
 }
 
-func loadReviewDeliverableContent(kind, itemDir string) string {
-	deliverable := backlog.DeliverableForKind(backlog.BacklogKind(strings.TrimSpace(kind)))
-	return workshop.LoadPlanContentByName(itemDir, deliverable)
+func (s *Service) loadReviewDeliverableContent(ctx context.Context, kind, name, itemDir string) string {
+	if s.planContentResolver != nil {
+		content, err := s.planContentResolver(ctx, kind, name, itemDir)
+		if err == nil && strings.TrimSpace(content) != "" {
+			return content
+		}
+		if err != nil {
+			slog.Warn("review: plan content resolver failed", "kind", kind, "name", name, "err", err)
+		}
+	}
+	if strings.EqualFold(strings.TrimSpace(kind), "research") {
+		return workshop.LoadPlanContentByName(itemDir, "conclusion.md")
+	}
+	return ""
 }
 
 func flattenChangedPaths(changedPathsByScenario map[string][]string) []string {

@@ -16,7 +16,7 @@ type executionPromptParams struct {
 	Title              string // human-readable title
 	ItemFolder         string // absolute path to the backlog item directory
 	RunType            string // process, fixup, followup, custom
-	DeliverablePath    string // primary workshop artifact path (plan.md or conclusion.md)
+	DeliverablePath    string // rendered plan_ref path or research conclusion path
 	DeliverableContent string // full primary workshop artifact text (empty if missing)
 	ReviewFeedback     string // review summary for fixup runs
 	FollowUpNote       string // user-provided context for follow-up/custom runs
@@ -179,7 +179,7 @@ func deliverableForKind(kind string) string {
 	case "research":
 		return "conclusion.md"
 	default:
-		return "plan.md"
+		return ""
 	}
 }
 
@@ -197,7 +197,7 @@ func missingDeliverableReason(kind, deliverablePath string) string {
 	case "conclusion.md":
 		return fmt.Sprintf("no research conclusion (%s) exists — run workshop first", deliverablePath)
 	default:
-		return fmt.Sprintf("no implementation plan (%s) exists — run workshop first", deliverablePath)
+		return "no implementation plan_ref exists — finalize the item through plan-manager before queueing"
 	}
 }
 
@@ -206,7 +206,7 @@ func promptRevision(prompt string) string {
 	return "sha256:" + hex.EncodeToString(sum[:8])
 }
 
-func (s *Service) buildIdeaHandoffPackage(item backlogItem, itemDir string, preflight ProcessPreflight) (*handoff.Package, error) {
+func (s *Service) buildIdeaHandoffPackage(item backlogItem, itemDir string, preflight ProcessPreflight, deliverablePath string) (*handoff.Package, error) {
 	if strings.TrimSpace(item.Kind) != "idea" {
 		return nil, nil
 	}
@@ -217,7 +217,7 @@ func (s *Service) buildIdeaHandoffPackage(item backlogItem, itemDir string, pref
 		BacklogTitle:            item.Title,
 		BacklogDescription:      item.Description,
 		ItemFolder:              itemDir,
-		DeliverableFileName:     deliverableForKind(item.Kind),
+		DeliverablePath:         deliverablePath,
 		TargetScenario:          targetScenarioID,
 		Operation:               preflight.SuggestedOperation,
 		SuggestedSteerProfileID: preflight.SuggestedSteerProfileID,

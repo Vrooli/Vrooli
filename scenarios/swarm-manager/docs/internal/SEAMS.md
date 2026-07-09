@@ -335,13 +335,12 @@ scenario. Tuning lives in `FinalizationConfig` (`BaselineDiffEnabled`,
 ```
 ideas/
 └── {item-name}/
-    ├── spec.json        # Required: metadata (backlog item root)
+    ├── spec.json        # Required: metadata incl. plan_ref
     ├── notes.md         # Optional: context
     ├── archive/         # Preserved scenario files (only for archived scenarios)
     │   ├── PRD.md       #   Files from the original scenario, namespaced
     │   ├── README.md    #   to avoid collisions with backlog-specific data
     │   └── docs/
-    ├── plan.md          # Primary execution artifact (workshop output)
     └── workshop/        # Workshop rounds (iterative refinement)
         ├── round-1.json
         ├── round-2.json
@@ -363,6 +362,12 @@ execute/
 ├── queue.json             # Pending local queue items (persisted)
 └── agent-activities.json  # Durable tracked agent usage history
 ```
+
+Non-research implementation plans are not stored in item folders. `spec.json.plan_ref`
+links the item to the canonical plan-manager plan, and swarm-manager renders that
+plan when execution/review/handoff code needs plan content. Research items keep
+`conclusion.md` as their local deliverable. Any remaining `plan.md` handling in
+runtime code is legacy cleanup only.
 
 **Status**: Backlog, scenario metadata, settings, queue, and agent activity storage implemented.
 

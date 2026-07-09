@@ -3,12 +3,16 @@ package main
 import (
 	"context"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiativereview"
+	"swarm-manager/internal/planclient"
 )
 
 // registerInitiativeReviewRoutes wires the initiative review surface:
@@ -34,6 +38,7 @@ func (s *Server) registerInitiativeReviewRoutes(materializer *graph.Materializer
 	}
 
 	lock := &initiativelock.Lock{Dir: s.initiativeService.InitDir}
+	initReviewPlanClient := planclient.NewConnectClient(nil, nil)
 
 	svc, err := initiativereview.NewService(initiativereview.Config{
 		InitStore:       s.initStore,
@@ -42,8 +47,32 @@ func (s *Server) registerInitiativeReviewRoutes(materializer *graph.Materializer
 		Spawner:         s.agentSvc,
 		Lock:            lock,
 		ExecutionLookup: newInitiativeReviewExecutionAdapter(s.executionSvc, s.backlogHandler.Store()),
-		GCTClient:       newInitiativeReviewGCTAdapter(execution.NewHTTPReviewClient(nil)),
-		PromptClient:    s.promptClient,
+		PlanContent: func(ctx context.Context, item backlog.BacklogItem, itemDir string) (string, error) {
+			if item.Kind == backlog.KindResearch {
+				data, err := os.ReadFile(filepath.Join(itemDir, "conclusion.md"))
+				if err != nil {
+					return "", err
+				}
+				return string(data), nil
+			}
+			if item.PlanRef == nil {
+				return "", nil
+			}
+			planID := strings.TrimSpace(item.PlanRef.PlanID)
+			if planID == "" {
+				planID = strings.TrimSpace(item.PlanRef.Slug)
+			}
+			if planID == "" {
+				return "", nil
+			}
+			rendered, err := initReviewPlanClient.RenderMarkdown(ctx, planID, true)
+			if err != nil {
+				return "", err
+			}
+			return rendered.Markdown, nil
+		},
+		GCTClient:    newInitiativeReviewGCTAdapter(execution.NewHTTPReviewClient(nil)),
+		PromptClient: s.promptClient,
 	})
 	if err != nil {
 		slog.Warn("initiative-review: build service", "err", err)

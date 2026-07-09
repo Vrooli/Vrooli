@@ -27,8 +27,9 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "request-fail-idea")
 
 	service := NewService(ServiceConfig{
-		DataRoot:  root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &testutil.AgentSpawner{
 			Enabled:  true,
 			SpawnErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed),
@@ -56,6 +57,7 @@ func TestList_UsesSnapshotWithoutRefreshingRunState(t *testing.T) {
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 	})
 	if err := service.store.Save([]Record{{

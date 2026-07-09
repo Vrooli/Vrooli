@@ -102,6 +102,11 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 	if req.SpawnedFrom != nil {
 		spawnedFrom = strings.TrimSpace(*req.SpawnedFrom)
 	}
+	planRef := planRefFromProto(req.PlanRef)
+	planRef = normalizePlanRef(planRef)
+	if err := validatePlanRef(planRef, PlanRefRoleExecutionSpec); err != nil {
+		return BacklogItem{}, badCreate(err.Error())
+	}
 	note := ""
 	if req.Note != nil {
 		note = strings.TrimSpace(*req.Note)
@@ -124,6 +129,7 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 		AcceptanceDeny:  req.AcceptanceDeny,
 		Creates:         req.Creates,
 		SpawnedFrom:     spawnedFrom,
+		PlanRef:         planRef,
 		Note:            note,
 		CreatedBy:       &prov,
 	}

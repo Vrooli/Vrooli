@@ -214,7 +214,7 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 				phase.ResultBindings = []ResultBinding{{
 					Kind: "mystery",
 					Artifact: ArtifactDefinition{
-						Path:        "modes/phased-plan-drain/progress.json",
+						Path:        "modes/phased-plan-drain/legacy-state.json",
 						ContentType: "application/json",
 						Required:    true,
 					},
@@ -231,6 +231,14 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 				phase := def.PhaseGraph.Phases["classify_progress"]
 				phase.OutputArtifacts = nil
 				phase.OutputContract.RequiredArtifacts = nil
+				phase.ResultBindings = []ResultBinding{{
+					Kind: ResultBindingProgressArtifact,
+					Artifact: ArtifactDefinition{
+						Path:        "modes/phased-plan-drain/legacy-state.json",
+						ContentType: "application/json",
+						Required:    true,
+					},
+				}}
 				def.PhaseGraph.Phases["classify_progress"] = phase
 				defs[ModePhasedPlanDrain] = def
 			},

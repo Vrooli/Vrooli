@@ -341,3 +341,34 @@ func TestUpdate_SpawnedFrom(t *testing.T) {
 		t.Errorf("expected saved spawned_from 'research/my-research', got %q", saved.SpawnedFrom)
 	}
 }
+
+func TestUpdate_PlanRef(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindExecute, newTestItem("update-plan-ref-test", "Update PlanRef Test"))
+
+	w := doUpdate(t, h, "execute", "update-plan-ref-test", map[string]any{
+		"plan_ref": map[string]any{
+			"provider": "plan-manager",
+			"planId":   "plan-456",
+			"slug":     "phase-one-plan",
+			"role":     "execution_spec",
+		},
+	})
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.PlanRef == nil {
+		t.Fatalf("expected response plan_ref")
+	}
+	if resp.Item.PlanRef.PlanID != "plan-456" || resp.Item.PlanRef.Slug != "phase-one-plan" {
+		t.Fatalf("unexpected response plan_ref: %#v", resp.Item.PlanRef)
+	}
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "execute", "update-plan-ref-test", "spec.json"))
+	if saved.PlanRef == nil {
+		t.Fatalf("expected saved plan_ref")
+	}
+	if saved.PlanRef.PlanID != "plan-456" || saved.PlanRef.Role != PlanRefRoleExecutionSpec {
+		t.Fatalf("unexpected saved plan_ref: %#v", saved.PlanRef)
+	}
+}

@@ -29,6 +29,7 @@ export type {
   WorkshopDeleteRoundResponse,
   WorkshopResetResponse,
   ImportBacklogResponse,
+  RenderedBacklogPlan,
 } from "./types";
 
 export function createBacklogService(apiClient: IApiClient = defaultApiClient): IBacklogService {

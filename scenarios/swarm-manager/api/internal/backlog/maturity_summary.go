@@ -68,7 +68,7 @@ func (h *Handler) MaturitySummary(w http.ResponseWriter, r *http.Request) {
 			Ready:            IsReady(effectiveScores),
 			PendingItems:     CountPendingDecisions(latestRound),
 			PendingSynthesis: NeedsSynthesis(latestRound),
-			HasPlan:          HasPlanByName(itemDir, DeliverableForKind(item.Kind)),
+			HasPlan:          hasCanonicalPlan(item, itemDir),
 		})
 	}
 
@@ -76,4 +76,11 @@ func (h *Handler) MaturitySummary(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] maturity-summary", apierr.Internal("failed to encode response"))
 	}
+}
+
+func hasCanonicalPlan(item BacklogItem, itemDir string) bool {
+	if item.Kind == KindResearch {
+		return HasPlanByName(itemDir, "conclusion.md")
+	}
+	return item.PlanRef != nil
 }

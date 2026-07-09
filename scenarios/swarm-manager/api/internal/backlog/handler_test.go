@@ -134,13 +134,22 @@ func createTestItem(t *testing.T, rootDir string, kind BacklogKind, item Backlog
 	testutil.WriteJSONFile(t, filepath.Join(itemDir, "spec.json"), item)
 }
 
-// createReadyTestItem creates a test backlog item that passes workshop readiness preflight
-// by writing both spec.json and plan.md (plan exists with no workshop rounds = manually created plan).
+// createReadyTestItem creates a test backlog item that passes workshop readiness preflight.
 func createReadyTestItem(t *testing.T, rootDir string, kind BacklogKind, item BacklogItem) {
 	t.Helper()
+	if kind != KindResearch && item.PlanRef == nil {
+		item.PlanRef = &PlanRef{
+			Provider: PlanRefProviderPlanManager,
+			PlanID:   "test-plan-" + item.Name,
+			Slug:     "test-plan-" + item.Name,
+			Role:     PlanRefRoleExecutionSpec,
+		}
+	}
 	createTestItem(t, rootDir, kind, item)
-	itemDir := filepath.Join(rootDir, backlogKindDirs[kind], item.Name)
-	testutil.WriteFile(t, filepath.Join(itemDir, "plan.md"), "# Plan\nManually created plan for testing.")
+	if kind == KindResearch {
+		itemDir := filepath.Join(rootDir, backlogKindDirs[kind], item.Name)
+		testutil.WriteFile(t, filepath.Join(itemDir, "conclusion.md"), "# Conclusion\nManually created conclusion for testing.")
+	}
 }
 
 type mockAgentService struct {
@@ -724,7 +733,7 @@ func TestQueue_BlocksWhenProcessPreflightFails(t *testing.T) {
 		Kind:        KindIdea,
 		ArchivedAt:  strPtr("2026-01-01T00:00:00Z"),
 	}
-	// No plan.md or workshop rounds — preflight will block.
+	// No plan_ref or workshop rounds — preflight will block.
 	createTestItem(t, rootDir, KindIdea, item)
 
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/blocked-queue/queue", bytes.NewBufferString(`{"mode":"manual","confirm":true}`))
@@ -755,7 +764,7 @@ func TestQueue_DryRun_DoesNotMutateState(t *testing.T) {
 		Created:     "2026-01-28T00:00:00Z",
 		Updated:     "2026-01-28T00:00:00Z",
 	}
-	createTestItem(t, rootDir, KindIdea, item)
+	createReadyTestItem(t, rootDir, KindIdea, item)
 
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/queue-dry-run/queue", bytes.NewBufferString(`{"mode":"yolo"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -851,7 +860,7 @@ func TestQueue_BlocksOnUnmetDeps_ForceOverrides(t *testing.T) {
 		Name: "dep-unmet", Title: "Unmet Dep", Status: StatusBacklog, Priority: 5,
 		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
 	})
-	// Create the item that depends on it, with a plan.md so preflight passes.
+	// Create the item that depends on it, with a canonical plan_ref so preflight passes.
 	createReadyTestItem(t, rootDir, KindFix, BacklogItem{
 		Name: "dep-child", Title: "Dep Child", Status: StatusReady, Priority: 3,
 		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
@@ -1130,7 +1139,7 @@ func TestWorkshopReset_Success(t *testing.T) {
 		Status: StatusBacklog, Priority: 3,
 		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
 	}
-	createTestItem(t, rootDir, KindIdea, item)
+	createReadyTestItem(t, rootDir, KindIdea, item)
 
 	itemDir := filepath.Join(rootDir, "ideas", "ws-reset-ok")
 	workshopDir := filepath.Join(itemDir, "workshop")
@@ -1141,9 +1150,6 @@ func TestWorkshopReset_Success(t *testing.T) {
 		content := fmt.Sprintf(`{"round":%d,"generated_at":"2026-01-01T00:00:00Z","readiness":{},"items":[]}`, i)
 		testutil.WriteFile(t, filepath.Join(workshopDir, fmt.Sprintf("round-%03d.json", i)), content)
 	}
-	// Create plan.md at item root.
-	testutil.WriteFile(t, filepath.Join(itemDir, "plan.md"), "# Plan")
-
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/ws-reset-ok/workshop/reset", nil)
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-reset-ok"})
 	w := httptest.NewRecorder()
@@ -1153,8 +1159,14 @@ func TestWorkshopReset_Success(t *testing.T) {
 
 	// Workshop dir should be gone.
 	testutil.AssertFileNotExists(t, workshopDir)
-	// plan.md should be gone.
-	testutil.AssertFileNotExists(t, filepath.Join(itemDir, "plan.md"))
+	// plan_ref should survive.
+	saved, err := h.store.LoadItem(KindIdea, "ws-reset-ok")
+	if err != nil {
+		t.Fatalf("load item after reset: %v", err)
+	}
+	if saved.PlanRef == nil {
+		t.Fatal("expected plan_ref to survive reset")
+	}
 	// spec.json should survive.
 	testutil.AssertFileExists(t, filepath.Join(itemDir, "spec.json"))
 

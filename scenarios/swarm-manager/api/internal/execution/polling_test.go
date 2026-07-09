@@ -108,6 +108,7 @@ func newTestPollingService(t *testing.T, inspector RunInspector, opts ...func(*S
 	cfg := ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &stubAgentService{},
 	}
 	for _, opt := range opts {
@@ -125,6 +126,7 @@ func TestNewService_DifferWired(t *testing.T) {
 	svc := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 	})
 	if svc.differ == nil {

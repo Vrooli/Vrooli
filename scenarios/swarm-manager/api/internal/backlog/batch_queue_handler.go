@@ -15,6 +15,7 @@ import (
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/planclient"
 )
 
 // ExecutionQueuer abstracts execution operations needed by batch queue,
@@ -149,6 +150,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 			PolicyProvider:     h.policyProvider,
 			GovernanceProvider: h.governanceProvider,
 			AgentService:       h.agentService,
+			PlanRenderer:       planclient.NewConnectClient(nil, nil),
 		})
 	}
 

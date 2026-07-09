@@ -21,13 +21,34 @@ const importKind = "execute"
 // BatchItem mirrors the swarm-manager batch-create item JSON so the payload
 // this package produces lands unchanged through POST /api/v1/backlog/batch.
 type BatchItem struct {
-	Name        string   `json:"name"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Kind        string   `json:"kind"`
-	DependsOn   []string `json:"depends_on,omitempty"`
-	SpawnedFrom string   `json:"spawned_from,omitempty"`
-	Effort      string   `json:"effort,omitempty"`
+	Name            string   `json:"name"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description,omitempty"`
+	Kind            string   `json:"kind"`
+	DependsOn       []string `json:"depends_on,omitempty"`
+	Initiative      string   `json:"initiative,omitempty"`
+	SpawnedFrom     string   `json:"spawned_from,omitempty"`
+	Effort          string   `json:"effort,omitempty"`
+	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	PlanRef         *PlanRef `json:"plan_ref,omitempty"`
+}
+
+// PlanRef mirrors swarm-manager's canonical plan_ref JSON contract without
+// importing backlog into the bridge package.
+type PlanRef struct {
+	Provider string `json:"provider,omitempty"`
+	PlanID   string `json:"plan_id,omitempty"`
+	Slug     string `json:"slug,omitempty"`
+	Role     string `json:"role,omitempty"`
+}
+
+type InitiativeSpec struct {
+	Name        string
+	Title       string
+	Description string
+	Mode        string
+	PlanRef     PlanRef
 }
 
 // BatchPayload is the JSON body posted to the batch-create endpoint.
@@ -47,6 +68,10 @@ func Translate(plan *sharedv1.Plan) (BatchPayload, error) {
 	slug := strings.TrimSpace(plan.GetSlug())
 	if slug == "" {
 		return BatchPayload{}, fmt.Errorf("planimport: plan has no slug")
+	}
+	planID := strings.TrimSpace(plan.GetId())
+	if planID == "" {
+		return BatchPayload{}, fmt.Errorf("planimport: plan %q has no id", slug)
 	}
 	phases := append([]*sharedv1.Phase(nil), plan.GetPhases()...)
 	if len(phases) == 0 {
@@ -76,6 +101,16 @@ func Translate(plan *sharedv1.Plan) (BatchPayload, error) {
 			Description: desc,
 			Kind:        importKind,
 			SpawnedFrom: fmt.Sprintf("plan-manager:%s/phase-%d", slug, order),
+			PlanRef: &PlanRef{
+				Provider: "plan-manager",
+				PlanID:   planID,
+				Slug:     slug,
+				Role:     "execution_spec",
+			},
+		}
+		if boundary := phaseBoundary(plan, phase); boundary != nil {
+			item.AcceptanceAllow = append([]string(nil), boundary.GetAcceptanceAllow()...)
+			item.AcceptanceDeny = append([]string(nil), boundary.GetAcceptanceDeny()...)
 		}
 		if prevRef != "" {
 			item.DependsOn = []string{prevRef}
@@ -84,4 +119,14 @@ func Translate(plan *sharedv1.Plan) (BatchPayload, error) {
 		prevRef = importKind + "/" + name
 	}
 	return BatchPayload{Items: items}, nil
+}
+
+func phaseBoundary(plan *sharedv1.Plan, phase *sharedv1.Phase) *sharedv1.ChangeBoundary {
+	if phase != nil && phase.GetChangeBoundary() != nil {
+		return phase.GetChangeBoundary()
+	}
+	if plan != nil {
+		return plan.GetChangeBoundary()
+	}
+	return nil
 }

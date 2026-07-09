@@ -57,7 +57,6 @@ describe("sidebar create affordances", () => {
           priorityMin: null,
           priorityMax: null,
           showArchived: false,
-          validationStatus: "",
         }}
         sort={{ field: "priority", direction: "asc" }}
         onItemClick={vi.fn()}

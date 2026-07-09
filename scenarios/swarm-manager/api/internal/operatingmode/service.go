@@ -19,6 +19,7 @@ type InitiativeSnapshot struct {
 	Title              string
 	Description        string
 	Mode               string
+	PlanRef            *PlanRef
 	Items              []string
 	AcceptanceCriteria []string
 }
@@ -45,6 +46,10 @@ type InitiativeSummary struct {
 
 type InitiativeModeUpdater interface {
 	UpdateInitiativeMode(name, mode string) (InitiativeSnapshot, error)
+}
+
+type InitiativePlanRefBinder interface {
+	BindInitiativePlanRef(name string, ref PlanRef) (InitiativeSnapshot, error)
 }
 
 type BacklogItemSnapshot struct {
@@ -171,6 +176,7 @@ type Config struct {
 	Initiatives      InitiativeReader
 	InitiativeLister InitiativeLister
 	ModeUpdater      InitiativeModeUpdater
+	PlanRefBinder    InitiativePlanRefBinder
 	Backlog          BacklogReader
 	BacklogMutator   BacklogMutator
 	Reconciler       ProposalReconciler
@@ -189,6 +195,7 @@ type Config struct {
 	ScenarioRoot      string
 	Clock             func() time.Time
 	RequestedByLabel  string
+	PlanExecution     PlanExecutionClient
 }
 
 type Service struct {
@@ -198,6 +205,7 @@ type Service struct {
 	initiatives   InitiativeReader
 	initLister    InitiativeLister
 	modeUpdater   InitiativeModeUpdater
+	planRefBinder InitiativePlanRefBinder
 	backlog       BacklogReader
 	backlogMut    BacklogMutator
 	reconciler    ProposalReconciler
@@ -211,6 +219,7 @@ type Service struct {
 	scenarioRoot  string
 	clock         func() time.Time
 	requestedBy   string
+	planExecution PlanExecutionClient
 }
 
 type StartPhaseRequest struct {
@@ -400,6 +409,7 @@ type ModeCatalogPhase struct {
 type PhaseOutputContractSummary struct {
 	RequiresStructuredResult bool `json:"requires_structured_result"`
 	RequiresProgress         bool `json:"requires_progress"`
+	RequiresPlanRef          bool `json:"requires_plan_ref"`
 	RequiresVerdict          bool `json:"requires_verdict"`
 	RequiresHandoff          bool `json:"requires_handoff"`
 	RequiresBacklogSync      bool `json:"requires_backlog_sync"`
@@ -433,6 +443,7 @@ func summarizeContract(contract PhaseOutputContract) PhaseOutputContractSummary 
 	return PhaseOutputContractSummary{
 		RequiresStructuredResult: contract.RequiresStructuredResult,
 		RequiresProgress:         contract.RequiresProgress,
+		RequiresPlanRef:          contract.RequiresPlanRef,
 		RequiresVerdict:          contract.RequiresVerdict,
 		RequiresHandoff:          contract.RequiresHandoff,
 		RequiresBacklogSync:      contract.RequiresBacklogSync,
@@ -493,6 +504,7 @@ func NewService(cfg Config) (*Service, error) {
 		initiatives:   cfg.Initiatives,
 		initLister:    cfg.InitiativeLister,
 		modeUpdater:   cfg.ModeUpdater,
+		planRefBinder: cfg.PlanRefBinder,
 		backlog:       cfg.Backlog,
 		backlogMut:    cfg.BacklogMutator,
 		reconciler:    cfg.Reconciler,
@@ -506,6 +518,7 @@ func NewService(cfg Config) (*Service, error) {
 		scenarioRoot:  strings.TrimSpace(cfg.ScenarioRoot),
 		clock:         clk,
 		requestedBy:   requestedBy,
+		planExecution: cfg.PlanExecution,
 	}, nil
 }
 

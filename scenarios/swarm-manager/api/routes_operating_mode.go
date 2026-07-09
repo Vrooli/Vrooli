@@ -16,6 +16,7 @@ import (
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/operatingmode"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/proposals"
@@ -40,6 +41,7 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 		Initiatives:      operatingModeInitiativeReader{store: s.initStore},
 		InitiativeLister: operatingModeInitiativeLister{store: s.initStore},
 		ModeUpdater:      operatingModeUpdater{service: s.initiativeService},
+		PlanRefBinder:    operatingModeUpdater{service: s.initiativeService},
 		Backlog:          operatingModeBacklogReader{store: s.backlogHandler.Store()},
 		BacklogMutator: operatingModeBacklogMutator{
 			store:  s.backlogHandler.Store(),
@@ -68,8 +70,9 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 				OutputPaths: append([]string{}, entry.OutputPaths...),
 			}, true
 		},
-		Events:       s.emitter,
-		ScenarioRoot: scenarioRoot,
+		Events:        s.emitter,
+		ScenarioRoot:  scenarioRoot,
+		PlanExecution: planclient.NewConnectClient(nil, nil),
 	})
 	if err != nil {
 		log.Fatalf("operating-mode: failed to build Service: %v", err)
@@ -287,14 +290,7 @@ func (r operatingModeInitiativeReader) LoadInitiative(name string) (operatingmod
 	if err != nil {
 		return operatingmode.InitiativeSnapshot{}, err
 	}
-	return operatingmode.InitiativeSnapshot{
-		Name:               init.Name,
-		Title:              init.Title,
-		Description:        init.Description,
-		Mode:               init.Mode,
-		Items:              append([]string(nil), init.Items...),
-		AcceptanceCriteria: append([]string(nil), init.AcceptanceCriteria...),
-	}, nil
+	return initiativeToOperatingModeSnapshot(*init), nil
 }
 
 type operatingModeUpdater struct {
@@ -309,14 +305,54 @@ func (u operatingModeUpdater) UpdateInitiativeMode(name, mode string) (operating
 	if err != nil {
 		return operatingmode.InitiativeSnapshot{}, err
 	}
+	return initiativeToOperatingModeSnapshot(*updated), nil
+}
+
+func (u operatingModeUpdater) BindInitiativePlanRef(name string, ref operatingmode.PlanRef) (operatingmode.InitiativeSnapshot, error) {
+	if u.service == nil {
+		return operatingmode.InitiativeSnapshot{}, fmt.Errorf("operating-mode initiative updater is not configured")
+	}
+	updated, err := u.service.Update(name, initiatives.UpdateRequest{
+		PlanRef:    operatingModePlanRefToInitiative(ref),
+		PlanRefSet: true,
+	})
+	if err != nil {
+		return operatingmode.InitiativeSnapshot{}, err
+	}
+	return initiativeToOperatingModeSnapshot(*updated), nil
+}
+
+func initiativeToOperatingModeSnapshot(init initiatives.Initiative) operatingmode.InitiativeSnapshot {
 	return operatingmode.InitiativeSnapshot{
-		Name:               updated.Name,
-		Title:              updated.Title,
-		Description:        updated.Description,
-		Mode:               updated.Mode,
-		Items:              append([]string(nil), updated.Items...),
-		AcceptanceCriteria: append([]string(nil), updated.AcceptanceCriteria...),
-	}, nil
+		Name:               init.Name,
+		Title:              init.Title,
+		Description:        init.Description,
+		Mode:               init.Mode,
+		PlanRef:            initiativePlanRefToOperatingMode(init.PlanRef),
+		Items:              append([]string(nil), init.Items...),
+		AcceptanceCriteria: append([]string(nil), init.AcceptanceCriteria...),
+	}
+}
+
+func initiativePlanRefToOperatingMode(ref *initiatives.PlanRef) *operatingmode.PlanRef {
+	if ref == nil {
+		return nil
+	}
+	return &operatingmode.PlanRef{
+		Provider: ref.Provider,
+		PlanID:   ref.PlanID,
+		Slug:     ref.Slug,
+		Role:     ref.Role,
+	}
+}
+
+func operatingModePlanRefToInitiative(ref operatingmode.PlanRef) *initiatives.PlanRef {
+	return &initiatives.PlanRef{
+		Provider: ref.Provider,
+		PlanID:   ref.PlanID,
+		Slug:     ref.Slug,
+		Role:     ref.Role,
+	}
 }
 
 type operatingModeExecutionController struct {

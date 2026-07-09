@@ -84,7 +84,7 @@ Modes are chosen by **how the work is shaped**, not by how much work there is or
 ### item-level (default)
 
 - **Unit:** one backlog item per agent run. **Lifecycle:** `backlog → researching → ready → queued → in_progress → completed/failed`.
-- **Refinement:** the workshop loop (rounds with 5-dimension readiness scoring; converges to `plan.md`). **Execution:** an agent reads `plan.md`, executes, hands back a result. **Review:** a review round ratifies completion.
+- **Refinement:** the workshop loop (rounds with 5-dimension readiness scoring; converges to a canonical plan-manager plan bound through the item `plan_ref`). **Execution:** an agent receives the rendered plan-manager projection, executes, hands back a result. **Review:** a review round ratifies completion.
 - **Strengths:** parallelism (many items in flight), per-item provenance, bounded blast radius, per-item legibility.
 - **Failure mode:** items coupled by a shared substrate produce broken intermediate states; work whose item shape shifts mid-execution thrashes the item graph; over-fragmented items waste cycles on per-item ceremony.
 
@@ -109,13 +109,13 @@ The investigation phase has no analog at item scale: at item scale the workshop 
 ### phased-plan-drain
 
 - **Unit:** the initiative, drained by a stable sequential plan and accumulated handoffs. **Phases:** `prepare_plan → execute_next → classify_progress`, then either `execute_next`, `prepare_plan`, or `review` based on the classifier's progress decision.
-- **Refinement:** a durable `phased-plan.md` plus round handoffs; the plan is prepared once and revised only when `classify_progress` decides `replan`. **Execution:** each execute round completes the earliest contiguous **slice** it can safely finish and hands off state — including the true **frontier** — for the next round. **Review:** validate the completed initiative against acceptance criteria once progress is classified complete; a `changes_requested` verdict loops back to `execute_next` for one more gap-closing slice before acceptance.
+- **Refinement:** a canonical plan-manager `plan_ref` plus round handoffs; the plan is prepared once in plan-manager and revised only when `classify_progress` decides `replan`. **Execution:** each execute round receives plan-manager phase context, completes the earliest contiguous **slice** it can safely finish, records important state in the plan-manager log, and hands off the true **frontier** for the next round. **Review:** validate the completed initiative against acceptance criteria once progress is classified complete; a `changes_requested` verdict loops back to `execute_next` for one more gap-closing slice before acceptance.
 - **Strengths:** continuity across long sequential work, less planning churn than a holistic loop, explicit progress classification between slices.
 - **Failure mode:** unsuitable when the plan is not stable enough to drain, or when parallel independent execution is more valuable.
 
 ### Backlog items in initiative-scoped modes: tracking, not execution
 
-When an initiative runs in `holistic-loop` or `phased-plan-drain`, its member items don't disappear — they survive as **tracking and scope markers** (what the initiative claims to deliver, progress reporting, partial cancellation, cross-initiative dependency targets). What changes is that they are no longer *independent execution units*: their `plan.md` is informational, their workshop rounds are historical context, and they are marked `completed` as the initiative-level plan covers them. This is the load-bearing distinction — items remain the unit of *visibility* and *scope* while the unit of *execution* and *validation* moves up to the initiative.
+When an initiative runs in `holistic-loop` or `phased-plan-drain`, its member items don't disappear — they survive as **tracking and scope markers** (what the initiative claims to deliver, progress reporting, partial cancellation, cross-initiative dependency targets). What changes is that they are no longer *independent execution units*: their `plan_ref` points to item-level scope context, their workshop rounds are historical context, and they are marked `completed` as the initiative-level plan covers them. This is the load-bearing distinction — items remain the unit of *visibility* and *scope* while the unit of *execution* and *validation* moves up to the initiative.
 
 ## Why the distinction exists (the empirical cue)
 
@@ -149,7 +149,7 @@ Authoring is self-serve and writes **data**: scaffold a mode folder from a templ
 ## References
 
 - [`docs/concepts/ARCHITECTURE.md`](./ARCHITECTURE.md) — the staging-and-review framing operating modes build on.
-- [`docs/guides/workshop-workflow.md`](../guides/workshop-workflow.md) — the item-level workshop loop, readiness model, and `plan.md` handoff.
+- [`docs/guides/workshop-workflow.md`](../guides/workshop-workflow.md) — the item-level workshop loop, readiness model, and `plan_ref` handoff.
 - [`docs/guides/holistic-loop-mode.md`](../guides/holistic-loop-mode.md) — operator workflow for holistic-loop mode.
 - [`docs/guides/phased-plan-drain-mode.md`](../guides/phased-plan-drain-mode.md) — operator workflow for phased-plan-drain mode.
 - [DOC: ../internal/OPERATING-MODE-AUTHORING.md] — how to author a mode as data.

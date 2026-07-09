@@ -13,6 +13,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log"
 	"log/slog"
@@ -46,6 +47,7 @@ import (
 	"swarm-manager/internal/operations"
 	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/planimport"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/prompts"
@@ -297,7 +299,7 @@ func (s *Server) setupRoutes() {
 	s.registerOperatingModeRoutes(scenarioRoot, materializer)
 	s.registerOperationsRoutes()
 	s.registerPlanRoutes(scenarioRoot)
-	s.registerPlanImportRoutes(backlogHandler)
+	s.registerPlanImportRoutes(backlogHandler, initService)
 	s.registerPromptRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
 
@@ -445,11 +447,15 @@ func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Ha
 // registerPlanImportRoutes wires the read-only plan-manager import bridge:
 // POST /api/v1/plan-import fetches an authored plan over Connect and lands its
 // phases as a provenance-stamped linear chain via the atomic batch-create.
-func (s *Server) registerPlanImportRoutes(backlogHandler *backlog.Handler) {
+func (s *Server) registerPlanImportRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) {
 	if backlogHandler == nil {
 		return
 	}
-	svc := planimport.NewService(planimport.NewConnectFetcher(nil), planImportLander{handler: backlogHandler})
+	svc := planimport.NewService(
+		planclient.NewConnectClient(nil, nil),
+		planImportLander{handler: backlogHandler},
+		planImportInitiativeLander{svc: initService},
+	)
 	planimport.NewHandler(svc).RegisterRoutes(s.router)
 }
 
@@ -468,6 +474,239 @@ func (l planImportLander) ImportBatch(ctx context.Context, payloadJSON string, p
 		out = append(out, planimport.ImportedRef{Kind: string(it.Kind), Name: it.Name, Title: it.Title})
 	}
 	return out, nil
+}
+
+func (l planImportLander) LandBatch(ctx context.Context, payload planimport.BatchPayload, prov identity.Provenance) ([]planimport.ImportedRef, error) {
+	store := l.handler.Store()
+	refs := make([]planimport.ImportedRef, 0, len(payload.Items))
+	missing := make([]planimport.BatchItem, 0, len(payload.Items))
+	for _, item := range payload.Items {
+		kind := backlog.BacklogKind(item.Kind)
+		existing, err := store.LoadItem(kind, item.Name)
+		if err != nil {
+			if errors.Is(err, backlog.ErrNotFound) {
+				missing = append(missing, item)
+				continue
+			}
+			return nil, err
+		}
+		action := "linked"
+		updated := existing
+		updated.Title = item.Title
+		updated.Description = item.Description
+		updated.DependsOn = append([]string(nil), item.DependsOn...)
+		updated.Effort = item.Effort
+		updated.AcceptanceAllow = append([]string(nil), item.AcceptanceAllow...)
+		updated.AcceptanceDeny = append([]string(nil), item.AcceptanceDeny...)
+		if strings.TrimSpace(item.Initiative) != "" {
+			if strings.TrimSpace(existing.Initiative) != "" && existing.Initiative != item.Initiative {
+				return nil, errors.New("plan-import item already belongs to another initiative")
+			}
+			updated.Initiative = item.Initiative
+		}
+		updated.SpawnedFrom = item.SpawnedFrom
+		updated.PlanRef = backlogPlanRef(item.PlanRef)
+		if !backlogItemsSame(existing, updated) {
+			updated.Updated = time.Now().UTC().Format(time.RFC3339)
+			if err := store.SaveItem(updated); err != nil {
+				return nil, err
+			}
+			action = "updated"
+		}
+		refs = append(refs, planimport.ImportedRef{Kind: item.Kind, Name: item.Name, Title: item.Title, Action: action})
+	}
+	if len(missing) > 0 {
+		data, err := json.Marshal(planimport.BatchPayload{Items: missing})
+		if err != nil {
+			return nil, err
+		}
+		created, err := l.ImportBatch(ctx, string(data), prov)
+		if err != nil {
+			return nil, err
+		}
+		for _, ref := range created {
+			ref.Action = "created"
+			refs = append(refs, ref)
+		}
+	}
+	return refs, nil
+}
+
+func backlogPlanRef(ref *planimport.PlanRef) *backlog.PlanRef {
+	if ref == nil {
+		return nil
+	}
+	return &backlog.PlanRef{
+		Provider: ref.Provider,
+		PlanID:   ref.PlanID,
+		Slug:     ref.Slug,
+		Role:     ref.Role,
+	}
+}
+
+func backlogItemsSame(a, b backlog.BacklogItem) bool {
+	return a.Title == b.Title &&
+		a.Description == b.Description &&
+		a.Effort == b.Effort &&
+		a.Initiative == b.Initiative &&
+		a.SpawnedFrom == b.SpawnedFrom &&
+		stringSlicesEqual(a.DependsOn, b.DependsOn) &&
+		stringSlicesEqual(a.AcceptanceAllow, b.AcceptanceAllow) &&
+		stringSlicesEqual(a.AcceptanceDeny, b.AcceptanceDeny) &&
+		planImportRefsEqual(a.PlanRef, b.PlanRef)
+}
+
+type planImportInitiativeLander struct{ svc *initiatives.Service }
+
+func (l planImportInitiativeLander) LandInitiative(
+	_ context.Context,
+	spec planimport.InitiativeSpec,
+	itemRefs []planimport.ImportedRef,
+	prov identity.Provenance,
+) (planimport.ImportedInitiative, error) {
+	if l.svc == nil {
+		return planimport.ImportedInitiative{}, errors.New("initiative service is not configured")
+	}
+	name := strings.TrimSpace(spec.Name)
+	if name == "" {
+		return planimport.ImportedInitiative{}, errors.New("initiative name is required")
+	}
+	title := strings.TrimSpace(spec.Title)
+	if title == "" {
+		title = name
+	}
+	mode := initiatives.NormalizeMode(spec.Mode)
+	if mode == "" {
+		mode = initiatives.NormalizeMode("")
+	}
+	planRef := initiativePlanRef(spec.PlanRef)
+	refs := importedItemRefs(itemRefs)
+
+	action := "linked"
+	existing, err := l.svc.Get(name)
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			return planimport.ImportedInitiative{}, err
+		}
+		createdBy := prov
+		if _, err := l.svc.Create(initiatives.CreateRequest{
+			Name:        name,
+			Title:       title,
+			Description: strings.TrimSpace(spec.Description),
+			Items:       refs,
+			CreatedBy:   &createdBy,
+			PlanRef:     planRef,
+		}); err != nil {
+			return planimport.ImportedInitiative{}, err
+		}
+		if mode != initiatives.NormalizeMode("") {
+			if _, err := l.svc.SetModeLifecycle(name, mode); err != nil {
+				return planimport.ImportedInitiative{}, err
+			}
+		}
+		return planimport.ImportedInitiative{Name: name, Title: title, Mode: mode, Action: "created"}, nil
+	}
+
+	init := existing.Initiative
+	needsMetaUpdate := init.Title != title ||
+		init.Description != strings.TrimSpace(spec.Description) ||
+		!planImportInitiativeRefsEqual(init.PlanRef, planRef)
+	if needsMetaUpdate {
+		description := strings.TrimSpace(spec.Description)
+		if _, err := l.svc.Update(name, initiatives.UpdateRequest{
+			Title:       &title,
+			Description: &description,
+			PlanRef:     planRef,
+			PlanRefSet:  true,
+		}); err != nil {
+			return planimport.ImportedInitiative{}, err
+		}
+		action = "updated"
+	}
+	if initiatives.NormalizeMode(init.Mode) != mode {
+		if _, err := l.svc.SetModeLifecycle(name, mode); err != nil {
+			return planimport.ImportedInitiative{}, err
+		}
+		action = "updated"
+	}
+	missingRefs := missingInitiativeRefs(init.Items, refs)
+	if len(missingRefs) > 0 {
+		if err := l.svc.AddItems(name, missingRefs); err != nil {
+			return planimport.ImportedInitiative{}, err
+		}
+		action = "updated"
+	}
+	return planimport.ImportedInitiative{Name: name, Title: title, Mode: mode, Action: action}, nil
+}
+
+func initiativePlanRef(ref planimport.PlanRef) *initiatives.PlanRef {
+	if strings.TrimSpace(ref.Provider) == "" &&
+		strings.TrimSpace(ref.PlanID) == "" &&
+		strings.TrimSpace(ref.Slug) == "" &&
+		strings.TrimSpace(ref.Role) == "" {
+		return nil
+	}
+	return &initiatives.PlanRef{
+		Provider: strings.TrimSpace(ref.Provider),
+		PlanID:   strings.TrimSpace(ref.PlanID),
+		Slug:     strings.TrimSpace(ref.Slug),
+		Role:     strings.TrimSpace(ref.Role),
+	}
+}
+
+func importedItemRefs(items []planimport.ImportedRef) []string {
+	refs := make([]string, 0, len(items))
+	for _, item := range items {
+		kind := strings.TrimSpace(item.Kind)
+		name := strings.TrimSpace(item.Name)
+		if kind == "" || name == "" {
+			continue
+		}
+		refs = append(refs, kind+"/"+name)
+	}
+	return refs
+}
+
+func missingInitiativeRefs(existing, refs []string) []string {
+	seen := make(map[string]bool, len(existing))
+	for _, ref := range existing {
+		seen[ref] = true
+	}
+	missing := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if seen[ref] {
+			continue
+		}
+		seen[ref] = true
+		missing = append(missing, ref)
+	}
+	return missing
+}
+
+func planImportInitiativeRefsEqual(a, b *initiatives.PlanRef) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.Provider == b.Provider && a.PlanID == b.PlanID && a.Slug == b.Slug && a.Role == b.Role
+}
+
+func stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func planImportRefsEqual(a, b *backlog.PlanRef) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.Provider == b.Provider && a.PlanID == b.PlanID && a.Slug == b.Slug && a.Role == b.Role
 }
 
 // goalReadyAdapter adapts *goals.Service to execution.GoalReadyProvider,

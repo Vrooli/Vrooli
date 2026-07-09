@@ -35,6 +35,7 @@ func followUpTestService(t *testing.T, root string, records []Record, agent Agen
 	svc := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})

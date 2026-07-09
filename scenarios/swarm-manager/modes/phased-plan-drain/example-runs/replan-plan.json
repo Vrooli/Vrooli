@@ -19,10 +19,10 @@
     ]
   },
   "steps": [
-    { "phase": "prepare_plan", "note": "always → execute_next" },
+    { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next" },
     { "phase": "execute_next", "note": "always → classify_progress" },
     { "phase": "classify_progress", "output": { "progress": { "decision": "replan" } }, "note": "progress.decision=replan → prepare_plan (revise plan)" },
-    { "phase": "prepare_plan", "note": "always → execute_next (revised plan)" },
+    { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next (revised plan)" },
     { "phase": "execute_next", "note": "always → classify_progress" },
     { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review" },
     { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }

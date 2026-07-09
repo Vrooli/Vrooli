@@ -27,6 +27,14 @@ type backlogItem struct {
 	Creates            []string `json:"creates,omitempty"`
 	ArchivedAt         *string  `json:"archived_at,omitempty"`
 	SuggestedSkills    []string `json:"suggested_skills,omitempty"`
+	PlanRef            *planRef `json:"plan_ref,omitempty"`
+}
+
+type planRef struct {
+	Provider string `json:"provider,omitempty"`
+	PlanID   string `json:"plan_id,omitempty"`
+	Slug     string `json:"slug,omitempty"`
+	Role     string `json:"role,omitempty"`
 }
 
 func (s *Service) loadBacklogItem(kind, name string) (backlogItem, error) {
