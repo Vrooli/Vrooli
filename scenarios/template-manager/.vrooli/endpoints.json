@@ -10,7 +10,7 @@
       "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
           "dependencies": "object",
           "readiness": "boolean",
@@ -32,12 +32,12 @@
             "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.template_manager.v1.health.Response",
+            "proto_full_name": "vrooli.template_manager.v1.shared.Response",
             "transport": "json",
             "conformance": "protojson"
           },
           "error": {
-            "proto_full_name": "vrooli.template_manager.v1.errors.ErrorEnvelope",
+            "proto_full_name": "vrooli.template_manager.v1.shared.ErrorEnvelope",
             "transport": "json",
             "conformance": "protojson"
           }
@@ -45,209 +45,315 @@
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.template_manager.v1.notes.NotesService/ListNotes",
+      "id": "registry_list_templates",
+      "path": "/vrooli.template_manager.v1.registry.RegistryService/ListTemplates",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.template_manager.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
+      "summary": "List template records",
+      "description": "Returns the governed inventory of scenario, design, and resource templates.",
+      "category": "registry"
     },
     {
-      "id": "notes_create",
-      "path": "/vrooli.template_manager.v1.notes.NotesService/CreateNote",
+      "id": "registry_get_template",
+      "path": "/vrooli.template_manager.v1.registry.RegistryService/GetTemplate",
       "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.template_manager.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
+      "summary": "Get a template record",
+      "description": "Returns one template registry record by id.",
+      "category": "registry"
     },
     {
-      "id": "notes_get",
-      "path": "/vrooli.template_manager.v1.notes.NotesService/GetNote",
+      "id": "validation_runs_run",
+      "path": "/vrooli.template_manager.v1.validation.ValidationRunService/RunTemplateValidation",
       "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.template_manager.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
+      "summary": "Run template validation",
+      "description": "Runs the current template validation engine and persists the result.",
+      "category": "validation"
     },
     {
-      "id": "notes_count",
-      "path": "/vrooli.template_manager.v1.notes.NotesService/CountNotes",
+      "id": "validation_runs_list",
+      "path": "/vrooli.template_manager.v1.validation.ValidationRunService/ListValidationRuns",
       "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.template_manager.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
+      "summary": "List validation runs",
+      "description": "Returns persisted template validation runs.",
+      "category": "validation"
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "validation_runs_get",
+      "path": "/vrooli.template_manager.v1.validation.ValidationRunService/GetValidationRun",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "summary": "Get validation run",
+      "description": "Returns one persisted template validation run.",
+      "category": "validation"
+    },
+    {
+      "id": "validation_drift_record",
+      "path": "/vrooli.template_manager.v1.validation.ValidationRunService/RecordFleetDrift",
+      "method": "POST",
+      "summary": "Record fleet drift",
+      "description": "Runs the current fleet drift engine and persists a snapshot.",
+      "category": "validation"
+    },
+    {
+      "id": "validation_drift_list",
+      "path": "/vrooli.template_manager.v1.validation.ValidationRunService/ListDriftSnapshots",
+      "method": "POST",
+      "summary": "List drift snapshots",
+      "description": "Returns persisted template drift snapshots.",
+      "category": "validation"
+    },
+    {
+      "id": "debt_list",
+      "path": "/vrooli.template_manager.v1.debt.DebtService/ListDebt",
+      "method": "POST",
+      "summary": "List template debt",
+      "description": "Returns durable template debt entries.",
+      "category": "debt"
+    },
+    {
+      "id": "debt_get",
+      "path": "/vrooli.template_manager.v1.debt.DebtService/GetDebt",
+      "method": "POST",
+      "summary": "Get template debt",
+      "description": "Returns one durable template debt entry.",
+      "category": "debt"
+    },
+    {
+      "id": "guidance_next_gate",
+      "path": "/vrooli.template_manager.v1.guidance.GuidanceService/NextGate",
+      "method": "POST",
+      "summary": "Get the next orientation gate",
+      "description": "Returns the next incomplete orientation gate, checks, contract docs, and remediation pointers for a generated scenario.",
+      "category": "guidance"
+    },
+    {
+      "id": "lifecycle_generate_scenario",
+      "path": "/vrooli.template_manager.v1.lifecycle.TemplateLifecycleService/GenerateScenario",
+      "method": "POST",
+      "summary": "Generate scenario",
+      "description": "Generates a scenario from a governed scenario template.",
+      "category": "lifecycle"
+    },
+    {
+      "id": "lifecycle_orient_scenario",
+      "path": "/vrooli.template_manager.v1.lifecycle.TemplateLifecycleService/OrientScenario",
+      "method": "POST",
+      "summary": "Orient scenario",
+      "description": "Reports or finalizes scenario orientation progress.",
+      "category": "lifecycle"
+    },
+    {
+      "id": "lifecycle_detemplate_scenario",
+      "path": "/vrooli.template_manager.v1.lifecycle.TemplateLifecycleService/DetemplateScenario",
+      "method": "POST",
+      "summary": "Detemplate scenario",
+      "description": "Removes the template example domain from a generated scenario.",
+      "category": "lifecycle"
+    },
+    {
+      "id": "lifecycle_validate_template",
+      "path": "/vrooli.template_manager.v1.lifecycle.TemplateLifecycleService/ValidateTemplate",
+      "method": "POST",
+      "summary": "Validate template",
+      "description": "Runs the scenario-template validation engine.",
+      "category": "lifecycle"
+    },
+    {
+      "id": "lifecycle_drift_report",
+      "path": "/vrooli.template_manager.v1.lifecycle.TemplateLifecycleService/DriftReport",
+      "method": "POST",
+      "summary": "Template drift report",
+      "description": "Compares generated scenarios against current template hashes.",
+      "category": "lifecycle"
+    },
+    {
+      "id": "lifecycle_cleanup_runs",
+      "path": "/vrooli.template_manager.v1.lifecycle.TemplateLifecycleService/CleanupRuns",
+      "method": "POST",
+      "summary": "Cleanup template runs",
+      "description": "Cleans retained or stale deep-validation workspaces.",
+      "category": "lifecycle"
+    },
+    {
+      "id": "design_list",
+      "path": "/vrooli.template_manager.v1.lifecycle.DesignKitService/ListDesignKits",
+      "method": "POST",
+      "summary": "List design kits",
+      "description": "Lists scenario design kits.",
+      "category": "design"
+    },
+    {
+      "id": "design_get",
+      "path": "/vrooli.template_manager.v1.lifecycle.DesignKitService/GetDesignKit",
+      "method": "POST",
+      "summary": "Get design kit",
+      "description": "Returns one scenario design kit.",
+      "category": "design"
+    },
+    {
+      "id": "design_validate",
+      "path": "/vrooli.template_manager.v1.lifecycle.DesignKitService/ValidateDesignKits",
+      "method": "POST",
+      "summary": "Validate design kits",
+      "description": "Validates scenario design kits.",
+      "category": "design"
+    },
+    {
+      "id": "measures_open_debt_count",
+      "path": "/vrooli.template_manager.v1.measures.MeasuresService/OpenDebtCount",
+      "method": "POST",
+      "summary": "Count open template debt entries",
+      "description": "Counts open inherited-template debt entries in a canonical time window. Backed by the same compute path as /measures.",
+      "category": "measures"
+    },
+    {
+      "id": "measures_deep_validate_green_streak",
+      "path": "/vrooli.template_manager.v1.measures.MeasuresService/DeepValidateGreenStreak",
+      "method": "POST",
+      "summary": "Count consecutive passing deep validations",
+      "description": "Counts newest-first passing deep-validation runs until the first non-green run for a template.",
+      "category": "measures"
+    },
+    {
+      "id": "measures_fleet_standing_distribution",
+      "path": "/vrooli.template_manager.v1.measures.MeasuresService/FleetStandingDistribution",
+      "method": "POST",
+      "summary": "Return template standing distribution",
+      "description": "Buckets governed templates by current, drift, version lag, and open-debt standing.",
+      "category": "measures"
+    },
+    {
+      "id": "measures_max_version_lag",
+      "path": "/vrooli.template_manager.v1.measures.MeasuresService/MaxVersionLag",
+      "method": "POST",
+      "summary": "Return maximum template version lag",
+      "description": "Returns the maximum version lag count across template records. Backed by the same compute path as /measures.",
+      "category": "measures"
+    },
+    {
+      "id": "measures_declarations",
+      "path": "/measures/declarations",
+      "method": "GET",
+      "summary": "List declared measures",
+      "description": "Measures-go registry declarations harvested by measures-health and search-hub.",
+      "category": "measures",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.template_manager.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.template_manager.v1.errors.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
+        "reason": "ops_probe",
+        "note": "measures-go serves a framework-neutral harvest endpoint consumed without a generated client."
       }
+    },
+    {
+      "id": "measures_execute",
+      "path": "/measures/execute",
+      "method": "POST",
+      "summary": "Execute a declared measure",
+      "description": "Measures-go registry execution endpoint used by measures-health behavioral probes and search-hub federation.",
+      "category": "measures",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "measures-go serves a uniform JSON execution endpoint shared across scenarios."
+      }
+    },
+    {
+      "id": "monitor_status_get",
+      "path": "/vrooli.template_manager.v1.monitor.MonitorService/GetMonitorStatus",
+      "method": "POST",
+      "summary": "Get monitor status",
+      "description": "Returns recurring deep-validation monitor status.",
+      "category": "monitor"
+    },
+    {
+      "id": "scenario_validation_validate",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate template standing",
+      "description": "Statically validates a scenario's template provenance, orientation visibility, drift, version lag, and inherited-debt standing.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing target or invalid target path"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic template fixes",
+      "description": "Dry-runs deterministic template standing repairs such as adopted provenance stamping.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing target or invalid fix request"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic template fixes",
+      "description": "Applies deterministic template standing repairs selected explicitly by the caller.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing target or invalid fix request"
+        }
+      ]
     }
   ]
 }

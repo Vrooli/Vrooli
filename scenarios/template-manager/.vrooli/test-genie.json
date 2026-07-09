@@ -1,0 +1,377 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenario": "template-manager",
+  "phase": "templates",
+  "displayName": "Templates",
+  "description": "Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager.",
+  "source": "validation-provider",
+  "orderHint": 24,
+  "timeout": "90s",
+  "phaseClass": "capability",
+  "runtimeClass": "static",
+  "dimensions": ["operational-targets"],
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "includeExecution": false
+  },
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "comprehensive_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "advisory",
+    "unavailable": "advisory"
+  },
+  "runnability": {
+    "needsUI": false,
+    "needsAPI": true,
+    "mutatesLifecycle": false,
+    "lifecycleDecisionDeferred": false,
+    "dbIsolation": "none",
+    "requiredResources": []
+  },
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/templates/README.md"
+  },
+  "maturity": {
+    "provider": "template-manager",
+    "phase": "templates",
+    "version": "1.0.0",
+    "levels": [
+      {
+        "id": "L0",
+        "name": "Template provenance absent",
+        "description": "The scenario has no trustworthy record of the template lineage that produced or adopted it.",
+        "entry_criteria": ["A scenario root exists and can be inspected."],
+        "exit_criteria": ["The scenario declares generation.template.id and generation.template.version in .vrooli/service.json."],
+        "status_label": "Unavailable",
+        "next_unlock": "Stamp adopted provenance for the latest default template."
+      },
+      {
+        "id": "L1",
+        "name": "Template lineage known",
+        "description": "The scenario has a readable template provenance block.",
+        "entry_criteria": ["Template provenance identifies a known template and version."],
+        "exit_criteria": ["Orientation state is available or the scenario is finalized."],
+        "status_label": "Foundation",
+        "next_unlock": "Make orientation standing machine-readable."
+      },
+      {
+        "id": "L2",
+        "name": "Orientation standing known",
+        "description": "Template orientation standing can be evaluated without running deep validation.",
+        "entry_criteria": ["Orientation state is readable when the scenario is not finalized."],
+        "exit_criteria": ["Template version and manifest hashes are current enough to bound drift and migration lag."],
+        "status_label": "Ready",
+        "next_unlock": "Resolve version lag and static drift evidence."
+      },
+      {
+        "id": "L3",
+        "name": "Template standing current",
+        "description": "The scenario is at the current template version with bounded static drift.",
+        "entry_criteria": ["Template version lag and static manifest drift are absent."],
+        "exit_criteria": ["Inherited template debt is resolved or intentionally accepted."],
+        "status_label": "Hardened",
+        "next_unlock": "Retire inherited template debt."
+      },
+      {
+        "id": "L4",
+        "name": "Template standing clean",
+        "description": "The scenario carries current provenance, honest orientation state, bounded drift, and no inherited template debt.",
+        "entry_criteria": ["All lower rungs are satisfied and inherited template debt is clean."],
+        "exit_criteria": ["Template standing remains clean after new template releases."],
+        "status_label": "Complete",
+        "capability_summary": "Template standing is self-describing and ready for fleet governance."
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "provenance",
+        "label": "Generation Provenance",
+        "description": "Template identity, version, and adoption metadata are present.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Template provenance absent",
+            "description": "No generation provenance is available.",
+            "entry_criteria": ["A scenario root exists."],
+            "exit_criteria": ["generation.template.id and generation.template.version are present."],
+            "status_label": "Unavailable",
+            "next_unlock": "Stamp adopted provenance."
+          },
+          {
+            "id": "L1",
+            "name": "Template lineage known",
+            "description": "Template id and version are readable.",
+            "entry_criteria": ["Provenance exists."],
+            "exit_criteria": ["The template id resolves to the registry."],
+            "status_label": "Foundation",
+            "next_unlock": "Resolve the template id against the registry."
+          },
+          {
+            "id": "L2",
+            "name": "Template lineage registered",
+            "description": "The template id is known to template-manager.",
+            "entry_criteria": ["The template is registered."],
+            "exit_criteria": ["Version lag can be evaluated."],
+            "status_label": "Ready",
+            "next_unlock": "Compare against latest registered version."
+          },
+          {
+            "id": "L3",
+            "name": "Template provenance current",
+            "description": "The provenance record is current enough for governance.",
+            "entry_criteria": ["Version lag is known."],
+            "exit_criteria": ["No provenance findings remain."],
+            "status_label": "Hardened",
+            "next_unlock": "Clear remaining provenance findings."
+          },
+          {
+            "id": "L4",
+            "name": "Template provenance clean",
+            "description": "Template provenance is complete and trusted.",
+            "entry_criteria": ["No provenance findings remain."],
+            "exit_criteria": ["Continue preserving provenance on future migrations."],
+            "status_label": "Complete",
+            "capability_summary": "Generation provenance is clean and reusable."
+          }
+        ]
+      },
+      {
+        "id": "orientation",
+        "label": "Orientation Standing",
+        "description": "Generated initialization gates are visible and machine-readable.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Orientation target unavailable",
+            "description": "The scenario cannot be inspected for orientation standing.",
+            "entry_criteria": ["A scenario root exists."],
+            "exit_criteria": ["Template provenance is available."],
+            "status_label": "Unavailable",
+            "next_unlock": "Read template provenance."
+          },
+          {
+            "id": "L1",
+            "name": "Orientation state missing",
+            "description": "Orientation standing is not available as machine-readable state.",
+            "entry_criteria": ["Template provenance is known."],
+            "exit_criteria": ["Orientation state is available or the scenario is finalized."],
+            "status_label": "Foundation",
+            "next_unlock": "Run or finalize orientation."
+          },
+          {
+            "id": "L2",
+            "name": "Orientation state readable",
+            "description": "Orientation standing can be read without deep validation.",
+            "entry_criteria": ["Orientation state is readable."],
+            "exit_criteria": ["Required gates have explicit standing."],
+            "status_label": "Ready",
+            "next_unlock": "Resolve incomplete required gates."
+          },
+          {
+            "id": "L3",
+            "name": "Orientation standing current",
+            "description": "Required orientation gates are visible and current.",
+            "entry_criteria": ["Required gates have explicit standing."],
+            "exit_criteria": ["No orientation findings remain."],
+            "status_label": "Hardened",
+            "next_unlock": "Clear remaining orientation findings."
+          },
+          {
+            "id": "L4",
+            "name": "Orientation standing clean",
+            "description": "Orientation is an honest work-order feed.",
+            "entry_criteria": ["No orientation findings remain."],
+            "exit_criteria": ["Keep gate definitions current as templates evolve."],
+            "status_label": "Complete",
+            "capability_summary": "Orientation standing is machine-readable and clean."
+          }
+        ]
+      },
+      {
+        "id": "drift_and_migration",
+        "label": "Drift and Migration",
+        "description": "Template version lag and static drift are bounded.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Drift target unavailable",
+            "description": "Drift cannot be assessed because provenance is missing.",
+            "entry_criteria": ["A scenario root exists."],
+            "exit_criteria": ["Template provenance is available."],
+            "status_label": "Unavailable",
+            "next_unlock": "Read template provenance."
+          },
+          {
+            "id": "L1",
+            "name": "Drift baseline known",
+            "description": "A template baseline is known.",
+            "entry_criteria": ["Template id and version are known."],
+            "exit_criteria": ["Current template version can be compared."],
+            "status_label": "Foundation",
+            "next_unlock": "Compare against the registry and changelog."
+          },
+          {
+            "id": "L2",
+            "name": "Migration lag known",
+            "description": "Template version lag can be evaluated.",
+            "entry_criteria": ["Latest template version is known."],
+            "exit_criteria": ["The scenario is at the latest registered version."],
+            "status_label": "Ready",
+            "next_unlock": "Apply changelog migrations."
+          },
+          {
+            "id": "L3",
+            "name": "Static drift bounded",
+            "description": "Version lag and static manifest drift are bounded.",
+            "entry_criteria": ["The scenario is at the latest template version."],
+            "exit_criteria": ["No drift or migration findings remain."],
+            "status_label": "Hardened",
+            "next_unlock": "Clear remaining drift findings."
+          },
+          {
+            "id": "L4",
+            "name": "Drift and migration clean",
+            "description": "Template drift and migration lag are clean.",
+            "entry_criteria": ["No drift or migration findings remain."],
+            "exit_criteria": ["Keep changelog migrations applied after releases."],
+            "status_label": "Complete",
+            "capability_summary": "Drift and migration standing is clean."
+          }
+        ]
+      },
+      {
+        "id": "inherited_debt",
+        "label": "Inherited Debt",
+        "description": "Known template-origin defects are tracked and resolved.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Debt target unavailable",
+            "description": "Inherited debt cannot be mapped because template lineage is missing.",
+            "entry_criteria": ["A scenario root exists."],
+            "exit_criteria": ["Template provenance is available."],
+            "status_label": "Unavailable",
+            "next_unlock": "Read template provenance."
+          },
+          {
+            "id": "L1",
+            "name": "Debt lineage known",
+            "description": "Inherited debt can be attributed to a template.",
+            "entry_criteria": ["Template provenance is known."],
+            "exit_criteria": ["The template-manager debt ledger is queryable."],
+            "status_label": "Foundation",
+            "next_unlock": "Query open debt for the template."
+          },
+          {
+            "id": "L2",
+            "name": "Debt ledger queryable",
+            "description": "Open inherited debt can be counted.",
+            "entry_criteria": ["The debt ledger is queryable."],
+            "exit_criteria": ["Known inherited debt is resolved or accepted."],
+            "status_label": "Ready",
+            "next_unlock": "Burn down open inherited debt entries."
+          },
+          {
+            "id": "L3",
+            "name": "Inherited debt bounded",
+            "description": "Inherited debt exists only as advisory standing.",
+            "entry_criteria": ["Open debt is tracked."],
+            "exit_criteria": ["No inherited debt findings remain."],
+            "status_label": "Hardened",
+            "next_unlock": "Resolve inherited debt."
+          },
+          {
+            "id": "L4",
+            "name": "Inherited debt clean",
+            "description": "No inherited template debt blocks top standing.",
+            "entry_criteria": ["No inherited debt findings remain."],
+            "exit_criteria": ["Keep new template defects flowing into the ledger."],
+            "status_label": "Complete",
+            "capability_summary": "Inherited template debt is clean."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "PROVENANCE_MISSING": {
+        "capability_id": "provenance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["scenario-generation"],
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "TEMPLATE_UNKNOWN": {
+        "capability_id": "provenance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["scenario-generation"],
+        "fix_class": "manual",
+        "reason": "Unknown template lineage requires operator review before selecting a source template."
+      },
+      "ORIENTATION_STATE_MISSING": {
+        "capability_id": "orientation",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["scenario-generation"],
+        "fix_class": "manual",
+        "reason": "Orientation completion depends on scenario-specific initialization work."
+      },
+      "TEMPLATE_VERSION_LAG": {
+        "capability_id": "drift_and_migration",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["scenario-generation"],
+        "fix_class": "manual",
+        "reason": "Template migrations require reading changelog entries and applying scenario-specific changes."
+      },
+      "TEMPLATE_MANIFEST_DRIFT": {
+        "capability_id": "drift_and_migration",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["scenario-generation"],
+        "fix_class": "manual",
+        "reason": "Static drift must be reconciled against the current template and target scenario intent."
+      },
+      "INHERITED_DEBT_OUTSTANDING": {
+        "capability_id": "inherited_debt",
+        "local_level_impact": "L3",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["test"],
+        "fix_class": "manual",
+        "reason": "Inherited debt resolution depends on the concrete defect and target scenario surface."
+      }
+    },
+    "fallback": {
+      "capability_id": "provenance",
+      "local_level_impact": "L0",
+      "global_impact": "unknown",
+      "dimension": "operational-targets",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    }
+  }
+}

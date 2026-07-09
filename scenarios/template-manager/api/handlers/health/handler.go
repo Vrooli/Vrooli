@@ -10,7 +10,7 @@ import (
 	"context"
 	"net/http"
 
-	"template-manager/internal/database"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/database"
 
 	apihealth "github.com/vrooli/api-core/health"
 )

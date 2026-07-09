@@ -3,8 +3,7 @@
 Lifecycle log for meaningful scenario changes. Future agents read this
 file to understand what changed without reconstructing history from git.
 
-This file ships empty in newly generated scenarios. Append entries when
-work lands, not while work is still speculative.
+Append entries when work lands, not while work is still speculative.
 
 ## Progress Log
 
@@ -12,6 +11,7 @@ work lands, not while work is still speculative.
 |---|---|---|---|
 | 2026-07-07 | codex | partial | Continued Phase 5 floor-proof work: generated experience pages are now active instead of draft, the template ships dashboard/notes/settings BAS observer cases with `spec_entry_id` labels, `bas/registry.json` is regenerated with those cases, the perf example uses `@selector/layout.shell`, and the routed DB proof declares required mutating safety labels. Validation: shallow template validation passes and deep validation no longer reports registry-stale or selector-bypass findings. Remaining blocker: retained deep run `template-validation-react-vite-deep-20260707-041314-6ce71066` still cannot prove active floors because Test Genie runs the generated scenario by `--scenario-path`/logical placement without registering runtime ports for BAS/experience-manager capture; filed scenario-qa bug `knw-1783397791178031359`. |
 | 2026-07-07 | codex | partial | Experience floors/component-canon Phase 5 slice: bumped template to 1.6.0, seeded generated scenarios with adopted-provenance UI primitives, reworked AppShell to min-h-dvh with fixed safe-area BottomNav and Settings-owned locale switching, converted starter dashboard/notes/settings surfaces to governed components, added DataTable sorting/searching for the notes example, and updated generated docs to steer adopt-not-hand-roll UI growth. Validation: shallow template validation and generator tests passed; deep quick validation still fails on broader pre-existing template gates, with the slice-specific scattered-keydown warning addressed and component coverage improved. |
+| 2026-07-09 | codex | done | Template Manager owns registry, validation runs, templates phase, factory docs/search, dashboard measures, and recurring monitor slices through Phase 7 of the template-domain plan. Focused API/CLI/UI/proto/provider/measures validations passed; comprehensive maturity gates still track broader hardening. |
 
 ## Entry Template
 

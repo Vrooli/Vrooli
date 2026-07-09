@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"template-manager/internal/httpx"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/httpx"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"

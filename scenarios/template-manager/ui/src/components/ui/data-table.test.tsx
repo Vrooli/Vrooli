@@ -82,4 +82,34 @@ describe("DataTable", () => {
     expect(container).toHaveTextContent("Alpha");
     expect(container).not.toHaveTextContent("Beta");
   });
+
+  it("supports filter buttons, non-sortable columns, and empty states", async () => {
+    const user = userEvent.setup();
+    const mixedColumns: Array<DataTableColumn<Row>> = [
+      {
+        id: "label",
+        header: "Label",
+        accessor: (row) => <span>{row.name}</span>,
+      },
+      ...columns,
+    ];
+    const { container } = renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={mixedColumns}
+        getRowKey={(row) => row.id}
+        caption="Filtered rows"
+        emptyMessage="Nothing matched"
+        filters={[
+          { id: "all", label: "All", predicate: () => true },
+          { id: "large", label: "Large", predicate: (row) => row.count > 10 },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("columnheader", { name: "Label" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Large" }));
+
+    expect(container).toHaveTextContent("Nothing matched");
+  });
 });

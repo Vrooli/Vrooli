@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"template-manager/internal/testutil/repokit"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/repokit"
 
 	"github.com/stretchr/testify/require"
 )

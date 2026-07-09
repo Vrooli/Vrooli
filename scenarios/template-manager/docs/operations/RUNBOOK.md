@@ -36,6 +36,7 @@ naming, ports, health checks, and logs.
 | API unhealthy | `/health`, SQLite path, API logs | Run `make setup`, verify writable data dir | Check `INTEGRATIONS.md` for dependency expectations. |
 | UI blank or stale | UI port, browser console, `ui/dist` freshness | `make setup` then `make restart` | Add troubleshooting entry if recurring. |
 | CLI talks to old API | `template-manager status`, configured API base | Reinstall via `make setup` | Update CLI reference if command changed. |
+| Deep-validate monitor failing | `template-manager monitor status --json`, API logs, latest `template-manager runs list --template react-vite --json` | Set a longer `TEMPLATE_MANAGER_MONITOR_INTERVAL`, restart through `make restart`, then inspect the scheduler-attributed run | Record recurring failures in `../internal/PROBLEMS.md` and open debt entries when failures are template defects. |
 
 ## Backup / Restore
 
@@ -52,9 +53,25 @@ define backup and restore procedures before production deployment.
 | Task | Frequency | Command / Procedure |
 |---|---|---|
 | Validate tests | before handoff | `make test` |
+| Inspect deep-validate monitor | daily / on incident | `template-manager monitor status`; interval is controlled by `TEMPLATE_MANAGER_MONITOR_INTERVAL` as seconds or Go duration text. |
 | Inspect logs | as needed | `make logs` |
 | Regenerate endpoints | after API endpoint changes | `make endpoints` |
 | Regenerate UI strings | after i18n changes | `cd ui && pnpm strings:gen` |
+
+## Existing Autoheal Installs
+
+New installs monitor `template-manager` as a critical scenario by default. Existing
+`~/.vrooli-autoheal/config.json` files can adopt the same setting by adding:
+
+```json
+{
+  "monitoring": {
+    "scenarios": {
+      "template-manager": { "critical": true }
+    }
+  }
+}
+```
 
 ## Escalation
 

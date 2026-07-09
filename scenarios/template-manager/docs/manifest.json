@@ -121,6 +121,64 @@
       ]
     },
     {
+      "id": "factory",
+      "title": "Factory",
+      "icon": "wrench",
+      "description": "Template factory maintenance, generation contracts, validation, drift, cleanup, changelog, and debt workflows",
+      "purpose": "Give factory-audience documentation a Template Manager-owned serving surface while generated scenarios remain self-contained.",
+      "extensionPolicy": "Add template lifecycle operations docs here. Generated-scenario onboarding stays in START-HERE and template-owned source files stay under templates/.",
+      "documents": [
+        {
+          "path": "factory/TEMPLATE-MAINTENANCE.md",
+          "docType": "factory-maintenance",
+          "title": "Template Maintenance",
+          "aliases": ["template-maintenance", "maintenance"],
+          "description": "Maintainer rules for editing the react-vite template source",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["template-maintenance", "example-domain-contract", "versioning"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Binding Contract vs. Illustrative Example", "Example Domain Markers (`EXAMPLE-DOMAIN:<marker>`)", "Template-Only Files", "Versioning and Changelog"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
+          "path": "factory/TEMPLATE-GENERATION-CONTRACT.md",
+          "docType": "factory-generation-contract",
+          "title": "Template Generation Contract",
+          "aliases": ["generation-contract", "template-contract"],
+          "description": "Manifest, placeholder, relocation, example-domain, and validation contract for generated scenarios",
+          "audience": ["developers", "agents", "tools"],
+          "canonicalFor": ["template-generation-contract", "manifest-behavior", "proto-relocation"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Manifest Behavior", "Placeholder Contract", "Relocated Proto Sources", "Example Domain Contract", "Validation"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
+          "path": "factory/TEMPLATE-FACTORY-GUIDE.md",
+          "docType": "factory-guide",
+          "title": "Template Factory Guide",
+          "aliases": ["factory-guide", "validate-drift-cleanup"],
+          "description": "Operational guide for validation, drift, cleanup, changelog migration, debt ledger, and orientation guidance",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["template-validation", "template-drift", "template-debt-ledger", "orientation-guidance"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Validation", "Drift", "Cleanup", "Changelog And Migration Protocol", "Debt Ledger Workflow", "Orientation Guidance"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        }
+      ]
+    },
+    {
       "id": "concepts",
       "title": "Concepts",
       "icon": "compass",

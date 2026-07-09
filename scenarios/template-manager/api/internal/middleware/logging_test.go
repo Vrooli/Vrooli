@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"template-manager/internal/middleware"
-	"template-manager/internal/testutil/mocks"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/middleware"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
 )

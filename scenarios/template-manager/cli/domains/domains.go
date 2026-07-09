@@ -1,7 +1,13 @@
 package domains
 
 import (
-	"template-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"template-manager/cli/domains/debt"
+	"template-manager/cli/domains/guidance"
+	"template-manager/cli/domains/lifecycle"
+	"template-manager/cli/domains/measures"
+	"template-manager/cli/domains/monitor"
+	"template-manager/cli/domains/registry"
+	"template-manager/cli/domains/runs"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -13,8 +19,7 @@ import (
 // registrations here. For greenfield scenarios, domain packages are the
 // default architecture; do not treat flat command files as the long-term plan.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	_ = core
-	return nil
+	return lifecycle.CommandGroups(core)
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.
@@ -37,12 +42,36 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	groups = append(groups, lifecycle.SubcommandGroups(core)...)
+	guidanceGroup, err := guidance.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, guidanceGroup)
+	measuresGroup, err := measures.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, measuresGroup)
+	monitorGroup, err := monitor.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, monitorGroup)
+	registryGroup, err := registry.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, registryGroup)
+	runsGroup, err := runs.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, runsGroup)
+	debtGroup, err := debt.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, debtGroup)
 	return groups, nil
 }

@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"testing"
 
-	"template-manager/internal/clock"
-	"template-manager/internal/module"
-	"template-manager/internal/server"
-	"template-manager/internal/testutil/httpx"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/clock"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/module"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/server"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/httpx"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"

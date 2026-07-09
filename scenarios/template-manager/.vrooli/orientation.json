@@ -84,6 +84,16 @@
         {
           "kind": "file_exists",
           "path": "docs/concepts/DOMAINS.md"
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/concepts/DOMAINS.md",
+          "text": "| _(your domain)_ |"
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/concepts/DOMAINS.md",
+          "text": "Generated scaffold."
         }
       ]
     },
@@ -105,6 +115,16 @@
           "kind": "json_path_exists",
           "path": ".vrooli/service.json",
           "query": "dependencies.resources"
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/concepts/INTEGRATIONS.md",
+          "text": "The generated template does not declare external Vrooli resources."
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/concepts/INTEGRATIONS.md",
+          "text": "Generated scenario is standalone."
         }
       ]
     },
@@ -120,6 +140,11 @@
         {
           "kind": "file_exists",
           "path": "DESIGN.md"
+        },
+        {
+          "kind": "text_absent",
+          "path": "DESIGN.md",
+          "text": "ORIENTATION-TODO: scenario-design-adaptation"
         }
       ]
     },
@@ -140,6 +165,17 @@
         {
           "kind": "file_exists",
           "path": "experience/pages/dashboard.json"
+        },
+        {
+          "kind": "json_min_entries",
+          "path": "experience/index.json",
+          "query": "journeys",
+          "minCount": 1
+        },
+        {
+          "kind": "text_absent",
+          "path": "experience/index.json",
+          "text": "Generated L0 experience contract"
         }
       ]
     },
@@ -155,8 +191,19 @@
       "required": false,
       "checks": [
         {
-          "kind": "file_exists",
-          "path": "docs/concepts/DOMAINS.md"
+          "kind": "glob_min_count",
+          "pattern": "api/internal/*/service.go",
+          "minCount": 2
+        },
+        {
+          "kind": "glob_min_count",
+          "pattern": "api/handlers/*/*_test.go",
+          "minCount": 2
+        },
+        {
+          "kind": "glob_min_count",
+          "pattern": "ui/src/pages/*.test.tsx",
+          "minCount": 2
         }
       ]
     },
@@ -188,10 +235,6 @@
         {
           "kind": "file_absent",
           "path": "ui/src/api/notes.ts"
-        },
-        {
-          "kind": "text_absent_tree",
-          "text": "EXAMPLE-DOMAIN:notes"
         }
       ]
     },
@@ -212,6 +255,21 @@
         {
           "kind": "file_exists",
           "path": "docs/internal/PROBLEMS.md"
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/internal/PROGRESS.md",
+          "text": "This file ships empty in newly generated scenarios."
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/internal/PROBLEMS.md",
+          "text": "This file ships empty in newly generated scenarios."
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/internal/PROBLEMS.md",
+          "text": "_None yet._"
         }
       ]
     }

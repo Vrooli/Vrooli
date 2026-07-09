@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"template-manager/internal/clock"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/clock"
 )
 
 // NewLoggingMiddleware returns a middleware that logs each request's

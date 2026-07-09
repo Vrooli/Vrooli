@@ -4,8 +4,7 @@ Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.
 
-This file ships empty in newly generated scenarios. Append entries as
-they appear.
+Append entries as they appear.
 
 ## What belongs here
 
@@ -49,7 +48,26 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-_None yet._
+### 2026-07-09 — comprehensive maturity gates remain red
+
+**Symptom:** Focused Template Manager phase validations pass, but the default
+`vrooli scenario test template-manager` comprehensive run still reports broader
+maturity-provider failures.
+
+**Root cause:** The current plan slices intentionally shipped domain behavior
+before final hardening. Remaining findings include structure/profile evidence,
+architecture ownership, docs snippets, duplication, security advisories, and
+other provider-level maturity gaps.
+
+**Workaround:** Use the focused phase validations recorded in the plan evidence
+for Phase 1 through Phase 7 while continuing the remaining plan phases.
+
+**Real fix:** Complete Phase 8 through Phase 11, then run and close the full
+comprehensive suite and baseline diffs.
+
+**Owner:** Template Manager implementation agents.
+
+**Refs:** `/home/matthalloran8/.vrooli/plans/template-manager-scenario-owning-the-template-domain.md`.
 
 ## Architecture Drift
 
@@ -60,7 +78,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| _None yet._ |  |  |  |
+| comprehensive suite | Focused plan slices are green while broader maturity gates remain unresolved. | Template Manager cannot claim final DoD until the default suite is green. | Finish hard cutover and final hardening phases, then update this entry with the closing run id. |
 
 ## Cross-references
 

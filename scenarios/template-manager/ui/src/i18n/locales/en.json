@@ -11,7 +11,6 @@
     "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
       "settings": "Settings"
     }
   },
@@ -26,11 +25,7 @@
   "pages": {
     "dashboard": {
       "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
-    },
-    "notes": {
-      "title": "Notes"
+      "description": "Fleet standing, template debt, validation history, and the governed registry from the live Template Manager API."
     },
     "settings": {
       "title": "Settings",
@@ -52,30 +47,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
-    },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",
@@ -102,5 +73,54 @@
     "title": "Something went wrong",
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again"
+  },
+  "dashboard": {
+    "loadingTitle": "Loading template standing",
+    "loadingDescription": "Reading registry, debt, validation, drift, and measures data.",
+    "errorTitle": "Unable to load template dashboard",
+    "errorDescription": "Check that template-manager is running and that the Connect API is reachable.",
+    "metrics": {
+      "openDebt": "Open debt",
+      "deepStreak": "Deep streak",
+      "versionLag": "Max lag",
+      "templates": "Templates"
+    },
+    "standing": {
+      "title": "Fleet standing",
+      "description": "Governed templates bucketed by their most urgent standing."
+    },
+    "registry": {
+      "title": "Template registry",
+      "description": "Scenario, design, and resource templates currently governed."
+    },
+    "monitor": {
+      "title": "Deep-validate monitor",
+      "description": "Recurring scheduler status for daily template validation.",
+      "status": "Status",
+      "nextRun": "Next run",
+      "interval": "Interval",
+      "streak": "Green streak",
+      "lastRun": "Last run",
+      "unscheduled": "Unscheduled"
+    },
+    "runs": {
+      "title": "Validation history",
+      "description": "Latest persisted validation runs.",
+      "empty": "No validation runs recorded"
+    },
+    "debt": {
+      "title": "Debt ledger",
+      "description": "Open and tracked inherited-template defects.",
+      "empty": "No debt entries recorded"
+    },
+    "drift": {
+      "title": "Drift snapshots",
+      "description": "Latest fleet drift captures.",
+      "empty": "No drift snapshots recorded"
+    },
+    "empty": {
+      "title": "No standing data",
+      "description": "Run validation or drift recording to populate standing buckets."
+    }
   }
 }

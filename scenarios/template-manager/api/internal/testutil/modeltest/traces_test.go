@@ -3,7 +3,7 @@ package modeltest_test
 import (
 	"testing"
 
-	"template-manager/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"
 )

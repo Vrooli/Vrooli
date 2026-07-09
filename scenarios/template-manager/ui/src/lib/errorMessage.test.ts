@@ -25,4 +25,9 @@ describe("errorMessage", () => {
   it("falls back to ordinary error messages", () => {
     expect(errorMessage(new Error("boom"), i18n.t)).toBe("boom");
   });
+
+  it("falls back to unknown and primitive messages", () => {
+    expect(errorMessage(makeApiError("mystery", "odd", 500), i18n.t)).toBe("An unknown error occurred.");
+    expect(errorMessage("plain failure", i18n.t)).toBe("plain failure");
+  });
 });

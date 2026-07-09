@@ -16,16 +16,6 @@ Template Manager is a meta-scenario: it owns the template lifecycle as a reusabl
 | monitor | Schedule recurring deep validation and expose monitor status. | Force the template improvement loop to run without waiting for ad hoc generation. | Schedule settings, last/next run, green streak, in-flight state. | scheduler | operations | `api/internal/monitor/`, `cli/domains/monitor/` |
 | engine | Own generation, orientation, detemplate, drift, cleanup, design-kit, and resource-template execution after cutover. | Remove the split-brain between templates and the vrooli CLI. | No independent business data; writes generated scenario/resource files and records run evidence through validation/debt domains. | orchestrator | migration | `api/internal/templateengine/`, `cli/domains/template/`, `cli/domains/resource-template/` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by Phase 2 detemplate)
-
-The scaffold still carries `notes` as the worked CRUD reference until the first real proto/storage domain compiles and `vrooli scenario detemplate template-manager` runs. It is not product scope for Template Manager.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Source Paths |
-|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/` |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Shared Concepts
 
 | Concept | Meaning | Owner |

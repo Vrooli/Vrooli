@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"template-manager/handlers/health"
-	"template-manager/internal/testutil/mocks"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/health"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/mocks"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"

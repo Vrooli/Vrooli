@@ -20,12 +20,6 @@ The API uses the api-core storage resolver with SQLite WAL under `~/.vrooli/data
 | Guidance evaluations | guidance | SQLite or computed response cache | Guidance service | Short-lived; can be recomputed from target files. | Avoid storing stale work-order data as truth. |
 | Monitor status | monitor | SQLite | Scheduler service | Latest status plus historical scheduler run links. | Tracks last run, next run, in-flight state, and streak. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by Phase 2 detemplate)
-
-The generated notes tables and attachment metadata are scaffold-only data. They remain only until the first real Template Manager storage domain is in place and detemplating removes the example.
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By |

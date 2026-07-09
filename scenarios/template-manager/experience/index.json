@@ -7,18 +7,12 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "template-manager",
-  "description": "Generated L0 experience contract for Template Manager. Replace these route identities with product-specific priorities, claims, bindings, states, and journeys as the UI becomes real.",
+  "description": "Template Manager experience contract for the live governance dashboard and settings surfaces.",
   "pages": [
     {
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "Dashboard",
-      "status": "active"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
       "status": "active"
     },
     {
@@ -28,5 +22,12 @@
       "status": "active"
     }
   ],
-  "journeys": []
+  "journeys": [
+    {
+      "id": "inspect-template-standing",
+      "path": "journeys/inspect-template-standing.json",
+      "title": "Inspect template standing",
+      "status": "active"
+    }
+  ]
 }

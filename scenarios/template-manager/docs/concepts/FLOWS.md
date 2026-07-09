@@ -13,12 +13,6 @@ Template Manager has several stateful workflows because generation, validation, 
 | Deep-validate monitor | monitor | Scheduler interval. | Serialized deep validation run per registered template. | idle, due, running, skipped_busy, succeeded, failed. | Short-interval scheduler integration test. |
 | Lifecycle engine operation | engine | API/CLI generate/orient/detemplate/validate/drift/cleanup/design/resource-template command. | Filesystem changes or lifecycle report. | operation-specific start, progress, success/failure. | Carried engine suites plus throwaway e2e proof. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by Phase 2 detemplate)
-
-The scaffold notes attachment-upload flow remains as the template's worked formal-flow example until detemplating. It is not part of Template Manager's product behavior.
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Validation Run Flow
 
 1. Caller requests a shallow/deep validation or drift run.

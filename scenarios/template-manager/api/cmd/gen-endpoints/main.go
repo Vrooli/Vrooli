@@ -24,7 +24,7 @@ import (
 
 	gen "github.com/vrooli/api-core/endpoints/gen"
 
-	"template-manager/internal/modules"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/modules"
 )
 
 func main() {

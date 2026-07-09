@@ -10,13 +10,15 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// TestCommandGroups exercises the flat-commands aggregator. The
-// template ships zero flat commands, so the contract is "returns nil";
-// the test exists so a future scenario that adds CommandGroups gets
-// caller-side wiring for free (the call goes through unchanged).
+// TestCommandGroups exercises the flat-commands aggregator. Template Manager
+// owns top-level lifecycle commands, so the aggregator must expose them here.
 func TestCommandGroups(t *testing.T) {
 	got := CommandGroups(&cliapp.ScenarioApp{})
-	require.Nil(t, got, "CommandGroups should return nil until a domain registers a flat group")
+	require.NotEmpty(t, got, "CommandGroups should expose template lifecycle commands")
+	for i, g := range got {
+		require.NotEmpty(t, g.Title, "group[%d].Title must be set", i)
+		require.NotEmpty(t, g.Commands, "group[%d] (%s) must register at least one command", i, g.Title)
+	}
 }
 
 // TestSubcommandGroups proves the aggregator returns whatever domains

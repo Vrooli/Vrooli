@@ -11,7 +11,6 @@
     "mainLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
       "settings": "設定"
     }
   },
@@ -26,11 +25,7 @@
   "pages": {
     "dashboard": {
       "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
-    },
-    "notes": {
-      "title": "ノート"
+      "description": "ライブ Template Manager API から、フリート状態、テンプレート負債、検証履歴、管理レジストリを表示します。"
     },
     "settings": {
       "title": "設定",
@@ -49,29 +44,6 @@
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
-    },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",
@@ -98,5 +70,54 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "dashboard": {
+    "loadingTitle": "テンプレート状態を読み込み中",
+    "loadingDescription": "レジストリ、負債、検証、ドリフト、メジャーを読み込んでいます。",
+    "errorTitle": "テンプレートダッシュボードを読み込めません",
+    "errorDescription": "template-manager が起動しており、Connect API に到達できることを確認してください。",
+    "metrics": {
+      "openDebt": "未解決負債",
+      "deepStreak": "Deep 連勝",
+      "versionLag": "最大遅れ",
+      "templates": "テンプレート"
+    },
+    "standing": {
+      "title": "フリート状態",
+      "description": "管理テンプレートを最も重要な状態で分類します。"
+    },
+    "registry": {
+      "title": "テンプレートレジストリ",
+      "description": "現在管理されているシナリオ、デザイン、リソーステンプレート。"
+    },
+    "monitor": {
+      "title": "Deep validate モニター",
+      "description": "日次テンプレート検証の定期スケジューラー状態。",
+      "status": "状態",
+      "nextRun": "次回実行",
+      "interval": "間隔",
+      "streak": "成功 streak",
+      "lastRun": "最終実行",
+      "unscheduled": "未スケジュール"
+    },
+    "runs": {
+      "title": "検証履歴",
+      "description": "直近に保存された検証実行。",
+      "empty": "検証実行はまだありません"
+    },
+    "debt": {
+      "title": "負債台帳",
+      "description": "追跡中の継承テンプレート欠陥。",
+      "empty": "負債項目はまだありません"
+    },
+    "drift": {
+      "title": "ドリフトスナップショット",
+      "description": "直近のフリートドリフト取得。",
+      "empty": "ドリフトスナップショットはまだありません"
+    },
+    "empty": {
+      "title": "状態データはありません",
+      "description": "検証またはドリフト記録を実行すると状態バケットが作成されます。"
+    }
   }
 }

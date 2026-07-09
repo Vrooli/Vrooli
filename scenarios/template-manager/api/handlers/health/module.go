@@ -3,8 +3,8 @@ package health
 import (
 	"net/http"
 
-	"template-manager/internal/database"
-	"template-manager/internal/module"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/database"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/module"
 
 	"github.com/gorilla/mux"
 )

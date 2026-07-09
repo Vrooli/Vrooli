@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"template-manager/internal/middleware"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/middleware"
 
 	"github.com/stretchr/testify/require"
 )

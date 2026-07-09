@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"template-manager/internal/httpc"
-	"template-manager/internal/testutil/mocks"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/httpc"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
 )

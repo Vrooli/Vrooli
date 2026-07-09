@@ -1,3 +1,13 @@
+/**
+ * @vrooliComponentSource local:TemplateManagerSidebar
+ * @vrooliComponentVersion 1.0.0
+ * @vrooliComponentAdoption template-manager:layout-sidebar
+ * @vrooliComponentAppliedAt 2026-07-09T00:00:00Z
+ *
+ * Desktop-only scenario navigation composed inside SidebarShell. The raw nav
+ * markup is intentional because BottomNav governs the mobile tab bar, not the
+ * persistent desktop rail.
+ */
 import { NavLink } from "react-router-dom";
 
 import { SidebarShell } from "../components/ui/sidebar-shell";

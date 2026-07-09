@@ -162,6 +162,11 @@ constraints:
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
+Template Manager intentionally keeps the Vrooli Operational Console language
+because its users are platform operators maintaining dense registry, drift,
+debt, monitor, and validation data. The UI should prioritize scanning,
+comparison, and repeated remediation over marketing-style presentation.
+
 ## How To Read This Document
 
 This file mixes two kinds of guidance, and the distinction matters.

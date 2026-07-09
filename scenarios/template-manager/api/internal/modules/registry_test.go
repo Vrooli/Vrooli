@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"testing"
 
-	"template-manager/internal/modules"
-	"template-manager/internal/testutil/db"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/modules"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 
 	apidb "github.com/vrooli/api-core/database"
 
-	localdb "template-manager/internal/database"
+	localdb "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/database"
 )
 
 // TestAllEndpoints_NonEmpty pins the smoke contract: at minimum the

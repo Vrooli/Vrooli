@@ -13,9 +13,9 @@ import (
 	"log"
 	"net/http"
 
-	"template-manager/internal/clock"
-	"template-manager/internal/middleware"
-	"template-manager/internal/module"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/clock"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/middleware"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/module"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"

@@ -71,4 +71,12 @@ describe("ThemeProvider", () => {
 
     matchMediaSpy.mockRestore();
   });
+
+  it("throws when useTheme is rendered outside ThemeProvider", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    expect(() => renderHook(() => useTheme())).toThrow("useTheme must be called inside <ThemeProvider>");
+
+    consoleError.mockRestore();
+  });
 });

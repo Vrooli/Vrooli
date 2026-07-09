@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"template-manager/internal/clock"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/clock"
 )
 
 // FakeClock is the testutil counterpart to clock.System. It implements

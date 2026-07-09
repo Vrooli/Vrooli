@@ -23,7 +23,6 @@ export const strings = {
     mainLabel: "layout.mainLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
-      notes: "layout.nav.notes",
       settings: "layout.nav.settings",
     },
   },
@@ -39,10 +38,6 @@ export const strings = {
     dashboard: {
       title: "pages.dashboard.title",
       description: "pages.dashboard.description",
-      statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
-    },
-    notes: {
-      title: "pages.notes.title",
     },
     settings: {
       title: "pages.settings.title",
@@ -64,30 +59,6 @@ export const strings = {
     summary: "notifications.summary",
     summary_zero: "notifications.summary_zero",
     summary_one: "notifications.summary_one",
-  },
-  notes: {
-    title: "notes.title",
-    loading: "notes.loading",
-    empty: "notes.empty",
-    create: "notes.create",
-    attachmentsLabel: "notes.attachmentsLabel",
-    attachmentsLabel_one: "notes.attachmentsLabel_one",
-    table: {
-      title: "notes.table.title",
-      created: "notes.table.created",
-      attachments: "notes.table.attachments",
-      actions: "notes.table.actions",
-      search: "notes.table.search",
-    },
-    uploadAttachment: "notes.uploadAttachment",
-    attachmentFileLabel: "notes.attachmentFileLabel",
-    uploadSuccess: "notes.uploadSuccess",
-    noFileSelected: "notes.noFileSelected",
-    measure: {
-      title: "notes.measure.title",
-      loading: "notes.measure.loading",
-      thisWeek: "notes.measure.thisWeek",
-    },
   },
   errors: {
     canceled: "errors.canceled",
@@ -114,6 +85,55 @@ export const strings = {
     title: "errorBoundary.title",
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
+  },
+  dashboard: {
+    loadingTitle: "dashboard.loadingTitle",
+    loadingDescription: "dashboard.loadingDescription",
+    errorTitle: "dashboard.errorTitle",
+    errorDescription: "dashboard.errorDescription",
+    metrics: {
+      openDebt: "dashboard.metrics.openDebt",
+      deepStreak: "dashboard.metrics.deepStreak",
+      versionLag: "dashboard.metrics.versionLag",
+      templates: "dashboard.metrics.templates",
+    },
+    standing: {
+      title: "dashboard.standing.title",
+      description: "dashboard.standing.description",
+    },
+    registry: {
+      title: "dashboard.registry.title",
+      description: "dashboard.registry.description",
+    },
+    monitor: {
+      title: "dashboard.monitor.title",
+      description: "dashboard.monitor.description",
+      status: "dashboard.monitor.status",
+      nextRun: "dashboard.monitor.nextRun",
+      interval: "dashboard.monitor.interval",
+      streak: "dashboard.monitor.streak",
+      lastRun: "dashboard.monitor.lastRun",
+      unscheduled: "dashboard.monitor.unscheduled",
+    },
+    runs: {
+      title: "dashboard.runs.title",
+      description: "dashboard.runs.description",
+      empty: "dashboard.runs.empty",
+    },
+    debt: {
+      title: "dashboard.debt.title",
+      description: "dashboard.debt.description",
+      empty: "dashboard.debt.empty",
+    },
+    drift: {
+      title: "dashboard.drift.title",
+      description: "dashboard.drift.description",
+      empty: "dashboard.drift.empty",
+    },
+    empty: {
+      title: "dashboard.empty.title",
+      description: "dashboard.empty.description",
+    },
   },
 } as const;
 

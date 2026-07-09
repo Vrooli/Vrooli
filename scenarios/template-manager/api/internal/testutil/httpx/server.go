@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"template-manager/internal/server"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/server"
 )
 
 // LiveServer is the test-side equivalent of main.go's HTTP boot path:

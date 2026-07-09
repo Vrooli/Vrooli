@@ -17,16 +17,30 @@
 package modules
 
 import (
-	"template-manager/internal/module"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/module"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	healthH "template-manager/handlers/health"
-	notesH "template-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
-	localdb "template-manager/internal/database"
+	debtH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/debt"
+	guidanceH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/guidance"
+	healthH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/health"
+	lifecycleH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/lifecycle"
+	measuresH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/measures"
+	monitorH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/monitor"
+	registryH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/registry"
+	scenarioValidationH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/scenariovalidation"
+	validationH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/validation"
+	localdb "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/notes" // EXAMPLE-DOMAIN:notes
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	debtv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/debt"
+	guidancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/guidance"
+	lifecyclev1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/lifecycle"
+	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/measures"
+	monitorv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/monitor"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/registry"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/validation"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +50,14 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, registryH.Endpoints...)
+	out = append(out, validationH.Endpoints...)
+	out = append(out, debtH.Endpoints...)
+	out = append(out, guidanceH.Endpoints...)
+	out = append(out, lifecycleH.Endpoints...)
+	out = append(out, measuresH.Endpoints...)
+	out = append(out, monitorH.Endpoints...)
+	out = append(out, scenarioValidationH.Endpoints...)
 	return out
 }
 
@@ -63,7 +84,14 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_template_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "registry", File: registryv1.File_template_manager_v1_registry_registry_proto},
+		{Module: "validation", File: validationv1.File_template_manager_v1_validation_validation_proto},
+		{Module: "debt", File: debtv1.File_template_manager_v1_debt_debt_proto},
+		{Module: "guidance", File: guidancev1.File_template_manager_v1_guidance_guidance_proto},
+		{Module: "lifecycle", File: lifecyclev1.File_template_manager_v1_lifecycle_lifecycle_proto},
+		{Module: "measures", File: measuresv1.File_template_manager_v1_measures_measures_proto},
+		{Module: "monitor", File: monitorv1.File_template_manager_v1_monitor_monitor_proto},
+		{Module: "scenario-validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 	}
 }
 
@@ -78,6 +106,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(registryH.Schema),
 	}
 }

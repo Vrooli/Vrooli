@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"template-manager/internal/clock"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/clock"
 
 	"github.com/stretchr/testify/require"
 )

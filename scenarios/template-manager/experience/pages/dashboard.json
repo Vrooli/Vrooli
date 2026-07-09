@@ -8,5 +8,11 @@
     "routes": ["/"],
     "purpose": "Give the operator the first useful view of Template Manager and make the primary next action clear.",
     "prd_refs": ["OT-P0-001"]
-  }
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Registry, validation, drift, debt, measures, and monitor summaries are visible."
+    }
+  ]
 }
