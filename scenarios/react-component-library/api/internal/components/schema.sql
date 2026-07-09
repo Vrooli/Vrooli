@@ -78,3 +78,21 @@ CREATE TABLE IF NOT EXISTS component_design_affinities (
 
 CREATE INDEX IF NOT EXISTS idx_component_design_affinities_style_affinity
   ON component_design_affinities(style_id, affinity);
+
+CREATE TABLE IF NOT EXISTS component_examples (
+  id            TEXT PRIMARY KEY,
+  component_id  TEXT NOT NULL,
+  library_id    TEXT NOT NULL,
+  version       TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  display_name  TEXT NOT NULL DEFAULT '',
+  props_json    TEXT NOT NULL DEFAULT '{}',
+  setup_json    TEXT NOT NULL DEFAULT '{}',
+  expect_json   TEXT NOT NULL DEFAULT '[]',
+  source_path   TEXT NOT NULL,
+  indexed_at    TEXT NOT NULL,
+  UNIQUE(component_id, version, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_component_examples_component_version
+  ON component_examples(component_id, version, name);

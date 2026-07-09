@@ -1,0 +1,16 @@
+{
+  "examples": [
+    {
+      "name": "primary",
+      "displayName": "Primary",
+      "props": {
+        "children": { "$text": "Save changes" },
+        "variant": "primary"
+      },
+      "expect": [
+        { "kind": "text", "value": "Save changes" },
+        { "kind": "role", "role": "button", "name": "Save changes" }
+      ]
+    }
+  ]
+}

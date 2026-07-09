@@ -27,6 +27,7 @@ type FakeRepository struct {
 	mu          sync.Mutex
 	items       map[string]components.Component // by ID
 	versions    map[string]map[string]components.ComponentVersion
+	examples    map[string][]components.ComponentExample
 	libToID     map[string]string // library_id → id
 	UpsertErr   error
 	GetErr      error
@@ -43,6 +44,7 @@ func NewFakeRepository() *FakeRepository {
 	return &FakeRepository{
 		items:    map[string]components.Component{},
 		versions: map[string]map[string]components.ComponentVersion{},
+		examples: map[string][]components.ComponentExample{},
 		libToID:  map[string]string{},
 		NowFn:    func() time.Time { return time.Now().UTC() },
 	}
@@ -102,6 +104,7 @@ func (f *FakeRepository) UpsertManifest(ctx context.Context, in components.Index
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.versions[c.ID] = map[string]components.ComponentVersion{}
+	f.examples[c.ID] = nil
 	for _, v := range in.Versions {
 		if v.ID == "" {
 			v.ID = uuid.NewString()
@@ -113,6 +116,14 @@ func (f *FakeRepository) UpsertManifest(ctx context.Context, in components.Index
 			c.SourcePath = v.SourcePath
 			f.items[c.ID] = c
 		}
+	}
+	for _, ex := range in.Examples {
+		if ex.ID == "" {
+			ex.ID = uuid.NewString()
+		}
+		ex.ComponentID = c.ID
+		ex.LibraryID = c.LibraryID
+		f.examples[c.ID] = append(f.examples[c.ID], ex)
 	}
 	return c, nil
 }
@@ -306,6 +317,31 @@ func (f *FakeRepository) GetVersion(ctx context.Context, componentID, version st
 		return v, nil
 	}
 	return components.ComponentVersion{}, components.ErrComponentNotFound{IDOrLibraryID: componentID + "@" + version}
+}
+
+func (f *FakeRepository) ListExamples(ctx context.Context, q components.ExampleQuery) ([]components.ComponentExample, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	limit := q.Limit
+	if limit <= 0 {
+		limit = 200
+	}
+	var out []components.ComponentExample
+	for componentID, rows := range f.examples {
+		if q.ComponentID != "" && q.ComponentID != componentID {
+			continue
+		}
+		for _, ex := range rows {
+			if q.Version != "" && q.Version != ex.Version {
+				continue
+			}
+			out = append(out, ex)
+			if len(out) >= limit {
+				return out, nil
+			}
+		}
+	}
+	return out, nil
 }
 
 func copyHeaders(in map[string]string) map[string]string {

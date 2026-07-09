@@ -19,31 +19,18 @@ type governedComponent struct {
 }
 
 var componentPrimitiveMap = map[string][]string{
-	"Button":    {"button"},
-	"DataTable": {"table"},
-	"Input":     {"input", "textarea"},
-	"Select":    {"select"},
+	"BottomNav":   {"nav"},
+	"Button":      {"button"},
+	"DataTable":   {"table"},
+	"Dialog":      {"dialog"},
+	"EmptyState":  {"empty-state"},
+	"Input":       {"input", "textarea"},
+	"Select":      {"select"},
+	"StatusBadge": {"status"},
 }
 
 func governedComponents(ctx uiinterop.CheckContext, files []uiinterop.SourceFile) map[string]governedComponent {
-	components := map[string]governedComponent{}
-	for _, f := range files {
-		source := strings.TrimSpace(provenanceField(f.Content, "@vrooliComponentSource"))
-		if source == "" {
-			continue
-		}
-		name := strings.TrimPrefix(source, "react-component-library:")
-		if _, ok := componentPrimitiveMap[name]; !ok {
-			continue
-		}
-		components[name] = governedComponent{
-			Name:      name,
-			LibraryID: source,
-			Version:   strings.TrimSpace(provenanceField(f.Content, "@vrooliComponentVersion")),
-			Source:    "adopted locally",
-		}
-	}
-
+	components := localGovernedComponentAdoptions(files)
 	if declaresComponentLibraryIntent(ctx) {
 		for name := range componentPrimitiveMap {
 			if _, ok := components[name]; ok {
@@ -81,6 +68,31 @@ func governedComponents(ctx uiinterop.CheckContext, files []uiinterop.SourceFile
 		components[name] = meta
 	}
 	return components
+}
+
+func localGovernedComponentAdoptions(files []uiinterop.SourceFile) map[string]governedComponent {
+	components := map[string]governedComponent{}
+	for _, f := range files {
+		source := strings.TrimSpace(provenanceField(f.Content, "@vrooliComponentSource"))
+		if source == "" {
+			continue
+		}
+		name := strings.TrimPrefix(source, "react-component-library:")
+		if _, ok := componentPrimitiveMap[name]; !ok {
+			continue
+		}
+		components[name] = governedComponent{
+			Name:      name,
+			LibraryID: source,
+			Version:   strings.TrimSpace(provenanceField(f.Content, "@vrooliComponentVersion")),
+			Source:    "adopted locally",
+		}
+	}
+	return components
+}
+
+func hasLocalGovernedComponentAdoption(files []uiinterop.SourceFile) bool {
+	return len(localGovernedComponentAdoptions(files)) > 0
 }
 
 func declaresComponentLibraryIntent(ctx uiinterop.CheckContext) bool {
@@ -137,6 +149,26 @@ func serviceDeclaresReactViteDesignAdapter(scenarioRoot string) bool {
 		return false
 	}
 	return strings.TrimSpace(service.Generation.Design.Adapter) == "react-vite-tailwind"
+}
+
+func serviceDeclaresDesignStyle(scenarioRoot string) bool {
+	data, err := os.ReadFile(filepath.Join(scenarioRoot, ".vrooli", "service.json"))
+	if err != nil {
+		return false
+	}
+	var service struct {
+		Generation struct {
+			Design struct {
+				ID      string `json:"id"`
+				Adapter string `json:"adapter"`
+			} `json:"design"`
+		} `json:"generation"`
+	}
+	if json.Unmarshal(data, &service) != nil {
+		return false
+	}
+	return strings.TrimSpace(service.Generation.Design.ID) != "" ||
+		strings.TrimSpace(service.Generation.Design.Adapter) != ""
 }
 
 func uiManifestDeclaresReactViteTemplate(scenarioRoot string) bool {

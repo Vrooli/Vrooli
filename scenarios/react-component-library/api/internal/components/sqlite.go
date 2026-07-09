@@ -88,6 +88,9 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_versions WHERE component_id = ?`, c.ID); err != nil {
 		return Component{}, fmt.Errorf("clear component versions for %q: %w", c.ID, err)
 	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_examples WHERE component_id = ?`, c.ID); err != nil {
+		return Component{}, fmt.Errorf("clear component examples for %q: %w", c.ID, err)
+	}
 	now := s.clock.Now().UTC()
 	for _, v := range in.Versions {
 		if v.ID == "" {
@@ -114,6 +117,31 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 `, v.ID, v.ComponentID, v.LibraryID, v.Version, string(v.Status), v.SourcePath, v.Content, v.ContentSHA256,
 			v.ChangelogMD, v.IndexedAt.UTC().Format(timeFormat), formatOptionalTime(v.ReleasedAt)); err != nil {
 			return Component{}, fmt.Errorf("upsert component version %s@%s: %w", c.LibraryID, v.Version, err)
+		}
+	}
+	for _, ex := range in.Examples {
+		if ex.ID == "" {
+			ex.ID = uuid.NewString()
+		}
+		ex.ComponentID = c.ID
+		ex.LibraryID = c.LibraryID
+		if ex.IndexedAt.IsZero() {
+			ex.IndexedAt = now
+		}
+		if _, err := s.db.ExecContext(ctx, `
+INSERT INTO component_examples
+  (id, component_id, library_id, version, name, display_name, props_json, setup_json, expect_json, source_path, indexed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(component_id, version, name) DO UPDATE SET
+  library_id = excluded.library_id,
+  display_name = excluded.display_name,
+  props_json = excluded.props_json,
+  setup_json = excluded.setup_json,
+  expect_json = excluded.expect_json,
+  source_path = excluded.source_path,
+  indexed_at = excluded.indexed_at
+`, ex.ID, ex.ComponentID, ex.LibraryID, ex.Version, ex.Name, ex.DisplayName, ex.PropsJSON, ex.SetupJSON, ex.ExpectJSON, ex.SourcePath, ex.IndexedAt.UTC().Format(timeFormat)); err != nil {
+			return Component{}, fmt.Errorf("upsert component example %s@%s/%s: %w", c.LibraryID, ex.Version, ex.Name, err)
 		}
 	}
 	if err := s.replaceHeaders(ctx, c.ID, in.Headers); err != nil {
@@ -479,6 +507,48 @@ WHERE component_id = ? AND version = ?
 	return v, nil
 }
 
+func (s *sqliteRepository) ListExamples(ctx context.Context, q ExampleQuery) ([]ComponentExample, error) {
+	limit := q.Limit
+	if limit <= 0 {
+		limit = 200
+	}
+	var clauses []string
+	var args []any
+	if componentID := strings.TrimSpace(q.ComponentID); componentID != "" {
+		clauses = append(clauses, "component_id = ?")
+		args = append(args, componentID)
+	}
+	if version := strings.TrimSpace(q.Version); version != "" {
+		clauses = append(clauses, "version = ?")
+		args = append(args, version)
+	}
+	where := ""
+	if len(clauses) > 0 {
+		where = "WHERE " + strings.Join(clauses, " AND ")
+	}
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
+SELECT id, component_id, library_id, version, name, display_name, props_json, setup_json, expect_json, source_path, indexed_at
+FROM component_examples
+%s
+ORDER BY library_id ASC, version DESC, name ASC
+LIMIT ?
+`, where), args...)
+	if err != nil {
+		return nil, fmt.Errorf("list component examples: %w", err)
+	}
+	defer rows.Close()
+	var out []ComponentExample
+	for rows.Next() {
+		ex, err := scanComponentExample(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, ex)
+	}
+	return out, rows.Err()
+}
+
 const (
 	selectComponentByIDSQL = `
 SELECT id, library_id, slug, display_name, description, slot, category, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
@@ -540,6 +610,20 @@ func scanComponentVersion(s rowScanner) (ComponentVersion, error) {
 		v.ReleasedAt = released
 	}
 	return v, nil
+}
+
+func scanComponentExample(s rowScanner) (ComponentExample, error) {
+	var ex ComponentExample
+	var indexedRaw string
+	if err := s.Scan(&ex.ID, &ex.ComponentID, &ex.LibraryID, &ex.Version, &ex.Name, &ex.DisplayName, &ex.PropsJSON, &ex.SetupJSON, &ex.ExpectJSON, &ex.SourcePath, &indexedRaw); err != nil {
+		return ComponentExample{}, err
+	}
+	indexed, err := time.Parse(timeFormat, indexedRaw)
+	if err != nil {
+		return ComponentExample{}, fmt.Errorf("parse indexed_at %q: %w", indexedRaw, err)
+	}
+	ex.IndexedAt = indexed
+	return ex, nil
 }
 
 func formatOptionalTime(t time.Time) string {

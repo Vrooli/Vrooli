@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -150,6 +151,18 @@ type manifestDesignAffinity struct {
 	Reason   string `json:"reason"`
 }
 
+type examplesFile struct {
+	Examples []exampleFile `json:"examples"`
+}
+
+type exampleFile struct {
+	Name        string          `json:"name"`
+	DisplayName string          `json:"displayName"`
+	Props       json.RawMessage `json:"props"`
+	Setup       json.RawMessage `json:"setup"`
+	Expect      json.RawMessage `json:"expect"`
+}
+
 func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[string]string, error) {
 	raw, err := fs.ReadFile(idx.fs, path)
 	if err != nil {
@@ -204,6 +217,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		deprecated[strings.TrimSpace(v)] = true
 	}
 	var versions []ComponentVersion
+	var examples []ComponentExample
 	findings := append([]IndexFinding(nil), staleFindings...)
 	var latestFound bool
 	var draftFound bool
@@ -305,6 +319,9 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			ContentSHA256: digestBytes(src),
 			Headers:       headers,
 		})
+		versionExamples, exampleFindings := idx.readVersionExamples(filepath.ToSlash(filepath.Join(versionPath, "examples.json")), manifest.LibraryID, version)
+		examples = append(examples, versionExamples...)
+		findings = append(findings, exampleFindings...)
 	}
 	if !latestFound {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "version folder not found"}
@@ -313,7 +330,108 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "draft", Reason: "version folder not found"}
 	}
 	manifest.Category = strings.TrimSpace(latestHeaders["category"])
-	return IndexManifestInput{Manifest: manifest, Versions: versions, Headers: latestHeaders, Findings: findings}, latestHeaders, nil
+	return IndexManifestInput{Manifest: manifest, Versions: versions, Examples: examples, Headers: latestHeaders, Findings: findings}, latestHeaders, nil
+}
+
+func (idx *Indexer) readVersionExamples(sourcePath, libraryID, version string) ([]ComponentExample, []IndexFinding) {
+	raw, err := fs.ReadFile(idx.fs, sourcePath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, []IndexFinding{invalidExampleFinding(sourcePath, "examples", "", "", err.Error())}
+	}
+	var file examplesFile
+	if err := json.Unmarshal(raw, &file); err != nil {
+		return nil, []IndexFinding{invalidExampleFinding(sourcePath, "examples", "JSON object", "", err.Error())}
+	}
+	seen := map[string]bool{}
+	out := make([]ComponentExample, 0, len(file.Examples))
+	var findings []IndexFinding
+	for i, ex := range file.Examples {
+		name := strings.TrimSpace(ex.Name)
+		field := fmt.Sprintf("examples[%d].name", i)
+		if name == "" {
+			findings = append(findings, invalidExampleFinding(sourcePath, field, "non-empty string", "", "example name is required"))
+			continue
+		}
+		if seen[name] {
+			findings = append(findings, invalidExampleFinding(sourcePath, field, "unique name", name, "duplicate example name"))
+			continue
+		}
+		seen[name] = true
+		props, ok := normalizeExampleJSON(ex.Props, "{}")
+		if !ok {
+			findings = append(findings, invalidExampleFinding(sourcePath, fmt.Sprintf("examples[%d].props", i), "JSON object", string(ex.Props), "props must be a JSON object"))
+			continue
+		}
+		setup, ok := normalizeExampleJSON(ex.Setup, "{}")
+		if !ok {
+			findings = append(findings, invalidExampleFinding(sourcePath, fmt.Sprintf("examples[%d].setup", i), "JSON object", string(ex.Setup), "setup must be a JSON object"))
+			continue
+		}
+		expect, ok := normalizeExampleArrayJSON(ex.Expect)
+		if !ok {
+			findings = append(findings, invalidExampleFinding(sourcePath, fmt.Sprintf("examples[%d].expect", i), "JSON array", string(ex.Expect), "expect must be a JSON array"))
+			continue
+		}
+		displayName := strings.TrimSpace(ex.DisplayName)
+		if displayName == "" {
+			displayName = name
+		}
+		out = append(out, ComponentExample{
+			LibraryID:   libraryID,
+			Version:     version,
+			Name:        name,
+			DisplayName: displayName,
+			PropsJSON:   props,
+			SetupJSON:   setup,
+			ExpectJSON:  expect,
+			SourcePath:  sourcePath,
+		})
+	}
+	return out, findings
+}
+
+func normalizeExampleJSON(raw json.RawMessage, fallback string) (string, bool) {
+	if len(raw) == 0 {
+		return fallback, true
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return "", false
+	}
+	normalized, err := json.Marshal(obj)
+	if err != nil {
+		return "", false
+	}
+	return string(normalized), true
+}
+
+func normalizeExampleArrayJSON(raw json.RawMessage) (string, bool) {
+	if len(raw) == 0 {
+		return "[]", true
+	}
+	var arr []any
+	if err := json.Unmarshal(raw, &arr); err != nil {
+		return "", false
+	}
+	normalized, err := json.Marshal(arr)
+	if err != nil {
+		return "", false
+	}
+	return string(normalized), true
+}
+
+func invalidExampleFinding(sourcePath, field, expected, actual, detail string) IndexFinding {
+	return IndexFinding{
+		Kind:       IndexFindingInvalidExample,
+		SourcePath: sourcePath,
+		Field:      field,
+		Expected:   expected,
+		Actual:     actual,
+		Detail:     detail,
+	}
 }
 
 func headerDisagreementFinding(sourcePath, field, expected, actual, detail string) IndexFinding {

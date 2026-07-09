@@ -374,6 +374,37 @@ func (h *handlers) showVersion(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) examples(ctx cliapp.RunContext) error {
+	componentID := ctx.Positional("component-id")
+	req := &componentsv1.ListComponentExamplesRequest{
+		ComponentId: componentID,
+		Version:     ctx.Flag("version"),
+	}
+	if raw := ctx.Flag("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+		}
+		req.Limit = int32(n)
+	}
+	resp, err := h.client.ListComponentExamples(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("list examples for component %q", componentID), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no examples response")
+	}
+	results := make([]string, 0, len(resp.Msg.Examples))
+	for _, ex := range resp.Msg.Examples {
+		results = append(results, formatExample(ex))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d example(s).", len(resp.Msg.Examples))},
+		ResultsHeading: "Examples",
+		Results:        results,
+	})
+}
+
 // contentSet reads <file> from disk (or "-" for stdin) and calls
 // ComponentsService.UpdateComponentContent. --expected-sha256 forwards
 // the optimistic-concurrency guard.
@@ -493,4 +524,11 @@ func formatVersion(v *componentsv1.ComponentVersion) string {
 		return "(nil)"
 	}
 	return fmt.Sprintf("%s — %s %s sha=%s @ %s", v.Id, v.Version, v.Status.String(), v.ContentSha256, v.SourcePath)
+}
+
+func formatExample(ex *componentsv1.ComponentExample) string {
+	if ex == nil {
+		return "(nil)"
+	}
+	return fmt.Sprintf("%s — %s %s props=%s @ %s", ex.Name, ex.LibraryId, ex.Version, ex.PropsJson, ex.SourcePath)
 }

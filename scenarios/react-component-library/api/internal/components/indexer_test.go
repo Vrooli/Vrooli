@@ -212,6 +212,62 @@ func TestIndexer_RunReportsInvalidDesignAffinity(t *testing.T) {
 	require.Contains(t, hdr.Reason, "bespoke")
 }
 
+func TestIndexer_RunIndexesVersionExamples(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+		"components/Button/versions/1.0.0/examples.json": {Data: []byte(`{
+			"examples": [
+				{
+					"name": "primary",
+					"displayName": "Primary",
+					"props": {"children":{"$text":"Save changes"}},
+					"expect": [{"kind":"text","value":"Save changes"}]
+				}
+			]
+		}`)},
+	}
+	repo := mocks.NewFakeRepository()
+	idx := components.NewIndexer(repo, ".", fs)
+
+	res, err := idx.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Indexed)
+	require.Empty(t, res.Errors)
+	require.Empty(t, res.Findings)
+
+	got, err := repo.GetByLibraryID(context.Background(), "react-component-library:Button")
+	require.NoError(t, err)
+	examples, err := repo.ListExamples(context.Background(), components.ExampleQuery{ComponentID: got.ID, Version: "1.0.0"})
+	require.NoError(t, err)
+	require.Len(t, examples, 1)
+	require.Equal(t, "primary", examples[0].Name)
+	require.JSONEq(t, `{"children":{"$text":"Save changes"}}`, examples[0].PropsJSON)
+	require.JSONEq(t, `[{"kind":"text","value":"Save changes"}]`, examples[0].ExpectJSON)
+}
+
+func TestIndexer_RunReportsInvalidExamplesWithoutRejectingComponent(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+		"components/Button/versions/1.0.0/examples.json": {Data: []byte(`{
+			"examples": [
+				{"name": "bad", "props": []}
+			]
+		}`)},
+	}
+	repo := mocks.NewFakeRepository()
+	idx := components.NewIndexer(repo, ".", fs)
+
+	res, err := idx.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Indexed)
+	require.Empty(t, res.Errors)
+	require.Len(t, res.Findings, 1)
+	require.Equal(t, components.IndexFindingInvalidExample, res.Findings[0].Kind)
+	require.Equal(t, "examples[0].props", res.Findings[0].Field)
+}
+
 func TestIndexer_RunReportsMalformedHeaderErrors(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/Broken/component.json": {Data: []byte(`{"displayName":"Broken","latest":"1.0.0"}`)},

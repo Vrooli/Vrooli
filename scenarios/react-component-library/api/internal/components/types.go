@@ -115,6 +115,7 @@ type UpsertInput struct {
 type IndexManifestInput struct {
 	Manifest ComponentManifest
 	Versions []ComponentVersion
+	Examples []ComponentExample
 	Headers  map[string]string
 	Findings []IndexFinding
 }
@@ -164,6 +165,7 @@ type IndexFindingKind string
 const (
 	IndexFindingHeaderDisagreement IndexFindingKind = "header_disagreement"
 	IndexFindingStaleDesignStyle   IndexFindingKind = "stale_design_style"
+	IndexFindingInvalidExample     IndexFindingKind = "invalid_example"
 )
 
 type IndexFinding struct {
@@ -195,6 +197,26 @@ type SearchQuery struct {
 	StyleID  string
 	Affinity string
 	Limit    int
+}
+
+type ExampleQuery struct {
+	ComponentID string
+	Version     string
+	Limit       int
+}
+
+type ComponentExample struct {
+	ID          string
+	ComponentID string
+	LibraryID   string
+	Version     string
+	Name        string
+	DisplayName string
+	PropsJSON   string
+	SetupJSON   string
+	ExpectJSON  string
+	SourcePath  string
+	IndexedAt   time.Time
 }
 
 type InitializeComponentInput struct {

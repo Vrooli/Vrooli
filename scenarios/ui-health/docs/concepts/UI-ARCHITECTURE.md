@@ -41,6 +41,21 @@ should land at `ui/src/layout/SidebarShell.tsx`. Override the slot's `dir` in
 a scenario-level overlay if you've reorganized; the resolver will pick up the
 new path automatically.
 
+## Component Canon Enforcement
+
+`ui-health` treats governed component adoption as part of Project Standards,
+not only as a style nudge. The `standard_raw_primitive_overuse` finding is a
+required maturity input: when a React scenario repeatedly hand-rolls primitives
+that have governed counterparts in `react-component-library`, Project Standards
+is capped below the clean level until the surface adopts the governed component
+or composes a local component with provenance.
+
+The promoted canon currently covers raw `table`, `button`, `input`,
+`textarea`, `select`, `nav`, dialog semantics, status pills, and empty-state
+blocks when matching governed components are available. Token discipline and
+component-location findings remain advisory unless their mapping is promoted in
+`.vrooli/test-genie.json`.
+
 ## Adoption Resolver Flow
 
 1. Library declares the component's slot (e.g. `"slot": "layout-nav"`).

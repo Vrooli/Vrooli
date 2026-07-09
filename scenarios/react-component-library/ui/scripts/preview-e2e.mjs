@@ -2,8 +2,8 @@
 import { createRequire } from "node:module";
 import process from "node:process";
 
-const DEFAULT_COMPONENT_ID = "bc29677f-b48c-440f-9f95-0fe2901f5f5e";
 const DEFAULT_CHROME = "/usr/bin/google-chrome";
+const COMPONENT_LINK_SELECTOR = '[data-testid^="sidebar-component-"]';
 
 const require = createRequire(import.meta.url);
 
@@ -32,8 +32,17 @@ function fail(message, details) {
   process.exitCode = 1;
 }
 
+class PreviewFailure extends Error {
+  constructor(message, details) {
+    super(message);
+    this.name = "PreviewFailure";
+    this.details = details;
+  }
+}
+
 function assertNoKnownRuntimeErrors(logs) {
   const forbidden = [
+    "does not provide an export named",
     "react/jsx-runtime' does not provide an export named 'jsx'",
     'Dynamic require of "react" is not supported',
     "preview: render failed",
@@ -44,34 +53,80 @@ function assertNoKnownRuntimeErrors(logs) {
   }
 }
 
-async function main() {
-  const { chromium } = loadPlaywright();
-  const componentID = process.env.RCL_PREVIEW_COMPONENT_ID || DEFAULT_COMPONENT_ID;
+function compactLogLine(line) {
+  return line
+    .replace(/data:text\/javascript;base64,[A-Za-z0-9+/=]+/g, "data:text/javascript;base64,<bundle>")
+    .slice(0, 1_200);
+}
+
+function compactDetails(details) {
+  return {
+    logs: (details.logs || []).map(compactLogLine).slice(0, 12),
+    previewResponses: (details.previewResponses || []).slice(0, 20),
+  };
+}
+
+async function componentTargetsFromSidebar(page) {
+  if (process.env.RCL_PREVIEW_COMPONENT_ID) {
+    return [{
+      id: process.env.RCL_PREVIEW_COMPONENT_ID,
+      label: process.env.RCL_PREVIEW_COMPONENT_ID,
+    }];
+  }
+  await page.goto(`${baseURL()}/components`, { waitUntil: "domcontentloaded" });
+  await page.locator('[data-testid="app-shell"]').waitFor({ state: "visible", timeout: 15_000 });
+  const sidebarError = await page
+    .locator('[data-testid="sidebar-component-list-error"]')
+    .innerText({ timeout: 250 })
+    .catch(() => "");
+  if (sidebarError.trim() !== "") {
+    throw new Error(`component list failed to load: ${sidebarError}`);
+  }
+  await page.locator(COMPONENT_LINK_SELECTOR).first().waitFor({ state: "attached", timeout: 15_000 });
+  const targets = await page.locator(COMPONENT_LINK_SELECTOR).evaluateAll((links) => (
+    links
+      .map((link) => {
+        const href = link.getAttribute("href") || "";
+        const id = href.split("/components/")[1] || "";
+        return {
+          id: decodeURIComponent(id.split(/[?#]/)[0] || ""),
+          label: (link.textContent || "").trim(),
+        };
+      })
+      .filter((target) => target.id)
+  ));
+  const byID = new Map();
+  for (const target of targets) {
+    byID.set(target.id, target);
+  }
+  return [...byID.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+async function assertComponentPreview(page, componentID) {
   const url = `${baseURL()}/components/${componentID}`;
   const logs = [];
   const responses = [];
 
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: chromeExecutable(),
-    args: ["--no-sandbox"],
-  });
+  const onConsole = (msg) => logs.push(`console:${msg.type()}:${msg.text()}`);
+  const onPageError = (err) => logs.push(`pageerror:${err.stack || err.message}`);
+  const onRequestFailed = (req) => {
+    logs.push(`requestfailed:${req.url()}:${req.failure()?.errorText || "unknown"}`);
+  };
+  const onResponse = (res) => {
+    const resURL = res.url();
+    if (resURL.includes("/preview/") || res.status() >= 400) {
+      responses.push(`${res.status()}:${resURL}`);
+    }
+  };
+
+  page.on("console", onConsole);
+  page.on("pageerror", onPageError);
+  page.on("requestfailed", onRequestFailed);
+  page.on("response", onResponse);
 
   try {
-    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    page.on("console", (msg) => logs.push(`console:${msg.type()}:${msg.text()}`));
-    page.on("pageerror", (err) => logs.push(`pageerror:${err.stack || err.message}`));
-    page.on("requestfailed", (req) => {
-      logs.push(`requestfailed:${req.url()}:${req.failure()?.errorText || "unknown"}`);
-    });
-    page.on("response", (res) => {
-      const resURL = res.url();
-      if (resURL.includes("/preview/") || res.status() >= 400) {
-        responses.push(`${res.status()}:${resURL}`);
-      }
-    });
-
     await page.goto(url, { waitUntil: "domcontentloaded" });
+    await page.locator('[data-testid="components-editor-panel"]').waitFor({ state: "visible", timeout: 15_000 });
     await page.locator('[data-testid="components-editor-preview-mode-button"]').click();
 
     const frameElement = page.locator('[data-testid="components-editor-preview-frame"]');
@@ -117,26 +172,67 @@ async function main() {
     if (!badge.includes("Rendered")) {
       throw new Error(`preview did not reach rendered state, badge=${badge || "<empty>"}`);
     }
-    if (!rootHTML.includes("inline-flex")) {
-      throw new Error(`preview root did not contain the rendered StatusBadge DOM: ${rootHTML}`);
+    if (rootHTML.trim() === "") {
+      throw new Error("preview root was empty after rendered state");
     }
 
     assertNoKnownRuntimeErrors(logs);
-
-    console.log(JSON.stringify({
-      ok: true,
-      componentID,
-      frameSrc,
-      frameURL: previewFrame.url(),
-      badge,
-      previewResponses: responses,
-    }, null, 2));
+    return { ok: true, componentID, frameSrc, frameURL: previewFrame.url(), badge, previewResponses: responses };
   } catch (error) {
-    fail(error instanceof Error ? error.message : String(error), {
-      componentID,
-      url,
+    throw new PreviewFailure(error instanceof Error ? error.message : String(error), {
       logs,
       previewResponses: responses,
+    });
+  } finally {
+    page.off("console", onConsole);
+    page.off("pageerror", onPageError);
+    page.off("requestfailed", onRequestFailed);
+    page.off("response", onResponse);
+  }
+}
+
+async function main() {
+  const { chromium } = loadPlaywright();
+
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: chromeExecutable(),
+    args: ["--no-sandbox"],
+  });
+
+  try {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const componentTargets = await componentTargetsFromSidebar(page);
+    if (componentTargets.length === 0) {
+      throw new Error("component list returned no IDs");
+    }
+
+    const results = [];
+    const failures = [];
+    for (const target of componentTargets) {
+      try {
+        results.push({
+          label: target.label,
+          ...(await assertComponentPreview(page, target.id)),
+        });
+      } catch (error) {
+        failures.push({
+          componentID: target.id,
+          label: target.label,
+          message: error instanceof Error ? error.message : String(error),
+          details: error instanceof PreviewFailure ? compactDetails(error.details) : undefined,
+        });
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(`preview failed for ${failures.length}/${componentTargets.length} component(s): ${JSON.stringify(failures)}`);
+    }
+
+    console.log(JSON.stringify({ ok: true, checked: componentTargets.length, results }, null, 2));
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error), {
+      url: baseURL(),
     });
   } finally {
     await browser.close();

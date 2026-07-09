@@ -283,23 +283,71 @@ func packageRuntimeEntry(moduleName, runtimePath string) (string, bool) {
 		return "", false
 	}
 	var pkg struct {
-		Module string `json:"module"`
-		Main   string `json:"main"`
+		Exports json.RawMessage `json:"exports"`
+		Module  string          `json:"module"`
+		Main    string          `json:"main"`
 	}
 	if err := json.Unmarshal(raw, &pkg); err != nil {
 		return "", false
 	}
-	entry := strings.TrimSpace(pkg.Module)
+	entry := packageExportsEntry(pkg.Exports)
+	if entry == "" {
+		entry = strings.TrimSpace(pkg.Module)
+	}
 	if entry == "" {
 		entry = strings.TrimSpace(pkg.Main)
 	}
 	if entry == "" {
 		entry = "index.js"
 	}
-	if strings.Contains(entry, "..") || strings.HasPrefix(entry, "/") {
+	entry, ok := cleanPackageRuntimeEntry(entry)
+	if !ok {
 		return "", false
 	}
 	return filepath.Join(filepath.FromSlash(moduleName), filepath.FromSlash(entry)), true
+}
+
+func packageExportsEntry(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return ""
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return ""
+	}
+	return resolvePackageExportValue(value, true)
+}
+
+func resolvePackageExportValue(value any, root bool) string {
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case map[string]any:
+		if root {
+			if dot, ok := typed["."]; ok {
+				if entry := resolvePackageExportValue(dot, false); entry != "" {
+					return entry
+				}
+			}
+		}
+		for _, condition := range []string{"browser", "import", "module", "default"} {
+			if candidate, ok := typed[condition]; ok {
+				if entry := resolvePackageExportValue(candidate, false); entry != "" {
+					return entry
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func cleanPackageRuntimeEntry(entry string) (string, bool) {
+	entry = strings.TrimSpace(entry)
+	entry = strings.TrimPrefix(entry, "./")
+	if entry == "" || strings.Contains(entry, "..") || strings.HasPrefix(entry, "/") {
+		return "", false
+	}
+	return entry, true
 }
 
 func safePackageName(name string) bool {

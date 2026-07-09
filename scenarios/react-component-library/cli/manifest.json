@@ -238,6 +238,19 @@
           ],
           "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "GetComponentVersionContent" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "examples",
+          "description": "List indexed example states for a component",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Component id" }
+          ],
+          "flags": [
+            { "name": "version", "description": "Only examples for this version" },
+            { "name": "limit", "description": "Maximum number of rows" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "ListComponentExamples" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },

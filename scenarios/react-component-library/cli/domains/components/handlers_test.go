@@ -36,6 +36,7 @@ type componentsService struct {
 	initResp       *componentsv1.InitializeComponentResponse
 	versionResp    *componentsv1.CreateComponentVersionResponse
 	manifestResp   *componentsv1.UpdateComponentManifestResponse
+	examplesResp   *componentsv1.ListComponentExamplesResponse
 	styleFitResp   *componentsv1.ValidateStyleFitResponse
 	listErr        error
 	getErr         error
@@ -46,6 +47,7 @@ type componentsService struct {
 	initErr        error
 	versionErr     error
 	manifestErr    error
+	examplesErr    error
 	styleFitErr    error
 	listReqs       []*componentsv1.ListComponentsRequest
 	getReqs        []string
@@ -54,6 +56,7 @@ type componentsService struct {
 	initReqs       []*componentsv1.InitializeComponentRequest
 	versionReqs    []*componentsv1.CreateComponentVersionRequest
 	manifestReqs   []*componentsv1.UpdateComponentManifestRequest
+	examplesReqs   []*componentsv1.ListComponentExamplesRequest
 	styleFitReqs   []*componentsv1.ValidateStyleFitRequest
 }
 
@@ -174,6 +177,19 @@ func (s *componentsService) ListComponentVersions(_ context.Context, _ *connect.
 
 func (s *componentsService) GetComponentVersionContent(_ context.Context, _ *connect.Request[componentsv1.GetComponentVersionContentRequest]) (*connect.Response[componentsv1.GetComponentVersionContentResponse], error) {
 	return connect.NewResponse(&componentsv1.GetComponentVersionContentResponse{}), nil
+}
+
+func (s *componentsService) ListComponentExamples(_ context.Context, req *connect.Request[componentsv1.ListComponentExamplesRequest]) (*connect.Response[componentsv1.ListComponentExamplesResponse], error) {
+	s.mu.Lock()
+	s.examplesReqs = append(s.examplesReqs, req.Msg)
+	s.mu.Unlock()
+	if s.examplesErr != nil {
+		return nil, s.examplesErr
+	}
+	if s.examplesResp == nil {
+		s.examplesResp = &componentsv1.ListComponentExamplesResponse{}
+	}
+	return connect.NewResponse(s.examplesResp), nil
 }
 
 func (s *componentsService) ListDesignStyles(_ context.Context, _ *connect.Request[componentsv1.ListDesignStylesRequest]) (*connect.Response[componentsv1.ListDesignStylesResponse], error) {
@@ -310,6 +326,39 @@ func TestComponentsStyleFit_ForwardsInputsAndRendersVerdict(t *testing.T) {
 	require.Contains(t, body, "Style fit is ok for scenario target-app.")
 	require.Contains(t, body, "style=vrooli-default")
 	require.Contains(t, body, "component is native")
+}
+
+func TestComponentsExamples_ForwardsInputsAndRenders(t *testing.T) {
+	svc := &componentsService{examplesResp: &componentsv1.ListComponentExamplesResponse{
+		Examples: []*componentsv1.ComponentExample{
+			{
+				Name:       "primary",
+				LibraryId:  "lib:Button",
+				Version:    "1.0.0",
+				PropsJson:  `{"children":{"$text":"Save changes"}}`,
+				SourcePath: "components/Button/versions/1.0.0/examples.json",
+			},
+		},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "component-id", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "version"}, {Name: "limit"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"component-id": "cmp-1"},
+		Flags:       map[string]string{"version": "1.0.0", "limit": "10"},
+	})
+
+	require.NoError(t, h.examples(ctx))
+	require.Len(t, svc.examplesReqs, 1)
+	require.Equal(t, "cmp-1", svc.examplesReqs[0].ComponentId)
+	require.Equal(t, "1.0.0", svc.examplesReqs[0].Version)
+	require.Equal(t, int32(10), svc.examplesReqs[0].Limit)
+	body := out.String()
+	require.Contains(t, body, "Found 1 example(s).")
+	require.Contains(t, body, "primary")
+	require.Contains(t, body, "Save changes")
 }
 
 func TestComponentsList_ForwardsMultiTagAndCategory(t *testing.T) {

@@ -4,17 +4,19 @@ ID: standard_raw_primitive_overuse
 Description: Pages and custom components should not repeatedly hand-roll raw
   interactive or structural primitives when governed component-library
   counterparts are adopted locally or available in react-component-library.
-Why: A raw <table>, <button>, <input>, <select>, or <nav> is sometimes correct,
-  but repeated use means every scenario reinvents sorting, focus, safe-area,
-  density, token binding, and accessibility. The component canon lets scenarios
-  adopt only what they need while still getting professional defaults.
+Why: A raw <table>, <button>, <input>, <select>, <nav>, modal surface, status
+  pill, or empty-state block is sometimes correct, but repeated use means every
+  scenario reinvents sorting, focus, safe-area, density, token binding, and
+  accessibility. The component canon lets scenarios adopt only what they need
+  while still getting professional defaults.
 Category: standards
 Severity: medium
 Slot: [D]
 SlotFile: ui/src
 TechStack: React
 Recommendation: Adopt the matching component from react-component-library
-  (DataTable, Button, Input, Select, BottomNav) or compose a local custom
+  (DataTable, Button, Input, Select, BottomNav, Dialog, StatusBadge, EmptyState)
+  or compose a local custom
   component with provenance instead of scattering raw primitives through pages.
 Standard: vrooli-ui-component-canon-v1
 
@@ -68,6 +70,69 @@ BadExample:
   </input>
   <expected-violations>1</expected-violations>
   <expected-message>DataTable</expected-message>
+</test-case>
+
+<test-case id="raw-primitive-dialog-pattern" should-fail="true">
+  <description>Hand-rolled dialog semantics are flagged when Dialog is available</description>
+  <input>
+    [ui/src/components/ui/dialog.tsx]
+    // @vrooliComponentSource react-component-library:Dialog
+    // @vrooliComponentVersion 1.0.0
+    export function Dialog() { return <div role="dialog" />; }
+    [ui/src/pages/Confirm.tsx]
+    export function Confirm() {
+      return <div role="dialog" aria-modal="true"><button>Close</button></div>;
+    }
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Dialog</expected-message>
+</test-case>
+
+<test-case id="raw-primitive-status-badges" should-fail="true">
+  <description>Repeated hand-rolled status pills are flagged when StatusBadge is available</description>
+  <input>
+    [ui/src/components/ui/status-badge.tsx]
+    // @vrooliComponentSource react-component-library:StatusBadge
+    // @vrooliComponentVersion 1.0.0
+    export function StatusBadge() { return <span />; }
+    [ui/src/pages/Jobs.tsx]
+    export function Jobs() {
+      return <section><span className="rounded-full bg-green-500">Active status</span><span className="rounded-full bg-red-500">Failed status</span></section>;
+    }
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>StatusBadge</expected-message>
+</test-case>
+
+<test-case id="raw-primitive-empty-state" should-fail="true">
+  <description>Hand-rolled empty-state copy is flagged when EmptyState is available</description>
+  <input>
+    [ui/src/components/ui/empty-state.tsx]
+    // @vrooliComponentSource react-component-library:EmptyState
+    // @vrooliComponentVersion 1.0.0
+    export function EmptyState() { return <section />; }
+    [ui/src/pages/Jobs.tsx]
+    export function Jobs() {
+      return <section><h2>No jobs found</h2><p>Nothing to show yet.</p></section>;
+    }
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>EmptyState</expected-message>
+</test-case>
+
+<test-case id="raw-primitive-empty-state-component-clean" should-fail="false">
+  <description>Empty-state copy rendered through the governed EmptyState component is clean</description>
+  <input>
+    [ui/src/components/ui/empty-state.tsx]
+    // @vrooliComponentSource react-component-library:EmptyState
+    // @vrooliComponentVersion 1.0.0
+    export function EmptyState() { return <section />; }
+    [ui/src/pages/Jobs.tsx]
+    import { EmptyState } from "../components/ui/empty-state";
+    export function Jobs() {
+      return <EmptyState title="No jobs found" description="Nothing to show yet." />;
+    }
+  </input>
 </test-case>
 
 <test-case id="raw-primitive-declared-library-dependency" should-fail="true">
@@ -144,7 +209,11 @@ func init() {
 }
 
 var (
-	jsxPrimitivePattern    = regexp.MustCompile(`<\s*(table|button|input|textarea|select|nav)(?:\s|>|/)`)
+	jsxPrimitivePattern    = regexp.MustCompile(`<\s*(table|button|input|textarea|select|nav|dialog)(?:\s|>|/)`)
+	roleDialogPattern      = regexp.MustCompile(`(?i)role\s*=\s*["'{]?dialog["'}]?`)
+	showModalPattern       = regexp.MustCompile(`(?i)\.showModal\s*\(`)
+	statusPillPattern      = regexp.MustCompile(`(?i)rounded-full[^"']*(status|active|pending|failed|success|warning|error)?`)
+	emptyStatePattern      = regexp.MustCompile(`(?i)(no\s+[\w -]+\s+(found|yet|available)|nothing\s+to\s+show|empty\s+state)`)
 	tsxBlockCommentPattern = regexp.MustCompile(`(?s)/\*.*?\*/`)
 	tsxLineCommentPattern  = regexp.MustCompile(`(?m)//.*$`)
 )
@@ -226,7 +295,8 @@ func skipRawPrimitiveFile(f uiinterop.SourceFile) bool {
 
 func rawPrimitiveCounts(source string, available map[string]governedComponent) map[string]int {
 	counts := map[string]int{}
-	for _, m := range jsxPrimitivePattern.FindAllStringSubmatch(stripTSXComments(source), -1) {
+	stripped := stripTSXComments(source)
+	for _, m := range jsxPrimitivePattern.FindAllStringSubmatch(stripped, -1) {
 		if len(m) < 2 {
 			continue
 		}
@@ -238,15 +308,36 @@ func rawPrimitiveCounts(source string, available map[string]governedComponent) m
 			counts[primitive]++
 		}
 	}
+	if _, ok := available["dialog"]; ok {
+		counts["dialog"] += len(roleDialogPattern.FindAllString(stripped, -1))
+		counts["dialog"] += len(showModalPattern.FindAllString(stripped, -1))
+	}
+	if _, ok := available["status"]; ok {
+		counts["status"] += len(statusPillPattern.FindAllString(stripped, -1))
+	}
+	if component, ok := available["empty-state"]; ok && emptyStatePattern.MatchString(stripped) {
+		if component.Name == "" || !jsxComponentUsagePattern(component.Name).MatchString(stripped) {
+			counts["empty-state"]++
+		}
+	}
 	return counts
+}
+
+func jsxComponentUsagePattern(name string) *regexp.Regexp {
+	return regexp.MustCompile(`<\s*` + regexp.QuoteMeta(name) + `(?:\s|>|/)`)
 }
 
 func primitiveCountsOverThreshold(counts map[string]int) bool {
 	total := 0
 	for primitive, count := range counts {
-		total += count
-		if (primitive == "table" || primitive == "nav") && count > 0 {
+		if (primitive == "table" || primitive == "nav" || primitive == "dialog" || primitive == "empty-state") && count > 0 {
 			return true
+		}
+		if primitive == "status" && count >= 2 {
+			return true
+		}
+		if primitive == "button" || primitive == "input" || primitive == "select" {
+			total += count
 		}
 	}
 	return total >= 2

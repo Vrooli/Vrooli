@@ -31,6 +31,8 @@ type Repository interface {
 
 	GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error)
 
+	ListExamples(ctx context.Context, q ExampleQuery) ([]ComponentExample, error)
+
 	// DeleteMissing removes registry rows whose LibraryID is not in
 	// keep. Used by the indexer at the end of a full walk so deleted
 	// files leave the registry. Returns the number of rows deleted.

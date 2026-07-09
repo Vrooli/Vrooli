@@ -140,8 +140,12 @@
               "ui/src/test-utils/renderWithProviders.tsx"
             ],
             "required_scripts": [
+              "lint",
+              "lint:catalog",
               "test",
-              "test:coverage"
+              "test:coverage",
+              "type-check",
+              "type-check:catalog"
             ],
             "vitest": {
               "environment": "jsdom",

@@ -25,6 +25,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ComponentsService.UpdateComponentContent":     h.contentSet,
 		"ComponentsService.ListComponentVersions":      h.versions,
 		"ComponentsService.GetComponentVersionContent": h.showVersion,
+		"ComponentsService.ListComponentExamples":      h.examples,
 		"ComponentsService.ListDesignStyles":           h.styles,
 		"ComponentsService.ValidateStyleFit":           h.validateStyleFit,
 	}

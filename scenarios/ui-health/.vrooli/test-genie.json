@@ -1161,6 +1161,18 @@
         ],
         "clean_requirement": "advisory"
       },
+      "standard_design_token_bypass": {
+        "capability_id": "project_standards",
+        "local_level_impact": "L4",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "ux",
+          "ui-health"
+        ],
+        "clean_requirement": "advisory"
+      },
       "standard_unused_custom_component": {
         "capability_id": "project_standards",
         "local_level_impact": "L4",
@@ -1179,6 +1191,18 @@
         "global_impact": "advisory",
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ux",
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "standard_component_canon_unengaged": {
+        "capability_id": "project_standards",
+        "local_level_impact": "L4",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
           "ux",
           "ui-health"

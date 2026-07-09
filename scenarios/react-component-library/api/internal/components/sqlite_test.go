@@ -191,6 +191,62 @@ func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *te
 	require.Contains(t, gotIDs, "react-component-library:DataTable")
 }
 
+func TestSQLiteRepository_UpsertManifestPersistsExamples(t *testing.T) {
+	repo, _ := newComponentsDB(t)
+	ctx := context.Background()
+
+	c, err := repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{
+			LibraryID:     "react-component-library:Button",
+			Slug:          "Button",
+			DisplayName:   "Button",
+			Slot:          "ui-primitive",
+			LatestVersion: "1.0.0",
+		},
+		Versions: []components.ComponentVersion{
+			{Version: "1.0.0", Status: components.VersionStatusReleased, SourcePath: "components/Button/versions/1.0.0/Button.tsx", ContentSHA256: "button"},
+		},
+		Examples: []components.ComponentExample{
+			{
+				Version:     "1.0.0",
+				Name:        "primary",
+				DisplayName: "Primary",
+				PropsJSON:   `{"children":{"$text":"Save changes"}}`,
+				SetupJSON:   `{}`,
+				ExpectJSON:  `[{"kind":"text","value":"Save changes"}]`,
+				SourcePath:  "components/Button/versions/1.0.0/examples.json",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	got, err := repo.ListExamples(ctx, components.ExampleQuery{ComponentID: c.ID, Version: "1.0.0"})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "react-component-library:Button", got[0].LibraryID)
+	require.Equal(t, "primary", got[0].Name)
+	require.JSONEq(t, `{"children":{"$text":"Save changes"}}`, got[0].PropsJSON)
+	require.JSONEq(t, `[{"kind":"text","value":"Save changes"}]`, got[0].ExpectJSON)
+
+	_, err = repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{
+			LibraryID:     "react-component-library:Button",
+			Slug:          "Button",
+			DisplayName:   "Button",
+			Slot:          "ui-primitive",
+			LatestVersion: "1.0.0",
+		},
+		Versions: []components.ComponentVersion{
+			{Version: "1.0.0", Status: components.VersionStatusReleased, SourcePath: "components/Button/versions/1.0.0/Button.tsx", ContentSHA256: "button"},
+		},
+	})
+	require.NoError(t, err)
+
+	got, err = repo.ListExamples(ctx, components.ExampleQuery{ComponentID: c.ID, Version: "1.0.0"})
+	require.NoError(t, err)
+	require.Empty(t, got, "examples are rebuilt from disk and removed when examples.json disappears")
+}
+
 func TestSQLiteRepository_AdditiveCategoryAndReasonMigrationPreservesRows(t *testing.T) {
 	d := db.NewSQLite(t)
 	ctx := context.Background()

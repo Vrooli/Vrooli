@@ -233,6 +233,26 @@ func (h *connectHandler) GetComponentVersionContent(ctx context.Context, req *co
 	}), nil
 }
 
+func (h *connectHandler) ListComponentExamples(ctx context.Context, req *connect.Request[componentsv1.ListComponentExamplesRequest]) (*connect.Response[componentsv1.ListComponentExamplesResponse], error) {
+	rows, err := h.deps.Service.ListExamples(ctx, components.ExampleQuery{
+		ComponentID: req.Msg.ComponentId,
+		Version:     req.Msg.Version,
+		Limit:       int(req.Msg.Limit),
+	})
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.ListComponentExamples(%q, %q): %v", req.Msg.ComponentId, req.Msg.Version, err)
+		}
+		return nil, connectErr
+	}
+	resp := &componentsv1.ListComponentExamplesResponse{Examples: make([]*componentsv1.ComponentExample, 0, len(rows))}
+	for _, ex := range rows {
+		resp.Examples = append(resp.Examples, exampleToProto(ex))
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (h *connectHandler) UpdateComponentContent(ctx context.Context, req *connect.Request[componentsv1.UpdateComponentContentRequest]) (*connect.Response[componentsv1.UpdateComponentContentResponse], error) {
 	content, err := h.deps.Service.UpdateContent(ctx, req.Msg.Id, components.WriteContentInput{
 		Body:           req.Msg.Content,

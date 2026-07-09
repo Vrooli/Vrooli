@@ -46,4 +46,36 @@ export const componentsClient = baseComponentsClient as typeof baseComponentsCli
   validateStyleFit(input: ValidateStyleFitRequest): Promise<ValidateStyleFitResponse>;
 };
 
+export interface ListComponentExamplesRequest {
+  componentId: string;
+  version?: string;
+  limit?: number;
+}
+
+export interface ComponentExample {
+  id: string;
+  componentId: string;
+  libraryId: string;
+  version: string;
+  name: string;
+  displayName: string;
+  propsJson: string;
+  setupJson: string;
+  expectJson: string;
+  sourcePath: string;
+}
+
+export interface ListComponentExamplesResponse {
+  examples: ComponentExample[];
+}
+
+export async function listComponentExamples(
+  input: ListComponentExamplesRequest,
+): Promise<ListComponentExamplesResponse> {
+  const client = baseComponentsClient as unknown as {
+    listComponentExamples(request: ListComponentExamplesRequest): Promise<ListComponentExamplesResponse>;
+  };
+  return client.listComponentExamples(input);
+}
+
 export type { Component, ListComponentsResponse };
