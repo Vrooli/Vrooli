@@ -112,6 +112,77 @@ func TestCmdOperatingModeGet_RendersDetail(t *testing.T) {
 	}
 }
 
+func TestCmdOperatingModeGet_ShowPromptRendersSelectedPhase(t *testing.T) {
+	var gotRender *apipb.OperatingModeRenderSimulationRequest
+	stub := &stubOperatingModeHandler{
+		simulateMode: func(req *apipb.OperatingModeSimulateRequest) (*apipb.OperatingModeSimulationResponse, error) {
+			if req.GetMode() != "holistic-loop" || req.GetPreset() != "branchy" {
+				t.Fatalf("simulate request = mode %q preset %q", req.GetMode(), req.GetPreset())
+			}
+			return &apipb.OperatingModeSimulationResponse{
+				Mode:         "holistic-loop",
+				ActivePreset: "branchy",
+				Trace: []*apipb.OperatingModeSimulationStep{
+					{Index: 0, Phase: "investigate"},
+					{Index: 1, Phase: "execute"},
+				},
+			}, nil
+		},
+		renderPrompt: func(req *apipb.OperatingModeRenderSimulationRequest) (*apipb.OperatingModeRenderPromptResponse, error) {
+			gotRender = req
+			return &apipb.OperatingModeRenderPromptResponse{
+				Mode:       "holistic-loop",
+				Preset:     "branchy",
+				StepIndex:  1,
+				Phase:      "execute",
+				SkillId:    "swarm-manager-holistic-loop-execute",
+				ProfileKey: "swarm-manager/deep-work",
+				Prompt:     "Execute the next slice.",
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
+	out := clitest.CaptureStdout(t, func() error {
+		return app.cmdOperatingModeGet([]string{"holistic-loop", "--phase", "execute", "--preset", "branchy", "--show-prompt"})
+	})
+	if gotRender.GetMode() != "holistic-loop" || gotRender.GetPreset() != "branchy" || gotRender.GetStepIndex() != 1 {
+		t.Fatalf("render request = %+v", gotRender)
+	}
+	if !strings.Contains(out, "SkillID: swarm-manager-holistic-loop-execute") || !strings.Contains(out, "Execute the next slice.") {
+		t.Fatalf("prompt output = %q", out)
+	}
+}
+
+func TestCmdOperatingModeGet_ShowPromptDegradedPrintsVariables(t *testing.T) {
+	stub := &stubOperatingModeHandler{
+		simulateMode: func(*apipb.OperatingModeSimulateRequest) (*apipb.OperatingModeSimulationResponse, error) {
+			return &apipb.OperatingModeSimulationResponse{
+				Mode:         "holistic-loop",
+				ActivePreset: "happy-path",
+				Trace:        []*apipb.OperatingModeSimulationStep{{Index: 0, Phase: "investigate"}},
+			}, nil
+		},
+		renderPrompt: func(*apipb.OperatingModeRenderSimulationRequest) (*apipb.OperatingModeRenderPromptResponse, error) {
+			return &apipb.OperatingModeRenderPromptResponse{
+				Mode:           "holistic-loop",
+				Preset:         "happy-path",
+				Phase:          "investigate",
+				SkillId:        "swarm-manager-holistic-loop-investigate",
+				Variables:      map[string]string{"INITIATIVE_TITLE": "Fixture initiative"},
+				Degraded:       true,
+				DegradedReason: "prompt client not wired",
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
+	out := clitest.CaptureStdout(t, func() error {
+		return app.cmdOperatingModeGet([]string{"--mode", "holistic-loop", "--phase", "investigate", "--show-prompt"})
+	})
+	if !strings.Contains(out, "degraded") || !strings.Contains(out, "INITIATIVE_TITLE: Fixture initiative") {
+		t.Fatalf("degraded prompt output = %q", out)
+	}
+}
+
 func TestCmdStatsSummary_QueryAndJSON(t *testing.T) {
 	var gotQuery url.Values
 	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

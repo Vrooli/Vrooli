@@ -275,7 +275,23 @@ func artifactUpdatesToProto(in []ArtifactUpdate) []*apipb.OperatingModeArtifactU
 	return out
 }
 
+func resolutionToProto(r PhaseResolutionRecord, ok bool) *apipb.OperatingModePhaseResolutionRecord {
+	if !ok {
+		return nil
+	}
+	return &apipb.OperatingModePhaseResolutionRecord{
+		Outcome:            string(r.Outcome),
+		Layer:              string(r.Layer),
+		ChosenMessageIndex: int32(r.ChosenMessageIndex),
+		MessagesScanned:    int32(r.MessagesScanned),
+		Missing:            r.Missing,
+		Violations:         r.Violations,
+		Notes:              r.Notes,
+	}
+}
+
 func roundEnvelopeToProto(r RoundEnvelope) *apipb.OperatingModeRoundEnvelope {
+	resolution, resolutionOK := RoundPayload(r.Payload).Resolution()
 	return &apipb.OperatingModeRoundEnvelope{
 		Round:           int32(r.Round),
 		Mode:            r.Mode,
@@ -294,6 +310,7 @@ func roundEnvelopeToProto(r RoundEnvelope) *apipb.OperatingModeRoundEnvelope {
 		Handoffs:        handoffsToProto(r.Handoffs),
 		Payload:         structFromMap(r.Payload),
 		Error:           r.Error,
+		Resolution:      resolutionToProto(resolution, resolutionOK),
 	}
 }
 

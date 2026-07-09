@@ -14,7 +14,6 @@ Contract: [`.vrooli/schemas/operating-mode.schema.json`](../../../.vrooli/schema
 ```
 modes/<id>/
   mode.json          # the mode contract (schema kind: operating-mode)
-  prompts/           # phase prompt templates with {{VARIABLE}} slots
   example-runs/      # simulation fixtures (schema kind: operating-mode-example-run)
 ```
 
@@ -23,9 +22,12 @@ modes/<id>/
   `phase_graph` (phases, guarded `transitions`, per-phase `declared_output`),
   and the `prompt` / `artifact` / `profile` / `backlog_sync` / `metrics` /
   `lock` / `ui` policy blocks. Validated against `operating-mode/v1`.
-- **`prompts/`** — the prompt template a phase runs, referenced from a phase's
-  `prompt.template`. Templates carry `{{VARIABLE}}` slots the engine fills
-  through the shared render seam (byte-parity with the live spawn path).
+- **Prompt skills** — `mode.json` declares `prompt.catalog_prefix`, and each
+  phase can declare prompt metadata plus an optional suffix. The engine resolves
+  that data to a prompt-manager SkillID (for example,
+  `swarm-manager-phased-plan-execute-next`) and renders the skill through the
+  shared prompt seam. Prompt bodies stay in prompt-manager; they are not copied
+  into the mode folder.
 - **`example-runs/`** — one JSON file per simulation preset. Each seeds phase
   outputs and asserts the `expected_path` the **real** generic guard evaluator
   produces, so a mode is tested before it is trusted. These are also the data
@@ -38,10 +40,9 @@ modes/<id>/
   decision) ends the walk. The loader replays every example-run at startup and
   rejects one whose walked path no longer equals its `expected_path`.
 
-> `prompts/` for the three shipped modes are populated as the rebuild lands
-> (prompt extraction phase). A mode's `mode.json` may reference a
-> `prompt.template` before the file exists at the schema level; the engine's
-> semantic validator is what requires the referenced file to resolve.
+The resolved phase SkillID is part of the prompt catalog projection. Use
+`swarm-manager operating-mode get --mode <id> --json` to inspect the mode data
+and the prompt catalog commands to read the underlying skill body when needed.
 
 ## The three shipped modes
 
@@ -77,4 +78,4 @@ PY
 
 The engine's loader/validator adds the semantic checks JSON Schema cannot express
 (reference resolution across phases, guard field-paths resolving against declared
-output, prompt-template existence, and example-run path assertions).
+output, prompt skill/catalog resolution, and example-run path assertions).

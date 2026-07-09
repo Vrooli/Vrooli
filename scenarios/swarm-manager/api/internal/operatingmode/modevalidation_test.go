@@ -153,6 +153,28 @@ func TestValidateLoadedModesRejectsDriftedExampleRun(t *testing.T) {
 	}
 }
 
+func TestValidateLoadedModesRejectsExampleRunDeclaredOutputViolation(t *testing.T) {
+	defs, err := LoadModesFromDir(modesDir)
+	if err != nil {
+		t.Fatalf("LoadModesFromDir: %v", err)
+	}
+	def := defs[ModePhasedPlanDrain]
+	def.ExampleRuns = append(def.ExampleRuns, ExampleRun{
+		Kind: DocumentKindExampleRun,
+		ID:   "missing-handoff-frontier",
+		Mode: string(ModePhasedPlanDrain),
+		Steps: []ExampleRunStep{
+			{Phase: "prepare_plan", Output: map[string]any{"plan_ref": map[string]any{"provider": "plan-manager", "plan_id": "plan-1", "slug": "plan-1", "role": "operating_mode_plan"}}},
+			{Phase: "execute_next", Output: map[string]any{"handoff": map[string]any{"summary": "partial"}}},
+		},
+		ExpectedPath: []string{"prepare_plan", "execute_next", "classify_progress"},
+	})
+	defs[ModePhasedPlanDrain] = def
+	if err := ValidateLoadedModes(defs); err == nil {
+		t.Fatal("ValidateLoadedModes accepted an example-run that violates declared_output, want rejection")
+	}
+}
+
 // TestValidateLoadedModesRequiresHappyPathPreset proves a phase mode that ships
 // example-runs must own the reserved happy-path preset (the simulator default).
 func TestValidateLoadedModesRequiresHappyPathPreset(t *testing.T) {

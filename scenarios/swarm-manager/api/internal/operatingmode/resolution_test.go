@@ -159,6 +159,31 @@ func TestResolveClassifierReconstructsEnumDecision(t *testing.T) {
 	}
 }
 
+func TestResolveClassifierPreservesNonRoutingDeclaredScalar(t *testing.T) {
+	phase := PhaseDefinition{
+		Phase: "assess",
+		Kind:  PhaseKindReview,
+		DeclaredOutput: &DeclaredOutput{
+			EnvelopeKey:              resultEnvelopeKey,
+			RequiresStructuredResult: true,
+			Fields: []OutputField{
+				{Name: "confidence", Type: "number", Required: true},
+			},
+			Resolution: defaultResolutionPolicy(),
+		},
+	}
+	classifier := &stubClassifier{answers: map[string]string{"confidence": "0.75"}}
+	res := resolvePhaseOutput(context.Background(), phase, []string{"This looks mostly correct."}, classifier)
+	if res.Outcome != ResolutionRecovered {
+		t.Fatalf("outcome = %q, want recovered", res.Outcome)
+	}
+	envelope := resultEnvelopeMap(res.Result)
+	got, ok := envelope["confidence"].(float64)
+	if !ok || got != 0.75 {
+		t.Fatalf("confidence = %#v (ok=%v), want 0.75", envelope["confidence"], ok)
+	}
+}
+
 func TestResolveClassifierAbstainsRatherThanGuessing(t *testing.T) {
 	// The classifier finds nothing → the ladder abstains on the required field
 	// instead of fabricating a verdict.
@@ -262,6 +287,43 @@ func TestValidateDeclaredOutputBounds(t *testing.T) {
 	}
 	if missing, _ := validateDeclaredOutput(declared, map[string]any{}); len(missing) == 0 {
 		t.Fatal("absent required score not reported missing")
+	}
+}
+
+func TestValidateDeclaredOutputRejectsMissingHandoffSubfield(t *testing.T) {
+	declared := &DeclaredOutput{
+		Fields: []OutputField{
+			{
+				Name:     "handoff",
+				Type:     "object",
+				Required: true,
+				Fields: []OutputField{
+					{Name: "summary", Type: "string", Required: true},
+					{Name: "frontier", Type: "string", Required: true},
+				},
+			},
+		},
+	}
+	missing, violations := validateDeclaredOutput(declared, map[string]any{
+		"handoff": map[string]any{"summary": "done"},
+	})
+	if len(violations) != 0 {
+		t.Fatalf("violations = %v, want none", violations)
+	}
+	if got := strings.Join(missing, ","); !strings.Contains(got, "handoff.frontier") {
+		t.Fatalf("missing = %v, want handoff.frontier", missing)
+	}
+}
+
+func TestValidateDeclaredOutputRejectsOutOfEnumVerdict(t *testing.T) {
+	declared := &DeclaredOutput{
+		Fields: []OutputField{
+			{Name: "verdict", Type: "string", Required: true, Enum: []any{"accepted", "changes_requested", "rejected"}},
+		},
+	}
+	_, violations := validateDeclaredOutput(declared, map[string]any{"verdict": "needs_work"})
+	if len(violations) == 0 {
+		t.Fatal("out-of-enum verdict did not report a violation")
 	}
 }
 

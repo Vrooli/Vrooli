@@ -95,6 +95,11 @@ func TestConnectGetModeReturnsLinkedInitiatives(t *testing.T) {
 	if len(resp.Msg.GetEntry().GetPhases()) == 0 {
 		t.Fatalf("entry missing projected phases")
 	}
+	for _, phase := range resp.Msg.GetEntry().GetPhases() {
+		if phase.GetSkillId() == "" {
+			t.Fatalf("phase %q missing resolved skill_id", phase.GetPhase())
+		}
+	}
 	var foundReplan bool
 	for _, edge := range graph.GetTransitions() {
 		if edge.GetFrom() == "execute" && edge.GetTo() == "investigate" && strings.Contains(edge.GetLabel(), "replan_needed") {

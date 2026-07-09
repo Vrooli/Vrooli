@@ -140,8 +140,13 @@ function InstructionsTab({ view }: { view: PhaseView }) {
   return (
     <div className="space-y-3" data-testid={selectors.initiativeDetails.phaseViewerInstructions}>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[11px] text-cyan-100">
+        <span
+          className="inline-flex items-center gap-1.5 rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[11px] text-cyan-100"
+          data-testid={selectors.initiativeDetails.phaseViewerSkillId}
+          title={`prompt-manager skill read ${prompt.skillId || view.skillId || ""}`.trim()}
+        >
           <BookOpen className="h-3.5 w-3.5 text-cyan-300" aria-hidden />
+          <span className="font-medium text-cyan-100/80">Skill ID</span>
           <code className="font-mono text-cyan-200/90">{prompt.skillId || view.skillId || "no skill"}</code>
         </span>
         {(prompt.profileKey || view.profileKey) && (

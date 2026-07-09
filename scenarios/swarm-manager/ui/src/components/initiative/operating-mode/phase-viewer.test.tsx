@@ -133,6 +133,10 @@ describe("PhaseViewer", () => {
       ),
     );
     expect(screen.getByText(/Template with unfilled/)).toBeInTheDocument();
+    const skillId = screen.getByTestId(selectors.initiativeDetails.phaseViewerSkillId);
+    expect(skillId).toHaveTextContent("Skill ID");
+    expect(skillId).toHaveTextContent("swarm-manager-holistic-loop-review");
+    expect(skillId).toHaveAttribute("title", "prompt-manager skill read swarm-manager-holistic-loop-review");
 
     // Reads tab: each card names its backing prompt variable.
     await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseViewerTabReads));

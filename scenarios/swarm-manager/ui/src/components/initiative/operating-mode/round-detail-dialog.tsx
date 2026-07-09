@@ -14,8 +14,8 @@ import { Button } from "../../ui/button";
 import { Dialog } from "../../ui/dialog";
 import { selectors } from "../../../consts/selectors";
 import { formatRelativeTime } from "../../../lib";
-import type { OperatingModeRound } from "../../../types/operating-mode";
-import { phaseLabel, statusClasses } from "./utils";
+import type { OperatingModePhaseResolutionRecord, OperatingModeRound } from "../../../types/operating-mode";
+import { phaseLabel, resolutionSummary, statusClasses } from "./utils";
 
 export interface RoundDetailDialogProps {
   round: OperatingModeRound;
@@ -25,6 +25,11 @@ export interface RoundDetailDialogProps {
 
 export function RoundDetailDialog({ round, isOpen, onClose }: RoundDetailDialogProps) {
   const [copied, setCopied] = useState(false);
+  const errorTone = round.status === "needs_attention"
+    ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+    : "border-red-500/30 bg-red-500/10 text-red-200";
+  const errorLabelTone = round.status === "needs_attention" ? "text-amber-300" : "text-red-300";
+  const errorLabel = round.status === "needs_attention" ? "Needs attention" : "Error";
 
   const handleCopyRunId = async () => {
     if (!round.runId) return;
@@ -90,9 +95,11 @@ export function RoundDetailDialog({ round, isOpen, onClose }: RoundDetailDialogP
           </div>
         )}
 
+        <ResolutionBlock resolution={round.resolution} />
+
         {round.error && (
-          <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-red-300">Error</p>
+          <div className={`rounded-md border p-3 text-sm ${errorTone}`}>
+            <p className={`text-[11px] font-semibold uppercase tracking-wide ${errorLabelTone}`}>{errorLabel}</p>
             <p className="mt-1 whitespace-pre-wrap text-sm">{round.error}</p>
           </div>
         )}
@@ -150,6 +157,48 @@ export function RoundDetailDialog({ round, isOpen, onClose }: RoundDetailDialogP
         </div>
       </div>
     </Dialog>
+  );
+}
+
+function ResolutionBlock({ resolution }: { resolution?: OperatingModePhaseResolutionRecord }) {
+  const summary = resolutionSummary(resolution);
+  if (!summary || !resolution) return null;
+  return (
+    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">Resolution ladder</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <ResolutionField label="Outcome" value={summary} />
+        {typeof resolution.messagesScanned === "number" && resolution.messagesScanned > 0 && (
+          <ResolutionField
+            label="Messages"
+            value={`${resolution.messagesScanned} scanned${typeof resolution.chosenMessageIndex === "number" && resolution.chosenMessageIndex >= 0 ? `, chose index ${resolution.chosenMessageIndex}` : ""}`}
+          />
+        )}
+      </div>
+      <ResolutionList label="Missing" values={resolution.missing} />
+      <ResolutionList label="Violations" values={resolution.violations} />
+      <ResolutionList label="Notes" values={resolution.notes} />
+    </div>
+  );
+}
+
+function ResolutionField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-amber-300/80">{label}</p>
+      <p className="mt-0.5 text-sm text-amber-100">{value}</p>
+    </div>
+  );
+}
+
+function ResolutionList({ label, values }: { label: string; values?: string[] }) {
+  const present = values?.filter((value) => value.trim() !== "") ?? [];
+  if (present.length === 0) return null;
+  return (
+    <div className="mt-2">
+      <p className="text-[11px] uppercase tracking-wide text-amber-300/80">{label}</p>
+      <p className="mt-0.5 whitespace-pre-wrap text-sm text-amber-100">{present.join(", ")}</p>
+    </div>
   );
 }
 

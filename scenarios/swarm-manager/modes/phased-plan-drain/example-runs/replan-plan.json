@@ -20,10 +20,36 @@
   },
   "steps": [
     { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next" },
-    { "phase": "execute_next", "note": "always → classify_progress" },
+    {
+      "phase": "execute_next",
+      "output": {
+        "handoff": {
+          "summary": "Started the migration and found the plan ordered the test-genie migration before the durable primitive was stable.",
+          "blockers": ["none"],
+          "next_step": "Replan the remaining work around the corrected dependency order.",
+          "changed_files": ["internal/cli/scenariohandlers/template_runtime_test.go"],
+          "tests": ["go test ./internal/cli/scenariohandlers"],
+          "frontier": "Revise the phased plan before continuing execution."
+        }
+      },
+      "note": "always → classify_progress"
+    },
     { "phase": "classify_progress", "output": { "progress": { "decision": "replan" } }, "note": "progress.decision=replan → prepare_plan (revise plan)" },
     { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next (revised plan)" },
-    { "phase": "execute_next", "note": "always → classify_progress" },
+    {
+      "phase": "execute_next",
+      "output": {
+        "handoff": {
+          "summary": "Executed the revised durable run migration plan cleanly.",
+          "blockers": ["none"],
+          "next_step": "Classify final progress and review acceptance.",
+          "changed_files": ["scenarios/test-genie/cli/execute/durable.go"],
+          "tests": ["vrooli scenario test test-genie"],
+          "frontier": "None — the revised plan is fully drained."
+        }
+      },
+      "note": "always → classify_progress"
+    },
     { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review" },
     { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
   ],

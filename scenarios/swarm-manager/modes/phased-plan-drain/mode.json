@@ -87,7 +87,45 @@
               "name": "handoff",
               "type": "object",
               "required": true,
-              "description": "The structured handoff the next round consumes — summary, blockers, next step, changed files, tests, and the true frontier the slice advanced to."
+              "description": "The structured handoff the next round consumes — summary, blockers, next step, changed files, tests, and the true frontier the slice advanced to.",
+              "fields": [
+                {
+                  "name": "summary",
+                  "type": "string",
+                  "required": true,
+                  "description": "Concise statement of what this execution slice completed."
+                },
+                {
+                  "name": "blockers",
+                  "type": "array",
+                  "required": true,
+                  "description": "Known blockers that prevent further progress; use a single item such as \"none\" when there are none."
+                },
+                {
+                  "name": "next_step",
+                  "type": "string",
+                  "required": true,
+                  "description": "The immediate next operator or agent step after this slice."
+                },
+                {
+                  "name": "changed_files",
+                  "type": "array",
+                  "required": true,
+                  "description": "Repository paths changed by this slice; use a single item such as \"none\" when no files changed."
+                },
+                {
+                  "name": "tests",
+                  "type": "array",
+                  "required": true,
+                  "description": "Validation commands or checks run for this slice."
+                },
+                {
+                  "name": "frontier",
+                  "type": "string",
+                  "required": true,
+                  "description": "The true continuation frontier: the next comprehensively-completable unit or the exact remainder."
+                }
+              ]
             }
           ]
         },
@@ -143,6 +181,7 @@
               "name": "verdict",
               "type": "string",
               "required": true,
+              "enum": ["accepted", "changes_requested", "rejected"],
               "description": "Acceptance verdict for the drained initiative against its acceptance criteria. Use accept / accepted when the criteria are met; changes_requested when specific fixable gaps should be re-executed before acceptance (routes back to execute_next); any other non-accepting verdict records the gap and reconciles."
             }
           ]

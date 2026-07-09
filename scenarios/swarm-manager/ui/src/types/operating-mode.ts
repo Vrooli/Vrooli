@@ -5,6 +5,7 @@ export type OperatingModeRoundStatus =
   | "reserved"
   | "agent_running"
   | "completed"
+  | "needs_attention"
   | "failed"
   | "canceled";
 
@@ -221,6 +222,16 @@ export interface OperatingModeHandoff {
   createdAt?: string;
 }
 
+export interface OperatingModePhaseResolutionRecord {
+  outcome: string;
+  layer?: string;
+  chosenMessageIndex?: number;
+  messagesScanned?: number;
+  missing?: string[];
+  violations?: string[];
+  notes?: string[];
+}
+
 export interface OperatingModeRound {
   round: number;
   mode: InitiativeOperatingMode;
@@ -238,6 +249,7 @@ export interface OperatingModeRound {
   handoffs?: OperatingModeHandoff[];
   payload?: Record<string, unknown>;
   error?: string;
+  resolution?: OperatingModePhaseResolutionRecord;
 }
 
 export interface OperatingModeBacklogSyncPlan {

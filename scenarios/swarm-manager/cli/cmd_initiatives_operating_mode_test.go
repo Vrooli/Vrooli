@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	clitest "swarm-manager/cli/internal/testutil"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
@@ -22,6 +23,8 @@ type stubOperatingModeHandler struct {
 	apiconnect.UnimplementedOperatingModeServiceHandler
 	catalog       func(*apipb.OperatingModeCatalogRequest) (*apipb.OperatingModeCatalogResponse, error)
 	getMode       func(*apipb.OperatingModeGetRequest) (*apipb.OperatingModeDetailResponse, error)
+	simulateMode  func(*apipb.OperatingModeSimulateRequest) (*apipb.OperatingModeSimulationResponse, error)
+	renderPrompt  func(*apipb.OperatingModeRenderSimulationRequest) (*apipb.OperatingModeRenderPromptResponse, error)
 	getWorkspace  func(*apipb.OperatingModeWorkspaceRequest) (*apipb.OperatingModeWorkspace, error)
 	switchMode    func(*apipb.OperatingModeSwitchRequest) (*apipb.OperatingModeSwitchResult, error)
 	startPhase    func(*apipb.OperatingModeStartPhaseRequest) (*apipb.OperatingModeRoundEnvelope, error)
@@ -40,6 +43,22 @@ func (s *stubOperatingModeHandler) Catalog(_ context.Context, req *connect.Reque
 
 func (s *stubOperatingModeHandler) GetMode(_ context.Context, req *connect.Request[apipb.OperatingModeGetRequest]) (*connect.Response[apipb.OperatingModeDetailResponse], error) {
 	msg, err := s.getMode(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) SimulateMode(_ context.Context, req *connect.Request[apipb.OperatingModeSimulateRequest]) (*connect.Response[apipb.OperatingModeSimulationResponse], error) {
+	msg, err := s.simulateMode(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) RenderSimulationPrompt(_ context.Context, req *connect.Request[apipb.OperatingModeRenderSimulationRequest]) (*connect.Response[apipb.OperatingModeRenderPromptResponse], error) {
+	msg, err := s.renderPrompt(req.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +185,43 @@ func TestCmdInitiativesModeWorkspace_ReadsWorkspace(t *testing.T) {
 	}
 }
 
+func TestCmdInitiativesModeWorkspace_RendersRoundResolution(t *testing.T) {
+	stub := &stubOperatingModeHandler{
+		getWorkspace: func(*apipb.OperatingModeWorkspaceRequest) (*apipb.OperatingModeWorkspace, error) {
+			return &apipb.OperatingModeWorkspace{
+				InitiativeName: "init",
+				Mode:           "phased-plan-drain",
+				Definition: &apipb.OperatingModeWorkspaceMode{
+					Label:       "Phased Plan Drain",
+					RunStrategy: "operator_gated_loop",
+				},
+				Rounds: []*apipb.OperatingModeRoundEnvelope{{
+					Round:  3,
+					Mode:   "phased-plan-drain",
+					Phase:  "review",
+					Status: "needs_attention",
+					Error:  "resolution abstained: no contract-satisfying structured result could be resolved from the agent output",
+					Resolution: &apipb.OperatingModePhaseResolutionRecord{
+						Outcome: "abstained",
+						Layer:   "classifier",
+						Missing: []string{"verdict", "handoff.summary"},
+					},
+				}},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
+	out := clitest.CaptureStdout(t, func() error {
+		return app.cmdInitiativesModeWorkspace([]string{"--name", "init"})
+	})
+	if !strings.Contains(out, "resolution=abstained via classifier") {
+		t.Fatalf("workspace output missing resolution summary:\n%s", out)
+	}
+	if !strings.Contains(out, "reason: resolution abstained") {
+		t.Fatalf("workspace output missing abstain reason:\n%s", out)
+	}
+}
+
 func TestCmdInitiativesModeSwitch_PostsCancellationConfirmation(t *testing.T) {
 	var got *apipb.OperatingModeSwitchRequest
 	stub := &stubOperatingModeHandler{
@@ -270,6 +326,45 @@ func TestCmdInitiativesModeRefresh_PostsRoundRefresh(t *testing.T) {
 	}
 	if got.GetInitiativeName() != "init" || got.GetMode() != "phased-plan-drain" || got.GetRound() != 2 {
 		t.Errorf("refresh selectors: %+v", got)
+	}
+}
+
+func TestCmdInitiativesModeRefresh_RendersRoundResolution(t *testing.T) {
+	stub := &stubOperatingModeHandler{
+		refreshRound: func(*apipb.OperatingModeRoundActionRequest) (*apipb.OperatingModeRoundEnvelope, error) {
+			return &apipb.OperatingModeRoundEnvelope{
+				Round:           2,
+				Mode:            "phased-plan-drain",
+				Phase:           "classify_progress",
+				Status:          "needs_attention",
+				AgentProfileKey: "swarm-manager/deep-work",
+				Error:           "resolution abstained: no contract-satisfying structured result could be resolved from the agent output",
+				Resolution: &apipb.OperatingModePhaseResolutionRecord{
+					Outcome:            "abstained",
+					Layer:              "validator",
+					ChosenMessageIndex: -1,
+					MessagesScanned:    2,
+					Missing:            []string{"decision"},
+					Violations:         []string{"verdict must be one of accepted, changes_requested, rejected"},
+					Notes:              []string{"classifier disabled by policy"},
+				},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
+	out := clitest.CaptureStdout(t, func() error {
+		return app.cmdInitiativesModeRefresh([]string{"--name", "init", "--mode", "phased-plan-drain", "--round", "2"})
+	})
+	for _, want := range []string{
+		"Resolution: abstained via validator",
+		"Messages:   2 scanned",
+		"Missing:    decision",
+		"Violations: verdict must be one of accepted, changes_requested, rejected",
+		"Reason:  resolution abstained",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("refresh output missing %q:\n%s", want, out)
+		}
 	}
 }
 

@@ -44,6 +44,23 @@ describe("ConceptExplainerDialog", () => {
     expect(screen.getByText("gamma")).toBeInTheDocument();
   });
 
+  it("renders an optional canonical documentation link", () => {
+    render(
+      <ConceptExplainerDialog
+        isOpen
+        onClose={() => {}}
+        title="Scope"
+        intro="Scope determines the unit of work."
+        docLink={{ href: "/docs/example.md", label: "Read the canonical doc" }}
+        sections={SECTIONS}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Read the canonical doc" })).toHaveAttribute(
+      "href",
+      "/docs/example.md",
+    );
+  });
+
   it("calls onClose when the close button is clicked", async () => {
     const onClose = vi.fn();
     render(

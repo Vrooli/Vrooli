@@ -370,10 +370,10 @@ func declaredScalarLeaves(fields []OutputField, prefix string) []scalarLeaf {
 }
 
 // applyClassifiedField folds a single classifier-recovered value into the result
-// by its declared dotted path. Only the runtime-meaningful scalar paths are
-// wired: verdict, replan_needed, and progress.decision (the fields guards route
-// on). An unrecognised path is ignored so the classifier can never invent a
-// field the runtime does not understand. Reports whether it applied.
+// by its declared dotted path. Runtime-known fields still hydrate their typed
+// slots, while any other declared scalar is preserved in ExtraFields so L3
+// validation, payload storage, and operator surfaces do not silently drop data
+// the mode declared.
 func applyClassifiedField(result *PhaseResult, path, value, fieldType string) bool {
 	switch path {
 	case "verdict":
@@ -393,7 +393,7 @@ func applyClassifiedField(result *PhaseResult, path, value, fieldType string) bo
 		result.Progress.Decision = decision
 		return true
 	default:
-		return false
+		return setExtraScalarField(result, path, parseClassifiedScalar(value, fieldType))
 	}
 }
 
@@ -410,7 +410,54 @@ func resultEnvelopeMap(result PhaseResult) map[string]any {
 	if err := json.Unmarshal(data, &envelope); err != nil {
 		return map[string]any{}
 	}
+	deepMergeMap(envelope, result.ExtraFields)
 	return envelope
+}
+
+func parseClassifiedScalar(value, fieldType string) any {
+	switch strings.TrimSpace(fieldType) {
+	case "boolean", "bool":
+		return parseBool(value)
+	case "integer":
+		n, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+		if err == nil {
+			return float64(n)
+		}
+	case "number":
+		n, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+		if err == nil {
+			return n
+		}
+	}
+	return value
+}
+
+func setExtraScalarField(result *PhaseResult, path string, value any) bool {
+	segments := strings.Split(strings.TrimSpace(path), ".")
+	if len(segments) == 0 || segments[0] == "" {
+		return false
+	}
+	if result.ExtraFields == nil {
+		result.ExtraFields = map[string]any{}
+	}
+	dst := result.ExtraFields
+	for _, segment := range segments[:len(segments)-1] {
+		if strings.TrimSpace(segment) == "" {
+			return false
+		}
+		next, _ := dst[segment].(map[string]any)
+		if next == nil {
+			next = map[string]any{}
+			dst[segment] = next
+		}
+		dst = next
+	}
+	leaf := strings.TrimSpace(segments[len(segments)-1])
+	if leaf == "" {
+		return false
+	}
+	dst[leaf] = value
+	return true
 }
 
 // effectiveDeclaredOutput returns the phase's declared output schema, synthesising

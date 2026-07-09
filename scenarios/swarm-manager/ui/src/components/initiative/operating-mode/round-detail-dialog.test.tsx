@@ -55,6 +55,31 @@ describe("RoundDetailDialog", () => {
     expect(screen.getByText("Build crashed")).toBeInTheDocument();
   });
 
+  it("renders needs-attention abstains separately from hard failures", () => {
+    render(
+      <RoundDetailDialog
+        round={makeRound({
+          status: "needs_attention",
+          error: "resolution abstained: no contract-satisfying structured result could be resolved",
+          resolution: {
+            outcome: "abstained",
+            layer: "classifier",
+            messagesScanned: 2,
+            missing: ["verdict", "handoff.summary"],
+            notes: ["classifier disabled by policy"],
+          },
+        })}
+        isOpen
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("Resolution ladder")).toBeInTheDocument();
+    expect(screen.getByText("abstained via classifier")).toBeInTheDocument();
+    expect(screen.getByText("verdict, handoff.summary")).toBeInTheDocument();
+    expect(screen.getAllByText("Needs attention").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Error")).toBeNull();
+  });
+
   it("renders the items and handoff sections when present", () => {
     render(<RoundDetailDialog round={makeRound()} isOpen onClose={() => {}} />);
     expect(screen.getByText("execute/some-task")).toBeInTheDocument();

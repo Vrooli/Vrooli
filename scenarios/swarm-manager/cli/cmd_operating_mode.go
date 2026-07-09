@@ -57,12 +57,24 @@ func (a *App) cmdOperatingModeList(args []string) error {
 func (a *App) cmdOperatingModeGet(args []string) error {
 	fs := flag.NewFlagSet("operating-mode get", flag.ContinueOnError)
 	modeFlag := fs.String("mode", "", "Operating mode ID (e.g., holistic-loop)")
+	phaseFlag := fs.String("phase", "", "Phase ID to focus (e.g., investigate)")
+	presetFlag := fs.String("preset", "", "Simulation preset used by --show-prompt (default: mode happy path)")
+	showPrompt := fs.Bool("show-prompt", false, "Render the selected phase prompt through the operating-mode prompt seam")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	if *modeFlag == "" && fs.NArg() == 1 {
+		*modeFlag = fs.Arg(0)
+	}
 	if err := requireFlag("mode", *modeFlag); err != nil {
-		return fmt.Errorf("usage: operating-mode get --mode MODE [--json]\n\n%s", err)
+		return fmt.Errorf("usage: operating-mode get --mode MODE [--phase PHASE [--show-prompt] [--preset ID]] [--json]\n\n%s", err)
+	}
+	if *showPrompt {
+		if strings.TrimSpace(*phaseFlag) == "" {
+			return fmt.Errorf("usage: operating-mode get --mode MODE --phase PHASE --show-prompt [--preset ID] [--json]\n\n--phase is required with --show-prompt")
+		}
+		return a.printOperatingModePhasePrompt(strings.TrimSpace(*modeFlag), strings.TrimSpace(*phaseFlag), strings.TrimSpace(*presetFlag), *jsonOut)
 	}
 	resp, err := a.operatingModeClient().GetMode(context.Background(), connect.NewRequest(&apipb.OperatingModeGetRequest{
 		Mode: strings.TrimSpace(*modeFlag),
@@ -74,6 +86,40 @@ func (a *App) cmdOperatingModeGet(args []string) error {
 		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
 	printOperatingModeDetail(resp.Msg)
+	return nil
+}
+
+func (a *App) printOperatingModePhasePrompt(mode, phase, preset string, jsonOut bool) error {
+	client := a.operatingModeClient()
+	sim, err := client.SimulateMode(context.Background(), connect.NewRequest(&apipb.OperatingModeSimulateRequest{
+		Mode:   mode,
+		Preset: preset,
+	}))
+	if err != nil {
+		return err
+	}
+	stepIndex := int32(-1)
+	for _, step := range sim.Msg.GetTrace() {
+		if step.GetPhase() == phase {
+			stepIndex = step.GetIndex()
+			break
+		}
+	}
+	if stepIndex < 0 {
+		return fmt.Errorf("phase %q was not reached by mode %q preset %q", phase, mode, sim.Msg.GetActivePreset())
+	}
+	rendered, err := client.RenderSimulationPrompt(context.Background(), connect.NewRequest(&apipb.OperatingModeRenderSimulationRequest{
+		Mode:      mode,
+		Preset:    sim.Msg.GetActivePreset(),
+		StepIndex: stepIndex,
+	}))
+	if err != nil {
+		return err
+	}
+	if jsonOut {
+		return cliapp.PrintProtoJSON(os.Stdout, rendered.Msg)
+	}
+	printOperatingModeRenderedPrompt(rendered.Msg)
 	return nil
 }
 
@@ -220,6 +266,46 @@ func printOperatingModePhase(phase *apipb.OperatingModeCatalogPhase) {
 	}
 	printOperatingModePhaseArtifacts(phase.GetOutputArtifacts())
 	printOperatingModePhaseInternals(phase)
+}
+
+func printOperatingModeRenderedPrompt(resp *apipb.OperatingModeRenderPromptResponse) {
+	printSection("Operating Mode Phase Prompt")
+	fmt.Printf("  Mode:    %s\n", resp.GetMode())
+	fmt.Printf("  Phase:   %s\n", resp.GetPhase())
+	if resp.GetPreset() != "" {
+		fmt.Printf("  Preset:  %s\n", resp.GetPreset())
+	}
+	fmt.Printf("  SkillID: %s\n", resp.GetSkillId())
+	if resp.GetProfileKey() != "" {
+		fmt.Printf("  Profile: %s\n", resp.GetProfileKey())
+	}
+	if resp.GetDegraded() {
+		fmt.Printf("  Status:  degraded - %s\n", resp.GetDegradedReason())
+		fmt.Println("  Variables:")
+		printOperatingModePromptVariables(resp.GetVariables())
+		return
+	}
+	fmt.Println()
+	fmt.Println(resp.GetPrompt())
+}
+
+func printOperatingModePromptVariables(variables map[string]string) {
+	if len(variables) == 0 {
+		fmt.Println("    (none)")
+		return
+	}
+	keys := make([]string, 0, len(variables))
+	for key := range variables {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		value := strings.TrimSpace(variables[key])
+		if value == "" {
+			continue
+		}
+		fmt.Printf("    %s: %s\n", key, value)
+	}
 }
 
 // printOperatingModePhaseArtifacts renders a phase's output artifacts list.

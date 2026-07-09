@@ -1,5 +1,9 @@
 import { formatDisplayText } from "../../../lib/format-utils";
-import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
+import type {
+  OperatingModeCapabilities,
+  OperatingModePhaseResolutionRecord,
+  OperatingModeRound,
+} from "../../../types/operating-mode";
 
 export function activeRound(rounds: OperatingModeRound[]): OperatingModeRound | undefined {
   return rounds.find((round) => round.status === "reserved" || round.status === "agent_running");
@@ -93,6 +97,8 @@ export function statusClasses(status: string): string {
   switch (status) {
     case "completed":
       return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+    case "needs_attention":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
     case "failed":
       return "border-red-500/30 bg-red-500/10 text-red-300";
     case "canceled":
@@ -102,4 +108,11 @@ export function statusClasses(status: string): string {
     default:
       return "border-amber-500/30 bg-amber-500/10 text-amber-300";
   }
+}
+
+export function resolutionSummary(resolution?: OperatingModePhaseResolutionRecord): string {
+  const outcome = resolution?.outcome?.trim();
+  if (!outcome) return "";
+  const layer = resolution?.layer?.trim();
+  return layer ? `${outcome} via ${layer}` : outcome;
 }

@@ -157,19 +157,21 @@ Non-default initiative operating modes are strict orchestration flows. They are 
 
 ### Operating Mode Authoring Invariants
 
-Operating-mode methodology behavior must stay registry-owned so new modes remain easy to add and safe to validate.
+Operating-mode methodology behavior must stay data-owned and interpreted by the
+generic operating-mode engine so new modes remain easy to add and safe to
+validate.
 
 | Invariant | Enforced by | Why it matters |
 |-----------|-------------|----------------|
-| Concrete mode behavior lives in focused mode definition files | `api/internal/operatingmode/mode_*.go` and `ValidateRegistry` | Makes the authoring surface obvious for future agents and prevents hidden cross-package mode facts |
-| Initiative mode definitions use registry policies for transitions, artifacts, metrics, prompts, profiles, backlog sync, locks, and capabilities | `api/internal/operatingmode/definition_builder.go`, `registry.go`, `state.go`, `artifact_applier.go`, `workspace.go` | Keeps shared framework code generic instead of accumulating mode-specific branches |
-| Transition routing is declared through `PhaseGraph.Transitions` and `TransitionRules` | `api/internal/operatingmode/state.go` and registry validation | Prevents handlers, UI, CLI, or stats from becoming alternate state machines |
-| Derived artifact writes are declared through phase `ResultBindings` | `api/internal/operatingmode/artifact_applier.go` and registry validation | Ensures new mode artifacts can be added without hardcoded mode/path branches |
-| Prompt catalog entries for operating-mode phases are generated from registry metadata | `api/internal/operatingmode/prompt_catalog_entries.go` and `ValidatePromptCatalog` | Prevents catalog ID, skill ID, mode, phase, and output path drift |
-| Replan and acceptance metrics are opt-in registry semantics | `api/internal/operatingmode.MetricsPolicy` and `api/internal/stats/engine.go` | Lets new modes define meaningful statistics without phase-name assumptions |
+| Concrete mode behavior lives in `scenarios/swarm-manager/modes/<id>/mode.json` plus `example-runs/*.json` | `api/internal/operatingmode/loader.go`, `modevalidation.go`, and `ValidateRegistry` | Makes the authoring surface obvious for future agents and prevents hidden cross-package mode facts |
+| Initiative mode data declares transitions, artifacts, metrics, prompt skill routing, profiles, backlog sync, locks, and capabilities | `api/internal/operatingmode/loader.go`, `registry.go`, `state.go`, `artifact_applier.go`, `workspace.go` | Keeps shared framework code generic instead of accumulating mode-specific branches |
+| Transition routing is declared through data-backed phase graph transitions | `api/internal/operatingmode/state.go`, `guard.go`, and registry validation | Prevents handlers, UI, CLI, or stats from becoming alternate state machines |
+| Derived artifact writes are declared through phase result bindings in mode data | `api/internal/operatingmode/artifact_applier.go` and registry validation | Ensures new mode artifacts can be added without hardcoded mode/path branches |
+| Prompt catalog entries for operating-mode phases are generated from mode prompt metadata | `api/internal/operatingmode/prompt_catalog_entries.go` and `ValidatePromptCatalog` | Prevents catalog ID, skill ID, mode, phase, and output path drift |
+| Replan and acceptance metrics are opt-in mode-data semantics | `api/internal/operatingmode.MetricsPolicy` and `api/internal/stats/engine.go` | Lets new modes define meaningful statistics without phase-name assumptions |
 | UI and CLI consume backend-declared capabilities | `api/internal/operatingmode/workspace.go`, UI service normalization, and CLI output structs | Keeps presentation code out of business-rule inference |
 | New phase purposes do not require shared activity or lock constants | Registry purpose token validation and initiative-owned activity validation | Lets a mode author add phases without editing unrelated shared packages |
-| A synthetic non-production mode exercises authoring seams | `api/internal/operatingmode/synthetic_mode_test.go` | Catches accidental regressions toward production-mode hardcoding |
+| Synthetic mode data exercises authoring seams | `api/internal/operatingmode/synthetic_mode_test.go` and `api/internal/operatingmode/testdata/` | Catches accidental regressions toward production-mode hardcoding |
 
 ## Baseline Modes Engagement Invariants
 

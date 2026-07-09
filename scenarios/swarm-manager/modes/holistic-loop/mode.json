@@ -120,6 +120,7 @@
               "name": "verdict",
               "type": "string",
               "required": true,
+              "enum": ["accepted", "changes_requested", "rejected"],
               "description": "Acceptance verdict for the initiative against its acceptance criteria. Use accept / accepted when the criteria are met; changes_requested when specific fixable gaps should be re-executed before acceptance (routes back to execute); any other non-accepting verdict records the gap and reconciles."
             }
           ]

@@ -81,7 +81,7 @@ func (p RoundPayloadView) FinishedAt() string {
 }
 
 func (p RoundPayloadView) SetPhaseResult(result PhaseResult) {
-	p.set(resultEnvelopeKey, result)
+	p.set(resultEnvelopeKey, resultEnvelopeMap(result))
 }
 
 func (p RoundPayloadView) SetProgress(progress ProgressState) {

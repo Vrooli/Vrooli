@@ -170,7 +170,13 @@ func (a *App) cmdInitiativesModeWorkspace(args []string) error {
 			if round.GetRunId() != "" {
 				fmt.Printf(" run=%s", round.GetRunId())
 			}
+			if summary := operatingModeResolutionSummary(round.GetResolution()); summary != "" {
+				fmt.Printf(" resolution=%s", summary)
+			}
 			fmt.Println()
+			if round.GetStatus() == "needs_attention" && strings.TrimSpace(round.GetError()) != "" {
+				fmt.Printf("    reason: %s\n", round.GetError())
+			}
 		}
 	}
 	return nil
@@ -461,6 +467,10 @@ func printModeRound(title string, round *apipb.OperatingModeRoundEnvelope) {
 	if round.GetAgentProfileKey() != "" {
 		fmt.Printf("  Profile: %s\n", round.GetAgentProfileKey())
 	}
+	printOperatingModeResolution(round.GetResolution())
+	if round.GetStatus() == "needs_attention" && strings.TrimSpace(round.GetError()) != "" {
+		fmt.Printf("  Reason:  %s\n", round.GetError())
+	}
 }
 
 func modeRoundActionTitle(action string) string {
@@ -479,4 +489,38 @@ func defaultString(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func operatingModeResolutionSummary(record *apipb.OperatingModePhaseResolutionRecord) string {
+	if record == nil || strings.TrimSpace(record.GetOutcome()) == "" {
+		return ""
+	}
+	layer := strings.TrimSpace(record.GetLayer())
+	if layer == "" {
+		return record.GetOutcome()
+	}
+	return fmt.Sprintf("%s via %s", record.GetOutcome(), layer)
+}
+
+func printOperatingModeResolution(record *apipb.OperatingModePhaseResolutionRecord) {
+	if record == nil || strings.TrimSpace(record.GetOutcome()) == "" {
+		return
+	}
+	fmt.Printf("  Resolution: %s\n", operatingModeResolutionSummary(record))
+	if record.GetMessagesScanned() > 0 {
+		fmt.Printf("  Messages:   %d scanned", record.GetMessagesScanned())
+		if record.GetChosenMessageIndex() >= 0 {
+			fmt.Printf(", chose index %d", record.GetChosenMessageIndex())
+		}
+		fmt.Println()
+	}
+	if len(record.GetMissing()) > 0 {
+		fmt.Printf("  Missing:    %s\n", strings.Join(record.GetMissing(), ", "))
+	}
+	if len(record.GetViolations()) > 0 {
+		fmt.Printf("  Violations: %s\n", strings.Join(record.GetViolations(), ", "))
+	}
+	if len(record.GetNotes()) > 0 {
+		fmt.Printf("  Notes:      %s\n", strings.Join(record.GetNotes(), "; "))
+	}
 }

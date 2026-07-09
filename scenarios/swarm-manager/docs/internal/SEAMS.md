@@ -419,22 +419,22 @@ Consumed by `backlog-sort.ts` (sidebar/command post sorting) and `feed.ts` (unif
 
 ### Operating Mode Boundary
 
-`api/internal/operatingmode/` is the static methodology registry and lifecycle
-runner for Swarm Manager execution modes. The package is deliberately split by
-responsibility so methodology declarations, phase-state decisions, runner
-orchestration, audit reconciliation, and workspace read models do not collapse
-back into one service file.
+`api/internal/operatingmode/` is the generic methodology interpreter and
+lifecycle runner for Swarm Manager execution modes. The package is deliberately
+split by responsibility so data loading/validation, phase-state decisions,
+runner orchestration, audit reconciliation, and workspace read models do not
+collapse back into one service file.
 
-- **Registry ownership**: Mode values, scope kind, phase graph, transition rules, run strategy, prompt/catalog IDs, profile keys, artifact roots, result bindings, backlog-sync policy, metrics semantics, lock policy, and UI workspace IDs live in one package.
-- **Authoring boundary**: Static mode definitions are focused files such as `mode_holistic_loop.go` and `mode_phased_plan_drain.go`. Initiative-scoped modes use the definition builder for repeated policy. Adding a mode should not require mode-specific branches in shared lifecycle, stats, UI, CLI, prompt catalog, artifact, activity, or lock code. See [DOC: internal/OPERATING-MODE-AUTHORING.md].
-- **Current modes**: `item-level`, `holistic-loop`, and `phased-plan-drain` are registered. `item-level` bridges to existing backlog execution; the two initiative-scoped modes define phase/profile/transition/artifact/metrics policy and use backend-enforced phase actions.
+- **Registry ownership**: Mode values, scope kind, phase graph, transition rules, run strategy, prompt/catalog IDs, profile keys, artifact roots, result bindings, backlog-sync policy, metrics semantics, lock policy, and UI workspace IDs are loaded from mode data and projected through one package.
+- **Authoring boundary**: Concrete methodology behavior lives in `scenarios/swarm-manager/modes/<id>/mode.json` plus `example-runs/*.json`. Adding a mode should not require mode-specific branches in shared lifecycle, stats, UI, CLI, prompt catalog, artifact, activity, or lock code. See [DOC: internal/OPERATING-MODE-AUTHORING.md].
+- **Current modes**: `item-level`, `holistic-loop`, and `phased-plan-drain` are data-backed. `item-level` bridges to existing backlog execution; the two initiative-scoped modes declare phase/profile/transition/artifact/metrics policy in mode data and use backend-enforced phase actions.
 - **Catalog rule**: `GET /api/v1/operating-modes` is the registry catalog for operator-facing mode selection (now annotated with `description`, `usage_count`, and per-mode capability metadata). UI and CLI selection surfaces consume that endpoint instead of maintaining hard-coded mode option lists.
-- **Decision-metadata rule**: `Definition.BestFor`, `Definition.NotFor`, `Definition.Tradeoffs`, and `Definition.WhenInDoubtPickInstead` are the canonical seam for operator-facing decision support. The picker, details page, and how-to-choose dialog all read from these fields via the catalog wire (`best_for`, `not_for`, `tradeoffs`, `when_in_doubt_pick_instead`). The registry validator enforces ≥1 entry on each list and that `WhenInDoubtPickInstead` (when set) references a registered mode that is not self. Decision metadata is intentionally excluded from `OverlayStore` — these are semantic strategy claims authored alongside the mode definition and change via redeploy. Adding decision metadata to a new mode is mandatory; the API will fail to boot with empty lists.
+- **Decision-metadata rule**: `Definition.BestFor`, `Definition.NotFor`, `Definition.Tradeoffs`, and `Definition.WhenInDoubtPickInstead` are the canonical seam for operator-facing decision support. The picker, details page, and how-to-choose dialog all read from these fields via the catalog wire (`best_for`, `not_for`, `tradeoffs`, `when_in_doubt_pick_instead`). The registry validator enforces one or more entries on each list and that `WhenInDoubtPickInstead` (when set) references a registered mode that is not self. Decision metadata is intentionally excluded from `OverlayStore` — these are semantic strategy claims authored in mode data. Adding decision metadata to a new mode is mandatory; the API will fail to boot with empty lists.
 - **Overlay rule**: User-editable mode fields (`label`, `description`) flow through `OverlayStore` (`api/internal/operatingmode/overlay.go`), persisted to `<scenarioRoot>/.vrooli/operating-modes/overrides.json`. The registry stays canonical and read-only; `Service.Catalog`, `Service.GetMode`, and `Service.Workspace` merge overlay onto registry definitions at read time. `PATCH /api/v1/operating-modes/{mode}` is the only write path. New overlay fields can be added without migrating the file format because the schema is a sparse map.
 - **Reverse-lookup rule**: `Service.InitiativesUsingMode` walks `InitiativeLister.ListInitiatives()` and filters by mode. The catalog response includes `usage_count` from the same walk so UI/CLI render counts without a second request. If perf becomes an issue, add a TTL cache around the lister inside the service rather than caching at the handler.
 - **Validation rule**: Unknown modes and invalid phase starts fail closed. Phase start validation is derived from the registry phase graph, transition rules, and completed round state; failed/canceled rounds do not advance the graph and active rounds block all new starts.
 - **Profile policy**: Registry references stable scenario-owned AgentManager profile keys such as `swarm-manager/deep-work` and `swarm-manager/analysis`; runner code must not inline model/tool policy. API startup passes the registry's required profile keys into AgentManager reconciliation and fails startup when any referenced key is missing or outside the `swarm-manager/` namespace.
-- **Activity purpose policy**: Initiative mode phases declare stable lowercase snake-case activity and lock purpose tokens in the mode definition. Shared `agentactivity` and `initiativelock` packages must not learn a new constant for every mode phase.
+- **Activity purpose policy**: Initiative mode phases declare stable lowercase snake-case activity and lock purpose tokens in mode data. Shared `agentactivity` and `initiativelock` packages must not learn a new constant for every mode phase.
 - **Prompt rule**: Operating-mode phase prompts are fail-closed. `operatingmode.Service` validates the registry's `(mode, phase)` skill against the prompt catalog resolver and requires prompt-manager to render non-empty content. A prompt catalog miss, skill mismatch, prompt-manager error, or empty render marks the reserved round failed, releases the lock, and returns an error before any AgentManager spawn.
 - **Prompt catalog rule**: Operating-mode prompt catalog entries are generated from registry phase metadata, then consumed by `promptcatalog`. Drift in catalog ID, skill ID, mode, phase, or output paths fails validation.
 - **Lock seam rule**: `operatingmode.Service` depends on a narrow initiative-lock interface rather than the concrete file lock. The production adapter is still `initiativelock.Lock`, but tests can inject lock failures at specific lifecycle moments such as the provisional-to-run-ID ownership swap.
@@ -460,11 +460,10 @@ back into one service file.
 
 | File | Responsibility |
 |------|----------------|
-| [CODE: api/internal/operatingmode/registry.go] | Registry core types, validation, lookup, prompt catalog validation, profile key collection |
-| [CODE: api/internal/operatingmode/definition_builder.go] | Initiative-mode definition helper for repeated authoring policy |
-| [CODE: api/internal/operatingmode/mode_item_level.go] | Default item-level mode definition |
-| [CODE: api/internal/operatingmode/mode_holistic_loop.go] | Holistic-loop mode definition |
-| [CODE: api/internal/operatingmode/mode_phased_plan_drain.go] | Phased-plan-drain mode definition |
+| [CODE: api/internal/operatingmode/registry.go] | Runtime definition types, registry validation, lookup, prompt catalog validation, profile key collection |
+| [CODE: api/internal/operatingmode/loader.go] | Data-backed registry loading from `scenarios/swarm-manager/modes/` |
+| [CODE: api/internal/operatingmode/modevalidation.go] | Semantic validation for mode data |
+| [CODE: api/internal/operatingmode/modeschema.go] | Schema-backed structural validation for mode and example-run documents |
 | [CODE: api/internal/operatingmode/prompt_catalog_entries.go] | Generated operating-mode prompt catalog metadata |
 | [CODE: api/internal/operatingmode/state.go] | Backend-authoritative phase actions and transition-rule evaluation |
 | [CODE: api/internal/operatingmode/service.go] | Public service contracts, request/response models, dependency wiring, initiative-lock seam |

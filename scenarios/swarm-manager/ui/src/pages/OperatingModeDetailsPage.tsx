@@ -1021,7 +1021,7 @@ function SimulationPresetSelector({
 }
 
 function selectLiveRound(rounds: OperatingModeRound[]): OperatingModeRound | undefined {
-  return rounds.find(isLiveRoundActive) ?? [...rounds].reverse().find((round) => round.status === "completed");
+  return rounds.find(isLiveRoundActive) ?? [...rounds].reverse().find((round) => round.status === "needs_attention" || round.status === "completed");
 }
 
 function isLiveRoundActive(round: OperatingModeRound): boolean {

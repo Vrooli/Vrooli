@@ -20,7 +20,20 @@
   },
   "steps": [
     { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next" },
-    { "phase": "execute_next", "note": "always → classify_progress" },
+    {
+      "phase": "execute_next",
+      "output": {
+        "handoff": {
+          "summary": "Stopped after discovering the durable run migration depends on an unavailable external service.",
+          "blockers": ["External dependency is unavailable."],
+          "next_step": "Operator resolves the dependency before another execution slice starts.",
+          "changed_files": ["none"],
+          "tests": ["not run — blocked before code changes"],
+          "frontier": "Resolve the external dependency, then resume the durable run migration."
+        }
+      },
+      "note": "always → classify_progress"
+    },
     { "phase": "classify_progress", "output": { "progress": { "decision": "blocked" } }, "note": "progress.decision=blocked → guarded stop (terminal)" }
   ],
   "expected_path": ["prepare_plan", "execute_next", "classify_progress"]

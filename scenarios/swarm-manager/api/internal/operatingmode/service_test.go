@@ -633,7 +633,7 @@ func TestRefreshRoundFailsWhenStructuredResultMissing(t *testing.T) {
 	// no classifier is an honest abstain: the ladder resolved nothing, so the
 	// round stops safely with an abstain diagnostic rather than the old terse
 	// parse error, and carries a durable resolution record marked abstained.
-	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, "resolution abstained") {
+	if refreshed.Status != RoundStatusNeedsAttention || !strings.Contains(refreshed.Error, "resolution abstained") {
 		t.Fatalf("refreshed = %+v, want abstained resolution", refreshed)
 	}
 	record, ok := RoundPayload(refreshed.Payload).Resolution()
@@ -795,9 +795,9 @@ func TestRefreshRoundRequiresProgressForClassifyProgress(t *testing.T) {
 	// classify_progress declares progress + progress.decision required. A handoff-
 	// only envelope resolves nothing for that contract, so the ladder abstains
 	// (safe stop) with the unresolved declared fields named, and — with no message
-	// stream or classifier — the round fails on the abstain rather than the old
-	// bespoke "requires a valid progress decision" contract check.
-	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, "resolution abstained") {
+	// stream or classifier — the round needs attention on the abstain rather
+	// than the old bespoke "requires a valid progress decision" contract check.
+	if refreshed.Status != RoundStatusNeedsAttention || !strings.Contains(refreshed.Error, "resolution abstained") {
 		t.Fatalf("refreshed = %+v, want abstained progress resolution", refreshed)
 	}
 	if record, ok := RoundPayload(refreshed.Payload).Resolution(); !ok || record.Outcome != ResolutionAbstained {

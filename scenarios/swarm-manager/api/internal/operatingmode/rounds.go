@@ -20,11 +20,12 @@ import (
 type RoundStatus string
 
 const (
-	RoundStatusReserved     RoundStatus = "reserved"
-	RoundStatusAgentRunning RoundStatus = "agent_running"
-	RoundStatusCompleted    RoundStatus = "completed"
-	RoundStatusFailed       RoundStatus = "failed"
-	RoundStatusCanceled     RoundStatus = "canceled"
+	RoundStatusReserved       RoundStatus = "reserved"
+	RoundStatusAgentRunning   RoundStatus = "agent_running"
+	RoundStatusCompleted      RoundStatus = "completed"
+	RoundStatusNeedsAttention RoundStatus = "needs_attention"
+	RoundStatusFailed         RoundStatus = "failed"
+	RoundStatusCanceled       RoundStatus = "canceled"
 )
 
 type ArtifactUpdate struct {

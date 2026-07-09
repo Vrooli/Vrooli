@@ -140,6 +140,9 @@ func WalkExampleRun(def Definition, run ExampleRun) ([]Phase, error) {
 		} else if stepIdx < len(run.Steps) {
 			return nil, fmt.Errorf("example-run %q step %d is phase %q but the walk reached %q", run.ID, stepIdx, run.Steps[stepIdx].Phase, cur)
 		}
+		if err := validateExampleRunStepOutput(def, run, cur, output); err != nil {
+			return nil, err
+		}
 
 		next, matched := selectNextPhases(def, cur, NewMapFieldLookup(output))
 		if !matched {
@@ -165,6 +168,18 @@ func WalkExampleRun(def Definition, run ExampleRun) ([]Phase, error) {
 		return nil, err
 	}
 	return walked, nil
+}
+
+func validateExampleRunStepOutput(def Definition, run ExampleRun, phase Phase, output map[string]any) error {
+	phaseDef, ok := def.PhaseGraph.Phases[phase]
+	if !ok || phaseDef.DeclaredOutput == nil {
+		return nil
+	}
+	missing, violations := validateDeclaredOutput(phaseDef.DeclaredOutput, output)
+	if len(missing) == 0 && len(violations) == 0 {
+		return nil
+	}
+	return fmt.Errorf("example-run %q phase %q output violates declared_output: missing=%v violations=%v", run.ID, phase, missing, violations)
 }
 
 // LoadExampleRunsForMode discovers and parses every example-run under

@@ -49,13 +49,18 @@ Each mode is a directory interpreted by one generic engine. Adding or changing a
 scenarios/swarm-manager/modes/<id>/
   mode.json          # identity + decision metadata, scope, run strategy,
                      # phase graph (phases, transitions, guard conditions),
-                     # per-phase declared output schema, prompt template refs,
+                     # per-phase declared output schema, prompt skill refs,
                      # and profile / artifact / backlog-sync / metrics / lock / ui policy
-  prompts/           # the phase prompt templates (with {{VARIABLE}} slots)
   example-runs/      # simulation fixtures: seeded outputs + expected phase paths
 ```
 
 - **Schema (the vocabulary):** `.vrooli/schemas/operating-mode.schema.json` is the JSON Schema every `mode.json` and example-run validates against. It is generic — it can express arbitrary phase graphs, branching guards, and output contracts — with **no vocabulary bespoke to any named mode**.
+- **Prompts (the executable instructions):** prompt bodies stay in prompt-manager.
+  Mode data declares `prompt.catalog_prefix` and per-phase prompt metadata; the
+  generic engine resolves those fields to phase SkillIDs and renders the skill
+  through the same prompt seam the live spawn path uses. A mode folder is still
+  legible end-to-end because the data names the resolved skill pointer without
+  duplicating prompt text.
 - **Engine (the interpreter):** one generic engine under `scenarios/swarm-manager/api/internal/operatingmode/` loads mode data into the typed in-memory definition the runtime consumes, validates it (schema + semantics, returning typed actionable errors), evaluates the declared guards, and runs the phases. A **data-backed registry** discovers modes from disk. Shared framework code gains **no mode-specific behavior branches** — new methodology is new data, not new code.
 
 This is a hard, greenfield cutover: the three modes become data, and the hardcoded mode definitions and static registry are deleted.
@@ -140,7 +145,7 @@ Every mode is inspectable from the UI without reading source or raw JSON first. 
 - **Simulation preset** — deterministic, in-memory walks of the phase graph against illustrative data (from the mode's **example-runs**). Presets seed phase outputs to exercise real transition branches (clean pass, replan, continue, blocked, non-accepting review, backlog reconcile) but never spawn agents, acquire locks, or persist state.
 - **Live round** — the actual rounds recorded for a linked initiative.
 
-For Simulation and Live, the prompt is rendered server-side through the *same* prompt-render seam the real spawn path uses, and a parity test asserts the preview is byte-identical to what an agent receives. When that seam is unavailable the tab degrades to the resolved variable map rather than erroring. Because presets, prompts, and transitions are sourced from the mode's data, adding a mode or a branch surfaces in Flow with no mode-specific UI. A top-level "what is an operating mode" entry point (this concept, surfaced in-app) means an operator who has never seen operating modes can understand what one is before drilling into any specific mode.
+For Simulation and Live, the prompt is rendered server-side through the *same* prompt-render seam the real spawn path uses, and a parity test asserts the preview is byte-identical to what an agent receives. When that seam is unavailable the tab degrades to the resolved variable map rather than erroring. Because presets, resolved SkillIDs, prompt rendering, and transitions are sourced from the mode's data, adding a mode or a branch surfaces in Flow with no mode-specific UI. A top-level "what is an operating mode" entry point (this concept, surfaced in-app) means an operator who has never seen operating modes can understand what one is before drilling into any specific mode.
 
 ## Authoring a mode
 
@@ -154,7 +159,7 @@ Authoring is self-serve and writes **data**: scaffold a mode folder from a templ
 - [`docs/guides/phased-plan-drain-mode.md`](../guides/phased-plan-drain-mode.md) — operator workflow for phased-plan-drain mode.
 - [DOC: ../internal/OPERATING-MODE-AUTHORING.md] — how to author a mode as data.
 - `.vrooli/schemas/operating-mode.schema.json` — the generic mode schema (the vocabulary).
-- `scenarios/swarm-manager/modes/<id>/` — the per-mode data folders (`mode.json`, `prompts/`, `example-runs/`).
+- `scenarios/swarm-manager/modes/<id>/` — the per-mode data folders (`mode.json`, `example-runs/`).
 - [`docs/concepts/GLOSSARY.md`](./GLOSSARY.md) — scenario term definitions.
 
 ## Changelog

@@ -20,10 +20,36 @@
   },
   "steps": [
     { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next" },
-    { "phase": "execute_next", "note": "always → classify_progress" },
+    {
+      "phase": "execute_next",
+      "output": {
+        "handoff": {
+          "summary": "Completed the planned durable run migration slice.",
+          "blockers": ["none"],
+          "next_step": "Classify completion and submit the work for acceptance review.",
+          "changed_files": ["scenarios/test-genie/cli/execute/durable.go"],
+          "tests": ["vrooli scenario test test-genie"],
+          "frontier": "None — the planned migration is ready for review."
+        }
+      },
+      "note": "always → classify_progress"
+    },
     { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review" },
     { "phase": "review", "output": { "verdict": "changes_requested" }, "note": "verdict=changes_requested → execute_next (drain one more slice to close the gaps)" },
-    { "phase": "execute_next", "note": "gaps closed, always → classify_progress" },
+    {
+      "phase": "execute_next",
+      "output": {
+        "handoff": {
+          "summary": "Closed the review-requested gaps in the durable run migration.",
+          "blockers": ["none"],
+          "next_step": "Classify completion again and rerun acceptance review.",
+          "changed_files": ["scenarios/test-genie/cli/execute/report/printer.go"],
+          "tests": ["go test ./scenarios/test-genie/cli/execute/..."],
+          "frontier": "None — the requested review gaps are closed."
+        }
+      },
+      "note": "gaps closed, always → classify_progress"
+    },
     { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review (second pass)" },
     { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
   ],

@@ -31,6 +31,8 @@ export interface ConceptExplainerDialogProps {
   title: string;
   /** Optional intro paragraph shown above the section list. */
   intro?: ReactNode;
+  /** Optional canonical documentation link for the concept. */
+  docLink?: { href: string; label: string };
   sections: ConceptExplainerSection[];
   /** Override the default testId — used by thin wrappers that preserve a
    *  legacy testid (e.g., phase-graph-glossary-dialog). */
@@ -44,6 +46,7 @@ export function ConceptExplainerDialog({
   onClose,
   title,
   intro,
+  docLink,
   sections,
   testId = selectors.initiativeDetails.conceptExplainerDialog,
   maxWidth = "max-w-2xl",
@@ -71,6 +74,14 @@ export function ConceptExplainerDialog({
     >
       <div className="space-y-6 text-sm text-slate-300">
         {intro ? <p className="leading-relaxed text-slate-300">{intro}</p> : null}
+        {docLink ? (
+          <a
+            href={docLink.href}
+            className="inline-flex text-sm font-medium text-cyan-300 hover:text-cyan-200 hover:underline"
+          >
+            {docLink.label}
+          </a>
+        ) : null}
         {Array.from(groups.entries()).map(([heading, items]) => (
           <section key={heading || "_default"}>
             {heading ? (

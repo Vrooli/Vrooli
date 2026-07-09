@@ -12,6 +12,7 @@ import type { ConceptExplainerSection } from "../../ui/concept-explainer-dialog"
 export interface ConceptExplainer {
   title: string;
   intro?: string;
+  docLink?: { href: string; label: string };
   sections: ConceptExplainerSection[];
 }
 
@@ -183,12 +184,16 @@ export const CAPABILITY_EXPLAINER: ConceptExplainer = {
 export const OPERATING_MODE_INTRO_EXPLAINER: ConceptExplainer = {
   title: "What is an operating mode?",
   intro:
-    "An operating mode is a reusable, inspectable, testable methodology loop for driving coding agents — the repeatable way a human works with agents to get software built. Each mode is data (a folder under modes/<id>/: identity, a phase graph, per-phase output contracts, prompt templates, and example runs) interpreted by one generic engine, so a new methodology is authored and simulated as data with no code change.",
+    "An operating mode is a reusable, inspectable, testable methodology loop for driving coding agents — the repeatable way a human works with agents to get software built. Each mode is data (identity, a phase graph, per-phase output contracts, prompt skill pointers, and example runs) interpreted by one generic engine, so a new methodology is authored and simulated as data with no code change.",
+  docLink: {
+    href: "/docs/swarm-manager/concepts/EXECUTION-MODES.md",
+    label: "Read the canonical operating modes doc",
+  },
   sections: [
     {
       heading: "Concept",
       label: "Phase graph",
-      body: "A mode runs as a graph of named phases (investigate, plan, execute, review, reconcile). Each phase has its own prompt, agent profile, and a declared output contract for what it must emit.",
+      body: "A mode runs as a graph of named phases (investigate, plan, execute, review, reconcile). Each phase has its own resolved prompt-manager SkillID, agent profile, and a declared output contract for what it must emit.",
     },
     {
       heading: "Concept",

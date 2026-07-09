@@ -67,6 +67,7 @@ function ModesIntro() {
         onClose={() => setOpen(false)}
         title={OPERATING_MODE_INTRO_EXPLAINER.title}
         intro={OPERATING_MODE_INTRO_EXPLAINER.intro}
+        docLink={OPERATING_MODE_INTRO_EXPLAINER.docLink}
         sections={OPERATING_MODE_INTRO_EXPLAINER.sections}
         testId={selectors.initiativeDetails.modesIntroDialog}
       />

@@ -110,6 +110,10 @@ describe("OperatingModesTab", () => {
     // including the four resolution-ladder rungs.
     expect(screen.getByText(/L0 · True final message/)).toBeInTheDocument();
     expect(screen.getByText(/L3 · Contract validation/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Read the canonical operating modes doc" })).toHaveAttribute(
+      "href",
+      "/docs/swarm-manager/concepts/EXECUTION-MODES.md",
+    );
   });
 
   it("hides the concept intro while a search query is active", async () => {

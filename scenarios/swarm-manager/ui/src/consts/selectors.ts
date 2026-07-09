@@ -506,6 +506,7 @@ export const literalSelectors = {
     phaseViewerInstructions: "operating-mode-phase-viewer-instructions",
     phaseViewerPrompt: "operating-mode-phase-viewer-prompt",
     phaseViewerVariables: "operating-mode-phase-viewer-variables",
+    phaseViewerSkillId: "operating-mode-phase-viewer-skill-id",
     phaseViewerProfileChip: "operating-mode-phase-viewer-profile-chip",
     // Flow tab data-source control (Contract / Simulation / Live).
     flowSourceToggle: "operating-mode-flow-source-toggle",

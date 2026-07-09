@@ -43,3 +43,33 @@ func TestHandoff_FrontierRoundTripsThroughJSON(t *testing.T) {
 		t.Fatalf("frontier = %q, want %q", h.Frontier, "the exact remainder")
 	}
 }
+
+func TestRoundEnvelopeToProtoCarriesResolution(t *testing.T) {
+	round := RoundEnvelope{
+		Round:  1,
+		Status: RoundStatusNeedsAttention,
+		Payload: map[string]any{
+			payloadResolution: PhaseResolutionRecord{
+				Outcome:         ResolutionAbstained,
+				Layer:           ResolutionLayerClassifier,
+				MessagesScanned: 2,
+				Missing:         []string{"verdict"},
+				Violations:      []string{"confidence: below minimum"},
+				Notes:           []string{"classifier abstained on verdict"},
+			},
+		},
+	}
+	got := roundEnvelopeToProto(round)
+	if got.GetResolution() == nil {
+		t.Fatal("resolution projection is nil")
+	}
+	if got.GetStatus() != string(RoundStatusNeedsAttention) {
+		t.Fatalf("status = %q, want needs_attention", got.GetStatus())
+	}
+	if got.GetResolution().GetOutcome() != string(ResolutionAbstained) || got.GetResolution().GetLayer() != string(ResolutionLayerClassifier) {
+		t.Fatalf("resolution = %+v, want abstained classifier record", got.GetResolution())
+	}
+	if len(got.GetResolution().GetMissing()) != 1 || got.GetResolution().GetMissing()[0] != "verdict" {
+		t.Fatalf("missing = %v, want verdict", got.GetResolution().GetMissing())
+	}
+}

@@ -6,7 +6,7 @@ import { selectors } from "../../../consts/selectors";
 import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
 import { BacklogSyncActions } from "./backlog-sync-actions";
 import { buildRoundViewModel } from "./round-view-model";
-import { phaseLabel, statusClasses } from "./utils";
+import { phaseLabel, resolutionSummary, statusClasses } from "./utils";
 
 export function RoundCard({
   round,
@@ -28,6 +28,8 @@ export function RoundCard({
   busy: boolean;
 }) {
   const view = useMemo(() => buildRoundViewModel(round, capabilities), [round, capabilities]);
+  const resolution = resolutionSummary(round.resolution);
+  const errorTone = round.status === "needs_attention" ? "text-amber-300" : "text-red-300";
 
   return (
     <div
@@ -84,7 +86,12 @@ export function RoundCard({
           )}
         </div>
       </div>
-      {round.error && <p className="mt-2 text-sm text-red-300">{round.error}</p>}
+      {resolution && (
+        <p className="mt-2 text-xs text-amber-200">
+          Resolution: <span className="font-medium">{resolution}</span>
+        </p>
+      )}
+      {round.error && <p className={`mt-2 text-sm ${errorTone}`}>{round.error}</p>}
       {view.summary && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-300">{view.summary}</p>}
       {round.handoffs && round.handoffs.length > 0 && (
         <div className="mt-3 space-y-2">

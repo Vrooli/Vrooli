@@ -72,7 +72,7 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 			// fail-on-malformed path (recoverable output resolves above) — it is a
 			// safe stop with structured diagnostics so nothing auto-progresses on
 			// absent data and the operator can see exactly what was unresolved.
-			round.Status = RoundStatusFailed
+			round.Status = RoundStatusNeedsAttention
 			round.Error = resolved.AbstainReason()
 			slog.Warn("operating mode: phase output abstained",
 				"initiative", round.InitiativeName, "round", round.Round,

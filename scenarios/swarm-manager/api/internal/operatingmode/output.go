@@ -21,6 +21,7 @@ type PhaseResult struct {
 	Verdict      string           `json:"verdict,omitempty"`
 	ReplanNeeded bool             `json:"replan_needed,omitempty"`
 	BacklogSync  *BacklogSyncPlan `json:"backlog_sync,omitempty"`
+	ExtraFields  map[string]any   `json:"-"`
 }
 
 type ArtifactResult struct {
@@ -47,5 +48,5 @@ var fencedJSONBlockRE = regexp.MustCompile("(?s)```(?:json)?\\s*(\\{.*?\\})\\s*`
 func hasPhaseResultContent(result PhaseResult) bool {
 	return len(result.Artifacts) > 0 || result.PlanRef != nil || result.Handoff != nil || len(result.Handoffs) > 0 ||
 		result.Readiness != nil || result.Progress != nil || strings.TrimSpace(result.Verdict) != "" ||
-		result.ReplanNeeded || result.BacklogSync != nil
+		result.ReplanNeeded || result.BacklogSync != nil || len(result.ExtraFields) > 0
 }

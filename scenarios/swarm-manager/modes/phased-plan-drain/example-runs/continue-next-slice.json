@@ -20,9 +20,35 @@
   },
   "steps": [
     { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next" },
-    { "phase": "execute_next", "output": { "handoff": { "summary": "Landed the durable_run primitive; the test-genie migration is untouched.", "frontier": "Migrate test-genie execute onto durable run handles (the exact remainder of the plan)." } }, "note": "one comprehensively-completable slice done; frontier handed off; always → classify_progress" },
+    {
+      "phase": "execute_next",
+      "output": {
+        "handoff": {
+          "summary": "Landed the durable_run primitive; the test-genie migration is untouched.",
+          "blockers": ["none"],
+          "next_step": "Migrate test-genie execute onto durable run handles.",
+          "changed_files": ["internal/cli/scenariohandlers/template_runtime_test.go"],
+          "tests": ["go test ./internal/cli/scenariohandlers"],
+          "frontier": "Migrate test-genie execute onto durable run handles (the exact remainder of the plan)."
+        }
+      },
+      "note": "one comprehensively-completable slice done; frontier handed off; always → classify_progress"
+    },
     { "phase": "classify_progress", "output": { "progress": { "decision": "continue" } }, "note": "progress.decision=continue → execute_next (advance the declared frontier)" },
-    { "phase": "execute_next", "output": { "handoff": { "summary": "Migrated test-genie execute to durable handles; plan drained.", "frontier": "None — the plan is fully drained." } }, "note": "declared frontier advanced; always → classify_progress" },
+    {
+      "phase": "execute_next",
+      "output": {
+        "handoff": {
+          "summary": "Migrated test-genie execute to durable handles; plan drained.",
+          "blockers": ["none"],
+          "next_step": "Classify final progress and review acceptance.",
+          "changed_files": ["scenarios/test-genie/cli/execute/durable.go"],
+          "tests": ["vrooli scenario test test-genie"],
+          "frontier": "None — the plan is fully drained."
+        }
+      },
+      "note": "declared frontier advanced; always → classify_progress"
+    },
     { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review" },
     { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
   ],

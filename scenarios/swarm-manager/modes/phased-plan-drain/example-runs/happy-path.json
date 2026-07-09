@@ -20,7 +20,20 @@
   },
   "steps": [
     { "phase": "prepare_plan", "output": { "plan_ref": { "provider": "plan-manager", "plan_id": "plan-phased-drain-fixture", "slug": "phased-drain-fixture", "role": "operating_mode_plan" } }, "note": "always → execute_next" },
-    { "phase": "execute_next", "note": "always → classify_progress" },
+    {
+      "phase": "execute_next",
+      "output": {
+        "handoff": {
+          "summary": "Completed the durable run migration in one slice.",
+          "blockers": ["none"],
+          "next_step": "Classify progress and move to acceptance review.",
+          "changed_files": ["scenarios/test-genie/cli/execute/durable.go"],
+          "tests": ["vrooli scenario test test-genie"],
+          "frontier": "None — the plan is fully drained."
+        }
+      },
+      "note": "always → classify_progress"
+    },
     { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review" },
     { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
   ],

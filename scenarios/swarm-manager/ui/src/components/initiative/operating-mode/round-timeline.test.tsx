@@ -160,4 +160,36 @@ describe("RoundTimeline", () => {
     const groups = screen.getAllByTestId(selectors.initiativeDetails.roundsPhaseGroup);
     expect(within(groups[0]!).getByText(/last: Failed/i)).toBeInTheDocument();
   });
+
+  it("surfaces needs-attention resolution without styling it as failure-only", () => {
+    const rounds: OperatingModeRound[] = [
+      round({
+        round: 1,
+        phase: "review",
+        status: "needs_attention",
+        error: "resolution abstained: no contract-satisfying structured result could be resolved",
+        resolution: {
+          outcome: "abstained",
+          layer: "validator",
+          missing: ["verdict"],
+        },
+      }),
+    ];
+    render(
+      <RoundTimeline
+        rounds={rounds}
+        capabilities={capabilities}
+        busy={false}
+        onRefresh={vi.fn()}
+        onCancel={vi.fn()}
+        onCompleteItems={vi.fn()}
+        onApplyBacklogSync={vi.fn()}
+      />,
+    );
+    const group = screen.getByTestId(selectors.initiativeDetails.roundsPhaseGroup);
+    expect(within(group).getByText(/last: Needs Attention/i)).toBeInTheDocument();
+    expect(screen.getByText(/Resolution:/)).toBeInTheDocument();
+    expect(screen.getByText("abstained via validator")).toBeInTheDocument();
+    expect(screen.getByText(/resolution abstained/)).toHaveClass("text-amber-300");
+  });
 });
