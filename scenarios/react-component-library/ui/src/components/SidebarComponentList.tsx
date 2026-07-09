@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { NavLink, useParams } from "react-router-dom";
 
 import { componentsClient } from "../api/components";
+import { EmptyState } from "./ui/empty-state";
 import { useTranslation } from "../i18n";
 
 interface Props {
@@ -50,12 +51,12 @@ export function SidebarComponentList({ onNavigate }: Props) {
         </p>
       )}
       {!isLoading && !error && items.length === 0 && (
-        <p
-          data-testid="sidebar-component-list-empty"
-          className="px-3 py-1 text-xs text-app-muted-foreground"
-        >
-          {t("sidebar.empty", { defaultValue: "No components indexed yet" })}
-        </p>
+        <div data-testid="sidebar-component-list-empty">
+          <EmptyState
+            title={t("sidebar.empty", { defaultValue: "No components indexed yet" })}
+            className="mx-3 mt-2 border-0 bg-transparent p-0 text-xs"
+          />
+        </div>
       )}
       <ul className="flex flex-col">
         {items.map((c) => (

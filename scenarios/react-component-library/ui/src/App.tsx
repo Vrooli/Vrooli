@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { AppShell } from "./components/AppShell";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useHostShortcutRelay } from "./hooks/useHostShortcutRelay";
 import { useTranslation } from "./i18n";
 
 const DashboardPage = lazy(() =>
@@ -48,6 +49,8 @@ function Page({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  useHostShortcutRelay();
+
   return (
     <Routes>
       <Route element={<AppShell />}>

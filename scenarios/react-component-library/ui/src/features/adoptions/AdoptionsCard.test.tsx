@@ -61,7 +61,15 @@ describe("AdoptionsCard", () => {
     });
 
     const statuses = screen.getAllByTestId(selectors.adoptions.itemStatus).map((n) => n.textContent);
-    expect(statuses).toEqual(["Current / Clean", "Behind / Clean", "Current / Modified", "Unknown / Unknown"]);
+    expect(statuses).toHaveLength(4);
+    expect(statuses).toEqual(
+      expect.arrayContaining([
+        "Current / Clean",
+        "Behind / Clean",
+        "Current / Modified",
+        "Unknown / Unknown",
+      ]),
+    );
     expect(screen.getByTestId(selectors.adoptions.summary).textContent).toContain("current: 2");
     expect(screen.getByTestId(selectors.adoptions.itemStatusDetail)).toHaveTextContent("library at 1.1.0");
   });

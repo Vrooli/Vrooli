@@ -2,9 +2,11 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
-import { ArrowLeft, Code2, Eye, Info, Save, X } from "lucide-react";
+import { ArrowLeft, Code2, Eye, Info, Save } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
+import { Dialog } from "../../components/ui/dialog";
+import { StatusBadge } from "../../components/ui/status-badge";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -154,6 +156,15 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
 
   const dirty = !!contentQuery.data && buffer !== contentQuery.data.content;
 
+  const handleBeforeMount = (monaco: Monaco) => {
+    const diagnosticsOptions = {
+      noSemanticValidation: true,
+      noSyntaxValidation: false,
+    };
+    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(diagnosticsOptions);
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(diagnosticsOptions);
+  };
+
   const handleMount = (monacoEditor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
     monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (!saveMutation.isPending) saveMutation.mutate();
@@ -170,42 +181,42 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
     <section
       data-testid={selectors.components.editor.panel}
       aria-label={t(strings.components.editor.title, { libraryId })}
-      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#05070d]"
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-background"
     >
-      <header className="shrink-0 border-b border-white/10 bg-[#0f172a]">
+      <header className="shrink-0 border-b border-app-border bg-app-surface">
         <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-2">
           <div className="min-w-0">
             <h2
               data-testid={selectors.components.editor.title}
-              className="truncate text-base font-semibold text-slate-100"
+              className="truncate text-base font-semibold text-app-foreground"
             >
               {libraryId}
             </h2>
-            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-400">
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-2 text-xs text-app-muted-foreground">
               <span className="truncate">{t(strings.components.editor.subtitle)}</span>
               {baselineSha && (
                 <span
                   data-testid={selectors.components.editor.shaHash}
-                  className="font-mono text-slate-500"
+                  className="font-mono text-app-muted-foreground"
                 >
                   {t(strings.components.editor.sha, { sha: baselineSha.slice(0, 12) })}
                 </span>
               )}
               {dirty && (
-                <span
+                <StatusBadge
                   data-testid={selectors.components.editor.dirtyBadge}
-                  className="rounded-full bg-amber-500/20 px-2 py-0.5 text-amber-200"
+                  tone="warning"
                 >
                   {t(strings.components.editor.dirty)}
-                </span>
+                </StatusBadge>
               )}
               {previewReady && mode === "preview" && (
-                <span
+                <StatusBadge
                   data-testid={selectors.components.editor.previewBadge}
-                  className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-200"
+                  tone="success"
                 >
                   {t(strings.components.editor.previewReady)}
-                </span>
+                </StatusBadge>
               )}
             </div>
           </div>
@@ -213,7 +224,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
             <Button
               data-testid={selectors.components.editor.infoButton}
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setInfoOpen(true)}
               aria-label={t(strings.components.editor.info)}
               title={t(strings.components.editor.info)}
@@ -225,7 +236,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
               data-testid={selectors.components.editor.closeButton}
               onClick={onClose}
               className="h-8 gap-1.5 rounded-md px-2 text-xs"
-              variant="outline"
+              variant="secondary"
             >
               <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
               {t(strings.components.editor.close)}
@@ -244,15 +255,15 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-white/10">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-app-border">
           <div
             data-testid={selectors.components.editor.modeSwitch}
-            className="flex shrink-0 overflow-hidden rounded-md border border-white/10"
+            className="flex shrink-0 overflow-hidden rounded-md border border-app-border"
           >
             <Button
               data-testid={selectors.components.editor.previewModeButton}
               type="button"
-              variant={mode === "preview" ? "default" : "outline"}
+              variant={mode === "preview" ? "primary" : "secondary"}
               className="h-7 gap-1.5 rounded-none px-2 text-xs"
               onClick={() => setMode("preview")}
             >
@@ -262,7 +273,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
             <Button
               data-testid={selectors.components.editor.codeModeButton}
               type="button"
-              variant={mode === "code" ? "default" : "outline"}
+              variant={mode === "code" ? "primary" : "secondary"}
               className="h-7 gap-1.5 rounded-none px-2 text-xs"
               onClick={() => setMode("code")}
             >
@@ -286,7 +297,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
       {contentQuery.isLoading && (
         <p
           data-testid={selectors.components.editor.loading}
-          className="p-4 text-slate-200"
+          className="p-4 text-app-foreground"
         >
           {t(strings.components.editor.loading)}
         </p>
@@ -295,7 +306,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
       {contentQuery.error && (
         <p
           data-testid={selectors.components.editor.error}
-          className="p-4 text-red-400"
+          className="p-4 text-app-danger"
         >
           {errorMessage(contentQuery.error, t)}
         </p>
@@ -304,7 +315,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
       {saveMutation.error && (
         <p
           data-testid={selectors.components.editor.error}
-          className="p-4 text-red-400"
+          className="p-4 text-app-danger"
         >
           {errorMessage(saveMutation.error, t)}
         </p>
@@ -322,6 +333,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
               path={`${libraryId || id}.tsx`}
               value={buffer}
               onChange={(v) => setBuffer(v ?? "")}
+              beforeMount={handleBeforeMount}
               onMount={handleMount}
               theme="vs-dark"
               options={{
@@ -338,7 +350,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
           </div>
           <div
             data-testid={selectors.components.editor.preview}
-            className={`h-full min-h-0 overflow-hidden bg-black ${mode === "preview" ? "" : "hidden"}`}
+            className={`h-full min-h-0 overflow-hidden bg-app-background ${mode === "preview" ? "" : "hidden"}`}
           >
             <div className="relative h-full">
               <EmulatorViewport emulator={emulator} filters={filters}>
@@ -361,13 +373,13 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
                 {previewState === "error" && (
                   <div
                     data-testid={selectors.components.editor.previewError}
-                    className="absolute inset-3 flex items-center justify-center bg-slate-950/85 p-4 text-center"
+                    className="absolute inset-3 flex items-center justify-center bg-app-background/85 p-4 text-center"
                   >
-                    <div className="max-w-md rounded-md border border-red-400/40 bg-red-950/90 p-4 text-red-100 shadow-xl">
+                    <div className="max-w-md rounded-md border border-app-danger/40 bg-app-danger/10 p-4 text-app-danger shadow-xl">
                       <p className="text-sm">{previewMessage || t(strings.components.editor.previewFailed)}</p>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         className="mt-3 h-8 rounded-md px-3 text-xs"
                         data-testid={selectors.components.editor.previewRetryButton}
                         onClick={handlePreviewRetry}
@@ -387,48 +399,28 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
       {showSaved && (
         <p
           data-testid={selectors.components.editor.savedToast}
-          className="absolute bottom-3 right-3 rounded-md bg-emerald-950/90 px-3 py-2 text-xs text-emerald-200 shadow-lg"
+          className="absolute bottom-3 right-3 rounded-md bg-app-success/10 px-3 py-2 text-xs text-app-success shadow-lg"
         >
           {t(strings.components.editor.saved)}
         </p>
       )}
       {infoOpen && (
-        <div
-          data-testid={selectors.components.editor.infoDialog}
-          className="fixed inset-0 z-50 flex justify-end bg-black/55"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t(strings.components.editor.info)}
+        <Dialog
+          open={infoOpen}
+          title={libraryId}
+          description={baselineSha ? t(strings.components.editor.sha, { sha: baselineSha }) : undefined}
+          onClose={() => setInfoOpen(false)}
+          closeLabel={t(strings.components.editor.closeInfo)}
+          className="max-w-md"
         >
-          <aside className="flex h-full w-full max-w-md flex-col border-l border-white/10 bg-[#0f172a] text-slate-100 shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3">
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-semibold">{libraryId}</h3>
-                {baselineSha && (
-                  <p className="mt-1 font-mono text-xs text-slate-400">
-                    {t(strings.components.editor.sha, { sha: baselineSha })}
-                  </p>
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-8 w-8 rounded-md p-0"
-                onClick={() => setInfoOpen(false)}
-                aria-label={t(strings.components.editor.closeInfo)}
-              >
-                <X aria-hidden className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto p-4">
-              {metadataSlot ?? (
-                <p className="text-sm text-slate-400">
-                  {t(strings.components.editor.noInfo)}
-                </p>
-              )}
-            </div>
-          </aside>
-        </div>
+          <div data-testid={selectors.components.editor.infoDialog}>
+            {metadataSlot ?? (
+              <p className="text-sm text-app-muted-foreground">
+                {t(strings.components.editor.noInfo)}
+              </p>
+            )}
+          </div>
+        </Dialog>
       )}
     </section>
   );

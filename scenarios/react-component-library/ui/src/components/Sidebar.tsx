@@ -71,7 +71,11 @@ export function SidebarContent({ onNavigate, headerSlot, inventorySlot }: Sideba
         <div className="ms-auto">{headerSlot}</div>
       </div>
 
-      <nav className="flex flex-col gap-1 px-2 py-3" aria-label={t("nav.label", { defaultValue: "Primary navigation" })}>
+      <div
+        className="flex flex-col gap-1 px-2 py-3"
+        role="navigation"
+        aria-label={t("nav.label", { defaultValue: "Primary navigation" })}
+      >
         {items.map((item) => (
           <NavLink
             key={item.to}
@@ -92,7 +96,7 @@ export function SidebarContent({ onNavigate, headerSlot, inventorySlot }: Sideba
             <span>{item.label}</span>
           </NavLink>
         ))}
-      </nav>
+      </div>
 
       <div className="min-h-0 flex-1 overflow-auto border-t border-app-border px-2 py-3">
         {inventorySlot}

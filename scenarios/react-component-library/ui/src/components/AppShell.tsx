@@ -64,7 +64,7 @@ export function AppShell({ children }: Props) {
     <div
       ref={shellRef}
       data-testid="app-shell"
-      className="flex min-h-screen w-full bg-app-background text-app-foreground"
+      className="flex min-h-full w-full bg-app-background text-app-foreground"
     >
       <SidebarShell
         ref={sidebarRef}

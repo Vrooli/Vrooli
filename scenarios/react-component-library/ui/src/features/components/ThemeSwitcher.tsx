@@ -85,17 +85,17 @@ export function ThemeSwitcher({ frameRef, previewReady, className }: Props) {
   return (
     <div
       data-testid={selectors.components.themeSwitcher.root}
-      className={cn("flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-slate-300", className)}
+      className={cn("flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-app-muted-foreground", className)}
     >
       <label className="flex items-center gap-1.5">
-        <span className="text-slate-400">
+        <span className="text-app-muted-foreground">
           {t(strings.components.themeSwitcher.label)}
         </span>
         <select
           data-testid={selectors.components.themeSwitcher.select}
           value={selection}
           onChange={(e) => setSelection(e.target.value)}
-          className="h-7 max-w-32 rounded-md border border-white/10 bg-black/40 px-2 text-xs text-slate-100"
+          className="h-7 max-w-32 rounded-md border border-app-border bg-app-surface px-2 text-xs text-app-foreground"
         >
           <option value="">{t(strings.components.themeSwitcher.noneOption)}</option>
           <optgroup label={t(strings.components.themeSwitcher.builtinOptionGroup)}>
@@ -109,7 +109,7 @@ export function ThemeSwitcher({ frameRef, previewReady, className }: Props) {
       </label>
 
       <label className="flex items-center gap-1.5">
-        <span className="text-slate-400">
+        <span className="text-app-muted-foreground">
           {t(strings.components.themeSwitcher.scenarioInputLabel)}
         </span>
         <Input
@@ -121,7 +121,7 @@ export function ThemeSwitcher({ frameRef, previewReady, className }: Props) {
         />
         <Button
           data-testid={selectors.components.themeSwitcher.scenarioApply}
-          variant="outline"
+          variant="secondary"
           className="h-7 rounded-md px-2 text-xs"
           disabled={!scenarioId.trim()}
           onClick={() => setSelection(`scenario:${scenarioId.trim()}`)}
@@ -133,7 +133,7 @@ export function ThemeSwitcher({ frameRef, previewReady, className }: Props) {
       {loading && (
         <span
           data-testid={selectors.components.themeSwitcher.status}
-          className="text-slate-400"
+          className="text-app-muted-foreground"
         >
           {t(strings.components.themeSwitcher.loading)}
         </span>
@@ -141,7 +141,7 @@ export function ThemeSwitcher({ frameRef, previewReady, className }: Props) {
       {activeTheme && !loading && (
         <span
           data-testid={selectors.components.themeSwitcher.status}
-          className="text-emerald-300"
+          className="text-app-success"
         >
           {t(strings.components.themeSwitcher.applied, {
             name: activeTheme.name || activeTheme.id,
@@ -151,7 +151,7 @@ export function ThemeSwitcher({ frameRef, previewReady, className }: Props) {
       {queryError && (
         <span
           data-testid={selectors.components.themeSwitcher.error}
-          className="text-red-400"
+          className="text-app-danger"
         >
           {errorMessage(queryError, t)}
         </span>

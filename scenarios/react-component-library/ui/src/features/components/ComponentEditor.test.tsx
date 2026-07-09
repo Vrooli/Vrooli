@@ -9,6 +9,11 @@ import {
 } from "./mocks/factories";
 import { makeComponentsMocks } from "./mocks/components";
 
+const monacoMocks = vi.hoisted(() => ({
+  setJavaScriptDiagnosticsOptions: vi.fn(),
+  setTypeScriptDiagnosticsOptions: vi.fn(),
+}));
+
 // Monaco mounts a virtual DOM heavy enough to break jsdom (workers,
 // canvas measurement). Swap it for a plain <textarea> stub so the
 // editor's surrounding state-machine — load → edit → save — is the
@@ -16,10 +21,34 @@ import { makeComponentsMocks } from "./mocks/components";
 vi.mock("@monaco-editor/react", () => ({
   __esModule: true,
   default: (props: {
+    beforeMount?: (monaco: {
+      languages: {
+        typescript: {
+          javascriptDefaults: {
+            setDiagnosticsOptions: (options: unknown) => void;
+          };
+          typescriptDefaults: {
+            setDiagnosticsOptions: (options: unknown) => void;
+          };
+        };
+      };
+    }) => void;
     value?: string;
     onChange?: (v: string | undefined) => void;
   }) => {
-    const { value, onChange } = props;
+    const { beforeMount, value, onChange } = props;
+    beforeMount?.({
+      languages: {
+        typescript: {
+          javascriptDefaults: {
+            setDiagnosticsOptions: monacoMocks.setJavaScriptDiagnosticsOptions,
+          },
+          typescriptDefaults: {
+            setDiagnosticsOptions: monacoMocks.setTypeScriptDiagnosticsOptions,
+          },
+        },
+      },
+    });
     return (
       <textarea
         data-testid="monaco-stub"
@@ -78,6 +107,26 @@ describe("ComponentEditor", () => {
     expect(screen.getByTestId(selectors.components.editor.shaHash).textContent).toContain(
       "abc123def456",
     );
+  });
+
+  it("keeps Monaco syntax diagnostics while disabling misleading semantic diagnostics", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "const x = 1;", sha256: "sha-diag" }),
+    );
+
+    renderWithProviders(
+      <ComponentEditor id="cmp-diag" libraryId="lib:Diagnostics" onClose={() => {}} />,
+    );
+
+    await screen.findByTestId<HTMLTextAreaElement>("monaco-stub");
+
+    const expected = {
+      noSemanticValidation: true,
+      noSyntaxValidation: false,
+    };
+    expect(monacoMocks.setTypeScriptDiagnosticsOptions).toHaveBeenCalledWith(expected);
+    expect(monacoMocks.setJavaScriptDiagnosticsOptions).toHaveBeenCalledWith(expected);
   });
 
   it("disables Save until the buffer is dirty and forwards expectedSha256", async () => {

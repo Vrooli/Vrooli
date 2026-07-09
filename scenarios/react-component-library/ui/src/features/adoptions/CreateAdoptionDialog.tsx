@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
+import { Dialog } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -216,23 +217,40 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="adoptions-create-title"
-      data-testid={selectors.adoptions.createDialog}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    <Dialog
+      open={open}
+      title={t(strings.adoptions.create.title)}
+      description={t(strings.adoptions.create.subtitle)}
+      onClose={onClose}
+      closeLabel={t(strings.adoptions.create.cancelAction)}
+      className="max-w-md"
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="secondary"
+            data-testid={selectors.adoptions.createCancel}
+            onClick={onClose}
+            disabled={createMutation.isPending}
+          >
+            {t(strings.adoptions.create.cancelAction)}
+          </Button>
+          <Button
+            data-testid={selectors.adoptions.createConfirm}
+            onClick={() => createMutation.mutate()}
+            disabled={proceedDisabled}
+          >
+            {createMutation.isPending
+              ? t(strings.adoptions.creating)
+              : overwriteRequired
+                ? t(strings.adoptions.create.confirmOverwriteAction)
+                : t(strings.adoptions.create.confirmAction)}
+          </Button>
+        </div>
+      }
     >
-      <div className="w-full max-w-md rounded-xl border border-white/10 bg-app-surface p-5 shadow-xl">
-        <h3 id="adoptions-create-title" className="text-base font-semibold">
-          {t(strings.adoptions.create.title)}
-        </h3>
-        <p className="mt-1 text-xs text-slate-400">
-          {t(strings.adoptions.create.subtitle)}
-        </p>
-
+      <div data-testid={selectors.adoptions.createDialog}>
         <div className="mt-3 space-y-2">
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.adoptions.create.componentIdLabel)}
             <Input
               data-testid={selectors.adoptions.createComponentId}
@@ -242,7 +260,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
               className="mt-1"
             />
           </label>
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.adoptions.create.scenarioLabel)}
             <Input
               data-testid={selectors.adoptions.createScenario}
@@ -252,7 +270,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
               className="mt-1"
             />
           </label>
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.adoptions.create.adoptedPathLabel)}
             <Input
               data-testid={selectors.adoptions.createAdoptedPath}
@@ -271,7 +289,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
               warnings={pathWarnings}
             />
           </label>
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.adoptions.create.adoptedVersionLabel)}
             <Input
               data-testid={selectors.adoptions.createAdoptedVersion}
@@ -299,7 +317,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
         {createMutation.error && (
           <p
             data-testid={selectors.adoptions.createError}
-            className="mt-3 text-xs text-red-400"
+            className="mt-3 text-xs text-app-danger"
           >
             {overwriteRequired
               ? t(strings.adoptions.create.overwriteRequired)
@@ -307,29 +325,8 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
           </p>
         )}
 
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            data-testid={selectors.adoptions.createCancel}
-            onClick={onClose}
-            disabled={createMutation.isPending}
-          >
-            {t(strings.adoptions.create.cancelAction)}
-          </Button>
-          <Button
-            data-testid={selectors.adoptions.createConfirm}
-            onClick={() => createMutation.mutate()}
-            disabled={proceedDisabled}
-          >
-            {createMutation.isPending
-              ? t(strings.adoptions.creating)
-              : overwriteRequired
-                ? t(strings.adoptions.create.confirmOverwriteAction)
-              : t(strings.adoptions.create.confirmAction)}
-          </Button>
-        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -342,7 +339,7 @@ function WarnAcknowledgement({ ack, setAck }: WarnAcknowledgementProps) {
   const { t } = useTranslation();
 
   return (
-    <label className="mt-2 flex items-center gap-2 text-xs text-amber-200">
+    <label className="mt-2 flex items-center gap-2 text-xs text-app-warning">
       <input
         type="checkbox"
         data-testid={selectors.adoptions.createVerdictAck}
@@ -375,7 +372,7 @@ function VerdictBlock({
 
   if (validating) {
     return (
-      <p className="mt-3 text-xs text-slate-400">
+      <p className="mt-3 text-xs text-app-muted-foreground">
         {t(strings.adoptions.create.validating)}
       </p>
     );
@@ -393,10 +390,10 @@ function VerdictBlock({
 
   const tone =
     kind === VerdictKind.OK
-      ? "border-emerald-700/40 bg-emerald-900/20 text-emerald-200"
+      ? "border-app-success/40 bg-app-success/10 text-app-success"
       : kind === VerdictKind.WARN
-        ? "border-amber-700/40 bg-amber-900/20 text-amber-200"
-        : "border-red-700/40 bg-red-900/20 text-red-200";
+        ? "border-app-warning/40 bg-app-warning/10 text-app-warning"
+        : "border-app-danger/40 bg-app-danger/10 text-app-danger";
 
   return (
     <div
@@ -439,7 +436,7 @@ function StyleFitBlock({ validating, verdict }: StyleFitBlockProps) {
 
   if (validating) {
     return (
-      <p className="mt-2 text-xs text-slate-400">
+      <p className="mt-2 text-xs text-app-muted-foreground">
         {t(strings.adoptions.create.styleValidating)}
       </p>
     );
@@ -451,10 +448,10 @@ function StyleFitBlock({ validating, verdict }: StyleFitBlockProps) {
   const kindString = styleFitKindString(verdict.kind);
   const tone =
     verdict.kind === StyleFitVerdictKind.WARN
-      ? "border-amber-700/40 bg-amber-900/20 text-amber-200"
+      ? "border-app-warning/40 bg-app-warning/10 text-app-warning"
       : verdict.kind === StyleFitVerdictKind.INFO
-        ? "border-sky-700/40 bg-sky-900/20 text-sky-200"
-        : "border-emerald-700/40 bg-emerald-900/20 text-emerald-200";
+        ? "border-app-info/40 bg-app-info/10 text-app-info"
+        : "border-app-success/40 bg-app-success/10 text-app-success";
 
   return (
     <div
@@ -523,7 +520,7 @@ function PathSourceBadge({ resolving, source, warnings }: PathSourceBadgeProps) 
       <p
         data-testid={selectors.adoptions.createPathSource}
         data-path-source="resolving"
-        className="mt-1 text-[11px] text-slate-400"
+        className="mt-1 text-[11px] text-app-muted-foreground"
       >
         {t(strings.adoptions.create.pathResolving)}
       </p>
@@ -543,7 +540,7 @@ function PathSourceBadge({ resolving, source, warnings }: PathSourceBadgeProps) 
         {label}
       </span>
       {warnings.length > 0 && (
-        <ul className="mt-1 space-y-0.5 text-[11px] text-amber-300">
+        <ul className="mt-1 space-y-0.5 text-[11px] text-app-warning">
           {warnings.map((w, idx) => (
             <li
               key={idx}
@@ -566,25 +563,25 @@ function pathSourceMeta(
     case ResolveSource.EXPLICIT:
       return {
         label: t(strings.adoptions.create.pathSourceExplicit),
-        tone: "border-sky-700/40 bg-sky-900/20 text-sky-200",
+        tone: "border-app-info/40 bg-app-info/10 text-app-info",
         slug: "explicit",
       };
     case ResolveSource.TEMPLATE_MANIFEST:
       return {
         label: t(strings.adoptions.create.pathSourceTemplateManifest),
-        tone: "border-emerald-700/40 bg-emerald-900/20 text-emerald-200",
+        tone: "border-app-success/40 bg-app-success/10 text-app-success",
         slug: "template-manifest",
       };
     case ResolveSource.HEURISTIC:
       return {
         label: t(strings.adoptions.create.pathSourceHeuristic),
-        tone: "border-amber-700/40 bg-amber-900/20 text-amber-200",
+        tone: "border-app-warning/40 bg-app-warning/10 text-app-warning",
         slug: "heuristic",
       };
     case ResolveSource.FALLBACK:
       return {
         label: t(strings.adoptions.create.pathSourceFallback),
-        tone: "border-amber-700/40 bg-amber-900/20 text-amber-200",
+        tone: "border-app-warning/40 bg-app-warning/10 text-app-warning",
         slug: "fallback",
       };
     default:

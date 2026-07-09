@@ -60,16 +60,16 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
   return (
     <div
       data-testid={selectors.components.create.dialog}
-      className="mt-4 rounded-lg border border-white/10 bg-black/30 p-4"
+      className="mt-4 rounded-lg border border-app-border bg-app-surface p-4"
     >
       <form onSubmit={submit} className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-medium text-slate-200">
+          <h3 className="text-sm font-medium text-app-foreground">
             {t(strings.components.create.title)}
           </h3>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             className="h-8 px-3 text-xs"
             onClick={onClose}
             data-testid={selectors.components.create.cancel}
@@ -78,7 +78,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
           </Button>
         </div>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.slug)}
             <Input
               data-testid={selectors.components.create.slug}
@@ -88,7 +88,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               className="mt-1"
             />
           </label>
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.libraryId)}
             <Input
               data-testid={selectors.components.create.libraryId}
@@ -98,7 +98,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               className="mt-1"
             />
           </label>
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.displayName)}
             <Input
               data-testid={selectors.components.create.displayName}
@@ -107,7 +107,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               className="mt-1"
             />
           </label>
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.version)}
             <Input
               data-testid={selectors.components.create.version}
@@ -116,7 +116,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               className="mt-1"
             />
           </label>
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.fileName)}
             <Input
               data-testid={selectors.components.create.fileName}
@@ -126,7 +126,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               className="mt-1"
             />
           </label>
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.tags)}
             <Input
               data-testid={selectors.components.create.tags}
@@ -137,7 +137,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
             />
           </label>
         </div>
-        <label className="block text-xs text-slate-400">
+        <label className="block text-xs text-app-muted-foreground">
           {t(strings.components.create.description)}
           <Textarea
             data-testid={selectors.components.create.description}
@@ -146,7 +146,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
             className="mt-1 min-h-20"
           />
         </label>
-        <label className="block text-xs text-slate-400">
+        <label className="block text-xs text-app-muted-foreground">
           {t(strings.components.create.initialSource)}
           <Textarea
             data-testid={selectors.components.create.initialSource}
@@ -157,7 +157,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
           />
         </label>
         {mutation.error && (
-          <p data-testid={selectors.components.create.error} className="text-sm text-red-400">
+          <p data-testid={selectors.components.create.error} className="text-sm text-app-danger">
             {errorMessage(mutation.error, t)}
           </p>
         )}

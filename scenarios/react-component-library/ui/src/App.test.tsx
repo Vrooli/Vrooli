@@ -6,9 +6,15 @@
  * (3) navigating between routes does not remount the shell.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { renderWithProviders } from "./test-utils";
+
+const emitShortcutIntentMock = vi.fn();
+
+vi.mock("@vrooli/iframe-bridge", () => ({
+  emitShortcutIntent: (...args: unknown[]) => emitShortcutIntentMock(...args),
+}));
 
 vi.mock("./api/health", () => ({
   fetchHealth: vi
@@ -36,6 +42,7 @@ import App from "./App";
 describe("App composition", () => {
   afterEach(() => {
     cleanup();
+    emitShortcutIntentMock.mockClear();
   });
 
   it("mounts the shell on /", async () => {
@@ -71,6 +78,22 @@ describe("App composition", () => {
     renderWithProviders(<App />, { routerEntries: ["/never-was-a-route"] });
     await waitFor(() => {
       expect(screen.getByTestId("not-found-page")).toBeInTheDocument();
+    });
+  });
+
+  it("relays unhandled host keyboard shortcuts", async () => {
+    renderWithProviders(<App />, { routerEntries: ["/"] });
+    await waitFor(() => {
+      expect(screen.getByTestId("app-shell")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+
+    expect(emitShortcutIntentMock).toHaveBeenCalledWith({
+      action: "react-component-library.unhandled-shortcut",
+      outcome: "noop",
+      chord: "meta+k",
+      source: "keyboard",
     });
   });
 });

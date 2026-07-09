@@ -9,7 +9,7 @@
     { "styleId": "vrooli-command-display", "affinity": "native" },
     { "styleId": "vrooli-conversion-landing", "affinity": "discouraged" }
   ],
-  "latest": "1.1.0",
+  "latest": "1.2.0",
   "draft": "",
   "deprecatedVersions": []
 }

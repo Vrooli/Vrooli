@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
+import { EmptyState } from "../../components/ui/empty-state";
+import { Select } from "../../components/ui/select";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -52,40 +54,43 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
     <section
       data-testid={selectors.versions.card}
       aria-label={t(strings.versions.title)}
-      className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 backdrop-blur-sm"
+      className="mt-4 rounded-xl border border-app-border bg-app-surface p-4 backdrop-blur-sm"
     >
       <header className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-slate-200">{t(strings.versions.title)}</h2>
+        <h2 className="text-sm font-medium text-app-foreground">{t(strings.versions.title)}</h2>
         {versions.length > 0 && (
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-app-muted-foreground">
             {t(strings.versions.summary, { count: versions.length })}
           </span>
         )}
       </header>
 
       {versionsQuery.isLoading && (
-        <p data-testid={selectors.versions.loading} className="mt-3 text-slate-200">
+        <p data-testid={selectors.versions.loading} className="mt-3 text-app-foreground">
           {t(strings.versions.loading)}
         </p>
       )}
       {versionsQuery.error && (
-        <p data-testid={selectors.versions.error} className="mt-3 text-red-400">
+        <p data-testid={selectors.versions.error} className="mt-3 text-app-danger">
           {errorMessage(versionsQuery.error, t)}
         </p>
       )}
       {!versionsQuery.isLoading && versions.length === 0 && (
-        <p data-testid={selectors.versions.empty} className="mt-3 text-slate-200">
-          {t(strings.versions.empty)}
-        </p>
+        <div data-testid={selectors.versions.empty}>
+          <EmptyState
+            title={t(strings.versions.empty)}
+            className="mt-3 border-app-border bg-app-surface text-app-foreground"
+          />
+        </div>
       )}
 
       {versions.length > 0 && (
-        <ul data-testid={selectors.versions.list} className="mt-3 space-y-2 text-sm text-slate-200">
+        <ul data-testid={selectors.versions.list} className="mt-3 space-y-2 text-sm text-app-foreground">
           {versions.map((v) => (
             <li
               key={v.id}
               data-testid={selectors.versions.item}
-              className="rounded-lg border border-white/10 p-3"
+              className="rounded-lg border border-app-border p-3"
             >
               <div className="flex items-baseline justify-between gap-3">
                 <span data-testid={selectors.versions.itemVersion} className="font-medium">
@@ -95,12 +100,12 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
                 </span>
                 <span
                   data-testid={selectors.versions.itemSha}
-                  className="font-mono text-xs text-slate-500"
+                  className="font-mono text-xs text-app-muted-foreground"
                 >
                   {t(strings.versions.shaLabel, { sha: v.contentSha256.slice(0, 12) })}
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
                 <span data-testid={selectors.versions.itemRecordedAt}>
                   {t(strings.versions.recordedAt, {
                     when: v.recordedAt?.seconds
@@ -122,41 +127,31 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
 
       <div
         data-testid={selectors.versions.diff.card}
-        className="mt-4 rounded-lg border border-white/10 bg-black/30 p-3"
+        className="mt-4 rounded-lg border border-app-border bg-app-surface-muted p-3"
       >
-        <h3 className="text-xs font-medium text-slate-400">{t(strings.versions.diff.title)}</h3>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+        <h3 className="text-xs font-medium text-app-muted-foreground">{t(strings.versions.diff.title)}</h3>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-app-muted-foreground">
           <label className="flex items-center gap-1.5">
             <span>{t(strings.versions.diff.fromLabel)}</span>
-            <select
+            <Select
               data-testid={selectors.versions.diff.fromSelect}
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="rounded border border-white/10 bg-black/40 px-2 py-1 text-slate-100"
-            >
-              <option value="">—</option>
-              {versionOptions.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
+              className="min-h-8 w-32 border-app-border bg-app-surface px-2 py-1 text-sm text-app-foreground"
+              options={versionOptions.map((version) => ({ value: version, label: version }))}
+              placeholder="—"
+            />
           </label>
           <label className="flex items-center gap-1.5">
             <span>{t(strings.versions.diff.toLabel)}</span>
-            <select
+            <Select
               data-testid={selectors.versions.diff.toSelect}
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="rounded border border-white/10 bg-black/40 px-2 py-1 text-slate-100"
-            >
-              <option value="">—</option>
-              {versionOptions.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
+              className="min-h-8 w-32 border-app-border bg-app-surface px-2 py-1 text-sm text-app-foreground"
+              options={versionOptions.map((version) => ({ value: version, label: version }))}
+              placeholder="—"
+            />
           </label>
           <Button
             data-testid={selectors.versions.diff.runButton}
@@ -171,13 +166,13 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
         </div>
 
         {diffMutation.error && (
-          <p data-testid={selectors.versions.diff.error} className="mt-2 text-red-400 text-xs">
+          <p data-testid={selectors.versions.diff.error} className="mt-2 text-xs text-app-danger">
             {errorMessage(diffMutation.error, t)}
           </p>
         )}
 
         {!diff && !diffMutation.isPending && !diffMutation.error && (
-          <p data-testid={selectors.versions.diff.empty} className="mt-2 text-xs text-slate-500">
+          <p data-testid={selectors.versions.diff.empty} className="mt-2 text-xs text-app-muted-foreground">
             {t(strings.versions.diff.empty)}
           </p>
         )}
@@ -186,7 +181,7 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
           <>
             <p
               data-testid={selectors.versions.diff.summary}
-              className="mt-2 text-xs text-slate-400"
+              className="mt-2 text-xs text-app-muted-foreground"
             >
               {t(strings.versions.diff.summary, {
                 from: diff.fromLabel,
@@ -197,16 +192,15 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
               })}
             </p>
             <div className="mt-2 overflow-auto">
-              <table
+              <div
                 data-testid={selectors.versions.diff.table}
-                className="w-full font-mono text-[0.7rem]"
+                role="table"
+                className="w-full min-w-max font-mono text-[0.7rem]"
               >
-                <tbody>
-                  {diff.rows.map((r, i) => (
-                    <DiffRowView key={i} row={r} />
-                  ))}
-                </tbody>
-              </table>
+                {diff.rows.map((r, i) => (
+                  <DiffRowView key={i} row={r} />
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -217,34 +211,35 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
 
 function DiffRowView({ row }: { row: DiffRow }) {
   return (
-    <tr
+    <div
       data-testid={selectors.versions.diff.row}
-      className="align-top"
+      role="row"
+      className="grid grid-cols-2 align-top"
     >
       <CellView cell={row.left} side="left" />
       <CellView cell={row.right} side="right" />
-    </tr>
+    </div>
   );
 }
 
 function CellView({ cell, side }: { cell: { lineNumber: number; text: string; op: DiffOp } | undefined; side: "left" | "right" }) {
-  if (!cell) return <td />;
+  if (!cell) return <div role="cell" />;
   const cls =
     cell.op === DiffOp.ADD
-      ? "bg-emerald-900/40 text-emerald-200"
+      ? "bg-app-success/10 text-app-success"
       : cell.op === DiffOp.REMOVE
-      ? "bg-red-900/40 text-red-200"
+      ? "bg-app-danger/10 text-app-danger"
       : cell.op === DiffOp.EMPTY
-      ? "bg-black/30 text-slate-700"
-      : "text-slate-300";
+      ? "bg-app-surface-muted text-app-muted-foreground"
+      : "text-app-muted-foreground";
   const marker = cell.op === DiffOp.ADD ? "+" : cell.op === DiffOp.REMOVE ? "-" : " ";
   return (
-    <td className={`whitespace-pre px-2 py-0.5 ${cls}`} data-side={side}>
-      <span className="mr-2 inline-block w-5 select-none text-slate-500">
+    <div role="cell" className={`whitespace-pre px-2 py-0.5 ${cls}`} data-side={side}>
+      <span className="mr-2 inline-block w-5 select-none text-app-muted-foreground">
         {cell.op === DiffOp.EMPTY ? "" : cell.lineNumber || ""}
       </span>
       <span className="mr-1 inline-block w-3 select-none">{marker}</span>
       {cell.text}
-    </td>
+    </div>
   );
 }
