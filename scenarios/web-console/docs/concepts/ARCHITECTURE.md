@@ -156,6 +156,18 @@ Each session conversation has two independent cursors:
 
 These cursors drive unread badges, missed-response replay, and future conversation-centric UI features. They are not inferred from PTY output.
 
+### Message Export (client-local)
+
+Operators can turn an explicit subset of conversation events into paste-ready coding-agent context. The flow is entirely client-local — no export endpoint, no dependency, and conversation text never leaves the browser for formatting:
+
+1. The Message Navigator ([CODE: ui/src/components/MessageJumpList.tsx]) exposes an always-visible Export header action in normal jump mode. Activating it enters an explicit selection mode where result rows toggle checkboxes instead of jumping; jump and playback-select semantics are unchanged.
+2. Selected event IDs live in [CODE: ui/src/components/MessagesPane.tsx] — the single session-scoped source of truth shared by the navigator and the drawer. Selection survives filter/sort/query changes (hidden selections stay counted) and is normalized against available events whenever the conversation refreshes.
+3. Continue opens [CODE: ui/src/components/MessageExportDrawer.tsx] (built on the shared [CODE: ui/src/components/DrawerShell.tsx]), which is a formatter/preview/copy surface only — never a second selector.
+4. Deterministic ordering, escaping, rendering (Agent XML, Markdown transcript, quote blocks, plain text), and token estimation live in the pure, React-free [CODE: ui/src/lib/messageExport.ts]. Exports always render in ascending `ConversationEvent.sequence` with original roles, exactly the chosen messages, and no invented purpose wrapper.
+5. Copy uses the browser Clipboard API with transient success feedback and non-destructive error feedback; closing the drawer returns to the navigator with the selection intact.
+
+Ownership boundary: MessagesPane owns selection state; MessageJumpList owns selection affordances; messageExport.ts owns all formatting; MessageExportDrawer owns format choice, preview, and clipboard interaction.
+
 ### File Preview
 
 File preview is a third supporting data plane, separate from terminal I/O and conversation events. It is **not** semantic conversation state — it is a reusable subsystem any web-console surface (today: conversation message links + inline path chips) can call to open a resolved local artifact.

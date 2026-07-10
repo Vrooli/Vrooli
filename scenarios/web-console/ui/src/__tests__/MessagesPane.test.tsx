@@ -947,4 +947,92 @@ describe("MessagesPane", () => {
       }
     });
   });
+
+  // --- Export selection flow (navigator → drawer → clipboard) ---
+
+  describe("export selection flow", () => {
+    function openExportSelection() {
+      fireEvent.click(screen.getByTestId("msg-jump-trigger"));
+      fireEvent.click(screen.getByTestId("msg-export-enter"));
+    }
+
+    beforeEach(() => {
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText: vi.fn().mockResolvedValue(undefined) },
+        configurable: true,
+      });
+    });
+
+    it("Continue opens the drawer with exactly the selected messages in order", () => {
+      seedEvents([
+        makeEvent({ id: "e1", sequence: 1, role: "user", text: "first question" }),
+        makeEvent({ id: "e2", sequence: 2, text: "an answer" }),
+        makeEvent({ id: "e3", sequence: 3, text: "unselected reply" }),
+      ]);
+      render(<MessagesPane {...defaultProps} />);
+      openExportSelection();
+
+      // Select out of order — the export must still be chronological.
+      fireEvent.click(screen.getByTestId("msg-jump-item-e2"));
+      fireEvent.click(screen.getByTestId("msg-jump-item-e1"));
+      fireEvent.click(screen.getByTestId("msg-export-continue"));
+
+      const preview = screen.getByTestId("msg-export-preview").textContent ?? "";
+      expect(preview.indexOf("first question")).toBeGreaterThanOrEqual(0);
+      expect(preview.indexOf("first question")).toBeLessThan(preview.indexOf("an answer"));
+      expect(preview).not.toContain("unselected reply");
+    });
+
+    it("closing the drawer keeps the navigator selection for another pass", () => {
+      seedEvents([
+        makeEvent({ id: "e1", sequence: 1, text: "keep me" }),
+        makeEvent({ id: "e2", sequence: 2, text: "other" }),
+      ]);
+      render(<MessagesPane {...defaultProps} />);
+      openExportSelection();
+      fireEvent.click(screen.getByTestId("msg-jump-item-e1"));
+      fireEvent.click(screen.getByTestId("msg-export-continue"));
+      expect(screen.getByTestId("msg-export-drawer")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText("messageExport.closeAriaLabel"));
+      expect(screen.queryByTestId("msg-export-drawer")).toBeNull();
+      // Navigator is still open in selection mode with the selection intact.
+      expect(screen.getByTestId("msg-jump-item-e1").getAttribute("aria-checked")).toBe("true");
+      fireEvent.click(screen.getByTestId("msg-export-continue"));
+      expect(screen.getByTestId("msg-export-preview").textContent).toContain("keep me");
+    });
+
+    it("drops selected IDs that no longer exist after a conversation refresh", () => {
+      seedEvents([
+        makeEvent({ id: "e1", sequence: 1, text: "stays" }),
+        makeEvent({ id: "e2", sequence: 2, text: "goes away" }),
+      ]);
+      render(<MessagesPane {...defaultProps} />);
+      openExportSelection();
+      fireEvent.click(screen.getByTestId("msg-export-select-all"));
+      expect(screen.getByTestId("msg-jump-item-e2").getAttribute("aria-checked")).toBe("true");
+
+      act(() => {
+        seedEvents([makeEvent({ id: "e1", sequence: 1, text: "stays" })]);
+      });
+      fireEvent.click(screen.getByTestId("msg-export-continue"));
+      const preview = screen.getByTestId("msg-export-preview").textContent ?? "";
+      expect(preview).toContain("stays");
+      expect(preview).not.toContain("goes away");
+    });
+
+    it("existing jump behavior is preserved alongside the export entry point", () => {
+      seedEvents([
+        makeEvent({ id: "e1", sequence: 1, text: "target" }),
+        makeEvent({ id: "e2", sequence: 2, text: "other" }),
+      ]);
+      render(<MessagesPane {...defaultProps} />);
+      fireEvent.click(screen.getByTestId("msg-jump-trigger"));
+      expect(screen.getByTestId("msg-export-enter")).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId("msg-jump-item-e1"));
+      // Jump closes the navigator without entering selection mode.
+      expect(screen.queryByTestId("msg-jump-list")).toBeNull();
+      expect(screen.queryByTestId("msg-export-footer")).toBeNull();
+    });
+  });
 });

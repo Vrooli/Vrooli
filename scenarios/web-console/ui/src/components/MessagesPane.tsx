@@ -26,7 +26,8 @@ import { cn } from "../lib/classnames";
 import { looksLikeFileReference } from "../lib/fileReferences";
 import { MarkdownRenderer } from "./markdown";
 import { useVirtualList } from "../hooks/useVirtualList";
-import MessageJumpList from "./MessageJumpList";
+import MessageJumpList, { type MessageExportSelection } from "./MessageJumpList";
+import MessageExportDrawer from "./MessageExportDrawer";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
 import type { TTSPlaybackState } from "../audio-integration";
@@ -513,6 +514,11 @@ export default function MessagesPane({
   // --- Collapse ---
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
+  // --- Export selection (session-scoped source of truth shared by the
+  // navigator's selection mode and the export drawer) ---
+  const [exportSelectedIds, setExportSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [exportDrawerOpen, setExportDrawerOpen] = useState(false);
+
   // --- File preview ---
   const filePreview = useFilePreviewController(sessionId);
 
@@ -782,6 +788,43 @@ export default function MessagesPane({
     };
   }, [sessionId]);
 
+  // Normalize the export selection whenever the conversation refreshes so it
+  // never references events that no longer exist in the session.
+  useEffect(() => {
+    setExportSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (eventIndexById.has(id)) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [eventIndexById]);
+
+  const exportSelection = useMemo<MessageExportSelection>(
+    () => ({
+      selectedIds: exportSelectedIds,
+      onToggle: (eventId) =>
+        setExportSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(eventId)) next.delete(eventId);
+          else next.add(eventId);
+          return next;
+        }),
+      onSelectAll: () => setExportSelectedIds(new Set(eventIds)),
+      onSelectVisible: (visibleIds) => setExportSelectedIds(new Set(visibleIds)),
+      onClear: () => setExportSelectedIds(new Set()),
+      onContinue: () => setExportDrawerOpen(true),
+    }),
+    [exportSelectedIds, eventIds],
+  );
+
+  // Selected events in conversation order for the drawer/formatter.
+  const exportEvents = useMemo(
+    () => events.filter((event) => exportSelectedIds.has(event.id)),
+    [events, exportSelectedIds],
+  );
+
   const focusAndScroll = useCallback((eventId: string) => {
     setFocusedEventId(eventId);
     scrollToEvent(eventId);
@@ -924,8 +967,16 @@ export default function MessagesPane({
           initialFocus={navInitialFocus}
           query={searchQuery}
           onQueryChange={handleNavQueryChange}
+          exportSelection={exportSelection}
         />
       )}
+
+      <MessageExportDrawer
+        open={exportDrawerOpen}
+        events={exportEvents}
+        onClose={() => setExportDrawerOpen(false)}
+      />
+
 
       <div ref={scrollContainerRef} className="relative min-h-0 flex-1 overflow-auto">
         {events.length === 0 ? (

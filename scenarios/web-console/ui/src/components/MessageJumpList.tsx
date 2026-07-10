@@ -8,12 +8,13 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
-import { AlignLeft, Code, FileText, Pause, Play, Search, X } from "lucide-react";
+import { AlignLeft, CheckSquare, ClipboardCopy, Code, FileText, Pause, Play, Search, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEvent } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
+import { buildMessageExport, DEFAULT_MESSAGE_EXPORT_FORMAT } from "../lib/messageExport";
 import { getScrubClasses } from "./tts/scrubStyles";
 import {
   assistantRoleLabelKey,
@@ -42,6 +43,23 @@ import {
  */
 export type MessageNavigatorMode = "jump" | "playback-select";
 
+/**
+ * Export-selection contract. Selected IDs live in MessagesPane (the single
+ * source of truth shared with the export drawer); the navigator only renders
+ * selection affordances and reports intent through these callbacks.
+ */
+export interface MessageExportSelection {
+  selectedIds: ReadonlySet<string>;
+  onToggle: (eventId: string) => void;
+  /** Select the entire conversation (every event id). */
+  onSelectAll: () => void;
+  /** Select exactly the currently visible (filtered) result ids. */
+  onSelectVisible: (eventIds: string[]) => void;
+  onClear: () => void;
+  /** Proceed to the export drawer with the current selection. */
+  onContinue: () => void;
+}
+
 interface MessageJumpListProps {
   events: ConversationEvent[];
   focusedEventId: string | null;
@@ -65,6 +83,12 @@ interface MessageJumpListProps {
   onSeek?: (seconds: number) => void;
   /** Whether the next event is queued and will auto-play after the current one. */
   hasQueuedNext?: boolean;
+  /**
+   * Enables the Export header action (jump mode only). Activating it switches
+   * the navigator into an explicit selection mode where rows toggle instead of
+   * jumping; normal jump and playback-select semantics are unchanged.
+   */
+  exportSelection?: MessageExportSelection;
 }
 
 const SOURCE_LABEL_KEY = {
@@ -275,6 +299,8 @@ function NavRow({
   isNext,
   onSelect,
   now,
+  selectMode = false,
+  isSelected = false,
 }: {
   result: NavigatorResult;
   isFocused: boolean;
@@ -282,6 +308,9 @@ function NavRow({
   isNext: boolean;
   onSelect: () => void;
   now: Date;
+  /** Export-selection mode: the row toggles a checkbox instead of jumping. */
+  selectMode?: boolean;
+  isSelected?: boolean;
 }) {
   const { t } = useTranslation();
   const { event } = result;
@@ -296,7 +325,11 @@ function NavRow({
       data-jump-item
       data-role={isUser ? "user" : "assistant"}
       data-glyph={isUser ? undefined : desc.glyph}
-      aria-current={!isUser && desc.glyph === "playing" ? "true" : undefined}
+      data-selected={selectMode ? isSelected : undefined}
+      role={selectMode ? "checkbox" : undefined}
+      aria-checked={selectMode ? isSelected : undefined}
+      aria-label={selectMode ? t(strings.messageExport.selectMessageAria, { sequence: event.sequence }) : undefined}
+      aria-current={!isUser && !selectMode && desc.glyph === "playing" ? "true" : undefined}
       onClick={onSelect}
       className={cn(
         "flex w-full flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-start transition",
@@ -312,6 +345,15 @@ function NavRow({
       )}
     >
       <span className="flex w-full items-center gap-1.5 text-[11px]">
+        {selectMode && (
+          <span
+            aria-hidden="true"
+            data-testid={`msg-export-check-${event.id}`}
+            className={cn("inline-flex shrink-0 items-center justify-center", isSelected ? "text-wc-accent" : "text-wc-text-faint")}
+          >
+            {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+          </span>
+        )}
         {!isUser && <StatusIcon glyph={desc.glyph} />}
         <span className="font-mono text-wc-text-faint">#{event.sequence}</span>
         <span className={cn("font-medium", isUser && "text-wc-text-primary")}>{roleLabel}</span>
@@ -430,6 +472,7 @@ export default function MessageJumpList({
   onResume,
   onSeek,
   hasQueuedNext = false,
+  exportSelection,
 }: MessageJumpListProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -454,6 +497,12 @@ export default function MessageJumpList({
   const [sort, setSort] = useState<SortMode>("oldest");
   const [groupMode, setGroupMode] = useState<GroupMode>("turn");
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Export selection is only reachable from normal jump mode; the selected-ID
+  // set itself lives in MessagesPane so it survives filter changes and close.
+  const canExport = mode === "jump" && exportSelection !== undefined;
+  const [isExportSelecting, setIsExportSelecting] = useState(false);
+  const exportActive = canExport && isExportSelecting;
 
   const navState = useMemo<NavigatorState>(
     () => ({ query: q, role, status, content, sort, group: groupMode }),
@@ -540,11 +589,39 @@ export default function MessageJumpList({
 
   const handleSelect = useCallback(
     (eventId: string) => {
+      if (exportActive) {
+        exportSelection?.onToggle(eventId);
+        return;
+      }
       onSelect(eventId);
       onClose();
     },
-    [onSelect, onClose],
+    [exportActive, exportSelection, onSelect, onClose],
   );
+
+  // --- Export selection derived state -------------------------------------
+  const selectedIds = exportSelection?.selectedIds;
+  const selectedEvents = useMemo(
+    () => (selectedIds ? events.filter((e) => selectedIds.has(e.id)) : []),
+    [events, selectedIds],
+  );
+  // Shared formatter is the single token-estimate authority; the footer shows
+  // the default-format estimate the drawer will open with.
+  const exportTokenEstimate = useMemo(
+    () => (exportActive ? buildMessageExport(selectedEvents, DEFAULT_MESSAGE_EXPORT_FORMAT).tokenEstimate : 0),
+    [exportActive, selectedEvents],
+  );
+  const visibleSelectedCount = useMemo(() => {
+    if (!selectedIds) return 0;
+    let count = 0;
+    for (const r of results) {
+      if (selectedIds.has(r.event.id)) count += 1;
+    }
+    return count;
+  }, [results, selectedIds]);
+  const hiddenSelectedCount = (selectedIds?.size ?? 0) - visibleSelectedCount;
+
+  const exitExportSelection = useCallback(() => setIsExportSelecting(false), []);
 
   const moveActive = useCallback(
     (delta: number) => {
@@ -564,7 +641,10 @@ export default function MessageJumpList({
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        // In selection mode, Escape steps back to the normal navigator
+        // (selection is retained by the parent) instead of closing outright.
+        if (exportActive) exitExportSelection();
+        else onClose();
         return;
       }
       if (e.key === "ArrowDown") {
@@ -577,12 +657,13 @@ export default function MessageJumpList({
         moveActive(-1);
         return;
       }
-      if (e.key === "Enter" && safeActive >= 0) {
+      if ((e.key === "Enter" || (e.key === " " && exportActive)) && safeActive >= 0) {
+        e.preventDefault();
         const result = results[safeActive];
         if (result) handleSelect(result.event.id);
       }
     },
-    [moveActive, onClose, results, safeActive, handleSelect],
+    [moveActive, onClose, results, safeActive, handleSelect, exportActive, exitExportSelection],
   );
 
   const handleSearchKeyDown = useCallback(
@@ -611,10 +692,11 @@ export default function MessageJumpList({
         e.preventDefault();
         e.stopPropagation();
         if (q) setQuery("");
+        else if (exportActive) exitExportSelection();
         else onClose();
       }
     },
-    [results, safeActive, scrollToEvent, handleSelect, q, setQuery, onClose],
+    [results, safeActive, scrollToEvent, handleSelect, q, setQuery, onClose, exportActive, exitExportSelection],
   );
 
   const resetPrimaryFilters = useCallback(() => {
@@ -624,19 +706,23 @@ export default function MessageJumpList({
   }, []);
 
   const allActive = role === "all" && status === "all" && content === "all";
-  const title = mode === "playback-select"
-    ? t(strings.messageJumpList.titlePlayback)
-    : t(strings.messageJumpList.titleJump);
+  const title = exportActive
+    ? t(strings.messageExport.selectionTitle)
+    : mode === "playback-select"
+      ? t(strings.messageJumpList.titlePlayback)
+      : t(strings.messageJumpList.titleJump);
 
   const renderRow = (result: NavigatorResult) => (
     <div key={result.event.id} ref={registerItemRef(result.event.id)}>
       <NavRow
         result={result}
-        isFocused={result.event.id === focusedEventId}
+        isFocused={!exportActive && result.event.id === focusedEventId}
         isActive={result.event.id === activeId}
-        isNext={result.event.id === nextEventId}
+        isNext={!exportActive && result.event.id === nextEventId}
         onSelect={() => handleSelect(result.event.id)}
         now={now}
+        selectMode={exportActive}
+        isSelected={exportActive && (selectedIds?.has(result.event.id) ?? false)}
       />
     </div>
   );
@@ -657,20 +743,33 @@ export default function MessageJumpList({
         </div>
       )}
 
-      {/* Title + close */}
-      <div className="flex shrink-0 items-center justify-between px-3 pt-1 pb-1">
+      {/* Title + export + close */}
+      <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-1 pb-1">
         <span className="text-[11px] font-medium uppercase tracking-wider text-wc-text-faint">{title}</span>
-        <button
-          onClick={onClose}
-          className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-          aria-label={t(strings.messageJumpList.closeAriaLabel)}
-          type="button"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        <span className="flex items-center gap-1">
+          {canExport && !exportActive && (
+            <button
+              type="button"
+              data-testid="msg-export-enter"
+              onClick={() => setIsExportSelecting(true)}
+              className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-wc-surface-input/40 px-2.5 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            >
+              <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
+              {t(strings.messageExport.exportAction)}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            aria-label={t(strings.messageJumpList.closeAriaLabel)}
+            type="button"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </span>
       </div>
 
-      {(mode === "playback-select" || duration !== null) && (
+      {(mode === "playback-select" || duration !== null) && !exportActive && (
         <NowPlayingHeader
           event={focusedEvent}
           currentTime={currentTime}
@@ -848,6 +947,72 @@ export default function MessageJumpList({
             </div>
           ))}
           <div data-testid="msg-jump-safe-spacer" aria-hidden="true" style={{ height: "var(--wc-safe-bottom, 0px)" }} />
+        </div>
+      )}
+
+      {exportActive && exportSelection && (
+        <div
+          data-testid="msg-export-footer"
+          className="shrink-0 border-t border-wc-default/60 bg-wc-surface-raised px-3 pt-2 pb-[max(0.75rem,var(--wc-safe-bottom,0px))]"
+        >
+          <div className="flex flex-wrap items-center gap-1 pb-2">
+            <button
+              type="button"
+              data-testid="msg-export-select-all"
+              onClick={exportSelection.onSelectAll}
+              className="min-h-[32px] rounded-md bg-wc-surface-input/40 px-2 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            >
+              {t(strings.messageExport.selectAll)}
+            </button>
+            <button
+              type="button"
+              data-testid="msg-export-select-visible"
+              onClick={() => exportSelection.onSelectVisible(results.map((r) => r.event.id))}
+              className="min-h-[32px] rounded-md bg-wc-surface-input/40 px-2 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            >
+              {t(strings.messageExport.selectVisible)}
+            </button>
+            <button
+              type="button"
+              data-testid="msg-export-clear"
+              onClick={exportSelection.onClear}
+              disabled={(selectedIds?.size ?? 0) === 0}
+              className="min-h-[32px] rounded-md bg-wc-surface-input/40 px-2 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {t(strings.messageExport.clearSelection)}
+            </button>
+          </div>
+          {hiddenSelectedCount > 0 && (
+            <div data-testid="msg-export-hidden-hint" className="pb-2 text-[10px] text-wc-text-faint">
+              {t(strings.messageExport.hiddenSelected, { count: hiddenSelectedCount })}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <span data-testid="msg-export-count" className="text-[11px] font-medium text-wc-text-primary">
+              {t(strings.messageExport.selectedCount, { count: selectedIds?.size ?? 0 })}
+            </span>
+            <span data-testid="msg-export-tokens" className="text-[10px] text-wc-text-faint">
+              {t(strings.messageExport.approxTokens, { count: exportTokenEstimate })}
+            </span>
+            <span className="flex-1" />
+            <button
+              type="button"
+              data-testid="msg-export-cancel"
+              onClick={exitExportSelection}
+              className="min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            >
+              {t(strings.messageExport.cancelAction)}
+            </button>
+            <button
+              type="button"
+              data-testid="msg-export-continue"
+              onClick={exportSelection.onContinue}
+              disabled={(selectedIds?.size ?? 0) === 0}
+              className="min-h-[36px] rounded-lg bg-wc-accent/25 px-3 py-1.5 text-xs font-semibold text-wc-text-primary transition hover:bg-wc-accent/35 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {t(strings.messageExport.continueAction)}
+            </button>
+          </div>
         </div>
       )}
     </div>

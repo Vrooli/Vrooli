@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within, createEvent } from "@testing-library/react";
-import MessageJumpList from "../components/MessageJumpList";
+import MessageJumpList, { type MessageExportSelection } from "../components/MessageJumpList";
 import type { ConversationEvent } from "../api/conversation";
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {
@@ -377,5 +378,211 @@ describe("MessageJumpList navigator", () => {
       <MessageJumpList events={events} focusedEventId="a" onSelect={onSelect} onClose={onClose} currentTime={1} duration={10} isPaused={false} isSummarized />,
     );
     expect(screen.getByTestId("msg-jump-now-scrub").className).toMatch(/amber-400/);
+  });
+});
+
+// ── Export selection mode ─────────────────────────────────────────────────────
+
+describe("MessageJumpList export selection", () => {
+  const onSelect = vi.fn();
+  const onClose = vi.fn();
+  const onContinue = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal(
+      "ResizeObserver",
+      vi.fn().mockImplementation(() => ({ observe: vi.fn(), unobserve: vi.fn(), disconnect: vi.fn() })),
+    );
+  });
+
+  /**
+   * Stateful harness standing in for MessagesPane: owns the selected-ID set
+   * exactly the way the pane does so toggle/bulk interactions are observable.
+   */
+  function Harness({ events }: { events: ConversationEvent[] }) {
+    const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+    const exportSelection: MessageExportSelection = {
+      selectedIds,
+      onToggle: (id) =>
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        }),
+      onSelectAll: () => setSelectedIds(new Set(events.map((e) => e.id))),
+      onSelectVisible: (ids) => setSelectedIds(new Set(ids)),
+      onClear: () => setSelectedIds(new Set()),
+      onContinue,
+    };
+    return (
+      <MessageJumpList
+        events={events}
+        focusedEventId={null}
+        onSelect={onSelect}
+        onClose={onClose}
+        exportSelection={exportSelection}
+      />
+    );
+  }
+
+  const threeEvents = () => [
+    makeEvent({ id: "a", sequence: 1, role: "user", text: "question about deploy" }),
+    makeEvent({ id: "b", sequence: 2, text: "deploy answer" }),
+    makeEvent({ id: "c", sequence: 3, text: "unrelated" }),
+  ];
+
+  it("shows a labelled Export action in every normal navigator session", () => {
+    render(<Harness events={threeEvents()} />);
+    const enter = screen.getByTestId("msg-export-enter");
+    expect(enter).toBeInTheDocument();
+    expect(enter.textContent).toContain("messageExport.exportAction");
+  });
+
+  it("hides the Export action in playback-select mode", () => {
+    const events = threeEvents();
+    render(
+      <MessageJumpList
+        events={events}
+        focusedEventId={null}
+        onSelect={onSelect}
+        onClose={onClose}
+        mode="playback-select"
+        exportSelection={{
+          selectedIds: new Set(),
+          onToggle: vi.fn(),
+          onSelectAll: vi.fn(),
+          onSelectVisible: vi.fn(),
+          onClear: vi.fn(),
+          onContinue,
+        }}
+      />,
+    );
+    expect(screen.queryByTestId("msg-export-enter")).toBeNull();
+  });
+
+  it("activating Export enters selection mode without closing the navigator", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("messageExport.selectionTitle")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-export-footer")).toBeInTheDocument();
+  });
+
+  it("selection-mode rows toggle a checkbox and never jump or close", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    const row = screen.getByTestId("msg-jump-item-b");
+    expect(row.getAttribute("role")).toBe("checkbox");
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(row);
+    expect(screen.getByTestId("msg-jump-item-b").getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByTestId("msg-jump-item-b"));
+    expect(screen.getByTestId("msg-jump-item-b").getAttribute("aria-checked")).toBe("false");
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("retains selected IDs when a filter hides them and counts them as hidden", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    fireEvent.click(screen.getByTestId("msg-jump-item-a"));
+    fireEvent.click(screen.getByTestId("msg-jump-item-b"));
+    expect(screen.getByTestId("msg-export-count").textContent).toContain("messageExport.selectedCount");
+
+    // Filter to assistant-only: user row "a" disappears but stays selected.
+    fireEvent.click(screen.getByTestId("msg-nav-chip-assistant"));
+    expect(screen.queryByTestId("msg-jump-item-a")).toBeNull();
+    expect(screen.getByTestId("msg-export-hidden-hint")).toBeInTheDocument();
+
+    // Back to all: the selection is still intact.
+    fireEvent.click(screen.getByTestId("msg-nav-chip-all"));
+    expect(screen.getByTestId("msg-jump-item-a").getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("msg-jump-item-b").getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("bulk actions select all, select visible results, and clear", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+
+    fireEvent.click(screen.getByTestId("msg-export-select-all"));
+    for (const id of ["a", "b", "c"]) {
+      expect(screen.getByTestId(`msg-jump-item-${id}`).getAttribute("aria-checked")).toBe("true");
+    }
+
+    fireEvent.click(screen.getByTestId("msg-export-clear"));
+    for (const id of ["a", "b", "c"]) {
+      expect(screen.getByTestId(`msg-jump-item-${id}`).getAttribute("aria-checked")).toBe("false");
+    }
+
+    // Search narrows visible results; "visible" selects exactly those.
+    fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "deploy" } });
+    fireEvent.click(screen.getByTestId("msg-export-select-visible"));
+    fireEvent.click(screen.getByTestId("msg-nav-clear"));
+    expect(screen.getByTestId("msg-jump-item-a").getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("msg-jump-item-b").getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("msg-jump-item-c").getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("Continue is disabled at zero selection and fires the callback once selected", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    const cont = screen.getByTestId("msg-export-continue");
+    expect(cont).toBeDisabled();
+    fireEvent.click(cont);
+    expect(onContinue).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("msg-jump-item-a"));
+    expect(screen.getByTestId("msg-export-continue")).not.toBeDisabled();
+    fireEvent.click(screen.getByTestId("msg-export-continue"));
+    expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the shared-formatter token estimate in the footer", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    expect(screen.getByTestId("msg-export-tokens").textContent).toContain("messageExport.approxTokens");
+  });
+
+  it("Cancel exits selection mode; reentering shows the retained selection", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    fireEvent.click(screen.getByTestId("msg-jump-item-a"));
+    fireEvent.click(screen.getByTestId("msg-export-cancel"));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("msg-export-footer")).toBeNull();
+    expect(screen.getByText("messageJumpList.titleJump")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    expect(screen.getByTestId("msg-jump-item-a").getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("Escape steps back to the normal navigator before closing", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    const list = screen.getByTestId("msg-jump-list");
+    fireEvent.keyDown(list, { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("msg-export-footer")).toBeNull();
+    fireEvent.keyDown(list, { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("keyboard Enter toggles the active row in selection mode instead of jumping", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    const list = screen.getByTestId("msg-jump-list");
+    fireEvent.keyDown(list, { key: "Enter" });
+    expect(screen.getByTestId("msg-jump-item-a").getAttribute("aria-checked")).toBe("true");
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("normal jump behavior is unchanged when export selection is not active", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-jump-item-a"));
+    expect(onSelect).toHaveBeenCalledWith("a");
+    expect(onClose).toHaveBeenCalled();
   });
 });
