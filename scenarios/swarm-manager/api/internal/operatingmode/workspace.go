@@ -27,11 +27,18 @@ func (s *Service) Workspace(ctx context.Context, initiativeName string) (Workspa
 			Definition:     workspaceMode(def, nil, init.AcceptanceCriteria),
 		}, nil
 	}
+	_, legacyAmbiguous, err := s.store.AdoptLegacyExecution(init.Name, def)
+	if err != nil {
+		return Workspace{}, err
+	}
 	rounds, err := s.store.ListRounds(init.Name, def.Mode)
 	if err != nil {
 		return Workspace{}, err
 	}
 	for i := range rounds {
+		if legacyAmbiguous && rounds[i].ExecutionID == "" {
+			continue
+		}
 		if isRoundActive(rounds[i]) {
 			refreshed, refreshErr := s.RefreshRound(ctx, init.Name, def.Mode, rounds[i].Round)
 			if refreshErr != nil {
@@ -49,6 +56,10 @@ func (s *Service) Workspace(ctx context.Context, initiativeName string) (Workspa
 	if err != nil {
 		return Workspace{}, err
 	}
+	executions, err := s.store.ListExecutions(init.Name, def.Mode)
+	if err != nil {
+		return Workspace{}, err
+	}
 	return Workspace{
 		InitiativeName: init.Name,
 		Mode:           string(def.Mode),
@@ -56,6 +67,7 @@ func (s *Service) Workspace(ctx context.Context, initiativeName string) (Workspa
 		Lock:           holder,
 		Artifacts:      artifacts,
 		Rounds:         rounds,
+		Executions:     executions,
 	}, nil
 }
 

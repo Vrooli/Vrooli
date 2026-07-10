@@ -47,6 +47,7 @@ import {
   GetRunDiffResponseSchema,
   GetRunEventsResponseSchema,
   GetRunResponseSchema,
+  GetModelPolicyCatalogResponseSchema,
   GetRunnerStatusResponseSchema,
   GetTaskResponseSchema,
   ListProfilesResponseSchema,
@@ -1066,24 +1067,6 @@ export function useModelRegistry(options?: { enabled?: boolean }) {
     }
   }, [setData, setLoading, setError]);
 
-  const updateRegistry = useCallback(async (registry: ModelRegistry): Promise<ModelRegistry> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<ModelRegistry>("/runner-models", {
-        method: "PUT",
-        body: JSON.stringify(registry),
-      });
-      setData(data);
-      return data;
-    } catch (err) {
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
   useEffect(() => {
     if (!enabled) {
       return;
@@ -1091,7 +1074,33 @@ export function useModelRegistry(options?: { enabled?: boolean }) {
     void fetchRegistry();
   }, [enabled, fetchRegistry]);
 
-  return { data, loading, error, refetch: fetchRegistry, updateRegistry };
+  return { data, loading, error, refetch: fetchRegistry };
+}
+
+// Model-policy catalog hook. This is a read-only projection of Git-managed
+// declared state; reload and validation remain explicit operator commands.
+export function useModelPolicyCatalog(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  const { data, loading, error, setData, setLoading, setError } = useApiState<MessageShape<typeof GetModelPolicyCatalogResponseSchema> | null>(null);
+
+  const fetchCatalog = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const payload = await apiRequest<unknown>("/model-policy/catalog");
+      setData(parseProto(GetModelPolicyCatalogResponseSchema, payload));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setLoading, setError]);
+
+  useEffect(() => {
+    if (enabled) void fetchCatalog();
+  }, [enabled, fetchCatalog]);
+
+  return { data, loading, error, refetch: fetchCatalog };
 }
 
 // Model registry health hook. Pulls the current per-model health snapshot from the

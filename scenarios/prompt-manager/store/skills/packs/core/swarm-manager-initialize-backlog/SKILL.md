@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Bootstrap a new backlog item with a solid foundation in one agent pass: an implementation plan scaffold and a first workshop round with targeted decisions and informational items.
+Bootstrap a new non-research backlog item with a solid foundation in one agent pass: a canonical plan-manager scaffold and a first workshop round with targeted decisions and informational items.
 
 ## Input Context
 
 **Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure, artifact schemas, and CLI commands for reading/writing backlog files.
 
-**Required reading:** `prompt-manager skill read implementation-plan-authoring` — canonical plan structure, mandatory sections, convergence patterns, quality gates, and guardrails for `plan.md`.
+**Required reading:** `prompt-manager skill read implementation-plan-authoring` — canonical plan structure, mandatory sections, convergence patterns, quality gates, and guardrails for the plan-manager implementation plan.
 
 **Required reading:** `prompt-manager skill read swarm-manager-processing-guidance` — processing patterns and quality standards.
 
@@ -16,7 +16,7 @@ Bootstrap a new backlog item with a solid foundation in one agent pass: an imple
 
 **In scope:**
 - Reading all existing item context (spec, archive, any user-added files)
-- Creating an initial `plan.md` scaffold with as much content as possible
+- Creating or adopting an initial canonical plan-manager scaffold with as much content as possible
 - Creating a first workshop round (`workshop/round-001.json`) with decisions, informational items, and readiness scores
 - Preserving any existing artifacts on re-run (fill gaps, don't overwrite)
 
@@ -36,7 +36,7 @@ EOF
 
 ### All Kinds
 
-1. **`plan.md`** — implementation plan following the structure defined by the `implementation-plan-authoring` skill (loaded via required reading above). Fill in as much as possible from existing context (spec.json, archive materials). Leave sections as `<!-- TBD -->` when information is insufficient.
+1. **Canonical plan-manager plan** — implementation plan following the structure defined by the `implementation-plan-authoring` skill (loaded via required reading above). Fill in as much as possible from existing context (spec.json, archive materials). Leave sections as `<!-- TBD -->` when information is insufficient. Ensure the backlog item ends with `spec.json.plan_ref` populated.
 2. **`workshop/round-001.json`** — first workshop round with:
    - 4-7 targeted decisions presenting researched alternatives for the most important unknowns
    - 0-2 informational items sharing relevant findings from context
@@ -44,7 +44,7 @@ EOF
 
 ## Implementation Plan Scaffold
 
-The `plan.md` structure, mandatory sections, convergence patterns, quality gates, and guardrails are defined by the `implementation-plan-authoring` skill (loaded via required reading above). Follow that skill exactly when creating the initial scaffold.
+The canonical plan structure, mandatory sections, convergence patterns, quality gates, and guardrails are defined by the `implementation-plan-authoring` skill (loaded via required reading above). Follow that skill exactly when creating the initial scaffold.
 
 ### Kind-Specific Plan Focus
 
@@ -65,7 +65,7 @@ See `swarm-manager-workshop` skill for the full schema. The round file includes:
 - `generated_at`: ISO timestamp
 - `readiness`: 5 dimension scores (0-3)
 - `items`: array of decision/info items
-- `plan_updates`: description of what was written to plan.md
+- `plan_updates`: description of what was written to the canonical plan
 
 ### Readiness Dimensions
 
@@ -81,7 +81,7 @@ Score each 0 (not started) to 3 (solid). First rounds typically score 0-2 depend
 
 ## Instructions
 
-You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it from an empty shell into a well-structured item with a draft plan and first workshop round ready for human review.
+You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it from an empty shell into a well-structured item with a canonical plan-manager draft and first workshop round ready for human review.
 
 **Context from spec.json:**
 - Kind: {{ITEM_KIND}}
@@ -103,7 +103,7 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    - `spec.json` — the item description and metadata
    - `archive/` — user-provided materials (requirements docs, prior scenario artifacts, designs)
    - Any user-added files in the item root
-   - Existing `plan.md` and `workshop/` artifacts from a prior run (preserve these)
+   - Existing `plan_ref`, rendered plan, and `workshop/` artifacts from a prior run (preserve these)
    - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, check for strategic context:
      ```bash
      swarm-manager initiatives get --name {{ITEM_INITIATIVE}}
@@ -117,15 +117,11 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    - If `acceptance_allow` is **set**, use the patterns to determine target directories and read their structure (e.g., `ls` the matched directories) to inform the plan's technical context, file layout, and approach sections.
    - If `acceptance_allow` is **empty**, include an acceptance decision in round-001.json asking: "What file paths are expected to change?" with options: A) broad scenario-level globs (e.g., `path:scenarios/<name>/**`), B) targeted subdirectory/file paths, C) Other.
 
-3. **Create plan.md scaffold**
+3. **Create the canonical plan scaffold**
 
    Based on available context, fill in as many plan sections as possible. The description and archive materials should provide enough for at least Purpose, Problem Statement, and partial Scope.
 
-   ```bash
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path plan.md --stdin <<'EOF'
-   <plan content>
-   EOF
-   ```
+   Submit the plan markdown through the swarm-manager plan-import/finalization path so plan-manager stores it and the backlog item receives `spec.json.plan_ref`. Do not write a local implementation-plan file in the backlog folder.
 
 4. **Generate workshop round 1**
 
@@ -153,17 +149,17 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
    ```
 
-   Confirm `plan.md` and `workshop/round-001.json` were created.
+   Confirm `spec.json.plan_ref` and `workshop/round-001.json` were created.
 
 ### Re-run Handling
 
 ```
 Do any workshop artifacts already exist?
   -> No  -> Generate everything fresh
-  -> Yes -> Read existing plan.md and workshop rounds
+  -> Yes -> Read existing rendered plan and workshop rounds
           Preserve all existing answers and decisions
           Only fill gaps (missing plan sections, unanswered questions)
-          If plan.md exists but no rounds: create round-001.json
+          If plan_ref exists but no rounds: create round-001.json
           If rounds exist: create the next numbered round
 ```
 
@@ -183,5 +179,5 @@ Do any workshop artifacts already exist?
 |---------|----------|
 | `file-get` returns 404 | Normal on first run — generate fresh content |
 | `file-upload` fails | Check kind and name match: `swarm-manager backlog get --kind <kind> --name <name>` |
-| Archive already contains detailed plan | Use it as context for plan.md, generate fewer questions |
+| Archive already contains detailed plan | Use it as context for the canonical plan, generate fewer questions |
 | Item has rich description | Pre-answer questions where possible, focus questions on gaps |

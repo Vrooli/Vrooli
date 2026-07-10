@@ -42,7 +42,7 @@ The canonical prose should live in `DESIGN.md`. Stack-specific primitives, templ
 Scenario generation selects a design kit explicitly with `--design <kit-id>` or uses the template default:
 
 ```bash
-vrooli scenario generate react-vite \
+template-manager generate react-vite \
   --id example \
   --display-name "Example" \
   --description "Example scenario" \
@@ -52,7 +52,7 @@ vrooli scenario generate react-vite \
 The `react-vite` template requires a compatible `react-vite-tailwind` adapter. It defaults to `vrooli-default`, but callers may select a different compatible kit:
 
 ```bash
-vrooli scenario generate react-vite \
+template-manager generate react-vite \
   --id command-display-example \
   --display-name "Command Display Example" \
   --description "Fullscreen command display" \
@@ -64,7 +64,7 @@ Use `vrooli-default` for normal scenario applications. Use `vrooli-command-displ
 The `landing-page-react-vite` template defaults to `vrooli-conversion-landing`:
 
 ```bash
-vrooli scenario generate landing-page-react-vite \
+template-manager generate landing-page-react-vite \
   --id conversion-example \
   --display-name "Conversion Example" \
   --description "Conversion landing page" \
@@ -78,7 +78,7 @@ Use `vrooli-conversion-landing` for pages that sell, validate, or capture demand
 Local validation checks kit metadata, required files, adapter copy rules, official-style token groups, and the Vrooli UX state contract:
 
 ```bash
-vrooli scenario design validate --all
+template-manager design validate --all
 ```
 
 The local validator is intentionally deterministic and does not require installing the upstream Google CLI. For compatibility checks against the alpha Google tooling, run the upstream linter separately when package installation is available:

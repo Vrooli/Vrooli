@@ -9,6 +9,7 @@ type Dependencies struct {
 	Task        CommandFunc
 	Run         CommandFunc
 	Runner      CommandFunc
+	Policy      CommandFunc
 	Settings    CommandFunc
 	Maintenance CommandFunc
 	Ops         CommandFunc

@@ -88,22 +88,6 @@ func (f *fakeResourceOps) ValidateBlueprints() (resources.BlueprintValidationRep
 	return resources.BlueprintValidationReport{}, nil
 }
 
-func (f *fakeResourceOps) ListResourceTemplates() ([]resources.ResourceTemplateInfo, error) {
-	return nil, nil
-}
-
-func (f *fakeResourceOps) ResourceTemplate(name string) (resources.ResourceTemplateInfo, error) {
-	return resources.ResourceTemplateInfo{Name: name}, nil
-}
-
-func (f *fakeResourceOps) ValidateResourceTemplates() (resources.ResourceTemplateValidationReport, error) {
-	return resources.ResourceTemplateValidationReport{}, nil
-}
-
-func (f *fakeResourceOps) GenerateResourceTemplate(req resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateGenerateReport, error) {
-	return resources.ResourceTemplateGenerateReport{}, nil
-}
-
 func (f *fakeResourceOps) ValidateSchemaArtifacts() (resources.ResourceSchemaValidationReport, error) {
 	return resources.ResourceSchemaValidationReport{Passed: true}, nil
 }
@@ -143,10 +127,7 @@ func TestServiceSyncsSchemaAfterCatalogMutations(t *testing.T) {
 	if _, err := svc.RestoreBlueprint("redis"); err != nil {
 		t.Fatalf("RestoreBlueprint: %v", err)
 	}
-	if _, err := svc.TemplateGenerate(resources.ResourceTemplateGenerateRequest{}); err != nil {
-		t.Fatalf("TemplateGenerate: %v", err)
-	}
-	if ops.syncCalls != 3 {
-		t.Fatalf("sync calls = %d, want 3", ops.syncCalls)
+	if ops.syncCalls != 2 {
+		t.Fatalf("sync calls = %d, want 2", ops.syncCalls)
 	}
 }

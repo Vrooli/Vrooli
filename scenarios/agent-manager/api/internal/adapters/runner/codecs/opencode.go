@@ -102,22 +102,10 @@ func NewOpenCodeForTest() *OpenCode {
 	return c
 }
 
-// Capabilities satisfies [Codec]. SupportedModels is the curated cloud list
-// plus any locally-pulled Ollama models discovered via the cached lister
-// (opencode reaches them through its first-class `ollama` provider block).
+// Capabilities satisfies [Codec]. Static model visibility is injected from
+// modelpolicy by boot wiring; the codec contributes only locally-pulled Ollama
+// models discovered through OpenCode's first-class provider block.
 func (c *OpenCode) Capabilities() runner.Capabilities {
-	// Curated defaults MUST stay a subset of config/model-registry.json's
-	// opencode models — the operator-facing catalog is the source of truth
-	// (D2). codecs/model_parity_test.go gates this; the registry routes
-	// opencode through OpenRouter, so these are openrouter/* ids.
-	models := []string{
-		"openrouter/deepseek/deepseek-v4-pro",
-		"openrouter/google/gemini-3.5-flash",
-		"openrouter/anthropic/claude-opus-4.8",
-		"openrouter/deepseek/deepseek-v4-flash",
-	}
-	models = append(models, c.ollama.list()...)
-
 	return runner.Capabilities{
 		SupportsMessages:         true,
 		SupportsToolEvents:       true,
@@ -127,7 +115,9 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 		SupportsContinuation:     true, // `--session <id>`
 		SupportsImageAttachments: true, // `opencode run -f/--file <FILE>`
 		MaxTurns:                 0,
-		SupportedModels:          models,
+		SupportedModels:          c.ollama.list(),
+		SupportsRunnerDefault:    true,
+		DynamicModelPrefixes:     []string{ollamaModelPrefix},
 		SupportedFeatures:        []string{},
 		AllowedExtraFlags:        []string{"--verbose"},
 	}

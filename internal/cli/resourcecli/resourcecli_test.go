@@ -70,20 +70,6 @@ func TestWriteBlueprintSearchHumanIncludesRows(t *testing.T) {
 	}
 }
 
-func TestRenderTemplateGenerateHelpTextUsesGeneratedSchema(t *testing.T) {
-	text := RenderTemplateGenerateHelpText()
-	for _, want := range []string{
-		"vrooli resource template generate <template> [options]",
-		"--from-blueprint <name>",
-		"--var <key=value>",
-		"--dry-run",
-	} {
-		if !strings.Contains(strings.ToLower(text), strings.ToLower(want)) {
-			t.Fatalf("missing %q in help:\n%s", want, text)
-		}
-	}
-}
-
 func TestWriteSchemaValidationReportHumanIncludesMissingReferences(t *testing.T) {
 	var stdout bytes.Buffer
 	report := resources.ResourceSchemaValidationReport{

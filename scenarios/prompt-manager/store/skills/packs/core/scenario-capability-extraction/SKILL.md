@@ -146,7 +146,7 @@ Pick one or more UI archetypes. The selected archetypes become product scope and
 1. Generate the scenario through the project CLI:
 
    ```bash
-   vrooli scenario generate react-vite --id <scenario-id> --display-name "<Display Name>" --description "<one-line purpose>" --design <kit-id>
+   template-manager generate react-vite --id <scenario-id> --display-name "<Display Name>" --description "<one-line purpose>" --design <kit-id>
    ```
 
 2. Follow the generated `docs/START-HERE.md` orientation protocol.
@@ -220,7 +220,7 @@ Pick one or more UI archetypes. The selected archetypes become product scope and
 
 **Actions:**
 1. Run relevant checks:
-   - `vrooli scenario orient <scenario-id>` while orientation is active,
+   - `template-manager orient <scenario-id>` while orientation is active,
    - `make test` from the scenario once implementation begins,
    - `vrooli scenario requirements validate <scenario-id> --json` (one command covers PRD linkage + requirements registry).
 2. Check the extraction contract:

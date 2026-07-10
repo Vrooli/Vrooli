@@ -12,6 +12,16 @@ This skill owns *what test infrastructure must exist*. The `test` skill owns *wh
 >
 > Work the architecture-category findings it reports; the ladder below is the diagnostic vocabulary for *why* each finding matters, not a competing scorer.
 
+> **Policy projection contract:** Unit Health also emits policy/profile drift
+> findings for template-derived unit infrastructure. When you see
+> `UNIT_POLICY_PROJECTION_DRIFT`, align native config with the resolved policy
+> (`vite.config.ts`, `package.json` scripts/dependencies, `src/test-utils`, Go
+> `internal/testutil/no_prod_import_test.go`, etc.). When you see
+> `UNIT_POLICY_PROFILE_INVALID`, `UNIT_POLICY_WEAKENED`,
+> `UNIT_REQUIRED_ROLE_MISSING`, or `UNIT_SURFACE_UNGOVERNED`, repair the
+> `.vrooli/testing.json` `unit.policy_profile` or the missing discovered
+> surface. Do not reimplement these checks in Test Genie.
+
 Required reading:
 - `prompt-manager skill read knowledge-observatory-tools` — read and update scenario documentation through the canonical docs CLI.
 

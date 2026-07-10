@@ -21,7 +21,7 @@ Use this document to answer:
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 The shipped worked-example `notes` domain carries placeholder data only
-(removed by `vrooli scenario detemplate`):
+(removed by `template-manager detemplate`):
 
 | Data | Sensitivity | Owner | Details |
 |---|---|---|---|

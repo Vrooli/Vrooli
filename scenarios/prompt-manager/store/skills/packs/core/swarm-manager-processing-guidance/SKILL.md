@@ -43,8 +43,8 @@ See `swarm-manager-backlog-tools` for the full reading order and decision hierar
 For idea processing that initializes or updates scenarios:
 
 - If structured spec artifacts exist in backlog (`archive/PRD.md`, `path:archive/requirements/`), treat them as baseline source material.
-- Copy/merge those artifacts first, then run `prd-control-tower` validation/fix loops.
-- Use `prd-control-tower ... generate` only as fallback when baseline artifacts are missing or irreparably invalid.
+- Copy/merge those artifacts first, then run the `vrooli scenario requirements validate` / `business-health fix` loops.
+- Drive the business-health wizard with answers synthesized from the archive/enhance materials only as fallback when baseline artifacts are missing or irreparably invalid.
 - For existing scenarios, default to merge-with-backup, not overwrite.
 - Never silently discard existing scenario PRD/requirements content; record conflict decisions in `notes.md`.
 

@@ -7,7 +7,7 @@ domain is added, renamed, split, merged, or removed.
 `health` is the one real domain the scaffold ships. Add your scenario's
 domains to the inventory below as you build them. The scaffold also ships
 one clearly fenced worked example domain (never product scope) as a
-copyable reference; `vrooli scenario detemplate <scenario>` removes every
+copyable reference; `template-manager detemplate <scenario>` removes every
 fenced example once your real domains are green.
 
 ## Purpose Of This Document
@@ -31,7 +31,7 @@ belong in [`DATA.md`](DATA.md).
 | _(your domain)_ | What product capability it owns. | Why the capability exists for users or operators. | Its tables, if any. | service | — | DomainVocabulary | `api/internal/<domain>/` |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+### Example domain — `notes` (removed by `template-manager detemplate`)
 
 The template ships `notes` as a worked CRUD vertical slice with a binary
 upload exception. Copy its shape for your own domains, then remove it.

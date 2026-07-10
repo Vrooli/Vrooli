@@ -128,6 +128,14 @@ func TestEngine_AggregatesFallbackInsights(t *testing.T) {
 			Reason:    "binary_missing",
 			AttemptNo: 1,
 		},
+		eventlog.PolicyCandidateAttemptPayload{
+			CatalogDigest: "sha256:test",
+			SnapshotIndex: 1,
+			Runner:        "claude-code",
+			SelectionType: "runner_default",
+			Outcome:       eventlog.PolicyCandidateOutcomeExhausted,
+			FailureClass:  "snapshot_exhausted",
+		},
 	}
 	for i, p := range events {
 		evt, err := eventlog.BuildEvent(runID, p)
@@ -157,6 +165,11 @@ func TestEngine_AggregatesFallbackInsights(t *testing.T) {
 	}
 	if fb.RunnerByReason["binary_missing"] != 1 {
 		t.Errorf("RunnerByReason[binary_missing] = %d, want 1", fb.RunnerByReason["binary_missing"])
+	}
+	if fb.PolicyCandidateEvents != 1 || fb.PolicyByOutcome["exhausted"] != 1 ||
+		fb.PolicyByFailureClass["snapshot_exhausted"] != 1 {
+		t.Errorf("policy candidate counters = events:%d outcomes:%v failures:%v",
+			fb.PolicyCandidateEvents, fb.PolicyByOutcome, fb.PolicyByFailureClass)
 	}
 	if got := fb.History.MinSampleMeaningful; got != MinSampleMeaningful {
 		t.Errorf("MinSampleMeaningful = %d, want %d", got, MinSampleMeaningful)

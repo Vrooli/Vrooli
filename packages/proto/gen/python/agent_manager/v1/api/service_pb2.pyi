@@ -1,3 +1,5 @@
+import datetime
+
 from agent_manager.v1.domain import events_pb2 as _events_pb2
 from agent_manager.v1.domain import profile_pb2 as _profile_pb2
 from agent_manager.v1.domain import run_pb2 as _run_pb2
@@ -6,6 +8,7 @@ from agent_manager.v1.domain import types_pb2 as _types_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from common.v1 import types_pb2 as _types_pb2_1
 from google.api import annotations_pb2 as _annotations_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -668,6 +671,200 @@ class ProbeRunnerResponse(_message.Message):
     RESULT_FIELD_NUMBER: _ClassVar[int]
     result: _run_pb2.ProbeResult
     def __init__(self, result: _Optional[_Union[_run_pb2.ProbeResult, _Mapping]] = ...) -> None: ...
+
+class ModelPolicyDiagnostic(_message.Message):
+    __slots__ = ("code", "message", "cause")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    CAUSE_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    message: str
+    cause: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., cause: _Optional[str] = ...) -> None: ...
+
+class ModelPolicyRequirement(_message.Message):
+    __slots__ = ("required", "reason")
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    required: bool
+    reason: str
+    def __init__(self, required: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ModelPolicyReloadAttempt(_message.Message):
+    __slots__ = ("attempted_at", "succeeded", "digest", "diagnostic")
+    ATTEMPTED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUCCEEDED_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    attempted_at: _timestamp_pb2.Timestamp
+    succeeded: bool
+    digest: str
+    diagnostic: ModelPolicyDiagnostic
+    def __init__(self, attempted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., succeeded: _Optional[bool] = ..., digest: _Optional[str] = ..., diagnostic: _Optional[_Union[ModelPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class ModelPolicyStatus(_message.Message):
+    __slots__ = ("path", "requirement", "ready", "active_digest", "activated_at", "last_reload_attempt")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    REQUIREMENT_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_RELOAD_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    requirement: ModelPolicyRequirement
+    ready: bool
+    active_digest: str
+    activated_at: _timestamp_pb2.Timestamp
+    last_reload_attempt: ModelPolicyReloadAttempt
+    def __init__(self, path: _Optional[str] = ..., requirement: _Optional[_Union[ModelPolicyRequirement, _Mapping]] = ..., ready: _Optional[bool] = ..., active_digest: _Optional[str] = ..., activated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_reload_attempt: _Optional[_Union[ModelPolicyReloadAttempt, _Mapping]] = ...) -> None: ...
+
+class ModelPolicySource(_message.Message):
+    __slots__ = ("name", "reference", "verified_at")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    VERIFIED_AT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    reference: str
+    verified_at: str
+    def __init__(self, name: _Optional[str] = ..., reference: _Optional[str] = ..., verified_at: _Optional[str] = ...) -> None: ...
+
+class ModelPolicyCatalogMetadata(_message.Message):
+    __slots__ = ("catalog_id", "updated_at", "sources")
+    CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    SOURCES_FIELD_NUMBER: _ClassVar[int]
+    catalog_id: str
+    updated_at: str
+    sources: _containers.RepeatedCompositeFieldContainer[ModelPolicySource]
+    def __init__(self, catalog_id: _Optional[str] = ..., updated_at: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[ModelPolicySource, _Mapping]]] = ...) -> None: ...
+
+class ModelPolicyModel(_message.Message):
+    __slots__ = ("id", "description")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    description: str
+    def __init__(self, id: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
+
+class ModelPolicyRunnerInventory(_message.Message):
+    __slots__ = ("runner_type", "models", "supports_runner_default", "dynamic_model_prefixes")
+    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    MODELS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_RUNNER_DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    DYNAMIC_MODEL_PREFIXES_FIELD_NUMBER: _ClassVar[int]
+    runner_type: _types_pb2.RunnerType
+    models: _containers.RepeatedCompositeFieldContainer[ModelPolicyModel]
+    supports_runner_default: bool
+    dynamic_model_prefixes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., models: _Optional[_Iterable[_Union[ModelPolicyModel, _Mapping]]] = ..., supports_runner_default: _Optional[bool] = ..., dynamic_model_prefixes: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ModelPolicyCandidate(_message.Message):
+    __slots__ = ("runner_type", "selection_type", "model")
+    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    runner_type: _types_pb2.RunnerType
+    selection_type: _types_pb2.ModelSelectionType
+    model: str
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., selection_type: _Optional[_Union[_types_pb2.ModelSelectionType, str]] = ..., model: _Optional[str] = ...) -> None: ...
+
+class ModelPolicyDefinition(_message.Message):
+    __slots__ = ("name", "intent", "candidates")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    INTENT_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    intent: str
+    candidates: _containers.RepeatedCompositeFieldContainer[ModelPolicyCandidate]
+    def __init__(self, name: _Optional[str] = ..., intent: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[ModelPolicyCandidate, _Mapping]]] = ...) -> None: ...
+
+class ModelPolicyCatalog(_message.Message):
+    __slots__ = ("schema_version", "metadata", "default_policy", "runners", "policies")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_POLICY_FIELD_NUMBER: _ClassVar[int]
+    RUNNERS_FIELD_NUMBER: _ClassVar[int]
+    POLICIES_FIELD_NUMBER: _ClassVar[int]
+    schema_version: int
+    metadata: ModelPolicyCatalogMetadata
+    default_policy: str
+    runners: _containers.RepeatedCompositeFieldContainer[ModelPolicyRunnerInventory]
+    policies: _containers.RepeatedCompositeFieldContainer[ModelPolicyDefinition]
+    def __init__(self, schema_version: _Optional[int] = ..., metadata: _Optional[_Union[ModelPolicyCatalogMetadata, _Mapping]] = ..., default_policy: _Optional[str] = ..., runners: _Optional[_Iterable[_Union[ModelPolicyRunnerInventory, _Mapping]]] = ..., policies: _Optional[_Iterable[_Union[ModelPolicyDefinition, _Mapping]]] = ...) -> None: ...
+
+class GetModelPolicyStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetModelPolicyStatusResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: ModelPolicyStatus
+    def __init__(self, status: _Optional[_Union[ModelPolicyStatus, _Mapping]] = ...) -> None: ...
+
+class GetModelPolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetModelPolicyCatalogResponse(_message.Message):
+    __slots__ = ("status", "catalog")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_FIELD_NUMBER: _ClassVar[int]
+    status: ModelPolicyStatus
+    catalog: ModelPolicyCatalog
+    def __init__(self, status: _Optional[_Union[ModelPolicyStatus, _Mapping]] = ..., catalog: _Optional[_Union[ModelPolicyCatalog, _Mapping]] = ...) -> None: ...
+
+class ValidateModelPolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ValidateModelPolicyCatalogResponse(_message.Message):
+    __slots__ = ("valid", "candidate_digest", "active_digest", "diagnostic")
+    VALID_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    valid: bool
+    candidate_digest: str
+    active_digest: str
+    diagnostic: ModelPolicyDiagnostic
+    def __init__(self, valid: _Optional[bool] = ..., candidate_digest: _Optional[str] = ..., active_digest: _Optional[str] = ..., diagnostic: _Optional[_Union[ModelPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class ReloadModelPolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ReloadModelPolicyCatalogResponse(_message.Message):
+    __slots__ = ("activated", "status", "diagnostic")
+    ACTIVATED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    activated: bool
+    status: ModelPolicyStatus
+    diagnostic: ModelPolicyDiagnostic
+    def __init__(self, activated: _Optional[bool] = ..., status: _Optional[_Union[ModelPolicyStatus, _Mapping]] = ..., diagnostic: _Optional[_Union[ModelPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class ExplainModelPolicyRequest(_message.Message):
+    __slots__ = ("profile_id", "run_id")
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    profile_id: str
+    run_id: str
+    def __init__(self, profile_id: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class ExplainModelPolicyResponse(_message.Message):
+    __slots__ = ("target_type", "target_id", "snapshot", "summary", "historical_without_snapshot")
+    TARGET_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    HISTORICAL_WITHOUT_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    target_type: str
+    target_id: str
+    snapshot: _profile_pb2.ExecutionPolicySnapshot
+    summary: str
+    historical_without_snapshot: bool
+    def __init__(self, target_type: _Optional[str] = ..., target_id: _Optional[str] = ..., snapshot: _Optional[_Union[_profile_pb2.ExecutionPolicySnapshot, _Mapping]] = ..., summary: _Optional[str] = ..., historical_without_snapshot: _Optional[bool] = ...) -> None: ...
 
 class PurgeDataRequest(_message.Message):
     __slots__ = ("pattern", "targets", "dry_run")

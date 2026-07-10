@@ -497,6 +497,7 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		Features:             FeatureFlagsToProto(c.Features),
 		ExtraFlags:           RunnerExtraFlagsToProto(c.ExtraFlags),
 		NetworkAccess:        NetworkAccessToProto(c.NetworkAccess),
+		PolicySnapshot:       ExecutionPolicySnapshotToProto(c.PolicySnapshot),
 		SandboxConfig:        SandboxConfigToProto(c.SandboxConfig),
 		AllowedPaths:         c.AllowedPaths,
 		DeniedPaths:          c.DeniedPaths,
@@ -528,9 +529,117 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 		Features:             FeatureFlagsFromProto(c.Features),
 		ExtraFlags:           RunnerExtraFlagsFromProto(c.ExtraFlags),
 		NetworkAccess:        NetworkAccessFromProto(c.NetworkAccess),
+		PolicySnapshot:       ExecutionPolicySnapshotFromProto(c.PolicySnapshot),
 		SandboxConfig:        SandboxConfigFromProto(c.SandboxConfig),
 		AllowedPaths:         c.AllowedPaths,
 		DeniedPaths:          c.DeniedPaths,
+	}
+}
+
+// ExecutionPolicySnapshotToProto exposes the run-owned immutable policy
+// decision through run detail without reconstructing it from current policy.
+func ExecutionPolicySnapshotToProto(snapshot *domain.ExecutionPolicySnapshot) *pb.ExecutionPolicySnapshot {
+	if snapshot == nil {
+		return nil
+	}
+	candidates := make([]*pb.ExecutionCandidate, 0, len(snapshot.Candidates))
+	for _, candidate := range snapshot.Candidates {
+		candidates = append(candidates, ExecutionCandidateToProto(candidate))
+	}
+	return &pb.ExecutionPolicySnapshot{
+		CatalogDigest:     snapshot.CatalogDigest,
+		PolicyRef:         snapshot.PolicyRef,
+		Candidates:        candidates,
+		SelectedIndex:     int32(snapshot.SelectedIndex),
+		SelectedCandidate: ExecutionCandidateToProto(snapshot.SelectedCandidate),
+		Explanation:       PolicyResolutionExplanationToProto(snapshot.Explanation),
+	}
+}
+
+// ExecutionPolicySnapshotFromProto converts a persisted policy decision from
+// the generated API contract into its domain representation.
+func ExecutionPolicySnapshotFromProto(snapshot *pb.ExecutionPolicySnapshot) *domain.ExecutionPolicySnapshot {
+	if snapshot == nil {
+		return nil
+	}
+	candidates := make([]domain.ExecutionCandidate, 0, len(snapshot.Candidates))
+	for _, candidate := range snapshot.Candidates {
+		if candidate != nil {
+			candidates = append(candidates, ExecutionCandidateFromProto(candidate))
+		}
+	}
+	return &domain.ExecutionPolicySnapshot{
+		CatalogDigest:     snapshot.CatalogDigest,
+		PolicyRef:         snapshot.PolicyRef,
+		Candidates:        candidates,
+		SelectedIndex:     int(snapshot.SelectedIndex),
+		SelectedCandidate: ExecutionCandidateFromProto(snapshot.SelectedCandidate),
+		Explanation:       PolicyResolutionExplanationFromProto(snapshot.Explanation),
+	}
+}
+
+func ExecutionCandidateToProto(candidate domain.ExecutionCandidate) *pb.ExecutionCandidate {
+	return &pb.ExecutionCandidate{
+		RunnerType:    RunnerTypeToProto(candidate.RunnerType),
+		SelectionType: ModelSelectionTypeToProto(candidate.SelectionType),
+		Model:         candidate.Model,
+	}
+}
+
+func ExecutionCandidateFromProto(candidate *pb.ExecutionCandidate) domain.ExecutionCandidate {
+	if candidate == nil {
+		return domain.ExecutionCandidate{}
+	}
+	return domain.ExecutionCandidate{
+		RunnerType:    RunnerTypeFromProto(candidate.RunnerType),
+		SelectionType: ModelSelectionTypeFromProto(candidate.SelectionType),
+		Model:         candidate.Model,
+	}
+}
+
+func PolicyResolutionExplanationToProto(explanation domain.PolicyResolutionExplanation) *pb.PolicyResolutionExplanation {
+	preflight := make([]*pb.CandidatePreflight, 0, len(explanation.Preflight))
+	for _, check := range explanation.Preflight {
+		preflight = append(preflight, &pb.CandidatePreflight{
+			Index:     int32(check.Index),
+			Candidate: ExecutionCandidateToProto(check.Candidate),
+			Available: check.Available,
+			Reason:    check.Reason,
+		})
+	}
+	return &pb.PolicyResolutionExplanation{
+		Source:          explanation.Source,
+		Summary:         explanation.Summary,
+		RequestedRunner: RunnerTypeToProto(explanation.RequestedRunner),
+		RequestedModel:  explanation.RequestedModel,
+		RequestedPreset: ModelPresetToProto(explanation.RequestedPreset),
+		Preflight:       preflight,
+	}
+}
+
+func PolicyResolutionExplanationFromProto(explanation *pb.PolicyResolutionExplanation) domain.PolicyResolutionExplanation {
+	if explanation == nil {
+		return domain.PolicyResolutionExplanation{}
+	}
+	preflight := make([]domain.CandidatePreflight, 0, len(explanation.Preflight))
+	for _, check := range explanation.Preflight {
+		if check == nil {
+			continue
+		}
+		preflight = append(preflight, domain.CandidatePreflight{
+			Index:     int(check.Index),
+			Candidate: ExecutionCandidateFromProto(check.Candidate),
+			Available: check.Available,
+			Reason:    check.Reason,
+		})
+	}
+	return domain.PolicyResolutionExplanation{
+		Source:          explanation.Source,
+		Summary:         explanation.Summary,
+		RequestedRunner: RunnerTypeFromProto(explanation.RequestedRunner),
+		RequestedModel:  explanation.RequestedModel,
+		RequestedPreset: ModelPresetFromProto(explanation.RequestedPreset),
+		Preflight:       preflight,
 	}
 }
 

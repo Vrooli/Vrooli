@@ -15,7 +15,7 @@ This is **not** an orchestration script — it describes what tools exist and ho
 ### Listing Templates
 
 ```bash
-vrooli scenario template list
+template-manager registry list --kind scenario
 ```
 
 ### Selecting a Template
@@ -31,67 +31,62 @@ When unsure, `react-vite` is a safe default for anything with a user-facing comp
 ### Generating the Scaffold
 
 ```bash
-vrooli scenario generate <template> --id <name> --display-name "<title>" --description "<one-line purpose>"
+template-manager generate <template> --id <name> --display-name "<title>" --description "<one-line purpose>"
 ```
 
 Follow the template's post-generation checklist (dependency installs, `go mod tidy`, etc.).
 
-## PRD Workflow (Preserve-First)
+The `react-vite` template also seeds an L0 `experience/` contract. Keep it in
+route parity during generation: if you add/remove user-facing routes before
+handoff, update `experience/index.json` and `experience/pages/*.json`, then run
+`experience-manager spec validate <name> --json`. Do not add machine-tier claims
+until stable selectors and checkable UI exist; L0 is the honest starting point.
 
-Always check for an existing PRD baseline before generating one from scratch. This preserves user-provided or previously refined specifications.
+## PRD + Requirements Workflow (Preserve-First)
 
-### Decision Flow
+The business contract (`PRD.md` + `requirements/`) is owned by the **business-health** scenario. It validates template conformance, requirements-registry structure, and intent linkage; it never generates prose with AI — judgment stays with you.
 
-```
-Does an existing PRD exist (archive/PRD.md, or scenarios/<name>/PRD.md)?
-  → Yes → Copy to scenarios/<name>/PRD.md as baseline, then validate/fix
-  → No  → Generate from context (fallback path)
-```
-
-### Validate and Fix Existing PRD
-
-```bash
-prd-control-tower prd validate <name> --json
-prd-control-tower prd fix <name> --auto --json
-prd-control-tower prd validate <name> --json
-```
-
-### Generate PRD (Fallback Only)
-
-Only when no viable baseline exists or fix attempts leave it invalid:
-
-```bash
-prd-control-tower prd generate <name> --context-file /tmp/prd_context_<name>.md --publish --json
-```
-
-The context file should synthesize information from the backlog item's plan, workshop rounds, research findings, and archive materials.
-
-## Requirements Workflow (Preserve-First)
-
-Same preserve-first pattern as PRD.
+Always check for an existing PRD/requirements baseline before authoring one from scratch. This preserves user-provided or previously refined specifications.
 
 ### Decision Flow
 
 ```
-Does an existing requirements baseline exist (archive/requirements/index.json)?
-  → Yes → Copy to scenarios/<name>/requirements/, then validate/fix
-  → No  → Generate from PRD (fallback path)
+Does an existing contract baseline exist
+  (archive/PRD.md, archive/requirements/index.json, or scenarios/<name>/PRD.md)?
+  → Yes → Copy into scenarios/<name>/ as baseline, then validate + fix
+  → No  → Author it with the business-health wizard (no baseline to preserve)
 ```
 
-### Validate and Fix Existing Requirements
+### Validate and Fix a Preserved Baseline
+
+One validate command covers PRD linkage and the requirements registry (linkage/lint checks are included):
 
 ```bash
-prd-control-tower requirements validate <name> --json
-prd-control-tower requirements fix <name> --json
-prd-control-tower requirements validate <name> --json
+vrooli scenario requirements validate <name> --json
+business-health fix preview <name> --json
+business-health fix apply <name> --json
+vrooli scenario requirements validate <name> --json
 ```
 
-### Generate Requirements (Fallback Only)
+`fix preview` shows the deterministic remediation diff (template-section scaffold, registry creation, status normalization, `prd_ref` stubs for orphaned operational targets); `fix apply` writes it. Scope to specific findings with `--rules <code>,<code>`. The same fixers are reachable via `test-genie fix <name> --deterministic`.
+
+### Author a New Contract (No Baseline)
+
+There is **no AI-generation CLI** — you author the answers, and the wizard renders a contract that is conformant by construction. Synthesize answers from the backlog item's plan, workshop rounds, research findings, and any `enhance/`/`archive/` materials, then drive the deterministic interview:
 
 ```bash
-prd-control-tower requirements generate <name> --context-file /tmp/requirements_context_<name>.md --json
-prd-control-tower requirements validate <name> --json
+# Interactive TTY interview
+business-health wizard start <name> --interactive
+
+# Or non-interactive: supply answers as a file, preview the diff, then apply
+business-health wizard start <name>
+business-health wizard answer <name> --answers /tmp/answers_<name>.json
+business-health wizard preview <name>
+business-health wizard apply <name>
+vrooli scenario requirements validate <name> --json
 ```
+
+Wizard sessions are resumable and diff-preview first. When the wizard surfaces a "similar capability already exists in scenario X" dedup hint, take it seriously (cell #34) — resolve the overlap before applying rather than minting a duplicate capability.
 
 ## Archive and Staging Material Incorporation
 
@@ -249,7 +244,7 @@ Use `enhance/doc-outlines.md` as a guide when available.
 
 ## Anti-Patterns
 
-- **Don't** hand-write PRD.md — always generate or validate via `prd-control-tower`
+- **Don't** hand-write PRD.md from nothing — drive the `business-health wizard` (conformant by construction), or validate/fix a preserved baseline
 - **Don't** discard archive/staging materials — they represent refined context
 - **Don't** use raw archive when enhance/ staging exists — staging is pre-synthesized
 - **Don't** skip validation after PRD/requirements copy or generation

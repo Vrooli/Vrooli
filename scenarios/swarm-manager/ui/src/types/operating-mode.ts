@@ -308,6 +308,8 @@ export interface OperatingModeSelectedMessageProvenance {
 }
 
 export interface OperatingModeRound {
+  executionId?: string;
+  definitionDigest?: string;
   round: number;
   mode: InitiativeOperatingMode;
   scopeKind: string;
@@ -334,6 +336,38 @@ export interface OperatingModeRound {
    * classification contract.
    */
   transitionClassification?: OperatingModePhaseResolutionRecord;
+}
+
+export interface OperatingModePinnedPromptSource {
+  mode: string;
+  phase: string;
+  skillId: string;
+  revision?: string;
+  contentHash?: string;
+  retention?: string;
+  redacted: boolean;
+}
+
+export interface OperatingModeExecutionSnapshot {
+  executionId: string;
+  scopeKind: string;
+  scopeId: string;
+  mode: InitiativeOperatingMode;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  schemaVersion: string;
+  definitionDigest: string;
+  definitionBundle?: Record<string, unknown>;
+  inputContractDigest?: string;
+  inputSnapshotDigest?: string;
+  reachablePromptSources: OperatingModePinnedPromptSource[];
+  migration?: {
+    sourceLayout: string;
+    migratedAt: string;
+    roundCount: number;
+  };
 }
 
 export interface OperatingModeBacklogSyncPlan {
@@ -476,6 +510,7 @@ export interface OperatingModeWorkspace {
   lock?: OperatingModeLockHolder;
   artifacts: OperatingModeArtifactSnapshot[];
   rounds: OperatingModeRound[];
+  executions: OperatingModeExecutionSnapshot[];
 }
 
 export interface ActiveItemExecution {

@@ -1874,6 +1874,25 @@ func TestRunWithComplexFields(t *testing.T) {
 			MaxTurns:     100,
 			AllowedTools: []string{"read", "write", "bash"},
 			DeniedTools:  []string{},
+			PolicySnapshot: &domain.ExecutionPolicySnapshot{
+				CatalogDigest: "sha256:test-revision",
+				PolicyRef:     "codex.smart",
+				Candidates: []domain.ExecutionCandidate{{
+					RunnerType:    domain.RunnerTypeCodex,
+					SelectionType: domain.ModelSelectionTypeModel,
+					Model:         "gpt-test",
+				}},
+				SelectedIndex: 0,
+				SelectedCandidate: domain.ExecutionCandidate{
+					RunnerType:    domain.RunnerTypeCodex,
+					SelectionType: domain.ModelSelectionTypeModel,
+					Model:         "gpt-test",
+				},
+				Explanation: domain.PolicyResolutionExplanation{
+					Source:  "named_policy",
+					Summary: "repository round trip",
+				},
+			},
 		},
 		DiffPath:       "/path/to/diff",
 		LogPath:        "/path/to/log",
@@ -1928,6 +1947,13 @@ func TestRunWithComplexFields(t *testing.T) {
 	}
 	if len(got.ResolvedConfig.AllowedTools) != 3 {
 		t.Errorf("expected 3 allowed tools, got %d", len(got.ResolvedConfig.AllowedTools))
+	}
+	if got.ResolvedConfig.PolicySnapshot == nil {
+		t.Fatal("expected policy snapshot to be persisted")
+	}
+	if got.ResolvedConfig.PolicySnapshot.CatalogDigest != "sha256:test-revision" ||
+		got.ResolvedConfig.PolicySnapshot.SelectedCandidate.Model != "gpt-test" {
+		t.Fatalf("policy snapshot round trip = %+v", got.ResolvedConfig.PolicySnapshot)
 	}
 }
 

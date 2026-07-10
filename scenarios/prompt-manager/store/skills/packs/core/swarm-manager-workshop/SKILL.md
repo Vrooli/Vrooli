@@ -2,25 +2,25 @@
 
 ## Purpose
 
-Run one workshop round for a backlog item of any kind. Analyze gaps in the current implementation plan, generate targeted decisions and informational items to fill those gaps, self-assess readiness across 5 dimensions, and update the draft plan based on accumulated user responses.
+Run one workshop round for a non-research backlog item. Analyze gaps in the current canonical plan, generate targeted decisions and informational items to fill those gaps, self-assess readiness across 5 dimensions, and update the plan-manager draft based on accumulated user responses.
 
 ## Input Context
 
 **Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure, artifact schemas, and CLI commands for reading/writing backlog files.
 
-**Required reading:** `prompt-manager skill read implementation-plan-authoring` — canonical plan structure, mandatory sections, convergence patterns, quality gates, and guardrails for `plan.md`.
+**Required reading:** `prompt-manager skill read implementation-plan-authoring` — canonical plan structure, mandatory sections, convergence patterns, quality gates, and guardrails for the plan-manager implementation plan.
 
-**Required reading:** `prompt-manager skill read plan-skill-discovery` — methodology for discovering and embedding relevant skills into the plan
+**Required reading:** `prompt-manager discover "<concept>" --type skill --json` — curated skill discovery for embedding relevant skills into the plan (decompose via the domain / technology / problem-type / scenario-surface lenses)
 
-**Required reading:** `prompt-manager skill read swarm-manager-initiative-context` — how to load the initiative's members and related initiatives in one call; use the neighborhood view to spot sibling items that overlap this plan and to surface cross-initiative implications in `plan.md` for the orchestrator to address.
+**Required reading:** `prompt-manager skill read swarm-manager-initiative-context` — how to load the initiative's members and related initiatives in one call; use the neighborhood view to spot sibling items that overlap this plan and to surface cross-initiative implications in the canonical plan for the orchestrator to address.
 
 ## Scope
 
 **In scope:**
-- Reading all existing item context (spec, plan, prior workshop rounds, research, archive, user files)
+- Reading all existing item context (spec, rendered canonical plan when `plan_ref` exists, prior workshop rounds, research, archive, user files)
 - Generating a mix of decisions and informational items tailored to the item kind and current plan state
 - Self-assessing readiness across 5 standardized dimensions
-- Updating `plan.md` with refined/new sections based on accumulated answers and decisions
+- Updating the plan-manager draft/canonical plan with refined/new sections based on accumulated answers and decisions
 - Writing the round file (`workshop/round-NNN.json`)
 
 **Out of scope:**
@@ -41,7 +41,7 @@ EOF
 ### Every Round Produces
 
 1. **`workshop/round-{{ROUND_NUMBER}}.json`** — the round file (see schema below)
-2. **`plan.md`** — updated implementation plan (create if first round, update if subsequent)
+2. **Canonical plan update** — updated implementation plan in plan-manager (create if first round, update if subsequent)
 
 ## Workshop Round Schema
 
@@ -122,7 +122,7 @@ Score each dimension honestly from 0-3 based on the CURRENT state of the plan:
 
 ## Implementation Plan Format
 
-The `plan.md` file structure, mandatory sections, convergence patterns, quality gates, and guardrails are defined by the `implementation-plan-authoring` skill (loaded via required reading above). Follow that skill exactly when creating or updating `plan.md`.
+The canonical plan structure, mandatory sections, convergence patterns, quality gates, and guardrails are defined by the `implementation-plan-authoring` skill (loaded via required reading above). Follow that skill exactly when creating or updating the plan-manager plan.
 
 **Workshop-specific notes:**
 - Not every section needs content from round 1. Fill what you can and leave sections as `<!-- TBD -->` when information is insufficient. Each subsequent round should fill more sections.
@@ -160,7 +160,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    ```
 
    Then read each available artifact:
-   - `plan.md` — current implementation plan draft (if exists)
+   - Rendered canonical plan from `plan_ref` — current implementation plan draft/canonical plan (if exists)
    - `workshop/` — all prior round files (to understand what's been asked, answered, decided)
    - `spec.json` — original item description and metadata
    - `research/summary.md` — deep research findings (if exists)
@@ -171,7 +171,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
      swarm-manager initiatives context --name {{ITEM_INITIATIVE}}
      swarm-manager initiatives files --name {{ITEM_INITIATIVE}}
      ```
-     The `context` command returns the initiative + its members (kind, name, title, status, priority, depends_on) + upstream + downstream initiatives in one call. Use it to align this plan with sibling items (avoid covering the same ground they cover; surface overlaps in `plan.md`) and to flag cross-initiative implications the orchestrator should address — non-research workshops do not mutate the backlog themselves, but they should name the intent clearly so a follow-up step can act on it.
+     The `context` command returns the initiative + its members (kind, name, title, status, priority, depends_on) + upstream + downstream initiatives in one call. Use it to align this plan with sibling items (avoid covering the same ground they cover; surface overlaps in the canonical plan) and to flag cross-initiative implications the orchestrator should address — non-research workshops do not mutate the backlog themselves, but they should name the intent clearly so a follow-up step can act on it.
 
 2. **Analyze prior rounds** (if ROUND_NUMBER > 1)
 
@@ -203,7 +203,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
 5. **Discover relevant skills**
 
-   Apply the plan-skill-discovery methodology to find domain-relevant skills:
+   Discover domain-relevant skills (decompose the work into 2-5 concepts via the domain / technology / problem-type / scenario-surface lenses, then run `prompt-manager discover` per concept):
 
    **Kind-specific required skills (always include in plan's Required Reading):**
 
@@ -214,13 +214,13 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
    For `execute` and `chore` kinds, no kind-specific skill is required — discovery is sufficient. Research items use `swarm-manager-workshop-research` and are not handled by this skill.
 
-   When the item kind matches a row above, embed that skill in plan.md's Required Reading **in addition to** whatever discovery finds. This is not optional — it ensures operational knowledge is always available to the executing agent.
+   When the item kind matches a row above, embed that skill in the canonical plan's Required Reading **in addition to** whatever discovery finds. This is not optional — it ensures operational knowledge is always available to the executing agent.
 
    **Suggested skills from the item creator:**
    {{#if SUGGESTED_SKILLS}}
    This item includes suggested skills from the agent that created it: `{{SUGGESTED_SKILLS}}`
    Read these skills before proceeding: `prompt-manager skill read {{SUGGESTED_SKILLS}}`
-   These are **additive** — include them in plan.md's Required Reading alongside kind-specific required skills AND whatever plan-skill-discovery finds. Do NOT skip discovery just because suggested skills exist. The suggested skills provide domain context from the creating agent; discovery finds additional relevant skills the creator may not have considered.
+   These are **additive** — include them in the canonical plan's Required Reading alongside kind-specific required skills AND whatever skill discovery finds. Do NOT skip discovery just because suggested skills exist. The suggested skills provide domain context from the creating agent; discovery finds additional relevant skills the creator may not have considered.
    {{/if}}
 
    **On round 1 (full discovery):**
@@ -238,7 +238,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
       prompt-manager skill read <id-1> <id-2> <id-3> -output combined
       ```
    e. Assess relevance autonomously — include only skills that will materially improve the plan
-   f. Embed discovered skills as Required Reading entries in plan.md (alongside any kind-specific required skills from above)
+   f. Embed discovered skills as Required Reading entries in the canonical plan (alongside any kind-specific required skills from above)
 
    **On subsequent rounds (conditional re-discovery):**
    - Skip if the approach and domain have not changed materially since the last discovery
@@ -280,7 +280,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
    Evaluate each dimension honestly based on the current state of the plan AFTER incorporating answers from prior rounds. Use the scoring rubric above.
 
-8. **Update plan.md**
+8. **Update the canonical plan**
 
    Incorporate all settled information into the plan:
    - Resolved decisions (with a `selected` value) become facts/commitments in relevant sections
@@ -295,11 +295,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - If this is round 1, create the scaffold with as much content as possible
    - If subsequent round, refine existing sections and fill gaps
 
-   ```bash
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path plan.md --stdin <<'EOF'
-   <updated plan content>
-   EOF
-   ```
+   Submit the updated plan markdown through the swarm-manager plan-import/finalization path so plan-manager stores it and `spec.json.plan_ref` remains populated. Do not write a local implementation-plan file in the backlog folder.
 
 9. **Write the round file**
 
@@ -317,7 +313,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
    ```
 
-   Confirm both `plan.md` and `workshop/round-{{ROUND_NUMBER}}.json` were created.
+   Confirm `spec.json.plan_ref` is populated and `workshop/round-{{ROUND_NUMBER}}.json` was created.
 
 ### Readiness Progression Guidance
 
@@ -341,7 +337,7 @@ As rounds progress, your focus should shift:
 - **Don't** modify files in `archive/` — these are user-provided
 - **Don't** write files directly to disk — always use the backlog CLI
 - **Don't** skip reading prior rounds — context accumulates across rounds
-- **Don't** leave plan.md unchanged — every round should advance the plan
+- **Don't** leave the canonical plan unchanged — every round should advance the plan
 - **Don't** present decisions that could be resolved by reading existing context
 - **Don't** generate decisions for `acceptance_allow` or `acceptance_deny` — infer and auto-set them
 - **Don't** omit the "Other" option unless the choices are truly exhaustive (e.g., yes/no)
@@ -350,9 +346,9 @@ As rounds progress, your focus should shift:
 
 | Problem | Solution |
 |---------|----------|
-| `file-get` returns 404 for plan.md | Normal on first round — create the scaffold |
+| Missing `plan_ref` | Normal on first round — create/adopt the canonical plan through plan-manager |
 | `file-get` returns 404 for workshop/ | Normal on first round — create the directory with round-001.json |
 | Prior round has unresolved decisions | Still pending — don't re-present, they're waiting for user input |
 | All readiness dimensions already at 3 | Unusual but possible — generate minimal items focused on edge cases, or note readiness in an info item |
-| Conflicting information between sources | Apply source authority: user answers > accepted proposals > plan.md > research > spec.json > archive |
+| Conflicting information between sources | Apply source authority: user answers > accepted proposals > rendered canonical plan > research > spec.json > archive |
 | Very large workshop history | Focus on the latest 2-3 rounds and the settled decisions from earlier rounds |

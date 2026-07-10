@@ -102,20 +102,23 @@ func (s *aggregateState) historyWindow(now time.Time) HistoryWindow {
 
 func (s *aggregateState) buildFallbackInsights(now time.Time, hist HistoryWindow) FallbackInsights {
 	return FallbackInsights{
-		GeneratedAt:      now,
-		History:          hist,
-		EventCount:       s.totalEvents,
-		RunnerAttempts:   s.runnerFallbackAttempts,
-		RunnerExhausted:  s.runnerExhausted,
-		RunnerByReason:   copyStrIntMap(s.runnerByReason),
-		RunnerByPair:     pairsToList(s.runnerPair),
-		RunnerChainDepth: copyIntIntMap(s.runnerChainDepth),
-		ModelAttempts:    s.modelFallbackAttempts,
-		ModelExhausted:   s.modelExhausted,
-		ModelByReason:    copyStrIntMap(s.modelByReason),
-		ModelByPair:      pairsToList(s.modelPair),
-		ModelChainDepth:  copyIntIntMap(s.modelChainDepth),
-		ModelByPreset:    copyStrIntMap(s.modelByPreset),
+		GeneratedAt:           now,
+		History:               hist,
+		EventCount:            s.totalEvents,
+		RunnerAttempts:        s.runnerFallbackAttempts,
+		RunnerExhausted:       s.runnerExhausted,
+		RunnerByReason:        copyStrIntMap(s.runnerByReason),
+		RunnerByPair:          pairsToList(s.runnerPair),
+		RunnerChainDepth:      copyIntIntMap(s.runnerChainDepth),
+		ModelAttempts:         s.modelFallbackAttempts,
+		ModelExhausted:        s.modelExhausted,
+		ModelByReason:         copyStrIntMap(s.modelByReason),
+		ModelByPair:           pairsToList(s.modelPair),
+		ModelChainDepth:       copyIntIntMap(s.modelChainDepth),
+		ModelByPreset:         copyStrIntMap(s.modelByPreset),
+		PolicyCandidateEvents: s.policyCandidateEvents,
+		PolicyByOutcome:       copyStrIntMap(s.policyByOutcome),
+		PolicyByFailureClass:  copyStrIntMap(s.policyByFailureClass),
 	}
 }
 

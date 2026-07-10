@@ -35,7 +35,7 @@ Scenario QA has four loops:
 
 The loops may run independently. An audit can raise no decision; the contrarian can stay quiet when outputs are clean.
 
-> **Pre-emptive readiness is no longer a QA loop.** A former *readiness loop* swept idle scenarios with programmatic checks and filed fix items before feature work. That ordering moved into swarm-manager as a deterministic gate (`fix_before_feature`) plus optional on-demand discovery (`fix_before_feature_discovery`); regressions on scheduled scenarios are caught by execution finalization's before/after baseline diff.
+> **Pre-emptive readiness is no longer a QA loop.** A former *readiness loop* swept idle scenarios with programmatic checks and filed fix items before feature work. That ordering moved into swarm-manager as a deterministic gate (`fix_before_feature`) plus optional policy-governed maintenance intake through the backlog auto-filer (`auto_filer`); regressions on scheduled scenarios are caught by execution finalization's before/after baseline diff.
 
 ## Operating Graph
 
@@ -190,7 +190,7 @@ System-level friction that is not broken behavior should use meta-optimization's
 
 ## Roles
 
-> Pre-emptive readiness review is no longer a QA member role. The ordering ("fix before feature") is enforced programmatically by swarm-manager's `fix_before_feature` gate, and latent issues are surfaced by its optional `fix_before_feature_discovery` on-demand readiness run — both consuming GCT directly, not a QA member's knowledge topics.
+> Pre-emptive readiness review is no longer a QA member role. The ordering ("fix before feature") is enforced programmatically by swarm-manager's `fix_before_feature` gate, and latent issues can be surfaced by the optional `auto_filer` maintenance intake loop consuming GCT directly, not a QA member's knowledge topics.
 
 ### Quality Auditor
 

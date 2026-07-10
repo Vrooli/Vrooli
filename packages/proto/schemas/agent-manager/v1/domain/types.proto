@@ -76,6 +76,17 @@ enum ModelPreset {
   MODEL_PRESET_SMART = 3;
 }
 
+// ModelSelectionType distinguishes a pinned model identifier from an explicit
+// request to let the selected runner choose its own default. The latter is a
+// first-class value; an empty model string is never its wire representation.
+//
+// @usage ExecutionCandidate.selection_type
+enum ModelSelectionType {
+  MODEL_SELECTION_TYPE_UNSPECIFIED = 0;
+  MODEL_SELECTION_TYPE_MODEL = 1;
+  MODEL_SELECTION_TYPE_RUNNER_DEFAULT = 2;
+}
+
 // =============================================================================
 // NETWORK ACCESS
 // =============================================================================

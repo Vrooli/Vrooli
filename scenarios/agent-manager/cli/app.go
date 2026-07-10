@@ -78,6 +78,7 @@ func (a *App) dependencies() support.Dependencies {
 		Task:        a.cmdTask,
 		Run:         a.cmdRun,
 		Runner:      a.cmdRunner,
+		Policy:      a.cmdPolicy,
 		Settings:    a.cmdSettings,
 		Maintenance: a.cmdMaintenance,
 		Ops:         a.cmdOps,

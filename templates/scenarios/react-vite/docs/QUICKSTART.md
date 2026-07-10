@@ -73,7 +73,7 @@ curl -s "http://localhost:${API_PORT}/health"
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 The shipped worked-example `notes` domain illustrates the full shape —
-copy it, then remove it with `vrooli scenario detemplate`:
+copy it, then remove it with `template-manager detemplate`:
 
 ```bash
 {{SCENARIO_ID}} notes list

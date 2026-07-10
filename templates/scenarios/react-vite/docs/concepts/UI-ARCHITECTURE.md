@@ -87,7 +87,7 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
 
 Run `experience-manager spec validate {{SCENARIO_ID}} --json` after route or
 selector changes. The generated notes page spec is example-domain content and
-is removed by `vrooli scenario detemplate {{SCENARIO_ID}}`.
+is removed by `template-manager detemplate {{SCENARIO_ID}}`.
 
 ## Extending The Manifest
 

@@ -32,7 +32,7 @@ This is the [recursive-learning loop](../../VISION.md) applied to architecture i
 
 ### Stage 1 — Improve the ideal (the template)
 
-The canonical copy source is `path:templates/scenarios/<name>/` (today, primarily `path:templates/scenarios/react-vite/`), fed into `vrooli scenario generate`. Every choice there multiplies across N future scenarios, so a new architectural idea lands *here first* — where one edit is worth N. You are changing what gets inherited, not patching one inheritor.
+The canonical copy source is `path:templates/scenarios/<name>/` (today, primarily `path:templates/scenarios/react-vite/`), fed into `template-manager generate`. Every choice there multiplies across N future scenarios, so a new architectural idea lands *here first* — where one edit is worth N. You are changing what gets inherited, not patching one inheritor.
 
 The multiplier-aware lens for deciding *what* to change at the template is [`REFERENCE_PATTERN_FITNESS.md`](REFERENCE_PATTERN_FITNESS.md) — it asks "is this fit to be copied?" (per-replica cost, drift surfaces, contract location, coordinated-edit count), distinct from "is this code good?" (the single-instance lenses in `path:docs/scenario-qa/methods/audit/`). Run the single-instance lenses first; the fitness lens assumes structural soundness.
 

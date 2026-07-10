@@ -122,6 +122,55 @@ func (p ModelPreset) IsValid() bool {
 	}
 }
 
+// ModelSelectionType makes runner-default selection explicit in persisted run
+// snapshots. Empty model strings are not sentinels in this contract.
+type ModelSelectionType string
+
+const (
+	ModelSelectionTypeModel         ModelSelectionType = "model"
+	ModelSelectionTypeRunnerDefault ModelSelectionType = "runner_default"
+)
+
+// ExecutionCandidate is one immutable runner/model attempt in resolved order.
+type ExecutionCandidate struct {
+	RunnerType    RunnerType         `json:"runnerType"`
+	SelectionType ModelSelectionType `json:"selectionType"`
+	Model         string             `json:"model,omitempty"`
+}
+
+// CandidatePreflight records the creation-time availability evidence used to
+// select the initial candidate. Runtime failures remain separate attempt events.
+type CandidatePreflight struct {
+	Index     int                `json:"index"`
+	Candidate ExecutionCandidate `json:"candidate"`
+	Available bool               `json:"available"`
+	Reason    string             `json:"reason,omitempty"`
+}
+
+// PolicyResolutionExplanation records why a run received its candidate
+// sequence. It is persisted with the run so operators never need to reconstruct
+// precedence from the current profile or catalog.
+type PolicyResolutionExplanation struct {
+	Source          string               `json:"source"`
+	Summary         string               `json:"summary"`
+	RequestedRunner RunnerType           `json:"requestedRunner,omitempty"`
+	RequestedModel  string               `json:"requestedModel,omitempty"`
+	RequestedPreset ModelPreset          `json:"requestedPreset,omitempty"`
+	Preflight       []CandidatePreflight `json:"preflight,omitempty"`
+}
+
+// ExecutionPolicySnapshot is the immutable model/runner decision attached to a
+// run at creation. Execution must consume Candidates from this snapshot rather
+// than rereading the active model-policy catalog.
+type ExecutionPolicySnapshot struct {
+	CatalogDigest     string                      `json:"catalogDigest"`
+	PolicyRef         string                      `json:"policyRef,omitempty"`
+	Candidates        []ExecutionCandidate        `json:"candidates"`
+	SelectedIndex     int                         `json:"selectedIndex"`
+	SelectedCandidate ExecutionCandidate          `json:"selectedCandidate"`
+	Explanation       PolicyResolutionExplanation `json:"explanation"`
+}
+
 // NetworkAccess controls the level of network access granted to an agent during execution.
 type NetworkAccess string
 
@@ -863,6 +912,10 @@ type RunConfig struct {
 	// Ordered runner fallback list (used when primary runner is unavailable)
 	FallbackRunnerTypes []RunnerType `json:"fallbackRunnerTypes,omitempty"`
 
+	// PolicySnapshot pins the exact active catalog revision and ordered
+	// candidate sequence selected before this run was persisted.
+	PolicySnapshot *ExecutionPolicySnapshot `json:"policySnapshot,omitempty"`
+
 	// Tool permissions
 	AllowedTools []string `json:"allowedTools,omitempty"`
 	DeniedTools  []string `json:"deniedTools,omitempty"`
@@ -1006,6 +1059,7 @@ const (
 	EventTypeRunnerFallbackExhausted RunEventType = "runner.fallback.exhausted"
 	EventTypeModelFallbackAttempted  RunEventType = "model.fallback.attempted"
 	EventTypeModelFallbackExhausted  RunEventType = "model.fallback.exhausted"
+	EventTypePolicyCandidateAttempt  RunEventType = "policy.candidate.attempt"
 	EventTypeModelHealthTransition   RunEventType = "model.health.transition"
 	EventTypeRunnerHealthTransition  RunEventType = "runner.health.transition"
 	EventTypeSandboxOperation        RunEventType = "sandbox.operation"
@@ -1026,6 +1080,7 @@ func (t RunEventType) IsTypedOperationalEvent() bool {
 		EventTypeRunnerFallbackExhausted,
 		EventTypeModelFallbackAttempted,
 		EventTypeModelFallbackExhausted,
+		EventTypePolicyCandidateAttempt,
 		EventTypeModelHealthTransition,
 		EventTypeRunnerHealthTransition,
 		EventTypeSandboxOperation,

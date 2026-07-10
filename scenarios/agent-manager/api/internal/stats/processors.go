@@ -13,12 +13,25 @@ func init() {
 	RegisterProcessor(domain.EventTypeRunnerFallbackExhausted, 1, processRunnerFallbackExhausted)
 	RegisterProcessor(domain.EventTypeModelFallbackAttempted, 1, processModelFallbackAttempted)
 	RegisterProcessor(domain.EventTypeModelFallbackExhausted, 1, processModelFallbackExhausted)
+	RegisterProcessor(domain.EventTypePolicyCandidateAttempt, 1, processPolicyCandidateAttempt)
 	RegisterProcessor(domain.EventTypeModelHealthTransition, 1, processModelHealthTransition)
 	RegisterProcessor(domain.EventTypeRunnerHealthTransition, 1, processRunnerHealthTransition)
 	RegisterProcessor(domain.EventTypeSandboxOperation, 1, processSandboxOperation)
 	RegisterProcessor(domain.EventTypeHeartbeatMiss, 1, processHeartbeatMiss)
 	RegisterProcessor(domain.EventTypeCheckpointFailure, 1, processCheckpointFailure)
 	RegisterProcessor(domain.EventTypeRetryAttempt, 1, processRetryAttempt)
+}
+
+func processPolicyCandidateAttempt(s *aggregateState, rec eventlog.Record) {
+	p, ok := rec.Payload.(*eventlog.PolicyCandidateAttemptPayload)
+	if !ok {
+		return
+	}
+	s.policyCandidateEvents++
+	s.policyByOutcome[string(p.Outcome)]++
+	if p.FailureClass != "" {
+		s.policyByFailureClass[p.FailureClass]++
+	}
 }
 
 func processRunnerFallbackAttempted(s *aggregateState, rec eventlog.Record) {

@@ -179,7 +179,7 @@ as the canonical reference. New scenarios add their first non-trivial
 mutation by copying its layering one file at a time — wire contract,
 domain types, repository, schema, service, handler, mocks, UI client,
 and CLI client — then deleting the fenced example with
-`vrooli scenario detemplate <scenario>`. The fenced example below walks
+`template-manager detemplate <scenario>`. The fenced example below walks
 the pattern from wire to render and pins the three-layer service-test
 split; copy its shape for `api/internal/<domain>/`.
 
@@ -208,7 +208,7 @@ by `internal/modules/registry.go::AllSchemas()` in production) are the
 source of truth for both production and tests.
 
 <!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+### Example domain — `notes` (removed by `template-manager detemplate`)
 
 The `notes` domain is the scaffold's worked CRUD reference. Copy its
 shape for your own domains, then remove it. The pattern from wire to
@@ -353,7 +353,7 @@ Workflow maturity is incremental:
 
 The scaffold ships one fenced worked Level 5 flow (an attachment-upload
 workflow on the example domain) as the reference; copy its file layout
-for a real flow, then remove it with `vrooli scenario detemplate`. The
+for a real flow, then remove it with `template-manager detemplate`. The
 generic file layout per flow is:
 
 - The `flow-verifier` scenario CLI (`flow-verifier verify check|run`, `flows list|validate|explain`)
@@ -369,7 +369,7 @@ generic file layout per flow is:
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 The `notes` attachment-upload workflow is the scaffold's worked Level 5
-example (removed by `vrooli scenario detemplate`). It instantiates the
+example (removed by `template-manager detemplate`). It instantiates the
 layout above as:
 
 - `api/internal/notes/flow/flow.json`
@@ -467,7 +467,7 @@ the underlying error reaches operator logs.
 <!-- EXAMPLE-DOMAIN:notes START -->
 The example domain's reference for the buffer-logger 500-path assertion
 is `handlers/notes/connect_handler_test.go::TestConnectHandler_GetInternalError`
-(removed by `vrooli scenario detemplate`).
+(removed by `template-manager detemplate`).
 <!-- EXAMPLE-DOMAIN:notes END -->
 
 ### Testing context cancellation
@@ -688,7 +688,7 @@ standard pattern *after* the mock is wired
 example below shows the full two-mock shape.
 
 <!-- EXAMPLE-DOMAIN:notes START -->
-#### Example domain — `notes` mock builders (removed by `vrooli scenario detemplate`)
+#### Example domain — `notes` mock builders (removed by `template-manager detemplate`)
 
 For notes, import `makeNotesMocks()` from `features/notes/mocks/notes`
 and wire it alongside the shared `makeApiMocks()`:

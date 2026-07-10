@@ -308,6 +308,8 @@ function mapRoundItem(i: ompb.OperatingModeRoundItem | undefined): OperatingMode
 
 function mapRound(r: ompb.OperatingModeRoundEnvelope | undefined): OperatingModeRound {
   return {
+    executionId: orUndef(r?.executionId),
+    definitionDigest: orUndef(r?.definitionDigest),
     round: r?.round ?? 0,
     mode: asMode(r?.mode),
     scopeKind: r?.scopeKind ?? "",
@@ -327,6 +329,43 @@ function mapRound(r: ompb.OperatingModeRoundEnvelope | undefined): OperatingMode
     error: orUndef(r?.error),
     resolution: mapResolution(r?.resolution),
     transitionClassification: mapResolution(r?.transitionClassification),
+  };
+}
+
+function mapOperatingModeExecution(
+  execution: ompb.OperatingModeExecutionSnapshot | undefined,
+): OperatingModeExecutionSnapshot {
+  const migration = execution?.migration;
+  return {
+    executionId: execution?.executionId ?? "",
+    scopeKind: execution?.scopeKind ?? "",
+    scopeId: execution?.scopeId ?? "",
+    mode: asMode(execution?.mode),
+    status: execution?.status ?? "",
+    createdAt: execution?.createdAt ?? "",
+    updatedAt: execution?.updatedAt ?? "",
+    completedAt: orUndef(execution?.completedAt),
+    schemaVersion: execution?.schemaVersion ?? "",
+    definitionDigest: execution?.definitionDigest ?? "",
+    definitionBundle: execution?.definitionBundle as Record<string, unknown> | undefined,
+    inputContractDigest: orUndef(execution?.inputContractDigest),
+    inputSnapshotDigest: orUndef(execution?.inputSnapshotDigest),
+    reachablePromptSources: (execution?.reachablePromptSources ?? []).map((source) => ({
+      mode: source.mode ?? "",
+      phase: source.phase ?? "",
+      skillId: source.skillId ?? "",
+      revision: orUndef(source.revision),
+      contentHash: orUndef(source.contentHash),
+      retention: orUndef(source.retention),
+      redacted: source.redacted ?? false,
+    })),
+    migration: migration
+      ? {
+          sourceLayout: migration.sourceLayout ?? "",
+          migratedAt: migration.migratedAt ?? "",
+          roundCount: migration.roundCount ?? 0,
+        }
+      : undefined,
   };
 }
 
@@ -579,6 +618,7 @@ function mapWorkspace(w: ompb.OperatingModeWorkspace | undefined): OperatingMode
       : undefined,
     artifacts: (w?.artifacts ?? []).map(mapArtifactSnapshot),
     rounds: (w?.rounds ?? []).map(mapRound),
+    executions: (w?.executions ?? []).map(mapOperatingModeExecution),
   };
 }
 

@@ -1,7 +1,7 @@
 package codecs
 
 import (
-	"strings"
+	"slices"
 	"testing"
 )
 
@@ -16,8 +16,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 	type want struct {
 		messages, toolEvents, cost, streaming, cancel, continuation, image bool
 		maxTurns                                                           int
-		curatedModels                                                      []string
-		allowsLocalOllama                                                  bool
+		supportsRunnerDefault                                              bool
+		dynamicModelPrefixes                                               []string
 	}
 	// The uniform boolean contract: every coding agent supports all six.
 	uniform := want{
@@ -36,8 +36,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 			codec: NewClaudeForTest(),
 			want: func() want {
 				w := uniform
-				w.curatedModels = []string{"sonnet", "opus", "haiku", "claude-sonnet-4-6"}
-				w.allowsLocalOllama = false // Anthropic-native, documented difference
+				w.supportsRunnerDefault = true
 				return w
 			}(),
 		},
@@ -46,8 +45,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 			codec: NewCodexForTest(),
 			want: func() want {
 				w := uniform
-				w.curatedModels = []string{"gpt-5.5", "gpt-5.4", "gpt-5.3-codex"}
-				w.allowsLocalOllama = true
+				w.supportsRunnerDefault = true
+				w.dynamicModelPrefixes = []string{ollamaModelPrefix}
 				return w
 			}(),
 		},
@@ -56,8 +55,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 			codec: NewOpenCodeForTest(),
 			want: func() want {
 				w := uniform
-				w.curatedModels = []string{"openrouter/deepseek/deepseek-v4-pro", "openrouter/anthropic/claude-opus-4.8"}
-				w.allowsLocalOllama = true
+				w.supportsRunnerDefault = true
+				w.dynamicModelPrefixes = []string{ollamaModelPrefix}
 				return w
 			}(),
 		},
@@ -71,9 +70,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 			want: want{
 				messages: true, toolEvents: false, cost: false,
 				streaming: true, cancel: true, continuation: true, image: false,
-				maxTurns:          0,
-				curatedModels:     []string{"grok-build", "grok-composer-2.5-fast"},
-				allowsLocalOllama: false,
+				maxTurns:              0,
+				supportsRunnerDefault: true,
 			},
 		},
 	}
@@ -91,20 +89,14 @@ func TestCapabilitiesConformance(t *testing.T) {
 			if caps.MaxTurns != tc.want.maxTurns {
 				t.Errorf("MaxTurns = %d, want %d", caps.MaxTurns, tc.want.maxTurns)
 			}
-			// Curated cloud models must all be present (subset check, tolerant
-			// of dynamically-appended ollama/* entries).
-			for _, m := range tc.want.curatedModels {
-				if indexOf(caps.SupportedModels, m) == -1 {
-					t.Errorf("curated model %q missing from SupportedModels %v", m, caps.SupportedModels)
-				}
+			if caps.SupportsRunnerDefault != tc.want.supportsRunnerDefault {
+				t.Errorf("SupportsRunnerDefault = %v, want %v", caps.SupportsRunnerDefault, tc.want.supportsRunnerDefault)
 			}
-			// ForTest codecs leave the ollama lister nil, so no ollama/* entry
-			// should surface regardless of allowsLocalOllama. The dynamic-append
-			// behaviour is covered by TestCodex_Capabilities_AppendsOllamaModels.
-			for _, m := range caps.SupportedModels {
-				if strings.HasPrefix(m, ollamaModelPrefix) {
-					t.Errorf("ForTest codec must not surface ollama model %q", m)
-				}
+			if !slices.Equal(caps.DynamicModelPrefixes, tc.want.dynamicModelPrefixes) {
+				t.Errorf("DynamicModelPrefixes = %v, want %v", caps.DynamicModelPrefixes, tc.want.dynamicModelPrefixes)
+			}
+			if len(caps.SupportedModels) != 0 {
+				t.Errorf("raw codec compiled static models into capabilities: %v", caps.SupportedModels)
 			}
 		})
 	}

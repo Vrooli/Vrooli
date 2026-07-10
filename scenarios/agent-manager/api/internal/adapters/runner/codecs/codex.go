@@ -108,20 +108,10 @@ func NewCodexForTest() *Codex {
 	return c
 }
 
-// Capabilities satisfies [Codec]. SupportedModels is the curated cloud list
-// plus any locally-pulled Ollama models discovered via the cached lister
-// (codex reaches them natively through `--oss --local-provider ollama`).
+// Capabilities satisfies [Codec]. Static model visibility is injected from
+// modelpolicy by boot wiring; the codec contributes only locally-pulled Ollama
+// models discovered via the cached lister.
 func (c *Codex) Capabilities() runner.Capabilities {
-	models := []string{
-		"gpt-5.5",
-		"gpt-5.4",
-		"gpt-5.4-mini",
-		"gpt-5.3-codex",
-		"gpt-5.3-codex-spark",
-		"gpt-5.2",
-	}
-	models = append(models, c.ollama.list()...)
-
 	return runner.Capabilities{
 		SupportsMessages:         true,
 		SupportsToolEvents:       true,
@@ -131,7 +121,9 @@ func (c *Codex) Capabilities() runner.Capabilities {
 		SupportsContinuation:     true, // `codex exec resume <thread_id>`
 		SupportsImageAttachments: true, // `codex exec -i/--image <FILE>`
 		MaxTurns:                 0,
-		SupportedModels:          models,
+		SupportedModels:          c.ollama.list(),
+		SupportsRunnerDefault:    true,
+		DynamicModelPrefixes:     []string{ollamaModelPrefix},
 		SupportedFeatures:        []string{},
 		AllowedExtraFlags:        []string{"--verbose"},
 	}

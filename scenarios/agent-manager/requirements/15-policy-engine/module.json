@@ -15,14 +15,70 @@
         {
           "notes": "Test policy evaluation",
           "phase": "unit",
-          "ref": "",
+          "ref": "api/internal/modelpolicy/resolution_test.go::TestResolveLegacyPresetProducesExplicitImmutableCandidates",
           "status": "pending",
           "type": "test"
         },
         {
           "notes": "Verify policy enforcement",
           "phase": "integration",
-          "ref": "",
+          "ref": "api/internal/orchestration/modelpolicy_resolution_test.go::TestResolveRunConfigFallsBackToExplicitRunnerDefaultWhenCatalogModelsAreStale",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify persisted snapshot fallback across runner boundaries",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify terminal exhaustion and digest-qualified event evidence",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackExhaustionIsTerminalAndObservable",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify restart/resume continues from the persisted candidate",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotResumeStartsAtPersistedCandidate",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify catalog reload cannot rewrite a running execution",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackIgnoresCatalogReloadDuringExecution",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify read-only status/catalog and removal of whole-document mutation",
+          "phase": "integration",
+          "ref": "api/internal/handlers/model_policy_test.go::TestModelPolicyStatusCatalogAndLegacyMutationCutover",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify failed controlled reload preserves the active revision",
+          "phase": "integration",
+          "ref": "api/internal/handlers/model_policy_test.go::TestModelPolicyValidateAndFailedReloadPreserveActiveRevision",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify profile explanation exposes the candidate sequence",
+          "phase": "integration",
+          "ref": "api/internal/handlers/model_policy_test.go::TestExplainModelPolicyProfileUsesCurrentResolution",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify CLI discovery and removed mutation vocabulary",
+          "phase": "unit",
+          "ref": "cli/app_test.go::TestApp_CmdPolicy_HelpAndUnknownSubcommand",
           "status": "pending",
           "type": "test"
         },

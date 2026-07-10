@@ -100,16 +100,9 @@ func (c *Claude) Capabilities() runner.Capabilities {
 		SupportsContinuation:     true, // Claude Code supports --resume
 		SupportsImageAttachments: true,
 		MaxTurns:                 0, // unlimited
-		SupportedModels: []string{
-			"sonnet",
-			"opus",
-			"haiku",
-			"claude-sonnet-4-6",
-			"claude-opus-4-7",
-			"claude-haiku-4-5-20251001",
-		},
-		SupportedFeatures: []string{"EnableBrowser"},
-		AllowedExtraFlags: []string{"--disallowedTools"},
+		SupportsRunnerDefault:    true,
+		SupportedFeatures:        []string{"EnableBrowser"},
+		AllowedExtraFlags:        []string{"--disallowedTools"},
 	}
 }
 

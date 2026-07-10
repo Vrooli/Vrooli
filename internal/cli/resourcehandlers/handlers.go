@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 	"time"
 
@@ -75,11 +74,6 @@ func buildResourceBlueprintCommandHandlers[C any](deps HandlerDeps[C]) map[strin
 func buildResourceArchiveCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
 	resourceArchiveCommandTable := buildResourceArchiveCommandTable(deps)
 	return commandtree.BuildHandlerMap(resourceArchiveCommandTable)
-}
-
-func buildResourceTemplateCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
-	resourceTemplateCommandTable := buildResourceTemplateCommandTable(deps)
-	return commandtree.BuildHandlerMap(resourceTemplateCommandTable)
 }
 
 func buildResourceSchemaCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
@@ -329,9 +323,6 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		resourcecli.CommandBlueprint: func(ctx C, controller *resources.Controller, args []string) error {
 			return runResourceSubcommandSet(ctx, controller, args, showResourceBlueprintHelp, "resource blueprint", buildResourceBlueprintCommandHandlers(deps), deps.Stdout)
 		},
-		resourcecli.CommandTemplate: func(ctx C, controller *resources.Controller, args []string) error {
-			return runResourceSubcommandSet(ctx, controller, args, showResourceTemplateHelp, "resource template", buildResourceTemplateCommandHandlers(deps), deps.Stdout)
-		},
 		resourcecli.CommandSchema: func(ctx C, controller *resources.Controller, args []string) error {
 			return runResourceSubcommandSet(ctx, controller, args, showResourceSchemaHelp, "resource schema", buildResourceSchemaCommandHandlers(deps), deps.Stdout)
 		},
@@ -455,89 +446,6 @@ func buildResourceArchiveCommandTable[C any](deps HandlerDeps[C]) []commandtree.
 	return commandtree.BindSpecs(resourcecli.ArchiveCommandSpecs(), handlerMap)
 }
 
-func buildResourceTemplateCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
-	handlerMap := map[resourcecli.TemplateCommandID]rootcli.ResourceHandler[C]{
-		resourcecli.TemplateCommandList: bindResourceCommand(deps,
-			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceTemplateListRequest(args) },
-			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, []resources.ResourceTemplateInfo, error) {
-				_ = req
-				items, err := newResourceCommandService(deps, ctx, controller).TemplateList()
-				if err != nil {
-					return "", nil, err
-				}
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", nil, err
-				}
-				return format, items, nil
-			},
-			renderResourceTemplateListResponse,
-		),
-		resourcecli.TemplateCommandShow: bindResourceCommand(deps,
-			func(args []string) (resourcecli.TemplateNameRequest, error) {
-				return parseResourceTemplateShowRequest(args)
-			},
-			func(ctx C, controller *resources.Controller, req resourcecli.TemplateNameRequest) (cliout.Format, resources.ResourceTemplateInfo, error) {
-				item, err := newResourceCommandService(deps, ctx, controller).TemplateShow(req.Name)
-				if err != nil {
-					return "", resources.ResourceTemplateInfo{}, err
-				}
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", resources.ResourceTemplateInfo{}, err
-				}
-				return format, item, nil
-			},
-			renderResourceTemplateShowResponse,
-		),
-		resourcecli.TemplateCommandValidate: bindResourceCommand(deps,
-			func(args []string) (resourcecli.NoArgsRequest, error) {
-				return parseResourceTemplateValidateRequest(args)
-			},
-			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, resources.ResourceTemplateValidationReport, error) {
-				_ = req
-				report, err := newResourceCommandService(deps, ctx, controller).TemplateValidate()
-				if err != nil {
-					return "", resources.ResourceTemplateValidationReport{}, err
-				}
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", resources.ResourceTemplateValidationReport{}, err
-				}
-				return format, report, nil
-			},
-			renderResourceTemplateValidateResponse,
-		),
-		resourcecli.TemplateCommandGenerate: func(ctx C, controller *resources.Controller, args []string) error {
-			return bindResourceCommand(deps,
-				func(args []string) (resourcecli.TemplateGenerateOptions, error) {
-					return parseResourceTemplateGenerateRequest(controller, deps.Stderr(ctx), args)
-				},
-				func(ctx C, controller *resources.Controller, req resourcecli.TemplateGenerateOptions) (cliout.Format, resources.ResourceTemplateGenerateReport, error) {
-					report, err := newResourceCommandService(deps, ctx, controller).TemplateGenerate(resources.ResourceTemplateGenerateRequest{
-						TemplateName:  req.TemplateName,
-						BlueprintName: req.BlueprintName,
-						Destination:   req.Destination,
-						Force:         req.Force,
-						DryRun:        req.DryRun,
-						Values:        req.Values,
-					})
-					if err != nil {
-						return "", resources.ResourceTemplateGenerateReport{}, err
-					}
-					format, err := deps.OutputFormat(ctx)
-					if err != nil {
-						return "", resources.ResourceTemplateGenerateReport{}, err
-					}
-					return format, report, nil
-				},
-				renderResourceTemplateGenerateResponse,
-			)(ctx, controller, args)
-		},
-	}
-	return commandtree.BindSpecs(resourcecli.TemplateCommandSpecs(), handlerMap)
-}
-
 func buildResourceSchemaCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.SchemaCommandID]rootcli.ResourceHandler[C]{
 		resourcecli.SchemaCommandValidate: func(ctx C, controller *resources.Controller, args []string) error {
@@ -594,10 +502,6 @@ func showResourceBlueprintHelp(w io.Writer) {
 
 func showResourceArchiveHelp(w io.Writer) {
 	resourcecli.RenderCommandHelp(w, "", "vrooli resource archive <subcommand> [options]", "Resource Archive", resourcecli.ArchiveCommandSpecs())
-}
-
-func showResourceTemplateHelp(w io.Writer) {
-	resourcecli.RenderCommandHelp(w, "", "vrooli resource template <subcommand> [options]", "Resource Templates", resourcecli.TemplateCommandSpecs())
 }
 
 func showResourceSchemaHelp(w io.Writer) {
@@ -869,31 +773,6 @@ func parseResourceStopAllRequest(args []string) (resourcecli.NoArgsRequest, erro
 	return req, mapResourceParseError("resource stop-all", err)
 }
 
-func parseResourceTemplateListRequest(args []string) (resourcecli.NoArgsRequest, error) {
-	req, err := resourcecli.ParseTemplateListRequest(args)
-	return req, mapResourceParseError("resource template list", err)
-}
-
-func parseResourceTemplateShowRequest(args []string) (resourcecli.TemplateNameRequest, error) {
-	req, err := resourcecli.ParseTemplateShowRequest(args)
-	return req, mapResourceParseError("resource template show", err)
-}
-
-func parseResourceTemplateValidateRequest(args []string) (resourcecli.NoArgsRequest, error) {
-	req, err := resourcecli.ParseTemplateValidateRequest(args)
-	return req, mapResourceParseError("resource template validate", err)
-}
-
-func parseResourceTemplateGenerateRequest(controller *resources.Controller, stderr io.Writer, args []string) (resourcecli.TemplateGenerateOptions, error) {
-	req, err := resourcecli.ParseTemplateGenerateRequest(args, stderr, func(req resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateInfo, error) {
-		return controller.ResolveTemplateGenerationRequest(req)
-	})
-	if err != nil {
-		return resourcecli.TemplateGenerateOptions{}, mapResourceParseError("resource template generate", err)
-	}
-	return req, nil
-}
-
 func parseResourceSchemaValidateRequest(args []string) (resourcecli.NoArgsRequest, error) {
 	req, err := resourcecli.ParseSchemaValidateRequest(args)
 	return req, mapResourceParseError("resource schema validate", err)
@@ -965,163 +844,4 @@ func renderResourceControlReportResponse(w io.Writer, format cliout.Format, resp
 
 func renderResourceBlueprintSearchResponse(w io.Writer, format cliout.Format, resp resourceBlueprintSearchResponse) error {
 	return resourcecli.WriteBlueprintSearch(w, format, resp.Query, resp.Items)
-}
-
-func renderResourceTemplateListResponse(w io.Writer, format cliout.Format, items []resources.ResourceTemplateInfo) error {
-	if format == cliout.FormatJSON {
-		return resourcecli.WriteTemplateList(w, items)
-	}
-	rows := make([][]string, 0, len(items))
-	for _, item := range items {
-		rows = append(rows, []string{
-			item.Name,
-			item.Manifest.DisplayName,
-			item.Manifest.Driver,
-			formatResourceTemplateRequiredVars(item.Manifest.RequiredVars),
-		})
-	}
-	if err := cliout.RenderTable(w, []string{"Name", "Display Name", "Driver", "Required Vars"}, rows); err != nil {
-		return err
-	}
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Tip: vrooli resource template show <name>")
-	return nil
-}
-
-func renderResourceTemplateShowResponse(w io.Writer, format cliout.Format, info resources.ResourceTemplateInfo) error {
-	if format == cliout.FormatJSON {
-		return resourcecli.WriteTemplateShow(w, info)
-	}
-	manifest := info.Manifest
-	rows := [][]string{
-		{"Name", info.Name},
-		{"Display Name", manifest.DisplayName},
-		{"Driver", manifest.Driver},
-		{"Transitional", cliout.BoolLabel(manifest.Transitional)},
-		{"Description", manifest.Description},
-	}
-	if err := cliout.RenderTable(w, []string{"Field", "Value"}, rows); err != nil {
-		return err
-	}
-	writeResourceTemplateVarTable(w, "Required Variables", manifest.RequiredVars)
-	writeResourceTemplateVarTable(w, "Optional Variables", manifest.OptionalVars)
-	if len(manifest.PlatformExpectations) > 0 {
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Platform Expectations:")
-		for _, line := range manifest.PlatformExpectations {
-			_, _ = fmt.Fprintf(w, "  - %s\n", line)
-		}
-	}
-	if len(manifest.Docs) > 0 {
-		keys := make([]string, 0, len(manifest.Docs))
-		for key := range manifest.Docs {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Docs:")
-		for _, key := range keys {
-			_, _ = fmt.Fprintf(w, "  - %s: %s\n", key, manifest.Docs[key])
-		}
-	}
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintf(w, "Tip: vrooli resource template generate %s%s\n", info.Name, formatResourceTemplateRequiredFlags(manifest.RequiredVars))
-	return nil
-}
-
-func renderResourceTemplateValidateResponse(w io.Writer, format cliout.Format, report resources.ResourceTemplateValidationReport) error {
-	if format == cliout.FormatJSON {
-		return resourcecli.WriteTemplateValidationReport(w, report)
-	}
-	_, _ = fmt.Fprintf(w, "Validated %d resource templates\n", report.Count)
-	return nil
-}
-
-func renderResourceTemplateGenerateResponse(w io.Writer, format cliout.Format, report resources.ResourceTemplateGenerateReport) error {
-	if format == cliout.FormatJSON {
-		return resourcecli.WriteTemplateGenerateReport(w, report)
-	}
-	if report.DryRun {
-		_, _ = fmt.Fprintf(w, "[DRY-RUN] Would generate resource template %s at %s\n", report.Template.Name, report.Destination)
-	} else {
-		_, _ = fmt.Fprintf(w, "Generated resource template %s at %s\n", report.Template.Name, report.Destination)
-	}
-	if strings.TrimSpace(report.BlueprintName) != "" {
-		_, _ = fmt.Fprintf(w, "Blueprint: %s\n", report.BlueprintName)
-	}
-	writeResourceTemplateValues(w, report.Values)
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Files:")
-	for _, path := range report.Files {
-		_, _ = fmt.Fprintf(w, "  - %s\n", path)
-	}
-	return nil
-}
-
-func writeResourceTemplateVarTable(w io.Writer, title string, vars map[string]resources.ResourceTemplateVar) {
-	if len(vars) == 0 {
-		return
-	}
-	keys := make([]string, 0, len(vars))
-	for key := range vars {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintf(w, "%s:\n", title)
-	for _, key := range keys {
-		item := vars[key]
-		line := fmt.Sprintf("  - %s (--%s)", key, item.Flag)
-		if item.Description != "" {
-			line += ": " + item.Description
-		}
-		if item.Default != "" {
-			line += " [default: " + item.Default + "]"
-		}
-		_, _ = fmt.Fprintln(w, line)
-	}
-}
-
-func formatResourceTemplateRequiredVars(vars map[string]resources.ResourceTemplateVar) string {
-	if len(vars) == 0 {
-		return "-"
-	}
-	keys := make([]string, 0, len(vars))
-	for key := range vars {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, key := range keys {
-		parts = append(parts, fmt.Sprintf("%s (--%s)", key, vars[key].Flag))
-	}
-	return strings.Join(parts, ", ")
-}
-
-func formatResourceTemplateRequiredFlags(vars map[string]resources.ResourceTemplateVar) string {
-	if len(vars) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(vars))
-	for key := range vars {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, key := range keys {
-		parts = append(parts, fmt.Sprintf(" --%s <%s>", vars[key].Flag, strings.ToLower(key)))
-	}
-	return strings.Join(parts, "")
-}
-
-func writeResourceTemplateValues(w io.Writer, values map[string]string) {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	_, _ = fmt.Fprintln(w, "Applied variables:")
-	for _, key := range keys {
-		_, _ = fmt.Fprintf(w, "  - %s=%s\n", key, values[key])
-	}
 }

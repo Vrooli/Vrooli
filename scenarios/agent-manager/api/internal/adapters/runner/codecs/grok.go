@@ -106,14 +106,9 @@ func (c *Grok) Capabilities() runner.Capabilities {
 		SupportsContinuation:     true,  // `grok --resume <session-id>` (trace-proven)
 		SupportsImageAttachments: false, // no headless image-attachment flag
 		MaxTurns:                 0,     // unlimited (configurable via --max-turns)
-		SupportedModels: []string{
-			// MUST stay a subset of config/model-registry.json's grok models
-			// (D2; codecs/model_parity_test.go gates this).
-			"grok-build",
-			"grok-composer-2.5-fast",
-		},
-		SupportedFeatures: []string{},
-		AllowedExtraFlags: []string{"--effort", "--reasoning-effort"},
+		SupportsRunnerDefault:    true,
+		SupportedFeatures:        []string{},
+		AllowedExtraFlags:        []string{"--effort", "--reasoning-effort"},
 	}
 }
 

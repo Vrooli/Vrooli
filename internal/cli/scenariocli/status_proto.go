@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/resources"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
@@ -216,6 +217,49 @@ func scenarioProcessRecord(r process.Record) *cliv1.ScenarioProcessRecord {
 		StartedAt:  formatTime(r.StartedAt),
 		Status:     r.Status,
 	}
+}
+
+func copyStringMap(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
+}
+
+// ScenarioEnvValidationResponse maps a ScenarioEnvValidationReport onto the
+// wire contract (cliout.WriteFieldsWithSuccess; success mirrors report.Passed).
+func ScenarioEnvValidationResponse(report resources.ScenarioEnvValidationReport) *cliv1.ScenarioEnvValidationResponse {
+	reportMsg := &cliv1.ScenarioEnvValidationReport{
+		Scenario: report.Scenario,
+		Values:   copyStringMap(report.Values),
+		Passed:   report.Passed,
+	}
+	for _, issue := range report.Issues {
+		reportMsg.Issues = append(reportMsg.Issues, &cliv1.ScenarioValidationIssue{
+			Severity: issue.Severity,
+			Message:  issue.Message,
+		})
+	}
+	for _, rr := range report.ResourceReports {
+		reportMsg.ResourceReports = append(reportMsg.ResourceReports, &cliv1.ScenarioResourceReport{
+			Name:         rr.Name,
+			ManifestPath: rr.Manifest,
+			Values:       copyStringMap(rr.Values),
+			Warnings:     rr.Warnings,
+		})
+	}
+	return &cliv1.ScenarioEnvValidationResponse{
+		Success: report.Passed,
+		Report:  reportMsg,
+	}
+}
+
+func writeScenarioEnvValidationJSON(w io.Writer, report resources.ScenarioEnvValidationReport) error {
+	return marshalScenarioStatus(w, ScenarioEnvValidationResponse(report))
 }
 
 // scenarioRuntimeData maps an InfoRuntimeData onto its proto message.

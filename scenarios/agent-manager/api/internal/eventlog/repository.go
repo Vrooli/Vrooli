@@ -203,6 +203,7 @@ var (
 		domain.EventTypeRunnerFallbackExhausted,
 		domain.EventTypeModelFallbackAttempted,
 		domain.EventTypeModelFallbackExhausted,
+		domain.EventTypePolicyCandidateAttempt,
 		domain.EventTypeModelHealthTransition,
 		domain.EventTypeRunnerHealthTransition,
 		domain.EventTypeSandboxOperation,

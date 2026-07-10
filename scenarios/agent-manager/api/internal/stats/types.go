@@ -60,6 +60,10 @@ type FallbackInsights struct {
 	ModelByPair     []FallbackPair `json:"model_by_pair"`
 	ModelChainDepth map[int]int    `json:"model_chain_depth"`
 	ModelByPreset   map[string]int `json:"model_by_preset"`
+
+	PolicyCandidateEvents int            `json:"policy_candidate_events"`
+	PolicyByOutcome       map[string]int `json:"policy_by_outcome"`
+	PolicyByFailureClass  map[string]int `json:"policy_by_failure_class"`
 }
 
 // FallbackPair pairs a (from → to) fallback transition with how often it

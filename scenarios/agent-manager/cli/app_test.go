@@ -126,6 +126,7 @@ func TestApp_RegisterCommands_Groups(t *testing.T) {
 		"Tasks",
 		"Runs",
 		"Runners",
+		"Model Policy",
 		"Settings",
 		"Maintenance",
 		"Operational Stats",
@@ -489,6 +490,9 @@ func TestNewServices(t *testing.T) {
 	if services.Runners == nil {
 		t.Error("expected Runners service")
 	}
+	if services.Policy == nil {
+		t.Error("expected Policy service")
+	}
 	if services.Settings == nil {
 		t.Error("expected Settings service")
 	}
@@ -537,6 +541,22 @@ func TestApp_CmdRunner_UnknownSubcommand(t *testing.T) {
 	err = app.cmdRunner([]string{"unknown-subcommand"})
 	if err == nil {
 		t.Error("expected error for unknown subcommand")
+	}
+}
+
+// [REQ:REQ-P1-004] Policy commands are discoverable and removed mutation vocabulary is rejected.
+func TestApp_CmdPolicy_HelpAndUnknownSubcommand(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+	for _, args := range [][]string{{}, {"help"}, {"-h"}, {"--help"}} {
+		if err := app.cmdPolicy(args); err != nil {
+			t.Fatalf("cmdPolicy(%v): %v", args, err)
+		}
+	}
+	if err := app.cmdPolicy([]string{"models-update"}); err == nil {
+		t.Fatal("expected removed policy subcommand to fail")
 	}
 }
 

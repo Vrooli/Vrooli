@@ -10,7 +10,28 @@ import (
 	scenario "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/scenarioexec"
 )
+
+type capturedSubprocess struct {
+	calls  []scenarioexec.SubprocessSpec
+	stdout string
+	err    error
+	onRun  func(scenarioexec.SubprocessSpec) error
+}
+
+func (c *capturedSubprocess) Run(_ struct{}, spec scenarioexec.SubprocessSpec) error {
+	c.calls = append(c.calls, spec)
+	if c.onRun != nil {
+		if err := c.onRun(spec); err != nil {
+			return err
+		}
+	}
+	if c.stdout != "" && spec.Stdout != nil {
+		_, _ = io.WriteString(spec.Stdout, c.stdout)
+	}
+	return c.err
+}
 
 func newScenarioTestDeps(
 	root string,

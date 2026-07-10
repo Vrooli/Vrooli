@@ -23,6 +23,7 @@ type Services struct {
 	Tasks       *TaskService
 	Runs        *RunService
 	Runners     *RunnerService
+	Policy      *PolicyService
 	Settings    *SettingsService
 	Maintenance *MaintenanceService
 	Operational *OperationalService
@@ -37,6 +38,7 @@ func NewServices(api *cliutil.APIClient) *Services {
 		Tasks:       &TaskService{api: api},
 		Runs:        &RunService{api: api},
 		Runners:     &RunnerService{api: api},
+		Policy:      &PolicyService{api: api},
 		Settings:    &SettingsService{api: api},
 		Maintenance: &MaintenanceService{api: api},
 		Operational: &OperationalService{api: api},
@@ -653,9 +655,73 @@ func (s *RunnerService) GetModels() ([]byte, error) {
 	return s.api.Get("/api/v1/runner-models", nil)
 }
 
-// UpdateModels replaces the model registry with the provided payload.
-func (s *RunnerService) UpdateModels(data json.RawMessage) ([]byte, error) {
-	return s.api.Request("PUT", "/api/v1/runner-models", nil, data)
+// PolicyService exposes declared catalog inspection and controlled activation.
+type PolicyService struct {
+	api *cliutil.APIClient
+}
+
+func (s *PolicyService) Status() ([]byte, *apipb.GetModelPolicyStatusResponse, error) {
+	body, err := s.api.Get("/api/v1/model-policy/status", nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.GetModelPolicyStatusResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PolicyService) Catalog() ([]byte, *apipb.GetModelPolicyCatalogResponse, error) {
+	body, err := s.api.Get("/api/v1/model-policy/catalog", nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.GetModelPolicyCatalogResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PolicyService) Validate() ([]byte, *apipb.ValidateModelPolicyCatalogResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/model-policy/validate", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.ValidateModelPolicyCatalogResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PolicyService) Reload() ([]byte, *apipb.ReloadModelPolicyCatalogResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/model-policy/reload", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.ReloadModelPolicyCatalogResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PolicyService) Explain(req *apipb.ExplainModelPolicyRequest) ([]byte, *apipb.ExplainModelPolicyResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/model-policy/explain", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.ExplainModelPolicyResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
 }
 
 // =============================================================================

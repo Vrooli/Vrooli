@@ -53,14 +53,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// ModelChainResolver and ModelHealthReporter are aliases for the canonical
-// definitions in the phases package. Phases owns these interfaces so per-phase
-// functions can reference them without an import cycle; the aliases keep
-// orchestration callers compiling without per-site rewrites.
-type (
-	ModelChainResolver  = phases.ModelChainResolver
-	ModelHealthReporter = phases.ModelHealthReporter
-)
+// ModelHealthReporter is an alias for the canonical phase dependency seam.
+type ModelHealthReporter = phases.ModelHealthReporter
 
 // RunExecutor handles the execution lifecycle of a single run. It is a
 // thin coordinator: it owns shared per-run state and dispatches to phase
@@ -74,7 +68,6 @@ type RunExecutor struct {
 	checkpoints      repository.CheckpointRepository
 	broadcaster      phases.EventBroadcaster
 	workspaceSandbox phases.WorkspaceSandboxEnsurer
-	modelChains      ModelChainResolver
 	modelHealth      ModelHealthReporter
 
 	// Configuration
@@ -177,11 +170,6 @@ func (e *RunExecutor) WithLevers(l config.Levers) *RunExecutor { e.levers = l; r
 
 func (e *RunExecutor) WithCheckpointRepository(repo repository.CheckpointRepository) *RunExecutor {
 	e.checkpoints = repo
-	return e
-}
-
-func (e *RunExecutor) WithModelChainResolver(resolver ModelChainResolver) *RunExecutor {
-	e.modelChains = resolver
 	return e
 }
 
@@ -327,13 +315,23 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 
 	// Step 3: Acquire runner.
 	e.advancePhase(execCtx, domain.RunPhaseRunnerAcquiring)
-	agentRunner, err := phases.AcquireRunner(execCtx, phases.AcquireRunnerInput{
-		Deps: e.deps(), Run: e.run, Profile: e.profile, Runners: e.runners,
-	})
-	if err != nil {
-		e.failWithError(execCtx, err)
-		phases.CleanupOnFailure(execCtx, e.deps(), e.run)
-		return
+	var agentRunner runner.Runner
+	if e.run.ResolvedConfig != nil && e.run.ResolvedConfig.PolicySnapshot != nil {
+		// Snapshot execution owns availability checks and cross-runner
+		// transitions so an unavailable initial runner can be recorded as a
+		// skipped candidate rather than diverted through legacy fallback state.
+		if e.runners != nil {
+			agentRunner, _ = e.runners.Get(e.run.ResolvedConfig.RunnerType)
+		}
+	} else {
+		agentRunner, err = phases.AcquireRunner(execCtx, phases.AcquireRunnerInput{
+			Deps: e.deps(), Run: e.run, Profile: e.profile, Runners: e.runners,
+		})
+		if err != nil {
+			e.failWithError(execCtx, err)
+			phases.CleanupOnFailure(execCtx, e.deps(), e.run)
+			return
+		}
 	}
 	if err := execCtx.Err(); err != nil {
 		e.handleContextError(ctx, err)
@@ -367,7 +365,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 			RunState:     e.runState,
 			Mu:           &e.mu,
 			ModelHealth:  e.modelHealth,
-			ModelChains:  e.modelChains,
+			Runners:      e.runners,
 			OnRunning:    e.onRunning,
 		},
 	})

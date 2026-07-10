@@ -35,8 +35,8 @@ vrooli scenario start <name>
 vrooli scenario run <name>
 vrooli scenario test <name>
 vrooli scenario logs <name>
-vrooli scenario template list
-vrooli scenario generate <template> --id <slug> --display-name <name> --description <text>
+template-manager registry list --kind scenario
+template-manager generate <template> --id <slug> --display-name <name> --description <text>
 vrooli scenario requirements report
 vrooli scenario requirements validate
 ```

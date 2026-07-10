@@ -213,21 +213,16 @@ func TestCodex_Capabilities_AppendsOllamaModels(t *testing.T) {
 		time.Minute, func() time.Time { return time.Unix(0, 0) },
 	)
 	models := c.Capabilities().SupportedModels
-	if indexOf(models, "gpt-5.5") == -1 {
-		t.Fatalf("curated cloud model missing: %v", models)
-	}
 	if indexOf(models, "ollama/gemma4:12b") == -1 {
-		t.Fatalf("local ollama model not appended: %v", models)
+		t.Fatalf("local ollama model not surfaced: %v", models)
 	}
 }
 
-func TestCodex_Capabilities_NilListerCloudOnly(t *testing.T) {
+func TestCodex_Capabilities_NilListerHasNoDynamicModels(t *testing.T) {
 	c := NewCodexForTest() // ForTest leaves ollama nil
 	models := c.Capabilities().SupportedModels
-	for _, m := range models {
-		if len(m) >= len(ollamaModelPrefix) && m[:len(ollamaModelPrefix)] == ollamaModelPrefix {
-			t.Fatalf("nil lister must not surface ollama models: %v", models)
-		}
+	if len(models) != 0 {
+		t.Fatalf("nil lister must not surface dynamic models: %v", models)
 	}
 }
 

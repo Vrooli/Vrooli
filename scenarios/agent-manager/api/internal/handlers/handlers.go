@@ -35,7 +35,7 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/modelpolicy"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
 	"agent-manager/internal/storage"
@@ -54,10 +54,11 @@ import (
 
 // Handler provides HTTP handlers for all API endpoints.
 type Handler struct {
-	svc       orchestration.Service
-	hub       *WebSocketHub
-	validator protovalidate.Validator
-	storage   storage.Service
+	svc         orchestration.Service
+	hub         *WebSocketHub
+	validator   protovalidate.Validator
+	storage     storage.Service
+	modelPolicy *modelpolicy.State
 }
 
 // HandlerOption configures the Handler.
@@ -67,6 +68,14 @@ type HandlerOption func(*Handler)
 func WithStorage(s storage.Service) HandlerOption {
 	return func(h *Handler) {
 		h.storage = s
+	}
+}
+
+// WithModelPolicyState installs the sole catalog activation owner used by the
+// read-only operator surface and controlled validate/reload commands.
+func WithModelPolicyState(state *modelpolicy.State) HandlerOption {
+	return func(h *Handler) {
+		h.modelPolicy = state
 	}
 }
 
@@ -155,8 +164,12 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
 	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
 	r.HandleFunc("/api/v1/runner-models", h.GetRunnerModels).Methods("GET")
-	r.HandleFunc("/api/v1/runner-models", h.UpdateRunnerModels).Methods("PUT")
 	r.HandleFunc("/api/v1/runner-models/health", h.GetRunnerModelHealth).Methods("GET")
+	r.HandleFunc("/api/v1/model-policy/status", h.GetModelPolicyStatus).Methods("GET")
+	r.HandleFunc("/api/v1/model-policy/catalog", h.GetModelPolicyCatalog).Methods("GET")
+	r.HandleFunc("/api/v1/model-policy/validate", h.ValidateModelPolicyCatalog).Methods("POST")
+	r.HandleFunc("/api/v1/model-policy/reload", h.ReloadModelPolicyCatalog).Methods("POST")
+	r.HandleFunc("/api/v1/model-policy/explain", h.ExplainModelPolicy).Methods("POST")
 
 	// Path validation (proxied to workspace-sandbox)
 	r.HandleFunc("/api/v1/validate-path", h.ValidatePath).Methods("GET")
@@ -2870,19 +2883,120 @@ func (h *Handler) GetRunnerModelHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, snapshot)
 }
 
-// UpdateRunnerModels replaces the model registry with the provided payload.
-func (h *Handler) UpdateRunnerModels(w http.ResponseWriter, r *http.Request) {
-	var registry modelregistry.Registry
-	if err := json.NewDecoder(r.Body).Decode(&registry); err != nil {
+// GetModelPolicyStatus returns truthful catalog activation state.
+func (h *Handler) GetModelPolicyStatus(w http.ResponseWriter, r *http.Request) {
+	if h.modelPolicy == nil {
+		writeSimpleError(w, r, "model_policy", "model policy state is not configured")
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.GetModelPolicyStatusResponse{
+		Status: protoconv.ModelPolicyStatusToProto(h.modelPolicy.Status()),
+	})
+}
+
+// GetModelPolicyCatalog exposes only the active validated revision.
+func (h *Handler) GetModelPolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if h.modelPolicy == nil {
+		writeSimpleError(w, r, "model_policy", "model policy state is not configured")
+		return
+	}
+	var catalog *modelpolicy.Catalog
+	if active := h.modelPolicy.Active(); active != nil {
+		catalog = active.Catalog()
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.GetModelPolicyCatalogResponse{
+		Status:  protoconv.ModelPolicyStatusToProto(h.modelPolicy.Status()),
+		Catalog: protoconv.ModelPolicyCatalogToProto(catalog),
+	})
+}
+
+// ValidateModelPolicyCatalog validates declared state without activation.
+func (h *Handler) ValidateModelPolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if h.modelPolicy == nil {
+		writeSimpleError(w, r, "model_policy", "model policy state is not configured")
+		return
+	}
+	status := h.modelPolicy.Status()
+	revision, err := h.modelPolicy.Validate()
+	response := &apipb.ValidateModelPolicyCatalogResponse{ActiveDigest: status.ActiveDigest}
+	if err != nil {
+		response.Diagnostic = protoconv.ModelPolicyDiagnosticToProto(modelpolicy.DiagnosticForError(err))
+	} else {
+		response.Valid = true
+		response.CandidateDigest = revision.Digest()
+	}
+	writeProtoJSON(w, http.StatusOK, response)
+}
+
+// ReloadModelPolicyCatalog validates before one atomic activation swap.
+func (h *Handler) ReloadModelPolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if h.modelPolicy == nil {
+		writeSimpleError(w, r, "model_policy", "model policy state is not configured")
+		return
+	}
+	_, err := h.modelPolicy.Reload()
+	response := &apipb.ReloadModelPolicyCatalogResponse{
+		Activated: err == nil,
+		Status:    protoconv.ModelPolicyStatusToProto(h.modelPolicy.Status()),
+	}
+	if err != nil {
+		response.Diagnostic = protoconv.ModelPolicyDiagnosticToProto(modelpolicy.DiagnosticForError(err))
+	}
+	writeProtoJSON(w, http.StatusOK, response)
+}
+
+// ExplainModelPolicy resolves a profile now or returns a run's persisted
+// snapshot. Historical runs never borrow provenance from the current catalog.
+func (h *Handler) ExplainModelPolicy(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+	var req apipb.ExplainModelPolicyRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
-	updated, err := h.svc.UpdateModelRegistry(r.Context(), &registry)
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	response := &apipb.ExplainModelPolicyResponse{}
+	var snapshot *domain.ExecutionPolicySnapshot
+	switch {
+	case req.GetProfileId() != "":
+		id, parseErr := uuid.Parse(req.GetProfileId())
+		if parseErr != nil {
+			writeSimpleError(w, r, "profile_id", "invalid UUID format")
+			return
+		}
+		response.TargetType, response.TargetId = "profile", id.String()
+		snapshot, err = h.svc.ExplainProfilePolicy(r.Context(), id)
+	case req.GetRunId() != "":
+		id, parseErr := uuid.Parse(req.GetRunId())
+		if parseErr != nil {
+			writeSimpleError(w, r, "run_id", "invalid UUID format")
+			return
+		}
+		response.TargetType, response.TargetId = "run", id.String()
+		snapshot, err = h.svc.ExplainRunPolicy(r.Context(), id)
+		response.HistoricalWithoutSnapshot = err == nil && snapshot == nil
+	default:
+		writeSimpleError(w, r, "target", "exactly one of profile_id or run_id is required")
+		return
+	}
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, updated)
+	response.Snapshot = protoconv.ExecutionPolicySnapshotToProto(snapshot)
+	if snapshot != nil {
+		response.Summary = snapshot.Explanation.Summary
+	} else if response.HistoricalWithoutSnapshot {
+		response.Summary = "historical run has no persisted policy snapshot; current catalog provenance was not fabricated"
+	}
+	writeProtoJSON(w, http.StatusOK, response)
 }
 
 func (h *Handler) resolveProfileModels(ctx context.Context, profile *domain.AgentProfile) ([]*apipb.AvailableModel, map[string]string) {

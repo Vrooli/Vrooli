@@ -4,7 +4,7 @@
  * These are the variables that change between light and dark mode. Primitive
  * design-kit tokens (raw palette, type ramp, spacing scale) live in
  * `design-tokens.css`, which is generated per-scenario by
- * `vrooli scenario generate` from the selected design kit. This file
+ * `template-manager generate` from the selected design kit. This file
  * intentionally references those primitives by name and only re-binds them
  * under a `[data-theme="dark"]` selector — so swapping design kits never
  * requires touching this file, and dark mode never requires touching the

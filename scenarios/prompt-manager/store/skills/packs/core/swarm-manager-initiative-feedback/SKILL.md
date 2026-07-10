@@ -183,7 +183,7 @@ If the entire envelope is absent, the submission is plain free-prose feedback. U
 
 When proposing splits, merges, or new items, anchor on these. An item is well-scoped when:
 
-- One agent run can plausibly converge it to `plan.md` in one workshop pass.
+- One agent run can plausibly converge it to a canonical plan-manager plan in one workshop pass.
 - Acceptance is testable in isolation, ideally with one or two automated tests.
 - Acceptance globs cover one cohesive code area; an item that touches `path:scenarios/foo/**` and `path:scenarios/bar/**` is suspect.
 - Description fits in a paragraph; if it needs sections, it's probably two items.

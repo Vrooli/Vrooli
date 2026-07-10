@@ -40,7 +40,7 @@ client.
 |---|---|
 | **Auth** | None |
 | **Response** | `Response { status: string, readiness: bool, service: string, timestamp: string, version: string, uptime_seconds: int64, dependencies: map<string, DependencyStatus> }` |
-| **Errors** | None — always returns 200 with `status: "unhealthy"` if a dependency fails |
+| **Errors** | None — always returns 200 and reports an unhealthy status if a dependency fails |
 | **CLI** | `{{SCENARIO_ID}} status` |
 
 ```bash
@@ -62,11 +62,11 @@ domain's endpoints here as you build them — one section per RPC, with
 its auth, request/response proto shapes, error codes, and CLI mirror.
 
 The scaffold ships one fully worked CRUD vertical slice as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
+reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
 <!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+### Example domain — `notes` (removed by `template-manager detemplate`)
 
 The `notes` domain is the canonical worked example. Copy its layering
 when adding the first non-trivial mutation in your scenario, then

@@ -80,7 +80,7 @@ class AgentProfile(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., fallback_runner_types: _Optional[_Iterable[_Union[_types_pb2.RunnerType, str]]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., owner_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., last_applied_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., local_override: _Optional[bool] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class RunConfig(_message.Message):
-    __slots__ = ("runner_type", "model", "model_preset", "max_turns", "timeout", "fallback_runner_types", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "network_access", "sandbox_config", "allowed_paths", "denied_paths")
+    __slots__ = ("runner_type", "model", "model_preset", "max_turns", "timeout", "fallback_runner_types", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -100,6 +100,7 @@ class RunConfig(_message.Message):
     FEATURES_FIELD_NUMBER: _ClassVar[int]
     EXTRA_FLAGS_FIELD_NUMBER: _ClassVar[int]
     NETWORK_ACCESS_FIELD_NUMBER: _ClassVar[int]
+    POLICY_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     SANDBOX_CONFIG_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_PATHS_FIELD_NUMBER: _ClassVar[int]
     DENIED_PATHS_FIELD_NUMBER: _ClassVar[int]
@@ -115,10 +116,65 @@ class RunConfig(_message.Message):
     features: _types_pb2.FeatureFlags
     extra_flags: _containers.MessageMap[str, _types_pb2.ExtraFlagList]
     network_access: _types_pb2.NetworkAccess
+    policy_snapshot: ExecutionPolicySnapshot
     sandbox_config: _types_pb2.SandboxConfig
     allowed_paths: _containers.RepeatedScalarFieldContainer[str]
     denied_paths: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., fallback_runner_types: _Optional[_Iterable[_Union[_types_pb2.RunnerType, str]]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., fallback_runner_types: _Optional[_Iterable[_Union[_types_pb2.RunnerType, str]]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., policy_snapshot: _Optional[_Union[ExecutionPolicySnapshot, _Mapping]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ExecutionCandidate(_message.Message):
+    __slots__ = ("runner_type", "selection_type", "model")
+    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    runner_type: _types_pb2.RunnerType
+    selection_type: _types_pb2.ModelSelectionType
+    model: str
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., selection_type: _Optional[_Union[_types_pb2.ModelSelectionType, str]] = ..., model: _Optional[str] = ...) -> None: ...
+
+class CandidatePreflight(_message.Message):
+    __slots__ = ("index", "candidate", "available", "reason")
+    INDEX_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    index: int
+    candidate: ExecutionCandidate
+    available: bool
+    reason: str
+    def __init__(self, index: _Optional[int] = ..., candidate: _Optional[_Union[ExecutionCandidate, _Mapping]] = ..., available: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class PolicyResolutionExplanation(_message.Message):
+    __slots__ = ("source", "summary", "requested_runner", "requested_model", "requested_preset", "preflight")
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_RUNNER_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_MODEL_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_PRESET_FIELD_NUMBER: _ClassVar[int]
+    PREFLIGHT_FIELD_NUMBER: _ClassVar[int]
+    source: str
+    summary: str
+    requested_runner: _types_pb2.RunnerType
+    requested_model: str
+    requested_preset: _types_pb2.ModelPreset
+    preflight: _containers.RepeatedCompositeFieldContainer[CandidatePreflight]
+    def __init__(self, source: _Optional[str] = ..., summary: _Optional[str] = ..., requested_runner: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., requested_model: _Optional[str] = ..., requested_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., preflight: _Optional[_Iterable[_Union[CandidatePreflight, _Mapping]]] = ...) -> None: ...
+
+class ExecutionPolicySnapshot(_message.Message):
+    __slots__ = ("catalog_digest", "policy_ref", "candidates", "selected_index", "selected_candidate", "explanation")
+    CATALOG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    POLICY_REF_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_INDEX_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    EXPLANATION_FIELD_NUMBER: _ClassVar[int]
+    catalog_digest: str
+    policy_ref: str
+    candidates: _containers.RepeatedCompositeFieldContainer[ExecutionCandidate]
+    selected_index: int
+    selected_candidate: ExecutionCandidate
+    explanation: PolicyResolutionExplanation
+    def __init__(self, catalog_digest: _Optional[str] = ..., policy_ref: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[ExecutionCandidate, _Mapping]]] = ..., selected_index: _Optional[int] = ..., selected_candidate: _Optional[_Union[ExecutionCandidate, _Mapping]] = ..., explanation: _Optional[_Union[PolicyResolutionExplanation, _Mapping]] = ...) -> None: ...
 
 class RunConfigOverrides(_message.Message):
     __slots__ = ("runner_type", "model", "model_preset", "max_turns", "timeout", "fallback_runner_types", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "clear_extra_flags", "network_access", "sandbox_config", "allowed_paths", "denied_paths", "clear_allowed_tools", "clear_denied_tools", "clear_allowed_paths", "clear_denied_paths", "clear_fallback_runner_types")

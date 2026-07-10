@@ -74,6 +74,22 @@ var allowedBlueprintTemplateRules = map[string][]string{
 	"library":         {"manual-resource", "external-cli", "native-cli"},
 }
 
+var canonicalResourceTemplateNames = []string{
+	"cloud-api",
+	"compose-service",
+	"desktop-app",
+	"docker-service",
+	"external-cli",
+	"manual-resource",
+	"native-cli",
+}
+
+func AllowedSuggestedTemplates() []string {
+	out := make([]string, len(canonicalResourceTemplateNames))
+	copy(out, canonicalResourceTemplateNames)
+	return out
+}
+
 func (c *Controller) ListBlueprints() ([]Blueprint, error) {
 	blueprints, err := c.loadBlueprints()
 	if err != nil {

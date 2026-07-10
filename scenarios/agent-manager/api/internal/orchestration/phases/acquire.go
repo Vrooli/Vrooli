@@ -90,14 +90,15 @@ func runnerAcquireFailure(ctx context.Context, in AcquireRunnerInput, primary do
 	}
 }
 
-// GetRunnerType returns the runner type, preferring profile but falling
-// back to resolved config and finally to ClaudeCode.
+// GetRunnerType returns the run-owned resolved runner before consulting the
+// source profile. Policy preflight may select a later cross-runner candidate,
+// so the profile is historical input rather than execution authority.
 func GetRunnerType(run *domain.Run, profile *domain.AgentProfile) domain.RunnerType {
-	if profile != nil {
-		return profile.RunnerType
-	}
 	if run != nil && run.ResolvedConfig != nil {
 		return run.ResolvedConfig.RunnerType
+	}
+	if profile != nil {
+		return profile.RunnerType
 	}
 	return domain.RunnerTypeClaudeCode
 }

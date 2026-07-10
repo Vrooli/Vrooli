@@ -35,7 +35,7 @@ ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
 generated subpackages. The worked example below shows the expected shape.
 
 <!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+### Example domain — `notes` (removed by `template-manager detemplate`)
 
 The template ships an `Attachment upload` flow on the `notes` domain as a
 worked Level 5 temporal-workflow vertical slice. Copy its shape for your

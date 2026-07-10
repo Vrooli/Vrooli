@@ -133,6 +133,33 @@ type ModelFallbackExhaustedPayload struct {
 	LastReason FallbackReason `json:"last_reason"`
 }
 
+// PolicyCandidateOutcome is the stable state vocabulary for one persisted
+// policy candidate. Exhausted is the terminal sequence-level signal and points
+// at the last candidate considered.
+type PolicyCandidateOutcome string
+
+const (
+	PolicyCandidateOutcomeAttempted PolicyCandidateOutcome = "attempted"
+	PolicyCandidateOutcomeSkipped   PolicyCandidateOutcome = "skipped"
+	PolicyCandidateOutcomeFailed    PolicyCandidateOutcome = "failed"
+	PolicyCandidateOutcomeSelected  PolicyCandidateOutcome = "selected"
+	PolicyCandidateOutcomeExhausted PolicyCandidateOutcome = "exhausted"
+)
+
+// PolicyCandidateAttemptPayload is the complete per-candidate audit signal for
+// snapshot-driven execution. Events always carry immutable revision/index
+// provenance, including the terminal exhausted outcome.
+type PolicyCandidateAttemptPayload struct {
+	CatalogDigest string                 `json:"catalog_digest"`
+	SnapshotIndex int                    `json:"snapshot_index"`
+	Runner        string                 `json:"runner"`
+	SelectionType string                 `json:"selection_type"`
+	Model         string                 `json:"model,omitempty"`
+	Outcome       PolicyCandidateOutcome `json:"outcome"`
+	Reason        string                 `json:"reason,omitempty"`
+	FailureClass  string                 `json:"failure_class,omitempty"`
+}
+
 // ModelHealthTransitionPayload records that a (runner, model) pair has
 // flipped status. Emitted by the runtime classification path in execute.go
 // (Phase 2) and by the probe loop (Phase 2). The audit-table writes are a
@@ -218,6 +245,7 @@ func (RunnerFallbackAttemptedPayload) payloadMarker() {}
 func (RunnerFallbackExhaustedPayload) payloadMarker() {}
 func (ModelFallbackAttemptedPayload) payloadMarker()  {}
 func (ModelFallbackExhaustedPayload) payloadMarker()  {}
+func (PolicyCandidateAttemptPayload) payloadMarker()  {}
 func (ModelHealthTransitionPayload) payloadMarker()   {}
 func (RunnerHealthTransitionPayload) payloadMarker()  {}
 func (SandboxOperationPayload) payloadMarker()        {}
@@ -238,6 +266,8 @@ func EventTypeOf(p Payload) domain.RunEventType {
 		return domain.EventTypeModelFallbackAttempted
 	case ModelFallbackExhaustedPayload, *ModelFallbackExhaustedPayload:
 		return domain.EventTypeModelFallbackExhausted
+	case PolicyCandidateAttemptPayload, *PolicyCandidateAttemptPayload:
+		return domain.EventTypePolicyCandidateAttempt
 	case ModelHealthTransitionPayload, *ModelHealthTransitionPayload:
 		return domain.EventTypeModelHealthTransition
 	case RunnerHealthTransitionPayload, *RunnerHealthTransitionPayload:

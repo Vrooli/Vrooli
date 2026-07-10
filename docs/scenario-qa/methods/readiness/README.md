@@ -2,7 +2,7 @@
 
 This folder is the **strategic canon** for readiness-dimension checks. One paired doc + skill per check, once entries exist.
 
-> **Pre-emptive readiness ordering lives in swarm-manager now.** A former QA member ran these reviews on idle scenarios and filed fix items ahead of feature work. That ordering is now a deterministic swarm-manager gate (`fix_before_feature`) plus optional on-demand discovery (`fix_before_feature_discovery`). This registry remains the home for *individual readiness-check techniques* should they graduate into Vrooli skills; it no longer belongs to a specific QA member.
+> **Pre-emptive readiness ordering lives in swarm-manager now.** A former QA member ran these reviews on idle scenarios and filed fix items ahead of feature work. That ordering is now a deterministic swarm-manager gate (`fix_before_feature`) plus optional policy-governed maintenance intake through the backlog auto-filer (`auto_filer`). This registry remains the home for *individual readiness-check techniques* should they graduate into Vrooli skills; it no longer belongs to a specific QA member.
 
 These docs would answer: *what is this readiness check, when does it apply, when does it backfire, what's the failure mode the qa-contrarian watches for?*
 

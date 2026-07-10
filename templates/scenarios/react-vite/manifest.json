@@ -4,7 +4,7 @@
     "kind": "scenario-architecture",
     "schema": "scenario-architecture-manifest/v1",
     "template": "react-vite",
-    "extensionRule": "Cross-cutting architecture conventions shared by every scenario generated from this template. The `zones` block is the SSOT for the code-layout zone taxonomy (responsibility tiers + import direction) that architecture-cartographer reads. A scenario overrides it only via `.vrooli/architecture.json`; any deviation is reported as a finding, never silently honored."
+    "extensionRule": "Cross-cutting architecture conventions shared by every template-manager generated from this template. The `zones` block is the SSOT for the code-layout zone taxonomy (responsibility tiers + import direction) that architecture-cartographer reads. A scenario overrides it only via `.vrooli/architecture.json`; any deviation is reported as a finding, never silently honored."
   },
   "zones": {
     "pathPatterns": {

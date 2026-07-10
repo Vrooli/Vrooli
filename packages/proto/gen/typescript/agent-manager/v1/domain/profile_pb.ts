@@ -4,7 +4,7 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { ExtraFlagList, FeatureFlags, ModelPreset, NetworkAccess, RunnerType, SandboxConfig } from "./types_pb";
+import type { ExtraFlagList, FeatureFlags, ModelPreset, ModelSelectionType, NetworkAccess, RunnerType, SandboxConfig } from "./types_pb";
 import { file_agent_manager_v1_domain_types } from "./types_pb";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Duration, Timestamp } from "@bufbuild/protobuf/wkt";
@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file agent-manager/v1/domain/profile.proto.
  */
 export const file_agent_manager_v1_domain_profile: GenFile = /*@__PURE__*/
-  fileDesc("CiVhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9wcm9maWxlLnByb3RvEhBhZ2VudF9tYW5hZ2VyLnYxIv0ICgxBZ2VudFByb2ZpbGUSCgoCaWQYASABKAkSGAoEbmFtZRgCIAEoCUIKukgHcgUQARj/ARIfCgtwcm9maWxlX2tleRgSIAEoCUIKukgHcgUQARj/ARITCgtkZXNjcmlwdGlvbhgDIAEoCRI9CgtydW5uZXJfdHlwZRgEIAEoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZUIKukgHggEEEAEgABINCgVtb2RlbBgFIAEoCRIzCgxtb2RlbF9wcmVzZXQYEyABKA4yHS5hZ2VudF9tYW5hZ2VyLnYxLk1vZGVsUHJlc2V0Eh0KCW1heF90dXJucxgGIAEoBUIKukgHGgUY6AcoABIqCgd0aW1lb3V0GAcgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEjsKFWZhbGxiYWNrX3J1bm5lcl90eXBlcxgWIAMoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZRIVCg1hbGxvd2VkX3Rvb2xzGAggAygJEhQKDGRlbmllZF90b29scxgJIAMoCRIeChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAogASgIEjAKCGZlYXR1cmVzGBcgASgLMh4uYWdlbnRfbWFuYWdlci52MS5GZWF0dXJlRmxhZ3MSQwoLZXh0cmFfZmxhZ3MYGCADKAsyLi5hZ2VudF9tYW5hZ2VyLnYxLkFnZW50UHJvZmlsZS5FeHRyYUZsYWdzRW50cnkSNwoObmV0d29ya19hY2Nlc3MYGSABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLk5ldHdvcmtBY2Nlc3MSFgoOb3duZXJfc2NlbmFyaW8YGiABKAkSEwoLc291cmNlX3BhdGgYGyABKAkSEwoLc291cmNlX2hhc2gYHCABKAkSGQoRbGFzdF9hcHBsaWVkX2hhc2gYHSABKAkSNQoRc291cmNlX3VwZGF0ZWRfYXQYHiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmxvY2FsX292ZXJyaWRlGB8gASgIEjcKDnNhbmRib3hfY29uZmlnGBQgASgLMh8uYWdlbnRfbWFuYWdlci52MS5TYW5kYm94Q29uZmlnEhUKDWFsbG93ZWRfcGF0aHMYDSADKAkSFAoMZGVuaWVkX3BhdGhzGA4gAygJEhIKCmNyZWF0ZWRfYnkYDyABKAkSLgoKY3JlYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAaUgoPRXh0cmFGbGFnc0VudHJ5EgsKA2tleRgBIAEoCRIuCgV2YWx1ZRgCIAEoCzIfLmFnZW50X21hbmFnZXIudjEuRXh0cmFGbGFnTGlzdDoCOAFKBAgLEAxKBAgMEA1SEHJlcXVpcmVzX3NhbmRib3hSEXJlcXVpcmVzX2FwcHJvdmFsIuMFCglSdW5Db25maWcSMQoLcnVubmVyX3R5cGUYASABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSDQoFbW9kZWwYAiABKAkSMwoMbW9kZWxfcHJlc2V0GAwgASgOMh0uYWdlbnRfbWFuYWdlci52MS5Nb2RlbFByZXNldBIRCgltYXhfdHVybnMYAyABKAUSKgoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhI7ChVmYWxsYmFja19ydW5uZXJfdHlwZXMYDyADKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSFQoNYWxsb3dlZF90b29scxgFIAMoCRIUCgxkZW5pZWRfdG9vbHMYBiADKAkSHgoWc2tpcF9wZXJtaXNzaW9uX3Byb21wdBgHIAEoCBIwCghmZWF0dXJlcxgQIAEoCzIeLmFnZW50X21hbmFnZXIudjEuRmVhdHVyZUZsYWdzEkAKC2V4dHJhX2ZsYWdzGBEgAygLMisuYWdlbnRfbWFuYWdlci52MS5SdW5Db25maWcuRXh0cmFGbGFnc0VudHJ5EjcKDm5ldHdvcmtfYWNjZXNzGBIgASgOMh8uYWdlbnRfbWFuYWdlci52MS5OZXR3b3JrQWNjZXNzEjcKDnNhbmRib3hfY29uZmlnGA0gASgLMh8uYWdlbnRfbWFuYWdlci52MS5TYW5kYm94Q29uZmlnEhUKDWFsbG93ZWRfcGF0aHMYCiADKAkSFAoMZGVuaWVkX3BhdGhzGAsgAygJGlIKD0V4dHJhRmxhZ3NFbnRyeRILCgNrZXkYASABKAkSLgoFdmFsdWUYAiABKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLkV4dHJhRmxhZ0xpc3Q6AjgBSgQICBAJSgQICRAKUhByZXF1aXJlc19zYW5kYm94UhFyZXF1aXJlc19hcHByb3ZhbCLbCAoSUnVuQ29uZmlnT3ZlcnJpZGVzEkIKC3J1bm5lcl90eXBlGAEgASgOMhwuYWdlbnRfbWFuYWdlci52MS5SdW5uZXJUeXBlQgq6SAeCAQQQASAASACIAQESEgoFbW9kZWwYAiABKAlIAYgBARI4Cgxtb2RlbF9wcmVzZXQYECABKA4yHS5hZ2VudF9tYW5hZ2VyLnYxLk1vZGVsUHJlc2V0SAKIAQESFgoJbWF4X3R1cm5zGAMgASgFSAOIAQESLwoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkgEiAEBEjsKFWZhbGxiYWNrX3J1bm5lcl90eXBlcxgTIAMoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZRIVCg1hbGxvd2VkX3Rvb2xzGAUgAygJEhQKDGRlbmllZF90b29scxgGIAMoCRIjChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAcgASgISAWIAQESNQoIZmVhdHVyZXMYFSABKAsyHi5hZ2VudF9tYW5hZ2VyLnYxLkZlYXR1cmVGbGFnc0gGiAEBEkkKC2V4dHJhX2ZsYWdzGBYgAygLMjQuYWdlbnRfbWFuYWdlci52MS5SdW5Db25maWdPdmVycmlkZXMuRXh0cmFGbGFnc0VudHJ5EhkKEWNsZWFyX2V4dHJhX2ZsYWdzGBcgASgIEjwKDm5ldHdvcmtfYWNjZXNzGBggASgOMh8uYWdlbnRfbWFuYWdlci52MS5OZXR3b3JrQWNjZXNzSAeIAQESNwoOc2FuZGJveF9jb25maWcYESABKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLlNhbmRib3hDb25maWcSFQoNYWxsb3dlZF9wYXRocxgKIAMoCRIUCgxkZW5pZWRfcGF0aHMYCyADKAkSGwoTY2xlYXJfYWxsb3dlZF90b29scxgMIAEoCBIaChJjbGVhcl9kZW5pZWRfdG9vbHMYDSABKAgSGwoTY2xlYXJfYWxsb3dlZF9wYXRocxgOIAEoCBIaChJjbGVhcl9kZW5pZWRfcGF0aHMYDyABKAgSIwobY2xlYXJfZmFsbGJhY2tfcnVubmVyX3R5cGVzGBQgASgIGlIKD0V4dHJhRmxhZ3NFbnRyeRILCgNrZXkYASABKAkSLgoFdmFsdWUYAiABKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLkV4dHJhRmxhZ0xpc3Q6AjgBQg4KDF9ydW5uZXJfdHlwZUIICgZfbW9kZWxCDwoNX21vZGVsX3ByZXNldEIMCgpfbWF4X3R1cm5zQgoKCF90aW1lb3V0QhkKF19za2lwX3Blcm1pc3Npb25fcHJvbXB0QgsKCV9mZWF0dXJlc0IRCg9fbmV0d29ya19hY2Nlc3NKBAgIEAlKBAgJEApSEHJlcXVpcmVzX3NhbmRib3hSEXJlcXVpcmVzX2FwcHJvdmFsIoQBCg9IZWFydGJlYXRDb25maWcSKwoIaW50ZXJ2YWwYASABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKgoHdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIYChBtYXhfbWlzc2VkX2JlYXRzGAMgASgFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWdlbnQtbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_agent_manager_v1_domain_types, file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("CiVhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9wcm9maWxlLnByb3RvEhBhZ2VudF9tYW5hZ2VyLnYxIv0ICgxBZ2VudFByb2ZpbGUSCgoCaWQYASABKAkSGAoEbmFtZRgCIAEoCUIKukgHcgUQARj/ARIfCgtwcm9maWxlX2tleRgSIAEoCUIKukgHcgUQARj/ARITCgtkZXNjcmlwdGlvbhgDIAEoCRI9CgtydW5uZXJfdHlwZRgEIAEoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZUIKukgHggEEEAEgABINCgVtb2RlbBgFIAEoCRIzCgxtb2RlbF9wcmVzZXQYEyABKA4yHS5hZ2VudF9tYW5hZ2VyLnYxLk1vZGVsUHJlc2V0Eh0KCW1heF90dXJucxgGIAEoBUIKukgHGgUY6AcoABIqCgd0aW1lb3V0GAcgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEjsKFWZhbGxiYWNrX3J1bm5lcl90eXBlcxgWIAMoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZRIVCg1hbGxvd2VkX3Rvb2xzGAggAygJEhQKDGRlbmllZF90b29scxgJIAMoCRIeChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAogASgIEjAKCGZlYXR1cmVzGBcgASgLMh4uYWdlbnRfbWFuYWdlci52MS5GZWF0dXJlRmxhZ3MSQwoLZXh0cmFfZmxhZ3MYGCADKAsyLi5hZ2VudF9tYW5hZ2VyLnYxLkFnZW50UHJvZmlsZS5FeHRyYUZsYWdzRW50cnkSNwoObmV0d29ya19hY2Nlc3MYGSABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLk5ldHdvcmtBY2Nlc3MSFgoOb3duZXJfc2NlbmFyaW8YGiABKAkSEwoLc291cmNlX3BhdGgYGyABKAkSEwoLc291cmNlX2hhc2gYHCABKAkSGQoRbGFzdF9hcHBsaWVkX2hhc2gYHSABKAkSNQoRc291cmNlX3VwZGF0ZWRfYXQYHiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmxvY2FsX292ZXJyaWRlGB8gASgIEjcKDnNhbmRib3hfY29uZmlnGBQgASgLMh8uYWdlbnRfbWFuYWdlci52MS5TYW5kYm94Q29uZmlnEhUKDWFsbG93ZWRfcGF0aHMYDSADKAkSFAoMZGVuaWVkX3BhdGhzGA4gAygJEhIKCmNyZWF0ZWRfYnkYDyABKAkSLgoKY3JlYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAaUgoPRXh0cmFGbGFnc0VudHJ5EgsKA2tleRgBIAEoCRIuCgV2YWx1ZRgCIAEoCzIfLmFnZW50X21hbmFnZXIudjEuRXh0cmFGbGFnTGlzdDoCOAFKBAgLEAxKBAgMEA1SEHJlcXVpcmVzX3NhbmRib3hSEXJlcXVpcmVzX2FwcHJvdmFsIqcGCglSdW5Db25maWcSMQoLcnVubmVyX3R5cGUYASABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSDQoFbW9kZWwYAiABKAkSMwoMbW9kZWxfcHJlc2V0GAwgASgOMh0uYWdlbnRfbWFuYWdlci52MS5Nb2RlbFByZXNldBIRCgltYXhfdHVybnMYAyABKAUSKgoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhI7ChVmYWxsYmFja19ydW5uZXJfdHlwZXMYDyADKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSFQoNYWxsb3dlZF90b29scxgFIAMoCRIUCgxkZW5pZWRfdG9vbHMYBiADKAkSHgoWc2tpcF9wZXJtaXNzaW9uX3Byb21wdBgHIAEoCBIwCghmZWF0dXJlcxgQIAEoCzIeLmFnZW50X21hbmFnZXIudjEuRmVhdHVyZUZsYWdzEkAKC2V4dHJhX2ZsYWdzGBEgAygLMisuYWdlbnRfbWFuYWdlci52MS5SdW5Db25maWcuRXh0cmFGbGFnc0VudHJ5EjcKDm5ldHdvcmtfYWNjZXNzGBIgASgOMh8uYWdlbnRfbWFuYWdlci52MS5OZXR3b3JrQWNjZXNzEkIKD3BvbGljeV9zbmFwc2hvdBgTIAEoCzIpLmFnZW50X21hbmFnZXIudjEuRXhlY3V0aW9uUG9saWN5U25hcHNob3QSNwoOc2FuZGJveF9jb25maWcYDSABKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLlNhbmRib3hDb25maWcSFQoNYWxsb3dlZF9wYXRocxgKIAMoCRIUCgxkZW5pZWRfcGF0aHMYCyADKAkaUgoPRXh0cmFGbGFnc0VudHJ5EgsKA2tleRgBIAEoCRIuCgV2YWx1ZRgCIAEoCzIfLmFnZW50X21hbmFnZXIudjEuRXh0cmFGbGFnTGlzdDoCOAFKBAgIEAlKBAgJEApSEHJlcXVpcmVzX3NhbmRib3hSEXJlcXVpcmVzX2FwcHJvdmFsIpQBChJFeGVjdXRpb25DYW5kaWRhdGUSMQoLcnVubmVyX3R5cGUYASABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSPAoOc2VsZWN0aW9uX3R5cGUYAiABKA4yJC5hZ2VudF9tYW5hZ2VyLnYxLk1vZGVsU2VsZWN0aW9uVHlwZRINCgVtb2RlbBgDIAEoCSJ/ChJDYW5kaWRhdGVQcmVmbGlnaHQSDQoFaW5kZXgYASABKAUSNwoJY2FuZGlkYXRlGAIgASgLMiQuYWdlbnRfbWFuYWdlci52MS5FeGVjdXRpb25DYW5kaWRhdGUSEQoJYXZhaWxhYmxlGAMgASgIEg4KBnJlYXNvbhgEIAEoCSKBAgobUG9saWN5UmVzb2x1dGlvbkV4cGxhbmF0aW9uEg4KBnNvdXJjZRgBIAEoCRIPCgdzdW1tYXJ5GAIgASgJEjYKEHJlcXVlc3RlZF9ydW5uZXIYAyABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSFwoPcmVxdWVzdGVkX21vZGVsGAQgASgJEjcKEHJlcXVlc3RlZF9wcmVzZXQYBSABKA4yHS5hZ2VudF9tYW5hZ2VyLnYxLk1vZGVsUHJlc2V0EjcKCXByZWZsaWdodBgGIAMoCzIkLmFnZW50X21hbmFnZXIudjEuQ2FuZGlkYXRlUHJlZmxpZ2h0Ip0CChdFeGVjdXRpb25Qb2xpY3lTbmFwc2hvdBIWCg5jYXRhbG9nX2RpZ2VzdBgBIAEoCRISCgpwb2xpY3lfcmVmGAIgASgJEjgKCmNhbmRpZGF0ZXMYAyADKAsyJC5hZ2VudF9tYW5hZ2VyLnYxLkV4ZWN1dGlvbkNhbmRpZGF0ZRIWCg5zZWxlY3RlZF9pbmRleBgEIAEoBRJAChJzZWxlY3RlZF9jYW5kaWRhdGUYBSABKAsyJC5hZ2VudF9tYW5hZ2VyLnYxLkV4ZWN1dGlvbkNhbmRpZGF0ZRJCCgtleHBsYW5hdGlvbhgGIAEoCzItLmFnZW50X21hbmFnZXIudjEuUG9saWN5UmVzb2x1dGlvbkV4cGxhbmF0aW9uItsIChJSdW5Db25maWdPdmVycmlkZXMSQgoLcnVubmVyX3R5cGUYASABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGVCCrpIB4IBBBABIABIAIgBARISCgVtb2RlbBgCIAEoCUgBiAEBEjgKDG1vZGVsX3ByZXNldBgQIAEoDjIdLmFnZW50X21hbmFnZXIudjEuTW9kZWxQcmVzZXRIAogBARIWCgltYXhfdHVybnMYAyABKAVIA4gBARIvCgd0aW1lb3V0GAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uSASIAQESOwoVZmFsbGJhY2tfcnVubmVyX3R5cGVzGBMgAygOMhwuYWdlbnRfbWFuYWdlci52MS5SdW5uZXJUeXBlEhUKDWFsbG93ZWRfdG9vbHMYBSADKAkSFAoMZGVuaWVkX3Rvb2xzGAYgAygJEiMKFnNraXBfcGVybWlzc2lvbl9wcm9tcHQYByABKAhIBYgBARI1CghmZWF0dXJlcxgVIAEoCzIeLmFnZW50X21hbmFnZXIudjEuRmVhdHVyZUZsYWdzSAaIAQESSQoLZXh0cmFfZmxhZ3MYFiADKAsyNC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bkNvbmZpZ092ZXJyaWRlcy5FeHRyYUZsYWdzRW50cnkSGQoRY2xlYXJfZXh0cmFfZmxhZ3MYFyABKAgSPAoObmV0d29ya19hY2Nlc3MYGCABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLk5ldHdvcmtBY2Nlc3NIB4gBARI3Cg5zYW5kYm94X2NvbmZpZxgRIAEoCzIfLmFnZW50X21hbmFnZXIudjEuU2FuZGJveENvbmZpZxIVCg1hbGxvd2VkX3BhdGhzGAogAygJEhQKDGRlbmllZF9wYXRocxgLIAMoCRIbChNjbGVhcl9hbGxvd2VkX3Rvb2xzGAwgASgIEhoKEmNsZWFyX2RlbmllZF90b29scxgNIAEoCBIbChNjbGVhcl9hbGxvd2VkX3BhdGhzGA4gASgIEhoKEmNsZWFyX2RlbmllZF9wYXRocxgPIAEoCBIjChtjbGVhcl9mYWxsYmFja19ydW5uZXJfdHlwZXMYFCABKAgaUgoPRXh0cmFGbGFnc0VudHJ5EgsKA2tleRgBIAEoCRIuCgV2YWx1ZRgCIAEoCzIfLmFnZW50X21hbmFnZXIudjEuRXh0cmFGbGFnTGlzdDoCOAFCDgoMX3J1bm5lcl90eXBlQggKBl9tb2RlbEIPCg1fbW9kZWxfcHJlc2V0QgwKCl9tYXhfdHVybnNCCgoIX3RpbWVvdXRCGQoXX3NraXBfcGVybWlzc2lvbl9wcm9tcHRCCwoJX2ZlYXR1cmVzQhEKD19uZXR3b3JrX2FjY2Vzc0oECAgQCUoECAkQClIQcmVxdWlyZXNfc2FuZGJveFIRcmVxdWlyZXNfYXBwcm92YWwihAEKD0hlYXJ0YmVhdENvbmZpZxIrCghpbnRlcnZhbBgBIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIqCgd0aW1lb3V0GAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhgKEG1heF9taXNzZWRfYmVhdHMYAyABKAVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_agent_manager_v1_domain_types, file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp]);
 
 /**
  * AgentProfile defines the configuration for running an agent.
@@ -349,6 +349,15 @@ export type RunConfig = Message<"agent_manager.v1.RunConfig"> & {
   networkAccess: NetworkAccess;
 
   /**
+   * Immutable policy resolution captured before the run is persisted. This is
+   * output-only orchestration state: create surfaces accept RunConfigOverrides,
+   * which deliberately has no policy_snapshot field.
+   *
+   * @generated from field: agent_manager.v1.ExecutionPolicySnapshot policy_snapshot = 19;
+   */
+  policySnapshot?: ExecutionPolicySnapshot | undefined;
+
+  /**
    * Sandbox lifecycle + acceptance configuration.
    *
    * @generated from field: agent_manager.v1.SandboxConfig sandbox_config = 13;
@@ -376,6 +385,160 @@ export type RunConfig = Message<"agent_manager.v1.RunConfig"> & {
  */
 export const RunConfigSchema: GenMessage<RunConfig> = /*@__PURE__*/
   messageDesc(file_agent_manager_v1_domain_profile, 1);
+
+/**
+ * ExecutionCandidate is one immutable runner/model attempt in resolved order.
+ *
+ * @generated from message agent_manager.v1.ExecutionCandidate
+ */
+export type ExecutionCandidate = Message<"agent_manager.v1.ExecutionCandidate"> & {
+  /**
+   * @generated from field: agent_manager.v1.RunnerType runner_type = 1;
+   */
+  runnerType: RunnerType;
+
+  /**
+   * @generated from field: agent_manager.v1.ModelSelectionType selection_type = 2;
+   */
+  selectionType: ModelSelectionType;
+
+  /**
+   * @generated from field: string model = 3;
+   */
+  model: string;
+};
+
+/**
+ * Describes the message agent_manager.v1.ExecutionCandidate.
+ * Use `create(ExecutionCandidateSchema)` to create a new message.
+ */
+export const ExecutionCandidateSchema: GenMessage<ExecutionCandidate> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_profile, 2);
+
+/**
+ * CandidatePreflight records creation-time availability evidence used to pick
+ * the initial candidate. Runtime attempts are recorded separately as events.
+ *
+ * @generated from message agent_manager.v1.CandidatePreflight
+ */
+export type CandidatePreflight = Message<"agent_manager.v1.CandidatePreflight"> & {
+  /**
+   * @generated from field: int32 index = 1;
+   */
+  index: number;
+
+  /**
+   * @generated from field: agent_manager.v1.ExecutionCandidate candidate = 2;
+   */
+  candidate?: ExecutionCandidate | undefined;
+
+  /**
+   * @generated from field: bool available = 3;
+   */
+  available: boolean;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message agent_manager.v1.CandidatePreflight.
+ * Use `create(CandidatePreflightSchema)` to create a new message.
+ */
+export const CandidatePreflightSchema: GenMessage<CandidatePreflight> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_profile, 3);
+
+/**
+ * PolicyResolutionExplanation makes profile/override precedence and initial
+ * candidate selection inspectable without consulting mutable current policy.
+ *
+ * @generated from message agent_manager.v1.PolicyResolutionExplanation
+ */
+export type PolicyResolutionExplanation = Message<"agent_manager.v1.PolicyResolutionExplanation"> & {
+  /**
+   * @generated from field: string source = 1;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string summary = 2;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: agent_manager.v1.RunnerType requested_runner = 3;
+   */
+  requestedRunner: RunnerType;
+
+  /**
+   * @generated from field: string requested_model = 4;
+   */
+  requestedModel: string;
+
+  /**
+   * @generated from field: agent_manager.v1.ModelPreset requested_preset = 5;
+   */
+  requestedPreset: ModelPreset;
+
+  /**
+   * @generated from field: repeated agent_manager.v1.CandidatePreflight preflight = 6;
+   */
+  preflight: CandidatePreflight[];
+};
+
+/**
+ * Describes the message agent_manager.v1.PolicyResolutionExplanation.
+ * Use `create(PolicyResolutionExplanationSchema)` to create a new message.
+ */
+export const PolicyResolutionExplanationSchema: GenMessage<PolicyResolutionExplanation> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_profile, 4);
+
+/**
+ * ExecutionPolicySnapshot pins the active catalog revision and complete
+ * ordered candidate sequence owned by a run.
+ *
+ * @generated from message agent_manager.v1.ExecutionPolicySnapshot
+ */
+export type ExecutionPolicySnapshot = Message<"agent_manager.v1.ExecutionPolicySnapshot"> & {
+  /**
+   * @generated from field: string catalog_digest = 1;
+   */
+  catalogDigest: string;
+
+  /**
+   * @generated from field: string policy_ref = 2;
+   */
+  policyRef: string;
+
+  /**
+   * @generated from field: repeated agent_manager.v1.ExecutionCandidate candidates = 3;
+   */
+  candidates: ExecutionCandidate[];
+
+  /**
+   * @generated from field: int32 selected_index = 4;
+   */
+  selectedIndex: number;
+
+  /**
+   * @generated from field: agent_manager.v1.ExecutionCandidate selected_candidate = 5;
+   */
+  selectedCandidate?: ExecutionCandidate | undefined;
+
+  /**
+   * @generated from field: agent_manager.v1.PolicyResolutionExplanation explanation = 6;
+   */
+  explanation?: PolicyResolutionExplanation | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.ExecutionPolicySnapshot.
+ * Use `create(ExecutionPolicySnapshotSchema)` to create a new message.
+ */
+export const ExecutionPolicySnapshotSchema: GenMessage<ExecutionPolicySnapshot> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_profile, 5);
 
 /**
  * RunConfigOverrides contains optional overrides for run configuration.
@@ -542,7 +705,7 @@ export type RunConfigOverrides = Message<"agent_manager.v1.RunConfigOverrides"> 
  * Use `create(RunConfigOverridesSchema)` to create a new message.
  */
 export const RunConfigOverridesSchema: GenMessage<RunConfigOverrides> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 2);
+  messageDesc(file_agent_manager_v1_domain_profile, 6);
 
 /**
  * HeartbeatConfig defines heartbeat behavior for long-running operations.
@@ -584,5 +747,5 @@ export type HeartbeatConfig = Message<"agent_manager.v1.HeartbeatConfig"> & {
  * Use `create(HeartbeatConfigSchema)` to create a new message.
  */
 export const HeartbeatConfigSchema: GenMessage<HeartbeatConfig> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 3);
+  messageDesc(file_agent_manager_v1_domain_profile, 7);
 

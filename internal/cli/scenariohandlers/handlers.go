@@ -91,9 +91,6 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				resp, err := InfoResponseFrom(format, func(req InfoRequest) (scenarioapp.InfoOutput, error) {
 					return service.Info(scenarioapp.InfoRequest(req))
 				}, req)
-				if err == nil {
-					EnrichInfoDriftFlag(deps.Root(ctx), &resp)
-				}
 				return format, resp, err
 			},
 			RenderInfoResponse,
@@ -443,11 +440,6 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 			RenderPortResponse,
 		),
 		CommandRequirements: RequirementsHandler(deps),
-		CommandDesign:       DesignCommandHandler(deps),
-		CommandTemplate:     TemplateCommandHandler(deps),
-		CommandGenerate:     GenerateHandler(deps),
-		CommandOrient:       OrientationHandler(deps),
-		CommandDetemplate:   DetemplateHandler(deps),
 		CommandCompleteness: CompletenessHandler(deps),
 		CommandHealFromSandbox: bindGlobal(deps.Stdout,
 			func(ctx C, args []string) (HealFromSandboxRequest, error) {

@@ -160,13 +160,22 @@ implements `Codec`; `core.Runner` owns launch/scan/transcript/events.
   registry plumbing), not a copy of the availability/probe/labels/transcript
   boilerplate. Adding Grok was the forcing function that extracted it.
 
-**Drift gates (both run in CI):**
-- `codecs/model_parity_test.go` — each codec's curated `SupportedModels` must be
-  a subset of `config/model-registry.json` for that runner (the registry is the
-  source of truth; runtime-discovered `ollama/*` excluded).
-- `runner/runnertype_conformance_test.go` — the RunnerType set is identical
-  across `domain.ValidRunnerTypes()`, the generated proto enum, and the
-  model-registry runner keys.
+**Model-policy composition and drift gates:**
+- `config/model-policy-catalog.json` is the static inventory and named-policy
+  source of truth. `internal/modelpolicy` strictly parses it, rejects semantic
+  drift with field-specific diagnostics, and identifies an immutable revision
+  as `sha256:<64 lowercase hex characters>` over the exact source bytes.
+- Raw codecs advertise only measured runner mechanics, runner-default support,
+  dynamic namespaces, and runtime-discovered models. `WithCatalogModelSource`
+  composes the active revision's static inventory with that dynamic overlay on
+  every capabilities read, so an atomic reload changes new callers without
+  reconstructing runners. `WithCatalogModels` remains a fixed-source test helper.
+- `codecs/model_parity_test.go` gates catalog runner entries, runner-default
+  support, dynamic prefixes, absence of compiled static model IDs, and the
+  composed model view.
+- `runner/runnertype_conformance_test.go` requires the RunnerType set to match
+  `domain.ValidRunnerTypes()`, the generated proto enum, and catalog runner
+  keys.
 
 **Capability honesty (Grok):** grok's headless stdout surfaces assistant text +
 session id but NOT tool-call/result events or token/cost — even when a tool
@@ -175,6 +184,114 @@ runs. `Grok.Capabilities()` reflects exactly that (no tool events, no cost);
 
 **Tests:** `codecs/{claude,codex,opencode,grok}_test.go`, `golden_test.go`,
 `classify_test.go`, `capabilities_conformance_test.go`, plus the two drift gates.
+
+---
+
+### 1aa. Model-policy Activation State (`internal/modelpolicy.State`)
+
+**Purpose:** Own exactly one validated active catalog revision and make catalog
+failure/reload state observable without letting orchestration or codecs create
+independent caches.
+
+**Contract:**
+- `NewState(path, requirement)` always returns a state object, even when the
+  initial load fails. The failure is retained as a structured diagnostic with
+  the resolved path.
+- `Validate()` parses a candidate without activation.
+- `Reload()` parses and semantically validates outside the lock, then swaps the
+  active immutable `*Revision` under one lock. A failed reload records the
+  attempt and retains the prior active revision.
+- `Status()` returns path, requirement reason, readiness, active digest,
+  activation time, and the latest reload attempt as a deep copy.
+- `Active()`, `ModelIDs()`, and `IterModels()` are the only runtime revision
+  reads. Orchestration receives this same state through `WithModelPolicyState`.
+
+**Production wiring:** `api/main.go` constructs the state before runners,
+decorates codecs with live model sources, supplies the state to the health
+probe, and registers a critical `model_policy_catalog` check on `/health`.
+Agent-manager's built-in policy-backed profiles make the catalog required; no
+active revision therefore yields HTTP 503 readiness with path and cause.
+
+**Tests:** `internal/modelpolicy/state_test.go`,
+`api/modelpolicy_health_test.go`, and
+`codecs/model_parity_test.go::TestCatalogModelSourceReflectsAtomicReload`.
+
+---
+
+### 1ab. Run Policy Resolution Snapshot (modelpolicy → orchestration)
+
+**Purpose:** Convert profile plus inline model intent into a durable,
+explainable candidate sequence before the run row is created.
+
+**Contract:**
+- FAST/CHEAP/SMART is accepted only as a legacy migration input and maps once
+  to runner.fast|cheap|smart; runtime authority is the resulting snapshot.
+- An explicit model must exist in the active static inventory or a declared
+  dynamic namespace. No undeclared direct override bypass exists.
+- An omitted model resolves to an explicit runner_default candidate rather
+  than an empty-string sentinel.
+- Creation-time preflight walks candidates in catalog order, recording each
+  runner/model result. If declared model IDs are stale, a later explicit
+  runner_default candidate can be selected; if none is viable, creation fails
+  with the candidate reasons instead of deferring an opaque spawn failure.
+- RunConfig.PolicySnapshot persists catalog digest, policy ref, full ordered
+  candidates, selected index/candidate, source/precedence explanation, and
+  preflight evidence inside the existing resolved_config JSON column.
+- The generated RunConfig policy_snapshot field is output-only in practice:
+  create requests use RunConfigOverrides, which has no snapshot field. Proto
+  conversion round-trips the stored snapshot so run-detail clients see the
+  exact persisted decision.
+- Historical resolved_config documents without policySnapshot stay readable
+  with a nil snapshot. They are not reconstructed from the active catalog;
+  doing so would falsely attribute a mutable current revision to a past run.
+
+**Production wiring:** Orchestrator.resolveRunConfig receives the one
+modelpolicy.State injected at boot and writes the snapshot before
+RunRepository.Create. Reload changes new resolutions only; an already-built
+snapshot owns copied candidate values and its original digest.
+
+**Tests:** internal/modelpolicy/resolution_test.go,
+internal/orchestration/modelpolicy_resolution_test.go, and
+internal/database/repository_test.go::TestRunWithComplexFields, plus
+internal/protoconv/convert_test.go::TestExecutionPolicySnapshotRoundTrip.
+
+**Execution:** policy-backed runs walk only persisted
+PolicySnapshot.Candidates starting at the creation-time selected index or the
+later candidate already projected into ResolvedConfig before a restart.
+Unavailable runners are skipped, model-unavailable results advance the
+sequence, cross-runner candidates are acquired from the runner registry, and
+runner_default clears the launch model only at the adapter boundary. Each state
+emits policy.candidate.attempt with catalog digest and snapshot index; total
+exhaustion emits the terminal exhausted outcome and returns a typed
+RUNNER_UNAVAILABLE error. The snapshot itself is never mutated; ResolvedConfig
+runner/model are persisted runtime projections of the current attempt. Resume
+therefore retries the interrupted candidate at least once without replaying
+earlier candidates or consulting live policy. Historical rows with no snapshot
+still use the legacy resolver until the Phase 6 data/config hard cutover.
+
+**Execution tests:** internal/orchestration/phases/execute_test.go covers
+cross-runner fallback, unavailable-runner skips, typed terminal exhaustion,
+JSON round-trip restart/resume, and an atomic catalog reload between attempts.
+
+---
+
+### 1ac. Model-policy Operator Surface (modelpolicy → handlers/CLI/UI)
+
+`handlers.WithModelPolicyState` injects the same activation owner used by
+readiness and orchestration. Generated API responses expose status, active
+catalog inspection, non-activating validation, atomic reload, and profile/run
+explanation. `protoconv.ModelPolicyCatalogToProto` sorts map-backed runners and
+policies so JSON and human output remain diff-friendly.
+
+`runner models-update` and `PUT /api/v1/runner-models` are intentionally absent.
+Reload accepts no catalog payload, so it cannot become a competing desired-state
+writer. Profile explanation uses the same resolver/preflight path as run
+creation. Run explanation returns nil for historical rows without snapshots
+rather than reconstructing provenance from the active catalog. The CLI group is
+`agent-manager policy`; the Settings UI is read-only.
+
+**Tests:** `internal/handlers/model_policy_test.go` and
+`cli/app_test.go::TestApp_CmdPolicy_HelpAndUnknownSubcommand`.
 
 ---
 
@@ -397,6 +514,7 @@ type Collector interface {
 ### 3a. Typed-Operational Event Log (`internal/eventlog`)
 
 **Purpose:** Carry structured operational signals (runner/model fallback,
+persisted policy-candidate execution,
 sandbox lifecycle outcomes, heartbeat misses, checkpoint failures,
 model/runner health transitions) as typed payloads on the existing
 `run_events` table — so consumers can query patterns instead of grepping
@@ -497,6 +615,9 @@ func RegisterProcessor(eventType domain.RunEventType, schemaVersion int, p Proce
 - **Honesty contract.** Every response carries `history.{has_history,
   history_days, min_sample_meaningful}` so consumers can refuse to
   draw conclusions from thin samples.
+- **Policy execution remains an overlay.** `policy.candidate.attempt` processors
+  count outcomes and failure classes for diagnostics. These counters never
+  mutate catalog policy, health state, or persisted run snapshots.
 
 **Implementations:**
 
@@ -571,7 +692,7 @@ Two append-only tables (`model_health_audit`, `runner_health_audit`) are the sou
 
 **Wired in:**
 - `orchestration.WithHealthStore(*health.Store)` — orchestration option; the per-run `healthMarkerAdapter` writes audit rows on every `MarkModel{Healthy,Unavailable}` from the executor.
-- `health.NewProbe(store, registrySnapshot, resolveProber, classifier, config)` — periodic probe loop replaces `modelregistry.HealthProbe`; writes audit rows on every probe outcome with classified `fallback.Reason`.
+- `health.NewProbe(store, modelPolicyState, resolveProber, classifier, config)` — periodic probe reads the same active catalog revision used by resolution and codec visibility; it writes audit rows on every probe outcome with classified `fallback.Reason`.
 - `Orchestrator.GetModelRegistryHealth` reads from the store via `Snapshot`.
 
 **Why a seam:**
@@ -809,7 +930,7 @@ The codec seam (§1a) makes this small. Using Grok as the worked example:
 2. **Enum tri-source** (gated by `runnertype_conformance_test.go`): add
    `RUNNER_TYPE_<NAME>` to `packages/proto/.../types.proto` (`make gen-code`),
    `domain.RunnerType<Name>` + `ValidRunnerTypes()`, and a runner entry in
-   `config/model-registry.json`. Add the proto↔domain cases in
+   `config/model-policy-catalog.json`. Add the proto↔domain cases in
    `protoconv/convert.go`.
 3. **Codec**: add `codecs/<name>.go` embedding `baseCodec` (via `resolveBinary`)
    + `<name>_test.go` written against the captured trace. Keep
@@ -949,6 +1070,14 @@ seams) still surfaces the transition in stderr.
 The structured-log + lifecycle-event surfaces are tested in
 `obs/log_test.go` (key stability, format selection, RunCtx threading)
 and `obs/events_test.go` (taxonomy coverage, sink-nil safety).
+
+Catalog activation is observable through the `model_policy_catalog` critical
+dependency on `/health`. Initial-load failure reports HTTP 503 with the
+resolved path, requirement reason, last attempt time, and root cause. Successful
+boot logs the active digest. Failed reload state remains available through
+`modelpolicy.State.Status()` while the previously active digest stays ready;
+the read-only operator status/reload commands are added by the control-surface
+phase rather than creating a second state owner.
 
 ### Spawn Dispatcher (Phase 3 of the reliability pass)
 

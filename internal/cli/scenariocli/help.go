@@ -42,28 +42,6 @@ func RequirementsSnapshotHelpText() string {
 	})
 }
 
-func TemplateCommandHelpText() string {
-	return commandtree.RenderHelpText(commandtree.Help{
-		Title:        "Scenario Template Commands",
-		Usage:        "vrooli scenario template <subcommand> [options]",
-		DefaultGroup: "Scenario Templates",
-	}, templateCommandSpecs())
-}
-
-func DesignCommandHelpText() string {
-	return commandtree.RenderHelpText(commandtree.Help{
-		Title:        "Scenario Design Commands",
-		Usage:        "vrooli scenario design <subcommand> [options]",
-		DefaultGroup: "Scenario Design",
-	}, designCommandSpecs())
-}
-
-func TemplateGenerateHelpText() string {
-	return commandtree.HelpText("", "vrooli scenario generate", "Scaffold a scenario from a template.", commandtree.Help{
-		Usage: "vrooli scenario generate <template> --id <slug> --display-name <name> --description <text> [options]",
-	}, templateGenerateArgSchema())
-}
-
 func requirementsCommandSpecs() []commandtree.Spec[string] {
 	return []commandtree.Spec[string]{
 		{

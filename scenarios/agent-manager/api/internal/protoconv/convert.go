@@ -112,6 +112,30 @@ func ModelPresetFromProto(preset pb.ModelPreset) domain.ModelPreset {
 	}
 }
 
+// ModelSelectionTypeToProto converts an explicit snapshot selection type.
+func ModelSelectionTypeToProto(selectionType domain.ModelSelectionType) pb.ModelSelectionType {
+	switch selectionType {
+	case domain.ModelSelectionTypeModel:
+		return pb.ModelSelectionType_MODEL_SELECTION_TYPE_MODEL
+	case domain.ModelSelectionTypeRunnerDefault:
+		return pb.ModelSelectionType_MODEL_SELECTION_TYPE_RUNNER_DEFAULT
+	default:
+		return pb.ModelSelectionType_MODEL_SELECTION_TYPE_UNSPECIFIED
+	}
+}
+
+// ModelSelectionTypeFromProto converts an explicit snapshot selection type.
+func ModelSelectionTypeFromProto(selectionType pb.ModelSelectionType) domain.ModelSelectionType {
+	switch selectionType {
+	case pb.ModelSelectionType_MODEL_SELECTION_TYPE_MODEL:
+		return domain.ModelSelectionTypeModel
+	case pb.ModelSelectionType_MODEL_SELECTION_TYPE_RUNNER_DEFAULT:
+		return domain.ModelSelectionTypeRunnerDefault
+	default:
+		return ""
+	}
+}
+
 // =============================================================================
 // NETWORK ACCESS
 // =============================================================================

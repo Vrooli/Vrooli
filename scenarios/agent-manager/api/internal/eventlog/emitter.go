@@ -136,6 +136,11 @@ func (e *Emitter) EmitModelFallbackExhausted(p ModelFallbackExhaustedPayload) {
 	e.Emit(p)
 }
 
+// EmitPolicyCandidateAttempt records one persisted-candidate state transition.
+func (e *Emitter) EmitPolicyCandidateAttempt(p PolicyCandidateAttemptPayload) {
+	e.Emit(p)
+}
+
 // EmitModelHealthTransition records a (runner, model) status flip.
 func (e *Emitter) EmitModelHealthTransition(p ModelHealthTransitionPayload) {
 	e.Emit(p)

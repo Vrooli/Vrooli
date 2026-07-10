@@ -43,8 +43,8 @@ export function presetPrimaryMap(
 }
 
 /**
- * sanitizeChain mirrors the backend validator's invariants so the draft
- * submitted to PUT /api/v1/runner-models is guaranteed to parse:
+ * sanitizeChain preserves legacy registry fixture invariants while remaining
+ * consumers migrate to the read-only declared policy catalog:
  *   - Concrete entries are trimmed.
  *   - Duplicate concrete entries are collapsed to the first occurrence.
  *   - An empty-string sentinel is kept only if it is the last entry.

@@ -210,6 +210,11 @@ message RunConfig {
   // Network access level for agent execution.
   NetworkAccess network_access = 18;
 
+  // Immutable policy resolution captured before the run is persisted. This is
+  // output-only orchestration state: create surfaces accept RunConfigOverrides,
+  // which deliberately has no policy_snapshot field.
+  ExecutionPolicySnapshot policy_snapshot = 19;
+
   // Reserved to prevent accidental reuse of the wire IDs/names from
   // earlier schema iterations. SandboxConfig.mode is the single source
   // of truth for whether a run is sandboxed; run-end apply behavior is
@@ -226,6 +231,44 @@ message RunConfig {
 
   // Paths explicitly denied.
   repeated string denied_paths = 11;
+}
+
+// ExecutionCandidate is one immutable runner/model attempt in resolved order.
+message ExecutionCandidate {
+  RunnerType runner_type = 1;
+  ModelSelectionType selection_type = 2;
+  string model = 3;
+}
+
+// CandidatePreflight records creation-time availability evidence used to pick
+// the initial candidate. Runtime attempts are recorded separately as events.
+message CandidatePreflight {
+  int32 index = 1;
+  ExecutionCandidate candidate = 2;
+  bool available = 3;
+  string reason = 4;
+}
+
+// PolicyResolutionExplanation makes profile/override precedence and initial
+// candidate selection inspectable without consulting mutable current policy.
+message PolicyResolutionExplanation {
+  string source = 1;
+  string summary = 2;
+  RunnerType requested_runner = 3;
+  string requested_model = 4;
+  ModelPreset requested_preset = 5;
+  repeated CandidatePreflight preflight = 6;
+}
+
+// ExecutionPolicySnapshot pins the active catalog revision and complete
+// ordered candidate sequence owned by a run.
+message ExecutionPolicySnapshot {
+  string catalog_digest = 1;
+  string policy_ref = 2;
+  repeated ExecutionCandidate candidates = 3;
+  int32 selected_index = 4;
+  ExecutionCandidate selected_candidate = 5;
+  PolicyResolutionExplanation explanation = 6;
 }
 
 // RunConfigOverrides contains optional overrides for run configuration.

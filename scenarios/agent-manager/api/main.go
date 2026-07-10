@@ -24,7 +24,7 @@ import (
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
-	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/modelpolicy"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/spawn"
@@ -66,6 +66,7 @@ type Server struct {
 	awaitRegistry        *orchestration.AwaitRegistry
 	recommendationWorker *orchestration.RecommendationWorker
 	modelHealthProbe     *healthstore.Probe
+	modelPolicyState     *modelpolicy.State
 	storage              storage.Service
 	statsEngine          *stats.Engine
 	healthStore          *healthstore.Store
@@ -130,6 +131,7 @@ func NewServer() (*Server, error) {
 		statsRepo:            deps.statsRepo,
 		pricingService:       deps.pricingService,
 		modelHealthProbe:     deps.modelHealthProbe,
+		modelPolicyState:     deps.modelPolicyState,
 		wsHub:                wsHub,
 		reconciler:           deps.reconciler,
 		awaitRegistry:        deps.awaitRegistry,
@@ -196,6 +198,7 @@ type orchestratorDeps struct {
 	awaitRegistry        *orchestration.AwaitRegistry
 	recommendationWorker *orchestration.RecommendationWorker
 	modelHealthProbe     *healthstore.Probe
+	modelPolicyState     *modelpolicy.State
 	statsEngine          *stats.Engine
 	healthStore          *healthstore.Store
 	eventRepo            eventlog.Repository
@@ -218,6 +221,19 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	statsRepo := repos.Stats
 	investigationSettingsRepo := repos.InvestigationSettings
 
+	modelPolicyPath := modelpolicy.ResolvePath()
+	modelPolicyState, err := modelpolicy.NewState(modelPolicyPath, modelpolicy.Requirement{
+		Required: true,
+		Reason:   "runner catalog visibility and built-in policy-backed profiles require declared model policy",
+	})
+	if err != nil {
+		// Keep the state object: /health must expose the resolved path and
+		// exact failure instead of silently continuing with a nil store.
+		bootLog.Error("required model policy catalog is not ready", "path", modelPolicyPath, obs.KeyError, err.Error())
+	} else {
+		bootLog.Info("model policy catalog activated", "path", modelPolicyPath, "digest", modelPolicyState.Status().ActiveDigest)
+	}
+
 	// Create runner registry
 	runnerRegistry := runner.NewRegistry()
 
@@ -233,7 +249,9 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("stub Claude runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeClaudeCode), obs.KeyError, err.Error())
 		}
 	} else {
-		claudeRunner = runnercore.NewRunner(claudeCodec, hostLauncher, nil)
+		claudeRunner = runnercore.NewRunner(codecs.WithCatalogModelSource(claudeCodec, func() []string {
+			return modelPolicyState.ModelIDs(domain.RunnerTypeClaudeCode)
+		}), hostLauncher, nil)
 		if err := runnerRegistry.Register(claudeRunner); err != nil {
 			bootLog.Warn("Claude runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeClaudeCode), obs.KeyError, err.Error())
 		}
@@ -255,7 +273,9 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("stub Codex runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeCodex), obs.KeyError, err.Error())
 		}
 	} else {
-		codexRunner = runnercore.NewRunner(codexCodec, hostLauncher, nil)
+		codexRunner = runnercore.NewRunner(codecs.WithCatalogModelSource(codexCodec, func() []string {
+			return modelPolicyState.ModelIDs(domain.RunnerTypeCodex)
+		}), hostLauncher, nil)
 		if err := runnerRegistry.Register(codexRunner); err != nil {
 			bootLog.Warn("Codex runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeCodex), obs.KeyError, err.Error())
 		}
@@ -277,7 +297,9 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("stub OpenCode runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeOpenCode), obs.KeyError, err.Error())
 		}
 	} else {
-		openCodeRunner = runnercore.NewRunner(openCodeCodec, hostLauncher, nil)
+		openCodeRunner = runnercore.NewRunner(codecs.WithCatalogModelSource(openCodeCodec, func() []string {
+			return modelPolicyState.ModelIDs(domain.RunnerTypeOpenCode)
+		}), hostLauncher, nil)
 		if err := runnerRegistry.Register(openCodeRunner); err != nil {
 			bootLog.Warn("OpenCode runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeOpenCode), obs.KeyError, err.Error())
 		}
@@ -303,7 +325,9 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("stub Grok runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeGrok), obs.KeyError, err.Error())
 		}
 	} else {
-		grokRunner = runnercore.NewRunner(grokCodec, hostLauncher, nil)
+		grokRunner = runnercore.NewRunner(codecs.WithCatalogModelSource(grokCodec, func() []string {
+			return modelPolicyState.ModelIDs(domain.RunnerTypeGrok)
+		}), hostLauncher, nil)
 		if err := runnerRegistry.Register(grokRunner); err != nil {
 			bootLog.Warn("Grok runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeGrok), obs.KeyError, err.Error())
 		}
@@ -378,22 +402,13 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		terminatorCfg,
 	)
 
-	modelRegistryPath := modelregistry.ResolvePath()
-	modelRegistryStore, err := modelregistry.NewStore(modelRegistryPath)
-	if err != nil {
-		bootLog.Warn("model registry load failed", "path", modelRegistryPath, obs.KeyError, err.Error())
-	}
-
 	healthStore := healthstore.NewStore(db.DB)
-	if modelRegistryStore != nil {
-		if reg := modelRegistryStore.Get(); reg != nil {
-			runners := make([]string, 0, len(reg.Runners))
-			for key := range reg.Runners {
-				runners = append(runners, key)
-			}
-			healthStore.RegisterRunners(runners)
-		}
-	}
+	var catalogRunners []string
+	modelPolicyState.IterModels(func(runnerType string, _ []string) bool {
+		catalogRunners = append(catalogRunners, runnerType)
+		return true
+	})
+	healthStore.RegisterRunners(catalogRunners)
 
 	orchConfig := orchestration.DefaultConfig()
 	baseConfig := agentconfig.Load()
@@ -475,7 +490,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithBroadcaster(wsHub),
 		orchestration.WithTerminator(terminator),
 		orchestration.WithStorageLabel(storageLabel),
-		orchestration.WithModelRegistry(modelRegistryStore),
+		orchestration.WithModelPolicyState(modelPolicyState),
 		orchestration.WithHealthStore(healthStore),
 		orchestration.WithRecommendationExtractor(recommendationExtractor),
 		orchestration.WithInvestigationSettings(investigationSettingsRepo),
@@ -576,7 +591,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("invalid AGENT_MANAGER_MODEL_HEALTH_INTERVAL", "raw", raw, obs.KeyError, err.Error())
 		}
 	}
-	modelHealthProbe := healthstore.NewProbe(healthStore, registrySnapshotAdapter{store: modelRegistryStore}, modelResolver, nil, probeCfg)
+	modelHealthProbe := healthstore.NewProbe(healthStore, modelPolicyState, modelResolver, nil, probeCfg)
 
 	// Operational stats engine: incrementally aggregates typed-operational
 	// events (fallbacks, health transitions, sandbox ops, heartbeat misses,
@@ -598,35 +613,10 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		awaitRegistry:        awaitRegistry,
 		recommendationWorker: recommendationWorker,
 		modelHealthProbe:     modelHealthProbe,
+		modelPolicyState:     modelPolicyState,
 		statsEngine:          statsEngine,
 		healthStore:          healthStore,
 		eventRepo:            eventRepo,
-	}
-}
-
-// registrySnapshotAdapter bridges a *modelregistry.Store to the
-// health.RegistrySnapshot interface. The adapter reads the registry
-// each iteration so probe sweeps see hot reloads without restart.
-type registrySnapshotAdapter struct {
-	store *modelregistry.Store
-}
-
-func (a registrySnapshotAdapter) IterModels(yield func(runnerType string, modelIDs []string) bool) {
-	if a.store == nil {
-		return
-	}
-	reg := a.store.Get()
-	if reg == nil {
-		return
-	}
-	for runnerKey, runnerCfg := range reg.Runners {
-		ids := make([]string, 0, len(runnerCfg.Models))
-		for _, m := range runnerCfg.Models {
-			ids = append(ids, m.ID)
-		}
-		if !yield(runnerKey, ids) {
-			return
-		}
 	}
 }
 
@@ -647,11 +637,16 @@ func (s *Server) setupRoutes() {
 	healthHandler := health.New().
 		Version("1.0.0").
 		Check(health.DB(rawDB), health.Critical).
+		Check(modelPolicyHealthChecker(s.modelPolicyState), health.Critical).
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	// Detailed health for UI (includes sandbox + runner dependencies).
 	// Keep /health minimal for infra probes.
-	handler := handlers.New(s.orchestrator, handlers.WithStorage(s.storage))
+	handler := handlers.New(
+		s.orchestrator,
+		handlers.WithStorage(s.storage),
+		handlers.WithModelPolicyState(s.modelPolicyState),
+	)
 	handler.SetWebSocketHub(s.wsHub)
 	s.router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 
@@ -701,6 +696,37 @@ func (s *Server) setupRoutes() {
 
 	routesLog.Info("websocket endpoint registered", "path", "/api/v1/ws")
 	routesLog.Info("metrics endpoint registered", "path", "/metrics")
+}
+
+func modelPolicyHealthChecker(state *modelpolicy.State) health.Checker {
+	if state == nil {
+		return nil
+	}
+	return health.CheckerFunc(func(context.Context) health.CheckResult {
+		status := state.Status()
+		if err := state.ReadinessError(); err != nil {
+			detail := health.NewErrorDetail(
+				modelpolicy.DiagnosticCodeCatalogInvalid,
+				err.Error(),
+				"configuration",
+				true,
+			)
+			detail.Details = map[string]any{
+				"path":               status.Path,
+				"required":           status.Requirement.Required,
+				"requirement_reason": status.Requirement.Reason,
+				"active_digest":      status.ActiveDigest,
+			}
+			if status.LastReloadAttempt != nil {
+				detail.Details["last_reload_attempt_at"] = status.LastReloadAttempt.AttemptedAt.Format(time.RFC3339Nano)
+				if status.LastReloadAttempt.Diagnostic != nil {
+					detail.Details["cause"] = status.LastReloadAttempt.Diagnostic.Cause
+				}
+			}
+			return health.CheckResult{Name: "model_policy_catalog", Connected: false, Error: detail}
+		}
+		return health.CheckResult{Name: "model_policy_catalog", Connected: true}
+	})
 }
 
 // Router returns the HTTP handler for use with server.Run

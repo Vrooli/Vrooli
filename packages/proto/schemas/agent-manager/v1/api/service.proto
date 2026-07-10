@@ -10,6 +10,7 @@ import "agent-manager/v1/domain/types.proto";
 import "buf/validate/validate.proto";
 import "common/v1/types.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api;api";
 
@@ -253,6 +254,34 @@ service AgentManagerService {
   // ProbeRunner sends a test request to verify runner connectivity.
   rpc ProbeRunner(ProbeRunnerRequest) returns (ProbeRunnerResponse) {
     option (google.api.http) = {post: "/api/v1/runners/{runner_type}/probe"};
+  }
+
+  // GetModelPolicyStatus returns activation state and the latest diagnostic.
+  rpc GetModelPolicyStatus(GetModelPolicyStatusRequest) returns (GetModelPolicyStatusResponse) {
+    option (google.api.http) = {get: "/api/v1/model-policy/status"};
+  }
+
+  // GetModelPolicyCatalog returns the active, immutable declared catalog.
+  rpc GetModelPolicyCatalog(GetModelPolicyCatalogRequest) returns (GetModelPolicyCatalogResponse) {
+    option (google.api.http) = {get: "/api/v1/model-policy/catalog"};
+  }
+
+  // ValidateModelPolicyCatalog validates the configured catalog without activation.
+  rpc ValidateModelPolicyCatalog(ValidateModelPolicyCatalogRequest) returns (ValidateModelPolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/model-policy/validate"};
+  }
+
+  // ReloadModelPolicyCatalog validates and atomically activates declared state.
+  rpc ReloadModelPolicyCatalog(ReloadModelPolicyCatalogRequest) returns (ReloadModelPolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/model-policy/reload"};
+  }
+
+  // ExplainModelPolicy explains current profile resolution or a persisted run snapshot.
+  rpc ExplainModelPolicy(ExplainModelPolicyRequest) returns (ExplainModelPolicyResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/model-policy/explain"
+      body: "*"
+    };
   }
 
   // ==========================================================================
@@ -1031,6 +1060,125 @@ message ProbeRunnerRequest {
 message ProbeRunnerResponse {
   // Probe result.
   ProbeResult result = 1;
+}
+
+// ModelPolicyDiagnostic preserves the actionable cause of validation failure.
+message ModelPolicyDiagnostic {
+  string code = 1;
+  string message = 2;
+  string cause = 3;
+}
+
+message ModelPolicyRequirement {
+  bool required = 1;
+  string reason = 2;
+}
+
+message ModelPolicyReloadAttempt {
+  google.protobuf.Timestamp attempted_at = 1;
+  bool succeeded = 2;
+  string digest = 3;
+  ModelPolicyDiagnostic diagnostic = 4;
+}
+
+// ModelPolicyStatus is the operator-facing activation state.
+message ModelPolicyStatus {
+  string path = 1;
+  ModelPolicyRequirement requirement = 2;
+  bool ready = 3;
+  string active_digest = 4;
+  google.protobuf.Timestamp activated_at = 5;
+  ModelPolicyReloadAttempt last_reload_attempt = 6;
+}
+
+message ModelPolicySource {
+  string name = 1;
+  string reference = 2;
+  string verified_at = 3;
+}
+
+message ModelPolicyCatalogMetadata {
+  string catalog_id = 1;
+  string updated_at = 2;
+  repeated ModelPolicySource sources = 3;
+}
+
+message ModelPolicyModel {
+  string id = 1;
+  string description = 2;
+}
+
+message ModelPolicyRunnerInventory {
+  RunnerType runner_type = 1;
+  repeated ModelPolicyModel models = 2;
+  bool supports_runner_default = 3;
+  repeated string dynamic_model_prefixes = 4;
+}
+
+message ModelPolicyCandidate {
+  RunnerType runner_type = 1;
+  ModelSelectionType selection_type = 2;
+  string model = 3;
+}
+
+message ModelPolicyDefinition {
+  string name = 1;
+  string intent = 2;
+  repeated ModelPolicyCandidate candidates = 3;
+}
+
+// ModelPolicyCatalog is the read-only generated view of declared desired state.
+message ModelPolicyCatalog {
+  int32 schema_version = 1;
+  ModelPolicyCatalogMetadata metadata = 2;
+  string default_policy = 3;
+  repeated ModelPolicyRunnerInventory runners = 4;
+  repeated ModelPolicyDefinition policies = 5;
+}
+
+message GetModelPolicyStatusRequest {}
+
+message GetModelPolicyStatusResponse {
+  ModelPolicyStatus status = 1;
+}
+
+message GetModelPolicyCatalogRequest {}
+
+message GetModelPolicyCatalogResponse {
+  ModelPolicyStatus status = 1;
+  ModelPolicyCatalog catalog = 2;
+}
+
+message ValidateModelPolicyCatalogRequest {}
+
+message ValidateModelPolicyCatalogResponse {
+  bool valid = 1;
+  string candidate_digest = 2;
+  string active_digest = 3;
+  ModelPolicyDiagnostic diagnostic = 4;
+}
+
+message ReloadModelPolicyCatalogRequest {}
+
+message ReloadModelPolicyCatalogResponse {
+  bool activated = 1;
+  ModelPolicyStatus status = 2;
+  ModelPolicyDiagnostic diagnostic = 3;
+}
+
+message ExplainModelPolicyRequest {
+  oneof target {
+    string profile_id = 1 [(buf.validate.field).string.uuid = true];
+    string run_id = 2 [(buf.validate.field).string.uuid = true];
+  }
+}
+
+message ExplainModelPolicyResponse {
+  string target_type = 1;
+  string target_id = 2;
+  ExecutionPolicySnapshot snapshot = 3;
+  string summary = 4;
+  bool historical_without_snapshot = 5;
 }
 
 // =============================================================================

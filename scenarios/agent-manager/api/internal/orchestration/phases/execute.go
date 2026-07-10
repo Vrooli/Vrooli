@@ -1,11 +1,8 @@
-// Runner execution + model-level fallback chain walk.
+// Runner execution + immutable policy-candidate fallback.
 //
 // ExecuteAgent runs the agent through runner.Execute, then validates the
-// outcome and reports the result + execErr. ExecuteWithModelFallback wraps
-// it with the preset-chain walk: when the runner rejects the current model
-// with a classified "unavailable" error, advance to the next chain entry
-// and retry inside the same Run. The loop is capped at the chain length
-// to guarantee termination even if the classifier is overly permissive.
+// outcome and reports the result + execErr. ExecuteWithModelFallback wraps it
+// with the run-owned candidate sequence; execution never rereads catalog state.
 //
 // Mutates Run.ActualModel, Run.Status (to Running), Run.SessionID, and the
 // runtime callbacks (transcript cursor, runner pid/pgid, session id).
@@ -14,6 +11,7 @@ package phases
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -22,7 +20,6 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/fallback"
-	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
@@ -45,7 +42,7 @@ type ExecuteAgentInput struct {
 	RunState     *runstate.State
 	Mu           *sync.Mutex
 	ModelHealth  ModelHealthReporter
-	ModelChains  ModelChainResolver
+	Runners      runner.Registry
 
 	// OnRunning fires when the run flips to RunStatusRunning. Used by
 	// the spawn dispatcher to release the startup slot. Nil is safe.
@@ -174,67 +171,211 @@ type ExecuteWithModelFallbackInput struct {
 	ExecuteAgentInput
 }
 
-// ExecuteWithModelFallback walks the preset chain on model-unavailable
-// errors. On any non-model failure (or on success) it returns immediately.
-// The first outcome that is not a model-unavailable error determines
-// Run.ActualModel.
+// ExecuteWithModelFallback walks the immutable candidate sequence persisted on
+// the run. A historical run without a snapshot executes once; it never falls
+// back through mutable policy state.
 func ExecuteWithModelFallback(ctx context.Context, in ExecuteWithModelFallbackInput) ExecuteAgentOutput {
-	// Runner-CLI-default short-circuit: when this lever is on we bypass
-	// the preset chain entirely and run with no model flag, letting the
-	// installed CLI use whatever model it is configured to use. This is
-	// the escape hatch for subscription-pricing setups where the user
-	// wants their CLI's selected model to govern cost.
-	if in.Deps.Levers.Runners.UseCliDefaultModel {
-		if in.Run != nil && in.Run.ResolvedConfig != nil {
-			in.Run.ResolvedConfig.Model = ""
-		}
-		out := ExecuteAgent(ctx, in.ExecuteAgentInput)
-		recordActualModel(in.Run, "")
-		return out
+	if policySnapshot(in.Run) != nil {
+		return executePolicySnapshot(ctx, in)
 	}
+	out := ExecuteAgent(ctx, in.ExecuteAgentInput)
+	recordActualModel(in.Run, currentModel(in.Run))
+	return out
+}
 
-	chain := resolveModelFallbackChain(in.ModelChains, in.Run)
-	if len(chain) == 0 {
-		out := ExecuteAgent(ctx, in.ExecuteAgentInput)
-		recordActualModel(in.Run, currentModel(in.Run))
-		return out
+// executePolicySnapshot walks only the candidate values copied into the run at
+// creation. It never consults the active catalog or the legacy preset resolver,
+// so reloads can affect new runs without changing an in-flight run.
+func executePolicySnapshot(ctx context.Context, in ExecuteWithModelFallbackInput) ExecuteAgentOutput {
+	snapshot := policySnapshot(in.Run)
+	if snapshot == nil {
+		return ExecuteAgent(ctx, in.ExecuteAgentInput)
+	}
+	if len(snapshot.Candidates) == 0 {
+		return ExecuteAgentOutput{ExecErr: domain.NewValidationError("policySnapshot.candidates", "persisted candidate sequence is empty")}
+	}
+	start := persistedPolicyCandidateIndex(in.Run, snapshot)
+	if start < 0 || start >= len(snapshot.Candidates) {
+		return ExecuteAgentOutput{ExecErr: domain.NewValidationError("policySnapshot.selectedIndex", "selected candidate index is out of range")}
 	}
 
 	var out ExecuteAgentOutput
-	for attempt := 0; attempt < len(chain); attempt++ {
-		model := chain[attempt]
-		applyModelForAttempt(ctx, in.Deps, in.Run, model, attempt, chain)
-		out = ExecuteAgent(ctx, in.ExecuteAgentInput)
+	lastIndex := start
+	lastCandidate := snapshot.Candidates[start]
+	lastReason := "no persisted policy candidate was runnable"
+	for index := start; index < len(snapshot.Candidates); index++ {
+		candidate := snapshot.Candidates[index]
+		lastIndex = index
+		lastCandidate = candidate
+		if reason := invalidPolicyCandidateReason(candidate); reason != "" {
+			lastReason = reason
+			emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeSkipped, reason, "candidate_invalid")
+			continue
+		}
+		candidateRunner, reason := resolveCandidateRunner(ctx, in.Runner, in.Runners, candidate.RunnerType)
+		if candidateRunner == nil {
+			lastReason = reason
+			emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeSkipped, reason, "runner_unavailable")
+			continue
+		}
 
-		ce := classifyExecutionOutcome(in.Runner, out.Result, out.ExecErr)
-		reportHealth(in.ModelHealth, in.Run, out.Result, model, ce)
-		if ce == nil || !ce.IsModelUnavailable() {
-			recordActualModel(in.Run, model)
+		applyPolicyCandidate(ctx, in.Deps, in.Run, candidate)
+		emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeAttempted, "", "")
+		attemptInput := in.ExecuteAgentInput
+		attemptInput.Runner = candidateRunner
+		out = ExecuteAgent(ctx, attemptInput)
+
+		ce := classifyExecutionOutcome(candidateRunner, out.Result, out.ExecErr)
+		reportHealth(in.ModelHealth, in.Run, out.Result, candidate.Model, ce)
+		if ce == nil {
+			recordActualModel(in.Run, candidate.Model)
+			emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeSelected, "", "")
 			return out
 		}
 
-		reason := modelFallbackReason(ce)
-		if attempt == len(chain)-1 {
-			recordActualModel(in.Run, model)
-			EmitModelFallbackExhausted(ctx, in.Deps, in.Run.ID, eventlog.ModelFallbackExhaustedPayload{
-				Preset:     string(in.Run.ResolvedConfig.ModelPreset),
-				Chain:      modelChainDescriptions(chain),
-				LastReason: reason,
-			})
+		reason = modelFallbackReason(ce)
+		lastReason = reason
+		failureClass := "execution_failure"
+		if ce.IsModelUnavailable() {
+			failureClass = "model_unavailable"
+		}
+		emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeFailed, reason, failureClass)
+		if !ce.IsModelUnavailable() {
+			recordActualModel(in.Run, candidate.Model)
 			return out
 		}
+	}
 
-		next := chain[attempt+1]
-		EmitModelFallbackAttempted(ctx, in.Deps, in.Run.ID, eventlog.ModelFallbackAttemptedPayload{
-			From:          describeModel(model),
-			To:            describeModel(next),
-			Reason:        reason,
-			AttemptNo:     attempt + 1,
-			ChainPosition: attempt + 1,
-			ChainLength:   len(chain),
-		})
+	recordActualModel(in.Run, lastCandidate.Model)
+	emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, lastIndex, lastCandidate, eventlog.PolicyCandidateOutcomeExhausted, lastReason, "snapshot_exhausted")
+	out.ExecErr = &domain.RunnerError{
+		RunnerType: lastCandidate.RunnerType,
+		Operation:  "policy_candidates",
+		Cause: fmt.Errorf(
+			"persisted policy candidates exhausted at index %d for catalog %s: %s",
+			lastIndex,
+			snapshot.CatalogDigest,
+			lastReason,
+		),
+		IsTransient: false,
 	}
 	return out
+}
+
+// persistedPolicyCandidateIndex resumes at the candidate already copied into
+// ResolvedConfig. applyPolicyCandidate persists that runner/model pair before
+// launch, so a process restart retries the interrupted candidate (at-least-once)
+// without replaying earlier candidates or consulting the active catalog.
+func persistedPolicyCandidateIndex(run *domain.Run, snapshot *domain.ExecutionPolicySnapshot) int {
+	if snapshot == nil {
+		return -1
+	}
+	start := snapshot.SelectedIndex
+	if run == nil || run.ResolvedConfig == nil || start < 0 || start >= len(snapshot.Candidates) {
+		return start
+	}
+	for index := start; index < len(snapshot.Candidates); index++ {
+		candidate := snapshot.Candidates[index]
+		if candidate.RunnerType != run.ResolvedConfig.RunnerType {
+			continue
+		}
+		switch candidate.SelectionType {
+		case domain.ModelSelectionTypeModel:
+			if candidate.Model == run.ResolvedConfig.Model {
+				return index
+			}
+		case domain.ModelSelectionTypeRunnerDefault:
+			if run.ResolvedConfig.Model == "" {
+				return index
+			}
+		}
+	}
+	return start
+}
+
+func invalidPolicyCandidateReason(candidate domain.ExecutionCandidate) string {
+	if !candidate.RunnerType.IsValid() {
+		return "candidate runner is invalid"
+	}
+	switch candidate.SelectionType {
+	case domain.ModelSelectionTypeModel:
+		if strings.TrimSpace(candidate.Model) == "" {
+			return "model candidate has no model identifier"
+		}
+	case domain.ModelSelectionTypeRunnerDefault:
+		if strings.TrimSpace(candidate.Model) != "" {
+			return "runner_default candidate unexpectedly contains a model identifier"
+		}
+	default:
+		return "candidate selection type is invalid"
+	}
+	return ""
+}
+
+func policySnapshot(run *domain.Run) *domain.ExecutionPolicySnapshot {
+	if run == nil || run.ResolvedConfig == nil {
+		return nil
+	}
+	return run.ResolvedConfig.PolicySnapshot
+}
+
+func resolveCandidateRunner(ctx context.Context, current runner.Runner, registry runner.Registry, runnerType domain.RunnerType) (runner.Runner, string) {
+	resolved := current
+	if resolved == nil || resolved.Type() != runnerType {
+		if registry == nil {
+			return nil, "runner registry is not configured"
+		}
+		var err error
+		resolved, err = registry.Get(runnerType)
+		if err != nil || resolved == nil {
+			if err != nil {
+				return nil, err.Error()
+			}
+			return nil, "runner is not registered"
+		}
+	}
+	available, message := resolved.IsAvailable(ctx)
+	if !available {
+		if strings.TrimSpace(message) == "" {
+			message = "runner is unavailable"
+		}
+		return nil, message
+	}
+	return resolved, ""
+}
+
+func applyPolicyCandidate(ctx context.Context, deps Deps, run *domain.Run, candidate domain.ExecutionCandidate) {
+	if run == nil || run.ResolvedConfig == nil {
+		return
+	}
+	run.ResolvedConfig.RunnerType = candidate.RunnerType
+	if candidate.SelectionType == domain.ModelSelectionTypeRunnerDefault {
+		run.ResolvedConfig.Model = ""
+	} else {
+		run.ResolvedConfig.Model = candidate.Model
+	}
+	run.UpdatedAt = time.Now()
+	if deps.Runs != nil {
+		if err := deps.Runs.Update(ctx, run); err != nil {
+			EmitSystemEvent(ctx, deps, run.ID, "warn", "failed to persist policy candidate selection: "+err.Error())
+		}
+	}
+}
+
+func emitPolicyCandidate(ctx context.Context, deps Deps, run *domain.Run, snapshot *domain.ExecutionPolicySnapshot, index int, candidate domain.ExecutionCandidate, outcome eventlog.PolicyCandidateOutcome, reason, failureClass string) {
+	if run == nil || snapshot == nil {
+		return
+	}
+	EmitPolicyCandidateAttempt(ctx, deps, run.ID, eventlog.PolicyCandidateAttemptPayload{
+		CatalogDigest: snapshot.CatalogDigest,
+		SnapshotIndex: index,
+		Runner:        string(candidate.RunnerType),
+		SelectionType: string(candidate.SelectionType),
+		Model:         candidate.Model,
+		Outcome:       outcome,
+		Reason:        reason,
+		FailureClass:  failureClass,
+	})
 }
 
 // modelFallbackReason renders the typed reason recorded on the
@@ -248,17 +389,6 @@ func modelFallbackReason(ce *fallback.ClassifiedError) string {
 		return ""
 	}
 	return string(ce.Reason)
-}
-
-// modelChainDescriptions mirrors describeModel over a chain so the
-// emitted event records human-readable entries (including the
-// "<runner default>" sentinel) for empty-string chain slots.
-func modelChainDescriptions(chain modelregistry.PresetChain) []string {
-	out := make([]string, 0, len(chain))
-	for _, m := range chain {
-		out = append(out, describeModel(m))
-	}
-	return out
 }
 
 // reportHealth maps the classified outcome to ModelHealthReporter
@@ -288,35 +418,6 @@ func reportHealth(reporter ModelHealthReporter, run *domain.Run, result *runner.
 		}
 		reporter.MarkModelUnavailable(runnerType, modelID, message)
 	}
-}
-
-func resolveModelFallbackChain(resolver ModelChainResolver, run *domain.Run) modelregistry.PresetChain {
-	if resolver == nil || run == nil || run.ResolvedConfig == nil {
-		return nil
-	}
-	cfg := run.ResolvedConfig
-	if cfg.ModelPreset == domain.ModelPresetUnspecified {
-		return nil
-	}
-	chain, ok := resolver.ResolvePreset(string(cfg.RunnerType), string(cfg.ModelPreset))
-	if !ok || len(chain) == 0 {
-		return nil
-	}
-	return chain
-}
-
-// applyModelForAttempt mutates the run's resolved model for the next
-// chain position. Observability is emitted by the caller via
-// model.fallback.attempted (To field == this model) — applyModelForAttempt
-// is purely the state mutation.
-func applyModelForAttempt(_ context.Context, _ Deps, run *domain.Run, model string, _ int, _ modelregistry.PresetChain) {
-	if run == nil || run.ResolvedConfig == nil {
-		return
-	}
-	if run.ResolvedConfig.Model == model {
-		return
-	}
-	run.ResolvedConfig.Model = model
 }
 
 // classifyExecutionOutcome converts an Execute outcome into a typed

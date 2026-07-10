@@ -1,14 +1,12 @@
 package runner_test
 
 import (
-	"encoding/json"
-	"os"
 	"sort"
 	"strings"
 	"testing"
 
 	"agent-manager/internal/domain"
-	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/modelpolicy"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -19,7 +17,7 @@ import (
 //
 //  1. Go      — domain.ValidRunnerTypes()
 //  2. proto   — the generated RunnerType enum (domainpb.RunnerType_value)
-//  3. JSON    — the keys of config/model-registry.json's "runners" map
+//  3. JSON    — the keys of config/model-policy-catalog.json's "runners" map
 //
 // Adding a runner (e.g. grok) must touch all three; this test fails loudly if
 // one is forgotten, making the Phase-4 enum addition self-checking.
@@ -42,27 +40,20 @@ func TestRunnerTypeTriSourceConformance(t *testing.T) {
 		protoSet[protoEnumToRunnerValue(name)] = struct{}{}
 	}
 
-	// Parse directly rather than via modelregistry.Load: this gate asserts the
-	// runner-type SET, not preset-chain validity, so it must not couple to
-	// unrelated preset validation.
-	raw, err := os.ReadFile(modelregistry.ResolvePath())
+	revision, err := modelpolicy.Load(modelpolicy.ResolvePath())
 	if err != nil {
-		t.Fatalf("read model registry: %v", err)
-	}
-	var reg modelregistry.Registry
-	if err := json.Unmarshal(raw, &reg); err != nil {
-		t.Fatalf("parse model registry: %v", err)
+		t.Fatalf("load model policy catalog: %v", err)
 	}
 	jsonSet := make(map[string]struct{})
-	for key := range reg.Runners {
-		jsonSet[key] = struct{}{}
+	for key := range revision.Catalog().Runners {
+		jsonSet[string(key)] = struct{}{}
 	}
 
 	if diff := setDiff(goSet, protoSet); diff != "" {
 		t.Errorf("Go vs proto RunnerType sets diverge:\n%s", diff)
 	}
 	if diff := setDiff(goSet, jsonSet); diff != "" {
-		t.Errorf("Go vs model-registry.json RunnerType sets diverge:\n%s", diff)
+		t.Errorf("Go vs model-policy-catalog.json RunnerType sets diverge:\n%s", diff)
 	}
 }
 

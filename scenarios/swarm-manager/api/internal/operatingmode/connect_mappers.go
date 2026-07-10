@@ -2,6 +2,7 @@ package operatingmode
 
 import (
 	"encoding/json"
+	"sort"
 
 	"swarm-manager/internal/initiativelock"
 
@@ -36,6 +37,14 @@ func structFromRaw(raw json.RawMessage) *structpb.Struct {
 		return nil
 	}
 	return structFromMap(m)
+}
+
+func structFromValue(value any) *structpb.Struct {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	return structFromRaw(raw)
 }
 
 func capabilitiesToProto(c ModeCapabilities) *apipb.OperatingModeCapabilities {
@@ -354,7 +363,66 @@ func roundEnvelopeToProto(r RoundEnvelope) *apipb.OperatingModeRoundEnvelope {
 		Resolution:               resolutionToProto(resolution, resolutionOK),
 		TransitionClassification: resolutionToProto(transitionClass, transitionClassOK),
 		ResolvedEnvelope:         structFromMap(resolvedEnvelope),
+		ExecutionId:              r.ExecutionID,
+		DefinitionDigest:         r.DefinitionDigest,
 	}
+}
+
+func executionMigrationToProto(in *ExecutionMigrationProvenance) *apipb.OperatingModeExecutionMigration {
+	if in == nil {
+		return nil
+	}
+	return &apipb.OperatingModeExecutionMigration{
+		SourceLayout: in.SourceLayout,
+		MigratedAt:   in.MigratedAt,
+		RoundCount:   int32(in.RoundCount),
+	}
+}
+
+func promptSourcesToProto(in map[string]PinnedPromptSource) []*apipb.OperatingModePinnedPromptSource {
+	if len(in) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(in))
+	for key := range in {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	out := make([]*apipb.OperatingModePinnedPromptSource, 0, len(keys))
+	for _, key := range keys {
+		source := in[key]
+		out = append(out, &apipb.OperatingModePinnedPromptSource{
+			Mode: source.Mode, Phase: source.Phase, SkillId: source.SkillID,
+			Revision: source.Revision, ContentHash: source.ContentHash,
+			Retention: source.Retention, Redacted: source.Redacted,
+		})
+	}
+	return out
+}
+
+func executionToProto(in OperatingModeExecution) *apipb.OperatingModeExecutionSnapshot {
+	return &apipb.OperatingModeExecutionSnapshot{
+		ExecutionId: in.ExecutionID, ScopeKind: in.ScopeKind, ScopeId: in.ScopeID,
+		Mode: in.Mode, Status: string(in.Status), CreatedAt: in.CreatedAt,
+		UpdatedAt: in.UpdatedAt, CompletedAt: in.CompletedAt,
+		SchemaVersion: in.SchemaVersion, DefinitionDigest: in.DefinitionDigest,
+		DefinitionBundle: structFromValue(in.DefinitionBundle),
+		InputContractDigest: in.InputContractDigest,
+		InputSnapshotDigest: in.InputSnapshotDigest,
+		ReachablePromptSources: promptSourcesToProto(in.ReachablePromptSources),
+		Migration: executionMigrationToProto(in.Migration),
+	}
+}
+
+func executionsToProto(in []OperatingModeExecution) []*apipb.OperatingModeExecutionSnapshot {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]*apipb.OperatingModeExecutionSnapshot, len(in))
+	for i, execution := range in {
+		out[i] = executionToProto(execution)
+	}
+	return out
 }
 
 func roundEnvelopesToProto(in []RoundEnvelope) []*apipb.OperatingModeRoundEnvelope {
@@ -468,6 +536,7 @@ func workspaceToProto(w Workspace) *apipb.OperatingModeWorkspace {
 		Lock:           lockHolderToProto(w.Lock),
 		Artifacts:      artifactSnapshotsToProto(w.Artifacts),
 		Rounds:         roundEnvelopesToProto(w.Rounds),
+		Executions:     executionsToProto(w.Executions),
 	}
 }
 

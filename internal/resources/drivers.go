@@ -398,6 +398,11 @@ type dockerState struct {
 	Running bool `json:"Running"`
 }
 
+type dockerMount struct {
+	Source      string `json:"Source"`
+	Destination string `json:"Destination"`
+}
+
 type composeServiceState struct {
 	Service string `json:"Service"`
 	State   string `json:"State"`
@@ -569,6 +574,9 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 	}
 	name := dockerContainerName(manifest)
 	if exists {
+		if err := validateExistingDockerMounts(ctx, controller, manifest); err != nil {
+			return err
+		}
 		if !state.Running {
 			if external, err := probeExternalDockerService(ctx, controller, manifest); err == nil && external {
 				return nil
@@ -691,10 +699,7 @@ func buildDockerRunArgs(controller *Controller, manifest ResourceManifest, name 
 	}
 	resourceDir := filepath.Join(controller.Root, "resources", manifest.Name)
 	for _, volume := range manifest.Runtime.Volumes {
-		source := expandResourceRuntimeValue(controller, manifest, volume.Source)
-		if !filepath.IsAbs(source) {
-			source = filepath.Join(resourceDir, filepath.FromSlash(source))
-		}
+		source := resolveDockerVolumeSource(controller, manifest, resourceDir, volume)
 		if volumeSourceLooksLikeFile(volume) {
 			parent := filepath.Dir(source)
 			if err := os.MkdirAll(parent, 0o755); err != nil {
@@ -722,6 +727,55 @@ func buildDockerRunArgs(controller *Controller, manifest ResourceManifest, name 
 		args = append(args, expandResourceRuntimeValue(controller, manifest, part))
 	}
 	return args, nil
+}
+
+func resolveDockerVolumeSource(controller *Controller, manifest ResourceManifest, resourceDir string, volume ResourceVolume) string {
+	source := expandResourceRuntimeValue(controller, manifest, volume.Source)
+	if !filepath.IsAbs(source) {
+		source = filepath.Join(resourceDir, filepath.FromSlash(source))
+	}
+	return source
+}
+
+func validateExistingDockerMounts(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	if len(manifest.Runtime.Volumes) == 0 {
+		return nil
+	}
+	output, err := dockerOutput(ctx, controller, "container", "inspect", dockerContainerName(manifest), "--format", "{{json .Mounts}}")
+	if err != nil {
+		return err
+	}
+	var mounts []dockerMount
+	if err := json.Unmarshal(output, &mounts); err != nil {
+		return fmt.Errorf("parse docker inspect mounts: %w", err)
+	}
+	currentByTarget := map[string]string{}
+	for _, mount := range mounts {
+		target := filepath.Clean(filepath.FromSlash(strings.TrimSpace(mount.Destination)))
+		if target == "." {
+			continue
+		}
+		currentByTarget[target] = filepath.Clean(strings.TrimSpace(mount.Source))
+	}
+	resourceDir := filepath.Join(controller.Root, "resources", manifest.Name)
+	for _, volume := range manifest.Runtime.Volumes {
+		target := filepath.Clean(filepath.FromSlash(strings.TrimSpace(volume.Target)))
+		if target == "." {
+			continue
+		}
+		want := filepath.Clean(resolveDockerVolumeSource(controller, manifest, resourceDir, volume))
+		got, ok := currentByTarget[target]
+		if !ok || got != want {
+			if !ok {
+				got = "<missing>"
+			}
+			return fmt.Errorf(
+				"resource %q container %q has stale docker mount for %s: got %s, want %s. "+
+					"Back up any live data, remove the stale container with `docker rm -f %s`, then start the resource so it is recreated from the current manifest.",
+				manifest.Name, dockerContainerName(manifest), target, got, want, dockerContainerName(manifest))
+		}
+	}
+	return nil
 }
 
 func dockerPublishPort(port ResourcePort, hostPort int) string {

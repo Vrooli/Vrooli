@@ -2,6 +2,7 @@ package cliapp
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -177,5 +178,37 @@ func TestDecodeUploadResponseDecodesProto(t *testing.T) {
 func TestDecodeUploadResponseRejectsInvalidJSON(t *testing.T) {
 	if _, err := DecodeUploadResponse[*wrapperspb.StringValue]([]byte("not json")); err == nil {
 		t.Fatal("expected decode error for invalid JSON")
+	}
+}
+
+func TestUploadPrimitive_CarriesEvidenceAndRendersProto(t *testing.T) {
+	handler := Upload(
+		func(ctx OperationContext) (*wrapperspb.StringValue, error) {
+			return wrapperspb.String(ctx.Positional("value")), nil
+		},
+		func(ctx OperationContext, resp *wrapperspb.StringValue) MutationReport {
+			return MutationReport{Result: []string{"uploaded " + resp.GetValue()}}
+		},
+	)
+	if handler.Primitive() != PrimitiveUpload {
+		t.Fatalf("Upload evidence = %q, want upload", handler.Primitive())
+	}
+
+	var out bytes.Buffer
+	ctx := NewTestRunContext(TestRunContextOptions{
+		Schema:      ArgSchema{Positionals: []Positional{{Name: "value", Required: true}}},
+		Positionals: map[string]string{"value": "ok"},
+		JSON:        true,
+		Stdout:      &out,
+	})
+	if err := handler.Run(ctx); err != nil {
+		t.Fatalf("Upload.Run: %v", err)
+	}
+	var got string
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("upload JSON should be the proto wire value: %v (body=%q)", err, out.String())
+	}
+	if got != "ok" {
+		t.Fatalf("upload JSON = %q, want ok", got)
 	}
 }

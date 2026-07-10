@@ -122,6 +122,12 @@ func EmitModelFallbackExhausted(ctx context.Context, deps Deps, runID uuid.UUID,
 	emitTyped(ctx, deps, runID, p)
 }
 
+// EmitPolicyCandidateAttempt records one snapshot candidate state with its
+// immutable catalog digest and index.
+func EmitPolicyCandidateAttempt(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.PolicyCandidateAttemptPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
 // EmitSandboxOperation records the outcome of a sandbox lifecycle action
 // (delete or stop) issued from finalize.
 func EmitSandboxOperation(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.SandboxOperationPayload) {

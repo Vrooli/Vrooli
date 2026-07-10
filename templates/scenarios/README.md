@@ -18,7 +18,7 @@ templates/
 
 **Copy command (from the repo root):**
 ```bash
-vrooli scenario generate react-vite --id my-scenario --display-name "My Scenario" --description "One sentence summary"
+template-manager generate react-vite --id my-scenario --display-name "My Scenario" --description "One sentence summary"
 ```
 
 ### `requirements/`

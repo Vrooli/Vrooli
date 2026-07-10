@@ -41,6 +41,38 @@ func TestValidateResourcesRejectsRepoLocalDataVolumeSourcesWithoutLegacyMarker(t
 	}
 }
 
+func TestValidateResourcesRejectsRepoLocalResourceInstanceSourcesWithoutLegacyMarker(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "postgres", true)
+	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
+		Name:            "postgres",
+		Driver:          "docker-service",
+		Template:        "docker-service",
+		PortabilityTier: "full",
+		Runtime: manifestpkg.ResourceRuntime{
+			Image: "postgres:16-alpine",
+			Volumes: []manifestpkg.ResourceVolume{
+				{Source: "resources/postgres/instances/main/data", Target: "/var/lib/postgresql/data"},
+			},
+		},
+	})
+
+	report, err := NewController(root, home).ValidateResources("postgres")
+	if err != nil {
+		t.Fatalf("ValidateResources: %v", err)
+	}
+	if report.Passed {
+		t.Fatal("expected validation to fail for repo-local resource instance volume")
+	}
+	if len(report.Items) != 1 || len(report.Items[0].Issues) == 0 {
+		t.Fatalf("expected validation issues, got %#v", report)
+	}
+	if got := report.Items[0].Issues[0].Message; !strings.Contains(got, "legacy_repo_data_allowed=true") {
+		t.Fatalf("issue = %q, want legacy marker guidance", got)
+	}
+}
+
 func TestValidateResourcesAllowsExplicitLegacyRepoDataVolumeSources(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

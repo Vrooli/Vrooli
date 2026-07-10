@@ -45,7 +45,7 @@
     }
   },
   "docs": {
-    "phase3-plan": "docs/plans/resource-cross-platform-migration-plan.md",
+    "resource-templates": "docs/resources/resource-templates.md",
     "resource-guide": "docs/resources/resource-templates.md"
   },
   "platformExpectations": [

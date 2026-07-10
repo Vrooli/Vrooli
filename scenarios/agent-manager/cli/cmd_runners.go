@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -26,8 +25,6 @@ func (a *App) cmdRunner(args []string) error {
 		return a.runnerProbe(args[1:])
 	case "models":
 		return a.runnerModels(args[1:])
-	case "models-update":
-		return a.runnerModelsUpdate(args[1:])
 	case "help", "-h", "--help":
 		return a.runnerHelp()
 	default:
@@ -42,7 +39,6 @@ Subcommands:
   list              List all runners and their status
   probe <type>      Probe a specific runner to verify it can respond
   models            Get the model registry for all runners
-  models-update     Update the model registry from a JSON file
 
 Runner Types:
   claude-code       Claude Code runner
@@ -55,8 +51,7 @@ Options:
 Examples:
   agent-manager runner list
   agent-manager runner probe claude-code
-  agent-manager runner models
-  agent-manager runner models-update --file registry.json`)
+  agent-manager runner models`)
 	return nil
 }
 
@@ -194,47 +189,5 @@ func (a *App) runnerModels(args []string) error {
 		}
 	}
 
-	return nil
-}
-
-// =============================================================================
-// Runner Models Update
-// =============================================================================
-
-func (a *App) runnerModelsUpdate(args []string) error {
-	fs := flag.NewFlagSet("runner models-update", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	filePath := fs.String("file", "", "Path to JSON file containing model registry (required)")
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if *filePath == "" {
-		return fmt.Errorf("--file is required")
-	}
-
-	data, err := os.ReadFile(*filePath)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Validate it's valid JSON
-	var registry json.RawMessage
-	if err := json.Unmarshal(data, &registry); err != nil {
-		return fmt.Errorf("invalid JSON in file: %w", err)
-	}
-
-	body, err := a.services.Runners.UpdateModels(registry)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Println("Model registry updated successfully")
 	return nil
 }

@@ -409,6 +409,7 @@ swarm-manager records create --kind fix --scenario <name> \
   --trigger "<one-line symptom>" \
   --approach "<root cause + what was built>" \
   --ruled-out "<hypothesis A>" --ruled-out "<hypothesis B>" \
+  --evidence "<validation results: suites run, baseline diffs, live checks>" \
   --commit <sha> --files <path> [--files <path>] \
   --outcome shipped [--backlog-ref kind/name]
 ```

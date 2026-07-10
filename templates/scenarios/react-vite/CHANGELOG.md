@@ -41,7 +41,7 @@ Every version bump in `template.json::version` **must** ship with a
 matching entry below in the same change. Bumping the version without an
 entry, or adding an entry without bumping, are both bugs — the update
 loop relies on these two being kept in lockstep. See
-`docs/internal/TEMPLATE-MAINTENANCE.md` for the full maintenance
+`scenarios/template-manager/docs/factory/TEMPLATE-MAINTENANCE.md` for the full maintenance
 contract.
 
 ## Entry shape
@@ -121,7 +121,7 @@ experience phase can validate UX intent from birth.
   priorities, claims, bindings, states, and journeys.
 
 ### Changed
-- `vrooli scenario detemplate <scenario>` now removes the notes page spec and
+- `template-manager detemplate <scenario>` now removes the notes page spec and
   prunes its registry entry with the rest of the notes example domain.
 
 ### Migration (for agents updating older scenarios)
@@ -133,6 +133,78 @@ experience phase can validate UX intent from birth.
       `experience/pages/notes.json` and the `notes` registry entry.
 - [ ] Update `.vrooli/service.json::generation.template.version` to `1.5.0`.
 
+## 1.4.0 — 2026-07-02
+
+Moves generated scenarios to the current test-genie unit policy profile so
+Unit Health can validate discovered API, CLI, and UI surfaces consistently.
+
+### Added
+- `.vrooli/testing.json::unit.policy_profile` with required roles for Go API,
+  Go CLI, and React/Vite UI surfaces.
+- Reference configuration docs for the unit policy profile and monotonic
+  customization rule.
+
+### Changed
+- `.vrooli/testing.json` now references the test-genie schema location.
+- Generated scenario requirements and START-HERE guidance align with the
+  policy-profile based unit phase.
+- The notes flow verifier test and mocks were updated for the current
+  development-toolchain validator expectations.
+
+### Removed
+- The generated notes replay Go artifact that is now regenerated from the
+  checked flow model instead of maintained by hand.
+
+### Migration (for agents updating older scenarios)
+- [ ] Replace the old `.vrooli/testing.json::unit.languages` block with
+      `unit.policy_profile` from the template, preserving only stricter
+      scenario-specific additions or explicit waivers.
+- [ ] Add or verify the required `api`, `cli`, and `ui` test utility roots and
+      production-import guard tests named in the profile.
+- [ ] Update docs/reference/configuration.md with the unit policy-profile
+      section if the scenario carries generated configuration docs.
+- [ ] Update `.vrooli/service.json::generation.template.version` to `1.4.0`.
+
+## 1.3.0 — 2026-06-30
+
+Adds baseline PWA install metadata and placeholder icons to generated
+React/Vite scenarios.
+
+### Added
+- `ui/public/site.webmanifest` with standalone display mode, relative
+  `start_url`/`scope`, theme/background colors, and maskable icon
+  declarations.
+- Generic placeholder PNGs for `apple-icon-180.png`,
+  `favicon-196.png`, `manifest-icon-192.maskable.png`, and
+  `manifest-icon-512.maskable.png`.
+- Mobile install metadata in `ui/index.html`, including manifest,
+  Apple touch icon, theme color, and iOS standalone-mode tags.
+
+### Changed
+- `README.md` and `docs/START-HERE.md` now call out the seeded PWA
+  branding surface as durable scaffolding that should be replaced with
+  scenario-specific branding when available.
+- PWA/native-readiness baseline uses relative install asset and
+  service-worker cache URLs for proxy/tunnel deployments, and the
+  translucent iOS status-bar metadata now has matching viewport-fit and
+  safe-area CSS tokens.
+
+### Migration (for agents updating older scenarios)
+- [ ] Add a web app manifest under `ui/public/site.webmanifest` using
+      relative `start_url` and `scope` values so root tunnels and proxied
+      paths both resolve correctly.
+- [ ] Add PNG app icons for Apple touch, favicon, and 192/512 maskable
+      manifest icons. Use scenario-specific artwork when available;
+      otherwise use a neutral placeholder and document that Brand Manager
+      should replace it later.
+- [ ] Add the manifest, icon, theme-color, and iOS standalone meta tags
+      to `ui/index.html`, then rebuild the UI bundle.
+- [ ] If `apple-mobile-web-app-status-bar-style` is `black-translucent`,
+      include `viewport-fit=cover` and real `env(safe-area-inset-*)`
+      usage in UI CSS.
+- [ ] Update `.vrooli/service.json::generation.template.version` to
+      `1.3.0`.
+
 ## 1.2.0 — 2026-06-17
 
 Makes the `notes` example domain mechanically removable and its removal
@@ -142,7 +214,7 @@ replacing the manual deletion checklist.
 ### Added
 - `template.json::exampleDomain` (`marker`, `paths`, `jsonPrune`) declares
   the example domain so it can be removed wholesale. New
-  `vrooli scenario detemplate <scenario>` strips fenced `EXAMPLE-DOMAIN`
+  `template-manager detemplate <scenario>` strips fenced `EXAMPLE-DOMAIN`
   blocks (docs **and** code), deletes the listed files/dirs (including the
   relocated proto schema + generated artifacts), prunes the comment-less
   JSON (i18n locales, CLI manifest), runs finalizers, and refuses if a
@@ -153,8 +225,8 @@ replacing the manual deletion checklist.
   tree.
 - The marker vocabulary (fenced block / trailing line marker / manifest
   `paths` / manifest `jsonPrune`) is specified in
-  `docs/internal/TEMPLATE-MAINTENANCE.md` and
-  `docs/internal/TEMPLATE-GENERATION-CONTRACT.md`.
+  `scenarios/template-manager/docs/factory/TEMPLATE-MAINTENANCE.md` and
+  `scenarios/template-manager/docs/factory/TEMPLATE-GENERATION-CONTRACT.md`.
 
 ### Changed
 - Every generated doc now concentrates its `notes` content in one fenced
@@ -163,12 +235,12 @@ replacing the manual deletion checklist.
   as product scope. Example-only code registration lines/blocks carry
   `EXAMPLE-DOMAIN:notes` markers.
 - `docs/START-HERE.md` Gate 7 replaces the manual 13-step deletion
-  checklist with `vrooli scenario detemplate <scenario>` + the orient gate.
+  checklist with `template-manager detemplate <scenario>` + the orient gate.
 
 ### Migration (for agents updating older scenarios)
 - [ ] If the scenario still carries the `notes` example, run
-      `vrooli scenario detemplate <scenario>` (preview with `--dry-run`
-      first), then `make test` and `vrooli scenario orient <scenario>`.
+      `template-manager detemplate <scenario>` (preview with `--dry-run`
+      first), then `make test` and `template-manager orient <scenario>`.
 - [ ] If the scenario already removed `notes` manually, no action — the
       new gate passes when no `EXAMPLE-DOMAIN` marker is present.
 
@@ -211,46 +283,29 @@ flag-discipline-dependent, and trues up the template's own lockfile.
 - [ ] Update `.vrooli/service.json::generation.template.version` to
       `1.1.0`.
 
+## 1.0.1 — 2026-05-14
 
-## 1.3.0 — 2026-06-30
-
-Adds baseline PWA install metadata and placeholder icons to generated
-React/Vite scenarios.
+Adds the first PWA install scaffold and placeholder app icons so generated UI
+scenarios have a valid web app metadata surface from the start.
 
 ### Added
-- `ui/public/site.webmanifest` with standalone display mode, relative
-  `start_url`/`scope`, theme/background colors, and maskable icon
-  declarations.
-- Generic placeholder PNGs for `apple-icon-180.png`,
-  `favicon-196.png`, `manifest-icon-192.maskable.png`, and
-  `manifest-icon-512.maskable.png`.
-- Mobile install metadata in `ui/index.html`, including manifest,
-  Apple touch icon, theme color, and iOS standalone-mode tags.
+- `ui/public/site.webmanifest` plus placeholder Apple, favicon, and maskable
+  manifest icon PNGs.
+- Mobile install metadata in `ui/index.html`.
+- START-HERE and README guidance telling scenario authors to keep the seeded
+  PWA files valid and replace generic icons once product branding exists.
 
 ### Changed
-- `README.md` and `docs/START-HERE.md` now call out the seeded PWA
-  branding surface as durable scaffolding that should be replaced with
-  scenario-specific branding when available.
-- PWA/native-readiness baseline uses relative install asset and
-  service-worker cache URLs for proxy/tunnel deployments, and the
-  translucent iOS status-bar metadata now has matching viewport-fit and
-  safe-area CSS tokens.
+- `template.json::version` bumped from `1.0.0` to `1.0.1`.
 
 ### Migration (for agents updating older scenarios)
-- [ ] Add a web app manifest under `ui/public/site.webmanifest` using
-      relative `start_url` and `scope` values so root tunnels and proxied
-      paths both resolve correctly.
-- [ ] Add PNG app icons for Apple touch, favicon, and 192/512 maskable
-      manifest icons. Use scenario-specific artwork when available;
-      otherwise use a neutral placeholder and document that Brand Manager
-      should replace it later.
-- [ ] Add the manifest, icon, theme-color, and iOS standalone meta tags
-      to `ui/index.html`, then rebuild the UI bundle.
-- [ ] If `apple-mobile-web-app-status-bar-style` is `black-translucent`,
-      include `viewport-fit=cover` and real `env(safe-area-inset-*)`
-      usage in UI CSS.
-- [ ] Update `.vrooli/service.json::generation.template.version` to
-      `1.3.0`.
+- [ ] Add `ui/public/site.webmanifest`, Apple touch icon, favicon, and maskable
+      manifest icons from the template or replace them with scenario-specific
+      branded assets.
+- [ ] Add the generated mobile install metadata to `ui/index.html`.
+- [ ] Record the PWA install surface in the scenario's README or START-HERE
+      branding guidance.
+- [ ] Update `.vrooli/service.json::generation.template.version` to `1.0.1`.
 
 ## 1.0.0 — 2026-05-12
 
@@ -287,7 +342,7 @@ whose `generation.template.version` starts with `0.` as needing the full
 
 ### Added
 - `CHANGELOG.md` (this file) and the version-bump discipline documented
-  in `docs/internal/TEMPLATE-MAINTENANCE.md`.
+  in `scenarios/template-manager/docs/factory/TEMPLATE-MAINTENANCE.md`.
 - `docs/START-HERE.md` and the orientation step list as the canonical
   first-session contract.
 - `docs/manifest.json` schema and required-doc list covering README,

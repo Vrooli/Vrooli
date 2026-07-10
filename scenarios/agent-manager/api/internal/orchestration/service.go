@@ -31,7 +31,7 @@ import (
 	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
-	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/modelpolicy"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
@@ -108,10 +108,10 @@ type Service interface {
 	// --- Diff Operations ---
 	GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbox.DiffResult, error)
 
-	// --- Model Registry Operations ---
-	GetModelRegistry(ctx context.Context) (*modelregistry.Registry, error)
-	UpdateModelRegistry(ctx context.Context, registry *modelregistry.Registry) (*modelregistry.Registry, error)
-	GetModelRegistryHealth(ctx context.Context) (health.Snapshot, error)
+	// --- Model Policy Operations ---
+	GetModelHealthSnapshot(ctx context.Context) (health.Snapshot, error)
+	ExplainProfilePolicy(ctx context.Context, profileID uuid.UUID) (*domain.ExecutionPolicySnapshot, error)
+	ExplainRunPolicy(ctx context.Context, runID uuid.UUID) (*domain.ExecutionPolicySnapshot, error)
 
 	// --- Status Operations ---
 	GetHealth(ctx context.Context) (*HealthStatus, error)
@@ -540,8 +540,9 @@ type Orchestrator struct {
 	// Storage label for health reporting (e.g., sqlite).
 	storageLabel string
 
-	// Model registry for runner model catalogs and presets.
-	modelRegistry *modelregistry.Store
+	// Model policy state is the single active-revision seam. Resolution reads
+	// this state directly; orchestration must not maintain a second cache.
+	modelPolicy *modelpolicy.State
 
 	// Model + runner health audit (SQLite-persisted, populated by runtime
 	// classification + the periodic probe). Snapshots derive from
@@ -695,16 +696,16 @@ func WithStorageLabel(label string) Option {
 	}
 }
 
-// WithModelRegistry sets the model registry store.
-func WithModelRegistry(store *modelregistry.Store) Option {
+// WithModelPolicyState wires the single active model-policy revision owner.
+func WithModelPolicyState(state *modelpolicy.State) Option {
 	return func(o *Orchestrator) {
-		o.modelRegistry = store
+		o.modelPolicy = state
 	}
 }
 
 // WithHealthStore wires the persisted health audit store. The executor
 // records every model-availability classification (ok or failed) here
-// via the ModelHealthReporter seam, and GetModelRegistryHealth reads
+// via the ModelHealthReporter seam, and GetModelHealthSnapshot reads
 // the current snapshot from the same store. Pass nil to disable health
 // observability (writes become no-ops).
 func WithHealthStore(store *health.Store) Option {
@@ -1637,15 +1638,6 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.DeniedPaths != nil {
 		cfg.DeniedPaths = req.DeniedPaths
 	}
-	if len(cfg.FallbackRunnerTypes) == 0 && o.modelRegistry != nil {
-		registry := o.modelRegistry.Get()
-		if registry != nil && len(registry.FallbackRunnerTypes) > 0 {
-			cfg.FallbackRunnerTypes = make([]domain.RunnerType, 0, len(registry.FallbackRunnerTypes))
-			for _, rt := range registry.FallbackRunnerTypes {
-				cfg.FallbackRunnerTypes = append(cfg.FallbackRunnerTypes, domain.RunnerType(rt))
-			}
-		}
-	}
 	if len(cfg.FallbackRunnerTypes) == 0 && len(o.config.RunnerFallbackTypes) > 0 {
 		cfg.FallbackRunnerTypes = append([]domain.RunnerType(nil), o.config.RunnerFallbackTypes...)
 	}
@@ -1665,32 +1657,8 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if strings.TrimSpace(cfg.Model) != "" && cfg.ModelPreset != domain.ModelPresetUnspecified {
 		return nil, nil, domain.NewValidationError("modelPreset", "cannot set model and model preset together")
 	}
-	if strings.TrimSpace(cfg.Model) == "" && cfg.ModelPreset != domain.ModelPresetUnspecified {
-		if o.modelRegistry == nil {
-			return nil, nil, domain.NewValidationError("modelPreset", "model registry not configured")
-		}
-		chain, ok := o.modelRegistry.ResolvePreset(string(cfg.RunnerType), string(cfg.ModelPreset))
-		if !ok {
-			return nil, nil, domain.NewValidationError("modelPreset", "preset not mapped for runner")
-		}
-		// cfg.Model carries the primary (first concrete) entry. The full chain is attached
-		// to the run by the caller so the executor can walk fallbacks at runtime.
-		cfg.Model = chain.Primary()
-	}
-
-	// Preflight model validation: surface an undeclared/dead model as a clear
-	// validation error here instead of letting the runner fail downstream with
-	// an opaque provider error (e.g. opencode's ProviderModelNotFoundError).
-	// Gated on IsAvailable so an unavailable/stub runner never false-rejects a
-	// run; ProbeModel is cheap for every runner and makes no billable call.
-	if strings.TrimSpace(cfg.Model) != "" && o.runners != nil {
-		if r, rerr := o.runners.Get(cfg.RunnerType); rerr == nil && r != nil {
-			if avail, _ := r.IsAvailable(ctx); avail {
-				if perr := r.ProbeModel(ctx, cfg.Model); perr != nil {
-					return nil, nil, domain.NewValidationError("model", perr.Error())
-				}
-			}
-		}
+	if err := o.resolveExecutionPolicy(ctx, cfg); err != nil {
+		return nil, nil, err
 	}
 
 	// Validate extra flags against runner allowlists (delegate to seam)
@@ -1703,6 +1671,129 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 
 	return cfg, profile, nil
+}
+
+// resolveExecutionPolicy converts the final profile-plus-override selection
+// into a run-owned immutable snapshot. ModelPreset is accepted only as a
+// migration input and is immediately mapped to a named catalog policy; no
+// runtime decision reads mutable catalog state after this function returns.
+func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.RunConfig) error {
+	if cfg == nil {
+		return domain.NewValidationError("runConfig", "field is required")
+	}
+	if o.modelPolicy == nil {
+		if cfg.ModelPreset != domain.ModelPresetUnspecified {
+			return domain.NewValidationError("modelPolicyCatalog", "model policy state is not configured")
+		}
+		// Test-only/minimal orchestrators may omit the state. Production boot
+		// always injects it and readiness prevents traffic without a revision.
+		return nil
+	}
+
+	var (
+		snapshot *domain.ExecutionPolicySnapshot
+		err      error
+	)
+	switch {
+	case cfg.ModelPreset != domain.ModelPresetUnspecified:
+		snapshot, err = o.modelPolicy.ResolveLegacyPreset(cfg.RunnerType, cfg.ModelPreset)
+	case strings.TrimSpace(cfg.Model) != "":
+		snapshot, err = o.modelPolicy.ResolveDirectModel(cfg.RunnerType, cfg.Model)
+	default:
+		snapshot, err = o.modelPolicy.ResolveRunnerDefault(cfg.RunnerType)
+	}
+	if err != nil {
+		return err
+	}
+	if snapshot == nil || len(snapshot.Candidates) == 0 {
+		return domain.NewValidationError("modelPolicyCatalog", "resolution produced no candidates")
+	}
+
+	selectedIndex, preflight, err := o.selectInitialCandidate(ctx, snapshot.Candidates)
+	if err != nil {
+		return err
+	}
+	snapshot.SelectedIndex = selectedIndex
+	snapshot.SelectedCandidate = snapshot.Candidates[selectedIndex]
+	snapshot.Explanation.Preflight = preflight
+	snapshot.Explanation.Summary = fmt.Sprintf(
+		"%s; selected candidate %d (%s/%s)",
+		snapshot.Explanation.Summary,
+		selectedIndex,
+		snapshot.SelectedCandidate.RunnerType,
+		snapshot.SelectedCandidate.SelectionType,
+	)
+
+	selected := snapshot.SelectedCandidate
+	cfg.PolicySnapshot = snapshot
+	cfg.RunnerType = selected.RunnerType
+	switch selected.SelectionType {
+	case domain.ModelSelectionTypeModel:
+		cfg.Model = selected.Model
+	case domain.ModelSelectionTypeRunnerDefault:
+		cfg.Model = ""
+	default:
+		return domain.NewValidationError("modelPolicyCatalog", "resolution selected an invalid candidate type")
+	}
+	return nil
+}
+
+func (o *Orchestrator) selectInitialCandidate(ctx context.Context, candidates []domain.ExecutionCandidate) (int, []domain.CandidatePreflight, error) {
+	if len(candidates) == 0 {
+		return -1, nil, domain.NewValidationError("modelPolicyCatalog", "resolution produced no candidates")
+	}
+	if o.runners == nil {
+		// Minimal unit orchestrators omit adapters. Production always injects
+		// the registry before accepting traffic.
+		return 0, nil, nil
+	}
+
+	checks := make([]domain.CandidatePreflight, 0, len(candidates))
+	for index, candidate := range candidates {
+		check := domain.CandidatePreflight{Index: index, Candidate: candidate}
+		resolvedRunner, err := o.runners.Get(candidate.RunnerType)
+		if err != nil || resolvedRunner == nil {
+			check.Reason = "runner is not registered"
+			checks = append(checks, check)
+			continue
+		}
+		available, message := resolvedRunner.IsAvailable(ctx)
+		if !available {
+			check.Reason = strings.TrimSpace(message)
+			if check.Reason == "" {
+				check.Reason = "runner is unavailable"
+			}
+			checks = append(checks, check)
+			continue
+		}
+		switch candidate.SelectionType {
+		case domain.ModelSelectionTypeModel:
+			if err := resolvedRunner.ProbeModel(ctx, candidate.Model); err != nil {
+				check.Reason = err.Error()
+				checks = append(checks, check)
+				continue
+			}
+		case domain.ModelSelectionTypeRunnerDefault:
+			// Catalog/codec conformance already proves runner-default support.
+		default:
+			check.Reason = "candidate selection type is invalid"
+			checks = append(checks, check)
+			continue
+		}
+		check.Available = true
+		checks = append(checks, check)
+		return index, checks, nil
+	}
+
+	reasons := make([]string, 0, len(checks))
+	for _, check := range checks {
+		reasons = append(reasons, fmt.Sprintf("candidate %d %s/%s: %s", check.Index, check.Candidate.RunnerType, check.Candidate.SelectionType, check.Reason))
+	}
+	return -1, checks, domain.NewValidationErrorWithHint(
+		"modelPolicyCatalog",
+		"no policy candidate passed runner/model preflight",
+		strings.Join(reasons, "; "),
+	)
 }
 
 // resolveSandboxConfig produces the effective SandboxConfig for a run.
@@ -2761,11 +2852,6 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	if o.checkpoints != nil {
 		executor.WithCheckpointRepository(o.checkpoints)
 	}
-	// Model-level fallback: hand the executor a resolver so it can walk the preset chain
-	// at execution time when the runner rejects a model.
-	if o.modelRegistry != nil {
-		executor.WithModelChainResolver(o.modelRegistry)
-	}
 	if o.healthStore != nil {
 		executor.WithModelHealthReporter(newHealthMarkerAdapter(o.healthStore, run.ID.String()))
 	}
@@ -3048,24 +3134,10 @@ func (o *Orchestrator) GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbo
 }
 
 // -----------------------------------------------------------------------------
-// Model Registry Operations
+// Model Policy Operations
 // -----------------------------------------------------------------------------
 
-func (o *Orchestrator) GetModelRegistry(ctx context.Context) (*modelregistry.Registry, error) {
-	if o.modelRegistry == nil {
-		return nil, domain.NewStateError("ModelRegistry", "unconfigured", "get", "model registry not configured")
-	}
-	return o.modelRegistry.Get(), nil
-}
-
-func (o *Orchestrator) UpdateModelRegistry(ctx context.Context, registry *modelregistry.Registry) (*modelregistry.Registry, error) {
-	if o.modelRegistry == nil {
-		return nil, domain.NewStateError("ModelRegistry", "unconfigured", "update", "model registry not configured")
-	}
-	return o.modelRegistry.Update(registry)
-}
-
-func (o *Orchestrator) GetModelRegistryHealth(ctx context.Context) (health.Snapshot, error) {
+func (o *Orchestrator) GetModelHealthSnapshot(ctx context.Context) (health.Snapshot, error) {
 	if o.healthStore == nil {
 		return health.Snapshot{
 			Models:  map[string]map[string]health.ModelEntry{},
@@ -3073,6 +3145,33 @@ func (o *Orchestrator) GetModelRegistryHealth(ctx context.Context) (health.Snaps
 		}, nil
 	}
 	return o.healthStore.Snapshot(ctx)
+}
+
+// ExplainProfilePolicy resolves the profile against the active catalog without
+// creating a run. The returned snapshot includes the same availability
+// preflight and precedence explanation run creation would persist.
+func (o *Orchestrator) ExplainProfilePolicy(ctx context.Context, profileID uuid.UUID) (*domain.ExecutionPolicySnapshot, error) {
+	cfg, _, err := o.resolveRunConfig(ctx, CreateRunRequest{AgentProfileID: &profileID})
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil || cfg.PolicySnapshot == nil {
+		return nil, domain.NewValidationError("modelPolicyCatalog", "profile resolution produced no policy snapshot")
+	}
+	return cfg.PolicySnapshot, nil
+}
+
+// ExplainRunPolicy returns only the immutable snapshot stored with the run. It
+// never reconstructs historical provenance from the current catalog.
+func (o *Orchestrator) ExplainRunPolicy(ctx context.Context, runID uuid.UUID) (*domain.ExecutionPolicySnapshot, error) {
+	run, err := o.GetRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	if run.ResolvedConfig == nil || run.ResolvedConfig.PolicySnapshot == nil {
+		return nil, nil
+	}
+	return run.ResolvedConfig.PolicySnapshot, nil
 }
 
 // -----------------------------------------------------------------------------

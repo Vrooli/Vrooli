@@ -2,7 +2,7 @@
 
 - **Status:** `active`
 - **Audience:** both — humans encounter suggestions in UI, agents handle them structurally
-- **Owner:** structural — emerges from scenario design rather than from a dedicated marketing function. Each scenario team is the operational owner of the in-product moments where their scenario suggests other bundle apps.
+- **Owner:** structural — emerges from template-manager design rather than from a dedicated marketing function. Each scenario team is the operational owner of the in-product moments where their scenario suggests other bundle apps.
 - **Feeds:** [`subscription`](../revenue-lines/subscription.md) — drives cross-app activation, which is the strongest retention signal Vrooli has (per [STRATEGY.md §5: breadth of adoption = retention](../STRATEGY.md)).
 - **Coupling:** Spans all tiers. The mechanics differ slightly per tier (in-app suggestion in Tier 1; runtime-level cross-scenario invocation in Tier 2/3) but the channel is the same.
 
@@ -55,6 +55,6 @@ The mechanism exists today — agents inside scenarios can already invoke other 
 
 ## Notes
 
-- The lifestyle-bundle implementation of this channel needs particular care because it's where the recommendation-blindness rule binds hardest. Lifestyle-bundle scenario design must build the "agent can't see commission structure" separation into code and data flow, not policy. See [`consumer-products`](../revenue-lines/consumer-products.md) and [`affiliate-commerce`](../revenue-lines/affiliate-commerce.md) for the full constraint architecture.
+- The lifestyle-bundle implementation of this channel needs particular care because it's where the recommendation-blindness rule binds hardest. Lifestyle-bundle template-manager design must build the "agent can't see commission structure" separation into code and data flow, not policy. See [`consumer-products`](../revenue-lines/consumer-products.md) and [`affiliate-commerce`](../revenue-lines/affiliate-commerce.md) for the full constraint architecture.
 - This channel's strength is also its constraint: it cannot reach users who haven't yet adopted a single bundle app. Acquisition through other channels remains necessary; in-product-expansion is the *retention and expansion* engine, not the acquisition engine.
 - Per [STRATEGY.md §6 (activation is the leading indicator of retention)](../STRATEGY.md), the work that makes first-app activation strong is what enables this channel to function at all. Activation work and in-product-expansion work reinforce each other.

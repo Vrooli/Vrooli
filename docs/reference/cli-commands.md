@@ -84,8 +84,8 @@ vrooli scenario open <name>
 vrooli scenario port <name>
 vrooli scenario ui-smoke <name>
 vrooli scenario requirements
-vrooli scenario template
-vrooli scenario generate <template> --id <slug> --display-name <name> --description <text>
+template-manager registry list --kind scenario
+template-manager generate <template> --id <slug> --display-name <name> --description <text>
 vrooli scenario completeness <name>
 ```
 
@@ -173,7 +173,7 @@ vrooli resource restore <name>
 vrooli resource restore-blueprint <name>
 vrooli resource archive
 vrooli resource blueprint
-vrooli resource template
+template-manager resource-template
 vrooli resource schema
 ```
 

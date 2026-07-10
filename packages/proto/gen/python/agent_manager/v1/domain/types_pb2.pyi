@@ -25,6 +25,12 @@ class ModelPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODEL_PRESET_CHEAP: _ClassVar[ModelPreset]
     MODEL_PRESET_SMART: _ClassVar[ModelPreset]
 
+class ModelSelectionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MODEL_SELECTION_TYPE_UNSPECIFIED: _ClassVar[ModelSelectionType]
+    MODEL_SELECTION_TYPE_MODEL: _ClassVar[ModelSelectionType]
+    MODEL_SELECTION_TYPE_RUNNER_DEFAULT: _ClassVar[ModelSelectionType]
+
 class NetworkAccess(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     NETWORK_ACCESS_UNSPECIFIED: _ClassVar[NetworkAccess]
@@ -179,6 +185,9 @@ MODEL_PRESET_UNSPECIFIED: ModelPreset
 MODEL_PRESET_FAST: ModelPreset
 MODEL_PRESET_CHEAP: ModelPreset
 MODEL_PRESET_SMART: ModelPreset
+MODEL_SELECTION_TYPE_UNSPECIFIED: ModelSelectionType
+MODEL_SELECTION_TYPE_MODEL: ModelSelectionType
+MODEL_SELECTION_TYPE_RUNNER_DEFAULT: ModelSelectionType
 NETWORK_ACCESS_UNSPECIFIED: NetworkAccess
 NETWORK_ACCESS_NONE: NetworkAccess
 NETWORK_ACCESS_LOCALHOST: NetworkAccess

@@ -10,6 +10,15 @@
 >
 > (add `--execution` to actually run the test commands; `--json` is for Test Genie/programmatic consumers, not your workflow). Fix the findings it reports; don't treat this skill's prose as the authority on whether tests are "good enough" — `unit-health` is.
 
+> **Policy profile contract:** for react-vite-derived scenarios, `.vrooli/testing.json`
+> `unit.policy_profile` declares the template unit-test contract while Code Facts
+> discovers the actual API/CLI/UI surfaces. Treat `UNIT_POLICY_*`,
+> `UNIT_REQUIRED_ROLE_MISSING`, `UNIT_SURFACE_UNGOVERNED`, and
+> `UNIT_POLICY_PROJECTION_DRIFT` as Unit Health contract findings: fix the
+> declared profile or native test projection, not Test Genie orchestration.
+> Legacy `unit.languages` is compatibility-only and is not the policy source for
+> new generated scenarios.
+
 Prioritize **test quality, coverage, and reliability** across this scenario.
 Do **not** break functionality or regress existing tests; all changes must maintain or improve overall completeness.
 

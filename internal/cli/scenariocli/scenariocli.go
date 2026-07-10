@@ -584,7 +584,7 @@ func WriteInfoHuman(w io.Writer, info InfoScenarioData, runtime InfoRuntimeData)
 			line += fmt.Sprintf(" (%s)", v)
 		}
 		if info.TemplateDrifted {
-			line += " — drifted from current (run `vrooli scenario template drift " + info.Name + "`)"
+			line += " — drifted from current (run `template-manager template drift " + info.Name + "`)"
 		}
 		_, _ = fmt.Fprintln(w, line)
 	}

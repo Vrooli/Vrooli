@@ -64,10 +64,12 @@ def _install_fake_model(max_segment_frames: int, silence_commit_frames: int = 16
 
 async def _step(session, tokens):
     """Drive tokens through the session the way _run_frames does: increment
-    frames_consumed BEFORE stepping each token."""
+    frames_consumed BEFORE stepping each token, then drain the decoupled
+    outbound queue to the (non-blocking) FakeWS so ws.sent reflects the wire."""
     for tok in tokens:
         session.frames_consumed += 1
         await session._step_token(tok)
+    await session._drain_outbound()
 
 
 def _segments(ws):
@@ -154,6 +156,7 @@ def test_flush_commits_trailing_segment():
 
         session._run_frames = fake_run_frames
         await session.flush()
+        await session._drain_outbound()
 
     asyncio.run(scenario())
 

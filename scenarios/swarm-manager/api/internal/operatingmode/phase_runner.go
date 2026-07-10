@@ -364,6 +364,10 @@ func (s *Service) collectRunContext(ctx context.Context, def Definition, phaseDe
 	if err != nil {
 		return RunContext{}, err
 	}
+	_, legacyAmbiguous, err := s.store.AdoptLegacyExecution(target.ID, def)
+	if err != nil {
+		return RunContext{}, err
+	}
 	rounds, err := s.store.ListRounds(target.ID, def.Mode)
 	if err != nil {
 		return RunContext{}, err
@@ -409,6 +413,11 @@ func (s *Service) collectRunContext(ctx context.Context, def Definition, phaseDe
 	} else if len(executions) > 0 {
 		// Every manifest is terminal: a new execution starts with an empty phase
 		// history even though compatibility projections still list old rounds.
+		rounds = nil
+	} else if legacyAmbiguous {
+		// Ambiguous legacy histories remain a read-only compatibility projection.
+		// Starting again creates a fresh immutable execution and never interprets
+		// those rounds as one resumable history.
 		rounds = nil
 	}
 	return RunContext{

@@ -50,7 +50,7 @@ Each domain's schema file lives beside the code that interprets it. The
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+### Example domain — `notes` (removed by `template-manager detemplate`)
 
 The template ships the `notes` domain as a worked CRUD slice with a
 binary attachment-upload exception, showing how a real domain owns its

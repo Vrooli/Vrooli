@@ -77,6 +77,26 @@ The end flush (on `{"type":"end"}`) always drains the ~0.5 s delayed-streams
 tail and commits the final segment regardless of these knobs; a cold
 disconnect with no `end` does **not** flush, so clients must send `end`.
 
+### Backpressure-safety / decoupling tuning
+
+The decode loop is decoupled from socket sends: it enqueues events and keeps
+stepping regardless of consumer speed, while a background send worker drains
+them. Per the event-durability contract, `partial` events are coalesced to the
+latest value and may be dropped under pressure (they never back-pressure
+decode); `segment`/`done`/`error` events are ordered and lossless. This is what
+makes a slow/stalled browser consumer unable to freeze the backend decode loop.
+The knobs below bound teardown and the single-session lock.
+
+| Name | Default | Notes |
+|---|---|---|
+| `KYUTAI_STT_SEND_DRAIN_TIMEOUT_S` | `5` | Bounded wait for the send worker to flush queued durable events to a slow consumer during teardown before the socket is force-closed. Committed text is flushed within this window; a dead consumer cannot hang teardown past it. |
+| `KYUTAI_STT_LOCK_TIMEOUT_S` | `10` | Bounded wait to acquire the single-session model lock before a new connection inspects the holder. |
+| `KYUTAI_STT_ACTIVITY_WEDGE_S` | `5` | If the current holder decoded a frame within this many seconds, it is active and the newcomer receives `{"type":"error","code":"stt_busy",...}` instead of cancelling it. Only holders idle beyond this threshold are reaped as wedged. |
+
+Every stream logs a close summary with reason, frames consumed, segments
+emitted, and duration. Reap warnings include holder age and idle time so active
+dictation kills are distinguishable from real wedge recovery in logs.
+
 ## Operator Checklist
 
 - Keep compose topology, ports, and health checks declared in `resource.json`

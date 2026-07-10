@@ -81,7 +81,7 @@ when they need shared infrastructure.
 ## Schema bootstrap
 
 Schema is owned per-domain. `api/internal/<dom>/schema.sql` declares
-each domain's tables and is embedded into the binary via `go:embed`
+each domain's tables and is embedded into the binary through Go's embed directive
 from `api/internal/<dom>/schema.go::Schema()`. Cross-cutting
 infrastructure (postgres extensions, custom types, cross-domain views)
 lives in `api/internal/database/system.sql` — empty by default in

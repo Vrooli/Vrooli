@@ -17,22 +17,22 @@ The practical current path is:
 ## Canonical Commands
 
 ```bash
-vrooli scenario template list
-vrooli scenario template show <template>
-vrooli scenario generate <template> --id <slug> --display-name <name> --description <text>
+template-manager registry list --kind scenario
+template-manager registry show <template>
+template-manager generate <template> --id <slug> --display-name <name> --description <text>
 ```
 
 For generation planning without writing files:
 
 ```bash
-vrooli scenario generate <template> --id <slug> --display-name <name> --description <text> --dry-run
+template-manager generate <template> --id <slug> --display-name <name> --description <text> --dry-run
 ```
 
 For first-session orientation after generation:
 
 ```bash
-vrooli scenario orient <slug>
-vrooli scenario orient <slug> --finalize
+template-manager orient <slug>
+template-manager orient <slug> --finalize
 ```
 
 For requirement-aware work:

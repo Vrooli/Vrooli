@@ -6,7 +6,6 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration/emit"
 	"agent-manager/internal/repository"
 
@@ -25,16 +24,8 @@ type EventBroadcaster interface {
 	BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string)
 }
 
-// ModelChainResolver returns the ordered preset chain for a runner+preset pair.
-// Implemented by modelregistry.Store. Injected so model-level fallback
-// can walk the chain at execution time without persisting derived state on the run.
-type ModelChainResolver interface {
-	ResolvePreset(runner string, preset string) (modelregistry.PresetChain, bool)
-}
-
 // ModelHealthReporter receives runtime classifications of model availability.
-// Implemented by the orchestration health-store adapter so the executor does
-// not import modelregistry's HealthStore type directly (keeps the seam small).
+// Implemented by the orchestration health-store adapter.
 type ModelHealthReporter interface {
 	MarkModelHealthy(runnerType, modelID string)
 	MarkModelUnavailable(runnerType, modelID, message string)

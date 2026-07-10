@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Run the final synthesis pass for a non-research backlog item. Incorporate the latest answered workshop decisions into `plan.md`, reassess readiness against the updated plan, and write a finalize round that contains no new decisions.
+Run the final synthesis pass for a non-research backlog item. Incorporate the latest answered workshop decisions into the canonical plan-manager plan, reassess readiness against the updated plan, and write a finalize round that contains no new decisions.
 
 This skill exists specifically to avoid the stale-plan gap after the user answers the final round. It is not a normal workshop round and must not generate fresh questions.
 
@@ -10,17 +10,17 @@ This skill exists specifically to avoid the stale-plan gap after the user answer
 
 **Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure, artifact schemas, and CLI commands for reading/writing backlog files.
 
-**Required reading:** `prompt-manager skill read implementation-plan-authoring` — canonical plan structure, mandatory sections, quality gates, and guardrails for `plan.md`.
+**Required reading:** `prompt-manager skill read implementation-plan-authoring` — canonical plan structure, mandatory sections, quality gates, and guardrails for the plan-manager implementation plan.
 
-**Required reading:** `prompt-manager skill read plan-skill-discovery` — use the existing required reading already embedded in the plan when synthesizing the final draft.
+**Required reading:** use the existing required reading already embedded in the plan when synthesizing the final draft.
 
-**Required reading:** `prompt-manager skill read swarm-manager-initiative-context` — load the initiative's members and related initiatives before finalizing, and surface any sibling-item or cross-initiative implications that the final `plan.md` should flag for the orchestrator.
+**Required reading:** `prompt-manager skill read swarm-manager-initiative-context` — load the initiative's members and related initiatives before finalizing, and surface any sibling-item or cross-initiative implications that the final canonical plan should flag for the orchestrator.
 
 ## Scope
 
 **In scope:**
-- Read the current `plan.md`, all prior workshop rounds, `spec.json`, optional research artifacts, and user files
-- Incorporate the latest answered decisions into `plan.md`
+- Read the current rendered canonical plan, all prior workshop rounds, `spec.json`, optional research artifacts, and user files
+- Incorporate the latest answered decisions into the canonical plan-manager plan
 - Re-score the 5 readiness dimensions based on the updated plan
 - Write a finalize round (`workshop/round-NNN.json`) with zero decision items
 
@@ -42,7 +42,7 @@ EOF
 
 ### This Pass Produces
 
-1. **`plan.md`** — updated so it reflects the latest answered workshop decisions
+1. **Canonical plan-manager plan** — updated so it reflects the latest answered workshop decisions and is bound through `spec.json.plan_ref`
 2. **`workshop/round-{{ROUND_NUMBER}}.json`** — finalize round with this shape:
 
 ```json
@@ -95,7 +95,7 @@ You are running finalize round {{ROUND_NUMBER}} for a swarm-manager backlog item
    swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
    ```
    Then read:
-   - `plan.md`
+   - rendered canonical plan from `spec.json.plan_ref`
    - every file in `workshop/`
    - `spec.json`
    - `research/summary.md` if present
@@ -105,13 +105,13 @@ You are running finalize round {{ROUND_NUMBER}} for a swarm-manager backlog item
      swarm-manager initiatives context --name {{ITEM_INITIATIVE}}
      swarm-manager initiatives files --name {{ITEM_INITIATIVE}}
      ```
-     The `context` command returns members, upstream, and downstream in one call. Before signing off `plan.md`, verify that overlaps with sibling items are acknowledged and that any cross-initiative sequencing implications surfaced during workshopping are captured in the plan for the orchestrator to act on.
+     The `context` command returns members, upstream, and downstream in one call. Before signing off the canonical plan, verify that overlaps with sibling items are acknowledged and that any cross-initiative sequencing implications surfaced during workshopping are captured in the plan for the orchestrator to act on.
 
 2. Find the latest answered workshop round.
    - Treat selected options, freeform text, and notes as authoritative user intent.
-   - Incorporate those choices into `plan.md`.
+   - Incorporate those choices into the canonical plan.
 
-3. Update `plan.md`.
+3. Update the canonical plan.
    - Make the plan internally consistent with the latest answers.
    - Tighten sections that changed because of those answers.
    - Do not introduce placeholder questions or “TBD” sections unless the information is genuinely missing.
@@ -120,7 +120,7 @@ You are running finalize round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - Be honest.
    - If the plan is still not ready, note the remaining weak dimensions in info items.
 
-5. Write `plan.md`.
+5. Write or adopt the updated plan through the swarm-manager plan-import/finalization path so plan-manager stores it and `spec.json.plan_ref` remains populated.
 
 6. Write `workshop/round-{{ROUND_NUMBER}}.json`.
    - Set `"mode": "finalize"`.
@@ -130,4 +130,4 @@ You are running finalize round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
 ### Important
 
-Do not create or update `handoff/` files during workshop finalization. The finalized `plan.md` and workshop state are the authoritative sources; swarm-manager regenerates the downstream idea handoff package from those files at process-time.
+Do not create or update `handoff/` files during workshop finalization. The finalized plan-manager plan and workshop state are the authoritative sources; swarm-manager regenerates the downstream idea handoff package from those sources at process-time.

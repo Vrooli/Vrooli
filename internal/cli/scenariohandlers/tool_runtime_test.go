@@ -1,11 +1,9 @@
 package scenariohandlers
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
-	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 )
 
 func TestBuildScenarioCompletenessArgsAddsJSONWhenFormatMissing(t *testing.T) {
@@ -76,28 +74,5 @@ func TestBuildScenarioCompletenessArgsAppendsVerbose(t *testing.T) {
 		if arg == "--verbose" {
 			t.Fatalf("should not add --verbose when -v already present: %#v", short)
 		}
-	}
-}
-
-func TestFormatTemplateRequiredFlagsReturnsNonEmptySummary(t *testing.T) {
-	got := FormatTemplateRequiredFlags(scenariocli.TemplateManifest{
-		RequiredVars: map[string]scenariocli.TemplateVar{
-			"SCENARIO_ID":           {Flag: "id"},
-			"SCENARIO_DISPLAY_NAME": {Flag: "display-name"},
-		},
-	})
-	if got == "" {
-		t.Fatal("expected formatted required flags")
-	}
-	for _, want := range []string{"--id <scenario_id>", "--display-name <scenario_display_name>"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("missing %q in summary %q", want, got)
-		}
-	}
-}
-
-func TestLooksLikeTextFileRejectsBinaryData(t *testing.T) {
-	if LooksLikeTextFile([]byte{0}) {
-		t.Fatal("LooksLikeTextFile() should reject binary content")
 	}
 }

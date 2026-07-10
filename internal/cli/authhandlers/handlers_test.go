@@ -32,7 +32,6 @@ func deps(format cliout.Format) HandlerDeps[*fakeCtx] {
 type stubProbe struct {
 	name    string
 	result  authapp.ProbeResult
-	expiry  bool
 	expSeen *bool
 }
 

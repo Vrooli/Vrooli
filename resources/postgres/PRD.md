@@ -42,8 +42,9 @@
 ### Architecture
 - **Container**: postgres:16-alpine Docker image
 - **Port Range**: 5433-5499 for instances
-- **Data Directory**: resources/postgres/instances/{name}/data
-- **Config Storage**: resources/postgres/instances/{name}/config/instance.conf
+- **Data Directory**: `${RESOURCE_DATA_DIR}/instances/{name}/data`
+- **Config Storage**: `${RESOURCE_CONFIG_DIR}/instances/{name}/instance.conf`
+- **Legacy Note**: Repo-local `resources/postgres/instances/...` paths are deprecated migration artifacts only. New runtime data must stay outside the source tree through the resource control-plane storage resolver.
 
 ### Dependencies
 - Docker

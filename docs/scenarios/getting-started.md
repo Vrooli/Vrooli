@@ -5,14 +5,14 @@ This page is the canonical entrypoint for creating or modifying scenarios at the
 ## Inspect Available Templates
 
 ```bash
-vrooli scenario template list
-vrooli scenario template show <template>
+template-manager registry list --kind scenario
+template-manager registry show <template>
 ```
 
 ## Generate A Scenario
 
 ```bash
-vrooli scenario generate <template> \
+template-manager generate <template> \
   --id my-scenario \
   --display-name "My Scenario" \
   --description "One-sentence summary"
@@ -21,7 +21,7 @@ vrooli scenario generate <template> \
 The CLI help is the final authority:
 
 ```bash
-vrooli scenario generate --help
+template-manager generate --help
 ```
 
 ## Preferred Workflow After Generation
@@ -39,20 +39,20 @@ You can also inspect the scenario via the root CLI:
 
 ```bash
 vrooli scenario info <name>
-vrooli scenario orient <name>
+template-manager orient <name>
 vrooli scenario status <name>
 vrooli scenario test <name>
 ```
 
 Orientation-enabled templates render temporary startup metadata to the
-generated scenario. `vrooli scenario orient <name>` reports which
+generated scenario. `template-manager orient <name>` reports which
 template-owned initialization gates are complete, including early work
 such as charter, requirements, domain map, dependency decisions, design
 language, and replacement of reference domains. When all required gates
 pass, finalize explicitly:
 
 ```bash
-vrooli scenario orient <name> --finalize
+template-manager orient <name> --finalize
 ```
 
 Finalization removes only the template-declared temporary orientation

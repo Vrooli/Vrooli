@@ -5,14 +5,20 @@ package phases
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/eventlog"
+	"agent-manager/internal/modelpolicy"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/testutil/mocks/modelchain"
 
@@ -171,6 +177,378 @@ func TestModelFallback_RunnerDefaultSentinelOmitsFlag(t *testing.T) {
 	}
 	if h.run.ActualModel != "" {
 		t.Fatalf("expected ActualModel to reflect runner-default sentinel (empty), got %q", h.run.ActualModel)
+	}
+}
+
+// [REQ:REQ-P1-004] Runtime fallback follows the immutable persisted sequence,
+// including explicit runner-default and cross-runner candidates.
+func TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners(t *testing.T) {
+	run := &domain.Run{
+		ID:      uuid.New(),
+		Status:  domain.RunStatusPending,
+		Phase:   domain.RunPhaseQueued,
+		RunMode: domain.RunModeInPlace,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeCodex,
+			Model:      "stale-codex-model",
+			PolicySnapshot: &domain.ExecutionPolicySnapshot{
+				CatalogDigest: "sha256:persisted",
+				PolicyRef:     "codex.smart",
+				Candidates: []domain.ExecutionCandidate{
+					{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "stale-codex-model"},
+					{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeRunnerDefault},
+				},
+				SelectedIndex: 0,
+				SelectedCandidate: domain.ExecutionCandidate{
+					RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "stale-codex-model",
+				},
+			},
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	registry := runner.NewRegistry()
+	codex := runner.NewMockRunner(domain.RunnerTypeCodex)
+	claude := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	var attempts []string
+	codex.ExecuteFunc = func(_ context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts = append(attempts, string(codex.Type())+"/"+req.ResolvedConfig.Model)
+		return modelUnavailableResult(domain.RunnerTypeCodex), nil
+	}
+	claude.ExecuteFunc = func(_ context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts = append(attempts, string(claude.Type())+"/"+req.ResolvedConfig.Model)
+		return successResult(), nil
+	}
+	if err := registry.Register(codex); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Register(claude); err != nil {
+		t.Fatal(err)
+	}
+
+	events := &filterableEventStore{}
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
+		ExecuteAgentInput: ExecuteAgentInput{
+			Deps:    Deps{Events: events, Levers: config.DefaultLevers()},
+			Run:     run,
+			Runner:  codex,
+			Runners: registry,
+		},
+	})
+
+	if out.Result == nil || !out.Result.Success {
+		t.Fatalf("snapshot fallback result = %+v, err = %v", out.Result, out.ExecErr)
+	}
+	if got, want := strings.Join(attempts, ","), "codex/stale-codex-model,claude-code/"; got != want {
+		t.Fatalf("attempts = %q, want %q", got, want)
+	}
+	if run.ResolvedConfig.RunnerType != domain.RunnerTypeClaudeCode || run.ResolvedConfig.Model != "" {
+		t.Fatalf("resolved candidate = %s/%q", run.ResolvedConfig.RunnerType, run.ResolvedConfig.Model)
+	}
+	if run.ResolvedConfig.PolicySnapshot.CatalogDigest != "sha256:persisted" ||
+		run.ResolvedConfig.PolicySnapshot.SelectedIndex != 0 {
+		t.Fatalf("immutable snapshot was mutated: %+v", run.ResolvedConfig.PolicySnapshot)
+	}
+	policyEvents, err := events.Get(context.Background(), run.ID, event.GetOptions{EventTypes: []domain.RunEventType{domain.EventTypePolicyCandidateAttempt}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(policyEvents) != 4 {
+		t.Fatalf("policy candidate event count = %d, want 4 (attempt/fail + attempt/select)", len(policyEvents))
+	}
+}
+
+func TestPolicySnapshotFallbackSkipsUnavailablePersistedCandidate(t *testing.T) {
+	run := &domain.Run{
+		ID:      uuid.New(),
+		Status:  domain.RunStatusPending,
+		Phase:   domain.RunPhaseQueued,
+		RunMode: domain.RunModeInPlace,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeCodex,
+			PolicySnapshot: &domain.ExecutionPolicySnapshot{
+				CatalogDigest: "sha256:persisted",
+				Candidates: []domain.ExecutionCandidate{
+					{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeRunnerDefault},
+					{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeModel, Model: "claude-current"},
+				},
+				SelectedIndex: 0,
+			},
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	registry := runner.NewRegistry()
+	codex := runner.NewMockRunner(domain.RunnerTypeCodex)
+	codex.SetAvailable(false, "codex binary unavailable")
+	claude := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	var attempts int
+	claude.ExecuteFunc = func(_ context.Context, _ runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts++
+		return successResult(), nil
+	}
+	if err := registry.Register(codex); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Register(claude); err != nil {
+		t.Fatal(err)
+	}
+
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
+		ExecuteAgentInput: ExecuteAgentInput{
+			Deps:    Deps{Events: &filterableEventStore{}, Levers: config.DefaultLevers()},
+			Run:     run,
+			Runner:  codex,
+			Runners: registry,
+		},
+	})
+	if out.Result == nil || !out.Result.Success || attempts != 1 {
+		t.Fatalf("result = %+v, err = %v, attempts = %d", out.Result, out.ExecErr, attempts)
+	}
+	if run.ActualModel != "claude-current" {
+		t.Fatalf("actual model = %q", run.ActualModel)
+	}
+}
+
+// [REQ:REQ-P1-004] Exhausting the immutable sequence is a typed terminal
+// failure with an explicit digest/index-qualified exhaustion event.
+func TestPolicySnapshotFallbackExhaustionIsTerminalAndObservable(t *testing.T) {
+	run := &domain.Run{
+		ID:      uuid.New(),
+		Status:  domain.RunStatusPending,
+		Phase:   domain.RunPhaseQueued,
+		RunMode: domain.RunModeInPlace,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeCodex,
+			PolicySnapshot: &domain.ExecutionPolicySnapshot{
+				CatalogDigest: "sha256:exhaustion",
+				Candidates: []domain.ExecutionCandidate{
+					{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeRunnerDefault},
+					{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeModel, Model: "retired-claude-model"},
+				},
+				SelectedIndex: 0,
+			},
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	registry := runner.NewRegistry()
+	codex := runner.NewMockRunner(domain.RunnerTypeCodex)
+	codex.SetAvailable(false, "codex binary unavailable")
+	claude := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	claude.ExecuteFunc = func(context.Context, runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return modelUnavailableResult(domain.RunnerTypeClaudeCode), nil
+	}
+	if err := registry.Register(codex); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Register(claude); err != nil {
+		t.Fatal(err)
+	}
+
+	events := &filterableEventStore{}
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
+		ExecuteAgentInput: ExecuteAgentInput{
+			Deps:    Deps{Events: events, Levers: config.DefaultLevers()},
+			Run:     run,
+			Runner:  codex,
+			Runners: registry,
+		},
+	})
+
+	var runnerErr *domain.RunnerError
+	if !errors.As(out.ExecErr, &runnerErr) || runnerErr.Code() != domain.ErrCodeRunnerUnavailable {
+		t.Fatalf("terminal error = %T %v, want RUNNER_UNAVAILABLE", out.ExecErr, out.ExecErr)
+	}
+	policyEvents, err := events.Get(context.Background(), run.ID, event.GetOptions{EventTypes: []domain.RunEventType{domain.EventTypePolicyCandidateAttempt}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(policyEvents) != 4 {
+		t.Fatalf("policy candidate event count = %d, want skip + attempt/fail + exhaustion", len(policyEvents))
+	}
+	payload, ok := decodeTypedPayload(t, policyEvents[len(policyEvents)-1]).(*eventlog.PolicyCandidateAttemptPayload)
+	if !ok {
+		t.Fatalf("terminal payload = %T", decodeTypedPayload(t, policyEvents[len(policyEvents)-1]))
+	}
+	if payload.Outcome != eventlog.PolicyCandidateOutcomeExhausted ||
+		payload.CatalogDigest != "sha256:exhaustion" || payload.SnapshotIndex != 1 ||
+		payload.FailureClass != "snapshot_exhausted" {
+		t.Fatalf("terminal exhaustion payload = %+v", payload)
+	}
+}
+
+// [REQ:REQ-P1-004] Restart/resume retries the candidate persisted in the
+// resolved config instead of replaying earlier snapshot entries.
+func TestPolicySnapshotResumeStartsAtPersistedCandidate(t *testing.T) {
+	first := domain.ExecutionCandidate{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "first-model"}
+	resumed := domain.ExecutionCandidate{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeRunnerDefault}
+	run := &domain.Run{
+		ID:      uuid.New(),
+		Status:  domain.RunStatusFailed,
+		Phase:   domain.RunPhaseExecuting,
+		RunMode: domain.RunModeInPlace,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Model:      "",
+			PolicySnapshot: &domain.ExecutionPolicySnapshot{
+				CatalogDigest:     "sha256:before-restart",
+				Candidates:        []domain.ExecutionCandidate{first, resumed},
+				SelectedIndex:     0,
+				SelectedCandidate: first,
+			},
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	raw, err := json.Marshal(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reloaded domain.Run
+	if err := json.Unmarshal(raw, &reloaded); err != nil {
+		t.Fatal(err)
+	}
+
+	registry := runner.NewRegistry()
+	codex := runner.NewMockRunner(domain.RunnerTypeCodex)
+	codex.ExecuteFunc = func(context.Context, runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		t.Fatal("resume replayed a candidate that was already passed")
+		return nil, nil
+	}
+	claude := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	var attempts int
+	claude.ExecuteFunc = func(_ context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts++
+		if req.ResolvedConfig.Model != "" {
+			t.Fatalf("runner_default resumed with model %q", req.ResolvedConfig.Model)
+		}
+		return successResult(), nil
+	}
+	if err := registry.Register(codex); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Register(claude); err != nil {
+		t.Fatal(err)
+	}
+
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
+		ExecuteAgentInput: ExecuteAgentInput{
+			Deps:    Deps{Events: &filterableEventStore{}, Levers: config.DefaultLevers()},
+			Run:     &reloaded,
+			Runner:  codex,
+			Runners: registry,
+		},
+	})
+	if out.Result == nil || !out.Result.Success || attempts != 1 {
+		t.Fatalf("resume result = %+v, err = %v, attempts = %d", out.Result, out.ExecErr, attempts)
+	}
+	if reloaded.ResolvedConfig.PolicySnapshot.SelectedIndex != 0 {
+		t.Fatalf("resume mutated immutable snapshot: %+v", reloaded.ResolvedConfig.PolicySnapshot)
+	}
+}
+
+// [REQ:REQ-P1-004] A successful live catalog reload between attempts affects
+// only future resolutions; the running execution keeps its old candidates.
+func TestPolicySnapshotFallbackIgnoresCatalogReloadDuringExecution(t *testing.T) {
+	path, catalog := copyModelPolicyCatalog(t)
+	state, err := modelpolicy.NewState(path, modelpolicy.Requirement{Required: true})
+	if err != nil {
+		t.Fatalf("new policy state: %v", err)
+	}
+	snapshot, err := state.ResolvePolicy("codex.smart")
+	if err != nil {
+		t.Fatalf("resolve policy: %v", err)
+	}
+	originalDigest := snapshot.CatalogDigest
+	originalCandidates := append([]domain.ExecutionCandidate(nil), snapshot.Candidates...)
+	if len(originalCandidates) < 2 {
+		t.Fatalf("test policy has %d candidates, want at least two", len(originalCandidates))
+	}
+	run := &domain.Run{
+		ID:      uuid.New(),
+		Status:  domain.RunStatusPending,
+		Phase:   domain.RunPhaseQueued,
+		RunMode: domain.RunModeInPlace,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType:     originalCandidates[0].RunnerType,
+			Model:          originalCandidates[0].Model,
+			PolicySnapshot: snapshot,
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	registry := runner.NewRegistry()
+	codex := runner.NewMockRunner(domain.RunnerTypeCodex)
+	var attempts []string
+	codex.ExecuteFunc = func(_ context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts = append(attempts, req.ResolvedConfig.Model)
+		if len(attempts) == 1 {
+			catalog.Metadata.CatalogID += "-reloaded"
+			policy := catalog.Policies["codex.smart"]
+			policy.Candidates = []modelpolicy.Candidate{{
+				Runner:    domain.RunnerTypeCodex,
+				Selection: modelpolicy.Selection{Type: modelpolicy.SelectionTypeRunnerDefault},
+			}}
+			catalog.Policies["codex.smart"] = policy
+			writeModelPolicyCatalog(t, path, catalog)
+			if _, err := state.Reload(); err != nil {
+				t.Fatalf("reload catalog during execution: %v", err)
+			}
+			return modelUnavailableResult(domain.RunnerTypeCodex), nil
+		}
+		return successResult(), nil
+	}
+	if err := registry.Register(codex); err != nil {
+		t.Fatal(err)
+	}
+
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
+		ExecuteAgentInput: ExecuteAgentInput{
+			Deps:    Deps{Events: &filterableEventStore{}, Levers: config.DefaultLevers()},
+			Run:     run,
+			Runner:  codex,
+			Runners: registry,
+		},
+	})
+	if out.Result == nil || !out.Result.Success {
+		t.Fatalf("reload execution result = %+v, err = %v", out.Result, out.ExecErr)
+	}
+	if got, want := strings.Join(attempts, ","), originalCandidates[0].Model+","+originalCandidates[1].Model; got != want {
+		t.Fatalf("attempts after reload = %q, want persisted sequence %q", got, want)
+	}
+	if state.Status().ActiveDigest == originalDigest {
+		t.Fatal("test did not activate a new catalog digest")
+	}
+	if snapshot.CatalogDigest != originalDigest || snapshot.Candidates[1] != originalCandidates[1] {
+		t.Fatalf("running snapshot changed across reload: %+v", snapshot)
+	}
+}
+
+func copyModelPolicyCatalog(t *testing.T) (string, *modelpolicy.Catalog) {
+	t.Helper()
+	raw, err := os.ReadFile(modelpolicy.ResolvePath())
+	if err != nil {
+		t.Fatalf("read model policy catalog: %v", err)
+	}
+	var catalog modelpolicy.Catalog
+	if err := json.Unmarshal(raw, &catalog); err != nil {
+		t.Fatalf("decode model policy catalog: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "model-policy-catalog.json")
+	writeModelPolicyCatalog(t, path, &catalog)
+	return path, &catalog
+}
+
+func writeModelPolicyCatalog(t *testing.T, path string, catalog *modelpolicy.Catalog) {
+	t.Helper()
+	raw, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatalf("encode model policy catalog: %v", err)
+	}
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatalf("write model policy catalog: %v", err)
 	}
 }
 

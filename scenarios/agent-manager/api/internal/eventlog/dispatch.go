@@ -127,6 +127,9 @@ func init() {
 	Register(domain.EventTypeModelFallbackExhausted, 1, func() Payload {
 		return &ModelFallbackExhaustedPayload{}
 	})
+	Register(domain.EventTypePolicyCandidateAttempt, 1, func() Payload {
+		return &PolicyCandidateAttemptPayload{}
+	})
 	Register(domain.EventTypeModelHealthTransition, 1, func() Payload {
 		return &ModelHealthTransitionPayload{}
 	})

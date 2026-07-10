@@ -4,8 +4,8 @@
  * What these tests pin:
  *   - The base className chunk (`rounded-control`) is always emitted, so a
  *     refactor that drops the cn() merge surfaces immediately.
- *   - Custom className is merged via tailwind-merge (cn helper) — both
- *     base and custom classes survive.
+ *   - Custom className is merged via tailwind-merge (cn helper), including
+ *     Tailwind conflict resolution.
  *   - The forwardRef contract holds: useRef(null) populates with the
  *     real HTMLInputElement.
  *   - Arbitrary props pass through (placeholder, type, disabled).
@@ -32,10 +32,12 @@ describe("Input", () => {
   });
 
   it("merges a custom className with the base classes via cn()", () => {
-    renderWithProviders(<Input data-testid="i" className="custom-extra" />);
+    renderWithProviders(<Input data-testid="i" className="custom-extra px-6" />);
     const el = screen.getByTestId("i");
     expect(el.className).toMatch(/custom-extra/);
     expect(el.className).toMatch(/rounded-control/);
+    expect(el.className).toMatch(/px-6/);
+    expect(el.className).not.toMatch(/px-3/);
   });
 
   it("forwards ref to the underlying HTMLInputElement", () => {

@@ -10,7 +10,6 @@ type (
 	CommandID          string
 	BlueprintCommandID string
 	ArchiveCommandID   string
-	TemplateCommandID  string
 	SchemaCommandID    string
 )
 
@@ -38,7 +37,6 @@ const (
 	CommandRestoreBlueprint      CommandID = "restore-blueprint"
 	CommandArchive               CommandID = "archive"
 	CommandBlueprint             CommandID = "blueprint"
-	CommandTemplate              CommandID = "template"
 	CommandSchema                CommandID = "schema"
 )
 
@@ -52,13 +50,6 @@ const (
 const (
 	ArchiveCommandGC           ArchiveCommandID = "gc"
 	ArchiveCommandGCBlueprints ArchiveCommandID = "gc-blueprints"
-)
-
-const (
-	TemplateCommandList     TemplateCommandID = "list"
-	TemplateCommandShow     TemplateCommandID = "show"
-	TemplateCommandValidate TemplateCommandID = "validate"
-	TemplateCommandGenerate TemplateCommandID = "generate"
 )
 
 const (
@@ -121,7 +112,6 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandRestoreBlueprint), Summary: "Restore a blueprint-archived resource", Args: nameArgSchema("name"), Handler: CommandRestoreBlueprint},
 		{Name: string(CommandArchive), Summary: "Manage resource archive maintenance", Handler: CommandArchive},
 		{Name: string(CommandBlueprint), Summary: "Inspect resource blueprints", Handler: CommandBlueprint},
-		{Name: string(CommandTemplate), Summary: "Manage resource templates", Handler: CommandTemplate},
 		{Name: string(CommandSchema), Summary: "Manage resource-derived schema artifacts", Handler: CommandSchema},
 	}
 }
@@ -139,15 +129,6 @@ func ArchiveCommandSpecs() []commandtree.Spec[ArchiveCommandID] {
 	return []commandtree.Spec[ArchiveCommandID]{
 		{Name: string(ArchiveCommandGC), Summary: "Purge expired deprecated-resource archives", Handler: ArchiveCommandGC},
 		{Name: string(ArchiveCommandGCBlueprints), Summary: "Purge expired blueprint-resource archives", Handler: ArchiveCommandGCBlueprints},
-	}
-}
-
-func TemplateCommandSpecs() []commandtree.Spec[TemplateCommandID] {
-	return []commandtree.Spec[TemplateCommandID]{
-		{Name: string(TemplateCommandList), Summary: "List resource templates", Handler: TemplateCommandList},
-		{Name: string(TemplateCommandShow), Summary: "Show template details", Args: nameArgSchema("name"), Handler: TemplateCommandShow},
-		{Name: string(TemplateCommandValidate), Summary: "Validate template manifests", Handler: TemplateCommandValidate},
-		{Name: string(TemplateCommandGenerate), Summary: "Generate files from a template", Handler: TemplateCommandGenerate},
 	}
 }
 
@@ -199,15 +180,6 @@ func archiveCommandSpec(id ArchiveCommandID) commandtree.Spec[ArchiveCommandID] 
 	panic("unknown resource archive command spec: " + string(id))
 }
 
-func templateCommandSpec(id TemplateCommandID) commandtree.Spec[TemplateCommandID] {
-	for _, spec := range TemplateCommandSpecs() {
-		if spec.Handler == id {
-			return spec
-		}
-	}
-	panic("unknown resource template command spec: " + string(id))
-}
-
 func schemaCommandSpec(id SchemaCommandID) commandtree.Spec[SchemaCommandID] {
 	for _, spec := range SchemaCommandSpecs() {
 		if spec.Handler == id {
@@ -232,26 +204,7 @@ func ArchiveCommandHelpText(id ArchiveCommandID) string {
 	return commandtree.SpecHelpText("", "vrooli resource archive "+spec.Name, spec)
 }
 
-func TemplateCommandHelpText(id TemplateCommandID) string {
-	spec := templateCommandSpec(id)
-	return commandtree.SpecHelpText("", "vrooli resource template "+spec.Name, spec)
-}
-
 func SchemaCommandHelpText(id SchemaCommandID) string {
 	spec := schemaCommandSpec(id)
 	return commandtree.SpecHelpText("", "vrooli resource schema "+spec.Name, spec)
-}
-
-func TemplateGenerateArgSchema() commandtree.ArgSchema {
-	return commandtree.ArgSchema{
-		Positionals: []commandtree.PositionalArg{{Name: "template"}},
-		Options: []commandtree.OptionArg{
-			{Name: "--from-blueprint", ValueName: "name", Description: "Seed values from an existing blueprint"},
-			{Name: "--dest", ValueName: "path", Description: "Destination directory (defaults to resources/<name>)"},
-			{Name: "--destination", ValueName: "path", Description: "Alias for --dest"},
-			{Name: "--var", ValueName: "KEY=VALUE", Repeatable: true, Description: "Additional placeholder override"},
-			{Name: "--force", Description: "Overwrite destination if it already exists"},
-			{Name: "--dry-run", Description: "Print the planned actions without writing files"},
-		},
-	}
 }

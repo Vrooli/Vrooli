@@ -61,6 +61,53 @@ func TestRunnerTypeFromProto(t *testing.T) {
 	}
 }
 
+func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
+	original := &domain.RunConfig{
+		RunnerType: domain.RunnerTypeCodex,
+		Model:      "gpt-primary",
+		PolicySnapshot: &domain.ExecutionPolicySnapshot{
+			CatalogDigest: "sha256:catalog-revision",
+			PolicyRef:     "codex.smart",
+			Candidates: []domain.ExecutionCandidate{
+				{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "gpt-primary"},
+				{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeRunnerDefault},
+			},
+			SelectedIndex: 1,
+			SelectedCandidate: domain.ExecutionCandidate{
+				RunnerType:    domain.RunnerTypeClaudeCode,
+				SelectionType: domain.ModelSelectionTypeRunnerDefault,
+			},
+			Explanation: domain.PolicyResolutionExplanation{
+				Source:          "legacy_preset",
+				Summary:         "resolved before run creation",
+				RequestedRunner: domain.RunnerTypeCodex,
+				RequestedPreset: domain.ModelPresetSmart,
+				Preflight: []domain.CandidatePreflight{
+					{
+						Index:     0,
+						Candidate: domain.ExecutionCandidate{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "gpt-primary"},
+						Reason:    "model unavailable",
+					},
+					{
+						Index:     1,
+						Candidate: domain.ExecutionCandidate{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeRunnerDefault},
+						Available: true,
+					},
+				},
+			},
+		},
+	}
+
+	protoConfig := RunConfigToProto(original)
+	if protoConfig.PolicySnapshot == nil {
+		t.Fatal("policy snapshot was dropped from proto config")
+	}
+	roundTrip := RunConfigFromProto(protoConfig)
+	if !reflect.DeepEqual(roundTrip.PolicySnapshot, original.PolicySnapshot) {
+		t.Fatalf("policy snapshot round trip mismatch\n got: %#v\nwant: %#v", roundTrip.PolicySnapshot, original.PolicySnapshot)
+	}
+}
+
 // =============================================================================
 // TASK STATUS TESTS
 // =============================================================================

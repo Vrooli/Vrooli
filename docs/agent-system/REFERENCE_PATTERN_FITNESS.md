@@ -6,7 +6,7 @@
 
 Audit whether an artifact that **exists to be copied** is fit to be a copy source. The lens applies only to a specific class of artifacts:
 
-- **Templates** — `path:templates/scenarios/<name>/`, fed into `vrooli scenario generate`. Every choice multiplies across N future scenarios.
+- **Templates** — `path:templates/scenarios/<name>/`, fed into `template-manager generate`. Every choice multiplies across N future scenarios.
 - **Reference scenarios** — entries in [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md). The reference's quality is bounded above by the template it was generated from.
 - **Canonical examples** inside scenarios — patterns documented as "copy this when adding X" (e.g., the `notes` CRUD reference inside `path:templates/scenarios/react-vite/`, accompanied by a `REPLACING-NOTES.md`-style guide).
 
@@ -16,7 +16,7 @@ The full procedure (applicability gate → run single-instance lenses first → 
 
 ## When it applies
 
-✅ **The artifact is registered as a template.** Anything under `path:templates/scenarios/<name>/`. Every defect multiplies across every scenario generated from it.
+✅ **The artifact is registered as a template.** Anything under `path:templates/scenarios/<name>/`. Every defect multiplies across every template-manager generated from it.
 
 ✅ **The artifact is registered in [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md).** Gold-star or secondary references are the substrate the `toolchain-validator` validates tools and skills against; their quality directly shapes the validator's signal.
 

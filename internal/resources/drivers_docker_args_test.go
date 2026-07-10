@@ -1,7 +1,11 @@
 package resources
 
 import (
+	"context"
+	"errors"
+	"os/exec"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -77,6 +81,38 @@ func TestBuildDockerRunArgsSupportsHostIPAndProtocol(t *testing.T) {
 	}
 	if !containsSubsequence(args, "-p", "192.168.1.173:53:53/udp") {
 		t.Fatalf("expected udp bind mapping, got %v", args)
+	}
+}
+
+func TestValidateExistingDockerMountsRejectsStaleRepoLocalBind(t *testing.T) {
+	controller := NewController(t.TempDir(), t.TempDir())
+	manifest := ResourceManifest{
+		Name: "postgres",
+		Runtime: ResourceRuntime{
+			ContainerName: "vrooli-postgres-main",
+			Volumes: []ResourceVolume{
+				{Source: "${RESOURCE_DATA_DIR}/instances/main/data", Target: "/var/lib/postgresql/data"},
+			},
+		},
+	}
+
+	originalRun := runCommandResource
+	t.Cleanup(func() {
+		runCommandResource = originalRun
+	})
+	runCommandResource = func(ctx context.Context, cmd *exec.Cmd) commandResult {
+		if !strings.Contains(strings.Join(cmd.Args, " "), "{{json .Mounts}}") {
+			return commandResult{err: errors.New("unexpected docker command")}
+		}
+		return commandResult{output: []byte(`[{"Source":"/repo/resources/postgres/instances/main/data","Destination":"/var/lib/postgresql/data"}]`)}
+	}
+
+	err := validateExistingDockerMounts(context.Background(), controller, manifest)
+	if err == nil {
+		t.Fatal("expected stale bind mount to be rejected")
+	}
+	if got := err.Error(); !strings.Contains(got, "stale docker mount") || !strings.Contains(got, "docker rm -f vrooli-postgres-main") {
+		t.Fatalf("error = %q, want stale mount remediation", got)
 	}
 }
 

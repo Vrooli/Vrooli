@@ -311,6 +311,7 @@ type Workspace struct {
 	Lock           *initiativelock.Holder `json:"lock,omitempty"`
 	Artifacts      []ArtifactSnapshot     `json:"artifacts"`
 	Rounds         []RoundEnvelope        `json:"rounds"`
+	Executions     []OperatingModeExecution `json:"executions"`
 }
 
 type WorkspaceMode struct {

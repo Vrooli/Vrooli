@@ -59,10 +59,10 @@ vrooli resource blueprint list
 vrooli resource blueprint info <name>
 vrooli resource blueprint search <query>
 vrooli resource blueprint validate
-vrooli resource template list
-vrooli resource template show <template>
-vrooli resource template validate
-vrooli resource template generate <template> --name <name>
+template-manager resource-template list
+template-manager resource-template show <template>
+template-manager resource-template validate
+template-manager resource-template generate <template> --var RESOURCE_NAME=<name>
 ```
 
 Canonical resource templates emit the same shared CLI manifest shape used by scenarios:

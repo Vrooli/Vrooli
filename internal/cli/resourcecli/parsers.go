@@ -1,15 +1,6 @@
 package resourcecli
 
-import (
-	"fmt"
-	"io"
-	"strings"
-
-	"github.com/vrooli/vrooli/internal/cli/clipolicy"
-	"github.com/vrooli/vrooli/internal/cli/commandtree"
-	"github.com/vrooli/vrooli/internal/cli/scenariocli"
-	"github.com/vrooli/vrooli/internal/resources"
-)
+import "github.com/vrooli/vrooli/internal/cli/commandtree"
 
 type (
 	NoArgsRequest struct{}
@@ -29,17 +20,6 @@ type (
 	}
 	BlueprintSearchRequest struct {
 		Query string
-	}
-	TemplateNameRequest struct {
-		Name string
-	}
-	TemplateGenerateOptions struct {
-		TemplateName  string
-		BlueprintName string
-		Destination   string
-		Force         bool
-		DryRun        bool
-		Values        map[string]string
 	}
 )
 
@@ -211,28 +191,6 @@ func ParseStopAllRequest(args []string) (NoArgsRequest, error) {
 	return NoArgsRequest{}, nil
 }
 
-func ParseTemplateListRequest(args []string) (NoArgsRequest, error) {
-	if err := commandtree.ParseNoArgs("resource template list", TemplateCommandHelpText(TemplateCommandList), args); err != nil {
-		return NoArgsRequest{}, err
-	}
-	return NoArgsRequest{}, nil
-}
-
-func ParseTemplateShowRequest(args []string) (TemplateNameRequest, error) {
-	name, err := commandtree.ParseSinglePositional("resource template show", TemplateCommandHelpText(TemplateCommandShow), "template name", args)
-	if err != nil {
-		return TemplateNameRequest{}, err
-	}
-	return TemplateNameRequest{Name: name}, nil
-}
-
-func ParseTemplateValidateRequest(args []string) (NoArgsRequest, error) {
-	if err := commandtree.ParseNoArgs("resource template validate", TemplateCommandHelpText(TemplateCommandValidate), args); err != nil {
-		return NoArgsRequest{}, err
-	}
-	return NoArgsRequest{}, nil
-}
-
 func ParseSchemaValidateRequest(args []string) (NoArgsRequest, error) {
 	if err := commandtree.ParseNoArgs("resource schema validate", SchemaCommandHelpText(SchemaCommandValidate), args); err != nil {
 		return NoArgsRequest{}, err
@@ -245,133 +203,4 @@ func ParseSchemaSyncRequest(args []string) (NoArgsRequest, error) {
 		return NoArgsRequest{}, err
 	}
 	return NoArgsRequest{}, nil
-}
-
-func ParseTemplateGenerateRequest(
-	args []string,
-	stderr io.Writer,
-	resolve func(resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateInfo, error),
-) (TemplateGenerateOptions, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return TemplateGenerateOptions{}, clipolicy.CommandHelpOnly(RenderTemplateGenerateHelpText())
-		}
-	}
-	return ParseTemplateGenerateArgs(args, stderr, resolve)
-}
-
-func ParseTemplateGenerateArgs(
-	args []string,
-	stderr io.Writer,
-	resolve func(resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateInfo, error),
-) (TemplateGenerateOptions, error) {
-	opts := TemplateGenerateOptions{Values: map[string]string{}}
-
-	if len(args) > 0 && !strings.HasPrefix(args[0], "--") {
-		opts.TemplateName = args[0]
-		args = args[1:]
-	}
-
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--from-blueprint":
-			if index+1 >= len(args) {
-				return TemplateGenerateOptions{}, fmt.Errorf("resource template generate --from-blueprint requires a value")
-			}
-			index++
-			opts.BlueprintName = args[index]
-		case strings.HasPrefix(arg, "--from-blueprint="):
-			opts.BlueprintName = strings.TrimPrefix(arg, "--from-blueprint=")
-		}
-	}
-
-	var manifest resources.ResourceTemplateManifest
-	if opts.TemplateName != "" || opts.BlueprintName != "" {
-		info, err := resolve(resources.ResourceTemplateGenerateRequest{
-			TemplateName:  opts.TemplateName,
-			BlueprintName: opts.BlueprintName,
-		})
-		if err != nil {
-			return TemplateGenerateOptions{}, err
-		}
-		manifest = info.Manifest
-		opts.TemplateName = info.Name
-	}
-
-	flagMap := make(map[string]string, len(manifest.RequiredVars)+len(manifest.OptionalVars))
-	for key, variable := range manifest.RequiredVars {
-		if variable.Flag != "" {
-			flagMap[variable.Flag] = key
-		}
-	}
-	for key, variable := range manifest.OptionalVars {
-		if variable.Flag != "" {
-			flagMap[variable.Flag] = key
-		}
-	}
-
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--from-blueprint":
-			index++
-		case strings.HasPrefix(arg, "--from-blueprint="):
-			continue
-		case arg == "--dest" || arg == "--destination":
-			if index+1 >= len(args) {
-				return TemplateGenerateOptions{}, fmt.Errorf("%s requires a value", arg)
-			}
-			index++
-			opts.Destination = args[index]
-		case strings.HasPrefix(arg, "--dest="):
-			opts.Destination = strings.TrimPrefix(arg, "--dest=")
-		case strings.HasPrefix(arg, "--destination="):
-			opts.Destination = strings.TrimPrefix(arg, "--destination=")
-		case arg == "--force":
-			opts.Force = true
-		case arg == "--dry-run":
-			opts.DryRun = true
-		case arg == "--var":
-			if index+1 >= len(args) {
-				return TemplateGenerateOptions{}, fmt.Errorf("resource template generate --var requires KEY=VALUE")
-			}
-			index++
-			key, value, err := scenariocli.ParseTemplateKeyValue(args[index])
-			if err != nil {
-				return TemplateGenerateOptions{}, err
-			}
-			opts.Values[key] = value
-		case strings.HasPrefix(arg, "--var="):
-			key, value, err := scenariocli.ParseTemplateKeyValue(strings.TrimPrefix(arg, "--var="))
-			if err != nil {
-				return TemplateGenerateOptions{}, err
-			}
-			opts.Values[key] = value
-		case strings.HasPrefix(arg, "--"):
-			flagName, flagValue, consumesNext, err := scenariocli.ParseTemplateFlag(arg, args, index)
-			if err != nil {
-				return TemplateGenerateOptions{}, err
-			}
-			if consumesNext {
-				index++
-			}
-			key, ok := flagMap[flagName]
-			if !ok {
-				_, _ = fmt.Fprintf(stderr, "Warning: unknown flag --%s; use --var KEY=VALUE for arbitrary placeholders\n", flagName)
-				continue
-			}
-			opts.Values[key] = flagValue
-		default:
-			return TemplateGenerateOptions{}, fmt.Errorf("unexpected argument: %s", arg)
-		}
-	}
-
-	return opts, nil
-}
-
-func RenderTemplateGenerateHelpText() string {
-	return commandtree.HelpText("", "vrooli resource template generate", "Generate files from a resource template.", commandtree.Help{
-		Usage: "vrooli resource template generate <template> [options]\n  vrooli resource template generate --from-blueprint <name> [options]",
-	}, TemplateGenerateArgSchema())
 }

@@ -212,6 +212,12 @@ type aggregateState struct {
 	modelChainDepth       map[int]int
 	modelByPreset         map[string]int
 
+	// Snapshot-driven policy candidates. These are runtime observations only;
+	// they never feed back into desired-state policy resolution.
+	policyCandidateEvents int
+	policyByOutcome       map[string]int
+	policyByFailureClass  map[string]int
+
 	// Health (current snapshot derived from transitions).
 	modelHealth  map[modelKey]ModelHealthEntry
 	runnerHealth map[string]RunnerHealthEntry
@@ -240,20 +246,22 @@ type aggregateState struct {
 
 func newAggregateState() *aggregateState {
 	return &aggregateState{
-		runnerByReason:    make(map[string]int),
-		runnerPair:        make(map[fallbackPairKey]int),
-		runnerChainDepth:  make(map[int]int),
-		modelByReason:     make(map[string]int),
-		modelPair:         make(map[fallbackPairKey]int),
-		modelChainDepth:   make(map[int]int),
-		modelByPreset:     make(map[string]int),
-		modelHealth:       make(map[modelKey]ModelHealthEntry),
-		runnerHealth:      make(map[string]RunnerHealthEntry),
-		sandboxByOp:       make(map[string]OperationCount),
-		heartbeatByTarget: make(map[string]int),
-		checkpointByStep:  make(map[string]int),
-		checkpointByPhase: make(map[string]int),
-		retryByOperation:  make(map[string]int),
-		retryByReason:     make(map[string]int),
+		runnerByReason:       make(map[string]int),
+		runnerPair:           make(map[fallbackPairKey]int),
+		runnerChainDepth:     make(map[int]int),
+		modelByReason:        make(map[string]int),
+		modelPair:            make(map[fallbackPairKey]int),
+		modelChainDepth:      make(map[int]int),
+		modelByPreset:        make(map[string]int),
+		policyByOutcome:      make(map[string]int),
+		policyByFailureClass: make(map[string]int),
+		modelHealth:          make(map[modelKey]ModelHealthEntry),
+		runnerHealth:         make(map[string]RunnerHealthEntry),
+		sandboxByOp:          make(map[string]OperationCount),
+		heartbeatByTarget:    make(map[string]int),
+		checkpointByStep:     make(map[string]int),
+		checkpointByPhase:    make(map[string]int),
+		retryByOperation:     make(map[string]int),
+		retryByReason:        make(map[string]int),
 	}
 }

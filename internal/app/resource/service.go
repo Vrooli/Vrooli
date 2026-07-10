@@ -30,10 +30,6 @@ type ResourceOperations interface {
 	Blueprint(name string) (resources.Blueprint, error)
 	SearchBlueprints(query string) ([]resources.Blueprint, error)
 	ValidateBlueprints() (resources.BlueprintValidationReport, error)
-	ListResourceTemplates() ([]resources.ResourceTemplateInfo, error)
-	ResourceTemplate(name string) (resources.ResourceTemplateInfo, error)
-	ValidateResourceTemplates() (resources.ResourceTemplateValidationReport, error)
-	GenerateResourceTemplate(req resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateGenerateReport, error)
 	ValidateSchemaArtifacts() (resources.ResourceSchemaValidationReport, error)
 	SyncSchemaArtifacts() (resources.ResourceSchemaSyncReport, error)
 }
@@ -184,31 +180,6 @@ func (s Service) BlueprintSearch(query string) ([]resources.Blueprint, error) {
 
 func (s Service) BlueprintValidate() (resources.BlueprintValidationReport, error) {
 	return s.Resources.ValidateBlueprints()
-}
-
-func (s Service) TemplateList() ([]resources.ResourceTemplateInfo, error) {
-	return s.Resources.ListResourceTemplates()
-}
-
-func (s Service) TemplateShow(name string) (resources.ResourceTemplateInfo, error) {
-	return s.Resources.ResourceTemplate(name)
-}
-
-func (s Service) TemplateValidate() (resources.ResourceTemplateValidationReport, error) {
-	return s.Resources.ValidateResourceTemplates()
-}
-
-func (s Service) TemplateGenerate(req resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateGenerateReport, error) {
-	report, err := s.Resources.GenerateResourceTemplate(req)
-	if err != nil {
-		return resources.ResourceTemplateGenerateReport{}, err
-	}
-	if !report.DryRun {
-		if _, err := s.Resources.SyncSchemaArtifacts(); err != nil {
-			return resources.ResourceTemplateGenerateReport{}, err
-		}
-	}
-	return report, nil
 }
 
 func (s Service) SchemaValidate() (resources.ResourceSchemaValidationReport, error) {

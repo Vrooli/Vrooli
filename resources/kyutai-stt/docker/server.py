@@ -52,7 +52,9 @@ import json
 import logging
 import math
 import os
-from typing import List, Optional
+import time
+from collections import deque
+from typing import Deque, List, Optional
 
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -82,6 +84,24 @@ SILENCE_COMMIT_FRAMES = int(os.environ.get("KYUTAI_STT_SILENCE_COMMIT_FRAMES", "
 # 12.5 Hz, 48 frames ~= 3.8 s. Set to 0 to disable force-commit (legacy
 # pause-or-flush-only behaviour). Sibling knob to SILENCE_COMMIT_FRAMES.
 MAX_SEGMENT_FRAMES = int(os.environ.get("KYUTAI_STT_MAX_SEGMENT_FRAMES", "48"))
+
+# Bounded wait (seconds) to acquire the single-session MODEL.lock before a new
+# connection reaps an abandoned/wedged prior session. A stuck stream (e.g. a
+# half-open consumer that stopped reading) can no longer starve the next
+# recording indefinitely. See docs/OPERATIONS.md.
+LOCK_ACQUIRE_TIMEOUT_S = float(os.environ.get("KYUTAI_STT_LOCK_TIMEOUT_S", "10"))
+
+# A lock holder with decode activity newer than this is active, not wedged.
+# Contenders are rejected with a typed busy error instead of cancelling the
+# holder. Holders with no recent decode activity are still reapable, preserving
+# the original wedge protection.
+ACTIVITY_WEDGE_TIMEOUT_S = float(os.environ.get("KYUTAI_STT_ACTIVITY_WEDGE_S", "5"))
+
+# Bounded wait (seconds) for the send worker to drain queued durable events to a
+# slow consumer during teardown before the socket is force-closed. Committed
+# text is flushed within this window; a dead consumer cannot hang teardown past
+# it. Sibling to the relay's drain deadline on the audio-tools side.
+SEND_DRAIN_TIMEOUT_S = float(os.environ.get("KYUTAI_STT_SEND_DRAIN_TIMEOUT_S", "5"))
 
 logging.basicConfig(
     level=os.environ.get("KYUTAI_STT_LOG_LEVEL", "INFO"),
@@ -119,6 +139,11 @@ class Model:
         # Serialize access: a single GPU model instance is not safe to share
         # across concurrent streaming sessions.
         self.lock = asyncio.Lock()
+        # The task currently holding `lock`, so a new connection can reap an
+        # abandoned/wedged holder instead of starving forever behind it.
+        self.current_session_task: "Optional[asyncio.Task]" = None
+        self.current_session_last_activity: Optional[float] = None
+        self.current_session_started_at: Optional[float] = None
 
     def load(self) -> None:
         import torch
@@ -258,6 +283,22 @@ class StreamSession:
         self.last_text_frame = 0  # last frame that carried a real text token
         self.pad_run = 0  # consecutive padding frames since the last text token
         self.last_partial = ""  # de-dupe identical partial emissions
+        self.started_at = time.monotonic()
+        self.segments_emitted = 0
+
+        # ── Decode/send decoupling (event-durability contract) ──
+        # The decode loop ENQUEUES events and keeps stepping regardless of
+        # consumer speed; a send worker drains these to the socket. Durable
+        # events (segment/done/error) are ordered and lossless; the partial is
+        # a single coalesced-to-latest slot that may be dropped under pressure
+        # and MUST NEVER back-pressure decode. See
+        # scenarios/audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract.
+        self._durables: Deque[dict] = deque()  # ordered, never dropped
+        self._latest_partial: Optional[str] = None  # coalesced-to-latest
+        self._last_sent_partial = ""  # de-dupe on the wire
+        self._wake = asyncio.Event()  # signals the send worker
+        self._closed = False  # no more events will be enqueued
+        self._sender_task: "Optional[asyncio.Task]" = None
 
     # -- timing -----------------------------------------------------------
 
@@ -277,14 +318,24 @@ class StreamSession:
             return ""
         return MODEL._tokenizer.decode(ids).strip()
 
-    async def _emit(self, obj: dict) -> None:
-        await self.ws.send_text(json.dumps(obj))
+    # -- outbound: decode enqueues, a send worker drains -------------------
 
-    async def _emit_partial(self) -> None:
-        text = self._decode(self.seg_tokens)
+    def _enqueue_durable(self, obj: dict) -> None:
+        """Queue a durable event (segment/done/error): ordered and lossless.
+        Non-blocking — decode never waits on the consumer."""
+        self._durables.append(obj)
+        self._wake.set()
+
+    def _enqueue_partial(self, text: str) -> None:
+        """Coalesce the latest partial into a single slot. Disposable: a newer
+        partial overwrites an unsent one; never back-pressures decode."""
         if text and text != self.last_partial:
             self.last_partial = text
-            await self._emit({"type": "partial", "text": text})
+            self._latest_partial = text
+            self._wake.set()
+
+    async def _emit_partial(self) -> None:
+        self._enqueue_partial(self._decode(self.seg_tokens))
 
     async def _commit_segment(self) -> None:
         text = self._decode(self.seg_tokens)
@@ -296,7 +347,12 @@ class StreamSession:
         self.last_partial = ""
         if not text:
             return
-        await self._emit(
+        # This segment commits the text the partial was tracking, so the pending
+        # partial is now durable — drop the coalesced slot to avoid re-sending
+        # already-committed words after the segment.
+        self._latest_partial = None
+        self.segments_emitted += 1
+        self._enqueue_durable(
             {
                 "type": "segment",
                 "text": text,
@@ -304,6 +360,58 @@ class StreamSession:
                 "end_ms": self._ms_for_frame(end_frame),
             }
         )
+
+    def enqueue_error(self, message: str, code: Optional[str] = None) -> None:
+        obj = {"type": "error", "message": message}
+        if code:
+            obj["code"] = code
+        self._enqueue_durable(obj)
+
+    def enqueue_done(self) -> None:
+        self._enqueue_durable({"type": "done"})
+
+    async def _drain_outbound(self) -> None:
+        """Flush all pending durables in order, then the coalesced partial.
+        Durable sends may block on a slow consumer — that is fine, they are
+        lossless; only the worker waits, never the decode loop."""
+        while self._durables:
+            obj = self._durables.popleft()
+            await self.ws.send_text(json.dumps(obj))
+        if self._latest_partial is not None and self._latest_partial != self._last_sent_partial:
+            self._last_sent_partial = self._latest_partial
+            partial = self._latest_partial
+            self._latest_partial = None
+            await self.ws.send_text(json.dumps({"type": "partial", "text": partial}))
+
+    async def _sender_loop(self) -> None:
+        while True:
+            await self._wake.wait()
+            self._wake.clear()
+            await self._drain_outbound()
+            if self._closed and not self._durables and self._latest_partial is None:
+                return
+
+    def start_sender(self) -> None:
+        """Start the background send worker. Idempotent."""
+        if self._sender_task is None:
+            self._sender_task = asyncio.create_task(self._sender_loop())
+
+    async def close(self) -> None:
+        """Drain-then-close: signal end-of-events, give the worker a bounded
+        window to flush queued durables to the consumer, then stop it. A dead
+        or wedged consumer cannot hang teardown past SEND_DRAIN_TIMEOUT_S."""
+        self._closed = True
+        self._wake.set()
+        if self._sender_task is not None:
+            try:
+                await asyncio.wait_for(self._sender_task, timeout=SEND_DRAIN_TIMEOUT_S)
+            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):  # noqa: BLE001
+                self._sender_task.cancel()
+                try:
+                    await self._sender_task
+                except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                    pass
+            self._sender_task = None
 
     # -- per-frame stepping ----------------------------------------------
 
@@ -346,6 +454,7 @@ class StreamSession:
                 audio_tokens = mimi.encode(chunk)
                 text_tokens = lm_gen.step(audio_tokens)
             self.frames_consumed += 1
+            MODEL.current_session_last_activity = time.monotonic()
             if text_tokens is None:
                 continue
             token = int(text_tokens[0, 0, 0].cpu().item())
@@ -398,6 +507,54 @@ class StreamSession:
             await self._commit_segment()
 
 
+class ModelBusyError(Exception):
+    """Raised when a contender finds an actively decoding holder."""
+
+
+async def _acquire_model_lock_or_reap() -> None:
+    """Acquire the single-session MODEL.lock, reaping an abandoned/wedged prior
+    session if it does not release within LOCK_ACQUIRE_TIMEOUT_S. A stuck stream
+    (e.g. a half-open consumer whose send worker is blocked forever) can no
+    longer starve the next recording."""
+    try:
+        await asyncio.wait_for(MODEL.lock.acquire(), timeout=LOCK_ACQUIRE_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        holder = MODEL.current_session_task
+        now = time.monotonic()
+        last = MODEL.current_session_last_activity
+        started = MODEL.current_session_started_at
+        idle_s = None if last is None else now - last
+        age_s = None if started is None else now - started
+        if holder is not None and not holder.done():
+            if idle_s is not None and idle_s <= ACTIVITY_WEDGE_TIMEOUT_S:
+                log.warning(
+                    "rejecting streaming session because active holder owns model lock "
+                    "holder_age_s=%.3f holder_idle_s=%.3f activity_wedge_s=%.3f",
+                    age_s if age_s is not None else -1.0,
+                    idle_s,
+                    ACTIVITY_WEDGE_TIMEOUT_S,
+                )
+                raise ModelBusyError("kyutai model busy: active streaming session")
+            log.warning(
+                "reaping wedged prior streaming session to free the model lock "
+                "holder_age_s=%.3f holder_idle_s=%.3f activity_wedge_s=%.3f",
+                age_s if age_s is not None else -1.0,
+                idle_s if idle_s is not None else -1.0,
+                ACTIVITY_WEDGE_TIMEOUT_S,
+            )
+            holder.cancel()
+            try:
+                await holder
+            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                pass
+        # The reaped holder released the lock in its finally; if it somehow did
+        # not, acquire normally (bounded only by a genuinely healthy successor).
+        await MODEL.lock.acquire()
+    MODEL.current_session_task = asyncio.current_task()
+    MODEL.current_session_started_at = time.monotonic()
+    MODEL.current_session_last_activity = None
+
+
 @app.websocket("/v1/stream")
 async def stream(ws: WebSocket) -> None:
     await ws.accept()
@@ -410,67 +567,98 @@ async def stream(ws: WebSocket) -> None:
 
     session = StreamSession(ws)
     started = False
-    # One streaming session at a time on the shared GPU model instance.
-    async with MODEL.lock:
-        mimi = MODEL._mimi
-        lm_gen = MODEL._lm_gen
-        try:
-            with mimi.streaming(1), lm_gen.streaming(1):
-                while True:
-                    msg = await ws.receive()
-                    if msg.get("type") == "websocket.disconnect":
-                        break
-                    if "text" in msg and msg["text"] is not None:
-                        try:
-                            payload = json.loads(msg["text"])
-                        except json.JSONDecodeError:
-                            await session._emit(
-                                {"type": "error", "message": "invalid json control frame"}
+    # One streaming session at a time on the shared GPU model instance. Bound
+    # the acquire so a wedged prior session is reaped, not waited on forever.
+    try:
+        await _acquire_model_lock_or_reap()
+    except ModelBusyError as exc:
+        await ws.send_text(
+            json.dumps({"type": "error", "code": "stt_busy", "message": str(exc)})
+        )
+        log.info(
+            "stream close summary reason=busy-rejected frames=%d segments=%d duration_s=%.3f",
+            session.frames_consumed,
+            session.segments_emitted,
+            time.monotonic() - session.started_at,
+        )
+        await ws.close()
+        return
+    # Start the send worker so decode can enqueue events without ever blocking
+    # on the consumer (event-durability contract).
+    session.start_sender()
+    mimi = MODEL._mimi
+    lm_gen = MODEL._lm_gen
+    try:
+        close_reason = "disconnect"
+        with mimi.streaming(1), lm_gen.streaming(1):
+            while True:
+                msg = await ws.receive()
+                if msg.get("type") == "websocket.disconnect":
+                    break
+                if "text" in msg and msg["text"] is not None:
+                    try:
+                        payload = json.loads(msg["text"])
+                    except json.JSONDecodeError:
+                        session.enqueue_error("invalid json control frame")
+                        continue
+                    mtype = payload.get("type")
+                    if mtype == "start":
+                        started = True
+                        sr = int(payload.get("sample_rate", INPUT_SAMPLE_RATE))
+                        if sr != INPUT_SAMPLE_RATE:
+                            session.enqueue_error(
+                                f"unsupported sample_rate {sr}; "
+                                f"contract requires {INPUT_SAMPLE_RATE}"
                             )
-                            continue
-                        mtype = payload.get("type")
-                        if mtype == "start":
-                            started = True
-                            sr = int(payload.get("sample_rate", INPUT_SAMPLE_RATE))
-                            if sr != INPUT_SAMPLE_RATE:
-                                await session._emit(
-                                    {
-                                        "type": "error",
-                                        "message": (
-                                            f"unsupported sample_rate {sr}; "
-                                            f"contract requires {INPUT_SAMPLE_RATE}"
-                                        ),
-                                    }
-                                )
-                                break
-                        elif mtype == "end":
-                            await session.flush()
-                            await session._emit({"type": "done"})
                             break
-                        else:
-                            await session._emit(
-                                {"type": "error", "message": f"unknown control type {mtype}"}
-                            )
-                    elif "bytes" in msg and msg["bytes"] is not None:
-                        if not started:
-                            await session._emit(
-                                {"type": "error", "message": "audio before start frame"}
-                            )
-                            continue
-                        await session.feed(msg["bytes"])
-        except WebSocketDisconnect:
-            log.info("client disconnected")
-        except Exception as exc:  # noqa: BLE001 - report to client, don't crash
-            log.exception("stream error")
-            try:
-                await session._emit({"type": "error", "message": str(exc)})
-            except Exception:  # noqa: BLE001
-                pass
-        finally:
-            try:
-                await ws.close()
-            except Exception:  # noqa: BLE001
-                pass
+                    elif mtype == "end":
+                        await session.flush()
+                        session.enqueue_done()
+                        close_reason = "graceful-end"
+                        break
+                    else:
+                        session.enqueue_error(f"unknown control type {mtype}")
+                elif "bytes" in msg and msg["bytes"] is not None:
+                    if not started:
+                        session.enqueue_error("audio before start frame")
+                        continue
+                    await session.feed(msg["bytes"])
+    except WebSocketDisconnect:
+        close_reason = "disconnect"
+        log.info("client disconnected")
+    except asyncio.CancelledError:
+        # Reaped by a successor session — unwind and release the lock so the
+        # next recording proceeds.
+        close_reason = "reaped"
+        log.info("streaming session cancelled (reaped)")
+    except Exception as exc:  # noqa: BLE001 - report to client, don't crash
+        close_reason = "error"
+        log.exception("stream error")
+        session.enqueue_error(str(exc))
+    finally:
+        # Drain-then-close: flush queued durables to the consumer within the
+        # bounded window, then stop the worker and close the socket.
+        try:
+            await session.close()
+        except Exception:  # noqa: BLE001
+            pass
+        if MODEL.current_session_task is asyncio.current_task():
+            MODEL.current_session_task = None
+            MODEL.current_session_last_activity = None
+            MODEL.current_session_started_at = None
+        if MODEL.lock.locked():
+            MODEL.lock.release()
+        log.info(
+            "stream close summary reason=%s frames=%d segments=%d duration_s=%.3f",
+            close_reason,
+            session.frames_consumed,
+            session.segments_emitted,
+            time.monotonic() - session.started_at,
+        )
+        try:
+            await ws.close()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 if __name__ == "__main__":

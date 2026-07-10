@@ -14,15 +14,15 @@ Phase 3 now ships the canonical implementation templates described in the migrat
 - `desktop-app`
 - `manual-resource`
 
-The legacy `PRD.md` file remains available for design documentation, but new implementation scaffolds should come from `vrooli resource template ...`, not from copying an old resource directory.
+The legacy `PRD.md` file remains available for design documentation, but new implementation scaffolds should come from `template-manager resource-template ...`, not from copying an old resource directory.
 
 ## Template Usage
 
 ```bash
-vrooli resource template list
-vrooli resource template show docker-service
-vrooli resource template generate docker-service --name demo-db
-vrooli resource template generate --from-blueprint terraform --dry-run
+template-manager resource-template list
+template-manager resource-template show docker-service
+template-manager resource-template generate docker-service --var RESOURCE_NAME=demo-db
+template-manager resource-template generate --from-blueprint terraform --dry-run
 ```
 
 ## Validation
@@ -31,8 +31,8 @@ Phase 3 is only considered closed when the template system validates as a comple
 
 ```bash
 go test ./internal/resources ./cmd/vrooli
-go run ./cmd/vrooli resource template validate
-go run ./cmd/vrooli resource template generate --from-blueprint terraform --dry-run
+template-manager resource-template validate
+template-manager resource-template generate --from-blueprint terraform --dry-run
 ```
 
 ## Template Philosophy

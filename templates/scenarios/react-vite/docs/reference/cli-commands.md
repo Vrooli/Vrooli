@@ -120,11 +120,11 @@ them, one row/section per command, mirroring the endpoints they call
 in [`api-endpoints.md`](api-endpoints.md).
 
 The scaffold ships one fully worked CRUD command group as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
+reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
 <!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+### Example domain — `notes` (removed by `template-manager detemplate`)
 
 The `notes` domain is the canonical worked example. Copy its layout
 when adding the first non-trivial domain to your scenario, then remove

@@ -3,6 +3,7 @@ package cliapp
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -96,13 +97,14 @@ func ProtoListOutcome[Resp proto.Message](
 		if err != nil {
 			return err
 		}
-		if err := RenderProtoList(ctx, resp, report(ctx, resp)); err != nil {
-			return err
-		}
-		if outcome != nil {
+		return renderThenOutcome(func() error {
+			return RenderProtoList(ctx, resp, report(ctx, resp))
+		}, func() error {
+			if outcome == nil {
+				return nil
+			}
 			return outcome(resp)
-		}
-		return nil
+		})
 	}}
 }
 
@@ -137,13 +139,14 @@ func ProtoMutationOutcome[Resp proto.Message](
 		if err != nil {
 			return err
 		}
-		if err := RenderProtoMutation(ctx, resp, report(ctx, resp)); err != nil {
-			return err
-		}
-		if outcome != nil {
+		return renderThenOutcome(func() error {
+			return RenderProtoMutation(ctx, resp, report(ctx, resp))
+		}, func() error {
+			if outcome == nil {
+				return nil
+			}
 			return outcome(ctx, resp)
-		}
-		return nil
+		})
 	}}
 }
 
@@ -177,18 +180,50 @@ func Action[Resp any](
 		if err != nil {
 			return err
 		}
-		if ctx.JSON() {
-			return printActionJSON(ctx, resp)
-		}
-		return ctx.RenderMutation(report(ctx, resp))
+		return RenderAction(ctx, resp, report(ctx, resp))
 	}}
 }
 
-func printActionJSON(ctx RunContext, payload any) error {
-	enc := json.NewEncoder(ctx.Stdout())
+// Upload builds a renderer-separated multipart upload handler. The operation
+// callback owns request construction and upload/decode; cli-core owns the final
+// proto render, so human and --json share one upload path. Pair it with a command
+// declaring the upload exception.
+func Upload[Resp proto.Message](
+	call func(ctx OperationContext) (Resp, error),
+	report func(ctx OperationContext, resp Resp) MutationReport,
+) PrimitiveHandler {
+	return PrimitiveHandler{primitive: PrimitiveUpload, Run: func(ctx RunContext) error {
+		resp, err := call(ctx)
+		if err != nil {
+			return err
+		}
+		return RenderProtoMutation(ctx, resp, report(ctx, resp))
+	}}
+}
+
+// RenderAction routes a generic action payload through cli-core's render
+// contract. JSON receives the operation payload; human receives the mapped
+// MutationReport.
+func RenderAction(ctx RunContext, payload any, human MutationReport) error {
+	if ctx.JSON() {
+		return PrintJSON(ctx.Stdout(), payload)
+	}
+	return ctx.RenderMutation(human)
+}
+
+// PrintJSON emits stable indented JSON for non-proto payloads.
+func PrintJSON(w io.Writer, payload any) error {
+	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(payload); err != nil {
 		return fmt.Errorf("marshal action json: %w", err)
 	}
 	return nil
+}
+
+func renderThenOutcome(render func() error, outcome func() error) error {
+	if err := render(); err != nil {
+		return err
+	}
+	return outcome()
 }

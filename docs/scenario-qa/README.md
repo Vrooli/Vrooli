@@ -30,7 +30,7 @@ scenario-qa runs three members:
 | `bug-investigator` | Drains `bug-inbox/*` (universal-source), applies investigation techniques, writes audit log | `bug-investigation-report/<slug>` knowledge entries |
 | `qa-contrarian` | Challenges QA outcomes (audits, investigations) — surfaces gaps in reasoning | `challenge-report/*` knowledge entries |
 
-> **Pre-emptive readiness moved into swarm-manager.** A former QA member swept idle scenarios and filed fix items before feature work. That ordering is now a deterministic swarm-manager gate (`fix_before_feature` setting) with optional on-demand readiness discovery (`fix_before_feature_discovery`); regressions on scheduled scenarios are caught just-in-time by execution finalization's before/after baseline diff. See the swarm-manager execution docs.
+> **Pre-emptive readiness moved into swarm-manager.** A former QA member swept idle scenarios and filed fix items before feature work. That ordering is now a deterministic swarm-manager gate (`fix_before_feature` setting) plus the policy-governed backlog auto-filer (`auto_filer` settings) for optional maintenance intake; regressions on scheduled scenarios are caught just-in-time by execution finalization's before/after baseline diff. See the swarm-manager execution docs.
 
 Decision contexts owned by the team:
 

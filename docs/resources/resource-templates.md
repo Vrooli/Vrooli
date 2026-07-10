@@ -5,11 +5,11 @@ Resource templates are the canonical scaffolding mechanism for new implemented r
 ## Current CLI Surface
 
 ```bash
-vrooli resource template list
-vrooli resource template show <template>
-vrooli resource template validate
-vrooli resource template generate <template> --name <name>
-vrooli resource template generate --from-blueprint <name>
+template-manager resource-template list
+template-manager resource-template show <template>
+template-manager resource-template validate
+template-manager resource-template generate <template> --var RESOURCE_NAME=<name>
+template-manager resource-template generate --from-blueprint <name>
 ```
 
 ## Current Rule

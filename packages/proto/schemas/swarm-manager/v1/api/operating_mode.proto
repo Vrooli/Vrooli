@@ -438,6 +438,12 @@ message OperatingModeRoundEnvelope {
   // projections, this preserves every declared scalar, object, and array field
   // and is the source used by runtime and simulation guard evaluation.
   google.protobuf.Struct resolved_envelope = 20;
+  // Immutable execution owning this round. Empty only for an unadopted legacy
+  // flat round that is exposed read-only.
+  string execution_id = 21;
+  // Canonical digest of the transitive definition bundle used to interpret
+  // this round. It must match the owning execution manifest.
+  string definition_digest = 22;
 }
 
 // -----------------------------------------------------------------------------
@@ -635,6 +641,48 @@ message OperatingModeLockHolder {
   string initiative_name = 6;
 }
 
+// OperatingModePinnedPromptSource is the immutable source provenance reserved
+// in an execution manifest. Phase 4 populates these records before dispatch.
+message OperatingModePinnedPromptSource {
+  string mode = 1;
+  string phase = 2;
+  string skill_id = 3;
+  string revision = 4;
+  string content_hash = 5;
+  string retention = 6;
+  bool redacted = 7;
+}
+
+// OperatingModeExecutionMigration identifies a legacy flat-round history that
+// was deterministically adopted into the immutable execution layout.
+message OperatingModeExecutionMigration {
+  string source_layout = 1;
+  string migrated_at = 2;
+  int32 round_count = 3;
+}
+
+// OperatingModeExecutionSnapshot exposes the immutable interpretation
+// provenance of one operating-mode execution. Definition content is included
+// for audit/replay; runtime inputs and prompt bodies remain governed by their
+// Phase 4 retention projections rather than being copied into this message.
+message OperatingModeExecutionSnapshot {
+  string execution_id = 1;
+  string scope_kind = 2;
+  string scope_id = 3;
+  string mode = 4;
+  string status = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  string completed_at = 8;
+  string schema_version = 9;
+  string definition_digest = 10;
+  google.protobuf.Struct definition_bundle = 11;
+  string input_contract_digest = 12;
+  string input_snapshot_digest = 13;
+  repeated OperatingModePinnedPromptSource reachable_prompt_sources = 14;
+  OperatingModeExecutionMigration migration = 15;
+}
+
 // OperatingModeWorkspace is the initiative-scoped mode workspace projection.
 message OperatingModeWorkspace {
   string initiative_name = 1;
@@ -643,6 +691,7 @@ message OperatingModeWorkspace {
   OperatingModeLockHolder lock = 4;
   repeated OperatingModeArtifactSnapshot artifacts = 5;
   repeated OperatingModeRoundEnvelope rounds = 6;
+  repeated OperatingModeExecutionSnapshot executions = 7;
 }
 
 // -----------------------------------------------------------------------------

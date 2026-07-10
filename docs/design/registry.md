@@ -3,11 +3,11 @@
 This registry mirrors design-kit metadata under `templates/design/`. Use the CLI as the deterministic source of truth:
 
 ```bash
-vrooli scenario design list
-vrooli scenario design show vrooli-default
-vrooli scenario design show vrooli-command-display
-vrooli scenario design show vrooli-conversion-landing
-vrooli scenario design validate --all
+template-manager design list
+template-manager design show vrooli-default
+template-manager design show vrooli-command-display
+template-manager design show vrooli-conversion-landing
+template-manager design validate --all
 ```
 
 ## Kits

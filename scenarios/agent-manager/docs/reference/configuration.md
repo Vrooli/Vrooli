@@ -29,6 +29,36 @@ The "Internal" sections back individual machinery; operators rarely touch them d
 
 Validation happens at construction (`Levers.Validate()`); invalid values fail fast at startup rather than producing strange runtime behavior.
 
+## Model-policy catalog
+
+The model-policy catalog is declared state, not a mutable tuning document. Its
+default path is `config/model-policy-catalog.json`; operators may point an
+isolated instance at another file with
+`AGENT_MANAGER_MODEL_POLICY_CATALOG_PATH`. The file must pass the strict typed
+and semantic contract before it can become active.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `AGENT_MANAGER_MODEL_POLICY_CATALOG_PATH` | Repository-resolved `scenarios/agent-manager/config/model-policy-catalog.json` | Selects the declared catalog file loaded and reported by agent-manager. |
+
+Agent-manager's built-in policy-backed profiles make this configuration a
+readiness dependency. A missing, unreadable, or invalid initial catalog makes
+`/health` return unready with the resolved path and cause. Reload first validates
+the full candidate and activates it atomically; a failed reload leaves the
+previous valid revision active. There is intentionally no "catalog optional"
+environment toggle and no API for editing the document inline: update the
+Git-tracked file, validate it, then use the controlled reload surface.
+
+Operator workflow:
+
+1. Edit `config/model-policy-catalog.json` (or the configured external path) and review it as declared state.
+2. Run `agent-manager policy validate`; this validates without changing the active revision.
+3. Run `agent-manager policy reload`; activation affects new runs only.
+4. Use `agent-manager policy status`, `policy catalog`, and `policy explain profile|run <id>` to inspect path, digest, candidates, precedence, and diagnostics.
+
+The reload request carries no document payload. A failed reload preserves the
+previous active digest.
+
 ## Execution
 
 Run-level execution behavior.

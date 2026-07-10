@@ -1,7 +1,7 @@
 {
   "version": "2.0.0",
   "title": "{{SCENARIO_DISPLAY_NAME}} Documentation",
-  "description": "Documentation contract for the scenario generated from the react-vite template",
+  "description": "Documentation contract for the template-manager generated from the react-vite template",
   "defaultDocument": "START-HERE.md",
   "contract": {
     "kind": "scenario-docs",

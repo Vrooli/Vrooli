@@ -1,14 +1,16 @@
 /**
  * @vrooliComponentSource react-component-library:Select
- * @vrooliComponentVersion 1.0.0
- * @vrooliComponentAdoption template:react-vite:select
- * @vrooliComponentAppliedAt 2026-07-07T00:00:00Z
- * @vrooliComponentSourceSha256 1e5c54677580b7a02b16b4e22c6b0bdd8b9a2da3005ebb09ab0005c8b06a1aee
- * @vrooliComponentDriftHash 1e5c54677580b7a02b16b4e22c6b0bdd8b9a2da3005ebb09ab0005c8b06a1aee
+ * @vrooliComponentVersion 1.1.0
+ * @vrooliComponentAdoption 3e5daec9-c64b-4f20-88da-daba8b114640
+ * @vrooliComponentAppliedAt 2026-07-09T04:31:18Z
+ * @vrooliComponentSourceSha256 b4032163d23c306846d6bdd1afe6aa9dc32acf823ddceaf6cb42b8b5542daf51
+ * @vrooliComponentDriftHash b4032163d23c306846d6bdd1afe6aa9dc32acf823ddceaf6cb42b8b5542daf51
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { forwardRef, type SelectHTMLAttributes } from "react";
 
 export interface SelectOption {
@@ -22,15 +24,14 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   placeholder?: string;
 }
 
-const joinClasses = (...classes: Array<string | undefined | false>) =>
-  classes.filter(Boolean).join(" ");
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   function Select({ className, options, placeholder, ...props }, ref) {
     return (
       <select
         ref={ref}
-        className={joinClasses(
+        className={cn(
           "min-h-11 w-full rounded-control border border-app-border bg-app-surface px-3 py-2 text-base text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:cursor-not-allowed disabled:opacity-60 md:text-sm",
           className,
         )}

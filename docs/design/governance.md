@@ -31,7 +31,7 @@ Unknown Markdown sections are allowed, but the Vrooli-required UX state contract
 Run local validation before merging design-kit changes:
 
 ```bash
-vrooli scenario design validate --all
+template-manager design validate --all
 ```
 
 Validation should reject missing kit files, invalid adapter copy rules, missing official-style token groups, and missing Vrooli UX state guidance. Official Google `DESIGN.md` tooling is alpha and optional for local development, but design-kit authors should keep the top-level token shape compatible where practical.

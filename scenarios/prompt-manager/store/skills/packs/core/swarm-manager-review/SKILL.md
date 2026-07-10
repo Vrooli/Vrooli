@@ -25,7 +25,7 @@ prompt-manager skill read swarm-manager-backlog-tools
 
 | Key | Description |
 |-----|-------------|
-| `plan-content` | Contents of plan.md (or conclusion.md for research) |
+| `plan-content` | Rendered canonical plan from plan-manager, or `conclusion.md` for research |
 | `diff-summary` | Summary of files changed during execution |
 | `changed-paths` | List of changed file paths (one per line) |
 | `affected-scenarios` | List of affected scenario names (one per line) |

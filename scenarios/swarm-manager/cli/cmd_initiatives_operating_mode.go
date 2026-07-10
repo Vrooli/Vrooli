@@ -135,6 +135,21 @@ func (a *App) cmdInitiativesModeWorkspace(args []string) error {
 		fmt.Printf("  Strategy:   %s\n", def.GetRunStrategy())
 	}
 	printOperatingModeCapabilities("  Capabilities:", "    - ", def.GetCapabilities())
+	printSection("Executions")
+	if len(ws.GetExecutions()) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, execution := range ws.GetExecutions() {
+			fmt.Printf("  - %s: %s definition=%s", execution.GetExecutionId(), execution.GetStatus(), execution.GetDefinitionDigest())
+			if execution.GetInputContractDigest() != "" {
+				fmt.Printf(" inputs=%s", execution.GetInputContractDigest())
+			}
+			if len(execution.GetReachablePromptSources()) > 0 {
+				fmt.Printf(" prompts=%d", len(execution.GetReachablePromptSources()))
+			}
+			fmt.Println()
+		}
+	}
 	printSection("Phases")
 	if len(def.GetPhases()) == 0 {
 		fmt.Println("  (none)")
@@ -168,6 +183,9 @@ func (a *App) cmdInitiativesModeWorkspace(args []string) error {
 	} else {
 		for _, round := range ws.GetRounds() {
 			fmt.Printf("  - round %d: %s/%s", round.GetRound(), round.GetPhase(), round.GetStatus())
+			if round.GetExecutionId() != "" {
+				fmt.Printf(" execution=%s", round.GetExecutionId())
+			}
 			if round.GetRunId() != "" {
 				fmt.Printf(" run=%s", round.GetRunId())
 			}
@@ -462,6 +480,12 @@ func printModeRound(title string, round *apipb.OperatingModeRoundEnvelope) {
 	fmt.Printf("  Mode:    %s\n", round.GetMode())
 	fmt.Printf("  Phase:   %s\n", round.GetPhase())
 	fmt.Printf("  Status:  %s\n", round.GetStatus())
+	if round.GetExecutionId() != "" {
+		fmt.Printf("  Execution: %s\n", round.GetExecutionId())
+	}
+	if round.GetDefinitionDigest() != "" {
+		fmt.Printf("  Definition: %s\n", round.GetDefinitionDigest())
+	}
 	if round.GetRunId() != "" {
 		fmt.Printf("  Run ID:  %s\n", round.GetRunId())
 	}

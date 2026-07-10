@@ -337,7 +337,7 @@ func validateResourceStorageSources(root string, resourceManifest manifestpkg.Re
 		if source == "" {
 			continue
 		}
-		if !isLegacyRepoDataPath(root, source) {
+		if !isLegacyRepoDataPath(root, resourceManifest.Name, source) {
 			continue
 		}
 		if resourceManifest.LegacyRepoDataAllowed {
@@ -348,32 +348,57 @@ func validateResourceStorageSources(root string, resourceManifest manifestpkg.Re
 	return issues
 }
 
-func isLegacyRepoDataPath(root, source string) bool {
+func isLegacyRepoDataPath(root, resourceName, source string) bool {
 	normalized := filepath.ToSlash(strings.TrimSpace(source))
 	if normalized == "" {
 		return false
 	}
+	resourceName = strings.Trim(strings.TrimSpace(resourceName), `/\`)
 	for _, prefix := range []string{
 		"./data",
 		"data/",
 		"../data",
 		"${ROOT}/data",
 		"${VROOLI_ROOT}/data",
+		"./instances",
+		"instances/",
+		"${RESOURCE_ROOT}/instances",
 	} {
 		if normalized == prefix || strings.HasPrefix(normalized, prefix+"/") {
 			return true
 		}
 	}
+	if resourceName != "" {
+		for _, prefix := range []string{
+			"resources/" + resourceName + "/instances",
+			"${ROOT}/resources/" + resourceName + "/instances",
+			"${VROOLI_ROOT}/resources/" + resourceName + "/instances",
+		} {
+			if normalized == prefix || strings.HasPrefix(normalized, prefix+"/") {
+				return true
+			}
+		}
+	}
 	if strings.TrimSpace(root) == "" {
 		return false
 	}
-	cleanRootData := filepath.Clean(filepath.Join(root, "data"))
 	cleanSource := filepath.Clean(source)
-	rel, err := filepath.Rel(cleanRootData, cleanSource)
-	if err != nil {
-		return false
+	for _, legacyRoot := range []string{
+		filepath.Join(root, "data"),
+		filepath.Join(root, "resources", resourceName, "instances"),
+	} {
+		if strings.TrimSpace(legacyRoot) == "" {
+			continue
+		}
+		rel, err := filepath.Rel(filepath.Clean(legacyRoot), cleanSource)
+		if err != nil {
+			continue
+		}
+		if rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
+			return true
+		}
 	}
-	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
+	return false
 }
 
 func ValidateScenario(root, home, scenarioName string, manifest scenario.ServiceManifest) (ScenarioResolution, []string, error) {

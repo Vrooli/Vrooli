@@ -1,14 +1,16 @@
 /**
  * @vrooliComponentSource react-component-library:DataTable
- * @vrooliComponentVersion 1.0.0
- * @vrooliComponentAdoption template:react-vite:data-table
- * @vrooliComponentAppliedAt 2026-07-07T00:00:00Z
- * @vrooliComponentSourceSha256 bcb59d91151425aa99db0e396e6e9f1c3192554180b4fa32672c4db9756ecdec
- * @vrooliComponentDriftHash bcb59d91151425aa99db0e396e6e9f1c3192554180b4fa32672c4db9756ecdec
+ * @vrooliComponentVersion 1.1.0
+ * @vrooliComponentAdoption 991de168-25ef-4b3e-b933-66dfb96379d6
+ * @vrooliComponentAppliedAt 2026-07-09T04:48:52Z
+ * @vrooliComponentSourceSha256 bb8cfbf635c0ec7f08630e132403c0b540e2874362e450e19d68decea63d63b5
+ * @vrooliComponentDriftHash bb8cfbf635c0ec7f08630e132403c0b540e2874362e450e19d68decea63d63b5
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Search } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 
@@ -35,15 +37,14 @@ export interface DataTableProps<Row> {
   searchLabel?: string;
   searchPlaceholder?: string;
   emptyMessage?: string;
+  filterLabel?: string;
   filters?: Array<DataTableFilter<Row>>;
   className?: string;
-  tableTestId?: string;
 }
 
 type SortDirection = "asc" | "desc";
 
-const joinClasses = (...classes: Array<string | undefined | false>) =>
-  classes.filter(Boolean).join(" ");
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 function compareValues(a: string | number, b: string | number) {
   if (typeof a === "number" && typeof b === "number") {
@@ -60,9 +61,9 @@ export function DataTable<Row>({
   searchLabel = "Search rows",
   searchPlaceholder = "Search",
   emptyMessage = "No rows",
+  filterLabel = "Table filters",
   filters = [],
   className,
-  tableTestId,
 }: DataTableProps<Row>) {
   const firstSortable = columns.find((column) => column.sortValue);
   const [query, setQuery] = useState("");
@@ -81,7 +82,7 @@ export function DataTable<Row>({
         return true;
       }
       return columns.some((column) => {
-        const value = column.searchValue ? column.searchValue(row) : String(column.accessor(row) ?? "");
+        const value = column.searchValue ? column.searchValue(row) : "";
         return value.toLowerCase().includes(normalizedQuery);
       });
     });
@@ -108,7 +109,7 @@ export function DataTable<Row>({
   };
 
   return (
-    <div className={joinClasses("min-w-0 rounded-panel border border-app-border bg-app-surface", className)}>
+    <div className={cn("min-w-0 rounded-panel border border-app-border bg-app-surface", className)}>
       <div className="flex flex-col gap-3 border-b border-app-border p-3 md:flex-row md:items-center md:justify-between">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">{searchLabel}</span>
@@ -122,12 +123,12 @@ export function DataTable<Row>({
           />
         </label>
         {filters.length > 0 && (
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Table filters">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={filterLabel}>
             {filters.map((filter) => (
               <button
                 key={filter.id}
                 type="button"
-                className={joinClasses(
+                className={cn(
                   "min-h-9 rounded-control border px-3 text-sm font-medium transition",
                   activeFilter === filter.id
                     ? "border-app-primary bg-app-primary text-app-primary-foreground"
@@ -142,7 +143,7 @@ export function DataTable<Row>({
         )}
       </div>
       <div className="max-w-full overflow-x-auto">
-        <table data-testid={tableTestId} className="w-full min-w-max border-collapse text-left text-sm">
+        <table className="w-full min-w-max border-collapse text-left text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
             <tr>
@@ -150,7 +151,7 @@ export function DataTable<Row>({
                 const active = sortColumn === column.id;
                 const SortIcon = !column.sortValue ? null : active ? (sortDirection === "asc" ? ArrowUp : ArrowDown) : ChevronsUpDown;
                 return (
-                  <th key={column.id} scope="col" className={joinClasses("px-3 py-3 font-semibold", column.className)}>
+                  <th key={column.id} scope="col" className={cn("px-3 py-3 font-semibold", column.className)}>
                     {column.sortValue ? (
                       <button
                         type="button"
@@ -179,7 +180,7 @@ export function DataTable<Row>({
               filteredRows.map((row, index) => (
                 <tr key={getRowKey(row, index)} className="border-t border-app-border">
                   {columns.map((column) => (
-                    <td key={column.id} className={joinClasses("px-3 py-3 align-middle text-app-foreground", column.className)}>
+                    <td key={column.id} className={cn("px-3 py-3 align-middle text-app-foreground", column.className)}>
                       {column.accessor(row)}
                     </td>
                   ))}

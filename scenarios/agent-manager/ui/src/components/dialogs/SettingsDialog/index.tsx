@@ -18,14 +18,13 @@ import { OrchestrationTab } from "./OrchestrationTab";
 import type { OrchestrationTabHandle } from "./OrchestrationTab";
 import { MaintenanceTab } from "./MaintenanceTab";
 import { ModelPricingTab } from "./ModelPricingTab";
-import { ModelRegistryTab } from "./ModelRegistryTab";
-import { useModelRegistryEditor } from "../../../hooks/useModelRegistryEditor";
-import { useInvestigationSettings, useMaintenance, useModelRegistry, useModelRegistryHealth, useRunners } from "../../../hooks/useApi";
+import { ModelPolicyTab } from "./ModelPolicyTab";
+import { useInvestigationSettings, useMaintenance, useModelPolicyCatalog } from "../../../hooks/useApi";
 import { useOrchestrationSettings } from "../../../hooks/useOrchestrationSettings";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 const TAB_DESCRIPTIONS: Record<string, string> = {
-  models: "Configure per-runner model lists and preset mappings",
+  models: "Inspect the active Git-managed model policy catalog and activation state",
   pricing: "View and manage model pricing with overrides",
   investigation: "Configure investigation and apply-fix agent behavior",
   orchestration: "Configure run lifecycle, safety, health detection, and termination behavior",
@@ -46,18 +45,9 @@ export function SettingsDialog({
   const [activeTab, setActiveTab] = useState("models");
 
   // API hooks
-  const modelRegistry = useModelRegistry();
-  const modelRegistryHealth = useModelRegistryHealth({ enabled: open });
-  const runners = useRunners();
+  const modelPolicy = useModelPolicyCatalog({ enabled: open });
   const maintenance = useMaintenance();
   const investigationSettings = useInvestigationSettings();
-
-  // Model registry editor
-  const editor = useModelRegistryEditor({
-    data: modelRegistry.data,
-    isActive: open,
-    updateRegistry: modelRegistry.updateRegistry,
-  });
 
   // Investigation ref + dirty state for unified footer
   const investigationRef = useRef<InvestigationTabHandle>(null);
@@ -128,7 +118,7 @@ export function SettingsDialog({
             {/* Tab bar — sticky, scrollable on mobile */}
             <div className="px-4 sm:px-6 pb-2 pt-1 shrink-0 border-b border-border">
               <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5">
-                <TabsTrigger value="models" className="shrink-0">Model Registry</TabsTrigger>
+                <TabsTrigger value="models" className="shrink-0">Model Policy</TabsTrigger>
                 <TabsTrigger value="pricing" className="shrink-0">Model Pricing</TabsTrigger>
                 <TabsTrigger value="investigation" className="shrink-0">Investigation</TabsTrigger>
                 <TabsTrigger value="orchestration" className="shrink-0">Orchestration</TabsTrigger>
@@ -139,28 +129,7 @@ export function SettingsDialog({
             {/* Scrollable tab content */}
             <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4">
               <TabsContent value="models" className="mt-0">
-                <ModelRegistryTab
-                  draft={editor.draft}
-                  loading={modelRegistry.loading}
-                  loadError={modelRegistry.error}
-                  error={editor.error}
-                  newRunnerKey={editor.newRunnerKey}
-                  onNewRunnerKeyChange={editor.setNewRunnerKey}
-                  knownRunners={runners.data ?? undefined}
-                  health={modelRegistryHealth.data ?? null}
-                  onAddRunner={editor.addRunner}
-                  onRemoveRunner={editor.removeRunner}
-                  onAddFallbackRunner={editor.addFallbackRunner}
-                  onUpdateFallbackRunner={editor.updateFallbackRunner}
-                  onRemoveFallbackRunner={editor.removeFallbackRunner}
-                  onAddModel={editor.addModel}
-                  onRemoveModel={editor.removeModel}
-                  onUpdateModel={editor.updateModel}
-                  onSetPresetEntry={editor.setPresetEntry}
-                  onAddPresetEntry={editor.addPresetEntry}
-                  onRemovePresetEntry={editor.removePresetEntry}
-                  onToggleRunnerDefault={editor.toggleRunnerDefault}
-                />
+                <ModelPolicyTab data={modelPolicy.data} loading={modelPolicy.loading} error={modelPolicy.error} />
               </TabsContent>
               <TabsContent value="pricing" className="mt-0">
                 <ModelPricingTab />
@@ -200,19 +169,6 @@ export function SettingsDialog({
           </Tabs>
 
           <DialogFooter className="p-4 sm:p-6">
-            {activeTab === "models" && editor.draft && (
-              <>
-                <Button variant="outline" onClick={editor.reset} disabled={!editor.draft}>
-                  Reset
-                </Button>
-                <Button
-                  onClick={editor.save}
-                  disabled={!editor.draft || editor.saving}
-                >
-                  {editor.saving ? "Saving..." : "Save"}
-                </Button>
-              </>
-            )}
             {activeTab === "orchestration" && orchestrationDirty && (
               <>
                 <Button

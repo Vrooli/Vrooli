@@ -22,7 +22,7 @@ A reusable piece of problem-solving power that the system can invoke again later
 
 ## Operating Mode
 
-A reusable, inspectable, testable **methodology loop for agentic software engineering** — the repeatable state-machine a human runs when driving coding agents (what unit of work an operator-and-agent pair operates on, in what phases, with what checkpoints, and how the loop reacts when a phase doesn't converge). Operating modes are a core project capability because `swarm-manager` is the surface through which all agentic work runs, so *how* that work is driven must be first-class: a mode is **data** (a folder validated by a JSON Schema) interpreted by **one generic engine**, not hardcoded logic — legible at a glance, simulable before use, and robust against unreliable model output via a resolution ladder. Three modes exist today: `item-level`, `holistic-loop`, `phased-plan-drain`. See [`scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`](../../scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md).
+A **generic, composable, plan-first agentic-SWE state machine**, expressed as data — the repeatable methodology loop a human runs when driving coding agents. A mode declares its **target** (unit of work: a plan-manager plan, a plan reference, or an initiative), each phase's reads and emits, **classification-on-transition** (routing derived from the completed handoff), and one-level composition via **`executed_by`**. Operating modes are a core project capability because `swarm-manager` is the surface through which all agentic work runs. Canonical concept, vocabulary, and architecture: [`scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`](../../scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md).
 
 ## Projection
 

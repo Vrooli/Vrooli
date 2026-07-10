@@ -48,7 +48,27 @@
 **Reason for deferral**: Complex ML/feedback loop; out of scope for orchestration layer.
 **Consideration**: Event logs provide training data if needed later.
 
+## Test Gaps
+
+The snapshot execution boundary now has focused coverage for cross-runner
+fallback, explicit runner-default launch, unavailable-runner skips, terminal
+exhaustion, persisted-candidate restart/resume, and a successful catalog reload
+between attempts. Phase 5 operator contracts now cover status, catalog
+inspection, validation, failed-reload preservation, explanation, and removal of
+the whole-document mutation command. Remaining plan-owned gaps are Phase 6
+historical-row migration/removal tests. The broader
+scenario suite also retains the separately tracked stale app-issue-tracker
+fixture failure; it is not evidence against this execution boundary.
+
 ## Technical Debt
+
+### TD-Model-Policy-Legacy-Read: Historical runs still need migration closure
+**Description**: New policy-backed runs execute only their persisted candidate
+sequence. Historical resolved_config values without policySnapshot still use
+the legacy preset/fallback path so old rows remain executable. Phase 6 must
+classify and migrate supported historical state, then delete that path rather
+than retaining it as a permanent compatibility authority.
+**Priority**: Active plan work — hard-cutover phase.
 
 ### TD-001: Template README Cleanup
 **Description**: Generated README.md is template boilerplate, needs replacement with scenario-specific content.

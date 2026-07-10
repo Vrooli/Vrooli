@@ -9,6 +9,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/modelpolicy"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/testutil"
 
@@ -24,10 +25,14 @@ func TestOrchestrator_CreateRun_PreflightRejectsBadModel(t *testing.T) {
 	t.Cleanup(cleanup)
 
 	reg := runner.NewRegistry()
+	policyState, err := modelpolicy.NewState(modelpolicy.ResolvePath(), modelpolicy.Requirement{Required: true})
+	if err != nil {
+		t.Fatalf("load model policy catalog: %v", err)
+	}
 	mr := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mr.SetAvailable(true, "mock runner available")
 	mr.ProbeFunc = func(_ context.Context, modelID string) error {
-		if modelID == "dead-model" {
+		if modelID == "claude-sonnet-5" {
 			return fmt.Errorf("model %q is not available in catalog", modelID)
 		}
 		return nil
@@ -45,6 +50,7 @@ func TestOrchestrator_CreateRun_PreflightRejectsBadModel(t *testing.T) {
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(reg),
+		orchestration.WithModelPolicyState(policyState),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
 	)
@@ -54,7 +60,7 @@ func TestOrchestrator_CreateRun_PreflightRejectsBadModel(t *testing.T) {
 		ID:         uuid.New(),
 		Name:       "preflight-bad-model",
 		RunnerType: domain.RunnerTypeClaudeCode,
-		Model:      "dead-model",
+		Model:      "claude-sonnet-5",
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	})
@@ -66,7 +72,7 @@ func TestOrchestrator_CreateRun_PreflightRejectsBadModel(t *testing.T) {
 		UpdatedAt: time.Now(),
 	})
 
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err = svc.CreateRun(ctx, orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 	})

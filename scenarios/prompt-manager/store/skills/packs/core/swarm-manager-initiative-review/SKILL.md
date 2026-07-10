@@ -17,7 +17,7 @@ The server has attached everything you should need as `note` context attachments
 | `initiative-graph` | `graph.json` — the canonical item graph |
 | `item-summaries` | Terse per-item block (kind, status, title, depends_on) |
 | `item-review-snapshots` | Latest per-item review round (classification + assessment) if any |
-| `item-deliverables` | Aggregated `plan.md` / `conclusion.md` for completed items |
+| `item-deliverables` | Aggregated rendered plan-manager plans / `conclusion.md` for completed items |
 | `affected-scenarios` | Union of scenarios touched across all member items |
 | `gct-review-results` | **Fresh** GCT (git-control-tower) verdict per affected scenario, run at review start — this is the current integration signal, not a stale snapshot. Each entry carries `scenario_name`, `classification`, `summary`, and (when available) `raw_dimensions`. If a scenario failed to report (GCT unreachable, timeout), its entry carries an `error` field instead of a verdict — call those out explicitly rather than assuming healthy. |
 

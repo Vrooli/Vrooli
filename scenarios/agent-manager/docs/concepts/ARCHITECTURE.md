@@ -2,21 +2,22 @@
 
 This document describes the architectural patterns, invariants, and design decisions that make agent-manager robust, maintainable, and extensible.
 
-## Domain compression — the seven concepts
+## Domain compression — the eight concepts
 
-The system reduces to seven concepts. Anything outside this list is plumbing, not architecture.
+The system reduces to eight concepts. Anything outside this list is plumbing, not architecture.
 
 | Concept | What it is | Where it lives |
 |---|---|---|
 | **Run** | One execution of an agent against a task. Carries status, phase, transcript, sandbox, identity. | `internal/domain.Run` |
 | **Runner** | The generic stdout-scan-decode-emit-wait pipeline. One implementation, four model bindings (claude-code, codex, opencode, grok). | `internal/adapters/runner/core.Runner` |
 | **Codec** | Per-model translation: arg shape, JSON event schema, transcript replay. Each embeds the shared `baseCodec` (`base.go`) and contains only its unique surface. | `internal/adapters/runner/codecs/*.go` |
+| **Model policy** | Versioned static model inventory plus named, ordered runner/model or runner-default candidate policies. A validated source-byte digest identifies each immutable revision. | `config/model-policy-catalog.json` + `internal/modelpolicy` |
 | **Phase** | One step of the run lifecycle (Setup, Acquire, Execute, Validate, Result, Finalize). Pure-ish function with explicit input struct. | `internal/orchestration/phases/*.go` |
 | **Sandbox** | Per-run overlayfs workspace for accountability/provenance — captures which files this run changed, not for safety. | `internal/adapters/sandbox` + `scenarios/workspace-sandbox` |
 | **Gate** (`emit.Gate`) | The single Emit choke point. Future invariants (dedupe, audit hooks, ordering) attach inside the gate. | `internal/orchestration/emit.Gate` |
 | **Tunables** (`config.Levers`) | Single home for every adjustable threshold (timeouts, intervals, buffers). One struct, validated on load. | `internal/config/levers.go` |
 
-Adding a new model = one ~250 LOC codec file. Adding a new phase = one file in `phases/`. Adding a new tunable = one field on `Levers` with a default + validation. Anything else means the architecture is not being respected — open a discussion.
+Adding a new runner = one ~250 LOC codec file plus one catalog inventory entry. Adding a model or changing fallback policy = a catalog-only change. Adding a new phase = one file in `phases/`. Adding a new tunable = one field on `Levers` with a default + validation. Anything else means the architecture is not being respected — open a discussion.
 
 ## Folder structure (post-Phase-6 refactor)
 
@@ -32,6 +33,7 @@ api/internal/
 │   └── invariants.go          # Runtime invariant enforcement
 ├── config/
 │   └── levers.go              # Single Tunables struct (timeouts, intervals, buffers)
+├── modelpolicy/               # Typed catalog, strict validation, immutable revisions
 ├── orchestration/
 │   ├── run_executor.go        # Thin coordinator (~560 LOC). Owns shared state + phase ordering only.
 │   ├── recovery.go            # Restart-resume logic (RecoverInFlightRuns, drainTranscript, tailer)
@@ -80,11 +82,53 @@ These behaviors are normative. Future changes must preserve them or fail loudly.
 
 1. **`emit.Gate` is the single Emit choke point.** Runners and phases never hold a raw `EventSink`. The Gate's API is `Emit(*domain.RunEvent) error` and `Close() error`. Future invariants (dedupe by event ID, ordering) attach inside the gate.
 
-2. **`core.Runner` is the only Runner implementation.** Codecs implement the `Codec` interface, not the `Runner` interface. Adding a new model = one file in `codecs/` and one registry line.
+2. **`core.Runner` is the only Runner implementation.** Codecs implement the `Codec` interface, not the `Runner` interface. Adding a runner means one codec plus catalog/proto/domain registration; adding a model never requires editing a codec.
 
 3. **Phase functions take explicit input structs, no shared receiver.** Each phase function in `orchestration/phases/` takes a `<Phase>Input` struct (no `*RunExecutor` receiver) and returns an explicit result struct. Phase ordering is owned by `run_executor.go`'s `Execute()` and nowhere else.
 
 4. **`Levers` is the only home for adjustable thresholds.** A new hard-coded duration, count, or buffer size in agent-manager source is a code-review fail. Add it to `config/levers.go` with a default and documented purpose.
+
+## Model-policy activation flow
+
+`internal/modelpolicy.State` is the sole runtime owner of the catalog path and
+active immutable revision. Startup creates the state even when loading fails so
+the exact path and validation diagnostic remain observable. A candidate reload
+is fully parsed and semantically validated before one atomic active-pointer
+swap; a failed reload retains the previous revision.
+
+The same state feeds codec model visibility, periodic model-health probing, and
+orchestration policy resolution. No consumer keeps its own catalog cache.
+`/health` treats the state as a critical dependency because built-in agent
+profiles require declared policy: required state with no active revision is
+unready, while a failed reload after a successful activation remains ready on
+the prior digest.
+
+Run creation now persists the chosen revision, full ordered candidates,
+selected candidate, resolution source, and preflight evidence inside
+RunConfig.PolicySnapshot. The generated RunConfig API contract exposes that
+snapshot on run detail, while create surfaces deliberately accept the separate
+RunConfigOverrides type so callers cannot submit orchestration-owned snapshot
+state. Legacy FAST/CHEAP/SMART values are migration inputs that resolve once to
+named policy references. Historical rows without policy_snapshot remain
+readable as legacy records; they are not backfilled from current policy because
+that would invent provenance. Creation-time preflight walks
+past stale model IDs and can choose an explicit runner_default, preserving the
+installed CLI's safe fallback without encoding it as an empty model ID. The
+runtime executor consumes only PolicySnapshot.Candidates for policy-backed
+runs. It records attempted, skipped, failed, selected, and terminal exhausted
+candidate outcomes with the snapshot digest and index, and can cross runner
+boundaries without reading the active catalog. Before each launch it persists
+the projected runner/model pair; restart/resume retries that interrupted
+candidate at least once without replaying earlier candidates. Historical rows
+with no snapshot temporarily retain their legacy execution path until the
+hard-cutover migration phase.
+
+The operator surface projects the same state through generated protobuf
+contracts at `/api/v1/model-policy/{status,catalog,validate,reload,explain}`.
+Catalog inspection is read-only. Validation never activates, reload validates
+before the atomic state swap, profile explanation resolves against the active
+revision, and run explanation returns only the snapshot persisted with that
+run. The Settings UI is an inspection view; declared state remains Git-managed.
 
 ## Restart-resume invariants
 

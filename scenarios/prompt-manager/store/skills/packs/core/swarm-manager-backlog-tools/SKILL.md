@@ -12,12 +12,11 @@ Canonical reference for the swarm-manager backlog item data model and interactio
 
 Every backlog item lives at the runtime working directory `{{ITEM_FOLDER}}` and follows this layout.
 
-> **Filesystem path:** Backlog items are plain directories stored at `scenarios/swarm-manager/{ideas|research|fix|execute|chore}/{item-name}/`. The `{{ITEM_FOLDER}}` variable is a runtime-only working location for local reads and writes. Do not copy it into generated JSON, Markdown, logs, review evidence, or handoff artifacts; persisted references should use repo-relative `path:` tokens such as `path:scenarios/swarm-manager/ideas/example/plan.md`.
+> **Filesystem path:** Backlog items are plain directories stored at `scenarios/swarm-manager/{ideas|research|fix|execute|chore}/{item-name}/`. The `{{ITEM_FOLDER}}` variable is a runtime-only working location for local reads and writes. Do not copy it into generated JSON, Markdown, logs, review evidence, or handoff artifacts; persisted references should use `plan_ref` for implementation plans and repo-relative `path:` tokens only for local files such as `path:scenarios/swarm-manager/research/example/conclusion.md`.
 
 ```
 item-folder/
 ├── spec.json              # Item metadata (kind, title, description, status)
-├── plan.md                # Implementation plan (primary artifact for execution)
 ├── handoff/               # (idea only, generated at process-time) downstream execution package
 ├── workshop/
 │   ├── round-001.json     # First workshop round (decisions, info, readiness)
@@ -39,7 +38,7 @@ item-folder/
 | `handoff/` | swarm-manager execution code | Idea-only execution package generated from the latest finalized backlog state; contains `brief.md`, `manifest.json`, and `source-index.json` for downstream ecosystem-manager tasks |
 | `research/` | research agent | Stores feasibility research and findings |
 | `archive/` | user / system | User-provided materials (prior scenario artifacts, requirements, designs) and superseded artifacts. Agents should read but not modify. |
-| root | user / system | `spec.json` metadata, `plan.md` implementation plan, user-uploaded context files |
+| root | user / system | `spec.json` metadata and user-uploaded context files. Non-research plans are stored in plan-manager and referenced by `spec.json.plan_ref`. Research keeps `conclusion.md` as its local deliverable. |
 
 ## Artifact Schemas
 
@@ -58,6 +57,12 @@ item-folder/
   "initiative": "initiative-name",
   "acceptance_allow": ["scenarios/web-console/**"],
   "acceptance_deny": ["scenarios/web-console/secrets/**"],
+  "plan_ref": {
+    "provider": "plan-manager",
+    "plan_id": "plan_...",
+    "slug": "my-feature",
+    "role": "execution_spec"
+  },
   "created": "ISO-8601",
   "updated": "ISO-8601"
 }
@@ -90,9 +95,11 @@ Array of glob patterns for file paths that must NOT be modified (e.g., `["scenar
 
 String label grouping this item with other items under a shared initiative. Used by the initiatives API (`/api/v1/initiatives`) to compute rollup status across member items.
 
-### `plan.md`
+### `plan_ref`
 
-Markdown implementation plan. This is the primary artifact that executing agents receive as context. The mandatory section structure, convergence patterns, quality gates, and guardrails are defined by the `implementation-plan-authoring` skill (`prompt-manager skill read implementation-plan-authoring`). Sections may be `<!-- TBD -->` until populated through workshop rounds.
+Canonical reference to the implementation plan in plan-manager. For non-research items this is the execution source of truth. Execution, review, initiative review, and idea handoff render the plan from plan-manager through `plan_ref`; agents must not create or maintain a local implementation-plan file in the backlog folder.
+
+The referenced plan must follow the structure, convergence patterns, quality gates, and guardrails defined by `implementation-plan-authoring` (`prompt-manager skill read implementation-plan-authoring`). Workshop rounds may include draft plan markdown while they are converging, but finalization must bind or update the canonical plan-manager plan and leave `spec.json.plan_ref` populated.
 
 ### `handoff/` (idea only, generated during processing)
 
@@ -102,7 +109,7 @@ Markdown implementation plan. This is the primary artifact that executing agents
 - `handoff/manifest.json` — machine-readable contract with provenance, boundaries, and resolved decisions
 - `handoff/source-index.json` — pointers back to the source files used to derive the package
 
-Do not manually maintain `handoff/` during workshop rounds. Update `plan.md` and workshop state; swarm-manager regenerates the handoff package from those authoritative sources when execution begins.
+Do not manually maintain `handoff/` during workshop rounds. Update the canonical plan-manager plan and workshop state; swarm-manager regenerates the handoff package from those authoritative sources when execution begins.
 
 ### `workshop/round-NNN.json`
 
@@ -150,7 +157,7 @@ Zero-padded 3-digit round numbers (`round-001.json`, `round-002.json`, etc.).
 | `generated_at` | string | ISO-8601 timestamp |
 | `readiness` | object | 5 dimension scores, each 0-3 |
 | `items` | array | Workshop items (decisions, info) |
-| `plan_updates` | string | What changed in plan.md this round |
+| `plan_updates` | string | What changed in the plan-manager draft/canonical plan this round |
 
 **Workshop Item Types:**
 
@@ -182,9 +189,9 @@ The backlog folder represents a refinement pipeline. Each stage builds on the pr
 ```
 Most refined / highest authority
   ┌─────────────────────────────────────────────────────┐
-  │  plan.md             The implementation plan.        │
-  │                      Primary source of truth for     │
-  │                      what to build/fix/research.     │
+  │  plan_ref            Pointer to the canonical         │
+  │                      plan-manager plan for what       │
+  │                      to build/fix/execute.            │
   ├─────────────────────────────────────────────────────┤
   │  workshop/           User answers and decisions      │
   │                      from workshop rounds. Direct    │
@@ -194,9 +201,9 @@ Most refined / highest authority
   │                      but does not override user      │
   │                      decisions.                      │
   ├─────────────────────────────────────────────────────┤
-  │  spec.json           Original description and        │
-  │                      metadata. Superseded by plan.md │
-  │                      when it exists.                 │
+  │  spec.json           Original description, metadata, │
+  │                      and plan_ref. Superseded by the │
+  │                      rendered plan when present.     │
   ├─────────────────────────────────────────────────────┤
   │  archive/            Raw materials from a prior or   │
   │                      existing scenario. Least        │
@@ -205,29 +212,29 @@ Most refined / highest authority
 Least refined / lowest authority
 ```
 
-**Key principle:** `plan.md` is the most up-to-date and authoritative source. It represents the fully synthesized output of all workshop rounds. When `plan.md` exists, treat it as the primary source of truth. When it doesn't, reconstruct the specification from lower-authority sources.
+**Key principle:** `spec.json.plan_ref` identifies the most up-to-date and authoritative non-research plan. Render that plan through swarm-manager/plan-manager instead of reading or writing a local implementation-plan file. When `plan_ref` is missing, reconstruct the draft from lower-authority sources and finalize it into plan-manager before queueing.
 
-For idea execution, `handoff/` is a derived transport artifact, not a competing planning authority. If `plan.md` changes, regenerate the handoff rather than editing the handoff by hand.
+For idea execution, `handoff/` is a derived transport artifact, not a competing planning authority. If the canonical plan changes, regenerate the handoff rather than editing the handoff by hand.
 
 ### How Refinement Accumulates
 
 The workshop loop is iterative. Users run workshop rounds, answer questions, accept/reject proposals. Each round builds on all previous rounds:
 
-- **First workshop round**: Reads spec, archive, research → produces initial plan.md + round-001.json
-- **Subsequent rounds**: Reads plan.md + all prior rounds → identifies gaps → presents targeted decisions → updates plan.md
-- **User responses between rounds**: Selected options and freeform input from prior rounds are incorporated into the next plan.md update
+- **First workshop round**: Reads spec, archive, research → produces an initial plan-manager draft and round-001.json
+- **Subsequent rounds**: Reads the rendered plan + all prior rounds → identifies gaps → presents targeted decisions → updates the plan-manager draft
+- **User responses between rounds**: Selected options and freeform input from prior rounds are incorporated into the next plan update
 
-This means `plan.md` is never stale in the way `archive/` can be. Each workshop round incorporates everything that came before it.
+This means the canonical plan is never stale in the way `archive/` can be. Each workshop round incorporates everything that came before it.
 
 ### Reading Order
 
 When processing a backlog item, read artifacts in this order:
 
-1. `plan.md` — if it exists, start here (it's the most refined source of truth)
-2. `spec.json` — item metadata; description is superseded by plan.md when it exists
+1. `spec.json.plan_ref` / rendered plan — if present, start here (it's the most refined source of truth)
+2. `spec.json` — item metadata; description is superseded by the rendered plan when it exists
 3. `workshop/` — review rounds for resolved decisions (may contain new selections since last plan update)
 4. `research/summary.md` — advisory feasibility findings
-5. `archive/` — raw materials; only use for content not already captured in plan.md
+5. `archive/` — raw materials; only use for content not already captured in the rendered plan
 6. User-uploaded files — additional context
 
 ### Decision Authority Rules
@@ -237,9 +244,9 @@ When sources conflict, apply this precedence (highest to lowest):
 1. **Resolved decisions** (with a `selected` value) in workshop rounds are **definitive** — always implement the selected option
 2. **Freeform responses** on "Other" selections represent direct user intent — implement as specified
 3. **Unresolved decisions** (`selected: null`) are open unknowns — do not assume an answer
-4. **`plan.md`** supersedes `spec.json` and `archive/` — it was synthesized with more context
+4. **Rendered canonical plan** supersedes `spec.json` and `archive/` — it was synthesized with more context
 5. **Research findings** are advisory — they inform but do not override user decisions
-6. **`archive/`** is raw source material — use it only when `plan.md` doesn't cover the same content
+6. **`archive/`** is raw source material — use it only when the rendered plan doesn't cover the same content
 
 ## CLI Commands
 
@@ -286,7 +293,6 @@ swarm-manager backlog files --kind <kind> --name <name>
 ### Read a specific file
 ```bash
 swarm-manager backlog file-get --kind <kind> --name <name> --path <relative-path>
-# Example: swarm-manager backlog file-get --kind idea --name my-feature --path plan.md
 # Example: swarm-manager backlog file-get --kind idea --name my-feature --path workshop/round-001.json
 ```
 
@@ -503,7 +509,7 @@ swarm-manager backlog prompt-trace --kind <kind> --name <name>
 | Artifact | Who may write | Who may read |
 |----------|--------------|--------------|
 | `spec.json` | system, user | all agents |
-| `plan.md` | workshop agent, user | all agents |
+| `spec.json.plan_ref` / plan-manager plan | workshop agent, user, plan-manager | all agents |
 | `workshop/*.json` | workshop agent (items), user (answers/decisions) | all agents |
 | `research/summary.md` | research agent | all agents |
 | `path:archive/*` | user, system (when archiving scenario artifacts) | all agents (read-only) |
@@ -520,8 +526,8 @@ No previous runs have been superseded. The archive folder is created on demand w
 ### Unresolved decisions in workshop rounds
 Decisions with a null `selected` field have not been resolved by the user. Do not assume selections — treat unresolved decisions as open unknowns and flag them if they are critical.
 
-### Missing `plan.md`
-No workshop has run yet. Fall back to `spec.json` description plus any research and `archive/` materials as the working specification. See the source authority hierarchy for full fallback rules.
+### Missing `plan_ref`
+No canonical implementation plan has been bound yet. Fall back to `spec.json` description plus any research and `archive/` materials as the working specification, then finalize into plan-manager before queueing. See the source authority hierarchy for full fallback rules.
 
 ### Conflicting information
-Apply the source authority hierarchy: resolved decisions > plan.md > research > spec.json > archive. See the "Decision Authority Rules" section for details.
+Apply the source authority hierarchy: resolved decisions > rendered canonical plan > research > spec.json > archive. See the "Decision Authority Rules" section for details.

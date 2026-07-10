@@ -78,7 +78,7 @@ The current contract defines:
 - repo root markers: `.vrooli`, `templates`, `scenarios`, `resources`, `packages`, `cmd`, `internal`, and `go.mod`
 - canonical top-level layout under `.vrooli/`, `templates/`, `scenarios/`, `resources/`, `packages/`, `cmd/`, `internal/`, and `docs/`
 - canonical scenario manifest path: `scenarios/<name>/.vrooli/service.json`
-- optional temporary scenario orientation metadata:
+- optional temporary template-manager orientation metadata:
   `scenarios/<name>/.vrooli/orientation.json`
 - canonical resource manifest path: `resources/<name>/resource.json`
 - repo-aware glob semantics: `doublestar`, root-relative, slash-normalized, case-sensitive, absolute paths rejected

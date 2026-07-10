@@ -123,6 +123,21 @@ const (
 	// AgentManagerServiceProbeRunnerProcedure is the fully-qualified name of the AgentManagerService's
 	// ProbeRunner RPC.
 	AgentManagerServiceProbeRunnerProcedure = "/agent_manager.v1.AgentManagerService/ProbeRunner"
+	// AgentManagerServiceGetModelPolicyStatusProcedure is the fully-qualified name of the
+	// AgentManagerService's GetModelPolicyStatus RPC.
+	AgentManagerServiceGetModelPolicyStatusProcedure = "/agent_manager.v1.AgentManagerService/GetModelPolicyStatus"
+	// AgentManagerServiceGetModelPolicyCatalogProcedure is the fully-qualified name of the
+	// AgentManagerService's GetModelPolicyCatalog RPC.
+	AgentManagerServiceGetModelPolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/GetModelPolicyCatalog"
+	// AgentManagerServiceValidateModelPolicyCatalogProcedure is the fully-qualified name of the
+	// AgentManagerService's ValidateModelPolicyCatalog RPC.
+	AgentManagerServiceValidateModelPolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/ValidateModelPolicyCatalog"
+	// AgentManagerServiceReloadModelPolicyCatalogProcedure is the fully-qualified name of the
+	// AgentManagerService's ReloadModelPolicyCatalog RPC.
+	AgentManagerServiceReloadModelPolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/ReloadModelPolicyCatalog"
+	// AgentManagerServiceExplainModelPolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's ExplainModelPolicy RPC.
+	AgentManagerServiceExplainModelPolicyProcedure = "/agent_manager.v1.AgentManagerService/ExplainModelPolicy"
 	// AgentManagerServicePurgeDataProcedure is the fully-qualified name of the AgentManagerService's
 	// PurgeData RPC.
 	AgentManagerServicePurgeDataProcedure = "/agent_manager.v1.AgentManagerService/PurgeData"
@@ -192,6 +207,16 @@ type AgentManagerServiceClient interface {
 	GetRunnerStatus(context.Context, *connect.Request[api.GetRunnerStatusRequest]) (*connect.Response[api.GetRunnerStatusResponse], error)
 	// ProbeRunner sends a test request to verify runner connectivity.
 	ProbeRunner(context.Context, *connect.Request[api.ProbeRunnerRequest]) (*connect.Response[api.ProbeRunnerResponse], error)
+	// GetModelPolicyStatus returns activation state and the latest diagnostic.
+	GetModelPolicyStatus(context.Context, *connect.Request[api.GetModelPolicyStatusRequest]) (*connect.Response[api.GetModelPolicyStatusResponse], error)
+	// GetModelPolicyCatalog returns the active, immutable declared catalog.
+	GetModelPolicyCatalog(context.Context, *connect.Request[api.GetModelPolicyCatalogRequest]) (*connect.Response[api.GetModelPolicyCatalogResponse], error)
+	// ValidateModelPolicyCatalog validates the configured catalog without activation.
+	ValidateModelPolicyCatalog(context.Context, *connect.Request[api.ValidateModelPolicyCatalogRequest]) (*connect.Response[api.ValidateModelPolicyCatalogResponse], error)
+	// ReloadModelPolicyCatalog validates and atomically activates declared state.
+	ReloadModelPolicyCatalog(context.Context, *connect.Request[api.ReloadModelPolicyCatalogRequest]) (*connect.Response[api.ReloadModelPolicyCatalogResponse], error)
+	// ExplainModelPolicy explains current profile resolution or a persisted run snapshot.
+	ExplainModelPolicy(context.Context, *connect.Request[api.ExplainModelPolicyRequest]) (*connect.Response[api.ExplainModelPolicyResponse], error)
 	// PurgeData deletes profiles, tasks, or runs matching a regex pattern.
 	PurgeData(context.Context, *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error)
 }
@@ -387,6 +412,36 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("ProbeRunner")),
 			connect.WithClientOptions(opts...),
 		),
+		getModelPolicyStatus: connect.NewClient[api.GetModelPolicyStatusRequest, api.GetModelPolicyStatusResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetModelPolicyStatusProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetModelPolicyStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		getModelPolicyCatalog: connect.NewClient[api.GetModelPolicyCatalogRequest, api.GetModelPolicyCatalogResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetModelPolicyCatalogProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetModelPolicyCatalog")),
+			connect.WithClientOptions(opts...),
+		),
+		validateModelPolicyCatalog: connect.NewClient[api.ValidateModelPolicyCatalogRequest, api.ValidateModelPolicyCatalogResponse](
+			httpClient,
+			baseURL+AgentManagerServiceValidateModelPolicyCatalogProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ValidateModelPolicyCatalog")),
+			connect.WithClientOptions(opts...),
+		),
+		reloadModelPolicyCatalog: connect.NewClient[api.ReloadModelPolicyCatalogRequest, api.ReloadModelPolicyCatalogResponse](
+			httpClient,
+			baseURL+AgentManagerServiceReloadModelPolicyCatalogProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ReloadModelPolicyCatalog")),
+			connect.WithClientOptions(opts...),
+		),
+		explainModelPolicy: connect.NewClient[api.ExplainModelPolicyRequest, api.ExplainModelPolicyResponse](
+			httpClient,
+			baseURL+AgentManagerServiceExplainModelPolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ExplainModelPolicy")),
+			connect.WithClientOptions(opts...),
+		),
 		purgeData: connect.NewClient[api.PurgeDataRequest, api.PurgeDataResponse](
 			httpClient,
 			baseURL+AgentManagerServicePurgeDataProcedure,
@@ -398,37 +453,42 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // agentManagerServiceClient implements AgentManagerServiceClient.
 type agentManagerServiceClient struct {
-	health                    *connect.Client[api.HealthRequest, api.HealthResponse]
-	createProfile             *connect.Client[api.CreateProfileRequest, api.CreateProfileResponse]
-	ensureProfile             *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
-	reconcileScenarioProfiles *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
-	getProfile                *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
-	listProfiles              *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
-	updateProfile             *connect.Client[api.UpdateProfileRequest, api.UpdateProfileResponse]
-	deleteProfile             *connect.Client[api.DeleteProfileRequest, api.DeleteProfileResponse]
-	createTask                *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
-	getTask                   *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
-	listTasks                 *connect.Client[api.ListTasksRequest, api.ListTasksResponse]
-	updateTask                *connect.Client[api.UpdateTaskRequest, api.UpdateTaskResponse]
-	deleteTask                *connect.Client[api.DeleteTaskRequest, api.DeleteTaskResponse]
-	cancelTask                *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
-	createRun                 *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
-	getRun                    *connect.Client[api.GetRunRequest, api.GetRunResponse]
-	getRunByTag               *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
-	listRuns                  *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
-	deleteRun                 *connect.Client[api.DeleteRunRequest, api.DeleteRunResponse]
-	stopRun                   *connect.Client[api.StopRunRequest, api.StopRunResponse]
-	stopRunByTag              *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
-	stopAllRuns               *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
-	quiesceScenario           *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
-	recoverRun                *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
-	getRunEvents              *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
-	getRunDiff                *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
-	approveRun                *connect.Client[api.ApproveRunRequest, api.ApproveRunResponse]
-	rejectRun                 *connect.Client[api.RejectRunRequest, api.RejectRunResponse]
-	getRunnerStatus           *connect.Client[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse]
-	probeRunner               *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
-	purgeData                 *connect.Client[api.PurgeDataRequest, api.PurgeDataResponse]
+	health                     *connect.Client[api.HealthRequest, api.HealthResponse]
+	createProfile              *connect.Client[api.CreateProfileRequest, api.CreateProfileResponse]
+	ensureProfile              *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
+	reconcileScenarioProfiles  *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
+	getProfile                 *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
+	listProfiles               *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
+	updateProfile              *connect.Client[api.UpdateProfileRequest, api.UpdateProfileResponse]
+	deleteProfile              *connect.Client[api.DeleteProfileRequest, api.DeleteProfileResponse]
+	createTask                 *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
+	getTask                    *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
+	listTasks                  *connect.Client[api.ListTasksRequest, api.ListTasksResponse]
+	updateTask                 *connect.Client[api.UpdateTaskRequest, api.UpdateTaskResponse]
+	deleteTask                 *connect.Client[api.DeleteTaskRequest, api.DeleteTaskResponse]
+	cancelTask                 *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
+	createRun                  *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
+	getRun                     *connect.Client[api.GetRunRequest, api.GetRunResponse]
+	getRunByTag                *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
+	listRuns                   *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
+	deleteRun                  *connect.Client[api.DeleteRunRequest, api.DeleteRunResponse]
+	stopRun                    *connect.Client[api.StopRunRequest, api.StopRunResponse]
+	stopRunByTag               *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
+	stopAllRuns                *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
+	quiesceScenario            *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
+	recoverRun                 *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
+	getRunEvents               *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
+	getRunDiff                 *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
+	approveRun                 *connect.Client[api.ApproveRunRequest, api.ApproveRunResponse]
+	rejectRun                  *connect.Client[api.RejectRunRequest, api.RejectRunResponse]
+	getRunnerStatus            *connect.Client[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse]
+	probeRunner                *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
+	getModelPolicyStatus       *connect.Client[api.GetModelPolicyStatusRequest, api.GetModelPolicyStatusResponse]
+	getModelPolicyCatalog      *connect.Client[api.GetModelPolicyCatalogRequest, api.GetModelPolicyCatalogResponse]
+	validateModelPolicyCatalog *connect.Client[api.ValidateModelPolicyCatalogRequest, api.ValidateModelPolicyCatalogResponse]
+	reloadModelPolicyCatalog   *connect.Client[api.ReloadModelPolicyCatalogRequest, api.ReloadModelPolicyCatalogResponse]
+	explainModelPolicy         *connect.Client[api.ExplainModelPolicyRequest, api.ExplainModelPolicyResponse]
+	purgeData                  *connect.Client[api.PurgeDataRequest, api.PurgeDataResponse]
 }
 
 // Health calls agent_manager.v1.AgentManagerService.Health.
@@ -581,6 +641,31 @@ func (c *agentManagerServiceClient) ProbeRunner(ctx context.Context, req *connec
 	return c.probeRunner.CallUnary(ctx, req)
 }
 
+// GetModelPolicyStatus calls agent_manager.v1.AgentManagerService.GetModelPolicyStatus.
+func (c *agentManagerServiceClient) GetModelPolicyStatus(ctx context.Context, req *connect.Request[api.GetModelPolicyStatusRequest]) (*connect.Response[api.GetModelPolicyStatusResponse], error) {
+	return c.getModelPolicyStatus.CallUnary(ctx, req)
+}
+
+// GetModelPolicyCatalog calls agent_manager.v1.AgentManagerService.GetModelPolicyCatalog.
+func (c *agentManagerServiceClient) GetModelPolicyCatalog(ctx context.Context, req *connect.Request[api.GetModelPolicyCatalogRequest]) (*connect.Response[api.GetModelPolicyCatalogResponse], error) {
+	return c.getModelPolicyCatalog.CallUnary(ctx, req)
+}
+
+// ValidateModelPolicyCatalog calls agent_manager.v1.AgentManagerService.ValidateModelPolicyCatalog.
+func (c *agentManagerServiceClient) ValidateModelPolicyCatalog(ctx context.Context, req *connect.Request[api.ValidateModelPolicyCatalogRequest]) (*connect.Response[api.ValidateModelPolicyCatalogResponse], error) {
+	return c.validateModelPolicyCatalog.CallUnary(ctx, req)
+}
+
+// ReloadModelPolicyCatalog calls agent_manager.v1.AgentManagerService.ReloadModelPolicyCatalog.
+func (c *agentManagerServiceClient) ReloadModelPolicyCatalog(ctx context.Context, req *connect.Request[api.ReloadModelPolicyCatalogRequest]) (*connect.Response[api.ReloadModelPolicyCatalogResponse], error) {
+	return c.reloadModelPolicyCatalog.CallUnary(ctx, req)
+}
+
+// ExplainModelPolicy calls agent_manager.v1.AgentManagerService.ExplainModelPolicy.
+func (c *agentManagerServiceClient) ExplainModelPolicy(ctx context.Context, req *connect.Request[api.ExplainModelPolicyRequest]) (*connect.Response[api.ExplainModelPolicyResponse], error) {
+	return c.explainModelPolicy.CallUnary(ctx, req)
+}
+
 // PurgeData calls agent_manager.v1.AgentManagerService.PurgeData.
 func (c *agentManagerServiceClient) PurgeData(ctx context.Context, req *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error) {
 	return c.purgeData.CallUnary(ctx, req)
@@ -651,6 +736,16 @@ type AgentManagerServiceHandler interface {
 	GetRunnerStatus(context.Context, *connect.Request[api.GetRunnerStatusRequest]) (*connect.Response[api.GetRunnerStatusResponse], error)
 	// ProbeRunner sends a test request to verify runner connectivity.
 	ProbeRunner(context.Context, *connect.Request[api.ProbeRunnerRequest]) (*connect.Response[api.ProbeRunnerResponse], error)
+	// GetModelPolicyStatus returns activation state and the latest diagnostic.
+	GetModelPolicyStatus(context.Context, *connect.Request[api.GetModelPolicyStatusRequest]) (*connect.Response[api.GetModelPolicyStatusResponse], error)
+	// GetModelPolicyCatalog returns the active, immutable declared catalog.
+	GetModelPolicyCatalog(context.Context, *connect.Request[api.GetModelPolicyCatalogRequest]) (*connect.Response[api.GetModelPolicyCatalogResponse], error)
+	// ValidateModelPolicyCatalog validates the configured catalog without activation.
+	ValidateModelPolicyCatalog(context.Context, *connect.Request[api.ValidateModelPolicyCatalogRequest]) (*connect.Response[api.ValidateModelPolicyCatalogResponse], error)
+	// ReloadModelPolicyCatalog validates and atomically activates declared state.
+	ReloadModelPolicyCatalog(context.Context, *connect.Request[api.ReloadModelPolicyCatalogRequest]) (*connect.Response[api.ReloadModelPolicyCatalogResponse], error)
+	// ExplainModelPolicy explains current profile resolution or a persisted run snapshot.
+	ExplainModelPolicy(context.Context, *connect.Request[api.ExplainModelPolicyRequest]) (*connect.Response[api.ExplainModelPolicyResponse], error)
 	// PurgeData deletes profiles, tasks, or runs matching a regex pattern.
 	PurgeData(context.Context, *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error)
 }
@@ -842,6 +937,36 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("ProbeRunner")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceGetModelPolicyStatusHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetModelPolicyStatusProcedure,
+		svc.GetModelPolicyStatus,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetModelPolicyStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetModelPolicyCatalogHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetModelPolicyCatalogProcedure,
+		svc.GetModelPolicyCatalog,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetModelPolicyCatalog")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceValidateModelPolicyCatalogHandler := connect.NewUnaryHandler(
+		AgentManagerServiceValidateModelPolicyCatalogProcedure,
+		svc.ValidateModelPolicyCatalog,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ValidateModelPolicyCatalog")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceReloadModelPolicyCatalogHandler := connect.NewUnaryHandler(
+		AgentManagerServiceReloadModelPolicyCatalogProcedure,
+		svc.ReloadModelPolicyCatalog,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ReloadModelPolicyCatalog")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceExplainModelPolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServiceExplainModelPolicyProcedure,
+		svc.ExplainModelPolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ExplainModelPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServicePurgeDataHandler := connect.NewUnaryHandler(
 		AgentManagerServicePurgeDataProcedure,
 		svc.PurgeData,
@@ -910,6 +1035,16 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceGetRunnerStatusHandler.ServeHTTP(w, r)
 		case AgentManagerServiceProbeRunnerProcedure:
 			agentManagerServiceProbeRunnerHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetModelPolicyStatusProcedure:
+			agentManagerServiceGetModelPolicyStatusHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetModelPolicyCatalogProcedure:
+			agentManagerServiceGetModelPolicyCatalogHandler.ServeHTTP(w, r)
+		case AgentManagerServiceValidateModelPolicyCatalogProcedure:
+			agentManagerServiceValidateModelPolicyCatalogHandler.ServeHTTP(w, r)
+		case AgentManagerServiceReloadModelPolicyCatalogProcedure:
+			agentManagerServiceReloadModelPolicyCatalogHandler.ServeHTTP(w, r)
+		case AgentManagerServiceExplainModelPolicyProcedure:
+			agentManagerServiceExplainModelPolicyHandler.ServeHTTP(w, r)
 		case AgentManagerServicePurgeDataProcedure:
 			agentManagerServicePurgeDataHandler.ServeHTTP(w, r)
 		default:
@@ -1039,6 +1174,26 @@ func (UnimplementedAgentManagerServiceHandler) GetRunnerStatus(context.Context, 
 
 func (UnimplementedAgentManagerServiceHandler) ProbeRunner(context.Context, *connect.Request[api.ProbeRunnerRequest]) (*connect.Response[api.ProbeRunnerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ProbeRunner is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetModelPolicyStatus(context.Context, *connect.Request[api.GetModelPolicyStatusRequest]) (*connect.Response[api.GetModelPolicyStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetModelPolicyStatus is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetModelPolicyCatalog(context.Context, *connect.Request[api.GetModelPolicyCatalogRequest]) (*connect.Response[api.GetModelPolicyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetModelPolicyCatalog is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ValidateModelPolicyCatalog(context.Context, *connect.Request[api.ValidateModelPolicyCatalogRequest]) (*connect.Response[api.ValidateModelPolicyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ValidateModelPolicyCatalog is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ReloadModelPolicyCatalog(context.Context, *connect.Request[api.ReloadModelPolicyCatalogRequest]) (*connect.Response[api.ReloadModelPolicyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReloadModelPolicyCatalog is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ExplainModelPolicy(context.Context, *connect.Request[api.ExplainModelPolicyRequest]) (*connect.Response[api.ExplainModelPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ExplainModelPolicy is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) PurgeData(context.Context, *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error) {
