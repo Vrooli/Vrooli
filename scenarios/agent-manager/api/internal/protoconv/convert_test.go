@@ -78,10 +78,10 @@ func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
 				SelectionType: domain.ModelSelectionTypeRunnerDefault,
 			},
 			Explanation: domain.PolicyResolutionExplanation{
-				Source:          "legacy_preset",
-				Summary:         "resolved before run creation",
-				RequestedRunner: domain.RunnerTypeCodex,
-				RequestedPreset: domain.ModelPresetSmart,
+				Source:             "named_policy",
+				Summary:            "resolved before run creation",
+				RequestedRunner:    domain.RunnerTypeCodex,
+				RequestedPolicyRef: "codex.smart",
 				Preflight: []domain.CandidatePreflight{
 					{
 						Index:     0,

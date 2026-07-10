@@ -32,10 +32,10 @@ import { Textarea } from "./ui/textarea";
 import { useAttachments, type PersistedAttachment } from "../hooks/useAttachments";
 import { usePersistedFormState } from "../hooks/usePersistedFormState";
 import { cn, networkAccessLabel, runnerTypeLabel, runnerTypeToSlug, sandboxModeLabel } from "../lib/utils";
-import { presetPrimaryMap } from "../lib/modelRegistry";
+import { catalogInventoryForRunner, policyOptionsForRunner } from "../lib/modelPolicyCatalog";
+import type { ModelPolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 import type {
   AgentProfile,
-  ModelRegistry,
   Run,
   RunFormData,
   RunnerStatus,
@@ -43,7 +43,7 @@ import type {
   Task,
   TaskFormData,
 } from "../types";
-import { ModelPreset, RunMode, SandboxMode, RunnerType as RunnerTypeEnum } from "../types";
+import { RunMode, SandboxMode, RunnerType as RunnerTypeEnum } from "../types";
 
 const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
@@ -57,7 +57,7 @@ interface QuickRunDialogProps {
   onOpenChange: (open: boolean) => void;
   profiles: AgentProfile[];
   runners?: Record<string, RunnerStatus>;
-  modelRegistry?: ModelRegistry;
+  modelPolicyCatalog?: ModelPolicyCatalog;
   defaultProjectRoot?: string;
   onCreateTask: (task: TaskFormData) => Promise<Task>;
   onCreateRun: (run: RunFormData) => Promise<Run>;
@@ -72,14 +72,13 @@ interface AgentConfigData {
   profileId: string;
   runnerType: RunnerType;
   model: string;
-  modelPreset: ModelPreset;
+  policyRef: string;
   modelMode: ModelSelectionMode;
   maxTurns: number | string;
   timeoutMinutes: number | string;
   runMode: RunMode;
   skipPermissionPrompt: boolean;
   networkAccess: "none" | "localhost" | "full";
-  fallbackRunnerTypes: RunnerType[];
   features?: {
     enableBrowser?: boolean;
   };
@@ -103,7 +102,7 @@ export function QuickRunDialog({
   onOpenChange,
   profiles,
   runners,
-  modelRegistry,
+  modelPolicyCatalog,
   defaultProjectRoot,
   onCreateTask,
   onCreateRun,
@@ -161,34 +160,33 @@ export function QuickRunDialog({
     profileId: "",
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "",
-    modelPreset: ModelPreset.UNSPECIFIED,
+    policyRef: "",
     modelMode: "default",
     maxTurns: DEFAULT_MAX_TURNS,
     timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
     runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
     networkAccess: "localhost",
-    fallbackRunnerTypes: [],
     features: { enableBrowser: false },
     extraFlags: {},
   });
   const [existingSandboxId, setExistingSandboxId, clearSandboxStorage] = usePersistedFormState("quick-run-sandbox", "");
 
-  const getRegistryForRunner = (runnerType: RunnerType) => {
-    return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
+  const getInventoryForRunner = (runnerType: RunnerType) => {
+    return catalogInventoryForRunner(modelPolicyCatalog, runnerType);
   };
 
   const getModelsForRunner = (runnerType: RunnerType) => {
-    const registry = getRegistryForRunner(runnerType);
-    if (registry?.models?.length) {
-      return registry.models;
+    const inventory = getInventoryForRunner(runnerType);
+    if (inventory?.models?.length) {
+      return inventory.models;
     }
     const runner = runners?.[runnerType];
     return runner?.supportedModels ?? [];
   };
 
-  const getPresetMapForRunner = (runnerType: RunnerType) => {
-    return presetPrimaryMap(getRegistryForRunner(runnerType)?.presets);
+  const getPoliciesForRunner = (runnerType: RunnerType) => {
+    return policyOptionsForRunner(modelPolicyCatalog, runnerType);
   };
 
   const getSelectedProfile = (): AgentProfile | undefined => {
@@ -221,14 +219,13 @@ export function QuickRunDialog({
       profileId: "",
       runnerType: RunnerTypeEnum.CLAUDE_CODE,
       model: "",
-      modelPreset: ModelPreset.UNSPECIFIED,
+      policyRef: "",
       modelMode: "default",
       maxTurns: DEFAULT_MAX_TURNS,
       timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
       runMode: RunMode.SANDBOXED,
       skipPermissionPrompt: true,
       networkAccess: "localhost",
-      fallbackRunnerTypes: [],
       features: { enableBrowser: false },
       extraFlags: {},
     });
@@ -281,30 +278,6 @@ export function QuickRunDialog({
       addAttachment(file);
       e.target.value = "";
     }
-  };
-
-  const handleAddFallbackRunner = () => {
-    setAgentConfig((prev) => ({
-      ...prev,
-      fallbackRunnerTypes: [...prev.fallbackRunnerTypes, RunnerTypeEnum.CLAUDE_CODE],
-    }));
-  };
-
-  const handleFallbackRunnerChange = (index: number, value: string) => {
-    const parsed = Number(value) as RunnerType;
-    setAgentConfig((prev) => {
-      const fallback = [...prev.fallbackRunnerTypes];
-      fallback[index] = parsed;
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
-
-  const handleRemoveFallbackRunner = (index: number) => {
-    setAgentConfig((prev) => {
-      const fallback = [...prev.fallbackRunnerTypes];
-      fallback.splice(index, 1);
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
   };
 
   const generateTitle = useCallback((): string => {
@@ -360,17 +333,14 @@ export function QuickRunDialog({
         if (agentConfig.modelMode === "model" && agentConfig.model.trim() !== "") {
           runRequest.model = agentConfig.model;
         }
-        if (agentConfig.modelMode === "preset") {
-          runRequest.modelPreset = agentConfig.modelPreset;
+        if (agentConfig.modelMode === "policy") {
+          runRequest.policyRef = agentConfig.policyRef;
         }
         runRequest.maxTurns = typeof agentConfig.maxTurns === "number" ? agentConfig.maxTurns : DEFAULT_MAX_TURNS;
         runRequest.timeoutMinutes = typeof agentConfig.timeoutMinutes === "number" ? agentConfig.timeoutMinutes : DEFAULT_TIMEOUT_MINUTES;
         runRequest.runMode = agentConfig.runMode;
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
         runRequest.networkAccess = agentConfig.networkAccess;
-        if (agentConfig.fallbackRunnerTypes.length > 0) {
-          runRequest.fallbackRunnerTypes = agentConfig.fallbackRunnerTypes;
-        }
         if (agentConfig.features?.enableBrowser) {
           runRequest.features = { enableBrowser: true };
         }
@@ -648,6 +618,7 @@ export function QuickRunDialog({
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
                       const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
+                      const firstPolicy = getPoliciesForRunner(newRunnerType)[0]?.ref ?? "";
                       setAgentConfig({
                         ...agentConfig,
                         runnerType: newRunnerType,
@@ -655,6 +626,7 @@ export function QuickRunDialog({
                           agentConfig.modelMode === "model"
                             ? firstModel
                             : agentConfig.model,
+                        policyRef: agentConfig.modelMode === "policy" ? firstPolicy : agentConfig.policyRef,
                       });
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -671,61 +643,20 @@ export function QuickRunDialog({
                     value={{
                       mode: agentConfig.modelMode,
                       model: agentConfig.model,
-                      preset: agentConfig.modelPreset,
+                      policyRef: agentConfig.policyRef,
                     }}
                     onChange={(selection) =>
                       setAgentConfig({
                         ...agentConfig,
                         modelMode: selection.mode,
                         model: selection.model,
-                        modelPreset: selection.preset,
+                        policyRef: selection.policyRef,
                       })
                     }
                     models={getModelsForRunner(agentConfig.runnerType)}
-                    presetMap={getPresetMapForRunner(agentConfig.runnerType)}
+                    policies={getPoliciesForRunner(agentConfig.runnerType)}
                     label="Model Selection"
                   />
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Fallback Runners</Label>
-                      <Button type="button" variant="outline" size="sm" onClick={handleAddFallbackRunner}>
-                        Add
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Ordered runners to try if the primary runner is unavailable.
-                    </p>
-                    {agentConfig.fallbackRunnerTypes.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {agentConfig.fallbackRunnerTypes.map((runnerType, index) => (
-                          <div key={`quick-fallback-${index}`} className="flex items-center gap-2">
-                            <select
-                              value={String(runnerType)}
-                              onChange={(e) => handleFallbackRunnerChange(index, e.target.value)}
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            >
-                              {RUNNER_TYPES.map((type) => (
-                                <option key={type} value={type}>
-                                  {runnerTypeLabel(type)}
-                                </option>
-                              ))}
-                            </select>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveFallbackRunner(index)}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
                   <div className="grid gap-4 grid-cols-2">
                     <div className="space-y-2">

@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Label } from "./ui/label";
+import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { ScopePathsManager } from "./ScopePathsManager";
 import { AttachmentPreview } from "./AttachmentPreview";
@@ -50,7 +51,7 @@ interface InvestigateModalProps {
     projectRoot?: string,
     scopePaths?: string[],
     attachmentIds?: string[],
-    overrides?: { runnerType?: string; modelPreset?: string }
+    overrides?: { runnerType?: string; policyRef?: string }
   ) => Promise<void>;
   loading?: boolean;
   error?: string | null;
@@ -62,13 +63,6 @@ const runnerOverrideOptions: { value: string; label: string }[] = [
   { value: "codex", label: "Codex" },
   { value: "opencode", label: "OpenCode" },
   { value: "grok", label: "Grok" },
-];
-
-const presetOverrideOptions: { value: string; label: string }[] = [
-  { value: "", label: "Default (profile)" },
-  { value: "CHEAP", label: "Cheap" },
-  { value: "FAST", label: "Fast" },
-  { value: "SMART", label: "Smart" },
 ];
 
 const depthOptions: {
@@ -160,10 +154,10 @@ export function InvestigateModal({
   const [projectRoot, setProjectRoot] = useState(defaultProjectRoot);
   const [scopePaths, setScopePaths] = useState<string[]>(defaultScopePaths);
 
-  // Runner + preset overrides (optional). Empty string = "use the investigation
-  // profile's default" so the backend keeps auto-healing through its preset chain.
+  // Runner + named-policy overrides (optional). Empty string preserves the
+  // investigation profile's catalog-backed default.
   const [runnerOverride, setRunnerOverride] = useState<string>("");
-  const [presetOverride, setPresetOverride] = useState<string>("");
+  const [policyOverride, setPolicyOverride] = useState<string>("");
 
   // Image attachments — uploaded eagerly via the shared attachments hook.
   const {
@@ -187,7 +181,7 @@ export function InvestigateModal({
       setProjectRoot(defaultProjectRoot);
       setScopePaths(defaultScopePaths);
       setRunnerOverride("");
-      setPresetOverride("");
+      setPolicyOverride("");
       clearAttachments();
     }
   }, [open, defaultProjectRoot, defaultScopePaths, clearAttachments]);
@@ -242,10 +236,10 @@ export function InvestigateModal({
   const handleSubmit = async () => {
     const attachmentIds = getUploadedIds();
     const overrides =
-      runnerOverride || presetOverride
+      runnerOverride || policyOverride
         ? {
             runnerType: runnerOverride || undefined,
-            modelPreset: presetOverride || undefined,
+            policyRef: policyOverride || undefined,
           }
         : undefined;
     await onSubmit(
@@ -326,10 +320,8 @@ export function InvestigateModal({
                 </div>
               )}
 
-              {/* Agent overrides: optional runner + preset picker. The default profile
-                  already walks a model fallback chain, so leaving these on "Default"
-                  is usually correct. Switch them when you want to deliberately run
-                  the investigation on a different runner or preset. */}
+              {/* Agent overrides are optional. The named policy owns its complete
+                  candidate sequence, including cross-runner fallback. */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="investigate-runner-override">Runner</Label>
@@ -347,19 +339,13 @@ export function InvestigateModal({
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="investigate-preset-override">Preset</Label>
-                  <select
-                    id="investigate-preset-override"
-                    value={presetOverride}
-                    onChange={(event) => setPresetOverride(event.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {presetOverrideOptions.map((option) => (
-                      <option key={option.value || "default"} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Label htmlFor="investigate-policy-override">Policy reference</Label>
+                  <Input
+                    id="investigate-policy-override"
+                    value={policyOverride}
+                    onChange={(event) => setPolicyOverride(event.target.value)}
+                    placeholder="Default profile policy"
+                  />
                 </div>
               </div>
 

@@ -246,7 +246,7 @@ func (o *Orchestrator) CreateInvestigationRun(
 		ctx,
 		task.ID,
 		investigationTag,
-		investigationProfileRefWithOverrides(req.RunnerType, req.ModelPreset),
+		investigationProfileRefWithOverrides(req.RunnerType, req.PolicyRef),
 		req.RunIDs,
 		nil,
 		req.Environment,
@@ -337,7 +337,7 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		ctx,
 		applyTask.ID,
 		investigationApplyTag,
-		applyInvestigationProfileRefWithOverrides(req.RunnerType, req.ModelPreset),
+		applyInvestigationProfileRefWithOverrides(req.RunnerType, req.PolicyRef),
 		nil,
 		&investigationRunID,
 		req.Environment,
@@ -653,8 +653,8 @@ func buildRunOverview(run *domain.Run, task *domain.Task, profile *domain.AgentP
 		if c.Model != "" {
 			sb.WriteString(fmt.Sprintf("**Model**: %s\n", c.Model))
 		}
-		if c.ModelPreset != "" {
-			sb.WriteString(fmt.Sprintf("**Model Preset**: %s\n", c.ModelPreset))
+		if c.PolicyRef != "" {
+			sb.WriteString(fmt.Sprintf("**Model Policy**: %s\n", c.PolicyRef))
 		}
 		if c.MaxTurns > 0 {
 			sb.WriteString(fmt.Sprintf("**Max Turns**: %d\n", c.MaxTurns))
@@ -1260,11 +1260,11 @@ func buildApplyPrompt(template string, investigationRunID uuid.UUID, customConte
 	return sb.String()
 }
 
-// investigationProfileRefWithOverrides applies caller-provided runner/preset overrides
+// investigationProfileRefWithOverrides applies caller-provided runner/policy overrides
 // on top of the default investigation profile. Nil overrides preserve the defaults.
-func investigationProfileRefWithOverrides(runnerType *domain.RunnerType, preset *domain.ModelPreset) *ProfileRef {
+func investigationProfileRefWithOverrides(runnerType *domain.RunnerType, policyRef *string) *ProfileRef {
 	defaults := defaultInvestigationProfile()
-	applyInvestigationOverrides(defaults, runnerType, preset)
+	applyInvestigationOverrides(defaults, runnerType, policyRef)
 	return &ProfileRef{
 		ProfileKey: investigationProfileKey,
 		Defaults:   defaults,
@@ -1273,26 +1273,25 @@ func investigationProfileRefWithOverrides(runnerType *domain.RunnerType, preset 
 
 // applyInvestigationProfileRefWithOverrides mirrors investigationProfileRefWithOverrides
 // for the apply flow.
-func applyInvestigationProfileRefWithOverrides(runnerType *domain.RunnerType, preset *domain.ModelPreset) *ProfileRef {
+func applyInvestigationProfileRefWithOverrides(runnerType *domain.RunnerType, policyRef *string) *ProfileRef {
 	defaults := defaultApplyInvestigationProfile()
-	applyInvestigationOverrides(defaults, runnerType, preset)
+	applyInvestigationOverrides(defaults, runnerType, policyRef)
 	return &ProfileRef{
 		ProfileKey: investigationApplyProfileKey,
 		Defaults:   defaults,
 	}
 }
 
-// applyInvestigationOverrides mutates the profile with caller-provided runner/preset.
-// Invalid values are ignored (callers may still catch these at the handler layer).
-func applyInvestigationOverrides(profile *domain.AgentProfile, runnerType *domain.RunnerType, preset *domain.ModelPreset) {
+// applyInvestigationOverrides mutates the profile with caller-provided runner/policy.
+func applyInvestigationOverrides(profile *domain.AgentProfile, runnerType *domain.RunnerType, policyRef *string) {
 	if profile == nil {
 		return
 	}
 	if runnerType != nil && runnerType.IsValid() {
 		profile.RunnerType = *runnerType
 	}
-	if preset != nil && preset.IsValid() {
-		profile.ModelPreset = *preset
+	if policyRef != nil {
+		profile.PolicyRef = strings.TrimSpace(*policyRef)
 	}
 }
 
@@ -1302,7 +1301,7 @@ func defaultInvestigationProfile() *domain.AgentProfile {
 		ProfileKey:  investigationProfileKey,
 		Description: "Agent profile for behavioral analysis of failed agent runs (read-only)",
 		RunnerType:  domain.RunnerTypeCodex,
-		ModelPreset: domain.ModelPresetSmart,
+		PolicyRef:   "codex.smart",
 		MaxTurns:    75, // Increased for active exploration
 		Timeout:     investigationReportTimeout,
 		AllowedTools: []string{
@@ -1341,7 +1340,7 @@ func defaultApplyInvestigationProfile() *domain.AgentProfile {
 		ProfileKey:  investigationApplyProfileKey,
 		Description: "Agent profile for applying investigation recommendations (has write capabilities)",
 		RunnerType:  domain.RunnerTypeCodex,
-		ModelPreset: domain.ModelPresetSmart,
+		PolicyRef:   "codex.smart",
 		MaxTurns:    100, // More turns for implementing fixes
 		Timeout:     investigationApplyReportTimeout,
 		AllowedTools: []string{

@@ -47,20 +47,7 @@ import type {
   RunEvent,
   Task,
 } from "../types";
-import { ApprovalState, ModelPreset, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
-
-const modelPresetLabel = (preset?: ModelPreset) => {
-  switch (preset) {
-    case ModelPreset.FAST:
-      return "Fast";
-    case ModelPreset.CHEAP:
-      return "Cheap";
-    case ModelPreset.SMART:
-      return "Smart";
-    default:
-      return "";
-  }
-};
+import { ApprovalState, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
 
 import { MarkdownRenderer } from "./markdown";
 import { ModelCostComparison } from "./ModelCostComparison";
@@ -351,7 +338,9 @@ export function RunDetail({
             <RunModelBadge
               requested={run.requestedModel ?? ""}
               actual={run.actualModel ?? ""}
-              fallbackChain={(run.resolvedConfig?.fallbackRunnerTypes ?? []).map(String)}
+              fallbackChain={(run.resolvedConfig?.policySnapshot?.candidates ?? [])
+                .slice(1)
+                .map((candidate) => candidate.model || `${runnerTypeLabel(candidate.runnerType)} default`)}
             />
             <button
               type="button"
@@ -1314,19 +1303,10 @@ function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals
               {runnerTypeLabel(run.resolvedConfig.runnerType)}
             </div>
           ) : null}
-          {run.resolvedConfig?.fallbackRunnerTypes?.length ? (
+          {run.resolvedConfig?.policyRef ? (
             <div>
-              <span className="text-muted-foreground">Fallbacks: </span>
-              {run.resolvedConfig.fallbackRunnerTypes
-                .map((runnerType) => runnerTypeLabel(runnerType))
-                .join(", ")}
-            </div>
-          ) : null}
-          {run.resolvedConfig?.modelPreset !== undefined &&
-          run.resolvedConfig.modelPreset !== ModelPreset.UNSPECIFIED ? (
-            <div>
-              <span className="text-muted-foreground">Model preset: </span>
-              {modelPresetLabel(run.resolvedConfig.modelPreset)}
+              <span className="text-muted-foreground">Model policy: </span>
+              {run.resolvedConfig.policyRef}
             </div>
           ) : null}
           {run.actualModel || run.resolvedConfig?.model ? (

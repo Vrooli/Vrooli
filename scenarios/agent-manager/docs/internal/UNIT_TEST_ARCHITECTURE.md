@@ -29,7 +29,7 @@ Stable seams worth canonical test doubles:
 - `event.Store`: append/get/stream/count/delete for run event assertions.
 - `repository.StatsRepository`: aggregation inputs and canned analytics output for HTTP and orchestration tests.
 - `runner.Runner`: already has production test helpers in the runner package; only add a shared fake if existing runner helpers cannot express a boundary test.
-- Model registry and pricing providers: small seam-specific fakes are useful when tests need error knobs and call inspection.
+- Model-policy state and pricing providers: small seam-specific fakes are useful when tests need error knobs and call inspection.
 - `runner.Launcher` and `runner.SandboxLauncherFactory`: shared fakes for protected-mode routing boundary tests.
 - `runner.TranscriptParser`: shared transcript replay runner for recovery and restart-resume tests.
 - `phases.ModelChainResolver`: shared fixed-chain resolver for model fallback tests.
@@ -60,7 +60,7 @@ Production code must not import `agent-manager/internal/testutil` or any child p
 10. Done: Add package-neutral `httpx` helpers and migrate prompt-manager HTTP client tests away from a local doer stub.
 11. Done: Add a package-neutral fake orchestrator for package-neutral orchestration tests.
 12. Done: Add shared runner launcher/factory fakes and migrate launcher selector tests to an external test package.
-13. Done: Add shared transcript replay runner and model-chain resolver fakes, then migrate recovery, restart-resume, and execute fallback tests.
+13. Done: Add a shared transcript replay runner, then migrate recovery and restart-resume tests; policy fallback tests construct immutable candidate snapshots directly.
 14. Done: Add `ui/tests/testutil/runEvents.ts` and migrate repeated `RunEvent` builders in run event store and timeline tests.
 15. Done: Switch `pnpm test` from `tsc && node --test` to `vitest run`, add jsdom/Testing Library setup, add `src/test-utils/renderWithProviders.tsx`, and add initial `DiffViewer` render coverage.
 16. In progress: Review pricing and runner codec doubles for consolidation boundaries. The pricing service provider double remains local because moving it to `testutil/mocks` would create an import cycle with `package pricing` tests. Be careful with same-package tests; moving those fakes into `testutil/mocks` can create import cycles when the fake must import the package under test.

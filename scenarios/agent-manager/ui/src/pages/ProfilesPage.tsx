@@ -24,11 +24,11 @@ import { Label } from "../components/ui/label";
 import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
 import { Textarea } from "../components/ui/textarea";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
-import { profileSandboxModeFormValue, runnerTypeLabel } from "../lib/utils";
-import type { AgentProfile, ModelRegistry, ProfileFormData, RunnerStatus, RunnerType } from "../types";
-import { ModelPreset, NetworkAccess, RunnerType as RunnerTypeEnum } from "../types";
-import { runnerTypeToSlug } from "../lib/utils";
-import { presetPrimaryMap } from "../lib/modelRegistry";
+import { profileSandboxModeFormValue, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import type { ModelPolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+import type { AgentProfile, ProfileFormData, RunnerStatus, RunnerType } from "../types";
+import { NetworkAccess, RunnerType as RunnerTypeEnum } from "../types";
+import { catalogInventoryForRunner, policyOptionsForRunner } from "../lib/modelPolicyCatalog";
 import { ProfileDetail } from "../components/ProfileDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { formatStandardDateTime } from "../lib/dateTime";
@@ -46,7 +46,7 @@ interface ProfilesPageProps {
   onDeleteProfile: (id: string) => Promise<void>;
   onRefresh: () => void;
   runners?: Record<string, RunnerStatus>;
-  modelRegistry?: ModelRegistry;
+  modelPolicyCatalog?: ModelPolicyCatalog;
 }
 
 const RUNNER_TYPES: RunnerType[] = [
@@ -73,9 +73,9 @@ const durationToMinutes = (duration: Duration | undefined): number => {
   return Math.max(1, Math.round(ms / 60_000));
 };
 
-const resolveModelMode = (model: string | undefined, preset: ModelPreset | undefined): ModelSelectionMode => {
-  if (preset !== undefined && preset !== ModelPreset.UNSPECIFIED) {
-    return "preset";
+const resolveModelMode = (model: string | undefined, policyRef: string | undefined): ModelSelectionMode => {
+  if (policyRef?.trim()) {
+    return "policy";
   }
   if (model && model.trim() !== "") {
     return "model";
@@ -126,24 +126,24 @@ export function ProfilesPage({
   onDeleteProfile,
   onRefresh,
   runners,
-  modelRegistry,
+  modelPolicyCatalog,
 }: ProfilesPageProps) {
   const { isDesktop } = useViewportSize();
-  const getRegistryForRunner = (runnerType: RunnerType) => {
-    return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
+  const getInventoryForRunner = (runnerType: RunnerType) => {
+    return catalogInventoryForRunner(modelPolicyCatalog, runnerType);
   };
 
   const getModelsForRunner = (runnerType: RunnerType) => {
-    const registry = getRegistryForRunner(runnerType);
-    if (registry?.models?.length) {
-      return registry.models;
+    const inventory = getInventoryForRunner(runnerType);
+    if (inventory?.models?.length) {
+      return inventory.models;
     }
     const runner = runners?.[runnerType];
     return runner?.supportedModels ?? [];
   };
 
-  const getPresetMapForRunner = (runnerType: RunnerType) => {
-    return presetPrimaryMap(getRegistryForRunner(runnerType)?.presets);
+  const getPoliciesForRunner = (runnerType: RunnerType) => {
+    return policyOptionsForRunner(modelPolicyCatalog, runnerType);
   };
 
   // Selection state
@@ -161,13 +161,12 @@ export function ProfilesPage({
     description: "",
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "",
-    modelPreset: ModelPreset.UNSPECIFIED,
+    policyRef: "",
     modelMode: "default",
     maxTurns: 100,
     sandboxMode: "protected" as const,
     networkAccess: "localhost" as const,
     timeoutMinutes: 30,
-    fallbackRunnerTypes: [],
     features: { enableBrowser: false },
     extraFlags: {},
   });
@@ -204,13 +203,12 @@ export function ProfilesPage({
       description: "",
       runnerType: RunnerTypeEnum.CLAUDE_CODE,
       model: "",
-      modelPreset: ModelPreset.UNSPECIFIED,
+      policyRef: "",
       modelMode: "default",
       maxTurns: 100,
       sandboxMode: "protected",
       networkAccess: "localhost" as const,
       timeoutMinutes: 30,
-      fallbackRunnerTypes: [],
       features: { enableBrowser: false },
       extraFlags: {},
     });
@@ -227,8 +225,8 @@ export function ProfilesPage({
       description: profile.description || "",
       runnerType: profile.runnerType,
       model: profile.model || "",
-      modelPreset: profile.modelPreset ?? ModelPreset.UNSPECIFIED,
-      modelMode: resolveModelMode(profile.model, profile.modelPreset),
+      policyRef: profile.policyRef ?? "",
+      modelMode: resolveModelMode(profile.model, profile.policyRef),
       maxTurns: profile.maxTurns || 100,
       sandboxMode: profileSandboxModeFormValue(profile),
       networkAccess: profile.networkAccess === NetworkAccess.NONE ? "none"
@@ -237,7 +235,6 @@ export function ProfilesPage({
       allowedTools: profile.allowedTools,
       deniedTools: profile.deniedTools,
       timeoutMinutes: durationToMinutes(profile.timeout),
-      fallbackRunnerTypes: profile.fallbackRunnerTypes ?? [],
       features: {
         enableBrowser: profile.features?.enableBrowser ?? false,
       },
@@ -259,12 +256,8 @@ export function ProfilesPage({
           formData.modelMode === "model"
             ? formData.model?.trim() ?? ""
             : "",
-        modelPreset:
-          formData.modelMode === "preset"
-            ? formData.modelPreset ?? ModelPreset.FAST
-            : ModelPreset.UNSPECIFIED,
+        policyRef: formData.modelMode === "policy" ? formData.policyRef?.trim() ?? "" : "",
         timeoutMinutes: formData.timeoutMinutes ?? 30,
-        fallbackRunnerTypes: formData.fallbackRunnerTypes ?? [],
       };
       if (editingProfile) {
         await onUpdateProfile(editingProfile.id, normalizedProfile);
@@ -290,30 +283,6 @@ export function ProfilesPage({
     } catch (err) {
       console.error("Failed to delete profile:", err);
     }
-  };
-
-  const handleAddFallbackRunner = () => {
-    setFormData((prev) => ({
-      ...prev,
-      fallbackRunnerTypes: [...(prev.fallbackRunnerTypes ?? []), RunnerTypeEnum.CLAUDE_CODE],
-    }));
-  };
-
-  const handleFallbackRunnerChange = (index: number, value: string) => {
-    const parsed = Number(value) as RunnerType;
-    setFormData((prev) => {
-      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
-      fallback[index] = parsed;
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
-
-  const handleRemoveFallbackRunner = (index: number) => {
-    setFormData((prev) => {
-      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
-      fallback.splice(index, 1);
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
   };
 
   const filteredAndSortedProfiles = useMemo(() => {
@@ -532,6 +501,7 @@ export function ProfilesPage({
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
                       const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
+                      const firstPolicy = getPoliciesForRunner(newRunnerType)[0]?.ref ?? "";
                       setFormData({
                         ...formData,
                         runnerType: newRunnerType,
@@ -539,6 +509,7 @@ export function ProfilesPage({
                           formData.modelMode === "model"
                             ? firstModel
                             : formData.model,
+                        policyRef: formData.modelMode === "policy" ? firstPolicy : formData.policyRef,
                       });
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -581,61 +552,20 @@ export function ProfilesPage({
                 value={{
                   mode: formData.modelMode,
                   model: formData.model ?? "",
-                  preset: formData.modelPreset ?? ModelPreset.UNSPECIFIED,
+                  policyRef: formData.policyRef ?? "",
                 }}
                 onChange={(selection) =>
                   setFormData({
                     ...formData,
                     modelMode: selection.mode,
                     model: selection.model,
-                    modelPreset: selection.preset,
+                    policyRef: selection.policyRef,
                   })
                 }
                 models={getModelsForRunner(formData.runnerType)}
-                presetMap={getPresetMapForRunner(formData.runnerType)}
+                policies={getPoliciesForRunner(formData.runnerType)}
                 label="Model Selection"
               />
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Fallback Runners</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddFallbackRunner}>
-                    Add
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Ordered runners to try if the primary runner is unavailable.
-                </p>
-                {(formData.fallbackRunnerTypes ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {(formData.fallbackRunnerTypes ?? []).map((runnerType, index) => (
-                      <div key={`fallback-${index}`} className="flex items-center gap-2">
-                        <select
-                          value={String(runnerType)}
-                          onChange={(e) => handleFallbackRunnerChange(index, e.target.value)}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        >
-                          {RUNNER_TYPES.map((type) => (
-                            <option key={type} value={type}>
-                              {runnerTypeLabel(type)}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveFallbackRunner(index)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">

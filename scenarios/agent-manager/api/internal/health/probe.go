@@ -22,9 +22,7 @@ type ModelProber interface {
 // when the runner is not registered in this process.
 type RunnerProberLookup func(runnerType string) ModelProber
 
-// RegistrySnapshot is the minimal view of the model registry the probe
-// needs. It is satisfied by *modelregistry.Store; declared here so we
-// don't pull modelregistry into this package.
+// RegistrySnapshot is the minimal immutable catalog view the probe needs.
 type RegistrySnapshot interface {
 	// Get returns the registry snapshot's iterable contents. Each entry
 	// pairs a runner_type key with the list of model IDs configured for it.
@@ -58,13 +56,12 @@ func DefaultProbeConfig() ProbeConfig {
 // every probe outcome (ok or failed) so the SQLite-backed Store has a
 // continuous record across restarts.
 //
-// Compared to the pre-Phase-2 modelregistry.HealthProbe:
-//   - writes to persisted Store, not in-memory map
+// The probe:
+//   - writes to the persisted Store
 //   - emits typed observations (Status + fallback.Reason) instead of
 //     freeform message strings
 //   - probes runners themselves via runner availability checks (the
-//     pre-Phase-2 path implicitly inferred runner health from per-model
-//     probe success; this is now explicit)
+//     model probe success; this is explicit)
 type Probe struct {
 	store    *Store
 	resolve  RunnerProberLookup

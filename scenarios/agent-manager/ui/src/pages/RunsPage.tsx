@@ -76,13 +76,13 @@ interface RunsPageProps {
     projectRoot?: string,
     scopePaths?: string[],
     attachmentIds?: string[],
-    overrides?: { runnerType?: string; modelPreset?: string }
+    overrides?: { runnerType?: string; policyRef?: string }
   ) => Promise<Run>;
   onApplyInvestigation: (
     investigationRunId: string,
     customContext?: string,
     attachmentIds?: string[],
-    overrides?: { runnerType?: string; modelPreset?: string }
+    overrides?: { runnerType?: string; policyRef?: string }
   ) => Promise<Run>;
   onResumeFromFailedRun: (runId: string, customContext?: string, attachmentIds?: string[]) => Promise<Run>;
   onContinueRun: (id: string, message: string, attachmentIds?: string[]) => Promise<Run>;
@@ -433,7 +433,7 @@ export function RunsPage({
     projectRoot?: string,
     scopePaths?: string[],
     attachmentIds?: string[],
-    overrides?: { runnerType?: string; modelPreset?: string }
+    overrides?: { runnerType?: string; policyRef?: string }
   ) => {
     setInvestigateLoading(true);
     setInvestigateError(null);

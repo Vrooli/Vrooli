@@ -15,7 +15,7 @@
         {
           "notes": "Test policy evaluation",
           "phase": "unit",
-          "ref": "api/internal/modelpolicy/resolution_test.go::TestResolveLegacyPresetProducesExplicitImmutableCandidates",
+          "ref": "api/internal/modelpolicy/resolution_test.go::TestResolveNamedPolicyProducesExplicitImmutableCandidates",
           "status": "pending",
           "type": "test"
         },

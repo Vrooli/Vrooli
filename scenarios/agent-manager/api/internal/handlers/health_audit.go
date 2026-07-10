@@ -6,10 +6,8 @@
 //   GET /api/v1/health/runners  — current snapshot of every runner
 //   GET /api/v1/health/audit    — paginated audit history with filters
 //
-// These coexist with the legacy /api/v1/runner-models/health endpoint;
-// the legacy endpoint preserves the nested {runners:{model:entry}} shape
-// the existing UI depends on, while the new endpoints expose flat lists
-// that compose better with stats and CLI tabular output.
+// These are the sole health-audit HTTP surface; desired-state model inventory
+// lives under /api/v1/model-policy/catalog.
 
 package handlers
 

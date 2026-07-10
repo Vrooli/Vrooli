@@ -235,6 +235,11 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
+	if err := db.migrateProfileModelPolicyColumns(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to migrate profile model policy columns")
+		return err
+	}
+
 	_, err = db.ExecContext(ctx, string(schemaBytes))
 	if err != nil {
 		db.log.WithError(err).Error("Failed to execute schema initialization")
@@ -246,6 +251,76 @@ func (db *DB) initSchema() error {
 	}
 
 	db.log.Info("Database schema initialized successfully")
+	return nil
+}
+
+// migrateProfileModelPolicyColumns hard-cuts profiles from the legacy
+// model_preset/fallback_runner_types inputs to one named policy_ref. Known
+// presets map deterministically to <runner>.<intent>; unknown values fail the
+// migration instead of silently changing execution behavior.
+func (db *DB) migrateProfileModelPolicyColumns(ctx context.Context) error {
+	var tableCount int
+	if err := db.GetContext(ctx, &tableCount, `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'table' AND name = 'agent_profiles'
+	`); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
+	if tableCount == 0 {
+		return nil
+	}
+
+	type tableColumn struct {
+		Name string `db:"name"`
+	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('agent_profiles')"); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
+	has := make(map[string]bool, len(columns))
+	for _, column := range columns {
+		has[column.Name] = true
+	}
+
+	if !has["policy_ref"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles ADD COLUMN policy_ref TEXT DEFAULT ''"); err != nil {
+			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("add policy_ref: %w", err)}
+		}
+	}
+
+	if has["model_preset"] {
+		var unsupported int
+		if err := db.GetContext(ctx, &unsupported, `
+			SELECT COUNT(*) FROM agent_profiles
+			WHERE TRIM(COALESCE(model_preset, '')) <> ''
+			  AND UPPER(TRIM(model_preset)) NOT IN ('FAST', 'CHEAP', 'SMART')
+		`); err != nil {
+			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+		}
+		if unsupported > 0 {
+			return &domain.DatabaseError{
+				Operation: "migration", EntityType: "AgentProfile",
+				Cause: fmt.Errorf("%d profile(s) contain unsupported model_preset values", unsupported),
+			}
+		}
+		if _, err := db.ExecContext(ctx, `
+			UPDATE agent_profiles
+			SET policy_ref = LOWER(TRIM(runner_type)) || '.' || LOWER(TRIM(model_preset))
+			WHERE TRIM(COALESCE(policy_ref, '')) = ''
+			  AND TRIM(COALESCE(model_preset, '')) <> ''
+		`); err != nil {
+			return &domain.DatabaseError{Operation: "migration", EntityType: "AgentProfile", Cause: fmt.Errorf("backfill policy_ref: %w", err)}
+		}
+		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles DROP COLUMN model_preset"); err != nil {
+			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("drop model_preset: %w", err)}
+		}
+	}
+
+	if has["fallback_runner_types"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles DROP COLUMN fallback_runner_types"); err != nil {
+			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("drop fallback_runner_types: %w", err)}
+		}
+	}
 	return nil
 }
 

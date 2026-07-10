@@ -460,13 +460,6 @@ func currentModel(run *domain.Run) string {
 	return run.ResolvedConfig.Model
 }
 
-func describeModel(model string) string {
-	if model == "" {
-		return "<runner default>"
-	}
-	return model
-}
-
 // PrepareTranscriptInput is the explicit input to PrepareTranscriptConfig.
 type PrepareTranscriptInput struct {
 	Deps       Deps

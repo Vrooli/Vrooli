@@ -419,21 +419,6 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchConfig.DefaultTimeout = levers.Execution.DefaultTimeout
 		orchConfig.MaxConcurrentRuns = levers.Concurrency.MaxConcurrentRuns
 		orchConfig.RequireSandboxByDefault = levers.Safety.RequireSandboxByDefault
-		if len(levers.Runners.FallbackRunnerTypes) > 0 {
-			seen := make(map[domain.RunnerType]struct{}, len(levers.Runners.FallbackRunnerTypes))
-			for _, runnerType := range levers.Runners.FallbackRunnerTypes {
-				rt := domain.RunnerType(runnerType)
-				if !rt.IsValid() {
-					bootLog.Warn("skipping invalid fallback runner type", obs.KeyRunnerType, runnerType)
-					continue
-				}
-				if _, exists := seen[rt]; exists {
-					continue
-				}
-				seen[rt] = struct{}{}
-				orchConfig.RunnerFallbackTypes = append(orchConfig.RunnerFallbackTypes, rt)
-			}
-		}
 	}
 
 	// Apply orchestration settings on top of levers (settings file is the primary source).

@@ -228,10 +228,9 @@ type CreateRunRequest struct {
 	// Inline config (optional - used if no profile, or overrides profile)
 	RunnerType           *domain.RunnerType      `json:"runnerType,omitempty"`
 	Model                *string                 `json:"model,omitempty"`
-	ModelPreset          *domain.ModelPreset     `json:"modelPreset,omitempty"`
+	PolicyRef            *string                 `json:"policyRef,omitempty"`
 	MaxTurns             *int                    `json:"maxTurns,omitempty"`
 	Timeout              *time.Duration          `json:"timeout,omitempty"`
-	FallbackRunnerTypes  []domain.RunnerType     `json:"fallbackRunnerTypes,omitempty"`
 	AllowedTools         []string                `json:"allowedTools,omitempty"`
 	DeniedTools          []string                `json:"deniedTools,omitempty"`
 	SkipPermissionPrompt *bool                   `json:"skipPermissionPrompt,omitempty"`
@@ -382,11 +381,11 @@ type CreateInvestigationRequest struct {
 	ProjectRoot   string                    `json:"projectRoot,omitempty"` // Root directory for investigation (explicit, no guessing)
 	ScopePaths    []string                  `json:"scopePaths,omitempty"`  // Paths where agent can make changes
 	AttachmentIDs []string                  `json:"attachmentIds,omitempty"`
-	// Runner + preset overrides for the investigation agent. When nil, the default
+	// Runner + named-policy overrides for the investigation agent. When nil, the default
 	// investigation profile's values apply. Callers use this to pick a runner or
-	// preset whose model chain currently works, without editing the registry.
-	RunnerType  *domain.RunnerType  `json:"runnerType,omitempty"`
-	ModelPreset *domain.ModelPreset `json:"modelPreset,omitempty"`
+	// policy whose candidate sequence currently works, without editing the catalog.
+	RunnerType *domain.RunnerType `json:"runnerType,omitempty"`
+	PolicyRef  *string            `json:"policyRef,omitempty"`
 	// Environment carries custom VROOLI_-prefixed variables (e.g.
 	// VROOLI_SHADOW_SCENARIOS) into the investigation runner process — same
 	// contract as CreateRunRequest.Environment. Without this, an investigation
@@ -400,9 +399,9 @@ type CreateInvestigationApplyRequest struct {
 	InvestigationRunID uuid.UUID `json:"investigationRunId"`
 	CustomContext      string    `json:"customContext,omitempty"`
 	AttachmentIDs      []string  `json:"attachmentIds,omitempty"`
-	// Runner + preset overrides for the apply agent; same semantics as investigation.
-	RunnerType  *domain.RunnerType  `json:"runnerType,omitempty"`
-	ModelPreset *domain.ModelPreset `json:"modelPreset,omitempty"`
+	// Runner + named-policy overrides for the apply agent; same semantics as investigation.
+	RunnerType *domain.RunnerType `json:"runnerType,omitempty"`
+	PolicyRef  *string            `json:"policyRef,omitempty"`
 	// Environment carries custom VROOLI_-prefixed variables into the apply runner
 	// process; same contract as CreateInvestigationRequest.Environment.
 	Environment map[string]string `json:"environment,omitempty"`
@@ -589,7 +588,6 @@ type OrchestratorConfig struct {
 	MaxConcurrentRuns       int
 	DefaultProjectRoot      string
 	RequireSandboxByDefault bool
-	RunnerFallbackTypes     []domain.RunnerType
 }
 
 // DefaultConfig returns sensible defaults.
@@ -1586,16 +1584,16 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.RunnerType != nil {
 		cfg.RunnerType = *req.RunnerType
 	}
-	if req.ModelPreset != nil {
-		cfg.ModelPreset = *req.ModelPreset
-		if cfg.ModelPreset != domain.ModelPresetUnspecified {
+	if req.PolicyRef != nil {
+		cfg.PolicyRef = strings.TrimSpace(*req.PolicyRef)
+		if cfg.PolicyRef != "" {
 			cfg.Model = ""
 		}
 	}
 	if req.Model != nil {
 		cfg.Model = *req.Model
 		if strings.TrimSpace(cfg.Model) != "" {
-			cfg.ModelPreset = domain.ModelPresetUnspecified
+			cfg.PolicyRef = ""
 		}
 	}
 	if req.MaxTurns != nil {
@@ -1603,9 +1601,6 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 	if req.Timeout != nil {
 		cfg.Timeout = *req.Timeout
-	}
-	if req.FallbackRunnerTypes != nil {
-		cfg.FallbackRunnerTypes = append([]domain.RunnerType(nil), req.FallbackRunnerTypes...)
 	}
 	if req.AllowedTools != nil {
 		cfg.AllowedTools = req.AllowedTools
@@ -1638,24 +1633,12 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.DeniedPaths != nil {
 		cfg.DeniedPaths = req.DeniedPaths
 	}
-	if len(cfg.FallbackRunnerTypes) == 0 && len(o.config.RunnerFallbackTypes) > 0 {
-		cfg.FallbackRunnerTypes = append([]domain.RunnerType(nil), o.config.RunnerFallbackTypes...)
-	}
-
 	// Validate the resolved config
 	if !cfg.RunnerType.IsValid() {
 		return nil, nil, domain.NewValidationError("runnerType", "invalid runner type: "+string(cfg.RunnerType))
 	}
-	for _, rt := range cfg.FallbackRunnerTypes {
-		if !rt.IsValid() {
-			return nil, nil, domain.NewValidationError("fallbackRunnerTypes", "invalid runner type: "+string(rt))
-		}
-	}
-	if !cfg.ModelPreset.IsValid() {
-		return nil, nil, domain.NewValidationError("modelPreset", "invalid model preset")
-	}
-	if strings.TrimSpace(cfg.Model) != "" && cfg.ModelPreset != domain.ModelPresetUnspecified {
-		return nil, nil, domain.NewValidationError("modelPreset", "cannot set model and model preset together")
+	if strings.TrimSpace(cfg.Model) != "" && strings.TrimSpace(cfg.PolicyRef) != "" {
+		return nil, nil, domain.NewValidationError("policyRef", "cannot set model and policy reference together")
 	}
 	if err := o.resolveExecutionPolicy(ctx, cfg); err != nil {
 		return nil, nil, err
@@ -1674,15 +1657,14 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 }
 
 // resolveExecutionPolicy converts the final profile-plus-override selection
-// into a run-owned immutable snapshot. ModelPreset is accepted only as a
-// migration input and is immediately mapped to a named catalog policy; no
+// into a run-owned immutable snapshot. A named policy is resolved once; no
 // runtime decision reads mutable catalog state after this function returns.
 func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.RunConfig) error {
 	if cfg == nil {
 		return domain.NewValidationError("runConfig", "field is required")
 	}
 	if o.modelPolicy == nil {
-		if cfg.ModelPreset != domain.ModelPresetUnspecified {
+		if strings.TrimSpace(cfg.PolicyRef) != "" {
 			return domain.NewValidationError("modelPolicyCatalog", "model policy state is not configured")
 		}
 		// Test-only/minimal orchestrators may omit the state. Production boot
@@ -1695,8 +1677,8 @@ func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.R
 		err      error
 	)
 	switch {
-	case cfg.ModelPreset != domain.ModelPresetUnspecified:
-		snapshot, err = o.modelPolicy.ResolveLegacyPreset(cfg.RunnerType, cfg.ModelPreset)
+	case strings.TrimSpace(cfg.PolicyRef) != "":
+		snapshot, err = o.modelPolicy.ResolvePolicy(cfg.PolicyRef)
 	case strings.TrimSpace(cfg.Model) != "":
 		snapshot, err = o.modelPolicy.ResolveDirectModel(cfg.RunnerType, cfg.Model)
 	default:

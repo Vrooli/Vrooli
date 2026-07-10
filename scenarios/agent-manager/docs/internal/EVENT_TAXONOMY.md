@@ -57,9 +57,9 @@ emission used before — those `EmitSystemEvent` calls have been deleted.
 
 ### `runner.fallback.attempted`
 
-Records a single step of the runner fallback chain walk. Emitted by
-`phases/acquire.go::applyRunnerFallback` whenever the executor switches
-the run to a fallback runner.
+Historical payload retained so previously written events remain decodable.
+New policy-backed runs emit `policy.candidate.attempt` with catalog digest
+and candidate index instead.
 
 ```json
 {
@@ -75,10 +75,9 @@ enum value in Phase 2. The JSON shape is unchanged.
 
 ### `runner.fallback.exhausted`
 
-Records that the entire fallback chain was tried without finding an
-available candidate. Emitted by `phases/acquire.go::tryFallbackRunner`
-right before the executor falls through to building the failure
-`*domain.RunnerError`.
+Historical payload retained for previously written events. New runs report
+terminal policy-candidate exhaustion through the digest-qualified policy
+event.
 
 ```json
 {
@@ -90,9 +89,8 @@ right before the executor falls through to building the failure
 
 ### `model.fallback.attempted`
 
-Records a single preset-chain step inside `ExecuteWithModelFallback`.
-Emitted on the failure path of attempt N (the next iteration tries
-attempt N+1).
+Historical payload retained for old event rows. The active execution contract
+uses immutable policy candidates rather than preset chains.
 
 ```json
 {
@@ -107,7 +105,7 @@ attempt N+1).
 
 ### `model.fallback.exhausted`
 
-Records that every entry in the preset chain was rejected.
+Historical payload retained for old event rows.
 
 ```json
 {

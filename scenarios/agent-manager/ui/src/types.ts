@@ -1,4 +1,4 @@
-import { ModelPreset, RunMode, RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+import { RunMode, RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
 // Re-export proto type for reading Task objects from API
 export type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/domain/task_pb";
@@ -17,7 +17,6 @@ export interface ContextAttachmentData {
 
 export {
   RunnerType,
-  ModelPreset,
   NetworkAccess,
   SandboxMode,
   TaskStatus,
@@ -65,48 +64,15 @@ export { HealthStatus } from "@vrooli/proto-types/common/v1/types_pb";
 
 export type ModelOption = string | { id: string; description?: string };
 
-/**
- * PresetChain is an ordered list of model IDs a preset expands into. The first
- * non-empty entry is the primary model; subsequent entries are runtime fallbacks
- * the executor walks when the runner rejects the current model. A single empty
- * string at the final position signals "let the runner use its own default
- * model" (no --model flag passed). Forbidden for the CHEAP preset.
- */
-export type PresetChain = string[];
-
-export interface RunnerModelRegistry {
-  models: ModelOption[];
-  presets: Record<string, PresetChain>;
-}
-
-export interface ModelRegistry {
-  version: number;
-  fallbackRunnerTypes?: string[];
-  runners: Record<string, RunnerModelRegistry>;
-}
-
-export type ModelHealthStatus = "ok" | "failed" | "unknown";
-
-export interface ModelHealthEntry {
-  status: ModelHealthStatus;
-  lastChecked: string;
-  message?: string;
-}
-
-export interface ModelHealthSnapshot {
-  runners: Record<string, Record<string, ModelHealthEntry>>;
-}
-
 export interface ProfileFormData {
   name: string;
   profileKey?: string;
   description?: string;
   runnerType: RunnerType;
   model?: string;
-  modelPreset?: ModelPreset;
+  policyRef?: string;
   maxTurns?: number;
   timeoutMinutes?: number;
-  fallbackRunnerTypes?: RunnerType[];
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;
@@ -137,10 +103,9 @@ export interface RunFormData {
   existingSandboxId?: string;
   runnerType?: RunnerType;
   model?: string;
-  modelPreset?: ModelPreset;
+  policyRef?: string;
   maxTurns?: number;
   timeoutMinutes?: number;
-  fallbackRunnerTypes?: RunnerType[];
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;

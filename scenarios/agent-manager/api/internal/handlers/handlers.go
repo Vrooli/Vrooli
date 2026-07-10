@@ -163,8 +163,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
 	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
-	r.HandleFunc("/api/v1/runner-models", h.GetRunnerModels).Methods("GET")
-	r.HandleFunc("/api/v1/runner-models/health", h.GetRunnerModelHealth).Methods("GET")
 	r.HandleFunc("/api/v1/model-policy/status", h.GetModelPolicyStatus).Methods("GET")
 	r.HandleFunc("/api/v1/model-policy/catalog", h.GetModelPolicyCatalog).Methods("GET")
 	r.HandleFunc("/api/v1/model-policy/validate", h.ValidateModelPolicyCatalog).Methods("POST")
@@ -951,11 +949,11 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	availableModels, modelPresets := h.resolveProfileModels(r.Context(), profile)
+	availableModels, policyModels := h.resolveProfileModels(r.Context(), profile)
 	writeProtoJSON(w, http.StatusOK, &apipb.GetProfileResponse{
 		Profile:         protoconv.AgentProfileToProto(profile),
 		AvailableModels: availableModels,
-		ModelPresets:    modelPresets,
+		PolicyModels:    policyModels,
 	})
 }
 
@@ -1434,9 +1432,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			model := inline.GetModel()
 			req.Model = &model
 		}
-		if inline.ModelPreset != nil {
-			preset := protoconv.ModelPresetFromProto(*inline.ModelPreset)
-			req.ModelPreset = &preset
+		if inline.PolicyRef != nil {
+			policyRef := inline.GetPolicyRef()
+			req.PolicyRef = &policyRef
 		}
 		if inline.MaxTurns != nil {
 			maxTurns := int(inline.GetMaxTurns())
@@ -1445,16 +1443,6 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		if inline.Timeout != nil {
 			timeout := inline.Timeout.AsDuration()
 			req.Timeout = &timeout
-		}
-		if len(inline.FallbackRunnerTypes) > 0 || inline.ClearFallbackRunnerTypes {
-			fallback := make([]domain.RunnerType, 0, len(inline.FallbackRunnerTypes))
-			for _, rt := range inline.FallbackRunnerTypes {
-				if rt == domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
-					continue
-				}
-				fallback = append(fallback, protoconv.RunnerTypeFromProto(rt))
-			}
-			req.FallbackRunnerTypes = fallback
 		}
 		if len(inline.AllowedTools) > 0 || inline.ClearAllowedTools {
 			req.AllowedTools = inline.AllowedTools
@@ -1545,7 +1533,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		ScopePaths    []string          `json:"scopePaths,omitempty"`
 		AttachmentIDs []string          `json:"attachmentIds,omitempty"`
 		RunnerType    string            `json:"runnerType,omitempty"`
-		ModelPreset   string            `json:"modelPreset,omitempty"`
+		PolicyRef     string            `json:"policyRef,omitempty"`
 		Environment   map[string]string `json:"environment,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1579,11 +1567,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		writeSimpleError(w, r, "runnerType", err.Error())
 		return
 	}
-	preset, err := parseOptionalModelPreset(req.ModelPreset)
-	if err != nil {
-		writeSimpleError(w, r, "modelPreset", err.Error())
-		return
-	}
+	policyRef := optionalTrimmedString(req.PolicyRef)
 
 	run, err := h.svc.CreateInvestigationRun(r.Context(), orchestration.CreateInvestigationRequest{
 		RunIDs:        runIDs,
@@ -1593,7 +1577,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		ScopePaths:    req.ScopePaths,
 		AttachmentIDs: req.AttachmentIDs,
 		RunnerType:    runnerType,
-		ModelPreset:   preset,
+		PolicyRef:     policyRef,
 		Environment:   req.Environment,
 	})
 	if err != nil {
@@ -1618,18 +1602,13 @@ func parseOptionalRunnerType(raw string) (*domain.RunnerType, error) {
 	return &rt, nil
 }
 
-// parseOptionalModelPreset validates an optional preset override from an HTTP request.
-// Empty string returns (nil, nil) meaning "no override".
-func parseOptionalModelPreset(raw string) (*domain.ModelPreset, error) {
+// optionalTrimmedString returns nil for an omitted override.
+func optionalTrimmedString(raw string) *string {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return nil, nil
+		return nil
 	}
-	preset := domain.ModelPreset(strings.ToUpper(trimmed))
-	if !preset.IsValid() || preset == domain.ModelPresetUnspecified {
-		return nil, fmt.Errorf("unknown model preset %q", trimmed)
-	}
-	return &preset, nil
+	return &trimmed
 }
 
 // ResumeFromFailedRun creates a new run that resumes the work of a failed
@@ -1672,7 +1651,7 @@ func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Req
 		CustomContext      string            `json:"customContext,omitempty"`
 		AttachmentIDs      []string          `json:"attachmentIds,omitempty"`
 		RunnerType         string            `json:"runnerType,omitempty"`
-		ModelPreset        string            `json:"modelPreset,omitempty"`
+		PolicyRef          string            `json:"policyRef,omitempty"`
 		Environment        map[string]string `json:"environment,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1695,18 +1674,14 @@ func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Req
 		writeSimpleError(w, r, "runnerType", err.Error())
 		return
 	}
-	preset, err := parseOptionalModelPreset(req.ModelPreset)
-	if err != nil {
-		writeSimpleError(w, r, "modelPreset", err.Error())
-		return
-	}
+	policyRef := optionalTrimmedString(req.PolicyRef)
 
 	run, err := h.svc.CreateInvestigationApplyRun(r.Context(), orchestration.CreateInvestigationApplyRequest{
 		InvestigationRunID: runID,
 		CustomContext:      req.CustomContext,
 		AttachmentIDs:      req.AttachmentIDs,
 		RunnerType:         runnerType,
-		ModelPreset:        preset,
+		PolicyRef:          policyRef,
 		Environment:        req.Environment,
 	})
 	if err != nil {
@@ -2862,27 +2837,6 @@ func (h *Handler) ProbeRunner(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetRunnerModels returns the model registry for all runners.
-func (h *Handler) GetRunnerModels(w http.ResponseWriter, r *http.Request) {
-	registry, err := h.svc.GetModelRegistry(r.Context())
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, registry)
-}
-
-// GetRunnerModelHealth returns the current health snapshot for every registered model.
-// Response shape: {"runners": {"<runner>": {"<modelId>": {"status", "lastChecked", "message"}}}}
-func (h *Handler) GetRunnerModelHealth(w http.ResponseWriter, r *http.Request) {
-	snapshot, err := h.svc.GetModelRegistryHealth(r.Context())
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, snapshot)
-}
-
 // GetModelPolicyStatus returns truthful catalog activation state.
 func (h *Handler) GetModelPolicyStatus(w http.ResponseWriter, r *http.Request) {
 	if h.modelPolicy == nil {
@@ -3004,15 +2958,14 @@ func (h *Handler) resolveProfileModels(ctx context.Context, profile *domain.Agen
 		return nil, nil
 	}
 
-	registry, err := h.svc.GetModelRegistry(ctx)
-	if err != nil || registry == nil {
+	if h.modelPolicy == nil || h.modelPolicy.Active() == nil {
 		return nil, nil
 	}
+	catalog := h.modelPolicy.Active().Catalog()
 
 	statuses, _ := h.svc.GetRunnerStatus(ctx)
 
-	runnerKey := string(profile.RunnerType)
-	runnerRegistry, ok := registry.Runners[runnerKey]
+	runnerInventory, ok := catalog.Runners[profile.RunnerType]
 	if !ok {
 		return nil, nil
 	}
@@ -3034,8 +2987,8 @@ func (h *Handler) resolveProfileModels(ctx context.Context, profile *domain.Agen
 		}
 	}
 
-	available := make([]*apipb.AvailableModel, 0, len(runnerRegistry.Models))
-	for _, model := range runnerRegistry.Models {
+	available := make([]*apipb.AvailableModel, 0, len(runnerInventory.Models))
+	for _, model := range runnerInventory.Models {
 		id := strings.TrimSpace(model.ID)
 		if id == "" {
 			continue
@@ -3047,7 +3000,7 @@ func (h *Handler) resolveProfileModels(ctx context.Context, profile *domain.Agen
 		}
 
 		label, provider := splitModelID(id)
-		sources := []string{"registry"}
+		sources := []string{"model_policy_catalog"}
 		if len(supported) > 0 {
 			sources = append(sources, "capabilities")
 		}
@@ -3064,11 +3017,16 @@ func (h *Handler) resolveProfileModels(ctx context.Context, profile *domain.Agen
 		return available[i].Id < available[j].Id
 	})
 
-	var presets map[string]string
-	for key, chain := range runnerRegistry.Presets {
-		// Expose the primary concrete model for each preset; the runner-default sentinel
-		// (empty string) is not a user-facing choice here.
-		modelID := strings.TrimSpace(chain.Primary())
+	var policyModels map[string]string
+	for policyRef, policy := range catalog.Policies {
+		modelID := ""
+		for _, candidate := range policy.Candidates {
+			if candidate.Runner != profile.RunnerType || candidate.Selection.Type != modelpolicy.SelectionTypeModel {
+				continue
+			}
+			modelID = strings.TrimSpace(candidate.Selection.Model)
+			break
+		}
 		if modelID == "" {
 			continue
 		}
@@ -3077,17 +3035,17 @@ func (h *Handler) resolveProfileModels(ctx context.Context, profile *domain.Agen
 				continue
 			}
 		}
-		if presets == nil {
-			presets = make(map[string]string)
+		if policyModels == nil {
+			policyModels = make(map[string]string)
 		}
-		presets[key] = modelID
+		policyModels[policyRef] = modelID
 	}
 
 	if len(available) == 0 {
 		return nil, nil
 	}
 
-	return available, presets
+	return available, policyModels
 }
 
 func splitModelID(id string) (label string, provider string) {

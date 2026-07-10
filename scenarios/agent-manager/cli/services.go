@@ -650,11 +650,6 @@ func (s *RunnerService) Probe(runnerType string) ([]byte, *domainpb.ProbeResult,
 	return body, resp.Result, nil
 }
 
-// GetModels retrieves the model registry for all runners.
-func (s *RunnerService) GetModels() ([]byte, error) {
-	return s.api.Get("/api/v1/runner-models", nil)
-}
-
 // PolicyService exposes declared catalog inspection and controlled activation.
 type PolicyService struct {
 	api *cliutil.APIClient

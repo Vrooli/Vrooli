@@ -126,6 +126,68 @@ func TestInitSchema_WithLegacyRunsTable_AddsInvestigationColumns(t *testing.T) {
 	}
 }
 
+func TestMigrateProfileModelPolicyColumnsBackfillsNamedPolicyAndDropsLegacyColumns(t *testing.T) {
+	db, cleanup := setupRawTestDB(t)
+	defer cleanup()
+	if _, err := db.Exec(`
+		CREATE TABLE agent_profiles (
+			id TEXT PRIMARY KEY,
+			runner_type TEXT NOT NULL,
+			model_preset TEXT,
+			fallback_runner_types TEXT DEFAULT '[]'
+		);
+		INSERT INTO agent_profiles (id, runner_type, model_preset, fallback_runner_types)
+		VALUES ('profile-1', 'codex', 'SMART', '["claude-code"]');
+	`); err != nil {
+		t.Fatalf("seed legacy profiles: %v", err)
+	}
+
+	if err := db.migrateProfileModelPolicyColumns(context.Background()); err != nil {
+		t.Fatalf("migrate legacy profiles: %v", err)
+	}
+	var policyRef string
+	if err := db.Get(&policyRef, "SELECT policy_ref FROM agent_profiles WHERE id = 'profile-1'"); err != nil {
+		t.Fatalf("read migrated profile: %v", err)
+	}
+	if policyRef != "codex.smart" {
+		t.Fatalf("policy_ref = %q, want codex.smart", policyRef)
+	}
+	for _, column := range []string{"model_preset", "fallback_runner_types"} {
+		var count int
+		if err := db.Get(&count, "SELECT COUNT(*) FROM pragma_table_info('agent_profiles') WHERE name = ?", column); err != nil {
+			t.Fatalf("inspect %s: %v", column, err)
+		}
+		if count != 0 {
+			t.Fatalf("legacy column %s still exists", column)
+		}
+	}
+}
+
+func TestMigrateProfileModelPolicyColumnsRejectsUnknownPreset(t *testing.T) {
+	db, cleanup := setupRawTestDB(t)
+	defer cleanup()
+	if _, err := db.Exec(`
+		CREATE TABLE agent_profiles (id TEXT PRIMARY KEY, runner_type TEXT NOT NULL, model_preset TEXT);
+		INSERT INTO agent_profiles (id, runner_type, model_preset) VALUES ('profile-1', 'codex', 'TURBO');
+	`); err != nil {
+		t.Fatalf("seed legacy profile: %v", err)
+	}
+	if err := db.migrateProfileModelPolicyColumns(context.Background()); err == nil || !strings.Contains(err.Error(), "unsupported model_preset") {
+		t.Fatalf("migration error = %v, want unsupported preset diagnostic", err)
+	}
+}
+
+func setupRawTestDB(t *testing.T) (*DB, func()) {
+	t.Helper()
+	sqlDB, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "raw.db"))
+	if err != nil {
+		t.Fatalf("connect raw sqlite: %v", err)
+	}
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel)
+	return &DB{DB: sqlDB, log: log}, func() { _ = sqlDB.Close() }
+}
+
 func TestDataDirPrefersCanonicalStorageOverLegacyFallbackEnv(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

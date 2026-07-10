@@ -12,8 +12,6 @@ import type {
   InvestigationDepth,
   InvestigationSettings,
   InvestigationTagRule,
-  ModelHealthSnapshot,
-  ModelRegistry,
   ProfileFormData,
   ProbeResult,
   RejectFormData,
@@ -26,7 +24,6 @@ import type {
   Task,
   TaskFormData,
 } from "../types";
-import { ModelPreset } from "../types";
 import {
   AgentProfileSchema,
   RunConfigOverridesSchema,
@@ -322,10 +319,9 @@ function buildProfile(profile: ProfileFormData): AgentProfile {
     description: profile.description ?? "",
     runnerType: profile.runnerType,
     model,
-    modelPreset: profile.modelPreset ?? ModelPreset.UNSPECIFIED,
+    policyRef: profile.policyRef?.trim() ?? "",
     maxTurns: profile.maxTurns ?? 0,
     timeout: durationFromMinutes(profile.timeoutMinutes),
-    fallbackRunnerTypes: profile.fallbackRunnerTypes ?? [],
     allowedTools: profile.allowedTools ?? [],
     deniedTools: profile.deniedTools ?? [],
     skipPermissionPrompt: profile.skipPermissionPrompt ?? false,
@@ -368,14 +364,8 @@ function buildRunConfigOverrides(run: RunFormData) {
   if (run.runnerType !== undefined) {
     payload.runnerType = run.runnerType;
   }
-  if (run.fallbackRunnerTypes !== undefined) {
-    payload.fallbackRunnerTypes = run.fallbackRunnerTypes;
-    if (run.fallbackRunnerTypes.length === 0) {
-      payload.clearFallbackRunnerTypes = true;
-    }
-  }
-  if (run.modelPreset !== undefined) {
-    payload.modelPreset = run.modelPreset;
+  if (run.policyRef !== undefined) {
+    payload.policyRef = run.policyRef.trim();
   }
   if (run.model !== undefined && run.model.trim() !== "") {
     payload.model = run.model;
@@ -448,9 +438,8 @@ function buildRunConfigOverrides(run: RunFormData) {
 function hasInlineConfig(run: RunFormData): boolean {
   return Boolean(
     run.runnerType !== undefined ||
-      run.fallbackRunnerTypes !== undefined ||
       run.model !== undefined ||
-      run.modelPreset !== undefined ||
+      run.policyRef !== undefined ||
       run.maxTurns !== undefined ||
       run.timeoutMinutes !== undefined ||
       run.allowedTools !== undefined ||
@@ -766,7 +755,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
       projectRoot?: string,
       scopePaths?: string[],
       attachmentIds?: string[],
-      overrides?: { runnerType?: string; modelPreset?: string }
+      overrides?: { runnerType?: string; policyRef?: string }
     ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigate", {
         method: "POST",
@@ -778,7 +767,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
           scopePaths,
           attachmentIds,
           runnerType: overrides?.runnerType,
-          modelPreset: overrides?.modelPreset,
+          policyRef: overrides?.policyRef,
         }),
       });
       const message = parseProto(CreateRunResponseSchema, created);
@@ -794,7 +783,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
       investigationRunId: string,
       customContext?: string,
       attachmentIds?: string[],
-      overrides?: { runnerType?: string; modelPreset?: string }
+      overrides?: { runnerType?: string; policyRef?: string }
     ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigation-apply", {
         method: "POST",
@@ -803,7 +792,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
           customContext,
           attachmentIds,
           runnerType: overrides?.runnerType,
-          modelPreset: overrides?.modelPreset,
+          policyRef: overrides?.policyRef,
         }),
       });
       const message = parseProto(CreateRunResponseSchema, created);
@@ -1049,34 +1038,6 @@ export function useRunners(options?: { enabled?: boolean }) {
   return { data, loading, error, refetch: fetchRunners };
 }
 
-// Model registry hook
-export function useModelRegistry(options?: { enabled?: boolean }) {
-  const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<ModelRegistry | null>(null);
-
-  const fetchRegistry = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<ModelRegistry>("/runner-models");
-      setData(data);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-    void fetchRegistry();
-  }, [enabled, fetchRegistry]);
-
-  return { data, loading, error, refetch: fetchRegistry };
-}
-
 // Model-policy catalog hook. This is a read-only projection of Git-managed
 // declared state; reload and validation remain explicit operator commands.
 export function useModelPolicyCatalog(options?: { enabled?: boolean }) {
@@ -1101,34 +1062,6 @@ export function useModelPolicyCatalog(options?: { enabled?: boolean }) {
   }, [enabled, fetchCatalog]);
 
   return { data, loading, error, refetch: fetchCatalog };
-}
-
-// Model registry health hook. Pulls the current per-model health snapshot from the
-// /runner-models/health endpoint. The hook refetches each time `enabled` toggles true
-// and exposes an explicit refetch for callers that want an on-demand refresh.
-export function useModelRegistryHealth(options?: { enabled?: boolean }) {
-  const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<ModelHealthSnapshot | null>(null);
-
-  const fetchHealth = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const snapshot = await apiRequest<ModelHealthSnapshot>("/runner-models/health");
-      setData(snapshot);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    fetchHealth();
-  }, [enabled, fetchHealth]);
-
-  return { data, loading, error, refetch: fetchHealth };
 }
 
 // Probe runner function (standalone for use in components)

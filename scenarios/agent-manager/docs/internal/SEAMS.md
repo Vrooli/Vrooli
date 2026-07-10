@@ -224,8 +224,10 @@ active revision therefore yields HTTP 503 readiness with path and cause.
 explainable candidate sequence before the run row is created.
 
 **Contract:**
-- FAST/CHEAP/SMART is accepted only as a legacy migration input and maps once
-  to runner.fast|cheap|smart; runtime authority is the resulting snapshot.
+- The SQLite startup migration maps supported legacy FAST/CHEAP/SMART profile
+  rows once to runner.fast|cheap|smart and removes the obsolete columns.
+  Runtime profile, API, scenario-config, and execution surfaces accept no
+  legacy preset input; authority is `policyRef` plus the resulting snapshot.
 - An explicit model must exist in the active static inventory or a declared
   dynamic namespace. No undeclared direct override bypass exists.
 - An omitted model resolves to an explicit runner_default candidate rather
@@ -267,7 +269,8 @@ RUNNER_UNAVAILABLE error. The snapshot itself is never mutated; ResolvedConfig
 runner/model are persisted runtime projections of the current attempt. Resume
 therefore retries the interrupted candidate at least once without replaying
 earlier candidates or consulting live policy. Historical rows with no snapshot
-still use the legacy resolver until the Phase 6 data/config hard cutover.
+remain readable and use their stored single runner/model projection; they do
+not receive a snapshot fabricated from current policy.
 
 **Execution tests:** internal/orchestration/phases/execute_test.go covers
 cross-runner fallback, unavailable-runner skips, typed terminal exhaustion,
@@ -283,7 +286,9 @@ catalog inspection, non-activating validation, atomic reload, and profile/run
 explanation. `protoconv.ModelPolicyCatalogToProto` sorts map-backed runners and
 policies so JSON and human output remain diff-friendly.
 
-`runner models-update` and `PUT /api/v1/runner-models` are intentionally absent.
+The former `runner models`, `runner models-update`, and
+`/api/v1/runner-models` routes are intentionally absent. Catalog inspection is
+available only through the generated `policy catalog` contract.
 Reload accepts no catalog payload, so it cannot become a competing desired-state
 writer. Profile explanation uses the same resolver/preflight path as run
 creation. Run explanation returns nil for historical rows without snapshots
@@ -675,7 +680,7 @@ DOC: `internal/fallback/reason.go`, `docs/internal/ERROR_SEMANTICS.md` (Reason t
 
 ### 3d. Health Audit Store (`internal/health`)
 
-**Purpose:** Persisted SQLite-backed audit log of model + runner health observations. Replaces the in-memory `modelregistry.HealthStore` (deleted 2026-05-07, Phase 2). Health snapshots survive API restart.
+**Purpose:** Persisted SQLite-backed audit log of model + runner health observations. Health snapshots survive API restart and remain an availability overlay, never desired state.
 
 **Interface:** `*health.Store`
 ```go
@@ -693,7 +698,7 @@ Two append-only tables (`model_health_audit`, `runner_health_audit`) are the sou
 **Wired in:**
 - `orchestration.WithHealthStore(*health.Store)` — orchestration option; the per-run `healthMarkerAdapter` writes audit rows on every `MarkModel{Healthy,Unavailable}` from the executor.
 - `health.NewProbe(store, modelPolicyState, resolveProber, classifier, config)` — periodic probe reads the same active catalog revision used by resolution and codec visibility; it writes audit rows on every probe outcome with classified `fallback.Reason`.
-- `Orchestrator.GetModelRegistryHealth` reads from the store via `Snapshot`.
+- `Orchestrator.GetModelHealthSnapshot` reads from the store via `Snapshot`.
 
 **Why a seam:**
 - Snapshots survive process restart (no more in-memory flapping).

@@ -1,54 +1,34 @@
 import { useId } from "react";
 import type { ModelOption } from "../types";
-import { ModelPreset } from "../types";
+import type { PolicyOption } from "../lib/modelPolicyCatalog";
 import { Label } from "./ui/label";
 import { ModelSelector } from "./ModelSelector";
 
-export type ModelSelectionMode = "default" | "preset" | "model";
+export type ModelSelectionMode = "default" | "policy" | "model";
 
 export interface ModelSelectionState {
   mode: ModelSelectionMode;
   model: string;
-  preset: ModelPreset;
+  policyRef: string;
 }
 
 interface ModelConfigSelectorProps {
   value: ModelSelectionState;
   onChange: (value: ModelSelectionState) => void;
   models: ModelOption[];
-  presetMap?: Record<string, string>;
+  policies?: PolicyOption[];
   label?: string;
-}
-
-const PRESET_OPTIONS = [
-  { value: ModelPreset.FAST, label: "Fast" },
-  { value: ModelPreset.CHEAP, label: "Cheap" },
-  { value: ModelPreset.SMART, label: "Smart" },
-];
-
-function modelPresetKey(preset: ModelPreset): string {
-  switch (preset) {
-    case ModelPreset.FAST:
-      return "FAST";
-    case ModelPreset.CHEAP:
-      return "CHEAP";
-    case ModelPreset.SMART:
-      return "SMART";
-    default:
-      return "";
-  }
 }
 
 export function ModelConfigSelector({
   value,
   onChange,
   models,
-  presetMap,
+  policies = [],
   label = "Model Selection",
 }: ModelConfigSelectorProps) {
   const groupId = useId();
-  const presetKey = modelPresetKey(value.preset);
-  const resolvedModel = presetKey ? presetMap?.[presetKey] : "";
+  const selectedPolicy = policies.find((policy) => policy.ref === value.policyRef);
 
   return (
     <div className="space-y-3">
@@ -63,7 +43,7 @@ export function ModelConfigSelector({
               onChange({
                 mode: "default",
                 model: "",
-                preset: ModelPreset.UNSPECIFIED,
+                policyRef: "",
               })
             }
           />
@@ -73,17 +53,17 @@ export function ModelConfigSelector({
           <input
             type="radio"
             name={groupId}
-            checked={value.mode === "preset"}
+            checked={value.mode === "policy"}
             onChange={() =>
               onChange({
                 ...value,
-                mode: "preset",
+                mode: "policy",
                 model: "",
-                preset: value.preset !== ModelPreset.UNSPECIFIED ? value.preset : ModelPreset.FAST,
+                policyRef: value.policyRef || policies[0]?.ref || "",
               })
             }
           />
-          Preset (Fast/Cheap/Smart)
+          Named policy
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -94,7 +74,7 @@ export function ModelConfigSelector({
               onChange({
                 ...value,
                 mode: "model",
-                preset: ModelPreset.UNSPECIFIED,
+                policyRef: "",
               })
             }
           />
@@ -102,29 +82,29 @@ export function ModelConfigSelector({
         </label>
       </div>
 
-      {value.mode === "preset" && (
+      {value.mode === "policy" && (
         <div className="space-y-2">
-          <Label htmlFor="modelPreset">Preset</Label>
+          <Label htmlFor="policyRef">Policy</Label>
           <select
-            id="modelPreset"
-            value={value.preset}
+            id="policyRef"
+            value={value.policyRef}
             onChange={(event) =>
               onChange({
                 ...value,
-                preset: Number(event.target.value) as ModelPreset,
+                policyRef: event.target.value,
               })
             }
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {PRESET_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+            {policies.map((option) => (
+              <option key={option.ref} value={option.ref}>
+                {option.label} ({option.ref})
               </option>
             ))}
           </select>
-          {resolvedModel && (
+          {selectedPolicy?.primaryModel && (
             <p className="text-xs text-muted-foreground">
-              Currently mapped to <span className="font-medium text-foreground">{resolvedModel}</span>.
+              Primary candidate: <span className="font-medium text-foreground">{selectedPolicy.primaryModel}</span>.
             </p>
           )}
         </div>

@@ -73,8 +73,8 @@ func TestCreateInvestigationRun_WithAttachmentIDs(t *testing.T) {
 	})
 
 	// Pre-create the investigation profile with a concrete Model so the CreateRun
-	// config validation doesn't hit the ModelPreset → model-registry path (the
-	// built-in default profile uses ModelPreset=Smart, which requires a
+	// config validation doesn't hit the model-policy resolution path (the
+	// built-in default profile uses the smart policy, which requires a
 	// configured registry we don't wire up for this unit test).
 	mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
 		Name:          "investigation-profile",

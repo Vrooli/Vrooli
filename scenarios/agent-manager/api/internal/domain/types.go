@@ -29,13 +29,11 @@ type AgentProfile struct {
 	Description string    `json:"description,omitempty" db:"description"`
 
 	// Runner configuration
-	RunnerType  RunnerType    `json:"runnerType" db:"runner_type"`
-	Model       string        `json:"model,omitempty" db:"model"`
-	ModelPreset ModelPreset   `json:"modelPreset,omitempty" db:"model_preset"`
-	MaxTurns    int           `json:"maxTurns,omitempty" db:"max_turns"`
-	Timeout     time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
-	// Ordered runner fallback list (used when primary runner is unavailable)
-	FallbackRunnerTypes []RunnerType `json:"fallbackRunnerTypes,omitempty" db:"fallback_runner_types"`
+	RunnerType RunnerType    `json:"runnerType" db:"runner_type"`
+	Model      string        `json:"model,omitempty" db:"model"`
+	PolicyRef  string        `json:"policyRef,omitempty" db:"policy_ref"`
+	MaxTurns   int           `json:"maxTurns,omitempty" db:"max_turns"`
+	Timeout    time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
 
 	// Tool permissions
 	AllowedTools []string `json:"allowedTools,omitempty" db:"allowed_tools"`
@@ -102,26 +100,6 @@ func (r RunnerType) IsValid() bool {
 	return false
 }
 
-// ModelPreset describes a high-level model selection preset.
-type ModelPreset string
-
-const (
-	ModelPresetUnspecified ModelPreset = ""
-	ModelPresetFast        ModelPreset = "FAST"
-	ModelPresetCheap       ModelPreset = "CHEAP"
-	ModelPresetSmart       ModelPreset = "SMART"
-)
-
-// IsValid reports whether the preset is a supported value.
-func (p ModelPreset) IsValid() bool {
-	switch p {
-	case ModelPresetUnspecified, ModelPresetFast, ModelPresetCheap, ModelPresetSmart:
-		return true
-	default:
-		return false
-	}
-}
-
 // ModelSelectionType makes runner-default selection explicit in persisted run
 // snapshots. Empty model strings are not sentinels in this contract.
 type ModelSelectionType string
@@ -151,12 +129,12 @@ type CandidatePreflight struct {
 // sequence. It is persisted with the run so operators never need to reconstruct
 // precedence from the current profile or catalog.
 type PolicyResolutionExplanation struct {
-	Source          string               `json:"source"`
-	Summary         string               `json:"summary"`
-	RequestedRunner RunnerType           `json:"requestedRunner,omitempty"`
-	RequestedModel  string               `json:"requestedModel,omitempty"`
-	RequestedPreset ModelPreset          `json:"requestedPreset,omitempty"`
-	Preflight       []CandidatePreflight `json:"preflight,omitempty"`
+	Source             string               `json:"source"`
+	Summary            string               `json:"summary"`
+	RequestedRunner    RunnerType           `json:"requestedRunner,omitempty"`
+	RequestedModel     string               `json:"requestedModel,omitempty"`
+	RequestedPolicyRef string               `json:"requestedPolicyRef,omitempty"`
+	Preflight          []CandidatePreflight `json:"preflight,omitempty"`
 }
 
 // ExecutionPolicySnapshot is the immutable model/runner decision attached to a
@@ -904,13 +882,11 @@ type RunSummary struct {
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
 	// Runner configuration
-	RunnerType  RunnerType    `json:"runnerType"`
-	Model       string        `json:"model,omitempty"`
-	ModelPreset ModelPreset   `json:"modelPreset,omitempty"`
-	MaxTurns    int           `json:"maxTurns,omitempty"`
-	Timeout     time.Duration `json:"timeout,omitempty"`
-	// Ordered runner fallback list (used when primary runner is unavailable)
-	FallbackRunnerTypes []RunnerType `json:"fallbackRunnerTypes,omitempty"`
+	RunnerType RunnerType    `json:"runnerType"`
+	Model      string        `json:"model,omitempty"`
+	PolicyRef  string        `json:"policyRef,omitempty"`
+	MaxTurns   int           `json:"maxTurns,omitempty"`
+	Timeout    time.Duration `json:"timeout,omitempty"`
 
 	// PolicySnapshot pins the exact active catalog revision and ordered
 	// candidate sequence selected before this run was persisted.
@@ -953,12 +929,9 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	}
 	c.RunnerType = profile.RunnerType
 	c.Model = profile.Model
-	c.ModelPreset = profile.ModelPreset
+	c.PolicyRef = profile.PolicyRef
 	c.MaxTurns = profile.MaxTurns
 	c.Timeout = profile.Timeout
-	if len(profile.FallbackRunnerTypes) > 0 {
-		c.FallbackRunnerTypes = append([]RunnerType(nil), profile.FallbackRunnerTypes...)
-	}
 	c.AllowedTools = profile.AllowedTools
 	c.DeniedTools = profile.DeniedTools
 	c.SkipPermissionPrompt = profile.SkipPermissionPrompt

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"strings"
@@ -23,8 +22,6 @@ func (a *App) cmdRunner(args []string) error {
 		return a.runnerList(args[1:])
 	case "probe":
 		return a.runnerProbe(args[1:])
-	case "models":
-		return a.runnerModels(args[1:])
 	case "help", "-h", "--help":
 		return a.runnerHelp()
 	default:
@@ -38,7 +35,6 @@ func (a *App) runnerHelp() error {
 Subcommands:
   list              List all runners and their status
   probe <type>      Probe a specific runner to verify it can respond
-  models            Get the model registry for all runners
 
 Runner Types:
   claude-code       Claude Code runner
@@ -50,8 +46,7 @@ Options:
 
 Examples:
   agent-manager runner list
-  agent-manager runner probe claude-code
-  agent-manager runner models`)
+  agent-manager runner probe claude-code`)
 	return nil
 }
 
@@ -152,40 +147,6 @@ func (a *App) runnerProbe(args []string) error {
 		fmt.Println("Details:")
 		for k, v := range result.Details {
 			fmt.Printf("  %s: %s\n", k, v)
-		}
-	}
-
-	return nil
-}
-
-// =============================================================================
-// Runner Models
-// =============================================================================
-
-func (a *App) runnerModels(args []string) error {
-	fs := flag.NewFlagSet("runner models", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	body, err := a.services.Runners.GetModels()
-	if err != nil {
-		return err
-	}
-
-	// Models are returned as raw JSON, always pretty-print
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-	} else {
-		// Pretty print the JSON for human-readable output
-		var prettyJSON map[string]interface{}
-		if err := json.Unmarshal(body, &prettyJSON); err == nil {
-			formatted, _ := json.MarshalIndent(prettyJSON, "", "  ")
-			fmt.Println(string(formatted))
-		} else {
-			cliutil.PrintJSON(body)
 		}
 	}
 

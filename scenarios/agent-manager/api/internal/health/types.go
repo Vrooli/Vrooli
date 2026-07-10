@@ -1,5 +1,5 @@
 // Package health owns the persisted audit log of model and runner health
-// transitions. Replaces the pre-Phase-2 in-memory modelregistry.HealthStore.
+// transitions.
 //
 // Design:
 //   - Two append-only SQLite tables (model_health_audit, runner_health_audit)
@@ -41,8 +41,7 @@ const (
 )
 
 // ModelEntry is a current-health snapshot row for a single (runner, model)
-// pair. The JSON shape matches the pre-Phase-2 modelregistry.ModelHealth
-// so the existing /api/v1/runner-models/health endpoint stays compatible.
+// pair.
 type ModelEntry struct {
 	Status      Status    `json:"status"`
 	LastChecked time.Time `json:"lastChecked"`
@@ -58,10 +57,7 @@ type RunnerEntry struct {
 	Reason      string    `json:"reason,omitempty"`
 }
 
-// Snapshot is the JSON-shaped current-health payload returned by the
-// snapshot endpoint. Top-level shape preserved from pre-Phase-2 for
-// API compatibility; "models" key holds the legacy nested model map and
-// "runners" gains a parallel runner-level map.
+// Snapshot is the current health payload used by the flat audit endpoints.
 type Snapshot struct {
 	// Models is the legacy shape: runner_type → model_id → ModelEntry.
 	// Runners that were registered but have no entries appear with an

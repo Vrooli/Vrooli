@@ -59,6 +59,23 @@ Operator workflow:
 The reload request carries no document payload. A failed reload preserves the
 previous active digest.
 
+Profiles select either a named `policyRef`, an explicit `model` plus runner,
+or the runner default. These choices are mutually exclusive; fallback order is
+owned only by the named policy's candidate list. On first startup after the
+hard cutover, supported legacy profile rows are migrated deterministically:
+`FAST`, `CHEAP`, and `SMART` become `<runner>.fast`,
+`<runner>.cheap`, and `<runner>.smart`. Unknown legacy values fail startup
+with an explicit migration diagnostic instead of silently selecting a default.
+Historical run snapshots are not rewritten.
+
+For a deploy that may require binary rollback, back up the agent-manager SQLite
+database before starting the new binary. The migration removes the obsolete
+profile columns, so an older binary cannot safely reuse the migrated database.
+Catalog rollback itself is simpler: restore the last known-good catalog file,
+run `agent-manager policy validate`, then `agent-manager policy reload`.
+Inspect `policy status` to confirm the active digest. A rejected reload needs
+no recovery because the prior revision remains active.
+
 ## Execution
 
 Run-level execution behavior.

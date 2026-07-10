@@ -50,25 +50,27 @@
 
 ## Test Gaps
 
-The snapshot execution boundary now has focused coverage for cross-runner
-fallback, explicit runner-default launch, unavailable-runner skips, terminal
-exhaustion, persisted-candidate restart/resume, and a successful catalog reload
-between attempts. Phase 5 operator contracts now cover status, catalog
-inspection, validation, failed-reload preservation, explanation, and removal of
-the whole-document mutation command. Remaining plan-owned gaps are Phase 6
-historical-row migration/removal tests. The broader
-scenario suite also retains the separately tracked stale app-issue-tracker
-fixture failure; it is not evidence against this execution boundary.
+The model-policy boundary has focused coverage for catalog validation and
+atomic activation, profile-to-snapshot resolution, cross-runner fallback,
+explicit runner-default launch, unavailable-runner skips, terminal exhaustion,
+persisted-candidate restart/resume, and catalog reload during execution.
+Repository tests cover supported legacy-row migration, obsolete-column removal,
+unknown-value rejection, and historical snapshot round trips. Operator contract
+tests cover status, catalog inspection, validation, failed-reload preservation,
+explanation, and removal of the whole-document mutation command. Seeded-profile
+reconciliation now validates the migrated scenario-owned `policyRef` files;
+the broader API suite retains only the separately tracked app-issue-tracker
+missing-manifest fixture failure. Unit Health also reports pre-existing UI
+policy-projection drift and requirement-tagging debt outside this plan.
 
 ## Technical Debt
 
-### TD-Model-Policy-Legacy-Read: Historical runs still need migration closure
-**Description**: New policy-backed runs execute only their persisted candidate
-sequence. Historical resolved_config values without policySnapshot still use
-the legacy preset/fallback path so old rows remain executable. Phase 6 must
-classify and migrate supported historical state, then delete that path rather
-than retaining it as a permanent compatibility authority.
-**Priority**: Active plan work — hard-cutover phase.
+### Resolved: Model-policy legacy profile inputs
+Profiles now store one `policyRef` or an explicit direct model. Database startup
+maps supported `FAST`/`CHEAP`/`SMART` rows to `<runner>.<intent>`, rejects
+unknown preset values, and removes the old preset/fallback columns. Historical
+runs keep their persisted snapshot (or their honest snapshot-less
+runner/model projection) without consulting current policy.
 
 ### TD-001: Template README Cleanup
 **Description**: Generated README.md is template boilerplate, needs replacement with scenario-specific content.
@@ -79,6 +81,25 @@ than retaining it as a permanent compatibility authority.
 **Priority**: Deferred to OT-P2-007.
 
 ## Resolved Incidents
+
+### R-005: Model-policy hard cutover omitted first-party consumers (2026-07-10)
+**Symptom**: Managed `test-genie` startup failed to compile after the generated
+agent-manager contract removed `ModelPreset`; prompt-manager's manual JSON
+client still compiled but would have sent the now-unknown `model_preset` field.
+**Root cause**: The hard-cutover consumer inventory covered agent-manager and
+scenario-owned profile JSON, but did not search the entire repository for typed
+proto consumers and manual HTTP projections before deleting the generated enum
+and field.
+**Fix**: Migrated test-genie, scenario-to-cloud, system-monitor,
+scenario-to-desktop, and prompt-manager heartbeat adapters to runner-qualified
+`policyRef` values and updated their contract tests. The supported scenario
+profile files use the same named-policy contract.
+**Prevention**: Proto hard cutovers require a repo-wide structural consumer
+search that includes generated-type imports and manual JSON field projections;
+target-scenario compilation alone is not a sufficient consumer matrix.
+**Validation**: All affected adapter packages pass focused tests, stale
+production references are absent, and test-genie starts healthy through the
+managed lifecycle.
 
 ### R-004: workspace-sandbox unavailable during sandboxed run setup/finalization (2026-05-19)
 **Symptom**: Default sandboxed runs could fail at `sandbox_creating` with `SANDBOX_CREATE` caused by `connect: connection refused` when workspace-sandbox had stopped or was still starting after agent-manager boot. Completed runner turns could also fail post-turn checkpoint/apply when workspace-sandbox became unavailable before finalization.

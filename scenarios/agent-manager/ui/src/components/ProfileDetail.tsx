@@ -4,26 +4,13 @@ import { Button } from "./ui/button";
 import { networkAccessLabel, runnerTypeLabel, sandboxModeLabel } from "../lib/utils";
 import { formatStandardDateTime } from "../lib/dateTime";
 import type { AgentProfile } from "../types";
-import { ModelPreset, SandboxMode } from "../types";
+import { SandboxMode } from "../types";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
 
 const durationToMinutes = (duration: Duration | undefined): number => {
   if (!duration) return 30;
   const ms = durationMs(duration);
   return Math.max(1, Math.round(ms / 60_000));
-};
-
-const modelPresetLabel = (preset?: ModelPreset) => {
-  switch (preset) {
-    case ModelPreset.FAST:
-      return "Fast";
-    case ModelPreset.CHEAP:
-      return "Cheap";
-    case ModelPreset.SMART:
-      return "Smart";
-    default:
-      return "";
-  }
 };
 
 interface ProfileDetailProps {
@@ -68,8 +55,8 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
       {/* Badges */}
       <div className="flex flex-wrap gap-2">
         <Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>
-        {profile.modelPreset !== ModelPreset.UNSPECIFIED && (
-          <Badge variant="outline">Preset: {modelPresetLabel(profile.modelPreset)}</Badge>
+        {profile.policyRef && (
+          <Badge variant="outline">Policy: {profile.policyRef}</Badge>
         )}
         {profile.model && profile.model.trim() !== "" && (
           <Badge variant="outline">{profile.model}</Badge>
@@ -112,19 +99,6 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
             <code className="block mt-1 text-xs bg-muted px-2 py-1 rounded">
               {profile.profileKey}
             </code>
-          </div>
-        )}
-
-        {profile.fallbackRunnerTypes && profile.fallbackRunnerTypes.length > 0 && (
-          <div className="text-sm">
-            <span className="text-muted-foreground">Fallback Runners</span>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {profile.fallbackRunnerTypes.map((rt, i) => (
-                <Badge key={i} variant="outline" className="text-xs">
-                  {runnerTypeLabel(rt)}
-                </Badge>
-              ))}
-            </div>
           </div>
         )}
 

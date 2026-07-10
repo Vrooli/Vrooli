@@ -193,12 +193,9 @@ func (p *AgentProfile) Validate() error {
 			"valid types: claude-code, codex, opencode")
 	}
 
-	// Model and ModelPreset are mutually exclusive
-	if strings.TrimSpace(p.Model) != "" && p.ModelPreset != ModelPresetUnspecified {
-		return NewValidationError("modelPreset", "cannot set model and model preset together")
-	}
-	if p.ModelPreset != ModelPresetUnspecified && !isValidModelPreset(p.ModelPreset) {
-		return NewValidationError("modelPreset", "invalid model preset")
+	// Direct model and named policy are mutually exclusive.
+	if strings.TrimSpace(p.Model) != "" && strings.TrimSpace(p.PolicyRef) != "" {
+		return NewValidationError("policyRef", "cannot set model and policy reference together")
 	}
 
 	// MaxTurns must be non-negative
@@ -229,10 +226,6 @@ func (p *AgentProfile) Validate() error {
 	}
 
 	if err := validateSandboxConfig(p.SandboxConfig); err != nil {
-		return err
-	}
-
-	if err := validateRunnerFallbackTypes("fallbackRunnerTypes", p.FallbackRunnerTypes); err != nil {
 		return err
 	}
 
@@ -289,32 +282,6 @@ func validateSandboxMode(mode SandboxMode) error {
 			"valid values: off, tracking (default), protected",
 		)
 	}
-}
-
-func isValidModelPreset(preset ModelPreset) bool {
-	switch preset {
-	case ModelPresetFast, ModelPresetCheap, ModelPresetSmart:
-		return true
-	default:
-		return false
-	}
-}
-
-func validateRunnerFallbackTypes(field string, fallback []RunnerType) error {
-	if len(fallback) == 0 {
-		return nil
-	}
-	seen := make(map[RunnerType]struct{}, len(fallback))
-	for _, rt := range fallback {
-		if !rt.IsValid() {
-			return NewValidationError(field, "invalid runner type: "+string(rt))
-		}
-		if _, exists := seen[rt]; exists {
-			return NewValidationError(field, "duplicate runner type: "+string(rt))
-		}
-		seen[rt] = struct{}{}
-	}
-	return nil
 }
 
 // =============================================================================

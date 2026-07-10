@@ -22,10 +22,6 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 	if p == nil {
 		return nil
 	}
-	fallback := make([]pb.RunnerType, 0, len(p.FallbackRunnerTypes))
-	for _, rt := range p.FallbackRunnerTypes {
-		fallback = append(fallback, RunnerTypeToProto(rt))
-	}
 	return &pb.AgentProfile{
 		Id:                   UUIDToString(p.ID),
 		Name:                 p.Name,
@@ -33,10 +29,9 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		Description:          p.Description,
 		RunnerType:           RunnerTypeToProto(p.RunnerType),
 		Model:                p.Model,
-		ModelPreset:          ModelPresetToProto(p.ModelPreset),
+		PolicyRef:            p.PolicyRef,
 		MaxTurns:             int32(p.MaxTurns),
 		Timeout:              DurationToProto(p.Timeout),
-		FallbackRunnerTypes:  fallback,
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
@@ -63,13 +58,6 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 	if p == nil {
 		return nil
 	}
-	fallback := make([]domain.RunnerType, 0, len(p.FallbackRunnerTypes))
-	for _, rt := range p.FallbackRunnerTypes {
-		if rt == pb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
-			continue
-		}
-		fallback = append(fallback, RunnerTypeFromProto(rt))
-	}
 	return &domain.AgentProfile{
 		ID:                   UUIDFromString(p.Id),
 		Name:                 p.Name,
@@ -77,10 +65,9 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		Description:          p.Description,
 		RunnerType:           RunnerTypeFromProto(p.RunnerType),
 		Model:                p.Model,
-		ModelPreset:          ModelPresetFromProto(p.ModelPreset),
+		PolicyRef:            p.PolicyRef,
 		MaxTurns:             int(p.MaxTurns),
 		Timeout:              DurationFromProto(p.Timeout),
-		FallbackRunnerTypes:  fallback,
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
@@ -480,17 +467,12 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 	if c == nil {
 		return nil
 	}
-	fallback := make([]pb.RunnerType, 0, len(c.FallbackRunnerTypes))
-	for _, rt := range c.FallbackRunnerTypes {
-		fallback = append(fallback, RunnerTypeToProto(rt))
-	}
 	return &pb.RunConfig{
 		RunnerType:           RunnerTypeToProto(c.RunnerType),
 		Model:                c.Model,
-		ModelPreset:          ModelPresetToProto(c.ModelPreset),
+		PolicyRef:            c.PolicyRef,
 		MaxTurns:             int32(c.MaxTurns),
 		Timeout:              DurationToProto(c.Timeout),
-		FallbackRunnerTypes:  fallback,
 		AllowedTools:         c.AllowedTools,
 		DeniedTools:          c.DeniedTools,
 		SkipPermissionPrompt: c.SkipPermissionPrompt,
@@ -509,20 +491,12 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 	if c == nil {
 		return nil
 	}
-	fallback := make([]domain.RunnerType, 0, len(c.FallbackRunnerTypes))
-	for _, rt := range c.FallbackRunnerTypes {
-		if rt == pb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
-			continue
-		}
-		fallback = append(fallback, RunnerTypeFromProto(rt))
-	}
 	return &domain.RunConfig{
 		RunnerType:           RunnerTypeFromProto(c.RunnerType),
 		Model:                c.Model,
-		ModelPreset:          ModelPresetFromProto(c.ModelPreset),
+		PolicyRef:            c.PolicyRef,
 		MaxTurns:             int(c.MaxTurns),
 		Timeout:              DurationFromProto(c.Timeout),
-		FallbackRunnerTypes:  fallback,
 		AllowedTools:         c.AllowedTools,
 		DeniedTools:          c.DeniedTools,
 		SkipPermissionPrompt: c.SkipPermissionPrompt,
@@ -608,12 +582,12 @@ func PolicyResolutionExplanationToProto(explanation domain.PolicyResolutionExpla
 		})
 	}
 	return &pb.PolicyResolutionExplanation{
-		Source:          explanation.Source,
-		Summary:         explanation.Summary,
-		RequestedRunner: RunnerTypeToProto(explanation.RequestedRunner),
-		RequestedModel:  explanation.RequestedModel,
-		RequestedPreset: ModelPresetToProto(explanation.RequestedPreset),
-		Preflight:       preflight,
+		Source:             explanation.Source,
+		Summary:            explanation.Summary,
+		RequestedRunner:    RunnerTypeToProto(explanation.RequestedRunner),
+		RequestedModel:     explanation.RequestedModel,
+		RequestedPolicyRef: explanation.RequestedPolicyRef,
+		Preflight:          preflight,
 	}
 }
 
@@ -634,12 +608,12 @@ func PolicyResolutionExplanationFromProto(explanation *pb.PolicyResolutionExplan
 		})
 	}
 	return domain.PolicyResolutionExplanation{
-		Source:          explanation.Source,
-		Summary:         explanation.Summary,
-		RequestedRunner: RunnerTypeFromProto(explanation.RequestedRunner),
-		RequestedModel:  explanation.RequestedModel,
-		RequestedPreset: ModelPresetFromProto(explanation.RequestedPreset),
-		Preflight:       preflight,
+		Source:             explanation.Source,
+		Summary:            explanation.Summary,
+		RequestedRunner:    RunnerTypeFromProto(explanation.RequestedRunner),
+		RequestedModel:     explanation.RequestedModel,
+		RequestedPolicyRef: explanation.RequestedPolicyRef,
+		Preflight:          preflight,
 	}
 }
 

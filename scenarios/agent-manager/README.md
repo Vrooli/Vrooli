@@ -8,6 +8,7 @@ agent-manager provides:
 - **Single control plane** for all agent executions in the Vrooli ecosystem
 - **Sandbox-first execution** via workspace-sandbox for safe, isolated runs
 - **Policy enforcement** for approval rules, scopes, and concurrency
+- **Declared model policy** with validated catalogs, immutable run snapshots, and explainable fallback
 - **Event tracking** with append-only logs of all agent activity
 - **Approval workflows** with diff review before canonical repo changes
 
@@ -34,9 +35,10 @@ The codebase uses a **screaming architecture** where folder structure expresses 
 ```
 api/internal/
 ├── domain/           # Core entities (Task, Run, AgentProfile, Policy)
+├── modelpolicy/      # Catalog validation, atomic activation, and resolution snapshots
 ├── orchestration/    # Coordination layer - wires components together
 ├── adapters/         # External integration seams
-│   ├── runner/       # Agent runner implementations (claude-code, codex, opencode)
+│   ├── runner/       # Generic runner pipeline + claude-code, codex, opencode, and grok codecs
 │   ├── sandbox/      # workspace-sandbox integration
 │   ├── event/        # Event streaming and storage
 │   └── artifact/     # Diff and artifact collection
@@ -88,7 +90,9 @@ See [docs/internal/SEAMS.md](docs/internal/SEAMS.md) for detailed documentation 
 ## Core Concepts
 
 ### AgentProfile
-Defines how an agent runs: runner type, model, timeout, allowed tools.
+Defines how an agent runs: runner type, named `policyRef` or explicit model,
+timeout, and allowed tools. A named policy resolves once into the immutable
+candidate snapshot stored with each new run.
 
 ### Task
 Defines what needs to be done: title, description, scope path, context.
@@ -113,6 +117,10 @@ Append-only event stream capturing all agent activity (logs, messages, tool call
 | GET | `/api/v1/runs/:id/events` | Stream run events |
 | POST | `/api/v1/runs/:id/approve` | Approve run |
 | POST | `/api/v1/runs/:id/reject` | Reject run |
+| GET | `/api/v1/model-policy/status` | Inspect readiness, path, and active catalog digest |
+| GET | `/api/v1/model-policy/catalog` | Inspect the active read-only catalog projection |
+| POST | `/api/v1/model-policy/validate` | Validate declared catalog state without activation |
+| POST | `/api/v1/model-policy/reload` | Atomically activate a valid declared catalog |
 
 ## CLI Commands
 
@@ -131,7 +139,18 @@ agent-manager run logs <id>
 agent-manager run diff <id>
 agent-manager run approve <id>
 agent-manager run reject <id>
+
+# Model-policy operations (declared catalog remains Git-managed)
+agent-manager policy status
+agent-manager policy catalog
+agent-manager policy validate
+agent-manager policy reload
+agent-manager policy explain profile <id>
+agent-manager policy explain run <id>
 ```
+
+See [docs/reference/configuration.md](docs/reference/configuration.md#model-policy-catalog)
+for catalog update, validation, rollback, and failure-recovery guidance.
 
 Note: Claude Code often uses one turn for tool use and another for tool results. If you need a final assistant message (for example, a "DONE" response), set `max_turns >= 3` on the profile.
 
@@ -145,6 +164,7 @@ Note: Claude Code often uses one turn for tool use and another for tool results.
 - claude-code resource
 - codex resource
 - opencode resource
+- grok resource
 
 ## Documentation
 
@@ -187,3 +207,4 @@ make lint
 | `AM_SQLITE_PATH` | Direct path to SQLite database file (highest priority) |
 | `DATABASE_URL` | SQLite path via `file:` protocol (e.g. `file:/path/to/db`) |
 | `WORKSPACE_SANDBOX_URL` | workspace-sandbox API URL |
+| `AGENT_MANAGER_MODEL_POLICY_CATALOG_PATH` | Optional path override for the declared model-policy catalog |

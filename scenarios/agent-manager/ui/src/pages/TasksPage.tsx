@@ -27,10 +27,11 @@ import { Label } from "../components/ui/label";
 import { ModelConfigSelector } from "../components/ModelConfigSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
-import { presetPrimaryMap } from "../lib/modelRegistry";
-import type { AgentProfile, ModelRegistry, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
-import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
+import { runnerTypeLabel } from "../lib/utils";
+import { catalogInventoryForRunner, policyOptionsForRunner } from "../lib/modelPolicyCatalog";
+import type { ModelPolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+import type { AgentProfile, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
+import { RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
 import { formatStandardRelativeTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
@@ -60,7 +61,7 @@ interface TasksPageProps {
   onCreateProfile: (profile: ProfileFormData) => Promise<AgentProfile>;
   onRefresh: () => void;
   runners?: Record<string, RunnerStatus>;
-  modelRegistry?: ModelRegistry;
+  modelPolicyCatalog?: ModelPolicyCatalog;
 }
 
 const taskStatusLabel = (status: TaskStatus): string => {
@@ -158,26 +159,26 @@ export function TasksPage({
   onCreateProfile,
   onRefresh,
   runners,
-  modelRegistry,
+  modelPolicyCatalog,
 }: TasksPageProps) {
   const { isDesktop } = useViewportSize();
   const [searchParams] = useSearchParams();
   const taskIdParam = searchParams.get("taskId");
-  const getRegistryForRunner = (runnerType: RunnerType) => {
-    return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
+  const getInventoryForRunner = (runnerType: RunnerType) => {
+    return catalogInventoryForRunner(modelPolicyCatalog, runnerType);
   };
 
   const getModelsForRunner = (runnerType: RunnerType) => {
-    const registry = getRegistryForRunner(runnerType);
-    if (registry?.models?.length) {
-      return registry.models;
+    const inventory = getInventoryForRunner(runnerType);
+    if (inventory?.models?.length) {
+      return inventory.models;
     }
     const runner = runners?.[runnerType];
     return runner?.supportedModels ?? [];
   };
 
-  const getPresetMapForRunner = (runnerType: RunnerType) => {
-    return presetPrimaryMap(getRegistryForRunner(runnerType)?.presets);
+  const getPoliciesForRunner = (runnerType: RunnerType) => {
+    return policyOptionsForRunner(modelPolicyCatalog, runnerType);
   };
 
   // Selection state
@@ -221,12 +222,6 @@ export function TasksPage({
     setProfileFormError,
     resetProfileForm,
     resetRunDialog,
-    handleAddInlineFallback,
-    handleInlineFallbackChange,
-    handleRemoveInlineFallback,
-    handleAddProfileFallback,
-    handleProfileFallbackChange,
-    handleRemoveProfileFallback,
   } = useTasksRunDialogState();
 
   const [submitting, setSubmitting] = useState(false);
@@ -324,16 +319,13 @@ export function TasksPage({
         if (inlineConfig.modelMode === "model" && inlineConfig.model.trim() !== "") {
           request.model = inlineConfig.model;
         }
-        if (inlineConfig.modelMode === "preset") {
-          request.modelPreset = inlineConfig.modelPreset;
+        if (inlineConfig.modelMode === "policy") {
+          request.policyRef = inlineConfig.policyRef;
         }
         request.maxTurns = inlineConfig.maxTurns;
         request.timeoutMinutes = inlineConfig.timeoutMinutes;
         request.runMode = inlineConfig.runMode;
         request.skipPermissionPrompt = inlineConfig.skipPermissionPrompt;
-        if (inlineConfig.fallbackRunnerTypes.length > 0) {
-          request.fallbackRunnerTypes = inlineConfig.fallbackRunnerTypes;
-        }
       }
       if (existingSandboxId.trim() !== "") {
         request.existingSandboxId = existingSandboxId.trim();
@@ -359,12 +351,8 @@ export function TasksPage({
           profileFormData.modelMode === "model"
             ? profileFormData.model?.trim() ?? ""
             : "",
-        modelPreset:
-          profileFormData.modelMode === "preset"
-            ? profileFormData.modelPreset ?? ModelPreset.FAST
-            : ModelPreset.UNSPECIFIED,
+        policyRef: profileFormData.modelMode === "policy" ? profileFormData.policyRef?.trim() ?? "" : "",
         timeoutMinutes: profileFormData.timeoutMinutes ?? 30,
-        fallbackRunnerTypes: profileFormData.fallbackRunnerTypes ?? [],
       });
       setSelectedProfileId(newProfile.id);
       setRunConfigMode("profile");
@@ -845,6 +833,7 @@ export function TasksPage({
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
                       const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
+                      const firstPolicy = getPoliciesForRunner(newRunnerType)[0]?.ref ?? "";
                       setInlineConfig({
                         ...inlineConfig,
                         runnerType: newRunnerType,
@@ -852,6 +841,7 @@ export function TasksPage({
                           inlineConfig.modelMode === "model"
                             ? firstModel
                             : inlineConfig.model,
+                        policyRef: inlineConfig.modelMode === "policy" ? firstPolicy : inlineConfig.policyRef,
                       });
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -868,61 +858,20 @@ export function TasksPage({
                   value={{
                     mode: inlineConfig.modelMode,
                     model: inlineConfig.model,
-                    preset: inlineConfig.modelPreset,
+                    policyRef: inlineConfig.policyRef,
                   }}
                   onChange={(selection) =>
                     setInlineConfig({
                       ...inlineConfig,
                       modelMode: selection.mode,
                       model: selection.model,
-                      modelPreset: selection.preset,
+                      policyRef: selection.policyRef,
                     })
                   }
                   models={getModelsForRunner(inlineConfig.runnerType)}
-                  presetMap={getPresetMapForRunner(inlineConfig.runnerType)}
+                  policies={getPoliciesForRunner(inlineConfig.runnerType)}
                   label="Model Selection"
                 />
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Fallback Runners</Label>
-                    <Button type="button" variant="outline" size="sm" onClick={handleAddInlineFallback}>
-                      Add
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Ordered runners to try if the primary runner is unavailable.
-                  </p>
-                  {inlineConfig.fallbackRunnerTypes.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {inlineConfig.fallbackRunnerTypes.map((runnerType, index) => (
-                        <div key={`inline-fallback-${index}`} className="flex items-center gap-2">
-                          <select
-                            value={String(runnerType)}
-                            onChange={(e) => handleInlineFallbackChange(index, e.target.value)}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          >
-                            {RUNNER_TYPES.map((type) => (
-                              <option key={type} value={type}>
-                                {runnerTypeLabel(type)}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveInlineFallback(index)}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
                 <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-2">
@@ -1075,6 +1024,7 @@ export function TasksPage({
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
                       const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
+                      const firstPolicy = getPoliciesForRunner(newRunnerType)[0]?.ref ?? "";
                       setProfileFormData({
                         ...profileFormData,
                         runnerType: newRunnerType,
@@ -1082,6 +1032,7 @@ export function TasksPage({
                           profileFormData.modelMode === "model"
                             ? firstModel
                             : profileFormData.model,
+                        policyRef: profileFormData.modelMode === "policy" ? firstPolicy : profileFormData.policyRef,
                       });
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -1124,61 +1075,20 @@ export function TasksPage({
                 value={{
                   mode: profileFormData.modelMode,
                   model: profileFormData.model ?? "",
-                  preset: profileFormData.modelPreset ?? ModelPreset.UNSPECIFIED,
+                  policyRef: profileFormData.policyRef ?? "",
                 }}
                 onChange={(selection) =>
                   setProfileFormData({
                     ...profileFormData,
                     modelMode: selection.mode,
                     model: selection.model,
-                    modelPreset: selection.preset,
+                    policyRef: selection.policyRef,
                   })
                 }
                 models={getModelsForRunner(profileFormData.runnerType)}
-                presetMap={getPresetMapForRunner(profileFormData.runnerType)}
+                policies={getPoliciesForRunner(profileFormData.runnerType)}
                 label="Model Selection"
               />
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Fallback Runners</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddProfileFallback}>
-                    Add
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Ordered runners to try if the primary runner is unavailable.
-                </p>
-                {(profileFormData.fallbackRunnerTypes ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {(profileFormData.fallbackRunnerTypes ?? []).map((runnerType, index) => (
-                      <div key={`profile-fallback-${index}`} className="flex items-center gap-2">
-                        <select
-                          value={String(runnerType)}
-                          onChange={(e) => handleProfileFallbackChange(index, e.target.value)}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        >
-                          {RUNNER_TYPES.map((type) => (
-                            <option key={type} value={type}>
-                              {runnerTypeLabel(type)}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveProfileFallback(index)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">

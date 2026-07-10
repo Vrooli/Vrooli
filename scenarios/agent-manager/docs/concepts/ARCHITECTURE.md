@@ -43,8 +43,8 @@ api/internal/
 │   │   ├── emitters.go        # Event emission helpers — route through Gate
 │   │   ├── env.go             # Sandbox + identity env-var construction
 │   │   ├── setup.go           # Workspace creation
-│   │   ├── acquire.go         # Runner selection + fallback chain
-│   │   ├── execute.go         # runner.Execute wrapper + model fallback
+│   │   ├── acquire.go         # Single-runner acquisition for snapshot-less history
+│   │   ├── execute.go         # Immutable policy-candidate execution
 │   │   ├── validate.go        # Silent-launch failure detection
 │   │   ├── result.go          # Outcome classification + handler dispatch
 │   │   ├── finalize.go        # Apply-at-run-end + sandbox teardown
@@ -108,8 +108,10 @@ selected candidate, resolution source, and preflight evidence inside
 RunConfig.PolicySnapshot. The generated RunConfig API contract exposes that
 snapshot on run detail, while create surfaces deliberately accept the separate
 RunConfigOverrides type so callers cannot submit orchestration-owned snapshot
-state. Legacy FAST/CHEAP/SMART values are migration inputs that resolve once to
-named policy references. Historical rows without policy_snapshot remain
+state. Only the SQLite startup migration reads legacy FAST/CHEAP/SMART profile
+rows and maps them once to named policy references; runtime profile, API, and
+scenario-owned configuration surfaces accept only `policyRef` or an explicit
+model. Historical rows without policy_snapshot remain
 readable as legacy records; they are not backfilled from current policy because
 that would invent provenance. Creation-time preflight walks
 past stale model IDs and can choose an explicit runner_default, preserving the
@@ -120,8 +122,9 @@ candidate outcomes with the snapshot digest and index, and can cross runner
 boundaries without reading the active catalog. Before each launch it persists
 the projected runner/model pair; restart/resume retries that interrupted
 candidate at least once without replaying earlier candidates. Historical rows
-with no snapshot temporarily retain their legacy execution path until the
-hard-cutover migration phase.
+with no snapshot remain readable and execute once with their stored
+runner/model projection; they never borrow candidates or provenance from the
+current catalog.
 
 The operator surface projects the same state through generated protobuf
 contracts at `/api/v1/model-policy/{status,catalog,validate,reload,explain}`.
