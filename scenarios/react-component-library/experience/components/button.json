@@ -1,0 +1,93 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "button",
+    "title": "Button",
+    "purpose": "Provide a token-bound action control whose accessible name, disabled state, and variant intent survive reuse across scenario UIs.",
+    "examplesRef": "../../library/components/Button/versions/1.2.0/examples.json",
+    "prd_refs": ["OT-P0-001", "OT-P0-003"]
+  },
+  "priorities": [
+    {
+      "statement": "The button communicates one clear action through its accessible name in every example state."
+    },
+    {
+      "statement": "Disabled and destructive states remain perceivable without changing the component contract."
+    },
+    {
+      "statement": "Icon-bearing buttons keep text available so the visual glyph is never the only label."
+    }
+  ],
+  "states": [
+    {
+      "id": "primary",
+      "example": "primary",
+      "description": "Primary call-to-action example with the label Save changes."
+    },
+    {
+      "id": "destructive",
+      "example": "destructive",
+      "description": "Danger variant example for irreversible actions."
+    },
+    {
+      "id": "disabled",
+      "example": "disabled-long-label",
+      "description": "Disabled secondary action with a long label."
+    },
+    {
+      "id": "icon-start",
+      "example": "icon-start",
+      "description": "Icon-leading action that still exposes text."
+    }
+  ],
+  "elements": [
+    {
+      "id": "action",
+      "role": "button",
+      "description": "The rendered native button element."
+    }
+  ],
+  "claims": [
+    {
+      "id": "primary-action-present",
+      "type": "element-present",
+      "statement": "The primary example renders a named button action.",
+      "tier": "machine",
+      "elements": ["action"],
+      "states": ["primary"]
+    },
+    {
+      "id": "destructive-action-present",
+      "type": "element-present",
+      "statement": "The destructive example renders a named button action.",
+      "tier": "machine",
+      "elements": ["action"],
+      "states": ["destructive"]
+    },
+    {
+      "id": "disabled-action-present",
+      "type": "element-present",
+      "statement": "The disabled long-label example still renders a named button action.",
+      "tier": "machine",
+      "elements": ["action"],
+      "states": ["disabled"]
+    },
+    {
+      "id": "icon-action-present",
+      "type": "element-present",
+      "statement": "The icon-leading example exposes text through the same button action.",
+      "tier": "machine",
+      "elements": ["action"],
+      "states": ["icon-start"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "action": {
+        "selector": "button"
+      }
+    }
+  }
+}

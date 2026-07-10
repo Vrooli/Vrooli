@@ -11,7 +11,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { API_BASE } from "../../api/client";
-import { componentsClient } from "../../api/components";
+import { componentsClient, listComponentExamples, type ComponentExample } from "../../api/components";
 import { useComponentInspector } from "../../hooks/useComponentInspector";
 import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
 import { useDeviceFilters } from "../../hooks/useDeviceFilters";
@@ -28,10 +28,17 @@ const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
  * React's `src` diff forces the iframe to reload. The harness route is
  * served by the API at the same origin as the Connect transport.
  */
-function harnessUrl(id: string, version: string, reloadKey = 0): string {
+function harnessUrl(id: string, version: string, reloadKey = 0, example?: ComponentExample): string {
   const base = API_BASE.replace(/\/$/, "");
   const v = encodeURIComponent(version || "initial");
-  return `${base}/preview/${encodeURIComponent(id)}/harness.html?v=${v}&r=${reloadKey}`;
+  const url = new URL(`${base}/preview/${encodeURIComponent(id)}/harness.html`);
+  url.searchParams.set("v", v);
+  url.searchParams.set("r", String(reloadKey));
+  if (example) {
+    url.searchParams.set("example", example.name);
+    url.searchParams.set("version", example.version);
+  }
+  return url.toString();
 }
 
 interface ComponentEditorProps {
@@ -64,11 +71,17 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
     queryFn: () => componentsClient.getComponentContent({ id }),
   });
 
+  const examplesQuery = useQuery({
+    queryKey: ["components", "examples", id],
+    queryFn: () => listComponentExamples({ componentId: id, limit: 200 }),
+  });
+
   const [buffer, setBuffer] = useState<string>("");
   const [baselineSha, setBaselineSha] = useState<string>("");
   const [showSaved, setShowSaved] = useState(false);
   const [previewState, setPreviewState] = useState<"waiting" | "ready" | "error">("waiting");
   const [previewMessage, setPreviewMessage] = useState("");
+  const [readyExamples, setReadyExamples] = useState<ReadonlySet<string>>(() => new Set());
   const [previewReloadKey, setPreviewReloadKey] = useState(0);
   const [mode, setMode] = useState<"preview" | "code">("code");
   const [infoOpen, setInfoOpen] = useState(false);
@@ -78,9 +91,13 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
 
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
-      const data = ev.data as { type?: string; id?: string; message?: string } | null;
+      const data = ev.data as { type?: string; id?: string; message?: string; example?: string } | null;
       if (data && data.type === "preview-ready" && data.id === id) {
-        setPreviewState("ready");
+        setReadyExamples((current) => {
+          const next = new Set(current);
+          next.add(data.example || "__default__");
+          return next;
+        });
         setPreviewMessage("");
       } else if (data && data.type === "preview-error" && data.id === id) {
         setPreviewState("error");
@@ -109,7 +126,18 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
     // back to "waiting" until the harness re-announces preview-ready.
     setPreviewState("waiting");
     setPreviewMessage("");
+    setReadyExamples(new Set());
   }, [baselineSha, previewReloadKey]);
+
+  const examples = examplesQuery.data?.examples ?? [];
+  const expectedReadyCount = Math.max(1, examples.length);
+
+  useEffect(() => {
+    if (previewState !== "waiting") return;
+    if (readyExamples.size >= expectedReadyCount) {
+      setPreviewState("ready");
+    }
+  }, [expectedReadyCount, previewState, readyExamples]);
 
   useEffect(() => {
     if (!contentQuery.data || previewState !== "waiting") return undefined;
@@ -174,6 +202,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
   const handlePreviewRetry = () => {
     setPreviewState("waiting");
     setPreviewMessage("");
+    setReadyExamples(new Set());
     setPreviewReloadKey((current) => current + 1);
   };
 
@@ -354,22 +383,60 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
           >
             <div className="relative h-full">
               <EmulatorViewport emulator={emulator} filters={filters}>
-                <iframe
-                  data-testid={selectors.components.editor.previewFrame}
-                  title={t(strings.components.editor.previewHeading)}
-                  src={harnessUrl(id, baselineSha, previewReloadKey)}
-                  sandbox="allow-scripts allow-same-origin"
-                  ref={previewFrameRef}
-                  onError={() => {
-                    setPreviewState("error");
-                    setPreviewMessage(t(strings.components.editor.previewFailed));
-                  }}
+                <div
+                  data-testid={selectors.components.editor.gallery}
+                  className="h-full overflow-auto bg-app-background p-3"
                   style={{
                     width: emulator.displayWidth,
                     height: emulator.displayHeight,
                   }}
-                  className="block border-0 bg-white"
-                />
+                >
+                  {examples.length > 0 ? (
+                    <div className="grid min-w-0 gap-3">
+                      {examples.map((example, index) => (
+                        <section
+                          key={`${example.version}:${example.name}`}
+                          data-testid={selectors.components.editor.exampleCard}
+                          className="min-w-0 rounded-md border border-app-border bg-app-surface"
+                        >
+                          <header className="border-b border-app-border px-3 py-2">
+                            <h3
+                              data-testid={selectors.components.editor.exampleTitle}
+                              className="truncate text-sm font-semibold text-app-foreground"
+                            >
+                              {example.displayName || example.name}
+                            </h3>
+                          </header>
+                          <iframe
+                            data-testid={selectors.components.editor.previewFrame}
+                            title={`${t(strings.components.editor.previewHeading)} - ${example.displayName || example.name}`}
+                            src={harnessUrl(id, baselineSha, previewReloadKey, example)}
+                            sandbox="allow-scripts allow-same-origin"
+                            ref={index === 0 ? previewFrameRef : undefined}
+                            onError={() => {
+                              setPreviewState("error");
+                              setPreviewMessage(t(strings.components.editor.previewFailed));
+                            }}
+                            className="block h-[260px] w-full border-0 bg-white"
+                          />
+                        </section>
+                      ))}
+                    </div>
+                  ) : (
+                    <iframe
+                      data-testid={selectors.components.editor.previewFrame}
+                      title={t(strings.components.editor.previewHeading)}
+                      src={harnessUrl(id, baselineSha, previewReloadKey)}
+                      sandbox="allow-scripts allow-same-origin"
+                      ref={previewFrameRef}
+                      onError={() => {
+                        setPreviewState("error");
+                        setPreviewMessage(t(strings.components.editor.previewFailed));
+                      }}
+                      className="block h-full w-full border-0 bg-white"
+                    />
+                  )}
+                </div>
                 {previewState === "error" && (
                   <div
                     data-testid={selectors.components.editor.previewError}

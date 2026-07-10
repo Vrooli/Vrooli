@@ -40,7 +40,7 @@ func TestReportCarriesParserContractFields(t *testing.T) {
 
 func TestParseScenarioFixturesContractGreen(t *testing.T) { // [REQ:EXPERIEN-P0-001]
 	root := repoRoot(t)
-	for _, scenario := range []string{"experience-manager", "business-health", "web-console"} {
+	for _, scenario := range []string{"experience-manager", "business-health", "web-console", "react-component-library"} {
 		t.Run(scenario, func(t *testing.T) {
 			report, err := ParseScenario(filepath.Join(root, "scenarios", scenario))
 			if err != nil {
@@ -71,7 +71,7 @@ func TestScenarioExperienceDocumentsValidateAgainstJSONSchema(t *testing.T) { //
 		t.Fatalf("compile experience schema: %v", err)
 	}
 
-	for _, scenario := range []string{"experience-manager", "business-health", "web-console"} {
+	for _, scenario := range []string{"experience-manager", "business-health", "web-console", "react-component-library"} {
 		experienceRoot := filepath.Join(root, "scenarios", scenario, "experience")
 		err := filepath.WalkDir(experienceRoot, func(path string, entry os.DirEntry, err error) error {
 			if err != nil {
@@ -145,6 +145,26 @@ func TestParseScenarioComputesDepths(t *testing.T) {
 	}
 }
 
+func TestParseScenarioParsesComponentDocuments(t *testing.T) {
+	report, err := ParseScenario(filepath.Join(repoRoot(t), "scenarios", "react-component-library"))
+	if err != nil {
+		t.Fatalf("ParseScenario: %v", err)
+	}
+	if len(report.Findings) > 0 {
+		t.Fatalf("expected component pilot to parse cleanly, got findings: %+v", report.Findings)
+	}
+	button, ok := report.Spec.Components["button"]
+	if !ok {
+		t.Fatalf("button component not parsed: %+v", report.Spec.Components)
+	}
+	if button.Kind != kindComponent || button.Component.ExamplesRef == "" {
+		t.Fatalf("button component identity not preserved: %+v", button)
+	}
+	if got := report.ComponentDepths["button"]; got != 3 {
+		t.Fatalf("button component depth = L%d, want L3", got)
+	}
+}
+
 func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P0-001]
 	root := t.TempDir()
 	scenario := filepath.Join(root, "demo")
@@ -155,7 +175,8 @@ func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P
   "schemaVersion": "1.0.0",
   "scenario": "demo",
   "pages": [{"id":"home","path":"pages/home.json","status":"active"}],
-  "journeys": [{"id":"journey","path":"journeys/journey.json","status":"active"}]
+  "journeys": [{"id":"journey","path":"journeys/journey.json","status":"active"}],
+  "components": [{"id":"button","path":"components/button.json","status":"active"}]
 }`)
 	mustWrite(t, filepath.Join(scenario, "experience", "pages", "home.json"), `{
   "kind": "experience-page",
@@ -174,6 +195,17 @@ func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P
   "schemaVersion": "1.0.0",
   "journey": {"id":"journey","title":"Journey","purpose":"A sufficiently long journey purpose."},
   "steps": [{"page":"home","state":"missing","intent":"A sufficiently long step intent."}]
+}`)
+	mustWrite(t, filepath.Join(scenario, "experience", "components", "button.json"), `{
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {"id":"button","title":"Button","purpose":"A sufficiently long component purpose.","examplesRef":"../../library/components/Button/versions/1.2.0/examples.json"},
+  "states": [{"id":"default","example":"ghost-example"}],
+  "elements": [{"id":"known","role":"button"}],
+  "claims": [
+    {"id":"component-missing-ref","type":"element-present","statement":"This points at missing component refs.","tier":"machine","elements":["ghost"],"states":["ghost-state"]}
+  ],
+  "bindings": {"elements": {"known": {"testid":"button"}}}
 }`)
 
 	report, err := ParseScenario(scenario)

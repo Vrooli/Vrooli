@@ -11,6 +11,7 @@ This document is the canonical workflow map for ordered behavior.
 | Refresh drift | adoptions | CLI/API/UI `adoptions refresh` | Adoption rows receive separate library-version and local-edit statuses | Service status matrix and UI tests |
 | Reapply component | adoptions | CLI/API `adoptions reapply` | Adopted file is overwritten from a selected version; local edits require confirmation | Service and handler tests |
 | Diff versions/adoptions | versions | CLI/API/UI diff request | Server returns aligned line diff rows | Versions service and handler tests |
+| Graduate scenario component | components / experience | Scenario UI component becomes reusable | TSX, examples, and experience-component claims land in the catalog as one versioned contract | Catalog conformance, preview e2e, experience phase |
 
 ## Apply Component
 
@@ -33,6 +34,35 @@ Refresh computes two dimensions:
 
 This lets the UI distinguish a clean but behind copy from a locally
 edited copy that is also behind.
+
+## Graduate Scenario Component
+
+Reusable component graduation carries code, examples, and experience
+claims together. Do not move TSX alone.
+
+1. Identify the scenario-local component and the page or state claims
+   that prove why it exists.
+2. Move the reusable TSX into
+   `library/components/<Slug>/versions/<version>/<Slug>.tsx` and keep
+   its `@libraryId`, `@version`, `@status`, and `@deps` headers aligned
+   with `component.json`.
+3. Move the component's representative states into
+   `library/components/<Slug>/versions/<version>/examples.json`. Keep
+   the examples data-only; use the `$` vocabulary for React nodes,
+   icons, handlers, row keys, columns, and filters.
+4. Move reusable page element/claim intent into
+   `experience/components/<slug>.json` as an `experience-component`
+   document. Anchor each component state to a named example through
+   `states[].example` and point `component.examplesRef` at the versioned
+   `examples.json`.
+5. Run `react-component-library components index --json` so SQLite
+   projections for versions, dependencies, examples, and design
+   affinities match Git.
+6. Run the catalog gates: `pnpm run catalog:check` and
+   `pnpm run test:preview-e2e` from `ui/`.
+7. Run `test-genie execute react-component-library experience --json`
+   so Experience Manager captures the preview harness and reconciles
+   component machine claims against the BAS accessibility tree.
 
 ## Deferred Flows
 

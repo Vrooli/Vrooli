@@ -36,7 +36,7 @@ func ModuleWithDeps(comp components.Service, depsSvc deps.Service, logger *log.L
 		Service: svc,
 		Logger:  logger,
 	}))
-	harness := NewHarnessHandler(svc, logger)
+	harness := NewHarnessHandlerWithExamples(svc, comp, logger)
 	runtime := NewRuntimeHandler(logger)
 	return module.Module{
 		Name: "preview",

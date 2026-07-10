@@ -1,0 +1,21 @@
+{
+  "$schema": "../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.1.0",
+  "scenario": "react-component-library",
+  "description": "Experience-component pilot for reusable catalog primitives. Page specs stay deferred; component specs bind behavior claims to catalog examples.",
+  "pages": [],
+  "journeys": [],
+  "components": [
+    {
+      "id": "button",
+      "path": "components/button.json",
+      "title": "Button",
+      "status": "active"
+    }
+  ]
+}

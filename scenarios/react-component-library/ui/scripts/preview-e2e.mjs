@@ -129,10 +129,10 @@ async function assertComponentPreview(page, componentID) {
     await page.locator('[data-testid="components-editor-panel"]').waitFor({ state: "visible", timeout: 15_000 });
     await page.locator('[data-testid="components-editor-preview-mode-button"]').click();
 
-    const frameElement = page.locator('[data-testid="components-editor-preview-frame"]');
-    await frameElement.waitFor({ state: "attached", timeout: 10_000 });
+    const frameElements = page.locator('[data-testid="components-editor-preview-frame"]');
+    await frameElements.first().waitFor({ state: "attached", timeout: 10_000 });
 
-    const frameSrc = await frameElement.getAttribute("src");
+    const frameSrc = await frameElements.first().getAttribute("src");
     if (!frameSrc?.includes(`/preview/${componentID}/harness.html`)) {
       throw new Error(`preview iframe did not point at harness: ${frameSrc || "<empty>"}`);
     }
@@ -143,17 +143,30 @@ async function assertComponentPreview(page, componentID) {
       return Boolean(badge) || Boolean(error);
     }, null, { timeout: 10_000 });
 
-    const previewFrame = page.frames().find((frame) => frame.url().includes(`/preview/${componentID}/`));
-    if (!previewFrame) {
-      throw new Error("preview frame was not present after clicking Preview");
+    const frameCount = await frameElements.count();
+    const previewFrames = page.frames().filter((frame) => frame.url().includes(`/preview/${componentID}/`));
+    if (previewFrames.length < frameCount) {
+      throw new Error(`expected ${frameCount} preview frame(s), found ${previewFrames.length}`);
     }
-    if (previewFrame.url().includes("/components/")) {
-      throw new Error(`preview frame recursively loaded the app route: ${previewFrame.url()}`);
+    const frameResults = [];
+    for (const previewFrame of previewFrames) {
+      if (previewFrame.url().includes("/components/")) {
+        throw new Error(`preview frame recursively loaded the app route: ${previewFrame.url()}`);
+      }
+      await previewFrame.locator("#root > *").first().waitFor({ state: "attached", timeout: 10_000 });
+      const rootHTML = await previewFrame.locator("#root").innerHTML();
+      const iframeError = await previewFrame.locator("#preview-error").innerText();
+      if (iframeError.trim() !== "") {
+        throw new Error(`iframe preview error rendered: ${iframeError}`);
+      }
+      if (rootHTML.trim() === "") {
+        throw new Error("preview root was empty after rendered state");
+      }
+      frameResults.push({
+        url: previewFrame.url(),
+        example: new URL(previewFrame.url()).searchParams.get("example") || "__default__",
+      });
     }
-
-    await previewFrame.locator("#root > *").first().waitFor({ state: "attached", timeout: 10_000 });
-    const rootHTML = await previewFrame.locator("#root").innerHTML();
-    const iframeError = await previewFrame.locator("#preview-error").innerText();
     const hostError = await page
       .locator('[data-testid="components-editor-preview-error"]')
       .innerText({ timeout: 250 })
@@ -166,18 +179,12 @@ async function assertComponentPreview(page, componentID) {
     if (hostError.trim() !== "") {
       throw new Error(`host preview error rendered: ${hostError}`);
     }
-    if (iframeError.trim() !== "") {
-      throw new Error(`iframe preview error rendered: ${iframeError}`);
-    }
     if (!badge.includes("Rendered")) {
       throw new Error(`preview did not reach rendered state, badge=${badge || "<empty>"}`);
     }
-    if (rootHTML.trim() === "") {
-      throw new Error("preview root was empty after rendered state");
-    }
 
     assertNoKnownRuntimeErrors(logs);
-    return { ok: true, componentID, frameSrc, frameURL: previewFrame.url(), badge, previewResponses: responses };
+    return { ok: true, componentID, frameSrc, frames: frameResults, badge, previewResponses: responses };
   } catch (error) {
     throw new PreviewFailure(error instanceof Error ? error.message : String(error), {
       logs,

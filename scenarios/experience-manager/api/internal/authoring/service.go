@@ -637,8 +637,9 @@ func updatedIndex(current string, pages []PageDraft) (string, error) {
 				"kind":   "scenario-experience",
 				"schema": "scenario-experience-spec/v1",
 			},
-			"pages":    []any{},
-			"journeys": []any{},
+			"pages":      []any{},
+			"journeys":   []any{},
+			"components": []any{},
 		}
 	} else if err := json.Unmarshal([]byte(current), &doc); err != nil {
 		return "", fmt.Errorf("parse experience/index.json: %w", err)

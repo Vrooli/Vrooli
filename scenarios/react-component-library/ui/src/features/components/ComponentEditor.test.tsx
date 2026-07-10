@@ -4,7 +4,9 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
 import {
+  makeComponentExample,
   makeGetComponentContentResponse,
+  makeListComponentExamplesResponse,
   makeUpdateComponentContentResponse,
 } from "./mocks/factories";
 import { makeComponentsMocks } from "./mocks/components";
@@ -188,6 +190,35 @@ describe("ComponentEditor", () => {
     await waitFor(() => {
       expect(frame.getAttribute("src")).toContain("v=sha-pre");
     });
+  });
+
+  it("renders example gallery iframes with named harness URLs", async () => {
+    const { componentsClient, listComponentExamples } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "v1", sha256: "sha-gallery" }),
+    );
+    vi.mocked(listComponentExamples).mockResolvedValueOnce(
+      makeListComponentExamplesResponse({
+        examples: [
+          makeComponentExample({ name: "primary", displayName: "Primary" }),
+          makeComponentExample({ name: "disabled", displayName: "Disabled" }),
+        ],
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ComponentEditor id="cmp-7" libraryId="lib:Gallery" onClose={() => {}} />,
+    );
+
+    await user.click(await screen.findByTestId(selectors.components.editor.previewModeButton));
+    const frames = await screen.findAllByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+
+    expect(screen.getByTestId(selectors.components.editor.gallery)).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
+    expect(frames).toHaveLength(2);
+    expect(frames[0]?.getAttribute("src")).toContain("example=primary");
+    expect(frames[1]?.getAttribute("src")).toContain("example=disabled");
   });
 
   it("reloads the iframe when save returns a new sha256", async () => {

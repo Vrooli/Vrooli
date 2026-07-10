@@ -9,24 +9,24 @@
 - **Purpose**: Central UI for designing, previewing, editing, and tracking shared React UI components across Vrooli scenarios. Eliminates component duplication, accelerates UI development, enforces design consistency, and enables systematic component evolution via versioning and drift detection.
 - **Primary users/verticals**: Vrooli scenario developers (humans and agents) building UIs; design-system maintainers curating the shared primitive set.
 - **Deployment surfaces**: Go API (per-domain SQLite), Go CLI (`react-component-library`), React/Vite/Tailwind UI, BAS flows. Local-only single-user; not multi-tenant.
-- **Value promise**: Every shared UI primitive is authored once, previewed live in real React execution across multiple viewports and visual filters, adopted into target scenarios with drift tracking, and evolved with version diffs. Compounds across the platform — each accepted component becomes a permanent capability the system can reuse forever.
+- **Value promise**: Every shared UI primitive is authored once, previewed live in real React execution across multiple viewports, examples, and visual filters, adopted into target scenarios with drift tracking, and evolved with version diffs. Compounds across the platform — each accepted component becomes a permanent capability the system can reuse forever, including its data-defined example states and portable experience claims.
 
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Component registry & header-driven indexing | Disk-walking indexer parses `@libraryId` / `@version` / `@deps` header comments and upserts a SQLite-backed registry; malformed headers reject with a structured, actionable error.
+- [ ] OT-P0-001 | Component registry & header-driven indexing | Disk-walking indexer parses `component.json`, version folders, `@libraryId` / `@version` / `@deps` header comments, and per-version `examples.json`, then upserts SQLite-backed registry, version, dependency, style-affinity, and example projections; malformed structural headers reject with a structured, actionable error and non-fatal contract drift is reported as findings.
 - [ ] OT-P0-002 | Monaco editor with safe content I/O | TSX editing, save, format-on-type; all reads/writes routed through `package:api-core/storage` with path-traversal rejection.
-- [ ] OT-P0-003 | Live preview executes real React in an isolated iframe | Per-component harness renders the actual component (no placeholder HTML); reload-on-save under 1s warm; host wired via `@vrooli/iframe-bridge`.
+- [ ] OT-P0-003 | Live preview executes real React in an isolated iframe | Per-component harness renders the actual component (no placeholder HTML), supports versioned named examples and stable `libraryId` harness URLs, reports preview-ready/error to the host, and reloads on save through cache-busted iframe navigation.
 - [x] OT-P0-004 | Multi-viewport emulator | Device presets (mobile/tablet/desktop and named devices), continuous zoom 10–200%, rotate, reset; state persists across sessions.
 - [x] OT-P0-005 | Search and filter the registry | Name and description substring match plus tag/category facets; p95 query under 100ms on the test corpus.
 - [x] OT-P0-006 | Adoption workflow with drift status | `adoption_records` track scenario, path, adopted version; status = current/behind/modified/unknown computed on refresh.
 - [ ] OT-P0-007 | CLI parity for headless workflows | `react-component-library {components,adoptions,versions} ...` covers list/search/get/index/create/refresh; default human output, `--json` opt-in (per `cli-steer`).
-- [ ] OT-P0-008 | Test coverage meets the template floor | Per-domain SQLite-backed repository tests, handler tests over mocks, UI component tests per page, BAS flows for primary user journeys.
+- [ ] OT-P0-008 | Test coverage meets the template floor | Per-domain SQLite-backed repository tests, handler tests over mocks, UI component tests per page, catalog TypeScript/ESLint gates, real-browser full-catalog preview sweeps, component experience reconciliation, and BAS flows for primary user journeys.
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | DevTools-style visual filters | Color-scheme toggle (system/light/dark) and a vision-filter dropdown (blur 0–10px, grayscale, protanopia, deuteranopia, tritanopia) applied to the preview iframe.
 - [ ] OT-P1-002 | Element selection via `@vrooli/iframe-bridge` | Hover overlay rect, ancestor breadcrumb, element screenshot, selector capture; selection feeds the AI chat panel context.
-- [x] OT-P1-003 | Adoption-drift backlog integration | When refresh detects "behind"/"modified", file a `fix` backlog item via `swarm-manager`'s CLI; never raw HTTP; dedupe via the recorded `drift_backlog_ref`.
+- [ ] OT-P1-003 | Adoption-drift backlog integration | When refresh detects "behind"/"modified", file a `fix` backlog item via `swarm-manager`'s CLI; never raw HTTP; dedupe via the recorded `drift_backlog_ref`.
 - [x] OT-P1-004 | Dependency compatibility check on adopt | Component declares `@deps` (JSON in header); on adopt, validate against the target scenario's `package.json`; warn on missing/mismatch, block on incompatible-major.
 - [x] OT-P1-005 | Version tracking with a real diff viewer | Each save records a new version; UI renders a side-by-side unified diff between any two versions and between the library version and an adopted copy.
 - [x] OT-P1-006 | Theme-preview switcher | Pick from built-in themes or load a target scenario's `DESIGN.md`-derived theme; tokens mount as CSS custom properties on the harness `:root` before render. Resolver is a server endpoint, never client-derived.
@@ -46,7 +46,7 @@
 ## 🤝 Dependencies & Launch Plan
 - Required resources: None at runtime for P0 (SQLite is in-process). `resource-openrouter` required only for P2 AI editing.
 - Scenario dependencies: `app-issue-tracker` (P1 adoption issues); `flow-verifier` (build-time temporal-model lint); `business-health` (build-time PRD and requirements validation).
-- Operational risks: Per-component React bundling for the preview iframe is the largest open unknown — research in `docs/RESEARCH.md` before slice 3 of Phase 4 to choose between an esbuild service, Vite SSR, or a pre-bundled harness with dynamic imports. SQLite concurrent-writer pressure is a soft risk mitigated by WAL mode; the per-domain repository interface keeps a Postgres impl available later if needed.
+- Operational risks: Per-component React bundling now uses the Go esbuild path documented in `docs/RESEARCH.md`, with same-origin runtime imports and browser gates over the catalog. Remaining risk is coverage breadth: the preview/example path is gated, while broader adoption/editing journeys still need full BAS coverage. SQLite concurrent-writer pressure is a soft risk mitigated by WAL mode; the per-domain repository interface keeps a Postgres impl available later if needed.
 - Launch sequencing: P0 vertical slices in order — (1) registry + header parsing, (2) Monaco + save, (3) live preview iframe execution, (4) multi-viewport + search, (5) adoption workflow. Then all P1 features in parallel. Usable-milestone demo: list → edit → preview in 3+ viewports with a vision filter → select element → adopt into target → bump version → status flips to "behind" → diff viewer renders. Onboarding-doc shout-out lands only after the usable milestone passes.
 
 ## 🎨 UX & Branding
@@ -55,7 +55,9 @@
 - Voice & messaging: Terse, developer-facing. No marketing copy. Errors are structured and actionable (for example: "header parse failed at /path:line — missing `@version`").
 - Branding hooks: Inherits Vrooli operational-console tokens (`vrooli-default` design kit, `react-vite-tailwind` adapter). The P1 theme-preview switcher applies *only* to preview content, never to the library's chrome.
 
-## 🗂 Deferred: Manifest postApply Actions
+## 📎 Appendix
+
+**Deferred: Manifest postApply Actions**
 
 The `scenario-ui-manifest/v1` schema reserves room (via `additionalProperties: true` on slot objects) for declarative `postApply` actions an adoption could trigger after writing the source file. Three actions are queued for a v2 schema bump:
 
@@ -69,7 +71,7 @@ The `scenario-ui-manifest/v1` schema reserves room (via `additionalProperties: t
 
 **Linked contract:** `templates/scenarios/react-vite/ui/manifest.json`, `.vrooli/schemas/scenario-ui-manifest.schema.json`, `docs/concepts/UI-ARCHITECTURE.md` (template scenario).
 
-## 📎 Appendix
+**References**
 - Reference scenarios: `app-monitor` (iframe-bridge integration, device-emulation hooks, inspector overlay), `flow-verifier` (newest template alignment, DESIGN.md shape), `reference-react-vite` (golden-reference layout).
 - Substrate packages: `@vrooli/iframe-bridge`, `package:api-core/storage`, `package:api-core/database/schemas`.
 - Stashed prior implementation: `/tmp/react-component-library-pre-rewrite-2026-05-12/` (reference only; no files are copied into this scenario).

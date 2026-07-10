@@ -1,0 +1,51 @@
+{
+  "examples": [
+    {
+      "name": "confirm-open",
+      "displayName": "Confirm Open",
+      "props": {
+        "open": true,
+        "title": "Archive component",
+        "description": "This keeps prior versions available for audit.",
+        "children": { "$text": "Archive Button v1.0.0?" },
+        "footer": { "$node": "button", "props": { "type": "button", "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground" }, "children": [{ "$text": "Archive" }] },
+        "onClose": { "$handler": "close" },
+        "closeLabel": "Close dialog"
+      },
+      "expect": [
+        { "kind": "role", "role": "dialog", "name": "Archive component" },
+        { "kind": "text", "value": "Archive Button v1.0.0?" }
+      ]
+    },
+    {
+      "name": "details-open",
+      "displayName": "Details Open",
+      "props": {
+        "open": true,
+        "title": "Component details",
+        "children": { "$text": "Used by 14 scenarios" },
+        "onClose": { "$handler": "close" },
+        "closeLabel": "Close details"
+      },
+      "expect": [
+        { "kind": "text", "value": "Used by 14 scenarios" },
+        { "kind": "role", "role": "dialog", "name": "Component details" }
+      ]
+    },
+    {
+      "name": "minimal-open",
+      "displayName": "Minimal Open",
+      "props": {
+        "open": true,
+        "title": "Minimal dialog",
+        "children": { "$text": "Short confirmation copy" },
+        "onClose": { "$handler": "close" },
+        "closeLabel": "Close"
+      },
+      "expect": [
+        { "kind": "role", "role": "dialog", "name": "Minimal dialog" },
+        { "kind": "text", "value": "Short confirmation copy" }
+      ]
+    }
+  ]
+}

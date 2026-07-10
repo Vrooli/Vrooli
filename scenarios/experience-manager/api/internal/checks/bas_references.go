@@ -24,26 +24,29 @@ func (BASReferenceCheck) Run(_ context.Context, report spec.Report) []spec.Findi
 		return nil
 	}
 	refs := loadCaseSpecRefs(report.TargetPath)
-	pageExists := map[string]bool{}
+	specExists := map[string]bool{}
 	activePages := map[string]string{}
 	for _, ref := range report.Spec.Index.Pages {
-		pageExists[ref.ID] = true
+		specExists[ref.ID] = true
 		if ref.Status == "active" {
 			activePages[ref.ID] = "experience/" + ref.Path
 		}
 	}
+	for _, ref := range report.Spec.Index.Components {
+		specExists[ref.ID] = true
+	}
 	var findings []spec.Finding
-	for pageID, files := range refs {
-		if pageExists[pageID] {
+	for specID, files := range refs {
+		if specExists[specID] {
 			continue
 		}
 		sort.Strings(files)
 		findings = append(findings, spec.Finding{
 			Code:       spec.CodeRefUnresolved,
 			Severity:   spec.SeverityError,
-			Message:    fmt.Sprintf("BAS case references missing experience page %q", pageID),
+			Message:    fmt.Sprintf("BAS case references missing experience spec entry %q", specID),
 			Locations:  []string{files[0]},
-			Suggestion: "Update metadata.labels.spec_entry_id or restore the referenced experience page.",
+			Suggestion: "Update metadata.labels.spec_entry_id or restore the referenced experience page or component.",
 		})
 	}
 	for pageID, loc := range activePages {

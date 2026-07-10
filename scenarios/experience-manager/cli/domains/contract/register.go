@@ -151,15 +151,18 @@ func (h *handlers) listSpec(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("list experience spec", err, nil)
 	}
-	results := make([]string, 0, len(resp.Msg.GetPages())+len(resp.Msg.GetJourneys()))
+	results := make([]string, 0, len(resp.Msg.GetPages())+len(resp.Msg.GetJourneys())+len(resp.Msg.GetComponents()))
 	for _, page := range resp.Msg.GetPages() {
 		results = append(results, fmt.Sprintf("page %s %s %s", page.GetId(), page.GetStatus(), page.GetPath()))
 	}
 	for _, journey := range resp.Msg.GetJourneys() {
 		results = append(results, fmt.Sprintf("journey %s %s %s", journey.GetId(), journey.GetStatus(), journey.GetPath()))
 	}
+	for _, component := range resp.Msg.GetComponents() {
+		results = append(results, fmt.Sprintf("component %s %s %s", component.GetId(), component.GetStatus(), component.GetPath()))
+	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%s: %d pages, %d journeys", resp.Msg.GetScenario(), len(resp.Msg.GetPages()), len(resp.Msg.GetJourneys()))},
+		Summary:        []string{fmt.Sprintf("%s: %d pages, %d journeys, %d components", resp.Msg.GetScenario(), len(resp.Msg.GetPages()), len(resp.Msg.GetJourneys()), len(resp.Msg.GetComponents()))},
 		ResultsHeading: "Documents",
 		Results:        results,
 	})

@@ -1,0 +1,41 @@
+{
+  "examples": [
+    {
+      "name": "text",
+      "displayName": "Text",
+      "props": {
+        "type": "text",
+        "placeholder": "Component name",
+        "defaultValue": "Button"
+      },
+      "expect": [
+        { "kind": "role", "role": "textbox", "name": "Button" },
+        { "kind": "attribute", "selector": "input", "name": "placeholder", "value": "Component name" }
+      ]
+    },
+    {
+      "name": "search",
+      "displayName": "Search",
+      "props": {
+        "type": "search",
+        "placeholder": "Filter components",
+        "defaultValue": "status"
+      },
+      "expect": [
+        { "kind": "role", "role": "textbox", "name": "status" }
+      ]
+    },
+    {
+      "name": "disabled",
+      "displayName": "Disabled",
+      "props": {
+        "type": "text",
+        "defaultValue": "Read only",
+        "disabled": true
+      },
+      "expect": [
+        { "kind": "attribute", "selector": "input", "name": "disabled", "value": "" }
+      ]
+    }
+  ]
+}

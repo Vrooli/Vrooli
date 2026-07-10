@@ -1,0 +1,50 @@
+{
+  "examples": [
+    {
+      "name": "with-placeholder",
+      "displayName": "With Placeholder",
+      "props": {
+        "placeholder": "Choose status",
+        "options": [
+          { "value": "current", "label": "Current" },
+          { "value": "behind", "label": "Behind" }
+        ]
+      },
+      "expect": [
+        { "kind": "role", "role": "combobox" },
+        { "kind": "text", "value": "Choose status" }
+      ]
+    },
+    {
+      "name": "selected",
+      "displayName": "Selected",
+      "props": {
+        "defaultValue": "native",
+        "options": [
+          { "value": "native", "label": "Native" },
+          { "value": "compatible", "label": "Compatible" }
+        ]
+      },
+      "expect": [
+        { "kind": "text", "value": "Native" },
+        { "kind": "role", "role": "combobox" }
+      ]
+    },
+    {
+      "name": "disabled",
+      "displayName": "Disabled",
+      "props": {
+        "disabled": true,
+        "defaultValue": "locked",
+        "options": [
+          { "value": "locked", "label": "Locked" },
+          { "value": "open", "label": "Open" }
+        ]
+      },
+      "expect": [
+        { "kind": "attribute", "selector": "select", "name": "disabled", "value": "" },
+        { "kind": "text", "value": "Locked" }
+      ]
+    }
+  ]
+}

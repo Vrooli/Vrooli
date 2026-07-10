@@ -64,7 +64,11 @@ type Capturer interface {
 type CaptureTarget struct {
 	Scenario          string
 	Route             string
+	DocumentKind      string
 	PageID            string
+	ComponentID       string
+	ComponentTitle    string
+	ExampleName       string
 	StateID           string
 	StateFingerprints map[string]string
 	ViewportID        string
@@ -83,6 +87,11 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		return nil
 	}
 	var findings []spec.Finding
+	capturer := c.Capturer
+	if capturer == nil {
+		capturer = BASCapturer{}
+	}
+	profiles := c.captureProfiles()
 	statusByPage := pageStatuses(report.Spec.Index.Pages)
 	for pageID, page := range report.Spec.Pages {
 		status := statusByPage[pageID]
@@ -95,11 +104,6 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		if status != "active" || !hasMachineClaim(page) {
 			continue
 		}
-		capturer := c.Capturer
-		if capturer == nil {
-			capturer = BASCapturer{}
-		}
-		profiles := c.captureProfiles()
 		for _, profile := range profiles {
 			targets := captureTargetsForProfile(report.Scenario, page, profile)
 			snapshots := map[string]Snapshot{}
@@ -134,6 +138,50 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		findings = append(findings, unverifiableOutOfMatrixFindings(loc, page, profiles)...)
 		findings = append(findings, unverifiableStateSetupFindings(loc, page)...)
 	}
+	statusByComponent := pageStatuses(report.Spec.Index.Components)
+	for componentID, component := range report.Spec.Components {
+		status := statusByComponent[componentID]
+		loc := "experience/components/" + componentID + ".json"
+		if status != "active" {
+			continue
+		}
+		page := componentAsPage(componentWithBaselineClaims(component))
+		if !hasMachineClaim(page) {
+			continue
+		}
+		for _, profile := range profiles {
+			targets := captureTargetsForComponentProfile(report.Scenario, component, profile)
+			snapshots := map[string]Snapshot{}
+			fingerprints := map[string]string{}
+			for _, target := range targets {
+				snapshot, err := capturer.CaptureAccessibility(ctx, target)
+				if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
+					findings = append(findings, spec.Finding{
+						Code:       spec.CodeCaptureUnavailable,
+						Severity:   spec.SeverityInfo,
+						Message:    fmt.Sprintf("accessibility capture unavailable for active component %q example %q at viewport %q", component.Component.ID, target.ExampleName, target.ViewportID),
+						Locations:  []string{loc},
+						Suggestion: "Start browser-automation-studio and the RCL UI, then rerun the experience phase.",
+					})
+					findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, Snapshot{}, skippedEvidence(page, target, "capture unavailable"))...)
+					continue
+				}
+				snapshots[target.StateID] = snapshot
+				fingerprints[target.StateID] = snapshotFingerprint(snapshot)
+			}
+			for _, target := range targets {
+				snapshot, ok := snapshots[target.StateID]
+				if !ok {
+					continue
+				}
+				target.StateFingerprints = fingerprints
+				result := reconcileActivePage(loc, page, target, snapshot)
+				findings = append(findings, advisoryComponentFindings(result.Findings)...)
+				findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, snapshot, result.Evidence)...)
+			}
+		}
+		findings = append(findings, advisoryComponentFindings(unverifiableOutOfMatrixFindings(loc, page, profiles))...)
+	}
 	sortFindings(findings)
 	return findings
 }
@@ -152,6 +200,7 @@ func captureTargetsForProfile(scenario string, page spec.PageDocument, profile C
 		target := CaptureTarget{
 			Scenario:        scenario,
 			Route:           routeForState(page, state),
+			DocumentKind:    "page",
 			PageID:          page.Page.ID,
 			StateID:         stateID,
 			ViewportID:      profile.ID,
@@ -166,6 +215,61 @@ func captureTargetsForProfile(scenario string, page spec.PageDocument, profile C
 		targets = append(targets, target)
 	}
 	return targets
+}
+
+func captureTargetsForComponentProfile(scenario string, component spec.ComponentDocument, profile CaptureProfile) []CaptureTarget {
+	var targets []CaptureTarget
+	page := componentAsPage(componentWithBaselineClaims(component))
+	version := componentVersion(component.Component.ExamplesRef)
+	for _, state := range component.States {
+		if strings.TrimSpace(state.ID) == "" || strings.TrimSpace(state.Example) == "" || !hasMachineClaimForState(page, state.ID) {
+			continue
+		}
+		target := CaptureTarget{
+			Scenario:        "react-component-library",
+			Route:           componentHarnessRoute(scenario, component, version, state.Example),
+			DocumentKind:    "component",
+			PageID:          component.Component.ID,
+			ComponentID:     component.Component.ID,
+			ComponentTitle:  component.Component.Title,
+			ExampleName:     state.Example,
+			StateID:         state.ID,
+			ViewportID:      profile.ID,
+			ViewportAliases: append([]string(nil), profile.Aliases...),
+			ViewportWidth:   profile.Width,
+			ViewportHeight:  profile.Height,
+			SettleMs:        defaultSettleMs,
+		}
+		if !pageHasMachineClaimForTarget(page, target) {
+			continue
+		}
+		targets = append(targets, target)
+	}
+	return targets
+}
+
+func componentAsPage(component spec.ComponentDocument) spec.PageDocument {
+	return spec.PageDocument{
+		Page: spec.PageIdentity{
+			ID:      component.Component.ID,
+			Title:   component.Component.Title,
+			Routes:  []string{"/"},
+			Purpose: component.Component.Purpose,
+		},
+		States:       componentStatesAsPageStates(component.States),
+		Elements:     component.Elements,
+		Claims:       component.Claims,
+		Bindings:     component.Bindings,
+		FloorOptOuts: component.FloorOptOuts,
+	}
+}
+
+func componentStatesAsPageStates(states []spec.ComponentState) []spec.State {
+	out := make([]spec.State, 0, len(states))
+	for _, state := range states {
+		out = append(out, spec.State{ID: state.ID, Description: state.Description})
+	}
+	return out
 }
 
 func capturableStateIDs(page spec.PageDocument) []string {
@@ -385,7 +489,7 @@ func unreachableEvidence(page spec.PageDocument, claim spec.Claim, target Captur
 	}
 	return Evidence{
 		PageID:         page.Page.ID,
-		Route:          firstRoute(page.Page.Routes),
+		Route:          targetEvidenceRoute(page, target),
 		StateID:        target.StateID,
 		ViewportID:     target.ViewportID,
 		ViewportWidth:  target.ViewportWidth,
@@ -405,7 +509,7 @@ func skippedEvidence(page spec.PageDocument, target CaptureTarget, message strin
 		}
 		out = append(out, Evidence{
 			PageID:         page.Page.ID,
-			Route:          firstRoute(page.Page.Routes),
+			Route:          targetEvidenceRoute(page, target),
 			StateID:        target.StateID,
 			ViewportID:     target.ViewportID,
 			ViewportWidth:  target.ViewportWidth,
@@ -422,7 +526,7 @@ func skippedEvidence(page spec.PageDocument, target CaptureTarget, message strin
 func evaluateClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) (Evidence, bool) {
 	evidence := Evidence{
 		PageID:         page.Page.ID,
-		Route:          firstRoute(page.Page.Routes),
+		Route:          targetEvidenceRoute(page, target),
 		StateID:        target.StateID,
 		ViewportID:     target.ViewportID,
 		ViewportWidth:  target.ViewportWidth,
@@ -455,6 +559,13 @@ func evaluateClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarge
 		}
 	}
 	return evidence, result.Pass
+}
+
+func targetEvidenceRoute(page spec.PageDocument, target CaptureTarget) string {
+	if strings.TrimSpace(target.Route) != "" {
+		return target.Route
+	}
+	return firstRoute(page.Page.Routes)
 }
 
 type claimEvaluation struct {
@@ -651,8 +762,38 @@ func baselineFloorClaims() []spec.Claim {
 	}
 }
 
+func componentWithBaselineClaims(component spec.ComponentDocument) spec.ComponentDocument {
+	optedOut := map[string]bool{}
+	for _, optOut := range component.FloorOptOuts {
+		optedOut[optOut.Floor] = true
+	}
+	for _, floor := range componentBaselineFloorClaims() {
+		if optedOut[floor.Type] || componentHasClaimType(component, floor.Type) {
+			continue
+		}
+		component.Claims = append(component.Claims, floor)
+	}
+	return component
+}
+
+func componentBaselineFloorClaims() []spec.Claim {
+	return []spec.Claim{
+		{ID: "floor-no-component-horizontal-overflow", Type: "no-document-horizontal-overflow", Statement: "The component harness stage does not create horizontal overflow at captured viewports.", Tier: "machine"},
+		{ID: "floor-component-tap-target-size", Type: "tap-target-size", Statement: "Interactive component examples expose comfortable mobile touch targets.", Tier: "machine", Viewports: []string{"mobile"}},
+	}
+}
+
 func hasClaimType(page spec.PageDocument, claimType string) bool {
 	for _, claim := range page.Claims {
+		if claim.Type == claimType {
+			return true
+		}
+	}
+	return false
+}
+
+func componentHasClaimType(component spec.ComponentDocument, claimType string) bool {
+	for _, claim := range component.Claims {
 		if claim.Type == claimType {
 			return true
 		}
@@ -683,6 +824,18 @@ func claimFailureCode(claimType string) string {
 
 func isBaselineFloorType(claimType string) bool {
 	return claimFailureCode(claimType) != spec.CodeClaimFailed
+}
+
+func advisoryComponentFindings(findings []spec.Finding) []spec.Finding {
+	for i := range findings {
+		if findings[i].Severity == spec.SeverityError {
+			findings[i].Severity = spec.SeverityWarning
+		}
+		if findings[i].Suggestion == "" {
+			findings[i].Suggestion = "Use component reconciliation as advisory evidence until the component contract graduates to gating."
+		}
+	}
+	return findings
 }
 
 func snapshotRoot(nodes []*AXNode) *AXNode {
@@ -1412,6 +1565,45 @@ func firstRoute(routes []string) string {
 	return routes[0]
 }
 
+func componentHarnessRoute(scenario string, component spec.ComponentDocument, version, example string) string {
+	catalogID := componentCatalogID(scenario, component)
+	route := "/preview/" + url.PathEscape(catalogID) + "/harness.html"
+	query := url.Values{}
+	if strings.TrimSpace(version) != "" {
+		query.Set("version", version)
+	}
+	if strings.TrimSpace(example) != "" {
+		query.Set("example", example)
+	}
+	if encoded := query.Encode(); encoded != "" {
+		route += "?" + encoded
+	}
+	return route
+}
+
+func componentCatalogID(scenario string, component spec.ComponentDocument) string {
+	refParts := strings.Split(filepath.ToSlash(component.Component.ExamplesRef), "/")
+	for i := 0; i+1 < len(refParts); i++ {
+		if refParts[i] == "components" && refParts[i+1] != "" {
+			return scenario + ":" + refParts[i+1]
+		}
+	}
+	if strings.TrimSpace(component.Component.Title) != "" {
+		return scenario + ":" + strings.TrimSpace(component.Component.Title)
+	}
+	return scenario + ":" + component.Component.ID
+}
+
+func componentVersion(examplesRef string) string {
+	parts := strings.Split(filepath.ToSlash(examplesRef), "/")
+	for i := 0; i+1 < len(parts); i++ {
+		if parts[i] == "versions" {
+			return parts[i+1]
+		}
+	}
+	return ""
+}
+
 func elementRole(page spec.PageDocument, elementID string) string {
 	for _, el := range page.Elements {
 		if el.ID == elementID {
@@ -1469,6 +1661,9 @@ func selectorMatches(node *AXNode, selector string) bool {
 	}
 	if strings.Contains(selector, "data-testid=") {
 		return selectorValue(selector) == node.DOM.TestID
+	}
+	if !strings.ContainsAny(selector, "#.[] >:+~") {
+		return strings.EqualFold(node.DOM.Tag, selector) || strings.EqualFold(node.Role, selector)
 	}
 	return false
 }

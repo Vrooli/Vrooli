@@ -123,6 +123,20 @@ func TestModule_HarnessHTML(t *testing.T) {
 	require.Contains(t, body, `rcl-theme-applied`)
 }
 
+func TestModule_HarnessAcceptsLibraryID(t *testing.T) {
+	r, root := setupModule(t)
+	writeButtonManifest(t, root, buttonTSX)
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+
+	req, _ := http.NewRequest(http.MethodGet, "/preview/react-component-library:Button/harness.html", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `components/Button/versions/1.0.0/Button.tsx`)
+	require.Contains(t, rec.Body.String(), `name="component-id" content="react-component-library:Button"`)
+}
+
 func TestModule_RuntimeReactServesVendoredESM(t *testing.T) {
 	r, _ := setupModule(t)
 	req, _ := http.NewRequest(http.MethodGet, "/preview/runtime/react@18.3.1/index.js", nil)
@@ -159,8 +173,7 @@ func TestModule_RuntimeReactDOMClientServesNamedExports(t *testing.T) {
 	require.Contains(t, body, "export {")
 	require.Contains(t, body, "  createRoot,")
 	require.Contains(t, body, "  hydrateRoot")
-	require.NotContains(t, body, `Dynamic require of "react" is not supported`)
-	require.NotContains(t, body, `__require("react")`)
+	require.Contains(t, body, `if (name === "react")`)
 	require.NotContains(t, body, "https://esm.sh")
 }
 

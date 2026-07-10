@@ -19,6 +19,9 @@
     "12-theme-preview-switcher/module.json",
     "13-ai-powered-editing/module.json",
     "14-cli-surface/module.json",
-    "15-testing-coverage/module.json"
+    "15-testing-coverage/module.json",
+    "16-design-style-affinity/module.json",
+    "17-examples-as-data/module.json",
+    "18-catalog-conformance/module.json"
   ]
 }

@@ -18,9 +18,9 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | Experience spec contract | Validate `experience/` (index, pages, journeys) against `.vrooli/schemas/scenario-experience-spec.schema.json` plus parser checks: unique IDs, resolvable references (routes, PRD OTs, DESIGN.md states, bindings), enforcement-tier rules, and open-world semantics, with a frozen finding-code vocabulary.
+- [x] OT-P0-001 | Experience spec contract | Validate `experience/` (index, pages, journeys, components) against `.vrooli/schemas/scenario-experience-spec.schema.json` plus parser checks: unique IDs, resolvable references (routes, PRD OTs, DESIGN.md states, bindings, component examples), enforcement-tier rules, and open-world semantics, with a frozen finding-code vocabulary.
 - [x] OT-P0-002 | Scenario validation provider | Implement `ScenarioValidationService` for the canonical `experience` phase with findings, metrics, maturity ladders, and fix preview/apply, discovered by Test Genie through `.vrooli/test-genie.json` with presence-keyed applicability.
-- [x] OT-P0-003 | Structure reconciliation | Drive Browser Automation Studio to capture a screenshot plus accessibility tree per declared page/state and check every machine-tier claim against the captured tree, persisting per-claim evidence; BAS unavailability yields skipped findings, never failures.
+- [x] OT-P0-003 | Structure reconciliation | Drive Browser Automation Studio to capture a screenshot plus accessibility tree per declared page/state and per reusable component example, check machine-tier claims against the captured tree, and persist per-claim evidence; BAS unavailability yields skipped findings, never failures, and component reconciliation remains advisory until promoted.
 - [x] OT-P0-004 | Authoring studio | Form-based spec authoring with live validation and CLI parity, satisfying the round-trip property: a spec saved through the studio re-validates to zero contract findings.
 - [x] OT-P0-005 | Self-spec dogfood | Experience Manager ships its own `experience/` folder at L3+ depth and validates green, serving as the first real proof of the spec schema on its own surfaces.
 

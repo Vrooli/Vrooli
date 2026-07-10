@@ -1,0 +1,121 @@
+{
+  "_metadata": {
+    "description": "Per-version JSON examples that drive catalog previews, specimen galleries, CLI/API queries, and experience-component reconciliation.",
+    "last_validated_at": "2026-07-10T09:48:00-04:00",
+    "module": "examples-as-data",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EX-001",
+      "title": "Version folders may declare data-only component examples",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "Each component version may include `examples.json` beside the TSX source. Examples are pure JSON with stable `name`, optional display label, JSON `props`, optional `setup`, and optional `expect[]` assertions. Non-serializable React values use the documented `$` vocabulary and are resolved only inside the preview harness.",
+      "tags": [
+        "examples",
+        "preview",
+        "catalog"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunIndexesVersionExamples",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves `examples.json` is parsed from version folders and indexed as component_examples rows."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunReportsInvalidExamplesWithoutRejectingComponent",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Invalid examples emit non-fatal findings rather than dropping otherwise valid component metadata."
+        }
+      ]
+    },
+    {
+      "id": "EX-002",
+      "title": "Examples are queryable through API and CLI",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "api-cli",
+      "criticality": "P0",
+      "description": "`ComponentsService.ListComponentExamples` exposes indexed examples by component id and optional version. The CLI command `react-component-library components examples \u003ccomponent-id\u003e` is a thin Connect-RPC wrapper with human output and `--json` support.",
+      "tags": [
+        "examples",
+        "connect-rpc",
+        "cli"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/components/handlers_test.go::TestComponentsExamples_ForwardsInputsAndRenders",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "CLI test proves component id/version forwarding and rendered examples output."
+        },
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Live round trip during Phase 5: `react-component-library components examples \u003cButton id\u003e --version 1.2.0 --json` returned the seeded `primary` example after reindex."
+        }
+      ]
+    },
+    {
+      "id": "EX-003",
+      "title": "Specimen gallery renders every named example and checks expectations",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The component editor preview mode renders one harness iframe per indexed example for the selected version. The harness resolves `$text`, `$node`, `$icon`, `$handler`, `$rowKey`, `$columns`, and `$filters`, then evaluates `expect[]` assertions after render and reports failures through the existing preview-error channel.",
+      "tags": [
+        "examples",
+        "gallery",
+        "e2e"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/components/ComponentEditor.test.tsx::renders example gallery iframes with named harness URLs",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "UI test proves the gallery emits named harness URLs for indexed examples."
+        },
+        {
+          "type": "test",
+          "ref": "ui/scripts/preview-e2e.mjs",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "`pnpm run test:preview-e2e` passed across all 11 catalog components and their example frames during Phase 6."
+        }
+      ]
+    },
+    {
+      "id": "EX-004",
+      "title": "Generated docs can be derived from prop types",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "docs",
+      "criticality": "P2",
+      "description": "A future documentation generator can combine component prop metadata, named examples, and version metadata into Storybook-style reference pages without changing the examples data contract.",
+      "tags": [
+        "docs",
+        "prop-types",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Future docs-generation tests should parse prop metadata and render reference docs for at least one component with multiple named examples."
+        }
+      ]
+    }
+  ]
+}

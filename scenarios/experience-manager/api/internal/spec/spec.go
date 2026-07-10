@@ -43,6 +43,7 @@ const (
 	kindIndex               = "experience-index"
 	kindPage                = "experience-page"
 	kindJourney             = "experience-journey"
+	kindComponent           = "experience-component"
 	defaultState            = "default"
 )
 
@@ -95,12 +96,13 @@ func IsFindingCode(code string) bool {
 
 // Report is the parser-facing contract result for one scenario.
 type Report struct {
-	Scenario       string
-	TargetPath     string
-	Findings       []Finding
-	DegradedReason string
-	Spec           *ScenarioSpec
-	PageDepths     map[string]int
+	Scenario        string
+	TargetPath      string
+	Findings        []Finding
+	DegradedReason  string
+	Spec            *ScenarioSpec
+	PageDepths      map[string]int
+	ComponentDepths map[string]int
 }
 
 // Finding is the neutral finding shape emitted by the parser and later checks.
@@ -119,6 +121,7 @@ type ScenarioSpec struct {
 	Index         IndexDocument
 	Pages         map[string]PageDocument
 	Journeys      map[string]JourneyDocument
+	Components    map[string]ComponentDocument
 }
 
 type IndexDocument struct {
@@ -129,6 +132,7 @@ type IndexDocument struct {
 	Description   string                     `json:"description"`
 	Pages         []DocumentRef              `json:"pages"`
 	Journeys      []DocumentRef              `json:"journeys"`
+	Components    []DocumentRef              `json:"components"`
 	Extensions    map[string]json.RawMessage `json:"-"`
 }
 
@@ -267,13 +271,41 @@ type JourneyStep struct {
 	Via    string `json:"via"`
 }
 
+type ComponentDocument struct {
+	Kind          string                     `json:"kind"`
+	SchemaVersion string                     `json:"schemaVersion"`
+	Component     ComponentIdentity          `json:"component"`
+	Priorities    []Priority                 `json:"priorities"`
+	States        []ComponentState           `json:"states"`
+	Elements      []Element                  `json:"elements"`
+	Claims        []Claim                    `json:"claims"`
+	Bindings      Bindings                   `json:"bindings"`
+	FloorOptOuts  []FloorOptOut              `json:"floorOptOuts"`
+	Extensions    map[string]json.RawMessage `json:"-"`
+}
+
+type ComponentIdentity struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Purpose     string   `json:"purpose"`
+	ExamplesRef string   `json:"examplesRef"`
+	PRDRefs     []string `json:"prd_refs"`
+}
+
+type ComponentState struct {
+	ID          string `json:"id"`
+	Example     string `json:"example"`
+	Description string `json:"description"`
+}
+
 // ParseScenario validates and parses scenarioDir/experience.
 func ParseScenario(scenarioDir string) (Report, error) {
 	scenarioDir = filepath.Clean(scenarioDir)
 	report := Report{
-		Scenario:   filepath.Base(scenarioDir),
-		TargetPath: scenarioDir,
-		PageDepths: map[string]int{},
+		Scenario:        filepath.Base(scenarioDir),
+		TargetPath:      scenarioDir,
+		PageDepths:      map[string]int{},
+		ComponentDepths: map[string]int{},
 	}
 	expDir := filepath.Join(scenarioDir, "experience")
 	if info, err := os.Stat(expDir); err != nil || !info.IsDir() {
@@ -290,6 +322,7 @@ func ParseScenario(scenarioDir string) (Report, error) {
 		ExperienceDir: expDir,
 		Pages:         map[string]PageDocument{},
 		Journeys:      map[string]JourneyDocument{},
+		Components:    map[string]ComponentDocument{},
 	}
 	report.Spec = spec
 
@@ -303,11 +336,35 @@ func ParseScenario(scenarioDir string) (Report, error) {
 	checkIndexShape(&report, spec.Index)
 	checkPages(&report, spec, prdRefs)
 	checkJourneys(&report, spec, prdRefs)
+	checkComponents(&report, spec, prdRefs)
 	for id, page := range spec.Pages {
 		report.PageDepths[id] = ComputeDepth(page, spec)
 	}
+	for id, component := range spec.Components {
+		report.ComponentDepths[id] = ComputeComponentDepth(component)
+	}
 	sortFindings(report.Findings)
 	return report, nil
+}
+
+// ComputeComponentDepth returns the L0-L3 experience depth for one component.
+// Components do not participate in journeys; example-anchored states are their
+// highest parser-era depth.
+func ComputeComponentDepth(component ComponentDocument) int {
+	if component.Component.ID == "" || component.Component.ExamplesRef == "" {
+		return 0
+	}
+	depth := 0
+	if len(component.Priorities) > 0 {
+		depth = 1
+	}
+	if len(component.Claims) > 0 && len(component.Elements) > 0 && len(component.Bindings.Elements) > 0 {
+		depth = 2
+	}
+	if len(component.States) > 0 {
+		depth = 3
+	}
+	return depth
 }
 
 // ComputeDepth returns the L0-L4 experience depth for one page.
@@ -367,6 +424,17 @@ func parseListedDocuments(report *Report, spec *ScenarioSpec) {
 			spec.Journeys[journey.Journey.ID] = journey
 		}
 	}
+	for _, ref := range spec.Index.Components {
+		var component ComponentDocument
+		path := filepath.Join(spec.ExperienceDir, filepath.FromSlash(ref.Path))
+		if !decodeDoc(report, path, &component) {
+			continue
+		}
+		component.Extensions = extensions(path, report)
+		if component.Component.ID != "" {
+			spec.Components[component.Component.ID] = component
+		}
+	}
 }
 
 func decodeDoc(report *Report, path string, out any) bool {
@@ -420,6 +488,7 @@ func checkIndexShape(report *Report, spec IndexDocument) {
 	}
 	checkDocRefs(report, loc, "page", spec.Pages)
 	checkDocRefs(report, loc, "journey", spec.Journeys)
+	checkDocRefs(report, loc, "component", spec.Components)
 }
 
 func checkDocRefs(report *Report, loc, kind string, refs []DocumentRef) {
@@ -435,7 +504,7 @@ func checkDocRefs(report *Report, loc, kind string, refs []DocumentRef) {
 		}
 		seenIDs[ref.ID] = true
 		if !strings.HasPrefix(ref.Path, prefix) || !strings.HasSuffix(ref.Path, ".json") {
-			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("%s ref path %q must live under %s", kind, ref.Path, prefix), loc, "Point refs at pages/*.json or journeys/*.json.")
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("%s ref path %q must live under %s", kind, ref.Path, prefix), loc, "Point refs at pages/*.json, journeys/*.json, or components/*.json.")
 		}
 		if seenPaths[ref.Path] {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("duplicate %s ref path %q", kind, ref.Path), loc, "List each document path once.")
@@ -450,6 +519,7 @@ func checkDocRefs(report *Report, loc, kind string, refs []DocumentRef) {
 func checkIndexParity(report *Report, spec *ScenarioSpec) {
 	checkDirParity(report, spec, "pages", spec.Index.Pages)
 	checkDirParity(report, spec, "journeys", spec.Index.Journeys)
+	checkDirParity(report, spec, "components", spec.Index.Components)
 }
 
 func checkDirParity(report *Report, spec *ScenarioSpec, dir string, refs []DocumentRef) {
@@ -612,6 +682,121 @@ func checkJourneys(report *Report, spec *ScenarioSpec, prdRefs map[string]bool) 
 	}
 }
 
+func checkComponents(report *Report, spec *ScenarioSpec, prdRefs map[string]bool) {
+	indexByID := map[string]DocumentRef{}
+	for _, ref := range spec.Index.Components {
+		indexByID[ref.ID] = ref
+	}
+	for id, component := range spec.Components {
+		loc := "experience/" + indexByID[id].Path
+		path := filepath.Join(spec.ExperienceDir, filepath.FromSlash(indexByID[id].Path))
+		checkComponentShape(report, loc, component, indexByID[id])
+		checkPRDRefs(report, loc, "component", component.Component.PRDRefs, prdRefs)
+		checkComponentReferences(report, loc, path, component)
+	}
+}
+
+func checkComponentShape(report *Report, loc string, component ComponentDocument, ref DocumentRef) {
+	if component.Kind != kindComponent {
+		report.add(CodeSchemaInvalid, SeverityError, "component kind must be experience-component", loc, "Set kind to experience-component.")
+	}
+	if !schemaVersionPattern.MatchString(component.SchemaVersion) {
+		report.add(CodeSchemaInvalid, SeverityError, "component schemaVersion must be semver-like", loc, "Use a version like 1.1.0.")
+	}
+	if component.Component.ID != ref.ID {
+		report.add(CodeIndexParity, SeverityError, fmt.Sprintf("component id %q does not match index id %q", component.Component.ID, ref.ID), loc, "Keep index and component ids identical.")
+	}
+	if component.Component.Title == "" || len(component.Component.Purpose) < 15 || strings.TrimSpace(component.Component.ExamplesRef) == "" {
+		report.add(CodeSchemaInvalid, SeverityError, "component identity must include title, purpose, and examplesRef", loc, "Fill component.title, component.purpose, and component.examplesRef.")
+	}
+	checkUniqueIDs(report, loc, "state", componentStateIDs(component.States))
+	checkUniqueIDs(report, loc, "element", elementIDs(component.Elements))
+	checkUniqueIDs(report, loc, "claim", claimIDs(component.Claims))
+	for _, state := range component.States {
+		if !idPattern.MatchString(state.Example) {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("component state %q has invalid example %q", state.ID, state.Example), loc, "Anchor each component state to a kebab-case example name.")
+		}
+	}
+	for _, el := range component.Elements {
+		if !idPattern.MatchString(el.ID) || !rolePattern.MatchString(el.Role) {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("element %q has invalid id or role", el.ID), loc, "Use kebab-case ids and ARIA or x- namespaced roles.")
+		}
+	}
+	for _, claim := range component.Claims {
+		checkClaimShape(report, loc, claim)
+	}
+}
+
+func checkComponentReferences(report *Report, loc, path string, component ComponentDocument) {
+	elementSet := stringSet(elementIDs(component.Elements))
+	stateSet := stringSet(componentStateIDs(component.States))
+	exampleSet := componentExamples(filepath.Dir(path), component.Component.ExamplesRef)
+	for _, claim := range component.Claims {
+		for _, el := range claim.Elements {
+			if !elementSet[el] {
+				report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("claim %q references unknown element %q", claim.ID, el), loc, "Declare the element or remove the reference.")
+			}
+		}
+		for _, state := range claim.States {
+			if !stateSet[state] {
+				report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("claim %q references unknown state %q", claim.ID, state), loc, "Declare the component state or remove the reference.")
+			}
+		}
+		if claim.Tier == "machine" {
+			for _, el := range claim.Elements {
+				if !bindingFor(component.Bindings.Elements, el) {
+					report.add(CodeBindingOrphan, SeverityError, fmt.Sprintf("machine claim %q references unbound element %q", claim.ID, el), loc, "Add a binding for every machine-claimed element.")
+				}
+			}
+		}
+	}
+	for el := range component.Bindings.Elements {
+		if !elementSet[el] {
+			report.add(CodeBindingOrphan, SeverityError, fmt.Sprintf("binding references unknown element %q", el), loc, "Remove the binding or declare the element.")
+		}
+	}
+	for _, el := range component.Elements {
+		if !bindingFor(component.Bindings.Elements, el.ID) {
+			report.add(CodeBindingOrphan, SeverityError, fmt.Sprintf("element %q has no binding", el.ID), loc, "Bind each element to a testid or selector.")
+		}
+	}
+	for _, state := range component.States {
+		if len(exampleSet) == 0 {
+			report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("component examplesRef %q has no readable examples", component.Component.ExamplesRef), loc, "Point examplesRef at a readable catalog examples.json file.")
+			break
+		}
+		if !exampleSet[state.Example] {
+			report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("component state %q references unknown example %q", state.ID, state.Example), loc, "Reference an example name declared in examples.json.")
+		}
+	}
+}
+
+func componentExamples(baseDir, examplesRef string) map[string]bool {
+	ref := strings.TrimSpace(examplesRef)
+	if ref == "" {
+		return nil
+	}
+	data, err := os.ReadFile(filepath.Clean(filepath.Join(baseDir, filepath.FromSlash(ref))))
+	if err != nil {
+		return nil
+	}
+	var doc struct {
+		Examples []struct {
+			Name string `json:"name"`
+		} `json:"examples"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, example := range doc.Examples {
+		if example.Name != "" {
+			out[example.Name] = true
+		}
+	}
+	return out
+}
+
 func checkPRDRefs(report *Report, loc, owner string, refs []string, prdRefs map[string]bool) {
 	for _, ref := range refs {
 		if !prdRefs[ref] {
@@ -701,6 +886,14 @@ func rel(root, path string) string {
 }
 
 func stateIDs(states []State) []string {
+	out := make([]string, 0, len(states))
+	for _, state := range states {
+		out = append(out, state.ID)
+	}
+	return out
+}
+
+func componentStateIDs(states []ComponentState) []string {
 	out := make([]string, 0, len(states))
 	for _, state := range states {
 		out = append(out, state.ID)

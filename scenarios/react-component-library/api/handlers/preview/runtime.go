@@ -86,6 +86,15 @@ func buildRuntimeESM(source, wrapper string, externals []string) esbuild.BuildRe
 		Write:    false,
 		LogLevel: esbuild.LogLevelSilent,
 	}
+	if runtimeNeedsReactRequireShim(externals) {
+		opts.Banner = map[string]string{
+			"js": `import ReactDefault, * as ReactNS from "react";
+var require = (name) => {
+  if (name === "react") return ReactDefault || ReactNS;
+  throw Error("Unsupported preview runtime require: " + name);
+};`,
+		}
+	}
 	if wrapper != "" {
 		opts.Stdin = &esbuild.StdinOptions{
 			Contents:   fmt.Sprintf(wrapper, jsImportString(filepath.ToSlash(source))),
@@ -264,7 +273,19 @@ func runtimeEntry(moduleName, runtimePath string) (string, bool) {
 }
 
 func runtimeExternals(moduleName string) []string {
+	if moduleName == "react-dom" {
+		return []string{"react", "react/*"}
+	}
 	return nil
+}
+
+func runtimeNeedsReactRequireShim(externals []string) bool {
+	for _, external := range externals {
+		if external == "react" {
+			return true
+		}
+	}
+	return false
 }
 
 func packageRuntimeEntry(moduleName, runtimePath string) (string, bool) {

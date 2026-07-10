@@ -181,6 +181,8 @@ The interface should feel calm, technical, dense, legible, and durable. It shoul
 
 Component previews and catalogue surfaces must reflect the component registry's typed projection, not reinterpret source files independently. `component.json` owns stable component facts such as identity, display metadata, slot, tags, versions, and design-style affinities. Version source headers are hints for source-local metadata; structural hints such as `@version`, `@status`, `@deps`, and latest-version `@category` are validated by the indexer and either promoted into typed registry fields or reported as disagreement findings.
 
+Preview specimens must come from versioned data, not ad hoc UI code. A component version's `examples.json` is the source of truth for named preview states; the editor renders those examples as a gallery, the browser gate sweeps every example frame, and experience-component specs bind reusable behavior claims to those same names.
+
 The UI should therefore render registry facts from API read models. It should not prefer a header value over a manifest- or projection-owned value when they disagree.
 
 ## Layout

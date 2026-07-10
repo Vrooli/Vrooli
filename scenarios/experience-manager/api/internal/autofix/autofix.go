@@ -146,6 +146,7 @@ func indexNormalizationFixer() autofix.Fixer {
 		}
 		sort.Slice(index.Pages, func(i, j int) bool { return index.Pages[i].ID < index.Pages[j].ID })
 		sort.Slice(index.Journeys, func(i, j int) bool { return index.Journeys[i].ID < index.Journeys[j].ID })
+		sort.Slice(index.Components, func(i, j int) bool { return index.Components[i].ID < index.Components[j].ID })
 		afterBytes, err := json.MarshalIndent(index, "", "  ")
 		if err != nil {
 			return nil, err

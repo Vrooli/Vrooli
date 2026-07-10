@@ -1,0 +1,43 @@
+{
+  "examples": [
+    {
+      "name": "metric-card",
+      "displayName": "Metric Card",
+      "props": {
+        "children": [
+          { "$node": "div", "props": { "className": "border-b border-app-border px-4 py-3" }, "children": [{ "$node": "h3", "children": [{ "$text": "Adoption health" }] }] },
+          { "$node": "div", "props": { "className": "px-4 py-4" }, "children": [{ "$text": "8 scenarios current" }] }
+        ]
+      },
+      "expect": [
+        { "kind": "text", "value": "Adoption health" },
+        { "kind": "text", "value": "8 scenarios current" }
+      ]
+    },
+    {
+      "name": "empty-tool",
+      "displayName": "Empty Tool",
+      "props": {
+        "children": [
+          { "$node": "div", "props": { "className": "px-4 py-4" }, "children": [{ "$text": "No drift detected" }] }
+        ],
+        "className": "max-w-sm"
+      },
+      "expect": [
+        { "kind": "text", "value": "No drift detected" }
+      ]
+    },
+    {
+      "name": "compact-record",
+      "displayName": "Compact Record",
+      "props": {
+        "children": [
+          { "$node": "div", "props": { "className": "px-4 py-3" }, "children": [{ "$text": "Button / v1.2.0 / native" }] }
+        ]
+      },
+      "expect": [
+        { "kind": "text", "value": "Button / v1.2.0 / native" }
+      ]
+    }
+  ]
+}

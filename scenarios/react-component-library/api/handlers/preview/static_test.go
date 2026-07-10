@@ -95,7 +95,7 @@ func TestRenderHarnessHTMLInjectsDesignSystemCSS(t *testing.T) {
 		JS:         "export default function Demo() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	})
+	}, harnessExample{})
 	require.Contains(t, html, `--color-primary`)
 	require.Contains(t, html, `.bg-app-primary`)
 	require.Contains(t, html, `.rounded-control`)
@@ -110,7 +110,7 @@ func TestRenderHarnessHTMLShowsImportMapDiagnostics(t *testing.T) {
 		Dependencies: []internaldeps.Declaration{
 			{DepName: "some-lib", VersionRange: "*"},
 		},
-	})
+	}, harnessExample{})
 	require.Contains(t, html, `id="preview-importmap-diagnostics"`)
 	require.Contains(t, html, `cannot pin dependency`)
 	require.False(t, strings.Contains(html, `some-lib@*`))
@@ -121,7 +121,7 @@ func TestRenderHarnessHTMLCanShowRuntimeImportFailure(t *testing.T) {
 		JS:         "export default function Demo() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	})
+	}, harnessExample{})
 	require.NotContains(t, html, `import { createRoot } from "react-dom/client";`)
 	require.Contains(t, html, `try {`)
 	require.Contains(t, html, `import("react-dom/client")`)

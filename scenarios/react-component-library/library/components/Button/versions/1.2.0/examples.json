@@ -11,6 +11,46 @@
         { "kind": "text", "value": "Save changes" },
         { "kind": "role", "role": "button", "name": "Save changes" }
       ]
+    },
+    {
+      "name": "destructive",
+      "displayName": "Destructive",
+      "props": {
+        "children": { "$text": "Delete record" },
+        "variant": "danger"
+      },
+      "expect": [
+        { "kind": "text", "value": "Delete record" },
+        { "kind": "role", "role": "button", "name": "Delete record" }
+      ]
+    },
+    {
+      "name": "disabled-long-label",
+      "displayName": "Disabled Long Label",
+      "props": {
+        "children": { "$text": "Sync all queued workspace changes" },
+        "variant": "secondary",
+        "disabled": true
+      },
+      "expect": [
+        { "kind": "text", "value": "Sync all queued workspace changes" },
+        { "kind": "attribute", "selector": "button", "name": "disabled", "value": "" }
+      ]
+    },
+    {
+      "name": "icon-start",
+      "displayName": "Icon Start",
+      "props": {
+        "children": [
+          { "$icon": "Save" },
+          { "$text": "Save draft" }
+        ],
+        "variant": "primary"
+      },
+      "expect": [
+        { "kind": "text", "value": "Save draft" },
+        { "kind": "role", "role": "button", "name": "Save draft" }
+      ]
     }
   ]
 }

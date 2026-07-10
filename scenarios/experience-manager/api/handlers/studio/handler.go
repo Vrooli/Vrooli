@@ -93,6 +93,9 @@ func (h *handler) ListSpec(ctx context.Context, req *connect.Request[contractv1.
 		for _, ref := range report.Spec.Index.Journeys {
 			resp.Journeys = append(resp.Journeys, protoSpecDocument(ref))
 		}
+		for _, ref := range report.Spec.Index.Components {
+			resp.Components = append(resp.Components, protoSpecDocument(ref))
+		}
 	}
 	return connect.NewResponse(resp), nil
 }

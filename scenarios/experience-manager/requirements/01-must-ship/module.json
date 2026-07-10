@@ -13,7 +13,7 @@
       "status": "complete",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
-      "description": "Validate `experience/` (index, pages, journeys) against `.vrooli/schemas/scenario-experience-spec.schema.json` plus parser checks: unique IDs, resolvable references (routes, PRD OTs, DESIGN.md states, bindings), enforcement-tier rules, and open-world semantics, with a frozen finding-code vocabulary.",
+      "description": "Validate `experience/` (index, pages, journeys, and components) against `.vrooli/schemas/scenario-experience-spec.schema.json` plus parser checks: unique IDs, resolvable references (routes, PRD OTs, DESIGN.md states, bindings, component examples), enforcement-tier rules, and open-world semantics, with a frozen finding-code vocabulary.",
       "validation": [
         {
           "type": "test",
@@ -28,6 +28,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Covers cross-file parser checks and emitted contract finding codes for unresolved refs, PRD mismatch, tier violations, and orphan bindings."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/spec/spec_test.go::TestParseScenarioParsesExperienceComponents",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers `experience-component` parser support, component index parity, example references, and the RCL Button pilot."
         }
       ]
     },
@@ -61,7 +68,7 @@
       "status": "complete",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
-      "description": "Drive Browser Automation Studio to capture a screenshot plus accessibility tree per declared page/state and check every machine-tier claim against the captured tree, persisting per-claim evidence; BAS unavailability yields skipped findings, never failures.",
+      "description": "Drive Browser Automation Studio to capture a screenshot plus accessibility tree per declared page/state and per experience-component example/viewport, then check every machine-tier claim against the captured tree, persisting per-claim evidence; BAS unavailability yields skipped findings, never failures. Component reconciliation is advisory until the component contract is promoted to gating.",
       "validation": [
         {
           "type": "test",
@@ -83,6 +90,20 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Persists per-claim reconciliation evidence for passed active-page verdicts."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/reconcile/reconcile_test.go::TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Builds RCL preview harness capture targets for component examples and persists component claim evidence."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/reconcile/reconcile_test.go::TestActiveComponentFailuresAreAdvisory",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Proves component reconciliation failures are advisory warnings while the contract is still being calibrated."
         }
       ]
     },

@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "testing-coverage",
     "description": "Testing seams and coverage targets per unit-testing-architecture-steer: SQLite-backed repos, mocked handlers, UI component tests, BAS flows.",
+    "last_validated_at": "2026-07-10T09:48:00-04:00",
+    "module": "testing-coverage",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -14,11 +15,14 @@
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "Each `api/internal/<dom>/sqlite.go` has a sibling `sqlite_test.go` that exercises the repository against `:memory:` or `t.TempDir()` SQLite. No testcontainers. No Postgres.",
-      "tags": ["testing", "sqlite"],
+      "description": "Each `api/internal/\u003cdom\u003e/sqlite.go` has a sibling `sqlite_test.go` that exercises the repository against `:memory:` or `t.TempDir()` SQLite. No testcontainers. No Postgres.",
+      "tags": [
+        "testing",
+        "sqlite"
+      ],
       "validation": [
         {
-          "type": "automated",
+          "type": "test",
           "status": "planned",
           "notes": "`go test ./internal/... -run Sqlite` is green; coverage tooling reports per-domain coverage."
         }
@@ -31,11 +35,14 @@
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "Each `api/handlers/<dom>/handlers_test.go` uses the co-located `internal/<dom>/mocks/` fake. Handler tests assert request decoding, response shape, and error mapping — not SQL behavior.",
-      "tags": ["testing", "handlers"],
+      "description": "Each `api/handlers/\u003cdom\u003e/handlers_test.go` uses the co-located `internal/\u003cdom\u003e/mocks/` fake. Handler tests assert request decoding, response shape, and error mapping — not SQL behavior.",
+      "tags": [
+        "testing",
+        "handlers"
+      ],
       "validation": [
         {
-          "type": "automated",
+          "type": "test",
           "status": "planned",
           "notes": "`go test ./handlers/... -run Handler` is green."
         }
@@ -49,10 +56,13 @@
       "category": "testing",
       "criticality": "P0",
       "description": "Library, Editor, Adoptions, Diff, Theme-switcher pages each ship a `*.test.tsx` and an `*.a11y.test.tsx` using the template's stock testing setup.",
-      "tags": ["testing", "ui"],
+      "tags": [
+        "testing",
+        "ui"
+      ],
       "validation": [
         {
-          "type": "automated",
+          "type": "test",
           "status": "planned",
           "notes": "`pnpm test -- --run` is green; axe-core a11y assertions pass."
         }
@@ -61,17 +71,22 @@
     {
       "id": "TC-004",
       "title": "BAS flows cover the primary user journeys",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "Flows: `index-and-list`, `edit-and-preview`, `select-element`, `adopt-and-detect-drift`, `dep-mismatch-blocks-adopt`, `theme-switch-applies`.",
-      "tags": ["testing", "bas"],
+      "description": "Browser coverage includes the live preview/catalog render path today. Additional end-to-end flows remain planned for index/list, edit-and-preview, select-element, adopt-and-detect-drift, dep-mismatch-blocks-adopt, and theme-switch-applies.",
+      "tags": [
+        "testing",
+        "bas"
+      ],
       "validation": [
         {
-          "type": "automated",
-          "status": "planned",
-          "notes": "`vrooli scenario test react-component-library` runs the BAS suite green."
+          "type": "test",
+          "ref": "ui/scripts/preview-e2e.mjs",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "The full-catalog preview sweep passed across all 11 components and example frames. Remaining broad product journeys are still tracked as planned coverage."
         }
       ]
     },
@@ -82,13 +97,51 @@
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "Every requirement has a PROGRESS.md row with `planned | in progress: <test gate> | complete: <test names>`. A row never claims `complete` if the named tests are not green.",
-      "tags": ["testing", "discipline"],
+      "description": "Every requirement has a PROGRESS.md row with `planned | in progress: \u003ctest gate\u003e | complete: \u003ctest names\u003e`. A row never claims `complete` if the named tests are not green.",
+      "tags": [
+        "testing",
+        "discipline"
+      ],
       "validation": [
         {
           "type": "manual",
           "status": "planned",
           "notes": "Auditor cross-checks PROGRESS.md complete-claims against the test report on each release."
+        }
+      ]
+    },
+    {
+      "id": "TC-006",
+      "title": "Catalog source gates cover type, lint, render, and component-experience claims",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Catalog source is tested independently from the host UI: latest/draft TSX files pass catalog TypeScript and ESLint gates, every example-bearing component renders in Chromium, and the Button pilot experience-component reconciles against BAS captures of the preview harness.",
+      "tags": [
+        "testing",
+        "catalog",
+        "experience"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/scripts/catalog-conformance.mjs",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`pnpm run catalog:check` passed and a temporary TypeScript error failed as expected during Phase 3."
+        },
+        {
+          "type": "test",
+          "ref": "ui/scripts/preview-e2e.mjs",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "`pnpm run test:preview-e2e` passed across the catalog examples during Phase 6."
+        },
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Experience phase live BAS calibration: clean run 20260710-131340-38f3addd, ghost-claim advisory failure run 20260710-131446-30feba68, clean post-removal run 20260710-131538-31dc1994."
         }
       ]
     }

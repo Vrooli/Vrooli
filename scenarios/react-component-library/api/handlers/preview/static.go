@@ -38,15 +38,20 @@ var (
 // loads into the live-preview iframe. Inlines the transpiled module so
 // one request gives the browser everything it needs to render.
 type HarnessHandler struct {
-	service preview.Service
-	logger  *log.Logger
+	service    preview.Service
+	components components.Service
+	logger     *log.Logger
 }
 
 func NewHarnessHandler(svc preview.Service, logger *log.Logger) *HarnessHandler {
+	return NewHarnessHandlerWithExamples(svc, nil, logger)
+}
+
+func NewHarnessHandlerWithExamples(svc preview.Service, comp components.Service, logger *log.Logger) *HarnessHandler {
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &HarnessHandler{service: svc, logger: logger}
+	return &HarnessHandler{service: svc, components: comp, logger: logger}
 }
 
 // ServeHTTP returns the iframe-friendly HTML shell. Status mapping
@@ -58,12 +63,22 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing component id", http.StatusBadRequest)
 		return
 	}
-	bundle, err := h.service.GetBundle(r.Context(), id)
+	componentID, err := h.resolveComponentID(r, id)
 	if err != nil {
 		writeHarnessError(w, h.logger, id, err)
 		return
 	}
-	doc := renderHarnessHTML(id, bundle)
+	bundle, err := h.service.GetBundle(r.Context(), componentID)
+	if err != nil {
+		writeHarnessError(w, h.logger, id, err)
+		return
+	}
+	example, err := h.resolveExample(r, componentID)
+	if err != nil {
+		writeHarnessError(w, h.logger, id, err)
+		return
+	}
+	doc := renderHarnessHTML(id, bundle, example)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	// Same-origin: the host iframe controls the `src`, and same-origin
@@ -72,6 +87,17 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write([]byte(doc)); err != nil {
 		h.logger.Printf("preview.harness write %q: %v", id, err)
 	}
+}
+
+func (h *HarnessHandler) resolveComponentID(r *http.Request, id string) (string, error) {
+	if !strings.Contains(id, ":") || h.components == nil {
+		return id, nil
+	}
+	component, err := h.components.GetByLibraryID(r.Context(), id)
+	if err != nil {
+		return "", err
+	}
+	return component.ID, nil
 }
 
 func writeHarnessError(w http.ResponseWriter, logger *log.Logger, id string, err error) {
@@ -97,7 +123,44 @@ func writeHarnessError(w http.ResponseWriter, logger *log.Logger, id string, err
 	}
 }
 
-func renderHarnessHTML(id string, b preview.Bundle) string {
+type harnessExample struct {
+	Name        string
+	DisplayName string
+	PropsJSON   string
+	SetupJSON   string
+	ExpectJSON  string
+}
+
+func (h *HarnessHandler) resolveExample(r *http.Request, id string) (harnessExample, error) {
+	name := strings.TrimSpace(r.URL.Query().Get("example"))
+	if name == "" || h.components == nil {
+		return harnessExample{}, nil
+	}
+	version := strings.TrimSpace(r.URL.Query().Get("version"))
+	examples, err := h.components.ListExamples(r.Context(), components.ExampleQuery{
+		ComponentID: id,
+		Version:     version,
+		Limit:       500,
+	})
+	if err != nil {
+		return harnessExample{}, err
+	}
+	for _, ex := range examples {
+		if ex.Name != name {
+			continue
+		}
+		return harnessExample{
+			Name:        ex.Name,
+			DisplayName: ex.DisplayName,
+			PropsJSON:   ex.PropsJSON,
+			SetupJSON:   ex.SetupJSON,
+			ExpectJSON:  ex.ExpectJSON,
+		}, nil
+	}
+	return harnessExample{}, fmt.Errorf("preview: example %q not found for component %q", name, id)
+}
+
+func renderHarnessHTML(id string, b preview.Bundle, ex harnessExample) string {
 	var sb strings.Builder
 	sb.WriteString(`<!doctype html>
 <html lang="en">
@@ -111,6 +174,9 @@ func renderHarnessHTML(id string, b preview.Bundle) string {
 	sb.WriteString(`" />
 <meta name="bundle-sha256" content="`)
 	sb.WriteString(html.EscapeString(b.SHA256))
+	sb.WriteString(`" />
+<meta name="example-name" content="`)
+	sb.WriteString(html.EscapeString(ex.Name))
 	sb.WriteString(`" />
 <style>
 `)
@@ -149,6 +215,13 @@ const componentModuleURL = "data:text/javascript;base64,`)
 	// for the full ESM payload including non-ASCII characters.
 	sb.WriteString(base64Encode(b.JS))
 	sb.WriteString(`";
+const previewExample = {
+  name: ` + jsString(ex.Name) + `,
+  displayName: ` + jsString(ex.DisplayName) + `,
+  props: ` + jsonObjectLiteral(ex.PropsJSON) + `,
+  setup: ` + jsonObjectLiteral(ex.SetupJSON) + `,
+  expect: ` + jsonArrayLiteral(ex.ExpectJSON) + `,
+};
 // Color-scheme bridge (req DV-001): the host posts
 // {type:"rcl-color-scheme", colorScheme:"system"|"light"|"dark"}; we
 // apply CSS color-scheme on :root and toggle a "dark" class on body.
@@ -320,18 +393,142 @@ const showPreviewError = (message) => {
     parent.postMessage({ type: "preview-error", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, message }, "*");
   } catch (e) {}
 };
+const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
+const implicitRole = (el) => {
+  const tag = (el && el.tagName ? el.tagName.toLowerCase() : "");
+  if (tag === "button") return "button";
+  if (tag === "select") return "combobox";
+  if (tag === "textarea") return "textbox";
+  if (tag === "input") {
+    const type = (el.getAttribute("type") || "text").toLowerCase();
+    if (["button", "submit", "reset"].includes(type)) return "button";
+    if (["search", "text", "email", "password", "url", "tel"].includes(type)) return "textbox";
+  }
+  if (tag === "a" && el.hasAttribute("href")) return "link";
+  if (tag === "table") return "table";
+  if (/^h[1-6]$/.test(tag)) return "heading";
+  return "";
+};
+const accessibleName = (el) => normalizeText(
+  el.getAttribute("aria-label") ||
+  el.getAttribute("title") ||
+  el.value ||
+  el.textContent ||
+  ""
+);
+const elementsByRole = (role) => Array.from(document.querySelectorAll("body *"))
+  .filter((el) => (el.getAttribute("role") || implicitRole(el)) === role);
+const assertPreviewExpectations = () => {
+  const failures = [];
+  for (const [index, expectation] of (Array.isArray(previewExample.expect) ? previewExample.expect : []).entries()) {
+    const kind = expectation && expectation.kind;
+    if (kind === "text") {
+      const value = normalizeText(expectation.value);
+      if (value && !normalizeText(document.body.textContent).includes(value)) {
+        failures.push("expect[" + index + "] text " + value + " not found");
+      }
+      continue;
+    }
+    if (kind === "role") {
+      const role = expectation.role;
+      const name = normalizeText(expectation.name);
+      const matches = elementsByRole(role);
+      const ok = matches.some((el) => !name || accessibleName(el).includes(name));
+      if (!ok) failures.push("expect[" + index + "] role " + role + (name ? " named " + name : "") + " not found");
+      continue;
+    }
+    if (kind === "selector") {
+      if (!document.querySelector(expectation.selector || "")) {
+        failures.push("expect[" + index + "] selector " + (expectation.selector || "<empty>") + " not found");
+      }
+      continue;
+    }
+    if (kind === "attribute") {
+      const el = document.querySelector(expectation.selector || "");
+      const attr = expectation.name || "";
+      const actual = el ? el.getAttribute(attr) : null;
+      const expected = expectation.value;
+      if (!el || (expected !== undefined && actual !== String(expected))) {
+        failures.push("expect[" + index + "] attribute " + attr + " expected " + expected + " got " + actual);
+      }
+      continue;
+    }
+    failures.push("expect[" + index + "] unsupported kind " + (kind || "<missing>"));
+  }
+  if (failures.length > 0) throw new Error(failures.join("; "));
+};
+const createNodeFactory = (React, Icons) => {
+  const resolve = (value) => {
+    if (Array.isArray(value)) return value.map(resolve);
+    if (!value || typeof value !== "object") return value;
+    if (Object.prototype.hasOwnProperty.call(value, "$text")) return String(value.$text ?? "");
+    if (Object.prototype.hasOwnProperty.call(value, "$handler")) return () => {};
+    if (Object.prototype.hasOwnProperty.call(value, "$rowKey")) {
+      const field = String(value.$rowKey || "id");
+      return (row, index) => String((row && row[field]) ?? index);
+    }
+    if (Object.prototype.hasOwnProperty.call(value, "$icon")) {
+      const Icon = Icons[String(value.$icon)] || Icons.Circle;
+      return React.createElement(Icon || "span", { "aria-hidden": true, className: value.className || "h-4 w-4" });
+    }
+    if (Object.prototype.hasOwnProperty.call(value, "$node")) {
+      const type = String(value.$node || "span");
+      const props = resolve(value.props || {});
+      const children = resolve(value.children || []);
+      return React.createElement(type, props, ...(Array.isArray(children) ? children : [children]));
+    }
+    if (Object.prototype.hasOwnProperty.call(value, "$columns")) {
+      return (Array.isArray(value.$columns) ? value.$columns : []).map((column) => ({
+        id: column.id,
+        header: column.header,
+        className: column.className,
+        accessor: (row) => column.badge
+          ? React.createElement("span", { className: "inline-flex rounded-pill border border-app-border px-2 py-1 text-xs" }, row[column.field])
+          : row[column.field],
+        sortValue: column.sortable ? (row) => row[column.field] : undefined,
+        searchValue: column.searchable ? (row) => String(row[column.field] ?? "") : undefined,
+      }));
+    }
+    if (Object.prototype.hasOwnProperty.call(value, "$filters")) {
+      return (Array.isArray(value.$filters) ? value.$filters : []).map((filter) => ({
+        id: filter.id,
+        label: filter.label,
+        predicate: (row) => row[filter.field] === filter.equals,
+      }));
+    }
+    const out = {};
+    for (const [key, child] of Object.entries(value)) out[key] = resolve(child);
+    return out;
+  };
+  return resolve;
+};
+const isRenderableComponent = (value) => (
+  typeof value === "function" ||
+  (value && typeof value === "object" && typeof value.$$typeof === "symbol")
+);
 try {
-  const [{ createRoot }, Mod, React] = await Promise.all([
+  const [{ createRoot }, Mod, React, Icons] = await Promise.all([
     import("react-dom/client"),
     import(componentModuleURL),
     import("react"),
+    import("lucide-react").catch(() => ({})),
   ]);
-  const Cmp = Mod.default ?? Mod[Object.keys(Mod).find(k => typeof Mod[k] === "function")] ?? null;
+  const Cmp = isRenderableComponent(Mod.default)
+    ? Mod.default
+    : Mod[Object.keys(Mod).find(k => isRenderableComponent(Mod[k]))] ?? null;
   if (!Cmp) {
     showPreviewError("preview: component file exports neither a default nor a callable named export");
   } else {
-    createRoot(document.getElementById("root")).render(React.createElement(Cmp));
-    parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + ` }, "*");
+    const props = createNodeFactory(React, Icons)(previewExample.props || {});
+    createRoot(document.getElementById("root")).render(React.createElement(Cmp, props));
+    setTimeout(() => {
+      try {
+        assertPreviewExpectations();
+        parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, example: previewExample.name || "" }, "*");
+      } catch (e) {
+        showPreviewError("preview: assertion failed - " + (e && e.stack || e));
+      }
+    }, 50);
   }
 } catch (e) {
   showPreviewError("preview: render failed - " + (e && e.stack || e));
@@ -364,6 +561,11 @@ func buildImportMapJSON(b preview.Bundle) (string, []string) {
 			continue
 		}
 		imports[name] = packageRuntimeURL(name, version, "", &warnings)
+	}
+	if _, ok := imports["lucide-react"]; !ok {
+		if version, resolved := internaldeps.ResolveRangeToLatest("^0.424.0", packageRuntimeCandidatesFor("lucide-react")); resolved {
+			imports["lucide-react"] = packageRuntimeURL("lucide-react", version, "", &warnings)
+		}
 	}
 	raw, err := json.MarshalIndent(map[string]map[string]string{"imports": imports}, "", "  ")
 	if err != nil {
@@ -496,6 +698,36 @@ func jsString(s string) string {
 	}
 	sb.WriteByte('"')
 	return sb.String()
+}
+
+func jsonObjectLiteral(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return "{}"
+	}
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(raw), &obj); err != nil {
+		return "{}"
+	}
+	normalized, err := json.Marshal(obj)
+	if err != nil {
+		return "{}"
+	}
+	return string(normalized)
+}
+
+func jsonArrayLiteral(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return "[]"
+	}
+	var arr []any
+	if err := json.Unmarshal([]byte(raw), &arr); err != nil {
+		return "[]"
+	}
+	normalized, err := json.Marshal(arr)
+	if err != nil {
+		return "[]"
+	}
+	return string(normalized)
 }
 
 var (

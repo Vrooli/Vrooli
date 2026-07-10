@@ -149,6 +149,80 @@ func TestActivePagePersistsViewportMatrixEvidence(t *testing.T) { // [REQ:EXPERI
 	}
 }
 
+func TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence(t *testing.T) { // [REQ:EXPERIEN-P0-003]
+	report := activeComponentReport("action", spec.Binding{Selector: "button"})
+	db := testdb.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatalf("EnsureSchemas: %v", err)
+	}
+	repo := NewSQLiteRepository(db)
+	var targets []CaptureTarget
+	now := time.Date(2026, 7, 10, 14, 15, 0, 0, time.UTC)
+
+	findings := Check{
+		Capturer: fakeCapturer{
+			snapshot: componentButtonSnapshot(24, 80, 140, 48),
+			targets:  &targets,
+		},
+		Repository:      repo,
+		Now:             func() time.Time { return now },
+		CaptureProfiles: testProfiles(),
+	}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected active component to reconcile green, got %+v", findings)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("targets = %+v, want one component target", targets)
+	}
+	target := targets[0]
+	if target.DocumentKind != "component" || target.Scenario != "react-component-library" || target.PageID != "button" || target.ComponentID != "button" {
+		t.Fatalf("target identity = %+v, want RCL component button", target)
+	}
+	if target.StateID != "primary" || target.ExampleName != "primary" {
+		t.Fatalf("target state/example = %+v, want primary example", target)
+	}
+	if !strings.HasPrefix(target.Route, "/preview/react-component-library:Button/harness.html?") ||
+		!strings.Contains(target.Route, "example=primary") ||
+		!strings.Contains(target.Route, "version=1.2.0") {
+		t.Fatalf("target route = %q, want Button harness with version/example", target.Route)
+	}
+	rows, err := repo.ListEvidence(context.Background(), EvidenceFilter{Scenario: "react-component-library", PageID: "button", ClaimID: "action-present"})
+	if err != nil {
+		t.Fatalf("ListEvidence: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("evidence rows = %d, want 1: %+v", len(rows), rows)
+	}
+	if rows[0].Verdict != "passed" || rows[0].Route != target.Route || rows[0].CaptureRef != "scenario=react-component-library,path="+target.Route {
+		t.Fatalf("unexpected component evidence row: %+v", rows[0])
+	}
+}
+
+func TestActiveComponentFailuresAreAdvisory(t *testing.T) {
+	report := activeComponentReport("action", spec.Binding{Selector: "button"})
+	component := report.Spec.Components["button"]
+	component.Claims = []spec.Claim{{
+		ID:        "action-visible",
+		Type:      "visible-without-scroll",
+		Statement: "The component action remains in the harness viewport.",
+		Tier:      "machine",
+		Elements:  []string{"action"},
+		States:    []string{"primary"},
+	}}
+	report.Spec.Components["button"] = component
+
+	findings := Check{
+		Capturer:        fakeCapturer{snapshot: componentButtonSnapshot(24, 900, 140, 48)},
+		CaptureProfiles: testProfiles(),
+	}.Run(context.Background(), report)
+	if len(findings) != 1 || findings[0].Code != spec.CodeClaimFailed {
+		t.Fatalf("expected one failed component claim, got %+v", findings)
+	}
+	if findings[0].Severity != spec.SeverityWarning {
+		t.Fatalf("component finding severity = %s, want advisory warning", findings[0].Severity)
+	}
+}
+
 func TestViewportScopedClaimCapturesMatchingProfileOnly(t *testing.T) { // [REQ:EXPERIEN-P0-003]
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
 	page := report.Spec.Pages["home"]
@@ -644,6 +718,43 @@ func activeReport(elementID string, binding spec.Binding) spec.Report {
 	}
 }
 
+func activeComponentReport(elementID string, binding spec.Binding) spec.Report {
+	return spec.Report{
+		Scenario: "react-component-library",
+		Spec: &spec.ScenarioSpec{
+			Index: spec.IndexDocument{Components: []spec.DocumentRef{{ID: "button", Status: "active"}}},
+			Components: map[string]spec.ComponentDocument{"button": {
+				Component: spec.ComponentIdentity{
+					ID:          "button",
+					Title:       "Button",
+					Purpose:     "Provide a reusable action primitive.",
+					ExamplesRef: "../../library/components/Button/versions/1.2.0/examples.json",
+				},
+				States: []spec.ComponentState{{ID: "primary", Example: "primary"}},
+				Elements: []spec.Element{{
+					ID:   elementID,
+					Role: "button",
+				}},
+				Claims: []spec.Claim{{
+					ID:       elementID + "-present",
+					Type:     "element-present",
+					Tier:     "machine",
+					Elements: []string{elementID},
+					States:   []string{"primary"},
+				}},
+				Bindings: spec.Bindings{Elements: map[string]spec.Binding{elementID: binding}},
+				FloorOptOuts: []spec.FloorOptOut{{
+					Floor:  "no-document-horizontal-overflow",
+					Reason: "This fixture isolates authored component claim behavior.",
+				}, {
+					Floor:  "tap-target-size",
+					Reason: "This fixture isolates authored component claim behavior.",
+				}},
+			}},
+		},
+	}
+}
+
 func passingSnapshot() Snapshot {
 	return Snapshot{
 		Contract: snapshotContract,
@@ -651,6 +762,19 @@ func passingSnapshot() Snapshot {
 			{Role: "status", Bounds: &Bounds{X: 0, Y: 24, Width: 320, Height: 24}, DOM: DOMNode{TestID: "summary"}},
 			{Role: "button", States: []string{"focusable"}, Bounds: &Bounds{X: 24, Y: 80, Width: 120, Height: 48}, DOM: DOMNode{TestID: "primary-action"}},
 		}},
+	}
+}
+
+func componentButtonSnapshot(x, y, width, height float64) Snapshot {
+	return Snapshot{
+		Contract: snapshotContract,
+		Root: AXNode{Role: "WebArea", Bounds: &Bounds{Width: 1280, Height: 720}, Children: []AXNode{{
+			Role:   "button",
+			Name:   "Save changes",
+			States: []string{"focusable"},
+			Bounds: &Bounds{X: x, Y: y, Width: width, Height: height},
+			DOM:    DOMNode{Tag: "button"},
+		}}},
 	}
 }
 

@@ -53,12 +53,16 @@ func TestListSpecReturnsParsedPages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListSpec: %v", err)
 	}
-	if resp.Msg.GetScenario() != "demo" || len(resp.Msg.GetPages()) != 1 {
+	if resp.Msg.GetScenario() != "demo" || len(resp.Msg.GetPages()) != 1 || len(resp.Msg.GetComponents()) != 1 {
 		t.Fatalf("response = %+v", resp.Msg)
 	}
 	page := resp.Msg.GetPages()[0]
 	if page.GetId() != "home" || page.GetPath() != "pages/home.json" || page.GetStatus() != "active" {
 		t.Fatalf("page = %+v", page)
+	}
+	component := resp.Msg.GetComponents()[0]
+	if component.GetId() != "button" || component.GetPath() != "components/button.json" || component.GetStatus() != "active" {
+		t.Fatalf("component = %+v", component)
 	}
 }
 
@@ -143,7 +147,8 @@ func writeStudioFixture(t *testing.T, scenarioDir string) {
   "schemaVersion": "1.0.0",
   "scenario": "demo",
   "pages": [{"id":"home","path":"pages/home.json","title":"Home","status":"active"}],
-  "journeys": []
+  "journeys": [],
+  "components": [{"id":"button","path":"components/button.json","title":"Button","status":"active"}]
 }`,
 		"experience/pages/home.json": `{
   "kind": "experience-page",
@@ -153,6 +158,15 @@ func writeStudioFixture(t *testing.T, scenarioDir string) {
   "elements": [{"id":"primary","role":"button","name":"Primary","description":"Primary action."}],
   "claims": [{"id":"primary-present","type":"element-present","statement":"Primary action is visible.","tier":"machine","elements":["primary"],"states":["default"]}],
   "bindings": {"elements": {"primary": {"testid":"primary-action"}}}
+}`,
+		"experience/components/button.json": `{
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {"id":"button","title":"Button","purpose":"Button component proves studio handler mapping.","examplesRef":"../../library/components/Button/versions/1.2.0/examples.json","prd_refs":["OT-P0-001"]},
+  "states": [{"id":"primary","example":"primary","description":"Primary state."}],
+  "elements": [{"id":"action","role":"button","name":"Primary","description":"Button action."}],
+  "claims": [{"id":"action-present","type":"element-present","statement":"Button action is visible.","tier":"machine","elements":["action"],"states":["primary"]}],
+  "bindings": {"elements": {"action": {"selector":"button"}}}
 }`,
 	}
 	for rel, content := range files {

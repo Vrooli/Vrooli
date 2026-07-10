@@ -83,7 +83,7 @@
     {
       "id": "DSA-005",
       "title": "Stale design-style references are non-fatal health findings",
-      "status": "partial",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "category": "registry",
       "criticality": "P1",
@@ -92,7 +92,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "partial",
+          "status": "in_progress",
           "notes": "api/internal/components/indexer_test.go verifies the non-fatal stale finding; api/handlers/components/module_test.go verifies the existing index response exposes it as a visible `finding:stale_design_style` message. A dedicated structured health table/RPC/UI surface is still pending."
         }
       ]

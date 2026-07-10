@@ -244,6 +244,8 @@ Customization should be implemented through tokens and stateful preferences, not
 
 Design from the user's flow, not from component inventory. For each major screen, identify the primary repeated action, the highest-risk action, the most common comparison, and the first thing a new user needs to understand.
 
+Experience contracts can describe reusable components as well as pages. Component documents are anchored to catalog examples instead of routes, and their reconciliation evidence comes from the React Component Library preview harness. Keep component reconciliation visibly advisory until the component contract is promoted to a gating floor.
+
 Experienced users should be able to move quickly with short pointer travel, predictable keyboard focus, visible shortcuts where appropriate, persisted panel sizes, remembered filters, and stable navigation state. New users should see enough structure, labels, and progressive disclosure to understand what is actionable without reading documentation.
 
 ## Feedback & State

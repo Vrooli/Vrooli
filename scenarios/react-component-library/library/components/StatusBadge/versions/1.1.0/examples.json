@@ -1,0 +1,37 @@
+{
+  "examples": [
+    {
+      "name": "success",
+      "displayName": "Success",
+      "props": {
+        "children": { "$text": "Current" },
+        "tone": "success"
+      },
+      "expect": [
+        { "kind": "text", "value": "Current" }
+      ]
+    },
+    {
+      "name": "warning",
+      "displayName": "Warning",
+      "props": {
+        "children": { "$text": "Behind" },
+        "tone": "warning"
+      },
+      "expect": [
+        { "kind": "text", "value": "Behind" }
+      ]
+    },
+    {
+      "name": "long-label",
+      "displayName": "Long Label",
+      "props": {
+        "children": { "$text": "Requires manual review" },
+        "tone": "info"
+      },
+      "expect": [
+        { "kind": "text", "value": "Requires manual review" }
+      ]
+    }
+  ]
+}
