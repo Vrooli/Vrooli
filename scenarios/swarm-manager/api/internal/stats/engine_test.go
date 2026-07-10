@@ -153,6 +153,36 @@ func TestGoalScopedStatsAggregateClosureOnly(t *testing.T) {
 	}
 }
 
+func TestDashboardVelocityRetainsCompletedItemRefs(t *testing.T) {
+	engine, repo := setupEngine(t)
+	now := time.Now().UTC()
+
+	appendEvent(t, repo, now.Add(-24*time.Hour), eventlog.EntityBacklogItem, "execute/ship-feature",
+		eventlog.EventBacklogStatusChanged, eventlog.StatusChangePayload{From: "in_progress", To: "completed"})
+	appendEvent(t, repo, now.Add(-24*time.Hour), eventlog.EntityBacklogItem, "fix/repair-regression",
+		eventlog.EventBacklogStatusChanged, eventlog.StatusChangePayload{From: "in_progress", To: "completed"})
+
+	if err := engine.Rebuild(context.Background()); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+
+	stats := engine.GetStats()
+	var found []CompletedItemRef
+	for _, point := range stats.Dashboard.VelocityTrend {
+		if len(point.CompletedItems) > 0 {
+			found = point.CompletedItems
+			break
+		}
+	}
+	if len(found) != 2 {
+		t.Fatalf("completed refs = %+v, want two refs in one bucket", found)
+	}
+	if found[0] != (CompletedItemRef{Kind: "execute", Name: "ship-feature"}) ||
+		found[1] != (CompletedItemRef{Kind: "fix", Name: "repair-regression"}) {
+		t.Fatalf("completed refs = %+v, want execute/ship-feature and fix/repair-regression", found)
+	}
+}
+
 func TestGoalScopedStatsETAUsesClosureItems(t *testing.T) {
 	engine, repo := setupEngine(t)
 	ctx := context.Background()

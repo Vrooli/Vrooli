@@ -68,6 +68,7 @@ func DefaultMonitoring() MonitoringConfig {
 			// Critical scenarios - will report StatusCritical when stopped
 			"app-monitor":       {Critical: true},
 			"ecosystem-manager": {Critical: true},
+			"template-manager":  {Critical: true},
 			// Non-critical scenarios - will report StatusWarning when stopped
 			"landing-manager":           {Critical: false},
 			"browser-automation-studio": {Critical: false},

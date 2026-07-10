@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"swarm-manager/internal/pathredact"
@@ -52,23 +52,25 @@ type Handoff struct {
 }
 
 type RoundEnvelope struct {
-	Round           int              `json:"round"`
-	Mode            string           `json:"mode"`
-	ScopeKind       string           `json:"scope_kind"`
-	ScopeID         string           `json:"scope_id"`
-	InitiativeName  string           `json:"initiative_name,omitempty"`
-	Phase           string           `json:"phase"`
-	RunStrategy     string           `json:"run_strategy"`
-	AgentProfileKey string           `json:"agent_profile_key"`
-	GeneratedAt     string           `json:"generated_at"`
-	RunID           string           `json:"run_id,omitempty"`
-	Status          RoundStatus      `json:"status"`
-	Readiness       *ReadinessReport `json:"readiness,omitempty"`
-	Items           []RoundItem      `json:"items,omitempty"`
-	ArtifactUpdates []ArtifactUpdate `json:"artifact_updates,omitempty"`
-	Handoffs        []Handoff        `json:"handoffs,omitempty"`
-	Payload         map[string]any   `json:"payload,omitempty"`
-	Error           string           `json:"error,omitempty"`
+	ExecutionID      string           `json:"execution_id,omitempty"`
+	DefinitionDigest string           `json:"definition_digest,omitempty"`
+	Round            int              `json:"round"`
+	Mode             string           `json:"mode"`
+	ScopeKind        string           `json:"scope_kind"`
+	ScopeID          string           `json:"scope_id"`
+	InitiativeName   string           `json:"initiative_name,omitempty"`
+	Phase            string           `json:"phase"`
+	RunStrategy      string           `json:"run_strategy"`
+	AgentProfileKey  string           `json:"agent_profile_key"`
+	GeneratedAt      string           `json:"generated_at"`
+	RunID            string           `json:"run_id,omitempty"`
+	Status           RoundStatus      `json:"status"`
+	Readiness        *ReadinessReport `json:"readiness,omitempty"`
+	Items            []RoundItem      `json:"items,omitempty"`
+	ArtifactUpdates  []ArtifactUpdate `json:"artifact_updates,omitempty"`
+	Handoffs         []Handoff        `json:"handoffs,omitempty"`
+	Payload          map[string]any   `json:"payload,omitempty"`
+	Error            string           `json:"error,omitempty"`
 }
 
 type RoundItem struct {
@@ -80,8 +82,9 @@ type RoundItem struct {
 }
 
 var (
-	ErrRoundNotFound = errors.New("operating mode round not found")
-	roundFileRE      = regexp.MustCompile(`^round-(\d{3})\.json$`)
+	ErrRoundNotFound  = errors.New("operating mode round not found")
+	ErrRoundAmbiguous = errors.New("operating mode round is ambiguous")
+	roundFileRE       = regexp.MustCompile(`^round-(\d{3})\.json$`)
 )
 
 // Store persists mode rounds and artifacts under a per-scope directory. It is
@@ -95,6 +98,9 @@ type Store struct {
 	InitDir   func(scopeID string) string
 	TargetDir func(kind TargetKind, scopeID string) string
 	Clock     func() time.Time
+	// ExecutionID is injectable for deterministic execution-layout tests.
+	ExecutionID func() string
+	mu          sync.Mutex
 }
 
 func NewStore(initDir func(string) string) *Store {
@@ -163,13 +169,51 @@ func (s *Store) RoundPath(initiativeName string, mode Mode, number int) (string,
 	return filepath.Join(dir, fmt.Sprintf("round-%03d.json", number)), nil
 }
 
+func (s *Store) ExecutionRoundsDir(execution OperatingModeExecution) (string, error) {
+	def, err := execution.DefinitionBundle.RootDefinition()
+	if err != nil {
+		return "", err
+	}
+	manifest, err := s.executionManifestPath(execution, def)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(filepath.Dir(manifest), "rounds"), nil
+}
+
+func (s *Store) ExecutionRoundPath(execution OperatingModeExecution, number int) (string, error) {
+	if number <= 0 {
+		return "", fmt.Errorf("round number must be >= 1, got %d", number)
+	}
+	dir, err := s.ExecutionRoundsDir(execution)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, fmt.Sprintf("round-%03d.json", number)), nil
+}
+
 func (s *Store) CreateRound(round RoundEnvelope) (RoundEnvelope, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if err := s.prepareRound(&round); err != nil {
 		return RoundEnvelope{}, err
 	}
-	dir, err := s.RoundsDir(round.ScopeID, Mode(round.Mode))
-	if err != nil {
-		return RoundEnvelope{}, err
+	var dir string
+	if round.ExecutionID != "" {
+		execution, err := s.loadExecutionForRound(round)
+		if err != nil {
+			return RoundEnvelope{}, err
+		}
+		dir, err = s.ExecutionRoundsDir(execution)
+		if err != nil {
+			return RoundEnvelope{}, err
+		}
+	} else {
+		var err error
+		dir, err = s.RoundsDir(round.ScopeID, Mode(round.Mode))
+		if err != nil {
+			return RoundEnvelope{}, err
+		}
 	}
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return RoundEnvelope{}, fmt.Errorf("create rounds dir: %w", err)
@@ -177,7 +221,7 @@ func (s *Store) CreateRound(round RoundEnvelope) (RoundEnvelope, error) {
 
 	const maxAttempts = 50
 	for i := 0; i < maxAttempts; i++ {
-		n, err := s.nextRoundNumber(dir)
+		n, err := s.nextRoundNumberForScope(round.ScopeID, Mode(round.Mode))
 		if err != nil {
 			return RoundEnvelope{}, err
 		}
@@ -201,7 +245,17 @@ func (s *Store) SaveRound(round RoundEnvelope) error {
 	if round.Round <= 0 {
 		return fmt.Errorf("round number must be >= 1, got %d", round.Round)
 	}
-	path, err := s.RoundPath(round.ScopeID, Mode(round.Mode), round.Round)
+	var path string
+	var err error
+	if round.ExecutionID != "" {
+		execution, loadErr := s.loadExecutionForRound(round)
+		if loadErr != nil {
+			return loadErr
+		}
+		path, err = s.ExecutionRoundPath(execution, round.Round)
+	} else {
+		path, err = s.RoundPath(round.ScopeID, Mode(round.Mode), round.Round)
+	}
 	if err != nil {
 		return err
 	}
@@ -215,25 +269,58 @@ func (s *Store) SaveRound(round RoundEnvelope) error {
 }
 
 func (s *Store) LoadRound(initiativeName string, mode Mode, number int) (RoundEnvelope, error) {
-	path, err := s.RoundPath(initiativeName, mode, number)
+	paths, err := s.roundPaths(initiativeName, mode, number)
 	if err != nil {
 		return RoundEnvelope{}, err
 	}
-	data, err := os.ReadFile(path)
+	if len(paths) == 0 {
+		return RoundEnvelope{}, ErrRoundNotFound
+	}
+	if len(paths) > 1 {
+		return RoundEnvelope{}, fmt.Errorf("%w: mode %q scope %q round %d has %d records", ErrRoundAmbiguous, mode, initiativeName, number, len(paths))
+	}
+	data, err := os.ReadFile(paths[0])
 	if err != nil {
-		if os.IsNotExist(err) {
-			return RoundEnvelope{}, ErrRoundNotFound
-		}
 		return RoundEnvelope{}, fmt.Errorf("read round: %w", err)
 	}
 	return decodeRound(data)
 }
 
 func (s *Store) ListRounds(initiativeName string, mode Mode) ([]RoundEnvelope, error) {
-	dir, err := s.RoundsDir(initiativeName, mode)
+	legacyDir, err := s.RoundsDir(initiativeName, mode)
 	if err != nil {
 		return nil, err
 	}
+	dirs := []string{legacyDir}
+	executions, err := s.ListExecutions(initiativeName, mode)
+	if err != nil {
+		return nil, err
+	}
+	for _, execution := range executions {
+		dir, err := s.ExecutionRoundsDir(execution)
+		if err != nil {
+			return nil, err
+		}
+		dirs = append(dirs, dir)
+	}
+	rounds := []RoundEnvelope{}
+	for _, dir := range dirs {
+		inDir, err := listRoundsInDir(dir)
+		if err != nil {
+			return nil, err
+		}
+		rounds = append(rounds, inDir...)
+	}
+	sort.Slice(rounds, func(i, j int) bool { return rounds[i].Round < rounds[j].Round })
+	for i := 1; i < len(rounds); i++ {
+		if rounds[i-1].Round == rounds[i].Round {
+			return nil, fmt.Errorf("%w: mode %q scope %q round %d", ErrRoundAmbiguous, mode, initiativeName, rounds[i].Round)
+		}
+	}
+	return rounds, nil
+}
+
+func listRoundsInDir(dir string) ([]RoundEnvelope, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -256,30 +343,47 @@ func (s *Store) ListRounds(initiativeName string, mode Mode) ([]RoundEnvelope, e
 		}
 		rounds = append(rounds, round)
 	}
-	sort.Slice(rounds, func(i, j int) bool { return rounds[i].Round < rounds[j].Round })
 	return rounds, nil
 }
 
-func (s *Store) nextRoundNumber(dir string) (int, error) {
-	entries, err := os.ReadDir(dir)
+func (s *Store) roundPaths(scopeID string, mode Mode, number int) ([]string, error) {
+	paths := []string{}
+	legacy, err := s.RoundPath(scopeID, mode, number)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return 1, nil
+		return nil, err
+	}
+	if _, err := os.Stat(legacy); err == nil {
+		paths = append(paths, legacy)
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+	executions, err := s.ListExecutions(scopeID, mode)
+	if err != nil {
+		return nil, err
+	}
+	for _, execution := range executions {
+		path, err := s.ExecutionRoundPath(execution, number)
+		if err != nil {
+			return nil, err
 		}
-		return 0, fmt.Errorf("read rounds dir: %w", err)
+		if _, err := os.Stat(path); err == nil {
+			paths = append(paths, path)
+		} else if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+	return paths, nil
+}
+
+func (s *Store) nextRoundNumberForScope(scopeID string, mode Mode) (int, error) {
+	rounds, err := s.ListRounds(scopeID, mode)
+	if err != nil {
+		return 0, err
 	}
 	max := 0
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		m := roundFileRE.FindStringSubmatch(entry.Name())
-		if m == nil {
-			continue
-		}
-		n, err := strconv.Atoi(m[1])
-		if err == nil && n > max {
-			max = n
+	for _, round := range rounds {
+		if round.Round > max {
+			max = round.Round
 		}
 	}
 	return max + 1, nil
@@ -297,9 +401,27 @@ func (s *Store) prepareRound(round *RoundEnvelope) error {
 	if round.ScopeID == "" {
 		return fmt.Errorf("scope_id is required")
 	}
-	def, err := DefinitionFor(Mode(round.Mode))
-	if err != nil {
-		return err
+	var def Definition
+	if strings.TrimSpace(round.ExecutionID) != "" {
+		execution, err := s.loadExecutionForRound(*round)
+		if err != nil {
+			return err
+		}
+		def, err = execution.DefinitionBundle.RootDefinition()
+		if err != nil {
+			return err
+		}
+		if round.DefinitionDigest == "" {
+			round.DefinitionDigest = execution.DefinitionDigest
+		} else if round.DefinitionDigest != execution.DefinitionDigest {
+			return fmt.Errorf("round definition digest %q does not match execution %q", round.DefinitionDigest, execution.DefinitionDigest)
+		}
+	} else {
+		var err error
+		def, err = DefinitionFor(Mode(round.Mode))
+		if err != nil {
+			return err
+		}
 	}
 	phaseDef, err := def.PhaseDefinition(Phase(round.Phase))
 	if err != nil {
@@ -319,6 +441,10 @@ func (s *Store) prepareRound(round *RoundEnvelope) error {
 		round.Status = RoundStatusReserved
 	}
 	return nil
+}
+
+func (s *Store) loadExecutionForRound(round RoundEnvelope) (OperatingModeExecution, error) {
+	return s.LoadExecution(round.ScopeID, Mode(round.Mode), round.ExecutionID)
 }
 
 func (s *Store) now() time.Time {

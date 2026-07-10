@@ -44,6 +44,22 @@ func (p *Printer) PrintPhaseStanding(phase execTypes.Phase) {
 	}
 }
 
+func (p *Printer) printTopPriority(priority *execTypes.RunTopPriority) {
+	if priority == nil {
+		return
+	}
+	fmt.Fprintln(p.w, p.color.Bold("TOP PRIORITY:"))
+	line := fmt.Sprintf("  • %s: %s", priority.Phase, priority.NextMove)
+	if capLabel := strings.TrimSpace(priority.PriorityCapabilityLabel); capLabel != "" {
+		line += "  [→ " + capLabel + "]"
+	}
+	fmt.Fprintln(p.w, line)
+	if topic := strings.TrimSpace(priority.DocSearchTopic); topic != "" {
+		fmt.Fprintf(p.w, "  • docs: search-hub query %q --type doc\n", topic)
+	}
+	fmt.Fprintln(p.w)
+}
+
 // scorecardRung renders the "current → next (ceiling X)" rung line, collapsing to
 // a single rung at maximum maturity.
 func scorecardRung(st *execTypes.MaturityStanding) string {

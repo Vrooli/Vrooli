@@ -49,6 +49,13 @@ type DurableOptions struct {
 	Printer *report.Printer
 }
 
+func (opts DurableOptions) PrinterScoreRunner() report.ScoreRunner {
+	if opts.Printer == nil {
+		return nil
+	}
+	return opts.Printer.ScoreRunner()
+}
+
 // RunDurable starts a server-owned, cancel-survivable run and either follows it
 // inline (printing the run id and re-attach command up front) or — for a
 // known-long run without --wait — launches it in the background and returns
@@ -213,9 +220,10 @@ func followInline(parent context.Context, client runs_v1connect.RunsServiceClien
 	}
 
 	resp := buildResponse(terminal, phasesAcc)
+	view := BuildRunStandingView(context.Background(), resp, scenario, "", runID, nil, false, 0, opts.PrinterScoreRunner())
 	if opts.Printer != nil {
 		opts.Printer.SetStreamedObservations(true)
-		opts.Printer.PrintResults(resp)
+		opts.Printer.PrintResultsView(view)
 	}
 	return executionResultError(resp)
 }
@@ -290,21 +298,11 @@ func followJSONFinal(ctx context.Context, client runs_v1connect.RunsServiceClien
 	// commands so a consumer can reattach or audit from the final object alone.
 	h := handle
 	resp.RunHandle = &h
-	if err := writeResponseJSON(out, resp); err != nil {
+	view := BuildRunStandingView(ctx, resp, scenario, "", runID, &h, false, 0, report.RunScoreCLI)
+	if err := WriteRunStandingJSON(out, view); err != nil {
 		return err
 	}
 	return executionResultError(resp)
-}
-
-// writeResponseJSON emits the execute Response as indented JSON with a trailing
-// newline, matching the pretty-printed shape the legacy --json path produced.
-func writeResponseJSON(out io.Writer, resp Response) error {
-	body, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal execute response: %w", err)
-	}
-	_, err = fmt.Fprintf(out, "%s\n", body)
-	return err
 }
 
 // emitJSONError writes a {"success":false,"error":...,"scenario":...,"runId":...}

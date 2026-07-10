@@ -32,7 +32,7 @@ func (s *Service) CompleteItems(ctx context.Context, req CompleteItemsRequest) (
 	if err != nil {
 		return BacklogSyncResult{}, err
 	}
-	def, err := DefinitionFor(mode)
+	_, def, err := s.definitionBundleForRound(round)
 	if err != nil {
 		return BacklogSyncResult{}, err
 	}
@@ -117,7 +117,7 @@ func (s *Service) ApplyBacklogSync(ctx context.Context, req ApplyBacklogSyncRequ
 	if err != nil {
 		return BacklogSyncResult{}, err
 	}
-	def, err := DefinitionFor(mode)
+	_, def, err := s.definitionBundleForRound(round)
 	if err != nil {
 		return BacklogSyncResult{}, err
 	}

@@ -120,11 +120,11 @@ func deriveTransitionValue(contract TransitionClassification, lookup FieldLookup
 // contract. It never returns an error: an underivable field is an honest
 // abstain the caller routes to needs_attention.
 func (s *Service) classifyTransitionRouting(ctx context.Context, round *RoundEnvelope, envelope map[string]any) *TransitionClassificationOutcome {
-	def, err := DefinitionFor(Mode(round.Mode))
+	bundle, def, err := s.definitionBundleForRound(*round)
 	if err != nil {
 		return nil
 	}
-	return s.classifyTransitionRoutingForDef(ctx, def, round, envelope, true)
+	return s.classifyTransitionRoutingWithResolver(ctx, def, bundle.Definition, round, envelope, true)
 }
 
 // classifyTransitionRoutingForDef is the definition-explicit variant used by
@@ -134,11 +134,15 @@ func (s *Service) classifyTransitionRouting(ctx context.Context, round *RoundEnv
 // declared field path — feeding the expanded route guards — and the durable
 // classification record is written to the payload in every case.
 func (s *Service) classifyTransitionRoutingForDef(ctx context.Context, def Definition, round *RoundEnvelope, envelope map[string]any, allowClassifier bool) *TransitionClassificationOutcome {
+	return s.classifyTransitionRoutingWithResolver(ctx, def, DefinitionFor, round, envelope, allowClassifier)
+}
+
+func (s *Service) classifyTransitionRoutingWithResolver(ctx context.Context, def Definition, resolve func(Mode) (Definition, error), round *RoundEnvelope, envelope map[string]any, allowClassifier bool) *TransitionClassificationOutcome {
 	// A delegated round classifies against the sub-mode's phase contract: the
 	// sub-phase owns the classified edge (e.g. the drain deriving `progress`
 	// from the handoff), and the derived value is what both the sub-route and
 	// the parent's guards read.
-	_, phaseDef, err := effectiveRoundExecution(def, *round)
+	_, phaseDef, err := effectiveRoundExecutionWithResolver(def, *round, resolve)
 	if err != nil || phaseDef.TransitionClassification == nil {
 		return nil
 	}

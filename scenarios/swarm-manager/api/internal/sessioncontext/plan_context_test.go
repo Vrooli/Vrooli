@@ -2,11 +2,33 @@ package sessioncontext
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"swarm-manager/internal/agentsessions"
 )
+
+func TestResolveGoal(t *testing.T) {
+	root := t.TempDir()
+	goalDir := filepath.Join(root, "goals", "ship-goal")
+	if err := os.MkdirAll(goalDir, 0o755); err != nil {
+		t.Fatalf("mkdir goal: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(goalDir, "goal.json"), []byte(`{"name":"ship-goal","title":"Ship the feature","status":"active","priority":8}`), 0o600); err != nil {
+		t.Fatalf("write goal: %v", err)
+	}
+
+	r := NewResolver(root, "/tmp", nil)
+	items, err := r.ResolveSessionMessageContext(context.Background(), []agentsessions.ContextRef{{Type: agentsessions.ContextGoal, Ref: "ship-goal"}}, agentsessions.ContextLimits{MaxSummaryRunes: 2000})
+	if err != nil {
+		t.Fatalf("resolve goal: %v", err)
+	}
+	if len(items) != 1 || items[0].Title != "Ship the feature" || items[0].NodeID != "goal/ship-goal" {
+		t.Fatalf("resolved goal = %+v", items)
+	}
+}
 
 func TestResolvePlanDependencyCycles(t *testing.T) {
 	r := NewResolver(t.TempDir(), "/tmp", nil)

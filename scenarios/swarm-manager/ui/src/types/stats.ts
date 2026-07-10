@@ -179,6 +179,12 @@ export interface SessionStats {
 export interface VelocityPoint {
   week_start: string;
   completed: number;
+  completed_items?: CompletedItemRef[];
+}
+
+export interface CompletedItemRef {
+  kind: string;
+  name: string;
 }
 
 /** Created and completed items in a trailing week. */

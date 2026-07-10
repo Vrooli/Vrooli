@@ -175,8 +175,14 @@ type DashboardStats struct {
 
 // VelocityPoint represents completions in a calendar week.
 type VelocityPoint struct {
-	WeekStart string `json:"week_start"`
-	Completed int    `json:"completed"`
+	WeekStart      string             `json:"week_start"`
+	Completed      int                `json:"completed"`
+	CompletedItems []CompletedItemRef `json:"completed_items"`
+}
+
+type CompletedItemRef struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
 }
 
 // ReviewStats tracks review agent evidence gathering metrics.

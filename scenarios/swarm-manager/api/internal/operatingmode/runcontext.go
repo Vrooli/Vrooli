@@ -69,6 +69,7 @@ func AvailableReadNames(kind TargetKind) ([]string, error) {
 type RunContext struct {
 	Def       Definition
 	PhaseDef  PhaseDefinition
+	Execution *OperatingModeExecution
 	Target    TargetInstance
 	Artifacts []ArtifactSnapshot
 	Rounds    []RoundEnvelope

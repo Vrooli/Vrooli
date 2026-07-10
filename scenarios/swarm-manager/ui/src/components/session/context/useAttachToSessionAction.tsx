@@ -41,6 +41,7 @@ export function useAttachToSessionAction(
       <Button
         variant="ghost"
         size="sm"
+        className="h-7 rounded-md px-2 text-xs"
         onClick={openSheet}
         disabled={!available}
         data-testid={selectors.agentSessions.entityAttachAction}

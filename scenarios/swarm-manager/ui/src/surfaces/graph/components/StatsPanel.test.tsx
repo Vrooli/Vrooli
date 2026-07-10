@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import type { StatsResponse } from "../../../types/stats";
 
 // ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ const MOCK_STATS: StatsResponse = {
     total_completed_all_time: 123,
     velocity_trend: [
       { week_start: "2026-03-17", completed: 3 },
-      { week_start: "2026-03-24", completed: 5 },
+      { week_start: "2026-03-24", completed: 5, completed_items: [{ kind: "execute", name: "ship-feature" }] },
       { week_start: "2026-03-31", completed: 4 },
       { week_start: "2026-04-07", completed: 6 },
     ],
@@ -164,9 +164,17 @@ function renderWithProviders(ui: React.ReactElement, initialEntries = ["/stats"]
   });
   return render(
     <MemoryRouter initialEntries={initialEntries}>
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        {ui}
+        <LocationProbe />
+      </QueryClientProvider>
     </MemoryRouter>,
   );
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location-path">{location.pathname}</span>;
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +247,19 @@ describe("StatsView", () => {
   });
 
   describe("Dashboard tab", () => {
+    it("opens the selected week's completed items and navigates to the item", async () => {
+      mockGetStats.mockResolvedValue(MOCK_STATS);
+      renderWithProviders(<StatsView />);
+
+      await waitFor(() => expect(screen.getByTestId("stats-velocity-chart")).toBeInTheDocument());
+      const bar = screen.getByRole("button", { name: /2026-03-24: 5 completed/i });
+      fireEvent.click(bar);
+
+      expect(screen.getByTestId("stats-velocity-drilldown")).toHaveTextContent("ship-feature");
+      fireEvent.click(screen.getByRole("button", { name: /ship-feature/i }));
+      expect(screen.getByTestId("location-path")).toHaveTextContent("/backlog/execute/ship-feature");
+    });
+
     it("displays backlog size, completed count, and estimated weeks", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
       renderWithProviders(<StatsView />);

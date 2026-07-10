@@ -218,7 +218,7 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(*timeout)*time.Second)
 		defer cancel()
 	}
-	terminal, streamErr := streamRunEvents(ctx, cl, w, scenario, runID, suppressHeartbeatsFor(w, false))
+	terminal, phases, streamErr := streamRunEvents(ctx, cl, w, scenario, runID, suppressHeartbeatsFor(w, false))
 	if ctx.Err() == context.DeadlineExceeded {
 		_ = recordWaitAttempt(scenario, runID)
 		fmt.Fprintln(w)
@@ -226,6 +226,7 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
 	}
 	clearWaitAttempt(scenario, runID)
+	printTerminalStandingView(w, scenario, runID, terminal, phases)
 	return terminalExit(runID, terminal, streamErr)
 }
 
@@ -242,7 +243,8 @@ func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, ru
 		return &exitErr{code: exitNotComparable, err: err}
 	}
 	st := resp.Msg.GetStatus()
-	if err := writeJSON(w, st); err != nil {
+	view := cliexec.BuildRunStandingViewFromLiveStatus(context.Background(), st, resp.Msg.GetTimedOut(), report.RunScoreCLI)
+	if err := cliexec.WriteRunStandingJSON(w, view); err != nil {
 		return err
 	}
 	if resp.Msg.GetTimedOut() {
@@ -278,7 +280,8 @@ func runFollow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	terminal, streamErr := streamRunEvents(context.Background(), cl, w, scenario, runID, suppressHeartbeatsFor(w, *heartbeats))
+	terminal, phases, streamErr := streamRunEvents(context.Background(), cl, w, scenario, runID, suppressHeartbeatsFor(w, *heartbeats))
+	printTerminalStandingView(w, scenario, runID, terminal, phases)
 	return terminalExit(runID, terminal, streamErr)
 }
 
@@ -287,22 +290,81 @@ func runFollow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 // e.g. the context deadline elapsed). It is the single stream→render loop shared
 // by `runs follow`, human `runs wait`, and the inline execute follower.
 // suppressHeartbeats opts this follower out of heartbeat keep-alives server-side.
-func streamRunEvents(ctx context.Context, cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string, suppressHeartbeats bool) (*runspb.RunEvent, error) {
+func streamRunEvents(ctx context.Context, cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string, suppressHeartbeats bool) (*runspb.RunEvent, []execTypes.Phase, error) {
 	stream, err := cl.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
 		Scenario: scenario, RunId: runID, SuppressHeartbeats: suppressHeartbeats,
 	}))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var terminal *runspb.RunEvent
+	var phases []execTypes.Phase
 	for stream.Receive() {
 		ev := stream.Msg()
 		printFollowEvent(w, ev)
+		switch ev.GetEvent() {
+		case "phase_completed", "phase_failed":
+			phases = append(phases, phaseFromRunEvent(ev))
+		}
 		if ev.GetEvent() == "run_completed" {
 			terminal = ev
 		}
 	}
-	return terminal, stream.Err()
+	return terminal, phases, stream.Err()
+}
+
+func printTerminalStandingView(w io.Writer, scenario, runID string, terminal *runspb.RunEvent, phases []execTypes.Phase) {
+	if terminal == nil {
+		return
+	}
+	resp := cliexec.Response{
+		Success:     terminal.GetSuccess(),
+		Verdict:     terminal.GetVerdict(),
+		ExecutionID: runID,
+		Phases:      phases,
+		Error:       terminal.GetError(),
+	}
+	resp.PhaseSummary = summarizeRunPhases(phases)
+	view := cliexec.BuildRunStandingView(context.Background(), resp, firstNonEmpty(terminal.GetScenario(), scenario), "", runID, nil, false, 0, report.RunScoreCLI)
+	pr := report.New(w, view.Scenario, "", nil, nil, false, nil, nil)
+	pr.SetStreamedObservations(true)
+	pr.PrintResultsView(view)
+}
+
+func phaseFromRunEvent(ev *runspb.RunEvent) execTypes.Phase {
+	return execTypes.Phase{
+		Name:             ev.GetPhase(),
+		Status:           ev.GetStatus(),
+		DurationSeconds:  float64(ev.GetDurationSeconds()),
+		Error:            ev.GetError(),
+		MaturityStanding: cliexec.StandingFromProto(ev.GetMaturityStanding()),
+		FindingsSummary:  cliexec.FindingsSummaryFromProto(ev.GetFindingsSummary()),
+	}
+}
+
+func summarizeRunPhases(phases []execTypes.Phase) execTypes.PhaseSummary {
+	var summary execTypes.PhaseSummary
+	for _, phase := range phases {
+		summary.Total++
+		switch phase.Status {
+		case "passed":
+			summary.Passed++
+		case "failed", "aborted":
+			summary.Failed++
+		case "skipped":
+			summary.Skipped++
+		}
+	}
+	return summary
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // terminalExit maps a stream's terminal event + error to the suite exit code:

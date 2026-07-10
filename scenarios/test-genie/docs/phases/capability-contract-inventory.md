@@ -45,6 +45,7 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `storage` | storage-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/storage/README.md` |
 | `structure` | structure-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/structure/README.md` |
 | `tidiness` | tidiness-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/tidiness/README.md` |
+| `templates` | template-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/templates/README.md` |
 | `ui-health` | ui-health | 6 | provider-delegated | `scenarios/test-genie/docs/phases/ui-health/README.md` |
 | `unit` | unit-health | 6 | provider-delegated | `scenarios/test-genie/docs/phases/unit/README.md` |
 | `workflow` | workflow-health | 6 (phase-level) | provider-delegated | `scenarios/test-genie/docs/phases/workflow/README.md` |

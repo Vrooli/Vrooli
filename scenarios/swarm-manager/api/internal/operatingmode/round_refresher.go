@@ -117,6 +117,9 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 	if err := s.store.SaveRound(round); err != nil {
 		return RoundEnvelope{}, err
 	}
+	if err := s.syncExecutionStatus(round); err != nil {
+		return RoundEnvelope{}, err
+	}
 	// Auto-dispatch fires *after* lock release and *after* the predecessor
 	// round is persisted, so the next phase sees a clean lock and a stable
 	// upstream record. Failure / cancel paths skip auto-dispatch — the
@@ -144,6 +147,9 @@ func (s *Service) CancelRound(ctx context.Context, initiativeName string, mode M
 	round.Status = RoundStatusCanceled
 	MutableRoundPayload(&round).SetCanceledAt(s.clock().UTC().Format(time.RFC3339))
 	if err := s.store.SaveRound(round); err != nil {
+		return RoundEnvelope{}, err
+	}
+	if err := s.syncExecutionStatus(round); err != nil {
 		return RoundEnvelope{}, err
 	}
 	if round.RunID != "" {
@@ -200,7 +206,7 @@ func (s *Service) maybeAutoStartNext(ctx context.Context, round RoundEnvelope) {
 	if strings.TrimSpace(round.InitiativeName) == "" {
 		return
 	}
-	def, err := DefinitionFor(Mode(round.Mode))
+	bundle, def, err := s.definitionBundleForRound(round)
 	if err != nil {
 		slog.Warn("operating mode: auto-start lookup failed",
 			"err", err, "initiative", round.InitiativeName, "mode", round.Mode, "phase", round.Phase)
@@ -220,7 +226,7 @@ func (s *Service) maybeAutoStartNext(ctx context.Context, round RoundEnvelope) {
 	// a review `changes_requested` verdict looping back to execute — without
 	// the reconcile auto-start firing over the top of it. A phase with no
 	// declared transitions keeps the pure auto-start contract.
-	if guards := def.PhaseGraph.Guards[Phase(round.Phase)]; len(guards) > 0 && !phasesContain(nextPhasesForCompletedRound(def, round), next) {
+	if guards := def.PhaseGraph.Guards[Phase(round.Phase)]; len(guards) > 0 && !phasesContain(nextPhasesForCompletedRoundWithResolver(def, round, bundle.Definition), next) {
 		s.clearPendingAutoStart(round)
 		return
 	}

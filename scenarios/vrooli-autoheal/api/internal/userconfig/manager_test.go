@@ -24,6 +24,10 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.UI.Theme != "system" {
 		t.Errorf("expected theme system, got %s", cfg.UI.Theme)
 	}
+
+	if !cfg.Monitoring.IsScenarioCritical("template-manager") {
+		t.Fatalf("template-manager should be monitored as a critical scenario by default")
+	}
 }
 
 func TestGetCheckDefaults(t *testing.T) {

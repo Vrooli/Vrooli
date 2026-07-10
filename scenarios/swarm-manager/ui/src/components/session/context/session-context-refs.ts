@@ -7,6 +7,7 @@ import type {
   Capture,
   ExecutionRecord,
   InitiativeWithRollup,
+  GoalWithScope,
   Scenario,
 } from "../../../types";
 
@@ -43,6 +44,16 @@ export function initiativeOption(item: InitiativeWithRollup): SessionContextOpti
     title: initiative.title || initiative.name,
     subtitle: initiative.status,
     nodeId: `initiative/${initiative.name}`,
+  };
+}
+
+export function goalOption(item: GoalWithScope): SessionContextOption {
+  return {
+    type: "goal",
+    ref: item.goal.name,
+    title: item.goal.title || item.goal.name,
+    subtitle: `${item.goal.status} · ${Math.round(item.scope.progressPct)}% complete`,
+    nodeId: `goal/${item.goal.name}`,
   };
 }
 

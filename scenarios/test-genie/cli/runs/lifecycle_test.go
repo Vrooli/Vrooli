@@ -125,11 +125,14 @@ func TestRunWaitJSONSnapshot(t *testing.T) {
 	if !strings.Contains(out, "\"status\"") {
 		t.Fatalf("--json must emit a structured snapshot, got: %q", out)
 	}
-	if !strings.Contains(out, "\"terminalStandings\"") {
-		t.Fatalf("--json wait must surface terminal maturity standings, got: %q", out)
+	if !strings.Contains(out, "\"maturityStanding\"") {
+		t.Fatalf("--json wait must surface terminal maturity standings in the curated phases, got: %q", out)
 	}
 	if !strings.Contains(out, "arch.primitive_unverified") {
 		t.Fatalf("--json wait standing must include blocking finding codes, got: %q", out)
+	}
+	if !strings.Contains(out, "\"topPriority\"") || !strings.Contains(out, "architecture maturity next move") {
+		t.Fatalf("--json wait must surface the cross-phase top priority, got: %q", out)
 	}
 }
 

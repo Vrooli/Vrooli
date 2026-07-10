@@ -144,7 +144,7 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
   }
 }
 
-const INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight - 300 };
+const FALLBACK_INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight - 300 };
 
 /**
  * goalTargetForNode maps a backlog or initiative node to a goal target ref
@@ -187,6 +187,13 @@ export function NodeInspectorPanel() {
     if (!selectedNodeId) return null;
     return nodes.find((n) => n.id === selectedNodeId) ?? null;
   }, [selectedNodeId, nodes]);
+
+  const flowInstance = useGraphUIStore((s) => s.flowInstance);
+  const inspectorPosition = useMemo(() => {
+    if (!selectedNode || !flowInstance) return FALLBACK_INSPECTOR_POSITION;
+    const screenPosition = flowInstance.flowToScreenPosition(selectedNode.position);
+    return { x: screenPosition.x + 16, y: screenPosition.y + 16 };
+  }, [flowInstance, selectedNode]);
 
   const nodeData = useMemo<GraphNodeData | null>(() => {
     if (!selectedNode) return null;
@@ -249,7 +256,8 @@ export function NodeInspectorPanel() {
       isOpen
       onClose={handleClose}
       title={label}
-      initialPosition={INSPECTOR_POSITION}
+      initialPosition={inspectorPosition}
+      key={selectedNode.id}
       className="!max-w-sm"
       testId="node-inspector"
     >

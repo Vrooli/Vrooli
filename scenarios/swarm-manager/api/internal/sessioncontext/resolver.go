@@ -13,6 +13,7 @@ import (
 
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/operations"
+	"swarm-manager/internal/runtimepaths"
 )
 
 type Resolver struct {
@@ -104,9 +105,24 @@ func (r *Resolver) resolve(ctx context.Context, ref agentsessions.ContextRef, li
 		return resolvePlanDependencyCycles(ref.Ref, limits)
 	case agentsessions.ContextPlanEta:
 		return resolvePlanEta(ref.Ref, limits)
+	case agentsessions.ContextGoal:
+		return r.resolveGoal(ref, limits)
 	default:
 		return agentsessions.ContextItem{}, fmt.Errorf("%w: unsupported context type", agentsessions.ErrValidation)
 	}
+}
+
+func (r *Resolver) resolveGoal(ref agentsessions.ContextRef, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	// Goal records are durable runtime data. Keep the local root first so
+	// resolver tests and explicit injected roots remain isolated, then use the
+	// production storage resolver when the scenario source tree is supplied.
+	path := filepath.Join(r.scenarioRoot, "goals", ref.Ref, "goal.json")
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if dataRoot, dataErr := runtimepaths.DataPath(""); dataErr == nil {
+			path = filepath.Join(dataRoot, "goals", ref.Ref, "goal.json")
+		}
+	}
+	return r.resolveJSONFile(ref, path, "goal", "goal/"+ref.Ref, limits)
 }
 
 func (r *Resolver) resolveOperationsBriefing(ctx context.Context, ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {

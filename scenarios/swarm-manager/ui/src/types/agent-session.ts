@@ -41,7 +41,8 @@ export type AgentSessionContextType =
   | "operations_briefing"
   | "startup_brief"
   | "plan_dependency_cycles"
-  | "plan_eta";
+  | "plan_eta"
+  | "goal";
 
 export type AgentSessionProposalKind =
   | "backlog_batch_import"

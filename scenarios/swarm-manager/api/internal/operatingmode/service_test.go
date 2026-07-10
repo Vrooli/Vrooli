@@ -607,6 +607,91 @@ func TestWorkspaceRefreshesCompletedRoundAndReleasesLock(t *testing.T) {
 	}
 }
 
+func TestStartPhaseCreatesExecutionManifestAndRunOwnerIndex(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestService(t, root, &fakeAgent{}, &fakePrompts{})
+	svc.store.ExecutionID = func() string { return "execution-001" }
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase: %v", err)
+	}
+	if round.ExecutionID != "execution-001" || round.DefinitionDigest == "" {
+		t.Fatalf("round execution provenance = %+v", round)
+	}
+	execution, err := svc.store.LoadExecution("init-a", ModeHolisticLoop, round.ExecutionID)
+	if err != nil {
+		t.Fatalf("LoadExecution: %v", err)
+	}
+	if execution.DefinitionDigest != round.DefinitionDigest || len(execution.DefinitionBundle.Definitions) != 2 {
+		t.Fatalf("execution manifest = %+v", execution)
+	}
+	owner, err := svc.store.ResolveRunOwner("init-a", ModeHolisticLoop, round.RunID)
+	if err != nil {
+		t.Fatalf("ResolveRunOwner: %v", err)
+	}
+	if owner.ExecutionID != round.ExecutionID || owner.Round != round.Round {
+		t.Fatalf("run owner = %+v", owner)
+	}
+}
+
+func TestRefreshRoundUsesPinnedDefinitionAfterRegistryMutation(t *testing.T) {
+	root := t.TempDir()
+	final := `{"operating_mode_result":{"handoff":{"summary":"investigated"},"artifacts":[{"path":"modes/holistic-loop/findings.md","content":"# Findings"}]}}`
+	agent := &fakeAgent{states: map[string]agentmanager.RunState{}}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+	svc.store.ExecutionID = func() string { return "execution-pinned" }
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{InitiativeName: "init-a", Phase: "investigate"})
+	if err != nil {
+		t.Fatalf("StartPhase: %v", err)
+	}
+	execution, err := svc.store.LoadExecution("init-a", ModeHolisticLoop, round.ExecutionID)
+	if err != nil {
+		t.Fatalf("LoadExecution: %v", err)
+	}
+
+	registryMu.Lock()
+	original := registry[ModeHolisticLoop]
+	mutated, cloneErr := clonePinnedDefinition(original)
+	if cloneErr != nil {
+		registryMu.Unlock()
+		t.Fatalf("clone registry definition: %v", cloneErr)
+	}
+	// If refresh accidentally consults the live registry, investigate now has
+	// the review phase's verdict contract and the original output will abstain.
+	mutated.PhaseGraph.Phases["investigate"] = mutated.PhaseGraph.Phases["review"]
+	registry[ModeHolisticLoop] = mutated
+	registryMu.Unlock()
+	defer func() {
+		registryMu.Lock()
+		registry[ModeHolisticLoop] = original
+		registryMu.Unlock()
+	}()
+
+	agent.states[round.RunID] = agentmanager.RunState{
+		RunID: round.RunID, Status: "complete", Summary: final, FinishedAt: "2026-04-30T12:05:00Z",
+	}
+	refreshed, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round)
+	if err != nil {
+		t.Fatalf("RefreshRound: %v", err)
+	}
+	if refreshed.Status != RoundStatusCompleted {
+		t.Fatalf("refreshed = %+v, want pinned investigate contract completion", refreshed)
+	}
+	if refreshed.DefinitionDigest != execution.DefinitionDigest {
+		t.Fatalf("round digest = %q, want %q", refreshed.DefinitionDigest, execution.DefinitionDigest)
+	}
+	_, liveDigest, err := pinDefinitionBundle(mutated, DefinitionFor)
+	if err != nil {
+		t.Fatalf("pin mutated definition: %v", err)
+	}
+	if liveDigest == execution.DefinitionDigest {
+		t.Fatal("registry mutation did not change live definition digest")
+	}
+}
+
 func TestRefreshRoundFailsWhenStructuredResultMissing(t *testing.T) {
 	root := t.TempDir()
 	agent := &fakeAgent{states: map[string]agentmanager.RunState{

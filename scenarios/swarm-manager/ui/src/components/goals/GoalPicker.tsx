@@ -14,6 +14,8 @@ import type { GoalWithScope } from "../../types/goal";
 import { useGoals, useGoalMutations } from "../../surfaces/plan/hooks/useGoals";
 import { CreateGoalDialog } from "./CreateGoalDialog";
 import { Popover } from "../ui/popover";
+import { useAttachToSessionAction } from "../session/context/useAttachToSessionAction";
+import { goalOption } from "../session/context/session-context-refs";
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
@@ -49,6 +51,7 @@ export function GoalPicker({
   const active = sortGoals(goals);
   const selected = goals.find((g) => g.goal.name === goal);
   const label = selected ? selected.goal.title : "All work";
+  const attach = useAttachToSessionAction(selected ? goalOption(selected) : null);
 
   const changePriority = (name: string, current: number, delta: number) => {
     const next = Math.max(MIN_PRIORITY, Math.min(MAX_PRIORITY, current + delta));
@@ -56,7 +59,7 @@ export function GoalPicker({
   };
 
   return (
-    <div>
+    <div className="flex items-center gap-1">
       <button
         ref={triggerRef}
         type="button"
@@ -77,6 +80,12 @@ export function GoalPicker({
           </span>
         )}
       </button>
+      {selected && (
+        <>
+          {attach.button}
+          {attach.sheet}
+        </>
+      )}
 
       <Popover
         isOpen={open}

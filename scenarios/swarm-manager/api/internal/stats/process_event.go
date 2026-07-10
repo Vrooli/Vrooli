@@ -3,10 +3,19 @@ package stats
 import (
 	"encoding/json"
 	"log/slog"
+	"strings"
 
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/workshop"
 )
+
+func splitEntityRef(ref string) (string, string) {
+	parts := strings.SplitN(ref, "/", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return "backlog_item", ref
+}
 
 func (s *aggregateState) processEvent(e *eventlog.Event) {
 	s.totalEvents++
@@ -146,7 +155,8 @@ func (s *aggregateState) handleBacklogStatusChanged(e *eventlog.Event) {
 		}
 	}
 	if p.To == "completed" {
-		s.completedEvents = append(s.completedEvents, e.Timestamp)
+		kind, name := splitEntityRef(e.EntityID)
+		s.completedEvents = append(s.completedEvents, completedEvent{Timestamp: e.Timestamp, Kind: kind, Name: name})
 		s.completedAllTime++
 		delete(s.currentBacklog, e.EntityID)
 

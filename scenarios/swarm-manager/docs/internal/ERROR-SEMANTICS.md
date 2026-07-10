@@ -160,6 +160,16 @@ Same pattern as Backlog Flow.
 | API unreachable | NETWORK | Returns error from api-core |
 | Invalid JSON | PARSE | Prints raw bytes |
 
+### Operating Mode Execution Failures
+
+| Failure Mode | Scope / Impact | Behavior | Recovery |
+|--------------|----------------|----------|----------|
+| Multiple nonterminal manifests for one target/mode | Local / high integrity risk | Start and resume fail with `ErrExecutionAmbiguous`; no precedence rule selects one | Inspect manifests and repair the duplicate ownership state before retrying |
+| One Agent Manager run indexed to two execution rounds | Local / high attribution risk | Second registration fails with `ErrRunOwnerAmbiguous`; the first mapping is retained | Investigate the conflicting dispatch; never overwrite the owner index |
+| Round definition digest differs from its manifest | Local / high replay risk | Save/interpretation fails closed before routing or side effects | Restore the matching manifest/round pair from durable history |
+| Live registry changes during an execution | Expected evolution / no impact | Existing rounds resolve, classify, and delegate through the pinned bundle; only a new execution sees the edit | No recovery required; start a new execution to adopt the new definition |
+| Legacy flat round has no execution manifest | Local / compatibility | It remains readable through the legacy path until deterministic adoption is performed | Adopt unambiguous history; preserve ambiguous history read-only |
+
 ---
 
 ## Graceful Degradation Patterns

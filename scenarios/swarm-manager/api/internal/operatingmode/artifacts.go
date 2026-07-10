@@ -26,19 +26,31 @@ func (s *Store) ArtifactPath(initiativeName string, mode Mode, relPath string) (
 	if err != nil {
 		return "", err
 	}
+	return s.ArtifactPathForDefinition(initiativeName, def, relPath)
+}
+
+func (s *Store) ArtifactPathForDefinition(scopeID string, def Definition, relPath string) (string, error) {
 	clean, err := cleanModeRelativePath(def, relPath)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(s.initDir(initiativeName), filepath.FromSlash(clean)), nil
-}
-
-func (s *Store) WriteArtifact(initiativeName string, mode Mode, relPath string, content []byte) (string, error) {
-	path, err := s.ArtifactPath(initiativeName, mode, relPath)
+	root, err := s.scopeDir(scopeID, def)
 	if err != nil {
 		return "", err
 	}
+	return filepath.Join(root, filepath.FromSlash(clean)), nil
+}
+
+func (s *Store) WriteArtifact(initiativeName string, mode Mode, relPath string, content []byte) (string, error) {
 	def, err := DefinitionFor(mode)
+	if err != nil {
+		return "", err
+	}
+	return s.WriteArtifactForDefinition(initiativeName, def, relPath, content)
+}
+
+func (s *Store) WriteArtifactForDefinition(scopeID string, def Definition, relPath string, content []byte) (string, error) {
+	path, err := s.ArtifactPathForDefinition(scopeID, def, relPath)
 	if err != nil {
 		return "", err
 	}
@@ -57,11 +69,19 @@ func (s *Store) ReadArtifact(initiativeName string, mode Mode, relPath string) (
 	if err != nil {
 		return ArtifactSnapshot{}, err
 	}
+	return s.ReadArtifactForDefinition(initiativeName, def, relPath)
+}
+
+func (s *Store) ReadArtifactForDefinition(scopeID string, def Definition, relPath string) (ArtifactSnapshot, error) {
 	clean, err := cleanModeRelativePath(def, relPath)
 	if err != nil {
 		return ArtifactSnapshot{}, err
 	}
-	path := filepath.Join(s.initDir(initiativeName), filepath.FromSlash(clean))
+	root, err := s.scopeDir(scopeID, def)
+	if err != nil {
+		return ArtifactSnapshot{}, err
+	}
+	path := filepath.Join(root, filepath.FromSlash(clean))
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -92,6 +112,10 @@ func (s *Store) ListDeclaredArtifacts(initiativeName string, mode Mode) ([]Artif
 	if err != nil {
 		return nil, err
 	}
+	return s.ListDeclaredArtifactsForDefinition(initiativeName, def)
+}
+
+func (s *Store) ListDeclaredArtifactsForDefinition(scopeID string, def Definition) ([]ArtifactSnapshot, error) {
 	seen := map[string]ArtifactDefinition{}
 	for _, phase := range def.PhaseGraph.Phases {
 		for _, artifact := range phase.OutputArtifacts {
@@ -109,7 +133,7 @@ func (s *Store) ListDeclaredArtifacts(initiativeName string, mode Mode) ([]Artif
 
 	out := make([]ArtifactSnapshot, 0, len(paths))
 	for _, path := range paths {
-		snapshot, err := s.ReadArtifact(initiativeName, mode, path)
+		snapshot, err := s.ReadArtifactForDefinition(scopeID, def, path)
 		if errors.Is(err, ErrArtifactNotFound) {
 			artifact := seen[path]
 			out = append(out, ArtifactSnapshot{

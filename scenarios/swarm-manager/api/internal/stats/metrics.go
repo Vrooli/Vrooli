@@ -307,8 +307,8 @@ func (s *aggregateState) buildThroughput(now time.Time) ThroughputStats {
 
 	created7 := countAfter(s.createdEvents, d7)
 	created30 := countAfter(s.createdEvents, d30)
-	completed7 := countAfter(s.completedEvents, d7)
-	completed30 := countAfter(s.completedEvents, d30)
+	completed7 := countCompletedAfter(s.completedEvents, d7)
+	completed30 := countCompletedAfter(s.completedEvents, d30)
 
 	return ThroughputStats{
 		CompletedLast7Days:  completed7,
@@ -472,14 +472,15 @@ func (s *aggregateState) buildDashboard(now time.Time) DashboardStats {
 		weekStart := now.Add(-time.Duration(i*7*24) * time.Hour).Truncate(24 * time.Hour)
 		weekEnd := weekStart.Add(7 * 24 * time.Hour)
 		count := 0
-		for _, t := range s.completedEvents {
-			if !t.Before(weekStart) && t.Before(weekEnd) {
+		items := []CompletedItemRef{}
+		for _, event := range s.completedEvents {
+			if !event.Timestamp.Before(weekStart) && event.Timestamp.Before(weekEnd) {
 				count++
+				items = append(items, CompletedItemRef{Kind: event.Kind, Name: event.Name})
 			}
 		}
 		trend = append(trend, VelocityPoint{
-			WeekStart: weekStart.Format("2006-01-02"),
-			Completed: count,
+			WeekStart: weekStart.Format("2006-01-02"), Completed: count, CompletedItems: items,
 		})
 	}
 
@@ -511,10 +512,30 @@ func (s *aggregateState) buildThroughputTrend(now time.Time) []ThroughputPoint {
 		trend = append(trend, ThroughputPoint{
 			WeekStart: weekStart.Format("2006-01-02"),
 			Created:   countInWindow(s.createdEvents, weekStart, weekEnd),
-			Completed: countInWindow(s.completedEvents, weekStart, weekEnd),
+			Completed: countCompletedInWindow(s.completedEvents, weekStart, weekEnd),
 		})
 	}
 	return trend
+}
+
+func countCompletedInWindow(events []completedEvent, start, end time.Time) int {
+	count := 0
+	for _, event := range events {
+		if !event.Timestamp.Before(start) && event.Timestamp.Before(end) {
+			count++
+		}
+	}
+	return count
+}
+
+func countCompletedAfter(events []completedEvent, after time.Time) int {
+	count := 0
+	for _, event := range events {
+		if event.Timestamp.After(after) {
+			count++
+		}
+	}
+	return count
 }
 
 func countAfter(timestamps []time.Time, after time.Time) int {

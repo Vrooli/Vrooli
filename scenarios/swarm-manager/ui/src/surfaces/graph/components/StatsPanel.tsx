@@ -3,7 +3,7 @@
  * Stats view and focused tests.
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertCircle,
@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Clock3,
   Gauge,
+  Info,
   LayoutDashboard,
   Layers,
   ListChecks,
@@ -34,6 +35,13 @@ import { StatsEmptyState } from "../../../components/stats/stats-empty-state";
 import { StatsMetricCard } from "../../../components/stats/stats-metric-card";
 import { CompactTabBar } from "../../../components/ui/compact-tab-bar";
 import { cn } from "../../../lib/utils";
+import { Popover } from "../../../components/ui/popover";
+import { InitiativeSummaryCard } from "../../../components/initiative/initiative-summary-card";
+import { useInitiativeStore } from "../../../stores/initiative-store";
+import { useNavigate } from "react-router-dom";
+import { initiativeDetailPath } from "../../../app/routes/route-paths";
+import { backlogDetailPath } from "../../../app/routes/route-paths";
+import { BoardCard } from "../../../components/cards/BoardCard";
 import {
   formatDelta,
   formatHours,
@@ -183,6 +191,9 @@ function TabContent({ tab, data }: { tab: StatsCategory; data: StatsResponse }) 
 
 function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eventCount: number; history: HistoryWindow }) {
   const velocityTrend = data.velocity_trend ?? [];
+  const navigate = useNavigate();
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const selectedPoint = velocityTrend.find((point) => point.week_start === selectedWeek);
 
   const eta = data.estimated_remaining;
 
@@ -228,7 +239,26 @@ function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eve
               value: point.completed,
             }))}
             testId="stats-velocity-chart"
+            onSelect={(point) => setSelectedWeek(point.key)}
           />
+        )}
+        {selectedWeek && selectedPoint && (
+          <div className="mt-3 space-y-2" data-testid="stats-velocity-drilldown">
+            <p className="text-xs font-medium text-slate-300">Completed that week ({selectedWeek})</p>
+            {selectedPoint.completed_items?.length ? (
+              selectedPoint.completed_items.map((item) => (
+                <BoardCard
+                  key={`${item.kind}/${item.name}`}
+                  title={item.name}
+                  subtitle={item.kind}
+                  tone="positive"
+                  onClick={() => navigate(backlogDetailPath(item.kind, item.name))}
+                />
+              ))
+            ) : (
+              <StatsEmptyState>No completed items recorded for this week</StatsEmptyState>
+            )}
+          </div>
         )}
       </div>
 
@@ -676,35 +706,89 @@ function BlockingTab({ data }: { data: BlockingStats }) {
 
 function ScopeTab({ data }: { data: ScopeStats }) {
   const initiatives = data.initiatives ?? [];
+  const navigate = useNavigate();
+  const storeItems = useInitiativeStore((s) => s.items);
+  const fetchInitiatives = useInitiativeStore((s) => s.fetchInitiatives);
+  const [explainerOpen, setExplainerOpen] = useState(false);
+  const explainerRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    void fetchInitiatives();
+  }, [fetchInitiatives]);
+
+  const itemByName = useMemo(
+    () => new Map(storeItems.map((item) => [item.initiative.name, item])),
+    [storeItems],
+  );
 
   return (
     <div className="space-y-4" data-testid="stats-content-scope">
-      {data.max_dependency_depth > 0 && (
-        <p className="text-xs text-slate-500">Max dependency depth: {data.max_dependency_depth}</p>
-      )}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs leading-5 text-slate-400">
+          Scope shows initiative health and how its tracked item count has changed.
+          {data.max_dependency_depth > 0 && ` Maximum dependency depth: ${data.max_dependency_depth}.`}
+        </p>
+        <button
+          ref={explainerRef}
+          type="button"
+          onClick={() => setExplainerOpen((open) => !open)}
+          aria-label="Explain scope statistics"
+          aria-expanded={explainerOpen}
+          className="shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-slate-800 hover:text-cyan-300"
+        >
+          <Info className="h-3.5 w-3.5" aria-hidden />
+        </button>
+        <Popover
+          isOpen={explainerOpen}
+          onClose={() => setExplainerOpen(false)}
+          triggerRef={explainerRef}
+          placement="bottom-end"
+          className="w-72 p-3 text-xs text-slate-300"
+        >
+          <h3 className="mb-1 text-sm font-semibold text-slate-100">How scope is computed</h3>
+          <p>Each row summarizes the initiative’s tracked items, completion, active work, blockers, and scope change.</p>
+        </Popover>
+      </div>
 
       {initiatives.length === 0 ? (
         <StatsEmptyState>No initiatives yet</StatsEmptyState>
       ) : (
         <ul className="space-y-3">
           {initiatives.map((init) => {
-            const pct = init.total > 0 ? (init.completed / init.total) * 100 : 0;
+            const item = itemByName.get(init.name);
+            if (!item) {
+              const pct = init.total > 0 ? (init.completed / init.total) * 100 : 0;
+              return (
+                <li key={init.name} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-200">{init.name}</span>
+                    <span className="text-xs text-slate-400">{Math.round(pct)}%</span>
+                  </div>
+                  <ProgressBar value={init.completed} max={init.total} color="bg-cyan-500" />
+                  <div className="mt-1.5 flex gap-3 text-xs text-slate-500">
+                    <span>{init.total} total</span>
+                    <span>{init.in_progress} active</span>
+                    {init.blocked > 0 && <span className="text-red-400">{init.blocked} blocked</span>}
+                    {init.scope_creep !== 0 && (
+                      <span className={init.scope_creep > 0 ? "text-amber-400" : "text-emerald-400"}>
+                        scope {init.scope_creep > 0 ? "+" : ""}{Math.round(init.scope_creep * 100)}%
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            }
             return (
-              <li key={init.name} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3">
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-200">{init.name}</span>
-                  <span className="text-xs text-slate-400">{Math.round(pct)}%</span>
-                </div>
-                <ProgressBar value={init.completed} max={init.total} color="bg-cyan-500" />
-                <div className="mt-1.5 flex gap-3 text-xs text-slate-500">
-                  <span>{init.total} total</span>
-                  <span>{init.in_progress} active</span>
-                  {init.blocked > 0 && <span className="text-red-400">{init.blocked} blocked</span>}
+              <li key={init.name}>
+                <InitiativeSummaryCard item={item} onOpen={() => navigate(initiativeDetailPath(init.name))} />
+                <div className="mt-1 flex flex-wrap gap-2 px-1 text-[11px] text-slate-500">
+                  <span>{init.total} tracked</span>
                   {init.scope_creep !== 0 && (
                     <span className={init.scope_creep > 0 ? "text-amber-400" : "text-emerald-400"}>
                       scope {init.scope_creep > 0 ? "+" : ""}{Math.round(init.scope_creep * 100)}%
                     </span>
                   )}
+                  {init.blocked > 0 && <span className="text-red-400">{init.blocked} blocked</span>}
                 </div>
               </li>
             );

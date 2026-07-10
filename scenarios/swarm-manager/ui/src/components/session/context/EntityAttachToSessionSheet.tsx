@@ -329,7 +329,7 @@ function AttachSessionRow({
 }
 
 export function AttachToSessionActionIcon() {
-  return <MessageCirclePlus />;
+  return <MessageCirclePlus className="h-4 w-4" />;
 }
 
 function titleForQuickStart(option: SessionContextOption): string {

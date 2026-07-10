@@ -155,6 +155,10 @@ func allowedNextPhases(def Definition, rounds []RoundEnvelope) map[Phase]bool {
 }
 
 func nextPhasesForCompletedRound(def Definition, last RoundEnvelope) []Phase {
+	return nextPhasesForCompletedRoundWithResolver(def, last, DefinitionFor)
+}
+
+func nextPhasesForCompletedRoundWithResolver(def Definition, last RoundEnvelope, resolve func(Mode) (Definition, error)) []Phase {
 	from := Phase(last.Phase)
 	// Delegated phase: the sub-mode's guards route first. An onward sub-route
 	// (e.g. the drain's continue self-loop) keeps the delegation in progress —
@@ -162,7 +166,7 @@ func nextPhasesForCompletedRound(def Definition, last RoundEnvelope) []Phase {
 	// ends the delegation and the parent's own guards route on the same
 	// resolved output below.
 	if phaseDef, ok := def.PhaseGraph.Phases[from]; ok && phaseDef.Delegated() {
-		if sub, err := delegationSubDefinition(phaseDef); err == nil {
+		if sub, err := delegationSubDefinitionWithResolver(phaseDef, resolve); err == nil {
 			if subPhase, ok := delegatedRoundSubPhase(last); ok {
 				if _, continuing, err := delegationRouteForLookup(sub, subPhase, RoundPayload(last.Payload).ResultFieldLookup()); err == nil && continuing {
 					return []Phase{from}

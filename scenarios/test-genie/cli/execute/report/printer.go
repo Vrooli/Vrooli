@@ -81,6 +81,15 @@ func (p *Printer) SetScoreRunner(runner ScoreRunner) {
 	p.scoreRunner = runner
 }
 
+// ScoreRunner returns the completeness loader seam currently configured on the
+// printer so callers can build the shared view before rendering it.
+func (p *Printer) ScoreRunner() ScoreRunner {
+	if p == nil {
+		return nil
+	}
+	return p.scoreRunner
+}
+
 // Print renders the full execution report.
 func (p *Printer) Print(resp execTypes.Response) {
 	p.printHeader(resp)
@@ -92,6 +101,7 @@ func (p *Printer) Print(resp execTypes.Response) {
 	p.printSummary(resp)
 	p.printRequirementsSummary(resp)
 	p.printCompletenessSummary()
+	p.printTopPriority(nil)
 	p.printFailureDigest(resp.Phases)
 	p.printArtifacts(resp)
 	p.printCampaignNudge(resp)
@@ -134,16 +144,40 @@ func (p *Printer) SetPlanPreview(preview execTypes.PlanPreview) {
 // PrintResults prints only the results portion (after API call completes).
 // Used in conjunction with PrintPreExecution for streaming-style output.
 func (p *Printer) PrintResults(resp execTypes.Response) {
+	p.PrintResultsView(execTypes.RunStandingView{
+		Success:      resp.Success,
+		Verdict:      resp.Verdict,
+		Status:       "",
+		ExecutionID:  resp.ExecutionID,
+		PhaseSummary: resp.PhaseSummary,
+		Phases:       resp.Phases,
+		Error:        resp.Error,
+	})
+}
+
+// PrintResultsView prints the terminal portion of a run from the same curated
+// payload serialized by --json.
+func (p *Printer) PrintResultsView(view execTypes.RunStandingView) {
+	resp := execTypes.Response{
+		Success:      view.Success,
+		Verdict:      view.Verdict,
+		ExecutionID:  view.ExecutionID,
+		PhaseSummary: view.PhaseSummary,
+		Phases:       view.Phases,
+		Error:        view.Error,
+		RunHandle:    view.RunHandle,
+	}
 	// If we already streamed observations via SSE, skip the detailed phase replay
 	// and go straight to the condensed results.
 	if !p.streamedObservations {
-		p.printPhaseProgress(resp.Phases)
+		p.printPhaseProgress(view.Phases)
 	}
-	p.printPhaseResults(resp.Phases)
+	p.printPhaseResults(view.Phases)
 	p.printSummary(resp)
 	p.printRequirementsSummary(resp)
-	p.printCompletenessSummary()
-	p.printFailureDigest(resp.Phases)
+	p.PrintCompletenessSummary(view.Completeness)
+	p.printTopPriority(view.TopPriority)
+	p.printFailureDigest(view.Phases)
 	p.printArtifacts(resp)
 	p.printCampaignNudge(resp)
 }

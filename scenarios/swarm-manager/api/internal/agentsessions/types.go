@@ -99,6 +99,7 @@ const (
 	// resolver synthesizes a summary from it rather than reading a record file.
 	ContextPlanDependencyCycles ContextType = "plan_dependency_cycles"
 	ContextPlanEta              ContextType = "plan_eta"
+	ContextGoal                 ContextType = "goal"
 )
 
 const OperationsBriefingLatestRef = "operations_briefing/latest"
@@ -450,7 +451,7 @@ func IsKnownContextType(contextType ContextType) bool {
 	switch contextType {
 	case ContextBacklogItem, ContextInitiative, ContextCapture, ContextExecution,
 		ContextAgentActivity, ContextScenario, ContextOperatingMode, ContextSession, ContextOperationsBriefing, ContextStartupBrief,
-		ContextPlanDependencyCycles, ContextPlanEta:
+		ContextPlanDependencyCycles, ContextPlanEta, ContextGoal:
 		return true
 	default:
 		return false

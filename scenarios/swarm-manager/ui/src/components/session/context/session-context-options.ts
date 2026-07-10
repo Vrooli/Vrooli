@@ -84,5 +84,6 @@ export function buildContextOptionsByType(
     // generic context picker, so they contribute no pickable options here.
     plan_dependency_cycles: [],
     plan_eta: [],
+    goal: [],
   };
 }

@@ -92,6 +92,68 @@ type Response struct {
 	Requirements *RequirementsSummary `json:"requirements,omitempty"`
 }
 
+// RunStandingView is the curated terminal run payload shared by human and
+// machine renderers. The JSON flag serializes this view directly; human output
+// renders the same phases, completeness, verdict, and top-priority fields.
+type RunStandingView struct {
+	Success                     bool                 `json:"success"`
+	Verdict                     string               `json:"verdict,omitempty"`
+	Status                      string               `json:"status,omitempty"`
+	Scenario                    string               `json:"scenario,omitempty"`
+	RunID                       string               `json:"runId,omitempty"`
+	ExecutionID                 string               `json:"executionId,omitempty"`
+	PhaseSummary                PhaseSummary         `json:"phaseSummary"`
+	Phases                      []Phase              `json:"phases"`
+	Completeness                *CompletenessSummary `json:"completeness,omitempty"`
+	TopPriority                 *RunTopPriority      `json:"topPriority,omitempty"`
+	RunHandle                   *RunHandle           `json:"runHandle,omitempty"`
+	RecommendedNextCheckSeconds int32                `json:"recommendedNextCheckSeconds,omitempty"`
+	TimedOut                    bool                 `json:"timedOut,omitempty"`
+	Error                       string               `json:"error,omitempty"`
+}
+
+// RunTopPriority is the single cross-phase next move selected from all phase
+// maturity standings. Nil means every standing is at its ceiling or no provider
+// emitted a maturity standing.
+type RunTopPriority struct {
+	Phase                   string   `json:"phase"`
+	Provider                string   `json:"provider,omitempty"`
+	CurrentLevel            string   `json:"currentLevel,omitempty"`
+	CurrentLevelLabel       string   `json:"currentLevelLabel,omitempty"`
+	NextLevel               string   `json:"nextLevel,omitempty"`
+	NextMove                string   `json:"nextMove"`
+	NextMoveReason          string   `json:"nextMoveReason,omitempty"`
+	PriorityCapabilityID    string   `json:"priorityCapabilityId,omitempty"`
+	PriorityCapabilityLabel string   `json:"priorityCapabilityLabel,omitempty"`
+	DocSearchTopic          string   `json:"docSearchTopic,omitempty"`
+	BlockingFindingCodes    []string `json:"blockingFindingCodes,omitempty"`
+}
+
+// CompletenessSummary is the cached scenario-completeness-scoring supplement
+// projected into the shared terminal view.
+type CompletenessSummary struct {
+	Score           int32                        `json:"score"`
+	Classification  string                       `json:"classification,omitempty"`
+	WorkingRung     string                       `json:"workingRung,omitempty"`
+	LadderClean     bool                         `json:"ladderClean,omitempty"`
+	Trend           *CompletenessTrend           `json:"trend,omitempty"`
+	Recommendations []CompletenessRecommendation `json:"recommendations,omitempty"`
+	StaleEvidence   []string                     `json:"staleEvidence,omitempty"`
+	RefreshCommand  string                       `json:"refreshCommand,omitempty"`
+}
+
+type CompletenessTrend struct {
+	PreviousScore int32  `json:"previousScore"`
+	PreviousDate  string `json:"previousDate,omitempty"`
+	Delta         int32  `json:"delta"`
+}
+
+type CompletenessRecommendation struct {
+	Priority     string  `json:"priority,omitempty"`
+	Description  string  `json:"description"`
+	ImpactPoints float64 `json:"impactPoints,omitempty"`
+}
+
 // RequirementsSummary mirrors the API's requirements sync outcome. It is
 // rendered in the execute report on every run so PRD operational-target and
 // requirement status stays visible regardless of which phases were selected.

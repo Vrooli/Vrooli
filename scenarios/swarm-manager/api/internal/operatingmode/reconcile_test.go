@@ -81,7 +81,7 @@ func TestReconcilePhases_ApplyModeIsOperatorGated(t *testing.T) {
 // calls ApplyBacklogSync and asserts the wrapped sentinel surfaces. Handler
 // tests cover the HTTP 501 mapping; this test covers the service-layer
 // fail-closed behavior.
-func TestApplyBacklogSync_RejectsNonOperatorGated(t *testing.T) {
+func TestApplyBacklogSync_PinsExecutionPolicyAndLegacyUsesLivePolicy(t *testing.T) {
 	root := t.TempDir()
 	reconciler := &fakeProposalReconciler{}
 	svc := newTestServiceWithOptions(t, root, serviceOptions{
@@ -121,14 +121,31 @@ func TestApplyBacklogSync_RejectsNonOperatorGated(t *testing.T) {
 		RunID:               round.RunID,
 		AcceptedMutationIDs: []string{"m1"},
 	})
-	if err == nil {
-		t.Fatal("ApplyBacklogSync returned nil, want ErrApplyModeNotImplemented")
+	if err != nil {
+		t.Fatalf("ApplyBacklogSync on pinned execution: %v", err)
 	}
+	if reconciler.req.InitiativeName != "init-a" {
+		t.Fatalf("pinned operator-gated policy did not invoke reconciler: req=%+v", reconciler.req)
+	}
+
+	legacy := round
+	legacy.ExecutionID = ""
+	legacy.DefinitionDigest = ""
+	legacy.Round = 0
+	legacy, err = svc.store.CreateRound(legacy)
+	if err != nil {
+		t.Fatalf("CreateRound legacy fixture: %v", err)
+	}
+	reconciler.req = ProposalReconcileRequest{}
+	_, err = svc.ApplyBacklogSync(context.Background(), ApplyBacklogSyncRequest{
+		InitiativeName: "init-a", Mode: string(ModeHolisticLoop), Round: legacy.Round,
+		RunID: legacy.RunID, AcceptedMutationIDs: []string{"m1"},
+	})
 	if !errors.Is(err, ErrApplyModeNotImplemented) {
-		t.Fatalf("ApplyBacklogSync error = %v, want errors.Is(ErrApplyModeNotImplemented)", err)
+		t.Fatalf("legacy ApplyBacklogSync error = %v, want ErrApplyModeNotImplemented", err)
 	}
 	if reconciler.req.InitiativeName != "" {
-		t.Fatalf("reconciler should not have been invoked; req=%+v", reconciler.req)
+		t.Fatalf("legacy non-operator-gated policy invoked reconciler: req=%+v", reconciler.req)
 	}
 }
 

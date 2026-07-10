@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	execTypes "test-genie/cli/internal/execute"
 )
 
 // completenessBudget bounds the supplement's subprocess. The score read is
@@ -76,52 +78,100 @@ type completenessPayload struct {
 // failure (binary absent, timeout, non-zero exit, malformed JSON) it renders
 // nothing and never affects the report's exit code.
 func (p *Printer) printCompletenessSummary() {
-	if p.scoreRunner == nil {
-		return
+	summary := LoadCompletenessSummary(context.Background(), p.scoreRunner, p.scenario)
+	p.PrintCompletenessSummary(summary)
+}
+
+// LoadCompletenessSummary reads the cached scenario-completeness-scoring payload
+// into the shared terminal view projection. It is best-effort by contract:
+// missing binaries, timeouts, non-zero exits, malformed JSON, and empty payloads
+// all return nil so rendering never affects the suite result.
+func LoadCompletenessSummary(parent context.Context, runner ScoreRunner, scenario string) *execTypes.CompletenessSummary {
+	if runner == nil {
+		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), completenessBudget)
+	ctx, cancel := context.WithTimeout(parent, completenessBudget)
 	defer cancel()
 
-	raw, err := p.scoreRunner(ctx, p.scenario)
+	raw, err := runner(ctx, scenario)
 	if err != nil {
-		return
+		return nil
 	}
 	var payload completenessPayload
 	if err := json.Unmarshal(raw, &payload); err != nil {
-		return
+		return nil
 	}
 	if payload.Composite.Score == 0 && payload.Composite.Classification == "" {
 		// Empty or unrecognizable payload — nothing trustworthy to render.
-		return
+		return nil
 	}
 
-	fmt.Fprintln(p.w, p.color.Bold("COMPLETENESS (scenario-completeness-scoring):"))
-
-	rung := payload.Maturity.WorkingRung
-	if payload.Maturity.LadderClean {
-		rung = "ladder clean through R4"
-	} else if rung == "" {
-		rung = "R0"
+	summary := &execTypes.CompletenessSummary{
+		Score:          payload.Composite.Score,
+		Classification: payload.Composite.Classification,
+		WorkingRung:    payload.Maturity.WorkingRung,
+		LadderClean:    payload.Maturity.LadderClean,
+		RefreshCommand: payload.Freshness.SuggestedCommand,
 	}
-	fmt.Fprintf(p.w, "  • Score: %s (%s) · working rung: %s\n",
-		p.color.Bold(fmt.Sprintf("%d/100", payload.Composite.Score)),
-		payload.Composite.Classification, rung)
+	if summary.LadderClean {
+		summary.WorkingRung = "ladder clean through R4"
+	} else if summary.WorkingRung == "" {
+		summary.WorkingRung = "R0"
+	}
 	if payload.Trend != nil {
-		when := "unknown"
-		if parsed, err := time.Parse(time.RFC3339Nano, payload.Trend.PreviousCalculatedAt); err == nil {
-			when = parsed.Format("2006-01-02")
+		trend := &execTypes.CompletenessTrend{
+			PreviousScore: payload.Trend.PreviousScore,
+			Delta:         payload.Trend.Delta,
 		}
-		fmt.Fprintf(p.w, "  • Trend: %s since %s (previous %d/100)\n",
-			formatCompletenessDelta(payload.Trend.Delta),
-			when,
-			payload.Trend.PreviousScore,
-		)
+		if parsed, err := time.Parse(time.RFC3339Nano, payload.Trend.PreviousCalculatedAt); err == nil {
+			trend.PreviousDate = parsed.Format("2006-01-02")
+		}
+		summary.Trend = trend
 	}
-
 	for i, rec := range payload.Recommendations {
 		if i >= maxCompletenessRecommendations {
 			break
 		}
+		summary.Recommendations = append(summary.Recommendations, execTypes.CompletenessRecommendation{
+			Priority:     rec.Priority,
+			Description:  rec.Description,
+			ImpactPoints: rec.ImpactPoints,
+		})
+	}
+	for _, phase := range payload.Freshness.Phases {
+		if phase.Verdict == "stale" || phase.Verdict == "unknown" {
+			summary.StaleEvidence = append(summary.StaleEvidence, phase.Phase)
+		}
+	}
+	sort.Strings(summary.StaleEvidence)
+	return summary
+}
+
+// PrintCompletenessSummary renders the completeness portion of a shared
+// RunStandingView. Callers pass the already-built summary so human and --json
+// outputs cannot drift.
+func (p *Printer) PrintCompletenessSummary(summary *execTypes.CompletenessSummary) {
+	if summary == nil {
+		return
+	}
+	fmt.Fprintln(p.w, p.color.Bold("COMPLETENESS (scenario-completeness-scoring):"))
+
+	fmt.Fprintf(p.w, "  • Score: %s (%s) · working rung: %s\n",
+		p.color.Bold(fmt.Sprintf("%d/100", summary.Score)),
+		summary.Classification, summary.WorkingRung)
+	if summary.Trend != nil {
+		when := summary.Trend.PreviousDate
+		if when == "" {
+			when = "unknown"
+		}
+		fmt.Fprintf(p.w, "  • Trend: %s since %s (previous %d/100)\n",
+			formatCompletenessDelta(summary.Trend.Delta),
+			when,
+			summary.Trend.PreviousScore,
+		)
+	}
+
+	for i, rec := range summary.Recommendations {
 		impact := ""
 		if rec.ImpactPoints > 0 {
 			impact = fmt.Sprintf(" (+%s pts)", strings.TrimSuffix(fmt.Sprintf("%.1f", rec.ImpactPoints), ".0"))
@@ -129,16 +179,9 @@ func (p *Printer) printCompletenessSummary() {
 		fmt.Fprintf(p.w, "      %d. [%s] %s%s\n", i+1, rec.Priority, rec.Description, impact)
 	}
 
-	var stale []string
-	for _, phase := range payload.Freshness.Phases {
-		if phase.Verdict == "stale" || phase.Verdict == "unknown" {
-			stale = append(stale, phase.Phase)
-		}
-	}
-	if len(stale) > 0 {
-		sort.Strings(stale)
-		line := fmt.Sprintf("  • Stale evidence: %s", strings.Join(stale, ", "))
-		if cmd := payload.Freshness.SuggestedCommand; cmd != "" {
+	if len(summary.StaleEvidence) > 0 {
+		line := fmt.Sprintf("  • Stale evidence: %s", strings.Join(summary.StaleEvidence, ", "))
+		if cmd := summary.RefreshCommand; cmd != "" {
 			line += " — refresh: " + cmd
 		}
 		fmt.Fprintln(p.w, p.color.Yellow(line))

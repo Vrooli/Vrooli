@@ -11,7 +11,7 @@
  * - Mobile bottom tray mode (undraggable, slides up from bottom)
  */
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { GripVertical, X, Minus } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
@@ -79,6 +79,14 @@ export function FloatingPanel({
       y: Math.min(Math.max(next.y, 8), maxY),
     }
   }, [])
+
+  // Clamp the requested anchor after the panel has mounted and measured itself.
+  // This keeps panels anchored near their target without allowing edge targets
+  // to push the panel outside the viewport.
+  useLayoutEffect(() => {
+    if (!isOpen || isMobile) return
+    setPosition(clampPosition(initialPosition))
+  }, [clampPosition, initialPosition, isMobile, isOpen])
 
   // Clamp position on window resize
   useEffect(() => {

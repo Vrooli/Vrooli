@@ -154,6 +154,16 @@ Non-default initiative operating modes are strict orchestration flows. They are 
 | A failed phase start leaves no active reserved/running round unless a real AgentManager run owns the lock | `api/internal/operatingmode/phase_runner.go` | Prevents stale rounds from blocking future initiative progress |
 | Backlog sync mutations are run-id validated and source-attributed | `api/internal/operatingmode/backlog_reconciler.go` | Keeps direct backlog edits out of agent output and preserves audit metadata on backlog/status/proposal events |
 | UI round cards render parsed view models instead of raw payload decisions | `ui/src/components/initiative/operating-mode/round-view-model.ts` and `round-card.tsx` | Prevents payload-schema drift across React components and makes sync-action rules testable without rendering |
+| Every new mode round belongs to one immutable execution manifest | `api/internal/operatingmode/execution.go`, `phase_runner.go`, and `rounds.go` | Registry edits cannot rewrite the definition graph used by an existing round |
+| A run ID maps to at most one execution/round owner | `Store.IndexRunOwner` | Replays are idempotent; a conflicting second owner is an explicit ambiguity error rather than last-write-wins |
+| At most one nonterminal execution may exist for a target and mode | `Store.ContinueOrCreateExecution` and `collectRunContext` | Resume never chooses an execution by recency or hidden precedence; multiple resumable manifests require repair |
+
+Execution creation uses `execution_id` as its durable identity. Round numbers remain
+mode/scope-global during the compatibility window, so existing round links remain
+unambiguous while new bytes live under `executions/<execution-id>/rounds/`.
+Repeating run-owner registration with the same `(execution_id, round)` is a no-op;
+registering the same run against a different owner fails with
+`ErrRunOwnerAmbiguous` and preserves the first mapping.
 
 ### Operating Mode Authoring Invariants
 

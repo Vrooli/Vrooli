@@ -9,25 +9,25 @@ import (
 
 func (s *Service) emitPhaseStarted(round RoundEnvelope) {
 	if s.events != nil {
-		s.events.EmitOperatingModePhaseStarted(round.ScopeID, phasePayload(round, "started", ""))
+		s.events.EmitOperatingModePhaseStarted(round.ScopeID, s.phasePayload(round, "started", ""))
 	}
 }
 
 func (s *Service) emitPhaseCompleted(round RoundEnvelope) {
 	if s.events != nil {
-		s.events.EmitOperatingModePhaseCompleted(round.ScopeID, phasePayload(round, "completed", ""))
+		s.events.EmitOperatingModePhaseCompleted(round.ScopeID, s.phasePayload(round, "completed", ""))
 	}
 }
 
 func (s *Service) emitPhaseFailed(round RoundEnvelope, reason string) {
 	if s.events != nil {
-		s.events.EmitOperatingModePhaseFailed(round.ScopeID, phasePayload(round, "failed", reason))
+		s.events.EmitOperatingModePhaseFailed(round.ScopeID, s.phasePayload(round, "failed", reason))
 	}
 }
 
 func (s *Service) emitPhaseCanceled(round RoundEnvelope) {
 	if s.events != nil {
-		s.events.EmitOperatingModePhaseCanceled(round.ScopeID, phasePayload(round, "canceled", ""))
+		s.events.EmitOperatingModePhaseCanceled(round.ScopeID, s.phasePayload(round, "canceled", ""))
 	}
 }
 
@@ -37,7 +37,7 @@ func (s *Service) emitParsedPhaseSignals(round RoundEnvelope) {
 	}
 	payload := RoundPayload(round.Payload)
 	if payload.ReplanNeeded() {
-		s.events.EmitOperatingModeReplanNeeded(round.ScopeID, phasePayload(round, "completed", ""))
+		s.events.EmitOperatingModeReplanNeeded(round.ScopeID, s.phasePayload(round, "completed", ""))
 	}
 	if _, ok := payload.Progress(); ok {
 		s.emitBacklogSynced(round, 0, 0, 0)
@@ -114,6 +114,19 @@ func phasePayload(round RoundEnvelope, status, reason string) eventlog.Operating
 		}
 	}
 	payload.DurationSeconds = roundDuration(round)
+	return payload
+}
+
+func (s *Service) phasePayload(round RoundEnvelope, status, reason string) eventlog.OperatingModePhasePayload {
+	payload := phasePayload(round, status, reason)
+	_, def, err := s.definitionBundleForRound(round)
+	if err != nil {
+		return payload
+	}
+	phaseDef, err := def.PhaseDefinition(Phase(round.Phase))
+	if err == nil {
+		payload.PhaseKind = string(phaseDef.Kind)
+	}
 	return payload
 }
 

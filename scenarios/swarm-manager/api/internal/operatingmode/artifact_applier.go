@@ -17,11 +17,11 @@ import (
 // returned only for an infrastructure or post-apply contract failure (e.g. a
 // required artifact was not produced), never for imperfect model output.
 func (s *Service) applyPhaseResult(ctx context.Context, round *RoundEnvelope, messages []resolutionCandidate) (ResolvedPhaseResult, error) {
-	def, err := DefinitionFor(Mode(round.Mode))
+	bundle, def, err := s.definitionBundleForRound(*round)
 	if err != nil {
 		return ResolvedPhaseResult{}, err
 	}
-	return s.applyPhaseResultWithPersistence(ctx, def, round, messages, true)
+	return s.applyPhaseResultWithResolver(ctx, def, bundle.Definition, round, messages, true)
 }
 
 // applyPhaseResultInMemory resolves a round against an explicitly-provided
@@ -34,11 +34,15 @@ func (s *Service) applyPhaseResultInMemory(ctx context.Context, def Definition, 
 }
 
 func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Definition, round *RoundEnvelope, messages []resolutionCandidate, persistArtifacts bool) (ResolvedPhaseResult, error) {
+	return s.applyPhaseResultWithResolver(ctx, def, DefinitionFor, round, messages, persistArtifacts)
+}
+
+func (s *Service) applyPhaseResultWithResolver(ctx context.Context, def Definition, resolve func(Mode) (Definition, error), round *RoundEnvelope, messages []resolutionCandidate, persistArtifacts bool) (ResolvedPhaseResult, error) {
 	// A delegated round resolves against the sub-mode's phase contract (the
 	// sub-phase's declared output steers the ladder and the applied-result
 	// checks); artifact paths keep resolving against the parent mode's
 	// artifact policy because the round lives in the parent run's tree.
-	_, phaseDef, err := effectiveRoundExecution(def, *round)
+	_, phaseDef, err := effectiveRoundExecutionWithResolver(def, *round, resolve)
 	if err != nil {
 		return ResolvedPhaseResult{}, err
 	}
@@ -140,7 +144,7 @@ func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Defin
 			}
 		}
 		for _, write := range writes {
-			if _, err := s.store.WriteArtifact(firstNonEmpty(staged.ScopeID, staged.InitiativeName), Mode(staged.Mode), write.Path, write.Content); err != nil {
+			if _, err := s.store.WriteArtifactForDefinition(firstNonEmpty(staged.ScopeID, staged.InitiativeName), def, write.Path, write.Content); err != nil {
 				return resolved, err
 			}
 		}

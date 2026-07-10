@@ -222,13 +222,15 @@ Initiative-scoped operating modes are asynchronous phase runs coordinated by the
 
 ```
 Operator starts phase
-  -> API resolves initiative mode and phase definition
-  -> phase action state is computed from completed rounds and transition rules
-  -> initiative lock is acquired with the registry-authored lock purpose
-  -> round is reserved under modes/<mode>/rounds/round-NNN.json
+  -> API resolves the one resumable execution, or pins a new parent + delegated definition bundle
+  -> phase action state is computed from rounds in that execution and its pinned transition rules
+  -> immutable manifest is written with definition digest and Phase 4 input/prompt provenance slots
+  -> round is reserved under modes/<mode>/executions/<execution-id>/rounds/round-NNN.json
+  -> initiative lock is acquired with the pinned lock purpose
   -> prompt catalog entry and prompt-manager skill are validated
   -> AgentManager run is spawned with the registry profile key
   -> reserved round is promoted to agent_running with run_id
+  -> run_id is indexed to exactly one execution_id + round owner
   -> refresh polls AgentManager for terminal state
   -> completed output is parsed as operating_mode_result
   -> output contract, progress/verdict/handoff requirements, and required artifacts are enforced
@@ -244,6 +246,11 @@ Failure ordering is also intentional:
 - Failed or canceled rounds do not advance the phase graph.
 - Active reserved/running rounds block all new phase starts for the initiative.
 - Conditional routing is evaluated only from completed round payloads.
+- Registry reloads affect new executions only. Refresh, result resolution,
+  classification, and delegated routing load the existing execution's pinned
+  bundle and verify the round's `definition_digest`.
+- Multiple resumable manifests or conflicting run owners fail closed as
+  ambiguous state; neither path guesses by timestamp or write order.
 
 Temporal behavior that varies by mode belongs in the registry:
 

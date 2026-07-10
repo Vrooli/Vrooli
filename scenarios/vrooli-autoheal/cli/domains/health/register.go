@@ -32,16 +32,19 @@ func Register(core *cliapp.ScenarioApp, deps support.Dependencies) cliapp.Comman
 					return runTick(core, args)
 				},
 			},
-			{
+			(cliapp.Command{
 				Name:        "loop",
 				Description: "Run the dedicated autoheal loop binary",
-				Run: func(args []string) error {
-					if deps.RunLoop == nil {
-						return fmt.Errorf("loop runner is not configured")
-					}
-					return deps.RunLoop(args)
+				Architecture: cliapp.CommandArchitecture{
+					Exception:       cliapp.ExceptionPassthrough,
+					ExceptionReason: "delegates to the dedicated autoheal loop binary",
 				},
-			},
+			}).WithLegacyPrimitive(cliapp.PassthroughLegacy(func(args []string) error {
+				if deps.RunLoop == nil {
+					return fmt.Errorf("loop runner is not configured")
+				}
+				return deps.RunLoop(args)
+			})),
 			{
 				Name:        "platform",
 				NeedsAPI:    true,
@@ -50,16 +53,19 @@ func Register(core *cliapp.ScenarioApp, deps support.Dependencies) cliapp.Comman
 					return runPlatform(core, args)
 				},
 			},
-			{
+			(cliapp.Command{
 				Name:        "diagnose-port",
 				Description: "Diagnose a port conflict and stale lock state",
-				Run: func(args []string) error {
-					if deps.DiagnosePort == nil {
-						return fmt.Errorf("port diagnostics are not configured")
-					}
-					return deps.DiagnosePort(args)
+				Architecture: cliapp.CommandArchitecture{
+					Exception:       cliapp.ExceptionPassthrough,
+					ExceptionReason: "delegates to the vrooli control-plane diagnostics command",
 				},
-			},
+			}).WithLegacyPrimitive(cliapp.PassthroughLegacy(func(args []string) error {
+				if deps.DiagnosePort == nil {
+					return fmt.Errorf("port diagnostics are not configured")
+				}
+				return deps.DiagnosePort(args)
+			})),
 		},
 	}
 }

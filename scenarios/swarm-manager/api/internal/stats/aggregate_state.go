@@ -15,9 +15,9 @@ type aggregateState struct {
 	totalEvents int64
 
 	// Backlog tracking.
-	createdEvents    []time.Time     // timestamps of backlog.created events
-	completedEvents  []time.Time     // timestamps of backlog.status_changed to completed
-	currentBacklog   map[string]bool // entity IDs of non-completed/non-archived backlog items
+	createdEvents    []time.Time      // timestamps of backlog.created events
+	completedEvents  []completedEvent // backlog.status_changed events to completed
+	currentBacklog   map[string]bool  // entity IDs of non-completed/non-archived backlog items
 	completedAllTime int
 
 	// Timing tracking.
@@ -122,6 +122,12 @@ type aggregateState struct {
 	recordsWithBacklogRef int
 	recordsStubs          int
 	recordsSupersedeCount int
+}
+
+type completedEvent struct {
+	Timestamp time.Time
+	Kind      string
+	Name      string
 }
 
 func newAggregateState() *aggregateState {

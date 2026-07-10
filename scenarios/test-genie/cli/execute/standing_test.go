@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	execTypes "test-genie/cli/internal/execute"
+
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
@@ -99,5 +101,61 @@ func TestStandingNilWhenAbsent(t *testing.T) {
 	phase := phaseFromEvent(&runspb.RunEvent{Event: "phase_completed", Phase: "native", Status: "passed"})
 	if phase.MaturityStanding != nil {
 		t.Fatalf("expected nil standing for a phase with no ladder, got %+v", phase.MaturityStanding)
+	}
+}
+
+func TestTopPriorityFromPhasesSelectsLowestRungHighestUnlock(t *testing.T) {
+	priority := TopPriorityFromPhases([]Phase{
+		{
+			Name: "unit",
+			MaturityStanding: &execTypes.MaturityStanding{
+				Phase:                "unit",
+				Provider:             "unit-health",
+				CurrentLevel:         "L3",
+				NextLevel:            "L4",
+				NextMove:             "Harden unit coverage.",
+				BlockingFindingCodes: []string{"unit.coverage_gap"},
+				Capabilities: []execTypes.CapabilityStanding{{
+					ID:           "coverage",
+					PriorityRank: 1,
+				}},
+				DocSearchTopics: []string{"unit maturity next move"},
+			},
+		},
+		{
+			Name: "architecture",
+			MaturityStanding: &execTypes.MaturityStanding{
+				Phase:                "architecture",
+				Provider:             "cli-health",
+				CurrentLevel:         "L2",
+				NextLevel:            "L3",
+				NextMove:             "Prove command primitives.",
+				BlockingFindingCodes: []string{"arch.primitive_unverified"},
+				Capabilities: []execTypes.CapabilityStanding{{
+					ID:           "command_architecture",
+					PriorityRank: 2,
+				}},
+				DocSearchTopics: []string{"architecture maturity next move"},
+			},
+		},
+	})
+	if priority == nil {
+		t.Fatal("expected a priority")
+	}
+	if priority.Phase != "architecture" || priority.NextMove != "Prove command primitives." {
+		t.Fatalf("priority = %+v, want architecture lowest-rung move", priority)
+	}
+}
+
+func TestTopPriorityFromPhasesDeterministicTieAndCeiling(t *testing.T) {
+	priority := TopPriorityFromPhases([]Phase{
+		{Name: "zeta", MaturityStanding: &execTypes.MaturityStanding{Phase: "zeta", CurrentLevel: "L2", NextLevel: "L3", NextMove: "Fix zeta."}},
+		{Name: "alpha", MaturityStanding: &execTypes.MaturityStanding{Phase: "alpha", CurrentLevel: "L2", NextLevel: "L3", NextMove: "Fix alpha."}},
+	})
+	if priority == nil || priority.Phase != "alpha" {
+		t.Fatalf("tie should resolve by phase name, got %+v", priority)
+	}
+	if got := TopPriorityFromPhases([]Phase{{Name: "unit", MaturityStanding: &execTypes.MaturityStanding{Phase: "unit", CurrentLevel: "L4", AtMaximum: true}}}); got != nil {
+		t.Fatalf("all-at-ceiling should produce no priority, got %+v", got)
 	}
 }

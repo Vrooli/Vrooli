@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toBarPercent } from "../../lib/stats-format-utils";
 
-interface MiniBarChartPoint {
+export interface MiniBarChartPoint {
   key: string;
   label: string;
   value: number;
@@ -14,6 +14,7 @@ interface MiniBarChartProps {
   testId?: string;
   valueLabel?: string;
   secondaryValueLabel?: string;
+  onSelect?: (point: MiniBarChartPoint) => void;
 }
 
 /** Format an ISO week-start date to a compact "M/D" axis label. */
@@ -34,6 +35,7 @@ export function MiniBarChart({
   testId,
   valueLabel = "completed",
   secondaryValueLabel,
+  onSelect,
 }: MiniBarChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -91,7 +93,20 @@ export function MiniBarChart({
           }
 
           return (
-            <g key={point.key}>
+            <g
+              key={point.key}
+              onClick={() => onSelect?.(point)}
+              className={onSelect ? "cursor-pointer" : undefined}
+              role={onSelect ? "button" : undefined}
+              tabIndex={onSelect ? 0 : undefined}
+              aria-label={onSelect ? `${point.label}: ${point.value} ${valueLabel}` : undefined}
+              onKeyDown={(event) => {
+                if (onSelect && (event.key === "Enter" || event.key === " ")) {
+                  event.preventDefault();
+                  onSelect(point);
+                }
+              }}
+            >
               <title>{titleParts.join(", ")}</title>
               <rect x={x} y={y} width={seriesBarWidth} height={barHeight} rx="3" className="fill-cyan-400/70" />
               {typeof point.secondaryValue === "number" && (

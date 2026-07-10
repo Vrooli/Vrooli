@@ -50,7 +50,11 @@ const (
 // delegate to registered, non-nesting sub-modes; a miss here is a typed error,
 // not a panic, because draft definitions can also flow through the runtime.
 func delegationSubDefinition(phaseDef PhaseDefinition) (Definition, error) {
-	sub, err := DefinitionFor(phaseDef.ExecutedBy)
+	return delegationSubDefinitionWithResolver(phaseDef, DefinitionFor)
+}
+
+func delegationSubDefinitionWithResolver(phaseDef PhaseDefinition, resolve func(Mode) (Definition, error)) (Definition, error) {
+	sub, err := resolve(phaseDef.ExecutedBy)
 	if err != nil {
 		return Definition{}, fmt.Errorf("phase %q delegates to unregistered sub-mode %q: %w", phaseDef.Phase, phaseDef.ExecutedBy, err)
 	}
@@ -152,6 +156,10 @@ func delegatedRoundSubPhase(round RoundEnvelope) (Phase, bool) {
 // through this seam so delegated rounds resolve against the sub-mode's
 // declared output, not the delegating phase's (empty) one.
 func effectiveRoundExecution(def Definition, round RoundEnvelope) (Definition, PhaseDefinition, error) {
+	return effectiveRoundExecutionWithResolver(def, round, DefinitionFor)
+}
+
+func effectiveRoundExecutionWithResolver(def Definition, round RoundEnvelope, resolve func(Mode) (Definition, error)) (Definition, PhaseDefinition, error) {
 	phaseDef, err := def.PhaseDefinition(Phase(round.Phase))
 	if err != nil {
 		return Definition{}, PhaseDefinition{}, err
@@ -159,7 +167,7 @@ func effectiveRoundExecution(def Definition, round RoundEnvelope) (Definition, P
 	if !phaseDef.Delegated() {
 		return def, phaseDef, nil
 	}
-	sub, err := delegationSubDefinition(phaseDef)
+	sub, err := delegationSubDefinitionWithResolver(phaseDef, resolve)
 	if err != nil {
 		return Definition{}, PhaseDefinition{}, err
 	}

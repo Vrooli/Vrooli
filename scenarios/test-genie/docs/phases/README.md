@@ -34,6 +34,7 @@ Every phase declares a **[Phase Capability Contract](../concepts/phase-capabilit
 | 20 | [Branding](branding/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. |
 | 21 | [Search](search/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates search-enabled scenarios through Search Hub's search maturity contract. |
 | 22 | [Provider Conformance](provider-conformance/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. |
+| 23 | [Templates](templates/README.md) | 90s | `comprehensive_when_applicable` | `required_when_applicable` | `advisory` | Yes | validation-provider | Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager. |
 
 ## Static Phases
 
@@ -62,6 +63,7 @@ Every phase declares a **[Phase Capability Contract](../concepts/phase-capabilit
 - [UI Health](ui-health/README.md) - Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health.
 - [Performance](performance/README.md) - Validates API/UI build performance and Lighthouse budgets through performance-health.
 - [Workflow](workflow/README.md) - Validates BAS workflow assets and safe execution through workflow-health.
+- [Templates](templates/README.md) - Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager.
 
 ## Running Phases
 

@@ -76,6 +76,15 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 	if err := ValidatePhaseStart(def, rc.Rounds, phaseDef.Phase, rc.Target.Initiative.AcceptanceCriteria); err != nil {
 		return RoundEnvelope{}, err
 	}
+	var execution OperatingModeExecution
+	if rc.Execution != nil {
+		execution = *rc.Execution
+	} else {
+		execution, err = s.store.ContinueOrCreateExecution(rc.Target.ID, def)
+		if err != nil {
+			return RoundEnvelope{}, err
+		}
+	}
 
 	// exec is the run context whose prompt/reads/profile the spawned agent
 	// receives: the phase's own for a regular phase, the sub-mode's next
@@ -97,14 +106,16 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 	payload["plan_context"] = exec.Target.Plan
 
 	round, err := s.store.CreateRound(RoundEnvelope{
-		Mode:            string(def.Mode),
-		InitiativeName:  rc.Target.Initiative.Name,
-		ScopeID:         rc.Target.ID,
-		Phase:           string(phaseDef.Phase),
-		AgentProfileKey: exec.PhaseDef.ProfileKey,
-		Status:          RoundStatusReserved,
-		Items:           rc.Target.Items,
-		Payload:         payload,
+		ExecutionID:      execution.ExecutionID,
+		DefinitionDigest: execution.DefinitionDigest,
+		Mode:             string(def.Mode),
+		InitiativeName:   rc.Target.Initiative.Name,
+		ScopeID:          rc.Target.ID,
+		Phase:            string(phaseDef.Phase),
+		AgentProfileKey:  exec.PhaseDef.ProfileKey,
+		Status:           RoundStatusReserved,
+		Items:            rc.Target.Items,
+		Payload:          payload,
 	})
 	if err != nil {
 		return RoundEnvelope{}, err
@@ -171,6 +182,7 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 			Metadata: map[string]string{
 				"entrypoint":        "initiative.operating_mode.phase",
 				"operating_mode":    string(def.Mode),
+				"execution_id":      execution.ExecutionID,
 				"target_kind":       string(def.Target.Kind),
 				"phase":             string(phaseDef.Phase),
 				"run_strategy":      string(def.RunStrategy.Kind),
@@ -197,6 +209,14 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 	round.GeneratedAt = s.clock().UTC().Format(time.RFC3339)
 	if err := s.store.SaveRound(round); err != nil {
 		slog.Warn("operating mode: persist run id failed", "err", err, "target", rc.Target.ID, "run_id", result.RunID)
+	}
+	if err := s.store.IndexRunOwner(execution, round.RunID, round.Round); err != nil {
+		_ = s.lock.Release(ownershipKey, provisionalRunID)
+		if s.agent != nil {
+			_ = s.agent.StopRun(ctx, round.RunID)
+		}
+		round = s.persistPhaseStartFailure(round, err, "run_owner_index_failed_at")
+		return round, fmt.Errorf("index operating-mode run owner: %w", err)
 	}
 	holder.RunID = round.RunID
 	if err := s.lock.AcquireOverride(ownershipKey, holder); err != nil {
@@ -297,6 +317,9 @@ func (s *Service) persistPhaseStartFailure(round RoundEnvelope, err error, times
 	if saveErr := s.store.SaveRound(round); saveErr != nil {
 		slog.Warn("operating mode: persist phase start failure failed", "err", saveErr, "scope", round.ScopeID, "round", round.Round)
 	}
+	if syncErr := s.syncExecutionStatus(round); syncErr != nil {
+		slog.Warn("operating mode: persist execution failure status failed", "err", syncErr, "scope", round.ScopeID, "execution_id", round.ExecutionID)
+	}
 	s.emitPhaseFailed(round, round.Error)
 	return round
 }
@@ -345,13 +368,53 @@ func (s *Service) collectRunContext(ctx context.Context, def Definition, phaseDe
 	if err != nil {
 		return RunContext{}, err
 	}
-	artifacts, err := s.store.ListDeclaredArtifacts(target.ID, def.Mode)
+	artifacts, err := s.store.ListDeclaredArtifactsForDefinition(target.ID, def)
 	if err != nil {
 		return RunContext{}, err
+	}
+	executions, err := s.store.ListExecutions(target.ID, def.Mode)
+	if err != nil {
+		return RunContext{}, err
+	}
+	var resumable []OperatingModeExecution
+	for _, execution := range executions {
+		if !execution.Terminal() {
+			resumable = append(resumable, execution)
+		}
+	}
+	if len(resumable) > 1 {
+		return RunContext{}, fmt.Errorf("%w: mode %q scope %q has %d resumable manifests", ErrExecutionAmbiguous, def.Mode, target.ID, len(resumable))
+	}
+	var execution *OperatingModeExecution
+	if len(resumable) == 1 {
+		pinned := resumable[0]
+		pinnedDef, err := pinned.DefinitionBundle.RootDefinition()
+		if err != nil {
+			return RunContext{}, err
+		}
+		pinnedPhase, err := pinnedDef.PhaseDefinition(phaseDef.Phase)
+		if err != nil {
+			return RunContext{}, err
+		}
+		def = pinnedDef
+		phaseDef = pinnedPhase
+		execution = &pinned
+		filtered := rounds[:0]
+		for _, round := range rounds {
+			if round.ExecutionID == pinned.ExecutionID {
+				filtered = append(filtered, round)
+			}
+		}
+		rounds = filtered
+	} else if len(executions) > 0 {
+		// Every manifest is terminal: a new execution starts with an empty phase
+		// history even though compatibility projections still list old rounds.
+		rounds = nil
 	}
 	return RunContext{
 		Def:       def,
 		PhaseDef:  phaseDef,
+		Execution: execution,
 		Target:    target,
 		Artifacts: artifacts,
 		Rounds:    rounds,
