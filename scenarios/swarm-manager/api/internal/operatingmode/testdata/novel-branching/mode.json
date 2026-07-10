@@ -7,6 +7,35 @@
   "not_for": ["Real work — this is a schema-genericity fixture"],
   "tradeoffs": ["Exists only to validate the schema's expressiveness"],
   "target": { "kind": "initiative" },
+  "input_contract": {
+    "specs": [
+      { "id": "execution.mode_id", "type": "string", "required": true, "sensitivity": "public", "retention": "value", "description": "Stable operating-mode identity." },
+      { "id": "execution.phase_id", "type": "string", "required": true, "sensitivity": "public", "retention": "value", "description": "Current phase identity." },
+      { "id": "execution.round_number", "type": "integer", "required": true, "minimum": 1, "sensitivity": "public", "retention": "value", "description": "One-based round number." },
+      { "id": "execution.operator_note", "type": "string", "sensitivity": "internal", "retention": "value", "description": "Optional operator guidance." },
+      { "id": "execution.prior_rounds", "type": "array", "required": true, "sensitivity": "internal", "retention": "value", "description": "Durable prior round envelopes." },
+      { "id": "initiative.name", "type": "string", "required": true, "sensitivity": "internal", "retention": "value", "description": "Stable initiative identity." },
+      { "id": "initiative.member_items", "type": "array", "required": true, "sensitivity": "internal", "retention": "value", "description": "Resolved initiative backlog members." }
+    ],
+    "sources": [
+      { "input_id": "execution.mode_id", "kind": "generic_provider", "capability": "generic.operating_mode" },
+      { "input_id": "execution.phase_id", "kind": "generic_provider", "capability": "generic.phase" },
+      { "input_id": "execution.round_number", "kind": "generic_provider", "capability": "generic.round_number" },
+      { "input_id": "execution.operator_note", "kind": "generic_provider", "capability": "generic.operator_note" },
+      { "input_id": "execution.prior_rounds", "kind": "generic_provider", "capability": "generic.prior_rounds" },
+      { "input_id": "initiative.name", "kind": "target_adapter", "capability": "target.initiative_name" },
+      { "input_id": "initiative.member_items", "kind": "target_adapter", "capability": "target.member_items" }
+    ],
+    "aliases": [
+      { "name": "OPERATING_MODE", "input_id": "execution.mode_id" },
+      { "name": "PHASE", "input_id": "execution.phase_id" },
+      { "name": "ROUND_NUMBER", "input_id": "execution.round_number" },
+      { "name": "OPERATOR_NOTE", "input_id": "execution.operator_note" },
+      { "name": "PRIOR_ROUNDS_JSON", "input_id": "execution.prior_rounds" },
+      { "name": "INITIATIVE_NAME", "input_id": "initiative.name" },
+      { "name": "MEMBER_ITEMS_JSON", "input_id": "initiative.member_items" }
+    ]
+  },
   "run_strategy": { "kind": "operator_gated_loop" },
   "prompt": { "catalog_prefix": "swarm-manager-novel-triage" },
   "artifact": { "root": "modes/novel-triage-switch" },

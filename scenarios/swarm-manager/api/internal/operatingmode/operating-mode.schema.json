@@ -26,7 +26,70 @@
     "ReadName": {
       "type": "string",
       "pattern": "^[A-Z][A-Z0-9_]*$",
-      "description": "A declared read (prompt template variable) name, e.g. `PRIOR_ROUNDS_JSON`, `MEMBER_ITEMS_JSON`, `PLAN_PATH`. The vocabulary is the union of the generic-base provider and the mode's target adapter."
+      "description": "A prompt-facing input alias, e.g. `PRIOR_ROUNDS_JSON`, `MEMBER_ITEMS_JSON`, `PLAN_PATH`. Every alias resolves through the mode's input_contract to a logical InputSpec and one explicit source binding."
+    },
+    "InputId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$",
+      "description": "Stable dotted logical input identity, independent of acquisition provider (for example `execution.operator_note` or `plan.context`)."
+    },
+    "InputContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specs", "sources", "aliases"],
+      "description": "Mode-level input SSOT. Specs own logical value semantics, sources own acquisition policy, and aliases bind prompt variables to logical inputs. The semantic compiler rejects missing/competing sources, unavailable capabilities, target mismatches, cycles, conflicting retention, and unused aliases.",
+      "properties": {
+        "specs": {
+          "type": "array", "items": { "$ref": "#/$defs/InputSpec" }
+        },
+        "sources": {
+          "type": "array", "items": { "$ref": "#/$defs/InputSourceBinding" }
+        },
+        "aliases": {
+          "type": "array", "items": { "$ref": "#/$defs/InputAlias" }
+        }
+      }
+    },
+    "InputSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "sensitivity", "retention", "description"],
+      "properties": {
+        "id": { "$ref": "#/$defs/InputId" },
+        "type": { "type": "string", "enum": ["string", "integer", "number", "boolean", "object", "array"] },
+        "format": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean", "default": false },
+        "minimum": { "type": "number" },
+        "maximum": { "type": "number" },
+        "min_length": { "type": "integer", "minimum": 0 },
+        "max_length": { "type": "integer", "minimum": 0 },
+        "min_items": { "type": "integer", "minimum": 0 },
+        "max_items": { "type": "integer", "minimum": 0 },
+        "sensitivity": { "type": "string", "enum": ["public", "internal", "sensitive"] },
+        "retention": { "type": "string", "enum": ["value", "digest", "omit"] },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    },
+    "InputSourceBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_id", "kind"],
+      "properties": {
+        "input_id": { "$ref": "#/$defs/InputId" },
+        "kind": { "type": "string", "enum": ["generic_provider", "target_adapter", "caller", "derived", "default"] },
+        "capability": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$" },
+        "depends_on": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/InputId" } },
+        "default": { "type": ["string", "number", "integer", "boolean", "object", "array"] }
+      }
+    },
+    "InputAlias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "input_id"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ReadName" },
+        "input_id": { "$ref": "#/$defs/InputId" }
+      }
     },
     "FieldPath": {
       "type": "string",
@@ -69,6 +132,7 @@
           "description": "Mode id an operator should pick if unsure between this one and another. Omit (or empty) when this mode is itself the safe default. The engine verifies it references a registered mode and is not self."
         },
         "target": { "$ref": "#/$defs/TargetPolicy" },
+        "input_contract": { "$ref": "#/$defs/InputContract" },
         "run_strategy": { "$ref": "#/$defs/RunStrategyPolicy" },
         "phase_graph": { "$ref": "#/$defs/PhaseGraph" },
         "prompt": { "$ref": "#/$defs/PromptPolicy" },
@@ -84,8 +148,8 @@
           "if": { "type": "object", "properties": { "run_strategy": { "type": "object", "properties": { "kind": { "const": "existing_item_flow" } } } } },
           "then": {},
           "else": {
-            "required": ["phase_graph", "prompt", "artifact"],
-            "description": "Every mode that runs mode rounds (any run strategy other than existing_item_flow) runs a phase graph, routes prompts through a catalog prefix, and owns an artifact root."
+            "required": ["input_contract", "phase_graph", "prompt", "artifact"],
+            "description": "Every mode that runs mode rounds (any run strategy other than existing_item_flow) declares one input contract, runs a phase graph, routes prompts through a catalog prefix, and owns an artifact root."
           }
         },
         {

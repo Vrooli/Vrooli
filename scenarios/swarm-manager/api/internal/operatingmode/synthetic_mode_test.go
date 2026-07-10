@@ -171,7 +171,7 @@ func TestSyntheticModeHarnessDoesNotLeakIntoProductionRegistry(t *testing.T) {
 // complete→review routing) is built the exact same way production modes are.
 func syntheticHarnessDefinition(t *testing.T) Definition {
 	t.Helper()
-	const doc = `{
+	doc := `{
 	  "kind": "operating-mode",
 	  "id": "synthetic-harness",
 	  "label": "Synthetic Harness",
@@ -181,6 +181,7 @@ func syntheticHarnessDefinition(t *testing.T) Definition {
 	  "tradeoffs": ["Test-only — never registered outside test scope"],
 	  "when_in_doubt_pick_instead": "item-level",
 	  "target": { "kind": "initiative" },
+	  "input_contract": ` + testInputContractJSON(string(TargetInitiative), []string{ReadOperatingMode, ReadPhase, ReadRoundNumber, ReadOperatorNote, ReadPriorRoundsJSON, ReadInitiativeName, ReadMemberItemsJSON}) + `,
 	  "run_strategy": { "kind": "operator_gated_loop" },
 	  "prompt": { "catalog_prefix": "swarm-manager-synthetic-harness" },
 	  "artifact": { "root": "modes/synthetic-harness" },

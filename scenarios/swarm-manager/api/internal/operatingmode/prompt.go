@@ -2,7 +2,6 @@ package operatingmode
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -119,12 +118,4 @@ func promptVariables(rc RunContext, round RoundEnvelope, note string) map[string
 		return map[string]string{}
 	}
 	return reads
-}
-
-func mustJSON(value any) string {
-	data, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return "null"
-	}
-	return string(data)
 }

@@ -85,6 +85,7 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 			return RoundEnvelope{}, err
 		}
 	}
+	rc.Execution = &execution
 
 	// exec is the run context whose prompt/reads/profile the spawned agent
 	// receives: the phase's own for a regular phase, the sub-mode's next

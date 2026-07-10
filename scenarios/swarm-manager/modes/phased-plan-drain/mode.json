@@ -24,6 +24,32 @@
   "target": {
     "kind": "plan-manager-plan"
   },
+  "input_contract": {
+    "specs": [
+      { "id": "execution.operator_note", "type": "string", "max_length": 32768, "sensitivity": "internal", "retention": "value", "description": "Optional operator guidance for the current drain round." },
+      { "id": "execution.round_number", "type": "integer", "required": true, "minimum": 1, "sensitivity": "public", "retention": "value", "description": "One-based round number within the immutable execution." },
+      { "id": "execution.prior_rounds", "type": "array", "required": true, "sensitivity": "internal", "retention": "value", "description": "Durable prior round envelopes available to the next drain slice." },
+      { "id": "execution.elastic_slice_guidance", "type": "string", "required": true, "sensitivity": "public", "retention": "digest", "description": "Shared guidance for selecting the next comprehensively drainable slice." },
+      { "id": "plan.id", "type": "string", "required": true, "min_length": 1, "max_length": 256, "sensitivity": "internal", "retention": "value", "description": "Stable Plan Manager plan or execution identity targeted by the drain." },
+      { "id": "plan.context", "type": "object", "required": true, "sensitivity": "internal", "retention": "value", "description": "Resolved, non-mutating Plan Manager execution context for the current slice." }
+    ],
+    "sources": [
+      { "input_id": "execution.operator_note", "kind": "generic_provider", "capability": "generic.operator_note" },
+      { "input_id": "execution.round_number", "kind": "generic_provider", "capability": "generic.round_number" },
+      { "input_id": "execution.prior_rounds", "kind": "generic_provider", "capability": "generic.prior_rounds" },
+      { "input_id": "execution.elastic_slice_guidance", "kind": "generic_provider", "capability": "generic.elastic_slice" },
+      { "input_id": "plan.id", "kind": "target_adapter", "capability": "target.plan_id" },
+      { "input_id": "plan.context", "kind": "target_adapter", "capability": "target.plan_context" }
+    ],
+    "aliases": [
+      { "name": "OPERATOR_NOTE", "input_id": "execution.operator_note" },
+      { "name": "ROUND_NUMBER", "input_id": "execution.round_number" },
+      { "name": "PRIOR_ROUNDS_JSON", "input_id": "execution.prior_rounds" },
+      { "name": "ELASTIC_SLICE_SNIPPET", "input_id": "execution.elastic_slice_guidance" },
+      { "name": "PLAN_ID", "input_id": "plan.id" },
+      { "name": "PLAN_CONTEXT_JSON", "input_id": "plan.context" }
+    ]
+  },
   "run_strategy": {
     "kind": "sequential_handoff"
   },

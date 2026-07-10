@@ -9,13 +9,12 @@ import (
 // This file implements the target-adapter seam of the v2 unit-of-work
 // decoupling (EXECUTION-MODES.md, D1). A mode declares a target kind; one
 // adapter per kind supplies the target-specific parts of a run — instance
-// resolution, the scope-specific reads, and the exclusive-ownership key. The
+// resolution, typed capability values, and the exclusive-ownership key. The
 // shared engine consumes adapters only through the generic RunContext; it
 // never branches on the target kind.
 
-// Target-adapter read names. The generic base read names live in
-// runcontext.go; together they form the full read vocabulary the loader
-// validates declared phase reads against.
+// Stable prompt aliases for target inputs. Their logical ids and capability
+// sources are authored in each mode input_contract.
 const (
 	ReadInitiativeName        = "INITIATIVE_NAME"
 	ReadInitiativeTitle       = "INITIATIVE_TITLE"
@@ -51,20 +50,17 @@ type TargetInstance struct {
 }
 
 // TargetAdapter supplies the target-specific parts of a mode run for one
-// target kind. Provides is static so the loader can validate declared phase
-// reads without an instance; Resolve/Reads/OwnershipKey operate per run.
+// target kind. Capability compatibility is declared once in
+// InputProviderCapabilities; Values performs only behavioral projection from
+// a resolved target instance.
 type TargetAdapter interface {
 	Kind() TargetKind
-	// Provides returns the read names this adapter supplies. The variables
-	// available to a phase are the union base ∪ Provides() — composition,
-	// never a conditional.
-	Provides() []string
 	// Resolve loads the target instance identified by ref (initiative name,
 	// plan execution id/slug, or plan path).
 	Resolve(ctx context.Context, s *Service, def Definition, phaseDef PhaseDefinition, ref string) (TargetInstance, error)
-	// Reads returns the resolved scope-specific reads for the instance. Its
-	// key set is exactly Provides().
-	Reads(t TargetInstance) map[string]string
+	// Values returns typed values keyed by target capability id. Its key set is
+	// checked against InputProviderCapabilities in tests.
+	Values(t TargetInstance) map[string]any
 	// OwnershipKey is the exclusive-run lock identity for a target instance
 	// id. Initiative targets keep the initiative name; plan targets get an
 	// equivalent plan-scoped key so a plan run never requires an initiative.
@@ -87,16 +83,6 @@ func AdapterFor(kind TargetKind) (TargetAdapter, error) {
 	return adapter, nil
 }
 
-// TargetReadNames returns the read names the given target kind's adapter
-// provides.
-func TargetReadNames(kind TargetKind) ([]string, error) {
-	adapter, err := AdapterFor(kind)
-	if err != nil {
-		return nil, err
-	}
-	return adapter.Provides(), nil
-}
-
 // OwnershipKeyFor returns the exclusive-run lock identity for a target kind +
 // instance id, without needing a resolved instance (round refresh/cancel paths
 // derive it from the persisted round's target kind and scope id).
@@ -113,17 +99,6 @@ func OwnershipKeyFor(kind TargetKind, id string) (string, error) {
 type initiativeTargetAdapter struct{}
 
 func (initiativeTargetAdapter) Kind() TargetKind { return TargetInitiative }
-
-func (initiativeTargetAdapter) Provides() []string {
-	return []string{
-		ReadInitiativeName,
-		ReadInitiativeTitle,
-		ReadInitiativeDescription,
-		ReadAcceptanceCriteria,
-		ReadMemberItemsJSON,
-		ReadPlanContextJSON,
-	}
-}
 
 func (initiativeTargetAdapter) Resolve(ctx context.Context, s *Service, def Definition, phaseDef PhaseDefinition, ref string) (TargetInstance, error) {
 	init, err := s.initiatives.LoadInitiative(strings.TrimSpace(ref))
@@ -145,14 +120,14 @@ func (initiativeTargetAdapter) Resolve(ctx context.Context, s *Service, def Defi
 	}, nil
 }
 
-func (initiativeTargetAdapter) Reads(t TargetInstance) map[string]string {
-	return map[string]string{
-		ReadInitiativeName:        t.Initiative.Name,
-		ReadInitiativeTitle:       t.Initiative.Title,
-		ReadInitiativeDescription: t.Initiative.Description,
-		ReadAcceptanceCriteria:    strings.Join(t.Initiative.AcceptanceCriteria, "\n"),
-		ReadMemberItemsJSON:       mustJSON(t.Items),
-		ReadPlanContextJSON:       mustJSON(t.Plan),
+func (initiativeTargetAdapter) Values(t TargetInstance) map[string]any {
+	return map[string]any{
+		"target.initiative_name":        t.Initiative.Name,
+		"target.initiative_title":       t.Initiative.Title,
+		"target.initiative_description": t.Initiative.Description,
+		"target.acceptance_criteria":    strings.Join(t.Initiative.AcceptanceCriteria, "\n"),
+		"target.member_items":           append([]RoundItem{}, t.Items...),
+		"target.plan_context":           targetPlanValue(t.Plan),
 	}
 }
 
@@ -163,10 +138,6 @@ func (initiativeTargetAdapter) OwnershipKey(id string) string { return id }
 type planManagerPlanTargetAdapter struct{}
 
 func (planManagerPlanTargetAdapter) Kind() TargetKind { return TargetPlanManagerPlan }
-
-func (planManagerPlanTargetAdapter) Provides() []string {
-	return []string{ReadPlanID, ReadPlanContextJSON}
-}
 
 func (planManagerPlanTargetAdapter) Resolve(ctx context.Context, s *Service, def Definition, phaseDef PhaseDefinition, ref string) (TargetInstance, error) {
 	handle := strings.TrimSpace(ref)
@@ -186,10 +157,10 @@ func (planManagerPlanTargetAdapter) Resolve(ctx context.Context, s *Service, def
 	}, nil
 }
 
-func (planManagerPlanTargetAdapter) Reads(t TargetInstance) map[string]string {
-	return map[string]string{
-		ReadPlanID:          t.ID,
-		ReadPlanContextJSON: mustJSON(t.Plan),
+func (planManagerPlanTargetAdapter) Values(t TargetInstance) map[string]any {
+	return map[string]any{
+		"target.plan_id":      t.ID,
+		"target.plan_context": targetPlanValue(t.Plan),
 	}
 }
 
@@ -202,10 +173,6 @@ func (planManagerPlanTargetAdapter) OwnershipKey(id string) string {
 type planRefTargetAdapter struct{}
 
 func (planRefTargetAdapter) Kind() TargetKind { return TargetPlanRef }
-
-func (planRefTargetAdapter) Provides() []string {
-	return []string{ReadPlanPath, ReadPlanContextJSON}
-}
 
 func (planRefTargetAdapter) Resolve(_ context.Context, _ *Service, def Definition, _ PhaseDefinition, ref string) (TargetInstance, error) {
 	path := strings.TrimSpace(ref)
@@ -224,15 +191,22 @@ func (planRefTargetAdapter) Resolve(_ context.Context, _ *Service, def Definitio
 	}, nil
 }
 
-func (planRefTargetAdapter) Reads(t TargetInstance) map[string]string {
-	return map[string]string{
-		ReadPlanPath:        t.PlanPath,
-		ReadPlanContextJSON: mustJSON(t.Plan),
+func (planRefTargetAdapter) Values(t TargetInstance) map[string]any {
+	return map[string]any{
+		"target.plan_path":    t.PlanPath,
+		"target.plan_context": targetPlanValue(t.Plan),
 	}
 }
 
 func (planRefTargetAdapter) OwnershipKey(id string) string {
 	return "plan-ref--" + sanitizeOwnershipToken(id)
+}
+
+func targetPlanValue(plan *PlanExecutionContext) any {
+	if plan == nil {
+		return nil
+	}
+	return plan
 }
 
 // ParseTargetOwnershipKey recognizes a non-initiative ownership key

@@ -23,10 +23,10 @@ func ValidateLoadedModes(defs map[Mode]Definition) error {
 		if !def.RunsModeRounds() {
 			continue
 		}
-		if err := validateGuardGraph(defs, def); err != nil {
+		if _, err := CompileInputContract(defs, def); err != nil {
 			return err
 		}
-		if err := validateReadsContract(def); err != nil {
+		if err := validateGuardGraph(defs, def); err != nil {
 			return err
 		}
 		if err := validateExampleRuns(defs, def); err != nil {
@@ -34,68 +34,6 @@ func ValidateLoadedModes(defs map[Mode]Definition) error {
 		}
 	}
 	return nil
-}
-
-// validateReadsContract is the read-side validation parallel to the emit-side
-// guard/contract checks: every phase must declare its reads, and every
-// declared read must be satisfiable by the mode's composed provider set
-// (generic base ∪ the declared target's adapter). Two distinct failures get
-// distinct, actionable errors: a read that exists in the vocabulary but
-// belongs to a different target adapter (the mode's scope does not provide
-// it), and a read no provider supplies at all (an unsatisfiable template
-// slot).
-func validateReadsContract(def Definition) error {
-	available, err := AvailableReadNames(def.Target.Kind)
-	if err != nil {
-		return fmt.Errorf("mode %q: %w", def.Mode, err)
-	}
-	availableSet := make(map[string]struct{}, len(available))
-	for _, name := range available {
-		availableSet[name] = struct{}{}
-	}
-	vocabulary := readVocabulary()
-	for _, phase := range def.PhaseGraph.Phases {
-		if phase.Delegated() {
-			// A delegated phase has no reads of its own: the sub-mode's phases
-			// carry the input contract and are validated in their own mode.
-			continue
-		}
-		if len(phase.Reads) == 0 {
-			return fmt.Errorf("mode %q phase %q declares no reads: every phase must declare its input contract", def.Mode, phase.Phase)
-		}
-		seen := map[string]struct{}{}
-		for _, name := range phase.Reads {
-			if _, dup := seen[name]; dup {
-				return fmt.Errorf("mode %q phase %q declares duplicate read %q", def.Mode, phase.Phase, name)
-			}
-			seen[name] = struct{}{}
-			if _, ok := availableSet[name]; ok {
-				continue
-			}
-			if providers, known := vocabulary[name]; known {
-				return fmt.Errorf("mode %q phase %q declares read %q, which target %q does not provide (provided by target %s)", def.Mode, phase.Phase, name, def.Target.Kind, strings.Join(providers, "|"))
-			}
-			return fmt.Errorf("mode %q phase %q declares read %q, which no provider supplies: the template slot is unsatisfiable", def.Mode, phase.Phase, name)
-		}
-	}
-	return nil
-}
-
-// readVocabulary maps every adapter-provided read name to the target kinds
-// whose adapters supply it (base reads are excluded — they are available to
-// every mode).
-func readVocabulary() map[string][]string {
-	out := map[string][]string{}
-	for _, kind := range []TargetKind{TargetPlanManagerPlan, TargetPlanRef, TargetInitiative} {
-		names, err := TargetReadNames(kind)
-		if err != nil {
-			continue
-		}
-		for _, name := range names {
-			out[name] = append(out[name], string(kind))
-		}
-	}
-	return out
 }
 
 // validateExampleRuns replays every mode-owned example-run against the mode's

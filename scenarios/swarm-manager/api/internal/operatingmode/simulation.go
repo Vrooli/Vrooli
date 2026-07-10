@@ -271,12 +271,15 @@ func simulationStepContext(def Definition, phaseDef PhaseDefinition, inputs Simu
 		Artifacts: inputs.Artifacts,
 		Rounds:    inputs.PriorRounds,
 	}
-	if def.Target.PlanRef.Required {
+	if def.Target.PlanRef.Required || def.Target.Kind == TargetPlanManagerPlan {
 		// A bound-plan mode always has plan context by the time phases run;
 		// the simulation substitutes a deterministic fixture so PLAN_CONTEXT
 		// reads — and delegated plan-target sub-contexts — resolve without a
 		// live plan-manager call.
 		rc.Target.Plan = simulatedPlanContext()
+		if def.Target.Kind == TargetPlanManagerPlan {
+			rc.Target.ID = rc.Target.Plan.ExecutionID
+		}
 	}
 	return rc
 }

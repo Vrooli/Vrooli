@@ -2,7 +2,7 @@ package operatingmode
 
 import (
 	"context"
-	"sort"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -24,6 +24,7 @@ func planDrainTestModeJSON(targetKind string, reads []string) string {
 	  "not_for": ["Work that needs member-item tracking"],
 	  "tradeoffs": ["No backlog reconciliation"],
 	  "target": { "kind": "` + targetKind + `" },
+	  "input_contract": ` + testInputContractJSON(targetKind, reads) + `,
 	  "run_strategy": { "kind": "sequential_handoff" },
 	  "prompt": { "catalog_prefix": "swarm-manager-plan-drain-test" },
 	  "artifact": { "root": "modes/plan-drain-test" },
@@ -49,6 +50,72 @@ func planDrainTestModeJSON(targetKind string, reads []string) string {
 	}`
 }
 
+func testInputContractJSON(_ string, reads []string) string {
+	contract := InputContractDefinition{}
+	for _, read := range reads {
+		id, capability, valueType, sourceKind := testInputDescriptor(read)
+		contract.Specs = append(contract.Specs, InputSpec{
+			ID: id, Type: valueType, Required: true, Sensitivity: InputSensitivityInternal,
+			Retention: InputRetentionValue, Description: "Test input for " + read + ".",
+		})
+		contract.Sources = append(contract.Sources, InputSourceBinding{
+			InputID: id, Kind: sourceKind, Capability: capability,
+		})
+		contract.Aliases = append(contract.Aliases, InputAlias{Name: read, InputID: id})
+	}
+	data, err := json.Marshal(contract)
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
+}
+
+func testInputDescriptor(read string) (string, string, InputValueType, InputSourceKind) {
+	switch read {
+	case ReadOperatingMode:
+		return "execution.mode_id", "generic.operating_mode", InputTypeString, InputSourceGenericProvider
+	case ReadModeLabel:
+		return "execution.mode_label", "generic.mode_label", InputTypeString, InputSourceGenericProvider
+	case ReadPhase:
+		return "execution.phase_id", "generic.phase", InputTypeString, InputSourceGenericProvider
+	case ReadRunStrategy:
+		return "execution.run_strategy", "generic.run_strategy", InputTypeString, InputSourceGenericProvider
+	case ReadRoundNumber:
+		return "execution.round_number", "generic.round_number", InputTypeInteger, InputSourceGenericProvider
+	case ReadAgentProfileKey:
+		return "execution.agent_profile_key", "generic.agent_profile_key", InputTypeString, InputSourceGenericProvider
+	case ReadOperatorNote:
+		return "execution.operator_note", "generic.operator_note", InputTypeString, InputSourceGenericProvider
+	case ReadPriorRoundsJSON:
+		return "execution.prior_rounds", "generic.prior_rounds", InputTypeArray, InputSourceGenericProvider
+	case ReadModeArtifactsJSON:
+		return "execution.mode_artifacts", "generic.mode_artifacts", InputTypeArray, InputSourceGenericProvider
+	case "BACKLOG_SYNC_PROPOSAL_SNIPPET":
+		return "execution.backlog_sync_guidance", "generic.backlog_sync_proposal", InputTypeString, InputSourceGenericProvider
+	case "ELASTIC_SLICE_SNIPPET":
+		return "execution.elastic_slice_guidance", "generic.elastic_slice", InputTypeString, InputSourceGenericProvider
+	case ReadInitiativeName:
+		return "initiative.name", "target.initiative_name", InputTypeString, InputSourceTargetAdapter
+	case ReadInitiativeTitle:
+		return "initiative.title", "target.initiative_title", InputTypeString, InputSourceTargetAdapter
+	case ReadInitiativeDescription:
+		return "initiative.description", "target.initiative_description", InputTypeString, InputSourceTargetAdapter
+	case ReadAcceptanceCriteria:
+		return "initiative.acceptance_criteria", "target.acceptance_criteria", InputTypeString, InputSourceTargetAdapter
+	case ReadMemberItemsJSON:
+		return "initiative.member_items", "target.member_items", InputTypeArray, InputSourceTargetAdapter
+	case ReadPlanContextJSON:
+		return "plan.context", "target.plan_context", InputTypeObject, InputSourceTargetAdapter
+	case ReadPlanID:
+		return "plan.id", "target.plan_id", InputTypeString, InputSourceTargetAdapter
+	case ReadPlanPath:
+		return "plan.path", "target.plan_path", InputTypeString, InputSourceTargetAdapter
+	default:
+		token := strings.ToLower(read)
+		return "test." + token, "generic." + token, InputTypeString, InputSourceGenericProvider
+	}
+}
+
 func defaultPlanDrainReads() []string {
 	return []string{
 		ReadOperatingMode, ReadPhase, ReadRoundNumber, ReadOperatorNote,
@@ -65,33 +132,30 @@ func loadPlanDrainTestMode(t *testing.T, targetKind string, reads []string) (Def
 	return def, ValidateLoadedModes(map[Mode]Definition{def.Mode: def})
 }
 
-// TestBaseAndAdapterReadsComposeByUnion pins the D1b composition rule: for
-// every target kind the available read set is exactly base ∪ adapter (no
-// conditional emptiness, no scope switch), and each adapter resolves exactly
-// the reads it declares.
-func TestBaseAndAdapterReadsComposeByUnion(t *testing.T) {
+// TestTargetCapabilityDescriptorsMatchAdapterValues pins the one-vocabulary
+// rule: target adapters implement exactly the typed capabilities the compiler
+// registry declares for their target kind.
+func TestTargetCapabilityDescriptorsMatchAdapterValues(t *testing.T) {
+	descriptors := InputProviderCapabilities()
 	for _, kind := range []TargetKind{TargetPlanManagerPlan, TargetPlanRef, TargetInitiative} {
 		adapter, err := AdapterFor(kind)
 		if err != nil {
 			t.Fatalf("AdapterFor(%s): %v", kind, err)
 		}
-		want := append(BaseReadNames(), adapter.Provides()...)
-		sort.Strings(want)
-		got, err := AvailableReadNames(kind)
-		if err != nil {
-			t.Fatalf("AvailableReadNames(%s): %v", kind, err)
+		instance := TargetInstance{Kind: kind, ID: "x", PlanPath: "plan.md", Plan: &PlanExecutionContext{}, Initiative: InitiativeSnapshot{Name: "x"}}
+		values := adapter.Values(instance)
+		want := map[string]bool{}
+		for id, descriptor := range descriptors {
+			if descriptor.SourceKind == InputSourceTargetAdapter && containsTargetKind(descriptor.TargetKinds, kind) {
+				want[id] = true
+			}
 		}
-		if strings.Join(got, ",") != strings.Join(want, ",") {
-			t.Fatalf("AvailableReadNames(%s) = %v, want base ∪ adapter = %v", kind, got, want)
+		if len(values) != len(want) {
+			t.Fatalf("adapter %s implements %d capabilities, registry declares %d: values=%v want=%v", kind, len(values), len(want), values, want)
 		}
-		// The adapter resolves exactly its declared reads.
-		resolved := adapter.Reads(TargetInstance{Kind: kind, ID: "x"})
-		if len(resolved) != len(adapter.Provides()) {
-			t.Fatalf("adapter %s resolves %d reads, declares %d", kind, len(resolved), len(adapter.Provides()))
-		}
-		for _, name := range adapter.Provides() {
-			if _, ok := resolved[name]; !ok {
-				t.Fatalf("adapter %s declares %q but does not resolve it", kind, name)
+		for id := range want {
+			if _, ok := values[id]; !ok {
+				t.Fatalf("adapter %s does not implement declared capability %q", kind, id)
 			}
 		}
 	}
@@ -150,19 +214,25 @@ func TestRunContextComposesOnlyItsTargetReads(t *testing.T) {
 	}
 }
 
-// TestDeclaredReadsRejectsForeignRead pins the runtime twin of the loader's
-// read-side validation: a phase whose declared contract references a read the
-// target does not provide fails typed instead of rendering empty.
-func TestDeclaredReadsRejectsForeignRead(t *testing.T) {
+// TestDeclaredReadsUsesCompiledBindings pins the compiled contract as the
+// runtime SSOT: mutating a detached PhaseDefinition cannot inject an input
+// alias that the compiled mode contract did not bind.
+func TestDeclaredReadsUsesCompiledBindings(t *testing.T) {
 	def, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), defaultPlanDrainReads())
 	if err != nil {
 		t.Fatalf("load plan-target mode: %v", err)
 	}
 	phaseDef := def.PhaseGraph.Phases["execute"]
 	phaseDef.Reads = append(phaseDef.Reads, ReadMemberItemsJSON)
-	rc := RunContext{Def: def, PhaseDef: phaseDef, Target: TargetInstance{Kind: TargetPlanManagerPlan, ID: "exec-123"}}
-	if _, err := rc.DeclaredReads(RoundEnvelope{Round: 1}, ""); err == nil || !strings.Contains(err.Error(), "does not provide") {
-		t.Fatalf("DeclaredReads = %v, want does-not-provide error", err)
+	rc := RunContext{Def: def, PhaseDef: phaseDef, Target: TargetInstance{
+		Kind: TargetPlanManagerPlan, ID: "exec-123", Plan: &PlanExecutionContext{ExecutionID: "exec-123"},
+	}}
+	reads, err := rc.DeclaredReads(RoundEnvelope{Round: 1}, "")
+	if err != nil {
+		t.Fatalf("DeclaredReads: %v", err)
+	}
+	if _, injected := reads[ReadMemberItemsJSON]; injected {
+		t.Fatalf("detached phase mutation injected %q outside the compiled contract", ReadMemberItemsJSON)
 	}
 }
 
@@ -171,11 +241,11 @@ func TestDeclaredReadsRejectsForeignRead(t *testing.T) {
 // naming the providing target.
 func TestLoaderRejectsForeignAdapterRead(t *testing.T) {
 	_, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), append(defaultPlanDrainReads(), ReadMemberItemsJSON))
-	if err == nil || !strings.Contains(err.Error(), "does not provide") {
-		t.Fatalf("err = %v, want target-does-not-provide read validation error", err)
+	if err == nil || !strings.Contains(err.Error(), "does not support target") {
+		t.Fatalf("err = %v, want target-capability mismatch validation error", err)
 	}
-	if !strings.Contains(err.Error(), string(TargetInitiative)) {
-		t.Fatalf("err = %v, want error naming the providing target %q", err, TargetInitiative)
+	if !strings.Contains(err.Error(), string(TargetPlanManagerPlan)) {
+		t.Fatalf("err = %v, want error naming the incompatible target %q", err, TargetPlanManagerPlan)
 	}
 }
 
@@ -183,8 +253,8 @@ func TestLoaderRejectsForeignAdapterRead(t *testing.T) {
 // is an unsatisfiable template slot and fails the load.
 func TestLoaderRejectsUnsatisfiableReadSlot(t *testing.T) {
 	_, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), append(defaultPlanDrainReads(), "NOT_A_REAL_READ"))
-	if err == nil || !strings.Contains(err.Error(), "unsatisfiable") {
-		t.Fatalf("err = %v, want unsatisfiable-slot read validation error", err)
+	if err == nil || !strings.Contains(err.Error(), "unavailable capability") {
+		t.Fatalf("err = %v, want unavailable-capability validation error", err)
 	}
 }
 
@@ -296,7 +366,11 @@ func TestOwnershipKeysPerTarget(t *testing.T) {
 // TestPhaseReadsSummaryGroupsByProvider pins the catalog/UI metadata grouping:
 // declared reads split into base vs target-adapter groups, from data.
 func TestPhaseReadsSummaryGroupsByProvider(t *testing.T) {
-	summary := summarizePhaseReads([]string{ReadOperatingMode, ReadPlanID, ReadPriorRoundsJSON, ReadPlanContextJSON})
+	def, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), []string{ReadOperatingMode, ReadPlanID, ReadPriorRoundsJSON, ReadPlanContextJSON})
+	if err != nil {
+		t.Fatalf("load plan drain mode: %v", err)
+	}
+	summary := summarizePhaseReads(def, def.PhaseGraph.Phases["execute"])
 	if strings.Join(summary.Base, ",") != ReadOperatingMode+","+ReadPriorRoundsJSON {
 		t.Fatalf("base group = %v", summary.Base)
 	}

@@ -241,7 +241,7 @@ func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 			IsStart:               phaseName == def.PhaseGraph.StartPhase,
 			IsTerminal:            isTerminal,
 			OutputArtifacts:       phase.OutputArtifacts,
-			Reads:                 summarizePhaseReads(phase.Reads),
+			Reads:                 summarizePhaseReads(def, phase),
 			OutputContract:        summarizeContract(phase.OutputContract),
 			CatalogID:             phase.CatalogID,
 			SkillID:               phase.SkillID,

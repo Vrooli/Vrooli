@@ -7,10 +7,43 @@ type (
 	TargetKind            string
 	Phase                 string
 	PhaseKind             string
+	InputValueType        string
+	InputSensitivity      string
+	InputRetention        string
+	InputSourceKind       string
 	RunStrategyKind       string
 	BacklogSyncCapability string
 	BacklogSyncApplyMode  string
 	ResultBindingKind     string
+)
+
+const (
+	InputTypeString  InputValueType = "string"
+	InputTypeInteger InputValueType = "integer"
+	InputTypeNumber  InputValueType = "number"
+	InputTypeBoolean InputValueType = "boolean"
+	InputTypeObject  InputValueType = "object"
+	InputTypeArray   InputValueType = "array"
+)
+
+const (
+	InputSensitivityPublic    InputSensitivity = "public"
+	InputSensitivityInternal  InputSensitivity = "internal"
+	InputSensitivitySensitive InputSensitivity = "sensitive"
+)
+
+const (
+	InputRetentionValue  InputRetention = "value"
+	InputRetentionDigest InputRetention = "digest"
+	InputRetentionOmit   InputRetention = "omit"
+)
+
+const (
+	InputSourceGenericProvider InputSourceKind = "generic_provider"
+	InputSourceTargetAdapter   InputSourceKind = "target_adapter"
+	InputSourceCaller          InputSourceKind = "caller"
+	InputSourceDerived         InputSourceKind = "derived"
+	InputSourceDefault         InputSourceKind = "default"
 )
 
 const (
@@ -126,6 +159,7 @@ type Definition struct {
 	// registered mode and not be self.
 	WhenInDoubtPickInstead Mode
 	Target                 TargetPolicy
+	InputContract          InputContractDefinition
 	PhaseGraph             PhaseGraph
 	RunStrategy            RunStrategyPolicy
 	Artifact               ArtifactPolicy
@@ -142,6 +176,55 @@ type Definition struct {
 	// modes with no example-runs directory (the simulator then synthesizes a
 	// generic happy-path). Ordered happy-path-first.
 	ExampleRuns []ExampleRun
+}
+
+// InputContractDefinition is the mode-authored input SSOT. Logical specs own
+// value and retention semantics; sources own acquisition policy; aliases bind
+// prompt variable names to logical inputs. Keeping the three sets separate
+// prevents a logical input identity from becoming coupled to one provider.
+type InputContractDefinition struct {
+	Specs   []InputSpec          `json:"specs,omitempty"`
+	Sources []InputSourceBinding `json:"sources,omitempty"`
+	Aliases []InputAlias         `json:"aliases,omitempty"`
+}
+
+// InputSpec describes one stable logical input independently of how its value
+// is obtained. IDs are dotted, namespaced identities such as
+// "execution.operator_note" or "plan.context".
+type InputSpec struct {
+	ID          string           `json:"id"`
+	Type        InputValueType   `json:"type"`
+	Format      string           `json:"format,omitempty"`
+	Required    bool             `json:"required,omitempty"`
+	Minimum     *float64         `json:"minimum,omitempty"`
+	Maximum     *float64         `json:"maximum,omitempty"`
+	MinLength   *int             `json:"min_length,omitempty"`
+	MaxLength   *int             `json:"max_length,omitempty"`
+	MinItems    *int             `json:"min_items,omitempty"`
+	MaxItems    *int             `json:"max_items,omitempty"`
+	Sensitivity InputSensitivity `json:"sensitivity"`
+	Retention   InputRetention   `json:"retention"`
+	Description string           `json:"description"`
+}
+
+// InputSourceBinding assigns exactly one acquisition policy to one logical
+// input. Provider and derived bindings name a typed capability; derived
+// bindings also declare their logical dependencies so the compiler can reject
+// cycles. Default values remain JSON-native data.
+type InputSourceBinding struct {
+	InputID    string          `json:"input_id"`
+	Kind       InputSourceKind `json:"kind"`
+	Capability string          `json:"capability,omitempty"`
+	DependsOn  []string        `json:"depends_on,omitempty"`
+	Default    any             `json:"default,omitempty"`
+}
+
+// InputAlias binds a prompt-facing SCREAMING_SNAKE variable name to one
+// logical input. A phase's Reads list selects aliases from this mode-level map,
+// so variable spelling and logical identity remain explicit data.
+type InputAlias struct {
+	Name    string `json:"name"`
+	InputID string `json:"input_id"`
 }
 
 // TargetPolicy is the mode's declared unit of work plus adapter-specific

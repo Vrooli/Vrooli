@@ -1,9 +1,11 @@
 package operatingmode
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -71,8 +73,18 @@ func TestExecutionManifestPersistsDefinitionAndProvenanceSlots(t *testing.T) {
 	if execution.DefinitionDigest == "" || execution.SchemaVersion != executionManifestSchemaVersion {
 		t.Fatalf("manifest provenance = %+v", execution)
 	}
-	if execution.CompiledInputContract != nil || execution.ValidatedInputSnapshot != nil || execution.ReachablePromptSources != nil {
-		t.Fatalf("Phase 4 provenance slots must start empty: %+v", execution)
+	if len(execution.CompiledInputContract) == 0 || execution.InputContractDigest == "" {
+		t.Fatalf("compiled input provenance was not pinned at execution creation: %+v", execution)
+	}
+	var compiled CompiledInputContract
+	if err := json.Unmarshal(execution.CompiledInputContract, &compiled); err != nil {
+		t.Fatalf("decode compiled input contract: %v", err)
+	}
+	if compiled.RootMode != ModePhasedPlanDrain || len(compiled.Modes) != 1 {
+		t.Fatalf("compiled input contract = %+v", compiled)
+	}
+	if execution.ValidatedInputSnapshot != nil || execution.ReachablePromptSources != nil {
+		t.Fatalf("runtime-input and prompt provenance slots must remain empty until their Phase 4 preflight: %+v", execution)
 	}
 	path, err := store.executionManifestPath(execution, MustDefinition(ModePhasedPlanDrain))
 	if err != nil {
@@ -99,6 +111,26 @@ func TestExecutionManifestPersistsDefinitionAndProvenanceSlots(t *testing.T) {
 	executions, err := store.ListExecutions("plan-123", ModePhasedPlanDrain)
 	if err != nil || len(executions) != 1 {
 		t.Fatalf("ListExecutions = %+v, %v", executions, err)
+	}
+}
+
+func TestCreateExecutionRejectsInvalidInputContractBeforeFilesystemMutation(t *testing.T) {
+	store := testStore(t)
+	def, err := clonePinnedDefinition(MustDefinition(ModePhasedPlanDrain))
+	if err != nil {
+		t.Fatalf("clone definition: %v", err)
+	}
+	def.InputContract.Sources[0].Capability = "generic.capability-does-not-exist"
+	if _, err := store.CreateExecution("plan-invalid", def); err == nil || !strings.Contains(err.Error(), "unavailable capability") {
+		t.Fatalf("CreateExecution error = %v, want unavailable capability", err)
+	}
+	scopeDir, err := store.scopeDir("plan-invalid", def)
+	if err != nil {
+		t.Fatalf("scopeDir: %v", err)
+	}
+	modeDir := filepath.Join(scopeDir, filepath.FromSlash(def.Artifact.Root))
+	if _, err := os.Stat(filepath.Join(modeDir, "executions")); !os.IsNotExist(err) {
+		t.Fatalf("invalid preflight created an executions directory: %v", err)
 	}
 }
 

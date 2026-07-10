@@ -24,7 +24,10 @@ func TestSharedSnippet_RendersInBothModes(t *testing.T) {
 
 	check := func(t *testing.T, def Definition, phaseDef PhaseDefinition) {
 		t.Helper()
-		ctx := RunContext{Def: def, PhaseDef: phaseDef, Target: TargetInstance{Kind: def.Target.Kind}}
+		ctx := RunContext{Def: def, PhaseDef: phaseDef, Target: TargetInstance{
+			Kind: def.Target.Kind, ID: "test-initiative",
+			Initiative: InitiativeSnapshot{Name: "test-initiative", Title: "Test initiative"},
+		}}
 		vars := promptVariables(ctx, RoundEnvelope{Round: 1}, "")
 		got, ok := vars[promptcatalog.BacklogSyncProposalVariableKey]
 		if !ok {

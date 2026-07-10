@@ -34,6 +34,7 @@ type modeDocument struct {
 	Tradeoffs     []string           `json:"tradeoffs"`
 	WhenInDoubt   string             `json:"when_in_doubt_pick_instead,omitempty"`
 	Target        targetDoc          `json:"target"`
+	InputContract *inputContractDoc  `json:"input_contract,omitempty"`
 	RunStrategy   runStrategyDoc     `json:"run_strategy"`
 	PhaseGraph    *phaseGraphDoc     `json:"phase_graph,omitempty"`
 	Prompt        *promptPolicyDoc   `json:"prompt,omitempty"`
@@ -43,6 +44,41 @@ type modeDocument struct {
 	Metrics       *metricsDoc        `json:"metrics,omitempty"`
 	Lock          *lockDoc           `json:"lock,omitempty"`
 	UI            *uiDoc             `json:"ui,omitempty"`
+}
+
+type inputContractDoc struct {
+	Specs   []inputSpecDoc          `json:"specs"`
+	Sources []inputSourceBindingDoc `json:"sources"`
+	Aliases []inputAliasDoc         `json:"aliases"`
+}
+
+type inputSpecDoc struct {
+	ID          string   `json:"id"`
+	Type        string   `json:"type"`
+	Format      string   `json:"format,omitempty"`
+	Required    bool     `json:"required,omitempty"`
+	Minimum     *float64 `json:"minimum,omitempty"`
+	Maximum     *float64 `json:"maximum,omitempty"`
+	MinLength   *int     `json:"min_length,omitempty"`
+	MaxLength   *int     `json:"max_length,omitempty"`
+	MinItems    *int     `json:"min_items,omitempty"`
+	MaxItems    *int     `json:"max_items,omitempty"`
+	Sensitivity string   `json:"sensitivity"`
+	Retention   string   `json:"retention"`
+	Description string   `json:"description"`
+}
+
+type inputSourceBindingDoc struct {
+	InputID    string   `json:"input_id"`
+	Kind       string   `json:"kind"`
+	Capability string   `json:"capability,omitempty"`
+	DependsOn  []string `json:"depends_on,omitempty"`
+	Default    any      `json:"default,omitempty"`
+}
+
+type inputAliasDoc struct {
+	Name    string `json:"name"`
+	InputID string `json:"input_id"`
 }
 
 // targetDoc is the on-disk shape of the mode's declared unit of work. The
@@ -219,6 +255,7 @@ func (doc modeDocument) toDefinition() (Definition, error) {
 		Tradeoffs:              append([]string(nil), doc.Tradeoffs...),
 		WhenInDoubtPickInstead: Mode(doc.WhenInDoubt),
 		Target:                 doc.targetPolicy(),
+		InputContract:          doc.inputContractDefinition(),
 		RunStrategy:            RunStrategyPolicy{Kind: RunStrategyKind(doc.RunStrategy.Kind)},
 		UI:                     UIPolicy{WorkspaceTabID: uiTabID(doc.UI)},
 	}
@@ -258,6 +295,37 @@ func (doc modeDocument) toDefinition() (Definition, error) {
 	def.Metrics.AcceptanceSamplePhases = acceptancePhases
 
 	return def, nil
+}
+
+func (doc modeDocument) inputContractDefinition() InputContractDefinition {
+	if doc.InputContract == nil {
+		return InputContractDefinition{}
+	}
+	out := InputContractDefinition{
+		Specs:   make([]InputSpec, 0, len(doc.InputContract.Specs)),
+		Sources: make([]InputSourceBinding, 0, len(doc.InputContract.Sources)),
+		Aliases: make([]InputAlias, 0, len(doc.InputContract.Aliases)),
+	}
+	for _, spec := range doc.InputContract.Specs {
+		out.Specs = append(out.Specs, InputSpec{
+			ID: spec.ID, Type: InputValueType(spec.Type), Format: spec.Format,
+			Required: spec.Required, Minimum: spec.Minimum, Maximum: spec.Maximum,
+			MinLength: spec.MinLength, MaxLength: spec.MaxLength,
+			MinItems: spec.MinItems, MaxItems: spec.MaxItems,
+			Sensitivity: InputSensitivity(spec.Sensitivity), Retention: InputRetention(spec.Retention),
+			Description: spec.Description,
+		})
+	}
+	for _, source := range doc.InputContract.Sources {
+		out.Sources = append(out.Sources, InputSourceBinding{
+			InputID: source.InputID, Kind: InputSourceKind(source.Kind), Capability: source.Capability,
+			DependsOn: append([]string(nil), source.DependsOn...), Default: source.Default,
+		})
+	}
+	for _, alias := range doc.InputContract.Aliases {
+		out.Aliases = append(out.Aliases, InputAlias{Name: alias.Name, InputID: alias.InputID})
+	}
+	return out
 }
 
 func (doc modeDocument) buildPhaseGraph(catalogPrefix, defaultProfileKey string) (PhaseGraph, map[Phase]string, []Phase, []Phase, error) {

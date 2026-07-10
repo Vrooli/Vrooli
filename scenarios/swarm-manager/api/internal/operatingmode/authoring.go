@@ -536,6 +536,50 @@ const scaffoldModeTemplate = `{
     "TODO: state the cost this mode pays for its benefit."
   ],
   "target": { "kind": "initiative" },
+  "input_contract": {
+    "specs": [
+      { "id": "execution.mode_id", "type": "string", "required": true, "sensitivity": "public", "retention": "value", "description": "Stable operating-mode identity for this execution." },
+      { "id": "execution.phase_id", "type": "string", "required": true, "sensitivity": "public", "retention": "value", "description": "Current phase identity within the pinned graph." },
+      { "id": "execution.round_number", "type": "integer", "required": true, "minimum": 1, "sensitivity": "public", "retention": "value", "description": "One-based round number within the immutable execution." },
+      { "id": "execution.operator_note", "type": "string", "max_length": 32768, "sensitivity": "internal", "retention": "value", "description": "Optional operator guidance for the current round." },
+      { "id": "execution.prior_rounds", "type": "array", "required": true, "sensitivity": "internal", "retention": "value", "description": "Durable prior round envelopes available to the current phase." },
+      { "id": "execution.elastic_slice_guidance", "type": "string", "required": true, "sensitivity": "public", "retention": "digest", "description": "Shared guidance for selecting a bounded implementation slice." },
+      { "id": "execution.backlog_sync_guidance", "type": "string", "required": true, "sensitivity": "public", "retention": "digest", "description": "Shared contract for emitting backlog reconciliation proposals." },
+      { "id": "initiative.name", "type": "string", "required": true, "sensitivity": "internal", "retention": "value", "description": "Stable initiative identity targeted by this mode." },
+      { "id": "initiative.title", "type": "string", "required": true, "sensitivity": "internal", "retention": "value", "description": "Current initiative title." },
+      { "id": "initiative.description", "type": "string", "sensitivity": "internal", "retention": "value", "description": "Current initiative description." },
+      { "id": "initiative.acceptance_criteria", "type": "string", "sensitivity": "internal", "retention": "value", "description": "Newline-normalized initiative acceptance criteria." },
+      { "id": "initiative.member_items", "type": "array", "required": true, "sensitivity": "internal", "retention": "value", "description": "Resolved initiative backlog members and their current status." }
+    ],
+    "sources": [
+      { "input_id": "execution.mode_id", "kind": "generic_provider", "capability": "generic.operating_mode" },
+      { "input_id": "execution.phase_id", "kind": "generic_provider", "capability": "generic.phase" },
+      { "input_id": "execution.round_number", "kind": "generic_provider", "capability": "generic.round_number" },
+      { "input_id": "execution.operator_note", "kind": "generic_provider", "capability": "generic.operator_note" },
+      { "input_id": "execution.prior_rounds", "kind": "generic_provider", "capability": "generic.prior_rounds" },
+      { "input_id": "execution.elastic_slice_guidance", "kind": "generic_provider", "capability": "generic.elastic_slice" },
+      { "input_id": "execution.backlog_sync_guidance", "kind": "generic_provider", "capability": "generic.backlog_sync_proposal" },
+      { "input_id": "initiative.name", "kind": "target_adapter", "capability": "target.initiative_name" },
+      { "input_id": "initiative.title", "kind": "target_adapter", "capability": "target.initiative_title" },
+      { "input_id": "initiative.description", "kind": "target_adapter", "capability": "target.initiative_description" },
+      { "input_id": "initiative.acceptance_criteria", "kind": "target_adapter", "capability": "target.acceptance_criteria" },
+      { "input_id": "initiative.member_items", "kind": "target_adapter", "capability": "target.member_items" }
+    ],
+    "aliases": [
+      { "name": "OPERATING_MODE", "input_id": "execution.mode_id" },
+      { "name": "PHASE", "input_id": "execution.phase_id" },
+      { "name": "ROUND_NUMBER", "input_id": "execution.round_number" },
+      { "name": "OPERATOR_NOTE", "input_id": "execution.operator_note" },
+      { "name": "PRIOR_ROUNDS_JSON", "input_id": "execution.prior_rounds" },
+      { "name": "ELASTIC_SLICE_SNIPPET", "input_id": "execution.elastic_slice_guidance" },
+      { "name": "BACKLOG_SYNC_PROPOSAL_SNIPPET", "input_id": "execution.backlog_sync_guidance" },
+      { "name": "INITIATIVE_NAME", "input_id": "initiative.name" },
+      { "name": "INITIATIVE_TITLE", "input_id": "initiative.title" },
+      { "name": "INITIATIVE_DESCRIPTION", "input_id": "initiative.description" },
+      { "name": "ACCEPTANCE_CRITERIA", "input_id": "initiative.acceptance_criteria" },
+      { "name": "MEMBER_ITEMS_JSON", "input_id": "initiative.member_items" }
+    ]
+  },
   "run_strategy": { "kind": "operator_gated_loop" },
   "prompt": { "catalog_prefix": "swarm-manager-{{.ID}}" },
   "artifact": { "root": "modes/{{.ID}}" },

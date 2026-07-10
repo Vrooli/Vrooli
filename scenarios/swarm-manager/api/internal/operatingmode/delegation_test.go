@@ -22,6 +22,7 @@ func delegationTestModeDoc(id, executedBy string) []byte {
 	  "not_for": ["production"],
 	  "tradeoffs": ["none"],
 	  "target": {"kind": "initiative", "plan_ref": {"required": true, "role": "operating_mode_plan"}},
+	  "input_contract": {"specs": [], "sources": [], "aliases": []},
 	  "run_strategy": {"kind": "operator_gated_loop"},
 	  "prompt": {"catalog_prefix": "swarm-manager-delegation-test"},
 	  "artifact": {"root": "modes/delegation-test"},

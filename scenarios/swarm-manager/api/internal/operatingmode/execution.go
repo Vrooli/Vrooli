@@ -220,6 +220,19 @@ func (s *Store) createExecutionLocked(scopeID string, def Definition, migration 
 	if err != nil {
 		return OperatingModeExecution{}, err
 	}
+	pinnedRoot, err := bundle.RootDefinition()
+	if err != nil {
+		return OperatingModeExecution{}, err
+	}
+	compiledInputs, err := CompileInputContract(bundle.Definitions, pinnedRoot)
+	if err != nil {
+		return OperatingModeExecution{}, fmt.Errorf("compile execution input contract: %w", err)
+	}
+	compiledInputJSON, err := json.Marshal(compiledInputs)
+	if err != nil {
+		return OperatingModeExecution{}, fmt.Errorf("marshal execution input contract: %w", err)
+	}
+	inputDigest := sha256.Sum256(compiledInputJSON)
 	now := s.now().Format(time.RFC3339Nano)
 	executionID := uuid.NewString()
 	if s.ExecutionID != nil {
@@ -232,8 +245,12 @@ func (s *Store) createExecutionLocked(scopeID string, def Definition, migration 
 		ExecutionID: executionID,
 		ScopeKind:   string(def.Target.Kind), ScopeID: scopeID, Mode: string(def.Mode),
 		Status: ExecutionStatusActive, CreatedAt: now, UpdatedAt: now,
-		SchemaVersion:    executionManifestSchemaVersion,
-		DefinitionDigest: digest, DefinitionBundle: bundle, Migration: migration,
+		SchemaVersion:         executionManifestSchemaVersion,
+		DefinitionDigest:      digest,
+		DefinitionBundle:      bundle,
+		InputContractDigest:   fmt.Sprintf("sha256:%x", inputDigest[:]),
+		CompiledInputContract: compiledInputJSON,
+		Migration:             migration,
 	}
 	path, err := s.executionManifestPath(execution, def)
 	if err != nil {
