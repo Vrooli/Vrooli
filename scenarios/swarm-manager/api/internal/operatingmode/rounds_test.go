@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -211,6 +212,101 @@ func TestStore_CreateListLoadRoundPreservesEnvelope(t *testing.T) {
 	}
 	if loaded.Status != RoundStatusCompleted {
 		t.Fatalf("loaded status = %q", loaded.Status)
+	}
+}
+
+func TestStoreCompareAndCreateRoundRejectsStaleReplay(t *testing.T) {
+	store := testStore(t)
+	store.ExecutionID = func() string { return "execution-compare-reserve" }
+	def := MustDefinition(ModePhasedPlanDrain)
+	execution, err := store.CreateExecution("plan-compare-reserve", def)
+	if err != nil {
+		t.Fatalf("CreateExecution: %v", err)
+	}
+	proposed, version, err := store.PrepareRound(RoundEnvelope{
+		ExecutionID: execution.ExecutionID, DefinitionDigest: execution.DefinitionDigest,
+		ScopeID: execution.ScopeID, Mode: execution.Mode, Phase: "execute",
+	})
+	if err != nil {
+		t.Fatalf("PrepareRound: %v", err)
+	}
+	if proposed.Round != 1 || version == "" {
+		t.Fatalf("preflight = round:%d version:%q", proposed.Round, version)
+	}
+	roundsDir, err := store.ExecutionRoundsDir(execution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(roundsDir); !os.IsNotExist(err) {
+		t.Fatalf("read-only preflight created rounds directory: %v", err)
+	}
+	type result struct {
+		round RoundEnvelope
+		err   error
+	}
+	results := make(chan result, 2)
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			created, createErr := store.CompareAndCreateRound(proposed, version)
+			results <- result{round: created, err: createErr}
+		}()
+	}
+	wg.Wait()
+	close(results)
+	succeeded, stale := 0, 0
+	for got := range results {
+		switch {
+		case got.err == nil:
+			succeeded++
+			if got.round.Round != proposed.Round {
+				t.Fatalf("created round = %d, want proposed %d", got.round.Round, proposed.Round)
+			}
+		case errors.Is(got.err, ErrRoundPreflightStale):
+			stale++
+		default:
+			t.Fatalf("compare-and-reserve error = %v", got.err)
+		}
+	}
+	if succeeded != 1 || stale != 1 {
+		t.Fatalf("racing reservations = succeeded:%d stale:%d, want 1/1", succeeded, stale)
+	}
+	rounds, err := store.ListRounds(execution.ScopeID, def.Mode)
+	if err != nil {
+		t.Fatalf("ListRounds: %v", err)
+	}
+	if len(rounds) != 1 || rounds[0].Round != 1 {
+		t.Fatalf("stale replay created duplicate rounds: %+v", rounds)
+	}
+}
+
+func TestStoreCompareAndCreateRoundRejectsExecutionVersionChange(t *testing.T) {
+	store := testStore(t)
+	store.ExecutionID = func() string { return "execution-version-change" }
+	def := MustDefinition(ModePhasedPlanDrain)
+	execution, err := store.CreateExecution("plan-version-change", def)
+	if err != nil {
+		t.Fatalf("CreateExecution: %v", err)
+	}
+	proposed, version, err := store.PrepareRound(RoundEnvelope{
+		ExecutionID: execution.ExecutionID, DefinitionDigest: execution.DefinitionDigest,
+		ScopeID: execution.ScopeID, Mode: execution.Mode, Phase: "execute",
+	})
+	if err != nil {
+		t.Fatalf("PrepareRound: %v", err)
+	}
+	execution.PromptPolicyMetadata = map[string]any{"policy": "changed-after-preflight"}
+	if err := store.SaveExecution(execution); err != nil {
+		t.Fatalf("SaveExecution: %v", err)
+	}
+	if _, err := store.CompareAndCreateRound(proposed, version); !errors.Is(err, ErrRoundPreflightStale) {
+		t.Fatalf("execution-version error = %v, want ErrRoundPreflightStale", err)
+	}
+	rounds, err := store.ListRounds(execution.ScopeID, def.Mode)
+	if err != nil || len(rounds) != 0 {
+		t.Fatalf("execution-version race rounds = %+v err=%v, want none", rounds, err)
 	}
 }
 

@@ -95,9 +95,10 @@ type RoundItem struct {
 }
 
 var (
-	ErrRoundNotFound  = errors.New("operating mode round not found")
-	ErrRoundAmbiguous = errors.New("operating mode round is ambiguous")
-	roundFileRE       = regexp.MustCompile(`^round-(\d{3})\.json$`)
+	ErrRoundNotFound       = errors.New("operating mode round not found")
+	ErrRoundAmbiguous      = errors.New("operating mode round is ambiguous")
+	ErrRoundPreflightStale = errors.New("operating mode round preflight is stale")
+	roundFileRE            = regexp.MustCompile(`^round-(\d{3})\.json$`)
 )
 
 // Store persists mode rounds and artifacts under a per-scope directory. It is
@@ -249,6 +250,97 @@ func (s *Store) CreateRound(round RoundEnvelope) (RoundEnvelope, error) {
 		}
 	}
 	return RoundEnvelope{}, fmt.Errorf("could not reserve operating-mode round after %d attempts", maxAttempts)
+}
+
+// PrepareRound is the read-only half of compare-and-reserve. It resolves the
+// proposed round number and returns a digest of the immutable execution plus
+// every current round. Callers may safely use the proposed envelope for
+// dynamic provider resolution, prompt rendering, and spawn-request assembly.
+func (s *Store) PrepareRound(round RoundEnvelope) (RoundEnvelope, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.prepareRound(&round); err != nil {
+		return RoundEnvelope{}, "", err
+	}
+	rounds, version, err := s.roundReservationState(round)
+	if err != nil {
+		return RoundEnvelope{}, "", err
+	}
+	max := 0
+	for _, existing := range rounds {
+		if existing.Round > max {
+			max = existing.Round
+		}
+	}
+	round.Round = max + 1
+	return round, version, nil
+}
+
+// CompareAndCreateRound is the sole mutation after phase preflight. It rejects
+// any intervening execution/round change and never falls through to a later
+// round number: a racing retry must recompute startability and prompt inputs.
+func (s *Store) CompareAndCreateRound(round RoundEnvelope, expectedVersion string) (RoundEnvelope, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if strings.TrimSpace(expectedVersion) == "" {
+		return RoundEnvelope{}, fmt.Errorf("round preflight version is required")
+	}
+	if err := s.prepareRound(&round); err != nil {
+		return RoundEnvelope{}, err
+	}
+	if round.Round <= 0 {
+		return RoundEnvelope{}, fmt.Errorf("preflight round number is required")
+	}
+	_, currentVersion, err := s.roundReservationState(round)
+	if err != nil {
+		return RoundEnvelope{}, err
+	}
+	if currentVersion != expectedVersion {
+		return RoundEnvelope{}, fmt.Errorf("%w: execution %q changed before round %d reservation", ErrRoundPreflightStale, round.ExecutionID, round.Round)
+	}
+	execution, err := s.loadExecutionForRound(round)
+	if err != nil {
+		return RoundEnvelope{}, err
+	}
+	dir, err := s.ExecutionRoundsDir(execution)
+	if err != nil {
+		return RoundEnvelope{}, err
+	}
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return RoundEnvelope{}, fmt.Errorf("create rounds dir: %w", err)
+	}
+	path := filepath.Join(dir, fmt.Sprintf("round-%03d.json", round.Round))
+	if err := writeJSONExclusive(path, round); err != nil {
+		if os.IsExist(err) {
+			return RoundEnvelope{}, fmt.Errorf("%w: round %d was reserved concurrently", ErrRoundPreflightStale, round.Round)
+		}
+		return RoundEnvelope{}, fmt.Errorf("create round: %w", err)
+	}
+	return round, nil
+}
+
+func (s *Store) roundReservationState(round RoundEnvelope) ([]RoundEnvelope, string, error) {
+	execution, err := s.loadExecutionForRound(round)
+	if err != nil {
+		return nil, "", err
+	}
+	rounds, err := s.ListRounds(round.ScopeID, Mode(round.Mode))
+	if err != nil {
+		return nil, "", err
+	}
+	state := struct {
+		Execution OperatingModeExecution `json:"execution"`
+		Rounds    []RoundEnvelope        `json:"rounds"`
+	}{Execution: execution, Rounds: rounds}
+	data, err := json.Marshal(state)
+	if err != nil {
+		return nil, "", fmt.Errorf("marshal round preflight state: %w", err)
+	}
+	digest, err := canonicalJSONDigest(data)
+	if err != nil {
+		return nil, "", fmt.Errorf("digest round preflight state: %w", err)
+	}
+	return rounds, digest, nil
 }
 
 func (s *Store) SaveRound(round RoundEnvelope) error {

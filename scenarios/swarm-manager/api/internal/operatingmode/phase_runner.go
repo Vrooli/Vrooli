@@ -61,8 +61,9 @@ func (s *Service) StartTargetPhase(ctx context.Context, req StartTargetPhaseRequ
 }
 
 // startResolvedPhase is the shared dispatch path behind every phase-start
-// surface: it validates startability, reserves the round, acquires the
-// target's exclusive lock, renders the prompt, and spawns the agent. When the
+// surface: it validates startability, performs read-only prompt/spawn
+// preflight, compare-and-reserves the round, acquires the target's exclusive
+// lock, and spawns the agent. When the
 // phase is delegated (executed_by), the execution surface — prompt, reads,
 // profile, purposes, declared output — comes from the sub-mode's next
 // sub-phase, while persistence, locking, and routing stay keyed to the parent
@@ -129,7 +130,7 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 	payload["catalog_id"] = exec.PhaseDef.CatalogID
 	payload["plan_context"] = exec.Target.Plan
 
-	round, err := s.store.CreateRound(RoundEnvelope{
+	round, reservationVersion, err := s.store.PrepareRound(RoundEnvelope{
 		ExecutionID:      execution.ExecutionID,
 		DefinitionDigest: execution.DefinitionDigest,
 		Mode:             string(def.Mode),
@@ -145,45 +146,21 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 		return RoundEnvelope{}, err
 	}
 
-	holder := initiativelock.Holder{
-		RunID:       fmt.Sprintf("provisional-operating-mode-%d-%d", round.Round, s.clock().UTC().UnixNano()),
-		Purpose:     exec.PhaseDef.LockPurpose,
-		RoundNumber: round.Round,
-		AcquiredBy:  strings.TrimSpace(requestedBy),
-	}
-	provisionalRunID := holder.RunID
-	if override {
-		s.preemptLockHolder(ctx, ownershipKey)
-		if err := s.lock.AcquireOverride(ownershipKey, holder); err != nil {
-			s.persistPhaseStartFailure(round, err, "lock_failed_at")
-			return RoundEnvelope{}, fmt.Errorf("override lock: %w", err)
-		}
-	} else if err := s.lock.Acquire(ownershipKey, holder); err != nil {
-		s.persistPhaseStartFailure(round, err, "lock_failed_at")
-		return RoundEnvelope{}, err
-	}
-
+	// Dynamic providers, pinned prompt substitution, trace construction, and
+	// the complete spawn request are intentionally read-only and happen before
+	// the round or lock exists. The proposed round number is protected by the
+	// reservation version and rechecked atomically below.
 	renderedPrompt, err := s.renderPhasePrompt(ctx, exec, round, note)
 	if err != nil {
-		_ = s.lock.Release(ownershipKey, provisionalRunID)
-		round = s.persistPhaseStartFailure(round, err, "prompt_failed_at")
-		slog.Warn("operating mode prompt rendering failed; phase start aborted",
+		slog.Warn("operating mode prompt rendering failed; phase start aborted before reservation",
 			"err", err, "target", rc.Target.ID, "mode", def.Mode, "phase", phaseDef.Phase)
-		return round, fmt.Errorf("render operating-mode prompt: %w", err)
+		return RoundEnvelope{}, fmt.Errorf("render operating-mode prompt: %w", err)
 	}
 	trace, err := promptRenderTrace(renderedPrompt, execution)
 	if err != nil {
-		_ = s.lock.Release(ownershipKey, provisionalRunID)
-		round = s.persistPhaseStartFailure(round, err, "prompt_trace_failed_at")
-		return round, fmt.Errorf("build operating-mode prompt trace: %w", err)
+		return RoundEnvelope{}, fmt.Errorf("build operating-mode prompt trace: %w", err)
 	}
 	round.PromptTrace = trace
-
-	round.Status = RoundStatusAgentRunning
-	if err := s.store.SaveRound(round); err != nil {
-		_ = s.lock.Release(ownershipKey, provisionalRunID)
-		return RoundEnvelope{}, fmt.Errorf("save reserved round: %w", err)
-	}
 
 	spawnReq := agentmanager.InitiativeSpawnRequest{
 		Name:        rc.Target.ID,
@@ -199,10 +176,8 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 		ProfileKey:  exec.PhaseDef.ProfileKey,
 	}
 	if s.activity != nil {
-		// PhaseKind drives lane assignment in agentactivity. The activity
-		// purpose is a mode-defined dynamic string (e.g.
-		// "holistic_loop_investigate"), so without phaseKind LaneOf would
-		// return an error and the spawn would be rejected.
+		// PhaseKind drives lane assignment in agentactivity. Building the spec
+		// only decorates context and is therefore part of read-only preflight.
 		spec := agentactivity.Spec{
 			OwnerType:   agentactivity.OwnerInitiative,
 			OwnerName:   rc.Target.ID,
@@ -229,6 +204,34 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 		ctx = agentactivity.WithSpec(ctx, spec)
 	}
 
+	round, err = s.store.CompareAndCreateRound(round, reservationVersion)
+	if err != nil {
+		return RoundEnvelope{}, err
+	}
+
+	holder := initiativelock.Holder{
+		RunID:       fmt.Sprintf("provisional-operating-mode-%d-%d", round.Round, s.clock().UTC().UnixNano()),
+		Purpose:     exec.PhaseDef.LockPurpose,
+		RoundNumber: round.Round,
+		AcquiredBy:  strings.TrimSpace(requestedBy),
+	}
+	provisionalRunID := holder.RunID
+	if override {
+		s.preemptLockHolder(ctx, ownershipKey)
+		if err := s.lock.AcquireOverride(ownershipKey, holder); err != nil {
+			s.persistPhaseStartFailure(round, err, "lock_failed_at")
+			return RoundEnvelope{}, fmt.Errorf("override lock: %w", err)
+		}
+	} else if err := s.lock.Acquire(ownershipKey, holder); err != nil {
+		s.persistPhaseStartFailure(round, err, "lock_failed_at")
+		return RoundEnvelope{}, err
+	}
+
+	if err := s.store.SaveRound(round); err != nil {
+		_ = s.lock.Release(ownershipKey, provisionalRunID)
+		return RoundEnvelope{}, fmt.Errorf("save reserved round: %w", err)
+	}
+
 	result, err := s.spawnInitiative(ctx, spawnReq)
 	if err != nil {
 		_ = s.lock.Release(ownershipKey, provisionalRunID)
@@ -236,6 +239,7 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 		return round, fmt.Errorf("spawn operating-mode phase: %w", err)
 	}
 
+	round.Status = RoundStatusAgentRunning
 	round.RunID = strings.TrimSpace(result.RunID)
 	round.GeneratedAt = s.clock().UTC().Format(time.RFC3339)
 	if err := s.store.SaveRound(round); err != nil {

@@ -228,9 +228,10 @@ Operator starts phase
   -> API resolves the one resumable execution, or atomically pins a new parent + delegated definition bundle, compiled contract, caller snapshot, every reachable prompt source, and digests
   -> phase action state is computed from rounds in that execution and its pinned transition rules
   -> immutable manifest is written with definition/input/prompt provenance
-  -> round is reserved under modes/<mode>/executions/<execution-id>/rounds/round-NNN.json
-  -> initiative lock is acquired with the pinned lock purpose
   -> the phase prompt is rendered from the execution-pinned source, contract, snapshot, and dynamic provider values
+  -> source/variable/render digests and the complete Agent Manager spawn request are built without mutation
+  -> execution + current-round state is rechecked and the proposed round number is exclusively reserved
+  -> initiative lock is acquired with the pinned lock purpose
   -> source/variable/render digests are persisted on the reserved round
   -> AgentManager run is spawned with the registry profile key
   -> reserved round is promoted to agent_running with run_id
@@ -247,7 +248,7 @@ Operator starts phase
 Failure ordering is also intentional:
 
 - Invalid caller input or a conflicting retry snapshot fails before an execution directory, round, lock, or Agent Manager run exists.
-- If prompt rendering or AgentManager spawn fails before a real run owns the lock, the reserved round is marked failed and the lock is released.
+- Prompt/provider/trace preflight failure leaves no round or lock. If AgentManager spawn fails after reservation, the reserved round is marked failed and the lock is released.
 - Failed or canceled rounds do not advance the phase graph.
 - Active reserved/running rounds block all new phase starts for the initiative.
 - Conditional routing is evaluated only from completed round payloads.
@@ -465,11 +466,13 @@ Validate phase startability and caller inputs
     ↓
 Resolve or atomically create the immutable execution manifest
     ↓
-Reserve audit round
+Prepare proposed round number and execution/round version
     ↓
-Acquire initiative operating-mode lock
+Resolve dynamic inputs, render the pinned prompt, and build its trace/spawn request
     ↓
-Render the exact execution-pinned prompt source and persist its hashes-only trace
+Compare current state and exclusively reserve that exact round number
+    ↓
+Acquire initiative operating-mode lock and persist the hashes-only trace
     ↓
 Spawn AgentManager run
     ↓
@@ -487,8 +490,11 @@ Lock conflict
 Invalid caller input / conflicting replay snapshot
     → no execution manifest, round, lock, or run is created
 
-Prompt render failure / spawn failure / run-ID lock swap failure
-    → failed audit round is persisted where useful
+Prompt/provider/trace preflight failure
+    → no round, lock, or run is created
+
+Spawn failure / run-ID lock swap failure
+    → failed audit round is persisted
     → lock is released or stale provisional holder is cleared
     → future starts are not blocked by reserved/running ghosts
 ```

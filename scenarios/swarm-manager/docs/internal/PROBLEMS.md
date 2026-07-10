@@ -387,10 +387,11 @@ mutation-free rejection now have focused coverage. Reachable prompt sources are
 also pinned transitively with exact template-variable comparison, and each round
 records immutable source/variable/render digests. Plan-ref targets now resolve
 contained, non-symlink, bounded UTF-8 workspace content with canonical path and
-content-hash provenance. The remaining Phase 4 implementation gap is moving
-dynamic provider resolution, pinned prompt rendering, and spawn-request
-construction before round reservation and lock acquisition with a final
-execution-version compare-and-reserve.
+content-hash provenance. Dynamic provider resolution, pinned prompt rendering,
+trace generation, and spawn-request construction now run before round/lock
+mutation, followed by execution-and-round-state compare-and-reserve. Phase 4's
+remaining work is release-gate evidence: replay matrices, bounded live smoke,
+and fresh comparable green baselines for all four affected scenarios.
 
 ### Current Test Coverage Status
 

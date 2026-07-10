@@ -159,6 +159,7 @@ Non-default initiative operating modes are strict orchestration flows. They are 
 | A logical input has exactly one source and sensitivity-safe retention | `CompileInputContract` | Missing/competing sources, provider type/target mismatches, derived cycles, and sensitive `retention=value` fail before filesystem mutation |
 | Caller inputs are validated once before execution creation and replay by digest | `ValidateCallerInputSnapshot` and `Store.ContinueOrCreateExecutionWithInputs` | Missing, unknown, mistyped, out-of-bounds, oversized, sensitive, or unreplayable values leave no manifest or round; a retry may omit inputs or repeat the identical normalized snapshot, but cannot replace it |
 | Plan-ref content is a contained execution-workspace capability | `planRefTargetAdapter.Resolve` and `resolveWorkspacePlanRef` | Absolute/traversing paths, symlink components, non-regular files, oversized bytes, and invalid UTF-8 fail before manifest/round/lock/run mutation; prompts receive canonical relative path and bounded content while traces retain policy-aware hashes |
+| Dynamic phase preflight is read-only until compare-and-reserve | `Store.PrepareRound`, `Store.CompareAndCreateRound`, and `startResolvedPhase` | Provider resolution, pinned rendering, trace generation, and spawn-request assembly use a proposed round plus execution/round digest; any intervening state change returns `ErrRoundPreflightStale` and cannot allocate a duplicate round |
 | A run ID maps to at most one execution/round owner | `Store.IndexRunOwner` | Replays are idempotent; a conflicting second owner is an explicit ambiguity error rather than last-write-wins |
 | At most one nonterminal execution may exist for a target and mode | `Store.ContinueOrCreateExecution` and `collectRunContext` | Resume never chooses an execution by recency or hidden precedence; multiple resumable manifests require repair |
 
@@ -179,6 +180,14 @@ scope, mode, pinned definition digest, and original round envelopes. The
 transformed manifest and rounds validate in a staging directory before the flat
 round directory moves to its byte-preserving backup; ambiguous histories remain
 untouched and are excluded from continuation context.
+
+Phase-start retries must restart from `PrepareRound` after
+`ErrRoundPreflightStale`; callers must not reuse the prior rendered prompt or
+silently advance to another round number. Exclusive round creation is the
+commit point. Prompt/provider/trace failures before that point leave no round,
+lock, run, or failure event, while failures after reservation are persisted as
+terminal attempts so recovery can distinguish “never applied” from “reserved
+once and failed.”
 
 ### Operating Mode Authoring Invariants
 

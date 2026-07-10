@@ -541,6 +541,52 @@ func TestStartPhaseFailsClosedWhenPromptRenderFails(t *testing.T) {
 	}
 }
 
+func TestStartResolvedPhaseDynamicPreflightFailureLeavesNoRoundOrLock(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+	def, err := DefinitionFor(ModeHolisticLoop)
+	if err != nil {
+		t.Fatal(err)
+	}
+	phase := def.PhaseGraph.Phases[def.PhaseGraph.StartPhase]
+	rc, err := svc.collectRunContext(context.Background(), def, phase, "init-a")
+	if err != nil {
+		t.Fatalf("collectRunContext: %v", err)
+	}
+	promptSources, err := svc.pinReachablePromptSources(context.Background(), def)
+	if err != nil {
+		t.Fatalf("pinReachablePromptSources: %v", err)
+	}
+	execution, err := svc.store.ContinueOrCreateExecutionWithPreflight(rc.Target.ID, def, nil, promptSources)
+	if err != nil {
+		t.Fatalf("ContinueOrCreateExecutionWithPreflight: %v", err)
+	}
+	// Simulate a dynamic preflight decode/provider failure after a valid
+	// execution already exists. The persisted manifest remains valid; only the
+	// request-local execution view is malformed.
+	execution.CompiledInputContract = []byte("{")
+	rc.Execution = &execution
+	_, err = svc.startResolvedPhase(context.Background(), rc, "", nil, false, "tester")
+	if err == nil || !strings.Contains(err.Error(), "decode execution input contract") {
+		t.Fatalf("startResolvedPhase error = %v, want dynamic input preflight failure", err)
+	}
+	if len(agent.spawned) != 0 {
+		t.Fatalf("dynamic preflight spawned %d runs", len(agent.spawned))
+	}
+	rounds, listErr := svc.store.ListRounds("init-a", ModeHolisticLoop)
+	if listErr != nil || len(rounds) != 0 {
+		t.Fatalf("dynamic preflight rounds = %+v err=%v, want none", rounds, listErr)
+	}
+	holder, inspectErr := svc.lock.Inspect("init-a")
+	if inspectErr != nil || holder != nil {
+		t.Fatalf("dynamic preflight lock = %+v err=%v, want none", holder, inspectErr)
+	}
+	if _, loadErr := svc.store.LoadExecution("init-a", ModeHolisticLoop, execution.ExecutionID); loadErr != nil {
+		t.Fatalf("valid persisted execution was damaged: %v", loadErr)
+	}
+}
+
 func TestStartPhaseRejectsPromptVariableMismatchBeforeMutation(t *testing.T) {
 	root := t.TempDir()
 	agent := &fakeAgent{}
