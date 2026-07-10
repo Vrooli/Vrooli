@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "swarm-manager",
-  "input_digest": "sha256:5b338cffadb64fb1f2f4e44211af7e6af30722664bc70165c7a1a2b825ef29e1",
+  "input_digest": "sha256:d69486f46a7698703603ddd8dcc8aa523088d155ebb7573066b028f998eacf2e",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/swarm-manager/v1/api/agent_activity.proto",

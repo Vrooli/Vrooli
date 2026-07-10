@@ -101,6 +101,17 @@ describe("Initiative Mode Service", () => {
         status: "completed",
         items: [{ ref: "execute/item-1", title: "Item 1", priority: 1 }],
         payload: { agent_summary: "done" },
+        resolvedEnvelope: { novelFlag: true, details: { label: "preserved" } },
+        resolution: {
+          outcome: "resolved",
+          layer: "direct",
+          selectedMessage: {
+            eventId: "event-final",
+            sequence: 42,
+            contentDigest: "sha256:abc123",
+            selectionAlgorithmVersion: "contract-scan-v1",
+          },
+        },
       }],
     });
 
@@ -120,6 +131,14 @@ describe("Initiative Mode Service", () => {
     expect(workspace.rounds[0]?.agentProfileKey).toBe("swarm-manager/deep-work");
     expect(workspace.rounds[0]?.items?.[0]?.ref).toBe("execute/item-1");
     expect(workspace.rounds[0]?.payload).toEqual({ agent_summary: "done" });
+    expect(workspace.rounds[0]?.resolvedEnvelope).toEqual({ novelFlag: true, details: { label: "preserved" } });
+    expect(workspace.rounds[0]?.resolution?.selectedMessage).toEqual({
+      eventId: "event-final",
+      sequence: 42,
+      contentDigest: "sha256:abc123",
+      selectionAlgorithmVersion: "contract-scan-v1",
+      fallbackReason: undefined,
+    });
   });
 
   it("maps catalog entries and capabilities", async () => {

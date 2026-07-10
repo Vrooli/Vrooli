@@ -88,6 +88,34 @@ describe("RoundDetailDialog", () => {
     expect(screen.getByText(/Next: Re-run lint/)).toBeInTheDocument();
   });
 
+  it("renders canonical output and stable selected-message provenance", () => {
+    render(
+      <RoundDetailDialog
+        round={makeRound({
+          resolvedEnvelope: { novelFlag: true, details: { label: "preserved" }, values: [1, "two", false] },
+          resolution: {
+            outcome: "resolved",
+            layer: "direct",
+            selectedMessage: {
+              eventId: "event-final",
+              sequence: 42,
+              contentDigest: "sha256:abc123",
+              selectionAlgorithmVersion: "contract-scan-v1",
+              fallbackReason: "earlier_contract_satisfying_assistant_event",
+            },
+          },
+        })}
+        isOpen
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("Resolved envelope")).toBeInTheDocument();
+    expect(screen.getByText(/"novelFlag": true/)).toBeInTheDocument();
+    expect(screen.getByText("event-final")).toBeInTheDocument();
+    expect(screen.getByText("sha256:abc123")).toBeInTheDocument();
+    expect(screen.getByText("contract-scan-v1")).toBeInTheDocument();
+  });
+
   it("gracefully omits sections when fields are missing", () => {
     const round = makeRound({ items: undefined, handoffs: undefined, error: undefined, runId: undefined });
     render(<RoundDetailDialog round={round} isOpen onClose={() => {}} />);

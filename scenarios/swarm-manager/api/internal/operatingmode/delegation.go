@@ -211,7 +211,7 @@ func nextDelegatedSubPhase(sub Definition, parentPhase Phase, rounds []RoundEnve
 		if !ok {
 			break
 		}
-		next, continuing, err := delegationRouteForLookup(sub, subPhase, NewMapFieldLookup(round.Payload))
+		next, continuing, err := delegationRouteForLookup(sub, subPhase, RoundPayload(round.Payload).ResultFieldLookup())
 		if err != nil {
 			return "", err
 		}

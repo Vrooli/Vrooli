@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -468,6 +469,7 @@ func printModeRound(title string, round *apipb.OperatingModeRoundEnvelope) {
 		fmt.Printf("  Profile: %s\n", round.GetAgentProfileKey())
 	}
 	printOperatingModeResolution(round.GetResolution())
+	printOperatingModeResolvedEnvelope(round)
 	if round.GetStatus() == "needs_attention" && strings.TrimSpace(round.GetError()) != "" {
 		fmt.Printf("  Reason:  %s\n", round.GetError())
 	}
@@ -522,5 +524,33 @@ func printOperatingModeResolution(record *apipb.OperatingModePhaseResolutionReco
 	}
 	if len(record.GetNotes()) > 0 {
 		fmt.Printf("  Notes:      %s\n", strings.Join(record.GetNotes(), "; "))
+	}
+	if selected := record.GetSelectedMessage(); selected != nil {
+		if selected.GetEventId() != "" {
+			fmt.Printf("  Event ID:   %s\n", selected.GetEventId())
+		}
+		if selected.GetSequence() != 0 {
+			fmt.Printf("  Sequence:   %d\n", selected.GetSequence())
+		}
+		fmt.Printf("  Digest:     %s\n", selected.GetContentDigest())
+		fmt.Printf("  Selector:   %s\n", selected.GetSelectionAlgorithmVersion())
+		if selected.GetFallbackReason() != "" {
+			fmt.Printf("  Fallback:   %s\n", selected.GetFallbackReason())
+		}
+	}
+}
+
+func printOperatingModeResolvedEnvelope(round *apipb.OperatingModeRoundEnvelope) {
+	envelope := round.GetResolvedEnvelope()
+	if envelope == nil || len(envelope.GetFields()) == 0 {
+		return
+	}
+	data, err := json.MarshalIndent(envelope.AsMap(), "", "  ")
+	if err != nil {
+		return
+	}
+	fmt.Println("  Resolved envelope:")
+	for _, line := range strings.Split(string(data), "\n") {
+		fmt.Printf("    %s\n", line)
 	}
 }

@@ -97,6 +97,17 @@ export function RoundDetailDialog({ round, isOpen, onClose }: RoundDetailDialogP
 
         <ResolutionBlock resolution={round.resolution} />
 
+        {round.resolvedEnvelope && Object.keys(round.resolvedEnvelope).length > 0 && (
+          <details className="rounded-md border border-slate-800 bg-slate-950/40 p-3">
+            <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Resolved envelope
+            </summary>
+            <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words text-xs text-slate-300">
+              {JSON.stringify(round.resolvedEnvelope, null, 2)}
+            </pre>
+          </details>
+        )}
+
         {round.error && (
           <div className={`rounded-md border p-3 text-sm ${errorTone}`}>
             <p className={`text-[11px] font-semibold uppercase tracking-wide ${errorLabelTone}`}>{errorLabel}</p>
@@ -178,6 +189,24 @@ function ResolutionBlock({ resolution }: { resolution?: OperatingModePhaseResolu
       <ResolutionList label="Missing" values={resolution.missing} />
       <ResolutionList label="Violations" values={resolution.violations} />
       <ResolutionList label="Notes" values={resolution.notes} />
+      {resolution.selectedMessage && (
+        <div className="mt-3 border-t border-amber-500/20 pt-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">Selected assistant event</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {resolution.selectedMessage.eventId && (
+              <ResolutionField label="Event ID" value={resolution.selectedMessage.eventId} />
+            )}
+            {typeof resolution.selectedMessage.sequence === "number" && (
+              <ResolutionField label="Sequence" value={String(resolution.selectedMessage.sequence)} />
+            )}
+            <ResolutionField label="Content digest" value={resolution.selectedMessage.contentDigest} />
+            <ResolutionField label="Selection version" value={resolution.selectedMessage.selectionAlgorithmVersion} />
+            {resolution.selectedMessage.fallbackReason && (
+              <ResolutionField label="Fallback reason" value={resolution.selectedMessage.fallbackReason} />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

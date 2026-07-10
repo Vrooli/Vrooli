@@ -305,7 +305,7 @@ func resolutionToProto(r PhaseResolutionRecord, ok bool) *apipb.OperatingModePha
 	if !ok {
 		return nil
 	}
-	return &apipb.OperatingModePhaseResolutionRecord{
+	out := &apipb.OperatingModePhaseResolutionRecord{
 		Outcome:            string(r.Outcome),
 		Layer:              string(r.Layer),
 		ChosenMessageIndex: int32(r.ChosenMessageIndex),
@@ -316,11 +316,23 @@ func resolutionToProto(r PhaseResolutionRecord, ok bool) *apipb.OperatingModePha
 		ClassifiedField:    r.ClassifiedField,
 		ClassifiedValue:    r.ClassifiedValue,
 	}
+	if r.SelectedMessage != nil {
+		out.SelectedMessage = &apipb.OperatingModeSelectedMessageProvenance{
+			EventId:                   r.SelectedMessage.EventID,
+			Sequence:                  r.SelectedMessage.Sequence,
+			ContentDigest:             r.SelectedMessage.ContentDigest,
+			SelectionAlgorithmVersion: r.SelectedMessage.SelectionAlgorithmVersion,
+			FallbackReason:            r.SelectedMessage.FallbackReason,
+		}
+	}
+	return out
 }
 
 func roundEnvelopeToProto(r RoundEnvelope) *apipb.OperatingModeRoundEnvelope {
-	resolution, resolutionOK := RoundPayload(r.Payload).Resolution()
-	transitionClass, transitionClassOK := RoundPayload(r.Payload).TransitionClassification()
+	payload := RoundPayload(r.Payload)
+	resolution, resolutionOK := payload.Resolution()
+	transitionClass, transitionClassOK := payload.TransitionClassification()
+	resolvedEnvelope, _ := payloadEnvelopeMap(r.Payload)
 	return &apipb.OperatingModeRoundEnvelope{
 		Round:                    int32(r.Round),
 		Mode:                     r.Mode,
@@ -341,6 +353,7 @@ func roundEnvelopeToProto(r RoundEnvelope) *apipb.OperatingModeRoundEnvelope {
 		Error:                    r.Error,
 		Resolution:               resolutionToProto(resolution, resolutionOK),
 		TransitionClassification: resolutionToProto(transitionClass, transitionClassOK),
+		ResolvedEnvelope:         structFromMap(resolvedEnvelope),
 	}
 }
 

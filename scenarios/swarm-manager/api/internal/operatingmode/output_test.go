@@ -1,6 +1,19 @@
 package operatingmode
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestEnvelopeProjectionCollisionIsRejected(t *testing.T) {
+	payload := map[string]any{
+		resultEnvelopeKey: map[string]any{"verdict": "accepted"},
+		payloadVerdict:    "changes_requested",
+	}
+	if err := validateEnvelopeProjectionConsistency(payload); err == nil || !strings.Contains(err.Error(), "verdict") {
+		t.Fatalf("collision error = %v, want verdict conflict", err)
+	}
+}
 
 // defaultDeclared is the synthesised declared-output used by extraction unit
 // tests: the canonical envelope key with no per-field requirements.

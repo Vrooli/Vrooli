@@ -164,14 +164,14 @@ func nextPhasesForCompletedRound(def Definition, last RoundEnvelope) []Phase {
 	if phaseDef, ok := def.PhaseGraph.Phases[from]; ok && phaseDef.Delegated() {
 		if sub, err := delegationSubDefinition(phaseDef); err == nil {
 			if subPhase, ok := delegatedRoundSubPhase(last); ok {
-				if _, continuing, err := delegationRouteForLookup(sub, subPhase, NewMapFieldLookup(last.Payload)); err == nil && continuing {
+				if _, continuing, err := delegationRouteForLookup(sub, subPhase, RoundPayload(last.Payload).ResultFieldLookup()); err == nil && continuing {
 					return []Phase{from}
 				}
 			}
 		}
 	}
 	if len(def.PhaseGraph.Guards[from]) > 0 {
-		next, _ := selectNextPhases(def, from, NewMapFieldLookup(last.Payload))
+		next, _ := selectNextPhases(def, from, RoundPayload(last.Payload).ResultFieldLookup())
 		return append([]Phase(nil), next...)
 	}
 	return append([]Phase(nil), def.PhaseGraph.Transitions[from]...)

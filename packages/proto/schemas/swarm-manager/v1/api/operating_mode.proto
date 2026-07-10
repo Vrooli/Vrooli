@@ -369,6 +369,20 @@ message OperatingModePhaseResolutionRecord {
   repeated string notes = 7;
   string classified_field = 8;
   string classified_value = 9;
+  // Stable Agent Manager source identity for the selected assistant message.
+  // chosen_message_index remains a resolution diagnostic only; replay and
+  // attribution use this record instead of an array position.
+  OperatingModeSelectedMessageProvenance selected_message = 10;
+}
+
+// OperatingModeSelectedMessageProvenance pins the assistant event selected by
+// the resolution ladder so later event ordering cannot rewrite round history.
+message OperatingModeSelectedMessageProvenance {
+  string event_id = 1;
+  int64 sequence = 2;
+  string content_digest = 3;
+  string selection_algorithm_version = 4;
+  string fallback_reason = 5;
 }
 
 // OperatingModeArtifactResult is an artifact emitted in a phase result.
@@ -420,6 +434,10 @@ message OperatingModeRoundEnvelope {
   // needs_attention). Absent when the completed phase's transitions declare
   // no classification contract.
   OperatingModePhaseResolutionRecord transition_classification = 19;
+  // Canonical validated phase output. Unlike payload's typed convenience
+  // projections, this preserves every declared scalar, object, and array field
+  // and is the source used by runtime and simulation guard evaluation.
+  google.protobuf.Struct resolved_envelope = 20;
 }
 
 // -----------------------------------------------------------------------------

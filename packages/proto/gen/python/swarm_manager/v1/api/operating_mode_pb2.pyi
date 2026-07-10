@@ -341,7 +341,7 @@ class OperatingModeProgressState(_message.Message):
     def __init__(self, decision: _Optional[str] = ..., completed_phases: _Optional[_Iterable[str]] = ..., current_phase: _Optional[str] = ..., rationale: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class OperatingModePhaseResolutionRecord(_message.Message):
-    __slots__ = ("outcome", "layer", "chosen_message_index", "messages_scanned", "missing", "violations", "notes", "classified_field", "classified_value")
+    __slots__ = ("outcome", "layer", "chosen_message_index", "messages_scanned", "missing", "violations", "notes", "classified_field", "classified_value", "selected_message")
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
     LAYER_FIELD_NUMBER: _ClassVar[int]
     CHOSEN_MESSAGE_INDEX_FIELD_NUMBER: _ClassVar[int]
@@ -351,6 +351,7 @@ class OperatingModePhaseResolutionRecord(_message.Message):
     NOTES_FIELD_NUMBER: _ClassVar[int]
     CLASSIFIED_FIELD_FIELD_NUMBER: _ClassVar[int]
     CLASSIFIED_VALUE_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     outcome: str
     layer: str
     chosen_message_index: int
@@ -360,7 +361,22 @@ class OperatingModePhaseResolutionRecord(_message.Message):
     notes: _containers.RepeatedScalarFieldContainer[str]
     classified_field: str
     classified_value: str
-    def __init__(self, outcome: _Optional[str] = ..., layer: _Optional[str] = ..., chosen_message_index: _Optional[int] = ..., messages_scanned: _Optional[int] = ..., missing: _Optional[_Iterable[str]] = ..., violations: _Optional[_Iterable[str]] = ..., notes: _Optional[_Iterable[str]] = ..., classified_field: _Optional[str] = ..., classified_value: _Optional[str] = ...) -> None: ...
+    selected_message: OperatingModeSelectedMessageProvenance
+    def __init__(self, outcome: _Optional[str] = ..., layer: _Optional[str] = ..., chosen_message_index: _Optional[int] = ..., messages_scanned: _Optional[int] = ..., missing: _Optional[_Iterable[str]] = ..., violations: _Optional[_Iterable[str]] = ..., notes: _Optional[_Iterable[str]] = ..., classified_field: _Optional[str] = ..., classified_value: _Optional[str] = ..., selected_message: _Optional[_Union[OperatingModeSelectedMessageProvenance, _Mapping]] = ...) -> None: ...
+
+class OperatingModeSelectedMessageProvenance(_message.Message):
+    __slots__ = ("event_id", "sequence", "content_digest", "selection_algorithm_version", "fallback_reason")
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_ALGORITHM_VERSION_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_REASON_FIELD_NUMBER: _ClassVar[int]
+    event_id: str
+    sequence: int
+    content_digest: str
+    selection_algorithm_version: str
+    fallback_reason: str
+    def __init__(self, event_id: _Optional[str] = ..., sequence: _Optional[int] = ..., content_digest: _Optional[str] = ..., selection_algorithm_version: _Optional[str] = ..., fallback_reason: _Optional[str] = ...) -> None: ...
 
 class OperatingModeArtifactResult(_message.Message):
     __slots__ = ("path", "content", "content_type")
@@ -387,7 +403,7 @@ class OperatingModeBacklogSyncPlan(_message.Message):
     def __init__(self, completed_items: _Optional[_Iterable[str]] = ..., created_items: _Optional[_Iterable[str]] = ..., updated_items: _Optional[_Iterable[str]] = ..., proposal: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., rationale: _Optional[str] = ...) -> None: ...
 
 class OperatingModeRoundEnvelope(_message.Message):
-    __slots__ = ("round", "mode", "scope_kind", "scope_id", "initiative_name", "phase", "run_strategy", "agent_profile_key", "generated_at", "run_id", "status", "readiness", "items", "artifact_updates", "handoffs", "payload", "error", "resolution", "transition_classification")
+    __slots__ = ("round", "mode", "scope_kind", "scope_id", "initiative_name", "phase", "run_strategy", "agent_profile_key", "generated_at", "run_id", "status", "readiness", "items", "artifact_updates", "handoffs", "payload", "error", "resolution", "transition_classification", "resolved_envelope")
     ROUND_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     SCOPE_KIND_FIELD_NUMBER: _ClassVar[int]
@@ -407,6 +423,7 @@ class OperatingModeRoundEnvelope(_message.Message):
     ERROR_FIELD_NUMBER: _ClassVar[int]
     RESOLUTION_FIELD_NUMBER: _ClassVar[int]
     TRANSITION_CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_ENVELOPE_FIELD_NUMBER: _ClassVar[int]
     round: int
     mode: str
     scope_kind: str
@@ -426,7 +443,8 @@ class OperatingModeRoundEnvelope(_message.Message):
     error: str
     resolution: OperatingModePhaseResolutionRecord
     transition_classification: OperatingModePhaseResolutionRecord
-    def __init__(self, round: _Optional[int] = ..., mode: _Optional[str] = ..., scope_kind: _Optional[str] = ..., scope_id: _Optional[str] = ..., initiative_name: _Optional[str] = ..., phase: _Optional[str] = ..., run_strategy: _Optional[str] = ..., agent_profile_key: _Optional[str] = ..., generated_at: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., readiness: _Optional[_Union[OperatingModeReadinessReport, _Mapping]] = ..., items: _Optional[_Iterable[_Union[OperatingModeRoundItem, _Mapping]]] = ..., artifact_updates: _Optional[_Iterable[_Union[OperatingModeArtifactUpdate, _Mapping]]] = ..., handoffs: _Optional[_Iterable[_Union[OperatingModeHandoff, _Mapping]]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., error: _Optional[str] = ..., resolution: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ..., transition_classification: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ...) -> None: ...
+    resolved_envelope: _struct_pb2.Struct
+    def __init__(self, round: _Optional[int] = ..., mode: _Optional[str] = ..., scope_kind: _Optional[str] = ..., scope_id: _Optional[str] = ..., initiative_name: _Optional[str] = ..., phase: _Optional[str] = ..., run_strategy: _Optional[str] = ..., agent_profile_key: _Optional[str] = ..., generated_at: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., readiness: _Optional[_Union[OperatingModeReadinessReport, _Mapping]] = ..., items: _Optional[_Iterable[_Union[OperatingModeRoundItem, _Mapping]]] = ..., artifact_updates: _Optional[_Iterable[_Union[OperatingModeArtifactUpdate, _Mapping]]] = ..., handoffs: _Optional[_Iterable[_Union[OperatingModeHandoff, _Mapping]]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., error: _Optional[str] = ..., resolution: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ..., transition_classification: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ..., resolved_envelope: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class OperatingModeCatalogPhase(_message.Message):
     __slots__ = ("phase", "phase_kind", "label", "title", "purpose", "trigger", "profile_key", "writes_repo", "requires_criteria", "is_start", "is_terminal", "output_artifacts", "output_contract", "catalog_id", "skill_id", "activity_purpose", "lock_purpose", "result_bindings", "samples_replan_rate", "samples_acceptance_rate", "auto_start_after", "reads", "executed_by", "classification")

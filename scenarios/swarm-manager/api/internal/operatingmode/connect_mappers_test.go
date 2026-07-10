@@ -49,6 +49,10 @@ func TestRoundEnvelopeToProtoCarriesResolution(t *testing.T) {
 		Round:  1,
 		Status: RoundStatusNeedsAttention,
 		Payload: map[string]any{
+			resultEnvelopeKey: map[string]any{
+				"novel_flag": true,
+				"details":    map[string]any{"label": "preserved"},
+			},
 			payloadResolution: PhaseResolutionRecord{
 				Outcome:         ResolutionAbstained,
 				Layer:           ResolutionLayerClassifier,
@@ -56,6 +60,12 @@ func TestRoundEnvelopeToProtoCarriesResolution(t *testing.T) {
 				Missing:         []string{"verdict"},
 				Violations:      []string{"confidence: below minimum"},
 				Notes:           []string{"classifier abstained on verdict"},
+				SelectedMessage: &SelectedMessageProvenance{
+					EventID: "event-final", Sequence: 42,
+					ContentDigest:             "sha256:abc123",
+					SelectionAlgorithmVersion: finalMessageSelectionVersion,
+					FallbackReason:            "earlier_contract_satisfying_assistant_event",
+				},
 			},
 		},
 	}
@@ -71,5 +81,12 @@ func TestRoundEnvelopeToProtoCarriesResolution(t *testing.T) {
 	}
 	if len(got.GetResolution().GetMissing()) != 1 || got.GetResolution().GetMissing()[0] != "verdict" {
 		t.Fatalf("missing = %v, want verdict", got.GetResolution().GetMissing())
+	}
+	selected := got.GetResolution().GetSelectedMessage()
+	if selected.GetEventId() != "event-final" || selected.GetSequence() != 42 || selected.GetContentDigest() != "sha256:abc123" {
+		t.Fatalf("selected message = %+v, want stable source provenance", selected)
+	}
+	if envelope := got.GetResolvedEnvelope().AsMap(); envelope["novel_flag"] != true || envelope["details"].(map[string]any)["label"] != "preserved" {
+		t.Fatalf("resolved envelope = %#v, want arbitrary fields", envelope)
 	}
 }

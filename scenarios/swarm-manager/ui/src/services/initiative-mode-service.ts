@@ -323,6 +323,7 @@ function mapRound(r: ompb.OperatingModeRoundEnvelope | undefined): OperatingMode
     artifactUpdates: (r?.artifactUpdates ?? []).map(mapArtifactUpdate),
     handoffs: (r?.handoffs ?? []).map(mapHandoff),
     payload: (r?.payload ?? {}) as Record<string, unknown>,
+    resolvedEnvelope: r?.resolvedEnvelope as Record<string, unknown> | undefined,
     error: orUndef(r?.error),
     resolution: mapResolution(r?.resolution),
     transitionClassification: mapResolution(r?.transitionClassification),
@@ -343,6 +344,15 @@ function mapResolution(
     notes: rec.notes ?? [],
     classifiedField: orUndef(rec.classifiedField),
     classifiedValue: orUndef(rec.classifiedValue),
+    selectedMessage: rec.selectedMessage
+      ? {
+          eventId: orUndef(rec.selectedMessage.eventId),
+          sequence: Number(rec.selectedMessage.sequence),
+          contentDigest: rec.selectedMessage.contentDigest,
+          selectionAlgorithmVersion: rec.selectedMessage.selectionAlgorithmVersion,
+          fallbackReason: orUndef(rec.selectedMessage.fallbackReason),
+        }
+      : undefined,
   };
 }
 

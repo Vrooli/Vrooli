@@ -98,6 +98,33 @@ func TestResolveSubagentTailRecoversTrueFinalMessage(t *testing.T) {
 	}
 }
 
+func TestSelectedMessageProvenanceIsStableAcrossCandidateReordering(t *testing.T) {
+	candidatesA := []resolutionCandidate{
+		{Content: "progress", EventID: "event-1", Sequence: 10},
+		{Content: acceptedEnvelope, EventID: "event-final", Sequence: 20},
+		{Content: "trailing noise", EventID: "event-3", Sequence: 30},
+	}
+	resolvedA := resolvePhaseOutput(context.Background(), reviewPhase(), candidateContents(candidatesA), nil)
+	provenanceA := selectedMessageProvenance(candidatesA, resolvedA.ChosenMessageIndex)
+
+	candidatesB := []resolutionCandidate{
+		{Content: "trailing noise", EventID: "event-3", Sequence: 30},
+		{Content: "progress", EventID: "event-1", Sequence: 10},
+		{Content: acceptedEnvelope, EventID: "event-final", Sequence: 20},
+	}
+	resolvedB := resolvePhaseOutput(context.Background(), reviewPhase(), candidateContents(candidatesB), nil)
+	provenanceB := selectedMessageProvenance(candidatesB, resolvedB.ChosenMessageIndex)
+	if provenanceA == nil || provenanceB == nil {
+		t.Fatalf("missing provenance: A=%+v B=%+v", provenanceA, provenanceB)
+	}
+	if provenanceA.EventID != "event-final" || provenanceB.EventID != "event-final" || provenanceA.Sequence != 20 || provenanceB.Sequence != 20 {
+		t.Fatalf("source identity changed: A=%+v B=%+v", provenanceA, provenanceB)
+	}
+	if provenanceA.ContentDigest != provenanceB.ContentDigest || provenanceA.SelectionAlgorithmVersion != finalMessageSelectionVersion {
+		t.Fatalf("unstable provenance: A=%+v B=%+v", provenanceA, provenanceB)
+	}
+}
+
 func TestResolveMissingEnvelopeAbstainsWithoutClassifier(t *testing.T) {
 	res := resolvePhaseOutput(context.Background(), reviewPhase(), []string{"I accept this work, it looks good."}, nil)
 	if res.Outcome != ResolutionAbstained {

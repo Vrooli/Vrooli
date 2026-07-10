@@ -12,6 +12,7 @@ import (
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // stubOperatingModeHandler is a test double for the generated
@@ -364,6 +365,46 @@ func TestCmdInitiativesModeRefresh_RendersRoundResolution(t *testing.T) {
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("refresh output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestPrintModeRoundRendersEnvelopeAndSelectedMessageProvenance(t *testing.T) {
+	envelope, err := structpb.NewStruct(map[string]any{
+		"novel_flag": true,
+		"details":    map[string]any{"label": "preserved"},
+	})
+	if err != nil {
+		t.Fatalf("NewStruct: %v", err)
+	}
+	round := &apipb.OperatingModeRoundEnvelope{
+		Round: 2, Mode: "phased-plan-drain", Phase: "execute", Status: "completed",
+		ResolvedEnvelope: envelope,
+		Resolution: &apipb.OperatingModePhaseResolutionRecord{
+			Outcome: "resolved", Layer: "direct",
+			SelectedMessage: &apipb.OperatingModeSelectedMessageProvenance{
+				EventId: "event-final", Sequence: 42, ContentDigest: "sha256:abc123",
+				SelectionAlgorithmVersion: "contract-scan-v1",
+				FallbackReason:            "earlier_contract_satisfying_assistant_event",
+			},
+		},
+	}
+	out := clitest.CaptureStdout(t, func() error {
+		printModeRound("Round", round)
+		return nil
+	})
+	for _, want := range []string{
+		"Event ID:   event-final",
+		"Sequence:   42",
+		"Digest:     sha256:abc123",
+		"Selector:   contract-scan-v1",
+		"Fallback:   earlier_contract_satisfying_assistant_event",
+		"Resolved envelope:",
+		`"novel_flag": true`,
+		`"label": "preserved"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("round output missing %q:\n%s", want, out)
 		}
 	}
 }

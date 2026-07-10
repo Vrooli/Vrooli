@@ -296,6 +296,15 @@ export interface OperatingModePhaseResolutionRecord {
    */
   classifiedField?: string;
   classifiedValue?: string;
+  selectedMessage?: OperatingModeSelectedMessageProvenance;
+}
+
+export interface OperatingModeSelectedMessageProvenance {
+  eventId?: string;
+  sequence?: number;
+  contentDigest: string;
+  selectionAlgorithmVersion: string;
+  fallbackReason?: string;
 }
 
 export interface OperatingModeRound {
@@ -314,6 +323,8 @@ export interface OperatingModeRound {
   artifactUpdates?: OperatingModeArtifactUpdate[];
   handoffs?: OperatingModeHandoff[];
   payload?: Record<string, unknown>;
+  /** Canonical validated output used for persisted guard evaluation. */
+  resolvedEnvelope?: Record<string, unknown>;
   error?: string;
   resolution?: OperatingModePhaseResolutionRecord;
   /**

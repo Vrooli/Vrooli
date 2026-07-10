@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -166,8 +167,13 @@ type fakeAgent struct {
 // resolution ladder's L0 true-final-message detection can be exercised at the
 // refresher level. A run with no configured messages returns nil, and the
 // refresher falls back to the run summary as the sole candidate.
-func (f *fakeAgent) GetRunMessages(_ context.Context, runID string) ([]string, error) {
-	return f.messages[runID], nil
+func (f *fakeAgent) GetRunMessages(_ context.Context, runID string) ([]agentmanager.RunMessage, error) {
+	contents := f.messages[runID]
+	messages := make([]agentmanager.RunMessage, 0, len(contents))
+	for i, content := range contents {
+		messages = append(messages, agentmanager.RunMessage{EventID: fmt.Sprintf("event-%d", i+1), Sequence: int64(i + 1), Content: content})
+	}
+	return messages, nil
 }
 
 func (f *fakeAgent) SpawnInitiative(_ context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
@@ -679,6 +685,9 @@ func TestRefreshRoundRecoversSubagentTailFromMessageStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StartPhase returned error: %v", err)
 	}
+	if candidates := svc.resolutionCandidates(context.Background(), round, agent.states["run-1"]); len(candidates) != 3 {
+		t.Fatalf("resolution candidates = %d, want 3 (duplicate summary must not be appended)", len(candidates))
+	}
 	refreshed, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round)
 	if err != nil {
 		t.Fatalf("RefreshRound returned error: %v", err)
@@ -689,6 +698,12 @@ func TestRefreshRoundRecoversSubagentTailFromMessageStream(t *testing.T) {
 	record, ok := RoundPayload(refreshed.Payload).Resolution()
 	if !ok || record.Outcome != ResolutionRecovered || record.Layer != ResolutionLayerFinalMsg {
 		t.Fatalf("resolution record = %+v (ok=%v), want recovered via L0", record, ok)
+	}
+	if record.MessagesScanned != 2 {
+		t.Fatalf("messages scanned = %d, want trailing event plus selected final event", record.MessagesScanned)
+	}
+	if record.SelectedMessage == nil || record.SelectedMessage.EventID != "event-2" || record.SelectedMessage.Sequence != 2 || record.SelectedMessage.FallbackReason != "earlier_contract_satisfying_assistant_event" {
+		t.Fatalf("selected message = %+v, want stable event-2 provenance", record.SelectedMessage)
 	}
 	if _, err := svc.store.ReadArtifact("init-a", ModeHolisticLoop, "modes/holistic-loop/findings.md"); err != nil {
 		t.Fatalf("recovered artifact not written: %v", err)
@@ -746,6 +761,69 @@ func TestRefreshRoundStagesArtifactsBeforeApplyingResult(t *testing.T) {
 	}
 	if _, err := svc.store.ReadArtifact("init-a", ModeHolisticLoop, "modes/holistic-loop/findings.md"); !errors.Is(err, ErrArtifactNotFound) {
 		t.Fatalf("ReadArtifact error = %v, want ErrArtifactNotFound because writes are staged", err)
+	}
+}
+
+func TestInvalidResolvedEnvelopeDoesNotPartiallyApplySideEffects(t *testing.T) {
+	tests := []struct {
+		name       string
+		output     string
+		wantErr    string
+		artifact   string
+		withBinder bool
+	}{
+		{
+			name:       "late invalid artifact cannot leave earlier artifact or plan binding",
+			output:     `{"operating_mode_result":{"plan_ref":{"provider":"plan-manager","plan_id":"plan-123","role":"operating_mode_plan"},"handoff":{"summary":"investigated"},"artifacts":[{"path":"modes/holistic-loop/findings.md","content":"would leak"},{"path":"../outside.md","content":"invalid"}]}}`,
+			wantErr:    "artifact path must be relative to initiative",
+			artifact:   "modes/holistic-loop/findings.md",
+			withBinder: true,
+		},
+		{
+			name:     "missing required artifact cannot retain handoff or provenance",
+			output:   `{"operating_mode_result":{"handoff":{"summary":"partial"}}}`,
+			wantErr:  `requires artifact "modes/holistic-loop/findings.md"`,
+			artifact: "modes/holistic-loop/findings.md",
+		},
+		{
+			name:       "invalid plan ref cannot retain canonical envelope or provenance",
+			output:     `{"operating_mode_result":{"plan_ref":{"provider":"other","plan_id":"plan-123","role":"operating_mode_plan"},"handoff":{"summary":"partial"},"artifacts":[{"path":"modes/holistic-loop/findings.md","content":"would leak"}]}}`,
+			wantErr:    `plan_ref provider must be "plan-manager"`,
+			artifact:   "modes/holistic-loop/findings.md",
+			withBinder: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			binder := &fakePlanRefBinder{}
+			opts := serviceOptions{}
+			if tt.withBinder {
+				opts.planRefBinder = binder
+			}
+			svc := newTestServiceWithOptions(t, root, opts)
+			round := RoundEnvelope{
+				Mode: string(ModeHolisticLoop), ScopeKind: string(TargetInitiative), ScopeID: "init-a",
+				InitiativeName: "init-a", Phase: "investigate", Payload: map[string]any{"sentinel": "preserved"},
+			}
+			before := cloneRoundForPhaseResult(round)
+			_, err := svc.applyPhaseResultWithPersistence(context.Background(), MustDefinition(ModeHolisticLoop), &round, []resolutionCandidate{{
+				Content: tt.output, EventID: "event-invalid", Sequence: 99,
+			}}, true)
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("apply error = %v, want %q", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(round, before) {
+				t.Fatalf("round mutated after rejected envelope:\n got: %#v\nwant: %#v", round, before)
+			}
+			if len(binder.refs) != 0 {
+				t.Fatalf("plan refs = %#v, want no binding", binder.refs)
+			}
+			if _, err := svc.store.ReadArtifact("init-a", ModeHolisticLoop, tt.artifact); !errors.Is(err, ErrArtifactNotFound) {
+				t.Fatalf("ReadArtifact error = %v, want ErrArtifactNotFound", err)
+			}
+		})
 	}
 }
 

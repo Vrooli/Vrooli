@@ -338,7 +338,7 @@ func simulationExecutionContext(def Definition, phaseDef PhaseDefinition, inputs
 // rendered transition plus the sub-phase the next visit should run (empty when
 // the delegation ended).
 func delegatedSimulationTransition(def, sub Definition, parentPhase, subPhase Phase, round RoundEnvelope) (*SimulationTransition, Phase, error) {
-	lookup := NewMapFieldLookup(round.Payload)
+	lookup := RoundPayload(round.Payload).ResultFieldLookup()
 	for _, gt := range sub.PhaseGraph.Guards[subPhase] {
 		if !gt.When.Eval(lookup) {
 			continue
@@ -699,7 +699,7 @@ func encodeEnvelopeMap(result map[string]any) (string, error) {
 func simulationTransitionForCompletedRound(def Definition, round RoundEnvelope) *SimulationTransition {
 	from := Phase(round.Phase)
 	if guards := def.PhaseGraph.Guards[from]; len(guards) > 0 {
-		lookup := NewMapFieldLookup(round.Payload)
+		lookup := RoundPayload(round.Payload).ResultFieldLookup()
 		for _, gt := range guards {
 			if !gt.When.Eval(lookup) {
 				continue

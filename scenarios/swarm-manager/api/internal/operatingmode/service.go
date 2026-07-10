@@ -143,7 +143,7 @@ type AgentSpawner interface {
 // L0 simply omit it, and the refresher falls back to the run summary as the sole
 // resolution candidate.
 type RunMessageReader interface {
-	GetRunMessages(ctx context.Context, runID string) ([]string, error)
+	GetRunMessages(ctx context.Context, runID string) ([]agentmanager.RunMessage, error)
 }
 
 // InitiativeActivitySpawner is the narrow seam the operating-mode service

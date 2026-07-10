@@ -81,8 +81,106 @@ func (p RoundPayloadView) FinishedAt() string {
 	return value
 }
 
-func (p RoundPayloadView) SetPhaseResult(result PhaseResult) {
-	p.set(resultEnvelopeKey, resultEnvelopeMap(result))
+func (p RoundPayloadView) SetPhaseResult(result PhaseResult, envelope map[string]any) {
+	if envelope == nil {
+		envelope = resultEnvelopeMap(result)
+	}
+	p.set(resultEnvelopeKey, cloneJSONMap(envelope))
+}
+
+// ResultFieldLookup resolves guards from the canonical persisted envelope,
+// with the payload retained only as a compatibility/derived-field projection.
+func (p RoundPayloadView) ResultFieldLookup() FieldLookup {
+	lookups := make([]FieldLookup, 0, 2)
+	if envelope, ok := payloadEnvelopeMap(p.payload); ok {
+		lookups = append(lookups, NewMapFieldLookup(envelope))
+	}
+	lookups = append(lookups, NewMapFieldLookup(p.payload))
+	return chainedFieldLookup(lookups)
+}
+
+func cloneJSONMap(src map[string]any) map[string]any {
+	if src == nil {
+		return nil
+	}
+	data, err := json.Marshal(src)
+	if err != nil {
+		return src
+	}
+	var clone map[string]any
+	if json.Unmarshal(data, &clone) != nil {
+		return src
+	}
+	return clone
+}
+
+// validateEnvelopeProjectionConsistency rejects contradictory duplicate
+// representations instead of silently choosing one. Hoisted payload fields are
+// projections only; the resolved envelope remains the source of truth.
+func validateEnvelopeProjectionConsistency(payload map[string]any) error {
+	envelope, ok := payloadEnvelopeMap(payload)
+	if !ok {
+		return nil
+	}
+	for _, key := range []string{payloadProgress, payloadPlanRef, payloadReplanNeeded, payloadVerdict} {
+		envelopeValue, inEnvelope := envelope[key]
+		projectionValue, projected := payload[key]
+		if !inEnvelope || !projected {
+			continue
+		}
+		if !jsonProjectionContains(projectionValue, envelopeValue) {
+			return fmt.Errorf("resolved envelope field %q conflicts with its payload projection", key)
+		}
+	}
+	return nil
+}
+
+// jsonProjectionContains compares JSON-shaped values while allowing a typed
+// projection to add normalized/default metadata (for example progress.updated_at).
+// Every value actually emitted in the envelope must still match exactly.
+func jsonProjectionContains(projection, emitted any) bool {
+	normalize := func(value any) any {
+		data, err := json.Marshal(value)
+		if err != nil {
+			return nil
+		}
+		var out any
+		if json.Unmarshal(data, &out) != nil {
+			return nil
+		}
+		return out
+	}
+	var contains func(any, any) bool
+	contains = func(projected, source any) bool {
+		switch value := source.(type) {
+		case map[string]any:
+			projectedMap, ok := projected.(map[string]any)
+			if !ok {
+				return false
+			}
+			for key, sourceValue := range value {
+				projectedValue, ok := projectedMap[key]
+				if !ok || !contains(projectedValue, sourceValue) {
+					return false
+				}
+			}
+			return true
+		case []any:
+			projectedSlice, ok := projected.([]any)
+			if !ok || len(projectedSlice) != len(value) {
+				return false
+			}
+			for i := range value {
+				if !contains(projectedSlice[i], value[i]) {
+					return false
+				}
+			}
+			return true
+		default:
+			return fmt.Sprint(projected) == fmt.Sprint(source)
+		}
+	}
+	return contains(normalize(projection), normalize(emitted))
 }
 
 func (p RoundPayloadView) SetProgress(progress ProgressState) {

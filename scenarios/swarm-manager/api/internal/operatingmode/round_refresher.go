@@ -165,19 +165,21 @@ func isRoundActive(round RoundEnvelope) bool {
 // candidate unless it already matches the last message, so a summary that
 // carries the result is tried first while older messages remain a fallback. When
 // no message stream is available, the summary is the sole candidate.
-func (s *Service) resolutionCandidates(ctx context.Context, round RoundEnvelope, state agentmanager.RunState) []string {
-	var messages []string
+func (s *Service) resolutionCandidates(ctx context.Context, round RoundEnvelope, state agentmanager.RunState) []resolutionCandidate {
+	var messages []resolutionCandidate
 	if reader, ok := s.agent.(RunMessageReader); ok && strings.TrimSpace(round.RunID) != "" {
 		if msgs, err := reader.GetRunMessages(ctx, round.RunID); err != nil {
 			slog.Debug("operating mode: run messages unavailable; falling back to summary",
 				"err", err, "initiative", round.InitiativeName, "run_id", round.RunID)
 		} else {
-			messages = msgs
+			for _, msg := range msgs {
+				messages = append(messages, resolutionCandidate{Content: msg.Content, EventID: msg.EventID, Sequence: msg.Sequence})
+			}
 		}
 	}
 	summary := strings.TrimSpace(state.Summary)
-	if summary != "" && (len(messages) == 0 || strings.TrimSpace(messages[len(messages)-1]) != summary) {
-		messages = append(messages, summary)
+	if summary != "" && (len(messages) == 0 || strings.TrimSpace(messages[len(messages)-1].Content) != summary) {
+		messages = append(messages, resolutionCandidate{Content: summary, FallbackReason: "agent_manager_summary"})
 	}
 	return messages
 }

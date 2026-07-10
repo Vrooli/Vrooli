@@ -2,7 +2,9 @@ package operatingmode
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -60,6 +62,11 @@ const (
 
 // ResolvedPhaseResult is the outcome of running the resolution ladder over a
 // completed phase's agent output.
+// ResolvedEnvelope is the canonical validated JSON object emitted by a phase.
+// Typed PhaseResult fields are convenience decoders over this value; guards,
+// persistence, simulation, and replay retain the complete envelope.
+type ResolvedEnvelope map[string]any
+
 type ResolvedPhaseResult struct {
 	Result             PhaseResult
 	Outcome            ResolutionOutcome
@@ -74,7 +81,53 @@ type ResolvedPhaseResult struct {
 	// Result it preserves fields the typed PhaseResult does not model — the
 	// classification-on-transition ladder reads emitted/inline routing fields
 	// from here.
-	Envelope map[string]any
+	Envelope        ResolvedEnvelope
+	SelectedMessage *SelectedMessageProvenance
+}
+
+const finalMessageSelectionVersion = "contract-scan-v1"
+
+// SelectedMessageProvenance pins the source selected by L0 so replay does not
+// depend on message-array position or later event ordering.
+type SelectedMessageProvenance struct {
+	EventID                   string `json:"event_id,omitempty"`
+	Sequence                  int64  `json:"sequence,omitempty"`
+	ContentDigest             string `json:"content_digest"`
+	SelectionAlgorithmVersion string `json:"selection_algorithm_version"`
+	FallbackReason            string `json:"fallback_reason,omitempty"`
+}
+
+type resolutionCandidate struct {
+	Content        string
+	EventID        string
+	Sequence       int64
+	FallbackReason string
+}
+
+func candidateContents(candidates []resolutionCandidate) []string {
+	out := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		out = append(out, candidate.Content)
+	}
+	return out
+}
+
+func selectedMessageProvenance(candidates []resolutionCandidate, index int) *SelectedMessageProvenance {
+	if index < 0 || index >= len(candidates) {
+		return nil
+	}
+	candidate := candidates[index]
+	digest := sha256.Sum256([]byte(candidate.Content))
+	reason := candidate.FallbackReason
+	if reason == "" && index != len(candidates)-1 {
+		reason = "earlier_contract_satisfying_assistant_event"
+	}
+	return &SelectedMessageProvenance{
+		EventID: candidate.EventID, Sequence: candidate.Sequence,
+		ContentDigest:             fmt.Sprintf("sha256:%x", digest[:]),
+		SelectionAlgorithmVersion: finalMessageSelectionVersion,
+		FallbackReason:            reason,
+	}
 }
 
 // Resolved reports whether the ladder produced a usable structured result
@@ -101,8 +154,9 @@ type PhaseResolutionRecord struct {
 	// than a phase-output resolution: ClassifiedField names the routing field
 	// the ladder derived at the edge, and ClassifiedValue carries the derived
 	// value the route guards matched on. Both empty on phase-output records.
-	ClassifiedField string `json:"classified_field,omitempty"`
-	ClassifiedValue string `json:"classified_value,omitempty"`
+	ClassifiedField string                     `json:"classified_field,omitempty"`
+	ClassifiedValue string                     `json:"classified_value,omitempty"`
+	SelectedMessage *SelectedMessageProvenance `json:"selected_message,omitempty"`
 }
 
 // Record projects the ladder outcome into its durable payload record.
@@ -115,6 +169,7 @@ func (r ResolvedPhaseResult) Record() PhaseResolutionRecord {
 		Missing:            append([]string(nil), r.Missing...),
 		Violations:         append([]string(nil), r.Violations...),
 		Notes:              append([]string(nil), r.Notes...),
+		SelectedMessage:    r.SelectedMessage,
 	}
 }
 

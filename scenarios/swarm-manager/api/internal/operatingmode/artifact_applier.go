@@ -16,7 +16,7 @@ import (
 // does not (the round's structured output could not be resolved). An error is
 // returned only for an infrastructure or post-apply contract failure (e.g. a
 // required artifact was not produced), never for imperfect model output.
-func (s *Service) applyPhaseResult(ctx context.Context, round *RoundEnvelope, messages []string) (ResolvedPhaseResult, error) {
+func (s *Service) applyPhaseResult(ctx context.Context, round *RoundEnvelope, messages []resolutionCandidate) (ResolvedPhaseResult, error) {
 	def, err := DefinitionFor(Mode(round.Mode))
 	if err != nil {
 		return ResolvedPhaseResult{}, err
@@ -30,10 +30,10 @@ func (s *Service) applyPhaseResult(ctx context.Context, round *RoundEnvelope, me
 // not yet registered) drives this path, so the Definition must flow in from the
 // caller's walk.
 func (s *Service) applyPhaseResultInMemory(ctx context.Context, def Definition, round *RoundEnvelope, output string) (ResolvedPhaseResult, error) {
-	return s.applyPhaseResultWithPersistence(ctx, def, round, []string{output}, false)
+	return s.applyPhaseResultWithPersistence(ctx, def, round, []resolutionCandidate{{Content: output, FallbackReason: "simulation_fixture"}}, false)
 }
 
-func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Definition, round *RoundEnvelope, messages []string, persistArtifacts bool) (ResolvedPhaseResult, error) {
+func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Definition, round *RoundEnvelope, messages []resolutionCandidate, persistArtifacts bool) (ResolvedPhaseResult, error) {
 	// A delegated round resolves against the sub-mode's phase contract (the
 	// sub-phase's declared output steers the ladder and the applied-result
 	// checks); artifact paths keep resolving against the parent mode's
@@ -43,14 +43,16 @@ func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Defin
 		return ResolvedPhaseResult{}, err
 	}
 
-	resolved := resolvePhaseOutput(ctx, phaseDef, messages, s.classifier)
-	// The resolution record is durable regardless of outcome so operators and the
-	// UI can see which ladder rung resolved the round (or why it abstained).
-	MutableRoundPayload(round).SetResolution(resolved.Record())
+	resolved := resolvePhaseOutput(ctx, phaseDef, candidateContents(messages), s.classifier)
+	resolved.SelectedMessage = selectedMessageProvenance(messages, resolved.ChosenMessageIndex)
 	if !resolved.Resolved() {
 		// Honest abstain: the required structured output could not be resolved or
 		// reconstructed. Do not apply a partial result — the caller keeps the
 		// round out of clean completion so nothing auto-progresses on absent data.
+		// The abstain diagnostic is durable, but there is no selected valid event
+		// provenance to attach to it.
+		resolved.SelectedMessage = nil
+		MutableRoundPayload(round).SetResolution(resolved.Record())
 		return resolved, nil
 	}
 
@@ -59,7 +61,8 @@ func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Defin
 
 	staged := cloneRoundForPhaseResult(*round)
 	payload := MutableRoundPayload(&staged)
-	payload.SetPhaseResult(result)
+	payload.SetResolution(resolved.Record())
+	payload.SetPhaseResult(result, resolved.Envelope)
 	if strings.TrimSpace(result.Verdict) != "" {
 		payload.SetVerdict(result.Verdict)
 	}
@@ -75,14 +78,6 @@ func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Defin
 			return resolved, err
 		}
 		payload.SetPlanRef(*ref)
-		if persistArtifacts {
-			if s.planRefBinder == nil {
-				return resolved, fmt.Errorf("phase %q produced plan_ref but no initiative plan_ref binder is configured", phaseDef.Phase)
-			}
-			if _, err := s.planRefBinder.BindInitiativePlanRef(round.InitiativeName, *ref); err != nil {
-				return resolved, err
-			}
-		}
 	}
 	writes := make([]stagedArtifactWrite, 0, len(result.Artifacts)+1)
 	if result.Progress != nil {
@@ -126,10 +121,24 @@ func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Defin
 	if result.BacklogSync != nil {
 		payload.SetBacklogSyncPlan(result.BacklogSync)
 	}
+	if err := validateEnvelopeProjectionConsistency(staged.Payload); err != nil {
+		return resolved, err
+	}
 	if err := validateAppliedPhaseResult(phaseDef, result, staged); err != nil {
 		return resolved, err
 	}
 	if persistArtifacts {
+		// No external mutation is allowed before every envelope field, typed
+		// projection, artifact path, and required-output contract has passed.
+		// In particular, an invalid artifact must never leave a plan_ref binding.
+		if result.PlanRef != nil {
+			if s.planRefBinder == nil {
+				return resolved, fmt.Errorf("phase %q produced plan_ref but no initiative plan_ref binder is configured", phaseDef.Phase)
+			}
+			if _, err := s.planRefBinder.BindInitiativePlanRef(round.InitiativeName, *normalizePlanRef(result.PlanRef)); err != nil {
+				return resolved, err
+			}
+		}
 		for _, write := range writes {
 			if _, err := s.store.WriteArtifact(firstNonEmpty(staged.ScopeID, staged.InitiativeName), Mode(staged.Mode), write.Path, write.Content); err != nil {
 				return resolved, err

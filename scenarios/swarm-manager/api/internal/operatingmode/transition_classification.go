@@ -168,6 +168,10 @@ func (s *Service) classifyTransitionRoutingForDef(ctx context.Context, def Defin
 
 	if !outcome.Abstained() {
 		setPayloadField(round.Payload, contract.Field, outcome.Value)
+		if stored, ok := payloadEnvelopeMap(round.Payload); ok {
+			setPayloadField(stored, contract.Field, outcome.Value)
+			round.Payload[resultEnvelopeKey] = stored
+		}
 	}
 	MutableRoundPayload(round).SetTransitionClassification(outcome.Record())
 	return &outcome

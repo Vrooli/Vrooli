@@ -1,12 +1,105 @@
 package operatingmode
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
+
+func TestResolvedEnvelopeSurvivesSaveReloadAndRoutesNovelFields(t *testing.T) {
+	store := testStore(t)
+	def := MustDefinition(ModePhasedPlanDrain)
+	phase := def.PhaseGraph.Phases["execute"]
+	originalPhase := phase
+	originalGuards := append([]GuardedTransition(nil), def.PhaseGraph.Guards["execute"]...)
+	defer func() {
+		def.PhaseGraph.Phases["execute"] = originalPhase
+		def.PhaseGraph.Guards["execute"] = originalGuards
+	}()
+	phase.DeclaredOutput = &DeclaredOutput{
+		EnvelopeKey:              resultEnvelopeKey,
+		RequiresStructuredResult: true,
+		Fields: []OutputField{
+			{Name: "novel_flag", Type: "boolean", Required: true},
+			{Name: "details", Type: "object", Required: true, Fields: []OutputField{{Name: "label", Type: "string", Required: true}}},
+			{Name: "values", Type: "array", Required: true},
+		},
+		Resolution: defaultResolutionPolicy(),
+	}
+	phase.OutputContract = PhaseOutputContract{RequiresStructuredResult: true}
+	def.PhaseGraph.Phases["execute"] = phase
+	def.PhaseGraph.Guards["execute"] = []GuardedTransition{{
+		When: Guard{Op: GuardOpEq, Field: "novel_flag", Value: true},
+		To:   []Phase{"execute"},
+	}}
+
+	round, err := store.CreateRound(RoundEnvelope{ScopeID: "exec-novel", Mode: string(ModePhasedPlanDrain), Phase: "execute"})
+	if err != nil {
+		t.Fatalf("CreateRound: %v", err)
+	}
+	svc := &Service{store: store, clock: store.Clock}
+	output := `{"operating_mode_result":{"novel_flag":true,"details":{"label":"preserved"},"values":[1,"two",false]}}`
+	resolved, err := svc.applyPhaseResultWithPersistence(context.Background(), def, &round, []resolutionCandidate{{
+		Content: output, EventID: "event-novel", Sequence: 42,
+	}}, false)
+	if err != nil {
+		t.Fatalf("applyPhaseResult: %v", err)
+	}
+	if !resolved.Resolved() {
+		t.Fatalf("resolution abstained: %+v", resolved)
+	}
+	round.Status = RoundStatusCompleted
+	if err := store.SaveRound(round); err != nil {
+		t.Fatalf("SaveRound: %v", err)
+	}
+
+	loaded, err := store.LoadRound("exec-novel", ModePhasedPlanDrain, round.Round)
+	if err != nil {
+		t.Fatalf("LoadRound: %v", err)
+	}
+	lookup := RoundPayload(loaded.Payload).ResultFieldLookup()
+	if got, ok := lookup.Lookup("details.label"); !ok || got != "preserved" {
+		t.Fatalf("details.label = %#v (present=%v), want preserved", got, ok)
+	}
+	if got, ok := lookup.Lookup("values"); !ok || len(got.([]any)) != 3 {
+		t.Fatalf("values = %#v (present=%v), want 3 entries", got, ok)
+	}
+	next := nextPhasesForCompletedRound(def, loaded)
+	if len(next) != 1 || next[0] != "execute" {
+		t.Fatalf("next phases after reload = %v, want [execute]", next)
+	}
+	record, ok := RoundPayload(loaded.Payload).Resolution()
+	if !ok || record.SelectedMessage == nil || record.SelectedMessage.EventID != "event-novel" || record.SelectedMessage.Sequence != 42 {
+		t.Fatalf("selected message provenance = %+v (present=%v)", record.SelectedMessage, ok)
+	}
+}
+
+func TestLegacyRoundWithoutResolvedEnvelopeStillRoutesFromPayloadProjection(t *testing.T) {
+	store := testStore(t)
+	round, err := store.CreateRound(RoundEnvelope{
+		ScopeID: "legacy-round", Mode: string(ModePhasedPlanDrain), Phase: "execute",
+		Status: RoundStatusCompleted, Payload: map[string]any{"progress": "continue"},
+	})
+	if err != nil {
+		t.Fatalf("CreateRound: %v", err)
+	}
+	loaded, err := store.LoadRound("legacy-round", ModePhasedPlanDrain, round.Round)
+	if err != nil {
+		t.Fatalf("LoadRound: %v", err)
+	}
+	if envelope, ok := payloadEnvelopeMap(loaded.Payload); ok || envelope != nil {
+		t.Fatalf("legacy fixture unexpectedly gained canonical envelope: %#v", envelope)
+	}
+	if got, ok := RoundPayload(loaded.Payload).ResultFieldLookup().Lookup("progress"); !ok || got != "continue" {
+		t.Fatalf("legacy progress = %#v (present=%v), want continue", got, ok)
+	}
+	if next := nextPhasesForCompletedRound(MustDefinition(ModePhasedPlanDrain), loaded); len(next) != 1 || next[0] != "execute" {
+		t.Fatalf("legacy next phases = %v, want [execute]", next)
+	}
+}
 
 func testStore(t *testing.T) *Store {
 	t.Helper()

@@ -30,6 +30,14 @@ type RunEventsOptions struct {
 	Limit         int32
 }
 
+// RunMessage is one assistant message with the stable Agent Manager event
+// identity needed to make final-message selection replayable.
+type RunMessage struct {
+	EventID  string
+	Sequence int64
+	Content  string
+}
+
 // RunDiff captures the changed files for a sandboxed run.
 type RunDiff struct {
 	RunID       string
@@ -91,12 +99,12 @@ func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState,
 // Only assistant-role MESSAGE events are returned; tool calls, logs, status, and
 // user/system messages are excluded. Events are page-fetched by ascending
 // sequence.
-func (s *AgentService) GetRunMessages(ctx context.Context, runID string) ([]string, error) {
+func (s *AgentService) GetRunMessages(ctx context.Context, runID string) ([]RunMessage, error) {
 	if !s.enabled {
 		return nil, ErrNotAvailable
 	}
 	var (
-		messages []string
+		messages []RunMessage
 		after    int64
 	)
 	for {
@@ -117,7 +125,11 @@ func (s *AgentService) GetRunMessages(ctx context.Context, runID string) ([]stri
 			}
 			if strings.EqualFold(strings.TrimSpace(msg.GetRole()), "assistant") {
 				if content := strings.TrimSpace(msg.GetContent()); content != "" {
-					messages = append(messages, content)
+					messages = append(messages, RunMessage{
+						EventID:  strings.TrimSpace(event.GetId()),
+						Sequence: event.GetSequence(),
+						Content:  content,
+					})
 				}
 			}
 		}
