@@ -32,6 +32,7 @@ type Handlers struct {
 	PinnedVersion  string
 	VersionCommand []string
 	VersionRunner  func(ctx context.Context, args []string) (string, error)
+	Stdin          io.Reader
 	Stdout         io.Writer
 	Stderr         io.Writer
 }
@@ -54,6 +55,7 @@ func Default(cliVersion, pinnedVersion string) *Handlers {
 		PinnedVersion:  pinnedVersion,
 		VersionCommand: []string{"opencode", "--version"},
 		VersionRunner:  defaultVersionRunner,
+		Stdin:          os.Stdin,
 		Stdout:         os.Stdout,
 		Stderr:         os.Stderr,
 	}
@@ -85,6 +87,8 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{Name: "remove", Description: "Remove a pattern from any list (mutating)", Run: h.Remove},
 			{Name: "reset", Description: "Clear all Vrooli-managed permission entries (mutating)", Run: h.Reset},
 			{Name: "drift-check", Description: "Compare current opencode.json fingerprint to last Vrooli write", Run: h.DriftCheck},
+			{Name: "plan", Description: "Plan a whole declared portable permission document (JSON)", Run: h.Plan},
+			{Name: "reconcile", Description: "Reconcile a whole declared portable permission document (mutating, JSON)", Run: h.Reconcile},
 			{Name: "migrate", Description: "Heal a pre-1.0 opencode.json: move the retired inline managed-key into the sidecar and strip it (idempotent)", Run: h.Migrate},
 			{Name: "doctor", Description: "Check installed opencode version against the pinned upstream version", Run: h.Doctor},
 		},

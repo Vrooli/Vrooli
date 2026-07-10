@@ -250,14 +250,16 @@ class ListSpecRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class ListSpecResponse(_message.Message):
-    __slots__ = ("scenario", "pages", "journeys")
+    __slots__ = ("scenario", "pages", "journeys", "components")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PAGES_FIELD_NUMBER: _ClassVar[int]
     JOURNEYS_FIELD_NUMBER: _ClassVar[int]
+    COMPONENTS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     pages: _containers.RepeatedCompositeFieldContainer[SpecDocument]
     journeys: _containers.RepeatedCompositeFieldContainer[SpecDocument]
-    def __init__(self, scenario: _Optional[str] = ..., pages: _Optional[_Iterable[_Union[SpecDocument, _Mapping]]] = ..., journeys: _Optional[_Iterable[_Union[SpecDocument, _Mapping]]] = ...) -> None: ...
+    components: _containers.RepeatedCompositeFieldContainer[SpecDocument]
+    def __init__(self, scenario: _Optional[str] = ..., pages: _Optional[_Iterable[_Union[SpecDocument, _Mapping]]] = ..., journeys: _Optional[_Iterable[_Union[SpecDocument, _Mapping]]] = ..., components: _Optional[_Iterable[_Union[SpecDocument, _Mapping]]] = ...) -> None: ...
 
 class ShowSpecRequest(_message.Message):
     __slots__ = ("scenario", "path", "page")

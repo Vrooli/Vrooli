@@ -49,9 +49,9 @@ type AgentProfile struct {
 	// Model to use (e.g., "claude-sonnet-4-5", "gpt-4o", "anthropic/claude-opus-4-5").
 	// If empty, uses the runner's default model.
 	Model string `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
-	// Preset to use for model selection (FAST/CHEAP/SMART).
-	// Mutually exclusive with model.
-	ModelPreset ModelPreset `protobuf:"varint,19,opt,name=model_preset,json=modelPreset,proto3,enum=agent_manager.v1.ModelPreset" json:"model_preset,omitempty"`
+	// Named policy from the active model-policy catalog. Mutually exclusive
+	// with model. The policy is resolved to an immutable run snapshot.
+	PolicyRef string `protobuf:"bytes,32,opt,name=policy_ref,json=policyRef,proto3" json:"policy_ref,omitempty"`
 	// Maximum number of conversation turns before stopping.
 	// 0 means unlimited (use with caution).
 	// @constraint 0-1000
@@ -59,9 +59,6 @@ type AgentProfile struct {
 	// Maximum execution time for the agent.
 	// Default: 30 minutes if not specified.
 	Timeout *durationpb.Duration `protobuf:"bytes,7,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	// Ordered list of fallback runners to try if the primary is unavailable.
-	// Empty disables automatic fallback.
-	FallbackRunnerTypes []RunnerType `protobuf:"varint,22,rep,packed,name=fallback_runner_types,json=fallbackRunnerTypes,proto3,enum=agent_manager.v1.RunnerType" json:"fallback_runner_types,omitempty"`
 	// Tools the agent is allowed to use.
 	// Empty means use runner defaults.
 	// Examples: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
@@ -179,11 +176,11 @@ func (x *AgentProfile) GetModel() string {
 	return ""
 }
 
-func (x *AgentProfile) GetModelPreset() ModelPreset {
+func (x *AgentProfile) GetPolicyRef() string {
 	if x != nil {
-		return x.ModelPreset
+		return x.PolicyRef
 	}
-	return ModelPreset_MODEL_PRESET_UNSPECIFIED
+	return ""
 }
 
 func (x *AgentProfile) GetMaxTurns() int32 {
@@ -196,13 +193,6 @@ func (x *AgentProfile) GetMaxTurns() int32 {
 func (x *AgentProfile) GetTimeout() *durationpb.Duration {
 	if x != nil {
 		return x.Timeout
-	}
-	return nil
-}
-
-func (x *AgentProfile) GetFallbackRunnerTypes() []RunnerType {
-	if x != nil {
-		return x.FallbackRunnerTypes
 	}
 	return nil
 }
@@ -349,16 +339,12 @@ type RunConfig struct {
 	RunnerType RunnerType `protobuf:"varint,1,opt,name=runner_type,json=runnerType,proto3,enum=agent_manager.v1.RunnerType" json:"runner_type,omitempty"`
 	// Model to use for execution.
 	Model string `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`
-	// Preset to use for model selection (FAST/CHEAP/SMART).
-	// Mutually exclusive with model.
-	ModelPreset ModelPreset `protobuf:"varint,12,opt,name=model_preset,json=modelPreset,proto3,enum=agent_manager.v1.ModelPreset" json:"model_preset,omitempty"`
+	// Named policy selected before policy_snapshot was created.
+	PolicyRef string `protobuf:"bytes,20,opt,name=policy_ref,json=policyRef,proto3" json:"policy_ref,omitempty"`
 	// Maximum conversation turns.
 	MaxTurns int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
 	// Maximum execution time.
 	Timeout *durationpb.Duration `protobuf:"bytes,4,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	// Ordered list of fallback runners to try if the primary is unavailable.
-	// Empty disables automatic fallback.
-	FallbackRunnerTypes []RunnerType `protobuf:"varint,15,rep,packed,name=fallback_runner_types,json=fallbackRunnerTypes,proto3,enum=agent_manager.v1.RunnerType" json:"fallback_runner_types,omitempty"`
 	// Tools the agent is allowed to use.
 	AllowedTools []string `protobuf:"bytes,5,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
 	// Tools explicitly denied.
@@ -429,11 +415,11 @@ func (x *RunConfig) GetModel() string {
 	return ""
 }
 
-func (x *RunConfig) GetModelPreset() ModelPreset {
+func (x *RunConfig) GetPolicyRef() string {
 	if x != nil {
-		return x.ModelPreset
+		return x.PolicyRef
 	}
-	return ModelPreset_MODEL_PRESET_UNSPECIFIED
+	return ""
 }
 
 func (x *RunConfig) GetMaxTurns() int32 {
@@ -446,13 +432,6 @@ func (x *RunConfig) GetMaxTurns() int32 {
 func (x *RunConfig) GetTimeout() *durationpb.Duration {
 	if x != nil {
 		return x.Timeout
-	}
-	return nil
-}
-
-func (x *RunConfig) GetFallbackRunnerTypes() []RunnerType {
-	if x != nil {
-		return x.FallbackRunnerTypes
 	}
 	return nil
 }
@@ -661,15 +640,15 @@ func (x *CandidatePreflight) GetReason() string {
 // PolicyResolutionExplanation makes profile/override precedence and initial
 // candidate selection inspectable without consulting mutable current policy.
 type PolicyResolutionExplanation struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Source          string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
-	Summary         string                 `protobuf:"bytes,2,opt,name=summary,proto3" json:"summary,omitempty"`
-	RequestedRunner RunnerType             `protobuf:"varint,3,opt,name=requested_runner,json=requestedRunner,proto3,enum=agent_manager.v1.RunnerType" json:"requested_runner,omitempty"`
-	RequestedModel  string                 `protobuf:"bytes,4,opt,name=requested_model,json=requestedModel,proto3" json:"requested_model,omitempty"`
-	RequestedPreset ModelPreset            `protobuf:"varint,5,opt,name=requested_preset,json=requestedPreset,proto3,enum=agent_manager.v1.ModelPreset" json:"requested_preset,omitempty"`
-	Preflight       []*CandidatePreflight  `protobuf:"bytes,6,rep,name=preflight,proto3" json:"preflight,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Source             string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	Summary            string                 `protobuf:"bytes,2,opt,name=summary,proto3" json:"summary,omitempty"`
+	RequestedRunner    RunnerType             `protobuf:"varint,3,opt,name=requested_runner,json=requestedRunner,proto3,enum=agent_manager.v1.RunnerType" json:"requested_runner,omitempty"`
+	RequestedModel     string                 `protobuf:"bytes,4,opt,name=requested_model,json=requestedModel,proto3" json:"requested_model,omitempty"`
+	RequestedPolicyRef string                 `protobuf:"bytes,7,opt,name=requested_policy_ref,json=requestedPolicyRef,proto3" json:"requested_policy_ref,omitempty"`
+	Preflight          []*CandidatePreflight  `protobuf:"bytes,6,rep,name=preflight,proto3" json:"preflight,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PolicyResolutionExplanation) Reset() {
@@ -730,11 +709,11 @@ func (x *PolicyResolutionExplanation) GetRequestedModel() string {
 	return ""
 }
 
-func (x *PolicyResolutionExplanation) GetRequestedPreset() ModelPreset {
+func (x *PolicyResolutionExplanation) GetRequestedPolicyRef() string {
 	if x != nil {
-		return x.RequestedPreset
+		return x.RequestedPolicyRef
 	}
-	return ModelPreset_MODEL_PRESET_UNSPECIFIED
+	return ""
 }
 
 func (x *PolicyResolutionExplanation) GetPreflight() []*CandidatePreflight {
@@ -842,15 +821,12 @@ type RunConfigOverrides struct {
 	RunnerType *RunnerType `protobuf:"varint,1,opt,name=runner_type,json=runnerType,proto3,enum=agent_manager.v1.RunnerType,oneof" json:"runner_type,omitempty"`
 	// Model to use for execution.
 	Model *string `protobuf:"bytes,2,opt,name=model,proto3,oneof" json:"model,omitempty"`
-	// Preset to use for model selection (FAST/CHEAP/SMART).
-	// Mutually exclusive with model.
-	ModelPreset *ModelPreset `protobuf:"varint,16,opt,name=model_preset,json=modelPreset,proto3,enum=agent_manager.v1.ModelPreset,oneof" json:"model_preset,omitempty"`
+	// Named policy from the active catalog. Mutually exclusive with model.
+	PolicyRef *string `protobuf:"bytes,25,opt,name=policy_ref,json=policyRef,proto3,oneof" json:"policy_ref,omitempty"`
 	// Maximum conversation turns.
 	MaxTurns *int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3,oneof" json:"max_turns,omitempty"`
 	// Maximum execution time.
 	Timeout *durationpb.Duration `protobuf:"bytes,4,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
-	// Ordered list of fallback runners to try if the primary is unavailable.
-	FallbackRunnerTypes []RunnerType `protobuf:"varint,19,rep,packed,name=fallback_runner_types,json=fallbackRunnerTypes,proto3,enum=agent_manager.v1.RunnerType" json:"fallback_runner_types,omitempty"`
 	// Tools the agent is allowed to use.
 	AllowedTools []string `protobuf:"bytes,5,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
 	// Tools explicitly denied.
@@ -879,10 +855,8 @@ type RunConfigOverrides struct {
 	ClearAllowedPaths bool `protobuf:"varint,14,opt,name=clear_allowed_paths,json=clearAllowedPaths,proto3" json:"clear_allowed_paths,omitempty"`
 	// Clear denied paths inherited from profile.
 	ClearDeniedPaths bool `protobuf:"varint,15,opt,name=clear_denied_paths,json=clearDeniedPaths,proto3" json:"clear_denied_paths,omitempty"`
-	// Clear fallback runners inherited from profile.
-	ClearFallbackRunnerTypes bool `protobuf:"varint,20,opt,name=clear_fallback_runner_types,json=clearFallbackRunnerTypes,proto3" json:"clear_fallback_runner_types,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RunConfigOverrides) Reset() {
@@ -929,11 +903,11 @@ func (x *RunConfigOverrides) GetModel() string {
 	return ""
 }
 
-func (x *RunConfigOverrides) GetModelPreset() ModelPreset {
-	if x != nil && x.ModelPreset != nil {
-		return *x.ModelPreset
+func (x *RunConfigOverrides) GetPolicyRef() string {
+	if x != nil && x.PolicyRef != nil {
+		return *x.PolicyRef
 	}
-	return ModelPreset_MODEL_PRESET_UNSPECIFIED
+	return ""
 }
 
 func (x *RunConfigOverrides) GetMaxTurns() int32 {
@@ -946,13 +920,6 @@ func (x *RunConfigOverrides) GetMaxTurns() int32 {
 func (x *RunConfigOverrides) GetTimeout() *durationpb.Duration {
 	if x != nil {
 		return x.Timeout
-	}
-	return nil
-}
-
-func (x *RunConfigOverrides) GetFallbackRunnerTypes() []RunnerType {
-	if x != nil {
-		return x.FallbackRunnerTypes
 	}
 	return nil
 }
@@ -1055,13 +1022,6 @@ func (x *RunConfigOverrides) GetClearDeniedPaths() bool {
 	return false
 }
 
-func (x *RunConfigOverrides) GetClearFallbackRunnerTypes() bool {
-	if x != nil {
-		return x.ClearFallbackRunnerTypes
-	}
-	return false
-}
-
 // HeartbeatConfig defines heartbeat behavior for long-running operations.
 //
 // Used for stale run detection and health monitoring.
@@ -1137,7 +1097,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xed\v\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa9\v\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -1149,12 +1109,12 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\vrunner_type\x18\x04 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"runnerType\x12\x14\n" +
-	"\x05model\x18\x05 \x01(\tR\x05model\x12@\n" +
-	"\fmodel_preset\x18\x13 \x01(\x0e2\x1d.agent_manager.v1.ModelPresetR\vmodelPreset\x12'\n" +
+	"\x05model\x18\x05 \x01(\tR\x05model\x12\x1d\n" +
+	"\n" +
+	"policy_ref\x18  \x01(\tR\tpolicyRef\x12'\n" +
 	"\tmax_turns\x18\x06 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x00R\bmaxTurns\x123\n" +
-	"\atimeout\x18\a \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12P\n" +
-	"\x15fallback_runner_types\x18\x16 \x03(\x0e2\x1c.agent_manager.v1.RunnerTypeR\x13fallbackRunnerTypes\x12#\n" +
+	"\atimeout\x18\a \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
 	"\rallowed_tools\x18\b \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\t \x03(\tR\vdeniedTools\x124\n" +
 	"\x16skip_permission_prompt\x18\n" +
@@ -1182,15 +1142,15 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
-	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\v\x10\fJ\x04\b\f\x10\rR\x10requires_sandboxR\x11requires_approval\"\x8b\b\n" +
+	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14J\x04\b\x16\x10\x17R\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xc7\a\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
-	"\x05model\x18\x02 \x01(\tR\x05model\x12@\n" +
-	"\fmodel_preset\x18\f \x01(\x0e2\x1d.agent_manager.v1.ModelPresetR\vmodelPreset\x12\x1b\n" +
+	"\x05model\x18\x02 \x01(\tR\x05model\x12\x1d\n" +
+	"\n" +
+	"policy_ref\x18\x14 \x01(\tR\tpolicyRef\x12\x1b\n" +
 	"\tmax_turns\x18\x03 \x01(\x05R\bmaxTurns\x123\n" +
-	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12P\n" +
-	"\x15fallback_runner_types\x18\x0f \x03(\x0e2\x1c.agent_manager.v1.RunnerTypeR\x13fallbackRunnerTypes\x12#\n" +
+	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x124\n" +
 	"\x16skip_permission_prompt\x18\a \x01(\bR\x14skipPermissionPrompt\x12:\n" +
@@ -1206,7 +1166,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"R\x10requires_sandboxR\x11requires_approval\"\xb6\x01\n" +
+	"J\x04\b\f\x10\rJ\x04\b\x0f\x10\x10R\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xb6\x01\n" +
 	"\x12ExecutionCandidate\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12K\n" +
@@ -1221,9 +1181,9 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x18\n" +
 	"\asummary\x18\x02 \x01(\tR\asummary\x12G\n" +
 	"\x10requested_runner\x18\x03 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\x0frequestedRunner\x12'\n" +
-	"\x0frequested_model\x18\x04 \x01(\tR\x0erequestedModel\x12H\n" +
-	"\x10requested_preset\x18\x05 \x01(\x0e2\x1d.agent_manager.v1.ModelPresetR\x0frequestedPreset\x12B\n" +
-	"\tpreflight\x18\x06 \x03(\v2$.agent_manager.v1.CandidatePreflightR\tpreflight\"\xf2\x02\n" +
+	"\x0frequested_model\x18\x04 \x01(\tR\x0erequestedModel\x120\n" +
+	"\x14requested_policy_ref\x18\a \x01(\tR\x12requestedPolicyRef\x12B\n" +
+	"\tpreflight\x18\x06 \x03(\v2$.agent_manager.v1.CandidatePreflightR\tpreflightJ\x04\b\x05\x10\x06R\x10requested_preset\"\xf2\x02\n" +
 	"\x17ExecutionPolicySnapshot\x12%\n" +
 	"\x0ecatalog_digest\x18\x01 \x01(\tR\rcatalogDigest\x12\x1d\n" +
 	"\n" +
@@ -1233,16 +1193,17 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"candidates\x12%\n" +
 	"\x0eselected_index\x18\x04 \x01(\x05R\rselectedIndex\x12S\n" +
 	"\x12selected_candidate\x18\x05 \x01(\v2$.agent_manager.v1.ExecutionCandidateR\x11selectedCandidate\x12O\n" +
-	"\vexplanation\x18\x06 \x01(\v2-.agent_manager.v1.PolicyResolutionExplanationR\vexplanation\"\xa4\v\n" +
+	"\vexplanation\x18\x06 \x01(\v2-.agent_manager.v1.PolicyResolutionExplanationR\vexplanation\"\xc2\n" +
+	"\n" +
 	"\x12RunConfigOverrides\x12N\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
 	"runnerType\x88\x01\x01\x12\x19\n" +
-	"\x05model\x18\x02 \x01(\tH\x01R\x05model\x88\x01\x01\x12E\n" +
-	"\fmodel_preset\x18\x10 \x01(\x0e2\x1d.agent_manager.v1.ModelPresetH\x02R\vmodelPreset\x88\x01\x01\x12 \n" +
+	"\x05model\x18\x02 \x01(\tH\x01R\x05model\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"policy_ref\x18\x19 \x01(\tH\x02R\tpolicyRef\x88\x01\x01\x12 \n" +
 	"\tmax_turns\x18\x03 \x01(\x05H\x03R\bmaxTurns\x88\x01\x01\x128\n" +
-	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x04R\atimeout\x88\x01\x01\x12P\n" +
-	"\x15fallback_runner_types\x18\x13 \x03(\x0e2\x1c.agent_manager.v1.RunnerTypeR\x13fallbackRunnerTypes\x12#\n" +
+	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x04R\atimeout\x88\x01\x01\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x129\n" +
 	"\x16skip_permission_prompt\x18\a \x01(\bH\x05R\x14skipPermissionPrompt\x88\x01\x01\x12?\n" +
@@ -1258,14 +1219,13 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x13clear_allowed_tools\x18\f \x01(\bR\x11clearAllowedTools\x12,\n" +
 	"\x12clear_denied_tools\x18\r \x01(\bR\x10clearDeniedTools\x12.\n" +
 	"\x13clear_allowed_paths\x18\x0e \x01(\bR\x11clearAllowedPaths\x12,\n" +
-	"\x12clear_denied_paths\x18\x0f \x01(\bR\x10clearDeniedPaths\x12=\n" +
-	"\x1bclear_fallback_runner_types\x18\x14 \x01(\bR\x18clearFallbackRunnerTypes\x1a^\n" +
+	"\x12clear_denied_paths\x18\x0f \x01(\bR\x10clearDeniedPaths\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01B\x0e\n" +
 	"\f_runner_typeB\b\n" +
-	"\x06_modelB\x0f\n" +
-	"\r_model_presetB\f\n" +
+	"\x06_modelB\r\n" +
+	"\v_policy_refB\f\n" +
 	"\n" +
 	"_max_turnsB\n" +
 	"\n" +
@@ -1273,7 +1233,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x17_skip_permission_promptB\v\n" +
 	"\t_featuresB\x11\n" +
 	"\x0f_network_accessJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"R\x10requires_sandboxR\x11requires_approval\"\xa7\x01\n" +
+	"J\x04\b\x10\x10\x11J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15R\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_typesR\x1bclear_fallback_runner_types\"\xa7\x01\n" +
 	"\x0fHeartbeatConfig\x125\n" +
 	"\binterval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\binterval\x123\n" +
 	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12(\n" +
@@ -1305,63 +1265,55 @@ var file_agent_manager_v1_domain_profile_proto_goTypes = []any{
 	nil,                                 // 9: agent_manager.v1.RunConfig.ExtraFlagsEntry
 	nil,                                 // 10: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
 	(RunnerType)(0),                     // 11: agent_manager.v1.RunnerType
-	(ModelPreset)(0),                    // 12: agent_manager.v1.ModelPreset
-	(*durationpb.Duration)(nil),         // 13: google.protobuf.Duration
-	(*FeatureFlags)(nil),                // 14: agent_manager.v1.FeatureFlags
-	(NetworkAccess)(0),                  // 15: agent_manager.v1.NetworkAccess
-	(*timestamppb.Timestamp)(nil),       // 16: google.protobuf.Timestamp
-	(*SandboxConfig)(nil),               // 17: agent_manager.v1.SandboxConfig
-	(ModelSelectionType)(0),             // 18: agent_manager.v1.ModelSelectionType
-	(*ExtraFlagList)(nil),               // 19: agent_manager.v1.ExtraFlagList
+	(*durationpb.Duration)(nil),         // 12: google.protobuf.Duration
+	(*FeatureFlags)(nil),                // 13: agent_manager.v1.FeatureFlags
+	(NetworkAccess)(0),                  // 14: agent_manager.v1.NetworkAccess
+	(*timestamppb.Timestamp)(nil),       // 15: google.protobuf.Timestamp
+	(*SandboxConfig)(nil),               // 16: agent_manager.v1.SandboxConfig
+	(ModelSelectionType)(0),             // 17: agent_manager.v1.ModelSelectionType
+	(*ExtraFlagList)(nil),               // 18: agent_manager.v1.ExtraFlagList
 }
 var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
 	11, // 0: agent_manager.v1.AgentProfile.runner_type:type_name -> agent_manager.v1.RunnerType
-	12, // 1: agent_manager.v1.AgentProfile.model_preset:type_name -> agent_manager.v1.ModelPreset
-	13, // 2: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
-	11, // 3: agent_manager.v1.AgentProfile.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	14, // 4: agent_manager.v1.AgentProfile.features:type_name -> agent_manager.v1.FeatureFlags
-	8,  // 5: agent_manager.v1.AgentProfile.extra_flags:type_name -> agent_manager.v1.AgentProfile.ExtraFlagsEntry
-	15, // 6: agent_manager.v1.AgentProfile.network_access:type_name -> agent_manager.v1.NetworkAccess
-	16, // 7: agent_manager.v1.AgentProfile.source_updated_at:type_name -> google.protobuf.Timestamp
-	17, // 8: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	16, // 9: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
-	16, // 10: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
-	11, // 11: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
-	12, // 12: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
-	13, // 13: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
-	11, // 14: agent_manager.v1.RunConfig.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	14, // 15: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
-	9,  // 16: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
-	15, // 17: agent_manager.v1.RunConfig.network_access:type_name -> agent_manager.v1.NetworkAccess
-	5,  // 18: agent_manager.v1.RunConfig.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
-	17, // 19: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	11, // 20: agent_manager.v1.ExecutionCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
-	18, // 21: agent_manager.v1.ExecutionCandidate.selection_type:type_name -> agent_manager.v1.ModelSelectionType
-	2,  // 22: agent_manager.v1.CandidatePreflight.candidate:type_name -> agent_manager.v1.ExecutionCandidate
-	11, // 23: agent_manager.v1.PolicyResolutionExplanation.requested_runner:type_name -> agent_manager.v1.RunnerType
-	12, // 24: agent_manager.v1.PolicyResolutionExplanation.requested_preset:type_name -> agent_manager.v1.ModelPreset
-	3,  // 25: agent_manager.v1.PolicyResolutionExplanation.preflight:type_name -> agent_manager.v1.CandidatePreflight
-	2,  // 26: agent_manager.v1.ExecutionPolicySnapshot.candidates:type_name -> agent_manager.v1.ExecutionCandidate
-	2,  // 27: agent_manager.v1.ExecutionPolicySnapshot.selected_candidate:type_name -> agent_manager.v1.ExecutionCandidate
-	4,  // 28: agent_manager.v1.ExecutionPolicySnapshot.explanation:type_name -> agent_manager.v1.PolicyResolutionExplanation
-	11, // 29: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
-	12, // 30: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
-	13, // 31: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
-	11, // 32: agent_manager.v1.RunConfigOverrides.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	14, // 33: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
-	10, // 34: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
-	15, // 35: agent_manager.v1.RunConfigOverrides.network_access:type_name -> agent_manager.v1.NetworkAccess
-	17, // 36: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	13, // 37: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
-	13, // 38: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
-	19, // 39: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	19, // 40: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	19, // 41: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	42, // [42:42] is the sub-list for method output_type
-	42, // [42:42] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	12, // 1: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
+	13, // 2: agent_manager.v1.AgentProfile.features:type_name -> agent_manager.v1.FeatureFlags
+	8,  // 3: agent_manager.v1.AgentProfile.extra_flags:type_name -> agent_manager.v1.AgentProfile.ExtraFlagsEntry
+	14, // 4: agent_manager.v1.AgentProfile.network_access:type_name -> agent_manager.v1.NetworkAccess
+	15, // 5: agent_manager.v1.AgentProfile.source_updated_at:type_name -> google.protobuf.Timestamp
+	16, // 6: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	15, // 7: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
+	15, // 8: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 9: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
+	12, // 10: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
+	13, // 11: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
+	9,  // 12: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
+	14, // 13: agent_manager.v1.RunConfig.network_access:type_name -> agent_manager.v1.NetworkAccess
+	5,  // 14: agent_manager.v1.RunConfig.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
+	16, // 15: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	11, // 16: agent_manager.v1.ExecutionCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
+	17, // 17: agent_manager.v1.ExecutionCandidate.selection_type:type_name -> agent_manager.v1.ModelSelectionType
+	2,  // 18: agent_manager.v1.CandidatePreflight.candidate:type_name -> agent_manager.v1.ExecutionCandidate
+	11, // 19: agent_manager.v1.PolicyResolutionExplanation.requested_runner:type_name -> agent_manager.v1.RunnerType
+	3,  // 20: agent_manager.v1.PolicyResolutionExplanation.preflight:type_name -> agent_manager.v1.CandidatePreflight
+	2,  // 21: agent_manager.v1.ExecutionPolicySnapshot.candidates:type_name -> agent_manager.v1.ExecutionCandidate
+	2,  // 22: agent_manager.v1.ExecutionPolicySnapshot.selected_candidate:type_name -> agent_manager.v1.ExecutionCandidate
+	4,  // 23: agent_manager.v1.ExecutionPolicySnapshot.explanation:type_name -> agent_manager.v1.PolicyResolutionExplanation
+	11, // 24: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
+	12, // 25: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
+	13, // 26: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
+	10, // 27: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
+	14, // 28: agent_manager.v1.RunConfigOverrides.network_access:type_name -> agent_manager.v1.NetworkAccess
+	16, // 29: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	12, // 30: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
+	12, // 31: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
+	18, // 32: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	18, // 33: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	18, // 34: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	35, // [35:35] is the sub-list for method output_type
+	35, // [35:35] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_profile_proto_init() }

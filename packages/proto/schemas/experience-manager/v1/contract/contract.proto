@@ -209,6 +209,7 @@ message ListSpecResponse {
   string scenario = 1;
   repeated SpecDocument pages = 2;
   repeated SpecDocument journeys = 3;
+  repeated SpecDocument components = 4;
 }
 
 message ShowSpecRequest {

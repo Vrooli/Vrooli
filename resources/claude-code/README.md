@@ -75,6 +75,8 @@ resource-claude-code permissions doctor
 
 Every `Bash(...)` deny rule is paired with a `PreToolUse` hook entry (script materialized in `~/.claude/.vrooli-hooks/`) as a defensive backstop for the upstream `permissions.deny` enforcement bug ([anthropics/claude-code#18846](https://github.com/anthropics/claude-code/issues/18846), [#29026](https://github.com/anthropics/claude-code/issues/29026)).
 
+For declarative automation, use `permissions plan --document desired.json --json` and `permissions reconcile --document desired.json --json`. The strict v1 document contains `schema_version`, optional `scope: "user"`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged settings, and reports desired/live fingerprints, native paths, changes, and the `hook_backed` enforcement posture.
+
 Pinned upstream docs: <https://code.claude.com/docs/en/permissions> (see `resource.json` → `upstream_cli`).
 
 ## Notes

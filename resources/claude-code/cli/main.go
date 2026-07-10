@@ -6,6 +6,7 @@ import (
 
 	"resource-claude-code/cli/internal/permissionscli"
 
+	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
@@ -56,6 +57,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		app.StandardLifecycleCommands(),
 		[]cliapp.SubcommandGroup{
+			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_backed", Caveats: []string{"Claude native permission denials are backed by a PreToolUse Bash hook."}}}),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{
 				DisplayName:   appName,

@@ -449,8 +449,8 @@ message GetProfileResponse {
   // Available models for the profile's runner.
   repeated AvailableModel available_models = 2;
 
-  // Preset-to-model mappings for the profile's runner (filtered to available models).
-  map<string, string> model_presets = 3;
+  // Named-policy-to-primary-model mappings for the profile's runner.
+  map<string, string> policy_models = 3;
 }
 
 // ListProfilesRequest filters and paginates profile listings.

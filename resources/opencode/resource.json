@@ -43,6 +43,7 @@
       "inputs": [
         "cli/**",
         "cli/internal/**",
+        "model-policy.json",
         "docs/**",
         "README.md",
         "resource.json"

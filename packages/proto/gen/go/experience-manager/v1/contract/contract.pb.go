@@ -1464,6 +1464,7 @@ type ListSpecResponse struct {
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	Pages         []*SpecDocument        `protobuf:"bytes,2,rep,name=pages,proto3" json:"pages,omitempty"`
 	Journeys      []*SpecDocument        `protobuf:"bytes,3,rep,name=journeys,proto3" json:"journeys,omitempty"`
+	Components    []*SpecDocument        `protobuf:"bytes,4,rep,name=components,proto3" json:"components,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1515,6 +1516,13 @@ func (x *ListSpecResponse) GetPages() []*SpecDocument {
 func (x *ListSpecResponse) GetJourneys() []*SpecDocument {
 	if x != nil {
 		return x.Journeys
+	}
+	return nil
+}
+
+func (x *ListSpecResponse) GetComponents() []*SpecDocument {
+	if x != nil {
+		return x.Components
 	}
 	return nil
 }
@@ -3672,11 +3680,14 @@ const file_experience_manager_v1_contract_contract_proto_rawDesc = "" +
 	"\tdiscarded\x18\x02 \x01(\bR\tdiscarded\"A\n" +
 	"\x0fListSpecRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"\xca\x01\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"\x9f\x02\n" +
 	"\x10ListSpecResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12I\n" +
 	"\x05pages\x18\x02 \x03(\v23.vrooli.experience_manager.v1.contract.SpecDocumentR\x05pages\x12O\n" +
-	"\bjourneys\x18\x03 \x03(\v23.vrooli.experience_manager.v1.contract.SpecDocumentR\bjourneys\"U\n" +
+	"\bjourneys\x18\x03 \x03(\v23.vrooli.experience_manager.v1.contract.SpecDocumentR\bjourneys\x12S\n" +
+	"\n" +
+	"components\x18\x04 \x03(\v23.vrooli.experience_manager.v1.contract.SpecDocumentR\n" +
+	"components\"U\n" +
 	"\x0fShowSpecRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
@@ -3959,58 +3970,59 @@ var file_experience_manager_v1_contract_contract_proto_depIdxs = []int32{
 	1,  // 15: vrooli.experience_manager.v1.contract.ApplySessionResponse.validation:type_name -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
 	42, // 16: vrooli.experience_manager.v1.contract.ListSpecResponse.pages:type_name -> vrooli.experience_manager.v1.contract.SpecDocument
 	42, // 17: vrooli.experience_manager.v1.contract.ListSpecResponse.journeys:type_name -> vrooli.experience_manager.v1.contract.SpecDocument
-	28, // 18: vrooli.experience_manager.v1.contract.ListEvidenceResponse.evidence:type_name -> vrooli.experience_manager.v1.contract.ReconciliationEvidence
-	43, // 19: vrooli.experience_manager.v1.contract.SuggestBindingsResponse.suggestions:type_name -> vrooli.experience_manager.v1.contract.BindingSuggestion
-	37, // 20: vrooli.experience_manager.v1.contract.CompareVariantsRequest.variants:type_name -> vrooli.experience_manager.v1.contract.SpecVariant
-	38, // 21: vrooli.experience_manager.v1.contract.CompareVariantsResponse.variants:type_name -> vrooli.experience_manager.v1.contract.RenderedVariant
-	37, // 22: vrooli.experience_manager.v1.contract.PromoteVariantRequest.variant:type_name -> vrooli.experience_manager.v1.contract.SpecVariant
-	38, // 23: vrooli.experience_manager.v1.contract.PromoteVariantResponse.variant:type_name -> vrooli.experience_manager.v1.contract.RenderedVariant
-	41, // 24: vrooli.experience_manager.v1.contract.PromoteVariantResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
-	1,  // 25: vrooli.experience_manager.v1.contract.PromoteVariantResponse.validation:type_name -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
-	44, // 26: vrooli.experience_manager.v1.contract.SpecVariant.page:type_name -> vrooli.experience_manager.v1.contract.PageForm
-	45, // 27: vrooli.experience_manager.v1.contract.PageForm.priorities:type_name -> vrooli.experience_manager.v1.contract.PriorityForm
-	46, // 28: vrooli.experience_manager.v1.contract.PageForm.states:type_name -> vrooli.experience_manager.v1.contract.StateForm
-	47, // 29: vrooli.experience_manager.v1.contract.PageForm.elements:type_name -> vrooli.experience_manager.v1.contract.ElementForm
-	48, // 30: vrooli.experience_manager.v1.contract.PageForm.claims:type_name -> vrooli.experience_manager.v1.contract.ClaimForm
-	49, // 31: vrooli.experience_manager.v1.contract.PageForm.bindings:type_name -> vrooli.experience_manager.v1.contract.BindingForm
-	50, // 32: vrooli.experience_manager.v1.contract.PageForm.sketch_regions:type_name -> vrooli.experience_manager.v1.contract.SketchRegionForm
-	0,  // 33: vrooli.experience_manager.v1.contract.ContractService.ValidateScenario:input_type -> vrooli.experience_manager.v1.contract.ValidateScenarioRequest
-	2,  // 34: vrooli.experience_manager.v1.contract.ContractService.ListFleet:input_type -> vrooli.experience_manager.v1.contract.ListFleetRequest
-	5,  // 35: vrooli.experience_manager.v1.contract.ContractService.AppendAttestation:input_type -> vrooli.experience_manager.v1.contract.AppendAttestationRequest
-	7,  // 36: vrooli.experience_manager.v1.contract.ContractService.ScaffoldCases:input_type -> vrooli.experience_manager.v1.contract.ScaffoldCasesRequest
-	12, // 37: vrooli.experience_manager.v1.contract.StudioSessionService.StartAuthoringSession:input_type -> vrooli.experience_manager.v1.contract.StartAuthoringSessionRequest
-	14, // 38: vrooli.experience_manager.v1.contract.StudioSessionService.SubmitPage:input_type -> vrooli.experience_manager.v1.contract.SubmitPageRequest
-	16, // 39: vrooli.experience_manager.v1.contract.StudioSessionService.PreviewSession:input_type -> vrooli.experience_manager.v1.contract.PreviewSessionRequest
-	18, // 40: vrooli.experience_manager.v1.contract.StudioSessionService.ApplySession:input_type -> vrooli.experience_manager.v1.contract.ApplySessionRequest
-	20, // 41: vrooli.experience_manager.v1.contract.StudioSessionService.DiscardSession:input_type -> vrooli.experience_manager.v1.contract.DiscardSessionRequest
-	22, // 42: vrooli.experience_manager.v1.contract.StudioSessionService.ListSpec:input_type -> vrooli.experience_manager.v1.contract.ListSpecRequest
-	24, // 43: vrooli.experience_manager.v1.contract.StudioSessionService.ShowSpec:input_type -> vrooli.experience_manager.v1.contract.ShowSpecRequest
-	26, // 44: vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence:input_type -> vrooli.experience_manager.v1.contract.ListEvidenceRequest
-	29, // 45: vrooli.experience_manager.v1.contract.StudioSessionService.SuggestBindings:input_type -> vrooli.experience_manager.v1.contract.SuggestBindingsRequest
-	31, // 46: vrooli.experience_manager.v1.contract.StudioSessionService.RenderSpec:input_type -> vrooli.experience_manager.v1.contract.RenderSpecRequest
-	33, // 47: vrooli.experience_manager.v1.contract.StudioSessionService.CompareVariants:input_type -> vrooli.experience_manager.v1.contract.CompareVariantsRequest
-	35, // 48: vrooli.experience_manager.v1.contract.StudioSessionService.PromoteVariant:input_type -> vrooli.experience_manager.v1.contract.PromoteVariantRequest
-	1,  // 49: vrooli.experience_manager.v1.contract.ContractService.ValidateScenario:output_type -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
-	3,  // 50: vrooli.experience_manager.v1.contract.ContractService.ListFleet:output_type -> vrooli.experience_manager.v1.contract.ListFleetResponse
-	6,  // 51: vrooli.experience_manager.v1.contract.ContractService.AppendAttestation:output_type -> vrooli.experience_manager.v1.contract.AppendAttestationResponse
-	8,  // 52: vrooli.experience_manager.v1.contract.ContractService.ScaffoldCases:output_type -> vrooli.experience_manager.v1.contract.ScaffoldCasesResponse
-	13, // 53: vrooli.experience_manager.v1.contract.StudioSessionService.StartAuthoringSession:output_type -> vrooli.experience_manager.v1.contract.StartAuthoringSessionResponse
-	15, // 54: vrooli.experience_manager.v1.contract.StudioSessionService.SubmitPage:output_type -> vrooli.experience_manager.v1.contract.SubmitPageResponse
-	17, // 55: vrooli.experience_manager.v1.contract.StudioSessionService.PreviewSession:output_type -> vrooli.experience_manager.v1.contract.PreviewSessionResponse
-	19, // 56: vrooli.experience_manager.v1.contract.StudioSessionService.ApplySession:output_type -> vrooli.experience_manager.v1.contract.ApplySessionResponse
-	21, // 57: vrooli.experience_manager.v1.contract.StudioSessionService.DiscardSession:output_type -> vrooli.experience_manager.v1.contract.DiscardSessionResponse
-	23, // 58: vrooli.experience_manager.v1.contract.StudioSessionService.ListSpec:output_type -> vrooli.experience_manager.v1.contract.ListSpecResponse
-	25, // 59: vrooli.experience_manager.v1.contract.StudioSessionService.ShowSpec:output_type -> vrooli.experience_manager.v1.contract.ShowSpecResponse
-	27, // 60: vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence:output_type -> vrooli.experience_manager.v1.contract.ListEvidenceResponse
-	30, // 61: vrooli.experience_manager.v1.contract.StudioSessionService.SuggestBindings:output_type -> vrooli.experience_manager.v1.contract.SuggestBindingsResponse
-	32, // 62: vrooli.experience_manager.v1.contract.StudioSessionService.RenderSpec:output_type -> vrooli.experience_manager.v1.contract.RenderSpecResponse
-	34, // 63: vrooli.experience_manager.v1.contract.StudioSessionService.CompareVariants:output_type -> vrooli.experience_manager.v1.contract.CompareVariantsResponse
-	36, // 64: vrooli.experience_manager.v1.contract.StudioSessionService.PromoteVariant:output_type -> vrooli.experience_manager.v1.contract.PromoteVariantResponse
-	49, // [49:65] is the sub-list for method output_type
-	33, // [33:49] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	42, // 18: vrooli.experience_manager.v1.contract.ListSpecResponse.components:type_name -> vrooli.experience_manager.v1.contract.SpecDocument
+	28, // 19: vrooli.experience_manager.v1.contract.ListEvidenceResponse.evidence:type_name -> vrooli.experience_manager.v1.contract.ReconciliationEvidence
+	43, // 20: vrooli.experience_manager.v1.contract.SuggestBindingsResponse.suggestions:type_name -> vrooli.experience_manager.v1.contract.BindingSuggestion
+	37, // 21: vrooli.experience_manager.v1.contract.CompareVariantsRequest.variants:type_name -> vrooli.experience_manager.v1.contract.SpecVariant
+	38, // 22: vrooli.experience_manager.v1.contract.CompareVariantsResponse.variants:type_name -> vrooli.experience_manager.v1.contract.RenderedVariant
+	37, // 23: vrooli.experience_manager.v1.contract.PromoteVariantRequest.variant:type_name -> vrooli.experience_manager.v1.contract.SpecVariant
+	38, // 24: vrooli.experience_manager.v1.contract.PromoteVariantResponse.variant:type_name -> vrooli.experience_manager.v1.contract.RenderedVariant
+	41, // 25: vrooli.experience_manager.v1.contract.PromoteVariantResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
+	1,  // 26: vrooli.experience_manager.v1.contract.PromoteVariantResponse.validation:type_name -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
+	44, // 27: vrooli.experience_manager.v1.contract.SpecVariant.page:type_name -> vrooli.experience_manager.v1.contract.PageForm
+	45, // 28: vrooli.experience_manager.v1.contract.PageForm.priorities:type_name -> vrooli.experience_manager.v1.contract.PriorityForm
+	46, // 29: vrooli.experience_manager.v1.contract.PageForm.states:type_name -> vrooli.experience_manager.v1.contract.StateForm
+	47, // 30: vrooli.experience_manager.v1.contract.PageForm.elements:type_name -> vrooli.experience_manager.v1.contract.ElementForm
+	48, // 31: vrooli.experience_manager.v1.contract.PageForm.claims:type_name -> vrooli.experience_manager.v1.contract.ClaimForm
+	49, // 32: vrooli.experience_manager.v1.contract.PageForm.bindings:type_name -> vrooli.experience_manager.v1.contract.BindingForm
+	50, // 33: vrooli.experience_manager.v1.contract.PageForm.sketch_regions:type_name -> vrooli.experience_manager.v1.contract.SketchRegionForm
+	0,  // 34: vrooli.experience_manager.v1.contract.ContractService.ValidateScenario:input_type -> vrooli.experience_manager.v1.contract.ValidateScenarioRequest
+	2,  // 35: vrooli.experience_manager.v1.contract.ContractService.ListFleet:input_type -> vrooli.experience_manager.v1.contract.ListFleetRequest
+	5,  // 36: vrooli.experience_manager.v1.contract.ContractService.AppendAttestation:input_type -> vrooli.experience_manager.v1.contract.AppendAttestationRequest
+	7,  // 37: vrooli.experience_manager.v1.contract.ContractService.ScaffoldCases:input_type -> vrooli.experience_manager.v1.contract.ScaffoldCasesRequest
+	12, // 38: vrooli.experience_manager.v1.contract.StudioSessionService.StartAuthoringSession:input_type -> vrooli.experience_manager.v1.contract.StartAuthoringSessionRequest
+	14, // 39: vrooli.experience_manager.v1.contract.StudioSessionService.SubmitPage:input_type -> vrooli.experience_manager.v1.contract.SubmitPageRequest
+	16, // 40: vrooli.experience_manager.v1.contract.StudioSessionService.PreviewSession:input_type -> vrooli.experience_manager.v1.contract.PreviewSessionRequest
+	18, // 41: vrooli.experience_manager.v1.contract.StudioSessionService.ApplySession:input_type -> vrooli.experience_manager.v1.contract.ApplySessionRequest
+	20, // 42: vrooli.experience_manager.v1.contract.StudioSessionService.DiscardSession:input_type -> vrooli.experience_manager.v1.contract.DiscardSessionRequest
+	22, // 43: vrooli.experience_manager.v1.contract.StudioSessionService.ListSpec:input_type -> vrooli.experience_manager.v1.contract.ListSpecRequest
+	24, // 44: vrooli.experience_manager.v1.contract.StudioSessionService.ShowSpec:input_type -> vrooli.experience_manager.v1.contract.ShowSpecRequest
+	26, // 45: vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence:input_type -> vrooli.experience_manager.v1.contract.ListEvidenceRequest
+	29, // 46: vrooli.experience_manager.v1.contract.StudioSessionService.SuggestBindings:input_type -> vrooli.experience_manager.v1.contract.SuggestBindingsRequest
+	31, // 47: vrooli.experience_manager.v1.contract.StudioSessionService.RenderSpec:input_type -> vrooli.experience_manager.v1.contract.RenderSpecRequest
+	33, // 48: vrooli.experience_manager.v1.contract.StudioSessionService.CompareVariants:input_type -> vrooli.experience_manager.v1.contract.CompareVariantsRequest
+	35, // 49: vrooli.experience_manager.v1.contract.StudioSessionService.PromoteVariant:input_type -> vrooli.experience_manager.v1.contract.PromoteVariantRequest
+	1,  // 50: vrooli.experience_manager.v1.contract.ContractService.ValidateScenario:output_type -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
+	3,  // 51: vrooli.experience_manager.v1.contract.ContractService.ListFleet:output_type -> vrooli.experience_manager.v1.contract.ListFleetResponse
+	6,  // 52: vrooli.experience_manager.v1.contract.ContractService.AppendAttestation:output_type -> vrooli.experience_manager.v1.contract.AppendAttestationResponse
+	8,  // 53: vrooli.experience_manager.v1.contract.ContractService.ScaffoldCases:output_type -> vrooli.experience_manager.v1.contract.ScaffoldCasesResponse
+	13, // 54: vrooli.experience_manager.v1.contract.StudioSessionService.StartAuthoringSession:output_type -> vrooli.experience_manager.v1.contract.StartAuthoringSessionResponse
+	15, // 55: vrooli.experience_manager.v1.contract.StudioSessionService.SubmitPage:output_type -> vrooli.experience_manager.v1.contract.SubmitPageResponse
+	17, // 56: vrooli.experience_manager.v1.contract.StudioSessionService.PreviewSession:output_type -> vrooli.experience_manager.v1.contract.PreviewSessionResponse
+	19, // 57: vrooli.experience_manager.v1.contract.StudioSessionService.ApplySession:output_type -> vrooli.experience_manager.v1.contract.ApplySessionResponse
+	21, // 58: vrooli.experience_manager.v1.contract.StudioSessionService.DiscardSession:output_type -> vrooli.experience_manager.v1.contract.DiscardSessionResponse
+	23, // 59: vrooli.experience_manager.v1.contract.StudioSessionService.ListSpec:output_type -> vrooli.experience_manager.v1.contract.ListSpecResponse
+	25, // 60: vrooli.experience_manager.v1.contract.StudioSessionService.ShowSpec:output_type -> vrooli.experience_manager.v1.contract.ShowSpecResponse
+	27, // 61: vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence:output_type -> vrooli.experience_manager.v1.contract.ListEvidenceResponse
+	30, // 62: vrooli.experience_manager.v1.contract.StudioSessionService.SuggestBindings:output_type -> vrooli.experience_manager.v1.contract.SuggestBindingsResponse
+	32, // 63: vrooli.experience_manager.v1.contract.StudioSessionService.RenderSpec:output_type -> vrooli.experience_manager.v1.contract.RenderSpecResponse
+	34, // 64: vrooli.experience_manager.v1.contract.StudioSessionService.CompareVariants:output_type -> vrooli.experience_manager.v1.contract.CompareVariantsResponse
+	36, // 65: vrooli.experience_manager.v1.contract.StudioSessionService.PromoteVariant:output_type -> vrooli.experience_manager.v1.contract.PromoteVariantResponse
+	50, // [50:66] is the sub-list for method output_type
+	34, // [34:50] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_experience_manager_v1_contract_contract_proto_init() }

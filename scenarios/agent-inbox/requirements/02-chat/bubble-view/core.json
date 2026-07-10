@@ -1,176 +1,177 @@
 {
-  "module": "bubble-chat-view",
-  "description": "ChatGPT-style message bubble interface with OpenRouter integration",
+  "_metadata": {
+    "last_validated_at": "2026-07-10T10:30:23-04:00"
+  },
   "requirements": [
     {
       "id": "BUBBLE-001",
       "title": "Create new chat",
-      "description": "Start a new chat conversation with selected model and view mode",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Start a new chat conversation with selected model and view mode",
       "validation": [
         {
           "type": "test",
+          "ref": "api/chat_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/chat_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "bas/cases/02-chat-creation/ui/create-new-chat.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/cases/02-chat-creation/ui/create-new-chat.json"
+          "status": "implemented"
         },
         {
           "type": "test",
+          "ref": "bas/flows/basic-chat-flow.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/flows/basic-chat-flow.json"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "BUBBLE-002",
       "title": "Message bubbles",
-      "description": "Display messages as styled bubbles with user/assistant distinction",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Display messages as styled bubbles with user/assistant distinction",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "bas/flows/basic-chat-flow.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/flows/basic-chat-flow.json"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "BUBBLE-003",
       "title": "Streaming responses",
-      "description": "Stream AI responses in real-time via SSE",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Stream AI responses in real-time via SSE",
       "validation": [
         {
           "type": "test",
+          "ref": "api/openrouter_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/openrouter_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/lib/api.ts",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/lib/api.ts"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "BUBBLE-004",
       "title": "OpenRouter integration",
-      "description": "Send chat completions to OpenRouter API with selected model",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Send chat completions to OpenRouter API with selected model",
       "validation": [
         {
           "type": "test",
+          "ref": "api/openrouter_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/openrouter_test.go"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "BUBBLE-005",
       "title": "Model selector",
-      "description": "Dropdown to select from available OpenRouter models",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Dropdown to select from available OpenRouter models",
       "validation": [
         {
           "type": "test",
+          "ref": "api/openrouter_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/openrouter_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "BUBBLE-006",
       "title": "Switch model mid-conversation",
-      "description": "Change the model for subsequent messages without starting new chat",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Change the model for subsequent messages without starting new chat",
       "validation": [
         {
           "type": "test",
+          "ref": "api/chat_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/chat_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "BUBBLE-007",
       "title": "Conversation forking",
-      "description": "Create a new chat branching from a specific message",
+      "status": "in_progress",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
-      "status": "complete",
+      "description": "Create a new chat branching from a specific message",
       "validation": [
         {
-          "type": "implementation",
+          "type": "test",
+          "ref": "api/handlers/chat.go:ForkChat",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/handlers/chat.go:ForkChat"
+          "status": "failing"
         },
         {
-          "type": "implementation",
+          "type": "test",
+          "ref": "api/persistence/chat.go:ForkChat",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/persistence/chat.go:ForkChat"
+          "status": "failing"
         },
         {
-          "type": "implementation",
+          "type": "test",
+          "ref": "ui/src/components/chat/MessageList.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/components/chat/MessageList.tsx"
+          "status": "failing"
         },
         {
-          "type": "implementation",
+          "type": "test",
+          "ref": "ui/src/lib/api.ts:forkChat",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/lib/api.ts:forkChat"
+          "status": "failing"
         }
       ]
     }

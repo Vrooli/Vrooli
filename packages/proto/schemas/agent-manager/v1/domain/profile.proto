@@ -67,9 +67,9 @@ message AgentProfile {
   // If empty, uses the runner's default model.
   string model = 5;
 
-  // Preset to use for model selection (FAST/CHEAP/SMART).
-  // Mutually exclusive with model.
-  ModelPreset model_preset = 19;
+  // Named policy from the active model-policy catalog. Mutually exclusive
+  // with model. The policy is resolved to an immutable run snapshot.
+  string policy_ref = 32;
 
   // Maximum number of conversation turns before stopping.
   // 0 means unlimited (use with caution).
@@ -82,10 +82,6 @@ message AgentProfile {
   // Maximum execution time for the agent.
   // Default: 30 minutes if not specified.
   google.protobuf.Duration timeout = 7;
-
-  // Ordered list of fallback runners to try if the primary is unavailable.
-  // Empty disables automatic fallback.
-  repeated RunnerType fallback_runner_types = 22;
 
   // Tools the agent is allowed to use.
   // Empty means use runner defaults.
@@ -134,8 +130,8 @@ message AgentProfile {
   // boundary). Run-end apply behavior is controlled by
   // SandboxConfig (manual_review / auto_apply / apply_on_failure) per
   // the auditability contract.
-  reserved 11, 12;
-  reserved "requires_sandbox", "requires_approval";
+  reserved 11, 12, 19, 22;
+  reserved "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 20;
@@ -178,19 +174,14 @@ message RunConfig {
   // Model to use for execution.
   string model = 2;
 
-  // Preset to use for model selection (FAST/CHEAP/SMART).
-  // Mutually exclusive with model.
-  ModelPreset model_preset = 12;
+  // Named policy selected before policy_snapshot was created.
+  string policy_ref = 20;
 
   // Maximum conversation turns.
   int32 max_turns = 3;
 
   // Maximum execution time.
   google.protobuf.Duration timeout = 4;
-
-  // Ordered list of fallback runners to try if the primary is unavailable.
-  // Empty disables automatic fallback.
-  repeated RunnerType fallback_runner_types = 15;
 
   // Tools the agent is allowed to use.
   repeated string allowed_tools = 5;
@@ -220,8 +211,8 @@ message RunConfig {
   // of truth for whether a run is sandboxed; run-end apply behavior is
   // controlled by SandboxConfig levers (manual_review / auto_apply /
   // apply_on_failure).
-  reserved 8, 9;
-  reserved "requires_sandbox", "requires_approval";
+  reserved 8, 9, 12, 15;
+  reserved "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 13;
@@ -256,8 +247,10 @@ message PolicyResolutionExplanation {
   string summary = 2;
   RunnerType requested_runner = 3;
   string requested_model = 4;
-  ModelPreset requested_preset = 5;
+  string requested_policy_ref = 7;
   repeated CandidatePreflight preflight = 6;
+  reserved 5;
+  reserved "requested_preset";
 }
 
 // ExecutionPolicySnapshot pins the active catalog revision and complete
@@ -287,18 +280,14 @@ message RunConfigOverrides {
   // Model to use for execution.
   optional string model = 2;
 
-  // Preset to use for model selection (FAST/CHEAP/SMART).
-  // Mutually exclusive with model.
-  optional ModelPreset model_preset = 16;
+  // Named policy from the active catalog. Mutually exclusive with model.
+  optional string policy_ref = 25;
 
   // Maximum conversation turns.
   optional int32 max_turns = 3;
 
   // Maximum execution time.
   optional google.protobuf.Duration timeout = 4;
-
-  // Ordered list of fallback runners to try if the primary is unavailable.
-  repeated RunnerType fallback_runner_types = 19;
 
   // Tools the agent is allowed to use.
   repeated string allowed_tools = 5;
@@ -325,8 +314,8 @@ message RunConfigOverrides {
   // schema iterations. SandboxConfig.mode is the single source of truth
   // for whether a run is sandboxed; run-end apply behavior is on
   // SandboxConfig levers.
-  reserved 8, 9;
-  reserved "requires_sandbox", "requires_approval";
+  reserved 8, 9, 16, 19, 20;
+  reserved "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types", "clear_fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 17;
@@ -349,8 +338,6 @@ message RunConfigOverrides {
   // Clear denied paths inherited from profile.
   bool clear_denied_paths = 15;
 
-  // Clear fallback runners inherited from profile.
-  bool clear_fallback_runner_types = 20;
 }
 
 // =============================================================================

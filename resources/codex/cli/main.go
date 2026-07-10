@@ -6,6 +6,7 @@ import (
 
 	"resource-codex/cli/internal/permissionscli"
 
+	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
@@ -56,6 +57,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		app.StandardLifecycleCommands(),
 		[]cliapp.SubcommandGroup{
+			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "intent_only", Caveats: []string{"Codex does not natively enforce per-command allow, ask, or deny patterns."}}}),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{
 				DisplayName:   appName,

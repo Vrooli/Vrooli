@@ -75,6 +75,8 @@ Mutating verbs (`deny`, `allow`, `ask`, `remove`, `reset`) refuse agent callers 
 
 **Enforcement caveat.** Unlike Claude Code (`permissions.deny` + `PreToolUse` hook) or OpenCode (`permission.bash` map), Codex does **not** today honour per-command-pattern deny/ask/allow rules natively — its policy surface is `sandbox_mode` and `approval_policy`. The `[vrooli.permissions]` section records Vrooli's intent across all coding-agent resources uniformly; for hard live enforcement use Codex's sandbox/approval primitives.
 
+For declarative automation, use `permissions plan --scope user|admin --document desired.json --json` and `permissions reconcile --scope user|admin --document desired.json --json`. The strict v1 document contains `schema_version`, matching `scope`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged TOML, and reports desired/live fingerprints, native paths, changes, and the explicitly `intent_only` enforcement posture.
+
 Upstream docs: <https://developers.openai.com/codex/permissions>.
 
 ## Notes

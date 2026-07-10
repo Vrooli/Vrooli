@@ -18,26 +18,26 @@ The system provides a ChatGPT-style bubble interface for conversational AI (powe
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | Inbox list view | Display all chats in an email-like list showing name, preview, labels, and read/unread status
-- [x] OT-P0-002 | Chat creation | Create new chat sessions with selected model and view mode
-- [x] OT-P0-003 | Bubble chat view | ChatGPT-style message bubbles with streaming responses from OpenRouter models
-- [x] OT-P0-004 | Model selection | Switch between available OpenRouter models mid-conversation
-- [x] OT-P0-005 | Auto-naming with Ollama | Automatically generate descriptive chat names using local Ollama based on conversation content
-- [x] OT-P0-006 | Manual renaming | Rename chats manually at any time
-- [x] OT-P0-007 | Read/unread tracking | Mark conversations as read/unread with visual indicators
-- [x] OT-P0-008 | Label management | Create, edit, delete, and assign colored labels to organize chats
-- [x] OT-P0-009 | Chat persistence | Store all conversations in SQLite with full message history
+- [ ] OT-P0-001 | Inbox list view | Display all chats in an email-like list showing name, preview, labels, and read/unread status
+- [ ] OT-P0-002 | Chat creation | Create new chat sessions with selected model and view mode
+- [ ] OT-P0-003 | Bubble chat view | ChatGPT-style message bubbles with streaming responses from OpenRouter models
+- [ ] OT-P0-004 | Model selection | Switch between available OpenRouter models mid-conversation
+- [ ] OT-P0-005 | Auto-naming with Ollama | Automatically generate descriptive chat names using local Ollama based on conversation content
+- [ ] OT-P0-006 | Manual renaming | Rename chats manually at any time
+- [ ] OT-P0-007 | Read/unread tracking | Mark conversations as read/unread with visual indicators
+- [ ] OT-P0-008 | Label management | Create, edit, delete, and assign colored labels to organize chats
+- [ ] OT-P0-009 | Chat persistence | Store all conversations in SQLite with full message history
 - [x] OT-P0-010 | Tool calling | Support for AI-driven tool calls that dispatch tasks to agent-manager
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Search functionality | Full-text search across all chat messages
 - [x] OT-P1-002 | Keyboard shortcuts | Email-style keyboard navigation (j/k, enter, escape, etc.)
-- [x] OT-P1-003 | Archive functionality | Archive old chats without deleting them
-- [x] OT-P1-004 | Bulk operations | Select multiple chats for bulk label/archive/delete actions
+- [ ] OT-P1-003 | Archive functionality | Archive old chats without deleting them
+- [ ] OT-P1-004 | Bulk operations | Select multiple chats for bulk label/archive/delete actions
 - [x] OT-P1-005 | Chat export | Export chat history to markdown, JSON, or text formats
-- [x] OT-P1-006 | Conversation forking | Create a new chat branching from a specific point in an existing conversation
+- [ ] OT-P1-006 | Conversation forking | Create a new chat branching from a specific point in an existing conversation
 - [x] OT-P1-007 | Model usage stats | Track token usage and costs per model
-- [x] OT-P1-008 | Starred chats | Pin important chats to the top of the inbox
+- [ ] OT-P1-008 | Starred chats | Pin important chats to the top of the inbox
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Multi-agent conversations | Chat sessions with multiple AI models collaborating

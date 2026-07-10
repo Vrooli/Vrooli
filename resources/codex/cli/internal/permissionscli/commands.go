@@ -41,6 +41,7 @@ type Handlers struct {
 	PinnedVersion  string
 	VersionCommand []string
 	VersionRunner  func(ctx context.Context, args []string) (string, error)
+	Stdin          io.Reader
 	Stdout         io.Writer
 	Stderr         io.Writer
 }
@@ -56,6 +57,7 @@ func Default(cliVersion, pinnedVersion string) *Handlers {
 		PinnedVersion:  pinnedVersion,
 		VersionCommand: []string{"codex", "--version"},
 		VersionRunner:  defaultVersionRunner,
+		Stdin:          os.Stdin,
 		Stdout:         os.Stdout,
 		Stderr:         os.Stderr,
 	}
@@ -87,6 +89,8 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{Name: "remove", Description: "Remove a pattern from any list (mutating)", Run: h.Remove},
 			{Name: "reset", Description: "Clear all Vrooli-managed permission entries (mutating)", Run: h.Reset},
 			{Name: "drift-check", Description: "Compare current config fingerprint to last Vrooli write", Run: h.DriftCheck},
+			{Name: "plan", Description: "Plan a whole declared portable permission document (JSON)", Run: h.Plan},
+			{Name: "reconcile", Description: "Reconcile a whole declared portable permission document (mutating, JSON)", Run: h.Reconcile},
 			{Name: "doctor", Description: "Check installed codex version and explain enforcement caveats", Run: h.Doctor},
 		},
 	}

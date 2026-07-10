@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"resource-grok/cli/internal/permissionscli"
 	"resource-grok/cli/internal/upstream"
 
+	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
 )
@@ -54,6 +56,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		app.StandardLifecycleCommands(),
 		[]cliapp.SubcommandGroup{
+			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_backed", Caveats: []string{"Grok native permission rules are supplemented by a PreToolUse Bash hook."}}}),
 			// Grok is not on npm/GitHub releases — its latest version is a bare
 			// text pointer at https://x.ai/cli/<channel>, so we override the
 			// upstream-check fetcher (see internal/upstream).

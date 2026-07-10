@@ -98,6 +98,8 @@ resource-grok permissions doctor        # confirms version + enforcement wiring
 resource-grok permissions drift-check   # detects hand-edits since the last write
 ```
 
+For declarative automation, use `permissions plan --scope user|admin --document desired.json --json` and `permissions reconcile --scope user|admin --document desired.json --json`. The strict v1 document contains `schema_version`, matching `scope`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged TOML, and reports desired/live fingerprints, native paths, changes, and the `hook_backed` enforcement posture.
+
 Mutating verbs (`deny/allow/ask/remove/reset`) are gated by the shared
 `agentpolicy` substrate: a **detected coding-agent caller is refused** so an agent
 cannot disarm its own gate. A human re-runs with `--i-was-explicitly-authorized`

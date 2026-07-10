@@ -79,6 +79,8 @@ resource-opencode permissions drift-check
 resource-opencode permissions doctor
 ```
 
+For declarative automation, use `permissions plan --document desired.json --json` and `permissions reconcile --document desired.json --json`. The strict v1 document contains `schema_version`, optional `scope: "user"`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged config, and reports desired/live fingerprints, native paths, changes, and `native` enforcement.
+
 Mutating verbs (`deny`, `allow`, `ask`, `remove`, `reset`) refuse agent
 callers (detected via `cliutil.DetectCallerKind` — `VROOLI_CALLER=agent`,
 `CLAUDECODE=1`, opencode PID-match, etc.) unless

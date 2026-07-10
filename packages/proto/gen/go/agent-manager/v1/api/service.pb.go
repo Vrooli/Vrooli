@@ -886,8 +886,8 @@ type GetProfileResponse struct {
 	Profile *domain.AgentProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
 	// Available models for the profile's runner.
 	AvailableModels []*AvailableModel `protobuf:"bytes,2,rep,name=available_models,json=availableModels,proto3" json:"available_models,omitempty"`
-	// Preset-to-model mappings for the profile's runner (filtered to available models).
-	ModelPresets  map[string]string `protobuf:"bytes,3,rep,name=model_presets,json=modelPresets,proto3" json:"model_presets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Named-policy-to-primary-model mappings for the profile's runner.
+	PolicyModels  map[string]string `protobuf:"bytes,3,rep,name=policy_models,json=policyModels,proto3" json:"policy_models,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -936,9 +936,9 @@ func (x *GetProfileResponse) GetAvailableModels() []*AvailableModel {
 	return nil
 }
 
-func (x *GetProfileResponse) GetModelPresets() map[string]string {
+func (x *GetProfileResponse) GetPolicyModels() map[string]string {
 	if x != nil {
-		return x.ModelPresets
+		return x.PolicyModels
 	}
 	return nil
 }
@@ -5619,8 +5619,8 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x12GetProfileResponse\x128\n" +
 	"\aprofile\x18\x01 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\aprofile\x12K\n" +
 	"\x10available_models\x18\x02 \x03(\v2 .agent_manager.v1.AvailableModelR\x0favailableModels\x12[\n" +
-	"\rmodel_presets\x18\x03 \x03(\v26.agent_manager.v1.GetProfileResponse.ModelPresetsEntryR\fmodelPresets\x1a?\n" +
-	"\x11ModelPresetsEntry\x12\x10\n" +
+	"\rpolicy_models\x18\x03 \x03(\v26.agent_manager.v1.GetProfileResponse.PolicyModelsEntryR\fpolicyModels\x1a?\n" +
+	"\x11PolicyModelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd6\x01\n" +
 	"\x13ListProfilesRequest\x12N\n" +
@@ -6137,7 +6137,7 @@ var file_agent_manager_v1_api_service_proto_goTypes = []any{
 	(*PurgeDataResponse)(nil),                  // 92: agent_manager.v1.PurgeDataResponse
 	nil,                                        // 93: agent_manager.v1.HealthResponse.DependenciesEntry
 	nil,                                        // 94: agent_manager.v1.HealthResponse.MetricsEntry
-	nil,                                        // 95: agent_manager.v1.GetProfileResponse.ModelPresetsEntry
+	nil,                                        // 95: agent_manager.v1.GetProfileResponse.PolicyModelsEntry
 	nil,                                        // 96: agent_manager.v1.CreateRunRequest.EnvironmentEntry
 	(v1.HealthStatus)(0),                       // 97: common.v1.HealthStatus
 	(*domain.AgentProfile)(nil),                // 98: agent_manager.v1.AgentProfile
@@ -6172,7 +6172,7 @@ var file_agent_manager_v1_api_service_proto_depIdxs = []int32{
 	9,   // 8: agent_manager.v1.ReconcileScenarioProfilesResponse.results:type_name -> agent_manager.v1.ProfileReconcileResult
 	98,  // 9: agent_manager.v1.GetProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
 	12,  // 10: agent_manager.v1.GetProfileResponse.available_models:type_name -> agent_manager.v1.AvailableModel
-	95,  // 11: agent_manager.v1.GetProfileResponse.model_presets:type_name -> agent_manager.v1.GetProfileResponse.ModelPresetsEntry
+	95,  // 11: agent_manager.v1.GetProfileResponse.policy_models:type_name -> agent_manager.v1.GetProfileResponse.PolicyModelsEntry
 	99,  // 12: agent_manager.v1.ListProfilesRequest.runner_type:type_name -> agent_manager.v1.RunnerType
 	98,  // 13: agent_manager.v1.ListProfilesResponse.profiles:type_name -> agent_manager.v1.AgentProfile
 	98,  // 14: agent_manager.v1.UpdateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
