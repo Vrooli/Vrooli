@@ -237,18 +237,21 @@ func (w *fakePlanWriter) CreatePlan(_ context.Context, p internalplans.Plan) (in
 }
 
 type fakePlanReader struct {
-	mu          sync.Mutex
-	plans       map[string]internalplans.Plan
-	getCalls    int
-	renderCalls int
-	getErr      error
-	renderErr   error
+	mu               sync.Mutex
+	plans            map[string]internalplans.Plan
+	getCalls         int
+	renderCalls      int
+	getWorkspaces    []string
+	renderWorkspaces []string
+	getErr           error
+	renderErr        error
 }
 
-func (r *fakePlanReader) GetPlan(_ context.Context, idOrSlug string) (internalplans.Plan, error) {
+func (r *fakePlanReader) GetPlan(_ context.Context, idOrSlug, workspaceRoot string) (internalplans.Plan, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.getCalls++
+	r.getWorkspaces = append(r.getWorkspaces, workspaceRoot)
 	if r.getErr != nil {
 		return internalplans.Plan{}, r.getErr
 	}
@@ -260,10 +263,11 @@ func (r *fakePlanReader) GetPlan(_ context.Context, idOrSlug string) (internalpl
 	return internalplans.Plan{}, internalplans.ErrPlanNotFound{ID: idOrSlug}
 }
 
-func (r *fakePlanReader) RenderPlan(_ context.Context, idOrSlug string) (string, error) {
+func (r *fakePlanReader) RenderPlan(_ context.Context, idOrSlug, workspaceRoot string) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.renderCalls++
+	r.renderWorkspaces = append(r.renderWorkspaces, workspaceRoot)
 	if r.renderErr != nil {
 		return "", r.renderErr
 	}

@@ -25,8 +25,8 @@ type Service interface {
 	Archive(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (Plan, error)
 	Render(ctx context.Context, idOrSlug string, workspace WorkspaceScope, opts RenderOptions) (RenderResult, error)
 
-	AddPhase(ctx context.Context, planID string, phase Phase) (Plan, error)
-	UpdatePhase(ctx context.Context, planID string, phase Phase) (Plan, error)
+	AddPhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error)
+	UpdatePhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error)
 	ListRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]RelevantContextItem, error)
 	UpdateRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string, item RelevantContextItem) (Plan, error)
 	RemoveRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string) (Plan, error)
@@ -289,8 +289,8 @@ func (s *service) Render(ctx context.Context, idOrSlug string, workspace Workspa
 	return RenderResult{Markdown: RenderMarkdownWithOptions(repaired, opts), Mirror: repaired.Mirror, Repaired: true, Plan: repaired, QualityStatus: qualityStatus, QualityFindings: qualityFindings}, nil
 }
 
-func (s *service) AddPhase(ctx context.Context, planID string, phase Phase) (Plan, error) {
-	p, err := s.Get(ctx, planID, WorkspaceScope{})
+func (s *service) AddPhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error) {
+	p, err := s.Get(ctx, planID, workspace)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -303,8 +303,8 @@ func (s *service) AddPhase(ctx context.Context, planID string, phase Phase) (Pla
 	return s.saveRecomputed(ctx, p)
 }
 
-func (s *service) UpdatePhase(ctx context.Context, planID string, phase Phase) (Plan, error) {
-	p, err := s.Get(ctx, planID, WorkspaceScope{})
+func (s *service) UpdatePhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error) {
+	p, err := s.Get(ctx, planID, workspace)
 	if err != nil {
 		return Plan{}, err
 	}

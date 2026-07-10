@@ -26,8 +26,8 @@ type PlanWriter interface {
 // read-after-write guard: a successful finalize response must refer to a plan
 // that resolves through the same plans-domain paths callers use.
 type PlanReader interface {
-	GetPlan(ctx context.Context, idOrSlug string) (planmodel.Plan, error)
-	RenderPlan(ctx context.Context, idOrSlug string) (string, error)
+	GetPlan(ctx context.Context, idOrSlug, workspaceRoot string) (planmodel.Plan, error)
+	RenderPlan(ctx context.Context, idOrSlug, workspaceRoot string) (string, error)
 }
 
 // PlanRenderer renders an in-progress plan to its markdown review artifact so the

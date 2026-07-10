@@ -33,7 +33,7 @@ func (f *fakePlanStore) GetPlan(_ context.Context, _ string) (internalplans.Plan
 	return f.plan, f.err
 }
 
-func (f *fakePlanStore) UpdatePhase(_ context.Context, _ string, phase internalplans.Phase) (internalplans.Plan, error) {
+func (f *fakePlanStore) UpdatePhase(_ context.Context, _, _, _ string, phase internalplans.Phase) (internalplans.Plan, error) {
 	if f.err != nil {
 		return internalplans.Plan{}, f.err
 	}

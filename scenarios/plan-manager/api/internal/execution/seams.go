@@ -15,7 +15,7 @@ type PlanStore interface {
 	GetPlan(ctx context.Context, idOrSlug string) (planmodel.Plan, error)
 	// UpdatePhase applies an authored/status mutation to one phase and returns the
 	// recomputed plan (plan status is derived from the phase-status set there).
-	UpdatePhase(ctx context.Context, planID string, phase planmodel.Phase) (planmodel.Plan, error)
+	UpdatePhase(ctx context.Context, planID, workspaceID, workspaceRoot string, phase planmodel.Phase) (planmodel.Plan, error)
 }
 
 // Validator is the read seam onto the validation domain for the just-in-time

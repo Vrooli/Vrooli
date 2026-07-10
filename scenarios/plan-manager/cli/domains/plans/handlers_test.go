@@ -329,6 +329,7 @@ func TestPlansRequestMapping(t *testing.T) {
 				require.Equal(t, "c", p.GetConstraints())
 				require.Equal(t, "ng", p.GetNonGoals())
 				require.Equal(t, "done", p.GetDefinitionOfDone())
+				require.NotEmpty(t, p.GetWorkspaceRoot())
 			},
 		},
 		{

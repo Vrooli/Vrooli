@@ -31,39 +31,41 @@ type fakePlansService struct {
 	context   []internalplans.RelevantContextItem
 	refs      []internalplans.Reference
 
-	gotListFilter        internalplans.ListFilter
-	gotGetID             string
-	gotGetWorkspace      internalplans.WorkspaceScope
-	gotCreate            internalplans.Plan
-	gotUpdate            internalplans.Plan
-	gotArchiveID         string
-	gotArchiveWorkspace  internalplans.WorkspaceScope
-	gotRenderID          string
-	gotRenderWorkspace   internalplans.WorkspaceScope
-	gotRenderOptions     internalplans.RenderOptions
-	gotAddPhasePlanID    string
-	gotAddPhase          internalplans.Phase
-	gotUpdatePhasePlanID string
-	gotUpdatePhase       internalplans.Phase
-	gotRepairID          string
-	gotRepairWorkspace   internalplans.WorkspaceScope
-	gotRepairPhaseID     string
-	gotRepairItemID      string
-	gotRepairContext     internalplans.RelevantContextItem
-	gotRepairReference   internalplans.Reference
-	gotGraphPlanID       string
-	gotSupersedingID     string
-	gotSupersededID      string
-	gotDependingID       string
-	gotDependencyID      string
-	gotImportPath        string
-	gotImportMarkdown    string
-	gotImportWorkspace   internalplans.WorkspaceScope
-	gotMigrateID         string
-	gotReconcile         internalplans.ReconcileRequest
-	gotTemplateID        string
-	gotTemplateTitle     string
-	gotTemplateSlug      string
+	gotListFilter           internalplans.ListFilter
+	gotGetID                string
+	gotGetWorkspace         internalplans.WorkspaceScope
+	gotCreate               internalplans.Plan
+	gotUpdate               internalplans.Plan
+	gotArchiveID            string
+	gotArchiveWorkspace     internalplans.WorkspaceScope
+	gotRenderID             string
+	gotRenderWorkspace      internalplans.WorkspaceScope
+	gotRenderOptions        internalplans.RenderOptions
+	gotAddPhasePlanID       string
+	gotAddPhaseWorkspace    internalplans.WorkspaceScope
+	gotAddPhase             internalplans.Phase
+	gotUpdatePhasePlanID    string
+	gotUpdatePhaseWorkspace internalplans.WorkspaceScope
+	gotUpdatePhase          internalplans.Phase
+	gotRepairID             string
+	gotRepairWorkspace      internalplans.WorkspaceScope
+	gotRepairPhaseID        string
+	gotRepairItemID         string
+	gotRepairContext        internalplans.RelevantContextItem
+	gotRepairReference      internalplans.Reference
+	gotGraphPlanID          string
+	gotSupersedingID        string
+	gotSupersededID         string
+	gotDependingID          string
+	gotDependencyID         string
+	gotImportPath           string
+	gotImportMarkdown       string
+	gotImportWorkspace      internalplans.WorkspaceScope
+	gotMigrateID            string
+	gotReconcile            internalplans.ReconcileRequest
+	gotTemplateID           string
+	gotTemplateTitle        string
+	gotTemplateSlug         string
 }
 
 func (f *fakePlansService) Create(_ context.Context, p internalplans.Plan) (internalplans.Plan, error) {
@@ -106,14 +108,16 @@ func (f *fakePlansService) Render(_ context.Context, idOrSlug string, workspace 
 	}, f.err
 }
 
-func (f *fakePlansService) AddPhase(_ context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error) {
+func (f *fakePlansService) AddPhase(_ context.Context, planID string, workspace internalplans.WorkspaceScope, phase internalplans.Phase) (internalplans.Plan, error) {
 	f.gotAddPhasePlanID = planID
+	f.gotAddPhaseWorkspace = workspace
 	f.gotAddPhase = phase
 	return f.plan, f.err
 }
 
-func (f *fakePlansService) UpdatePhase(_ context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error) {
+func (f *fakePlansService) UpdatePhase(_ context.Context, planID string, workspace internalplans.WorkspaceScope, phase internalplans.Phase) (internalplans.Plan, error) {
 	f.gotUpdatePhasePlanID = planID
+	f.gotUpdatePhaseWorkspace = workspace
 	f.gotUpdatePhase = phase
 	return f.plan, f.err
 }
@@ -357,12 +361,14 @@ func TestAddPhaseSuccess(t *testing.T) {
 	h := newPlansHandler(svc)
 
 	resp, err := h.AddPhase(context.Background(), connect.NewRequest(&plansv1.AddPhaseRequest{
-		PlanId: "p1",
-		Phase:  &sharedv1.Phase{Title: "New Phase", Status: sharedv1.PhaseStatus_PHASE_STATUS_TODO},
+		PlanId:    "p1",
+		Workspace: &plansv1.WorkspaceScope{Root: "/workspace"},
+		Phase:     &sharedv1.Phase{Title: "New Phase", Status: sharedv1.PhaseStatus_PHASE_STATUS_TODO},
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "p1", resp.Msg.GetPlan().GetId())
 	require.Equal(t, "p1", svc.gotAddPhasePlanID)
+	require.Equal(t, "/workspace", svc.gotAddPhaseWorkspace.Root)
 	require.Equal(t, "New Phase", svc.gotAddPhase.Title)
 	require.Equal(t, internalplans.PhaseStatusTodo, svc.gotAddPhase.Status)
 }

@@ -168,11 +168,11 @@ func globalContextChecklistItems(sess Session, sec Section) []planmodel.Checklis
 		global.Detail = "optional: add durable setup context if it will help execution"
 	}
 	skill := planmodel.ChecklistItem{Key: "skill_context", Label: "Skill context decision"}
-	if hasSkillContext(sess.RelevantContext) || noSkillContextReason(sec.Content) != "" {
+	if globalSkillContextResolved(sess) {
 		skill.State = planmodel.ChecklistFilled
 	} else {
-		skill.State = planmodel.ChecklistFilled
-		skill.Detail = "recommended: run author skill-pack with 2-5 concepts; keep most returned skills"
+		skill.State = planmodel.ChecklistMissing
+		skill.Detail = "run author skill-pack with 2-5 concepts (recommended; keep most returned skills) or record NO_SKILL_CONTEXT: <reason>"
 	}
 	return []planmodel.ChecklistItem{global, skill}
 }

@@ -42,12 +42,12 @@ func (a planWriter) CreatePlan(ctx context.Context, p internalplans.Plan) (inter
 	return a.svc.Create(ctx, p)
 }
 
-func (a planWriter) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
-	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
+func (a planWriter) GetPlan(ctx context.Context, idOrSlug, workspaceRoot string) (internalplans.Plan, error) {
+	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{Root: workspaceRoot})
 }
 
-func (a planWriter) RenderPlan(ctx context.Context, idOrSlug string) (string, error) {
-	rendered, err := a.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{}, internalplans.RenderOptions{})
+func (a planWriter) RenderPlan(ctx context.Context, idOrSlug, workspaceRoot string) (string, error) {
+	rendered, err := a.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{Root: workspaceRoot}, internalplans.RenderOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -66,8 +66,8 @@ func (a planStore) GetPlan(ctx context.Context, idOrSlug string) (internalplans.
 	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
 }
 
-func (a planStore) UpdatePhase(ctx context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error) {
-	return a.svc.UpdatePhase(ctx, planID, phase)
+func (a planStore) UpdatePhase(ctx context.Context, planID, workspaceID, workspaceRoot string, phase internalplans.Phase) (internalplans.Plan, error) {
+	return a.svc.UpdatePhase(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, phase)
 }
 
 type validatorAdapter struct{ svc internalvalidation.Service }

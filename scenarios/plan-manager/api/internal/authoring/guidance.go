@@ -305,6 +305,14 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 				Argv:               []string{"author", "context-submit", sessionHandle(sess), "--kind", "skill", "--label", "<skill>", "--target", "<skill>", "--reason", "<why this skill matters>", "--instruction", "Load this internal skill before implementation.", "--required"},
 				ContentPlaceholder: "<skill> / <why this skill matters>",
 			},
+			{
+				ID:                 "skip-skill-context",
+				Kind:               NextActionAlternative,
+				Label:              "Record a no-skill-context reason",
+				Reason:             "Use only when no internal skill would improve execution: record an explicit NO_SKILL_CONTEXT: skip reason so the plan carries an honest decision instead of silence.",
+				Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", "relevant_context", "--content", "NO_SKILL_CONTEXT: <reason>"},
+				ContentPlaceholder: "NO_SKILL_CONTEXT: <reason>",
+			},
 		},
 	}
 }
@@ -509,11 +517,17 @@ func stepForFinalizedPlan(sess Session, planID, slug string) GuidedStep {
 	if planHandle == "" {
 		planHandle = planID
 	}
+	instructions := []string{"Inspect the persisted plan before execution.", "Start execution when the plan is ready to implement."}
+	if !globalSkillContextResolved(sess) {
+		instructions = append([]string{
+			"WARNING plan_missing_skill_context: this plan was finalized without a skill sweep — no prompt-manager skill pack and no NO_SKILL_CONTEXT: skip reason. Executing agents get no skill setup. Consider `author skill-pack <session> --concepts \"<c1>,<c2>\"` on a follow-up, or record the skip reason next time.",
+		}, instructions...)
+	}
 	return GuidedStep{
 		StepKind:     "finalized",
 		Title:        "Plan Finalized",
 		Summary:      "The structured plan is persisted and ready for review or execution.",
-		Instructions: []string{"Inspect the persisted plan before execution.", "Start execution when the plan is ready to implement."},
+		Instructions: instructions,
 		NextActions: []NextAction{
 			{
 				ID:     "view-plan",

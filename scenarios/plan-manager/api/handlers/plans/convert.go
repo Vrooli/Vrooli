@@ -82,6 +82,7 @@ func planFromProtoChecked(p *sharedv1.Plan) (internalplans.Plan, error) {
 		WorkPostureDetail:       p.GetWorkPostureDetail(),
 		ImportProvenance:        planproto.ImportProvenanceFromProto(p.GetImportProvenance()),
 		PreservedLegacySections: planproto.LegacySectionsFromProto(p.GetPreservedLegacySections()),
+		ChangeBoundary:          planproto.ChangeBoundaryFromProto(p.GetChangeBoundary()),
 		Mirror:                  planproto.MirrorFromProto(p.GetMirror()),
 	}, nil
 }
@@ -128,6 +129,7 @@ func phaseFromProtoChecked(ph *sharedv1.Phase) (internalplans.Phase, error) {
 		Validation:      ph.GetValidation(),
 		HandoffNotes:    ph.GetHandoffNotes(),
 		RisksHazards:    ph.GetRisksHazards(),
+		ChangeBoundary:  planproto.ChangeBoundaryFromProto(ph.GetChangeBoundary()),
 	}, nil
 }
 

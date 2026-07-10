@@ -146,14 +146,14 @@ func (s *service) readFinalizedPlan(ctx context.Context, fallback planmodel.Plan
 	if s.reader == nil {
 		return fallback, nil
 	}
-	plan, err := s.reader.GetPlan(ctx, idOrSlug)
+	plan, err := s.reader.GetPlan(ctx, idOrSlug, fallback.WorkspaceRoot)
 	if err != nil {
 		return planmodel.Plan{}, ErrFinalizeReadback{PlanID: idOrSlug, Cause: err}
 	}
 	if strings.TrimSpace(plan.ID) == "" {
 		return planmodel.Plan{}, ErrFinalizeReadback{PlanID: idOrSlug, Cause: fmt.Errorf("resolved plan has empty id")}
 	}
-	if _, err := s.reader.RenderPlan(ctx, plan.ID); err != nil {
+	if _, err := s.reader.RenderPlan(ctx, plan.ID, fallback.WorkspaceRoot); err != nil {
 		return planmodel.Plan{}, ErrFinalizeReadback{PlanID: plan.ID, Cause: err}
 	}
 	return plan, nil

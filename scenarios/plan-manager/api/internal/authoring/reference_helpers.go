@@ -258,11 +258,17 @@ func globalContextResolved(sess Session) bool {
 	return true
 }
 
-// globalSkillContextResolved is intentionally lenient: DiscoverSkillPack is the
-// preferred low-friction path, but missing skill context is advisory rather than
-// a hard authoring gate.
+// globalSkillContextResolved reports whether the author has made an explicit
+// skill-context decision: a global skill item exists (usually via DiscoverSkillPack)
+// or the relevant-context section records a NO_SKILL_CONTEXT:/NO_CONTEXT: skip
+// reason. It steers navigation and progress only — finalize never blocks on it
+// (missing skill context stays a readiness warning, not a violation).
 func globalSkillContextResolved(sess Session) bool {
-	return true
+	if hasSkillContext(sess.RelevantContext) {
+		return true
+	}
+	content := contentOf(sess.Sections, SectionRelevantContext)
+	return noSkillContextReason(content) != "" || noContextReason(content) != ""
 }
 
 func hasSkillContext(items []planmodel.RelevantContextItem) bool {

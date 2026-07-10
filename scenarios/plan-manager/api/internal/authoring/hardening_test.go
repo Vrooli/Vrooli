@@ -123,20 +123,31 @@ func TestCommandContextRequiresInstructionBeforeAcceptance(t *testing.T) {
 
 // --- Phase 2: no premature final review ---
 
-// TestMutationCanReachFinalReviewWithoutGlobalContext proves plan-wide context
-// is advisory after the skill-pack cutover, not a hard navigation checkpoint.
-func TestMutationCanReachFinalReviewWithoutGlobalContext(t *testing.T) {
+// TestMutationSteersToSkillCheckpointThenFinalReview proves the wizard steers to
+// the global-context checkpoint until an explicit skill decision exists (skill
+// item or NO_SKILL_CONTEXT reason), then proceeds — steering, not a finalize
+// blocker (finalize itself never gates on skill context).
+func TestMutationSteersToSkillCheckpointThenFinalReview(t *testing.T) {
 	ctx := context.Background()
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	sess, _, err := svc.StartSession(ctx, "No premature review", "no-premature-review", "")
 	require.NoError(t, err)
 	fillMandatorySectionsOnly(t, svc, sess.ID)
 
-	// Re-submit a filled section to observe the post-mutation guided step.
+	// Re-submit a filled section to observe the post-mutation guided step: with
+	// no skill decision the wizard must steer to the context checkpoint.
 	_, _, step, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Make widgets better, again.")
 	require.NoError(t, err)
+	require.Equal(t, "global_relevant_context", step.StepKind,
+		"without a skill decision the wizard steers to the skill/context checkpoint")
+	requireActionID(t, step, "discover-skill-pack")
+	requireActionID(t, step, "skip-skill-context")
+
+	// Recording an explicit skip reason resolves the checkpoint.
+	_, _, step, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_SKILL_CONTEXT: fixture has no skill setup.")
+	require.NoError(t, err)
 	require.Equal(t, "final_review", step.StepKind,
-		"all mandatory sections filled may reach final review even when global context is unresolved")
+		"an explicit NO_SKILL_CONTEXT decision unlocks final review")
 }
 
 // TestMutationDoesNotJumpToFinalReviewWithIncompletePhase proves that once global

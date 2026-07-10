@@ -85,13 +85,16 @@ func TestGoldenAuthoringWizardHardening(t *testing.T) {
 	require.Equal(t, "Unify the ledger", phase.Title)
 	require.Equal(t, "Introduce a single log_entries table and LogService.", phase.Intent)
 
-	// Friction 2: all mandatory sections filled and a phase exists, but global
-	// context is unresolved. Context is advisory after the skill-pack cutover, so
-	// the loop moves to the incomplete phase instead of a global-context gate.
+	// Friction 2: all mandatory sections filled and a phase exists, but no skill
+	// decision was made. The wizard steers to the context checkpoint (recommending
+	// author skill-pack, with a NO_SKILL_CONTEXT escape) before phase work —
+	// steering only, never a finalize blocker.
 	_, _, _, ready, _, step, err := svc.ContinueAuthoring(ctx, sess.ID)
 	require.NoError(t, err)
 	require.False(t, ready, "must not be ready while the phase is incomplete")
-	require.Equal(t, "phase_references", step.StepKind)
+	require.Equal(t, "global_relevant_context", step.StepKind,
+		"without a skill decision the wizard steers to the skill/context checkpoint")
+	requireActionID(t, step, "discover-skill-pack")
 
 	// Resolve global context with a real plan-wide setup item (once_per_execution).
 	_, globalItem, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{

@@ -282,7 +282,7 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	// Delegate the phase-status change to the plans domain — it stays the single
 	// source of truth for the record (plan status is recomputed there).
 	target.Status = to
-	updated, err := s.plans.UpdatePhase(ctx, plan.ID, target)
+	updated, err := s.plans.UpdatePhase(ctx, plan.ID, plan.WorkspaceID, plan.WorkspaceRoot, target)
 	if err != nil {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 	}

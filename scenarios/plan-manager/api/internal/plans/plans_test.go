@@ -1132,14 +1132,14 @@ func TestStatusTransitionLegality(t *testing.T) {
 	// Move first phase to active => plan active.
 	ph0 := p.Phases[0]
 	ph0.Status = plans.PhaseStatusActive
-	p, err = svc.UpdatePhase(ctx, p.ID, ph0)
+	p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, ph0)
 	require.NoError(t, err)
 	require.Equal(t, plans.PlanStatusActive, p.Status)
 
 	// All phases done => plan complete.
 	for _, ph := range p.Phases {
 		ph.Status = plans.PhaseStatusDone
-		p, err = svc.UpdatePhase(ctx, p.ID, ph)
+		p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, ph)
 		require.NoError(t, err)
 	}
 	require.Equal(t, plans.PlanStatusComplete, p.Status)
@@ -1150,7 +1150,7 @@ func TestStatusTransitionLegality(t *testing.T) {
 	require.Equal(t, plans.PlanStatusArchived, p.Status)
 	ph := p.Phases[0]
 	ph.Status = plans.PhaseStatusActive
-	p, err = svc.UpdatePhase(ctx, p.ID, ph)
+	p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, ph)
 	require.NoError(t, err)
 	require.Equal(t, plans.PlanStatusArchived, p.Status, "archived is sticky")
 }
@@ -1222,11 +1222,31 @@ func TestAddPhaseAppendsAndOrders(t *testing.T) {
 	p, err := svc.Create(ctx, samplePlan())
 	require.NoError(t, err)
 
-	p, err = svc.AddPhase(ctx, p.ID, plans.Phase{Title: "Validate", Intent: "Run baselines"})
+	p, err = svc.AddPhase(ctx, p.ID, plans.WorkspaceScope{}, plans.Phase{Title: "Validate", Intent: "Run baselines"})
 	require.NoError(t, err)
 	require.Len(t, p.Phases, 3)
 	require.Equal(t, 3, p.Phases[2].Order)
 	require.Equal(t, plans.PhaseStatusTodo, p.Phases[2].Status)
+}
+
+func TestPhaseMutationsRespectWorkspaceScope(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	workspaceA := plans.WorkspaceScope{Root: t.TempDir()}
+	workspaceB := plans.WorkspaceScope{Root: t.TempDir()}
+	p, err := svc.Create(ctx, plans.Plan{Title: "Scoped phases", WorkspaceRoot: workspaceA.Root, Phases: []plans.Phase{{Title: "First", Intent: "Preserve scope"}}})
+	require.NoError(t, err)
+
+	_, err = svc.AddPhase(ctx, p.ID, workspaceB, plans.Phase{Title: "Cross workspace", Intent: "Must fail"})
+	require.ErrorIs(t, err, plans.ErrPlanNotFound{ID: p.ID})
+
+	p.Phases[0].Status = plans.PhaseStatusActive
+	_, err = svc.UpdatePhase(ctx, p.ID, workspaceB, p.Phases[0])
+	require.ErrorIs(t, err, plans.ErrPlanNotFound{ID: p.ID})
+
+	updated, err := svc.AddPhase(ctx, p.ID, workspaceA, plans.Phase{Title: "Within workspace", Intent: "Must succeed"})
+	require.NoError(t, err)
+	require.Len(t, updated.Phases, 2)
 }
 
 // [REQ:PM-STORE-001]

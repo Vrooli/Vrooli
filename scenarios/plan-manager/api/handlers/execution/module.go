@@ -105,8 +105,8 @@ func (a planStoreAdapter) GetPlan(ctx context.Context, idOrSlug string) (interna
 	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
 }
 
-func (a planStoreAdapter) UpdatePhase(ctx context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error) {
-	return a.svc.UpdatePhase(ctx, planID, phase)
+func (a planStoreAdapter) UpdatePhase(ctx context.Context, planID, workspaceID, workspaceRoot string, phase internalplans.Phase) (internalplans.Plan, error) {
+	return a.svc.UpdatePhase(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, phase)
 }
 
 // logLedgerAdapter adapts the log domain Service to execution's LogLedger seam.

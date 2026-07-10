@@ -96,10 +96,14 @@
               "name": "non-goals",
               "description": "Explicit exclusions"
             },
-            {
-              "name": "dod",
-              "description": "Definition of Done"
-            }
+    {
+      "name": "dod",
+      "description": "Definition of Done"
+    },
+    {
+      "name": "workspace",
+      "description": "Workspace root (defaults to the current repository)"
+    }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -840,10 +844,14 @@
               "name": "reminders",
               "description": "Phase-scoped reminders, comma-separated"
             },
-            {
-              "name": "baseline-scope",
-              "description": "Explicit baseline/validation commands for this phase, comma-separated"
-            }
+        {
+          "name": "baseline-scope",
+          "description": "Explicit baseline/validation commands for this phase, comma-separated"
+        },
+        {
+          "name": "workspace",
+          "description": "Workspace root (defaults to the current repository)"
+        }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -922,10 +930,14 @@
               "name": "reminders",
               "description": "Phase-scoped reminders, comma-separated"
             },
-            {
-              "name": "baseline-scope",
-              "description": "Explicit baseline/validation commands for this phase, comma-separated"
-            }
+        {
+          "name": "baseline-scope",
+          "description": "Explicit baseline/validation commands for this phase, comma-separated"
+        },
+        {
+          "name": "workspace",
+          "description": "Workspace root (defaults to the current repository)"
+        }
           ],
           "binding": {
             "kind": "connect-rpc",

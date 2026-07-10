@@ -78,6 +78,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) create(ctx cliapp.RunContext) error {
+	workspace := workspaceScopeFromFlag(ctx.Flag("workspace"))
 	plan := &sharedv1.Plan{
 		Title:            ctx.Flag("title"),
 		Slug:             ctx.Flag("slug"),
@@ -86,6 +87,9 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		Constraints:      ctx.Flag("constraints"),
 		NonGoals:         ctx.Flag("non-goals"),
 		DefinitionOfDone: ctx.Flag("dod"),
+	}
+	if workspace != nil {
+		plan.WorkspaceRoot = workspace.GetRoot()
 	}
 	resp, err := h.client.CreatePlan(context.Background(), connect.NewRequest(&plansv1.CreatePlanRequest{Plan: plan}))
 	if err != nil {
@@ -595,7 +599,8 @@ func parseReferenceKind(raw string) sharedv1.ReferenceKind {
 
 func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	resp, err := h.client.AddPhase(context.Background(), connect.NewRequest(&plansv1.AddPhaseRequest{
-		PlanId: ctx.Positional("plan"),
+		PlanId:    ctx.Positional("plan"),
+		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
 		Phase: &sharedv1.Phase{
 			Title:           ctx.Flag("title"),
 			Intent:          ctx.Flag("intent"),
@@ -619,7 +624,8 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 
 func (h *handlers) phaseUpdate(ctx cliapp.RunContext) error {
 	resp, err := h.client.UpdatePhase(context.Background(), connect.NewRequest(&plansv1.UpdatePhaseRequest{
-		PlanId: ctx.Positional("plan"),
+		PlanId:    ctx.Positional("plan"),
+		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
 		Phase: &sharedv1.Phase{
 			Id:              ctx.Positional("phase"),
 			Title:           ctx.Flag("title"),

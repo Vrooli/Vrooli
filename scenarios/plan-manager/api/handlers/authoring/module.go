@@ -81,12 +81,12 @@ func (w planWriter) CreatePlan(ctx context.Context, p internalplans.Plan) (inter
 	return w.svc.Create(ctx, p)
 }
 
-func (w planWriter) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
-	return w.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
+func (w planWriter) GetPlan(ctx context.Context, idOrSlug, workspaceRoot string) (internalplans.Plan, error) {
+	return w.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{Root: workspaceRoot})
 }
 
-func (w planWriter) RenderPlan(ctx context.Context, idOrSlug string) (string, error) {
-	rendered, err := w.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{}, internalplans.RenderOptions{})
+func (w planWriter) RenderPlan(ctx context.Context, idOrSlug, workspaceRoot string) (string, error) {
+	rendered, err := w.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{Root: workspaceRoot}, internalplans.RenderOptions{})
 	if err != nil {
 		return "", err
 	}

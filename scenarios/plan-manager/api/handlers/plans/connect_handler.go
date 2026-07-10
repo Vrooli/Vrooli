@@ -107,7 +107,7 @@ func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[plan
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
-	p, err := h.deps.Service.AddPhase(ctx, req.Msg.GetPlanId(), phase)
+	p, err := h.deps.Service.AddPhase(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase)
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
@@ -119,7 +119,7 @@ func (h *connectHandler) UpdatePhase(ctx context.Context, req *connect.Request[p
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
-	p, err := h.deps.Service.UpdatePhase(ctx, req.Msg.GetPlanId(), phase)
+	p, err := h.deps.Service.UpdatePhase(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase)
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
