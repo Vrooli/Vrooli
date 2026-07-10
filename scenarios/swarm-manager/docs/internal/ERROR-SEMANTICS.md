@@ -172,6 +172,7 @@ Same pattern as Backlog Flow.
 | Caller input is missing, unknown, mistyped, out of bounds, oversized, sensitive, or uses non-replayable retention | Local / request error with no side effects | Execution preflight rejects the request before creating a manifest, round, lock, or run | Correct the request using the catalog/workspace compiled input contract; sensitive caller values require a future secure runtime store rather than bypassing retention policy |
 | Caller inputs on a retry differ from the active execution snapshot | Local / high replay risk | Resume fails closed; the existing manifest and snapshot remain unchanged | Omit inputs when continuing, repeat the identical normalized map, or finish/cancel and start a new execution |
 | Persisted input contract or input snapshot digest does not match canonical JSON content | Local / high replay risk | Manifest load fails closed before prompt rendering, routing, or spawn | Restore the matching manifest bytes from durable history; never recompute the stored digest to hide an unexplained mutation |
+| Plan-ref path is absolute, traversing, symlinked, non-regular, missing, oversized, or non-UTF-8 | Local / request error with no side effects | Target resolution fails before prompt pinning, execution creation, round reservation, lock acquisition, or spawn | Supply a regular UTF-8 plan file within the configured execution workspace; do not bypass the workspace boundary with links |
 
 ---
 

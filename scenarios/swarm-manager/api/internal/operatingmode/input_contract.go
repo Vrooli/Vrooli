@@ -63,6 +63,7 @@ func InputProviderCapabilities() map[string]ProviderCapabilityDescriptor {
 		{ID: "target.plan_context", SourceKind: InputSourceTargetAdapter, Type: InputTypeObject, TargetKinds: []TargetKind{TargetInitiative, TargetPlanManagerPlan, TargetPlanRef}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
 		{ID: "target.plan_id", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetPlanManagerPlan}, Freshness: InputFreshnessExecution, FailurePolicy: InputFailureRequired},
 		{ID: "target.plan_path", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetPlanRef}, Freshness: InputFreshnessExecution, FailurePolicy: InputFailureRequired},
+		{ID: "target.plan_content", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetPlanRef}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
 		{ID: "derived.sha256", SourceKind: InputSourceDerived, Type: InputTypeString, Freshness: InputFreshnessExecution, FailurePolicy: InputFailureRequired},
 	}
 	out := make(map[string]ProviderCapabilityDescriptor, len(descriptors))

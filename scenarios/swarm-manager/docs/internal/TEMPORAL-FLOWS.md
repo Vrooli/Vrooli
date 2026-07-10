@@ -223,6 +223,7 @@ Initiative-scoped operating modes are asynchronous phase runs coordinated by the
 ```
 Operator starts phase
   -> API resolves the target and validates phase startability without mutation
+  -> plan-ref targets clean/contain/read bounded UTF-8 content from the execution workspace; Plan Manager targets record stable plan/execution identity and phase-context digest without transitioning the plan
   -> API validates/normalizes caller inputs against the transitive compiled contract
   -> API resolves the one resumable execution, or atomically pins a new parent + delegated definition bundle, compiled contract, caller snapshot, every reachable prompt source, and digests
   -> phase action state is computed from rounds in that execution and its pinned transition rules

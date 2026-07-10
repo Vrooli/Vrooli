@@ -385,10 +385,12 @@ Caller-input compilation, validation, normalization, persistence, replay
 conflict handling, Connect/CLI/UI transport, digest verification, and
 mutation-free rejection now have focused coverage. Reachable prompt sources are
 also pinned transitively with exact template-variable comparison, and each round
-records immutable source/variable/render digests. Remaining Phase 4 gaps are safe
-bounded `plan_ref` content resolution and moving dynamic provider resolution,
-pinned prompt rendering, and spawn-request construction before round reservation
-and lock acquisition with a final execution-version compare-and-reserve.
+records immutable source/variable/render digests. Plan-ref targets now resolve
+contained, non-symlink, bounded UTF-8 workspace content with canonical path and
+content-hash provenance. The remaining Phase 4 implementation gap is moving
+dynamic provider resolution, pinned prompt rendering, and spawn-request
+construction before round reservation and lock acquisition with a final
+execution-version compare-and-reserve.
 
 ### Current Test Coverage Status
 

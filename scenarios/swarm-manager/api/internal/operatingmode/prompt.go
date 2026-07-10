@@ -228,6 +228,10 @@ func promptRenderTrace(rendered renderedPhasePrompt, execution OperatingModeExec
 		return nil, fmt.Errorf("digest rendered prompt variables: %w", err)
 	}
 	promptDigest := sha256.Sum256([]byte(rendered.Prompt))
+	inputRetention, err := promptInputRetentionTrace(execution, *rendered.Source, rendered.Variables)
+	if err != nil {
+		return nil, err
+	}
 	return &PromptRenderTrace{
 		SkillID: rendered.SkillID, SourceRevision: rendered.Source.Revision,
 		SourceVariant: rendered.Source.Variant, SourceHash: rendered.Source.ContentHash,
@@ -235,9 +239,63 @@ func promptRenderTrace(rendered renderedPhasePrompt, execution OperatingModeExec
 		DefinitionDigest: execution.DefinitionDigest, InputContractDigest: execution.InputContractDigest,
 		RedactionMetadata: map[string]any{
 			"variables_persisted": false, "rendered_prompt_persisted": false,
-			"policy": "hashes_only",
+			"policy": "hashes_only", "inputs": inputRetention,
 		},
 	}, nil
+}
+
+func promptInputRetentionTrace(execution OperatingModeExecution, source PinnedPromptSource, variables map[string]string) (map[string]any, error) {
+	var compiled CompiledInputContract
+	if len(execution.CompiledInputContract) > 0 {
+		if err := json.Unmarshal(execution.CompiledInputContract, &compiled); err != nil {
+			return nil, fmt.Errorf("decode execution input contract for prompt trace: %w", err)
+		}
+	} else {
+		// Adopted pre-Phase-4 executions have an immutable definition bundle but
+		// no compiled-input slot. Derive the trace metadata from that pinned
+		// bundle, never from the mutable live registry.
+		root, err := execution.DefinitionBundle.RootDefinition()
+		if err != nil {
+			return nil, fmt.Errorf("resolve pinned definition for legacy prompt trace: %w", err)
+		}
+		compiled, err = CompileInputContract(execution.DefinitionBundle.Definitions, root)
+		if err != nil {
+			return nil, fmt.Errorf("compile pinned legacy input contract for prompt trace: %w", err)
+		}
+	}
+	for _, mode := range compiled.Modes {
+		if mode.Mode != Mode(source.Mode) {
+			continue
+		}
+		inputs := make(map[string]CompiledInput, len(mode.Inputs))
+		for _, input := range mode.Inputs {
+			inputs[input.Spec.ID] = input
+		}
+		for _, phase := range mode.Phases {
+			if phase.Phase != Phase(source.Phase) {
+				continue
+			}
+			out := make(map[string]any, len(phase.Bindings))
+			for _, binding := range phase.Bindings {
+				input, ok := inputs[binding.InputID]
+				if !ok {
+					return nil, fmt.Errorf("prompt trace binding %q references missing input %q", binding.Variable, binding.InputID)
+				}
+				entry := map[string]any{
+					"input_id": input.Spec.ID, "sensitivity": input.Spec.Sensitivity,
+					"retention": input.Spec.Retention, "value_persisted": false,
+				}
+				if input.Spec.Retention == InputRetentionDigest {
+					valueDigest := sha256.Sum256([]byte(variables[binding.Variable]))
+					entry["value_digest"] = fmt.Sprintf("sha256:%x", valueDigest[:])
+				}
+				out[binding.Variable] = entry
+			}
+			return out, nil
+		}
+		return nil, fmt.Errorf("prompt trace input contract for mode %q has no phase %q", source.Mode, source.Phase)
+	}
+	return nil, fmt.Errorf("prompt trace input contract has no mode %q", source.Mode)
 }
 
 // unsatisfiedTemplateSlots returns the sorted, deduplicated {{VARIABLE}} slots

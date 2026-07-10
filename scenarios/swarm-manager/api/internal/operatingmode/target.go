@@ -2,8 +2,13 @@ package operatingmode
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
+	"unicode/utf8"
 )
 
 // This file implements the target-adapter seam of the v2 unit-of-work
@@ -24,6 +29,9 @@ const (
 	ReadPlanContextJSON       = "PLAN_CONTEXT_JSON"
 	ReadPlanID                = "PLAN_ID"
 	ReadPlanPath              = "PLAN_PATH"
+	ReadPlanContent           = "PLAN_CONTENT"
+
+	maxPlanRefContentBytes = 1 << 20
 )
 
 // TargetInstance is the resolved unit of work one mode run operates on. It is
@@ -46,7 +54,9 @@ type TargetInstance struct {
 	// initiative's bound plan_ref when the mode's target policy requires one.
 	Plan *PlanExecutionContext
 	// PlanPath is populated by the plan-ref adapter.
-	PlanPath string
+	PlanPath        string
+	PlanContent     string
+	PlanContentHash string
 }
 
 // TargetAdapter supplies the target-specific parts of a mode run for one
@@ -174,19 +184,27 @@ type planRefTargetAdapter struct{}
 
 func (planRefTargetAdapter) Kind() TargetKind { return TargetPlanRef }
 
-func (planRefTargetAdapter) Resolve(_ context.Context, _ *Service, def Definition, _ PhaseDefinition, ref string) (TargetInstance, error) {
-	path := strings.TrimSpace(ref)
-	if path == "" {
+func (planRefTargetAdapter) Resolve(_ context.Context, s *Service, def Definition, _ PhaseDefinition, ref string) (TargetInstance, error) {
+	if strings.TrimSpace(ref) == "" {
 		return TargetInstance{}, fmt.Errorf("mode %q targets a plan reference: a plan path is required", def.Mode)
 	}
+	path, content, contentHash, err := resolveWorkspacePlanRef(s.scenarioRoot, ref)
+	if err != nil {
+		return TargetInstance{}, fmt.Errorf("mode %q plan reference %q: %w", def.Mode, strings.TrimSpace(ref), err)
+	}
 	return TargetInstance{
-		Kind:     TargetPlanRef,
-		ID:       path,
-		Title:    fmt.Sprintf("Plan ref %s", path),
-		PlanPath: path,
+		Kind:            TargetPlanRef,
+		ID:              path,
+		Title:           fmt.Sprintf("Plan ref %s", path),
+		PlanPath:        path,
+		PlanContent:     content,
+		PlanContentHash: contentHash,
 		Plan: &PlanExecutionContext{
-			Required: true,
-			Source:   planContextSourcePlanRef,
+			Required:     true,
+			Source:       planContextSourcePlanRef,
+			PlanPath:     path,
+			ContentHash:  contentHash,
+			ContentBytes: len([]byte(content)),
 		},
 	}, nil
 }
@@ -194,8 +212,75 @@ func (planRefTargetAdapter) Resolve(_ context.Context, _ *Service, def Definitio
 func (planRefTargetAdapter) Values(t TargetInstance) map[string]any {
 	return map[string]any{
 		"target.plan_path":    t.PlanPath,
+		"target.plan_content": t.PlanContent,
 		"target.plan_context": targetPlanValue(t.Plan),
 	}
+}
+
+// resolveWorkspacePlanRef resolves a plan file relative to the same workspace
+// later supplied to Agent Manager. os.Root supplies the containment boundary;
+// explicit Lstat checks reject symlinks even when they would remain in-root.
+// The returned path is canonical workspace-relative identity, never an
+// absolute host path.
+func resolveWorkspacePlanRef(workspaceRoot, ref string) (string, string, string, error) {
+	rootPath := strings.TrimSpace(workspaceRoot)
+	if rootPath == "" {
+		return "", "", "", fmt.Errorf("execution workspace is unavailable")
+	}
+	absRoot, err := filepath.Abs(rootPath)
+	if err != nil {
+		return "", "", "", fmt.Errorf("resolve execution workspace: %w", err)
+	}
+	rel := filepath.Clean(filepath.FromSlash(strings.TrimSpace(ref)))
+	if rel == "." || !filepath.IsLocal(rel) {
+		return "", "", "", fmt.Errorf("path must be a contained workspace-relative file")
+	}
+
+	root, err := os.OpenRoot(absRoot)
+	if err != nil {
+		return "", "", "", fmt.Errorf("open execution workspace: %w", err)
+	}
+	defer root.Close()
+
+	parts := strings.Split(rel, string(filepath.Separator))
+	for i := range parts {
+		candidate := filepath.Join(parts[:i+1]...)
+		info, statErr := root.Lstat(candidate)
+		if statErr != nil {
+			return "", "", "", fmt.Errorf("inspect %q: %w", filepath.ToSlash(candidate), statErr)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", "", "", fmt.Errorf("symlink component %q is not allowed", filepath.ToSlash(candidate))
+		}
+	}
+
+	file, err := root.Open(rel)
+	if err != nil {
+		return "", "", "", fmt.Errorf("open plan content: %w", err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return "", "", "", fmt.Errorf("stat plan content: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", "", "", fmt.Errorf("plan reference must resolve to a regular file")
+	}
+	if info.Size() > maxPlanRefContentBytes {
+		return "", "", "", fmt.Errorf("plan content size %d exceeds maximum %d bytes", info.Size(), maxPlanRefContentBytes)
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxPlanRefContentBytes+1))
+	if err != nil {
+		return "", "", "", fmt.Errorf("read plan content: %w", err)
+	}
+	if len(data) > maxPlanRefContentBytes {
+		return "", "", "", fmt.Errorf("plan content exceeds maximum %d bytes", maxPlanRefContentBytes)
+	}
+	if !utf8.Valid(data) {
+		return "", "", "", fmt.Errorf("plan content is not valid UTF-8")
+	}
+	digest := sha256.Sum256(data)
+	return filepath.ToSlash(rel), string(data), fmt.Sprintf("sha256:%x", digest[:]), nil
 }
 
 func (planRefTargetAdapter) OwnershipKey(id string) string {

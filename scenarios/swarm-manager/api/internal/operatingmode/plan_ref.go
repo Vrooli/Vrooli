@@ -33,15 +33,19 @@ type PlanExecutionClient interface {
 }
 
 type PlanExecutionContext struct {
-	Required     bool            `json:"required"`
-	Missing      bool            `json:"missing,omitempty"`
-	Source       string          `json:"source,omitempty"`
-	PlanRef      *PlanRef        `json:"plan_ref,omitempty"`
-	ExecutionID  string          `json:"execution_id,omitempty"`
-	PlanID       string          `json:"plan_id,omitempty"`
-	Complete     bool            `json:"complete,omitempty"`
-	PhaseContext json.RawMessage `json:"phase_context,omitempty"`
-	Step         json.RawMessage `json:"step,omitempty"`
+	Required           bool            `json:"required"`
+	Missing            bool            `json:"missing,omitempty"`
+	Source             string          `json:"source,omitempty"`
+	PlanRef            *PlanRef        `json:"plan_ref,omitempty"`
+	ExecutionID        string          `json:"execution_id,omitempty"`
+	PlanID             string          `json:"plan_id,omitempty"`
+	PlanPath           string          `json:"plan_path,omitempty"`
+	ContentHash        string          `json:"content_hash,omitempty"`
+	ContentBytes       int             `json:"content_bytes,omitempty"`
+	Complete           bool            `json:"complete,omitempty"`
+	PhaseContext       json.RawMessage `json:"phase_context,omitempty"`
+	PhaseContextDigest string          `json:"phase_context_digest,omitempty"`
+	Step               json.RawMessage `json:"step,omitempty"`
 }
 
 func normalizePlanRef(ref *PlanRef) *PlanRef {
@@ -129,6 +133,7 @@ func (s *Service) resumePlanExecution(ctx context.Context, def Definition, phase
 	out := &PlanExecutionContext{
 		Required: true,
 		Source:   planContextSourceResume,
+		PlanID:   strings.TrimSpace(handle),
 	}
 	if exec := resp.GetExecution(); exec != nil {
 		out.ExecutionID = strings.TrimSpace(exec.GetId())
@@ -136,6 +141,13 @@ func (s *Service) resumePlanExecution(ctx context.Context, def Definition, phase
 		out.Complete = exec.GetComplete()
 	}
 	out.PhaseContext = marshalProtoJSON(resp.GetContext())
+	if len(out.PhaseContext) > 0 {
+		digest, digestErr := canonicalJSONDigest(out.PhaseContext)
+		if digestErr != nil {
+			return nil, fmt.Errorf("digest plan-manager phase context: %w", digestErr)
+		}
+		out.PhaseContextDigest = digest
+	}
 	out.Step = marshalProtoJSON(resp.GetStep())
 	return out, nil
 }

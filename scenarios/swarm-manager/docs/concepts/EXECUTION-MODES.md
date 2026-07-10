@@ -74,7 +74,7 @@ scenarios/swarm-manager/modes/<id>/
 | Target kind | Unit of work | Adapter supplies |
 |-------------|--------------|------------------|
 | `plan-manager-plan` | A canonical plan-manager plan (execution id / slug) | Plan phase context, plan log access, plan-derived artifact root, plan-scoped lock identity |
-| `plan-ref` | A plan file or reference **not** imported into swarm-manager (e.g. a repo-relative plan path) | The plan path/content read, a ref-derived artifact root and lock identity |
+| `plan-ref` | A plan file or reference **not** imported into swarm-manager (e.g. a workspace-relative plan path) | Canonical path plus bounded UTF-8 content resolved inside the execution workspace, with symlink/traversal rejection, content digest, and a ref-derived lock identity |
 | `initiative` | A swarm-manager initiative and its member items | Initiative metadata, member items, acceptance criteria, backlog-sync capabilities, initiative-exclusive locking |
 
 What this replaced: the pre-v2 run substrate was initiative-shaped end to end — phase resolution keyed off the initiative name, the run lock owner was the initiative, and every prompt was built from initiative data. Those are now adapter concerns behind the generic run context. **Initiative is one adapter among several**; nothing in the shared engine assumes an initiative exists.

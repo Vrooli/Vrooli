@@ -3,6 +3,8 @@ package operatingmode
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -54,9 +56,13 @@ func testInputContractJSON(_ string, reads []string) string {
 	contract := InputContractDefinition{}
 	for _, read := range reads {
 		id, capability, valueType, sourceKind := testInputDescriptor(read)
+		retention := InputRetentionValue
+		if read == ReadPlanContent {
+			retention = InputRetentionDigest
+		}
 		contract.Specs = append(contract.Specs, InputSpec{
 			ID: id, Type: valueType, Required: true, Sensitivity: InputSensitivityInternal,
-			Retention: InputRetentionValue, Description: "Test input for " + read + ".",
+			Retention: retention, Description: "Test input for " + read + ".",
 		})
 		contract.Sources = append(contract.Sources, InputSourceBinding{
 			InputID: id, Kind: sourceKind, Capability: capability,
@@ -110,6 +116,8 @@ func testInputDescriptor(read string) (string, string, InputValueType, InputSour
 		return "plan.id", "target.plan_id", InputTypeString, InputSourceTargetAdapter
 	case ReadPlanPath:
 		return "plan.path", "target.plan_path", InputTypeString, InputSourceTargetAdapter
+	case ReadPlanContent:
+		return "plan.content", "target.plan_content", InputTypeString, InputSourceTargetAdapter
 	default:
 		token := strings.ToLower(read)
 		return "test." + token, "generic." + token, InputTypeString, InputSourceGenericProvider
@@ -142,7 +150,7 @@ func TestTargetCapabilityDescriptorsMatchAdapterValues(t *testing.T) {
 		if err != nil {
 			t.Fatalf("AdapterFor(%s): %v", kind, err)
 		}
-		instance := TargetInstance{Kind: kind, ID: "x", PlanPath: "plan.md", Plan: &PlanExecutionContext{}, Initiative: InitiativeSnapshot{Name: "x"}}
+		instance := TargetInstance{Kind: kind, ID: "x", PlanPath: "plan.md", PlanContent: "# Plan", Plan: &PlanExecutionContext{}, Initiative: InitiativeSnapshot{Name: "x"}}
 		values := adapter.Values(instance)
 		want := map[string]bool{}
 		for id, descriptor := range descriptors {
@@ -158,6 +166,167 @@ func TestTargetCapabilityDescriptorsMatchAdapterValues(t *testing.T) {
 				t.Fatalf("adapter %s does not implement declared capability %q", kind, id)
 			}
 		}
+	}
+}
+
+func TestPlanRefTargetResolvesContainedBoundedUTF8Content(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "plans"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "# Safe plan\n\nDo the work.\n"
+	if err := os.WriteFile(filepath.Join(root, "plans", "safe.md"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	def, err := loadPlanDrainTestMode(t, string(TargetPlanRef), []string{ReadPlanPath, ReadPlanContent, ReadPlanContextJSON})
+	if err != nil {
+		t.Fatalf("load plan-ref mode: %v", err)
+	}
+	svc := newTestServiceWithOptions(t, root, serviceOptions{})
+	adapter, err := AdapterFor(TargetPlanRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := adapter.Resolve(context.Background(), svc, def, def.PhaseGraph.Phases["execute"], "plans/../plans/safe.md")
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if target.ID != "plans/safe.md" || target.PlanPath != "plans/safe.md" {
+		t.Fatalf("canonical target path = id:%q path:%q", target.ID, target.PlanPath)
+	}
+	if target.PlanContent != content {
+		t.Fatalf("plan content = %q, want %q", target.PlanContent, content)
+	}
+	if target.PlanContentHash == "" || target.Plan == nil || target.Plan.ContentHash != target.PlanContentHash {
+		t.Fatalf("plan content provenance = target:%q context:%+v", target.PlanContentHash, target.Plan)
+	}
+	reads, err := (RunContext{Def: def, PhaseDef: def.PhaseGraph.Phases["execute"], Target: target}).DeclaredReads(RoundEnvelope{Round: 1}, "")
+	if err != nil {
+		t.Fatalf("DeclaredReads: %v", err)
+	}
+	if reads[ReadPlanPath] != "plans/safe.md" || reads[ReadPlanContent] != content {
+		t.Fatalf("plan-ref reads = %+v", reads)
+	}
+	compiled, err := CompileInputContract(map[Mode]Definition{def.Mode: def}, def)
+	if err != nil {
+		t.Fatalf("CompileInputContract: %v", err)
+	}
+	compiledJSON, err := json.Marshal(compiled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retention, err := promptInputRetentionTrace(OperatingModeExecution{CompiledInputContract: compiledJSON}, PinnedPromptSource{
+		Mode: string(def.Mode), Phase: "execute",
+	}, reads)
+	if err != nil {
+		t.Fatalf("promptInputRetentionTrace: %v", err)
+	}
+	contentRetention, ok := retention[ReadPlanContent].(map[string]any)
+	if !ok || contentRetention["retention"] != InputRetentionDigest || contentRetention["value_digest"] == "" {
+		t.Fatalf("plan content retention trace = %+v", retention[ReadPlanContent])
+	}
+	if _, leaked := contentRetention["value"]; leaked {
+		t.Fatalf("plan content retention trace leaked raw content: %+v", contentRetention)
+	}
+}
+
+func TestResolveWorkspacePlanRefRejectsUnsafeOrInvalidContent(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.md")
+	if err := os.WriteFile(outside, []byte("outside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "plans", "real"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "plans", "real", "safe.md"), []byte("safe"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join("real", "safe.md"), filepath.Join(root, "plans", "link.md")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("real", filepath.Join(root, "plans", "link-dir")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "invalid.md"), []byte{0xff, 0xfe}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "oversized.md"), []byte(strings.Repeat("x", maxPlanRefContentBytes+1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name string
+		ref  string
+		want string
+	}{
+		{name: "absolute", ref: outside, want: "workspace-relative"},
+		{name: "traversal", ref: "../outside.md", want: "workspace-relative"},
+		{name: "symlink file", ref: "plans/link.md", want: "symlink component"},
+		{name: "symlink directory", ref: "plans/link-dir/safe.md", want: "symlink component"},
+		{name: "directory", ref: "plans", want: "regular file"},
+		{name: "invalid utf8", ref: "invalid.md", want: "valid UTF-8"},
+		{name: "oversized", ref: "oversized.md", want: "exceeds maximum"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, _, err := resolveWorkspacePlanRef(root, tt.ref)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("resolveWorkspacePlanRef(%q) error = %v, want %q", tt.ref, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestStartTargetPhaseRejectsUnsafePlanRefBeforeAnyMutation(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.md")
+	if err := os.WriteFile(outside, []byte("# outside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "linked-plan.md")); err != nil {
+		t.Fatal(err)
+	}
+	def, err := loadPlanDrainTestMode(t, string(TargetPlanRef), []string{ReadPlanPath, ReadPlanContent, ReadPlanContextJSON})
+	if err != nil {
+		t.Fatalf("load plan-ref mode: %v", err)
+	}
+	withSyntheticModeRegistry(t, def)
+	agent := &fakeAgent{}
+	prompts := &fakePrompts{}
+	svc := newTestServiceWithOptions(t, root, serviceOptions{agent: agent, prompts: prompts})
+	_, err = svc.StartTargetPhase(context.Background(), StartTargetPhaseRequest{
+		Mode: string(def.Mode), TargetRef: "linked-plan.md",
+	})
+	if err == nil || !strings.Contains(err.Error(), "symlink component") {
+		t.Fatalf("StartTargetPhase error = %v, want symlink rejection", err)
+	}
+	if len(agent.spawned) != 0 || len(prompts.sourceCalls) != 0 {
+		t.Fatalf("unsafe plan ref caused external preflight: spawned=%d prompt_sources=%v", len(agent.spawned), prompts.sourceCalls)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "data")); !os.IsNotExist(statErr) {
+		t.Fatalf("unsafe plan ref created target state: %v", statErr)
+	}
+}
+
+func TestPlanManagerContextCarriesStableIdentityAndDigest(t *testing.T) {
+	root := t.TempDir()
+	client := &fakePlanExecution{}
+	svc := newTestServiceWithOptions(t, root, serviceOptions{planExecution: client})
+	def, err := DefinitionFor(ModePhasedPlanDrain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	phase := def.PhaseGraph.Phases[def.PhaseGraph.StartPhase]
+	ctx, err := svc.resolvePlanManagerPlan(context.Background(), def, phase, "plan-stable")
+	if err != nil {
+		t.Fatalf("resolvePlanManagerPlan: %v", err)
+	}
+	if ctx.PlanID != "plan-stable" || ctx.ExecutionID != "exec-1" || ctx.PhaseContextDigest == "" {
+		t.Fatalf("plan context provenance = %+v", ctx)
+	}
+	if len(client.resumeReqs) != 1 {
+		t.Fatalf("resume calls = %d, want one non-advancing resolution", len(client.resumeReqs))
 	}
 }
 
