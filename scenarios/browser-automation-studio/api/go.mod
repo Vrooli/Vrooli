@@ -1,10 +1,9 @@
 module github.com/vrooli/browser-automation-studio
 
-go 1.24.0
-
-toolchain go1.24.10
+go 1.25.0
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
@@ -20,7 +19,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.28.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
-	golang.org/x/text v0.28.0
+	golang.org/x/text v0.37.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.40.1
 )
@@ -33,7 +32,6 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/Microsoft/hcsshim v0.11.4 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
@@ -84,13 +82,13 @@ require (
 	go.opentelemetry.io/otel v1.34.0 // indirect
 	go.opentelemetry.io/otel/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
-	golang.org/x/mod v0.27.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/mod v0.35.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/tools v0.44.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 	google.golang.org/grpc v1.71.0 // indirect
