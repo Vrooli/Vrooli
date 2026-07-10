@@ -165,6 +165,11 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
+		// Deep template validation starts a real scenario through Test Genie and
+		// waits for its server-owned lifecycle result. The api-core default 30s
+		// response deadline would sever the RPC before an actionable failure or
+		// phase result can be returned.
+		WriteTimeout: 20 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			monitorService.Stop()
 			return db.Close()

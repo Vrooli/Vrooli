@@ -600,6 +600,19 @@ func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGeni
 	if *response.Success {
 		return result
 	}
+	if response.PhaseSummary.Total == 0 && response.PhaseSummary.Failed == 0 {
+		startupFailure := append([]string(nil), response.ErrorMessages...)
+		if detail := strings.TrimSpace(response.Error); detail != "" {
+			startupFailure = append(startupFailure, detail)
+		}
+		if len(startupFailure) > 0 {
+			result.Issue = &TemplateValidationIssue{
+				Template: templateName,
+				Message:  "test-genie deep validation startup failed before phases: " + truncateForIssue(strings.Join(startupFailure, "; "), 2000),
+			}
+			return result
+		}
+	}
 	var failed []string
 	for _, phase := range response.Phases {
 		if phase.Status != "failed" {

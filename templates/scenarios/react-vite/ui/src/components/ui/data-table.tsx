@@ -40,6 +40,7 @@ export interface DataTableProps<Row> {
   filterLabel?: string;
   filters?: Array<DataTableFilter<Row>>;
   className?: string;
+  tableTestId?: string;
 }
 
 type SortDirection = "asc" | "desc";
@@ -64,6 +65,7 @@ export function DataTable<Row>({
   filterLabel = "Table filters",
   filters = [],
   className,
+  tableTestId,
 }: DataTableProps<Row>) {
   const firstSortable = columns.find((column) => column.sortValue);
   const [query, setQuery] = useState("");
@@ -143,7 +145,7 @@ export function DataTable<Row>({
         )}
       </div>
       <div className="max-w-full overflow-x-auto">
-        <table className="w-full min-w-max border-collapse text-left text-sm">
+        <table data-testid={tableTestId} className="w-full min-w-max border-collapse text-left text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
             <tr>

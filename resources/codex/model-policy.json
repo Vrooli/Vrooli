@@ -1,0 +1,11 @@
+{
+  "schema_version": "v1",
+  "runner": "codex",
+  "provenance": {"source": "OpenAI model catalog and local Codex model cache", "observed_at": "2026-07-09"},
+  "roles": {
+    "code.default": {"model": "gpt-5.4", "fallbacks": ["gpt-5.5"], "description": "Balanced Codex implementation work.", "capabilities": ["code", "tools"]},
+    "code.fast": {"model": "gpt-5.3-codex-spark", "fallbacks": ["gpt-5.4-mini"], "description": "Low-latency Codex edits.", "capabilities": ["code", "tools"]},
+    "code.smart": {"model": "gpt-5.5", "fallbacks": ["gpt-5.4"], "description": "Highest-capability Codex reasoning.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.cheap": {"model": "gpt-5.4-mini", "fallbacks": ["gpt-5.3-codex-spark"], "description": "Cost-conscious Codex tasks.", "capabilities": ["code", "tools"]}
+  }
+}

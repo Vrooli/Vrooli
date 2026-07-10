@@ -5,7 +5,7 @@
  * their own a11y tests.
  */
 import { afterEach, beforeEach, describe, it } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
@@ -26,5 +26,15 @@ describe("AppShell accessibility", () => {
       { withoutRouter: true },
     );
     await expectNoA11yViolations(container);
+  });
+
+  it("exposes exactly one primary navigation landmark", () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/"]} />,
+      { withoutRouter: true },
+    );
+
+    expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
+    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
   });
 });

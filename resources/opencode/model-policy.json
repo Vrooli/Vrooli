@@ -1,0 +1,11 @@
+{
+  "schema_version": "v1",
+  "runner": "opencode",
+  "provenance": {"source": "OpenCode cached provider catalog", "observed_at": "2026-07-09"},
+  "roles": {
+    "code.default": {"model": "openrouter/deepseek/deepseek-v4-pro", "fallbacks": ["openrouter/deepseek/deepseek-v4-flash"], "description": "Balanced OpenCode implementation work.", "capabilities": ["code", "tools"]},
+    "code.fast": {"model": "openrouter/google/gemini-3.5-flash", "fallbacks": ["openrouter/deepseek/deepseek-v4-flash"], "description": "Low-latency OpenCode edits.", "capabilities": ["code", "tools"]},
+    "code.smart": {"model": "openrouter/anthropic/claude-opus-4.8", "fallbacks": ["openrouter/deepseek/deepseek-v4-pro"], "description": "Highest-capability OpenCode reasoning.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.cheap": {"model": "openrouter/deepseek/deepseek-v4-pro", "fallbacks": ["openrouter/deepseek/deepseek-v4-flash"], "description": "Cost-conscious OpenCode tasks.", "capabilities": ["code", "tools"]}
+  }
+}

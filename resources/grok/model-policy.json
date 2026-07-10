@@ -1,0 +1,11 @@
+{
+  "schema_version": "v1",
+  "runner": "grok",
+  "provenance": {"source": "Installed Grok Build runner inventory", "observed_at": "2026-07-09"},
+  "roles": {
+    "code.default": {"model": "grok-build", "description": "Default Grok Build implementation work.", "capabilities": ["code", "tools"]},
+    "code.fast": {"model": "grok-build", "description": "Grok Build low-latency coding work.", "capabilities": ["code", "tools"]},
+    "code.smart": {"model": "grok-build", "description": "Grok Build complex reasoning work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.cheap": {"model": "grok-build", "description": "Grok Build cost-conscious tasks when selected.", "capabilities": ["code", "tools"]}
+  }
+}

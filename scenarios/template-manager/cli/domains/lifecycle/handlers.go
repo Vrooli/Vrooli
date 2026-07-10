@@ -11,15 +11,18 @@ import (
 )
 
 type handlers struct {
-	lifecycle lifecycleconnect.TemplateLifecycleServiceClient
-	design    lifecycleconnect.DesignKitServiceClient
+	lifecycle           lifecycleconnect.TemplateLifecycleServiceClient
+	validationLifecycle lifecycleconnect.TemplateLifecycleServiceClient
+	design              lifecycleconnect.DesignKitServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	validationHTTPClient, validationBaseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	return &handlers{
-		lifecycle: lifecycleconnect.NewTemplateLifecycleServiceClient(httpClient, baseURL),
-		design:    lifecycleconnect.NewDesignKitServiceClient(httpClient, baseURL),
+		lifecycle:           lifecycleconnect.NewTemplateLifecycleServiceClient(httpClient, baseURL),
+		validationLifecycle: lifecycleconnect.NewTemplateLifecycleServiceClient(validationHTTPClient, validationBaseURL),
+		design:              lifecycleconnect.NewDesignKitServiceClient(httpClient, baseURL),
 	}
 }
 
@@ -94,7 +97,7 @@ func (h *handlers) detemplateReport(_ cliapp.OperationContext, msg *lifecyclev1.
 }
 
 func (h *handlers) validateCall(ctx cliapp.OperationContext) (*lifecyclev1.ValidateTemplateResponse, error) {
-	resp, err := h.lifecycle.ValidateTemplate(context.Background(), connect.NewRequest(&lifecyclev1.ValidateTemplateRequest{
+	resp, err := h.validationLifecycle.ValidateTemplate(context.Background(), connect.NewRequest(&lifecyclev1.ValidateTemplateRequest{
 		Template:      ctx.Flag("template"),
 		Mode:          ctx.Flag("mode"),
 		TestPreset:    ctx.Flag("test-preset"),

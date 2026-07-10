@@ -7,7 +7,7 @@
   },
   "layout": {
     "sidebarLabel": "التنقل الرئيسي",
-    "bottomNavLabel": "التنقل الرئيسي",
+    "bottomNavLabel": "التنقل على الهاتف",
     "nav": {
       "dashboard": "لوحة التحكم",
       "notes": "الملاحظات",

@@ -76,6 +76,42 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 1.6.2 — 2026-07-10
+
+Gives the mobile and desktop navigation landmarks distinct responsive identities
+so generated shells expose exactly one primary navigation landmark.
+
+### Changed
+- The bottom navigation is labelled as mobile navigation; the desktop sidebar
+  remains the primary navigation landmark.
+- The shell accessibility regression test now verifies the landmark contract.
+- The browser and memory routers opt into React Router's v7 transition
+  scheduling so generated tests and runtime stay warning-free.
+
+### Migration (for agents updating older scenarios)
+- [ ] Change the mobile bottom-nav accessible label to a localized mobile
+      navigation label, leaving the desktop sidebar as the sole primary
+      navigation landmark.
+- [ ] Pass `{ future: { v7_startTransition: true } }` when constructing the
+      browser and memory routers.
+- [ ] Run the scenario's AppShell accessibility test and update
+      `.vrooli/service.json::generation.template.version` to `1.6.2`.
+
+## 1.6.1 — 2026-07-10
+
+Repairs the generated DataTable test-selector contract so the notes example
+compiles and its table surface remains addressable in UI tests.
+
+### Changed
+- `DataTable` accepts the existing optional `tableTestId` prop and applies it
+  to its semantic table element.
+
+### Migration (for agents updating older scenarios)
+- [ ] Add optional `tableTestId?: string` to the local `DataTableProps` type
+      and apply it as `data-testid` on the rendered `<table>` element.
+- [ ] Run the scenario's UI type-check and update
+      `.vrooli/service.json::generation.template.version` to `1.6.1`.
+
 ## 1.6.0 — 2026-07-07
 
 Makes the generated UI baseline inherit the component canon and mobile-safe

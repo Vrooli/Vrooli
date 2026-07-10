@@ -1,0 +1,11 @@
+{
+  "schema_version": "v1",
+  "runner": "claude-code",
+  "provenance": {"source": "Claude Code aliases and pinned upstream catalog", "observed_at": "2026-07-09"},
+  "roles": {
+    "code.default": {"model": "sonnet", "fallbacks": ["claude-sonnet-4-6"], "description": "Balanced Claude Code implementation work.", "capabilities": ["code", "tools"]},
+    "code.fast": {"model": "sonnet", "fallbacks": ["haiku"], "description": "Low-latency Claude Code edits.", "capabilities": ["code", "tools"]},
+    "code.smart": {"model": "opus", "fallbacks": ["claude-opus-4-8"], "description": "Highest-capability Claude Code reasoning.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.cheap": {"model": "haiku", "fallbacks": ["claude-haiku-4-5-20251001"], "description": "Cost-conscious Claude Code tasks.", "capabilities": ["code", "tools"]}
+  }
+}

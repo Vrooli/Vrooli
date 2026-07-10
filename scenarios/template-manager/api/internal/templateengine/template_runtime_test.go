@@ -603,7 +603,7 @@ func TestRunTemplateValidateDeepReportsTestGenieStartupErrorDetails(t *testing.T
 		stdout: `{
   "success": false,
   "error": "suite execution failed",
-  "errors": ["start target scenario demo: exit status 2"]
+  "errors": ["start target scenario demo: exit status 2; lifecycle start output: NotesCard.tsx(134,11): error TS2322: Property 'tableTestId' does not exist"]
 }`,
 		err: errors.New("api error (500): suite execution failed"),
 	}
@@ -621,8 +621,13 @@ func TestRunTemplateValidateDeepReportsTestGenieStartupErrorDetails(t *testing.T
 	if len(report.Issues) != 1 {
 		t.Fatalf("issues = %#v", report.Issues)
 	}
-	if !strings.Contains(report.Issues[0].Message, "start target scenario demo: exit status 2") {
-		t.Fatalf("issue message = %q", report.Issues[0].Message)
+	for _, want := range []string{"start target scenario demo: exit status 2", "TS2322", "tableTestId"} {
+		if !strings.Contains(report.Issues[0].Message, want) {
+			t.Fatalf("issue message = %q, want %q", report.Issues[0].Message, want)
+		}
+	}
+	if !strings.Contains(report.Issues[0].Message, "startup failed before phases") {
+		t.Fatalf("issue message = %q, want explicit startup classification", report.Issues[0].Message)
 	}
 }
 

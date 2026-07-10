@@ -7,7 +7,7 @@
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
+    "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
       "notes": "Notes",
