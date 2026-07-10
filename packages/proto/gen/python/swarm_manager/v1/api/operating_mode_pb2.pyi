@@ -403,7 +403,7 @@ class OperatingModeBacklogSyncPlan(_message.Message):
     def __init__(self, completed_items: _Optional[_Iterable[str]] = ..., created_items: _Optional[_Iterable[str]] = ..., updated_items: _Optional[_Iterable[str]] = ..., proposal: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., rationale: _Optional[str] = ...) -> None: ...
 
 class OperatingModeRoundEnvelope(_message.Message):
-    __slots__ = ("round", "mode", "scope_kind", "scope_id", "initiative_name", "phase", "run_strategy", "agent_profile_key", "generated_at", "run_id", "status", "readiness", "items", "artifact_updates", "handoffs", "payload", "error", "resolution", "transition_classification", "resolved_envelope")
+    __slots__ = ("round", "mode", "scope_kind", "scope_id", "initiative_name", "phase", "run_strategy", "agent_profile_key", "generated_at", "run_id", "status", "readiness", "items", "artifact_updates", "handoffs", "payload", "error", "resolution", "transition_classification", "resolved_envelope", "execution_id", "definition_digest")
     ROUND_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     SCOPE_KIND_FIELD_NUMBER: _ClassVar[int]
@@ -424,6 +424,8 @@ class OperatingModeRoundEnvelope(_message.Message):
     RESOLUTION_FIELD_NUMBER: _ClassVar[int]
     TRANSITION_CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     RESOLVED_ENVELOPE_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
     round: int
     mode: str
     scope_kind: str
@@ -444,7 +446,9 @@ class OperatingModeRoundEnvelope(_message.Message):
     resolution: OperatingModePhaseResolutionRecord
     transition_classification: OperatingModePhaseResolutionRecord
     resolved_envelope: _struct_pb2.Struct
-    def __init__(self, round: _Optional[int] = ..., mode: _Optional[str] = ..., scope_kind: _Optional[str] = ..., scope_id: _Optional[str] = ..., initiative_name: _Optional[str] = ..., phase: _Optional[str] = ..., run_strategy: _Optional[str] = ..., agent_profile_key: _Optional[str] = ..., generated_at: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., readiness: _Optional[_Union[OperatingModeReadinessReport, _Mapping]] = ..., items: _Optional[_Iterable[_Union[OperatingModeRoundItem, _Mapping]]] = ..., artifact_updates: _Optional[_Iterable[_Union[OperatingModeArtifactUpdate, _Mapping]]] = ..., handoffs: _Optional[_Iterable[_Union[OperatingModeHandoff, _Mapping]]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., error: _Optional[str] = ..., resolution: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ..., transition_classification: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ..., resolved_envelope: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    execution_id: str
+    definition_digest: str
+    def __init__(self, round: _Optional[int] = ..., mode: _Optional[str] = ..., scope_kind: _Optional[str] = ..., scope_id: _Optional[str] = ..., initiative_name: _Optional[str] = ..., phase: _Optional[str] = ..., run_strategy: _Optional[str] = ..., agent_profile_key: _Optional[str] = ..., generated_at: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., readiness: _Optional[_Union[OperatingModeReadinessReport, _Mapping]] = ..., items: _Optional[_Iterable[_Union[OperatingModeRoundItem, _Mapping]]] = ..., artifact_updates: _Optional[_Iterable[_Union[OperatingModeArtifactUpdate, _Mapping]]] = ..., handoffs: _Optional[_Iterable[_Union[OperatingModeHandoff, _Mapping]]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., error: _Optional[str] = ..., resolution: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ..., transition_classification: _Optional[_Union[OperatingModePhaseResolutionRecord, _Mapping]] = ..., resolved_envelope: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution_id: _Optional[str] = ..., definition_digest: _Optional[str] = ...) -> None: ...
 
 class OperatingModeCatalogPhase(_message.Message):
     __slots__ = ("phase", "phase_kind", "label", "title", "purpose", "trigger", "profile_key", "writes_repo", "requires_criteria", "is_start", "is_terminal", "output_artifacts", "output_contract", "catalog_id", "skill_id", "activity_purpose", "lock_purpose", "result_bindings", "samples_replan_rate", "samples_acceptance_rate", "auto_start_after", "reads", "executed_by", "classification")
@@ -689,21 +693,85 @@ class OperatingModeLockHolder(_message.Message):
     initiative_name: str
     def __init__(self, run_id: _Optional[str] = ..., purpose: _Optional[str] = ..., round_number: _Optional[int] = ..., acquired_at: _Optional[str] = ..., acquired_by: _Optional[str] = ..., initiative_name: _Optional[str] = ...) -> None: ...
 
+class OperatingModePinnedPromptSource(_message.Message):
+    __slots__ = ("mode", "phase", "skill_id", "revision", "content_hash", "retention", "redacted")
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    SKILL_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    RETENTION_FIELD_NUMBER: _ClassVar[int]
+    REDACTED_FIELD_NUMBER: _ClassVar[int]
+    mode: str
+    phase: str
+    skill_id: str
+    revision: str
+    content_hash: str
+    retention: str
+    redacted: bool
+    def __init__(self, mode: _Optional[str] = ..., phase: _Optional[str] = ..., skill_id: _Optional[str] = ..., revision: _Optional[str] = ..., content_hash: _Optional[str] = ..., retention: _Optional[str] = ..., redacted: _Optional[bool] = ...) -> None: ...
+
+class OperatingModeExecutionMigration(_message.Message):
+    __slots__ = ("source_layout", "migrated_at", "round_count")
+    SOURCE_LAYOUT_FIELD_NUMBER: _ClassVar[int]
+    MIGRATED_AT_FIELD_NUMBER: _ClassVar[int]
+    ROUND_COUNT_FIELD_NUMBER: _ClassVar[int]
+    source_layout: str
+    migrated_at: str
+    round_count: int
+    def __init__(self, source_layout: _Optional[str] = ..., migrated_at: _Optional[str] = ..., round_count: _Optional[int] = ...) -> None: ...
+
+class OperatingModeExecutionSnapshot(_message.Message):
+    __slots__ = ("execution_id", "scope_kind", "scope_id", "mode", "status", "created_at", "updated_at", "completed_at", "schema_version", "definition_digest", "definition_bundle", "input_contract_digest", "input_snapshot_digest", "reachable_prompt_sources", "migration")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_KIND_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_ID_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_BUNDLE_FIELD_NUMBER: _ClassVar[int]
+    INPUT_CONTRACT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    INPUT_SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    REACHABLE_PROMPT_SOURCES_FIELD_NUMBER: _ClassVar[int]
+    MIGRATION_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    scope_kind: str
+    scope_id: str
+    mode: str
+    status: str
+    created_at: str
+    updated_at: str
+    completed_at: str
+    schema_version: str
+    definition_digest: str
+    definition_bundle: _struct_pb2.Struct
+    input_contract_digest: str
+    input_snapshot_digest: str
+    reachable_prompt_sources: _containers.RepeatedCompositeFieldContainer[OperatingModePinnedPromptSource]
+    migration: OperatingModeExecutionMigration
+    def __init__(self, execution_id: _Optional[str] = ..., scope_kind: _Optional[str] = ..., scope_id: _Optional[str] = ..., mode: _Optional[str] = ..., status: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., schema_version: _Optional[str] = ..., definition_digest: _Optional[str] = ..., definition_bundle: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., input_contract_digest: _Optional[str] = ..., input_snapshot_digest: _Optional[str] = ..., reachable_prompt_sources: _Optional[_Iterable[_Union[OperatingModePinnedPromptSource, _Mapping]]] = ..., migration: _Optional[_Union[OperatingModeExecutionMigration, _Mapping]] = ...) -> None: ...
+
 class OperatingModeWorkspace(_message.Message):
-    __slots__ = ("initiative_name", "mode", "definition", "lock", "artifacts", "rounds")
+    __slots__ = ("initiative_name", "mode", "definition", "lock", "artifacts", "rounds", "executions")
     INITIATIVE_NAME_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_FIELD_NUMBER: _ClassVar[int]
     LOCK_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     ROUNDS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTIONS_FIELD_NUMBER: _ClassVar[int]
     initiative_name: str
     mode: str
     definition: OperatingModeWorkspaceMode
     lock: OperatingModeLockHolder
     artifacts: _containers.RepeatedCompositeFieldContainer[OperatingModeArtifactSnapshot]
     rounds: _containers.RepeatedCompositeFieldContainer[OperatingModeRoundEnvelope]
-    def __init__(self, initiative_name: _Optional[str] = ..., mode: _Optional[str] = ..., definition: _Optional[_Union[OperatingModeWorkspaceMode, _Mapping]] = ..., lock: _Optional[_Union[OperatingModeLockHolder, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[OperatingModeArtifactSnapshot, _Mapping]]] = ..., rounds: _Optional[_Iterable[_Union[OperatingModeRoundEnvelope, _Mapping]]] = ...) -> None: ...
+    executions: _containers.RepeatedCompositeFieldContainer[OperatingModeExecutionSnapshot]
+    def __init__(self, initiative_name: _Optional[str] = ..., mode: _Optional[str] = ..., definition: _Optional[_Union[OperatingModeWorkspaceMode, _Mapping]] = ..., lock: _Optional[_Union[OperatingModeLockHolder, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[OperatingModeArtifactSnapshot, _Mapping]]] = ..., rounds: _Optional[_Iterable[_Union[OperatingModeRoundEnvelope, _Mapping]]] = ..., executions: _Optional[_Iterable[_Union[OperatingModeExecutionSnapshot, _Mapping]]] = ...) -> None: ...
 
 class OperatingModeActiveItemExecution(_message.Message):
     __slots__ = ("item_ref", "execution_id", "run_id", "status")

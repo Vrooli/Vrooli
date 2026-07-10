@@ -305,12 +305,12 @@ type ActiveOperatingModeRoundConflict struct {
 }
 
 type Workspace struct {
-	InitiativeName string                 `json:"initiative_name"`
-	Mode           string                 `json:"mode"`
-	Definition     WorkspaceMode          `json:"definition"`
-	Lock           *initiativelock.Holder `json:"lock,omitempty"`
-	Artifacts      []ArtifactSnapshot     `json:"artifacts"`
-	Rounds         []RoundEnvelope        `json:"rounds"`
+	InitiativeName string                   `json:"initiative_name"`
+	Mode           string                   `json:"mode"`
+	Definition     WorkspaceMode            `json:"definition"`
+	Lock           *initiativelock.Holder   `json:"lock,omitempty"`
+	Artifacts      []ArtifactSnapshot       `json:"artifacts"`
+	Rounds         []RoundEnvelope          `json:"rounds"`
 	Executions     []OperatingModeExecution `json:"executions"`
 }
 

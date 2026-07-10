@@ -2316,6 +2316,12 @@ type OperatingModeRoundEnvelope struct {
 	// projections, this preserves every declared scalar, object, and array field
 	// and is the source used by runtime and simulation guard evaluation.
 	ResolvedEnvelope *structpb.Struct `protobuf:"bytes,20,opt,name=resolved_envelope,json=resolvedEnvelope,proto3" json:"resolved_envelope,omitempty"`
+	// Immutable execution owning this round. Empty only for an unadopted legacy
+	// flat round that is exposed read-only.
+	ExecutionId string `protobuf:"bytes,21,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	// Canonical digest of the transitive definition bundle used to interpret
+	// this round. It must match the owning execution manifest.
+	DefinitionDigest string `protobuf:"bytes,22,opt,name=definition_digest,json=definitionDigest,proto3" json:"definition_digest,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -2488,6 +2494,20 @@ func (x *OperatingModeRoundEnvelope) GetResolvedEnvelope() *structpb.Struct {
 		return x.ResolvedEnvelope
 	}
 	return nil
+}
+
+func (x *OperatingModeRoundEnvelope) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *OperatingModeRoundEnvelope) GetDefinitionDigest() string {
+	if x != nil {
+		return x.DefinitionDigest
+	}
+	return ""
 }
 
 // OperatingModeCatalogPhase projects one phase inside a mode's catalog entry.
@@ -3746,22 +3766,339 @@ func (x *OperatingModeLockHolder) GetInitiativeName() string {
 	return ""
 }
 
+// OperatingModePinnedPromptSource is the immutable source provenance reserved
+// in an execution manifest. Phase 4 populates these records before dispatch.
+type OperatingModePinnedPromptSource struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mode          string                 `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
+	Phase         string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
+	SkillId       string                 `protobuf:"bytes,3,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	Revision      string                 `protobuf:"bytes,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	ContentHash   string                 `protobuf:"bytes,5,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	Retention     string                 `protobuf:"bytes,6,opt,name=retention,proto3" json:"retention,omitempty"`
+	Redacted      bool                   `protobuf:"varint,7,opt,name=redacted,proto3" json:"redacted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OperatingModePinnedPromptSource) Reset() {
+	*x = OperatingModePinnedPromptSource{}
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OperatingModePinnedPromptSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OperatingModePinnedPromptSource) ProtoMessage() {}
+
+func (x *OperatingModePinnedPromptSource) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OperatingModePinnedPromptSource.ProtoReflect.Descriptor instead.
+func (*OperatingModePinnedPromptSource) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *OperatingModePinnedPromptSource) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *OperatingModePinnedPromptSource) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
+}
+
+func (x *OperatingModePinnedPromptSource) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+func (x *OperatingModePinnedPromptSource) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *OperatingModePinnedPromptSource) GetContentHash() string {
+	if x != nil {
+		return x.ContentHash
+	}
+	return ""
+}
+
+func (x *OperatingModePinnedPromptSource) GetRetention() string {
+	if x != nil {
+		return x.Retention
+	}
+	return ""
+}
+
+func (x *OperatingModePinnedPromptSource) GetRedacted() bool {
+	if x != nil {
+		return x.Redacted
+	}
+	return false
+}
+
+// OperatingModeExecutionMigration identifies a legacy flat-round history that
+// was deterministically adopted into the immutable execution layout.
+type OperatingModeExecutionMigration struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SourceLayout  string                 `protobuf:"bytes,1,opt,name=source_layout,json=sourceLayout,proto3" json:"source_layout,omitempty"`
+	MigratedAt    string                 `protobuf:"bytes,2,opt,name=migrated_at,json=migratedAt,proto3" json:"migrated_at,omitempty"`
+	RoundCount    int32                  `protobuf:"varint,3,opt,name=round_count,json=roundCount,proto3" json:"round_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OperatingModeExecutionMigration) Reset() {
+	*x = OperatingModeExecutionMigration{}
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OperatingModeExecutionMigration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OperatingModeExecutionMigration) ProtoMessage() {}
+
+func (x *OperatingModeExecutionMigration) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OperatingModeExecutionMigration.ProtoReflect.Descriptor instead.
+func (*OperatingModeExecutionMigration) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *OperatingModeExecutionMigration) GetSourceLayout() string {
+	if x != nil {
+		return x.SourceLayout
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionMigration) GetMigratedAt() string {
+	if x != nil {
+		return x.MigratedAt
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionMigration) GetRoundCount() int32 {
+	if x != nil {
+		return x.RoundCount
+	}
+	return 0
+}
+
+// OperatingModeExecutionSnapshot exposes the immutable interpretation
+// provenance of one operating-mode execution. Definition content is included
+// for audit/replay; runtime inputs and prompt bodies remain governed by their
+// Phase 4 retention projections rather than being copied into this message.
+type OperatingModeExecutionSnapshot struct {
+	state                  protoimpl.MessageState             `protogen:"open.v1"`
+	ExecutionId            string                             `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	ScopeKind              string                             `protobuf:"bytes,2,opt,name=scope_kind,json=scopeKind,proto3" json:"scope_kind,omitempty"`
+	ScopeId                string                             `protobuf:"bytes,3,opt,name=scope_id,json=scopeId,proto3" json:"scope_id,omitempty"`
+	Mode                   string                             `protobuf:"bytes,4,opt,name=mode,proto3" json:"mode,omitempty"`
+	Status                 string                             `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	CreatedAt              string                             `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt              string                             `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CompletedAt            string                             `protobuf:"bytes,8,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	SchemaVersion          string                             `protobuf:"bytes,9,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	DefinitionDigest       string                             `protobuf:"bytes,10,opt,name=definition_digest,json=definitionDigest,proto3" json:"definition_digest,omitempty"`
+	DefinitionBundle       *structpb.Struct                   `protobuf:"bytes,11,opt,name=definition_bundle,json=definitionBundle,proto3" json:"definition_bundle,omitempty"`
+	InputContractDigest    string                             `protobuf:"bytes,12,opt,name=input_contract_digest,json=inputContractDigest,proto3" json:"input_contract_digest,omitempty"`
+	InputSnapshotDigest    string                             `protobuf:"bytes,13,opt,name=input_snapshot_digest,json=inputSnapshotDigest,proto3" json:"input_snapshot_digest,omitempty"`
+	ReachablePromptSources []*OperatingModePinnedPromptSource `protobuf:"bytes,14,rep,name=reachable_prompt_sources,json=reachablePromptSources,proto3" json:"reachable_prompt_sources,omitempty"`
+	Migration              *OperatingModeExecutionMigration   `protobuf:"bytes,15,opt,name=migration,proto3" json:"migration,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *OperatingModeExecutionSnapshot) Reset() {
+	*x = OperatingModeExecutionSnapshot{}
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OperatingModeExecutionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OperatingModeExecutionSnapshot) ProtoMessage() {}
+
+func (x *OperatingModeExecutionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OperatingModeExecutionSnapshot.ProtoReflect.Descriptor instead.
+func (*OperatingModeExecutionSnapshot) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *OperatingModeExecutionSnapshot) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetScopeKind() string {
+	if x != nil {
+		return x.ScopeKind
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetScopeId() string {
+	if x != nil {
+		return x.ScopeId
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetCompletedAt() string {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetDefinitionDigest() string {
+	if x != nil {
+		return x.DefinitionDigest
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetDefinitionBundle() *structpb.Struct {
+	if x != nil {
+		return x.DefinitionBundle
+	}
+	return nil
+}
+
+func (x *OperatingModeExecutionSnapshot) GetInputContractDigest() string {
+	if x != nil {
+		return x.InputContractDigest
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetInputSnapshotDigest() string {
+	if x != nil {
+		return x.InputSnapshotDigest
+	}
+	return ""
+}
+
+func (x *OperatingModeExecutionSnapshot) GetReachablePromptSources() []*OperatingModePinnedPromptSource {
+	if x != nil {
+		return x.ReachablePromptSources
+	}
+	return nil
+}
+
+func (x *OperatingModeExecutionSnapshot) GetMigration() *OperatingModeExecutionMigration {
+	if x != nil {
+		return x.Migration
+	}
+	return nil
+}
+
 // OperatingModeWorkspace is the initiative-scoped mode workspace projection.
 type OperatingModeWorkspace struct {
-	state          protoimpl.MessageState           `protogen:"open.v1"`
-	InitiativeName string                           `protobuf:"bytes,1,opt,name=initiative_name,json=initiativeName,proto3" json:"initiative_name,omitempty"`
-	Mode           string                           `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
-	Definition     *OperatingModeWorkspaceMode      `protobuf:"bytes,3,opt,name=definition,proto3" json:"definition,omitempty"`
-	Lock           *OperatingModeLockHolder         `protobuf:"bytes,4,opt,name=lock,proto3" json:"lock,omitempty"`
-	Artifacts      []*OperatingModeArtifactSnapshot `protobuf:"bytes,5,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
-	Rounds         []*OperatingModeRoundEnvelope    `protobuf:"bytes,6,rep,name=rounds,proto3" json:"rounds,omitempty"`
+	state          protoimpl.MessageState            `protogen:"open.v1"`
+	InitiativeName string                            `protobuf:"bytes,1,opt,name=initiative_name,json=initiativeName,proto3" json:"initiative_name,omitempty"`
+	Mode           string                            `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	Definition     *OperatingModeWorkspaceMode       `protobuf:"bytes,3,opt,name=definition,proto3" json:"definition,omitempty"`
+	Lock           *OperatingModeLockHolder          `protobuf:"bytes,4,opt,name=lock,proto3" json:"lock,omitempty"`
+	Artifacts      []*OperatingModeArtifactSnapshot  `protobuf:"bytes,5,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	Rounds         []*OperatingModeRoundEnvelope     `protobuf:"bytes,6,rep,name=rounds,proto3" json:"rounds,omitempty"`
+	Executions     []*OperatingModeExecutionSnapshot `protobuf:"bytes,7,rep,name=executions,proto3" json:"executions,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *OperatingModeWorkspace) Reset() {
 	*x = OperatingModeWorkspace{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[45]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3773,7 +4110,7 @@ func (x *OperatingModeWorkspace) String() string {
 func (*OperatingModeWorkspace) ProtoMessage() {}
 
 func (x *OperatingModeWorkspace) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[45]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3786,7 +4123,7 @@ func (x *OperatingModeWorkspace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeWorkspace.ProtoReflect.Descriptor instead.
 func (*OperatingModeWorkspace) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{45}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *OperatingModeWorkspace) GetInitiativeName() string {
@@ -3831,6 +4168,13 @@ func (x *OperatingModeWorkspace) GetRounds() []*OperatingModeRoundEnvelope {
 	return nil
 }
 
+func (x *OperatingModeWorkspace) GetExecutions() []*OperatingModeExecutionSnapshot {
+	if x != nil {
+		return x.Executions
+	}
+	return nil
+}
+
 // OperatingModeActiveItemExecution is an in-flight item execution attached to an
 // initiative.
 type OperatingModeActiveItemExecution struct {
@@ -3845,7 +4189,7 @@ type OperatingModeActiveItemExecution struct {
 
 func (x *OperatingModeActiveItemExecution) Reset() {
 	*x = OperatingModeActiveItemExecution{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[46]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3857,7 +4201,7 @@ func (x *OperatingModeActiveItemExecution) String() string {
 func (*OperatingModeActiveItemExecution) ProtoMessage() {}
 
 func (x *OperatingModeActiveItemExecution) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[46]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3870,7 +4214,7 @@ func (x *OperatingModeActiveItemExecution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeActiveItemExecution.ProtoReflect.Descriptor instead.
 func (*OperatingModeActiveItemExecution) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{46}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *OperatingModeActiveItemExecution) GetItemRef() string {
@@ -3917,7 +4261,7 @@ type OperatingModeSwitchResult struct {
 
 func (x *OperatingModeSwitchResult) Reset() {
 	*x = OperatingModeSwitchResult{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[47]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3929,7 +4273,7 @@ func (x *OperatingModeSwitchResult) String() string {
 func (*OperatingModeSwitchResult) ProtoMessage() {}
 
 func (x *OperatingModeSwitchResult) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[47]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3942,7 +4286,7 @@ func (x *OperatingModeSwitchResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeSwitchResult.ProtoReflect.Descriptor instead.
 func (*OperatingModeSwitchResult) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{47}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *OperatingModeSwitchResult) GetInitiativeName() string {
@@ -4013,7 +4357,7 @@ type OperatingModeActiveItemExecutionsConflict struct {
 
 func (x *OperatingModeActiveItemExecutionsConflict) Reset() {
 	*x = OperatingModeActiveItemExecutionsConflict{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[48]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4025,7 +4369,7 @@ func (x *OperatingModeActiveItemExecutionsConflict) String() string {
 func (*OperatingModeActiveItemExecutionsConflict) ProtoMessage() {}
 
 func (x *OperatingModeActiveItemExecutionsConflict) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[48]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4038,7 +4382,7 @@ func (x *OperatingModeActiveItemExecutionsConflict) ProtoReflect() protoreflect.
 
 // Deprecated: Use OperatingModeActiveItemExecutionsConflict.ProtoReflect.Descriptor instead.
 func (*OperatingModeActiveItemExecutionsConflict) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{48}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *OperatingModeActiveItemExecutionsConflict) GetInitiativeName() string {
@@ -4081,7 +4425,7 @@ type OperatingModeBacklogCompletionResult struct {
 
 func (x *OperatingModeBacklogCompletionResult) Reset() {
 	*x = OperatingModeBacklogCompletionResult{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[49]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4093,7 +4437,7 @@ func (x *OperatingModeBacklogCompletionResult) String() string {
 func (*OperatingModeBacklogCompletionResult) ProtoMessage() {}
 
 func (x *OperatingModeBacklogCompletionResult) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[49]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4106,7 +4450,7 @@ func (x *OperatingModeBacklogCompletionResult) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use OperatingModeBacklogCompletionResult.ProtoReflect.Descriptor instead.
 func (*OperatingModeBacklogCompletionResult) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{49}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *OperatingModeBacklogCompletionResult) GetItemRef() string {
@@ -4145,7 +4489,7 @@ type OperatingModeProposalOutcome struct {
 
 func (x *OperatingModeProposalOutcome) Reset() {
 	*x = OperatingModeProposalOutcome{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[50]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4157,7 +4501,7 @@ func (x *OperatingModeProposalOutcome) String() string {
 func (*OperatingModeProposalOutcome) ProtoMessage() {}
 
 func (x *OperatingModeProposalOutcome) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[50]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4170,7 +4514,7 @@ func (x *OperatingModeProposalOutcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeProposalOutcome.ProtoReflect.Descriptor instead.
 func (*OperatingModeProposalOutcome) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{50}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *OperatingModeProposalOutcome) GetMutationId() string {
@@ -4230,7 +4574,7 @@ type OperatingModeProposalApplyResult struct {
 
 func (x *OperatingModeProposalApplyResult) Reset() {
 	*x = OperatingModeProposalApplyResult{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[51]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4242,7 +4586,7 @@ func (x *OperatingModeProposalApplyResult) String() string {
 func (*OperatingModeProposalApplyResult) ProtoMessage() {}
 
 func (x *OperatingModeProposalApplyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[51]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4255,7 +4599,7 @@ func (x *OperatingModeProposalApplyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeProposalApplyResult.ProtoReflect.Descriptor instead.
 func (*OperatingModeProposalApplyResult) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{51}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *OperatingModeProposalApplyResult) GetOutcomes() []*OperatingModeProposalOutcome {
@@ -4317,7 +4661,7 @@ type OperatingModeBacklogSyncResult struct {
 
 func (x *OperatingModeBacklogSyncResult) Reset() {
 	*x = OperatingModeBacklogSyncResult{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[52]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4329,7 +4673,7 @@ func (x *OperatingModeBacklogSyncResult) String() string {
 func (*OperatingModeBacklogSyncResult) ProtoMessage() {}
 
 func (x *OperatingModeBacklogSyncResult) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[52]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4342,7 +4686,7 @@ func (x *OperatingModeBacklogSyncResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeBacklogSyncResult.ProtoReflect.Descriptor instead.
 func (*OperatingModeBacklogSyncResult) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{52}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *OperatingModeBacklogSyncResult) GetInitiativeName() string {
@@ -4418,7 +4762,7 @@ type OperatingModePhaseResult struct {
 
 func (x *OperatingModePhaseResult) Reset() {
 	*x = OperatingModePhaseResult{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[53]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4430,7 +4774,7 @@ func (x *OperatingModePhaseResult) String() string {
 func (*OperatingModePhaseResult) ProtoMessage() {}
 
 func (x *OperatingModePhaseResult) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[53]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4443,7 +4787,7 @@ func (x *OperatingModePhaseResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModePhaseResult.ProtoReflect.Descriptor instead.
 func (*OperatingModePhaseResult) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{53}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *OperatingModePhaseResult) GetArtifacts() []*OperatingModeArtifactResult {
@@ -4516,7 +4860,7 @@ type OperatingModeSimulationInputs struct {
 
 func (x *OperatingModeSimulationInputs) Reset() {
 	*x = OperatingModeSimulationInputs{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[54]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4528,7 +4872,7 @@ func (x *OperatingModeSimulationInputs) String() string {
 func (*OperatingModeSimulationInputs) ProtoMessage() {}
 
 func (x *OperatingModeSimulationInputs) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[54]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4541,7 +4885,7 @@ func (x *OperatingModeSimulationInputs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeSimulationInputs.ProtoReflect.Descriptor instead.
 func (*OperatingModeSimulationInputs) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{54}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *OperatingModeSimulationInputs) GetInitiative() *OperatingModeInitiativeSnapshot {
@@ -4595,7 +4939,7 @@ type OperatingModeSimulationTransition struct {
 
 func (x *OperatingModeSimulationTransition) Reset() {
 	*x = OperatingModeSimulationTransition{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[55]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4607,7 +4951,7 @@ func (x *OperatingModeSimulationTransition) String() string {
 func (*OperatingModeSimulationTransition) ProtoMessage() {}
 
 func (x *OperatingModeSimulationTransition) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[55]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4620,7 +4964,7 @@ func (x *OperatingModeSimulationTransition) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use OperatingModeSimulationTransition.ProtoReflect.Descriptor instead.
 func (*OperatingModeSimulationTransition) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{55}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *OperatingModeSimulationTransition) GetFrom() string {
@@ -4685,7 +5029,7 @@ type OperatingModeSimulationStep struct {
 
 func (x *OperatingModeSimulationStep) Reset() {
 	*x = OperatingModeSimulationStep{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[56]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4697,7 +5041,7 @@ func (x *OperatingModeSimulationStep) String() string {
 func (*OperatingModeSimulationStep) ProtoMessage() {}
 
 func (x *OperatingModeSimulationStep) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[56]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4710,7 +5054,7 @@ func (x *OperatingModeSimulationStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeSimulationStep.ProtoReflect.Descriptor instead.
 func (*OperatingModeSimulationStep) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{56}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *OperatingModeSimulationStep) GetIndex() int32 {
@@ -4804,7 +5148,7 @@ type OperatingModeSimulationPreset struct {
 
 func (x *OperatingModeSimulationPreset) Reset() {
 	*x = OperatingModeSimulationPreset{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[57]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4816,7 +5160,7 @@ func (x *OperatingModeSimulationPreset) String() string {
 func (*OperatingModeSimulationPreset) ProtoMessage() {}
 
 func (x *OperatingModeSimulationPreset) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[57]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4829,7 +5173,7 @@ func (x *OperatingModeSimulationPreset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeSimulationPreset.ProtoReflect.Descriptor instead.
 func (*OperatingModeSimulationPreset) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{57}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *OperatingModeSimulationPreset) GetId() string {
@@ -4882,7 +5226,7 @@ type OperatingModeSimulationResponse struct {
 
 func (x *OperatingModeSimulationResponse) Reset() {
 	*x = OperatingModeSimulationResponse{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[58]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4894,7 +5238,7 @@ func (x *OperatingModeSimulationResponse) String() string {
 func (*OperatingModeSimulationResponse) ProtoMessage() {}
 
 func (x *OperatingModeSimulationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[58]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4907,7 +5251,7 @@ func (x *OperatingModeSimulationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeSimulationResponse.ProtoReflect.Descriptor instead.
 func (*OperatingModeSimulationResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{58}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *OperatingModeSimulationResponse) GetMode() string {
@@ -4973,7 +5317,7 @@ type OperatingModeRenderPromptResponse struct {
 
 func (x *OperatingModeRenderPromptResponse) Reset() {
 	*x = OperatingModeRenderPromptResponse{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[59]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4985,7 +5329,7 @@ func (x *OperatingModeRenderPromptResponse) String() string {
 func (*OperatingModeRenderPromptResponse) ProtoMessage() {}
 
 func (x *OperatingModeRenderPromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[59]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4998,7 +5342,7 @@ func (x *OperatingModeRenderPromptResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use OperatingModeRenderPromptResponse.ProtoReflect.Descriptor instead.
 func (*OperatingModeRenderPromptResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{59}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *OperatingModeRenderPromptResponse) GetMode() string {
@@ -5083,7 +5427,7 @@ type OperatingModeScaffoldResponse struct {
 
 func (x *OperatingModeScaffoldResponse) Reset() {
 	*x = OperatingModeScaffoldResponse{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[60]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5095,7 +5439,7 @@ func (x *OperatingModeScaffoldResponse) String() string {
 func (*OperatingModeScaffoldResponse) ProtoMessage() {}
 
 func (x *OperatingModeScaffoldResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[60]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5108,7 +5452,7 @@ func (x *OperatingModeScaffoldResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeScaffoldResponse.ProtoReflect.Descriptor instead.
 func (*OperatingModeScaffoldResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{60}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *OperatingModeScaffoldResponse) GetMode() string {
@@ -5155,7 +5499,7 @@ type OperatingModeValidateResponse struct {
 
 func (x *OperatingModeValidateResponse) Reset() {
 	*x = OperatingModeValidateResponse{}
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[61]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5167,7 +5511,7 @@ func (x *OperatingModeValidateResponse) String() string {
 func (*OperatingModeValidateResponse) ProtoMessage() {}
 
 func (x *OperatingModeValidateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[61]
+	mi := &file_swarm_manager_v1_api_operating_mode_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5180,7 +5524,7 @@ func (x *OperatingModeValidateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingModeValidateResponse.ProtoReflect.Descriptor instead.
 func (*OperatingModeValidateResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{61}
+	return file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *OperatingModeValidateResponse) GetMode() string {
@@ -5417,7 +5761,7 @@ const file_swarm_manager_v1_api_operating_mode_proto_rawDesc = "" +
 	"\rcreated_items\x18\x02 \x03(\tR\fcreatedItems\x12#\n" +
 	"\rupdated_items\x18\x03 \x03(\tR\fupdatedItems\x123\n" +
 	"\bproposal\x18\x04 \x01(\v2\x17.google.protobuf.StructR\bproposal\x12\x1c\n" +
-	"\trationale\x18\x05 \x01(\tR\trationale\"\xe4\a\n" +
+	"\trationale\x18\x05 \x01(\tR\trationale\"\xb4\b\n" +
 	"\x1aOperatingModeRoundEnvelope\x12\x14\n" +
 	"\x05round\x18\x01 \x01(\x05R\x05round\x12\x12\n" +
 	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x1d\n" +
@@ -5442,7 +5786,9 @@ const file_swarm_manager_v1_api_operating_mode_proto_rawDesc = "" +
 	"resolution\x18\x12 \x01(\v24.swarm_manager.v1.OperatingModePhaseResolutionRecordR\n" +
 	"resolution\x12q\n" +
 	"\x19transition_classification\x18\x13 \x01(\v24.swarm_manager.v1.OperatingModePhaseResolutionRecordR\x18transitionClassification\x12D\n" +
-	"\x11resolved_envelope\x18\x14 \x01(\v2\x17.google.protobuf.StructR\x10resolvedEnvelope\"\xd8\b\n" +
+	"\x11resolved_envelope\x18\x14 \x01(\v2\x17.google.protobuf.StructR\x10resolvedEnvelope\x12!\n" +
+	"\fexecution_id\x18\x15 \x01(\tR\vexecutionId\x12+\n" +
+	"\x11definition_digest\x18\x16 \x01(\tR\x10definitionDigest\"\xd8\b\n" +
 	"\x19OperatingModeCatalogPhase\x12\x14\n" +
 	"\x05phase\x18\x01 \x01(\tR\x05phase\x12\x1d\n" +
 	"\n" +
@@ -5579,7 +5925,41 @@ const file_swarm_manager_v1_api_operating_mode_proto_rawDesc = "" +
 	"acquiredAt\x12\x1f\n" +
 	"\vacquired_by\x18\x05 \x01(\tR\n" +
 	"acquiredBy\x12'\n" +
-	"\x0finitiative_name\x18\x06 \x01(\tR\x0einitiativeName\"\xf7\x02\n" +
+	"\x0finitiative_name\x18\x06 \x01(\tR\x0einitiativeName\"\xdf\x01\n" +
+	"\x1fOperatingModePinnedPromptSource\x12\x12\n" +
+	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x14\n" +
+	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x19\n" +
+	"\bskill_id\x18\x03 \x01(\tR\askillId\x12\x1a\n" +
+	"\brevision\x18\x04 \x01(\tR\brevision\x12!\n" +
+	"\fcontent_hash\x18\x05 \x01(\tR\vcontentHash\x12\x1c\n" +
+	"\tretention\x18\x06 \x01(\tR\tretention\x12\x1a\n" +
+	"\bredacted\x18\a \x01(\bR\bredacted\"\x88\x01\n" +
+	"\x1fOperatingModeExecutionMigration\x12#\n" +
+	"\rsource_layout\x18\x01 \x01(\tR\fsourceLayout\x12\x1f\n" +
+	"\vmigrated_at\x18\x02 \x01(\tR\n" +
+	"migratedAt\x12\x1f\n" +
+	"\vround_count\x18\x03 \x01(\x05R\n" +
+	"roundCount\"\xca\x05\n" +
+	"\x1eOperatingModeExecutionSnapshot\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1d\n" +
+	"\n" +
+	"scope_kind\x18\x02 \x01(\tR\tscopeKind\x12\x19\n" +
+	"\bscope_id\x18\x03 \x01(\tR\ascopeId\x12\x12\n" +
+	"\x04mode\x18\x04 \x01(\tR\x04mode\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\a \x01(\tR\tupdatedAt\x12!\n" +
+	"\fcompleted_at\x18\b \x01(\tR\vcompletedAt\x12%\n" +
+	"\x0eschema_version\x18\t \x01(\tR\rschemaVersion\x12+\n" +
+	"\x11definition_digest\x18\n" +
+	" \x01(\tR\x10definitionDigest\x12D\n" +
+	"\x11definition_bundle\x18\v \x01(\v2\x17.google.protobuf.StructR\x10definitionBundle\x122\n" +
+	"\x15input_contract_digest\x18\f \x01(\tR\x13inputContractDigest\x122\n" +
+	"\x15input_snapshot_digest\x18\r \x01(\tR\x13inputSnapshotDigest\x12k\n" +
+	"\x18reachable_prompt_sources\x18\x0e \x03(\v21.swarm_manager.v1.OperatingModePinnedPromptSourceR\x16reachablePromptSources\x12O\n" +
+	"\tmigration\x18\x0f \x01(\v21.swarm_manager.v1.OperatingModeExecutionMigrationR\tmigration\"\xc9\x03\n" +
 	"\x16OperatingModeWorkspace\x12'\n" +
 	"\x0finitiative_name\x18\x01 \x01(\tR\x0einitiativeName\x12\x12\n" +
 	"\x04mode\x18\x02 \x01(\tR\x04mode\x12L\n" +
@@ -5588,7 +5968,10 @@ const file_swarm_manager_v1_api_operating_mode_proto_rawDesc = "" +
 	"definition\x12=\n" +
 	"\x04lock\x18\x04 \x01(\v2).swarm_manager.v1.OperatingModeLockHolderR\x04lock\x12M\n" +
 	"\tartifacts\x18\x05 \x03(\v2/.swarm_manager.v1.OperatingModeArtifactSnapshotR\tartifacts\x12D\n" +
-	"\x06rounds\x18\x06 \x03(\v2,.swarm_manager.v1.OperatingModeRoundEnvelopeR\x06rounds\"\x8f\x01\n" +
+	"\x06rounds\x18\x06 \x03(\v2,.swarm_manager.v1.OperatingModeRoundEnvelopeR\x06rounds\x12P\n" +
+	"\n" +
+	"executions\x18\a \x03(\v20.swarm_manager.v1.OperatingModeExecutionSnapshotR\n" +
+	"executions\"\x8f\x01\n" +
 	" OperatingModeActiveItemExecution\x12\x19\n" +
 	"\bitem_ref\x18\x01 \x01(\tR\aitemRef\x12!\n" +
 	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12\x15\n" +
@@ -5760,7 +6143,7 @@ func file_swarm_manager_v1_api_operating_mode_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_operating_mode_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_operating_mode_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
+var file_swarm_manager_v1_api_operating_mode_proto_msgTypes = make([]protoimpl.MessageInfo, 68)
 var file_swarm_manager_v1_api_operating_mode_proto_goTypes = []any{
 	(*OperatingModeCatalogRequest)(nil),               // 0: swarm_manager.v1.OperatingModeCatalogRequest
 	(*OperatingModeGetRequest)(nil),                   // 1: swarm_manager.v1.OperatingModeGetRequest
@@ -5807,41 +6190,44 @@ var file_swarm_manager_v1_api_operating_mode_proto_goTypes = []any{
 	(*OperatingModeWorkspacePhase)(nil),               // 42: swarm_manager.v1.OperatingModeWorkspacePhase
 	(*OperatingModeWorkspaceMode)(nil),                // 43: swarm_manager.v1.OperatingModeWorkspaceMode
 	(*OperatingModeLockHolder)(nil),                   // 44: swarm_manager.v1.OperatingModeLockHolder
-	(*OperatingModeWorkspace)(nil),                    // 45: swarm_manager.v1.OperatingModeWorkspace
-	(*OperatingModeActiveItemExecution)(nil),          // 46: swarm_manager.v1.OperatingModeActiveItemExecution
-	(*OperatingModeSwitchResult)(nil),                 // 47: swarm_manager.v1.OperatingModeSwitchResult
-	(*OperatingModeActiveItemExecutionsConflict)(nil), // 48: swarm_manager.v1.OperatingModeActiveItemExecutionsConflict
-	(*OperatingModeBacklogCompletionResult)(nil),      // 49: swarm_manager.v1.OperatingModeBacklogCompletionResult
-	(*OperatingModeProposalOutcome)(nil),              // 50: swarm_manager.v1.OperatingModeProposalOutcome
-	(*OperatingModeProposalApplyResult)(nil),          // 51: swarm_manager.v1.OperatingModeProposalApplyResult
-	(*OperatingModeBacklogSyncResult)(nil),            // 52: swarm_manager.v1.OperatingModeBacklogSyncResult
-	(*OperatingModePhaseResult)(nil),                  // 53: swarm_manager.v1.OperatingModePhaseResult
-	(*OperatingModeSimulationInputs)(nil),             // 54: swarm_manager.v1.OperatingModeSimulationInputs
-	(*OperatingModeSimulationTransition)(nil),         // 55: swarm_manager.v1.OperatingModeSimulationTransition
-	(*OperatingModeSimulationStep)(nil),               // 56: swarm_manager.v1.OperatingModeSimulationStep
-	(*OperatingModeSimulationPreset)(nil),             // 57: swarm_manager.v1.OperatingModeSimulationPreset
-	(*OperatingModeSimulationResponse)(nil),           // 58: swarm_manager.v1.OperatingModeSimulationResponse
-	(*OperatingModeRenderPromptResponse)(nil),         // 59: swarm_manager.v1.OperatingModeRenderPromptResponse
-	(*OperatingModeScaffoldResponse)(nil),             // 60: swarm_manager.v1.OperatingModeScaffoldResponse
-	(*OperatingModeValidateResponse)(nil),             // 61: swarm_manager.v1.OperatingModeValidateResponse
-	nil,                                               // 62: swarm_manager.v1.OperatingModeWorkspaceMode.TransitionsEntry
-	nil,                                               // 63: swarm_manager.v1.OperatingModeSimulationStep.PromptVariablesEntry
-	nil,                                               // 64: swarm_manager.v1.OperatingModeRenderPromptResponse.VariablesEntry
-	(*structpb.Struct)(nil),                           // 65: google.protobuf.Struct
+	(*OperatingModePinnedPromptSource)(nil),           // 45: swarm_manager.v1.OperatingModePinnedPromptSource
+	(*OperatingModeExecutionMigration)(nil),           // 46: swarm_manager.v1.OperatingModeExecutionMigration
+	(*OperatingModeExecutionSnapshot)(nil),            // 47: swarm_manager.v1.OperatingModeExecutionSnapshot
+	(*OperatingModeWorkspace)(nil),                    // 48: swarm_manager.v1.OperatingModeWorkspace
+	(*OperatingModeActiveItemExecution)(nil),          // 49: swarm_manager.v1.OperatingModeActiveItemExecution
+	(*OperatingModeSwitchResult)(nil),                 // 50: swarm_manager.v1.OperatingModeSwitchResult
+	(*OperatingModeActiveItemExecutionsConflict)(nil), // 51: swarm_manager.v1.OperatingModeActiveItemExecutionsConflict
+	(*OperatingModeBacklogCompletionResult)(nil),      // 52: swarm_manager.v1.OperatingModeBacklogCompletionResult
+	(*OperatingModeProposalOutcome)(nil),              // 53: swarm_manager.v1.OperatingModeProposalOutcome
+	(*OperatingModeProposalApplyResult)(nil),          // 54: swarm_manager.v1.OperatingModeProposalApplyResult
+	(*OperatingModeBacklogSyncResult)(nil),            // 55: swarm_manager.v1.OperatingModeBacklogSyncResult
+	(*OperatingModePhaseResult)(nil),                  // 56: swarm_manager.v1.OperatingModePhaseResult
+	(*OperatingModeSimulationInputs)(nil),             // 57: swarm_manager.v1.OperatingModeSimulationInputs
+	(*OperatingModeSimulationTransition)(nil),         // 58: swarm_manager.v1.OperatingModeSimulationTransition
+	(*OperatingModeSimulationStep)(nil),               // 59: swarm_manager.v1.OperatingModeSimulationStep
+	(*OperatingModeSimulationPreset)(nil),             // 60: swarm_manager.v1.OperatingModeSimulationPreset
+	(*OperatingModeSimulationResponse)(nil),           // 61: swarm_manager.v1.OperatingModeSimulationResponse
+	(*OperatingModeRenderPromptResponse)(nil),         // 62: swarm_manager.v1.OperatingModeRenderPromptResponse
+	(*OperatingModeScaffoldResponse)(nil),             // 63: swarm_manager.v1.OperatingModeScaffoldResponse
+	(*OperatingModeValidateResponse)(nil),             // 64: swarm_manager.v1.OperatingModeValidateResponse
+	nil,                                               // 65: swarm_manager.v1.OperatingModeWorkspaceMode.TransitionsEntry
+	nil,                                               // 66: swarm_manager.v1.OperatingModeSimulationStep.PromptVariablesEntry
+	nil,                                               // 67: swarm_manager.v1.OperatingModeRenderPromptResponse.VariablesEntry
+	(*structpb.Struct)(nil),                           // 68: google.protobuf.Struct
 }
 var file_swarm_manager_v1_api_operating_mode_proto_depIdxs = []int32{
 	16, // 0: swarm_manager.v1.OperatingModeResultBindingSummary.artifact:type_name -> swarm_manager.v1.OperatingModeArtifactDefinition
 	19, // 1: swarm_manager.v1.OperatingModeReadinessReport.dimensions:type_name -> swarm_manager.v1.OperatingModeReadinessDimension
 	28, // 2: swarm_manager.v1.OperatingModePhaseResolutionRecord.selected_message:type_name -> swarm_manager.v1.OperatingModeSelectedMessageProvenance
-	65, // 3: swarm_manager.v1.OperatingModeBacklogSyncPlan.proposal:type_name -> google.protobuf.Struct
+	68, // 3: swarm_manager.v1.OperatingModeBacklogSyncPlan.proposal:type_name -> google.protobuf.Struct
 	20, // 4: swarm_manager.v1.OperatingModeRoundEnvelope.readiness:type_name -> swarm_manager.v1.OperatingModeReadinessReport
 	22, // 5: swarm_manager.v1.OperatingModeRoundEnvelope.items:type_name -> swarm_manager.v1.OperatingModeRoundItem
 	23, // 6: swarm_manager.v1.OperatingModeRoundEnvelope.artifact_updates:type_name -> swarm_manager.v1.OperatingModeArtifactUpdate
 	21, // 7: swarm_manager.v1.OperatingModeRoundEnvelope.handoffs:type_name -> swarm_manager.v1.OperatingModeHandoff
-	65, // 8: swarm_manager.v1.OperatingModeRoundEnvelope.payload:type_name -> google.protobuf.Struct
+	68, // 8: swarm_manager.v1.OperatingModeRoundEnvelope.payload:type_name -> google.protobuf.Struct
 	27, // 9: swarm_manager.v1.OperatingModeRoundEnvelope.resolution:type_name -> swarm_manager.v1.OperatingModePhaseResolutionRecord
 	27, // 10: swarm_manager.v1.OperatingModeRoundEnvelope.transition_classification:type_name -> swarm_manager.v1.OperatingModePhaseResolutionRecord
-	65, // 11: swarm_manager.v1.OperatingModeRoundEnvelope.resolved_envelope:type_name -> google.protobuf.Struct
+	68, // 11: swarm_manager.v1.OperatingModeRoundEnvelope.resolved_envelope:type_name -> google.protobuf.Struct
 	16, // 12: swarm_manager.v1.OperatingModeCatalogPhase.output_artifacts:type_name -> swarm_manager.v1.OperatingModeArtifactDefinition
 	18, // 13: swarm_manager.v1.OperatingModeCatalogPhase.output_contract:type_name -> swarm_manager.v1.OperatingModePhaseOutputContractSummary
 	17, // 14: swarm_manager.v1.OperatingModeCatalogPhase.result_bindings:type_name -> swarm_manager.v1.OperatingModeResultBindingSummary
@@ -5857,74 +6243,78 @@ var file_swarm_manager_v1_api_operating_mode_proto_depIdxs = []int32{
 	16, // 24: swarm_manager.v1.OperatingModeWorkspacePhase.output_artifacts:type_name -> swarm_manager.v1.OperatingModeArtifactDefinition
 	15, // 25: swarm_manager.v1.OperatingModeWorkspaceMode.capabilities:type_name -> swarm_manager.v1.OperatingModeCapabilities
 	42, // 26: swarm_manager.v1.OperatingModeWorkspaceMode.phases:type_name -> swarm_manager.v1.OperatingModeWorkspacePhase
-	62, // 27: swarm_manager.v1.OperatingModeWorkspaceMode.transitions:type_name -> swarm_manager.v1.OperatingModeWorkspaceMode.TransitionsEntry
-	43, // 28: swarm_manager.v1.OperatingModeWorkspace.definition:type_name -> swarm_manager.v1.OperatingModeWorkspaceMode
-	44, // 29: swarm_manager.v1.OperatingModeWorkspace.lock:type_name -> swarm_manager.v1.OperatingModeLockHolder
-	24, // 30: swarm_manager.v1.OperatingModeWorkspace.artifacts:type_name -> swarm_manager.v1.OperatingModeArtifactSnapshot
-	31, // 31: swarm_manager.v1.OperatingModeWorkspace.rounds:type_name -> swarm_manager.v1.OperatingModeRoundEnvelope
-	46, // 32: swarm_manager.v1.OperatingModeSwitchResult.canceled_item_executions:type_name -> swarm_manager.v1.OperatingModeActiveItemExecution
-	46, // 33: swarm_manager.v1.OperatingModeSwitchResult.active_item_executions:type_name -> swarm_manager.v1.OperatingModeActiveItemExecution
-	46, // 34: swarm_manager.v1.OperatingModeActiveItemExecutionsConflict.executions:type_name -> swarm_manager.v1.OperatingModeActiveItemExecution
-	50, // 35: swarm_manager.v1.OperatingModeProposalApplyResult.outcomes:type_name -> swarm_manager.v1.OperatingModeProposalOutcome
-	49, // 36: swarm_manager.v1.OperatingModeBacklogSyncResult.completed_items:type_name -> swarm_manager.v1.OperatingModeBacklogCompletionResult
-	51, // 37: swarm_manager.v1.OperatingModeBacklogSyncResult.proposal_result:type_name -> swarm_manager.v1.OperatingModeProposalApplyResult
-	29, // 38: swarm_manager.v1.OperatingModePhaseResult.artifacts:type_name -> swarm_manager.v1.OperatingModeArtifactResult
-	21, // 39: swarm_manager.v1.OperatingModePhaseResult.handoff:type_name -> swarm_manager.v1.OperatingModeHandoff
-	21, // 40: swarm_manager.v1.OperatingModePhaseResult.handoffs:type_name -> swarm_manager.v1.OperatingModeHandoff
-	20, // 41: swarm_manager.v1.OperatingModePhaseResult.readiness:type_name -> swarm_manager.v1.OperatingModeReadinessReport
-	26, // 42: swarm_manager.v1.OperatingModePhaseResult.progress:type_name -> swarm_manager.v1.OperatingModeProgressState
-	30, // 43: swarm_manager.v1.OperatingModePhaseResult.backlog_sync:type_name -> swarm_manager.v1.OperatingModeBacklogSyncPlan
-	25, // 44: swarm_manager.v1.OperatingModeSimulationInputs.initiative:type_name -> swarm_manager.v1.OperatingModeInitiativeSnapshot
-	22, // 45: swarm_manager.v1.OperatingModeSimulationInputs.items:type_name -> swarm_manager.v1.OperatingModeRoundItem
-	24, // 46: swarm_manager.v1.OperatingModeSimulationInputs.artifacts:type_name -> swarm_manager.v1.OperatingModeArtifactSnapshot
-	31, // 47: swarm_manager.v1.OperatingModeSimulationInputs.prior_rounds:type_name -> swarm_manager.v1.OperatingModeRoundEnvelope
-	54, // 48: swarm_manager.v1.OperatingModeSimulationStep.inputs:type_name -> swarm_manager.v1.OperatingModeSimulationInputs
-	53, // 49: swarm_manager.v1.OperatingModeSimulationStep.output:type_name -> swarm_manager.v1.OperatingModePhaseResult
-	31, // 50: swarm_manager.v1.OperatingModeSimulationStep.round:type_name -> swarm_manager.v1.OperatingModeRoundEnvelope
-	55, // 51: swarm_manager.v1.OperatingModeSimulationStep.transition:type_name -> swarm_manager.v1.OperatingModeSimulationTransition
-	63, // 52: swarm_manager.v1.OperatingModeSimulationStep.prompt_variables:type_name -> swarm_manager.v1.OperatingModeSimulationStep.PromptVariablesEntry
-	57, // 53: swarm_manager.v1.OperatingModeSimulationResponse.presets:type_name -> swarm_manager.v1.OperatingModeSimulationPreset
-	25, // 54: swarm_manager.v1.OperatingModeSimulationResponse.initiative:type_name -> swarm_manager.v1.OperatingModeInitiativeSnapshot
-	56, // 55: swarm_manager.v1.OperatingModeSimulationResponse.trace:type_name -> swarm_manager.v1.OperatingModeSimulationStep
-	64, // 56: swarm_manager.v1.OperatingModeRenderPromptResponse.variables:type_name -> swarm_manager.v1.OperatingModeRenderPromptResponse.VariablesEntry
-	41, // 57: swarm_manager.v1.OperatingModeWorkspaceMode.TransitionsEntry.value:type_name -> swarm_manager.v1.OperatingModeStringList
-	0,  // 58: swarm_manager.v1.OperatingModeService.Catalog:input_type -> swarm_manager.v1.OperatingModeCatalogRequest
-	1,  // 59: swarm_manager.v1.OperatingModeService.GetMode:input_type -> swarm_manager.v1.OperatingModeGetRequest
-	2,  // 60: swarm_manager.v1.OperatingModeService.UpdateMode:input_type -> swarm_manager.v1.OperatingModeUpdateRequest
-	3,  // 61: swarm_manager.v1.OperatingModeService.SimulateMode:input_type -> swarm_manager.v1.OperatingModeSimulateRequest
-	6,  // 62: swarm_manager.v1.OperatingModeService.RenderSimulationPrompt:input_type -> swarm_manager.v1.OperatingModeRenderSimulationRequest
-	7,  // 63: swarm_manager.v1.OperatingModeService.GetWorkspace:input_type -> swarm_manager.v1.OperatingModeWorkspaceRequest
-	8,  // 64: swarm_manager.v1.OperatingModeService.SwitchMode:input_type -> swarm_manager.v1.OperatingModeSwitchRequest
-	9,  // 65: swarm_manager.v1.OperatingModeService.StartPhase:input_type -> swarm_manager.v1.OperatingModeStartPhaseRequest
-	10, // 66: swarm_manager.v1.OperatingModeService.StartTargetPhase:input_type -> swarm_manager.v1.OperatingModeStartTargetPhaseRequest
-	11, // 67: swarm_manager.v1.OperatingModeService.RenderLivePrompt:input_type -> swarm_manager.v1.OperatingModeRenderLiveRequest
-	12, // 68: swarm_manager.v1.OperatingModeService.RefreshRound:input_type -> swarm_manager.v1.OperatingModeRoundActionRequest
-	12, // 69: swarm_manager.v1.OperatingModeService.CancelRound:input_type -> swarm_manager.v1.OperatingModeRoundActionRequest
-	13, // 70: swarm_manager.v1.OperatingModeService.CompleteItems:input_type -> swarm_manager.v1.OperatingModeCompleteItemsRequest
-	14, // 71: swarm_manager.v1.OperatingModeService.ApplyBacklogSync:input_type -> swarm_manager.v1.OperatingModeApplyBacklogSyncRequest
-	4,  // 72: swarm_manager.v1.OperatingModeService.ScaffoldMode:input_type -> swarm_manager.v1.OperatingModeScaffoldRequest
-	5,  // 73: swarm_manager.v1.OperatingModeService.ValidateMode:input_type -> swarm_manager.v1.OperatingModeValidateRequest
-	38, // 74: swarm_manager.v1.OperatingModeService.Catalog:output_type -> swarm_manager.v1.OperatingModeCatalogResponse
-	40, // 75: swarm_manager.v1.OperatingModeService.GetMode:output_type -> swarm_manager.v1.OperatingModeDetailResponse
-	40, // 76: swarm_manager.v1.OperatingModeService.UpdateMode:output_type -> swarm_manager.v1.OperatingModeDetailResponse
-	58, // 77: swarm_manager.v1.OperatingModeService.SimulateMode:output_type -> swarm_manager.v1.OperatingModeSimulationResponse
-	59, // 78: swarm_manager.v1.OperatingModeService.RenderSimulationPrompt:output_type -> swarm_manager.v1.OperatingModeRenderPromptResponse
-	45, // 79: swarm_manager.v1.OperatingModeService.GetWorkspace:output_type -> swarm_manager.v1.OperatingModeWorkspace
-	47, // 80: swarm_manager.v1.OperatingModeService.SwitchMode:output_type -> swarm_manager.v1.OperatingModeSwitchResult
-	31, // 81: swarm_manager.v1.OperatingModeService.StartPhase:output_type -> swarm_manager.v1.OperatingModeRoundEnvelope
-	31, // 82: swarm_manager.v1.OperatingModeService.StartTargetPhase:output_type -> swarm_manager.v1.OperatingModeRoundEnvelope
-	59, // 83: swarm_manager.v1.OperatingModeService.RenderLivePrompt:output_type -> swarm_manager.v1.OperatingModeRenderPromptResponse
-	31, // 84: swarm_manager.v1.OperatingModeService.RefreshRound:output_type -> swarm_manager.v1.OperatingModeRoundEnvelope
-	31, // 85: swarm_manager.v1.OperatingModeService.CancelRound:output_type -> swarm_manager.v1.OperatingModeRoundEnvelope
-	52, // 86: swarm_manager.v1.OperatingModeService.CompleteItems:output_type -> swarm_manager.v1.OperatingModeBacklogSyncResult
-	52, // 87: swarm_manager.v1.OperatingModeService.ApplyBacklogSync:output_type -> swarm_manager.v1.OperatingModeBacklogSyncResult
-	60, // 88: swarm_manager.v1.OperatingModeService.ScaffoldMode:output_type -> swarm_manager.v1.OperatingModeScaffoldResponse
-	61, // 89: swarm_manager.v1.OperatingModeService.ValidateMode:output_type -> swarm_manager.v1.OperatingModeValidateResponse
-	74, // [74:90] is the sub-list for method output_type
-	58, // [58:74] is the sub-list for method input_type
-	58, // [58:58] is the sub-list for extension type_name
-	58, // [58:58] is the sub-list for extension extendee
-	0,  // [0:58] is the sub-list for field type_name
+	65, // 27: swarm_manager.v1.OperatingModeWorkspaceMode.transitions:type_name -> swarm_manager.v1.OperatingModeWorkspaceMode.TransitionsEntry
+	68, // 28: swarm_manager.v1.OperatingModeExecutionSnapshot.definition_bundle:type_name -> google.protobuf.Struct
+	45, // 29: swarm_manager.v1.OperatingModeExecutionSnapshot.reachable_prompt_sources:type_name -> swarm_manager.v1.OperatingModePinnedPromptSource
+	46, // 30: swarm_manager.v1.OperatingModeExecutionSnapshot.migration:type_name -> swarm_manager.v1.OperatingModeExecutionMigration
+	43, // 31: swarm_manager.v1.OperatingModeWorkspace.definition:type_name -> swarm_manager.v1.OperatingModeWorkspaceMode
+	44, // 32: swarm_manager.v1.OperatingModeWorkspace.lock:type_name -> swarm_manager.v1.OperatingModeLockHolder
+	24, // 33: swarm_manager.v1.OperatingModeWorkspace.artifacts:type_name -> swarm_manager.v1.OperatingModeArtifactSnapshot
+	31, // 34: swarm_manager.v1.OperatingModeWorkspace.rounds:type_name -> swarm_manager.v1.OperatingModeRoundEnvelope
+	47, // 35: swarm_manager.v1.OperatingModeWorkspace.executions:type_name -> swarm_manager.v1.OperatingModeExecutionSnapshot
+	49, // 36: swarm_manager.v1.OperatingModeSwitchResult.canceled_item_executions:type_name -> swarm_manager.v1.OperatingModeActiveItemExecution
+	49, // 37: swarm_manager.v1.OperatingModeSwitchResult.active_item_executions:type_name -> swarm_manager.v1.OperatingModeActiveItemExecution
+	49, // 38: swarm_manager.v1.OperatingModeActiveItemExecutionsConflict.executions:type_name -> swarm_manager.v1.OperatingModeActiveItemExecution
+	53, // 39: swarm_manager.v1.OperatingModeProposalApplyResult.outcomes:type_name -> swarm_manager.v1.OperatingModeProposalOutcome
+	52, // 40: swarm_manager.v1.OperatingModeBacklogSyncResult.completed_items:type_name -> swarm_manager.v1.OperatingModeBacklogCompletionResult
+	54, // 41: swarm_manager.v1.OperatingModeBacklogSyncResult.proposal_result:type_name -> swarm_manager.v1.OperatingModeProposalApplyResult
+	29, // 42: swarm_manager.v1.OperatingModePhaseResult.artifacts:type_name -> swarm_manager.v1.OperatingModeArtifactResult
+	21, // 43: swarm_manager.v1.OperatingModePhaseResult.handoff:type_name -> swarm_manager.v1.OperatingModeHandoff
+	21, // 44: swarm_manager.v1.OperatingModePhaseResult.handoffs:type_name -> swarm_manager.v1.OperatingModeHandoff
+	20, // 45: swarm_manager.v1.OperatingModePhaseResult.readiness:type_name -> swarm_manager.v1.OperatingModeReadinessReport
+	26, // 46: swarm_manager.v1.OperatingModePhaseResult.progress:type_name -> swarm_manager.v1.OperatingModeProgressState
+	30, // 47: swarm_manager.v1.OperatingModePhaseResult.backlog_sync:type_name -> swarm_manager.v1.OperatingModeBacklogSyncPlan
+	25, // 48: swarm_manager.v1.OperatingModeSimulationInputs.initiative:type_name -> swarm_manager.v1.OperatingModeInitiativeSnapshot
+	22, // 49: swarm_manager.v1.OperatingModeSimulationInputs.items:type_name -> swarm_manager.v1.OperatingModeRoundItem
+	24, // 50: swarm_manager.v1.OperatingModeSimulationInputs.artifacts:type_name -> swarm_manager.v1.OperatingModeArtifactSnapshot
+	31, // 51: swarm_manager.v1.OperatingModeSimulationInputs.prior_rounds:type_name -> swarm_manager.v1.OperatingModeRoundEnvelope
+	57, // 52: swarm_manager.v1.OperatingModeSimulationStep.inputs:type_name -> swarm_manager.v1.OperatingModeSimulationInputs
+	56, // 53: swarm_manager.v1.OperatingModeSimulationStep.output:type_name -> swarm_manager.v1.OperatingModePhaseResult
+	31, // 54: swarm_manager.v1.OperatingModeSimulationStep.round:type_name -> swarm_manager.v1.OperatingModeRoundEnvelope
+	58, // 55: swarm_manager.v1.OperatingModeSimulationStep.transition:type_name -> swarm_manager.v1.OperatingModeSimulationTransition
+	66, // 56: swarm_manager.v1.OperatingModeSimulationStep.prompt_variables:type_name -> swarm_manager.v1.OperatingModeSimulationStep.PromptVariablesEntry
+	60, // 57: swarm_manager.v1.OperatingModeSimulationResponse.presets:type_name -> swarm_manager.v1.OperatingModeSimulationPreset
+	25, // 58: swarm_manager.v1.OperatingModeSimulationResponse.initiative:type_name -> swarm_manager.v1.OperatingModeInitiativeSnapshot
+	59, // 59: swarm_manager.v1.OperatingModeSimulationResponse.trace:type_name -> swarm_manager.v1.OperatingModeSimulationStep
+	67, // 60: swarm_manager.v1.OperatingModeRenderPromptResponse.variables:type_name -> swarm_manager.v1.OperatingModeRenderPromptResponse.VariablesEntry
+	41, // 61: swarm_manager.v1.OperatingModeWorkspaceMode.TransitionsEntry.value:type_name -> swarm_manager.v1.OperatingModeStringList
+	0,  // 62: swarm_manager.v1.OperatingModeService.Catalog:input_type -> swarm_manager.v1.OperatingModeCatalogRequest
+	1,  // 63: swarm_manager.v1.OperatingModeService.GetMode:input_type -> swarm_manager.v1.OperatingModeGetRequest
+	2,  // 64: swarm_manager.v1.OperatingModeService.UpdateMode:input_type -> swarm_manager.v1.OperatingModeUpdateRequest
+	3,  // 65: swarm_manager.v1.OperatingModeService.SimulateMode:input_type -> swarm_manager.v1.OperatingModeSimulateRequest
+	6,  // 66: swarm_manager.v1.OperatingModeService.RenderSimulationPrompt:input_type -> swarm_manager.v1.OperatingModeRenderSimulationRequest
+	7,  // 67: swarm_manager.v1.OperatingModeService.GetWorkspace:input_type -> swarm_manager.v1.OperatingModeWorkspaceRequest
+	8,  // 68: swarm_manager.v1.OperatingModeService.SwitchMode:input_type -> swarm_manager.v1.OperatingModeSwitchRequest
+	9,  // 69: swarm_manager.v1.OperatingModeService.StartPhase:input_type -> swarm_manager.v1.OperatingModeStartPhaseRequest
+	10, // 70: swarm_manager.v1.OperatingModeService.StartTargetPhase:input_type -> swarm_manager.v1.OperatingModeStartTargetPhaseRequest
+	11, // 71: swarm_manager.v1.OperatingModeService.RenderLivePrompt:input_type -> swarm_manager.v1.OperatingModeRenderLiveRequest
+	12, // 72: swarm_manager.v1.OperatingModeService.RefreshRound:input_type -> swarm_manager.v1.OperatingModeRoundActionRequest
+	12, // 73: swarm_manager.v1.OperatingModeService.CancelRound:input_type -> swarm_manager.v1.OperatingModeRoundActionRequest
+	13, // 74: swarm_manager.v1.OperatingModeService.CompleteItems:input_type -> swarm_manager.v1.OperatingModeCompleteItemsRequest
+	14, // 75: swarm_manager.v1.OperatingModeService.ApplyBacklogSync:input_type -> swarm_manager.v1.OperatingModeApplyBacklogSyncRequest
+	4,  // 76: swarm_manager.v1.OperatingModeService.ScaffoldMode:input_type -> swarm_manager.v1.OperatingModeScaffoldRequest
+	5,  // 77: swarm_manager.v1.OperatingModeService.ValidateMode:input_type -> swarm_manager.v1.OperatingModeValidateRequest
+	38, // 78: swarm_manager.v1.OperatingModeService.Catalog:output_type -> swarm_manager.v1.OperatingModeCatalogResponse
+	40, // 79: swarm_manager.v1.OperatingModeService.GetMode:output_type -> swarm_manager.v1.OperatingModeDetailResponse
+	40, // 80: swarm_manager.v1.OperatingModeService.UpdateMode:output_type -> swarm_manager.v1.OperatingModeDetailResponse
+	61, // 81: swarm_manager.v1.OperatingModeService.SimulateMode:output_type -> swarm_manager.v1.OperatingModeSimulationResponse
+	62, // 82: swarm_manager.v1.OperatingModeService.RenderSimulationPrompt:output_type -> swarm_manager.v1.OperatingModeRenderPromptResponse
+	48, // 83: swarm_manager.v1.OperatingModeService.GetWorkspace:output_type -> swarm_manager.v1.OperatingModeWorkspace
+	50, // 84: swarm_manager.v1.OperatingModeService.SwitchMode:output_type -> swarm_manager.v1.OperatingModeSwitchResult
+	31, // 85: swarm_manager.v1.OperatingModeService.StartPhase:output_type -> swarm_manager.v1.OperatingModeRoundEnvelope
+	31, // 86: swarm_manager.v1.OperatingModeService.StartTargetPhase:output_type -> swarm_manager.v1.OperatingModeRoundEnvelope
+	62, // 87: swarm_manager.v1.OperatingModeService.RenderLivePrompt:output_type -> swarm_manager.v1.OperatingModeRenderPromptResponse
+	31, // 88: swarm_manager.v1.OperatingModeService.RefreshRound:output_type -> swarm_manager.v1.OperatingModeRoundEnvelope
+	31, // 89: swarm_manager.v1.OperatingModeService.CancelRound:output_type -> swarm_manager.v1.OperatingModeRoundEnvelope
+	55, // 90: swarm_manager.v1.OperatingModeService.CompleteItems:output_type -> swarm_manager.v1.OperatingModeBacklogSyncResult
+	55, // 91: swarm_manager.v1.OperatingModeService.ApplyBacklogSync:output_type -> swarm_manager.v1.OperatingModeBacklogSyncResult
+	63, // 92: swarm_manager.v1.OperatingModeService.ScaffoldMode:output_type -> swarm_manager.v1.OperatingModeScaffoldResponse
+	64, // 93: swarm_manager.v1.OperatingModeService.ValidateMode:output_type -> swarm_manager.v1.OperatingModeValidateResponse
+	78, // [78:94] is the sub-list for method output_type
+	62, // [62:78] is the sub-list for method input_type
+	62, // [62:62] is the sub-list for extension type_name
+	62, // [62:62] is the sub-list for extension extendee
+	0,  // [0:62] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_operating_mode_proto_init() }
@@ -5939,7 +6329,7 @@ func file_swarm_manager_v1_api_operating_mode_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_operating_mode_proto_rawDesc), len(file_swarm_manager_v1_api_operating_mode_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   65,
+			NumMessages:   68,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

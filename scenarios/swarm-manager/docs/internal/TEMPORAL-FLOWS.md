@@ -251,6 +251,12 @@ Failure ordering is also intentional:
   bundle and verify the round's `definition_digest`.
 - Multiple resumable manifests or conflicting run owners fail closed as
   ambiguous state; neither path guesses by timestamp or write order.
+- On first access to an unambiguous legacy flat history, the store builds and
+  validates a complete staged execution, moves the original flat directory to
+  a byte-preserving backup, then publishes the pinned manifest/rounds and
+  run-owner index. A failure before publish restores the flat layout.
+- A legacy history with multiple apparent execution boundaries stays read-only;
+  its rounds are never included in the continuation context of a fresh run.
 
 Temporal behavior that varies by mode belongs in the registry:
 

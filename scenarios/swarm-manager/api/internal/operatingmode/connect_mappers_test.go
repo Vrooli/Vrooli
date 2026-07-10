@@ -46,7 +46,7 @@ func TestHandoff_FrontierRoundTripsThroughJSON(t *testing.T) {
 
 func TestRoundEnvelopeToProtoCarriesResolution(t *testing.T) {
 	round := RoundEnvelope{
-		Round:  1,
+		ExecutionID: "execution-1", DefinitionDigest: "sha256:def", Round: 1,
 		Status: RoundStatusNeedsAttention,
 		Payload: map[string]any{
 			resultEnvelopeKey: map[string]any{
@@ -76,6 +76,9 @@ func TestRoundEnvelopeToProtoCarriesResolution(t *testing.T) {
 	if got.GetStatus() != string(RoundStatusNeedsAttention) {
 		t.Fatalf("status = %q, want needs_attention", got.GetStatus())
 	}
+	if got.GetExecutionId() != round.ExecutionID || got.GetDefinitionDigest() != round.DefinitionDigest {
+		t.Fatalf("execution provenance = %q/%q", got.GetExecutionId(), got.GetDefinitionDigest())
+	}
 	if got.GetResolution().GetOutcome() != string(ResolutionAbstained) || got.GetResolution().GetLayer() != string(ResolutionLayerClassifier) {
 		t.Fatalf("resolution = %+v, want abstained classifier record", got.GetResolution())
 	}
@@ -88,5 +91,35 @@ func TestRoundEnvelopeToProtoCarriesResolution(t *testing.T) {
 	}
 	if envelope := got.GetResolvedEnvelope().AsMap(); envelope["novel_flag"] != true || envelope["details"].(map[string]any)["label"] != "preserved" {
 		t.Fatalf("resolved envelope = %#v, want arbitrary fields", envelope)
+	}
+}
+
+func TestWorkspaceToProtoCarriesExecutionManifestProvenance(t *testing.T) {
+	bundle, digest, err := pinDefinitionBundle(MustDefinition(ModePhasedPlanDrain), DefinitionFor)
+	if err != nil {
+		t.Fatalf("pinDefinitionBundle: %v", err)
+	}
+	got := workspaceToProto(Workspace{Executions: []OperatingModeExecution{{
+		ExecutionID: "execution-1", ScopeKind: string(TargetPlanManagerPlan), ScopeID: "plan-1",
+		Mode: string(ModePhasedPlanDrain), Status: ExecutionStatusActive,
+		SchemaVersion: executionManifestSchemaVersion, DefinitionDigest: digest, DefinitionBundle: bundle,
+		InputContractDigest: "sha256:inputs", InputSnapshotDigest: "sha256:values",
+		ReachablePromptSources: map[string]PinnedPromptSource{"execute": {
+			Mode: string(ModePhasedPlanDrain), Phase: "execute", SkillID: "phased-plan-execute-next",
+			Revision: "rev-1", ContentHash: "sha256:prompt",
+		}},
+	}}})
+	if len(got.GetExecutions()) != 1 {
+		t.Fatalf("executions = %+v", got.GetExecutions())
+	}
+	execution := got.GetExecutions()[0]
+	if execution.GetExecutionId() != "execution-1" || execution.GetDefinitionDigest() != digest {
+		t.Fatalf("execution projection = %+v", execution)
+	}
+	if execution.GetDefinitionBundle() == nil || execution.GetDefinitionBundle().AsMap()["root"] == nil {
+		t.Fatalf("definition bundle projection = %+v", execution.GetDefinitionBundle())
+	}
+	if len(execution.GetReachablePromptSources()) != 1 || execution.GetReachablePromptSources()[0].GetRevision() != "rev-1" {
+		t.Fatalf("prompt source projection = %+v", execution.GetReachablePromptSources())
 	}
 }

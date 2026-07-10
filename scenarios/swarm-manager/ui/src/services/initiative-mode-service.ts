@@ -27,6 +27,7 @@ import type {
   OperatingModeCatalogEntry,
   OperatingModeCatalogPhase,
   OperatingModeDetail,
+  OperatingModeExecutionSnapshot,
   OperatingModeHandoff,
   OperatingModeLinkedInitiative,
   OperatingModePhaseClassification,

@@ -406,11 +406,11 @@ func executionToProto(in OperatingModeExecution) *apipb.OperatingModeExecutionSn
 		Mode: in.Mode, Status: string(in.Status), CreatedAt: in.CreatedAt,
 		UpdatedAt: in.UpdatedAt, CompletedAt: in.CompletedAt,
 		SchemaVersion: in.SchemaVersion, DefinitionDigest: in.DefinitionDigest,
-		DefinitionBundle: structFromValue(in.DefinitionBundle),
-		InputContractDigest: in.InputContractDigest,
-		InputSnapshotDigest: in.InputSnapshotDigest,
+		DefinitionBundle:       structFromValue(in.DefinitionBundle),
+		InputContractDigest:    in.InputContractDigest,
+		InputSnapshotDigest:    in.InputSnapshotDigest,
 		ReachablePromptSources: promptSourcesToProto(in.ReachablePromptSources),
-		Migration: executionMigrationToProto(in.Migration),
+		Migration:              executionMigrationToProto(in.Migration),
 	}
 }
 

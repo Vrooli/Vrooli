@@ -510,7 +510,7 @@ export interface OperatingModeWorkspace {
   lock?: OperatingModeLockHolder;
   artifacts: OperatingModeArtifactSnapshot[];
   rounds: OperatingModeRound[];
-  executions: OperatingModeExecutionSnapshot[];
+  executions?: OperatingModeExecutionSnapshot[];
 }
 
 export interface ActiveItemExecution {

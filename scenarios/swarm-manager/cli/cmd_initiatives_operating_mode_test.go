@@ -172,8 +172,11 @@ func TestCmdInitiativesModeWorkspace_ReadsWorkspace(t *testing.T) {
 					{Path: "modes/holistic-loop/findings.md", Required: true},
 				},
 				Rounds: []*apipb.OperatingModeRoundEnvelope{
-					{Round: 1, Mode: "holistic-loop", Phase: "investigate", Status: "completed", RunId: "run-1", AgentProfileKey: "swarm-manager/deep-work"},
+					{Round: 1, Mode: "holistic-loop", Phase: "investigate", Status: "completed", RunId: "run-1", AgentProfileKey: "swarm-manager/deep-work", ExecutionId: "execution-1", DefinitionDigest: "sha256:def"},
 				},
+				Executions: []*apipb.OperatingModeExecutionSnapshot{{
+					ExecutionId: "execution-1", Status: "completed", DefinitionDigest: "sha256:def",
+				}},
 			}, nil
 		},
 	}
@@ -183,6 +186,34 @@ func TestCmdInitiativesModeWorkspace_ReadsWorkspace(t *testing.T) {
 	}
 	if gotName != "init" {
 		t.Errorf("initiative name: %s", gotName)
+	}
+}
+
+func TestCmdInitiativesModeWorkspace_RendersExecutionProvenance(t *testing.T) {
+	stub := &stubOperatingModeHandler{
+		getWorkspace: func(*apipb.OperatingModeWorkspaceRequest) (*apipb.OperatingModeWorkspace, error) {
+			return &apipb.OperatingModeWorkspace{
+				InitiativeName: "init", Mode: "holistic-loop",
+				Definition: &apipb.OperatingModeWorkspaceMode{Label: "Holistic Loop"},
+				Executions: []*apipb.OperatingModeExecutionSnapshot{{
+					ExecutionId: "execution-1", Status: "active", DefinitionDigest: "sha256:def",
+					InputContractDigest:    "sha256:inputs",
+					ReachablePromptSources: []*apipb.OperatingModePinnedPromptSource{{Revision: "rev-1"}},
+				}},
+				Rounds: []*apipb.OperatingModeRoundEnvelope{{
+					Round: 1, Phase: "investigate", Status: "agent_running", ExecutionId: "execution-1",
+				}},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
+	out := clitest.CaptureStdout(t, func() error {
+		return app.cmdInitiativesModeWorkspace([]string{"--name", "init"})
+	})
+	for _, want := range []string{"execution-1: active", "definition=sha256:def", "inputs=sha256:inputs", "prompts=1", "execution=execution-1"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("workspace output missing %q:\n%s", want, out)
+		}
 	}
 }
 

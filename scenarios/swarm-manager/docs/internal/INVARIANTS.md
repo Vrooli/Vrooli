@@ -165,6 +165,12 @@ Repeating run-owner registration with the same `(execution_id, round)` is a no-o
 registering the same run against a different owner fails with
 `ErrRunOwnerAmbiguous` and preserves the first mapping.
 
+Legacy adoption is replay-safe: the execution id is a deterministic digest of
+scope, mode, pinned definition digest, and original round envelopes. The
+transformed manifest and rounds validate in a staging directory before the flat
+round directory moves to its byte-preserving backup; ambiguous histories remain
+untouched and are excluded from continuation context.
+
 ### Operating Mode Authoring Invariants
 
 Operating-mode methodology behavior must stay data-owned and interpreted by the

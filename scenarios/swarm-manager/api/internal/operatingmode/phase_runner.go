@@ -368,14 +368,6 @@ func (s *Service) collectRunContext(ctx context.Context, def Definition, phaseDe
 	if err != nil {
 		return RunContext{}, err
 	}
-	rounds, err := s.store.ListRounds(target.ID, def.Mode)
-	if err != nil {
-		return RunContext{}, err
-	}
-	artifacts, err := s.store.ListDeclaredArtifactsForDefinition(target.ID, def)
-	if err != nil {
-		return RunContext{}, err
-	}
 	executions, err := s.store.ListExecutions(target.ID, def.Mode)
 	if err != nil {
 		return RunContext{}, err
@@ -403,22 +395,39 @@ func (s *Service) collectRunContext(ctx context.Context, def Definition, phaseDe
 		def = pinnedDef
 		phaseDef = pinnedPhase
 		execution = &pinned
+		pinnedAdapter, err := AdapterFor(def.Target.Kind)
+		if err != nil {
+			return RunContext{}, err
+		}
+		pinnedTarget, err := pinnedAdapter.Resolve(ctx, s, def, phaseDef, targetRef)
+		if err != nil {
+			return RunContext{}, err
+		}
+		if pinnedTarget.ID != target.ID {
+			return RunContext{}, fmt.Errorf("pinned target %q differs from live target %q for execution %q", pinnedTarget.ID, target.ID, pinned.ExecutionID)
+		}
+		target = pinnedTarget
+	}
+	rounds, err := s.store.ListRounds(target.ID, def.Mode)
+	if err != nil {
+		return RunContext{}, err
+	}
+	if execution != nil {
 		filtered := rounds[:0]
 		for _, round := range rounds {
-			if round.ExecutionID == pinned.ExecutionID {
+			if round.ExecutionID == execution.ExecutionID {
 				filtered = append(filtered, round)
 			}
 		}
 		rounds = filtered
-	} else if len(executions) > 0 {
-		// Every manifest is terminal: a new execution starts with an empty phase
-		// history even though compatibility projections still list old rounds.
+	} else if len(executions) > 0 || legacyAmbiguous {
+		// Terminal manifests and ambiguous legacy histories are compatibility
+		// projections only. A new execution never inherits either history.
 		rounds = nil
-	} else if legacyAmbiguous {
-		// Ambiguous legacy histories remain a read-only compatibility projection.
-		// Starting again creates a fresh immutable execution and never interprets
-		// those rounds as one resumable history.
-		rounds = nil
+	}
+	artifacts, err := s.store.ListDeclaredArtifactsForDefinition(target.ID, def)
+	if err != nil {
+		return RunContext{}, err
 	}
 	return RunContext{
 		Def:       def,

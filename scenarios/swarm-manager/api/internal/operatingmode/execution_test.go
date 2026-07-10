@@ -205,3 +205,104 @@ func TestContinueOrCreateExecutionRejectsMultipleResumableManifests(t *testing.T
 		t.Fatalf("multiple resumable error = %v, want ErrExecutionAmbiguous", err)
 	}
 }
+
+func TestAdoptLegacyExecutionPinsRoundsPreservesBackupAndIndexesRuns(t *testing.T) {
+	store := testStore(t)
+	def := MustDefinition(ModePhasedPlanDrain)
+	legacy, err := store.CreateRound(RoundEnvelope{
+		ScopeID: "plan-legacy", Mode: string(def.Mode), Phase: "execute",
+		Status: RoundStatusAgentRunning, RunID: "run-legacy-1",
+	})
+	if err != nil {
+		t.Fatalf("CreateRound legacy: %v", err)
+	}
+	legacyPath, err := store.RoundPath("plan-legacy", def.Mode, legacy.Round)
+	if err != nil {
+		t.Fatalf("RoundPath legacy: %v", err)
+	}
+	original, err := os.ReadFile(legacyPath)
+	if err != nil {
+		t.Fatalf("read original legacy round: %v", err)
+	}
+
+	execution, ambiguous, err := store.AdoptLegacyExecution("plan-legacy", def)
+	if err != nil {
+		t.Fatalf("AdoptLegacyExecution: %v", err)
+	}
+	if ambiguous || execution == nil {
+		t.Fatalf("adoption = execution:%+v ambiguous:%v", execution, ambiguous)
+	}
+	if execution.Migration == nil || execution.Migration.RoundCount != 1 || execution.Status != ExecutionStatusActive {
+		t.Fatalf("migrated execution = %+v", execution)
+	}
+	backupPath := filepath.Join(filepath.Dir(filepath.Dir(legacyPath)), "legacy-rounds", execution.ExecutionID, filepath.Base(legacyPath))
+	backedUp, err := os.ReadFile(backupPath)
+	if err != nil {
+		t.Fatalf("read legacy backup: %v", err)
+	}
+	if string(backedUp) != string(original) {
+		t.Fatal("legacy backup bytes changed during adoption")
+	}
+	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
+		t.Fatalf("flat legacy round remained active after adoption: %v", err)
+	}
+	loaded, err := store.LoadRound("plan-legacy", def.Mode, legacy.Round)
+	if err != nil {
+		t.Fatalf("LoadRound migrated: %v", err)
+	}
+	if loaded.ExecutionID != execution.ExecutionID || loaded.DefinitionDigest != execution.DefinitionDigest {
+		t.Fatalf("migrated round provenance = %+v", loaded)
+	}
+	owner, err := store.ResolveRunOwner("plan-legacy", def.Mode, legacy.RunID)
+	if err != nil || owner.ExecutionID != execution.ExecutionID || owner.Round != legacy.Round {
+		t.Fatalf("migrated run owner = %+v, %v", owner, err)
+	}
+}
+
+func TestAdoptLegacyExecutionLeavesAmbiguousHistoryReadOnly(t *testing.T) {
+	store := testStore(t)
+	def := MustDefinition(ModePhasedPlanDrain)
+	if _, err := store.CreateRound(RoundEnvelope{
+		ScopeID: "plan-ambiguous", Mode: string(def.Mode), Phase: "execute", Status: RoundStatusCanceled,
+	}); err != nil {
+		t.Fatalf("CreateRound canceled legacy: %v", err)
+	}
+	if _, err := store.CreateRound(RoundEnvelope{
+		ScopeID: "plan-ambiguous", Mode: string(def.Mode), Phase: "execute", Status: RoundStatusAgentRunning,
+	}); err != nil {
+		t.Fatalf("CreateRound later legacy: %v", err)
+	}
+	execution, ambiguous, err := store.AdoptLegacyExecution("plan-ambiguous", def)
+	if err != nil {
+		t.Fatalf("AdoptLegacyExecution: %v", err)
+	}
+	if execution != nil || !ambiguous {
+		t.Fatalf("adoption = execution:%+v ambiguous:%v, want read-only ambiguity", execution, ambiguous)
+	}
+	executions, err := store.ListExecutions("plan-ambiguous", def.Mode)
+	if err != nil || len(executions) != 0 {
+		t.Fatalf("ListExecutions = %+v, %v", executions, err)
+	}
+	rounds, err := store.ListRounds("plan-ambiguous", def.Mode)
+	if err != nil || len(rounds) != 2 || rounds[0].ExecutionID != "" || rounds[1].ExecutionID != "" {
+		t.Fatalf("read-only legacy rounds = %+v, %v", rounds, err)
+	}
+}
+
+func TestValidateExecutionManifestRejectsDefinitionDigestMismatch(t *testing.T) {
+	bundle, digest, err := pinDefinitionBundle(MustDefinition(ModePhasedPlanDrain), DefinitionFor)
+	if err != nil {
+		t.Fatalf("pinDefinitionBundle: %v", err)
+	}
+	execution := OperatingModeExecution{
+		ExecutionID: "execution-tampered", ScopeID: "plan-1", Mode: string(ModePhasedPlanDrain),
+		SchemaVersion: executionManifestSchemaVersion, DefinitionDigest: digest, DefinitionBundle: bundle,
+	}
+	if err := validateExecutionManifest(execution); err != nil {
+		t.Fatalf("valid manifest rejected: %v", err)
+	}
+	execution.DefinitionDigest = "sha256:tampered"
+	if err := validateExecutionManifest(execution); err == nil {
+		t.Fatal("tampered definition digest accepted")
+	}
+}

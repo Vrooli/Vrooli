@@ -88,6 +88,8 @@ describe("Initiative Mode Service", () => {
         content: "# Findings",
       }],
       rounds: [{
+        executionId: "execution-1",
+        definitionDigest: "sha256:def",
         round: 1,
         mode: "holistic-loop",
         scopeKind: "initiative",
@@ -113,6 +115,28 @@ describe("Initiative Mode Service", () => {
           },
         },
       }],
+      executions: [{
+        executionId: "execution-1",
+        scopeKind: "initiative",
+        scopeId: "initiative-a",
+        mode: "holistic-loop",
+        status: "active",
+        createdAt: "2026-04-30T00:00:00Z",
+        updatedAt: "2026-04-30T00:01:00Z",
+        schemaVersion: "operating-mode-execution/v1",
+        definitionDigest: "sha256:def",
+        definitionBundle: { root: "holistic-loop", definitions: {} },
+        inputContractDigest: "sha256:inputs",
+        inputSnapshotDigest: "sha256:values",
+        reachablePromptSources: [{
+          mode: "holistic-loop",
+          phase: "investigate",
+          skillId: "swarm-manager-investigate",
+          revision: "rev-1",
+          contentHash: "sha256:prompt",
+          redacted: false,
+        }],
+      }],
     });
 
     const workspace = await service.workspace("initiative-a");
@@ -129,6 +153,8 @@ describe("Initiative Mode Service", () => {
     // int64 size_bytes arrives as bigint and is coerced to a number.
     expect(workspace.artifacts[0]?.sizeBytes).toBe(42);
     expect(workspace.rounds[0]?.agentProfileKey).toBe("swarm-manager/deep-work");
+    expect(workspace.rounds[0]?.executionId).toBe("execution-1");
+    expect(workspace.rounds[0]?.definitionDigest).toBe("sha256:def");
     expect(workspace.rounds[0]?.items?.[0]?.ref).toBe("execute/item-1");
     expect(workspace.rounds[0]?.payload).toEqual({ agent_summary: "done" });
     expect(workspace.rounds[0]?.resolvedEnvelope).toEqual({ novelFlag: true, details: { label: "preserved" } });
@@ -139,6 +165,12 @@ describe("Initiative Mode Service", () => {
       selectionAlgorithmVersion: "contract-scan-v1",
       fallbackReason: undefined,
     });
+    expect(workspace.executions?.[0]).toMatchObject({
+      executionId: "execution-1",
+      definitionDigest: "sha256:def",
+      inputContractDigest: "sha256:inputs",
+    });
+    expect(workspace.executions?.[0]?.reachablePromptSources[0]?.revision).toBe("rev-1");
   });
 
   it("maps catalog entries and capabilities", async () => {

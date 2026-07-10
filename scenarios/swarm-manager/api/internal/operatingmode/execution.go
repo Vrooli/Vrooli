@@ -150,12 +150,20 @@ func pinDefinitionBundle(root Definition, resolve func(Mode) (Definition, error)
 	if err := visit(root); err != nil {
 		return DefinitionBundle{}, "", err
 	}
+	digest, err := definitionBundleDigest(bundle)
+	if err != nil {
+		return DefinitionBundle{}, "", err
+	}
+	return bundle, digest, nil
+}
+
+func definitionBundleDigest(bundle DefinitionBundle) (string, error) {
 	data, err := json.Marshal(bundle)
 	if err != nil {
-		return DefinitionBundle{}, "", fmt.Errorf("marshal definition bundle: %w", err)
+		return "", fmt.Errorf("marshal definition bundle: %w", err)
 	}
 	digest := sha256.Sum256(data)
-	return bundle, fmt.Sprintf("sha256:%x", digest[:]), nil
+	return fmt.Sprintf("sha256:%x", digest[:]), nil
 }
 
 func clonePinnedDefinition(def Definition) (Definition, error) {
@@ -238,6 +246,276 @@ func (s *Store) createExecutionLocked(scopeID string, def Definition, migration 
 		return OperatingModeExecution{}, fmt.Errorf("create execution manifest: %w", err)
 	}
 	return execution, nil
+}
+
+// AdoptLegacyExecution migrates one unambiguous flat-round history into the
+// immutable execution layout. It stages and validates the transformed
+// manifest/round set before moving the original directory to a non-readable
+// backup, so an interrupted validation never destroys the legacy bytes.
+//
+// Ambiguous histories are deliberately not guessed into one execution. The
+// caller receives ambiguous=true and may expose those flat rounds read-only;
+// any continuation must create a fresh execution with no inherited history.
+func (s *Store) AdoptLegacyExecution(scopeID string, def Definition) (*OperatingModeExecution, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	executions, err := s.ListExecutions(scopeID, def.Mode)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(executions) > 0 {
+		return nil, false, nil
+	}
+	legacyDir, err := s.roundsDirForDefinition(scopeID, def)
+	if err != nil {
+		return nil, false, err
+	}
+	rounds, err := listRoundsInDir(legacyDir)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(rounds) == 0 {
+		return nil, false, nil
+	}
+	sort.Slice(rounds, func(i, j int) bool { return rounds[i].Round < rounds[j].Round })
+	bundle, definitionDigest, err := pinDefinitionBundle(def, DefinitionFor)
+	if err != nil {
+		return nil, false, err
+	}
+	if !legacyHistoryUnambiguous(scopeID, def, bundle, rounds) {
+		return nil, true, nil
+	}
+
+	executionID, err := legacyExecutionID(scopeID, def.Mode, definitionDigest, rounds)
+	if err != nil {
+		return nil, false, err
+	}
+	now := s.now().Format(time.RFC3339Nano)
+	execution := OperatingModeExecution{
+		ExecutionID:      executionID,
+		ScopeKind:        string(def.Target.Kind),
+		ScopeID:          strings.TrimSpace(scopeID),
+		Mode:             string(def.Mode),
+		Status:           executionStatusForLegacyRound(def, bundle, rounds[len(rounds)-1]),
+		CreatedAt:        firstLegacyTimestamp(rounds[0].GeneratedAt, now),
+		UpdatedAt:        firstLegacyTimestamp(rounds[len(rounds)-1].GeneratedAt, now),
+		SchemaVersion:    executionManifestSchemaVersion,
+		DefinitionDigest: definitionDigest,
+		DefinitionBundle: bundle,
+		Migration: &ExecutionMigrationProvenance{
+			SourceLayout: filepath.ToSlash(def.Artifact.RoundRoot),
+			MigratedAt:   now,
+			RoundCount:   len(rounds),
+		},
+	}
+	if execution.Terminal() {
+		execution.CompletedAt = execution.UpdatedAt
+	}
+	manifestPath, err := s.executionManifestPath(execution, def)
+	if err != nil {
+		return nil, false, err
+	}
+	finalDir := filepath.Dir(manifestPath)
+	stagingDir := finalDir + ".migrating"
+	backupDir := filepath.Join(filepath.Dir(legacyDir), "legacy-rounds", execution.ExecutionID)
+	if _, err := os.Stat(finalDir); err == nil {
+		loaded, loadErr := s.LoadExecution(scopeID, def.Mode, execution.ExecutionID)
+		return &loaded, false, loadErr
+	} else if !os.IsNotExist(err) {
+		return nil, false, err
+	}
+	if _, err := os.Stat(backupDir); err == nil {
+		return nil, false, fmt.Errorf("legacy migration backup already exists at %s", backupDir)
+	} else if !os.IsNotExist(err) {
+		return nil, false, err
+	}
+	if err := os.RemoveAll(stagingDir); err != nil {
+		return nil, false, fmt.Errorf("clear stale legacy migration staging: %w", err)
+	}
+	defer os.RemoveAll(stagingDir)
+	if err := os.MkdirAll(filepath.Join(stagingDir, "rounds"), 0o750); err != nil {
+		return nil, false, fmt.Errorf("create legacy migration staging: %w", err)
+	}
+	if err := storage.WriteJSONAtomic(filepath.Join(stagingDir, "manifest.json"), execution); err != nil {
+		return nil, false, fmt.Errorf("stage legacy execution manifest: %w", err)
+	}
+
+	ownerPath, err := s.runOwnerIndexPath(scopeID, def)
+	if err != nil {
+		return nil, false, err
+	}
+	ownerIndex, err := loadRunOwnerIndex(ownerPath)
+	if err != nil {
+		return nil, false, err
+	}
+	for i := range rounds {
+		rounds[i].ExecutionID = execution.ExecutionID
+		rounds[i].DefinitionDigest = execution.DefinitionDigest
+		if err := s.prepareMigratedRound(&rounds[i], execution); err != nil {
+			return nil, false, err
+		}
+		path := filepath.Join(stagingDir, "rounds", fmt.Sprintf("round-%03d.json", rounds[i].Round))
+		if err := storage.WriteJSONAtomic(path, rounds[i]); err != nil {
+			return nil, false, fmt.Errorf("stage legacy round %d: %w", rounds[i].Round, err)
+		}
+		if runID := strings.TrimSpace(rounds[i].RunID); runID != "" {
+			want := RunOwner{ExecutionID: execution.ExecutionID, Round: rounds[i].Round}
+			if existing, ok := ownerIndex.Owners[runID]; ok && existing != want {
+				return nil, false, fmt.Errorf("%w: legacy run %q maps to both %+v and %+v", ErrRunOwnerAmbiguous, runID, existing, want)
+			}
+			ownerIndex.Owners[runID] = want
+		}
+	}
+	if err := validateStagedLegacyExecution(stagingDir, execution, len(rounds)); err != nil {
+		return nil, false, err
+	}
+	if err := os.MkdirAll(filepath.Dir(backupDir), 0o750); err != nil {
+		return nil, false, fmt.Errorf("create legacy backup parent: %w", err)
+	}
+	if err := os.Rename(legacyDir, backupDir); err != nil {
+		return nil, false, fmt.Errorf("preserve legacy round directory: %w", err)
+	}
+	rollback := func(cause error) (*OperatingModeExecution, bool, error) {
+		_ = os.RemoveAll(finalDir)
+		if restoreErr := os.Rename(backupDir, legacyDir); restoreErr != nil {
+			return nil, false, fmt.Errorf("%v; restore legacy rounds: %w", cause, restoreErr)
+		}
+		return nil, false, cause
+	}
+	if err := os.Rename(stagingDir, finalDir); err != nil {
+		return rollback(fmt.Errorf("publish migrated execution: %w", err))
+	}
+	if err := storage.WriteJSONAtomic(ownerPath, ownerIndex); err != nil {
+		return rollback(fmt.Errorf("publish migrated run-owner index: %w", err))
+	}
+	return &execution, false, nil
+}
+
+func (s *Store) roundsDirForDefinition(scopeID string, def Definition) (string, error) {
+	if strings.TrimSpace(def.Artifact.RoundRoot) == "" {
+		return "", fmt.Errorf("mode %q has no round root", def.Mode)
+	}
+	root, err := s.scopeDir(scopeID, def)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, filepath.FromSlash(def.Artifact.RoundRoot)), nil
+}
+
+func legacyHistoryUnambiguous(scopeID string, def Definition, bundle DefinitionBundle, rounds []RoundEnvelope) bool {
+	for i, round := range rounds {
+		if round.Round != i+1 || round.ExecutionID != "" || round.DefinitionDigest != "" {
+			return false
+		}
+		if NormalizeMode(round.Mode) != def.Mode || strings.TrimSpace(round.ScopeID) != strings.TrimSpace(scopeID) {
+			return false
+		}
+		if _, err := def.PhaseDefinition(Phase(round.Phase)); err != nil {
+			return false
+		}
+		if i < len(rounds)-1 && legacyRoundTerminatesExecution(def, bundle, round) {
+			return false
+		}
+		if i < len(rounds)-1 && isRoundActive(round) {
+			return false
+		}
+	}
+	return true
+}
+
+func legacyRoundTerminatesExecution(def Definition, bundle DefinitionBundle, round RoundEnvelope) bool {
+	if round.Status == RoundStatusCanceled {
+		return true
+	}
+	return round.Status == RoundStatusCompleted && len(nextPhasesForCompletedRoundWithResolver(def, round, bundle.Definition)) == 0
+}
+
+func executionStatusForLegacyRound(def Definition, bundle DefinitionBundle, round RoundEnvelope) ExecutionStatus {
+	switch round.Status {
+	case RoundStatusCanceled:
+		return ExecutionStatusCanceled
+	case RoundStatusFailed, RoundStatusNeedsAttention:
+		return ExecutionStatusNeedsAttention
+	case RoundStatusCompleted:
+		if len(nextPhasesForCompletedRoundWithResolver(def, round, bundle.Definition)) == 0 {
+			return ExecutionStatusCompleted
+		}
+	}
+	return ExecutionStatusActive
+}
+
+func legacyExecutionID(scopeID string, mode Mode, definitionDigest string, rounds []RoundEnvelope) (string, error) {
+	data, err := json.Marshal(struct {
+		ScopeID          string          `json:"scope_id"`
+		Mode             Mode            `json:"mode"`
+		DefinitionDigest string          `json:"definition_digest"`
+		Rounds           []RoundEnvelope `json:"rounds"`
+	}{strings.TrimSpace(scopeID), mode, definitionDigest, rounds})
+	if err != nil {
+		return "", fmt.Errorf("hash legacy execution: %w", err)
+	}
+	digest := sha256.Sum256(data)
+	return fmt.Sprintf("legacy-%x", digest[:12]), nil
+}
+
+func (s *Store) prepareMigratedRound(round *RoundEnvelope, execution OperatingModeExecution) error {
+	def, err := execution.DefinitionBundle.RootDefinition()
+	if err != nil {
+		return err
+	}
+	phase, err := def.PhaseDefinition(Phase(round.Phase))
+	if err != nil {
+		return err
+	}
+	round.Mode = string(def.Mode)
+	round.ScopeKind = string(def.Target.Kind)
+	round.ScopeID = execution.ScopeID
+	round.Phase = string(phase.Phase)
+	round.RunStrategy = string(def.RunStrategy.Kind)
+	if round.AgentProfileKey == "" {
+		round.AgentProfileKey = phase.ProfileKey
+	}
+	return nil
+}
+
+func validateStagedLegacyExecution(dir string, execution OperatingModeExecution, roundCount int) error {
+	data, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		return fmt.Errorf("read staged execution manifest: %w", err)
+	}
+	var staged OperatingModeExecution
+	if err := json.Unmarshal(data, &staged); err != nil {
+		return fmt.Errorf("parse staged execution manifest: %w", err)
+	}
+	if err := validateExecutionManifest(staged); err != nil {
+		return fmt.Errorf("validate staged execution manifest: %w", err)
+	}
+	if staged.ExecutionID != execution.ExecutionID || staged.DefinitionDigest != execution.DefinitionDigest {
+		return fmt.Errorf("staged execution provenance changed during migration")
+	}
+	rounds, err := listRoundsInDir(filepath.Join(dir, "rounds"))
+	if err != nil {
+		return err
+	}
+	if len(rounds) != roundCount {
+		return fmt.Errorf("staged round count = %d, want %d", len(rounds), roundCount)
+	}
+	for _, round := range rounds {
+		if round.ExecutionID != execution.ExecutionID || round.DefinitionDigest != execution.DefinitionDigest {
+			return fmt.Errorf("staged round %d has mismatched execution provenance", round.Round)
+		}
+	}
+	return nil
+}
+
+func firstLegacyTimestamp(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func (s *Store) SaveExecution(execution OperatingModeExecution) error {
@@ -448,6 +726,13 @@ func validateExecutionManifest(execution OperatingModeExecution) error {
 	}
 	if _, err := execution.DefinitionBundle.RootDefinition(); err != nil {
 		return err
+	}
+	digest, err := definitionBundleDigest(execution.DefinitionBundle)
+	if err != nil {
+		return err
+	}
+	if execution.DefinitionDigest != digest {
+		return fmt.Errorf("execution definition digest %q does not match bundle %q", execution.DefinitionDigest, digest)
 	}
 	return nil
 }
