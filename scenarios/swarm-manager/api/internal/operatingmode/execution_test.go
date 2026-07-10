@@ -9,6 +9,20 @@ import (
 	"testing"
 )
 
+func callerExecutionDefinition(t *testing.T) Definition {
+	t.Helper()
+	def, err := clonePinnedDefinition(MustDefinition(ModePhasedPlanDrain))
+	if err != nil {
+		t.Fatalf("clone phased-plan-drain: %v", err)
+	}
+	caller := callerInputContractDefinition()
+	def.InputContract = caller.InputContract
+	phase := def.PhaseGraph.Phases[def.PhaseGraph.StartPhase]
+	phase.Reads = []string{"CALLER_PAYLOAD_JSON", "CALLER_LIMIT"}
+	def.PhaseGraph.Phases[def.PhaseGraph.StartPhase] = phase
+	return def
+}
+
 func TestPinDefinitionBundleIsTransitiveImmutableAndDigestStable(t *testing.T) {
 	root, err := clonePinnedDefinition(MustDefinition(ModeHolisticLoop))
 	if err != nil {
@@ -83,8 +97,8 @@ func TestExecutionManifestPersistsDefinitionAndProvenanceSlots(t *testing.T) {
 	if compiled.RootMode != ModePhasedPlanDrain || len(compiled.Modes) != 1 {
 		t.Fatalf("compiled input contract = %+v", compiled)
 	}
-	if execution.ValidatedInputSnapshot != nil || execution.ReachablePromptSources != nil {
-		t.Fatalf("runtime-input and prompt provenance slots must remain empty until their Phase 4 preflight: %+v", execution)
+	if string(execution.ValidatedInputSnapshot) != "{}" || execution.InputSnapshotDigest == "" || execution.ReachablePromptSources != nil {
+		t.Fatalf("validated empty input snapshot must be pinned while prompt provenance remains pending: %+v", execution)
 	}
 	path, err := store.executionManifestPath(execution, MustDefinition(ModePhasedPlanDrain))
 	if err != nil {
@@ -131,6 +145,80 @@ func TestCreateExecutionRejectsInvalidInputContractBeforeFilesystemMutation(t *t
 	modeDir := filepath.Join(scopeDir, filepath.FromSlash(def.Artifact.Root))
 	if _, err := os.Stat(filepath.Join(modeDir, "executions")); !os.IsNotExist(err) {
 		t.Fatalf("invalid preflight created an executions directory: %v", err)
+	}
+}
+
+func TestCreateExecutionWithInputsPersistsValidatedSnapshotBeforeRounds(t *testing.T) {
+	store := testStore(t)
+	store.ExecutionID = func() string { return "execution-with-inputs" }
+	def := callerExecutionDefinition(t)
+	execution, err := store.CreateExecutionWithInputs("plan-inputs", def, map[string]any{
+		"caller.payload": map[string]any{"message": "preserved"},
+		"caller.limit":   4,
+	})
+	if err != nil {
+		t.Fatalf("CreateExecutionWithInputs: %v", err)
+	}
+	if execution.InputSnapshotDigest == "" || len(execution.ValidatedInputSnapshot) == 0 || len(execution.InputRetentionMetadata) != 2 {
+		t.Fatalf("execution input provenance = %+v", execution)
+	}
+	var snapshot map[string]any
+	if err := json.Unmarshal(execution.ValidatedInputSnapshot, &snapshot); err != nil {
+		t.Fatalf("decode snapshot: %v", err)
+	}
+	if payload, ok := snapshot["caller.payload"].(map[string]any); !ok || payload["message"] != "preserved" {
+		t.Fatalf("snapshot = %#v", snapshot)
+	}
+	rounds, err := store.ListRounds("plan-inputs", def.Mode)
+	if err != nil || len(rounds) != 0 {
+		t.Fatalf("rounds after execution preflight = %+v, %v", rounds, err)
+	}
+	loaded, err := store.LoadExecution("plan-inputs", def.Mode, execution.ExecutionID)
+	if err != nil || loaded.InputSnapshotDigest != execution.InputSnapshotDigest {
+		t.Fatalf("loaded execution = %+v, %v", loaded, err)
+	}
+}
+
+func TestCreateExecutionWithInputsRejectsInvalidValuesBeforeFilesystemMutation(t *testing.T) {
+	store := testStore(t)
+	def := callerExecutionDefinition(t)
+	if _, err := store.CreateExecutionWithInputs("plan-invalid-inputs", def, map[string]any{
+		"caller.payload": "wrong-type",
+	}); err == nil || !strings.Contains(err.Error(), "want object") {
+		t.Fatalf("CreateExecutionWithInputs error = %v, want type rejection", err)
+	}
+	scopeDir, err := store.scopeDir("plan-invalid-inputs", def)
+	if err != nil {
+		t.Fatalf("scopeDir: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(scopeDir, filepath.FromSlash(def.Artifact.Root), "executions")); !os.IsNotExist(err) {
+		t.Fatalf("invalid caller input created execution state: %v", err)
+	}
+}
+
+func TestContinueOrCreateExecutionWithInputsIsIdempotentAndRejectsConflict(t *testing.T) {
+	store := testStore(t)
+	store.ExecutionID = func() string { return "execution-input-replay" }
+	def := callerExecutionDefinition(t)
+	inputs := map[string]any{"caller.payload": map[string]any{"message": "same"}, "caller.limit": 2}
+	first, err := store.ContinueOrCreateExecutionWithInputs("plan-replay", def, inputs)
+	if err != nil {
+		t.Fatalf("ContinueOrCreateExecutionWithInputs first: %v", err)
+	}
+	replayed, err := store.ContinueOrCreateExecutionWithInputs("plan-replay", def, map[string]any{
+		"caller.limit": float64(2), "caller.payload": map[string]any{"message": "same"},
+	})
+	if err != nil || replayed.ExecutionID != first.ExecutionID {
+		t.Fatalf("replayed execution = %+v, %v", replayed, err)
+	}
+	if _, err := store.ContinueOrCreateExecutionWithInputs("plan-replay", def, map[string]any{
+		"caller.payload": map[string]any{"message": "changed"}, "caller.limit": 2,
+	}); err == nil || !strings.Contains(err.Error(), "conflict") {
+		t.Fatalf("conflicting replay error = %v", err)
+	}
+	executions, err := store.ListExecutions("plan-replay", def.Mode)
+	if err != nil || len(executions) != 1 {
+		t.Fatalf("executions after conflict = %+v, %v", executions, err)
 	}
 }
 
@@ -336,5 +424,28 @@ func TestValidateExecutionManifestRejectsDefinitionDigestMismatch(t *testing.T) 
 	execution.DefinitionDigest = "sha256:tampered"
 	if err := validateExecutionManifest(execution); err == nil {
 		t.Fatal("tampered definition digest accepted")
+	}
+}
+
+func TestValidateExecutionManifestRejectsInputProvenanceDigestMismatch(t *testing.T) {
+	store := testStore(t)
+	execution, err := store.CreateExecution("plan-input-digests", MustDefinition(ModePhasedPlanDrain))
+	if err != nil {
+		t.Fatalf("CreateExecution: %v", err)
+	}
+	originalSnapshotDigest := execution.InputSnapshotDigest
+	execution.InputSnapshotDigest = "sha256:tampered"
+	if err := validateExecutionManifest(execution); err == nil || !strings.Contains(err.Error(), "input snapshot digest") {
+		t.Fatalf("snapshot digest error = %v", err)
+	}
+	execution.InputSnapshotDigest = originalSnapshotDigest
+	var compiled map[string]any
+	if err := json.Unmarshal(execution.CompiledInputContract, &compiled); err != nil {
+		t.Fatalf("decode compiled contract: %v", err)
+	}
+	compiled["schema_version"] = "tampered"
+	execution.CompiledInputContract, _ = json.Marshal(compiled)
+	if err := validateExecutionManifest(execution); err == nil || !strings.Contains(err.Error(), "input contract digest") {
+		t.Fatalf("contract digest error = %v", err)
 	}
 }

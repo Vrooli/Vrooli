@@ -51,6 +51,9 @@ func TestConnectCatalogCarriesDecisionMetadata(t *testing.T) {
 		if len(entry.GetTradeoffs()) == 0 {
 			t.Errorf("mode %q missing tradeoffs", entry.GetMode())
 		}
+		if entry.GetInputContract() == nil || entry.GetInputContract().AsMap()["root_mode"] != entry.GetMode() {
+			t.Errorf("mode %q missing compiled execution-start input contract: %+v", entry.GetMode(), entry.GetInputContract())
+		}
 		if entry.GetUsageCount() > 0 {
 			sawUsage = true
 		}

@@ -66,6 +66,7 @@ func (a *App) cmdOperatingModeStart(args []string) error {
 	targetFlag := fs.String("target", "", "Target ref: plan-manager execution id/slug, or plan-ref path")
 	phaseFlag := fs.String("phase", "", "Phase name (defaults to the mode's start phase)")
 	noteFlag := fs.String("note", "", "Operator note")
+	inputsFlag := fs.String("inputs", "", "Caller inputs as a JSON object keyed by logical input ID")
 	overrideFlag := fs.Bool("override", false, "Acquire the target lock even if it is held")
 	requestedByFlag := fs.String("requested-by", "", "Actor recorded for the phase start")
 	jsonOut := cliutil.JSONFlag(fs)
@@ -73,13 +74,18 @@ func (a *App) cmdOperatingModeStart(args []string) error {
 		return err
 	}
 	if err := requireFlags("mode", *modeFlag, "target", *targetFlag); err != nil {
-		return fmt.Errorf("usage: operating-mode start --mode MODE --target REF [--phase PHASE] [--note MSG] [--override] [--requested-by WHO] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: operating-mode start --mode MODE --target REF [--phase PHASE] [--note MSG] [--inputs JSON] [--override] [--requested-by WHO] [--json]\n\n%s", err)
+	}
+	inputs, err := parseProtoStructJSON(*inputsFlag)
+	if err != nil {
+		return err
 	}
 	resp, err := a.operatingModeClient().StartTargetPhase(context.Background(), connect.NewRequest(&apipb.OperatingModeStartTargetPhaseRequest{
 		Mode:        strings.TrimSpace(*modeFlag),
 		TargetRef:   strings.TrimSpace(*targetFlag),
 		Phase:       strings.TrimSpace(*phaseFlag),
 		Note:        strings.TrimSpace(*noteFlag),
+		Inputs:      inputs,
 		Override:    *overrideFlag,
 		RequestedBy: defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
 	}))

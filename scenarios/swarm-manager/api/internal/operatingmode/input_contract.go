@@ -23,6 +23,9 @@ const (
 
 	InputFailureRequired InputFailurePolicy = "required"
 	InputFailureDegrade  InputFailurePolicy = "degrade"
+
+	maxCallerInputBytes         = 256 * 1024
+	maxCallerInputSnapshotBytes = 1024 * 1024
 )
 
 // ProviderCapabilityDescriptor is the compiler-visible half of an input
@@ -97,6 +100,108 @@ type CompiledPhaseInputContract struct {
 type CompiledPhaseInputBinding struct {
 	Variable string `json:"variable"`
 	InputID  string `json:"input_id"`
+}
+
+// ValidateCallerInputSnapshot validates execution-scoped caller values against
+// the complete pinned parent + delegated input contract. The returned JSON is
+// normalized once and is therefore safe to hash and persist as the runtime
+// snapshot used by later rounds.
+//
+// Caller values currently require value retention and non-sensitive
+// classification. Digest/omit retention cannot satisfy replay after a process
+// restart, while sensitive value retention is prohibited by the compiler; the
+// honest behavior is to reject that combination until a secure runtime value
+// store exists instead of persisting a secret or dispatching an unreplayable
+// execution.
+func ValidateCallerInputSnapshot(compiled CompiledInputContract, supplied map[string]any) (json.RawMessage, string, map[string]any, error) {
+	specs := map[string]InputSpec{}
+	for _, mode := range compiled.Modes {
+		for _, input := range mode.Inputs {
+			if input.Source.Kind != InputSourceCaller {
+				continue
+			}
+			if existing, ok := specs[input.Spec.ID]; ok {
+				existingJSON, _ := json.Marshal(existing)
+				currentJSON, _ := json.Marshal(input.Spec)
+				if string(existingJSON) != string(currentJSON) {
+					return nil, "", nil, fmt.Errorf("caller input %q has conflicting transitive specifications", input.Spec.ID)
+				}
+				continue
+			}
+			specs[input.Spec.ID] = input.Spec
+		}
+	}
+
+	unknown := make([]string, 0)
+	for id := range supplied {
+		if _, ok := specs[id]; !ok {
+			unknown = append(unknown, id)
+		}
+	}
+	if len(unknown) > 0 {
+		sort.Strings(unknown)
+		return nil, "", nil, fmt.Errorf("unknown caller inputs: %s", strings.Join(unknown, ", "))
+	}
+
+	ids := make([]string, 0, len(specs))
+	for id := range specs {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	normalized := make(map[string]any, len(supplied))
+	retention := make(map[string]any, len(specs))
+	for _, id := range ids {
+		spec := specs[id]
+		value, present := supplied[id]
+		if !present {
+			if spec.Required {
+				return nil, "", nil, fmt.Errorf("required caller input %q is missing", id)
+			}
+			retention[id] = map[string]any{
+				"present": false, "sensitivity": spec.Sensitivity, "retention": spec.Retention,
+			}
+			continue
+		}
+		if spec.Sensitivity == InputSensitivitySensitive {
+			return nil, "", nil, fmt.Errorf("caller input %q is sensitive and cannot be retained for replay", id)
+		}
+		if spec.Retention != InputRetentionValue {
+			return nil, "", nil, fmt.Errorf("caller input %q uses %q retention; replayable caller inputs require value retention", id, spec.Retention)
+		}
+		if err := validateInputValue(spec, value); err != nil {
+			return nil, "", nil, fmt.Errorf("caller input %q: %w", id, err)
+		}
+		valueJSON, err := json.Marshal(value)
+		if err != nil {
+			return nil, "", nil, fmt.Errorf("caller input %q is not JSON: %w", id, err)
+		}
+		if len(valueJSON) > maxCallerInputBytes {
+			return nil, "", nil, fmt.Errorf("caller input %q encoded size %d exceeds maximum %d bytes", id, len(valueJSON), maxCallerInputBytes)
+		}
+		var canonical any
+		if err := json.Unmarshal(valueJSON, &canonical); err != nil {
+			return nil, "", nil, fmt.Errorf("normalize caller input %q: %w", id, err)
+		}
+		normalized[id] = canonical
+		valueDigest := sha256.Sum256(valueJSON)
+		retention[id] = map[string]any{
+			"present": true, "sensitivity": spec.Sensitivity, "retention": spec.Retention,
+			"value_digest": fmt.Sprintf("sha256:%x", valueDigest[:]),
+		}
+	}
+
+	snapshot, err := json.Marshal(normalized)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("marshal caller input snapshot: %w", err)
+	}
+	if len(snapshot) > maxCallerInputSnapshotBytes {
+		return nil, "", nil, fmt.Errorf("caller input snapshot encoded size %d exceeds maximum %d bytes", len(snapshot), maxCallerInputSnapshotBytes)
+	}
+	digest, err := canonicalJSONDigest(snapshot)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("digest caller input snapshot: %w", err)
+	}
+	return snapshot, digest, retention, nil
 }
 
 // CompileInputContract compiles the root and every reachable delegated mode
@@ -590,7 +695,7 @@ func (rc RunContext) resolveCompiledInputs(round RoundEnvelope, note string, pha
 		case InputSourceGenericProvider, InputSourceTargetAdapter:
 			value, err = rc.resolveProviderCapability(input.Source.Capability, round, note)
 		case InputSourceCaller:
-			value, err = rc.executionInputSnapshotValue(id)
+			value, err = rc.executionInputSnapshotValue(id, input.Spec.Required)
 		case InputSourceDefault:
 			value = input.Source.Default
 		case InputSourceDerived:
@@ -677,8 +782,11 @@ func (rc RunContext) resolveProviderCapability(capability string, round RoundEnv
 	return value, nil
 }
 
-func (rc RunContext) executionInputSnapshotValue(id string) (any, error) {
+func (rc RunContext) executionInputSnapshotValue(id string, required bool) (any, error) {
 	if rc.Execution == nil || len(rc.Execution.ValidatedInputSnapshot) == 0 {
+		if !required {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("caller input snapshot is unavailable")
 	}
 	var snapshot map[string]any
@@ -687,6 +795,9 @@ func (rc RunContext) executionInputSnapshotValue(id string) (any, error) {
 	}
 	value, ok := snapshot[id]
 	if !ok {
+		if !required {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("caller input is absent from the validated snapshot")
 	}
 	return value, nil

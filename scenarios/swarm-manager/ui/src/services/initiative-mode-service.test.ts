@@ -57,6 +57,23 @@ describe("Initiative Mode Service", () => {
         label: "Holistic Loop",
         targetKind: "initiative",
         runStrategy: "operator_gated_loop",
+        inputContract: {
+          schema_version: "1",
+          root_mode: "holistic-loop",
+          modes: [{
+            mode: "holistic-loop",
+            target: "initiative",
+            inputs: [{
+              spec: {
+                id: "caller.payload", type: "object", required: true,
+                sensitivity: "internal", retention: "value", description: "Runtime payload.",
+              },
+              source: { input_id: "caller.payload", kind: "caller" },
+              aliases: ["CALLER_PAYLOAD_JSON"],
+            }],
+            phases: [{ phase: "investigate", bindings: [{ variable: "CALLER_PAYLOAD_JSON", input_id: "caller.payload" }] }],
+          }],
+        },
         capabilities: {
           supportsPhases: true,
           canStartPhases: true,
@@ -114,6 +131,17 @@ describe("Initiative Mode Service", () => {
             selectionAlgorithmVersion: "contract-scan-v1",
           },
         },
+        promptTrace: {
+          skillId: "swarm-manager-holistic-loop-investigate",
+          sourceRevision: "7",
+          sourceVariant: "control",
+          sourceHash: "sha256:source",
+          variablesHash: "sha256:variables",
+          renderedPromptHash: "sha256:rendered",
+          definitionDigest: "sha256:def",
+          inputContractDigest: "sha256:inputs",
+          redactionMetadata: { policy: "hashes_only" },
+        },
       }],
       executions: [{
         executionId: "execution-1",
@@ -128,6 +156,10 @@ describe("Initiative Mode Service", () => {
         definitionBundle: { root: "holistic-loop", definitions: {} },
         inputContractDigest: "sha256:inputs",
         inputSnapshotDigest: "sha256:values",
+        compiledInputContract: {
+          schema_version: "1", root_mode: "holistic-loop", modes: [],
+        },
+        inputRetentionMetadata: { "caller.payload": { present: true, retention: "value" } },
         reachablePromptSources: [{
           mode: "holistic-loop",
           phase: "investigate",
@@ -165,12 +197,21 @@ describe("Initiative Mode Service", () => {
       selectionAlgorithmVersion: "contract-scan-v1",
       fallbackReason: undefined,
     });
+    expect(workspace.rounds[0]?.promptTrace).toMatchObject({
+      sourceRevision: "7",
+      renderedPromptHash: "sha256:rendered",
+      redactionMetadata: { policy: "hashes_only" },
+    });
     expect(workspace.executions?.[0]).toMatchObject({
       executionId: "execution-1",
       definitionDigest: "sha256:def",
       inputContractDigest: "sha256:inputs",
     });
     expect(workspace.executions?.[0]?.reachablePromptSources[0]?.revision).toBe("rev-1");
+    expect(workspace.definition.inputContract?.modes[0]?.inputs[0]?.source.inputId).toBe("caller.payload");
+    expect(workspace.definition.inputContract?.modes[0]?.phases[0]?.bindings[0]?.inputId).toBe("caller.payload");
+    expect(workspace.executions?.[0]?.compiledInputContract?.rootMode).toBe("holistic-loop");
+    expect(workspace.executions?.[0]?.inputRetentionMetadata?.["caller.payload"]).toEqual({ present: true, retention: "value" });
   });
 
   it("maps catalog entries and capabilities", async () => {
@@ -421,11 +462,16 @@ describe("Initiative Mode Service", () => {
     client.refreshRound.mockResolvedValue(round);
     client.cancelRound.mockResolvedValue(round);
 
-    await service.startPhase("initiative-a", "execute_next", { note: "continue", override: true });
+    await service.startPhase("initiative-a", "execute_next", {
+      note: "continue",
+      inputs: { "caller.payload": { enabled: true }, "caller.limit": 7 },
+      override: true,
+    });
     expect(client.startPhase).toHaveBeenCalledWith({
       initiativeName: "initiative-a",
       phase: "execute_next",
       note: "continue",
+      inputs: { "caller.payload": { enabled: true }, "caller.limit": 7 },
       override: true,
       requestedBy: "swarm-manager-ui",
     });

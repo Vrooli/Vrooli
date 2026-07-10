@@ -26,6 +26,17 @@ func echoRender(skillID string, variables map[string]string) string {
 	return b.String()
 }
 
+func versionedPromptSource(prefix string, revision int) func(string, []string) (string, int) {
+	return func(skillID string, variables []string) (string, int) {
+		var b strings.Builder
+		fmt.Fprintf(&b, "%s SKILL=%s\n", prefix, skillID)
+		for _, variable := range variables {
+			fmt.Fprintf(&b, "%s={{%s}}\n", variable, variable)
+		}
+		return b.String(), revision
+	}
+}
+
 // TestRenderPhasePromptParityWithBuildPrompt is the parity guard: the shared
 // renderPhasePrompt seam must produce the exact prompt the real spawn path
 // (buildPrompt) produces for equal inputs, so a preview never diverges from what
@@ -66,6 +77,47 @@ func TestRenderPhasePromptParityWithBuildPrompt(t *testing.T) {
 		if rendered.SkillID != step.SkillID || rendered.ProfileKey != step.ProfileKey {
 			t.Fatalf("phase %q: rendered skill/profile = %q/%q, want %q/%q", step.Phase, rendered.SkillID, rendered.ProfileKey, step.SkillID, step.ProfileKey)
 		}
+	}
+}
+
+func TestExecutionRendersPinnedPromptAfterLiveSourceMutation(t *testing.T) {
+	prompts := &fakePrompts{source: versionedPromptSource("V1", 1)}
+	svc := newTestService(t, t.TempDir(), &fakeAgent{}, prompts)
+	round, err := svc.StartTargetPhase(context.Background(), StartTargetPhaseRequest{
+		Mode: string(ModePhasedPlanDrain), TargetRef: "prompt-pin-plan",
+	})
+	if err != nil {
+		t.Fatalf("StartTargetPhase: %v", err)
+	}
+	prompts.source = versionedPromptSource("V2", 2)
+	def := MustDefinition(ModePhasedPlanDrain)
+	phase := def.PhaseGraph.Phases[def.PhaseGraph.StartPhase]
+	rc, err := svc.collectRunContext(context.Background(), def, phase, "prompt-pin-plan")
+	if err != nil {
+		t.Fatalf("collectRunContext: %v", err)
+	}
+	rendered, err := svc.renderPhasePrompt(context.Background(), rc, RoundEnvelope{Round: round.Round + 1}, "later")
+	if err != nil {
+		t.Fatalf("render pinned prompt: %v", err)
+	}
+	if !strings.Contains(rendered.Prompt, "V1 SKILL=") || strings.Contains(rendered.Prompt, "V2 SKILL=") {
+		t.Fatalf("existing execution did not use V1 source:\n%s", rendered.Prompt)
+	}
+
+	newSvc := newTestService(t, t.TempDir(), &fakeAgent{}, prompts)
+	newRound, err := newSvc.StartTargetPhase(context.Background(), StartTargetPhaseRequest{
+		Mode: string(ModePhasedPlanDrain), TargetRef: "prompt-pin-plan-new",
+	})
+	if err != nil {
+		t.Fatalf("StartTargetPhase new execution: %v", err)
+	}
+	newExecution, err := newSvc.store.LoadExecution(newRound.ScopeID, ModePhasedPlanDrain, newRound.ExecutionID)
+	if err != nil {
+		t.Fatalf("LoadExecution new: %v", err)
+	}
+	source := newExecution.ReachablePromptSources[promptSourceKey(ModePhasedPlanDrain, def.PhaseGraph.StartPhase)]
+	if source.Revision != "2" || !strings.Contains(source.Content, "V2 SKILL=") {
+		t.Fatalf("new execution prompt source = %+v", source)
 	}
 }
 

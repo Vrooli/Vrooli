@@ -28,6 +28,13 @@ func structFromMap(m map[string]any) *structpb.Struct {
 	return s
 }
 
+func mapFromStruct(s *structpb.Struct) map[string]any {
+	if s == nil {
+		return nil
+	}
+	return s.AsMap()
+}
+
 func structFromRaw(raw json.RawMessage) *structpb.Struct {
 	if len(raw) == 0 {
 		return nil
@@ -202,6 +209,7 @@ func catalogEntryToProto(e ModeCatalogEntry) *apipb.OperatingModeCatalogEntry {
 		SupportsPhases:         e.SupportsPhases,
 		Phases:                 phases,
 		PhaseGraph:             catalogPhaseGraphToProto(e.PhaseGraph),
+		InputContract:          structFromValue(e.InputContract),
 	}
 }
 
@@ -365,6 +373,20 @@ func roundEnvelopeToProto(r RoundEnvelope) *apipb.OperatingModeRoundEnvelope {
 		ResolvedEnvelope:         structFromMap(resolvedEnvelope),
 		ExecutionId:              r.ExecutionID,
 		DefinitionDigest:         r.DefinitionDigest,
+		PromptTrace:              promptTraceToProto(r.PromptTrace),
+	}
+}
+
+func promptTraceToProto(trace *PromptRenderTrace) *apipb.OperatingModePromptRenderTrace {
+	if trace == nil {
+		return nil
+	}
+	return &apipb.OperatingModePromptRenderTrace{
+		SkillId: trace.SkillID, SourceRevision: trace.SourceRevision,
+		SourceVariant: trace.SourceVariant, SourceHash: trace.SourceHash,
+		VariablesHash: trace.VariablesHash, RenderedPromptHash: trace.RenderedPromptHash,
+		DefinitionDigest: trace.DefinitionDigest, InputContractDigest: trace.InputContractDigest,
+		RedactionMetadata: structFromMap(trace.RedactionMetadata),
 	}
 }
 
@@ -395,6 +417,7 @@ func promptSourcesToProto(in map[string]PinnedPromptSource) []*apipb.OperatingMo
 			Mode: source.Mode, Phase: source.Phase, SkillId: source.SkillID,
 			Revision: source.Revision, ContentHash: source.ContentHash,
 			Retention: source.Retention, Redacted: source.Redacted,
+			Variant: source.Variant, TemplateVariables: source.TemplateVariables,
 		})
 	}
 	return out
@@ -411,6 +434,8 @@ func executionToProto(in OperatingModeExecution) *apipb.OperatingModeExecutionSn
 		InputSnapshotDigest:    in.InputSnapshotDigest,
 		ReachablePromptSources: promptSourcesToProto(in.ReachablePromptSources),
 		Migration:              executionMigrationToProto(in.Migration),
+		CompiledInputContract:  structFromRaw(in.CompiledInputContract),
+		InputRetentionMetadata: structFromMap(in.InputRetentionMetadata),
 	}
 }
 
@@ -516,15 +541,16 @@ func transitionsToProto(in map[string][]string) map[string]*apipb.OperatingModeS
 
 func workspaceModeToProto(m WorkspaceMode) *apipb.OperatingModeWorkspaceMode {
 	return &apipb.OperatingModeWorkspaceMode{
-		Mode:         m.Mode,
-		Label:        m.Label,
-		Description:  m.Description,
-		TargetKind:   m.TargetKind,
-		Capabilities: capabilitiesToProto(m.Capabilities),
-		Phases:       workspacePhasesToProto(m.Phases),
-		Terminal:     m.Terminal,
-		Transitions:  transitionsToProto(m.Transitions),
-		RunStrategy:  m.RunStrategy,
+		Mode:          m.Mode,
+		Label:         m.Label,
+		Description:   m.Description,
+		TargetKind:    m.TargetKind,
+		Capabilities:  capabilitiesToProto(m.Capabilities),
+		Phases:        workspacePhasesToProto(m.Phases),
+		Terminal:      m.Terminal,
+		Transitions:   transitionsToProto(m.Transitions),
+		RunStrategy:   m.RunStrategy,
+		InputContract: structFromValue(m.InputContract),
 	}
 }
 

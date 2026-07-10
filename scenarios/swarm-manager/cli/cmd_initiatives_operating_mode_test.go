@@ -29,6 +29,7 @@ type stubOperatingModeHandler struct {
 	getWorkspace  func(*apipb.OperatingModeWorkspaceRequest) (*apipb.OperatingModeWorkspace, error)
 	switchMode    func(*apipb.OperatingModeSwitchRequest) (*apipb.OperatingModeSwitchResult, error)
 	startPhase    func(*apipb.OperatingModeStartPhaseRequest) (*apipb.OperatingModeRoundEnvelope, error)
+	startTarget   func(*apipb.OperatingModeStartTargetPhaseRequest) (*apipb.OperatingModeRoundEnvelope, error)
 	refreshRound  func(*apipb.OperatingModeRoundActionRequest) (*apipb.OperatingModeRoundEnvelope, error)
 	completeItems func(*apipb.OperatingModeCompleteItemsRequest) (*apipb.OperatingModeBacklogSyncResult, error)
 	applyBacklog  func(*apipb.OperatingModeApplyBacklogSyncRequest) (*apipb.OperatingModeBacklogSyncResult, error)
@@ -84,6 +85,14 @@ func (s *stubOperatingModeHandler) SwitchMode(_ context.Context, req *connect.Re
 
 func (s *stubOperatingModeHandler) StartPhase(_ context.Context, req *connect.Request[apipb.OperatingModeStartPhaseRequest]) (*connect.Response[apipb.OperatingModeRoundEnvelope], error) {
 	msg, err := s.startPhase(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) StartTargetPhase(_ context.Context, req *connect.Request[apipb.OperatingModeStartTargetPhaseRequest]) (*connect.Response[apipb.OperatingModeRoundEnvelope], error) {
+	msg, err := s.startTarget(req.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +339,7 @@ func TestCmdInitiativesModeStart_PostsPhaseStart(t *testing.T) {
 		},
 	}
 	app := newOperatingModeTestApp(t, stub)
-	if err := app.cmdInitiativesModeStart([]string{"--name", "init", "--phase", "execute", "--note", "go"}); err != nil {
+	if err := app.cmdInitiativesModeStart([]string{"--name", "init", "--phase", "execute", "--note", "go", "--inputs", `{"caller.limit":7,"caller.payload":{"enabled":true}}`}); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	if got.GetInitiativeName() != "init" || got.GetPhase() != "execute" {
@@ -338,6 +347,35 @@ func TestCmdInitiativesModeStart_PostsPhaseStart(t *testing.T) {
 	}
 	if got.GetNote() != "go" {
 		t.Errorf("note: %s", got.GetNote())
+	}
+	inputs := got.GetInputs().AsMap()
+	if inputs["caller.limit"] != float64(7) || inputs["caller.payload"].(map[string]any)["enabled"] != true {
+		t.Errorf("inputs: %#v", inputs)
+	}
+}
+
+func TestCmdOperatingModeStartPostsTargetAndCallerInputs(t *testing.T) {
+	var got *apipb.OperatingModeStartTargetPhaseRequest
+	stub := &stubOperatingModeHandler{
+		startTarget: func(req *apipb.OperatingModeStartTargetPhaseRequest) (*apipb.OperatingModeRoundEnvelope, error) {
+			got = req
+			return &apipb.OperatingModeRoundEnvelope{
+				Round: 1, Mode: "phased-plan-drain", Phase: "execute", ScopeId: "plan-1", Status: "agent_running",
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
+	if err := app.cmdOperatingModeStart([]string{
+		"--mode", "phased-plan-drain", "--target", "plan-1",
+		"--inputs", `{"caller.payload":{"source":"cli"}}`,
+	}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if got.GetMode() != "phased-plan-drain" || got.GetTargetRef() != "plan-1" {
+		t.Fatalf("target selectors = %+v", got)
+	}
+	if got.GetInputs().AsMap()["caller.payload"].(map[string]any)["source"] != "cli" {
+		t.Fatalf("inputs = %#v", got.GetInputs().AsMap())
 	}
 }
 

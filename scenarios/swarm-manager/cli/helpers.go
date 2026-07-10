@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func (a *App) requestMultipart(method, path string, payload []byte, contentType string) ([]byte, error) {
@@ -152,6 +153,31 @@ func parseJSONString(raw string) (json.RawMessage, error) {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
 	}
 	return json.RawMessage(raw), nil
+}
+
+func parseProtoStructJSON(raw string) (*structpb.Struct, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	var value map[string]any
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		return nil, fmt.Errorf("inputs must be a JSON object: %w", err)
+	}
+	normalized, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("normalize inputs: %w", err)
+	}
+	var protoValue map[string]any
+	if err := json.Unmarshal(normalized, &protoValue); err != nil {
+		return nil, fmt.Errorf("normalize inputs: %w", err)
+	}
+	result, err := structpb.NewStruct(protoValue)
+	if err != nil {
+		return nil, fmt.Errorf("inputs must contain JSON values: %w", err)
+	}
+	return result, nil
 }
 
 func printTree[T any](items []T, childFn func(T) []T, lineFn func(T) string, level int) {

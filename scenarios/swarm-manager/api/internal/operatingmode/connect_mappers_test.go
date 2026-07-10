@@ -48,6 +48,12 @@ func TestRoundEnvelopeToProtoCarriesResolution(t *testing.T) {
 	round := RoundEnvelope{
 		ExecutionID: "execution-1", DefinitionDigest: "sha256:def", Round: 1,
 		Status: RoundStatusNeedsAttention,
+		PromptTrace: &PromptRenderTrace{
+			SkillID: "skill-1", SourceRevision: "7", SourceVariant: "control",
+			SourceHash: "sha256:source", VariablesHash: "sha256:variables",
+			RenderedPromptHash: "sha256:rendered", DefinitionDigest: "sha256:def",
+			InputContractDigest: "sha256:inputs", RedactionMetadata: map[string]any{"policy": "hashes_only"},
+		},
 		Payload: map[string]any{
 			resultEnvelopeKey: map[string]any{
 				"novel_flag": true,
@@ -79,6 +85,9 @@ func TestRoundEnvelopeToProtoCarriesResolution(t *testing.T) {
 	if got.GetExecutionId() != round.ExecutionID || got.GetDefinitionDigest() != round.DefinitionDigest {
 		t.Fatalf("execution provenance = %q/%q", got.GetExecutionId(), got.GetDefinitionDigest())
 	}
+	if got.GetPromptTrace().GetSourceRevision() != "7" || got.GetPromptTrace().GetRenderedPromptHash() != "sha256:rendered" {
+		t.Fatalf("prompt trace = %+v", got.GetPromptTrace())
+	}
 	if got.GetResolution().GetOutcome() != string(ResolutionAbstained) || got.GetResolution().GetLayer() != string(ResolutionLayerClassifier) {
 		t.Fatalf("resolution = %+v, want abstained classifier record", got.GetResolution())
 	}
@@ -99,11 +108,18 @@ func TestWorkspaceToProtoCarriesExecutionManifestProvenance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pinDefinitionBundle: %v", err)
 	}
-	got := workspaceToProto(Workspace{Executions: []OperatingModeExecution{{
+	compiled, err := CompileInputContract(bundle.Definitions, MustDefinition(ModePhasedPlanDrain))
+	if err != nil {
+		t.Fatalf("CompileInputContract: %v", err)
+	}
+	compiledJSON, _ := json.Marshal(compiled)
+	got := workspaceToProto(Workspace{Definition: WorkspaceMode{InputContract: compiled}, Executions: []OperatingModeExecution{{
 		ExecutionID: "execution-1", ScopeKind: string(TargetPlanManagerPlan), ScopeID: "plan-1",
 		Mode: string(ModePhasedPlanDrain), Status: ExecutionStatusActive,
 		SchemaVersion: executionManifestSchemaVersion, DefinitionDigest: digest, DefinitionBundle: bundle,
 		InputContractDigest: "sha256:inputs", InputSnapshotDigest: "sha256:values",
+		CompiledInputContract:  compiledJSON,
+		InputRetentionMetadata: map[string]any{"caller.payload": map[string]any{"present": true, "retention": "value"}},
 		ReachablePromptSources: map[string]PinnedPromptSource{"execute": {
 			Mode: string(ModePhasedPlanDrain), Phase: "execute", SkillID: "phased-plan-execute-next",
 			Revision: "rev-1", ContentHash: "sha256:prompt",
@@ -118,6 +134,15 @@ func TestWorkspaceToProtoCarriesExecutionManifestProvenance(t *testing.T) {
 	}
 	if execution.GetDefinitionBundle() == nil || execution.GetDefinitionBundle().AsMap()["root"] == nil {
 		t.Fatalf("definition bundle projection = %+v", execution.GetDefinitionBundle())
+	}
+	if execution.GetCompiledInputContract().AsMap()["root_mode"] != string(ModePhasedPlanDrain) {
+		t.Fatalf("compiled input contract projection = %+v", execution.GetCompiledInputContract())
+	}
+	if execution.GetInputRetentionMetadata().AsMap()["caller.payload"] == nil {
+		t.Fatalf("input retention projection = %+v", execution.GetInputRetentionMetadata())
+	}
+	if got.GetDefinition().GetInputContract().AsMap()["root_mode"] != string(ModePhasedPlanDrain) {
+		t.Fatalf("workspace input contract projection = %+v", got.GetDefinition().GetInputContract())
 	}
 	if len(execution.GetReachablePromptSources()) != 1 || execution.GetReachablePromptSources()[0].GetRevision() != "rev-1" {
 		t.Fatalf("prompt source projection = %+v", execution.GetReachablePromptSources())

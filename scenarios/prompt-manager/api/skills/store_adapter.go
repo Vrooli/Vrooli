@@ -389,6 +389,7 @@ func (a *StoreAdapter) toMetadata(s store.Skill) Metadata {
 		Draft:            draft,
 		CreatedAt:        s.CreatedAt,
 		UpdatedAt:        s.UpdatedAt,
+		Revision:         s.Revision,
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,15 @@ import (
 type ReadSkillResult struct {
 	Content   string `json:"content"`
 	VariantID string `json:"selectedVariantId,omitempty"`
+}
+
+type SkillSourceSnapshot struct {
+	SkillID           string
+	Revision          int
+	SelectedVariantID string
+	Content           string
+	ContentHash       string
+	TemplateVariables []string
 }
 
 // ExperimentOutcomeRequest is the request body for recording an experiment outcome.
@@ -36,6 +46,12 @@ type ExperimentOutcomeRequest struct {
 type Client interface {
 	ReadSkill(ctx context.Context, skillID string, variables map[string]string, withScope bool) (string, error)
 	ReadSkillWithExperiment(ctx context.Context, skillID string, variables map[string]string, withScope bool, experimentID string) (ReadSkillResult, error)
+}
+
+// SourceClient exposes immutable source metadata for consumers that must pin
+// prompt interpretation across retries and service restarts.
+type SourceClient interface {
+	ReadSkillSource(ctx context.Context, skillID string, expectedVariables []string) (SkillSourceSnapshot, error)
 }
 
 // ExperimentClient provides experiment outcome operations against prompt-manager.
@@ -141,7 +157,16 @@ type readRequest struct {
 // readResponse is the response from the skill read endpoint.
 type readResponse struct {
 	Combined          string `json:"combined"`
+	CombinedHash      string `json:"combinedHash,omitempty"`
 	SelectedVariantID string `json:"selectedVariantId,omitempty"`
+	Skills            []struct {
+		ID          string `json:"id"`
+		Revision    int    `json:"revision,omitempty"`
+		ContentHash string `json:"contentHash,omitempty"`
+		Variables   []struct {
+			Name string `json:"name"`
+		} `json:"variables,omitempty"`
+	} `json:"skills,omitempty"`
 }
 
 // ReadSkill fetches a single skill from prompt-manager with variable substitution.
@@ -187,6 +212,58 @@ func (c *HTTPClient) ReadSkill(ctx context.Context, skillID string, variables ma
 	}
 
 	return readResp.Combined, nil
+}
+
+func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID string, _ []string) (SkillSourceSnapshot, error) {
+	baseURL, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
+	}
+	reqBody := readRequest{
+		Identifiers: []string{skillID},
+		Output:      "both",
+	}
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: marshal source request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/skills/read", bytes.NewReader(body))
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: create source request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source status %d: %s", resp.StatusCode, string(respBody))
+	}
+	var readResp readResponse
+	if err := json.NewDecoder(resp.Body).Decode(&readResp); err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: decode source response: %w", err)
+	}
+	if len(readResp.Skills) != 1 || strings.TrimSpace(readResp.Combined) == "" || strings.TrimSpace(readResp.CombinedHash) == "" {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source response for %q is incomplete", skillID)
+	}
+	skill := readResp.Skills[0]
+	variables := make([]string, 0, len(skill.Variables))
+	for _, variable := range skill.Variables {
+		if name := strings.TrimSpace(variable.Name); name != "" {
+			variables = append(variables, name)
+		}
+	}
+	sort.Strings(variables)
+	variant := strings.TrimSpace(readResp.SelectedVariantID)
+	if variant == "" {
+		variant = "control"
+	}
+	return SkillSourceSnapshot{
+		SkillID: skill.ID, Revision: skill.Revision, SelectedVariantID: variant,
+		Content: readResp.Combined, ContentHash: readResp.CombinedHash, TemplateVariables: variables,
+	}, nil
 }
 
 // ReadSkillWithExperiment fetches a skill from prompt-manager with experiment-based variant selection.

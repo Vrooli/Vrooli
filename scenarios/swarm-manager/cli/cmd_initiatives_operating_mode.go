@@ -289,6 +289,7 @@ func (a *App) cmdInitiativesModeStart(args []string) error {
 	nameFlag := fs.String("name", "", "Initiative name")
 	phaseFlag := fs.String("phase", "", "Phase name")
 	noteFlag := fs.String("note", "", "Operator note")
+	inputsFlag := fs.String("inputs", "", "Caller inputs as a JSON object keyed by logical input ID")
 	overrideFlag := fs.Bool("override", false, "Acquire the initiative lock even if it is held")
 	requestedByFlag := fs.String("requested-by", "", "Actor recorded for the phase start")
 	jsonOut := cliutil.JSONFlag(fs)
@@ -296,12 +297,17 @@ func (a *App) cmdInitiativesModeStart(args []string) error {
 		return err
 	}
 	if err := requireFlags("name", *nameFlag, "phase", *phaseFlag); err != nil {
-		return fmt.Errorf("usage: initiatives mode-start --name NAME --phase PHASE [--note MSG] [--override] [--requested-by WHO] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: initiatives mode-start --name NAME --phase PHASE [--note MSG] [--inputs JSON] [--override] [--requested-by WHO] [--json]\n\n%s", err)
+	}
+	inputs, err := parseProtoStructJSON(*inputsFlag)
+	if err != nil {
+		return err
 	}
 	resp, err := a.operatingModeClient().StartPhase(context.Background(), connect.NewRequest(&apipb.OperatingModeStartPhaseRequest{
 		InitiativeName: strings.TrimSpace(*nameFlag),
 		Phase:          strings.TrimSpace(*phaseFlag),
 		Note:           strings.TrimSpace(*noteFlag),
+		Inputs:         inputs,
 		Override:       *overrideFlag,
 		RequestedBy:    defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
 	}))

@@ -26,6 +26,8 @@ import type {
   OperatingModeCatalog,
   OperatingModeCatalogEntry,
   OperatingModeCatalogPhase,
+  OperatingModeCallerInputs,
+  OperatingModeCompiledInputContract,
   OperatingModeDetail,
   OperatingModeExecutionSnapshot,
   OperatingModeHandoff,
@@ -91,6 +93,69 @@ function mapConditionKind(raw: string | undefined): OperatingModeTransitionCondi
   // The wire carries the generic guard op (eq/ne/exists/all/… or `always`);
   // an empty condition is the unconditional default edge.
   return (raw || "always") as OperatingModeTransitionConditionKind;
+}
+
+function mapCompiledInputContract(raw: unknown): OperatingModeCompiledInputContract | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const source = raw as Record<string, unknown>;
+  const modes = Array.isArray(source.modes) ? source.modes : [];
+  return {
+    schemaVersion: typeof source.schema_version === "string" ? source.schema_version : "",
+    rootMode: asMode(typeof source.root_mode === "string" ? source.root_mode : ""),
+    modes: modes.map((modeValue) => {
+      const mode = (modeValue && typeof modeValue === "object" ? modeValue : {}) as Record<string, unknown>;
+      const inputs = Array.isArray(mode.inputs) ? mode.inputs : [];
+      const phases = Array.isArray(mode.phases) ? mode.phases : [];
+      return {
+        mode: asMode(typeof mode.mode === "string" ? mode.mode : ""),
+        target: typeof mode.target === "string" ? mode.target : "",
+        inputs: inputs.map((inputValue) => {
+          const input = (inputValue && typeof inputValue === "object" ? inputValue : {}) as Record<string, unknown>;
+          const spec = (input.spec && typeof input.spec === "object" ? input.spec : {}) as Record<string, unknown>;
+          const binding = (input.source && typeof input.source === "object" ? input.source : {}) as Record<string, unknown>;
+          return {
+            spec: {
+              id: typeof spec.id === "string" ? spec.id : "",
+              type: (typeof spec.type === "string" ? spec.type : "string") as OperatingModeCompiledInputContract["modes"][number]["inputs"][number]["spec"]["type"],
+              format: typeof spec.format === "string" ? spec.format : undefined,
+              required: typeof spec.required === "boolean" ? spec.required : undefined,
+              minimum: typeof spec.minimum === "number" ? spec.minimum : undefined,
+              maximum: typeof spec.maximum === "number" ? spec.maximum : undefined,
+              minLength: typeof spec.min_length === "number" ? spec.min_length : undefined,
+              maxLength: typeof spec.max_length === "number" ? spec.max_length : undefined,
+              minItems: typeof spec.min_items === "number" ? spec.min_items : undefined,
+              maxItems: typeof spec.max_items === "number" ? spec.max_items : undefined,
+              sensitivity: (typeof spec.sensitivity === "string" ? spec.sensitivity : "internal") as OperatingModeCompiledInputContract["modes"][number]["inputs"][number]["spec"]["sensitivity"],
+              retention: (typeof spec.retention === "string" ? spec.retention : "omit") as OperatingModeCompiledInputContract["modes"][number]["inputs"][number]["spec"]["retention"],
+              description: typeof spec.description === "string" ? spec.description : "",
+            },
+            source: {
+              inputId: typeof binding.input_id === "string" ? binding.input_id : "",
+              kind: (typeof binding.kind === "string" ? binding.kind : "caller") as OperatingModeCompiledInputContract["modes"][number]["inputs"][number]["source"]["kind"],
+              capability: typeof binding.capability === "string" ? binding.capability : undefined,
+              dependsOn: Array.isArray(binding.depends_on) ? binding.depends_on.filter((value): value is string => typeof value === "string") : undefined,
+              default: binding.default as OperatingModeCompiledInputContract["modes"][number]["inputs"][number]["source"]["default"],
+            },
+            aliases: Array.isArray(input.aliases) ? input.aliases.filter((value): value is string => typeof value === "string") : [],
+          };
+        }),
+        phases: phases.map((phaseValue) => {
+          const phase = (phaseValue && typeof phaseValue === "object" ? phaseValue : {}) as Record<string, unknown>;
+          const bindings = Array.isArray(phase.bindings) ? phase.bindings : [];
+          return {
+            phase: typeof phase.phase === "string" ? phase.phase : "",
+            bindings: bindings.map((bindingValue) => {
+              const binding = (bindingValue && typeof bindingValue === "object" ? bindingValue : {}) as Record<string, unknown>;
+              return {
+                variable: typeof binding.variable === "string" ? binding.variable : "",
+                inputId: typeof binding.input_id === "string" ? binding.input_id : "",
+              };
+            }),
+          };
+        }),
+      };
+    }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -261,6 +326,7 @@ function mapCatalogEntry(e: ompb.OperatingModeCatalogEntry | undefined): Operati
     supportsPhases,
     phases: (e?.phases ?? []).map(mapCatalogPhase),
     phaseGraph: mapPhaseGraph(e?.phaseGraph),
+    inputContract: mapCompiledInputContract(e?.inputContract),
   };
 }
 
@@ -330,6 +396,19 @@ function mapRound(r: ompb.OperatingModeRoundEnvelope | undefined): OperatingMode
     error: orUndef(r?.error),
     resolution: mapResolution(r?.resolution),
     transitionClassification: mapResolution(r?.transitionClassification),
+    promptTrace: r?.promptTrace
+      ? {
+          skillId: r.promptTrace.skillId,
+          sourceRevision: r.promptTrace.sourceRevision,
+          sourceVariant: orUndef(r.promptTrace.sourceVariant),
+          sourceHash: r.promptTrace.sourceHash,
+          variablesHash: r.promptTrace.variablesHash,
+          renderedPromptHash: r.promptTrace.renderedPromptHash,
+          definitionDigest: r.promptTrace.definitionDigest,
+          inputContractDigest: r.promptTrace.inputContractDigest,
+          redactionMetadata: r.promptTrace.redactionMetadata as Record<string, unknown> | undefined,
+        }
+      : undefined,
   };
 }
 
@@ -351,12 +430,16 @@ function mapOperatingModeExecution(
     definitionBundle: execution?.definitionBundle as Record<string, unknown> | undefined,
     inputContractDigest: orUndef(execution?.inputContractDigest),
     inputSnapshotDigest: orUndef(execution?.inputSnapshotDigest),
+    compiledInputContract: mapCompiledInputContract(execution?.compiledInputContract),
+    inputRetentionMetadata: execution?.inputRetentionMetadata as Record<string, unknown> | undefined,
     reachablePromptSources: (execution?.reachablePromptSources ?? []).map((source) => ({
       mode: source.mode ?? "",
       phase: source.phase ?? "",
       skillId: source.skillId ?? "",
       revision: orUndef(source.revision),
+      variant: orUndef(source.variant),
       contentHash: orUndef(source.contentHash),
+      templateVariables: source.templateVariables ?? [],
       retention: orUndef(source.retention),
       redacted: source.redacted ?? false,
     })),
@@ -599,6 +682,7 @@ function mapWorkspaceDefinition(m: ompb.OperatingModeWorkspaceMode | undefined):
     terminal: m?.terminal ?? [],
     transitions: mapStringListMap(m?.transitions),
     runStrategy: m?.runStrategy ?? "",
+    inputContract: mapCompiledInputContract(m?.inputContract),
   };
 }
 
@@ -698,6 +782,7 @@ export function parseActiveItemExecutionsConflict(error: unknown): ActiveItemExe
 
 export interface StartOperatingModePhaseArgs {
   note?: string;
+  inputs?: OperatingModeCallerInputs;
   override?: boolean;
   requestedBy?: string;
 }
@@ -817,6 +902,7 @@ export function createInitiativeModeService(
           initiativeName: name,
           phase,
           note: args.note ?? "",
+          inputs: args.inputs,
           override: args.override ?? false,
           requestedBy: args.requestedBy ?? REQUESTED_BY,
         }),

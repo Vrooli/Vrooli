@@ -1,13 +1,15 @@
 package skills
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"path/filepath"
-	"prompt-manager/store"
 	"strings"
+
+	"prompt-manager/store"
 )
 
 type indexedSkill struct {
@@ -98,6 +100,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 			}
 			responses[0].Content = content
 			responses[0].Variables = ExtractVariables(*variantContent)
+			responses[0].ContentHash = contentSHA256(*variantContent)
 		}
 		resp.SelectedVariantID = selectedVariantID
 	}
@@ -157,6 +160,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		resp.Combined = combined
+		resp.CombinedHash = contentSHA256(combined)
 		resp.SkillCount = len(toRender)
 		resp.TotalTokens = (len(combined) + 3) / 4
 		resp.Format = normalizedFormat
@@ -323,6 +327,7 @@ func (h *Handlers) buildReadResponse(skill indexedSkill, variables map[string]st
 
 	// Extract variables from original content before substitution
 	resp.Variables = ExtractVariables(content)
+	resp.ContentHash = contentSHA256(content)
 
 	// Apply variable substitution if values provided
 	if len(variables) > 0 {
@@ -331,6 +336,11 @@ func (h *Handlers) buildReadResponse(skill indexedSkill, variables map[string]st
 	resp.Content = content
 
 	return resp, nil
+}
+
+func contentSHA256(content string) string {
+	digest := sha256.Sum256([]byte(content))
+	return fmt.Sprintf("sha256:%x", digest[:])
 }
 
 // selectVariant picks a variant based on experiment weights.

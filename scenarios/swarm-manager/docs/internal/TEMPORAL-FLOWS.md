@@ -222,12 +222,15 @@ Initiative-scoped operating modes are asynchronous phase runs coordinated by the
 
 ```
 Operator starts phase
-  -> API resolves the one resumable execution, or pins a new parent + delegated definition bundle
+  -> API resolves the target and validates phase startability without mutation
+  -> API validates/normalizes caller inputs against the transitive compiled contract
+  -> API resolves the one resumable execution, or atomically pins a new parent + delegated definition bundle, compiled contract, caller snapshot, every reachable prompt source, and digests
   -> phase action state is computed from rounds in that execution and its pinned transition rules
-  -> immutable manifest is written with definition digest and Phase 4 input/prompt provenance slots
+  -> immutable manifest is written with definition/input/prompt provenance
   -> round is reserved under modes/<mode>/executions/<execution-id>/rounds/round-NNN.json
   -> initiative lock is acquired with the pinned lock purpose
-  -> prompt catalog entry and prompt-manager skill are validated
+  -> the phase prompt is rendered from the execution-pinned source, contract, snapshot, and dynamic provider values
+  -> source/variable/render digests are persisted on the reserved round
   -> AgentManager run is spawned with the registry profile key
   -> reserved round is promoted to agent_running with run_id
   -> run_id is indexed to exactly one execution_id + round owner
@@ -242,6 +245,7 @@ Operator starts phase
 
 Failure ordering is also intentional:
 
+- Invalid caller input or a conflicting retry snapshot fails before an execution directory, round, lock, or Agent Manager run exists.
 - If prompt rendering or AgentManager spawn fails before a real run owns the lock, the reserved round is marked failed and the lock is released.
 - Failed or canceled rounds do not advance the phase graph.
 - Active reserved/running rounds block all new phase starts for the initiative.
@@ -456,11 +460,15 @@ Operator starts phase
     ↓
 Load initiative + registry definition
     ↓
-Acquire initiative operating-mode lock
+Validate phase startability and caller inputs
+    ↓
+Resolve or atomically create the immutable execution manifest
     ↓
 Reserve audit round
     ↓
-Render exact registered prompt-manager skill
+Acquire initiative operating-mode lock
+    ↓
+Render the exact execution-pinned prompt source and persist its hashes-only trace
     ↓
 Spawn AgentManager run
     ↓
@@ -473,7 +481,10 @@ Failure ordering is deliberately fail-closed:
 
 ```
 Lock conflict
-    → no active round is created
+    → reserved round is marked failed and cannot block continuation
+
+Invalid caller input / conflicting replay snapshot
+    → no execution manifest, round, lock, or run is created
 
 Prompt render failure / spawn failure / run-ID lock swap failure
     → failed audit round is persisted where useful

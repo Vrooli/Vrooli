@@ -179,6 +179,9 @@ message OperatingModeStartPhaseRequest {
   string note = 3;
   bool override = 4;
   string requested_by = 5;
+  // Generic caller-supplied values keyed by the compiled logical input id.
+  // Validation and normalization happen before execution creation.
+  google.protobuf.Struct inputs = 6;
 }
 
 // OperatingModeStartTargetPhaseRequest dispatches a round for a phase of a
@@ -193,6 +196,8 @@ message OperatingModeStartTargetPhaseRequest {
   string note = 4;
   bool override = 5;
   string requested_by = 6;
+  // Generic caller-supplied values keyed by the compiled logical input id.
+  google.protobuf.Struct inputs = 7;
 }
 
 // OperatingModeRenderLiveRequest renders a live phase prompt for an initiative.
@@ -444,6 +449,21 @@ message OperatingModeRoundEnvelope {
   // Canonical digest of the transitive definition bundle used to interpret
   // this round. It must match the owning execution manifest.
   string definition_digest = 22;
+  OperatingModePromptRenderTrace prompt_trace = 23;
+}
+
+// OperatingModePromptRenderTrace proves which immutable source and normalized
+// values produced a dispatched prompt without exposing the values or prompt.
+message OperatingModePromptRenderTrace {
+  string skill_id = 1;
+  string source_revision = 2;
+  string source_variant = 3;
+  string source_hash = 4;
+  string variables_hash = 5;
+  string rendered_prompt_hash = 6;
+  string definition_digest = 7;
+  string input_contract_digest = 8;
+  google.protobuf.Struct redaction_metadata = 9;
 }
 
 // -----------------------------------------------------------------------------
@@ -554,6 +574,9 @@ message OperatingModeCatalogEntry {
   OperatingModeCatalogPhaseGraph phase_graph = 17;
   // The mode's declared unit of work: plan-manager-plan | plan-ref | initiative.
   string target_kind = 18;
+  // Complete parent + delegated execution-start input contract. UI and CLI
+  // derive request shape from this projection rather than rebuilding it.
+  google.protobuf.Struct input_contract = 19;
 
   // Field 9 was `scope_kind`, the legacy wire spelling of target_kind. Removed
   // in the operating-modes v2 CLI/UI surfacing cutover; all surfaces read
@@ -624,6 +647,8 @@ message OperatingModeWorkspaceMode {
   string run_strategy = 9;
   // The mode's declared unit of work: plan-manager-plan | plan-ref | initiative.
   string target_kind = 10;
+  // Complete parent + delegated execution-start input contract.
+  google.protobuf.Struct input_contract = 11;
 
   // Field 4 was `scope_kind`, the legacy wire spelling of target_kind. Removed
   // in the operating-modes v2 CLI/UI surfacing cutover.
@@ -651,6 +676,8 @@ message OperatingModePinnedPromptSource {
   string content_hash = 5;
   string retention = 6;
   bool redacted = 7;
+  string variant = 8;
+  repeated string template_variables = 9;
 }
 
 // OperatingModeExecutionMigration identifies a legacy flat-round history that
@@ -681,6 +708,10 @@ message OperatingModeExecutionSnapshot {
   string input_snapshot_digest = 13;
   repeated OperatingModePinnedPromptSource reachable_prompt_sources = 14;
   OperatingModeExecutionMigration migration = 15;
+  // Immutable execution-start request schema and retention projection. Raw
+  // caller values remain server-side and are not copied onto public surfaces.
+  google.protobuf.Struct compiled_input_contract = 16;
+  google.protobuf.Struct input_retention_metadata = 17;
 }
 
 // OperatingModeWorkspace is the initiative-scoped mode workspace projection.

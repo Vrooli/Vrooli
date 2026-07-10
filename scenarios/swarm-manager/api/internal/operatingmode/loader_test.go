@@ -78,6 +78,10 @@ func TestShippedPromptCatalogResolvesCommittedSkills(t *testing.T) {
 	if len(entries) == 0 {
 		t.Fatal("shipped prompt catalog is empty")
 	}
+	defs, err := LoadModesFromDir(modesDir)
+	if err != nil {
+		t.Fatalf("load shipped modes: %v", err)
+	}
 
 	seen := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
@@ -113,6 +117,22 @@ func TestShippedPromptCatalogResolvesCommittedSkills(t *testing.T) {
 			}
 			if strings.TrimSpace(string(content)) == "" {
 				t.Fatalf("prompt skill %q source is empty", entry.SkillID)
+			}
+			def, ok := defs[Mode(entry.Mode)]
+			if !ok {
+				t.Fatalf("prompt catalog mode %q is not shipped", entry.Mode)
+			}
+			compiled, err := CompileInputContract(defs, def)
+			if err != nil {
+				t.Fatalf("compile input contract: %v", err)
+			}
+			expected, err := compiledPhaseTemplateVariables(compiled, Mode(entry.Mode), Phase(entry.Phase))
+			if err != nil {
+				t.Fatalf("compiled prompt variables: %v", err)
+			}
+			actual := unsatisfiedTemplateSlots(string(content))
+			if !reflect.DeepEqual(actual, expected) {
+				t.Fatalf("prompt skill %q variables = %v, want exact compiled phase bindings %v", entry.SkillID, actual, expected)
 			}
 		})
 	}

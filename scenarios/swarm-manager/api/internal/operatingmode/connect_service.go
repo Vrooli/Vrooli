@@ -263,6 +263,7 @@ func (s *ConnectService) StartPhase(ctx context.Context, req *connect.Request[ap
 		InitiativeName: name,
 		Phase:          phase,
 		Note:           req.Msg.GetNote(),
+		Inputs:         mapFromStruct(req.Msg.GetInputs()),
 		Override:       req.Msg.GetOverride(),
 		RequestedBy:    req.Msg.GetRequestedBy(),
 	})
@@ -283,6 +284,7 @@ func (s *ConnectService) StartTargetPhase(ctx context.Context, req *connect.Requ
 		TargetRef:   targetRef,
 		Phase:       req.Msg.GetPhase(),
 		Note:        req.Msg.GetNote(),
+		Inputs:      mapFromStruct(req.Msg.GetInputs()),
 		Override:    req.Msg.GetOverride(),
 		RequestedBy: req.Msg.GetRequestedBy(),
 	})

@@ -157,6 +157,7 @@ Non-default initiative operating modes are strict orchestration flows. They are 
 | Every new mode round belongs to one immutable execution manifest | `api/internal/operatingmode/execution.go`, `phase_runner.go`, and `rounds.go` | Registry edits cannot rewrite the definition graph used by an existing round |
 | Every phase-mode execution pins one transitive compiled input contract and digest | `api/internal/operatingmode/input_contract.go` and `execution.go` | Logical specs, explicit sources, aliases, and delegated-mode bindings validate before manifest creation; runtime rendering prefers the pinned artifact |
 | A logical input has exactly one source and sensitivity-safe retention | `CompileInputContract` | Missing/competing sources, provider type/target mismatches, derived cycles, and sensitive `retention=value` fail before filesystem mutation |
+| Caller inputs are validated once before execution creation and replay by digest | `ValidateCallerInputSnapshot` and `Store.ContinueOrCreateExecutionWithInputs` | Missing, unknown, mistyped, out-of-bounds, oversized, sensitive, or unreplayable values leave no manifest or round; a retry may omit inputs or repeat the identical normalized snapshot, but cannot replace it |
 | A run ID maps to at most one execution/round owner | `Store.IndexRunOwner` | Replays are idempotent; a conflicting second owner is an explicit ambiguity error rather than last-write-wins |
 | At most one nonterminal execution may exist for a target and mode | `Store.ContinueOrCreateExecution` and `collectRunContext` | Resume never chooses an execution by recency or hidden precedence; multiple resumable manifests require repair |
 
@@ -166,6 +167,11 @@ unambiguous while new bytes live under `executions/<execution-id>/rounds/`.
 Repeating run-owner registration with the same `(execution_id, round)` is a no-op;
 registering the same run against a different owner fails with
 `ErrRunOwnerAmbiguous` and preserves the first mapping.
+
+Execution caller-input snapshots are canonical JSON. Their SHA-256 digest is
+verified after reload independently of JSON indentation, and public Connect/UI
+projections expose the compiled request contract plus retention metadata without
+copying retained caller values onto the wire.
 
 Legacy adoption is replay-safe: the execution id is a deterministic digest of
 scope, mode, pinned definition digest, and original round envelopes. The

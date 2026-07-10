@@ -301,9 +301,41 @@ func addMockSkill(store *MockStore, folder, id, file, name, content string) {
 		Draft:       false,
 		CreatedAt:   createdAt,
 		UpdatedAt:   createdAt,
+		Revision:    3,
 	}
 	store.skills[folder] = append(store.skills[folder], skill)
 	store.contents[folder+"/"+file] = content
+}
+
+func TestReadReturnsImmutableSourceMetadata(t *testing.T) {
+	store := NewMockStore()
+	handlers := NewHandlers(store, &MockMetricsService{}, "/test/store")
+	const source = "Run {{TARGET}} with {{CONFIG}}"
+	addMockSkill(store, "core", "source-skill", "source-skill.md", "Source Skill", source)
+
+	req := ReadRequest{Identifiers: []string{"source-skill"}, Output: "both"}
+	body, _ := json.Marshal(req)
+	w := httptest.NewRecorder()
+	handlers.Read(w, httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body)))
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: status %d: %s", w.Code, w.Body.String())
+	}
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Skills) != 1 || resp.Skills[0].Revision != 3 {
+		t.Fatalf("skills = %+v", resp.Skills)
+	}
+	if resp.Skills[0].Content != source || resp.Skills[0].ContentHash != contentSHA256(source) {
+		t.Fatalf("source metadata = %+v", resp.Skills[0])
+	}
+	if resp.Combined == "" || resp.CombinedHash != contentSHA256(resp.Combined) {
+		t.Fatalf("combined metadata = %q / %q", resp.Combined, resp.CombinedHash)
+	}
+	if got := variableNames(resp.Skills[0].Variables); strings.Join(got, ",") != "CONFIG,TARGET" {
+		t.Fatalf("variables = %v", got)
+	}
 }
 
 func TestRead_ResolveAutoByID(t *testing.T) {

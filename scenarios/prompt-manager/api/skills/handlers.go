@@ -711,6 +711,7 @@ func (h *Handlers) toResponse(p Metadata) Response {
 		Draft:            p.Draft,
 		CreatedAt:        p.CreatedAt,
 		UpdatedAt:        p.UpdatedAt,
+		Revision:         p.Revision,
 	}
 
 	// Extract folder and filename from file path (format: "folder/filename.md")

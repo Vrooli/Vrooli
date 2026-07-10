@@ -379,6 +379,17 @@ This is the standard Go pattern for path traversal protection.
 
 This section documents known test coverage gaps and recommended improvements.
 
+### Operating-mode Phase 4 input/prompt frontier (2026-07-10)
+
+Caller-input compilation, validation, normalization, persistence, replay
+conflict handling, Connect/CLI/UI transport, digest verification, and
+mutation-free rejection now have focused coverage. Reachable prompt sources are
+also pinned transitively with exact template-variable comparison, and each round
+records immutable source/variable/render digests. Remaining Phase 4 gaps are safe
+bounded `plan_ref` content resolution and moving dynamic provider resolution,
+pinned prompt rendering, and spawn-request construction before round reservation
+and lock acquisition with a final execution-version compare-and-reserve.
+
 ### Current Test Coverage Status
 
 **Go API Tests**: Comprehensive coverage

@@ -87,6 +87,34 @@ func TestHTTPClient_ReadSkill(t *testing.T) {
 	}
 }
 
+func TestHTTPClientReadSkillSourceReturnsImmutableMetadata(t *testing.T) {
+	client := NewHTTPClientWithResolver(
+		func(context.Context) (string, error) { return "http://localhost:12345", nil },
+		&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+			var rr readRequest
+			if err := json.NewDecoder(req.Body).Decode(&rr); err != nil {
+				t.Fatalf("decode request: %v", err)
+			}
+			if rr.Output != "both" || len(rr.Variables) != 0 || rr.WithScope {
+				t.Fatalf("source request = %+v", rr)
+			}
+			body := `{"combined":"<skills>{{TARGET}} {{CONFIG}}</skills>","combinedHash":"sha256:source","skills":[{"id":"test-skill","revision":7,"contentHash":"sha256:raw","variables":[{"name":"TARGET"},{"name":"CONFIG"}]}]}`
+			return makeResponse(http.StatusOK, body), nil
+		}},
+	)
+
+	source, err := client.ReadSkillSource(context.Background(), "test-skill", []string{"CONFIG", "TARGET"})
+	if err != nil {
+		t.Fatalf("ReadSkillSource: %v", err)
+	}
+	if source.SkillID != "test-skill" || source.Revision != 7 || source.SelectedVariantID != "control" || source.ContentHash != "sha256:source" {
+		t.Fatalf("source = %+v", source)
+	}
+	if strings.Join(source.TemplateVariables, ",") != "CONFIG,TARGET" {
+		t.Fatalf("variables = %v", source.TemplateVariables)
+	}
+}
+
 func TestHTTPClient_ReadSkill_ServerError(t *testing.T) {
 	client := NewHTTPClientWithResolver(
 		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },

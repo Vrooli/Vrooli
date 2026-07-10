@@ -26,7 +26,7 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 	if err != nil {
 		return RoundEnvelope{}, err
 	}
-	return s.startResolvedPhase(ctx, rc, req.Note, req.Override, req.RequestedBy)
+	return s.startResolvedPhase(ctx, rc, req.Note, req.Inputs, req.Override, req.RequestedBy)
 }
 
 // StartTargetPhase is the plan-first entry point: it starts a mode round
@@ -57,7 +57,7 @@ func (s *Service) StartTargetPhase(ctx context.Context, req StartTargetPhaseRequ
 	if err != nil {
 		return RoundEnvelope{}, err
 	}
-	return s.startResolvedPhase(ctx, rc, req.Note, req.Override, req.RequestedBy)
+	return s.startResolvedPhase(ctx, rc, req.Note, req.Inputs, req.Override, req.RequestedBy)
 }
 
 // startResolvedPhase is the shared dispatch path behind every phase-start
@@ -67,7 +67,7 @@ func (s *Service) StartTargetPhase(ctx context.Context, req StartTargetPhaseRequ
 // profile, purposes, declared output — comes from the sub-mode's next
 // sub-phase, while persistence, locking, and routing stay keyed to the parent
 // run context.
-func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note string, override bool, requestedBy string) (RoundEnvelope, error) {
+func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note string, callerInputs map[string]any, override bool, requestedBy string) (RoundEnvelope, error) {
 	def, phaseDef := rc.Def, rc.PhaseDef
 	ownershipKey, err := rc.OwnershipKey()
 	if err != nil {
@@ -79,10 +79,33 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 	var execution OperatingModeExecution
 	if rc.Execution != nil {
 		execution = *rc.Execution
+		if len(execution.ReachablePromptSources) == 0 {
+			if execution.Migration == nil {
+				return RoundEnvelope{}, fmt.Errorf("execution %q has no pinned prompt sources and cannot be resumed safely", execution.ExecutionID)
+			}
+			promptSources, pinErr := s.pinPromptSourcesFromBundle(ctx, execution.DefinitionBundle)
+			if pinErr != nil {
+				return RoundEnvelope{}, fmt.Errorf("pin adopted legacy execution prompts: %w", pinErr)
+			}
+			execution.ReachablePromptSources = promptSources
+			execution.PromptPolicyMetadata = map[string]any{
+				"source": "legacy_adoption_continuation", "pinned_at": s.clock().UTC().Format(time.RFC3339Nano),
+			}
+			if err := s.store.SaveExecution(execution); err != nil {
+				return RoundEnvelope{}, fmt.Errorf("save adopted legacy prompt bundle: %w", err)
+			}
+		}
 	} else {
-		execution, err = s.store.ContinueOrCreateExecution(rc.Target.ID, def)
+		promptSources, pinErr := s.pinReachablePromptSources(ctx, def)
+		if pinErr != nil {
+			return RoundEnvelope{}, pinErr
+		}
+		execution, err = s.store.ContinueOrCreateExecutionWithPreflight(rc.Target.ID, def, callerInputs, promptSources)
 		if err != nil {
 			return RoundEnvelope{}, err
+		}
+		if len(execution.ReachablePromptSources) == 0 {
+			return RoundEnvelope{}, fmt.Errorf("execution %q has no pinned prompt sources and cannot be dispatched safely", execution.ExecutionID)
 		}
 	}
 	rc.Execution = &execution
@@ -140,7 +163,7 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 		return RoundEnvelope{}, err
 	}
 
-	prompt, err := s.buildPrompt(ctx, exec, round, note)
+	renderedPrompt, err := s.renderPhasePrompt(ctx, exec, round, note)
 	if err != nil {
 		_ = s.lock.Release(ownershipKey, provisionalRunID)
 		round = s.persistPhaseStartFailure(round, err, "prompt_failed_at")
@@ -148,6 +171,13 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 			"err", err, "target", rc.Target.ID, "mode", def.Mode, "phase", phaseDef.Phase)
 		return round, fmt.Errorf("render operating-mode prompt: %w", err)
 	}
+	trace, err := promptRenderTrace(renderedPrompt, execution)
+	if err != nil {
+		_ = s.lock.Release(ownershipKey, provisionalRunID)
+		round = s.persistPhaseStartFailure(round, err, "prompt_trace_failed_at")
+		return round, fmt.Errorf("build operating-mode prompt trace: %w", err)
+	}
+	round.PromptTrace = trace
 
 	round.Status = RoundStatusAgentRunning
 	if err := s.store.SaveRound(round); err != nil {
@@ -159,7 +189,7 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 		Name:        rc.Target.ID,
 		Title:       fmt.Sprintf("%s: %s", def.Label, phaseDef.Phase),
 		Description: strings.TrimSpace(rc.Target.Description),
-		Prompt:      prompt,
+		Prompt:      renderedPrompt.Prompt,
 		ScopePath:   ".",
 		ProjectRoot: s.scenarioRoot,
 		CreatedBy:   s.requestedBy,

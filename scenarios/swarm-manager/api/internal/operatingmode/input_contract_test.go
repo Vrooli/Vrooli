@@ -2,9 +2,40 @@ package operatingmode
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
+
+func callerInputContractDefinition() Definition {
+	def := minimalInputContractDefinition()
+	def.InputContract.Specs = []InputSpec{
+		{
+			ID: "caller.payload", Type: InputTypeObject, Required: true,
+			Sensitivity: InputSensitivityInternal, Retention: InputRetentionValue,
+			Description: "Caller-supplied execution payload.",
+		},
+		{
+			ID: "caller.limit", Type: InputTypeInteger, Minimum: float64Ptr(1), Maximum: float64Ptr(10),
+			Sensitivity: InputSensitivityPublic, Retention: InputRetentionValue,
+			Description: "Optional caller-supplied limit.",
+		},
+	}
+	def.InputContract.Sources = []InputSourceBinding{
+		{InputID: "caller.payload", Kind: InputSourceCaller},
+		{InputID: "caller.limit", Kind: InputSourceCaller},
+	}
+	def.InputContract.Aliases = []InputAlias{
+		{Name: "CALLER_PAYLOAD_JSON", InputID: "caller.payload"},
+		{Name: "CALLER_LIMIT", InputID: "caller.limit"},
+	}
+	phase := def.PhaseGraph.Phases["run"]
+	phase.Reads = []string{"CALLER_PAYLOAD_JSON", "CALLER_LIMIT"}
+	def.PhaseGraph.Phases["run"] = phase
+	return def
+}
+
+func float64Ptr(value float64) *float64 { return &value }
 
 func minimalInputContractDefinition() Definition {
 	return Definition{
@@ -171,6 +202,119 @@ func TestCompileInputContractAcceptsCallerDefaultAndRejectsDerivedCycle(t *testi
 	def.PhaseGraph.Phases["run"] = phase
 	if err := compileInputTestDefinition(def); err == nil || !strings.Contains(err.Error(), "cycle") {
 		t.Fatalf("derived cycle error = %v, want cycle rejection", err)
+	}
+}
+
+func TestValidateCallerInputSnapshotNormalizesAndHashesDeterministically(t *testing.T) {
+	def := callerInputContractDefinition()
+	compiled, err := CompileInputContract(map[Mode]Definition{def.Mode: def}, def)
+	if err != nil {
+		t.Fatalf("CompileInputContract: %v", err)
+	}
+	first, firstDigest, retention, err := ValidateCallerInputSnapshot(compiled, map[string]any{
+		"caller.limit":   7,
+		"caller.payload": map[string]any{"enabled": true, "labels": []string{"one", "two"}},
+	})
+	if err != nil {
+		t.Fatalf("ValidateCallerInputSnapshot: %v", err)
+	}
+	second, secondDigest, _, err := ValidateCallerInputSnapshot(compiled, map[string]any{
+		"caller.payload": map[string]any{"labels": []any{"one", "two"}, "enabled": true},
+		"caller.limit":   float64(7),
+	})
+	if err != nil {
+		t.Fatalf("ValidateCallerInputSnapshot replay: %v", err)
+	}
+	if string(first) != string(second) || firstDigest != secondDigest || !strings.HasPrefix(firstDigest, "sha256:") {
+		t.Fatalf("snapshot replay mismatch\nfirst=%s %s\nsecond=%s %s", first, firstDigest, second, secondDigest)
+	}
+	limitMeta, ok := retention["caller.limit"].(map[string]any)
+	if !ok || limitMeta["present"] != true || limitMeta["retention"] != InputRetentionValue {
+		t.Fatalf("retention metadata = %#v", retention)
+	}
+}
+
+func TestValidateCallerInputSnapshotRejectsInvalidValues(t *testing.T) {
+	def := callerInputContractDefinition()
+	compiled, err := CompileInputContract(map[Mode]Definition{def.Mode: def}, def)
+	if err != nil {
+		t.Fatalf("CompileInputContract: %v", err)
+	}
+	tests := []struct {
+		name     string
+		supplied map[string]any
+		want     string
+	}{
+		{name: "missing required", supplied: map[string]any{}, want: "required caller input"},
+		{name: "unknown", supplied: map[string]any{"caller.payload": map[string]any{}, "caller.extra": true}, want: "unknown caller inputs"},
+		{name: "mistyped", supplied: map[string]any{"caller.payload": "not-an-object"}, want: "want object"},
+		{name: "non integer", supplied: map[string]any{"caller.payload": map[string]any{}, "caller.limit": 1.5}, want: "want integer"},
+		{name: "below bound", supplied: map[string]any{"caller.payload": map[string]any{}, "caller.limit": 0}, want: "below minimum"},
+		{name: "above bound", supplied: map[string]any{"caller.payload": map[string]any{}, "caller.limit": 11}, want: "exceeds maximum"},
+		{name: "oversized", supplied: map[string]any{"caller.payload": map[string]any{"value": strings.Repeat("x", maxCallerInputBytes)}}, want: "encoded size"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, _, err := ValidateCallerInputSnapshot(compiled, tt.supplied)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want containing %q", err, tt.want)
+			}
+		})
+	}
+
+	for _, retention := range []InputRetention{InputRetentionDigest, InputRetentionOmit} {
+		t.Run(fmt.Sprintf("unreplayable retention %s", retention), func(t *testing.T) {
+			mutated := callerInputContractDefinition()
+			mutated.InputContract.Specs[0].Retention = retention
+			compiled, err := CompileInputContract(map[Mode]Definition{mutated.Mode: mutated}, mutated)
+			if err != nil {
+				t.Fatalf("CompileInputContract: %v", err)
+			}
+			_, _, _, err = ValidateCallerInputSnapshot(compiled, map[string]any{"caller.payload": map[string]any{}})
+			if err == nil || !strings.Contains(err.Error(), "replayable caller inputs require value retention") {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+
+	mutated := callerInputContractDefinition()
+	mutated.InputContract.Specs[0].Sensitivity = InputSensitivitySensitive
+	mutated.InputContract.Specs[0].Retention = InputRetentionDigest
+	compiled, err = CompileInputContract(map[Mode]Definition{mutated.Mode: mutated}, mutated)
+	if err != nil {
+		t.Fatalf("CompileInputContract sensitive: %v", err)
+	}
+	_, _, _, err = ValidateCallerInputSnapshot(compiled, map[string]any{"caller.payload": map[string]any{}})
+	if err == nil || !strings.Contains(err.Error(), "sensitive") {
+		t.Fatalf("sensitive caller error = %v", err)
+	}
+}
+
+func TestOptionalCallerInputRendersNullWhenAbsentFromSnapshot(t *testing.T) {
+	def := callerInputContractDefinition()
+	def.InputContract.Specs[0].Required = false
+	compiled, err := CompileInputContract(map[Mode]Definition{def.Mode: def}, def)
+	if err != nil {
+		t.Fatalf("CompileInputContract: %v", err)
+	}
+	snapshot, digest, retention, err := ValidateCallerInputSnapshot(compiled, nil)
+	if err != nil {
+		t.Fatalf("ValidateCallerInputSnapshot: %v", err)
+	}
+	compiledJSON, _ := json.Marshal(compiled)
+	rc := RunContext{
+		Def: def, PhaseDef: def.PhaseGraph.Phases["run"],
+		Execution: &OperatingModeExecution{
+			CompiledInputContract: compiledJSON, ValidatedInputSnapshot: snapshot,
+			InputSnapshotDigest: digest, InputRetentionMetadata: retention,
+		},
+	}
+	reads, err := rc.DeclaredReads(RoundEnvelope{Round: 1}, "")
+	if err != nil {
+		t.Fatalf("DeclaredReads: %v", err)
+	}
+	if reads["CALLER_PAYLOAD_JSON"] != "null" || reads["CALLER_LIMIT"] != "null" {
+		t.Fatalf("optional caller reads = %#v, want null values", reads)
 	}
 }
 

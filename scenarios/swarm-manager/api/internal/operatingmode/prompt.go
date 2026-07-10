@@ -2,11 +2,16 @@ package operatingmode
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+
+	"swarm-manager/internal/promptmanager"
 )
 
 // ErrPromptRenderUnavailable signals the no-spawn render seam cannot run
@@ -25,12 +30,114 @@ type renderedPhasePrompt struct {
 	ProfileKey string
 	Variables  map[string]string
 	Prompt     string
+	Source     *PinnedPromptSource
 }
 
 // templateSlotRE matches an unsubstituted {{VARIABLE}} template slot left in a
 // rendered prompt. Slots use SCREAMING_SNAKE names, matching the read
 // vocabulary.
 var templateSlotRE = regexp.MustCompile(`\{\{([A-Z][A-Z0-9_]*)\}\}`)
+
+func promptSourceKey(mode Mode, phase Phase) string {
+	return string(mode) + "/" + string(phase)
+}
+
+func (s *Service) pinReachablePromptSources(ctx context.Context, def Definition) (map[string]PinnedPromptSource, error) {
+	bundle, _, err := pinDefinitionBundle(def, DefinitionFor)
+	if err != nil {
+		return nil, err
+	}
+	return s.pinPromptSourcesFromBundle(ctx, bundle)
+}
+
+func (s *Service) pinPromptSourcesFromBundle(ctx context.Context, bundle DefinitionBundle) (map[string]PinnedPromptSource, error) {
+	sourceClient, ok := s.prompts.(promptmanager.SourceClient)
+	if !ok {
+		return nil, fmt.Errorf("%w: prompt client cannot snapshot immutable skill sources", ErrPromptRenderUnavailable)
+	}
+	root, err := bundle.RootDefinition()
+	if err != nil {
+		return nil, err
+	}
+	compiled, err := CompileInputContract(bundle.Definitions, root)
+	if err != nil {
+		return nil, err
+	}
+
+	modes := make([]string, 0, len(bundle.Definitions))
+	for mode := range bundle.Definitions {
+		modes = append(modes, string(mode))
+	}
+	sort.Strings(modes)
+	pinned := map[string]PinnedPromptSource{}
+	for _, modeName := range modes {
+		mode := Mode(modeName)
+		modeDef := bundle.Definitions[mode]
+		phases := make([]string, 0, len(modeDef.PhaseGraph.Phases))
+		for phase := range modeDef.PhaseGraph.Phases {
+			phases = append(phases, string(phase))
+		}
+		sort.Strings(phases)
+		for _, phaseName := range phases {
+			phase := Phase(phaseName)
+			phaseDef := modeDef.PhaseGraph.Phases[phase]
+			if phaseDef.Delegated() {
+				continue
+			}
+			expected, err := compiledPhaseTemplateVariables(compiled, mode, phase)
+			if err != nil {
+				return nil, err
+			}
+			snapshot, err := sourceClient.ReadSkillSource(ctx, phaseDef.SkillID, expected)
+			if err != nil {
+				return nil, fmt.Errorf("pin prompt source for mode %q phase %q: %w", mode, phase, err)
+			}
+			if strings.TrimSpace(snapshot.SkillID) != phaseDef.SkillID {
+				return nil, fmt.Errorf("pin prompt source for mode %q phase %q: skill mismatch %q != %q", mode, phase, snapshot.SkillID, phaseDef.SkillID)
+			}
+			if snapshot.Revision <= 0 || strings.TrimSpace(snapshot.Content) == "" || strings.TrimSpace(snapshot.ContentHash) == "" {
+				return nil, fmt.Errorf("pin prompt source for mode %q phase %q: incomplete immutable source metadata", mode, phase)
+			}
+			actualDigest := sha256.Sum256([]byte(snapshot.Content))
+			if want := fmt.Sprintf("sha256:%x", actualDigest[:]); snapshot.ContentHash != want {
+				return nil, fmt.Errorf("pin prompt source for mode %q phase %q: content hash %q does not match %q", mode, phase, snapshot.ContentHash, want)
+			}
+			actualVariables := append([]string(nil), snapshot.TemplateVariables...)
+			sort.Strings(actualVariables)
+			if strings.Join(actualVariables, "\x00") != strings.Join(expected, "\x00") {
+				return nil, fmt.Errorf("pin prompt source for mode %q phase %q: template variables %v do not exactly match compiled bindings %v", mode, phase, actualVariables, expected)
+			}
+			pinned[promptSourceKey(mode, phase)] = PinnedPromptSource{
+				Mode: modeName, Phase: phaseName, SkillID: phaseDef.SkillID,
+				Revision: strconv.Itoa(snapshot.Revision), Variant: snapshot.SelectedVariantID,
+				Content: snapshot.Content, ContentHash: snapshot.ContentHash,
+				TemplateVariables: actualVariables, Retention: string(InputRetentionValue),
+			}
+		}
+	}
+	return pinned, nil
+}
+
+func compiledPhaseTemplateVariables(compiled CompiledInputContract, mode Mode, phase Phase) ([]string, error) {
+	for _, modeContract := range compiled.Modes {
+		if modeContract.Mode != mode {
+			continue
+		}
+		for _, phaseContract := range modeContract.Phases {
+			if phaseContract.Phase != phase {
+				continue
+			}
+			variables := make([]string, 0, len(phaseContract.Bindings))
+			for _, binding := range phaseContract.Bindings {
+				variables = append(variables, binding.Variable)
+			}
+			sort.Strings(variables)
+			return variables, nil
+		}
+		return nil, fmt.Errorf("compiled input contract for mode %q has no phase %q", mode, phase)
+	}
+	return nil, fmt.Errorf("compiled input contract has no mode %q", mode)
+}
 
 // renderPhasePrompt is the single seam that resolves a phase's skill, validates
 // it against the prompt catalog, substitutes the phase's declared reads into
@@ -62,10 +169,37 @@ func (s *Service) renderPhasePrompt(ctx context.Context, rc RunContext, round Ro
 	if err != nil {
 		return renderedPhasePrompt{}, err
 	}
-	prompt, err := s.prompts.ReadSkill(ctx, skillID, variables, false)
-	if err != nil {
-		return renderedPhasePrompt{}, err
+	var prompt string
+	if rc.Execution != nil {
+		source, ok := rc.Execution.ReachablePromptSources[promptSourceKey(rc.Def.Mode, rc.PhaseDef.Phase)]
+		if !ok {
+			return renderedPhasePrompt{}, fmt.Errorf("execution %q has no pinned prompt source for mode %q phase %q", rc.Execution.ExecutionID, rc.Def.Mode, rc.PhaseDef.Phase)
+		}
+		actualDigest := sha256.Sum256([]byte(source.Content))
+		if want := fmt.Sprintf("sha256:%x", actualDigest[:]); source.ContentHash != want {
+			return renderedPhasePrompt{}, fmt.Errorf("execution %q pinned prompt source hash mismatch for mode %q phase %q", rc.Execution.ExecutionID, rc.Def.Mode, rc.PhaseDef.Phase)
+		}
+		prompt = source.Content
+		sourceCopy := source
+		keys := make([]string, 0, len(variables))
+		for name := range variables {
+			keys = append(keys, name)
+		}
+		sort.Strings(keys)
+		for _, name := range keys {
+			prompt = strings.ReplaceAll(prompt, "{{"+name+"}}", variables[name])
+		}
+		return validateRenderedPhasePrompt(skillID, rc, variables, prompt, &sourceCopy)
+	} else {
+		prompt, err = s.prompts.ReadSkill(ctx, skillID, variables, false)
+		if err != nil {
+			return renderedPhasePrompt{}, err
+		}
 	}
+	return validateRenderedPhasePrompt(skillID, rc, variables, prompt, nil)
+}
+
+func validateRenderedPhasePrompt(skillID string, rc RunContext, variables map[string]string, prompt string, source *PinnedPromptSource) (renderedPhasePrompt, error) {
 	if strings.TrimSpace(prompt) == "" {
 		return renderedPhasePrompt{}, fmt.Errorf("prompt skill %q rendered empty content", skillID)
 	}
@@ -77,6 +211,32 @@ func (s *Service) renderPhasePrompt(ctx context.Context, rc RunContext, round Ro
 		ProfileKey: rc.PhaseDef.ProfileKey,
 		Variables:  variables,
 		Prompt:     prompt,
+		Source:     source,
+	}, nil
+}
+
+func promptRenderTrace(rendered renderedPhasePrompt, execution OperatingModeExecution) (*PromptRenderTrace, error) {
+	if rendered.Source == nil {
+		return nil, fmt.Errorf("pinned prompt source is required for a durable round trace")
+	}
+	variablesJSON, err := json.Marshal(rendered.Variables)
+	if err != nil {
+		return nil, fmt.Errorf("marshal rendered prompt variables: %w", err)
+	}
+	variablesDigest, err := canonicalJSONDigest(variablesJSON)
+	if err != nil {
+		return nil, fmt.Errorf("digest rendered prompt variables: %w", err)
+	}
+	promptDigest := sha256.Sum256([]byte(rendered.Prompt))
+	return &PromptRenderTrace{
+		SkillID: rendered.SkillID, SourceRevision: rendered.Source.Revision,
+		SourceVariant: rendered.Source.Variant, SourceHash: rendered.Source.ContentHash,
+		VariablesHash: variablesDigest, RenderedPromptHash: fmt.Sprintf("sha256:%x", promptDigest[:]),
+		DefinitionDigest: execution.DefinitionDigest, InputContractDigest: execution.InputContractDigest,
+		RedactionMetadata: map[string]any{
+			"variables_persisted": false, "rendered_prompt_persisted": false,
+			"policy": "hashes_only",
+		},
 	}, nil
 }
 

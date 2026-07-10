@@ -2,6 +2,7 @@ package operatingmode
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -198,13 +199,15 @@ func (f *fakeAgent) StopRun(_ context.Context, runID string) error {
 }
 
 type fakePrompts struct {
-	calls []string
-	err   error
-	text  string
+	calls       []string
+	sourceCalls []string
+	err         error
+	text        string
 	// render, when set, deterministically substitutes variables so tests can
 	// assert fixture data reaches the prompt. It also lets the parity test prove
 	// the spawn path and preview path pass an identical variable map.
 	render func(skillID string, variables map[string]string) string
+	source func(skillID string, expectedVariables []string) (string, int)
 }
 
 func (f *fakePrompts) ReadSkill(_ context.Context, skillID string, variables map[string]string, _ bool) (string, error) {
@@ -219,6 +222,39 @@ func (f *fakePrompts) ReadSkill(_ context.Context, skillID string, variables map
 		return f.text, nil
 	}
 	return "rendered " + skillID, nil
+}
+
+func (f *fakePrompts) ReadSkillSource(_ context.Context, skillID string, expectedVariables []string) (promptmanager.SkillSourceSnapshot, error) {
+	f.sourceCalls = append(f.sourceCalls, skillID)
+	if f.err != nil {
+		return promptmanager.SkillSourceSnapshot{}, f.err
+	}
+	placeholders := make(map[string]string, len(expectedVariables))
+	for _, name := range expectedVariables {
+		placeholders[name] = "{{" + name + "}}"
+	}
+	var content string
+	revision := 1
+	if f.source != nil {
+		content, revision = f.source(skillID, expectedVariables)
+	} else if f.render != nil {
+		content = f.render(skillID, placeholders)
+	} else if f.text != "" {
+		content = f.text
+	} else {
+		var b strings.Builder
+		fmt.Fprintf(&b, "rendered %s\n", skillID)
+		for _, name := range expectedVariables {
+			fmt.Fprintf(&b, "%s={{%s}}\n", name, name)
+		}
+		content = b.String()
+	}
+	digest := sha256.Sum256([]byte(content))
+	return promptmanager.SkillSourceSnapshot{
+		SkillID: skillID, Revision: revision, SelectedVariantID: "control",
+		Content: content, ContentHash: fmt.Sprintf("sha256:%x", digest[:]),
+		TemplateVariables: unsatisfiedTemplateSlots(content),
+	}, nil
 }
 
 type failingOverrideLock struct {
@@ -272,6 +308,15 @@ func TestStartPhaseCreatesRoundLocksAndSpawnsWithProfile(t *testing.T) {
 	if round.AgentProfileKey != ProfileDeepWork {
 		t.Fatalf("profile = %q, want %q", round.AgentProfileKey, ProfileDeepWork)
 	}
+	if round.PromptTrace == nil || round.PromptTrace.SourceRevision == "" || round.PromptTrace.SourceHash == "" || round.PromptTrace.VariablesHash == "" || round.PromptTrace.RenderedPromptHash == "" {
+		t.Fatalf("prompt trace = %+v", round.PromptTrace)
+	}
+	if round.PromptTrace.DefinitionDigest != round.DefinitionDigest || round.PromptTrace.InputContractDigest == "" {
+		t.Fatalf("prompt trace execution provenance = %+v", round.PromptTrace)
+	}
+	if round.PromptTrace.RedactionMetadata["policy"] != "hashes_only" {
+		t.Fatalf("prompt trace redaction = %+v", round.PromptTrace.RedactionMetadata)
+	}
 	if len(agent.spawned) != 1 {
 		t.Fatalf("spawn count = %d, want 1", len(agent.spawned))
 	}
@@ -279,8 +324,12 @@ func TestStartPhaseCreatesRoundLocksAndSpawnsWithProfile(t *testing.T) {
 	if spawn.ProfileKey != ProfileDeepWork || spawn.Purpose != "holistic_loop_investigate" {
 		t.Fatalf("spawn profile/purpose = %q/%q", spawn.ProfileKey, spawn.Purpose)
 	}
-	if len(prompts.calls) != 1 || prompts.calls[0] != "swarm-manager-holistic-loop-investigate" {
-		t.Fatalf("prompt calls = %#v", prompts.calls)
+	var pinnedInvestigate bool
+	for _, skillID := range prompts.sourceCalls {
+		pinnedInvestigate = pinnedInvestigate || skillID == "swarm-manager-holistic-loop-investigate"
+	}
+	if len(prompts.calls) != 0 || !pinnedInvestigate {
+		t.Fatalf("prompt/source calls = %#v / %#v", prompts.calls, prompts.sourceCalls)
 	}
 	holder, err := svc.lock.Inspect("init-a")
 	if err != nil {
@@ -312,6 +361,38 @@ func TestStartPhaseRejectsInvalidFirstPhase(t *testing.T) {
 	}
 	if len(rounds) != 0 {
 		t.Fatalf("rounds = %+v, want no reserved round for invalid phase", rounds)
+	}
+}
+
+func TestStartPhaseRejectsCallerInputsBeforeExecutionOrRoundMutation(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+
+	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+		Inputs:         map[string]any{"caller.undeclared": true},
+	})
+	if err == nil || !strings.Contains(err.Error(), "unknown caller inputs") {
+		t.Fatalf("StartPhase caller-input error = %v, want unknown input rejection", err)
+	}
+	if len(agent.spawned) != 0 {
+		t.Fatalf("spawned = %d, want no spawn", len(agent.spawned))
+	}
+	executions, listErr := svc.store.ListExecutions("init-a", ModeHolisticLoop)
+	if listErr != nil {
+		t.Fatalf("ListExecutions: %v", listErr)
+	}
+	if len(executions) != 0 {
+		t.Fatalf("executions = %+v, want no partial manifest", executions)
+	}
+	rounds, listErr := svc.store.ListRounds("init-a", ModeHolisticLoop)
+	if listErr != nil {
+		t.Fatalf("ListRounds: %v", listErr)
+	}
+	if len(rounds) != 0 {
+		t.Fatalf("rounds = %+v, want no reserved round", rounds)
 	}
 }
 
@@ -433,22 +514,23 @@ func TestStartPhaseFailsClosedWhenPromptRenderFails(t *testing.T) {
 	agent := &fakeAgent{}
 	svc := newTestService(t, root, agent, &fakePrompts{err: errors.New("prompt-manager unavailable")})
 
-	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
 		InitiativeName: "init-a",
 		Phase:          "investigate",
 	})
-	if err == nil || !strings.Contains(err.Error(), "render operating-mode prompt") {
-		t.Fatalf("StartPhase error = %v, want prompt render failure", err)
+	if err == nil || !strings.Contains(err.Error(), "pin prompt source") {
+		t.Fatalf("StartPhase error = %v, want prompt source preflight failure", err)
 	}
 	if len(agent.spawned) != 0 {
 		t.Fatalf("spawned = %d, want no spawn when prompt rendering fails", len(agent.spawned))
 	}
-	loaded, loadErr := svc.store.LoadRound("init-a", ModeHolisticLoop, round.Round)
-	if loadErr != nil {
-		t.Fatalf("LoadRound: %v", loadErr)
+	rounds, listErr := svc.store.ListRounds("init-a", ModeHolisticLoop)
+	if listErr != nil || len(rounds) != 0 {
+		t.Fatalf("rounds = %+v, %v; want no preflight mutation", rounds, listErr)
 	}
-	if loaded.Status != RoundStatusFailed || !strings.Contains(loaded.Error, "prompt-manager unavailable") {
-		t.Fatalf("round = %+v, want failed prompt round", loaded)
+	executions, listErr := svc.store.ListExecutions("init-a", ModeHolisticLoop)
+	if listErr != nil || len(executions) != 0 {
+		t.Fatalf("executions = %+v, %v; want no partial manifest", executions, listErr)
 	}
 	holder, inspectErr := svc.lock.Inspect("init-a")
 	if inspectErr != nil {
@@ -456,6 +538,29 @@ func TestStartPhaseFailsClosedWhenPromptRenderFails(t *testing.T) {
 	}
 	if holder != nil {
 		t.Fatalf("lock holder = %+v, want nil after prompt failure", holder)
+	}
+}
+
+func TestStartPhaseRejectsPromptVariableMismatchBeforeMutation(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{}
+	prompts := &fakePrompts{source: func(skillID string, _ []string) (string, int) {
+		return "skill=" + skillID + " {{UNDECLARED_PROMPT_VARIABLE}}", 1
+	}}
+	svc := newTestService(t, root, agent, prompts)
+	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a", Phase: "investigate",
+	})
+	if err == nil || !strings.Contains(err.Error(), "do not exactly match compiled bindings") {
+		t.Fatalf("StartPhase error = %v, want exact variable mismatch", err)
+	}
+	executions, listErr := svc.store.ListExecutions("init-a", ModeHolisticLoop)
+	if listErr != nil || len(executions) != 0 {
+		t.Fatalf("executions = %+v, %v; want no partial manifest", executions, listErr)
+	}
+	rounds, listErr := svc.store.ListRounds("init-a", ModeHolisticLoop)
+	if listErr != nil || len(rounds) != 0 || len(agent.spawned) != 0 {
+		t.Fatalf("rounds/spawns = %+v/%d, err=%v; want no side effects", rounds, len(agent.spawned), listErr)
 	}
 }
 
@@ -627,6 +732,14 @@ func TestStartPhaseCreatesExecutionManifestAndRunOwnerIndex(t *testing.T) {
 	}
 	if execution.DefinitionDigest != round.DefinitionDigest || len(execution.DefinitionBundle.Definitions) != 2 {
 		t.Fatalf("execution manifest = %+v", execution)
+	}
+	if len(execution.ReachablePromptSources) == 0 {
+		t.Fatalf("execution prompt bundle was not pinned: %+v", execution)
+	}
+	for key, source := range execution.ReachablePromptSources {
+		if source.Revision == "" || source.ContentHash == "" || source.Content == "" || len(source.TemplateVariables) == 0 {
+			t.Fatalf("incomplete prompt source %q: %+v", key, source)
+		}
 	}
 	owner, err := svc.store.ResolveRunOwner("init-a", ModeHolisticLoop, round.RunID)
 	if err != nil {

@@ -226,6 +226,7 @@ type StartPhaseRequest struct {
 	InitiativeName string
 	Phase          string
 	Note           string
+	Inputs         map[string]any
 	Override       bool
 	RequestedBy    string
 }
@@ -240,6 +241,7 @@ type StartTargetPhaseRequest struct {
 	TargetRef   string
 	Phase       string
 	Note        string
+	Inputs      map[string]any
 	Override    bool
 	RequestedBy string
 }
@@ -315,15 +317,16 @@ type Workspace struct {
 }
 
 type WorkspaceMode struct {
-	Mode         string              `json:"mode"`
-	Label        string              `json:"label"`
-	Description  string              `json:"description,omitempty"`
-	TargetKind   string              `json:"target_kind"`
-	Capabilities ModeCapabilities    `json:"capabilities"`
-	Phases       []WorkspacePhase    `json:"phases"`
-	Terminal     []string            `json:"terminal"`
-	Transitions  map[string][]string `json:"transitions"`
-	RunStrategy  string              `json:"run_strategy"`
+	Mode          string                `json:"mode"`
+	Label         string                `json:"label"`
+	Description   string                `json:"description,omitempty"`
+	TargetKind    string                `json:"target_kind"`
+	Capabilities  ModeCapabilities      `json:"capabilities"`
+	Phases        []WorkspacePhase      `json:"phases"`
+	Terminal      []string              `json:"terminal"`
+	Transitions   map[string][]string   `json:"transitions"`
+	RunStrategy   string                `json:"run_strategy"`
+	InputContract CompiledInputContract `json:"input_contract"`
 }
 
 type ModeCapabilities struct {
@@ -364,6 +367,7 @@ type ModeCatalogEntry struct {
 	SupportsPhases         bool                   `json:"supports_phases"`
 	Phases                 []ModeCatalogPhase     `json:"phases"`
 	PhaseGraph             *ModeCatalogPhaseGraph `json:"phase_graph,omitempty"`
+	InputContract          CompiledInputContract  `json:"input_contract"`
 }
 
 // InitiativeRef is the compact view of an initiative attached to a mode in

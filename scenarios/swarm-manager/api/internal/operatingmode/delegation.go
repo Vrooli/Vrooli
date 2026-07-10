@@ -291,5 +291,6 @@ func collectDelegatedRunContext(parent RunContext) (RunContext, error) {
 		Target:    target,
 		Artifacts: parent.Artifacts,
 		Rounds:    parent.Rounds,
+		Execution: parent.Execution,
 	}, nil
 }

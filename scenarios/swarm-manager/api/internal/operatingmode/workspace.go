@@ -201,6 +201,7 @@ func (s *Service) modeUsageCounts() (map[Mode]int, error) {
 
 func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 	capabilities := modeCapabilities(def)
+	inputContract := compiledInputContractForProjection(def)
 	entry := ModeCatalogEntry{
 		Mode:                   string(def.Mode),
 		Label:                  def.Label,
@@ -217,6 +218,7 @@ func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 		Default:                def.Mode == DefaultMode(),
 		Switchable:             true,
 		SupportsPhases:         capabilities.SupportsPhases,
+		InputContract:          inputContract,
 	}
 	if !entry.SupportsPhases {
 		return entry
@@ -379,16 +381,33 @@ func workspaceMode(def Definition, rounds []RoundEnvelope, acceptanceCriteria []
 		}
 	}
 	return WorkspaceMode{
-		Mode:         string(def.Mode),
-		Label:        def.Label,
-		Description:  def.Description,
-		TargetKind:   string(def.Target.Kind),
-		Capabilities: modeCapabilities(def),
-		Phases:       phases,
-		Terminal:     terminal,
-		Transitions:  transitions,
-		RunStrategy:  string(def.RunStrategy.Kind),
+		Mode:          string(def.Mode),
+		Label:         def.Label,
+		Description:   def.Description,
+		TargetKind:    string(def.Target.Kind),
+		Capabilities:  modeCapabilities(def),
+		Phases:        phases,
+		Terminal:      terminal,
+		Transitions:   transitions,
+		RunStrategy:   string(def.RunStrategy.Kind),
+		InputContract: compiledInputContractForProjection(def),
 	}
+}
+
+func compiledInputContractForProjection(def Definition) CompiledInputContract {
+	bundle, _, err := pinDefinitionBundle(def, DefinitionFor)
+	if err != nil {
+		return CompiledInputContract{}
+	}
+	root, err := bundle.RootDefinition()
+	if err != nil {
+		return CompiledInputContract{}
+	}
+	compiled, err := CompileInputContract(bundle.Definitions, root)
+	if err != nil {
+		return CompiledInputContract{}
+	}
+	return compiled
 }
 
 // phasesToStrings projects a slice of typed Phase values to plain strings for

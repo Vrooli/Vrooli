@@ -51,26 +51,39 @@ type Handoff struct {
 	CreatedAt string `json:"created_at,omitempty"`
 }
 
+type PromptRenderTrace struct {
+	SkillID             string         `json:"skill_id"`
+	SourceRevision      string         `json:"source_revision"`
+	SourceVariant       string         `json:"source_variant,omitempty"`
+	SourceHash          string         `json:"source_hash"`
+	VariablesHash       string         `json:"variables_hash"`
+	RenderedPromptHash  string         `json:"rendered_prompt_hash"`
+	DefinitionDigest    string         `json:"definition_digest"`
+	InputContractDigest string         `json:"input_contract_digest"`
+	RedactionMetadata   map[string]any `json:"redaction_metadata,omitempty"`
+}
+
 type RoundEnvelope struct {
-	ExecutionID      string           `json:"execution_id,omitempty"`
-	DefinitionDigest string           `json:"definition_digest,omitempty"`
-	Round            int              `json:"round"`
-	Mode             string           `json:"mode"`
-	ScopeKind        string           `json:"scope_kind"`
-	ScopeID          string           `json:"scope_id"`
-	InitiativeName   string           `json:"initiative_name,omitempty"`
-	Phase            string           `json:"phase"`
-	RunStrategy      string           `json:"run_strategy"`
-	AgentProfileKey  string           `json:"agent_profile_key"`
-	GeneratedAt      string           `json:"generated_at"`
-	RunID            string           `json:"run_id,omitempty"`
-	Status           RoundStatus      `json:"status"`
-	Readiness        *ReadinessReport `json:"readiness,omitempty"`
-	Items            []RoundItem      `json:"items,omitempty"`
-	ArtifactUpdates  []ArtifactUpdate `json:"artifact_updates,omitempty"`
-	Handoffs         []Handoff        `json:"handoffs,omitempty"`
-	Payload          map[string]any   `json:"payload,omitempty"`
-	Error            string           `json:"error,omitempty"`
+	ExecutionID      string             `json:"execution_id,omitempty"`
+	DefinitionDigest string             `json:"definition_digest,omitempty"`
+	Round            int                `json:"round"`
+	Mode             string             `json:"mode"`
+	ScopeKind        string             `json:"scope_kind"`
+	ScopeID          string             `json:"scope_id"`
+	InitiativeName   string             `json:"initiative_name,omitempty"`
+	Phase            string             `json:"phase"`
+	RunStrategy      string             `json:"run_strategy"`
+	AgentProfileKey  string             `json:"agent_profile_key"`
+	GeneratedAt      string             `json:"generated_at"`
+	RunID            string             `json:"run_id,omitempty"`
+	Status           RoundStatus        `json:"status"`
+	Readiness        *ReadinessReport   `json:"readiness,omitempty"`
+	Items            []RoundItem        `json:"items,omitempty"`
+	ArtifactUpdates  []ArtifactUpdate   `json:"artifact_updates,omitempty"`
+	Handoffs         []Handoff          `json:"handoffs,omitempty"`
+	PromptTrace      *PromptRenderTrace `json:"prompt_trace,omitempty"`
+	Payload          map[string]any     `json:"payload,omitempty"`
+	Error            string             `json:"error,omitempty"`
 }
 
 type RoundItem struct {

@@ -56,14 +56,16 @@ func (b DefinitionBundle) RootDefinition() (Definition, error) {
 // PinnedPromptSource is a Phase 4 provenance slot. Phase 3 persists the stable
 // shape now so later prompt pinning does not require a manifest migration.
 type PinnedPromptSource struct {
-	Mode        string `json:"mode"`
-	Phase       string `json:"phase"`
-	SkillID     string `json:"skill_id"`
-	Revision    string `json:"revision,omitempty"`
-	Content     string `json:"content,omitempty"`
-	ContentHash string `json:"content_hash,omitempty"`
-	Retention   string `json:"retention,omitempty"`
-	Redacted    bool   `json:"redacted,omitempty"`
+	Mode              string   `json:"mode"`
+	Phase             string   `json:"phase"`
+	SkillID           string   `json:"skill_id"`
+	Revision          string   `json:"revision,omitempty"`
+	Variant           string   `json:"variant,omitempty"`
+	Content           string   `json:"content,omitempty"`
+	ContentHash       string   `json:"content_hash,omitempty"`
+	TemplateVariables []string `json:"template_variables,omitempty"`
+	Retention         string   `json:"retention,omitempty"`
+	Redacted          bool     `json:"redacted,omitempty"`
 }
 
 type ExecutionMigrationProvenance struct {
@@ -166,6 +168,19 @@ func definitionBundleDigest(bundle DefinitionBundle) (string, error) {
 	return fmt.Sprintf("sha256:%x", digest[:]), nil
 }
 
+func canonicalJSONDigest(raw json.RawMessage) (string, error) {
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return "", fmt.Errorf("decode canonical JSON: %w", err)
+	}
+	canonical, err := json.Marshal(value)
+	if err != nil {
+		return "", fmt.Errorf("encode canonical JSON: %w", err)
+	}
+	digest := sha256.Sum256(canonical)
+	return fmt.Sprintf("sha256:%x", digest[:]), nil
+}
+
 func clonePinnedDefinition(def Definition) (Definition, error) {
 	data, err := json.Marshal(def)
 	if err != nil {
@@ -179,9 +194,17 @@ func clonePinnedDefinition(def Definition) (Definition, error) {
 }
 
 func (s *Store) CreateExecution(scopeID string, def Definition) (OperatingModeExecution, error) {
+	return s.CreateExecutionWithInputs(scopeID, def, nil)
+}
+
+func (s *Store) CreateExecutionWithInputs(scopeID string, def Definition, callerInputs map[string]any) (OperatingModeExecution, error) {
+	return s.CreateExecutionWithPreflight(scopeID, def, callerInputs, nil)
+}
+
+func (s *Store) CreateExecutionWithPreflight(scopeID string, def Definition, callerInputs map[string]any, promptSources map[string]PinnedPromptSource) (OperatingModeExecution, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.createExecutionLocked(scopeID, def, nil)
+	return s.createExecutionLocked(scopeID, def, callerInputs, promptSources, nil)
 }
 
 // ContinueOrCreateExecution returns the one resumable execution for the target,
@@ -189,6 +212,14 @@ func (s *Store) CreateExecution(scopeID string, def Definition) (OperatingModeEx
 // resumable manifests are never resolved by precedence: they are ambiguous
 // state that requires repair.
 func (s *Store) ContinueOrCreateExecution(scopeID string, def Definition) (OperatingModeExecution, error) {
+	return s.ContinueOrCreateExecutionWithInputs(scopeID, def, nil)
+}
+
+func (s *Store) ContinueOrCreateExecutionWithInputs(scopeID string, def Definition, callerInputs map[string]any) (OperatingModeExecution, error) {
+	return s.ContinueOrCreateExecutionWithPreflight(scopeID, def, callerInputs, nil)
+}
+
+func (s *Store) ContinueOrCreateExecutionWithPreflight(scopeID string, def Definition, callerInputs map[string]any, promptSources map[string]PinnedPromptSource) (OperatingModeExecution, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	executions, err := s.ListExecutions(scopeID, def.Mode)
@@ -203,15 +234,28 @@ func (s *Store) ContinueOrCreateExecution(scopeID string, def Definition) (Opera
 	}
 	switch len(resumable) {
 	case 0:
-		return s.createExecutionLocked(scopeID, def, nil)
+		return s.createExecutionLocked(scopeID, def, callerInputs, promptSources, nil)
 	case 1:
+		if len(callerInputs) > 0 {
+			var compiled CompiledInputContract
+			if err := json.Unmarshal(resumable[0].CompiledInputContract, &compiled); err != nil {
+				return OperatingModeExecution{}, fmt.Errorf("decode resumable execution input contract: %w", err)
+			}
+			_, digest, _, err := ValidateCallerInputSnapshot(compiled, callerInputs)
+			if err != nil {
+				return OperatingModeExecution{}, err
+			}
+			if digest != resumable[0].InputSnapshotDigest {
+				return OperatingModeExecution{}, fmt.Errorf("caller inputs conflict with resumable execution %q", resumable[0].ExecutionID)
+			}
+		}
 		return resumable[0], nil
 	default:
 		return OperatingModeExecution{}, fmt.Errorf("%w: mode %q scope %q has %d resumable manifests", ErrExecutionAmbiguous, def.Mode, scopeID, len(resumable))
 	}
 }
 
-func (s *Store) createExecutionLocked(scopeID string, def Definition, migration *ExecutionMigrationProvenance) (OperatingModeExecution, error) {
+func (s *Store) createExecutionLocked(scopeID string, def Definition, callerInputs map[string]any, promptSources map[string]PinnedPromptSource, migration *ExecutionMigrationProvenance) (OperatingModeExecution, error) {
 	scopeID = strings.TrimSpace(scopeID)
 	if scopeID == "" {
 		return OperatingModeExecution{}, fmt.Errorf("scope_id is required")
@@ -232,7 +276,14 @@ func (s *Store) createExecutionLocked(scopeID string, def Definition, migration 
 	if err != nil {
 		return OperatingModeExecution{}, fmt.Errorf("marshal execution input contract: %w", err)
 	}
-	inputDigest := sha256.Sum256(compiledInputJSON)
+	inputDigest, err := canonicalJSONDigest(compiledInputJSON)
+	if err != nil {
+		return OperatingModeExecution{}, fmt.Errorf("digest execution input contract: %w", err)
+	}
+	inputSnapshot, inputSnapshotDigest, retentionMetadata, err := ValidateCallerInputSnapshot(compiledInputs, callerInputs)
+	if err != nil {
+		return OperatingModeExecution{}, fmt.Errorf("validate execution caller inputs: %w", err)
+	}
 	now := s.now().Format(time.RFC3339Nano)
 	executionID := uuid.NewString()
 	if s.ExecutionID != nil {
@@ -245,12 +296,16 @@ func (s *Store) createExecutionLocked(scopeID string, def Definition, migration 
 		ExecutionID: executionID,
 		ScopeKind:   string(def.Target.Kind), ScopeID: scopeID, Mode: string(def.Mode),
 		Status: ExecutionStatusActive, CreatedAt: now, UpdatedAt: now,
-		SchemaVersion:         executionManifestSchemaVersion,
-		DefinitionDigest:      digest,
-		DefinitionBundle:      bundle,
-		InputContractDigest:   fmt.Sprintf("sha256:%x", inputDigest[:]),
-		CompiledInputContract: compiledInputJSON,
-		Migration:             migration,
+		SchemaVersion:          executionManifestSchemaVersion,
+		DefinitionDigest:       digest,
+		DefinitionBundle:       bundle,
+		InputContractDigest:    inputDigest,
+		CompiledInputContract:  compiledInputJSON,
+		InputSnapshotDigest:    inputSnapshotDigest,
+		ValidatedInputSnapshot: inputSnapshot,
+		InputRetentionMetadata: retentionMetadata,
+		ReachablePromptSources: clonePinnedPromptSources(promptSources),
+		Migration:              migration,
 	}
 	path, err := s.executionManifestPath(execution, def)
 	if err != nil {
@@ -263,6 +318,18 @@ func (s *Store) createExecutionLocked(scopeID string, def Definition, migration 
 		return OperatingModeExecution{}, fmt.Errorf("create execution manifest: %w", err)
 	}
 	return execution, nil
+}
+
+func clonePinnedPromptSources(sources map[string]PinnedPromptSource) map[string]PinnedPromptSource {
+	if len(sources) == 0 {
+		return nil
+	}
+	out := make(map[string]PinnedPromptSource, len(sources))
+	for key, source := range sources {
+		source.TemplateVariables = append([]string(nil), source.TemplateVariables...)
+		out[key] = source
+	}
+	return out
 }
 
 // AdoptLegacyExecution migrates one unambiguous flat-round history into the
@@ -750,6 +817,24 @@ func validateExecutionManifest(execution OperatingModeExecution) error {
 	}
 	if execution.DefinitionDigest != digest {
 		return fmt.Errorf("execution definition digest %q does not match bundle %q", execution.DefinitionDigest, digest)
+	}
+	if len(execution.CompiledInputContract) > 0 {
+		want, err := canonicalJSONDigest(execution.CompiledInputContract)
+		if err != nil {
+			return fmt.Errorf("validate compiled input contract: %w", err)
+		}
+		if execution.InputContractDigest != want {
+			return fmt.Errorf("execution input contract digest %q does not match compiled contract %q", execution.InputContractDigest, want)
+		}
+	}
+	if len(execution.ValidatedInputSnapshot) > 0 {
+		want, err := canonicalJSONDigest(execution.ValidatedInputSnapshot)
+		if err != nil {
+			return fmt.Errorf("validate input snapshot: %w", err)
+		}
+		if execution.InputSnapshotDigest != want {
+			return fmt.Errorf("execution input snapshot digest %q does not match validated snapshot %q", execution.InputSnapshotDigest, want)
+		}
 	}
 	return nil
 }

@@ -198,6 +198,54 @@ export interface OperatingModeCapabilities {
   usesItemExecutionFlow: boolean;
 }
 
+export type OperatingModeInputValue =
+  | null
+  | string
+  | number
+  | boolean
+  | OperatingModeInputValue[]
+  | { [key: string]: OperatingModeInputValue };
+
+export type OperatingModeCallerInputs = Record<string, OperatingModeInputValue>;
+
+export interface OperatingModeCompiledInputContract {
+  schemaVersion: string;
+  rootMode: InitiativeOperatingMode;
+  modes: Array<{
+    mode: InitiativeOperatingMode;
+    target: string;
+    inputs: Array<{
+      spec: {
+        id: string;
+        type: "string" | "integer" | "number" | "boolean" | "object" | "array";
+        format?: string;
+        required?: boolean;
+        minimum?: number;
+        maximum?: number;
+        minLength?: number;
+        maxLength?: number;
+        minItems?: number;
+        maxItems?: number;
+        sensitivity: "public" | "internal" | "sensitive";
+        retention: "value" | "digest" | "omit";
+        description: string;
+      };
+      source: {
+        inputId: string;
+        kind: "generic_provider" | "target_adapter" | "caller" | "derived" | "default";
+        capability?: string;
+        dependsOn?: string[];
+        default?: OperatingModeInputValue;
+      };
+      aliases: string[];
+    }>;
+    phases: Array<{
+      phase: string;
+      bindings: Array<{ variable: string; inputId: string }>;
+    }>;
+  }>;
+}
+
 export interface OperatingModeCatalogEntry {
   mode: InitiativeOperatingMode;
   label: string;
@@ -217,6 +265,7 @@ export interface OperatingModeCatalogEntry {
   supportsPhases: boolean;
   phases: OperatingModeCatalogPhase[];
   phaseGraph?: OperatingModePhaseGraph;
+  inputContract?: OperatingModeCompiledInputContract;
 }
 
 export interface OperatingModeCatalog {
@@ -251,6 +300,7 @@ export interface OperatingModeWorkspaceDefinition {
   terminal: string[];
   transitions: Record<string, string[]>;
   runStrategy: string;
+  inputContract?: OperatingModeCompiledInputContract;
 }
 
 export interface OperatingModeRoundItem {
@@ -336,6 +386,17 @@ export interface OperatingModeRound {
    * classification contract.
    */
   transitionClassification?: OperatingModePhaseResolutionRecord;
+  promptTrace?: {
+    skillId: string;
+    sourceRevision: string;
+    sourceVariant?: string;
+    sourceHash: string;
+    variablesHash: string;
+    renderedPromptHash: string;
+    definitionDigest: string;
+    inputContractDigest: string;
+    redactionMetadata?: Record<string, unknown>;
+  };
 }
 
 export interface OperatingModePinnedPromptSource {
@@ -343,7 +404,9 @@ export interface OperatingModePinnedPromptSource {
   phase: string;
   skillId: string;
   revision?: string;
+  variant?: string;
   contentHash?: string;
+  templateVariables: string[];
   retention?: string;
   redacted: boolean;
 }
@@ -362,6 +425,8 @@ export interface OperatingModeExecutionSnapshot {
   definitionBundle?: Record<string, unknown>;
   inputContractDigest?: string;
   inputSnapshotDigest?: string;
+  compiledInputContract?: OperatingModeCompiledInputContract;
+  inputRetentionMetadata?: Record<string, unknown>;
   reachablePromptSources: OperatingModePinnedPromptSource[];
   migration?: {
     sourceLayout: string;

@@ -24,6 +24,7 @@ type Metadata struct {
 	Draft            bool    `json:"draft"`
 	CreatedAt        string  `json:"createdAt"`
 	UpdatedAt        string  `json:"updatedAt"`
+	Revision         int     `json:"revision,omitempty"`
 }
 
 // MetadataFile represents the structure of metadata.json files in each folder.
@@ -51,6 +52,8 @@ type Response struct {
 	ContentPath         string     `json:"contentPath,omitempty"` // Absolute path to SKILL.md file
 	CreatedAt           string     `json:"createdAt"`
 	UpdatedAt           string     `json:"updatedAt"`
+	Revision            int        `json:"revision,omitempty"`
+	ContentHash         string     `json:"contentHash,omitempty"`
 	UsageCount          int        `json:"usageCount"`
 	LastUsed            *string    `json:"lastUsed,omitempty"`
 	EffectivenessRating *int       `json:"effectivenessRating,omitempty"`
@@ -185,6 +188,7 @@ type ReadAmbiguous struct {
 type ReadResponse struct {
 	Skills            []Response      `json:"skills,omitempty"`
 	Combined          string          `json:"combined,omitempty"`
+	CombinedHash      string          `json:"combinedHash,omitempty"`
 	SkillCount        int             `json:"skillCount,omitempty"`
 	TotalTokens       int             `json:"totalTokens,omitempty"`
 	Format            string          `json:"format,omitempty"`
