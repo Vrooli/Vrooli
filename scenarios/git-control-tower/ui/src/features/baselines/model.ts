@@ -8,10 +8,7 @@
 // new-failure / preexisting / not-comparable) — see baselines.proto.
 
 import type { BadgeProps } from "../../components/ui/badge";
-import type {
-  BaselineManifest,
-  SurfaceDiff,
-} from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
+import type { PhaseDiff } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
 import type { RepoStatus } from "../../lib/api";
 
 export const BASELINE_SURFACES = ["workflows", "tests", "structure", "visuals", "rules"] as const;
@@ -70,19 +67,9 @@ export function verdictMeta(verdict: string): VerdictMeta {
   return VERDICT_META[verdict] ?? { label: verdict || "Unknown", variant: "default", isRegression: false };
 }
 
-// ── Surface presence in a stored manifest ──────────────────────────────────
-
-export type SurfacePresence = "captured" | "skipped" | "absent";
-
-export function surfacePresence(manifest: BaselineManifest, surfaceId: string): SurfacePresence {
-  if (manifest.surfaces[surfaceId]) return "captured";
-  if (manifest.skipped[surfaceId]) return "skipped";
-  return "absent";
-}
-
 // ── Diff roll-up helpers ────────────────────────────────────────────────────
 
-export function countFindings(diff: SurfaceDiff): {
+export function countFindings(diff: PhaseDiff): {
   regressions: number;
   newFailures: number;
   preexisting: number;
@@ -91,8 +78,8 @@ export function countFindings(diff: SurfaceDiff): {
   return {
     regressions: diff.regressions.length,
     newFailures: diff.newFailures.length,
-    preexisting: diff.preexisting.length,
-    cleared: diff.cleared.length,
+    preexisting: diff.preexistingFailures.length,
+    cleared: diff.clearedFailures.length,
   };
 }
 

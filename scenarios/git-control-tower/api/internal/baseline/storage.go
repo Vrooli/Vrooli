@@ -23,6 +23,14 @@ var ErrNotFound = errors.New("baseline not found")
 // same scenario+branch+name already exists.
 var ErrAlreadyExists = errors.New("baseline already exists")
 
+// Legacy migration errors are explicit because choosing a run from incomplete
+// or mixed V1 pointers would manufacture a baseline identity that never
+// existed.
+var (
+	ErrLegacyMixedRuns  = errors.New("legacy baseline references multiple runs")
+	ErrLegacyIncomplete = errors.New("legacy baseline is incomplete")
+)
+
 // Storage is the branch-scoped, flock-protected baseline manifest store.
 //
 // Layout (Decision 2 — branch is the scoping axis):
@@ -151,7 +159,6 @@ type DiffIntent struct {
 	Scenario   string           `json:"scenario"`
 	Branch     string           `json:"branch"`
 	Name       string           `json:"name"`
-	Surface    string           `json:"surface,omitempty"`
 	Manifest   BaselineManifest `json:"manifest"`
 	CurrentGit git.State        `json:"current_git"`
 	Staleness  Staleness        `json:"staleness"`
@@ -173,11 +180,8 @@ type SnapshotIntent struct {
 	Scenario     string           `json:"scenario"`
 	Branch       string           `json:"branch"`
 	Name         string           `json:"name"`
-	Include      []string         `json:"include,omitempty"`
-	Fast         bool             `json:"fast"`
 	CreatedBy    string           `json:"created_by,omitempty"`
 	Reason       string           `json:"reason,omitempty"`
-	Want         []string         `json:"want,omitempty"`
 	Manifest     BaselineManifest `json:"manifest"`
 	Run          RunHandle        `json:"run"`
 	DirtyWarning string           `json:"dirty_warning,omitempty"`
@@ -195,13 +199,9 @@ func (i SnapshotIntent) PendingCapture() PendingCapture {
 			Scenario:  i.Scenario,
 			Name:      i.Name,
 			Branch:    i.Branch,
-			Include:   i.Include,
-			Fast:      i.Fast,
-			Capture:   true,
 			CreatedBy: i.CreatedBy,
 			Reason:    i.Reason,
 		},
-		Want:         i.Want,
 		Run:          i.Run,
 		DirtyWarning: i.DirtyWarning,
 	}
@@ -214,7 +214,6 @@ func (i DiffIntent) PendingDiff() PendingDiff {
 		Scenario:   i.Scenario,
 		Branch:     i.Branch,
 		Name:       i.Name,
-		Surface:    i.Surface,
 		Manifest:   i.Manifest,
 		CurrentGit: i.CurrentGit,
 		Staleness:  i.Staleness,
@@ -541,18 +540,7 @@ func (s *Storage) Save(repoID int64, m BaselineManifest, mode SaveMode) error {
 				return fmt.Errorf("stat baseline: %w", statErr)
 			}
 		}
-		data, err := json.MarshalIndent(m, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal baseline: %w", err)
-		}
-		tmp := path + ".tmp"
-		if err := os.WriteFile(tmp, data, 0o644); err != nil {
-			return fmt.Errorf("write baseline tmp: %w", err)
-		}
-		if err := os.Rename(tmp, path); err != nil {
-			return fmt.Errorf("replace baseline: %w", err)
-		}
-		return nil
+		return writeManifestAtomic(path, m)
 	})
 }
 
@@ -571,7 +559,17 @@ func (s *Storage) Load(repoID int64, scenario, branch, name string) (BaselineMan
 			}
 			return fmt.Errorf("read baseline: %w", rerr)
 		}
-		return json.Unmarshal(data, &m)
+		decoded, migrated, derr := decodeManifest(data, s.nowUTC())
+		if derr != nil {
+			return derr
+		}
+		m = decoded
+		if migrated {
+			if werr := writeManifestAtomic(s.manifestPath(dir, name), m); werr != nil {
+				return fmt.Errorf("persist migrated baseline: %w", werr)
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return BaselineManifest{}, err
@@ -637,13 +635,25 @@ func (s *Storage) List(repoID int64, scenario, branch string) ([]BaselineManifes
 			if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 				continue
 			}
-			data, rerr := os.ReadFile(filepath.Join(dir, e.Name()))
-			if rerr != nil {
-				continue
-			}
+			name := strings.TrimSuffix(e.Name(), ".json")
 			var m BaselineManifest
-			if json.Unmarshal(data, &m) != nil {
-				continue
+			if err := s.withLock(dir, name, func() error {
+				path := filepath.Join(dir, e.Name())
+				data, rerr := os.ReadFile(path)
+				if rerr != nil {
+					return rerr
+				}
+				decoded, migrated, derr := decodeManifest(data, s.nowUTC())
+				if derr != nil {
+					return derr
+				}
+				m = decoded
+				if migrated {
+					return writeManifestAtomic(path, m)
+				}
+				return nil
+			}); err != nil {
+				return nil, fmt.Errorf("load baseline %s: %w", e.Name(), err)
 			}
 			out = append(out, m)
 		}
@@ -652,4 +662,131 @@ func (s *Storage) List(repoID int64, scenario, branch string) ([]BaselineManifes
 		return out[a].CreatedAt.After(out[b].CreatedAt)
 	})
 	return out, nil
+}
+
+func (s *Storage) nowUTC() time.Time { return time.Now().UTC() }
+
+type legacySurfacePointerV1 struct {
+	Kind       string    `json:"kind"`
+	Ref        string    `json:"ref"`
+	CapturedAt time.Time `json:"captured_at"`
+}
+
+type legacyManifestV1 struct {
+	Name          string                            `json:"name"`
+	Scenario      string                            `json:"scenario"`
+	Branch        string                            `json:"branch"`
+	CreatedAt     time.Time                         `json:"created_at"`
+	CreatedBy     string                            `json:"created_by,omitempty"`
+	Git           git.State                         `json:"git"`
+	Surfaces      map[string]legacySurfacePointerV1 `json:"surfaces"`
+	Skipped       map[string]string                 `json:"skipped,omitempty"`
+	SchemaVersion int                               `json:"schema_version"`
+}
+
+// decodeManifest is the only V1-aware boundary. Successful legacy reads are
+// immediately rewritten as V2; the rest of GCT never receives a surface map.
+func decodeManifest(data []byte, migratedAt time.Time) (BaselineManifest, bool, error) {
+	var version struct {
+		SchemaVersion int `json:"schema_version"`
+	}
+	if err := json.Unmarshal(data, &version); err != nil {
+		return BaselineManifest{}, false, fmt.Errorf("decode baseline schema: %w", err)
+	}
+	if version.SchemaVersion == SchemaVersion {
+		var m BaselineManifest
+		if err := json.Unmarshal(data, &m); err != nil {
+			return BaselineManifest{}, false, fmt.Errorf("decode baseline v2: %w", err)
+		}
+		if err := m.Validate(); err != nil {
+			return BaselineManifest{}, false, err
+		}
+		return m, false, nil
+	}
+	if version.SchemaVersion != 1 {
+		return BaselineManifest{}, false, fmt.Errorf("unsupported baseline schema version %d", version.SchemaVersion)
+	}
+
+	var legacy legacyManifestV1
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return BaselineManifest{}, false, fmt.Errorf("decode legacy baseline: %w", err)
+	}
+	if len(legacy.Skipped) > 0 || len(legacy.Surfaces) != 5 {
+		return BaselineManifest{}, false, fmt.Errorf("%w: baseline %q has %d/5 surface pointers and %d skipped entries; recapture it as a comprehensive baseline", ErrLegacyIncomplete, legacy.Name, len(legacy.Surfaces), len(legacy.Skipped))
+	}
+	runIDs := map[string]struct{}{}
+	capturedAt := legacy.CreatedAt
+	for surface, pointer := range legacy.Surfaces {
+		if strings.TrimSpace(pointer.Ref) == "" || (pointer.Kind != "" && pointer.Kind != "test-genie-run") {
+			return BaselineManifest{}, false, fmt.Errorf("%w: baseline %q surface %q has no usable Test Genie run; recapture it", ErrLegacyIncomplete, legacy.Name, surface)
+		}
+		runIDs[pointer.Ref] = struct{}{}
+		if pointer.CapturedAt.After(capturedAt) {
+			capturedAt = pointer.CapturedAt
+		}
+	}
+	if len(runIDs) != 1 {
+		ids := make([]string, 0, len(runIDs))
+		for id := range runIDs {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		return BaselineManifest{}, false, fmt.Errorf("%w: baseline %q points at %s; automatic selection would be dishonest, so recapture it", ErrLegacyMixedRuns, legacy.Name, strings.Join(ids, ", "))
+	}
+	var runID string
+	for id := range runIDs {
+		runID = id
+	}
+	m := BaselineManifest{
+		Name: legacy.Name, Scenario: legacy.Scenario, Branch: legacy.Branch,
+		CreatedAt: legacy.CreatedAt, CreatedBy: legacy.CreatedBy, Git: legacy.Git,
+		Run: RunAnchor{RunID: runID, CapturedAt: capturedAt, CaptureProfile: CaptureProfile},
+		Migration: &MigrationInfo{
+			FromSchemaVersion: 1,
+			MigratedAt:        migratedAt,
+			DegradedReasons: []string{
+				"legacy baseline has no captured tree digest",
+				"legacy baseline has no captured phase-set digest",
+				"legacy baseline has no descriptor snapshot identity",
+			},
+		},
+		SchemaVersion: SchemaVersion,
+	}
+	if err := m.Validate(); err != nil {
+		return BaselineManifest{}, false, err
+	}
+	return m, true, nil
+}
+
+func writeManifestAtomic(path string, m BaselineManifest) error {
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal baseline: %w", err)
+	}
+	tmp := path + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fmt.Errorf("open baseline tmp: %w", err)
+	}
+	if _, err = f.Write(data); err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("write baseline tmp: %w", err)
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("close baseline tmp: %w", closeErr)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("replace baseline: %w", err)
+	}
+	if dir, err := os.Open(filepath.Dir(path)); err == nil {
+		_ = dir.Sync()
+		_ = dir.Close()
+	}
+	return nil
 }

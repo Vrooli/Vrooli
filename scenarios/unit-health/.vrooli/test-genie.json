@@ -591,5 +591,10 @@
   "dimensions": [
     "tests",
     "coverage"
+  ],
+  "evidenceKinds": [
+    "command.output",
+    "coverage.report",
+    "findings.report"
   ]
 }

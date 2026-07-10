@@ -1,6 +1,8 @@
 package baseline
 
 import (
+	"context"
+	"io"
 	"testing"
 )
 
@@ -32,22 +34,6 @@ func TestExitCodeForVerdict(t *testing.T) {
 	}
 }
 
-func TestSplitCSV(t *testing.T) {
-	if got := splitCSV(""); got != nil {
-		t.Errorf("empty = %v, want nil", got)
-	}
-	got := splitCSV("workflows, tests ,structure")
-	want := []string{"workflows", "tests", "structure"}
-	if len(got) != len(want) {
-		t.Fatalf("got %v", got)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("got %v want %v", got, want)
-		}
-	}
-}
-
 func TestVerdictMark(t *testing.T) {
 	cases := map[string]string{
 		"clean":          "✓",
@@ -63,11 +49,69 @@ func TestVerdictMark(t *testing.T) {
 	}
 }
 
-func TestSummaryText(t *testing.T) {
-	if got := summaryText(`{"passed":3,"failed":0}`); got != "passed:3,failed:0" {
-		t.Errorf("summaryText = %q", got)
+func TestRegisterExcludesEmptyCreateAndPerSurfaceEdit(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	group := Register(nil)
+	for _, command := range group.Subcommands {
+		if command.Name == "create" || command.Name == "edit" {
+			t.Fatalf("removed mutable baseline command %q is still registered", command.Name)
+		}
 	}
-	if got := summaryText(""); got != "" {
-		t.Errorf("empty summary = %q", got)
+}
+
+func TestDurableWaitReconnectsOnceByIDAfterUnexpectedEOF(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
+	calls := 0
+	blocking := []bool{}
+	value, recovered, err := durableReadWithEOFRecovery(context.Background(), true, func(_ context.Context, wait bool) (string, error) {
+		calls++
+		blocking = append(blocking, wait)
+		if calls == 1 {
+			return "", io.ErrUnexpectedEOF
+		}
+		return "durable-state", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !recovered || value != "durable-state" || calls != 2 {
+		t.Fatalf("value=%q recovered=%v calls=%d", value, recovered, calls)
+	}
+	if len(blocking) != 2 || !blocking[0] || blocking[1] {
+		t.Fatalf("wait modes = %v, want [true false]", blocking)
+	}
+}
+
+func TestDurableReadDoesNotRetryNonBlockingOrNonEOF(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
+	for _, tc := range []struct {
+		name string
+		wait bool
+		err  error
+	}{
+		{name: "inspect", wait: false, err: io.ErrUnexpectedEOF},
+		{name: "typed failure", wait: true, err: io.ErrClosedPipe},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			_, recovered, err := durableReadWithEOFRecovery(context.Background(), tc.wait, func(context.Context, bool) (string, error) {
+				calls++
+				return "", tc.err
+			})
+			if err == nil || recovered || calls != 1 {
+				t.Fatalf("err=%v recovered=%v calls=%d", err, recovered, calls)
+			}
+		})
+	}
+}
+
+func TestAttachmentDeadlineUsesOneRecoveryRead(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
+	calls := 0
+	_, recovered, err := durableReadWithEOFRecovery(context.Background(), true, func(context.Context, bool) (string, error) {
+		calls++
+		if calls == 1 {
+			return "", context.DeadlineExceeded
+		}
+		return "pending", nil
+	})
+	if err != nil || !recovered || calls != 2 {
+		t.Fatalf("err=%v recovered=%v calls=%d", err, recovered, calls)
 	}
 }

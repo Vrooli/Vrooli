@@ -23,9 +23,12 @@ import (
 // streamServer implements FollowRun + WaitRun for the wait/follow tests.
 type streamServer struct {
 	runs_v1connect.UnimplementedRunsServiceHandler
-	events     []*runspb.RunEvent
-	waitStatus *runspb.RunLiveStatus
-	waitTimed  bool
+	events          []*runspb.RunEvent
+	waitStatus      *runspb.RunLiveStatus
+	waitTimed       bool
+	terminalRun     *runspb.RunInfo
+	snapshotVersion int32
+	degradedReasons []string
 }
 
 func (s *streamServer) FollowRun(_ context.Context, _ *connect.Request[runspb.FollowRunRequest], stream *connect.ServerStream[runspb.RunEvent]) error {
@@ -38,7 +41,18 @@ func (s *streamServer) FollowRun(_ context.Context, _ *connect.Request[runspb.Fo
 }
 
 func (s *streamServer) WaitRun(_ context.Context, _ *connect.Request[runspb.WaitRunRequest]) (*connect.Response[runspb.WaitRunResponse], error) {
-	return connect.NewResponse(&runspb.WaitRunResponse{Status: s.waitStatus, TimedOut: s.waitTimed}), nil
+	return connect.NewResponse(&runspb.WaitRunResponse{
+		Status: s.waitStatus, TimedOut: s.waitTimed, TerminalRun: s.terminalRun,
+		TerminalSnapshotSchemaVersion: s.snapshotVersion, DegradedReasons: s.degradedReasons,
+	}), nil
+}
+
+func (s *streamServer) GetRun(_ context.Context, _ *connect.Request[runspb.GetRunRequest]) (*connect.Response[runspb.GetRunResponse], error) {
+	return connect.NewResponse(&runspb.GetRunResponse{
+		Run:                           s.terminalRun,
+		TerminalSnapshotSchemaVersion: s.snapshotVersion,
+		DegradedReasons:               s.degradedReasons,
+	}), nil
 }
 
 // withStreamServer stands up a real Connect server for h and points newClient at
@@ -133,6 +147,101 @@ func TestRunWaitJSONSnapshot(t *testing.T) {
 	}
 	if !strings.Contains(out, "\"topPriority\"") || !strings.Contains(out, "architecture maturity next move") {
 		t.Fatalf("--json wait must surface the cross-phase top priority, got: %q", out)
+	}
+}
+
+func TestRunWaitJSONUsesCanonicalTerminalPhasesAndDurations(t *testing.T) {
+	withStreamServer(t, &streamServer{
+		waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed", Verdict: "FAIL"},
+		terminalRun: &runspb.RunInfo{
+			RunId: "R", Scenario: "demo", Status: "failed",
+			Phases: []*runspb.PhaseInfo{
+				{Name: "unit", Status: "passed", DurationSeconds: 2},
+				{Name: "workflow", Status: "failed", DurationSeconds: 9},
+			},
+		},
+		snapshotVersion: 1,
+	})
+	var buf bytes.Buffer
+	err := runWait(nil, []string{"--json", "demo", "R"}, &buf)
+	var ee *exitErr
+	if !errors.As(err, &ee) || ee.ExitCode() != exitRegression {
+		t.Fatalf("failed terminal wait exit = %v", err)
+	}
+	var payload struct {
+		Phases []struct {
+			Name            string  `json:"name"`
+			Status          string  `json:"status"`
+			DurationSeconds float64 `json:"durationSeconds"`
+		} `json:"phases"`
+		PhaseSummary struct {
+			DurationSeconds int `json:"durationSeconds"`
+		} `json:"phaseSummary"`
+		TerminalSnapshotSchemaVersion int32 `json:"terminalSnapshotSchemaVersion"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &payload); err != nil {
+		t.Fatalf("decode wait JSON: %v\n%s", err, buf.String())
+	}
+	if len(payload.Phases) != 2 || payload.Phases[0].Name != "unit" || payload.Phases[1].Status != "failed" || payload.Phases[1].DurationSeconds != 9 {
+		t.Fatalf("canonical phases missing from wait JSON: %+v", payload.Phases)
+	}
+	if payload.PhaseSummary.DurationSeconds != 11 || payload.TerminalSnapshotSchemaVersion != 1 {
+		t.Fatalf("terminal summary/schema = %+v/%d", payload.PhaseSummary, payload.TerminalSnapshotSchemaVersion)
+	}
+}
+
+func TestRunWaitAndShowJSONAgreeOnCanonicalTerminalEvidence(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
+	run := &runspb.RunInfo{
+		RunId: "R", Scenario: "demo", Status: "failed",
+		Phases: []*runspb.PhaseInfo{
+			{Name: "unit", Status: "passed", DurationSeconds: 2},
+			{Name: "workflow", Status: "failed", DurationSeconds: 9},
+		},
+	}
+	withStreamServer(t, &streamServer{
+		waitStatus:      &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed", Verdict: "FAIL"},
+		terminalRun:     run,
+		snapshotVersion: 1,
+	})
+	var waitOut, showOut bytes.Buffer
+	_ = runWait(nil, []string{"--json", "demo", "R"}, &waitOut)
+	if err := runShow(nil, []string{"--scenario", "demo", "--json", "R"}, &showOut); err != nil {
+		t.Fatalf("runs show --json: %v", err)
+	}
+	var waitPayload struct {
+		RunID  string `json:"runId"`
+		Status string `json:"status"`
+		Phases []struct {
+			Name            string  `json:"name"`
+			Status          string  `json:"status"`
+			DurationSeconds float64 `json:"durationSeconds"`
+		} `json:"phases"`
+	}
+	var showPayload struct {
+		Run struct {
+			RunID  string `json:"runId"`
+			Status string `json:"status"`
+			Phases []struct {
+				Name            string  `json:"name"`
+				Status          string  `json:"status"`
+				DurationSeconds float64 `json:"durationSeconds"`
+			} `json:"phases"`
+		} `json:"run"`
+	}
+	if err := json.Unmarshal(waitOut.Bytes(), &waitPayload); err != nil {
+		t.Fatalf("decode wait JSON: %v", err)
+	}
+	if err := json.Unmarshal(showOut.Bytes(), &showPayload); err != nil {
+		t.Fatalf("decode show JSON: %v", err)
+	}
+	if waitPayload.RunID != showPayload.Run.RunID || waitPayload.Status != showPayload.Run.Status || len(waitPayload.Phases) != len(showPayload.Run.Phases) {
+		t.Fatalf("wait/show summary mismatch: wait=%+v show=%+v", waitPayload, showPayload)
+	}
+	for i := range waitPayload.Phases {
+		waitPhase, showPhase := waitPayload.Phases[i], showPayload.Run.Phases[i]
+		if waitPhase.Name != showPhase.Name || waitPhase.Status != showPhase.Status || waitPhase.DurationSeconds != showPhase.DurationSeconds {
+			t.Fatalf("wait/show phase %d mismatch: wait=%+v show=%+v", i, waitPhase, showPhase)
+		}
 	}
 }
 

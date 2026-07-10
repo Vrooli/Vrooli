@@ -104,6 +104,8 @@ func TestCompareRunVisuals(t *testing.T) {
 	}
 	if got := byPage["/dashboard"]; got == nil || got.GetStatus() != "changed" || got.GetChangedFraction() <= 0 {
 		t.Errorf("/dashboard = %+v, want changed with magnitude", got)
+	} else if got.GetBaseArtifactId() == "" || got.GetCurrentArtifactId() == "" || got.GetBaseArtifactId() == got.GetCurrentArtifactId() {
+		t.Errorf("/dashboard artifact links = %+v, want distinct run-scoped ids", got)
 	}
 	if got := byPage["/new"]; got == nil || got.GetStatus() != "added" {
 		t.Errorf("/new status = %v, want added", got)

@@ -40,6 +40,14 @@ service ValidationService {
   // DeriveBaselineScope derives the exact baseline/validation command set across
   // all affected locations for a phase (OT-P0-005).
   rpc DeriveBaselineScope(DeriveBaselineScopeRequest) returns (DeriveBaselineScopeResponse);
+  // StartValidation persists a durable operation and complete child set before
+  // dispatch. Scoped idempotency retries return the original operation.
+  rpc StartValidation(StartValidationRequest) returns (StartValidationResponse);
+  // GetValidationOperation inspects a durable operation or waits once. A
+  // transport timeout detaches without canceling server-owned work.
+  rpc GetValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
+  rpc WaitValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
+  rpc ResumeValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
   // RunValidation runs the derived baseline/check set on request and returns the
   // result + staleness (OT-P0-005, PM-VALID-001). Never fabricates results on
   // exec failure — degrades to UNKNOWN.
@@ -84,6 +92,81 @@ message DeriveBaselineScopeResponse {
   repeated string commands = 1;
   // The distinct affected locations the commands cover (scenarios + paths).
   repeated string locations = 2;
+}
+
+enum ValidationOperationStatus {
+  VALIDATION_OPERATION_STATUS_UNSPECIFIED = 0;
+  VALIDATION_OPERATION_STATUS_QUEUED = 1;
+  VALIDATION_OPERATION_STATUS_RUNNING = 2;
+  VALIDATION_OPERATION_STATUS_TERMINAL = 3;
+}
+
+enum ValidationChildStatus {
+  VALIDATION_CHILD_STATUS_UNSPECIFIED = 0;
+  VALIDATION_CHILD_STATUS_QUEUED = 1;
+  VALIDATION_CHILD_STATUS_RUNNING = 2;
+  VALIDATION_CHILD_STATUS_TERMINAL = 3;
+}
+
+message ValidationOperationError {
+  string code = 1;
+  string detail = 2;
+}
+
+message ValidationChildOperation {
+  string id = 1;
+  string command = 2;
+  bool oracle = 3;
+  ValidationChildStatus status = 4;
+  int32 attempt = 5;
+  string external_id = 6;
+  shared.ValidationVerdict verdict = 7;
+  string detail = 8;
+  ValidationOperationError error = 9;
+  string queued_at = 10;
+  string started_at = 11;
+  string terminal_at = 12;
+}
+
+message ValidationOperation {
+  string id = 1;
+  string plan_id = 2;
+  string phase_id = 3;
+  string idempotency_key = 4;
+  ValidationOperationStatus status = 5;
+  int32 attempt = 6;
+  repeated ValidationChildOperation children = 7;
+  shared.ValidationResult result = 8;
+  string result_ref = 9;
+  ValidationOperationError error = 10;
+  string queued_at = 11;
+  string started_at = 12;
+  string terminal_at = 13;
+  int32 queue_budget_seconds = 14;
+  int32 execution_budget_seconds = 15;
+  int32 transport_wait_budget_seconds = 16;
+  int32 recommended_wait_seconds = 17;
+  int32 schema_version = 18;
+}
+
+message StartValidationRequest {
+  string plan_id = 1;
+  string phase_id = 2;
+  string idempotency_key = 3;
+}
+
+message StartValidationResponse {
+  ValidationOperation operation = 1;
+  bool deduplicated = 2;
+}
+
+message GetValidationOperationRequest {
+  string operation_id = 1;
+  bool wait = 2;
+}
+
+message GetValidationOperationResponse {
+  ValidationOperation operation = 1;
 }
 
 message RunValidationRequest {

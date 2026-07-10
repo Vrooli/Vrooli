@@ -64,7 +64,8 @@ func asRunBusy(err error) *baseline.RunBusyError {
 // baseline capture profile (full diagnostics + all-pages visuals + video) via
 // the durable RunsService: StartRun returns the run handle immediately (so a
 // snapshot can return fast and pin server-side on completion), and AwaitResult
-// blocks on WaitRun then reads the terminal phase set via GetRun. The
+// blocks on WaitRun and consumes the canonical terminal RunInfo carried by that
+// response. The
 // comprehensive preset is catalog-derived (drift-proof) in test-genie, so a
 // baseline always covers every phase.
 type baselineExecutor struct {
@@ -149,23 +150,34 @@ func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID strin
 	if err != nil {
 		return baseline.ExecResult{}, err
 	}
-	if _, err := cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{
-		Scenario: scenario, RunId: runID,
-	})); err != nil {
-		return baseline.ExecResult{}, err
-	}
-	got, err := cl.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{
+	waited, err := cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{
 		Scenario: scenario, RunId: runID,
 	}))
 	if err != nil {
 		return baseline.ExecResult{}, err
 	}
-	info := got.Msg.GetRun()
+	if reasons := waited.Msg.GetDegradedReasons(); len(reasons) > 0 {
+		return baseline.ExecResult{}, fmt.Errorf("run %s terminal evidence is degraded: %s", runID, strings.Join(reasons, "; "))
+	}
+	info := waited.Msg.GetTerminalRun()
+	if info == nil || waited.Msg.GetTerminalSnapshotSchemaVersion() == 0 {
+		return baseline.ExecResult{}, fmt.Errorf("run %s has no canonical terminal snapshot", runID)
+	}
 	switch info.GetStatus() {
 	case "aborted", "timeout", "errored", "queued", "in_progress":
 		return baseline.ExecResult{}, fmt.Errorf("run %s ended without comparable baseline artifacts (status=%s)", runID, info.GetStatus())
 	}
-	out := baseline.ExecResult{RunID: info.GetRunId(), Success: info.GetStatus() == "passed"}
+	completedAt, _ := time.Parse(time.RFC3339, info.GetCompletedAt())
+	out := baseline.ExecResult{
+		RunID:                           info.GetRunId(),
+		Success:                         info.GetStatus() == "passed",
+		CompletedAt:                     completedAt,
+		TreeDigest:                      info.GetTreeDigest(),
+		PhaseSetDigest:                  info.GetPhaseSetDigest(),
+		CaptureProfile:                  info.GetCaptureProfile(),
+		DescriptorSnapshotDigest:        info.GetDescriptorSnapshotDigest(),
+		DescriptorSnapshotSchemaVersion: int(info.GetDescriptorSnapshotSchemaVersion()),
+	}
 	for _, p := range info.GetPhases() {
 		out.Phases = append(out.Phases, baseline.PhaseStatus{Name: p.GetName(), Status: p.GetStatus()})
 	}
@@ -232,41 +244,31 @@ func (c baselineRunsClient) CompareRuns(ctx context.Context, scenario, runIDA, r
 	}
 	out := baseline.CompareResult{Verdict: resp.Msg.GetVerdict()}
 	for _, p := range resp.Msg.GetPhases() {
-		out.Phases = append(out.Phases, baseline.PhaseDiff{
-			Phase:       p.GetPhase(),
-			Verdict:     p.GetVerdict(),
-			Regressions: p.GetRegressions(),
-			NewFailures: p.GetNewFailures(),
-			Preexisting: p.GetPreexistingFailures(),
-			Cleared:     p.GetClearedFailures(),
-		})
+		out.Phases = append(out.Phases, p)
 	}
 	return out, nil
 }
 
-// ListRunVisuals enumerates a run's per-page visual artifacts (page set +
-// screenshot count) — the metadata GCT diffs between two baselines' runs.
-func (c baselineRunsClient) ListRunVisuals(ctx context.Context, scenario, runID string) ([]baseline.RunVisual, error) {
+// ListRunArtifacts consumes Test Genie's typed, path-free evidence catalog.
+func (c baselineRunsClient) ListRunArtifacts(ctx context.Context, scenario, runID string) (baseline.ArtifactCatalog, error) {
 	cl, err := c.client(ctx)
 	if err != nil {
-		return nil, err
+		return baseline.ArtifactCatalog{}, err
 	}
-	resp, err := cl.ListRunVisuals(ctx, connect.NewRequest(&runspb.ListRunVisualsRequest{
+	resp, err := cl.ListRunArtifacts(ctx, connect.NewRequest(&runspb.ListRunArtifactsRequest{
 		Scenario: scenario, RunId: runID,
 	}))
 	if err != nil {
-		return nil, err
+		return baseline.ArtifactCatalog{}, err
 	}
-	out := make([]baseline.RunVisual, 0, len(resp.Msg.GetVisuals()))
-	for _, v := range resp.Msg.GetVisuals() {
-		out = append(out, baseline.RunVisual{
-			Page:                v.GetPage(),
-			Label:               v.GetLabel(),
-			ScreenshotRelPath:   v.GetScreenshotRelPath(),
-			ScreenshotSizeBytes: v.GetScreenshotSizeBytes(),
-		})
-	}
-	return out, nil
+	return baseline.ArtifactCatalog{
+		RunID:            runID,
+		SchemaVersion:    int(resp.Msg.GetSchemaVersion()),
+		Digest:           resp.Msg.GetDigest(),
+		Artifacts:        resp.Msg.GetArtifacts(),
+		LegacyDiscovered: resp.Msg.GetLegacyDiscovered(),
+		DegradedReasons:  resp.Msg.GetDegradedReasons(),
+	}, nil
 }
 
 // CompareRunVisuals asks test-genie (the owner of the visual analyzer) to

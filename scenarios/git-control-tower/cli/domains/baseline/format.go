@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -238,27 +237,37 @@ func printDiff(resp *baselinesv1.DiffResult) {
 		}
 	}
 	fmt.Println()
-	for _, s := range resp.GetSurfaces() {
-		fmt.Printf("%-10s %s %s\n", s.GetSurfaceId(), verdictMark(s.GetVerdict()), s.GetSummary())
-		printLines("regression", s.GetRegressions())
-		printLines("new", s.GetNewFailures())
-		printLines("preexisting", s.GetPreexisting())
-		printLines("cleared", s.GetCleared())
-		printLines("changed — review", s.GetChanged())
-	}
 	if len(resp.GetPhases()) > 0 {
-		fmt.Println()
 		fmt.Println("Phases:")
 		for _, p := range resp.GetPhases() {
 			label := p.GetPhase()
-			if p.GetSurfaceId() != "" {
-				label += " (" + p.GetSurfaceId() + ")"
+			if d := p.GetDescriptorB(); d != nil && d.GetDisplayName() != "" {
+				label = d.GetDisplayName() + " [" + p.GetPhase() + "]"
+			} else if d := p.GetDescriptorA(); d != nil && d.GetDisplayName() != "" {
+				label = d.GetDisplayName() + " [" + p.GetPhase() + "]"
 			}
-			fmt.Printf("  %-24s %s %s\n", label, verdictMark(p.GetVerdict()), p.GetSummary())
+			fmt.Printf("  %-32s %s %s → %s\n", label, verdictMark(p.GetVerdict()), p.GetStatusA(), p.GetStatusB())
 			printLines("regression", p.GetRegressions())
 			printLines("new", p.GetNewFailures())
-			printLines("preexisting", p.GetPreexisting())
-			printLines("cleared", p.GetCleared())
+			printLines("preexisting", p.GetPreexistingFailures())
+			printLines("cleared", p.GetClearedFailures())
+			for _, reason := range p.GetReasons() {
+				fmt.Printf("            reason: %s — %s\n", reason.GetCode().String(), reason.GetDetail())
+			}
+		}
+	}
+	if evidence := resp.GetEvidence(); evidence != nil {
+		fmt.Println()
+		fmt.Printf("Evidence: base=%s (%d artifacts) current=%s (%d artifacts)\n",
+			evidence.GetBaseRunId(), len(evidence.GetBaseCatalog().GetArtifacts()),
+			evidence.GetCurrentRunId(), len(evidence.GetCurrentCatalog().GetArtifacts()))
+		for _, reason := range evidence.GetDegradedReasons() {
+			fmt.Printf("  ⚠ %s\n", reason)
+		}
+		for _, delta := range evidence.GetVisualDeltas() {
+			if delta.GetStatus() != "identical" {
+				fmt.Printf("  visual: %s %s (%.1f%% changed, advisory)\n", delta.GetPage(), delta.GetStatus(), delta.GetChangedFraction()*100)
+			}
 		}
 	}
 	fmt.Println()
@@ -281,11 +290,7 @@ func printList(baselines []*baselinesv1.BaselineManifest) {
 	}
 	fmt.Printf("Baselines (%d):\n", len(baselines))
 	for _, b := range baselines {
-		skipped := ""
-		if n := len(b.GetSkipped()); n > 0 {
-			skipped = fmt.Sprintf(" skipped=%d", n)
-		}
-		fmt.Printf("  %-20s branch=%-12s surfaces=%d%s  %s\n", b.GetName(), b.GetBranch(), len(b.GetSurfaces()), skipped, b.GetCreatedAt())
+		fmt.Printf("  %-20s branch=%-12s run=%-20s %s\n", b.GetName(), b.GetBranch(), b.GetRun().GetRunId(), b.GetCreatedAt())
 	}
 }
 
@@ -300,39 +305,19 @@ func printShow(b *baselinesv1.BaselineManifest) {
 			fmt.Printf("  ⚠ captured against dirty tree\n")
 		}
 	}
-	fmt.Println("  surfaces:")
-	for _, id := range surfaceIDsSorted(b.GetSurfaces()) {
-		p := b.GetSurfaces()[id]
-		fmt.Printf("    %-10s kind=%s ref=%s  %s\n", id, p.GetKind(), p.GetRef(), summaryText(p.GetSummary()))
+	if run := b.GetRun(); run != nil {
+		fmt.Printf("  run:        %s\n", run.GetRunId())
+		fmt.Printf("  captured:   %s  profile=%s\n", run.GetCapturedAt(), run.GetCaptureProfile())
+		fmt.Printf("  tree:       %s\n", run.GetTreeDigest())
+		fmt.Printf("  phase set:  %s\n", run.GetPhaseSetDigest())
+		fmt.Printf("  descriptor: %s  digest=%s\n", run.GetDescriptorSnapshotRef(), run.GetDescriptorSnapshotDigest())
 	}
-	if skipped := b.GetSkipped(); len(skipped) > 0 {
-		fmt.Println("  not captured (this baseline cannot speak to these surfaces):")
-		for _, id := range stringKeysSorted(skipped) {
-			fmt.Printf("    ⚠ %-10s %s\n", id, skipped[id])
+	if migration := b.GetMigration(); migration != nil {
+		fmt.Printf("  migrated:   schema v%d at %s\n", migration.GetFromSchemaVersion(), migration.GetMigratedAt())
+		for _, reason := range migration.GetDegradedReasons() {
+			fmt.Printf("    ⚠ %s\n", reason)
 		}
 	}
-}
-
-// stringKeysSorted returns a map's keys in stable sorted order.
-func stringKeysSorted(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-// summaryText renders the compact per-surface JSON summary as a flat string.
-func summaryText(raw string) string {
-	if strings.TrimSpace(raw) == "" {
-		return ""
-	}
-	s := strings.TrimSpace(raw)
-	s = strings.TrimPrefix(s, "{")
-	s = strings.TrimSuffix(s, "}")
-	s = strings.ReplaceAll(s, "\"", "")
-	return strings.TrimSpace(s)
 }
 
 // printStart renders the engagement mode header (Target End State §6): the mode,

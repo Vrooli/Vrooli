@@ -2,68 +2,31 @@ syntax = "proto3";
 
 package vrooli.git_control_tower.v1.baselines;
 
+import "test-genie/v1/runs/runs.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines;baselines_v1";
 
 // =============================================================================
-// BASELINES DOMAIN — cross-surface review baselines
+// BASELINES DOMAIN — one immutable Test Genie run per baseline
 // =============================================================================
-//
-// @layer 5  (api surface)
+// @layer 5
 // @domain baselines
 // @stability unstable
 //
-// Wire contract for BaselinesService, the surface over git-control-tower's
-// cross-surface baseline substrate. A baseline is a manifest of POINTERS
-// (Decision 1 — it owns no artifacts) into the surfaces that make up a
-// scenario's review state: workflows, tests, structure, visuals, rules.
-//
-// A baseline is the regression-diagnosis primitive that replaces `git stash`:
-// capture a baseline before implementing, diff it afterwards to ask "did my
-// change cause this failure, or was it preexisting?" without ever touching the
-// working tree.
-//
-// Consumed by:
-//   - CLI: `git-control-tower baseline {snapshot,diff,list,show,delete,create,
-//     edit}`.
-//   - UI (Plan B): baseline management surface.
-//
-// Storage is branch-scoped (Decision 2): data/<repoID>/baselines/<scenario>/
-// <branch>/<name>.json. Diff verdicts mirror test-genie's RunsService
-// classifier: clean / regression / new-failure / preexisting / not-comparable.
-// =============================================================================
+// Test Genie owns phase descriptors, comparison semantics, and typed evidence.
+// GCT stores one comprehensive run identity and forwards the owning messages
+// without phase or surface registries.
 
 service BaselinesService {
-  // CreateBaseline writes a manifest WITHOUT capturing surfaces (power-user /
-  // UI path — pointers assembled manually via EditBaseline).
-  rpc CreateBaseline(CreateBaselineRequest) returns (CreateBaselineResponse);
-  // SnapshotForBaseline creates a baseline AND captures every requested
-  // surface (the agent path).
   rpc SnapshotForBaseline(SnapshotForBaselineRequest) returns (SnapshotForBaselineResponse);
-  // GetSnapshotStatus reports the durable snapshot-finalization state for a
-  // snapshot run. It is the operator-facing way to distinguish "still pending",
-  // "baseline ready", "run failed/aborted", and "no such snapshot intent".
   rpc GetSnapshotStatus(GetSnapshotStatusRequest) returns (GetSnapshotStatusResponse);
-  // GetBaseline returns a single baseline manifest.
   rpc GetBaseline(GetBaselineRequest) returns (GetBaselineResponse);
-  // ListBaselines enumerates baselines for a scenario (optionally one branch).
   rpc ListBaselines(ListBaselinesRequest) returns (ListBaselinesResponse);
-  // StartDiff starts (or reuses/coalesces) ONE comprehensive run and returns its
-  // handle IMMEDIATELY — it does not block for the run to finish. The diff
-  // verdict is computed and cached server-side when the run completes; retrieve
-  // it with GetDiffResult. Mirrors SnapshotForBaseline's durable, return-fast
-  // contract so an agent never sits on a silent block (the anti-polling rule).
   rpc StartDiff(StartDiffRequest) returns (StartDiffResponse);
-  // GetDiffResult returns the cached diff for a (baseline, run). While the run is
-  // still in flight it returns status=in_progress + a recommended next check;
-  // when the run finished but the cache was lost (crash) it recomputes once.
   rpc GetDiffResult(GetDiffResultRequest) returns (GetDiffResultResponse);
-  // DeleteBaseline removes a baseline and unpins the test-genie runs it held.
   rpc DeleteBaseline(DeleteBaselineRequest) returns (DeleteBaselineResponse);
-  // EditBaseline re-points one surface at a different (pinned) test-genie run.
-  rpc EditBaseline(EditBaselineRequest) returns (EditBaselineResponse);
 }
 
-// GitState is the repository state recorded at capture time.
 message GitState {
   string sha = 1;
   string branch = 2;
@@ -72,153 +35,110 @@ message GitState {
   string dirty_summary = 5;
   string commit_message = 6;
   string commit_author = 7;
-  string commit_date = 8; // RFC3339
+  string commit_date = 8;
   bool sandboxed = 9;
 }
 
-// SurfacePointer references a surface artifact by stable ID.
-message SurfacePointer {
-  string surface_id = 1;
-  string kind = 2; // test-genie-run | gct-local-snapshot | external
-  string ref = 3;
-  string captured_at = 4; // RFC3339
-  string summary = 5; // surface-specific short summary (raw JSON)
+message RunAnchor {
+  string run_id = 1;
+  string captured_at = 2;
+  string capture_profile = 3;
+  string tree_digest = 4;
+  string phase_set_digest = 5;
+  // Opaque run-owned identity; never a filesystem path.
+  string descriptor_snapshot_ref = 6;
+  string descriptor_snapshot_digest = 7;
+  int32 descriptor_snapshot_schema_version = 8;
 }
 
-// BaselineManifest is the stored baseline document.
+message MigrationInfo {
+  int32 from_schema_version = 1;
+  string migrated_at = 2;
+  repeated string degraded_reasons = 3;
+}
+
 message BaselineManifest {
   string name = 1;
   string scenario = 2;
   string branch = 3;
-  string created_at = 4; // RFC3339
+  string created_at = 4;
   string created_by = 5;
   GitState git = 6;
-  map<string, SurfacePointer> surfaces = 7;
+  RunAnchor run = 7;
   int32 schema_version = 8;
-  // skipped records surfaces requested at capture time but not captured
-  // (surface_id → reason). Persisted so show/diff reveal a partial baseline
-  // instead of letting it masquerade as complete.
-  map<string, string> skipped = 9;
+  MigrationInfo migration = 9;
 }
 
-// SurfaceDiff is one surface's comparison verdict.
-message SurfaceDiff {
-  string surface_id = 1;
-  // verdict: clean | changed | regression | new-failure | preexisting | not-comparable
-  string verdict = 2;
-  repeated string regressions = 3;
-  repeated string new_failures = 4;
-  repeated string preexisting = 5;
-  repeated string cleared = 6;
-  string summary = 7;
-  // changed carries neutral, advisory differences that are NOT failures — the
-  // visuals surface uses it to report "the UI moved, review before/after"
-  // (each entry carries the change magnitude). A surface whose only delta is
-  // `changed` has verdict `changed`, which never affects the diff exit code.
-  repeated string changed = 8;
-}
-
-// PhaseDiff is one Test Genie phase's authoritative comparison verdict. Named
-// surfaces are presentation views over these phase diffs.
-message PhaseDiff {
-  string phase = 1;
-  string surface_id = 2;
-  // verdict: clean | regression | new-failure | preexisting | not-comparable
-  string verdict = 3;
-  repeated string regressions = 4;
-  repeated string new_failures = 5;
-  repeated string preexisting = 6;
-  repeated string cleared = 7;
-  string summary = 8;
-}
-
-// Staleness reports working-tree drift from the baseline commit.
 message Staleness {
   int32 commits_since = 1;
   int32 files_changed = 2;
   bool likely_stale = 3;
 }
 
-message CreateBaselineRequest {
-  string scenario = 1;
-  string name = 2;
-  string branch = 3; // empty = current branch
-  repeated string include = 4;
-  bool fast = 5;
-  string created_by = 6;
-  string reason = 7;
-  int64 repo_id = 8; // 0 = active repo
+message RunArtifactCatalog {
+  string run_id = 1;
+  int32 schema_version = 2;
+  string digest = 3;
+  repeated vrooli.test_genie.v1.runs.ArtifactRef artifacts = 4;
+  bool legacy_discovered = 5;
+  repeated string degraded_reasons = 6;
 }
 
-message CreateBaselineResponse {
-  BaselineManifest baseline = 1;
-  map<string, string> skipped = 2; // surface_id → reason it was skipped
-  string dirty_warning = 3;
+message VisualDelta {
+  string page = 1;
+  string label = 2;
+  string status = 3;
+  double changed_fraction = 4;
+}
+
+message EvidenceComparison {
+  string base_run_id = 1;
+  string current_run_id = 2;
+  RunArtifactCatalog base_catalog = 3;
+  RunArtifactCatalog current_catalog = 4;
+  repeated VisualDelta visual_deltas = 5;
+  repeated string degraded_reasons = 6;
 }
 
 message SnapshotForBaselineRequest {
   string scenario = 1;
   string name = 2;
   string branch = 3;
-  repeated string include = 4;
-  bool fast = 5;
+  reserved 4, 5;
   string created_by = 6;
   string reason = 7;
   int64 repo_id = 8;
 }
 
-// SnapshotForBaselineResponse returns IMMEDIATELY once the one comprehensive
-// test-genie run has started — it does NOT block for the run to finish. The
-// pin + manifest write happen server-side when the run completes (durable across
-// client disconnect), so the response carries the run handle the caller follows,
-// not the finished baseline. Follow the run with `test-genie runs follow
-// <scenario> <run_id>`; when it completes the baseline is pinned and queryable
-// via GetBaseline.
 message SnapshotForBaselineResponse {
-  // run_id is the comprehensive run the baseline will pin once it completes.
   string run_id = 1;
   string scenario = 2;
   string name = 3;
   string branch = 4;
-  // estimated_total_seconds is the run's ETA (0 when unknown).
   int32 estimated_total_seconds = 5;
   bool eta_known = 6;
-  // dirty_warning is set when the baseline is being captured against a dirty
-  // working tree (surfaced up front so the operator can abort).
   string dirty_warning = 7;
-  // coalesced is true when the snapshot rode an already-in-flight comprehensive
-  // run of the scenario (e.g. a diff/snapshot already running) instead of
-  // starting a second suite — the one-run-per-scenario guard. run_id is then the
-  // in-flight run's id, which the baseline pins on completion.
   bool coalesced = 8;
 }
 
 message GetSnapshotStatusRequest {
   string scenario = 1;
   string name = 2;
-  string branch = 3; // empty = current branch
-  string run_id = 4; // optional; narrows to one snapshot run
+  string branch = 3;
+  string run_id = 4;
   int64 repo_id = 5;
-  // wait, when true, blocks SERVER-SIDE until the run is terminal before
-  // reconciling status. When false, an in-flight run returns status=pending.
   bool wait = 6;
 }
 
 message GetSnapshotStatusResponse {
-  // status: pending | ready | failed | missing
   string status = 1;
   string scenario = 2;
   string name = 3;
   string branch = 4;
   string run_id = 5;
-  // run_status mirrors test-genie's lifecycle status when known.
   string run_status = 6;
-  // baseline is populated when status=ready.
   BaselineManifest baseline = 7;
-  // error is populated when status=failed or missing carries a diagnostic.
   string error = 8;
-  // similar_baselines lists visible baseline names for this scenario when an
-  // exact name is absent, so callers can render "did you mean ..." guidance.
   repeated string similar_baselines = 9;
   int32 recommended_next_check_seconds = 10;
 }
@@ -226,56 +146,39 @@ message GetSnapshotStatusResponse {
 message GetBaselineRequest {
   string scenario = 1;
   string name = 2;
-  string branch = 3; // empty = current branch
+  string branch = 3;
   int64 repo_id = 4;
 }
 
-message GetBaselineResponse {
-  BaselineManifest baseline = 1;
-}
+message GetBaselineResponse { BaselineManifest baseline = 1; }
 
 message ListBaselinesRequest {
   string scenario = 1;
-  string branch = 2; // empty + all_branches=false = current branch
+  string branch = 2;
   bool all_branches = 3;
   int64 repo_id = 4;
 }
 
-message ListBaselinesResponse {
-  repeated BaselineManifest baselines = 1;
-}
+message ListBaselinesResponse { repeated BaselineManifest baselines = 1; }
 
 message StartDiffRequest {
   string scenario = 1;
   string name = 2;
   string branch = 3;
-  string surface = 4; // empty = all surfaces
+  reserved 4;
   int64 repo_id = 5;
 }
 
-// StartDiffResponse returns IMMEDIATELY once the comprehensive run the diff will
-// compare against is resolved — it does NOT block for the run. The diff verdict
-// is computed + cached server-side when the run completes (durable across client
-// disconnect); resolve it with GetDiffResult using the returned run_id.
 message StartDiffResponse {
-  // run_id is the comprehensive "current" run the diff compares the baseline
-  // against — freshly started, coalesced onto an in-flight run, or a reused
-  // completed run at the current clean sha.
   string run_id = 1;
   string scenario = 2;
   string name = 3;
   string branch = 4;
   int32 estimated_total_seconds = 5;
   bool eta_known = 6;
-  // coalesced is true when the diff rode an already-in-flight comprehensive run
-  // of this scenario instead of starting a second suite.
   bool coalesced = 7;
-  // reused_run is true when a completed clean-tree run at the current sha was
-  // reused (no suite re-run); reused_sha carries the 8-char sha.
   bool reused_run = 8;
   string reused_sha = 9;
-  // dirty_warning is set when the current working tree is dirty (reuse is
-  // skipped and verdicts may stem from uncommitted changes).
   string dirty_warning = 10;
 }
 
@@ -284,50 +187,31 @@ message GetDiffResultRequest {
   string name = 2;
   string branch = 3;
   string run_id = 4;
-  string surface = 5; // empty = all surfaces
+  reserved 5;
   int64 repo_id = 6;
-  // wait, when true, blocks SERVER-SIDE until the run is terminal and returns the
-  // ready result (no client polling). When false, an in-flight run returns
-  // status=in_progress immediately with a recommended next-check backoff.
   bool wait = 7;
-  // latest, when true and run_id is empty, resolves the latest StartDiff run
-  // recorded for this baseline. This is an interrupted-wait recovery path.
   bool latest = 8;
 }
 
-// GetDiffResultResponse carries the cached diff or its in-flight status.
 message GetDiffResultResponse {
-  // status: in_progress | ready | failed
   string status = 1;
-  // diff is populated when status=ready.
   DiffResult diff = 2;
-  // error is populated when status=failed.
   string error = 3;
-  // recommended_next_check_seconds is the backoff to wait before re-checking
-  // when status=in_progress (0 otherwise).
   int32 recommended_next_check_seconds = 4;
   string run_id = 5;
 }
 
-// DiffResult is the computed cross-surface comparison payload.
 message DiffResult {
   BaselineManifest baseline = 1;
   GitState current_git = 2;
   Staleness staleness = 3;
-  repeated SurfaceDiff surfaces = 4;
-  // verdict is the worst per-surface verdict, driving the CLI exit code.
+  reserved 4;
   string verdict = 5;
-  // dirty_warning is non-empty when the current working tree is dirty, where
-  // failures may stem from uncommitted changes rather than the diff itself.
   string dirty_warning = 6;
-  repeated PhaseDiff phases = 7;
+  repeated vrooli.test_genie.v1.runs.PhaseDiff phases = 7;
+  EvidenceComparison evidence = 8;
 }
 
-// RunBusyInfo describes the in-progress run that caused a divergent StartDiff to
-// be rejected (carried as a FailedPrecondition error detail), so the CLI renders
-// wait/abort guidance without parsing strings. A diff only collides this way
-// with a genuinely different run shape (e.g. a raw `execute --preset quick`);
-// diffs and snapshots of the same scenario coalesce rather than collide.
 message RunBusyInfo {
   string scenario = 1;
   string run_id = 2;
@@ -341,20 +225,4 @@ message DeleteBaselineRequest {
   int64 repo_id = 4;
 }
 
-message DeleteBaselineResponse {
-  bool deleted = 1;
-}
-
-message EditBaselineRequest {
-  string scenario = 1;
-  string name = 2;
-  string branch = 3;
-  string surface = 4;
-  string pin_run_id = 5;
-  string reason = 6;
-  int64 repo_id = 7;
-}
-
-message EditBaselineResponse {
-  BaselineManifest baseline = 1;
-}
+message DeleteBaselineResponse { bool deleted = 1; }

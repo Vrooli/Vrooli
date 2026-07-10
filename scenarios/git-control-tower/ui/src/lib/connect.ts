@@ -35,7 +35,7 @@ export const baselinesClient: Client<typeof BaselinesService> = createClient(
 
 /**
  * Connect client for GCT's WorkflowReplayService — the single-origin proxy over
- * test-genie playbooks runs (Decision 3). The Workflows tab reads runs through
+ * typed test-genie run evidence. The Workflows tab reads runs through
  * this; binary video bytes stream over the separate REST video-proxy route.
  */
 export const workflowReplayClient: Client<typeof WorkflowReplayService> = createClient(

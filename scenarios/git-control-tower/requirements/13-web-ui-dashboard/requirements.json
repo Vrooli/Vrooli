@@ -12,6 +12,23 @@
       "description": "Visual diff viewer, interactive staging, branch management, service health monitoring",
       "status": "pending",
       "validation": []
+    },
+    {
+      "id": "GCT-DESCRIPTOR-REVIEW-P2",
+      "category": "operational_target.p2",
+      "prd_ref": "OT-P2-001",
+      "title": "Review arbitrary captured phases and typed evidence without phase-specific UI code",
+      "description": "The review surface renders run-captured descriptors dynamically; Screenshots and Workflows discover artifacts by evidence kind across every producer phase; unknown kinds retain a safe fallback; navigation contains exactly Overview, Baselines, Metrics, Screenshots, Workflows, Tests, AI Changes, and Agent, with Rules and Code Quality absent.",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/baselines/BaselinesTab.test.tsx",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Will render unknown/new/retired phase fixtures and generic artifact fallbacks without registration."
+        }
+      ]
     }
   ]
 }

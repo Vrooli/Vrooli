@@ -166,46 +166,19 @@ class GetProfileRequest(_message.Message):
     profile_id: str
     def __init__(self, profile_id: _Optional[str] = ...) -> None: ...
 
-class AvailableModel(_message.Message):
-    __slots__ = ("id", "label", "description", "provider", "sources")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    LABEL_FIELD_NUMBER: _ClassVar[int]
-    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
-    PROVIDER_FIELD_NUMBER: _ClassVar[int]
-    SOURCES_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    label: str
-    description: str
-    provider: str
-    sources: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., provider: _Optional[str] = ..., sources: _Optional[_Iterable[str]] = ...) -> None: ...
-
 class GetProfileResponse(_message.Message):
-    __slots__ = ("profile", "available_models", "policy_models")
-    class PolicyModelsEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    __slots__ = ("profile",)
     PROFILE_FIELD_NUMBER: _ClassVar[int]
-    AVAILABLE_MODELS_FIELD_NUMBER: _ClassVar[int]
-    POLICY_MODELS_FIELD_NUMBER: _ClassVar[int]
     profile: _profile_pb2.AgentProfile
-    available_models: _containers.RepeatedCompositeFieldContainer[AvailableModel]
-    policy_models: _containers.ScalarMap[str, str]
-    def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., available_models: _Optional[_Iterable[_Union[AvailableModel, _Mapping]]] = ..., policy_models: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ...) -> None: ...
 
 class ListProfilesRequest(_message.Message):
-    __slots__ = ("runner_type", "limit", "offset")
-    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("limit", "offset")
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
-    runner_type: _types_pb2.RunnerType
     limit: int
     offset: int
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+    def __init__(self, limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class ListProfilesResponse(_message.Message):
     __slots__ = ("profiles", "total", "has_more")
@@ -672,7 +645,7 @@ class ProbeRunnerResponse(_message.Message):
     result: _run_pb2.ProbeResult
     def __init__(self, result: _Optional[_Union[_run_pb2.ProbeResult, _Mapping]] = ...) -> None: ...
 
-class ModelPolicyDiagnostic(_message.Message):
+class RolePolicyDiagnostic(_message.Message):
     __slots__ = ("code", "message", "cause")
     CODE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -682,7 +655,7 @@ class ModelPolicyDiagnostic(_message.Message):
     cause: str
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., cause: _Optional[str] = ...) -> None: ...
 
-class ModelPolicyRequirement(_message.Message):
+class RolePolicyRequirement(_message.Message):
     __slots__ = ("required", "reason")
     REQUIRED_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
@@ -690,7 +663,7 @@ class ModelPolicyRequirement(_message.Message):
     reason: str
     def __init__(self, required: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
 
-class ModelPolicyReloadAttempt(_message.Message):
+class RolePolicyReloadAttempt(_message.Message):
     __slots__ = ("attempted_at", "succeeded", "digest", "diagnostic")
     ATTEMPTED_AT_FIELD_NUMBER: _ClassVar[int]
     SUCCEEDED_FIELD_NUMBER: _ClassVar[int]
@@ -699,10 +672,10 @@ class ModelPolicyReloadAttempt(_message.Message):
     attempted_at: _timestamp_pb2.Timestamp
     succeeded: bool
     digest: str
-    diagnostic: ModelPolicyDiagnostic
-    def __init__(self, attempted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., succeeded: _Optional[bool] = ..., digest: _Optional[str] = ..., diagnostic: _Optional[_Union[ModelPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+    diagnostic: RolePolicyDiagnostic
+    def __init__(self, attempted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., succeeded: _Optional[bool] = ..., digest: _Optional[str] = ..., diagnostic: _Optional[_Union[RolePolicyDiagnostic, _Mapping]] = ...) -> None: ...
 
-class ModelPolicyStatus(_message.Message):
+class RolePolicyStatus(_message.Message):
     __slots__ = ("path", "requirement", "ready", "active_digest", "activated_at", "last_reload_attempt")
     PATH_FIELD_NUMBER: _ClassVar[int]
     REQUIREMENT_FIELD_NUMBER: _ClassVar[int]
@@ -711,114 +684,80 @@ class ModelPolicyStatus(_message.Message):
     ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_RELOAD_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
     path: str
-    requirement: ModelPolicyRequirement
+    requirement: RolePolicyRequirement
     ready: bool
     active_digest: str
     activated_at: _timestamp_pb2.Timestamp
-    last_reload_attempt: ModelPolicyReloadAttempt
-    def __init__(self, path: _Optional[str] = ..., requirement: _Optional[_Union[ModelPolicyRequirement, _Mapping]] = ..., ready: _Optional[bool] = ..., active_digest: _Optional[str] = ..., activated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_reload_attempt: _Optional[_Union[ModelPolicyReloadAttempt, _Mapping]] = ...) -> None: ...
+    last_reload_attempt: RolePolicyReloadAttempt
+    def __init__(self, path: _Optional[str] = ..., requirement: _Optional[_Union[RolePolicyRequirement, _Mapping]] = ..., ready: _Optional[bool] = ..., active_digest: _Optional[str] = ..., activated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_reload_attempt: _Optional[_Union[RolePolicyReloadAttempt, _Mapping]] = ...) -> None: ...
 
-class ModelPolicySource(_message.Message):
-    __slots__ = ("name", "reference", "verified_at")
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    REFERENCE_FIELD_NUMBER: _ClassVar[int]
-    VERIFIED_AT_FIELD_NUMBER: _ClassVar[int]
-    name: str
-    reference: str
-    verified_at: str
-    def __init__(self, name: _Optional[str] = ..., reference: _Optional[str] = ..., verified_at: _Optional[str] = ...) -> None: ...
-
-class ModelPolicyCatalogMetadata(_message.Message):
-    __slots__ = ("catalog_id", "updated_at", "sources")
+class RolePolicyCatalogMetadata(_message.Message):
+    __slots__ = ("catalog_id", "updated_at")
     CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    SOURCES_FIELD_NUMBER: _ClassVar[int]
     catalog_id: str
     updated_at: str
-    sources: _containers.RepeatedCompositeFieldContainer[ModelPolicySource]
-    def __init__(self, catalog_id: _Optional[str] = ..., updated_at: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[ModelPolicySource, _Mapping]]] = ...) -> None: ...
+    def __init__(self, catalog_id: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
-class ModelPolicyModel(_message.Message):
-    __slots__ = ("id", "description")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    description: str
-    def __init__(self, id: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
-
-class ModelPolicyRunnerInventory(_message.Message):
-    __slots__ = ("runner_type", "models", "supports_runner_default", "dynamic_model_prefixes")
+class RolePolicyCandidate(_message.Message):
+    __slots__ = ("runner_type", "resource_role")
     RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
-    MODELS_FIELD_NUMBER: _ClassVar[int]
-    SUPPORTS_RUNNER_DEFAULT_FIELD_NUMBER: _ClassVar[int]
-    DYNAMIC_MODEL_PREFIXES_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_ROLE_FIELD_NUMBER: _ClassVar[int]
     runner_type: _types_pb2.RunnerType
-    models: _containers.RepeatedCompositeFieldContainer[ModelPolicyModel]
-    supports_runner_default: bool
-    dynamic_model_prefixes: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., models: _Optional[_Iterable[_Union[ModelPolicyModel, _Mapping]]] = ..., supports_runner_default: _Optional[bool] = ..., dynamic_model_prefixes: _Optional[_Iterable[str]] = ...) -> None: ...
+    resource_role: str
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., resource_role: _Optional[str] = ...) -> None: ...
 
-class ModelPolicyCandidate(_message.Message):
-    __slots__ = ("runner_type", "selection_type", "model")
-    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
-    SELECTION_TYPE_FIELD_NUMBER: _ClassVar[int]
-    MODEL_FIELD_NUMBER: _ClassVar[int]
-    runner_type: _types_pb2.RunnerType
-    selection_type: _types_pb2.ModelSelectionType
-    model: str
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., selection_type: _Optional[_Union[_types_pb2.ModelSelectionType, str]] = ..., model: _Optional[str] = ...) -> None: ...
-
-class ModelPolicyDefinition(_message.Message):
-    __slots__ = ("name", "intent", "candidates")
-    NAME_FIELD_NUMBER: _ClassVar[int]
+class RolePolicyDefinition(_message.Message):
+    __slots__ = ("role_ref", "intent", "description", "candidates")
+    ROLE_REF_FIELD_NUMBER: _ClassVar[int]
     INTENT_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     CANDIDATES_FIELD_NUMBER: _ClassVar[int]
-    name: str
+    role_ref: str
     intent: str
-    candidates: _containers.RepeatedCompositeFieldContainer[ModelPolicyCandidate]
-    def __init__(self, name: _Optional[str] = ..., intent: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[ModelPolicyCandidate, _Mapping]]] = ...) -> None: ...
+    description: str
+    candidates: _containers.RepeatedCompositeFieldContainer[RolePolicyCandidate]
+    def __init__(self, role_ref: _Optional[str] = ..., intent: _Optional[str] = ..., description: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[RolePolicyCandidate, _Mapping]]] = ...) -> None: ...
 
-class ModelPolicyCatalog(_message.Message):
-    __slots__ = ("schema_version", "metadata", "default_policy", "runners", "policies")
+class RolePolicyCatalog(_message.Message):
+    __slots__ = ("schema_version", "metadata", "default_role", "roles")
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
-    DEFAULT_POLICY_FIELD_NUMBER: _ClassVar[int]
-    RUNNERS_FIELD_NUMBER: _ClassVar[int]
-    POLICIES_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_ROLE_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
     schema_version: int
-    metadata: ModelPolicyCatalogMetadata
-    default_policy: str
-    runners: _containers.RepeatedCompositeFieldContainer[ModelPolicyRunnerInventory]
-    policies: _containers.RepeatedCompositeFieldContainer[ModelPolicyDefinition]
-    def __init__(self, schema_version: _Optional[int] = ..., metadata: _Optional[_Union[ModelPolicyCatalogMetadata, _Mapping]] = ..., default_policy: _Optional[str] = ..., runners: _Optional[_Iterable[_Union[ModelPolicyRunnerInventory, _Mapping]]] = ..., policies: _Optional[_Iterable[_Union[ModelPolicyDefinition, _Mapping]]] = ...) -> None: ...
+    metadata: RolePolicyCatalogMetadata
+    default_role: str
+    roles: _containers.RepeatedCompositeFieldContainer[RolePolicyDefinition]
+    def __init__(self, schema_version: _Optional[int] = ..., metadata: _Optional[_Union[RolePolicyCatalogMetadata, _Mapping]] = ..., default_role: _Optional[str] = ..., roles: _Optional[_Iterable[_Union[RolePolicyDefinition, _Mapping]]] = ...) -> None: ...
 
-class GetModelPolicyStatusRequest(_message.Message):
+class GetRolePolicyStatusRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class GetModelPolicyStatusResponse(_message.Message):
+class GetRolePolicyStatusResponse(_message.Message):
     __slots__ = ("status",)
     STATUS_FIELD_NUMBER: _ClassVar[int]
-    status: ModelPolicyStatus
-    def __init__(self, status: _Optional[_Union[ModelPolicyStatus, _Mapping]] = ...) -> None: ...
+    status: RolePolicyStatus
+    def __init__(self, status: _Optional[_Union[RolePolicyStatus, _Mapping]] = ...) -> None: ...
 
-class GetModelPolicyCatalogRequest(_message.Message):
+class GetRolePolicyCatalogRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class GetModelPolicyCatalogResponse(_message.Message):
+class GetRolePolicyCatalogResponse(_message.Message):
     __slots__ = ("status", "catalog")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     CATALOG_FIELD_NUMBER: _ClassVar[int]
-    status: ModelPolicyStatus
-    catalog: ModelPolicyCatalog
-    def __init__(self, status: _Optional[_Union[ModelPolicyStatus, _Mapping]] = ..., catalog: _Optional[_Union[ModelPolicyCatalog, _Mapping]] = ...) -> None: ...
+    status: RolePolicyStatus
+    catalog: RolePolicyCatalog
+    def __init__(self, status: _Optional[_Union[RolePolicyStatus, _Mapping]] = ..., catalog: _Optional[_Union[RolePolicyCatalog, _Mapping]] = ...) -> None: ...
 
-class ValidateModelPolicyCatalogRequest(_message.Message):
+class ValidateRolePolicyCatalogRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class ValidateModelPolicyCatalogResponse(_message.Message):
+class ValidateRolePolicyCatalogResponse(_message.Message):
     __slots__ = ("valid", "candidate_digest", "active_digest", "diagnostic")
     VALID_FIELD_NUMBER: _ClassVar[int]
     CANDIDATE_DIGEST_FIELD_NUMBER: _ClassVar[int]
@@ -827,24 +766,24 @@ class ValidateModelPolicyCatalogResponse(_message.Message):
     valid: bool
     candidate_digest: str
     active_digest: str
-    diagnostic: ModelPolicyDiagnostic
-    def __init__(self, valid: _Optional[bool] = ..., candidate_digest: _Optional[str] = ..., active_digest: _Optional[str] = ..., diagnostic: _Optional[_Union[ModelPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+    diagnostic: RolePolicyDiagnostic
+    def __init__(self, valid: _Optional[bool] = ..., candidate_digest: _Optional[str] = ..., active_digest: _Optional[str] = ..., diagnostic: _Optional[_Union[RolePolicyDiagnostic, _Mapping]] = ...) -> None: ...
 
-class ReloadModelPolicyCatalogRequest(_message.Message):
+class ReloadRolePolicyCatalogRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class ReloadModelPolicyCatalogResponse(_message.Message):
+class ReloadRolePolicyCatalogResponse(_message.Message):
     __slots__ = ("activated", "status", "diagnostic")
     ACTIVATED_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
     activated: bool
-    status: ModelPolicyStatus
-    diagnostic: ModelPolicyDiagnostic
-    def __init__(self, activated: _Optional[bool] = ..., status: _Optional[_Union[ModelPolicyStatus, _Mapping]] = ..., diagnostic: _Optional[_Union[ModelPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+    status: RolePolicyStatus
+    diagnostic: RolePolicyDiagnostic
+    def __init__(self, activated: _Optional[bool] = ..., status: _Optional[_Union[RolePolicyStatus, _Mapping]] = ..., diagnostic: _Optional[_Union[RolePolicyDiagnostic, _Mapping]] = ...) -> None: ...
 
-class ExplainModelPolicyRequest(_message.Message):
+class ExplainRolePolicyRequest(_message.Message):
     __slots__ = ("profile_id", "run_id")
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -852,7 +791,7 @@ class ExplainModelPolicyRequest(_message.Message):
     run_id: str
     def __init__(self, profile_id: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
 
-class ExplainModelPolicyResponse(_message.Message):
+class ExplainRolePolicyResponse(_message.Message):
     __slots__ = ("target_type", "target_id", "snapshot", "summary", "historical_without_snapshot")
     TARGET_TYPE_FIELD_NUMBER: _ClassVar[int]
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]

@@ -189,7 +189,16 @@ func (s *Service) WaitRun(ctx context.Context, req *connect.Request[runspb.WaitR
 	if isTerminalStatus(st.Status) {
 		timedOut = false
 	}
-	return connect.NewResponse(&runspb.WaitRunResponse{Status: toLiveStatus(st), TimedOut: timedOut}), nil
+	response := &runspb.WaitRunResponse{
+		Status:                        toLiveStatus(st),
+		TimedOut:                      timedOut,
+		TerminalSnapshotSchemaVersion: int32(st.TerminalSnapshotSchemaVersion),
+		DegradedReasons:               append([]string(nil), st.DegradedReasons...),
+	}
+	if st.TerminalRecord != nil {
+		response.TerminalRun = toTerminalRunInfo(*st.TerminalRecord, st.Result, st.DescriptorSnapshot)
+	}
+	return connect.NewResponse(response), nil
 }
 
 // AbortRun cancels a running run and reports its terminal aborted status.
@@ -263,6 +272,7 @@ func toLiveStatus(st runmanager.LiveStatus) *runspb.RunLiveStatus {
 		Active:                      st.Active,
 		TerminalStandings:           st.TerminalStandings,
 		TerminalFindingsSummaries:   st.TerminalFindingsSummaries,
+		DegradedReasons:             append([]string(nil), st.DegradedReasons...),
 	}
 }
 

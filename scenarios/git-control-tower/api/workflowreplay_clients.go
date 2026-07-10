@@ -68,16 +68,19 @@ func (c workflowReplayRunsClient) GetRun(ctx context.Context, scenario, runID st
 	return resp.Msg.GetRun(), nil
 }
 
-func (c workflowReplayRunsClient) ListRunVideos(ctx context.Context, scenario, runID string) ([]*runspb.RunVideo, error) {
+func (c workflowReplayRunsClient) ListRunArtifacts(ctx context.Context, scenario, runID string, kinds []string) ([]*runspb.ArtifactRef, error) {
 	cl, err := c.client(ctx)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := cl.ListRunVideos(ctx, connect.NewRequest(&runspb.ListRunVideosRequest{
-		Scenario: scenario, RunId: runID,
+	resp, err := cl.ListRunArtifacts(ctx, connect.NewRequest(&runspb.ListRunArtifactsRequest{
+		Scenario: scenario, RunId: runID, Kinds: kinds,
 	}))
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg.GetVideos(), nil
+	if reasons := resp.Msg.GetDegradedReasons(); len(reasons) > 0 {
+		return nil, fmt.Errorf("run %s artifact catalog is degraded: %v", runID, reasons)
+	}
+	return resp.Msg.GetArtifacts(), nil
 }

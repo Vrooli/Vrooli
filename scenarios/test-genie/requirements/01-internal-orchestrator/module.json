@@ -37,6 +37,127 @@
           "notes": "Ensures the Go-native integration phase exercises CLI+Bats suites without legacy scripts"
         }
       ]
+    },
+    {
+      "id": "TESTGENIE-RUN-SNAPSHOT-P0",
+      "title": "Terminal run reads share one versioned durable snapshot",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Every terminal run persists one versioned canonical snapshot containing the complete phase results and terminal metadata; wait, show, history, comparison, and downstream consumers project that same record before and after in-memory retirement or service restart. Unrecoverable legacy fields are explicitly degraded rather than zero-filled.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/app/runs/lifecycle_test.go::TestLifecycleRPC_StartWaitStatus",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts terminal wait/show parity and canonical snapshot metadata on the immediate terminal read."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/runmanager/manager_test.go::TestWaitHydratesCanonicalTerminalSnapshotAfterRestart",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts full phase hydration after service reconstruction over the same artifact directory."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/shared/runs/index_test.go::TestReadTerminalSnapshotDistinguishesLegacyCorruptAndFuture",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Distinguishes pre-snapshot legacy runs from corrupt and unsupported snapshot versions."
+        },
+        {
+          "type": "test",
+          "ref": "cli/runs/lifecycle_test.go::TestRunWaitAndShowJSONAgreeOnCanonicalTerminalEvidence",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts wait and show JSON agree on run identity, phase set, per-phase status, and duration."
+        }
+      ]
+    },
+    {
+      "id": "TESTGENIE-DESCRIPTOR-SNAPSHOT-P0",
+      "title": "Runs preserve their effective descriptor catalog",
+      "status": "pending",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "A run captures the effective descriptor catalog and applicability decisions at execution start, using immutable phase machine keys and descriptor-owned presentation metadata so historical rendering and comparison do not depend on the live catalog.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/orchestrator/descriptor_snapshot_test.go::TestBuildRunDescriptorSnapshotFreezesCatalogEvolution",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts planning freezes labels, provider, ordering, policy metadata, applicability decisions, and a content digest independently for each run."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/shared/runs/descriptor_snapshot_test.go::TestDescriptorSnapshotRoundTripAndDigestValidation",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts atomic run-scoped persistence, round-trip fidelity, and tamper-detecting digest validation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/app/runs/service_test.go::TestCompareRunsUsesCapturedCatalogEvolutionAndTypedReasons",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Exercises add, retire, reorder, display rename, provider change, applicability change, and provider-unavailable typed comparison reasons from captured catalogs."
+        }
+      ]
+    },
+    {
+      "id": "TESTGENIE-TYPED-EVIDENCE-P0",
+      "title": "Run evidence is typed, phase-agnostic, and safely addressable",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Each run owns a versioned artifact catalog whose entries have opaque run-scoped ids, stable kinds, media metadata, producer phase metadata, and an unknown-kind fallback; consumers filter by evidence kind without receiving provider filesystem paths.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/shared/artifacts/catalog_test.go::TestArtifactCatalogDiscoversTypedEvidenceWithoutPhaseFiltering",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers atomic catalog round-trip, typed screenshot/video/result/log discovery, large metadata, descriptor-owned producer attribution, and path-free opaque ids."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/shared/artifacts/catalog_test.go::TestArtifactCatalogRejectsCrossRunReuseMissingUnsafeAndDuplicateIDs",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers cross-run opaque id reuse, missing bytes, escaping symlinks, and duplicate id rejection."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/app/runs/service_test.go::TestListAndGetRunArtifactsUseOpaqueTypedReferences",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers kind-filtered list/detail projection with no filesystem locator, advisory visual semantics, and safe access paths."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/app/httpserver/run_artifact_handler_test.go::TestOpaqueRunArtifactHandlerStreamsCatalogBytesWithSafeHeaders",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers opaque byte streaming, content typing, no-sniff behavior, and sandboxing of active HTML evidence."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/runmanager/manager_test.go::TestAbortTransitionsToAborted",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts an aborted or early-terminal run still receives a non-legacy persisted artifact catalog before terminal snapshot publication."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestrator/providerdescriptor/descriptor_test.go::TestEvidenceProducingProvidersDeclareTypedKinds",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Guards truthful evidence-kind declarations for ui-health, workflow-health, performance-health, unit-health, and tidiness-manager."
+        }
+      ]
     }
   ]
 }

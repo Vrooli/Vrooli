@@ -252,5 +252,8 @@
   "runtimeClass": "static",
   "dimensions": [
     "tidiness"
+  ],
+  "evidenceKinds": [
+    "findings.report"
   ]
 }

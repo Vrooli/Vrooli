@@ -96,20 +96,22 @@ type Response struct {
 // machine renderers. The JSON flag serializes this view directly; human output
 // renders the same phases, completeness, verdict, and top-priority fields.
 type RunStandingView struct {
-	Success                     bool                 `json:"success"`
-	Verdict                     string               `json:"verdict,omitempty"`
-	Status                      string               `json:"status,omitempty"`
-	Scenario                    string               `json:"scenario,omitempty"`
-	RunID                       string               `json:"runId,omitempty"`
-	ExecutionID                 string               `json:"executionId,omitempty"`
-	PhaseSummary                PhaseSummary         `json:"phaseSummary"`
-	Phases                      []Phase              `json:"phases"`
-	Completeness                *CompletenessSummary `json:"completeness,omitempty"`
-	TopPriority                 *RunTopPriority      `json:"topPriority,omitempty"`
-	RunHandle                   *RunHandle           `json:"runHandle,omitempty"`
-	RecommendedNextCheckSeconds int32                `json:"recommendedNextCheckSeconds,omitempty"`
-	TimedOut                    bool                 `json:"timedOut,omitempty"`
-	Error                       string               `json:"error,omitempty"`
+	Success                       bool                 `json:"success"`
+	Verdict                       string               `json:"verdict,omitempty"`
+	Status                        string               `json:"status,omitempty"`
+	Scenario                      string               `json:"scenario,omitempty"`
+	RunID                         string               `json:"runId,omitempty"`
+	ExecutionID                   string               `json:"executionId,omitempty"`
+	PhaseSummary                  PhaseSummary         `json:"phaseSummary"`
+	Phases                        []Phase              `json:"phases"`
+	Completeness                  *CompletenessSummary `json:"completeness,omitempty"`
+	TopPriority                   *RunTopPriority      `json:"topPriority,omitempty"`
+	RunHandle                     *RunHandle           `json:"runHandle,omitempty"`
+	RecommendedNextCheckSeconds   int32                `json:"recommendedNextCheckSeconds,omitempty"`
+	TimedOut                      bool                 `json:"timedOut,omitempty"`
+	Error                         string               `json:"error,omitempty"`
+	TerminalSnapshotSchemaVersion int32                `json:"terminalSnapshotSchemaVersion,omitempty"`
+	DegradedReasons               []string             `json:"degradedReasons,omitempty"`
 }
 
 // RunTopPriority is the single cross-phase next move selected from all phase

@@ -28,7 +28,7 @@ export function TestsTab({
   const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const triggerTest = useTriggerTestExecution(repoId);
   const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
-  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, "tests", repoId);
+  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, repoId);
 
   if (!testGenieAvailable) {
     return <ServiceUnavailableBanner name="Test Genie" message="Start the test-genie scenario to run automated tests" />;
@@ -269,4 +269,3 @@ function PhaseRow({
     </div>
   );
 }
-

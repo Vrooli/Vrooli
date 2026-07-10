@@ -4,55 +4,25 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
-// Target identifies what a baseline operates on for a single request. repoID
-// scopes GCT-local storage; repoDir is the absolute working tree; Scenario is
-// the slug passed to test-genie.
+// Target identifies what a baseline operates on for a single request.
 type Target struct {
 	RepoID   int64
 	RepoDir  string
 	Scenario string
 }
 
-// SurfaceDiff is the comparison of a captured surface against the surface's
-// current state, bucketed locally from one comprehensive CompareRuns.
-type SurfaceDiff struct {
-	SurfaceID   string
-	Verdict     Verdict
-	Regressions []string // passing in baseline, failing now
-	NewFailures []string // absent in baseline, failing now
-	Preexisting []string // failing in both
-	Cleared     []string // failing in baseline, passing now
-	Changed     []string // neutral, advisory differences to review (visuals); never a failure
-	Summary     string   // one-line human summary
-}
-
-// PhaseDetail is the authoritative per-test-genie-phase comparison. Named
-// surfaces are presentation views over these phase details; they are not the
-// inclusion gate for the overall baseline verdict.
-type PhaseDetail struct {
-	Phase       string
-	SurfaceID   string
-	Verdict     Verdict
-	Regressions []string
-	NewFailures []string
-	Preexisting []string
-	Cleared     []string
-	Summary     string
-}
-
-// Staleness reports how far the working tree has drifted from the baseline's
-// captured commit.
+// Staleness reports working-tree drift from the baseline commit.
 type Staleness struct {
 	CommitsSince int
 	FilesChanged int
-	LikelyStale  bool // heuristic: many commits or many files changed since capture
+	LikelyStale  bool
 }
 
-// ComputeStaleness reports how far repoDir's HEAD has drifted from the baseline
-// commit. LikelyStale is a heuristic: more than 10 commits or more than 20
-// files changed since capture.
+// ComputeStaleness reports how far repoDir has drifted from baselineSha.
 func ComputeStaleness(ctx context.Context, probe StalenessProbe, repoDir, baselineSha string) (Staleness, error) {
 	if probe == nil || baselineSha == "" {
 		return Staleness{}, nil
@@ -61,81 +31,68 @@ func ComputeStaleness(ctx context.Context, probe StalenessProbe, repoDir, baseli
 	if err != nil {
 		return Staleness{}, err
 	}
-	return Staleness{
-		CommitsSince: commits,
-		FilesChanged: files,
-		LikelyStale:  commits > 10 || files > 20,
-	}, nil
+	return Staleness{CommitsSince: commits, FilesChanged: files, LikelyStale: commits > 10 || files > 20}, nil
 }
 
-// ---------------------------------------------------------------------------
-// Seam interfaces — injected so the service is unit-testable with fakes and the
-// baseline package never imports the flat main package (no import cycle).
-// ---------------------------------------------------------------------------
-
-// PhaseStatus is a single phase's terminal status.
+// PhaseStatus is a terminal run phase status retained for operator summaries.
 type PhaseStatus struct {
 	Name   string
-	Status string // passed | failed | skipped
+	Status string
 }
 
-// ExecResult is the outcome of triggering one comprehensive test-genie run.
+// ExecResult is the canonical terminal identity returned by Test Genie.
 type ExecResult struct {
-	RunID   string
-	Success bool
-	Phases  []PhaseStatus
+	RunID                           string
+	Success                         bool
+	CompletedAt                     time.Time
+	TreeDigest                      string
+	PhaseSetDigest                  string
+	CaptureProfile                  string
+	DescriptorSnapshotDigest        string
+	DescriptorSnapshotSchemaVersion int
+	Phases                          []PhaseStatus
 }
 
-// PhaseDiff mirrors test-genie's RunsService per-phase classification.
-type PhaseDiff struct {
-	Phase       string
-	Verdict     string
-	Regressions []string
-	NewFailures []string
-	Preexisting []string
-	Cleared     []string
-}
-
-// CompareResult mirrors test-genie's CompareRunsResponse.
+// CompareResult carries Test Genie's PhaseDiff messages unchanged. Keeping the
+// owning proto at this seam prevents GCT from losing future descriptor fields,
+// reason codes, or unknown phases while forwarding comparison evidence.
 type CompareResult struct {
 	Verdict string
-	Phases  []PhaseDiff
+	Phases  []*runspb.PhaseDiff
 }
 
-// RunHandle is the immediately-returned handle for a started comprehensive run:
-// its id and ETA, available before the run completes so a snapshot can return
-// fast and the operator can follow the durable run by id.
+type PhaseDiff = runspb.PhaseDiff
+type ArtifactRef = runspb.ArtifactRef
+
+// ArtifactCatalog is Test Genie's path-free evidence catalog for one run.
+type ArtifactCatalog struct {
+	RunID            string
+	SchemaVersion    int
+	Digest           string
+	Artifacts        []*runspb.ArtifactRef
+	LegacyDiscovered bool
+	DegradedReasons  []string
+}
+
 type RunHandle struct {
 	RunID                 string
 	EstimatedTotalSeconds int
 	EtaKnown              bool
-	// Coalesced is true when StartRun rode an already-in-flight comprehensive run
-	// of the scenario (the one-run-per-scenario guard) instead of starting a
-	// second suite. The run id is then that in-flight run's id.
-	Coalesced bool
+	Coalesced             bool
 }
 
-// RunStatusInfo is a non-blocking snapshot of a run's lifecycle state, used by
-// GetDiffResult to answer "is the run still going?" without waiting on it.
 type RunStatusInfo struct {
-	Status                      string // in_progress | passed | failed | aborted
+	Status                      string
 	Terminal                    bool
 	Success                     bool
 	RecommendedNextCheckSeconds int
 }
 
-// ReusableRun is a completed run a diff can reuse instead of starting a fresh
-// one (clean tree + exact sha + matching shape).
 type ReusableRun struct {
 	RunID       string
 	CompletedAt time.Time
 }
 
-// RunBusyError is a typed rejection from StartRun: the scenario already has a
-// DIVERGENT in-progress run (different shape), so a new run of a different shape
-// cannot start under the one-run-per-scenario invariant. It carries the
-// in-flight run so the CLI renders wait/abort guidance. (A diff never collides
-// with another diff/snapshot of the same scenario — those coalesce.)
 type RunBusyError struct {
 	Scenario string
 	RunID    string
@@ -150,67 +107,21 @@ func (e *RunBusyError) Error() string {
 	return fmt.Sprintf("scenario %s already has an in-progress run %s (preset %s); wait for it or abort it before starting a different run", e.Scenario, e.RunID, preset)
 }
 
-// Executor drives ONE comprehensive, durable test-genie run (all phases) with
-// the baseline capture profile (full diagnostics + all-pages visuals + video).
-// It is two-phase so a snapshot can return the run handle immediately and pin
-// the baseline server-side once the durable run completes:
-//
-//   - StartRun begins the run and returns its handle without blocking.
-//   - AwaitResult blocks until the run is terminal and returns its phase results.
-//
-// Diffs reuse the same comprehensive run so every surface is a view over a
-// single execution.
 type Executor interface {
 	StartRun(ctx context.Context, scenario string) (RunHandle, error)
 	AwaitResult(ctx context.Context, scenario, runID string) (ExecResult, error)
-	// RunStatus returns a non-blocking lifecycle snapshot of a run, so a diff can
-	// report in_progress vs ready without waiting on the run.
 	RunStatus(ctx context.Context, scenario, runID string) (RunStatusInfo, error)
-	// FindReusableRun returns the newest completed clean-tree comprehensive+
-	// baseline run at exactly gitSha, if one exists; found=false otherwise. It
-	// lets a diff skip re-running the suite when the working tree hasn't changed
-	// since a prior run/snapshot (the redundant-run defect).
 	FindReusableRun(ctx context.Context, scenario, gitSha string) (ReusableRun, bool, error)
 }
 
-// RunVisual is one page's UI-smoke visual artifact captured by a run under the
-// baseline profile (mirrors test-genie's RunsService.RunVisual). GCT diffs the
-// page set + screenshot count at the metadata level between two runs.
-type RunVisual struct {
-	Page                string
-	Label               string
-	ScreenshotRelPath   string
-	ScreenshotSizeBytes int64
-}
-
-// RunsClient wraps test-genie's RunsService: pin/unpin a comprehensive run,
-// compare two runs (empty phase = every phase), and enumerate a run's visual
-// artifacts. GCT owns no run history — test-genie does.
 type RunsClient interface {
 	PinRun(ctx context.Context, scenario, runID, pinnedBy, reason string) error
 	UnpinRun(ctx context.Context, scenario, runID, pinnedBy string) error
-	// CompareRuns with an empty phase returns every phase's delta; GCT buckets
-	// the PhaseDiff[] into surfaces locally (option-c).
 	CompareRuns(ctx context.Context, scenario, runIDA, runIDB, phase string) (CompareResult, error)
-	// ListRunVisuals enumerates the per-page visual artifacts a run captured.
-	ListRunVisuals(ctx context.Context, scenario, runID string) ([]RunVisual, error)
-	// CompareRunVisuals returns the per-page pixel-level comparison of two runs'
-	// captures. Test Genie delegates the visual analyzer to ui-health; GCT
-	// consumes the neutral per-page deltas and renders them as the advisory
-	// "changed" tier. The result is advisory by contract — a difference is never
-	// a failure here.
+	ListRunArtifacts(ctx context.Context, scenario, runID string) (ArtifactCatalog, error)
 	CompareRunVisuals(ctx context.Context, scenario, baseRunID, curRunID string) ([]VisualDelta, error)
 }
 
-// VisualDelta is one page's pixel-level comparison between two runs' captures.
-// Status is one of:
-//   - "identical": the page rendered the same within tolerance;
-//   - "changed":   the page's pixels moved (ChangedFraction carries by how much);
-//   - "added":     the page was captured now but not in the baseline;
-//   - "removed":   the page was captured in the baseline but not now.
-//
-// Every non-identical status is a neutral "review before/after" signal, not a
-// failure.
 type VisualDelta struct {
 	Page            string
 	Label           string
@@ -218,20 +129,10 @@ type VisualDelta struct {
 	ChangedFraction float64
 }
 
-// StalenessProbe computes commits and files changed since a sha. Read-only.
 type StalenessProbe interface {
 	Since(ctx context.Context, repoDir, sha string) (commits int, files int, err error)
 }
 
-// Reachability is a fast, bounded liveness check of the test-genie backend that
-// owns the comprehensive run. It is probed BEFORE committing to a multi-minute
-// run so an unreachable subsystem skips fast (clear reason) instead of blocking
-// to the long execute/compare client deadlines — the reported silent-hang
-// class. A nil error means reachable; a non-nil error's message is surfaced to
-// the operator as the skip reason.
 type Reachability interface {
-	// Probe returns nil when test-genie is reachable. Implementations MUST apply
-	// their own short timeout (independent of ctx's long deadline) so the probe
-	// itself can never be the thing that hangs.
 	Probe(ctx context.Context) error
 }

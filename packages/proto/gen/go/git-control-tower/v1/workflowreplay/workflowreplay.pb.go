@@ -7,6 +7,7 @@
 package workflowreplay_v1
 
 import (
+	runs "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -21,20 +22,18 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// RunSummary is a compact playbooks-run record for the Workflows tab list.
+// RunSummary is a compact run record for the Workflows evidence lens.
 type RunSummary struct {
-	state                    protoimpl.MessageState `protogen:"open.v1"`
-	RunId                    string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Status                   string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`                              // in_progress | passed | failed | aborted
-	StartedAt                string                 `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`       // RFC3339
-	CompletedAt              string                 `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"` // RFC3339, empty if in-progress
-	GitSha                   string                 `protobuf:"bytes,5,opt,name=git_sha,json=gitSha,proto3" json:"git_sha,omitempty"`
-	GitBranch                string                 `protobuf:"bytes,6,opt,name=git_branch,json=gitBranch,proto3" json:"git_branch,omitempty"`
-	GitDirty                 bool                   `protobuf:"varint,7,opt,name=git_dirty,json=gitDirty,proto3" json:"git_dirty,omitempty"`
-	PlaybooksStatus          string                 `protobuf:"bytes,8,opt,name=playbooks_status,json=playbooksStatus,proto3" json:"playbooks_status,omitempty"` // passed | failed | skipped
-	PlaybooksDurationSeconds float64                `protobuf:"fixed64,9,opt,name=playbooks_duration_seconds,json=playbooksDurationSeconds,proto3" json:"playbooks_duration_seconds,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`                              // in_progress | passed | failed | aborted
+	StartedAt     string                 `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`       // RFC3339
+	CompletedAt   string                 `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"` // RFC3339, empty if in-progress
+	GitSha        string                 `protobuf:"bytes,5,opt,name=git_sha,json=gitSha,proto3" json:"git_sha,omitempty"`
+	GitBranch     string                 `protobuf:"bytes,6,opt,name=git_branch,json=gitBranch,proto3" json:"git_branch,omitempty"`
+	GitDirty      bool                   `protobuf:"varint,7,opt,name=git_dirty,json=gitDirty,proto3" json:"git_dirty,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunSummary) Reset() {
@@ -114,20 +113,6 @@ func (x *RunSummary) GetGitDirty() bool {
 		return x.GitDirty
 	}
 	return false
-}
-
-func (x *RunSummary) GetPlaybooksStatus() string {
-	if x != nil {
-		return x.PlaybooksStatus
-	}
-	return ""
-}
-
-func (x *RunSummary) GetPlaybooksDurationSeconds() float64 {
-	if x != nil {
-		return x.PlaybooksDurationSeconds
-	}
-	return 0
 }
 
 type ListRecentRunsRequest struct {
@@ -226,68 +211,6 @@ func (x *ListRecentRunsResponse) GetRuns() []*RunSummary {
 	return nil
 }
 
-// WorkflowVideo references one recorded video. rel_path is the run-relative
-// handle the GCT REST video route forwards to test-genie.
-type WorkflowVideo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workflow      string                 `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"`
-	RelPath       string                 `protobuf:"bytes,2,opt,name=rel_path,json=relPath,proto3" json:"rel_path,omitempty"`
-	SizeBytes     int64                  `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WorkflowVideo) Reset() {
-	*x = WorkflowVideo{}
-	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorkflowVideo) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorkflowVideo) ProtoMessage() {}
-
-func (x *WorkflowVideo) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorkflowVideo.ProtoReflect.Descriptor instead.
-func (*WorkflowVideo) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *WorkflowVideo) GetWorkflow() string {
-	if x != nil {
-		return x.Workflow
-	}
-	return ""
-}
-
-func (x *WorkflowVideo) GetRelPath() string {
-	if x != nil {
-		return x.RelPath
-	}
-	return ""
-}
-
-func (x *WorkflowVideo) GetSizeBytes() int64 {
-	if x != nil {
-		return x.SizeBytes
-	}
-	return 0
-}
-
 type GetRunDetailRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -298,7 +221,7 @@ type GetRunDetailRequest struct {
 
 func (x *GetRunDetailRequest) Reset() {
 	*x = GetRunDetailRequest{}
-	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[4]
+	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -310,7 +233,7 @@ func (x *GetRunDetailRequest) String() string {
 func (*GetRunDetailRequest) ProtoMessage() {}
 
 func (x *GetRunDetailRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[4]
+	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -323,7 +246,7 @@ func (x *GetRunDetailRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunDetailRequest.ProtoReflect.Descriptor instead.
 func (*GetRunDetailRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDescGZIP(), []int{4}
+	return file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetRunDetailRequest) GetScenario() string {
@@ -343,14 +266,14 @@ func (x *GetRunDetailRequest) GetRunId() string {
 type GetRunDetailResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Run           *RunSummary            `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
-	Videos        []*WorkflowVideo       `protobuf:"bytes,2,rep,name=videos,proto3" json:"videos,omitempty"`
+	Artifacts     []*runs.ArtifactRef    `protobuf:"bytes,2,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetRunDetailResponse) Reset() {
 	*x = GetRunDetailResponse{}
-	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[5]
+	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -362,7 +285,7 @@ func (x *GetRunDetailResponse) String() string {
 func (*GetRunDetailResponse) ProtoMessage() {}
 
 func (x *GetRunDetailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[5]
+	mi := &file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -375,7 +298,7 @@ func (x *GetRunDetailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunDetailResponse.ProtoReflect.Descriptor instead.
 func (*GetRunDetailResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDescGZIP(), []int{5}
+	return file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetRunDetailResponse) GetRun() *RunSummary {
@@ -385,9 +308,9 @@ func (x *GetRunDetailResponse) GetRun() *RunSummary {
 	return nil
 }
 
-func (x *GetRunDetailResponse) GetVideos() []*WorkflowVideo {
+func (x *GetRunDetailResponse) GetArtifacts() []*runs.ArtifactRef {
 	if x != nil {
-		return x.Videos
+		return x.Artifacts
 	}
 	return nil
 }
@@ -396,7 +319,7 @@ var File_git_control_tower_v1_workflowreplay_workflowreplay_proto protoreflect.F
 
 const file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDesc = "" +
 	"\n" +
-	"8git-control-tower/v1/workflowreplay/workflowreplay.proto\x12*vrooli.git_control_tower.v1.workflowreplay\"\xbb\x02\n" +
+	"8git-control-tower/v1/workflowreplay/workflowreplay.proto\x12*vrooli.git_control_tower.v1.workflowreplay\x1a\x1dtest-genie/v1/runs/runs.proto\"\xde\x01\n" +
 	"\n" +
 	"RunSummary\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
@@ -407,25 +330,19 @@ const file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDesc = ""
 	"\agit_sha\x18\x05 \x01(\tR\x06gitSha\x12\x1d\n" +
 	"\n" +
 	"git_branch\x18\x06 \x01(\tR\tgitBranch\x12\x1b\n" +
-	"\tgit_dirty\x18\a \x01(\bR\bgitDirty\x12)\n" +
-	"\x10playbooks_status\x18\b \x01(\tR\x0fplaybooksStatus\x12<\n" +
-	"\x1aplaybooks_duration_seconds\x18\t \x01(\x01R\x18playbooksDurationSeconds\"I\n" +
+	"\tgit_dirty\x18\a \x01(\bR\bgitDirtyJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"\"I\n" +
 	"\x15ListRecentRunsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"d\n" +
 	"\x16ListRecentRunsResponse\x12J\n" +
-	"\x04runs\x18\x01 \x03(\v26.vrooli.git_control_tower.v1.workflowreplay.RunSummaryR\x04runs\"e\n" +
-	"\rWorkflowVideo\x12\x1a\n" +
-	"\bworkflow\x18\x01 \x01(\tR\bworkflow\x12\x19\n" +
-	"\brel_path\x18\x02 \x01(\tR\arelPath\x12\x1d\n" +
-	"\n" +
-	"size_bytes\x18\x03 \x01(\x03R\tsizeBytes\"H\n" +
+	"\x04runs\x18\x01 \x03(\v26.vrooli.git_control_tower.v1.workflowreplay.RunSummaryR\x04runs\"H\n" +
 	"\x13GetRunDetailRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xb3\x01\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xa6\x01\n" +
 	"\x14GetRunDetailResponse\x12H\n" +
-	"\x03run\x18\x01 \x01(\v26.vrooli.git_control_tower.v1.workflowreplay.RunSummaryR\x03run\x12Q\n" +
-	"\x06videos\x18\x02 \x03(\v29.vrooli.git_control_tower.v1.workflowreplay.WorkflowVideoR\x06videos2\xc5\x02\n" +
+	"\x03run\x18\x01 \x01(\v26.vrooli.git_control_tower.v1.workflowreplay.RunSummaryR\x03run\x12D\n" +
+	"\tartifacts\x18\x02 \x03(\v2&.vrooli.test_genie.v1.runs.ArtifactRefR\tartifacts2\xc5\x02\n" +
 	"\x15WorkflowReplayService\x12\x97\x01\n" +
 	"\x0eListRecentRuns\x12A.vrooli.git_control_tower.v1.workflowreplay.ListRecentRunsRequest\x1aB.vrooli.git_control_tower.v1.workflowreplay.ListRecentRunsResponse\x12\x91\x01\n" +
 	"\fGetRunDetail\x12?.vrooli.git_control_tower.v1.workflowreplay.GetRunDetailRequest\x1a@.vrooli.git_control_tower.v1.workflowreplay.GetRunDetailResponseBfZdgithub.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/workflowreplay;workflowreplay_v1b\x06proto3"
@@ -442,23 +359,23 @@ func file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDescGZIP()
 	return file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDescData
 }
 
-var file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_git_control_tower_v1_workflowreplay_workflowreplay_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_git_control_tower_v1_workflowreplay_workflowreplay_proto_goTypes = []any{
 	(*RunSummary)(nil),             // 0: vrooli.git_control_tower.v1.workflowreplay.RunSummary
 	(*ListRecentRunsRequest)(nil),  // 1: vrooli.git_control_tower.v1.workflowreplay.ListRecentRunsRequest
 	(*ListRecentRunsResponse)(nil), // 2: vrooli.git_control_tower.v1.workflowreplay.ListRecentRunsResponse
-	(*WorkflowVideo)(nil),          // 3: vrooli.git_control_tower.v1.workflowreplay.WorkflowVideo
-	(*GetRunDetailRequest)(nil),    // 4: vrooli.git_control_tower.v1.workflowreplay.GetRunDetailRequest
-	(*GetRunDetailResponse)(nil),   // 5: vrooli.git_control_tower.v1.workflowreplay.GetRunDetailResponse
+	(*GetRunDetailRequest)(nil),    // 3: vrooli.git_control_tower.v1.workflowreplay.GetRunDetailRequest
+	(*GetRunDetailResponse)(nil),   // 4: vrooli.git_control_tower.v1.workflowreplay.GetRunDetailResponse
+	(*runs.ArtifactRef)(nil),       // 5: vrooli.test_genie.v1.runs.ArtifactRef
 }
 var file_git_control_tower_v1_workflowreplay_workflowreplay_proto_depIdxs = []int32{
 	0, // 0: vrooli.git_control_tower.v1.workflowreplay.ListRecentRunsResponse.runs:type_name -> vrooli.git_control_tower.v1.workflowreplay.RunSummary
 	0, // 1: vrooli.git_control_tower.v1.workflowreplay.GetRunDetailResponse.run:type_name -> vrooli.git_control_tower.v1.workflowreplay.RunSummary
-	3, // 2: vrooli.git_control_tower.v1.workflowreplay.GetRunDetailResponse.videos:type_name -> vrooli.git_control_tower.v1.workflowreplay.WorkflowVideo
+	5, // 2: vrooli.git_control_tower.v1.workflowreplay.GetRunDetailResponse.artifacts:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
 	1, // 3: vrooli.git_control_tower.v1.workflowreplay.WorkflowReplayService.ListRecentRuns:input_type -> vrooli.git_control_tower.v1.workflowreplay.ListRecentRunsRequest
-	4, // 4: vrooli.git_control_tower.v1.workflowreplay.WorkflowReplayService.GetRunDetail:input_type -> vrooli.git_control_tower.v1.workflowreplay.GetRunDetailRequest
+	3, // 4: vrooli.git_control_tower.v1.workflowreplay.WorkflowReplayService.GetRunDetail:input_type -> vrooli.git_control_tower.v1.workflowreplay.GetRunDetailRequest
 	2, // 5: vrooli.git_control_tower.v1.workflowreplay.WorkflowReplayService.ListRecentRuns:output_type -> vrooli.git_control_tower.v1.workflowreplay.ListRecentRunsResponse
-	5, // 6: vrooli.git_control_tower.v1.workflowreplay.WorkflowReplayService.GetRunDetail:output_type -> vrooli.git_control_tower.v1.workflowreplay.GetRunDetailResponse
+	4, // 6: vrooli.git_control_tower.v1.workflowreplay.WorkflowReplayService.GetRunDetail:output_type -> vrooli.git_control_tower.v1.workflowreplay.GetRunDetailResponse
 	5, // [5:7] is the sub-list for method output_type
 	3, // [3:5] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
@@ -477,7 +394,7 @@ func file_git_control_tower_v1_workflowreplay_workflowreplay_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDesc), len(file_git_control_tower_v1_workflowreplay_workflowreplay_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

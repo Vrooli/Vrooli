@@ -81,6 +81,13 @@ func TestLoadRejectsDescriptorErrors(t *testing.T) {
 			want:     "missing_docs_path",
 			scenario: "search-hub",
 		},
+		{
+			name: "invalid evidence kind",
+			body: strings.Replace(validDescriptor("search-hub", "search"),
+				`"orderHint":100,`, `"orderHint":100,"evidenceKinds":["bad kind"],`, 1),
+			want:     "invalid_evidence_kind",
+			scenario: "search-hub",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -100,6 +107,32 @@ func TestLoadRejectsDuplicatePhase(t *testing.T) {
 	result := Load(LoadOptions{Paths: []string{first, second}})
 	if !hasDiagnostic(result.Diagnostics, "duplicate_phase") {
 		t.Fatalf("diagnostics = %#v, want duplicate_phase", result.Diagnostics)
+	}
+}
+
+func TestLoadRejectsAmbiguousLineage(t *testing.T) {
+	active := writeDescriptor(t, "search-hub", validDescriptor("search-hub", "search"))
+	replacementBody := strings.Replace(validDescriptor("next-search", "next-search"),
+		`"orderHint":100,`, `"orderHint":100,"aliases":["search"],"supersedes":["search-v0"],`, 1)
+	replacement := writeDescriptor(t, "next-search", replacementBody)
+
+	result := Load(LoadOptions{Paths: []string{active, replacement}})
+	if !hasDiagnostic(result.Diagnostics, "lineage_active_phase_collision") {
+		t.Fatalf("diagnostics = %#v, want lineage_active_phase_collision", result.Diagnostics)
+	}
+}
+
+func TestLoadAcceptsExplicitRetiredLineageAndEvidenceKinds(t *testing.T) {
+	body := strings.Replace(validDescriptor("next-search", "next-search"),
+		`"orderHint":100,`, `"orderHint":100,"aliases":["legacy-search"],"supersedes":["search-v0"],"evidenceKinds":["findings.report","trace"],`, 1)
+	path := writeDescriptor(t, "next-search", body)
+	result := Load(LoadOptions{Paths: []string{path}})
+	if err := result.Err(); err != nil {
+		t.Fatalf("explicit lineage failed: %v", err)
+	}
+	got := result.Descriptors[0]
+	if len(got.Aliases) != 1 || len(got.Supersedes) != 1 || len(got.EvidenceKinds) != 2 {
+		t.Fatalf("lineage/evidence metadata = %+v", got)
 	}
 }
 
@@ -135,6 +168,40 @@ func TestRepositoryDescriptorsLoadWithoutRetiredMaturityFiles(t *testing.T) {
 	}
 	if len(leftovers) > 0 {
 		t.Fatalf("retired maturity specs remain: %v", leftovers)
+	}
+}
+
+func TestEvidenceProducingProvidersDeclareTypedKinds(t *testing.T) { // [REQ:TESTGENIE-TYPED-EVIDENCE-P0]
+	repoRoot := filepath.Clean(filepath.Join("..", "..", "..", "..", "..", ".."))
+	result := Load(LoadOptions{RepoRoot: repoRoot})
+	if err := result.Err(); err != nil {
+		t.Fatalf("repository descriptors failed to load: %v", err)
+	}
+	want := map[string][]string{
+		"ui-health":          {"screenshot", "visual.diff", "console", "network", "dom"},
+		"workflow-health":    {"workflow.video", "trace"},
+		"performance-health": {"command.output", "findings.report", "trace"},
+		"unit-health":        {"command.output", "coverage.report", "findings.report"},
+		"tidiness-manager":   {"findings.report"},
+	}
+	byScenario := make(map[string]Descriptor, len(result.Descriptors))
+	for _, descriptor := range result.Descriptors {
+		byScenario[descriptor.Scenario] = descriptor
+	}
+	for scenario, kinds := range want {
+		descriptor, ok := byScenario[scenario]
+		if !ok {
+			t.Fatalf("missing %s descriptor", scenario)
+		}
+		declared := make(map[string]struct{}, len(descriptor.EvidenceKinds))
+		for _, kind := range descriptor.EvidenceKinds {
+			declared[kind] = struct{}{}
+		}
+		for _, kind := range kinds {
+			if _, ok := declared[kind]; !ok {
+				t.Errorf("%s evidenceKinds = %v, missing %q", scenario, descriptor.EvidenceKinds, kind)
+			}
+		}
 	}
 }
 

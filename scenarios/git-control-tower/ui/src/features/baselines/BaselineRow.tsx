@@ -4,9 +4,8 @@
 // chips, and the row actions. "Default" is a UI-only marker (Decision 4) the
 // other tabs read to know which baseline to diff against.
 
-import { GitCompare, Pencil, Star, Trash2, Loader2 } from "lucide-react";
+import { GitCompare, Star, Trash2, Loader2 } from "lucide-react";
 import { formatRelativeTime } from "../../components/ScenarioReviewPanelShared";
-import { SurfaceStatusChips } from "./parts";
 import type { BaselineManifest } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 
 interface BaselineRowProps {
@@ -14,7 +13,6 @@ interface BaselineRowProps {
   isDefault: boolean;
   isDeleting: boolean;
   onCompare: () => void;
-  onEdit: () => void;
   onDelete: () => void;
   onSetDefault: () => void;
 }
@@ -24,7 +22,6 @@ export function BaselineRow({
   isDefault,
   isDeleting,
   onCompare,
-  onEdit,
   onDelete,
   onSetDefault,
 }: BaselineRowProps) {
@@ -55,7 +52,6 @@ export function BaselineRow({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <RowAction icon={<GitCompare className="h-3.5 w-3.5" />} label="Compare" onClick={onCompare} />
-          <RowAction icon={<Pencil className="h-3.5 w-3.5" />} label="Edit" onClick={onEdit} />
           <RowAction
             icon={isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
             label="Delete"
@@ -72,7 +68,10 @@ export function BaselineRow({
         </p>
       )}
 
-      <SurfaceStatusChips manifest={baseline} />
+      <div className="text-[11px] text-slate-500">
+        run <span className="font-mono text-slate-300">{baseline.run?.runId || "unavailable"}</span>
+        {baseline.migration && <span className="ml-2 text-amber-400">migrated / degraded</span>}
+      </div>
     </div>
   );
 }

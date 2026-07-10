@@ -1,6 +1,4 @@
-// BaselinesTab (Plan B §4.2) — the cross-surface baseline management surface
-// and the primary entry point for review. All create/edit/delete/compare lives
-// here (Decision 1); other tabs only READ baseline diffs.
+// BaselinesTab — single-run baseline management and comparison.
 
 import { useState } from "react";
 import { Anchor, Plus } from "lucide-react";
@@ -10,7 +8,6 @@ import { useBaselines, useDeleteBaseline, useDefaultBaseline } from "../../lib/h
 import { BaselineRow } from "./BaselineRow";
 import { BaselineCompareView } from "./BaselineCompareView";
 import { SetBaselineModal } from "./SetBaselineModal";
-import { BaselineEditModal } from "./BaselineEditModal";
 import type { BaselineManifest } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 
 // CrossTabTarget is the subset of review tabs the compare view can jump to
@@ -23,13 +20,12 @@ interface BaselinesTabProps {
   onOpenTab?: (tab: CrossTabTarget) => void;
 }
 
-export function BaselinesTab({ scenarioSlug, repoId, onOpenTab }: BaselinesTabProps) {
+export function BaselinesTab({ scenarioSlug, repoId }: BaselinesTabProps) {
   const baselinesQuery = useBaselines(scenarioSlug, { repoId });
   const del = useDeleteBaseline(repoId);
   const { defaultBaselineName, setDefaultBaseline } = useDefaultBaseline(scenarioSlug);
 
   const [comparing, setComparing] = useState<BaselineManifest | null>(null);
-  const [editing, setEditing] = useState<BaselineManifest | null>(null);
   const [isSetOpen, setIsSetOpen] = useState(false);
   const [deletingName, setDeletingName] = useState<string | null>(null);
 
@@ -52,26 +48,12 @@ export function BaselinesTab({ scenarioSlug, repoId, onOpenTab }: BaselinesTabPr
   // Compare view replaces the list while active.
   if (comparing) {
     return (
-      <>
-        <BaselineCompareView
+      <BaselineCompareView
           scenario={scenarioSlug}
           baseline={comparing}
           repoId={repoId}
           onBack={() => setComparing(null)}
-          onOpenWorkflows={() => onOpenTab?.("workflows")}
-          onOpenTests={() => onOpenTab?.("tests")}
-          onOpenScreenshots={() => onOpenTab?.("screenshots")}
-        />
-        {editing && (
-          <BaselineEditModal
-            isOpen
-            scenario={scenarioSlug}
-            baseline={editing}
-            repoId={repoId}
-            onClose={() => setEditing(null)}
-          />
-        )}
-      </>
+      />
     );
   }
 
@@ -107,7 +89,6 @@ export function BaselinesTab({ scenarioSlug, repoId, onOpenTab }: BaselinesTabPr
               isDefault={defaultBaselineName === b.name}
               isDeleting={deletingName === b.name}
               onCompare={() => setComparing(b)}
-              onEdit={() => setEditing(b)}
               onDelete={() => handleDelete(b)}
               onSetDefault={() => setDefaultBaseline(defaultBaselineName === b.name ? null : b.name)}
             />
@@ -122,15 +103,6 @@ export function BaselinesTab({ scenarioSlug, repoId, onOpenTab }: BaselinesTabPr
         onClose={() => setIsSetOpen(false)}
         onCreated={() => baselinesQuery.refetch()}
       />
-      {editing && (
-        <BaselineEditModal
-          isOpen
-          scenario={scenarioSlug}
-          baseline={editing}
-          repoId={repoId}
-          onClose={() => setEditing(null)}
-        />
-      )}
     </div>
   );
 }
@@ -142,9 +114,8 @@ function EmptyState({ onSetBaseline }: { onSetBaseline: () => void }) {
       <div className="space-y-1">
         <p className="text-sm text-slate-300">No baselines yet</p>
         <p className="text-xs text-slate-500 max-w-sm">
-          A baseline captures this scenario's review surfaces (workflows, tests, structure, visuals,
-          rules) at a point in time so you can ask "did my change cause this, or was it already
-          failing?" without touching the working tree.
+          A baseline pins one comprehensive Test Genie run so you can ask "did my change cause
+          this, or was it already failing?" without touching the working tree.
         </p>
       </div>
       <Button size="sm" onClick={onSetBaseline} className="h-8 px-3 gap-1.5">

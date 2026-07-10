@@ -74,6 +74,28 @@ Scenario catalog summaries intentionally project queue and execution history int
 
 The requirements HTTP surface treats cached `coverage/requirements-sync/latest.json` files as summary data, not as the only source of truth. Module requirements are reloaded from `requirements/` so the UI receives current per-requirement detail while keeping cached summary counts and sync metadata.
 
+### Live provider catalog vs historical run truth
+
+Provider descriptors are live planning input only. Once a phase plan is built,
+the orchestrator atomically writes a schema-versioned descriptor snapshot under
+the run artifact root before execution starts. The compact run index stores only
+its schema version and digest; terminal `WaitRun`, `GetRun`, restart hydration,
+and `CompareRuns` load the heavy snapshot by run ID. This keeps labels, provider
+ownership, ordering, policy, declared evidence kinds, and target applicability
+stable even when the installed provider catalog later changes. Missing, corrupt,
+or future-version snapshots remain explicit degraded/not-comparable evidence.
+
+### Run bytes vs public artifact references
+
+The artifact catalog inventories files already owned by a run; it is not a blob
+store. Private catalog entries may locate bytes under the run root or its
+run-scoped log root, while RunsService projections expose only an opaque ID,
+kind, media metadata, producer metadata, relationships, and an authorized
+access path. Opaque IDs are salted by run ID and the byte route resolves only a
+verified entry from that run's digest-checked catalog. Legacy runs are scanned
+read-only and labeled degraded. Evidence kinds remain open and descriptor-owned,
+so consumers filter by kind rather than phase identity.
+
 ## CLI Shape
 
 The CLI mirrors the domain packages:

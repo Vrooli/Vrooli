@@ -86,7 +86,7 @@ var cliClient = vroolicli.New(vroolicli.WithRunner(cliVrooliRunner{}))
 var snapshotAnchor = func(core *cliapp.ScenarioApp, ctx context.Context, scenario, name string) error {
 	client := clientFactory(core)
 	_, err := client.SnapshotForBaseline(ctx, connect.NewRequest(&baselinesv1.SnapshotForBaselineRequest{
-		Scenario: scenario, Name: name, Fast: true, CreatedBy: "agent", Reason: "baseline engagement anchor",
+		Scenario: scenario, Name: name, CreatedBy: "agent", Reason: "baseline engagement anchor",
 	}))
 	return err
 }
@@ -95,16 +95,16 @@ var snapshotAnchor = func(core *cliapp.ScenarioApp, ctx context.Context, scenari
 // overall verdict. It starts the durable diff then resolves the verdict with a
 // server-side wait (no client polling) — the engagement flow needs the verdict
 // synchronously. Seam, same rationale as snapshotAnchor.
-var diffAnchor = func(core *cliapp.ScenarioApp, ctx context.Context, scenario, name, surface string) (string, error) {
+var diffAnchor = func(core *cliapp.ScenarioApp, ctx context.Context, scenario, name string) (string, error) {
 	client := clientFactory(core)
 	start, err := client.StartDiff(ctx, connect.NewRequest(&baselinesv1.StartDiffRequest{
-		Scenario: scenario, Name: name, Surface: surface,
+		Scenario: scenario, Name: name,
 	}))
 	if err != nil {
 		return "", err
 	}
 	resp, err := client.GetDiffResult(ctx, connect.NewRequest(&baselinesv1.GetDiffResultRequest{
-		Scenario: scenario, Name: name, RunId: start.Msg.GetRunId(), Surface: surface, Wait: true,
+		Scenario: scenario, Name: name, RunId: start.Msg.GetRunId(), Wait: true,
 	}))
 	if err != nil {
 		return "", err
@@ -117,7 +117,7 @@ var diffAnchor = func(core *cliapp.ScenarioApp, ctx context.Context, scenario, n
 func registerEngagementVerbs(core *cliapp.ScenarioApp) []cliapp.Command {
 	return []cliapp.Command{
 		{Name: "start", NeedsAPI: true, Description: "Begin a shadow/live engagement: decide mode, take a restore point, capture an anchor, stand up the shadow (--scenario [--mode auto|shadow|live] [--ttl] [--name] [--operator-confirm])", Run: func(a []string) error { return runStartCmd(core, a) }},
-		{Name: "check", NeedsAPI: true, Description: "Validate the engagement target and emit mode-aware guidance; renews the lease (--scenario [--name] [--surface])", Run: func(a []string) error { return runCheckCmd(core, a) }},
+		{Name: "check", NeedsAPI: true, Description: "Validate the engagement target and emit mode-aware guidance; renews the lease (--scenario [--name])", Run: func(a []string) error { return runCheckCmd(core, a) }},
 		{Name: "promote", NeedsAPI: false, Description: "Keep the work (terminal): shadow → drain live, snapshot, re-point+restart, probe, auto-rollback on failure, tear down the shadow; live → accept in place (--scenario [--name] [--exclude-run] [--tag-prefix] [--drain-timeout] [--force] [--no-drain])", Run: func(a []string) error { return runPromoteCmd(core, a) }},
 		{Name: "status", NeedsAPI: false, Description: "List active engagements (globs the floor-owned manifests) (--json)", Run: func(a []string) error { return runStatusCmd(core, a) }},
 		{Name: "abandon", NeedsAPI: false, Description: "Throw the engagement away: shadow → tear down (live untouched); live → restore the working tree from the restore point (--scenario [--name])", Run: func(a []string) error { return runAbandonCmd(core, a) }},
@@ -647,17 +647,16 @@ type checkResult struct {
 }
 
 func runCheckCmd(core *cliapp.ScenarioApp, args []string) error {
-	var scenario, slug, surface string
+	var scenario, slug string
 	var jsonOut bool
 	fs := newFlagSet("baseline check")
 	fs.StringVar(&scenario, "scenario", "", "Scenario slug (required)")
 	fs.StringVar(&slug, "name", defaultEngagementSlug, "Engagement slug")
-	fs.StringVar(&surface, "surface", "", "Restrict the diff to one surface")
 	fs.BoolVar(&jsonOut, "json", false, "Emit JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	res, err := checkEngagement(core, scenario, slug, surface)
+	res, err := checkEngagement(core, scenario, slug)
 	if err != nil {
 		return err
 	}
@@ -674,7 +673,7 @@ func runCheckCmd(core *cliapp.ScenarioApp, args []string) error {
 
 // checkEngagement validates the engagement target against its anchor, renews the
 // lease, and returns mode-aware guidance. No os.Exit here so it is unit-testable.
-func checkEngagement(core *cliapp.ScenarioApp, scenario, slug, surface string) (checkResult, error) {
+func checkEngagement(core *cliapp.ScenarioApp, scenario, slug string) (checkResult, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return checkResult{}, fmt.Errorf("--scenario is required")
@@ -690,7 +689,7 @@ func checkEngagement(core *cliapp.ScenarioApp, scenario, slug, surface string) (
 	if strings.TrimSpace(eng.AnchorBaselineName) == "" {
 		return checkResult{}, fmt.Errorf("engagement %s/%s has no anchor baseline — `baseline check` needs one (start without --no-anchor)", scenario, slug)
 	}
-	verdict, err := diffAnchor(core, ctx, scenario, eng.AnchorBaselineName, surface)
+	verdict, err := diffAnchor(core, ctx, scenario, eng.AnchorBaselineName)
 	if err != nil {
 		return checkResult{}, fmt.Errorf("diff anchor %q: %w", eng.AnchorBaselineName, err)
 	}

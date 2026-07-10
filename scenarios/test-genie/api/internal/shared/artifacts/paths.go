@@ -89,6 +89,20 @@ const (
 	// included) into one file shaped as the `--from-audit` ingest contract,
 	// so the campaign nudge can point at a file that already exists on disk.
 	FindingsArtifactFile = "findings.json"
+
+	// RunSnapshotFile is the canonical versioned terminal run record. It is
+	// written before the compact index flips terminal so durable readers never
+	// observe a success-shaped index entry without its full terminal evidence.
+	RunSnapshotFile = "run-snapshot.json"
+
+	// DescriptorSnapshotFile is the effective provider descriptor catalog and
+	// applicability decision set frozen before phase execution begins.
+	DescriptorSnapshotFile = "descriptor-snapshot.json"
+
+	// ArtifactCatalogFile is the versioned, run-scoped inventory of evidence
+	// bytes. The catalog stores private storage locators on disk; API projections
+	// expose only opaque artifact IDs.
+	ArtifactCatalogFile = "artifact-catalog.json"
 )
 
 // ============================================================================
@@ -165,6 +179,23 @@ func RunUnitDir(scenarioDir, runID string) string {
 // findings document (coverage/runs/<runID>/findings.json).
 func RunFindingsArtifactPath(scenarioDir, runID string) string {
 	return filepath.Join(RunDir(scenarioDir, runID), FindingsArtifactFile)
+}
+
+// RunSnapshotPath returns the canonical terminal snapshot path for a run.
+func RunSnapshotPath(scenarioDir, runID string) string {
+	return filepath.Join(RunDir(scenarioDir, runID), RunSnapshotFile)
+}
+
+// RunDescriptorSnapshotPath returns the immutable planning-time descriptor
+// snapshot path for a run.
+func RunDescriptorSnapshotPath(scenarioDir, runID string) string {
+	return filepath.Join(RunDir(scenarioDir, runID), DescriptorSnapshotFile)
+}
+
+// RunArtifactCatalogPath returns the private on-disk artifact catalog path for
+// a run. Consumers must use the typed artifact API rather than reading it.
+func RunArtifactCatalogPath(scenarioDir, runID string) string {
+	return filepath.Join(RunDir(scenarioDir, runID), ArtifactCatalogFile)
 }
 
 // LatestFindingsArtifactPath returns the absolute path to the latest-run

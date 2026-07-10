@@ -44,14 +44,9 @@ type AgentProfile struct {
 	ProfileKey string `protobuf:"bytes,18,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
 	// Optional description of what this profile is used for.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// Which agent runner to use (claude-code, codex, opencode).
-	RunnerType RunnerType `protobuf:"varint,4,opt,name=runner_type,json=runnerType,proto3,enum=agent_manager.v1.RunnerType" json:"runner_type,omitempty"`
-	// Model to use (e.g., "claude-sonnet-4-5", "gpt-4o", "anthropic/claude-opus-4-5").
-	// If empty, uses the runner's default model.
-	Model string `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
-	// Named policy from the active model-policy catalog. Mutually exclusive
-	// with model. The policy is resolved to an immutable run snapshot.
-	PolicyRef string `protobuf:"bytes,32,opt,name=policy_ref,json=policyRef,proto3" json:"policy_ref,omitempty"`
+	// Portable coding intent. Concrete runner/model selection is output-only
+	// evidence in the immutable execution snapshot.
+	RoleRef string `protobuf:"bytes,33,opt,name=role_ref,json=roleRef,proto3" json:"role_ref,omitempty"`
 	// Maximum number of conversation turns before stopping.
 	// 0 means unlimited (use with caution).
 	// @constraint 0-1000
@@ -162,23 +157,9 @@ func (x *AgentProfile) GetDescription() string {
 	return ""
 }
 
-func (x *AgentProfile) GetRunnerType() RunnerType {
+func (x *AgentProfile) GetRoleRef() string {
 	if x != nil {
-		return x.RunnerType
-	}
-	return RunnerType_RUNNER_TYPE_UNSPECIFIED
-}
-
-func (x *AgentProfile) GetModel() string {
-	if x != nil {
-		return x.Model
-	}
-	return ""
-}
-
-func (x *AgentProfile) GetPolicyRef() string {
-	if x != nil {
-		return x.PolicyRef
+		return x.RoleRef
 	}
 	return ""
 }
@@ -339,8 +320,8 @@ type RunConfig struct {
 	RunnerType RunnerType `protobuf:"varint,1,opt,name=runner_type,json=runnerType,proto3,enum=agent_manager.v1.RunnerType" json:"runner_type,omitempty"`
 	// Model to use for execution.
 	Model string `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`
-	// Named policy selected before policy_snapshot was created.
-	PolicyRef string `protobuf:"bytes,20,opt,name=policy_ref,json=policyRef,proto3" json:"policy_ref,omitempty"`
+	// Portable role selected before policy_snapshot was created.
+	RoleRef string `protobuf:"bytes,21,opt,name=role_ref,json=roleRef,proto3" json:"role_ref,omitempty"`
 	// Maximum conversation turns.
 	MaxTurns int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
 	// Maximum execution time.
@@ -415,9 +396,9 @@ func (x *RunConfig) GetModel() string {
 	return ""
 }
 
-func (x *RunConfig) GetPolicyRef() string {
+func (x *RunConfig) GetRoleRef() string {
 	if x != nil {
-		return x.PolicyRef
+		return x.RoleRef
 	}
 	return ""
 }
@@ -512,6 +493,15 @@ type ExecutionCandidate struct {
 	RunnerType    RunnerType             `protobuf:"varint,1,opt,name=runner_type,json=runnerType,proto3,enum=agent_manager.v1.RunnerType" json:"runner_type,omitempty"`
 	SelectionType ModelSelectionType     `protobuf:"varint,2,opt,name=selection_type,json=selectionType,proto3,enum=agent_manager.v1.ModelSelectionType" json:"selection_type,omitempty"`
 	Model         string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	ResourceRole  string                 `protobuf:"bytes,4,opt,name=resource_role,json=resourceRole,proto3" json:"resource_role,omitempty"`
+	Fallbacks     []string               `protobuf:"bytes,5,rep,name=fallbacks,proto3" json:"fallbacks,omitempty"`
+	Available     bool                   `protobuf:"varint,6,opt,name=available,proto3" json:"available,omitempty"`
+	FailureCode   string                 `protobuf:"bytes,7,opt,name=failure_code,json=failureCode,proto3" json:"failure_code,omitempty"`
+	Failure       string                 `protobuf:"bytes,8,opt,name=failure,proto3" json:"failure,omitempty"`
+	Provenance    *ResourceProvenance    `protobuf:"bytes,9,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	Enforcement   *PermissionEnforcement `protobuf:"bytes,10,opt,name=enforcement,proto3" json:"enforcement,omitempty"`
+	PolicyPath    string                 `protobuf:"bytes,11,opt,name=policy_path,json=policyPath,proto3" json:"policy_path,omitempty"`
+	PolicyDigest  string                 `protobuf:"bytes,12,opt,name=policy_digest,json=policyDigest,proto3" json:"policy_digest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -567,6 +557,176 @@ func (x *ExecutionCandidate) GetModel() string {
 	return ""
 }
 
+func (x *ExecutionCandidate) GetResourceRole() string {
+	if x != nil {
+		return x.ResourceRole
+	}
+	return ""
+}
+
+func (x *ExecutionCandidate) GetFallbacks() []string {
+	if x != nil {
+		return x.Fallbacks
+	}
+	return nil
+}
+
+func (x *ExecutionCandidate) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *ExecutionCandidate) GetFailureCode() string {
+	if x != nil {
+		return x.FailureCode
+	}
+	return ""
+}
+
+func (x *ExecutionCandidate) GetFailure() string {
+	if x != nil {
+		return x.Failure
+	}
+	return ""
+}
+
+func (x *ExecutionCandidate) GetProvenance() *ResourceProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *ExecutionCandidate) GetEnforcement() *PermissionEnforcement {
+	if x != nil {
+		return x.Enforcement
+	}
+	return nil
+}
+
+func (x *ExecutionCandidate) GetPolicyPath() string {
+	if x != nil {
+		return x.PolicyPath
+	}
+	return ""
+}
+
+func (x *ExecutionCandidate) GetPolicyDigest() string {
+	if x != nil {
+		return x.PolicyDigest
+	}
+	return ""
+}
+
+// ResourceProvenance records the resource-owned policy authority that
+// produced this concrete candidate.
+type ResourceProvenance struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	ObservedAt    string                 `protobuf:"bytes,2,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceProvenance) Reset() {
+	*x = ResourceProvenance{}
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceProvenance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceProvenance) ProtoMessage() {}
+
+func (x *ResourceProvenance) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceProvenance.ProtoReflect.Descriptor instead.
+func (*ResourceProvenance) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ResourceProvenance) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ResourceProvenance) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+// PermissionEnforcement reports the resource's real enforcement posture.
+type PermissionEnforcement struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Permissions   string                 `protobuf:"bytes,1,opt,name=permissions,proto3" json:"permissions,omitempty"`
+	Caveats       []string               `protobuf:"bytes,2,rep,name=caveats,proto3" json:"caveats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PermissionEnforcement) Reset() {
+	*x = PermissionEnforcement{}
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PermissionEnforcement) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PermissionEnforcement) ProtoMessage() {}
+
+func (x *PermissionEnforcement) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PermissionEnforcement.ProtoReflect.Descriptor instead.
+func (*PermissionEnforcement) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PermissionEnforcement) GetPermissions() string {
+	if x != nil {
+		return x.Permissions
+	}
+	return ""
+}
+
+func (x *PermissionEnforcement) GetCaveats() []string {
+	if x != nil {
+		return x.Caveats
+	}
+	return nil
+}
+
 // CandidatePreflight records creation-time availability evidence used to pick
 // the initial candidate. Runtime attempts are recorded separately as events.
 type CandidatePreflight struct {
@@ -581,7 +741,7 @@ type CandidatePreflight struct {
 
 func (x *CandidatePreflight) Reset() {
 	*x = CandidatePreflight{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -593,7 +753,7 @@ func (x *CandidatePreflight) String() string {
 func (*CandidatePreflight) ProtoMessage() {}
 
 func (x *CandidatePreflight) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -606,7 +766,7 @@ func (x *CandidatePreflight) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CandidatePreflight.ProtoReflect.Descriptor instead.
 func (*CandidatePreflight) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{3}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CandidatePreflight) GetIndex() int32 {
@@ -640,20 +800,20 @@ func (x *CandidatePreflight) GetReason() string {
 // PolicyResolutionExplanation makes profile/override precedence and initial
 // candidate selection inspectable without consulting mutable current policy.
 type PolicyResolutionExplanation struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Source             string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
-	Summary            string                 `protobuf:"bytes,2,opt,name=summary,proto3" json:"summary,omitempty"`
-	RequestedRunner    RunnerType             `protobuf:"varint,3,opt,name=requested_runner,json=requestedRunner,proto3,enum=agent_manager.v1.RunnerType" json:"requested_runner,omitempty"`
-	RequestedModel     string                 `protobuf:"bytes,4,opt,name=requested_model,json=requestedModel,proto3" json:"requested_model,omitempty"`
-	RequestedPolicyRef string                 `protobuf:"bytes,7,opt,name=requested_policy_ref,json=requestedPolicyRef,proto3" json:"requested_policy_ref,omitempty"`
-	Preflight          []*CandidatePreflight  `protobuf:"bytes,6,rep,name=preflight,proto3" json:"preflight,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Source           string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	Summary          string                 `protobuf:"bytes,2,opt,name=summary,proto3" json:"summary,omitempty"`
+	RequestedRunner  RunnerType             `protobuf:"varint,3,opt,name=requested_runner,json=requestedRunner,proto3,enum=agent_manager.v1.RunnerType" json:"requested_runner,omitempty"`
+	RequestedModel   string                 `protobuf:"bytes,4,opt,name=requested_model,json=requestedModel,proto3" json:"requested_model,omitempty"`
+	RequestedRoleRef string                 `protobuf:"bytes,8,opt,name=requested_role_ref,json=requestedRoleRef,proto3" json:"requested_role_ref,omitempty"`
+	Preflight        []*CandidatePreflight  `protobuf:"bytes,6,rep,name=preflight,proto3" json:"preflight,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PolicyResolutionExplanation) Reset() {
 	*x = PolicyResolutionExplanation{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -665,7 +825,7 @@ func (x *PolicyResolutionExplanation) String() string {
 func (*PolicyResolutionExplanation) ProtoMessage() {}
 
 func (x *PolicyResolutionExplanation) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -678,7 +838,7 @@ func (x *PolicyResolutionExplanation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyResolutionExplanation.ProtoReflect.Descriptor instead.
 func (*PolicyResolutionExplanation) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{4}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PolicyResolutionExplanation) GetSource() string {
@@ -709,9 +869,9 @@ func (x *PolicyResolutionExplanation) GetRequestedModel() string {
 	return ""
 }
 
-func (x *PolicyResolutionExplanation) GetRequestedPolicyRef() string {
+func (x *PolicyResolutionExplanation) GetRequestedRoleRef() string {
 	if x != nil {
-		return x.RequestedPolicyRef
+		return x.RequestedRoleRef
 	}
 	return ""
 }
@@ -728,18 +888,18 @@ func (x *PolicyResolutionExplanation) GetPreflight() []*CandidatePreflight {
 type ExecutionPolicySnapshot struct {
 	state             protoimpl.MessageState       `protogen:"open.v1"`
 	CatalogDigest     string                       `protobuf:"bytes,1,opt,name=catalog_digest,json=catalogDigest,proto3" json:"catalog_digest,omitempty"`
-	PolicyRef         string                       `protobuf:"bytes,2,opt,name=policy_ref,json=policyRef,proto3" json:"policy_ref,omitempty"`
 	Candidates        []*ExecutionCandidate        `protobuf:"bytes,3,rep,name=candidates,proto3" json:"candidates,omitempty"`
 	SelectedIndex     int32                        `protobuf:"varint,4,opt,name=selected_index,json=selectedIndex,proto3" json:"selected_index,omitempty"`
 	SelectedCandidate *ExecutionCandidate          `protobuf:"bytes,5,opt,name=selected_candidate,json=selectedCandidate,proto3" json:"selected_candidate,omitempty"`
 	Explanation       *PolicyResolutionExplanation `protobuf:"bytes,6,opt,name=explanation,proto3" json:"explanation,omitempty"`
+	RoleRef           string                       `protobuf:"bytes,7,opt,name=role_ref,json=roleRef,proto3" json:"role_ref,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ExecutionPolicySnapshot) Reset() {
 	*x = ExecutionPolicySnapshot{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -751,7 +911,7 @@ func (x *ExecutionPolicySnapshot) String() string {
 func (*ExecutionPolicySnapshot) ProtoMessage() {}
 
 func (x *ExecutionPolicySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -764,19 +924,12 @@ func (x *ExecutionPolicySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionPolicySnapshot.ProtoReflect.Descriptor instead.
 func (*ExecutionPolicySnapshot) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{5}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ExecutionPolicySnapshot) GetCatalogDigest() string {
 	if x != nil {
 		return x.CatalogDigest
-	}
-	return ""
-}
-
-func (x *ExecutionPolicySnapshot) GetPolicyRef() string {
-	if x != nil {
-		return x.PolicyRef
 	}
 	return ""
 }
@@ -809,6 +962,13 @@ func (x *ExecutionPolicySnapshot) GetExplanation() *PolicyResolutionExplanation 
 	return nil
 }
 
+func (x *ExecutionPolicySnapshot) GetRoleRef() string {
+	if x != nil {
+		return x.RoleRef
+	}
+	return ""
+}
+
 // RunConfigOverrides contains optional overrides for run configuration.
 //
 // This is intended for inline run requests where fields should only override
@@ -817,12 +977,9 @@ func (x *ExecutionPolicySnapshot) GetExplanation() *PolicyResolutionExplanation 
 // @usage CreateRunRequest.inline_config
 type RunConfigOverrides struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Which agent runner to use.
-	RunnerType *RunnerType `protobuf:"varint,1,opt,name=runner_type,json=runnerType,proto3,enum=agent_manager.v1.RunnerType,oneof" json:"runner_type,omitempty"`
-	// Model to use for execution.
-	Model *string `protobuf:"bytes,2,opt,name=model,proto3,oneof" json:"model,omitempty"`
-	// Named policy from the active catalog. Mutually exclusive with model.
-	PolicyRef *string `protobuf:"bytes,25,opt,name=policy_ref,json=policyRef,proto3,oneof" json:"policy_ref,omitempty"`
+	// Portable role intent. Concrete runner/model selection is resolved by the
+	// active resource-owned role policy and persisted only in the run snapshot.
+	RoleRef *string `protobuf:"bytes,26,opt,name=role_ref,json=roleRef,proto3,oneof" json:"role_ref,omitempty"`
 	// Maximum conversation turns.
 	MaxTurns *int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3,oneof" json:"max_turns,omitempty"`
 	// Maximum execution time.
@@ -861,7 +1018,7 @@ type RunConfigOverrides struct {
 
 func (x *RunConfigOverrides) Reset() {
 	*x = RunConfigOverrides{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -873,7 +1030,7 @@ func (x *RunConfigOverrides) String() string {
 func (*RunConfigOverrides) ProtoMessage() {}
 
 func (x *RunConfigOverrides) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -886,26 +1043,12 @@ func (x *RunConfigOverrides) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunConfigOverrides.ProtoReflect.Descriptor instead.
 func (*RunConfigOverrides) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{6}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *RunConfigOverrides) GetRunnerType() RunnerType {
-	if x != nil && x.RunnerType != nil {
-		return *x.RunnerType
-	}
-	return RunnerType_RUNNER_TYPE_UNSPECIFIED
-}
-
-func (x *RunConfigOverrides) GetModel() string {
-	if x != nil && x.Model != nil {
-		return *x.Model
-	}
-	return ""
-}
-
-func (x *RunConfigOverrides) GetPolicyRef() string {
-	if x != nil && x.PolicyRef != nil {
-		return *x.PolicyRef
+func (x *RunConfigOverrides) GetRoleRef() string {
+	if x != nil && x.RoleRef != nil {
+		return *x.RoleRef
 	}
 	return ""
 }
@@ -1044,7 +1187,7 @@ type HeartbeatConfig struct {
 
 func (x *HeartbeatConfig) Reset() {
 	*x = HeartbeatConfig{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1056,7 +1199,7 @@ func (x *HeartbeatConfig) String() string {
 func (*HeartbeatConfig) ProtoMessage() {}
 
 func (x *HeartbeatConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1069,7 +1212,7 @@ func (x *HeartbeatConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatConfig.ProtoReflect.Descriptor instead.
 func (*HeartbeatConfig) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{7}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *HeartbeatConfig) GetInterval() *durationpb.Duration {
@@ -1097,7 +1240,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa9\v\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\v\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -1105,13 +1248,9 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\vprofile_key\x18\x12 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\n" +
 	"profileKey\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12I\n" +
-	"\vrunner_type\x18\x04 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
-	"runnerType\x12\x14\n" +
-	"\x05model\x18\x05 \x01(\tR\x05model\x12\x1d\n" +
-	"\n" +
-	"policy_ref\x18  \x01(\tR\tpolicyRef\x12'\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12%\n" +
+	"\brole_ref\x18! \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\aroleRef\x12'\n" +
 	"\tmax_turns\x18\x06 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x00R\bmaxTurns\x123\n" +
 	"\atimeout\x18\a \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
@@ -1142,13 +1281,13 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
-	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14J\x04\b\x16\x10\x17R\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xc7\a\n" +
+	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14J\x04\b\x16\x10\x17J\x04\b \x10!R\vrunner_typeR\x05modelR\n" +
+	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xd5\a\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
-	"\x05model\x18\x02 \x01(\tR\x05model\x12\x1d\n" +
-	"\n" +
-	"policy_ref\x18\x14 \x01(\tR\tpolicyRef\x12\x1b\n" +
+	"\x05model\x18\x02 \x01(\tR\x05model\x12\x19\n" +
+	"\brole_ref\x18\x15 \x01(\tR\aroleRef\x12\x1b\n" +
 	"\tmax_turns\x18\x03 \x01(\x05R\bmaxTurns\x123\n" +
 	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
@@ -1166,52 +1305,67 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"J\x04\b\f\x10\rJ\x04\b\x0f\x10\x10R\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xb6\x01\n" +
+	"J\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b\x14\x10\x15R\n" +
+	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xab\x04\n" +
 	"\x12ExecutionCandidate\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12K\n" +
 	"\x0eselection_type\x18\x02 \x01(\x0e2$.agent_manager.v1.ModelSelectionTypeR\rselectionType\x12\x14\n" +
-	"\x05model\x18\x03 \x01(\tR\x05model\"\xa4\x01\n" +
+	"\x05model\x18\x03 \x01(\tR\x05model\x12#\n" +
+	"\rresource_role\x18\x04 \x01(\tR\fresourceRole\x12\x1c\n" +
+	"\tfallbacks\x18\x05 \x03(\tR\tfallbacks\x12\x1c\n" +
+	"\tavailable\x18\x06 \x01(\bR\tavailable\x12!\n" +
+	"\ffailure_code\x18\a \x01(\tR\vfailureCode\x12\x18\n" +
+	"\afailure\x18\b \x01(\tR\afailure\x12D\n" +
+	"\n" +
+	"provenance\x18\t \x01(\v2$.agent_manager.v1.ResourceProvenanceR\n" +
+	"provenance\x12I\n" +
+	"\venforcement\x18\n" +
+	" \x01(\v2'.agent_manager.v1.PermissionEnforcementR\venforcement\x12\x1f\n" +
+	"\vpolicy_path\x18\v \x01(\tR\n" +
+	"policyPath\x12#\n" +
+	"\rpolicy_digest\x18\f \x01(\tR\fpolicyDigest\"M\n" +
+	"\x12ResourceProvenance\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\x12\x1f\n" +
+	"\vobserved_at\x18\x02 \x01(\tR\n" +
+	"observedAt\"S\n" +
+	"\x15PermissionEnforcement\x12 \n" +
+	"\vpermissions\x18\x01 \x01(\tR\vpermissions\x12\x18\n" +
+	"\acaveats\x18\x02 \x03(\tR\acaveats\"\xa4\x01\n" +
 	"\x12CandidatePreflight\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x12B\n" +
 	"\tcandidate\x18\x02 \x01(\v2$.agent_manager.v1.ExecutionCandidateR\tcandidate\x12\x1c\n" +
 	"\tavailable\x18\x03 \x01(\bR\tavailable\x12\x16\n" +
-	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xcf\x02\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xe7\x02\n" +
 	"\x1bPolicyResolutionExplanation\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x18\n" +
 	"\asummary\x18\x02 \x01(\tR\asummary\x12G\n" +
 	"\x10requested_runner\x18\x03 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\x0frequestedRunner\x12'\n" +
-	"\x0frequested_model\x18\x04 \x01(\tR\x0erequestedModel\x120\n" +
-	"\x14requested_policy_ref\x18\a \x01(\tR\x12requestedPolicyRef\x12B\n" +
-	"\tpreflight\x18\x06 \x03(\v2$.agent_manager.v1.CandidatePreflightR\tpreflightJ\x04\b\x05\x10\x06R\x10requested_preset\"\xf2\x02\n" +
+	"\x0frequested_model\x18\x04 \x01(\tR\x0erequestedModel\x12,\n" +
+	"\x12requested_role_ref\x18\b \x01(\tR\x10requestedRoleRef\x12B\n" +
+	"\tpreflight\x18\x06 \x03(\v2$.agent_manager.v1.CandidatePreflightR\tpreflightJ\x04\b\x05\x10\x06J\x04\b\a\x10\bR\x10requested_presetR\x14requested_policy_ref\"\x80\x03\n" +
 	"\x17ExecutionPolicySnapshot\x12%\n" +
-	"\x0ecatalog_digest\x18\x01 \x01(\tR\rcatalogDigest\x12\x1d\n" +
-	"\n" +
-	"policy_ref\x18\x02 \x01(\tR\tpolicyRef\x12D\n" +
+	"\x0ecatalog_digest\x18\x01 \x01(\tR\rcatalogDigest\x12D\n" +
 	"\n" +
 	"candidates\x18\x03 \x03(\v2$.agent_manager.v1.ExecutionCandidateR\n" +
 	"candidates\x12%\n" +
 	"\x0eselected_index\x18\x04 \x01(\x05R\rselectedIndex\x12S\n" +
 	"\x12selected_candidate\x18\x05 \x01(\v2$.agent_manager.v1.ExecutionCandidateR\x11selectedCandidate\x12O\n" +
-	"\vexplanation\x18\x06 \x01(\v2-.agent_manager.v1.PolicyResolutionExplanationR\vexplanation\"\xc2\n" +
-	"\n" +
-	"\x12RunConfigOverrides\x12N\n" +
-	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
-	"runnerType\x88\x01\x01\x12\x19\n" +
-	"\x05model\x18\x02 \x01(\tH\x01R\x05model\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"policy_ref\x18\x19 \x01(\tH\x02R\tpolicyRef\x88\x01\x01\x12 \n" +
-	"\tmax_turns\x18\x03 \x01(\x05H\x03R\bmaxTurns\x88\x01\x01\x128\n" +
-	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x04R\atimeout\x88\x01\x01\x12#\n" +
+	"\vexplanation\x18\x06 \x01(\v2-.agent_manager.v1.PolicyResolutionExplanationR\vexplanation\x12\x19\n" +
+	"\brole_ref\x18\a \x01(\tR\aroleRefJ\x04\b\x02\x10\x03R\n" +
+	"policy_ref\"\xe9\t\n" +
+	"\x12RunConfigOverrides\x12\x1e\n" +
+	"\brole_ref\x18\x1a \x01(\tH\x00R\aroleRef\x88\x01\x01\x12 \n" +
+	"\tmax_turns\x18\x03 \x01(\x05H\x01R\bmaxTurns\x88\x01\x01\x128\n" +
+	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x02R\atimeout\x88\x01\x01\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x129\n" +
-	"\x16skip_permission_prompt\x18\a \x01(\bH\x05R\x14skipPermissionPrompt\x88\x01\x01\x12?\n" +
-	"\bfeatures\x18\x15 \x01(\v2\x1e.agent_manager.v1.FeatureFlagsH\x06R\bfeatures\x88\x01\x01\x12U\n" +
+	"\x16skip_permission_prompt\x18\a \x01(\bH\x03R\x14skipPermissionPrompt\x88\x01\x01\x12?\n" +
+	"\bfeatures\x18\x15 \x01(\v2\x1e.agent_manager.v1.FeatureFlagsH\x04R\bfeatures\x88\x01\x01\x12U\n" +
 	"\vextra_flags\x18\x16 \x03(\v24.agent_manager.v1.RunConfigOverrides.ExtraFlagsEntryR\n" +
 	"extraFlags\x12*\n" +
 	"\x11clear_extra_flags\x18\x17 \x01(\bR\x0fclearExtraFlags\x12K\n" +
-	"\x0enetwork_access\x18\x18 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessH\aR\rnetworkAccess\x88\x01\x01\x12F\n" +
+	"\x0enetwork_access\x18\x18 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessH\x05R\rnetworkAccess\x88\x01\x01\x12F\n" +
 	"\x0esandbox_config\x18\x11 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
@@ -1222,18 +1376,17 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x12clear_denied_paths\x18\x0f \x01(\bR\x10clearDeniedPaths\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
-	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01B\x0e\n" +
-	"\f_runner_typeB\b\n" +
-	"\x06_modelB\r\n" +
-	"\v_policy_refB\f\n" +
+	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01B\v\n" +
+	"\t_role_refB\f\n" +
 	"\n" +
 	"_max_turnsB\n" +
 	"\n" +
 	"\b_timeoutB\x19\n" +
 	"\x17_skip_permission_promptB\v\n" +
 	"\t_featuresB\x11\n" +
-	"\x0f_network_accessJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"J\x04\b\x10\x10\x11J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15R\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_typesR\x1bclear_fallback_runner_types\"\xa7\x01\n" +
+	"\x0f_network_accessJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"J\x04\b\x10\x10\x11J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x19\x10\x1aR\vrunner_typeR\x05modelR\n" +
+	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_typesR\x1bclear_fallback_runner_types\"\xa7\x01\n" +
 	"\x0fHeartbeatConfig\x125\n" +
 	"\binterval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\binterval\x123\n" +
 	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12(\n" +
@@ -1251,64 +1404,66 @@ func file_agent_manager_v1_domain_profile_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_domain_profile_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_agent_manager_v1_domain_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_agent_manager_v1_domain_profile_proto_goTypes = []any{
 	(*AgentProfile)(nil),                // 0: agent_manager.v1.AgentProfile
 	(*RunConfig)(nil),                   // 1: agent_manager.v1.RunConfig
 	(*ExecutionCandidate)(nil),          // 2: agent_manager.v1.ExecutionCandidate
-	(*CandidatePreflight)(nil),          // 3: agent_manager.v1.CandidatePreflight
-	(*PolicyResolutionExplanation)(nil), // 4: agent_manager.v1.PolicyResolutionExplanation
-	(*ExecutionPolicySnapshot)(nil),     // 5: agent_manager.v1.ExecutionPolicySnapshot
-	(*RunConfigOverrides)(nil),          // 6: agent_manager.v1.RunConfigOverrides
-	(*HeartbeatConfig)(nil),             // 7: agent_manager.v1.HeartbeatConfig
-	nil,                                 // 8: agent_manager.v1.AgentProfile.ExtraFlagsEntry
-	nil,                                 // 9: agent_manager.v1.RunConfig.ExtraFlagsEntry
-	nil,                                 // 10: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
-	(RunnerType)(0),                     // 11: agent_manager.v1.RunnerType
-	(*durationpb.Duration)(nil),         // 12: google.protobuf.Duration
-	(*FeatureFlags)(nil),                // 13: agent_manager.v1.FeatureFlags
-	(NetworkAccess)(0),                  // 14: agent_manager.v1.NetworkAccess
-	(*timestamppb.Timestamp)(nil),       // 15: google.protobuf.Timestamp
-	(*SandboxConfig)(nil),               // 16: agent_manager.v1.SandboxConfig
-	(ModelSelectionType)(0),             // 17: agent_manager.v1.ModelSelectionType
-	(*ExtraFlagList)(nil),               // 18: agent_manager.v1.ExtraFlagList
+	(*ResourceProvenance)(nil),          // 3: agent_manager.v1.ResourceProvenance
+	(*PermissionEnforcement)(nil),       // 4: agent_manager.v1.PermissionEnforcement
+	(*CandidatePreflight)(nil),          // 5: agent_manager.v1.CandidatePreflight
+	(*PolicyResolutionExplanation)(nil), // 6: agent_manager.v1.PolicyResolutionExplanation
+	(*ExecutionPolicySnapshot)(nil),     // 7: agent_manager.v1.ExecutionPolicySnapshot
+	(*RunConfigOverrides)(nil),          // 8: agent_manager.v1.RunConfigOverrides
+	(*HeartbeatConfig)(nil),             // 9: agent_manager.v1.HeartbeatConfig
+	nil,                                 // 10: agent_manager.v1.AgentProfile.ExtraFlagsEntry
+	nil,                                 // 11: agent_manager.v1.RunConfig.ExtraFlagsEntry
+	nil,                                 // 12: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
+	(*durationpb.Duration)(nil),         // 13: google.protobuf.Duration
+	(*FeatureFlags)(nil),                // 14: agent_manager.v1.FeatureFlags
+	(NetworkAccess)(0),                  // 15: agent_manager.v1.NetworkAccess
+	(*timestamppb.Timestamp)(nil),       // 16: google.protobuf.Timestamp
+	(*SandboxConfig)(nil),               // 17: agent_manager.v1.SandboxConfig
+	(RunnerType)(0),                     // 18: agent_manager.v1.RunnerType
+	(ModelSelectionType)(0),             // 19: agent_manager.v1.ModelSelectionType
+	(*ExtraFlagList)(nil),               // 20: agent_manager.v1.ExtraFlagList
 }
 var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
-	11, // 0: agent_manager.v1.AgentProfile.runner_type:type_name -> agent_manager.v1.RunnerType
-	12, // 1: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
-	13, // 2: agent_manager.v1.AgentProfile.features:type_name -> agent_manager.v1.FeatureFlags
-	8,  // 3: agent_manager.v1.AgentProfile.extra_flags:type_name -> agent_manager.v1.AgentProfile.ExtraFlagsEntry
-	14, // 4: agent_manager.v1.AgentProfile.network_access:type_name -> agent_manager.v1.NetworkAccess
-	15, // 5: agent_manager.v1.AgentProfile.source_updated_at:type_name -> google.protobuf.Timestamp
-	16, // 6: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	15, // 7: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
-	15, // 8: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
-	11, // 9: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
-	12, // 10: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
-	13, // 11: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
-	9,  // 12: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
-	14, // 13: agent_manager.v1.RunConfig.network_access:type_name -> agent_manager.v1.NetworkAccess
-	5,  // 14: agent_manager.v1.RunConfig.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
-	16, // 15: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	11, // 16: agent_manager.v1.ExecutionCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
-	17, // 17: agent_manager.v1.ExecutionCandidate.selection_type:type_name -> agent_manager.v1.ModelSelectionType
-	2,  // 18: agent_manager.v1.CandidatePreflight.candidate:type_name -> agent_manager.v1.ExecutionCandidate
-	11, // 19: agent_manager.v1.PolicyResolutionExplanation.requested_runner:type_name -> agent_manager.v1.RunnerType
-	3,  // 20: agent_manager.v1.PolicyResolutionExplanation.preflight:type_name -> agent_manager.v1.CandidatePreflight
-	2,  // 21: agent_manager.v1.ExecutionPolicySnapshot.candidates:type_name -> agent_manager.v1.ExecutionCandidate
-	2,  // 22: agent_manager.v1.ExecutionPolicySnapshot.selected_candidate:type_name -> agent_manager.v1.ExecutionCandidate
-	4,  // 23: agent_manager.v1.ExecutionPolicySnapshot.explanation:type_name -> agent_manager.v1.PolicyResolutionExplanation
-	11, // 24: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
-	12, // 25: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
-	13, // 26: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
-	10, // 27: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
-	14, // 28: agent_manager.v1.RunConfigOverrides.network_access:type_name -> agent_manager.v1.NetworkAccess
-	16, // 29: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	12, // 30: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
-	12, // 31: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
-	18, // 32: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	18, // 33: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	18, // 34: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	13, // 0: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
+	14, // 1: agent_manager.v1.AgentProfile.features:type_name -> agent_manager.v1.FeatureFlags
+	10, // 2: agent_manager.v1.AgentProfile.extra_flags:type_name -> agent_manager.v1.AgentProfile.ExtraFlagsEntry
+	15, // 3: agent_manager.v1.AgentProfile.network_access:type_name -> agent_manager.v1.NetworkAccess
+	16, // 4: agent_manager.v1.AgentProfile.source_updated_at:type_name -> google.protobuf.Timestamp
+	17, // 5: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	16, // 6: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
+	16, // 7: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
+	18, // 8: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
+	13, // 9: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
+	14, // 10: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
+	11, // 11: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
+	15, // 12: agent_manager.v1.RunConfig.network_access:type_name -> agent_manager.v1.NetworkAccess
+	7,  // 13: agent_manager.v1.RunConfig.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
+	17, // 14: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	18, // 15: agent_manager.v1.ExecutionCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
+	19, // 16: agent_manager.v1.ExecutionCandidate.selection_type:type_name -> agent_manager.v1.ModelSelectionType
+	3,  // 17: agent_manager.v1.ExecutionCandidate.provenance:type_name -> agent_manager.v1.ResourceProvenance
+	4,  // 18: agent_manager.v1.ExecutionCandidate.enforcement:type_name -> agent_manager.v1.PermissionEnforcement
+	2,  // 19: agent_manager.v1.CandidatePreflight.candidate:type_name -> agent_manager.v1.ExecutionCandidate
+	18, // 20: agent_manager.v1.PolicyResolutionExplanation.requested_runner:type_name -> agent_manager.v1.RunnerType
+	5,  // 21: agent_manager.v1.PolicyResolutionExplanation.preflight:type_name -> agent_manager.v1.CandidatePreflight
+	2,  // 22: agent_manager.v1.ExecutionPolicySnapshot.candidates:type_name -> agent_manager.v1.ExecutionCandidate
+	2,  // 23: agent_manager.v1.ExecutionPolicySnapshot.selected_candidate:type_name -> agent_manager.v1.ExecutionCandidate
+	6,  // 24: agent_manager.v1.ExecutionPolicySnapshot.explanation:type_name -> agent_manager.v1.PolicyResolutionExplanation
+	13, // 25: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
+	14, // 26: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
+	12, // 27: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
+	15, // 28: agent_manager.v1.RunConfigOverrides.network_access:type_name -> agent_manager.v1.NetworkAccess
+	17, // 29: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	13, // 30: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
+	13, // 31: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
+	20, // 32: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	20, // 33: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	20, // 34: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
 	35, // [35:35] is the sub-list for method output_type
 	35, // [35:35] is the sub-list for method input_type
 	35, // [35:35] is the sub-list for extension type_name
@@ -1322,14 +1477,14 @@ func file_agent_manager_v1_domain_profile_proto_init() {
 		return
 	}
 	file_agent_manager_v1_domain_types_proto_init()
-	file_agent_manager_v1_domain_profile_proto_msgTypes[6].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_profile_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_profile_proto_rawDesc), len(file_agent_manager_v1_domain_profile_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

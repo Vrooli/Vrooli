@@ -57,19 +57,9 @@ message AgentProfile {
   // Optional description of what this profile is used for.
   string description = 3;
 
-  // Which agent runner to use (claude-code, codex, opencode).
-  RunnerType runner_type = 4 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
-
-  // Model to use (e.g., "claude-sonnet-4-5", "gpt-4o", "anthropic/claude-opus-4-5").
-  // If empty, uses the runner's default model.
-  string model = 5;
-
-  // Named policy from the active model-policy catalog. Mutually exclusive
-  // with model. The policy is resolved to an immutable run snapshot.
-  string policy_ref = 32;
+  // Portable coding intent. Concrete runner/model selection is output-only
+  // evidence in the immutable execution snapshot.
+  string role_ref = 33 [(buf.validate.field).string = {min_len: 1 max_len: 255}];
 
   // Maximum number of conversation turns before stopping.
   // 0 means unlimited (use with caution).
@@ -130,8 +120,8 @@ message AgentProfile {
   // boundary). Run-end apply behavior is controlled by
   // SandboxConfig (manual_review / auto_apply / apply_on_failure) per
   // the auditability contract.
-  reserved 11, 12, 19, 22;
-  reserved "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types";
+  reserved 4, 5, 11, 12, 19, 22, 32;
+  reserved "runner_type", "model", "policy_ref", "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 20;
@@ -174,8 +164,8 @@ message RunConfig {
   // Model to use for execution.
   string model = 2;
 
-  // Named policy selected before policy_snapshot was created.
-  string policy_ref = 20;
+  // Portable role selected before policy_snapshot was created.
+  string role_ref = 21;
 
   // Maximum conversation turns.
   int32 max_turns = 3;
@@ -211,8 +201,8 @@ message RunConfig {
   // of truth for whether a run is sandboxed; run-end apply behavior is
   // controlled by SandboxConfig levers (manual_review / auto_apply /
   // apply_on_failure).
-  reserved 8, 9, 12, 15;
-  reserved "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types";
+  reserved 8, 9, 12, 15, 20;
+  reserved "policy_ref", "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 13;
@@ -229,6 +219,28 @@ message ExecutionCandidate {
   RunnerType runner_type = 1;
   ModelSelectionType selection_type = 2;
   string model = 3;
+  string resource_role = 4;
+  repeated string fallbacks = 5;
+  bool available = 6;
+  string failure_code = 7;
+  string failure = 8;
+  ResourceProvenance provenance = 9;
+  PermissionEnforcement enforcement = 10;
+  string policy_path = 11;
+  string policy_digest = 12;
+}
+
+// ResourceProvenance records the resource-owned policy authority that
+// produced this concrete candidate.
+message ResourceProvenance {
+  string source = 1;
+  string observed_at = 2;
+}
+
+// PermissionEnforcement reports the resource's real enforcement posture.
+message PermissionEnforcement {
+  string permissions = 1;
+  repeated string caveats = 2;
 }
 
 // CandidatePreflight records creation-time availability evidence used to pick
@@ -247,21 +259,23 @@ message PolicyResolutionExplanation {
   string summary = 2;
   RunnerType requested_runner = 3;
   string requested_model = 4;
-  string requested_policy_ref = 7;
+  string requested_role_ref = 8;
   repeated CandidatePreflight preflight = 6;
-  reserved 5;
-  reserved "requested_preset";
+  reserved 5, 7;
+  reserved "requested_preset", "requested_policy_ref";
 }
 
 // ExecutionPolicySnapshot pins the active catalog revision and complete
 // ordered candidate sequence owned by a run.
 message ExecutionPolicySnapshot {
   string catalog_digest = 1;
-  string policy_ref = 2;
   repeated ExecutionCandidate candidates = 3;
   int32 selected_index = 4;
   ExecutionCandidate selected_candidate = 5;
   PolicyResolutionExplanation explanation = 6;
+  string role_ref = 7;
+  reserved 2;
+  reserved "policy_ref";
 }
 
 // RunConfigOverrides contains optional overrides for run configuration.
@@ -271,17 +285,9 @@ message ExecutionPolicySnapshot {
 //
 // @usage CreateRunRequest.inline_config
 message RunConfigOverrides {
-  // Which agent runner to use.
-  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
-
-  // Model to use for execution.
-  optional string model = 2;
-
-  // Named policy from the active catalog. Mutually exclusive with model.
-  optional string policy_ref = 25;
+  // Portable role intent. Concrete runner/model selection is resolved by the
+  // active resource-owned role policy and persisted only in the run snapshot.
+  optional string role_ref = 26;
 
   // Maximum conversation turns.
   optional int32 max_turns = 3;
@@ -314,8 +320,8 @@ message RunConfigOverrides {
   // schema iterations. SandboxConfig.mode is the single source of truth
   // for whether a run is sandboxed; run-end apply behavior is on
   // SandboxConfig levers.
-  reserved 8, 9, 16, 19, 20;
-  reserved "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types", "clear_fallback_runner_types";
+  reserved 1, 2, 8, 9, 16, 19, 20, 25;
+  reserved "runner_type", "model", "policy_ref", "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types", "clear_fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 17;

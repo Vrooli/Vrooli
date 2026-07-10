@@ -14,7 +14,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
-// handleWorkflowRunVideo proxies a test-genie playbooks-run video to the UI so
+// handleWorkflowRunVideo proxies an opaque Test Genie workflow.video artifact
 // the browser stays single-origin (Plan B Decision 3). It forwards the Range
 // header so the <video> element can seek, and copies the streaming-relevant
 // response headers back. Structured listing is WorkflowReplayService; this is
@@ -22,9 +22,9 @@ import (
 func (s *Server) handleWorkflowRunVideo(w http.ResponseWriter, r *http.Request) {
 	runID := strings.TrimSpace(mux.Vars(r)["runId"])
 	scenario := strings.TrimSpace(r.URL.Query().Get("scenario"))
-	path := strings.TrimSpace(r.URL.Query().Get("path"))
-	if scenario == "" || path == "" {
-		http.Error(w, "scenario and path are required", http.StatusBadRequest)
+	artifactID := strings.TrimSpace(r.URL.Query().Get("artifact_id"))
+	if scenario == "" || artifactID == "" {
+		http.Error(w, "scenario and artifact_id are required", http.StatusBadRequest)
 		return
 	}
 
@@ -37,11 +37,11 @@ func (s *Server) handleWorkflowRunVideo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	target := fmt.Sprintf("%s/api/v1/scenarios/%s/runs/%s/artifact?path=%s",
+	target := fmt.Sprintf("%s/api/v1/scenarios/%s/runs/%s/artifacts/%s",
 		strings.TrimRight(base, "/"),
 		url.PathEscape(scenario),
 		url.PathEscape(runID),
-		url.QueryEscape(path),
+		url.PathEscape(artifactID),
 	)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)

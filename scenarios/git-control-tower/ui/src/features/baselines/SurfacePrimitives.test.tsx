@@ -4,24 +4,9 @@ import { SurfaceCaptureEmptyState } from "./SurfaceCaptureEmptyState";
 import { BaselineSelector } from "./BaselineSelector";
 import { SurfaceBaselineBar } from "./SurfaceBaselineBar";
 import { SurfaceComparePanel } from "./SurfaceComparePanel";
-import { VisualsDiff } from "./diffs/VisualsDiff";
-import type { SurfaceDiff } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
+import { PhaseDiffCard } from "./parts";
+import type { PhaseDiff } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
 import type { CompareOnDemand } from "../../lib/hooks-baselines";
-
-// surfaceDiff builds a minimal SurfaceDiff for component tests.
-function surfaceDiff(over: Partial<SurfaceDiff>): SurfaceDiff {
-  return {
-    surfaceId: "visuals",
-    verdict: "clean",
-    regressions: [],
-    newFailures: [],
-    preexisting: [],
-    cleared: [],
-    changed: [],
-    summary: "",
-    ...over,
-  } as SurfaceDiff;
-}
 
 // The selector + compare panel read baselines/default through hooks-baselines;
 // mock that module so these primitives are tested in isolation.
@@ -153,15 +138,15 @@ describe("SurfaceComparePanel", () => {
       compareHandle({
         comparing: true,
         diff: {
-          surfaces: [
+          phases: [
             {
-              surfaceId: "tests",
+              phase: "future-phase",
               verdict: "regression",
-              summary: "1 regression",
               regressions: ["TestFoo"],
               newFailures: [],
-              preexisting: [],
-              cleared: [],
+              preexistingFailures: [],
+              clearedFailures: [],
+              reasons: [],
             },
           ],
         } as unknown as CompareOnDemand["diff"],
@@ -181,39 +166,23 @@ describe("SurfaceComparePanel", () => {
   });
 });
 
-describe("VisualsDiff three-tier rendering", () => {
-  it("renders the clean state with nothing to review", () => {
-    render(<VisualsDiff diff={surfaceDiff({ verdict: "clean", summary: "no change" })} />);
-    expect(screen.getByText(/nothing to review/i)).toBeInTheDocument();
-    expect(screen.queryByText(/differences to look at/i)).not.toBeInTheDocument();
-  });
-
-  it("renders changed pages as neutral review items, not failures", () => {
-    render(
-      <VisualsDiff
-        diff={surfaceDiff({
-          verdict: "changed",
-          summary: "1 change(s) to review (not a failure)",
-          changed: ["/dashboard changed (12% of frame)"],
-        })}
-      />,
-    );
-    // The neutral advisory badge + the review framing, never a failure tone.
-    expect(screen.getByText("Changed — review")).toBeInTheDocument();
-    expect(screen.getByText(/differences to look at, not failures/i)).toBeInTheDocument();
-    expect(screen.getByText("/dashboard changed (12% of frame)")).toBeInTheDocument();
-    expect(screen.queryByText(/regression/i)).not.toBeInTheDocument();
-  });
-
-  it("offers the side-by-side deep link", () => {
-    const onOpen = vi.fn();
-    render(
-      <VisualsDiff
-        diff={surfaceDiff({ verdict: "changed", changed: ["/x changed (5% of frame)"] })}
-        onOpenScreenshots={onOpen}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /side-by-side before\/after/i }));
-    expect(onOpen).toHaveBeenCalledOnce();
+describe("PhaseDiffCard", () => {
+  it("renders an unknown future phase without registration", () => {
+    const diff = {
+      phase: "future-phase",
+      verdict: "not-comparable",
+      statusA: "",
+      statusB: "passed",
+      regressions: [],
+      newFailures: [],
+      preexistingFailures: [],
+      clearedFailures: [],
+      descriptorB: { displayName: "Future Provider", provider: "future-health" },
+      reasons: [{ code: 1, detail: "New catalog entry" }],
+    } as unknown as PhaseDiff;
+    render(<PhaseDiffCard diff={diff} />);
+    expect(screen.getByText("Future Provider")).toBeInTheDocument();
+    expect(screen.getByText(/future-phase/)).toBeInTheDocument();
+    expect(screen.getByText("New catalog entry")).toBeInTheDocument();
   });
 });

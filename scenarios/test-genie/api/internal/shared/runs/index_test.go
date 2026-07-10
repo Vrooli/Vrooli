@@ -1,7 +1,10 @@
 package runs
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -125,6 +128,109 @@ func TestIndexPinUnpin(t *testing.T) {
 	got, _ = idx.Find(id)
 	if got.IsPinned() {
 		t.Fatalf("expected no pins after unpin, got %#v", got.Pins)
+	}
+}
+
+func TestIndexFinalizePublishesSnapshotBeforeTerminalIndex(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
+	dir := t.TempDir()
+	idx := NewIndex(dir)
+	started := time.Now().UTC().Truncate(time.Second)
+	runID := "20260710-161854-2c0462f9"
+	if err := idx.Append(RunRecord{
+		RunID:     runID,
+		Scenario:  "demo",
+		StartedAt: started,
+		Status:    StatusInProgress,
+		Pins:      []PinRecord{{PinnedBy: "gct:baseline:demo", PinnedAt: started}},
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+
+	result := map[string]any{
+		"runId":    runID,
+		"scenario": "demo",
+		"phases": []map[string]any{
+			{"name": "unit", "status": "failed", "durationSeconds": 12},
+		},
+	}
+	completed := started.Add(12 * time.Second)
+	if err := idx.Finalize(runID, result, func(r *RunRecord) error {
+		r.Status = StatusFailed
+		r.CompletedAt = completed
+		r.Phases = []PhaseRecord{{Name: "unit", Status: "failed", DurationSeconds: 12}}
+		return nil
+	}); err != nil {
+		t.Fatalf("finalize: %v", err)
+	}
+
+	rec, err := idx.Find(runID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if rec.Status != StatusFailed || len(rec.Phases) != 1 || len(rec.Pins) != 1 {
+		t.Fatalf("terminal index lost evidence or pins: %#v", rec)
+	}
+	snapshot, err := idx.ReadTerminalSnapshot(runID)
+	if err != nil {
+		t.Fatalf("read snapshot: %v", err)
+	}
+	if snapshot.SchemaVersion != TerminalSnapshotSchemaVersion || snapshot.Run.Status != StatusFailed {
+		t.Fatalf("unexpected snapshot: %#v", snapshot)
+	}
+	if got := string(snapshot.Result); !strings.Contains(got, `"durationSeconds": 12`) {
+		t.Fatalf("snapshot result missing full phase evidence: %s", got)
+	}
+}
+
+func TestIndexFinalizeFailureLeavesIndexNonTerminal(t *testing.T) {
+	idx := NewIndex(t.TempDir())
+	runID := "run-finalize-failure"
+	if err := idx.Append(RunRecord{RunID: runID, Scenario: "demo", Status: StatusInProgress}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+
+	err := idx.Finalize(runID, make(chan int), func(r *RunRecord) error {
+		r.Status = StatusPassed
+		return nil
+	})
+	if err == nil {
+		t.Fatal("expected snapshot serialization failure")
+	}
+	rec, findErr := idx.Find(runID)
+	if findErr != nil {
+		t.Fatalf("find: %v", findErr)
+	}
+	if rec.Status != StatusInProgress {
+		t.Fatalf("partial finalization became terminal: %q", rec.Status)
+	}
+	if _, statErr := os.Stat(sharedartifacts.RunSnapshotPath(idx.scenarioDir, runID)); !os.IsNotExist(statErr) {
+		t.Fatalf("failed finalization left a snapshot artifact: %v", statErr)
+	}
+}
+
+func TestReadTerminalSnapshotDistinguishesLegacyCorruptAndFuture(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
+	dir := t.TempDir()
+	idx := NewIndex(dir)
+	runID := "legacy"
+	if _, err := idx.ReadTerminalSnapshot(runID); !errors.Is(err, ErrSnapshotNotFound) {
+		t.Fatalf("missing snapshot error = %v, want ErrSnapshotNotFound", err)
+	}
+
+	path := sharedartifacts.RunSnapshotPath(dir, runID)
+	if err := os.MkdirAll(sharedartifacts.RunDir(dir, runID), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
+		t.Fatalf("write corrupt: %v", err)
+	}
+	if _, err := idx.ReadTerminalSnapshot(runID); !errors.Is(err, ErrInvalidTerminalSnapshot) {
+		t.Fatalf("corrupt snapshot error = %v, want ErrInvalidTerminalSnapshot", err)
+	}
+	if err := os.WriteFile(path, []byte(`{"schema_version":99,"run":{"run_id":"legacy","status":"passed"},"result":{}}`), 0o644); err != nil {
+		t.Fatalf("write future: %v", err)
+	}
+	if _, err := idx.ReadTerminalSnapshot(runID); !errors.Is(err, ErrUnsupportedSnapshotVersion) {
+		t.Fatalf("future snapshot error = %v, want ErrUnsupportedSnapshotVersion", err)
 	}
 }
 

@@ -1,3 +1,4 @@
+from test_genie.v1.runs import runs_pb2 as _runs_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -28,95 +29,57 @@ class GitState(_message.Message):
     sandboxed: bool
     def __init__(self, sha: _Optional[str] = ..., branch: _Optional[str] = ..., detached: _Optional[bool] = ..., dirty: _Optional[bool] = ..., dirty_summary: _Optional[str] = ..., commit_message: _Optional[str] = ..., commit_author: _Optional[str] = ..., commit_date: _Optional[str] = ..., sandboxed: _Optional[bool] = ...) -> None: ...
 
-class SurfacePointer(_message.Message):
-    __slots__ = ("surface_id", "kind", "ref", "captured_at", "summary")
-    SURFACE_ID_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    REF_FIELD_NUMBER: _ClassVar[int]
+class RunAnchor(_message.Message):
+    __slots__ = ("run_id", "captured_at", "capture_profile", "tree_digest", "phase_set_digest", "descriptor_snapshot_ref", "descriptor_snapshot_digest", "descriptor_snapshot_schema_version")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
     CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
-    SUMMARY_FIELD_NUMBER: _ClassVar[int]
-    surface_id: str
-    kind: str
-    ref: str
+    CAPTURE_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    TREE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    PHASE_SET_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_SNAPSHOT_REF_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_SNAPSHOT_SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
     captured_at: str
-    summary: str
-    def __init__(self, surface_id: _Optional[str] = ..., kind: _Optional[str] = ..., ref: _Optional[str] = ..., captured_at: _Optional[str] = ..., summary: _Optional[str] = ...) -> None: ...
+    capture_profile: str
+    tree_digest: str
+    phase_set_digest: str
+    descriptor_snapshot_ref: str
+    descriptor_snapshot_digest: str
+    descriptor_snapshot_schema_version: int
+    def __init__(self, run_id: _Optional[str] = ..., captured_at: _Optional[str] = ..., capture_profile: _Optional[str] = ..., tree_digest: _Optional[str] = ..., phase_set_digest: _Optional[str] = ..., descriptor_snapshot_ref: _Optional[str] = ..., descriptor_snapshot_digest: _Optional[str] = ..., descriptor_snapshot_schema_version: _Optional[int] = ...) -> None: ...
+
+class MigrationInfo(_message.Message):
+    __slots__ = ("from_schema_version", "migrated_at", "degraded_reasons")
+    FROM_SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    MIGRATED_AT_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
+    from_schema_version: int
+    migrated_at: str
+    degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, from_schema_version: _Optional[int] = ..., migrated_at: _Optional[str] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class BaselineManifest(_message.Message):
-    __slots__ = ("name", "scenario", "branch", "created_at", "created_by", "git", "surfaces", "schema_version", "skipped")
-    class SurfacesEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: SurfacePointer
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[SurfacePointer, _Mapping]] = ...) -> None: ...
-    class SkippedEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    __slots__ = ("name", "scenario", "branch", "created_at", "created_by", "git", "run", "schema_version", "migration")
     NAME_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_FIELD_NUMBER: _ClassVar[int]
     GIT_FIELD_NUMBER: _ClassVar[int]
-    SURFACES_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
-    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    MIGRATION_FIELD_NUMBER: _ClassVar[int]
     name: str
     scenario: str
     branch: str
     created_at: str
     created_by: str
     git: GitState
-    surfaces: _containers.MessageMap[str, SurfacePointer]
+    run: RunAnchor
     schema_version: int
-    skipped: _containers.ScalarMap[str, str]
-    def __init__(self, name: _Optional[str] = ..., scenario: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., created_by: _Optional[str] = ..., git: _Optional[_Union[GitState, _Mapping]] = ..., surfaces: _Optional[_Mapping[str, SurfacePointer]] = ..., schema_version: _Optional[int] = ..., skipped: _Optional[_Mapping[str, str]] = ...) -> None: ...
-
-class SurfaceDiff(_message.Message):
-    __slots__ = ("surface_id", "verdict", "regressions", "new_failures", "preexisting", "cleared", "summary", "changed")
-    SURFACE_ID_FIELD_NUMBER: _ClassVar[int]
-    VERDICT_FIELD_NUMBER: _ClassVar[int]
-    REGRESSIONS_FIELD_NUMBER: _ClassVar[int]
-    NEW_FAILURES_FIELD_NUMBER: _ClassVar[int]
-    PREEXISTING_FIELD_NUMBER: _ClassVar[int]
-    CLEARED_FIELD_NUMBER: _ClassVar[int]
-    SUMMARY_FIELD_NUMBER: _ClassVar[int]
-    CHANGED_FIELD_NUMBER: _ClassVar[int]
-    surface_id: str
-    verdict: str
-    regressions: _containers.RepeatedScalarFieldContainer[str]
-    new_failures: _containers.RepeatedScalarFieldContainer[str]
-    preexisting: _containers.RepeatedScalarFieldContainer[str]
-    cleared: _containers.RepeatedScalarFieldContainer[str]
-    summary: str
-    changed: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, surface_id: _Optional[str] = ..., verdict: _Optional[str] = ..., regressions: _Optional[_Iterable[str]] = ..., new_failures: _Optional[_Iterable[str]] = ..., preexisting: _Optional[_Iterable[str]] = ..., cleared: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ..., changed: _Optional[_Iterable[str]] = ...) -> None: ...
-
-class PhaseDiff(_message.Message):
-    __slots__ = ("phase", "surface_id", "verdict", "regressions", "new_failures", "preexisting", "cleared", "summary")
-    PHASE_FIELD_NUMBER: _ClassVar[int]
-    SURFACE_ID_FIELD_NUMBER: _ClassVar[int]
-    VERDICT_FIELD_NUMBER: _ClassVar[int]
-    REGRESSIONS_FIELD_NUMBER: _ClassVar[int]
-    NEW_FAILURES_FIELD_NUMBER: _ClassVar[int]
-    PREEXISTING_FIELD_NUMBER: _ClassVar[int]
-    CLEARED_FIELD_NUMBER: _ClassVar[int]
-    SUMMARY_FIELD_NUMBER: _ClassVar[int]
-    phase: str
-    surface_id: str
-    verdict: str
-    regressions: _containers.RepeatedScalarFieldContainer[str]
-    new_failures: _containers.RepeatedScalarFieldContainer[str]
-    preexisting: _containers.RepeatedScalarFieldContainer[str]
-    cleared: _containers.RepeatedScalarFieldContainer[str]
-    summary: str
-    def __init__(self, phase: _Optional[str] = ..., surface_id: _Optional[str] = ..., verdict: _Optional[str] = ..., regressions: _Optional[_Iterable[str]] = ..., new_failures: _Optional[_Iterable[str]] = ..., preexisting: _Optional[_Iterable[str]] = ..., cleared: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ...) -> None: ...
+    migration: MigrationInfo
+    def __init__(self, name: _Optional[str] = ..., scenario: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., created_by: _Optional[str] = ..., git: _Optional[_Union[GitState, _Mapping]] = ..., run: _Optional[_Union[RunAnchor, _Mapping]] = ..., schema_version: _Optional[int] = ..., migration: _Optional[_Union[MigrationInfo, _Mapping]] = ...) -> None: ...
 
 class Staleness(_message.Message):
     __slots__ = ("commits_since", "files_changed", "likely_stale")
@@ -128,62 +91,65 @@ class Staleness(_message.Message):
     likely_stale: bool
     def __init__(self, commits_since: _Optional[int] = ..., files_changed: _Optional[int] = ..., likely_stale: _Optional[bool] = ...) -> None: ...
 
-class CreateBaselineRequest(_message.Message):
-    __slots__ = ("scenario", "name", "branch", "include", "fast", "created_by", "reason", "repo_id")
-    SCENARIO_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    BRANCH_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_FIELD_NUMBER: _ClassVar[int]
-    FAST_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_FIELD_NUMBER: _ClassVar[int]
-    REASON_FIELD_NUMBER: _ClassVar[int]
-    REPO_ID_FIELD_NUMBER: _ClassVar[int]
-    scenario: str
-    name: str
-    branch: str
-    include: _containers.RepeatedScalarFieldContainer[str]
-    fast: bool
-    created_by: str
-    reason: str
-    repo_id: int
-    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., include: _Optional[_Iterable[str]] = ..., fast: _Optional[bool] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
+class RunArtifactCatalog(_message.Message):
+    __slots__ = ("run_id", "schema_version", "digest", "artifacts", "legacy_discovered", "degraded_reasons")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
+    LEGACY_DISCOVERED_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    schema_version: int
+    digest: str
+    artifacts: _containers.RepeatedCompositeFieldContainer[_runs_pb2.ArtifactRef]
+    legacy_discovered: bool
+    degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, run_id: _Optional[str] = ..., schema_version: _Optional[int] = ..., digest: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[_runs_pb2.ArtifactRef, _Mapping]]] = ..., legacy_discovered: _Optional[bool] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
 
-class CreateBaselineResponse(_message.Message):
-    __slots__ = ("baseline", "skipped", "dirty_warning")
-    class SkippedEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
-    BASELINE_FIELD_NUMBER: _ClassVar[int]
-    SKIPPED_FIELD_NUMBER: _ClassVar[int]
-    DIRTY_WARNING_FIELD_NUMBER: _ClassVar[int]
-    baseline: BaselineManifest
-    skipped: _containers.ScalarMap[str, str]
-    dirty_warning: str
-    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., skipped: _Optional[_Mapping[str, str]] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
+class VisualDelta(_message.Message):
+    __slots__ = ("page", "label", "status", "changed_fraction")
+    PAGE_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CHANGED_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    page: str
+    label: str
+    status: str
+    changed_fraction: float
+    def __init__(self, page: _Optional[str] = ..., label: _Optional[str] = ..., status: _Optional[str] = ..., changed_fraction: _Optional[float] = ...) -> None: ...
+
+class EvidenceComparison(_message.Message):
+    __slots__ = ("base_run_id", "current_run_id", "base_catalog", "current_catalog", "visual_deltas", "degraded_reasons")
+    BASE_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    BASE_CATALOG_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_CATALOG_FIELD_NUMBER: _ClassVar[int]
+    VISUAL_DELTAS_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
+    base_run_id: str
+    current_run_id: str
+    base_catalog: RunArtifactCatalog
+    current_catalog: RunArtifactCatalog
+    visual_deltas: _containers.RepeatedCompositeFieldContainer[VisualDelta]
+    degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, base_run_id: _Optional[str] = ..., current_run_id: _Optional[str] = ..., base_catalog: _Optional[_Union[RunArtifactCatalog, _Mapping]] = ..., current_catalog: _Optional[_Union[RunArtifactCatalog, _Mapping]] = ..., visual_deltas: _Optional[_Iterable[_Union[VisualDelta, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SnapshotForBaselineRequest(_message.Message):
-    __slots__ = ("scenario", "name", "branch", "include", "fast", "created_by", "reason", "repo_id")
+    __slots__ = ("scenario", "name", "branch", "created_by", "reason", "repo_id")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_FIELD_NUMBER: _ClassVar[int]
-    FAST_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     REPO_ID_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     name: str
     branch: str
-    include: _containers.RepeatedScalarFieldContainer[str]
-    fast: bool
     created_by: str
     reason: str
     repo_id: int
-    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., include: _Optional[_Iterable[str]] = ..., fast: _Optional[bool] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
+    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
 
 class SnapshotForBaselineResponse(_message.Message):
     __slots__ = ("run_id", "scenario", "name", "branch", "estimated_total_seconds", "eta_known", "dirty_warning", "coalesced")
@@ -282,18 +248,16 @@ class ListBaselinesResponse(_message.Message):
     def __init__(self, baselines: _Optional[_Iterable[_Union[BaselineManifest, _Mapping]]] = ...) -> None: ...
 
 class StartDiffRequest(_message.Message):
-    __slots__ = ("scenario", "name", "branch", "surface", "repo_id")
+    __slots__ = ("scenario", "name", "branch", "repo_id")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
-    SURFACE_FIELD_NUMBER: _ClassVar[int]
     REPO_ID_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     name: str
     branch: str
-    surface: str
     repo_id: int
-    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., surface: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
+    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
 
 class StartDiffResponse(_message.Message):
     __slots__ = ("run_id", "scenario", "name", "branch", "estimated_total_seconds", "eta_known", "coalesced", "reused_run", "reused_sha", "dirty_warning")
@@ -320,12 +284,11 @@ class StartDiffResponse(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., coalesced: _Optional[bool] = ..., reused_run: _Optional[bool] = ..., reused_sha: _Optional[str] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
 
 class GetDiffResultRequest(_message.Message):
-    __slots__ = ("scenario", "name", "branch", "run_id", "surface", "repo_id", "wait", "latest")
+    __slots__ = ("scenario", "name", "branch", "run_id", "repo_id", "wait", "latest")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
-    SURFACE_FIELD_NUMBER: _ClassVar[int]
     REPO_ID_FIELD_NUMBER: _ClassVar[int]
     WAIT_FIELD_NUMBER: _ClassVar[int]
     LATEST_FIELD_NUMBER: _ClassVar[int]
@@ -333,11 +296,10 @@ class GetDiffResultRequest(_message.Message):
     name: str
     branch: str
     run_id: str
-    surface: str
     repo_id: int
     wait: bool
     latest: bool
-    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., run_id: _Optional[str] = ..., surface: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ..., latest: _Optional[bool] = ...) -> None: ...
+    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., run_id: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ..., latest: _Optional[bool] = ...) -> None: ...
 
 class GetDiffResultResponse(_message.Message):
     __slots__ = ("status", "diff", "error", "recommended_next_check_seconds", "run_id")
@@ -354,22 +316,22 @@ class GetDiffResultResponse(_message.Message):
     def __init__(self, status: _Optional[str] = ..., diff: _Optional[_Union[DiffResult, _Mapping]] = ..., error: _Optional[str] = ..., recommended_next_check_seconds: _Optional[int] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class DiffResult(_message.Message):
-    __slots__ = ("baseline", "current_git", "staleness", "surfaces", "verdict", "dirty_warning", "phases")
+    __slots__ = ("baseline", "current_git", "staleness", "verdict", "dirty_warning", "phases", "evidence")
     BASELINE_FIELD_NUMBER: _ClassVar[int]
     CURRENT_GIT_FIELD_NUMBER: _ClassVar[int]
     STALENESS_FIELD_NUMBER: _ClassVar[int]
-    SURFACES_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     DIRTY_WARNING_FIELD_NUMBER: _ClassVar[int]
     PHASES_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     baseline: BaselineManifest
     current_git: GitState
     staleness: Staleness
-    surfaces: _containers.RepeatedCompositeFieldContainer[SurfaceDiff]
     verdict: str
     dirty_warning: str
-    phases: _containers.RepeatedCompositeFieldContainer[PhaseDiff]
-    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., current_git: _Optional[_Union[GitState, _Mapping]] = ..., staleness: _Optional[_Union[Staleness, _Mapping]] = ..., surfaces: _Optional[_Iterable[_Union[SurfaceDiff, _Mapping]]] = ..., verdict: _Optional[str] = ..., dirty_warning: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseDiff, _Mapping]]] = ...) -> None: ...
+    phases: _containers.RepeatedCompositeFieldContainer[_runs_pb2.PhaseDiff]
+    evidence: EvidenceComparison
+    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., current_git: _Optional[_Union[GitState, _Mapping]] = ..., staleness: _Optional[_Union[Staleness, _Mapping]] = ..., verdict: _Optional[str] = ..., dirty_warning: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[_runs_pb2.PhaseDiff, _Mapping]]] = ..., evidence: _Optional[_Union[EvidenceComparison, _Mapping]] = ...) -> None: ...
 
 class RunBusyInfo(_message.Message):
     __slots__ = ("scenario", "run_id", "preset")
@@ -398,27 +360,3 @@ class DeleteBaselineResponse(_message.Message):
     DELETED_FIELD_NUMBER: _ClassVar[int]
     deleted: bool
     def __init__(self, deleted: _Optional[bool] = ...) -> None: ...
-
-class EditBaselineRequest(_message.Message):
-    __slots__ = ("scenario", "name", "branch", "surface", "pin_run_id", "reason", "repo_id")
-    SCENARIO_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    BRANCH_FIELD_NUMBER: _ClassVar[int]
-    SURFACE_FIELD_NUMBER: _ClassVar[int]
-    PIN_RUN_ID_FIELD_NUMBER: _ClassVar[int]
-    REASON_FIELD_NUMBER: _ClassVar[int]
-    REPO_ID_FIELD_NUMBER: _ClassVar[int]
-    scenario: str
-    name: str
-    branch: str
-    surface: str
-    pin_run_id: str
-    reason: str
-    repo_id: int
-    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., surface: _Optional[str] = ..., pin_run_id: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
-
-class EditBaselineResponse(_message.Message):
-    __slots__ = ("baseline",)
-    BASELINE_FIELD_NUMBER: _ClassVar[int]
-    baseline: BaselineManifest
-    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ...) -> None: ...

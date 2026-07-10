@@ -123,21 +123,21 @@ const (
 	// AgentManagerServiceProbeRunnerProcedure is the fully-qualified name of the AgentManagerService's
 	// ProbeRunner RPC.
 	AgentManagerServiceProbeRunnerProcedure = "/agent_manager.v1.AgentManagerService/ProbeRunner"
-	// AgentManagerServiceGetModelPolicyStatusProcedure is the fully-qualified name of the
-	// AgentManagerService's GetModelPolicyStatus RPC.
-	AgentManagerServiceGetModelPolicyStatusProcedure = "/agent_manager.v1.AgentManagerService/GetModelPolicyStatus"
-	// AgentManagerServiceGetModelPolicyCatalogProcedure is the fully-qualified name of the
-	// AgentManagerService's GetModelPolicyCatalog RPC.
-	AgentManagerServiceGetModelPolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/GetModelPolicyCatalog"
-	// AgentManagerServiceValidateModelPolicyCatalogProcedure is the fully-qualified name of the
-	// AgentManagerService's ValidateModelPolicyCatalog RPC.
-	AgentManagerServiceValidateModelPolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/ValidateModelPolicyCatalog"
-	// AgentManagerServiceReloadModelPolicyCatalogProcedure is the fully-qualified name of the
-	// AgentManagerService's ReloadModelPolicyCatalog RPC.
-	AgentManagerServiceReloadModelPolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/ReloadModelPolicyCatalog"
-	// AgentManagerServiceExplainModelPolicyProcedure is the fully-qualified name of the
-	// AgentManagerService's ExplainModelPolicy RPC.
-	AgentManagerServiceExplainModelPolicyProcedure = "/agent_manager.v1.AgentManagerService/ExplainModelPolicy"
+	// AgentManagerServiceGetRolePolicyStatusProcedure is the fully-qualified name of the
+	// AgentManagerService's GetRolePolicyStatus RPC.
+	AgentManagerServiceGetRolePolicyStatusProcedure = "/agent_manager.v1.AgentManagerService/GetRolePolicyStatus"
+	// AgentManagerServiceGetRolePolicyCatalogProcedure is the fully-qualified name of the
+	// AgentManagerService's GetRolePolicyCatalog RPC.
+	AgentManagerServiceGetRolePolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/GetRolePolicyCatalog"
+	// AgentManagerServiceValidateRolePolicyCatalogProcedure is the fully-qualified name of the
+	// AgentManagerService's ValidateRolePolicyCatalog RPC.
+	AgentManagerServiceValidateRolePolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/ValidateRolePolicyCatalog"
+	// AgentManagerServiceReloadRolePolicyCatalogProcedure is the fully-qualified name of the
+	// AgentManagerService's ReloadRolePolicyCatalog RPC.
+	AgentManagerServiceReloadRolePolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/ReloadRolePolicyCatalog"
+	// AgentManagerServiceExplainRolePolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's ExplainRolePolicy RPC.
+	AgentManagerServiceExplainRolePolicyProcedure = "/agent_manager.v1.AgentManagerService/ExplainRolePolicy"
 	// AgentManagerServicePurgeDataProcedure is the fully-qualified name of the AgentManagerService's
 	// PurgeData RPC.
 	AgentManagerServicePurgeDataProcedure = "/agent_manager.v1.AgentManagerService/PurgeData"
@@ -207,16 +207,16 @@ type AgentManagerServiceClient interface {
 	GetRunnerStatus(context.Context, *connect.Request[api.GetRunnerStatusRequest]) (*connect.Response[api.GetRunnerStatusResponse], error)
 	// ProbeRunner sends a test request to verify runner connectivity.
 	ProbeRunner(context.Context, *connect.Request[api.ProbeRunnerRequest]) (*connect.Response[api.ProbeRunnerResponse], error)
-	// GetModelPolicyStatus returns activation state and the latest diagnostic.
-	GetModelPolicyStatus(context.Context, *connect.Request[api.GetModelPolicyStatusRequest]) (*connect.Response[api.GetModelPolicyStatusResponse], error)
-	// GetModelPolicyCatalog returns the active, immutable declared catalog.
-	GetModelPolicyCatalog(context.Context, *connect.Request[api.GetModelPolicyCatalogRequest]) (*connect.Response[api.GetModelPolicyCatalogResponse], error)
-	// ValidateModelPolicyCatalog validates the configured catalog without activation.
-	ValidateModelPolicyCatalog(context.Context, *connect.Request[api.ValidateModelPolicyCatalogRequest]) (*connect.Response[api.ValidateModelPolicyCatalogResponse], error)
-	// ReloadModelPolicyCatalog validates and atomically activates declared state.
-	ReloadModelPolicyCatalog(context.Context, *connect.Request[api.ReloadModelPolicyCatalogRequest]) (*connect.Response[api.ReloadModelPolicyCatalogResponse], error)
-	// ExplainModelPolicy explains current profile resolution or a persisted run snapshot.
-	ExplainModelPolicy(context.Context, *connect.Request[api.ExplainModelPolicyRequest]) (*connect.Response[api.ExplainModelPolicyResponse], error)
+	// GetRolePolicyStatus returns activation state and the latest diagnostic.
+	GetRolePolicyStatus(context.Context, *connect.Request[api.GetRolePolicyStatusRequest]) (*connect.Response[api.GetRolePolicyStatusResponse], error)
+	// GetRolePolicyCatalog returns the active, immutable declared catalog.
+	GetRolePolicyCatalog(context.Context, *connect.Request[api.GetRolePolicyCatalogRequest]) (*connect.Response[api.GetRolePolicyCatalogResponse], error)
+	// ValidateRolePolicyCatalog validates the configured catalog without activation.
+	ValidateRolePolicyCatalog(context.Context, *connect.Request[api.ValidateRolePolicyCatalogRequest]) (*connect.Response[api.ValidateRolePolicyCatalogResponse], error)
+	// ReloadRolePolicyCatalog validates and atomically activates declared state.
+	ReloadRolePolicyCatalog(context.Context, *connect.Request[api.ReloadRolePolicyCatalogRequest]) (*connect.Response[api.ReloadRolePolicyCatalogResponse], error)
+	// ExplainRolePolicy explains current profile resolution or a persisted run snapshot.
+	ExplainRolePolicy(context.Context, *connect.Request[api.ExplainRolePolicyRequest]) (*connect.Response[api.ExplainRolePolicyResponse], error)
 	// PurgeData deletes profiles, tasks, or runs matching a regex pattern.
 	PurgeData(context.Context, *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error)
 }
@@ -412,34 +412,34 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("ProbeRunner")),
 			connect.WithClientOptions(opts...),
 		),
-		getModelPolicyStatus: connect.NewClient[api.GetModelPolicyStatusRequest, api.GetModelPolicyStatusResponse](
+		getRolePolicyStatus: connect.NewClient[api.GetRolePolicyStatusRequest, api.GetRolePolicyStatusResponse](
 			httpClient,
-			baseURL+AgentManagerServiceGetModelPolicyStatusProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("GetModelPolicyStatus")),
+			baseURL+AgentManagerServiceGetRolePolicyStatusProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetRolePolicyStatus")),
 			connect.WithClientOptions(opts...),
 		),
-		getModelPolicyCatalog: connect.NewClient[api.GetModelPolicyCatalogRequest, api.GetModelPolicyCatalogResponse](
+		getRolePolicyCatalog: connect.NewClient[api.GetRolePolicyCatalogRequest, api.GetRolePolicyCatalogResponse](
 			httpClient,
-			baseURL+AgentManagerServiceGetModelPolicyCatalogProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("GetModelPolicyCatalog")),
+			baseURL+AgentManagerServiceGetRolePolicyCatalogProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetRolePolicyCatalog")),
 			connect.WithClientOptions(opts...),
 		),
-		validateModelPolicyCatalog: connect.NewClient[api.ValidateModelPolicyCatalogRequest, api.ValidateModelPolicyCatalogResponse](
+		validateRolePolicyCatalog: connect.NewClient[api.ValidateRolePolicyCatalogRequest, api.ValidateRolePolicyCatalogResponse](
 			httpClient,
-			baseURL+AgentManagerServiceValidateModelPolicyCatalogProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("ValidateModelPolicyCatalog")),
+			baseURL+AgentManagerServiceValidateRolePolicyCatalogProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ValidateRolePolicyCatalog")),
 			connect.WithClientOptions(opts...),
 		),
-		reloadModelPolicyCatalog: connect.NewClient[api.ReloadModelPolicyCatalogRequest, api.ReloadModelPolicyCatalogResponse](
+		reloadRolePolicyCatalog: connect.NewClient[api.ReloadRolePolicyCatalogRequest, api.ReloadRolePolicyCatalogResponse](
 			httpClient,
-			baseURL+AgentManagerServiceReloadModelPolicyCatalogProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("ReloadModelPolicyCatalog")),
+			baseURL+AgentManagerServiceReloadRolePolicyCatalogProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ReloadRolePolicyCatalog")),
 			connect.WithClientOptions(opts...),
 		),
-		explainModelPolicy: connect.NewClient[api.ExplainModelPolicyRequest, api.ExplainModelPolicyResponse](
+		explainRolePolicy: connect.NewClient[api.ExplainRolePolicyRequest, api.ExplainRolePolicyResponse](
 			httpClient,
-			baseURL+AgentManagerServiceExplainModelPolicyProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("ExplainModelPolicy")),
+			baseURL+AgentManagerServiceExplainRolePolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ExplainRolePolicy")),
 			connect.WithClientOptions(opts...),
 		),
 		purgeData: connect.NewClient[api.PurgeDataRequest, api.PurgeDataResponse](
@@ -453,42 +453,42 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // agentManagerServiceClient implements AgentManagerServiceClient.
 type agentManagerServiceClient struct {
-	health                     *connect.Client[api.HealthRequest, api.HealthResponse]
-	createProfile              *connect.Client[api.CreateProfileRequest, api.CreateProfileResponse]
-	ensureProfile              *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
-	reconcileScenarioProfiles  *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
-	getProfile                 *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
-	listProfiles               *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
-	updateProfile              *connect.Client[api.UpdateProfileRequest, api.UpdateProfileResponse]
-	deleteProfile              *connect.Client[api.DeleteProfileRequest, api.DeleteProfileResponse]
-	createTask                 *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
-	getTask                    *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
-	listTasks                  *connect.Client[api.ListTasksRequest, api.ListTasksResponse]
-	updateTask                 *connect.Client[api.UpdateTaskRequest, api.UpdateTaskResponse]
-	deleteTask                 *connect.Client[api.DeleteTaskRequest, api.DeleteTaskResponse]
-	cancelTask                 *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
-	createRun                  *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
-	getRun                     *connect.Client[api.GetRunRequest, api.GetRunResponse]
-	getRunByTag                *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
-	listRuns                   *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
-	deleteRun                  *connect.Client[api.DeleteRunRequest, api.DeleteRunResponse]
-	stopRun                    *connect.Client[api.StopRunRequest, api.StopRunResponse]
-	stopRunByTag               *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
-	stopAllRuns                *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
-	quiesceScenario            *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
-	recoverRun                 *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
-	getRunEvents               *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
-	getRunDiff                 *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
-	approveRun                 *connect.Client[api.ApproveRunRequest, api.ApproveRunResponse]
-	rejectRun                  *connect.Client[api.RejectRunRequest, api.RejectRunResponse]
-	getRunnerStatus            *connect.Client[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse]
-	probeRunner                *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
-	getModelPolicyStatus       *connect.Client[api.GetModelPolicyStatusRequest, api.GetModelPolicyStatusResponse]
-	getModelPolicyCatalog      *connect.Client[api.GetModelPolicyCatalogRequest, api.GetModelPolicyCatalogResponse]
-	validateModelPolicyCatalog *connect.Client[api.ValidateModelPolicyCatalogRequest, api.ValidateModelPolicyCatalogResponse]
-	reloadModelPolicyCatalog   *connect.Client[api.ReloadModelPolicyCatalogRequest, api.ReloadModelPolicyCatalogResponse]
-	explainModelPolicy         *connect.Client[api.ExplainModelPolicyRequest, api.ExplainModelPolicyResponse]
-	purgeData                  *connect.Client[api.PurgeDataRequest, api.PurgeDataResponse]
+	health                    *connect.Client[api.HealthRequest, api.HealthResponse]
+	createProfile             *connect.Client[api.CreateProfileRequest, api.CreateProfileResponse]
+	ensureProfile             *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
+	reconcileScenarioProfiles *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
+	getProfile                *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
+	listProfiles              *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
+	updateProfile             *connect.Client[api.UpdateProfileRequest, api.UpdateProfileResponse]
+	deleteProfile             *connect.Client[api.DeleteProfileRequest, api.DeleteProfileResponse]
+	createTask                *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
+	getTask                   *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
+	listTasks                 *connect.Client[api.ListTasksRequest, api.ListTasksResponse]
+	updateTask                *connect.Client[api.UpdateTaskRequest, api.UpdateTaskResponse]
+	deleteTask                *connect.Client[api.DeleteTaskRequest, api.DeleteTaskResponse]
+	cancelTask                *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
+	createRun                 *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
+	getRun                    *connect.Client[api.GetRunRequest, api.GetRunResponse]
+	getRunByTag               *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
+	listRuns                  *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
+	deleteRun                 *connect.Client[api.DeleteRunRequest, api.DeleteRunResponse]
+	stopRun                   *connect.Client[api.StopRunRequest, api.StopRunResponse]
+	stopRunByTag              *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
+	stopAllRuns               *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
+	quiesceScenario           *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
+	recoverRun                *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
+	getRunEvents              *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
+	getRunDiff                *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
+	approveRun                *connect.Client[api.ApproveRunRequest, api.ApproveRunResponse]
+	rejectRun                 *connect.Client[api.RejectRunRequest, api.RejectRunResponse]
+	getRunnerStatus           *connect.Client[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse]
+	probeRunner               *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
+	getRolePolicyStatus       *connect.Client[api.GetRolePolicyStatusRequest, api.GetRolePolicyStatusResponse]
+	getRolePolicyCatalog      *connect.Client[api.GetRolePolicyCatalogRequest, api.GetRolePolicyCatalogResponse]
+	validateRolePolicyCatalog *connect.Client[api.ValidateRolePolicyCatalogRequest, api.ValidateRolePolicyCatalogResponse]
+	reloadRolePolicyCatalog   *connect.Client[api.ReloadRolePolicyCatalogRequest, api.ReloadRolePolicyCatalogResponse]
+	explainRolePolicy         *connect.Client[api.ExplainRolePolicyRequest, api.ExplainRolePolicyResponse]
+	purgeData                 *connect.Client[api.PurgeDataRequest, api.PurgeDataResponse]
 }
 
 // Health calls agent_manager.v1.AgentManagerService.Health.
@@ -641,29 +641,29 @@ func (c *agentManagerServiceClient) ProbeRunner(ctx context.Context, req *connec
 	return c.probeRunner.CallUnary(ctx, req)
 }
 
-// GetModelPolicyStatus calls agent_manager.v1.AgentManagerService.GetModelPolicyStatus.
-func (c *agentManagerServiceClient) GetModelPolicyStatus(ctx context.Context, req *connect.Request[api.GetModelPolicyStatusRequest]) (*connect.Response[api.GetModelPolicyStatusResponse], error) {
-	return c.getModelPolicyStatus.CallUnary(ctx, req)
+// GetRolePolicyStatus calls agent_manager.v1.AgentManagerService.GetRolePolicyStatus.
+func (c *agentManagerServiceClient) GetRolePolicyStatus(ctx context.Context, req *connect.Request[api.GetRolePolicyStatusRequest]) (*connect.Response[api.GetRolePolicyStatusResponse], error) {
+	return c.getRolePolicyStatus.CallUnary(ctx, req)
 }
 
-// GetModelPolicyCatalog calls agent_manager.v1.AgentManagerService.GetModelPolicyCatalog.
-func (c *agentManagerServiceClient) GetModelPolicyCatalog(ctx context.Context, req *connect.Request[api.GetModelPolicyCatalogRequest]) (*connect.Response[api.GetModelPolicyCatalogResponse], error) {
-	return c.getModelPolicyCatalog.CallUnary(ctx, req)
+// GetRolePolicyCatalog calls agent_manager.v1.AgentManagerService.GetRolePolicyCatalog.
+func (c *agentManagerServiceClient) GetRolePolicyCatalog(ctx context.Context, req *connect.Request[api.GetRolePolicyCatalogRequest]) (*connect.Response[api.GetRolePolicyCatalogResponse], error) {
+	return c.getRolePolicyCatalog.CallUnary(ctx, req)
 }
 
-// ValidateModelPolicyCatalog calls agent_manager.v1.AgentManagerService.ValidateModelPolicyCatalog.
-func (c *agentManagerServiceClient) ValidateModelPolicyCatalog(ctx context.Context, req *connect.Request[api.ValidateModelPolicyCatalogRequest]) (*connect.Response[api.ValidateModelPolicyCatalogResponse], error) {
-	return c.validateModelPolicyCatalog.CallUnary(ctx, req)
+// ValidateRolePolicyCatalog calls agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog.
+func (c *agentManagerServiceClient) ValidateRolePolicyCatalog(ctx context.Context, req *connect.Request[api.ValidateRolePolicyCatalogRequest]) (*connect.Response[api.ValidateRolePolicyCatalogResponse], error) {
+	return c.validateRolePolicyCatalog.CallUnary(ctx, req)
 }
 
-// ReloadModelPolicyCatalog calls agent_manager.v1.AgentManagerService.ReloadModelPolicyCatalog.
-func (c *agentManagerServiceClient) ReloadModelPolicyCatalog(ctx context.Context, req *connect.Request[api.ReloadModelPolicyCatalogRequest]) (*connect.Response[api.ReloadModelPolicyCatalogResponse], error) {
-	return c.reloadModelPolicyCatalog.CallUnary(ctx, req)
+// ReloadRolePolicyCatalog calls agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog.
+func (c *agentManagerServiceClient) ReloadRolePolicyCatalog(ctx context.Context, req *connect.Request[api.ReloadRolePolicyCatalogRequest]) (*connect.Response[api.ReloadRolePolicyCatalogResponse], error) {
+	return c.reloadRolePolicyCatalog.CallUnary(ctx, req)
 }
 
-// ExplainModelPolicy calls agent_manager.v1.AgentManagerService.ExplainModelPolicy.
-func (c *agentManagerServiceClient) ExplainModelPolicy(ctx context.Context, req *connect.Request[api.ExplainModelPolicyRequest]) (*connect.Response[api.ExplainModelPolicyResponse], error) {
-	return c.explainModelPolicy.CallUnary(ctx, req)
+// ExplainRolePolicy calls agent_manager.v1.AgentManagerService.ExplainRolePolicy.
+func (c *agentManagerServiceClient) ExplainRolePolicy(ctx context.Context, req *connect.Request[api.ExplainRolePolicyRequest]) (*connect.Response[api.ExplainRolePolicyResponse], error) {
+	return c.explainRolePolicy.CallUnary(ctx, req)
 }
 
 // PurgeData calls agent_manager.v1.AgentManagerService.PurgeData.
@@ -736,16 +736,16 @@ type AgentManagerServiceHandler interface {
 	GetRunnerStatus(context.Context, *connect.Request[api.GetRunnerStatusRequest]) (*connect.Response[api.GetRunnerStatusResponse], error)
 	// ProbeRunner sends a test request to verify runner connectivity.
 	ProbeRunner(context.Context, *connect.Request[api.ProbeRunnerRequest]) (*connect.Response[api.ProbeRunnerResponse], error)
-	// GetModelPolicyStatus returns activation state and the latest diagnostic.
-	GetModelPolicyStatus(context.Context, *connect.Request[api.GetModelPolicyStatusRequest]) (*connect.Response[api.GetModelPolicyStatusResponse], error)
-	// GetModelPolicyCatalog returns the active, immutable declared catalog.
-	GetModelPolicyCatalog(context.Context, *connect.Request[api.GetModelPolicyCatalogRequest]) (*connect.Response[api.GetModelPolicyCatalogResponse], error)
-	// ValidateModelPolicyCatalog validates the configured catalog without activation.
-	ValidateModelPolicyCatalog(context.Context, *connect.Request[api.ValidateModelPolicyCatalogRequest]) (*connect.Response[api.ValidateModelPolicyCatalogResponse], error)
-	// ReloadModelPolicyCatalog validates and atomically activates declared state.
-	ReloadModelPolicyCatalog(context.Context, *connect.Request[api.ReloadModelPolicyCatalogRequest]) (*connect.Response[api.ReloadModelPolicyCatalogResponse], error)
-	// ExplainModelPolicy explains current profile resolution or a persisted run snapshot.
-	ExplainModelPolicy(context.Context, *connect.Request[api.ExplainModelPolicyRequest]) (*connect.Response[api.ExplainModelPolicyResponse], error)
+	// GetRolePolicyStatus returns activation state and the latest diagnostic.
+	GetRolePolicyStatus(context.Context, *connect.Request[api.GetRolePolicyStatusRequest]) (*connect.Response[api.GetRolePolicyStatusResponse], error)
+	// GetRolePolicyCatalog returns the active, immutable declared catalog.
+	GetRolePolicyCatalog(context.Context, *connect.Request[api.GetRolePolicyCatalogRequest]) (*connect.Response[api.GetRolePolicyCatalogResponse], error)
+	// ValidateRolePolicyCatalog validates the configured catalog without activation.
+	ValidateRolePolicyCatalog(context.Context, *connect.Request[api.ValidateRolePolicyCatalogRequest]) (*connect.Response[api.ValidateRolePolicyCatalogResponse], error)
+	// ReloadRolePolicyCatalog validates and atomically activates declared state.
+	ReloadRolePolicyCatalog(context.Context, *connect.Request[api.ReloadRolePolicyCatalogRequest]) (*connect.Response[api.ReloadRolePolicyCatalogResponse], error)
+	// ExplainRolePolicy explains current profile resolution or a persisted run snapshot.
+	ExplainRolePolicy(context.Context, *connect.Request[api.ExplainRolePolicyRequest]) (*connect.Response[api.ExplainRolePolicyResponse], error)
 	// PurgeData deletes profiles, tasks, or runs matching a regex pattern.
 	PurgeData(context.Context, *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error)
 }
@@ -937,34 +937,34 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("ProbeRunner")),
 		connect.WithHandlerOptions(opts...),
 	)
-	agentManagerServiceGetModelPolicyStatusHandler := connect.NewUnaryHandler(
-		AgentManagerServiceGetModelPolicyStatusProcedure,
-		svc.GetModelPolicyStatus,
-		connect.WithSchema(agentManagerServiceMethods.ByName("GetModelPolicyStatus")),
+	agentManagerServiceGetRolePolicyStatusHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetRolePolicyStatusProcedure,
+		svc.GetRolePolicyStatus,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetRolePolicyStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
-	agentManagerServiceGetModelPolicyCatalogHandler := connect.NewUnaryHandler(
-		AgentManagerServiceGetModelPolicyCatalogProcedure,
-		svc.GetModelPolicyCatalog,
-		connect.WithSchema(agentManagerServiceMethods.ByName("GetModelPolicyCatalog")),
+	agentManagerServiceGetRolePolicyCatalogHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetRolePolicyCatalogProcedure,
+		svc.GetRolePolicyCatalog,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetRolePolicyCatalog")),
 		connect.WithHandlerOptions(opts...),
 	)
-	agentManagerServiceValidateModelPolicyCatalogHandler := connect.NewUnaryHandler(
-		AgentManagerServiceValidateModelPolicyCatalogProcedure,
-		svc.ValidateModelPolicyCatalog,
-		connect.WithSchema(agentManagerServiceMethods.ByName("ValidateModelPolicyCatalog")),
+	agentManagerServiceValidateRolePolicyCatalogHandler := connect.NewUnaryHandler(
+		AgentManagerServiceValidateRolePolicyCatalogProcedure,
+		svc.ValidateRolePolicyCatalog,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ValidateRolePolicyCatalog")),
 		connect.WithHandlerOptions(opts...),
 	)
-	agentManagerServiceReloadModelPolicyCatalogHandler := connect.NewUnaryHandler(
-		AgentManagerServiceReloadModelPolicyCatalogProcedure,
-		svc.ReloadModelPolicyCatalog,
-		connect.WithSchema(agentManagerServiceMethods.ByName("ReloadModelPolicyCatalog")),
+	agentManagerServiceReloadRolePolicyCatalogHandler := connect.NewUnaryHandler(
+		AgentManagerServiceReloadRolePolicyCatalogProcedure,
+		svc.ReloadRolePolicyCatalog,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ReloadRolePolicyCatalog")),
 		connect.WithHandlerOptions(opts...),
 	)
-	agentManagerServiceExplainModelPolicyHandler := connect.NewUnaryHandler(
-		AgentManagerServiceExplainModelPolicyProcedure,
-		svc.ExplainModelPolicy,
-		connect.WithSchema(agentManagerServiceMethods.ByName("ExplainModelPolicy")),
+	agentManagerServiceExplainRolePolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServiceExplainRolePolicyProcedure,
+		svc.ExplainRolePolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ExplainRolePolicy")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServicePurgeDataHandler := connect.NewUnaryHandler(
@@ -1035,16 +1035,16 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceGetRunnerStatusHandler.ServeHTTP(w, r)
 		case AgentManagerServiceProbeRunnerProcedure:
 			agentManagerServiceProbeRunnerHandler.ServeHTTP(w, r)
-		case AgentManagerServiceGetModelPolicyStatusProcedure:
-			agentManagerServiceGetModelPolicyStatusHandler.ServeHTTP(w, r)
-		case AgentManagerServiceGetModelPolicyCatalogProcedure:
-			agentManagerServiceGetModelPolicyCatalogHandler.ServeHTTP(w, r)
-		case AgentManagerServiceValidateModelPolicyCatalogProcedure:
-			agentManagerServiceValidateModelPolicyCatalogHandler.ServeHTTP(w, r)
-		case AgentManagerServiceReloadModelPolicyCatalogProcedure:
-			agentManagerServiceReloadModelPolicyCatalogHandler.ServeHTTP(w, r)
-		case AgentManagerServiceExplainModelPolicyProcedure:
-			agentManagerServiceExplainModelPolicyHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetRolePolicyStatusProcedure:
+			agentManagerServiceGetRolePolicyStatusHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetRolePolicyCatalogProcedure:
+			agentManagerServiceGetRolePolicyCatalogHandler.ServeHTTP(w, r)
+		case AgentManagerServiceValidateRolePolicyCatalogProcedure:
+			agentManagerServiceValidateRolePolicyCatalogHandler.ServeHTTP(w, r)
+		case AgentManagerServiceReloadRolePolicyCatalogProcedure:
+			agentManagerServiceReloadRolePolicyCatalogHandler.ServeHTTP(w, r)
+		case AgentManagerServiceExplainRolePolicyProcedure:
+			agentManagerServiceExplainRolePolicyHandler.ServeHTTP(w, r)
 		case AgentManagerServicePurgeDataProcedure:
 			agentManagerServicePurgeDataHandler.ServeHTTP(w, r)
 		default:
@@ -1176,24 +1176,24 @@ func (UnimplementedAgentManagerServiceHandler) ProbeRunner(context.Context, *con
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ProbeRunner is not implemented"))
 }
 
-func (UnimplementedAgentManagerServiceHandler) GetModelPolicyStatus(context.Context, *connect.Request[api.GetModelPolicyStatusRequest]) (*connect.Response[api.GetModelPolicyStatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetModelPolicyStatus is not implemented"))
+func (UnimplementedAgentManagerServiceHandler) GetRolePolicyStatus(context.Context, *connect.Request[api.GetRolePolicyStatusRequest]) (*connect.Response[api.GetRolePolicyStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRolePolicyStatus is not implemented"))
 }
 
-func (UnimplementedAgentManagerServiceHandler) GetModelPolicyCatalog(context.Context, *connect.Request[api.GetModelPolicyCatalogRequest]) (*connect.Response[api.GetModelPolicyCatalogResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetModelPolicyCatalog is not implemented"))
+func (UnimplementedAgentManagerServiceHandler) GetRolePolicyCatalog(context.Context, *connect.Request[api.GetRolePolicyCatalogRequest]) (*connect.Response[api.GetRolePolicyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRolePolicyCatalog is not implemented"))
 }
 
-func (UnimplementedAgentManagerServiceHandler) ValidateModelPolicyCatalog(context.Context, *connect.Request[api.ValidateModelPolicyCatalogRequest]) (*connect.Response[api.ValidateModelPolicyCatalogResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ValidateModelPolicyCatalog is not implemented"))
+func (UnimplementedAgentManagerServiceHandler) ValidateRolePolicyCatalog(context.Context, *connect.Request[api.ValidateRolePolicyCatalogRequest]) (*connect.Response[api.ValidateRolePolicyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog is not implemented"))
 }
 
-func (UnimplementedAgentManagerServiceHandler) ReloadModelPolicyCatalog(context.Context, *connect.Request[api.ReloadModelPolicyCatalogRequest]) (*connect.Response[api.ReloadModelPolicyCatalogResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReloadModelPolicyCatalog is not implemented"))
+func (UnimplementedAgentManagerServiceHandler) ReloadRolePolicyCatalog(context.Context, *connect.Request[api.ReloadRolePolicyCatalogRequest]) (*connect.Response[api.ReloadRolePolicyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog is not implemented"))
 }
 
-func (UnimplementedAgentManagerServiceHandler) ExplainModelPolicy(context.Context, *connect.Request[api.ExplainModelPolicyRequest]) (*connect.Response[api.ExplainModelPolicyResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ExplainModelPolicy is not implemented"))
+func (UnimplementedAgentManagerServiceHandler) ExplainRolePolicy(context.Context, *connect.Request[api.ExplainRolePolicyRequest]) (*connect.Response[api.ExplainRolePolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ExplainRolePolicy is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) PurgeData(context.Context, *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error) {

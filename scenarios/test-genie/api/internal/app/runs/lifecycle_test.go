@@ -37,8 +37,14 @@ func newRPCFake(scenarioDir string) *rpcFakeExecutor {
 }
 
 func (f *rpcFakeExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	descriptorSnapshot, _ := sharedruns.NewDescriptorSnapshot([]sharedruns.PhaseDescriptorSnapshot{{
+		Phase: "architecture", DisplayName: "Architecture", Provider: "architecture-health",
+		Applicability: sharedruns.ApplicabilityDecisionSnapshot{Status: "applies", Planned: true},
+	}})
+	_ = sharedruns.WriteDescriptorSnapshot(f.scenarioDir, input.Request.RunID, descriptorSnapshot)
 	_ = sharedruns.NewIndex(f.scenarioDir).Append(sharedruns.RunRecord{
 		RunID: input.Request.RunID, Scenario: input.Request.ScenarioName, StartedAt: time.Now().UTC(), Status: sharedruns.StatusInProgress,
+		DescriptorSnapshotSchemaVersion: descriptorSnapshot.SchemaVersion, DescriptorSnapshotDigest: descriptorSnapshot.Digest,
 	})
 	f.startedOnce.Do(func() { close(f.started) })
 	if f.blockOnCtx {
@@ -54,11 +60,11 @@ func (f *rpcFakeExecutor) ExecuteWithEvents(ctx context.Context, input execution
 	return f.result, nil
 }
 
-func TestLifecycleRPC_StartWaitStatus(t *testing.T) {
+func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
 	root := t.TempDir()
 	fake := newRPCFake(root + "/demo")
 	fake.result.Phases = []phases.ExecutionResult{{
-		Name: "architecture",
+		Name: "architecture", Status: "passed", DurationSeconds: 7,
 		MaturityStanding: &runspb.PhaseMaturityStanding{
 			Provider:             "architecture-health",
 			Phase:                "architecture",
@@ -117,6 +123,30 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) {
 	if wr2.Msg.GetStatus().GetStatus() != sharedruns.StatusPassed {
 		t.Fatalf("terminal wait status = %q, want passed", wr2.Msg.GetStatus().GetStatus())
 	}
+	terminalRun := wr2.Msg.GetTerminalRun()
+	if terminalRun == nil || wr2.Msg.GetTerminalSnapshotSchemaVersion() != sharedruns.TerminalSnapshotSchemaVersion {
+		t.Fatalf("terminal snapshot metadata = run:%+v schema:%d", terminalRun, wr2.Msg.GetTerminalSnapshotSchemaVersion())
+	}
+	if len(wr2.Msg.GetDegradedReasons()) != 0 || len(terminalRun.GetPhases()) != 1 {
+		t.Fatalf("terminal projection = %+v degraded=%v", terminalRun, wr2.Msg.GetDegradedReasons())
+	}
+	if snapshot := terminalRun.GetDescriptorSnapshot(); snapshot == nil || snapshot.GetDigest() == "" || len(snapshot.GetPhases()) != 1 || snapshot.GetPhases()[0].GetDisplayName() != "Architecture" {
+		t.Fatalf("terminal descriptor snapshot = %+v", snapshot)
+	}
+	if phase := terminalRun.GetPhases()[0]; phase.GetName() != "architecture" || phase.GetStatus() != "passed" || phase.GetDurationSeconds() != 7 {
+		t.Fatalf("terminal phase = %+v", phase)
+	}
+	show, err := svc.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{Scenario: "demo", RunId: runID}))
+	if err != nil {
+		t.Fatalf("GetRun(terminal): %v", err)
+	}
+	showPhase := show.Msg.GetRun().GetPhases()[0]
+	if show.Msg.GetTerminalSnapshotSchemaVersion() != wr2.Msg.GetTerminalSnapshotSchemaVersion() ||
+		showPhase.GetName() != terminalRun.GetPhases()[0].GetName() ||
+		showPhase.GetStatus() != terminalRun.GetPhases()[0].GetStatus() ||
+		showPhase.GetDurationSeconds() != terminalRun.GetPhases()[0].GetDurationSeconds() {
+		t.Fatalf("wait/show terminal mismatch: wait=%+v show=%+v", terminalRun, show.Msg.GetRun())
+	}
 	standings := wr2.Msg.GetStatus().GetTerminalStandings()
 	if len(standings) != 1 {
 		t.Fatalf("terminal standings = %d, want 1", len(standings))
@@ -127,6 +157,31 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) {
 	summaries := wr2.Msg.GetStatus().GetTerminalFindingsSummaries()
 	if len(summaries) != 1 || summaries[0].GetErrors() != 1 {
 		t.Fatalf("terminal findings summaries = %+v", summaries)
+	}
+}
+
+func TestLifecycleRPC_LegacyTerminalReadIsExplicitlyDegraded(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
+	root := t.TempDir()
+	idx := sharedruns.NewIndex(root + "/demo")
+	if err := idx.Append(sharedruns.RunRecord{
+		RunID: "legacy", Scenario: "demo", StartedAt: time.Now().UTC(), CompletedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+	}); err != nil {
+		t.Fatalf("append legacy run: %v", err)
+	}
+	svc := NewService(root, runmanager.New(nil, root), nil, nil)
+	wait, err := svc.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{Scenario: "demo", RunId: "legacy"}))
+	if err != nil {
+		t.Fatalf("WaitRun legacy: %v", err)
+	}
+	if wait.Msg.GetTerminalRun() != nil || len(wait.Msg.GetDegradedReasons()) != 2 || len(wait.Msg.GetStatus().GetDegradedReasons()) != 2 {
+		t.Fatalf("legacy wait must be degraded without canonical record: %+v", wait.Msg)
+	}
+	show, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: "demo", RunId: "legacy"}))
+	if err != nil {
+		t.Fatalf("GetRun legacy: %v", err)
+	}
+	if show.Msg.GetTerminalSnapshotSchemaVersion() != 0 || len(show.Msg.GetDegradedReasons()) != 2 {
+		t.Fatalf("legacy show must preserve degraded reason: %+v", show.Msg)
 	}
 }
 

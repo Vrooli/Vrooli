@@ -461,6 +461,16 @@
     },
     {
       "service": "RunsService",
+      "method": "ListRunArtifacts",
+      "reason": "generic evidence catalog is a programmatic Connect surface consumed by downstream scenarios; interactive CLI browsing lands with the later artifact-workbench cutover"
+    },
+    {
+      "service": "RunsService",
+      "method": "GetRunArtifact",
+      "reason": "artifact metadata/detail is paired with the opaque binary proxy route and consumed programmatically by downstream evidence workbenches"
+    },
+    {
+      "service": "RunsService",
       "method": "ListRunVideos",
       "reason": "visual artifact browsing surface; retained in the local runs command pending generated proto-list registration"
     },

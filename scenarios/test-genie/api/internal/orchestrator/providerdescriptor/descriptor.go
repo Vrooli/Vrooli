@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -22,6 +23,8 @@ const (
 	SchemaVersion = "1.0.0"
 )
 
+var evidenceKindPattern = regexp.MustCompile(`^[a-z0-9]+(?:[._-][a-z0-9]+)*$`)
+
 type Descriptor struct {
 	SchemaVersion        string           `json:"schemaVersion"`
 	Scenario             string           `json:"scenario"`
@@ -37,6 +40,9 @@ type Descriptor struct {
 	PhaseClass           string           `json:"phaseClass,omitempty"`
 	RuntimeClass         string           `json:"runtimeClass,omitempty"`
 	Dimensions           []string         `json:"dimensions,omitempty"`
+	EvidenceKinds        []string         `json:"evidenceKinds,omitempty"`
+	Aliases              []string         `json:"aliases,omitempty"`
+	Supersedes           []string         `json:"supersedes,omitempty"`
 	Validation           Validation       `json:"validation"`
 	Applicability        Applicability    `json:"applicability"`
 	Policy               Policy           `json:"policy"`
@@ -192,7 +198,40 @@ func Load(opts LoadOptions) LoadResult {
 		seen[phaseKey] = path
 		descriptors = append(descriptors, descriptor)
 	}
+	diagnostics = append(diagnostics, validateLineage(descriptors)...)
 	return LoadResult{Descriptors: descriptors, Diagnostics: diagnostics}
+}
+
+// validateLineage keeps immutable machine keys primary. Aliases and supersedes
+// may name retired keys only; they cannot collide with an active phase or with
+// another descriptor's lineage declaration.
+func validateLineage(descriptors []Descriptor) []Diagnostic {
+	active := make(map[string]Descriptor, len(descriptors))
+	for _, descriptor := range descriptors {
+		active[descriptor.Phase] = descriptor
+	}
+	claimed := map[string]Descriptor{}
+	var diagnostics []Diagnostic
+	for _, descriptor := range descriptors {
+		for _, lineage := range append(append([]string(nil), descriptor.Aliases...), descriptor.Supersedes...) {
+			if owner, ok := active[lineage]; ok {
+				diagnostics = append(diagnostics, Diagnostic{
+					Path: descriptor.Path, Code: "lineage_active_phase_collision",
+					Message: fmt.Sprintf("lineage key %q is still an active phase declared by %s", lineage, owner.Path),
+				})
+				continue
+			}
+			if owner, ok := claimed[lineage]; ok && owner.Phase != descriptor.Phase {
+				diagnostics = append(diagnostics, Diagnostic{
+					Path: descriptor.Path, Code: "duplicate_lineage_key",
+					Message: fmt.Sprintf("lineage key %q is already claimed by phase %q in %s", lineage, owner.Phase, owner.Path),
+				})
+				continue
+			}
+			claimed[lineage] = descriptor
+		}
+	}
+	return diagnostics
 }
 
 func loadOne(path string) (Descriptor, []Diagnostic) {
@@ -310,6 +349,15 @@ func normalizeOrchestrationDefaults(d *Descriptor) {
 	for i, dim := range d.Dimensions {
 		d.Dimensions[i] = strings.TrimSpace(dim)
 	}
+	for i, kind := range d.EvidenceKinds {
+		d.EvidenceKinds[i] = strings.ToLower(strings.TrimSpace(kind))
+	}
+	for i, alias := range d.Aliases {
+		d.Aliases[i] = phasekeys.NormalizeKey(alias)
+	}
+	for i, superseded := range d.Supersedes {
+		d.Supersedes[i] = phasekeys.NormalizeKey(superseded)
+	}
 }
 
 func validateOrchestration(d *Descriptor) []Diagnostic {
@@ -351,6 +399,47 @@ func validateOrchestration(d *Descriptor) []Diagnostic {
 			add("duplicate_dimension", fmt.Sprintf("dimensions contains duplicate dimension %q", raw))
 		}
 		seenDims[raw] = struct{}{}
+	}
+	validateUniqueKeys := func(field string, values []string) {
+		seen := map[string]struct{}{}
+		for _, value := range values {
+			if value == "" {
+				add("invalid_"+field, field+" cannot contain empty values")
+				continue
+			}
+			if value == d.Phase {
+				add("invalid_"+field, fmt.Sprintf("%s cannot contain the phase's own machine key %q", field, value))
+			}
+			if _, exists := seen[value]; exists {
+				add("duplicate_"+field, fmt.Sprintf("%s contains duplicate %q", field, value))
+			}
+			seen[value] = struct{}{}
+		}
+	}
+	validateUniqueKeys("aliases", d.Aliases)
+	validateUniqueKeys("supersedes", d.Supersedes)
+	lineageKeys := map[string]string{}
+	for _, item := range []struct {
+		field  string
+		values []string
+	}{{field: "aliases", values: d.Aliases}, {field: "supersedes", values: d.Supersedes}} {
+		for _, value := range item.values {
+			if firstField, exists := lineageKeys[value]; exists && firstField != item.field {
+				add("duplicate_lineage_key", fmt.Sprintf("lineage key %q appears in both %s and %s", value, firstField, item.field))
+			}
+			lineageKeys[value] = item.field
+		}
+	}
+	seenKinds := map[string]struct{}{}
+	for _, kind := range d.EvidenceKinds {
+		if !evidenceKindPattern.MatchString(kind) {
+			add("invalid_evidence_kind", fmt.Sprintf("evidence kind %q must be a stable lowercase token", kind))
+			continue
+		}
+		if _, exists := seenKinds[kind]; exists {
+			add("duplicate_evidence_kind", fmt.Sprintf("evidenceKinds contains duplicate %q", kind))
+		}
+		seenKinds[kind] = struct{}{}
 	}
 	return out
 }

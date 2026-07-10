@@ -100,9 +100,8 @@
     }
   ],
   "omitted": [
-    { "service": "WorkflowReplayService", "method": "ListRecentRuns", "reason": "UI-only proxy over test-genie playbooks runs for the GCT Workflows tab (Plan B Decision 3). No CLI surface — agents use `git-control-tower baseline` / test-genie `runs` directly." },
-    { "service": "WorkflowReplayService", "method": "GetRunDetail", "reason": "UI-only proxy over test-genie playbooks runs for the GCT Workflows tab (Plan B Decision 3). No CLI surface — binary video streams over a REST route, structured data feeds the UI only." },
-    { "service": "BaselinesService", "method": "CreateBaseline", "reason": "Hand-written in cli/domains/baseline (baseline create) via a custom Connect client with human-formatted output; not manifest-bound. Same pattern as the other non-worktree domains pending Connect-RPC manifest migration." },
+    { "service": "WorkflowReplayService", "method": "ListRecentRuns", "reason": "UI-only proxy over typed test-genie run evidence for the GCT Workflows tab. No CLI surface — agents use `git-control-tower baseline` / test-genie `runs` directly." },
+    { "service": "WorkflowReplayService", "method": "GetRunDetail", "reason": "UI-only proxy over opaque test-genie workflow artifacts. No CLI surface — binary video streams over a REST route, structured data feeds the UI only." },
     { "service": "BaselinesService", "method": "SnapshotForBaseline", "reason": "Hand-written in cli/domains/baseline (baseline snapshot) — custom Connect client with rich human output and dirty-tree/skip warnings; not manifest-bound." },
     { "service": "BaselinesService", "method": "GetSnapshotStatus", "reason": "Hand-written in cli/domains/baseline (baseline snapshot status) — custom Connect client with snapshot lifecycle exit codes and not-found diagnostics; not manifest-bound." },
     { "service": "BaselinesService", "method": "GetBaseline", "reason": "Hand-written in cli/domains/baseline (baseline show) — custom Connect client; not manifest-bound." },
@@ -110,7 +109,6 @@
     { "service": "BaselinesService", "method": "StartDiff", "reason": "Hand-written in cli/domains/baseline (baseline diff) — custom Connect client; durable return-fast start with re-attach banner; not manifest-bound." },
     { "service": "BaselinesService", "method": "GetDiffResult", "reason": "Hand-written in cli/domains/baseline (baseline diff status) — custom Connect client with diff exit codes 0/1/2/3; not manifest-bound." },
     { "service": "BaselinesService", "method": "DeleteBaseline", "reason": "Hand-written in cli/domains/baseline (baseline delete) — custom Connect client; not manifest-bound." },
-    { "service": "BaselinesService", "method": "EditBaseline", "reason": "Hand-written in cli/domains/baseline (baseline edit) — custom Connect client; not manifest-bound." },
     { "service": "RepoService", "method": "GetRepoStatus", "reason": "Legacy REST-backed repo domain; stays hand-written until RepoService migrates to Connect-RPC (see manifest description)." }
   ]
 }

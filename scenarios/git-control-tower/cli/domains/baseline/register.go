@@ -14,8 +14,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -63,18 +63,16 @@ var clientFactory = func(core *cliapp.ScenarioApp) baselines_v1connect.Baselines
 }
 
 // Register wires the baseline command group: the passive *record* verbs
-// (snapshot/diff/list/show/delete/create/edit) plus the stateful *engagement*
+// (snapshot/diff/list/show/delete) plus the stateful *engagement*
 // verbs (start/check/promote/abandon/status/gc — Baseline Modes P2, in
 // engagement.go + promote.go).
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	subcommands := []cliapp.Command{
 		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run, or inspect it with `snapshot status` (--scenario --name [--run] [--branch]); Ctrl-C detaches, never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
-		{Name: "diff", NeedsAPI: true, Description: "Start a durable diff of a baseline vs the working tree, returning a run id + re-attach command (--scenario --name [--branch] [--surface] [--wait]); `diff status --run R` resolves the verdict, `diff status --latest` recovers an interrupted wait (exit 1 regression, 2 not-comparable, 3 not-ready); `diff wait-all --run s:name:R …` resolves several started diffs in one call; reuses a clean-tree run when possible; Ctrl-C detaches, never aborts", Run: func(a []string) error { return runDiff(core, a) }},
+		{Name: "diff", NeedsAPI: true, Description: "Start a durable descriptor-driven diff of a baseline vs the working tree, returning a run id + re-attach command (--scenario --name [--branch] [--wait]); `diff status --run R` resolves the verdict, `diff status --latest` recovers an interrupted wait (exit 1 regression, 2 not-comparable, 3 not-ready); `diff wait-all --run s:name:R …` resolves several started diffs in one call; Ctrl-C detaches, never aborts", Run: func(a []string) error { return runDiff(core, a) }},
 		{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
 		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
-		{Name: "delete", NeedsAPI: true, Description: "Delete a baseline and unpin its test-genie runs (--scenario --name [--branch])", Run: func(a []string) error { return runDelete(core, a) }},
-		{Name: "create", NeedsAPI: true, Description: "Create an empty baseline (no capture) (--scenario --name [--branch])", Run: func(a []string) error { return runCreate(core, a) }},
-		{Name: "edit", NeedsAPI: true, Description: "Re-point a surface at a pinned test-genie run (--scenario --name --surface --pin-run <runID> [--branch])", Run: func(a []string) error { return runEdit(core, a) }},
+		{Name: "delete", NeedsAPI: true, Description: "Delete a baseline and unpin its single Test Genie run (--scenario --name [--branch])", Run: func(a []string) error { return runDelete(core, a) }},
 	}
 	subcommands = append(subcommands, registerEngagementVerbs(core)...)
 	return cliapp.SubcommandGroup{
@@ -122,25 +120,16 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 	}
 
 	var c commonFlags
-	var include, reason string
-	var fast, full bool
+	var reason string
 	fs := newFlagSet("baseline snapshot")
 	c.bind(fs)
-	fs.StringVar(&include, "include", "", "Comma-separated surfaces to capture (default: all available)")
 	fs.StringVar(&reason, "reason", "", "Optional reason recorded on pinned runs")
-	fs.BoolVar(&fast, "fast", true, "Fast capture: skip heavy diagnostics (default)")
-	fs.BoolVar(&full, "full", false, "Full capture: video/HAR/trace/console (slower)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if err := c.requireScenarioName(); err != nil {
 		return err
 	}
-	// --full overrides the default --fast.
-	if full {
-		fast = false
-	}
-
 	// A snapshot now STARTS one comprehensive, server-durable run and returns its
 	// handle immediately (the pin happens server-side on completion). So the CLI
 	// returns fast with the run id + ETA + a streaming follow command, instead of
@@ -155,7 +144,7 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 	client := clientFactory(core)
 	resp, err := client.SnapshotForBaseline(ctx, connect.NewRequest(&baselinesv1.SnapshotForBaselineRequest{
 		Scenario: c.scenario, Name: c.name, Branch: c.branch,
-		Include: splitCSV(include), Fast: fast, Reason: reason, CreatedBy: "agent",
+		Reason: reason, CreatedBy: "agent",
 	}))
 	if err != nil {
 		if handled, code := renderRunBusy(err, c.scenario); handled {
@@ -192,11 +181,16 @@ func runSnapshotStatus(core *cliapp.ScenarioApp, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	client := clientFactory(core)
-	resp, err := client.GetSnapshotStatus(ctx, connect.NewRequest(&baselinesv1.GetSnapshotStatusRequest{
-		Scenario: c.scenario, Name: c.name, Branch: c.branch, RunId: run, Wait: wait,
-	}))
+	resp, recovered, err := durableReadWithEOFRecovery(ctx, wait, func(callCtx context.Context, blocking bool) (*connect.Response[baselinesv1.GetSnapshotStatusResponse], error) {
+		return client.GetSnapshotStatus(callCtx, connect.NewRequest(&baselinesv1.GetSnapshotStatusRequest{
+			Scenario: c.scenario, Name: c.name, Branch: c.branch, RunId: run, Wait: blocking,
+		}))
+	})
 	if err != nil {
 		return err
+	}
+	if recovered {
+		fmt.Fprintf(os.Stderr, "snapshot wait attachment ended unexpectedly; recovered current state once by durable run id %s\n", run)
 	}
 	if c.json {
 		return printJSON(resp.Msg)
@@ -229,11 +223,9 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 	}
 
 	var c commonFlags
-	var surface string
 	var wait bool
 	fs := newFlagSet("baseline diff")
 	c.bind(fs)
-	fs.StringVar(&surface, "surface", "", "Restrict to one surface")
 	fs.BoolVar(&wait, "wait", false, "Block until the verdict is ready and print it inline (CI); default returns a run id to resolve with `diff status`")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -246,7 +238,7 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 	defer cancel()
 	client := clientFactory(core)
 	start, err := client.StartDiff(startCtx, connect.NewRequest(&baselinesv1.StartDiffRequest{
-		Scenario: c.scenario, Name: c.name, Branch: c.branch, Surface: surface,
+		Scenario: c.scenario, Name: c.name, Branch: c.branch,
 	}))
 	if err != nil {
 		if handled, code := renderRunBusy(err, c.scenario); handled {
@@ -261,7 +253,7 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 	// A reused run is already terminal — resolve its verdict inline regardless of
 	// caller (nothing to wait on, so nothing to park).
 	if start.Msg.GetReusedRun() {
-		return resolveDiff(core, c, surface, start.Msg.GetRunId(), wait)
+		return resolveDiff(core, c, start.Msg.GetRunId(), wait)
 	}
 
 	// Inside an agent-manager run, park instead of blocking on the verdict:
@@ -276,7 +268,7 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 			return nil
 		}
 		fmt.Fprintf(os.Stderr, "agent-manager park unavailable (%v) — resolving inline instead\n", perr)
-		return resolveDiff(core, c, surface, start.Msg.GetRunId(), true)
+		return resolveDiff(core, c, start.Msg.GetRunId(), true)
 	}
 
 	// --wait: resolve the verdict inline. Otherwise return fast with the
@@ -289,7 +281,7 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 			fmt.Fprint(os.Stderr, diffStartBanner(start.Msg))
 			fmt.Fprintf(os.Stderr, "  waiting once for verdict; interrupt detaches but the server-side diff continues.\n")
 		}
-		return resolveDiff(core, c, surface, start.Msg.GetRunId(), wait)
+		return resolveDiff(core, c, start.Msg.GetRunId(), wait)
 	}
 	if c.json {
 		return printJSON(start.Msg)
@@ -313,11 +305,10 @@ func parkForDiff(scenario, name string) (*cliutil.ParkResult, bool, error) {
 // verdict, or 3 when the run is still in flight (with follow/resolve guidance).
 func runDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 	var c commonFlags
-	var surface, run string
+	var run string
 	var wait, latest bool
 	fs := newFlagSet("baseline diff status")
 	c.bind(fs)
-	fs.StringVar(&surface, "surface", "", "Restrict to one surface")
 	fs.StringVar(&run, "run", "", "The diff's run id (from `baseline diff`) (required)")
 	fs.BoolVar(&latest, "latest", false, "Recover the latest diff run recorded for this baseline (use when a wait was interrupted before you captured the run id)")
 	fs.BoolVar(&wait, "wait", false, "Block server-side until the verdict is ready")
@@ -333,12 +324,12 @@ func runDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 	if strings.TrimSpace(run) != "" && latest {
 		return fmt.Errorf("--run and --latest are mutually exclusive")
 	}
-	return resolveDiff(core, c, surface, run, wait, latest)
+	return resolveDiff(core, c, run, wait, latest)
 }
 
 // resolveDiff fetches a diff verdict via GetDiffResult and renders it, exiting by
 // verdict (0/1/2) or 3 when still in flight. wait blocks server-side.
-func resolveDiff(core *cliapp.ScenarioApp, c commonFlags, surface, run string, wait bool, latest ...bool) error {
+func resolveDiff(core *cliapp.ScenarioApp, c commonFlags, run string, wait bool, latest ...bool) error {
 	timeout := snapshotStartCeiling
 	if wait {
 		timeout = baselineClientTimeout
@@ -347,11 +338,16 @@ func resolveDiff(core *cliapp.ScenarioApp, c commonFlags, surface, run string, w
 	defer cancel()
 	client := clientFactory(core)
 	useLatest := len(latest) > 0 && latest[0]
-	resp, err := client.GetDiffResult(ctx, connect.NewRequest(&baselinesv1.GetDiffResultRequest{
-		Scenario: c.scenario, Name: c.name, Branch: c.branch, RunId: run, Surface: surface, Wait: wait, Latest: useLatest,
-	}))
+	resp, recovered, err := durableReadWithEOFRecovery(ctx, wait, func(callCtx context.Context, blocking bool) (*connect.Response[baselinesv1.GetDiffResultResponse], error) {
+		return client.GetDiffResult(callCtx, connect.NewRequest(&baselinesv1.GetDiffResultRequest{
+			Scenario: c.scenario, Name: c.name, Branch: c.branch, RunId: run, Wait: blocking, Latest: useLatest,
+		}))
+	})
 	if err != nil {
 		return err
+	}
+	if recovered {
+		fmt.Fprintf(os.Stderr, "diff wait attachment ended unexpectedly; recovered current state once by durable run id %s\n", run)
 	}
 	msg := resp.Msg
 	effectiveRun := run
@@ -380,6 +376,30 @@ func resolveDiff(core *cliapp.ScenarioApp, c commonFlags, surface, run string, w
 	}
 	os.Exit(exitCodeForVerdict(msg.GetDiff().GetVerdict()))
 	return nil
+}
+
+// durableReadWithEOFRecovery performs one blocking attachment and, only when
+// that attachment ends in EOF/cancel/deadline, one non-blocking read by the same durable id.
+// The callback must never start work; this helper intentionally cannot retry a
+// mutation and contains no polling loop.
+func durableReadWithEOFRecovery[T any](ctx context.Context, wait bool, read func(context.Context, bool) (T, error)) (T, bool, error) {
+	value, err := read(ctx, wait)
+	if err == nil || !wait || !isAttachmentEnd(err) {
+		return value, false, err
+	}
+	recoveryCtx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
+	defer cancel()
+	value, err = read(recoveryCtx, false)
+	return value, true, err
+}
+
+func isUnexpectedEOF(err error) bool {
+	return errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) || strings.Contains(strings.ToLower(err.Error()), "unexpected eof")
+}
+
+func isAttachmentEnd(err error) bool {
+	code := connect.CodeOf(err)
+	return isUnexpectedEOF(err) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || code == connect.CodeDeadlineExceeded || code == connect.CodeCanceled
 }
 
 // renderRunBusy renders the one-run-per-scenario rejection (a divergent run is
@@ -532,63 +552,6 @@ func runDelete(core *cliapp.ScenarioApp, args []string) error {
 	return nil
 }
 
-func runCreate(core *cliapp.ScenarioApp, args []string) error {
-	var c commonFlags
-	fs := newFlagSet("baseline create")
-	c.bind(fs)
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if err := c.requireScenarioName(); err != nil {
-		return err
-	}
-
-	client := clientFactory(core)
-	resp, err := client.CreateBaseline(context.Background(), connect.NewRequest(&baselinesv1.CreateBaselineRequest{
-		Scenario: c.scenario, Name: c.name, Branch: c.branch, CreatedBy: "agent",
-	}))
-	if err != nil {
-		return err
-	}
-	if c.json {
-		return printJSON(resp.Msg)
-	}
-	fmt.Printf("✓ Created empty baseline %q for %s (branch: %s)\n", resp.Msg.GetBaseline().GetName(), c.scenario, resp.Msg.GetBaseline().GetBranch())
-	return nil
-}
-
-func runEdit(core *cliapp.ScenarioApp, args []string) error {
-	var c commonFlags
-	var surface, pinRun, reason string
-	fs := newFlagSet("baseline edit")
-	c.bind(fs)
-	fs.StringVar(&surface, "surface", "", "Surface ID to re-point (required)")
-	fs.StringVar(&pinRun, "pin-run", "", "test-genie runID to pin (required)")
-	fs.StringVar(&reason, "reason", "", "Optional pin reason")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if err := c.requireScenarioName(); err != nil {
-		return err
-	}
-	if strings.TrimSpace(surface) == "" || strings.TrimSpace(pinRun) == "" {
-		return fmt.Errorf("--surface and --pin-run are required")
-	}
-
-	client := clientFactory(core)
-	resp, err := client.EditBaseline(context.Background(), connect.NewRequest(&baselinesv1.EditBaselineRequest{
-		Scenario: c.scenario, Name: c.name, Branch: c.branch, Surface: surface, PinRunId: pinRun, Reason: reason,
-	}))
-	if err != nil {
-		return err
-	}
-	if c.json {
-		return printJSON(resp.Msg)
-	}
-	fmt.Printf("✓ Re-pointed surface %q of baseline %q to run %s\n", surface, c.name, pinRun)
-	return nil
-}
-
 // exitCodeForVerdict maps the overall diff verdict to a process exit code.
 // regression → 1; not-comparable → 2; changed/new-failure/preexisting/clean → 0
 // (new/preexisting failures are not caused by the current change, and `changed`
@@ -603,19 +566,6 @@ func exitCodeForVerdict(verdict string) int {
 	default:
 		return exitOK
 	}
-}
-
-func splitCSV(s string) []string {
-	if strings.TrimSpace(s) == "" {
-		return nil
-	}
-	var out []string
-	for _, p := range strings.Split(s, ",") {
-		if p = strings.TrimSpace(p); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 func printJSON(v any) error {
@@ -633,14 +583,4 @@ func printJSON(v any) error {
 	}
 	fmt.Println(string(b))
 	return nil
-}
-
-// surfaceIDsSorted returns surface IDs in a stable display order.
-func surfaceIDsSorted(surfaces map[string]*baselinesv1.SurfacePointer) []string {
-	ids := make([]string, 0, len(surfaces))
-	for id := range surfaces {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	return ids
 }

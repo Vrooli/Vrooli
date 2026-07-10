@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +17,8 @@ import (
 	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/targetruntime"
 	workspacepkg "test-genie/internal/orchestrator/workspace"
+	sharedartifacts "test-genie/internal/shared/artifacts"
+	sharedruns "test-genie/internal/shared/runs"
 )
 
 type stubRequirementsSyncer struct {
@@ -24,6 +27,78 @@ type stubRequirementsSyncer struct {
 	last          reqsync.SyncInput
 	err           error
 	outcome       *reqsync.SyncOutcome
+}
+
+func TestFinalizeRunRecordPersistsCanonicalTerminalSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	runID := "20260710-142937-ae6a753e"
+	started := time.Now().UTC().Add(-12 * time.Second).Truncate(time.Second)
+	completed := started.Add(12 * time.Second)
+	idx := sharedruns.NewIndex(dir)
+	if err := idx.Append(sharedruns.RunRecord{
+		RunID: runID, Scenario: "demo", StartedAt: started, Status: sharedruns.StatusInProgress,
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	result := &SuiteExecutionResult{
+		RunID: runID, ScenarioName: "demo", StartedAt: started, CompletedAt: completed,
+		Success: false, Verdict: SuiteVerdictFail, PlannedPhases: []string{"unit"},
+		Phases: []PhaseExecutionResult{{Name: "unit", Status: "failed", DurationSeconds: 12}},
+	}
+	(&SuiteOrchestrator{}).finalizeRunRecord(dir, runID, result, []phaseResultView{{
+		Name: "unit", Status: "failed", DurationSeconds: 12,
+	}})
+
+	rec, err := idx.Find(runID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if rec.Status != sharedruns.StatusFailed || len(rec.Phases) != 1 {
+		t.Fatalf("terminal index = %+v", rec)
+	}
+	snapshot, err := idx.ReadTerminalSnapshot(runID)
+	if err != nil {
+		t.Fatalf("read snapshot: %v", err)
+	}
+	var persisted SuiteExecutionResult
+	if err := json.Unmarshal(snapshot.Result, &persisted); err != nil {
+		t.Fatalf("decode result: %v", err)
+	}
+	if persisted.RunID != runID || len(persisted.Phases) != 1 || persisted.Phases[0].DurationSeconds != 12 {
+		t.Fatalf("persisted terminal result = %+v", persisted)
+	}
+}
+
+func TestWriteArtifactCatalogUsesCapturedDescriptorEvidenceKinds(t *testing.T) { // [REQ:TESTGENIE-TYPED-EVIDENCE-P0]
+	dir := t.TempDir()
+	runID := "run-artifacts"
+	snapshot, err := sharedruns.NewDescriptorSnapshot([]sharedruns.PhaseDescriptorSnapshot{{
+		Phase: "future-visual", EvidenceKinds: []string{sharedartifacts.ArtifactKindScreenshot},
+		Applicability: sharedruns.ApplicabilityDecisionSnapshot{Status: "applies", Planned: true},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sharedruns.WriteDescriptorSnapshot(dir, runID, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(sharedartifacts.RunUISmokePagesDir(dir, runID), "home", "screenshot.png")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeArtifactCatalog(dir, runID, time.Unix(100, 0)); err != nil {
+		t.Fatalf("writeArtifactCatalog: %v", err)
+	}
+	catalog, err := sharedartifacts.ReadArtifactCatalog(dir, runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Artifacts) != 1 || catalog.Artifacts[0].ProducingPhase != "future-visual" {
+		t.Fatalf("catalog = %+v", catalog)
+	}
 }
 
 func (s *stubRequirementsSyncer) Sync(ctx context.Context, input reqsync.SyncInput) (*reqsync.SyncOutcome, error) {

@@ -1,79 +1,43 @@
 package baseline
 
 import (
-	"encoding/json"
+	"strings"
 	"testing"
 	"time"
-
-	"git-control-tower/internal/git"
 )
 
-func TestManifestJSONRoundTrip(t *testing.T) {
-	ts := time.Date(2026, 5, 26, 15, 0, 0, 0, time.UTC)
-	in := BaselineManifest{
-		Name:      "plan-7c3",
-		Scenario:  "foo",
-		Branch:    "agi",
-		CreatedAt: ts,
-		CreatedBy: "agent",
-		Git: git.State{
-			Sha: "abc123", Branch: "agi", Dirty: true, DirtySummary: "1 modified",
-			CommitMessage: "m", CommitAuthor: "a", CommitDate: ts,
-		},
-		Surfaces: map[string]SurfacePointer{
-			SurfaceTests: {SurfaceID: SurfaceTests, Kind: KindTestGenieRun, Ref: "run-1", CapturedAt: ts, Summary: json.RawMessage(`{"passed":3}`)},
-		},
-		SchemaVersion: SchemaVersion,
+func TestBaselineManifestV2SingleRunInvariant(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	m := BaselineManifest{
+		Name: "before", Scenario: "foo", Branch: "agi", CreatedAt: time.Now().UTC(),
+		Run: RunAnchor{
+			RunID: "run-1", CaptureProfile: CaptureProfile, TreeDigest: "td:abc", PhaseSetDigest: "ps:abc",
+			DescriptorSnapshotRef: "test-genie-run:run-1#descriptor-snapshot", DescriptorSnapshotDigest: "ds:abc", DescriptorSnapshotSchemaVersion: 1,
+		}, SchemaVersion: SchemaVersion,
 	}
-	data, err := json.Marshal(in)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
+	if err := m.Validate(); err != nil {
+		t.Fatalf("valid manifest rejected: %v", err)
 	}
-	var out BaselineManifest
-	if err := json.Unmarshal(data, &out); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	if got := m.RunID(); got != "run-1" {
+		t.Fatalf("RunID = %q, want run-1", got)
 	}
-	redata, _ := json.Marshal(out)
-	if string(data) != string(redata) {
-		t.Fatalf("round-trip mismatch:\n%s\n%s", data, redata)
+
+	missingRun := m
+	missingRun.Run.RunID = ""
+	if err := missingRun.Validate(); err == nil || !strings.Contains(err.Error(), "run id") {
+		t.Fatalf("missing run error = %v", err)
+	}
+	wrongProfile := m
+	wrongProfile.Run.CaptureProfile = "quick"
+	if err := wrongProfile.Validate(); err == nil || !strings.Contains(err.Error(), CaptureProfile) {
+		t.Fatalf("wrong profile error = %v", err)
 	}
 }
 
-func TestWorseVerdictOrdering(t *testing.T) {
-	cases := []struct{ a, b, want Verdict }{
-		{VerdictClean, VerdictRegression, VerdictRegression},
-		{VerdictNewFailure, VerdictPreexisting, VerdictNewFailure},
-		{VerdictNotComparable, VerdictNewFailure, VerdictNotComparable},
-		{VerdictRegression, VerdictNotComparable, VerdictRegression},
-		{VerdictClean, VerdictClean, VerdictClean},
+func TestWorseVerdictPreservesComparisonSeverity(t *testing.T) {
+	if got := WorseVerdict(VerdictNewFailure, VerdictRegression); got != VerdictRegression {
+		t.Fatalf("got %q", got)
 	}
-	for _, c := range cases {
-		if got := WorseVerdict(c.a, c.b); got != c.want {
-			t.Errorf("WorseVerdict(%s,%s)=%s want %s", c.a, c.b, got, c.want)
-		}
-	}
-}
-
-func TestValidateRequiresFields(t *testing.T) {
-	if err := (BaselineManifest{Scenario: "s", Branch: "b"}).Validate(); err == nil {
-		t.Error("expected error for missing name")
-	}
-	if err := (BaselineManifest{Name: "n", Branch: "b"}).Validate(); err == nil {
-		t.Error("expected error for missing scenario")
-	}
-	if err := (BaselineManifest{Name: "n", Scenario: "s", Branch: "b"}).Validate(); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-}
-
-func TestResolveStorageBranch(t *testing.T) {
-	if got := ResolveStorageBranch(git.State{Branch: "agi"}); got != "agi" {
-		t.Errorf("branch = %q", got)
-	}
-	if got := ResolveStorageBranch(git.State{Detached: true, Sha: "deadbeefcafe"}); got != "detached-deadbeef" {
-		t.Errorf("detached = %q", got)
-	}
-	if got := ResolveStorageBranch(git.State{Detached: true}); got != "detached-unknown" {
-		t.Errorf("detached-unknown = %q", got)
+	if got := WorseVerdict(VerdictChanged, VerdictClean); got != VerdictChanged {
+		t.Fatalf("advisory changed should outrank clean, got %q", got)
 	}
 }

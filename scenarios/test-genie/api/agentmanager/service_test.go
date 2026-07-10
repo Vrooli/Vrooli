@@ -13,8 +13,8 @@ func TestDefaultProfileConfigHasExpectedSafetyDefaults(t *testing.T) {
 	if cfg.RunnerType != domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE {
 		t.Fatalf("expected Claude Code runner, got %v", cfg.RunnerType)
 	}
-	if cfg.ModelPreset != domainpb.ModelPreset_MODEL_PRESET_SMART {
-		t.Fatalf("expected smart model preset, got %v", cfg.ModelPreset)
+	if cfg.PolicyRef != "claude-code.smart" {
+		t.Fatalf("expected Claude Code smart policy, got %q", cfg.PolicyRef)
 	}
 	if cfg.TimeoutSeconds != 900 {
 		t.Fatalf("expected 900 second timeout, got %d", cfg.TimeoutSeconds)
@@ -37,8 +37,7 @@ func TestBuildProfileAndDefaultProfileRef(t *testing.T) {
 
 	profile := svc.buildProfile(&ProfileConfig{
 		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		Model:           "gpt-5.4",
-		ModelPreset:     domainpb.ModelPreset_MODEL_PRESET_SMART,
+		PolicyRef:       "claude-code.smart",
 		MaxTurns:        12,
 		TimeoutSeconds:  45,
 		AllowedTools:    []string{"Read", "Write"},
@@ -51,6 +50,9 @@ func TestBuildProfileAndDefaultProfileRef(t *testing.T) {
 	}
 	if profile.ProfileKey != "test-genie" {
 		t.Fatalf("expected profile key to be propagated, got %q", profile.ProfileKey)
+	}
+	if profile.PolicyRef != "claude-code.smart" {
+		t.Fatalf("expected policy reference to be propagated, got %q", profile.PolicyRef)
 	}
 	if profile.Timeout.AsDuration() != 45*time.Second {
 		t.Fatalf("expected timeout to be converted to duration, got %s", profile.Timeout.AsDuration())

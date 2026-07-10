@@ -1,10 +1,48 @@
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class PhaseComparisonReasonCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PHASE_COMPARISON_REASON_CODE_UNSPECIFIED: _ClassVar[PhaseComparisonReasonCode]
+    PHASE_COMPARISON_REASON_CODE_NEW_PHASE: _ClassVar[PhaseComparisonReasonCode]
+    PHASE_COMPARISON_REASON_CODE_RETIRED_PHASE: _ClassVar[PhaseComparisonReasonCode]
+    PHASE_COMPARISON_REASON_CODE_INAPPLICABLE: _ClassVar[PhaseComparisonReasonCode]
+    PHASE_COMPARISON_REASON_CODE_SKIPPED: _ClassVar[PhaseComparisonReasonCode]
+    PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE: _ClassVar[PhaseComparisonReasonCode]
+    PHASE_COMPARISON_REASON_CODE_MISSING_ARTIFACT: _ClassVar[PhaseComparisonReasonCode]
+    PHASE_COMPARISON_REASON_CODE_INCOMPATIBLE_SCHEMA: _ClassVar[PhaseComparisonReasonCode]
+    PHASE_COMPARISON_REASON_CODE_LEGACY_METADATA_UNAVAILABLE: _ClassVar[PhaseComparisonReasonCode]
+
+class ArtifactAccessCapability(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ARTIFACT_ACCESS_CAPABILITY_UNSPECIFIED: _ClassVar[ArtifactAccessCapability]
+    ARTIFACT_ACCESS_CAPABILITY_STREAM: _ClassVar[ArtifactAccessCapability]
+
+class ArtifactProvenance(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ARTIFACT_PROVENANCE_UNSPECIFIED: _ClassVar[ArtifactProvenance]
+    ARTIFACT_PROVENANCE_CATALOG: _ClassVar[ArtifactProvenance]
+    ARTIFACT_PROVENANCE_LEGACY_DISCOVERY: _ClassVar[ArtifactProvenance]
+PHASE_COMPARISON_REASON_CODE_UNSPECIFIED: PhaseComparisonReasonCode
+PHASE_COMPARISON_REASON_CODE_NEW_PHASE: PhaseComparisonReasonCode
+PHASE_COMPARISON_REASON_CODE_RETIRED_PHASE: PhaseComparisonReasonCode
+PHASE_COMPARISON_REASON_CODE_INAPPLICABLE: PhaseComparisonReasonCode
+PHASE_COMPARISON_REASON_CODE_SKIPPED: PhaseComparisonReasonCode
+PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE: PhaseComparisonReasonCode
+PHASE_COMPARISON_REASON_CODE_MISSING_ARTIFACT: PhaseComparisonReasonCode
+PHASE_COMPARISON_REASON_CODE_INCOMPATIBLE_SCHEMA: PhaseComparisonReasonCode
+PHASE_COMPARISON_REASON_CODE_LEGACY_METADATA_UNAVAILABLE: PhaseComparisonReasonCode
+ARTIFACT_ACCESS_CAPABILITY_UNSPECIFIED: ArtifactAccessCapability
+ARTIFACT_ACCESS_CAPABILITY_STREAM: ArtifactAccessCapability
+ARTIFACT_PROVENANCE_UNSPECIFIED: ArtifactProvenance
+ARTIFACT_PROVENANCE_CATALOG: ArtifactProvenance
+ARTIFACT_PROVENANCE_LEGACY_DISCOVERY: ArtifactProvenance
 
 class RunEvent(_message.Message):
     __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error", "maturity_standing", "findings_summary")
@@ -47,7 +85,7 @@ class RunEvent(_message.Message):
     def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
 
 class RunLiveStatus(_message.Message):
-    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries")
+    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries", "degraded_reasons")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -66,6 +104,7 @@ class RunLiveStatus(_message.Message):
     ACTIVE_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_STANDINGS_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_FINDINGS_SUMMARIES_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     status: str
@@ -84,7 +123,8 @@ class RunLiveStatus(_message.Message):
     active: bool
     terminal_standings: _containers.RepeatedCompositeFieldContainer[PhaseMaturityStanding]
     terminal_findings_summaries: _containers.RepeatedCompositeFieldContainer[PhaseFindingsSummary]
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ...) -> None: ...
+    degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class StartRunRequest(_message.Message):
     __slots__ = ("scenario", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile")
@@ -161,12 +201,18 @@ class WaitRunRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
 
 class WaitRunResponse(_message.Message):
-    __slots__ = ("status", "timed_out")
+    __slots__ = ("status", "timed_out", "terminal_run", "terminal_snapshot_schema_version", "degraded_reasons")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_RUN_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_SNAPSHOT_SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
     status: RunLiveStatus
     timed_out: bool
-    def __init__(self, status: _Optional[_Union[RunLiveStatus, _Mapping]] = ..., timed_out: _Optional[bool] = ...) -> None: ...
+    terminal_run: RunInfo
+    terminal_snapshot_schema_version: int
+    degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: _Optional[_Union[RunLiveStatus, _Mapping]] = ..., timed_out: _Optional[bool] = ..., terminal_run: _Optional[_Union[RunInfo, _Mapping]] = ..., terminal_snapshot_schema_version: _Optional[int] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class AbortRunRequest(_message.Message):
     __slots__ = ("scenario", "run_id")
@@ -316,8 +362,84 @@ class PhaseInfo(_message.Message):
     findings_summary: PhaseFindingsSummary
     def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., comparable: _Optional[bool] = ..., advisory: _Optional[bool] = ..., artifact_backed: _Optional[bool] = ..., non_comparable: _Optional[bool] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
 
+class PhaseDescriptorPolicy(_message.Message):
+    __slots__ = ("selection", "provider_readiness", "provider_lifecycle", "freshness", "result_gating", "unavailable")
+    SELECTION_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_READINESS_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
+    FRESHNESS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_GATING_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    selection: str
+    provider_readiness: str
+    provider_lifecycle: str
+    freshness: str
+    result_gating: str
+    unavailable: str
+    def __init__(self, selection: _Optional[str] = ..., provider_readiness: _Optional[str] = ..., provider_lifecycle: _Optional[str] = ..., freshness: _Optional[str] = ..., result_gating: _Optional[str] = ..., unavailable: _Optional[str] = ...) -> None: ...
+
+class PhaseApplicabilityDecision(_message.Message):
+    __slots__ = ("status", "reason_codes", "reasons", "planned")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODES_FIELD_NUMBER: _ClassVar[int]
+    REASONS_FIELD_NUMBER: _ClassVar[int]
+    PLANNED_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    reason_codes: _containers.RepeatedScalarFieldContainer[str]
+    reasons: _containers.RepeatedScalarFieldContainer[str]
+    planned: bool
+    def __init__(self, status: _Optional[str] = ..., reason_codes: _Optional[_Iterable[str]] = ..., reasons: _Optional[_Iterable[str]] = ..., planned: _Optional[bool] = ...) -> None: ...
+
+class RunPhaseDescriptor(_message.Message):
+    __slots__ = ("phase", "display_name", "description", "provider", "order_hint", "phase_class", "runtime_class", "dimensions", "finding_source", "policy", "docs_path", "maturity_reference", "applicability_default", "evidence_kinds", "aliases", "supersedes", "applicability")
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    ORDER_HINT_FIELD_NUMBER: _ClassVar[int]
+    PHASE_CLASS_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_CLASS_FIELD_NUMBER: _ClassVar[int]
+    DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
+    FINDING_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    POLICY_FIELD_NUMBER: _ClassVar[int]
+    DOCS_PATH_FIELD_NUMBER: _ClassVar[int]
+    MATURITY_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    APPLICABILITY_DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_KINDS_FIELD_NUMBER: _ClassVar[int]
+    ALIASES_FIELD_NUMBER: _ClassVar[int]
+    SUPERSEDES_FIELD_NUMBER: _ClassVar[int]
+    APPLICABILITY_FIELD_NUMBER: _ClassVar[int]
+    phase: str
+    display_name: str
+    description: str
+    provider: str
+    order_hint: int
+    phase_class: str
+    runtime_class: str
+    dimensions: _containers.RepeatedScalarFieldContainer[str]
+    finding_source: str
+    policy: PhaseDescriptorPolicy
+    docs_path: str
+    maturity_reference: str
+    applicability_default: str
+    evidence_kinds: _containers.RepeatedScalarFieldContainer[str]
+    aliases: _containers.RepeatedScalarFieldContainer[str]
+    supersedes: _containers.RepeatedScalarFieldContainer[str]
+    applicability: PhaseApplicabilityDecision
+    def __init__(self, phase: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., provider: _Optional[str] = ..., order_hint: _Optional[int] = ..., phase_class: _Optional[str] = ..., runtime_class: _Optional[str] = ..., dimensions: _Optional[_Iterable[str]] = ..., finding_source: _Optional[str] = ..., policy: _Optional[_Union[PhaseDescriptorPolicy, _Mapping]] = ..., docs_path: _Optional[str] = ..., maturity_reference: _Optional[str] = ..., applicability_default: _Optional[str] = ..., evidence_kinds: _Optional[_Iterable[str]] = ..., aliases: _Optional[_Iterable[str]] = ..., supersedes: _Optional[_Iterable[str]] = ..., applicability: _Optional[_Union[PhaseApplicabilityDecision, _Mapping]] = ...) -> None: ...
+
+class RunDescriptorSnapshot(_message.Message):
+    __slots__ = ("schema_version", "digest", "phases")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    PHASES_FIELD_NUMBER: _ClassVar[int]
+    schema_version: int
+    digest: str
+    phases: _containers.RepeatedCompositeFieldContainer[RunPhaseDescriptor]
+    def __init__(self, schema_version: _Optional[int] = ..., digest: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[RunPhaseDescriptor, _Mapping]]] = ...) -> None: ...
+
 class RunInfo(_message.Message):
-    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest", "preset", "capture_profile", "planned_phases", "phase_set_digest")
+    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest", "preset", "capture_profile", "planned_phases", "phase_set_digest", "descriptor_snapshot_schema_version", "descriptor_snapshot_digest", "descriptor_snapshot")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -335,6 +457,9 @@ class RunInfo(_message.Message):
     CAPTURE_PROFILE_FIELD_NUMBER: _ClassVar[int]
     PLANNED_PHASES_FIELD_NUMBER: _ClassVar[int]
     PHASE_SET_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_SNAPSHOT_SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     started_at: str
@@ -352,7 +477,10 @@ class RunInfo(_message.Message):
     capture_profile: str
     planned_phases: _containers.RepeatedScalarFieldContainer[str]
     phase_set_digest: str
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ..., planned_phases: _Optional[_Iterable[str]] = ..., phase_set_digest: _Optional[str] = ...) -> None: ...
+    descriptor_snapshot_schema_version: int
+    descriptor_snapshot_digest: str
+    descriptor_snapshot: RunDescriptorSnapshot
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ..., planned_phases: _Optional[_Iterable[str]] = ..., phase_set_digest: _Optional[str] = ..., descriptor_snapshot_schema_version: _Optional[int] = ..., descriptor_snapshot_digest: _Optional[str] = ..., descriptor_snapshot: _Optional[_Union[RunDescriptorSnapshot, _Mapping]] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
     __slots__ = ("scenario", "status", "limit")
@@ -379,10 +507,14 @@ class GetRunRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class GetRunResponse(_message.Message):
-    __slots__ = ("run",)
+    __slots__ = ("run", "terminal_snapshot_schema_version", "degraded_reasons")
     RUN_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_SNAPSHOT_SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
     run: RunInfo
-    def __init__(self, run: _Optional[_Union[RunInfo, _Mapping]] = ...) -> None: ...
+    terminal_snapshot_schema_version: int
+    degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, run: _Optional[_Union[RunInfo, _Mapping]] = ..., terminal_snapshot_schema_version: _Optional[int] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DeleteRunRequest(_message.Message):
     __slots__ = ("scenario", "run_id", "force")
@@ -446,8 +578,16 @@ class CompareRunsRequest(_message.Message):
     phase: str
     def __init__(self, scenario: _Optional[str] = ..., run_id_a: _Optional[str] = ..., run_id_b: _Optional[str] = ..., phase: _Optional[str] = ...) -> None: ...
 
+class PhaseComparisonReason(_message.Message):
+    __slots__ = ("code", "detail")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    code: PhaseComparisonReasonCode
+    detail: str
+    def __init__(self, code: _Optional[_Union[PhaseComparisonReasonCode, str]] = ..., detail: _Optional[str] = ...) -> None: ...
+
 class PhaseDiff(_message.Message):
-    __slots__ = ("phase", "status_a", "status_b", "verdict", "regressions", "new_failures", "preexisting_failures", "cleared_failures")
+    __slots__ = ("phase", "status_a", "status_b", "verdict", "regressions", "new_failures", "preexisting_failures", "cleared_failures", "descriptor_a", "descriptor_b", "reasons")
     PHASE_FIELD_NUMBER: _ClassVar[int]
     STATUS_A_FIELD_NUMBER: _ClassVar[int]
     STATUS_B_FIELD_NUMBER: _ClassVar[int]
@@ -456,6 +596,9 @@ class PhaseDiff(_message.Message):
     NEW_FAILURES_FIELD_NUMBER: _ClassVar[int]
     PREEXISTING_FAILURES_FIELD_NUMBER: _ClassVar[int]
     CLEARED_FAILURES_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_A_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_B_FIELD_NUMBER: _ClassVar[int]
+    REASONS_FIELD_NUMBER: _ClassVar[int]
     phase: str
     status_a: str
     status_b: str
@@ -464,7 +607,10 @@ class PhaseDiff(_message.Message):
     new_failures: _containers.RepeatedScalarFieldContainer[str]
     preexisting_failures: _containers.RepeatedScalarFieldContainer[str]
     cleared_failures: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, phase: _Optional[str] = ..., status_a: _Optional[str] = ..., status_b: _Optional[str] = ..., verdict: _Optional[str] = ..., regressions: _Optional[_Iterable[str]] = ..., new_failures: _Optional[_Iterable[str]] = ..., preexisting_failures: _Optional[_Iterable[str]] = ..., cleared_failures: _Optional[_Iterable[str]] = ...) -> None: ...
+    descriptor_a: RunPhaseDescriptor
+    descriptor_b: RunPhaseDescriptor
+    reasons: _containers.RepeatedCompositeFieldContainer[PhaseComparisonReason]
+    def __init__(self, phase: _Optional[str] = ..., status_a: _Optional[str] = ..., status_b: _Optional[str] = ..., verdict: _Optional[str] = ..., regressions: _Optional[_Iterable[str]] = ..., new_failures: _Optional[_Iterable[str]] = ..., preexisting_failures: _Optional[_Iterable[str]] = ..., cleared_failures: _Optional[_Iterable[str]] = ..., descriptor_a: _Optional[_Union[RunPhaseDescriptor, _Mapping]] = ..., descriptor_b: _Optional[_Union[RunPhaseDescriptor, _Mapping]] = ..., reasons: _Optional[_Iterable[_Union[PhaseComparisonReason, _Mapping]]] = ...) -> None: ...
 
 class CompareRunsResponse(_message.Message):
     __slots__ = ("phases", "verdict")
@@ -519,6 +665,112 @@ class GetPhaseArtifactResponse(_message.Message):
     content: str
     content_type: str
     def __init__(self, content: _Optional[str] = ..., content_type: _Optional[str] = ...) -> None: ...
+
+class ArtifactRelationship(_message.Message):
+    __slots__ = ("type", "target_artifact_id")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    target_artifact_id: str
+    def __init__(self, type: _Optional[str] = ..., target_artifact_id: _Optional[str] = ...) -> None: ...
+
+class ArtifactComparison(_message.Message):
+    __slots__ = ("semantics", "analyzer", "metadata")
+    class MetadataEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    SEMANTICS_FIELD_NUMBER: _ClassVar[int]
+    ANALYZER_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELD_NUMBER: _ClassVar[int]
+    semantics: str
+    analyzer: str
+    metadata: _containers.ScalarMap[str, str]
+    def __init__(self, semantics: _Optional[str] = ..., analyzer: _Optional[str] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
+
+class ArtifactRef(_message.Message):
+    __slots__ = ("id", "kind", "media_type", "label", "producing_phase", "size_bytes", "created_at", "access_capability", "access_path", "metadata", "relationships", "comparison", "provenance")
+    class MetadataEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    MEDIA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    PRODUCING_PHASE_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    ACCESS_CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    ACCESS_PATH_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELD_NUMBER: _ClassVar[int]
+    RELATIONSHIPS_FIELD_NUMBER: _ClassVar[int]
+    COMPARISON_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    kind: str
+    media_type: str
+    label: str
+    producing_phase: str
+    size_bytes: int
+    created_at: str
+    access_capability: ArtifactAccessCapability
+    access_path: str
+    metadata: _containers.ScalarMap[str, str]
+    relationships: _containers.RepeatedCompositeFieldContainer[ArtifactRelationship]
+    comparison: ArtifactComparison
+    provenance: ArtifactProvenance
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., media_type: _Optional[str] = ..., label: _Optional[str] = ..., producing_phase: _Optional[str] = ..., size_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., access_capability: _Optional[_Union[ArtifactAccessCapability, str]] = ..., access_path: _Optional[str] = ..., metadata: _Optional[_Mapping[str, str]] = ..., relationships: _Optional[_Iterable[_Union[ArtifactRelationship, _Mapping]]] = ..., comparison: _Optional[_Union[ArtifactComparison, _Mapping]] = ..., provenance: _Optional[_Union[ArtifactProvenance, str]] = ...) -> None: ...
+
+class ListRunArtifactsRequest(_message.Message):
+    __slots__ = ("scenario", "run_id", "kinds", "producing_phase")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    KINDS_FIELD_NUMBER: _ClassVar[int]
+    PRODUCING_PHASE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    kinds: _containers.RepeatedScalarFieldContainer[str]
+    producing_phase: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., kinds: _Optional[_Iterable[str]] = ..., producing_phase: _Optional[str] = ...) -> None: ...
+
+class ListRunArtifactsResponse(_message.Message):
+    __slots__ = ("schema_version", "digest", "artifacts", "legacy_discovered", "degraded_reasons")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
+    LEGACY_DISCOVERED_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
+    schema_version: int
+    digest: str
+    artifacts: _containers.RepeatedCompositeFieldContainer[ArtifactRef]
+    legacy_discovered: bool
+    degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, schema_version: _Optional[int] = ..., digest: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[ArtifactRef, _Mapping]]] = ..., legacy_discovered: _Optional[bool] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class GetRunArtifactRequest(_message.Message):
+    __slots__ = ("scenario", "run_id", "artifact_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    artifact_id: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., artifact_id: _Optional[str] = ...) -> None: ...
+
+class GetRunArtifactResponse(_message.Message):
+    __slots__ = ("artifact", "legacy_discovered")
+    ARTIFACT_FIELD_NUMBER: _ClassVar[int]
+    LEGACY_DISCOVERED_FIELD_NUMBER: _ClassVar[int]
+    artifact: ArtifactRef
+    legacy_discovered: bool
+    def __init__(self, artifact: _Optional[_Union[ArtifactRef, _Mapping]] = ..., legacy_discovered: _Optional[bool] = ...) -> None: ...
 
 class GetRunFindingsRequest(_message.Message):
     __slots__ = ("scenario", "run_id")
@@ -619,16 +871,20 @@ class CompareRunVisualsRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., base_run_id: _Optional[str] = ..., current_run_id: _Optional[str] = ...) -> None: ...
 
 class VisualDelta(_message.Message):
-    __slots__ = ("page", "label", "status", "changed_fraction")
+    __slots__ = ("page", "label", "status", "changed_fraction", "base_artifact_id", "current_artifact_id")
     PAGE_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     CHANGED_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    BASE_ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
     page: str
     label: str
     status: str
     changed_fraction: float
-    def __init__(self, page: _Optional[str] = ..., label: _Optional[str] = ..., status: _Optional[str] = ..., changed_fraction: _Optional[float] = ...) -> None: ...
+    base_artifact_id: str
+    current_artifact_id: str
+    def __init__(self, page: _Optional[str] = ..., label: _Optional[str] = ..., status: _Optional[str] = ..., changed_fraction: _Optional[float] = ..., base_artifact_id: _Optional[str] = ..., current_artifact_id: _Optional[str] = ...) -> None: ...
 
 class CompareRunVisualsResponse(_message.Message):
     __slots__ = ("deltas",)

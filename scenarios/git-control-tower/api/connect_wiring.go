@@ -70,7 +70,7 @@ func (s *Server) mountConnectHandlers() {
 		Repos:   baselineRepoResolver{repos: s.repos},
 	}, policyOpt)
 
-	// WorkflowReplay: thin proxy over test-genie playbooks runs for the
+	// WorkflowReplay: thin proxy over typed test-genie run evidence for the
 	// Workflows tab (Decision 3 — the UI never calls test-genie directly).
 	// Reads are quick, so a short discovery-resolved client timeout suffices.
 	wrPath, wrHandler := workflowreplayH.NewHandler(workflowreplayH.Deps{

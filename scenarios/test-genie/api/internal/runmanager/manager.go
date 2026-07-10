@@ -2,6 +2,8 @@ package runmanager
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +16,7 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -172,6 +175,15 @@ type LiveStatus struct {
 	// snapshots, preserving the provider-computed standing for agent wait paths.
 	TerminalStandings         []*runspb.PhaseMaturityStanding
 	TerminalFindingsSummaries []*runspb.PhaseFindingsSummary
+	// TerminalRecord is the canonical compact projection stored inside the
+	// terminal snapshot. It is populated only when that snapshot validated.
+	TerminalRecord                *sharedruns.RunRecord
+	TerminalSnapshotSchemaVersion int
+	DescriptorSnapshot            *sharedruns.DescriptorSnapshot
+	// DegradedReasons explains why a durable terminal projection is incomplete.
+	// It is empty for canonical snapshots and populated for legacy/corrupt data;
+	// wire consumers must preserve it as UNKNOWN rather than zero-fill fields.
+	DegradedReasons []string
 }
 
 // StartOptions configures a run start.
@@ -509,7 +521,7 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 	if aborted {
 		// The orchestrator's finalize wrote passed/failed from partial results;
 		// override the durable record to aborted (the explicit terminal state).
-		m.markIndexAborted(ar.scenario, ar.runID)
+		m.markIndexAborted(ar.scenario, ar.runID, result)
 	} else {
 		// Reconcile the durable record to the terminal outcome. Normally the
 		// orchestrator's finalize already wrote passed/failed; but when
@@ -518,7 +530,7 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 		// is left at in_progress. Without this it would linger as an orphan after
 		// the in-memory run retires — the orphan factory behind the 2026-06-21
 		// stalled-baseline incident.
-		m.reconcileDurableTerminal(ar.scenario, ar.runID, status)
+		m.reconcileDurableTerminal(ar.scenario, ar.runID, status, result)
 	}
 
 	term := Event{
@@ -697,7 +709,10 @@ func (m *Manager) Wait(ctx context.Context, scenario, runID string) (LiveStatus,
 	}
 	select {
 	case <-ar.done:
-		return m.snapshot(ar), nil
+		// Terminal reads always come back through the persisted snapshot, even
+		// during the retirement grace window. This makes the immediate and
+		// post-restart projections identical and catches incomplete finalization.
+		return m.terminalStatusFromIndexOrLive(ar), nil
 	case <-ctx.Done():
 		return m.snapshot(ar), ctx.Err()
 	}
@@ -707,6 +722,9 @@ func (m *Manager) Wait(ctx context.Context, scenario, runID string) (LiveStatus,
 // back to the durable index.
 func (m *Manager) Status(scenario, runID string) (LiveStatus, error) {
 	if ar := m.lookup(scenario, runID); ar != nil {
+		if isTerminal(ar.currentStatus()) {
+			return m.terminalStatusFromIndexOrLive(ar), nil
+		}
 		return m.snapshot(ar), nil
 	}
 	return m.statusFromIndex(scenario, runID)
@@ -739,12 +757,12 @@ func (m *Manager) Abort(scenario, runID string) (LiveStatus, error) {
 		ar.setStatus(sharedruns.StatusAborted)
 		m.mu.Unlock()
 		ar.cancel()
-		m.markIndexAborted(ar.scenario, ar.runID)
+		m.markIndexAborted(ar.scenario, ar.runID, nil)
 		ar.bc.publish(Event{Kind: EventRunCompleted, RunID: ar.runID, Scenario: ar.scenario, Status: sharedruns.StatusAborted, Verdict: "ABORTED"})
 		ar.bc.close()
 		close(ar.done)
 		m.retire(ar)
-		return m.snapshot(ar), nil
+		return m.terminalStatusFromIndexOrLive(ar), nil
 	}
 	m.mu.Unlock()
 	ar.cancel()
@@ -752,7 +770,21 @@ func (m *Manager) Abort(scenario, runID string) (LiveStatus, error) {
 	case <-ar.done:
 	case <-time.After(2 * time.Minute):
 	}
-	return m.snapshot(ar), nil
+	return m.terminalStatusFromIndexOrLive(ar), nil
+}
+
+// terminalStatusFromIndexOrLive prefers the canonical persisted snapshot but
+// preserves a terminal live result when persistence itself is unavailable.
+// The fallback is explicitly degraded; it exists for storage failures and
+// narrow executor seams, never as a success-shaped substitute for durability.
+func (m *Manager) terminalStatusFromIndexOrLive(ar *activeRun) LiveStatus {
+	status, err := m.statusFromIndex(ar.scenario, ar.runID)
+	if err == nil {
+		return status
+	}
+	status = m.snapshot(ar)
+	status.DegradedReasons = append(status.DegradedReasons, "canonical terminal persistence unavailable: "+err.Error())
+	return status
 }
 
 // downgradeOrphanIndex marks a non-terminal durable record (in_progress or
@@ -849,11 +881,43 @@ func (m *Manager) Shutdown() {
 	m.wg.Wait()
 }
 
-func (m *Manager) markIndexAborted(scenario, runID string) {
-	err := sharedruns.NewIndex(m.scenarioDir(scenario)).Update(runID, func(r *sharedruns.RunRecord) error {
+func (m *Manager) markIndexAborted(scenario, runID string, result *orchestrator.SuiteExecutionResult) {
+	idx := sharedruns.NewIndex(m.scenarioDir(scenario))
+	rec, err := idx.Find(runID)
+	if err != nil {
+		if err != sharedruns.ErrRunNotFound {
+			log.Printf("[runmanager] find aborted %s/%s: %v", scenario, runID, err)
+		}
+		return
+	}
+	completedAt := time.Now().UTC()
+	if result == nil {
+		result = &orchestrator.SuiteExecutionResult{
+			RunID:         runID,
+			ScenarioName:  scenario,
+			StartedAt:     rec.StartedAt,
+			CompletedAt:   completedAt,
+			Success:       false,
+			Verdict:       "ABORTED",
+			PlannedPhases: append([]string(nil), rec.PlannedPhases...),
+		}
+	} else {
+		result.Success = false
+		result.Verdict = "ABORTED"
+		if result.CompletedAt.IsZero() {
+			result.CompletedAt = completedAt
+		}
+	}
+	if err := ensureArtifactCatalog(m.scenarioDir(scenario), runID, result.CompletedAt); err != nil {
+		result.Warnings = append(result.Warnings, "artifact catalog unavailable: "+err.Error())
+	}
+	err = idx.Finalize(runID, result, func(r *sharedruns.RunRecord) error {
 		r.Status = sharedruns.StatusAborted
 		if r.CompletedAt.IsZero() {
-			r.CompletedAt = time.Now().UTC()
+			r.CompletedAt = result.CompletedAt
+		}
+		if len(r.Phases) == 0 {
+			r.Phases = compactPhaseRecords(result.Phases)
 		}
 		return nil
 	})
@@ -865,26 +929,106 @@ func (m *Manager) markIndexAborted(scenario, runID string) {
 // reconcileDurableTerminal sets the durable record to a terminal status when it
 // is still non-terminal — the safety net for runs whose executor returned before
 // the orchestrator finalized the record (e.g. the target scenario failed to
-// start). It never overrides an already-terminal record (the orchestrator's
-// finalize wins), and is a no-op if the record is missing or status is not
-// terminal.
-func (m *Manager) reconcileDurableTerminal(scenario, runID, status string) {
+// start). It republishes through Finalize even when the orchestrator already
+// wrote the compact terminal record, ensuring the canonical snapshot and index
+// agree. It is a no-op if the record is missing or status is not terminal.
+func (m *Manager) reconcileDurableTerminal(scenario, runID, status string, result *orchestrator.SuiteExecutionResult) {
 	if !isTerminal(status) {
 		return
 	}
-	err := sharedruns.NewIndex(m.scenarioDir(scenario)).Update(runID, func(r *sharedruns.RunRecord) error {
-		if isTerminal(r.Status) {
-			return nil
+	idx := sharedruns.NewIndex(m.scenarioDir(scenario))
+	rec, findErr := idx.Find(runID)
+	if findErr != nil {
+		if findErr != sharedruns.ErrRunNotFound {
+			log.Printf("[runmanager] find terminal %s/%s: %v", scenario, runID, findErr)
 		}
+		return
+	}
+	if result == nil {
+		verdict := "FAIL"
+		if status == sharedruns.StatusPassed {
+			verdict = "PASS"
+		}
+		result = &orchestrator.SuiteExecutionResult{
+			RunID:         runID,
+			ScenarioName:  scenario,
+			StartedAt:     rec.StartedAt,
+			CompletedAt:   time.Now().UTC(),
+			Success:       status == sharedruns.StatusPassed,
+			Verdict:       verdict,
+			PlannedPhases: append([]string(nil), rec.PlannedPhases...),
+		}
+	} else {
+		if result.RunID == "" {
+			result.RunID = runID
+		}
+		if result.ScenarioName == "" {
+			result.ScenarioName = scenario
+		}
+		if result.StartedAt.IsZero() {
+			result.StartedAt = rec.StartedAt
+		}
+		if result.CompletedAt.IsZero() {
+			result.CompletedAt = time.Now().UTC()
+		}
+		if status == sharedruns.StatusFailed {
+			result.Success = false
+			result.Verdict = "FAIL"
+		}
+	}
+	if err := ensureArtifactCatalog(m.scenarioDir(scenario), runID, result.CompletedAt); err != nil {
+		result.Warnings = append(result.Warnings, "artifact catalog unavailable: "+err.Error())
+	}
+	err := idx.Finalize(runID, result, func(r *sharedruns.RunRecord) error {
 		r.Status = status
 		if r.CompletedAt.IsZero() {
-			r.CompletedAt = time.Now().UTC()
+			r.CompletedAt = result.CompletedAt
+			if r.CompletedAt.IsZero() {
+				r.CompletedAt = time.Now().UTC()
+			}
+		}
+		if len(r.Phases) == 0 {
+			r.Phases = compactPhaseRecords(result.Phases)
+		}
+		if len(r.PlannedPhases) == 0 {
+			r.PlannedPhases = append([]string(nil), result.PlannedPhases...)
 		}
 		return nil
 	})
 	if err != nil && err != sharedruns.ErrRunNotFound {
-		log.Printf("[runmanager] reconcile terminal %s/%s: %v", scenario, runID, err)
+		// Do not fall back to a terminal index-only update: a missing snapshot
+		// is incomplete evidence and must not look successfully finalized.
+		log.Printf("[runmanager] reconcile terminal snapshot %s/%s: %v", scenario, runID, err)
 	}
+}
+
+func ensureArtifactCatalog(scenarioDir, runID string, generatedAt time.Time) error {
+	if _, err := sharedartifacts.ReadArtifactCatalog(scenarioDir, runID); err == nil {
+		return nil
+	} else if !errors.Is(err, sharedartifacts.ErrArtifactCatalogNotFound) {
+		return err
+	}
+	var declarations []sharedartifacts.ArtifactPhaseDeclaration
+	if snapshot, err := sharedruns.ReadDescriptorSnapshot(scenarioDir, runID); err == nil {
+		declarations = make([]sharedartifacts.ArtifactPhaseDeclaration, 0, len(snapshot.Phases))
+		for _, descriptor := range snapshot.Phases {
+			declarations = append(declarations, sharedartifacts.ArtifactPhaseDeclaration{
+				Phase: descriptor.Phase, EvidenceKinds: append([]string(nil), descriptor.EvidenceKinds...),
+			})
+		}
+	}
+	_, err := sharedartifacts.RefreshArtifactCatalog(scenarioDir, runID, declarations, generatedAt)
+	return err
+}
+
+func compactPhaseRecords(results []orchestrator.PhaseExecutionResult) []sharedruns.PhaseRecord {
+	records := make([]sharedruns.PhaseRecord, 0, len(results))
+	for _, phase := range results {
+		records = append(records, sharedruns.PhaseRecord{
+			Name: phase.Name, Status: phase.Status, DurationSeconds: phase.DurationSeconds, Comparable: true,
+		})
+	}
+	return records
 }
 
 func (m *Manager) scenarioDir(scenario string) string {
@@ -955,7 +1099,8 @@ func terminalMaturity(result *orchestrator.SuiteExecutionResult) ([]*runspb.Phas
 }
 
 func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {
-	rec, err := sharedruns.NewIndex(m.scenarioDir(scenario)).Find(runID)
+	idx := sharedruns.NewIndex(m.scenarioDir(scenario))
+	rec, err := idx.Find(runID)
 	if err != nil {
 		return LiveStatus{}, err
 	}
@@ -963,7 +1108,7 @@ func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {
 	if !rec.CompletedAt.IsZero() {
 		elapsed = rec.CompletedAt.Sub(rec.StartedAt).Seconds()
 	}
-	return LiveStatus{
+	ls := LiveStatus{
 		RunID:                       rec.RunID,
 		Scenario:                    rec.Scenario,
 		Status:                      rec.Status,
@@ -972,7 +1117,53 @@ func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {
 		Success:                     rec.Status == sharedruns.StatusPassed,
 		RecommendedNextCheckSeconds: recommendedNextCheck(rec.Status, 0, false),
 		Active:                      false,
-	}, nil
+	}
+	descriptorSnapshot, descriptorErr := sharedruns.ReadDescriptorSnapshot(m.scenarioDir(scenario), runID)
+	if descriptorErr == nil {
+		ls.DescriptorSnapshot = &descriptorSnapshot
+		if rec.DescriptorSnapshotSchemaVersion != 0 && rec.DescriptorSnapshotSchemaVersion != descriptorSnapshot.SchemaVersion {
+			ls.DegradedReasons = append(ls.DegradedReasons, "descriptor snapshot schema does not match the run index")
+		}
+		if rec.DescriptorSnapshotDigest != "" && rec.DescriptorSnapshotDigest != descriptorSnapshot.Digest {
+			ls.DegradedReasons = append(ls.DegradedReasons, "descriptor snapshot digest does not match the run index")
+		}
+	}
+	if !isTerminal(rec.Status) {
+		return ls, nil
+	}
+	if descriptorErr != nil {
+		if errors.Is(descriptorErr, sharedruns.ErrDescriptorSnapshotNotFound) {
+			ls.DegradedReasons = append(ls.DegradedReasons, "legacy run predates descriptor snapshots")
+		} else {
+			ls.DegradedReasons = append(ls.DegradedReasons, "descriptor snapshot unavailable: "+descriptorErr.Error())
+		}
+	}
+	snapshot, snapshotErr := idx.ReadTerminalSnapshot(runID)
+	if snapshotErr != nil {
+		reason := "terminal snapshot unavailable: " + snapshotErr.Error()
+		if errors.Is(snapshotErr, sharedruns.ErrSnapshotNotFound) {
+			reason = "legacy run predates canonical terminal snapshots"
+		}
+		ls.DegradedReasons = append(ls.DegradedReasons, reason)
+		return ls, nil
+	}
+	var result orchestrator.SuiteExecutionResult
+	if err := json.Unmarshal(snapshot.Result, &result); err != nil {
+		ls.DegradedReasons = append(ls.DegradedReasons, "terminal snapshot result is corrupt: "+err.Error())
+		return ls, nil
+	}
+	ls.Result = &result
+	terminalRecord := snapshot.Run
+	// Pins are mutable retention metadata rather than terminal test evidence.
+	// Merge the current index generation so a snapshot read never resurrects a
+	// stale pin set while every immutable terminal field stays snapshot-owned.
+	terminalRecord.Pins = append([]sharedruns.PinRecord(nil), rec.Pins...)
+	ls.TerminalRecord = &terminalRecord
+	ls.TerminalSnapshotSchemaVersion = snapshot.SchemaVersion
+	ls.Verdict = result.Verdict
+	ls.Success = result.Success && rec.Status == sharedruns.StatusPassed
+	ls.TerminalStandings, ls.TerminalFindingsSummaries = terminalMaturity(&result)
+	return ls, nil
 }
 
 // recommendedNextCheck returns the backoff (seconds) a poller should wait before

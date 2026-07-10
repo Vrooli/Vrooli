@@ -1,15 +1,10 @@
-// Package baseline implements git-control-tower's cross-surface baseline
-// substrate: a manifest of pointers (Decision 1 — baselines own pointers, not
-// artifacts) into the surfaces that make up a scenario's review state
-// (workflows, tests, structure, visuals, rules).
-//
-// A baseline is captured before an agent starts implementing a change and is
-// the regression-diagnosis primitive that replaces `git stash`
-// (feedback_no_git_stash): capture, implement, diff.
+// Package baseline implements git-control-tower's durable regression baseline.
+// A baseline owns no test artifacts: it pins exactly one comprehensive Test
+// Genie run and records the immutable identities needed to compare that run
+// with a later comprehensive run.
 package baseline
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -17,45 +12,14 @@ import (
 	"git-control-tower/internal/git"
 )
 
-// SchemaVersion is the on-disk manifest schema version. Bump on
-// backwards-incompatible field changes.
-const SchemaVersion = 1
+// SchemaVersion is the canonical on-disk manifest schema version.
+const SchemaVersion = 2
 
-// Surface IDs. These are the stable identifiers an agent passes to --include
-// and the keys of BaselineManifest.Surfaces.
-const (
-	SurfaceWorkflows = "workflows"
-	SurfaceTests     = "tests"
-	SurfaceStructure = "structure"
-	SurfaceVisuals   = "visuals"
-	SurfaceRules     = "rules"
-)
+// CaptureProfile is the Test Genie run shape used for every GCT baseline.
+const CaptureProfile = "baseline"
 
-// AllSurfaces is the canonical display order (cheap → expensive). A baseline
-// captures ONE comprehensive run and every surface is a view over it, so this
-// is purely the order surfaces render in.
-var AllSurfaces = []string{SurfaceStructure, SurfaceRules, SurfaceTests, SurfaceVisuals, SurfaceWorkflows}
-
-// SurfacePointer kinds — where the referenced artifact actually lives. Every
-// surface in a baseline now references the single shared test-genie run
-// (KindTestGenieRun); the visuals surface points at that same run's visual
-// artifacts.
-const (
-	// KindTestGenieRun references the pinned comprehensive test-genie run by runID.
-	KindTestGenieRun = "test-genie-run"
-	// KindExternal references an artifact owned by another subsystem.
-	KindExternal = "external"
-)
-
-// Verdict classifies a surface diff. Severity order (high→low) is
-// regression > not-comparable > new-failure > preexisting > changed > clean,
-// matching test-genie's RunsService classifier so exit codes are consistent.
-//
-// VerdictChanged is the neutral "the surface differs, review it" tier: it ranks
-// just above clean, below every verdict that signals a problem, and never
-// affects the diff exit code (it is advisory by contract). The visuals surface
-// is its sole producer — a UI that renders differently but is not broken is a
-// change to look at, not a failure to fix.
+// Verdict is Test Genie's comparison classification. Changed is retained for
+// advisory visual evidence; it never raises the process exit code.
 type Verdict string
 
 const (
@@ -76,8 +40,7 @@ var verdictRank = map[Verdict]int{
 	VerdictRegression:    5,
 }
 
-// WorseVerdict returns the higher-severity of two verdicts. Used to roll
-// per-surface verdicts up into the overall baseline-diff verdict.
+// WorseVerdict returns the higher-severity verdict.
 func WorseVerdict(a, b Verdict) Verdict {
 	if verdictRank[b] > verdictRank[a] {
 		return b
@@ -85,57 +48,46 @@ func WorseVerdict(a, b Verdict) Verdict {
 	return a
 }
 
-// SurfacePointer references a surface's captured artifact by stable ID. It
-// carries a small summary so list/show can render without dereferencing the
-// owning subsystem.
-type SurfacePointer struct {
-	SurfaceID  string          `json:"surface_id"`
-	Kind       string          `json:"kind"`
-	Ref        string          `json:"ref"` // runID, local snapshot ID, or external ref
-	CapturedAt time.Time       `json:"captured_at"`
-	Summary    json.RawMessage `json:"summary,omitempty"` // surface-specific short summary
+// RunAnchor is the single immutable Test Genie run referenced by a baseline.
+// DescriptorSnapshotRef is deliberately opaque to GCT: it identifies the
+// snapshot inside the owning run and is never a filesystem path.
+type RunAnchor struct {
+	RunID                           string    `json:"run_id"`
+	CapturedAt                      time.Time `json:"captured_at"`
+	CaptureProfile                  string    `json:"capture_profile"`
+	TreeDigest                      string    `json:"tree_digest,omitempty"`
+	PhaseSetDigest                  string    `json:"phase_set_digest,omitempty"`
+	DescriptorSnapshotRef           string    `json:"descriptor_snapshot_ref,omitempty"`
+	DescriptorSnapshotDigest        string    `json:"descriptor_snapshot_digest,omitempty"`
+	DescriptorSnapshotSchemaVersion int       `json:"descriptor_snapshot_schema_version,omitempty"`
 }
 
-// BaselineManifest is the JSON document stored under
-// data/<repoID>/baselines/<scenario>/<branch>/<name>.json. It owns no
-// artifacts — only pointers into the owning subsystems.
+// MigrationInfo preserves honest diagnostics for a V1 manifest whose run can
+// be anchored but whose newer descriptor/digest identities are unknowable.
+type MigrationInfo struct {
+	FromSchemaVersion int       `json:"from_schema_version"`
+	MigratedAt        time.Time `json:"migrated_at"`
+	DegradedReasons   []string  `json:"degraded_reasons,omitempty"`
+}
+
+// BaselineManifest is stored under
+// data/<repoID>/baselines/<scenario>/<branch>/<name>.json.
 type BaselineManifest struct {
-	Name      string                    `json:"name"`
-	Scenario  string                    `json:"scenario"`
-	Branch    string                    `json:"branch"`
-	CreatedAt time.Time                 `json:"created_at"`
-	CreatedBy string                    `json:"created_by,omitempty"` // "agent" | "ui:matt"
-	Git       git.State                 `json:"git"`
-	Surfaces  map[string]SurfacePointer `json:"surfaces"`
-	// Skipped records surfaces that were requested at capture time but not
-	// captured — keyed surfaceID → reason (adapter unavailable or capture
-	// failed). Persisting it lets show/diff reveal a partial baseline instead
-	// of letting it masquerade as complete: a baseline that never captured
-	// `tests` must not read as "tests clean".
-	Skipped       map[string]string `json:"skipped,omitempty"`
-	SchemaVersion int               `json:"schema_version"`
+	Name          string         `json:"name"`
+	Scenario      string         `json:"scenario"`
+	Branch        string         `json:"branch"`
+	CreatedAt     time.Time      `json:"created_at"`
+	CreatedBy     string         `json:"created_by,omitempty"`
+	Git           git.State      `json:"git"`
+	Run           RunAnchor      `json:"run"`
+	Migration     *MigrationInfo `json:"migration,omitempty"`
+	SchemaVersion int            `json:"schema_version"`
 }
 
-// runID returns the single shared test-genie run this baseline pinned. Every
-// captured surface references the same comprehensive run, so any one pointer's
-// Ref is the run id; "" when the baseline captured no run (empty manifest or a
-// fully-skipped capture).
-func (m BaselineManifest) RunID() string {
-	for _, id := range AllSurfaces {
-		if ptr, ok := m.Surfaces[id]; ok && ptr.Kind == KindTestGenieRun && ptr.Ref != "" {
-			return ptr.Ref
-		}
-	}
-	for _, ptr := range m.Surfaces {
-		if ptr.Kind == KindTestGenieRun && ptr.Ref != "" {
-			return ptr.Ref
-		}
-	}
-	return ""
-}
+// RunID returns the baseline's sole Test Genie run identity.
+func (m BaselineManifest) RunID() string { return m.Run.RunID }
 
-// Validate checks the required fields are present. It does not validate
-// surface availability — that is the orchestration layer's job.
+// Validate enforces the V2 single-run invariant before persistence.
 func (m BaselineManifest) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return fmt.Errorf("baseline name is required")
@@ -145,6 +97,23 @@ func (m BaselineManifest) Validate() error {
 	}
 	if strings.TrimSpace(m.Branch) == "" {
 		return fmt.Errorf("branch is required")
+	}
+	if m.SchemaVersion != SchemaVersion {
+		return fmt.Errorf("unsupported baseline schema version %d", m.SchemaVersion)
+	}
+	if strings.TrimSpace(m.Run.RunID) == "" {
+		return fmt.Errorf("baseline run id is required")
+	}
+	if m.Run.CaptureProfile != CaptureProfile {
+		return fmt.Errorf("baseline capture profile must be %q", CaptureProfile)
+	}
+	if m.Migration == nil {
+		if m.Run.TreeDigest == "" || m.Run.PhaseSetDigest == "" {
+			return fmt.Errorf("new baseline requires tree and phase-set digests")
+		}
+		if m.Run.DescriptorSnapshotRef == "" || m.Run.DescriptorSnapshotDigest == "" || m.Run.DescriptorSnapshotSchemaVersion == 0 {
+			return fmt.Errorf("new baseline requires descriptor snapshot identity")
+		}
 	}
 	return nil
 }

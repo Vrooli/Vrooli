@@ -157,6 +157,50 @@ func BuildRunStandingViewFromLiveStatus(ctx context.Context, st *runspb.RunLiveS
 	return BuildRunStandingView(ctx, resp, st.GetScenario(), st.GetStatus(), st.GetRunId(), nil, timedOut, st.GetRecommendedNextCheckSeconds(), scoreRunner)
 }
 
+// BuildRunStandingViewFromWaitResponse projects terminal phases from the
+// canonical durable RunInfo carried by WaitRun. Live status remains the source
+// for queued/in-progress timing, while terminal phase identity, status, and
+// duration come from the exact same record as `runs show`.
+func BuildRunStandingViewFromWaitResponse(ctx context.Context, response *runspb.WaitRunResponse, scoreRunner report.ScoreRunner) execTypes.RunStandingView {
+	if response == nil {
+		return execTypes.RunStandingView{}
+	}
+	view := BuildRunStandingViewFromLiveStatus(ctx, response.GetStatus(), response.GetTimedOut(), scoreRunner)
+	if terminal := response.GetTerminalRun(); terminal != nil {
+		view.RunID = terminal.GetRunId()
+		view.ExecutionID = terminal.GetRunId()
+		view.Scenario = terminal.GetScenario()
+		view.Status = terminal.GetStatus()
+		view.Success = terminal.GetStatus() == "passed"
+		view.Phases = phasesFromTerminalRun(terminal)
+		view.PhaseSummary = summarizePhases(view.Phases)
+		view.TopPriority = TopPriorityFromPhases(view.Phases)
+	}
+	view.TerminalSnapshotSchemaVersion = response.GetTerminalSnapshotSchemaVersion()
+	view.DegradedReasons = append([]string(nil), response.GetDegradedReasons()...)
+	if len(view.DegradedReasons) == 0 && response.GetStatus() != nil {
+		view.DegradedReasons = append([]string(nil), response.GetStatus().GetDegradedReasons()...)
+	}
+	return view
+}
+
+func phasesFromTerminalRun(run *runspb.RunInfo) []Phase {
+	phases := make([]Phase, 0, len(run.GetPhases()))
+	for _, phase := range run.GetPhases() {
+		if phase == nil {
+			continue
+		}
+		phases = append(phases, Phase{
+			Name:             phase.GetName(),
+			Status:           phase.GetStatus(),
+			DurationSeconds:  phase.GetDurationSeconds(),
+			MaturityStanding: StandingFromProto(phase.GetMaturityStanding()),
+			FindingsSummary:  FindingsSummaryFromProto(phase.GetFindingsSummary()),
+		})
+	}
+	return phases
+}
+
 func phasesFromLiveStatus(st *runspb.RunLiveStatus) []Phase {
 	standings := st.GetTerminalStandings()
 	findings := st.GetTerminalFindingsSummaries()
@@ -182,6 +226,7 @@ func summarizePhases(phases []Phase) execTypes.PhaseSummary {
 	var summary execTypes.PhaseSummary
 	for _, p := range phases {
 		summary.Total++
+		summary.DurationSeconds += int(p.DurationSeconds)
 		switch p.Status {
 		case "passed":
 			summary.Passed++

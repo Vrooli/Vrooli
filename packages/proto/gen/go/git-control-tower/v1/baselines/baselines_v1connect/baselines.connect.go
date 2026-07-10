@@ -33,9 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// BaselinesServiceCreateBaselineProcedure is the fully-qualified name of the BaselinesService's
-	// CreateBaseline RPC.
-	BaselinesServiceCreateBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/CreateBaseline"
 	// BaselinesServiceSnapshotForBaselineProcedure is the fully-qualified name of the
 	// BaselinesService's SnapshotForBaseline RPC.
 	BaselinesServiceSnapshotForBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/SnapshotForBaseline"
@@ -57,42 +54,18 @@ const (
 	// BaselinesServiceDeleteBaselineProcedure is the fully-qualified name of the BaselinesService's
 	// DeleteBaseline RPC.
 	BaselinesServiceDeleteBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/DeleteBaseline"
-	// BaselinesServiceEditBaselineProcedure is the fully-qualified name of the BaselinesService's
-	// EditBaseline RPC.
-	BaselinesServiceEditBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/EditBaseline"
 )
 
 // BaselinesServiceClient is a client for the vrooli.git_control_tower.v1.baselines.BaselinesService
 // service.
 type BaselinesServiceClient interface {
-	// CreateBaseline writes a manifest WITHOUT capturing surfaces (power-user /
-	// UI path — pointers assembled manually via EditBaseline).
-	CreateBaseline(context.Context, *connect.Request[baselines.CreateBaselineRequest]) (*connect.Response[baselines.CreateBaselineResponse], error)
-	// SnapshotForBaseline creates a baseline AND captures every requested
-	// surface (the agent path).
 	SnapshotForBaseline(context.Context, *connect.Request[baselines.SnapshotForBaselineRequest]) (*connect.Response[baselines.SnapshotForBaselineResponse], error)
-	// GetSnapshotStatus reports the durable snapshot-finalization state for a
-	// snapshot run. It is the operator-facing way to distinguish "still pending",
-	// "baseline ready", "run failed/aborted", and "no such snapshot intent".
 	GetSnapshotStatus(context.Context, *connect.Request[baselines.GetSnapshotStatusRequest]) (*connect.Response[baselines.GetSnapshotStatusResponse], error)
-	// GetBaseline returns a single baseline manifest.
 	GetBaseline(context.Context, *connect.Request[baselines.GetBaselineRequest]) (*connect.Response[baselines.GetBaselineResponse], error)
-	// ListBaselines enumerates baselines for a scenario (optionally one branch).
 	ListBaselines(context.Context, *connect.Request[baselines.ListBaselinesRequest]) (*connect.Response[baselines.ListBaselinesResponse], error)
-	// StartDiff starts (or reuses/coalesces) ONE comprehensive run and returns its
-	// handle IMMEDIATELY — it does not block for the run to finish. The diff
-	// verdict is computed and cached server-side when the run completes; retrieve
-	// it with GetDiffResult. Mirrors SnapshotForBaseline's durable, return-fast
-	// contract so an agent never sits on a silent block (the anti-polling rule).
 	StartDiff(context.Context, *connect.Request[baselines.StartDiffRequest]) (*connect.Response[baselines.StartDiffResponse], error)
-	// GetDiffResult returns the cached diff for a (baseline, run). While the run is
-	// still in flight it returns status=in_progress + a recommended next check;
-	// when the run finished but the cache was lost (crash) it recomputes once.
 	GetDiffResult(context.Context, *connect.Request[baselines.GetDiffResultRequest]) (*connect.Response[baselines.GetDiffResultResponse], error)
-	// DeleteBaseline removes a baseline and unpins the test-genie runs it held.
 	DeleteBaseline(context.Context, *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error)
-	// EditBaseline re-points one surface at a different (pinned) test-genie run.
-	EditBaseline(context.Context, *connect.Request[baselines.EditBaselineRequest]) (*connect.Response[baselines.EditBaselineResponse], error)
 }
 
 // NewBaselinesServiceClient constructs a client for the
@@ -107,12 +80,6 @@ func NewBaselinesServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	baselinesServiceMethods := baselines.File_git_control_tower_v1_baselines_baselines_proto.Services().ByName("BaselinesService").Methods()
 	return &baselinesServiceClient{
-		createBaseline: connect.NewClient[baselines.CreateBaselineRequest, baselines.CreateBaselineResponse](
-			httpClient,
-			baseURL+BaselinesServiceCreateBaselineProcedure,
-			connect.WithSchema(baselinesServiceMethods.ByName("CreateBaseline")),
-			connect.WithClientOptions(opts...),
-		),
 		snapshotForBaseline: connect.NewClient[baselines.SnapshotForBaselineRequest, baselines.SnapshotForBaselineResponse](
 			httpClient,
 			baseURL+BaselinesServiceSnapshotForBaselineProcedure,
@@ -155,18 +122,11 @@ func NewBaselinesServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(baselinesServiceMethods.ByName("DeleteBaseline")),
 			connect.WithClientOptions(opts...),
 		),
-		editBaseline: connect.NewClient[baselines.EditBaselineRequest, baselines.EditBaselineResponse](
-			httpClient,
-			baseURL+BaselinesServiceEditBaselineProcedure,
-			connect.WithSchema(baselinesServiceMethods.ByName("EditBaseline")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // baselinesServiceClient implements BaselinesServiceClient.
 type baselinesServiceClient struct {
-	createBaseline      *connect.Client[baselines.CreateBaselineRequest, baselines.CreateBaselineResponse]
 	snapshotForBaseline *connect.Client[baselines.SnapshotForBaselineRequest, baselines.SnapshotForBaselineResponse]
 	getSnapshotStatus   *connect.Client[baselines.GetSnapshotStatusRequest, baselines.GetSnapshotStatusResponse]
 	getBaseline         *connect.Client[baselines.GetBaselineRequest, baselines.GetBaselineResponse]
@@ -174,12 +134,6 @@ type baselinesServiceClient struct {
 	startDiff           *connect.Client[baselines.StartDiffRequest, baselines.StartDiffResponse]
 	getDiffResult       *connect.Client[baselines.GetDiffResultRequest, baselines.GetDiffResultResponse]
 	deleteBaseline      *connect.Client[baselines.DeleteBaselineRequest, baselines.DeleteBaselineResponse]
-	editBaseline        *connect.Client[baselines.EditBaselineRequest, baselines.EditBaselineResponse]
-}
-
-// CreateBaseline calls vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline.
-func (c *baselinesServiceClient) CreateBaseline(ctx context.Context, req *connect.Request[baselines.CreateBaselineRequest]) (*connect.Response[baselines.CreateBaselineResponse], error) {
-	return c.createBaseline.CallUnary(ctx, req)
 }
 
 // SnapshotForBaseline calls
@@ -218,42 +172,16 @@ func (c *baselinesServiceClient) DeleteBaseline(ctx context.Context, req *connec
 	return c.deleteBaseline.CallUnary(ctx, req)
 }
 
-// EditBaseline calls vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline.
-func (c *baselinesServiceClient) EditBaseline(ctx context.Context, req *connect.Request[baselines.EditBaselineRequest]) (*connect.Response[baselines.EditBaselineResponse], error) {
-	return c.editBaseline.CallUnary(ctx, req)
-}
-
 // BaselinesServiceHandler is an implementation of the
 // vrooli.git_control_tower.v1.baselines.BaselinesService service.
 type BaselinesServiceHandler interface {
-	// CreateBaseline writes a manifest WITHOUT capturing surfaces (power-user /
-	// UI path — pointers assembled manually via EditBaseline).
-	CreateBaseline(context.Context, *connect.Request[baselines.CreateBaselineRequest]) (*connect.Response[baselines.CreateBaselineResponse], error)
-	// SnapshotForBaseline creates a baseline AND captures every requested
-	// surface (the agent path).
 	SnapshotForBaseline(context.Context, *connect.Request[baselines.SnapshotForBaselineRequest]) (*connect.Response[baselines.SnapshotForBaselineResponse], error)
-	// GetSnapshotStatus reports the durable snapshot-finalization state for a
-	// snapshot run. It is the operator-facing way to distinguish "still pending",
-	// "baseline ready", "run failed/aborted", and "no such snapshot intent".
 	GetSnapshotStatus(context.Context, *connect.Request[baselines.GetSnapshotStatusRequest]) (*connect.Response[baselines.GetSnapshotStatusResponse], error)
-	// GetBaseline returns a single baseline manifest.
 	GetBaseline(context.Context, *connect.Request[baselines.GetBaselineRequest]) (*connect.Response[baselines.GetBaselineResponse], error)
-	// ListBaselines enumerates baselines for a scenario (optionally one branch).
 	ListBaselines(context.Context, *connect.Request[baselines.ListBaselinesRequest]) (*connect.Response[baselines.ListBaselinesResponse], error)
-	// StartDiff starts (or reuses/coalesces) ONE comprehensive run and returns its
-	// handle IMMEDIATELY — it does not block for the run to finish. The diff
-	// verdict is computed and cached server-side when the run completes; retrieve
-	// it with GetDiffResult. Mirrors SnapshotForBaseline's durable, return-fast
-	// contract so an agent never sits on a silent block (the anti-polling rule).
 	StartDiff(context.Context, *connect.Request[baselines.StartDiffRequest]) (*connect.Response[baselines.StartDiffResponse], error)
-	// GetDiffResult returns the cached diff for a (baseline, run). While the run is
-	// still in flight it returns status=in_progress + a recommended next check;
-	// when the run finished but the cache was lost (crash) it recomputes once.
 	GetDiffResult(context.Context, *connect.Request[baselines.GetDiffResultRequest]) (*connect.Response[baselines.GetDiffResultResponse], error)
-	// DeleteBaseline removes a baseline and unpins the test-genie runs it held.
 	DeleteBaseline(context.Context, *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error)
-	// EditBaseline re-points one surface at a different (pinned) test-genie run.
-	EditBaseline(context.Context, *connect.Request[baselines.EditBaselineRequest]) (*connect.Response[baselines.EditBaselineResponse], error)
 }
 
 // NewBaselinesServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -263,12 +191,6 @@ type BaselinesServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	baselinesServiceMethods := baselines.File_git_control_tower_v1_baselines_baselines_proto.Services().ByName("BaselinesService").Methods()
-	baselinesServiceCreateBaselineHandler := connect.NewUnaryHandler(
-		BaselinesServiceCreateBaselineProcedure,
-		svc.CreateBaseline,
-		connect.WithSchema(baselinesServiceMethods.ByName("CreateBaseline")),
-		connect.WithHandlerOptions(opts...),
-	)
 	baselinesServiceSnapshotForBaselineHandler := connect.NewUnaryHandler(
 		BaselinesServiceSnapshotForBaselineProcedure,
 		svc.SnapshotForBaseline,
@@ -311,16 +233,8 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 		connect.WithSchema(baselinesServiceMethods.ByName("DeleteBaseline")),
 		connect.WithHandlerOptions(opts...),
 	)
-	baselinesServiceEditBaselineHandler := connect.NewUnaryHandler(
-		BaselinesServiceEditBaselineProcedure,
-		svc.EditBaseline,
-		connect.WithSchema(baselinesServiceMethods.ByName("EditBaseline")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/vrooli.git_control_tower.v1.baselines.BaselinesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case BaselinesServiceCreateBaselineProcedure:
-			baselinesServiceCreateBaselineHandler.ServeHTTP(w, r)
 		case BaselinesServiceSnapshotForBaselineProcedure:
 			baselinesServiceSnapshotForBaselineHandler.ServeHTTP(w, r)
 		case BaselinesServiceGetSnapshotStatusProcedure:
@@ -335,8 +249,6 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 			baselinesServiceGetDiffResultHandler.ServeHTTP(w, r)
 		case BaselinesServiceDeleteBaselineProcedure:
 			baselinesServiceDeleteBaselineHandler.ServeHTTP(w, r)
-		case BaselinesServiceEditBaselineProcedure:
-			baselinesServiceEditBaselineHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -345,10 +257,6 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 
 // UnimplementedBaselinesServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedBaselinesServiceHandler struct{}
-
-func (UnimplementedBaselinesServiceHandler) CreateBaseline(context.Context, *connect.Request[baselines.CreateBaselineRequest]) (*connect.Response[baselines.CreateBaselineResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline is not implemented"))
-}
 
 func (UnimplementedBaselinesServiceHandler) SnapshotForBaseline(context.Context, *connect.Request[baselines.SnapshotForBaselineRequest]) (*connect.Response[baselines.SnapshotForBaselineResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline is not implemented"))
@@ -376,8 +284,4 @@ func (UnimplementedBaselinesServiceHandler) GetDiffResult(context.Context, *conn
 
 func (UnimplementedBaselinesServiceHandler) DeleteBaseline(context.Context, *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline is not implemented"))
-}
-
-func (UnimplementedBaselinesServiceHandler) EditBaseline(context.Context, *connect.Request[baselines.EditBaselineRequest]) (*connect.Response[baselines.EditBaselineResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline is not implemented"))
 }

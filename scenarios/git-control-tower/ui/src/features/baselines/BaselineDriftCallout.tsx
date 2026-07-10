@@ -5,7 +5,7 @@
 
 import { formatRelativeTime } from "../../components/ScenarioReviewPanelShared";
 import { useBaselines, useDefaultBaseline } from "../../lib/hooks-baselines";
-import { SurfaceStatusChips } from "./parts";
+import { RunAnchorBadge } from "./parts";
 import { BaselineSelector } from "./BaselineSelector";
 
 export function BaselineDriftCallout({
@@ -38,7 +38,7 @@ export function BaselineDriftCallout({
               <span className="text-slate-500"> · captured {formatRelativeTime(active.createdAt)}</span>
               {active.git?.dirty && <span className="text-amber-500"> · dirty</span>}
             </p>
-            <SurfaceStatusChips manifest={active} />
+            <RunAnchorBadge manifest={active} />
           </>
         ) : (
           <p className="text-xs text-slate-400">

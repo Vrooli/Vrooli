@@ -17,6 +17,7 @@ import (
 
 	"test-genie/internal/basprobe"
 	"test-genie/internal/captureprofile"
+	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phaseregistry"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/providerdescriptor"
@@ -648,23 +649,32 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		log.Printf("tree digest unavailable for run %s: %v", runID, digestErr)
 	}
 	plannedPhases := phaseDefinitionNames(planCtx.plan.Selected)
+	descriptorSnapshot, err := buildRunDescriptorSnapshot(planCtx.plan)
+	if err != nil {
+		return nil, fmt.Errorf("build run descriptor snapshot: %w", err)
+	}
+	if err := sharedruns.WriteDescriptorSnapshot(planCtx.env.ScenarioDir, runID, descriptorSnapshot); err != nil {
+		return nil, fmt.Errorf("persist run descriptor snapshot: %w", err)
+	}
 	if err := sharedruns.NewIndex(planCtx.env.ScenarioDir).Append(sharedruns.RunRecord{
-		RunID:           runID,
-		Scenario:        scenario,
-		StartedAt:       time.Now().UTC(),
-		Status:          sharedruns.StatusInProgress,
-		Diagnostics:     resolveRunDiagnostics(planCtx.env.DiagnosticsPreset),
-		GitSha:          gitCtx.Sha,
-		GitBranch:       gitCtx.Branch,
-		GitDirty:        gitCtx.Dirty,
-		GitDirtySummary: gitCtx.DirtySummary,
-		TreeDigest:      digest,
-		Preset:          strings.TrimSpace(req.Preset),
-		CaptureProfile:  strings.TrimSpace(req.CaptureProfile),
-		PlannedPhases:   plannedPhases,
-		PhaseSetDigest:  phases.PhaseSetDigest(plannedPhases),
+		RunID:                           runID,
+		Scenario:                        scenario,
+		StartedAt:                       time.Now().UTC(),
+		Status:                          sharedruns.StatusInProgress,
+		Diagnostics:                     resolveRunDiagnostics(planCtx.env.DiagnosticsPreset),
+		GitSha:                          gitCtx.Sha,
+		GitBranch:                       gitCtx.Branch,
+		GitDirty:                        gitCtx.Dirty,
+		GitDirtySummary:                 gitCtx.DirtySummary,
+		TreeDigest:                      digest,
+		Preset:                          strings.TrimSpace(req.Preset),
+		CaptureProfile:                  strings.TrimSpace(req.CaptureProfile),
+		PlannedPhases:                   plannedPhases,
+		PhaseSetDigest:                  phases.PhaseSetDigest(plannedPhases),
+		DescriptorSnapshotSchemaVersion: descriptorSnapshot.SchemaVersion,
+		DescriptorSnapshotDigest:        descriptorSnapshot.Digest,
 	}); err != nil {
-		log.Printf("failed to record run %s in index: %v", runID, err)
+		return nil, fmt.Errorf("record run %s in durable index: %w", runID, err)
 	}
 
 	return &preparedExecution{
@@ -724,6 +734,15 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	); err != nil {
 		log.Printf("failed to write findings artifact: %v", err)
 	}
+	// Inventory the bytes already owned by this run before publishing terminal
+	// state. The catalog is metadata only: no provider artifact is copied into a
+	// second store, and descriptor declarations assign producer metadata without
+	// a phase-name registry.
+	if err := writeArtifactCatalog(prepared.env.ScenarioDir, prepared.runID, result.CompletedAt); err != nil {
+		warning := "artifact catalog unavailable: " + err.Error()
+		result.Warnings = append(result.Warnings, warning)
+		log.Printf("failed to write artifact catalog: %v", err)
+	}
 
 	artifactPath := sharedartifacts.RelativeRunFindingsArtifactPath(prepared.runID)
 	if nudge := computeCampaignNudgeFromViews(result.ScenarioName, result.Verdict, artifactPath, resultViews); nudge != nil {
@@ -750,6 +769,7 @@ func (o *SuiteOrchestrator) finalizeExecution(
 		log.Printf("failed to write latest manifest: %v", err)
 	}
 
+	result.Requirements = o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
 	o.finalizeRunRecord(prepared.env.ScenarioDir, prepared.runID, result, resultViews)
 
 	// Enforce run retention in the background so a large/old history can't grow
@@ -763,8 +783,21 @@ func (o *SuiteOrchestrator) finalizeExecution(
 		}
 	}(context.Background())
 
-	result.Requirements = o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
 	return result
+}
+
+func writeArtifactCatalog(scenarioDir, runID string, generatedAt time.Time) error {
+	var declarations []sharedartifacts.ArtifactPhaseDeclaration
+	if snapshot, err := sharedruns.ReadDescriptorSnapshot(scenarioDir, runID); err == nil {
+		declarations = make([]sharedartifacts.ArtifactPhaseDeclaration, 0, len(snapshot.Phases))
+		for _, descriptor := range snapshot.Phases {
+			declarations = append(declarations, sharedartifacts.ArtifactPhaseDeclaration{
+				Phase: descriptor.Phase, EvidenceKinds: append([]string(nil), descriptor.EvidenceKinds...),
+			})
+		}
+	}
+	_, err := sharedartifacts.RefreshArtifactCatalog(scenarioDir, runID, declarations, generatedAt)
+	return err
 }
 
 // finalizeRunRecord updates the run index entry with terminal status, per-phase
@@ -776,6 +809,12 @@ func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result 
 		status = sharedruns.StatusFailed
 	}
 	phaseRecords := make([]sharedruns.PhaseRecord, 0, len(phaseResults))
+	descriptorByPhase := map[string]sharedruns.PhaseDescriptorSnapshot{}
+	if snapshot, err := sharedruns.ReadDescriptorSnapshot(scenarioDir, runID); err == nil {
+		for _, descriptor := range snapshot.Phases {
+			descriptorByPhase[descriptor.Phase] = descriptor
+		}
+	}
 	for _, p := range phaseResults {
 		record := sharedruns.PhaseRecord{
 			Name:            p.Name,
@@ -783,15 +822,12 @@ func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result 
 			DurationSeconds: p.DurationSeconds,
 			Comparable:      true,
 		}
-		if spec, ok := phases.DefaultCatalog().Lookup(p.Name); ok {
-			record.Comparable = spec.Comparable()
-			record.Advisory = spec.Advisory
-			record.ArtifactBacked = spec.ArtifactBacked
-			record.NonComparable = spec.NonComparable
+		if descriptor, ok := descriptorByPhase[p.Name]; ok {
+			record.Advisory = descriptor.Policy.ResultGating == string(phasepolicy.ResultGatingAdvisory)
 		}
 		phaseRecords = append(phaseRecords, record)
 	}
-	err := sharedruns.NewIndex(scenarioDir).Update(runID, func(r *sharedruns.RunRecord) error {
+	err := sharedruns.NewIndex(scenarioDir).Finalize(runID, result, func(r *sharedruns.RunRecord) error {
 		r.Status = status
 		r.CompletedAt = result.CompletedAt
 		r.Phases = phaseRecords

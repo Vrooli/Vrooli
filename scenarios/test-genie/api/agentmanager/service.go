@@ -103,7 +103,7 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 type ProfileConfig struct {
 	RunnerType      domainpb.RunnerType
 	Model           string
-	ModelPreset     domainpb.ModelPreset
+	PolicyRef       string
 	MaxTurns        int32
 	TimeoutSeconds  int32
 	AllowedTools    []string
@@ -118,9 +118,9 @@ type ProfileConfig struct {
 // DefaultProfileConfig returns the default configuration for test generation.
 func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
-		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		ModelPreset: domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:    50,
+		RunnerType: domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		PolicyRef:  "claude-code.smart",
+		MaxTurns:   50,
 		// 15 minute timeout for thorough test generation
 		TimeoutSeconds: 900,
 		AllowedTools: []string{
@@ -150,7 +150,7 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		Description:          "Agent profile for test-genie test generation",
 		RunnerType:           cfg.RunnerType,
 		Model:                cfg.Model,
-		ModelPreset:          cfg.ModelPreset,
+		PolicyRef:            cfg.PolicyRef,
 		MaxTurns:             cfg.MaxTurns,
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,

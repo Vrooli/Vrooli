@@ -1,5 +1,5 @@
 import { fireEvent, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ScreenshotsTab } from "./ScenarioReviewPanelScreenshots";
 import { WorkflowsTab } from "./ScenarioReviewPanelWorkflows";
 import { renderWithQueryClient } from "../test-utils";
@@ -12,8 +12,8 @@ import type { CapturePreset, SnapshotSetMeta } from "../lib/api";
 vi.mock("../lib/api-workflowreplay", () => ({
   listRecentRuns: vi.fn(),
   getRunDetail: vi.fn(),
-  workflowVideoUrl: (scenario: string, runId: string, relPath: string) =>
-    `/api/v1/repo/workflow-runs/${runId}/video?scenario=${scenario}&path=${relPath}`,
+  workflowVideoUrl: (scenario: string, runId: string, artifactId: string) =>
+    `/api/v1/repo/workflow-runs/${runId}/video?scenario=${scenario}&artifact_id=${artifactId}`,
 }));
 
 // Baselines come from BaselinesService; the surface bar/selector list them. The
@@ -24,6 +24,8 @@ vi.mock("../lib/api-baselines", async () => {
   return { ...actual, listBaselines: vi.fn().mockResolvedValue([]) };
 });
 
+beforeEach(() => window.localStorage.clear());
+
 function run(overrides: Partial<RunSummary> = {}): RunSummary {
   return {
     runId: "run-123",
@@ -33,8 +35,6 @@ function run(overrides: Partial<RunSummary> = {}): RunSummary {
     gitSha: "abc12345def",
     gitBranch: "agi",
     gitDirty: false,
-    playbooksStatus: "passed",
-    playbooksDurationSeconds: 12,
     ...overrides,
   } as unknown as RunSummary;
 }
@@ -183,7 +183,7 @@ describe("WorkflowsTab", () => {
     );
 
     expect(await screen.findByText("No workflows captured yet")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /run playbooks/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /capture workflow evidence/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /capture baseline/i })).toBeInTheDocument();
   });
 
@@ -200,11 +200,11 @@ describe("WorkflowsTab", () => {
     expect(listRecentRuns).not.toHaveBeenCalled();
   });
 
-  it("lists playbooks runs and opens a recorded video on expand", async () => {
+  it("lists runs with typed workflow evidence and opens a recording by opaque id", async () => {
     vi.mocked(listRecentRuns).mockResolvedValue([run({ runId: "run-abc" })]);
     vi.mocked(getRunDetail).mockResolvedValue({
       run: run({ runId: "run-abc" }),
-      videos: [{ workflow: "login-smoke", relPath: "automation/login-smoke/video/a.webm", sizeBytes: 10 }],
+      artifacts: [{ id: "opaque-video-id", kind: "workflow.video", label: "login-smoke", sizeBytes: 10n }],
     } as unknown as GetRunDetailResponse);
 
     renderWithQueryClient(
@@ -225,6 +225,7 @@ describe("WorkflowsTab", () => {
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     const videoSrc = document.querySelector("video")?.getAttribute("src");
     expect(videoSrc).toContain("/repo/workflow-runs/run-abc/video");
-    expect(videoSrc).toContain("automation/login-smoke/video/a.webm");
+    expect(videoSrc).toContain("artifact_id=opaque-video-id");
+    expect(videoSrc).not.toContain("automation/login-smoke/video/a.webm");
   });
 });

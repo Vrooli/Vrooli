@@ -15,10 +15,6 @@ import type {
   SnapshotForBaselineResponse,
 } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 
-// The full set of surfaces a baseline can pin, in display order.
-export const BASELINE_SURFACES = ["workflows", "tests", "structure", "visuals", "rules"] as const;
-export type BaselineSurface = (typeof BASELINE_SURFACES)[number];
-
 // repoId is a numeric string in the UI (X-Repo-Id); the proto wants int64
 // (bigint in connect-es). 0n means "active repo" server-side.
 function toRepoId(repoId?: string | null): bigint {
@@ -68,7 +64,6 @@ export interface DiffBaselineParams {
   scenario: string;
   name: string;
   branch?: string;
-  surface?: string;
   repoId?: string | null;
 }
 
@@ -80,7 +75,6 @@ export async function diffBaseline(params: DiffBaselineParams): Promise<DiffResu
     scenario: params.scenario,
     name: params.name,
     branch: params.branch ?? "",
-    surface: params.surface ?? "",
     repoId: toRepoId(params.repoId),
   });
   const res = await baselinesClient.getDiffResult({
@@ -88,7 +82,6 @@ export async function diffBaseline(params: DiffBaselineParams): Promise<DiffResu
     name: params.name,
     branch: params.branch ?? "",
     runId: started.runId,
-    surface: params.surface ?? "",
     repoId: toRepoId(params.repoId),
     wait: true,
   });
@@ -98,25 +91,19 @@ export async function diffBaseline(params: DiffBaselineParams): Promise<DiffResu
 export interface SnapshotBaselineParams {
   scenario: string;
   name: string;
-  include: string[];
-  fast: boolean;
   branch?: string;
   reason?: string;
   createdBy?: string;
   repoId?: string | null;
 }
 
-// snapshotForBaseline captures every requested surface and writes the manifest
-// — the "Capture" action in SetBaselineModal. This is a long-running call
-// (BAS workflows + test-genie + visuals); callers should expect minutes.
+// snapshotForBaseline always captures one comprehensive baseline-profile run.
 export async function snapshotForBaseline(
   params: SnapshotBaselineParams,
 ): Promise<SnapshotForBaselineResponse> {
   return baselinesClient.snapshotForBaseline({
     scenario: params.scenario,
     name: params.name,
-    include: params.include,
-    fast: params.fast,
     branch: params.branch ?? "",
     reason: params.reason ?? "",
     createdBy: params.createdBy ?? "ui",
@@ -139,27 +126,4 @@ export async function deleteBaseline(params: DeleteBaselineParams): Promise<bool
     repoId: toRepoId(params.repoId),
   });
   return res.deleted;
-}
-
-export interface EditBaselineParams {
-  scenario: string;
-  name: string;
-  surface: string;
-  pinRunId: string;
-  branch?: string;
-  reason?: string;
-  repoId?: string | null;
-}
-
-export async function editBaseline(params: EditBaselineParams): Promise<BaselineManifest | undefined> {
-  const res = await baselinesClient.editBaseline({
-    scenario: params.scenario,
-    name: params.name,
-    surface: params.surface,
-    pinRunId: params.pinRunId,
-    branch: params.branch ?? "",
-    reason: params.reason ?? "",
-    repoId: toRepoId(params.repoId),
-  });
-  return res.baseline;
 }

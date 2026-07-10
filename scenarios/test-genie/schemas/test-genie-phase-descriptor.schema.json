@@ -42,6 +42,21 @@
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true
     },
+    "evidenceKinds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+      "uniqueItems": true
+    },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+      "uniqueItems": true
+    },
+    "supersedes": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+      "uniqueItems": true
+    },
     "validation": {
       "type": "object",
       "additionalProperties": false,

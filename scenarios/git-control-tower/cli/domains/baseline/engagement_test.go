@@ -229,7 +229,7 @@ func withFakeAnchors(t *testing.T, snapErr, diffVerdict string) func() {
 		}
 		return nil
 	}
-	diffAnchor = func(_ *cliapp.ScenarioApp, _ context.Context, _, _, _ string) (string, error) {
+	diffAnchor = func(_ *cliapp.ScenarioApp, _ context.Context, _, _ string) (string, error) {
 		return diffVerdict, nil
 	}
 	return func() { snapshotAnchor, diffAnchor = prevSnap, prevDiff }
@@ -526,7 +526,7 @@ func TestCheckCleanShadowGuidance(t *testing.T) {
 	defer f.install()()
 	defer withFakeAnchors(t, "", "clean")()
 
-	res, err := checkEngagement(nil, "demo-scenario", "wip", "")
+	res, err := checkEngagement(nil, "demo-scenario", "wip")
 	if err != nil {
 		t.Fatalf("checkEngagement: %v", err)
 	}
@@ -548,7 +548,7 @@ func TestCheckRegressionGuidance(t *testing.T) {
 	defer f.install()()
 	defer withFakeAnchors(t, "", "regression")()
 
-	res, err := checkEngagement(nil, "demo-scenario", "wip", "")
+	res, err := checkEngagement(nil, "demo-scenario", "wip")
 	if err != nil {
 		t.Fatalf("checkEngagement: %v", err)
 	}
@@ -566,7 +566,7 @@ func TestCheckNoAnchorIsError(t *testing.T) {
 	defer f.install()()
 	defer withFakeAnchors(t, "", "clean")()
 
-	if _, err := checkEngagement(nil, "demo-scenario", "wip", ""); err == nil || !strings.Contains(err.Error(), "no anchor") {
+	if _, err := checkEngagement(nil, "demo-scenario", "wip"); err == nil || !strings.Contains(err.Error(), "no anchor") {
 		t.Fatalf("expected no-anchor error, got %v", err)
 	}
 }

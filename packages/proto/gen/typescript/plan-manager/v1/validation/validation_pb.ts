@@ -2,9 +2,9 @@
 // @generated from file plan-manager/v1/validation/validation.proto (package vrooli.plan_manager.v1.validation, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Reference, StalenessTier, ValidationResult } from "../shared/model_pb";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Reference, StalenessTier, ValidationResult, ValidationVerdict } from "../shared/model_pb";
 import { file_plan_manager_v1_shared_model } from "../shared/model_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file plan-manager/v1/validation/validation.proto.
  */
 export const file_plan_manager_v1_validation_validation: GenFile = /*@__PURE__*/
-  fileDesc("CitwbGFuLW1hbmFnZXIvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24iPQoYUmVzb2x2ZVJlZmVyZW5jZXNSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiawoZUmVzb2x2ZVJlZmVyZW5jZXNSZXNwb25zZRI8CgpyZWZlcmVuY2VzGAEgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEhAKCGRlZ3JhZGVkGAIgASgIIjwKF0NvbXB1dGVTdGFsZW5lc3NSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiqQEKGENvbXB1dGVTdGFsZW5lc3NSZXNwb25zZRI9CgdvdmVyYWxsGAEgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuU3RhbGVuZXNzVGllchI8CgpyZWZlcmVuY2VzGAIgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEhAKCGRlZ3JhZGVkGAMgASgIIj8KGkRlcml2ZUJhc2VsaW5lU2NvcGVSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiQgobRGVyaXZlQmFzZWxpbmVTY29wZVJlc3BvbnNlEhAKCGNvbW1hbmRzGAEgAygJEhEKCWxvY2F0aW9ucxgCIAMoCSI5ChRSdW5WYWxpZGF0aW9uUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEhAKCHBoYXNlX2lkGAIgASgJIlgKFVJ1blZhbGlkYXRpb25SZXNwb25zZRI/CgZyZXN1bHQYASABKAsyLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5WYWxpZGF0aW9uUmVzdWx0IjAKHVZlcmlmeURlZmluaXRpb25PZkRvbmVSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkicgoeVmVyaWZ5RGVmaW5pdGlvbk9mRG9uZVJlc3BvbnNlEj8KBnJlc3VsdBgBIAEoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25SZXN1bHQSDwoHZG9kX21ldBgCIAEoCDLuBQoRVmFsaWRhdGlvblNlcnZpY2USjgEKEVJlc29sdmVSZWZlcmVuY2VzEjsudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlJlc29sdmVSZWZlcmVuY2VzUmVxdWVzdBo8LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5SZXNvbHZlUmVmZXJlbmNlc1Jlc3BvbnNlEosBChBDb21wdXRlU3RhbGVuZXNzEjoudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLkNvbXB1dGVTdGFsZW5lc3NSZXF1ZXN0GjsudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLkNvbXB1dGVTdGFsZW5lc3NSZXNwb25zZRKUAQoTRGVyaXZlQmFzZWxpbmVTY29wZRI9LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5EZXJpdmVCYXNlbGluZVNjb3BlUmVxdWVzdBo+LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5EZXJpdmVCYXNlbGluZVNjb3BlUmVzcG9uc2USggEKDVJ1blZhbGlkYXRpb24SNy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uUnVuVmFsaWRhdGlvblJlcXVlc3QaOC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uUnVuVmFsaWRhdGlvblJlc3BvbnNlEp0BChZWZXJpZnlEZWZpbml0aW9uT2ZEb25lEkAudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZlcmlmeURlZmluaXRpb25PZkRvbmVSZXF1ZXN0GkEudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZlcmlmeURlZmluaXRpb25PZkRvbmVSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BsYW4tbWFuYWdlci92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw", [file_plan_manager_v1_shared_model]);
+  fileDesc("CitwbGFuLW1hbmFnZXIvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24iPQoYUmVzb2x2ZVJlZmVyZW5jZXNSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiawoZUmVzb2x2ZVJlZmVyZW5jZXNSZXNwb25zZRI8CgpyZWZlcmVuY2VzGAEgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEhAKCGRlZ3JhZGVkGAIgASgIIjwKF0NvbXB1dGVTdGFsZW5lc3NSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiqQEKGENvbXB1dGVTdGFsZW5lc3NSZXNwb25zZRI9CgdvdmVyYWxsGAEgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuU3RhbGVuZXNzVGllchI8CgpyZWZlcmVuY2VzGAIgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEhAKCGRlZ3JhZGVkGAMgASgIIj8KGkRlcml2ZUJhc2VsaW5lU2NvcGVSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiQgobRGVyaXZlQmFzZWxpbmVTY29wZVJlc3BvbnNlEhAKCGNvbW1hbmRzGAEgAygJEhEKCWxvY2F0aW9ucxgCIAMoCSI4ChhWYWxpZGF0aW9uT3BlcmF0aW9uRXJyb3ISDAoEY29kZRgBIAEoCRIOCgZkZXRhaWwYAiABKAkikgMKGFZhbGlkYXRpb25DaGlsZE9wZXJhdGlvbhIKCgJpZBgBIAEoCRIPCgdjb21tYW5kGAIgASgJEg4KBm9yYWNsZRgDIAEoCBJICgZzdGF0dXMYBCABKA4yOC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbkNoaWxkU3RhdHVzEg8KB2F0dGVtcHQYBSABKAUSEwoLZXh0ZXJuYWxfaWQYBiABKAkSQQoHdmVyZGljdBgHIAEoDjIwLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25WZXJkaWN0Eg4KBmRldGFpbBgIIAEoCRJKCgVlcnJvchgJIAEoCzI7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uT3BlcmF0aW9uRXJyb3ISEQoJcXVldWVkX2F0GAogASgJEhIKCnN0YXJ0ZWRfYXQYCyABKAkSEwoLdGVybWluYWxfYXQYDCABKAkiiQUKE1ZhbGlkYXRpb25PcGVyYXRpb24SCgoCaWQYASABKAkSDwoHcGxhbl9pZBgCIAEoCRIQCghwaGFzZV9pZBgDIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBCABKAkSTAoGc3RhdHVzGAUgASgOMjwudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25PcGVyYXRpb25TdGF0dXMSDwoHYXR0ZW1wdBgGIAEoBRJNCghjaGlsZHJlbhgHIAMoCzI7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uQ2hpbGRPcGVyYXRpb24SPwoGcmVzdWx0GAggASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBISCgpyZXN1bHRfcmVmGAkgASgJEkoKBWVycm9yGAogASgLMjsudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25PcGVyYXRpb25FcnJvchIRCglxdWV1ZWRfYXQYCyABKAkSEgoKc3RhcnRlZF9hdBgMIAEoCRITCgt0ZXJtaW5hbF9hdBgNIAEoCRIcChRxdWV1ZV9idWRnZXRfc2Vjb25kcxgOIAEoBRIgChhleGVjdXRpb25fYnVkZ2V0X3NlY29uZHMYDyABKAUSJQoddHJhbnNwb3J0X3dhaXRfYnVkZ2V0X3NlY29uZHMYECABKAUSIAoYcmVjb21tZW5kZWRfd2FpdF9zZWNvbmRzGBEgASgFEhYKDnNjaGVtYV92ZXJzaW9uGBIgASgFIlQKFlN0YXJ0VmFsaWRhdGlvblJlcXVlc3QSDwoHcGxhbl9pZBgBIAEoCRIQCghwaGFzZV9pZBgCIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYAyABKAkiegoXU3RhcnRWYWxpZGF0aW9uUmVzcG9uc2USSQoJb3BlcmF0aW9uGAEgASgLMjYudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25PcGVyYXRpb24SFAoMZGVkdXBsaWNhdGVkGAIgASgIIkMKHUdldFZhbGlkYXRpb25PcGVyYXRpb25SZXF1ZXN0EhQKDG9wZXJhdGlvbl9pZBgBIAEoCRIMCgR3YWl0GAIgASgIImsKHkdldFZhbGlkYXRpb25PcGVyYXRpb25SZXNwb25zZRJJCglvcGVyYXRpb24YASABKAsyNi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbk9wZXJhdGlvbiI5ChRSdW5WYWxpZGF0aW9uUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEhAKCHBoYXNlX2lkGAIgASgJIlgKFVJ1blZhbGlkYXRpb25SZXNwb25zZRI/CgZyZXN1bHQYASABKAsyLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5WYWxpZGF0aW9uUmVzdWx0IjAKHVZlcmlmeURlZmluaXRpb25PZkRvbmVSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkicgoeVmVyaWZ5RGVmaW5pdGlvbk9mRG9uZVJlc3BvbnNlEj8KBnJlc3VsdBgBIAEoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25SZXN1bHQSDwoHZG9kX21ldBgCIAEoCCrDAQoZVmFsaWRhdGlvbk9wZXJhdGlvblN0YXR1cxIrCidWQUxJREFUSU9OX09QRVJBVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABImCiJWQUxJREFUSU9OX09QRVJBVElPTl9TVEFUVVNfUVVFVUVEEAESJwojVkFMSURBVElPTl9PUEVSQVRJT05fU1RBVFVTX1JVTk5JTkcQAhIoCiRWQUxJREFUSU9OX09QRVJBVElPTl9TVEFUVVNfVEVSTUlOQUwQAyqvAQoVVmFsaWRhdGlvbkNoaWxkU3RhdHVzEicKI1ZBTElEQVRJT05fQ0hJTERfU1RBVFVTX1VOU1BFQ0lGSUVEEAASIgoeVkFMSURBVElPTl9DSElMRF9TVEFUVVNfUVVFVUVEEAESIwofVkFMSURBVElPTl9DSElMRF9TVEFUVVNfUlVOTklORxACEiQKIFZBTElEQVRJT05fQ0hJTERfU1RBVFVTX1RFUk1JTkFMEAMy3QoKEVZhbGlkYXRpb25TZXJ2aWNlEo4BChFSZXNvbHZlUmVmZXJlbmNlcxI7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5SZXNvbHZlUmVmZXJlbmNlc1JlcXVlc3QaPC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uUmVzb2x2ZVJlZmVyZW5jZXNSZXNwb25zZRKLAQoQQ29tcHV0ZVN0YWxlbmVzcxI6LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5Db21wdXRlU3RhbGVuZXNzUmVxdWVzdBo7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5Db21wdXRlU3RhbGVuZXNzUmVzcG9uc2USlAEKE0Rlcml2ZUJhc2VsaW5lU2NvcGUSPS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uRGVyaXZlQmFzZWxpbmVTY29wZVJlcXVlc3QaPi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uRGVyaXZlQmFzZWxpbmVTY29wZVJlc3BvbnNlEogBCg9TdGFydFZhbGlkYXRpb24SOS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uU3RhcnRWYWxpZGF0aW9uUmVxdWVzdBo6LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5TdGFydFZhbGlkYXRpb25SZXNwb25zZRKdAQoWR2V0VmFsaWRhdGlvbk9wZXJhdGlvbhJALnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5HZXRWYWxpZGF0aW9uT3BlcmF0aW9uUmVxdWVzdBpBLnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5HZXRWYWxpZGF0aW9uT3BlcmF0aW9uUmVzcG9uc2USngEKF1dhaXRWYWxpZGF0aW9uT3BlcmF0aW9uEkAudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLkdldFZhbGlkYXRpb25PcGVyYXRpb25SZXF1ZXN0GkEudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLkdldFZhbGlkYXRpb25PcGVyYXRpb25SZXNwb25zZRKgAQoZUmVzdW1lVmFsaWRhdGlvbk9wZXJhdGlvbhJALnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5HZXRWYWxpZGF0aW9uT3BlcmF0aW9uUmVxdWVzdBpBLnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5HZXRWYWxpZGF0aW9uT3BlcmF0aW9uUmVzcG9uc2USggEKDVJ1blZhbGlkYXRpb24SNy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uUnVuVmFsaWRhdGlvblJlcXVlc3QaOC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uUnVuVmFsaWRhdGlvblJlc3BvbnNlEp0BChZWZXJpZnlEZWZpbml0aW9uT2ZEb25lEkAudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZlcmlmeURlZmluaXRpb25PZkRvbmVSZXF1ZXN0GkEudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZlcmlmeURlZmluaXRpb25PZkRvbmVSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BsYW4tbWFuYWdlci92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw", [file_plan_manager_v1_shared_model]);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.ResolveReferencesRequest
@@ -162,6 +162,290 @@ export const DeriveBaselineScopeResponseSchema: GenMessage<DeriveBaselineScopeRe
   messageDesc(file_plan_manager_v1_validation_validation, 5);
 
 /**
+ * @generated from message vrooli.plan_manager.v1.validation.ValidationOperationError
+ */
+export type ValidationOperationError = Message<"vrooli.plan_manager.v1.validation.ValidationOperationError"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string detail = 2;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.validation.ValidationOperationError.
+ * Use `create(ValidationOperationErrorSchema)` to create a new message.
+ */
+export const ValidationOperationErrorSchema: GenMessage<ValidationOperationError> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_validation_validation, 6);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.validation.ValidationChildOperation
+ */
+export type ValidationChildOperation = Message<"vrooli.plan_manager.v1.validation.ValidationChildOperation"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string command = 2;
+   */
+  command: string;
+
+  /**
+   * @generated from field: bool oracle = 3;
+   */
+  oracle: boolean;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.validation.ValidationChildStatus status = 4;
+   */
+  status: ValidationChildStatus;
+
+  /**
+   * @generated from field: int32 attempt = 5;
+   */
+  attempt: number;
+
+  /**
+   * @generated from field: string external_id = 6;
+   */
+  externalId: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.ValidationVerdict verdict = 7;
+   */
+  verdict: ValidationVerdict;
+
+  /**
+   * @generated from field: string detail = 8;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.validation.ValidationOperationError error = 9;
+   */
+  error?: ValidationOperationError | undefined;
+
+  /**
+   * @generated from field: string queued_at = 10;
+   */
+  queuedAt: string;
+
+  /**
+   * @generated from field: string started_at = 11;
+   */
+  startedAt: string;
+
+  /**
+   * @generated from field: string terminal_at = 12;
+   */
+  terminalAt: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.validation.ValidationChildOperation.
+ * Use `create(ValidationChildOperationSchema)` to create a new message.
+ */
+export const ValidationChildOperationSchema: GenMessage<ValidationChildOperation> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_validation_validation, 7);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.validation.ValidationOperation
+ */
+export type ValidationOperation = Message<"vrooli.plan_manager.v1.validation.ValidationOperation"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string plan_id = 2;
+   */
+  planId: string;
+
+  /**
+   * @generated from field: string phase_id = 3;
+   */
+  phaseId: string;
+
+  /**
+   * @generated from field: string idempotency_key = 4;
+   */
+  idempotencyKey: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.validation.ValidationOperationStatus status = 5;
+   */
+  status: ValidationOperationStatus;
+
+  /**
+   * @generated from field: int32 attempt = 6;
+   */
+  attempt: number;
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.validation.ValidationChildOperation children = 7;
+   */
+  children: ValidationChildOperation[];
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.ValidationResult result = 8;
+   */
+  result?: ValidationResult | undefined;
+
+  /**
+   * @generated from field: string result_ref = 9;
+   */
+  resultRef: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.validation.ValidationOperationError error = 10;
+   */
+  error?: ValidationOperationError | undefined;
+
+  /**
+   * @generated from field: string queued_at = 11;
+   */
+  queuedAt: string;
+
+  /**
+   * @generated from field: string started_at = 12;
+   */
+  startedAt: string;
+
+  /**
+   * @generated from field: string terminal_at = 13;
+   */
+  terminalAt: string;
+
+  /**
+   * @generated from field: int32 queue_budget_seconds = 14;
+   */
+  queueBudgetSeconds: number;
+
+  /**
+   * @generated from field: int32 execution_budget_seconds = 15;
+   */
+  executionBudgetSeconds: number;
+
+  /**
+   * @generated from field: int32 transport_wait_budget_seconds = 16;
+   */
+  transportWaitBudgetSeconds: number;
+
+  /**
+   * @generated from field: int32 recommended_wait_seconds = 17;
+   */
+  recommendedWaitSeconds: number;
+
+  /**
+   * @generated from field: int32 schema_version = 18;
+   */
+  schemaVersion: number;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.validation.ValidationOperation.
+ * Use `create(ValidationOperationSchema)` to create a new message.
+ */
+export const ValidationOperationSchema: GenMessage<ValidationOperation> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_validation_validation, 8);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.validation.StartValidationRequest
+ */
+export type StartValidationRequest = Message<"vrooli.plan_manager.v1.validation.StartValidationRequest"> & {
+  /**
+   * @generated from field: string plan_id = 1;
+   */
+  planId: string;
+
+  /**
+   * @generated from field: string phase_id = 2;
+   */
+  phaseId: string;
+
+  /**
+   * @generated from field: string idempotency_key = 3;
+   */
+  idempotencyKey: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.validation.StartValidationRequest.
+ * Use `create(StartValidationRequestSchema)` to create a new message.
+ */
+export const StartValidationRequestSchema: GenMessage<StartValidationRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_validation_validation, 9);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.validation.StartValidationResponse
+ */
+export type StartValidationResponse = Message<"vrooli.plan_manager.v1.validation.StartValidationResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.validation.ValidationOperation operation = 1;
+   */
+  operation?: ValidationOperation | undefined;
+
+  /**
+   * @generated from field: bool deduplicated = 2;
+   */
+  deduplicated: boolean;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.validation.StartValidationResponse.
+ * Use `create(StartValidationResponseSchema)` to create a new message.
+ */
+export const StartValidationResponseSchema: GenMessage<StartValidationResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_validation_validation, 10);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.validation.GetValidationOperationRequest
+ */
+export type GetValidationOperationRequest = Message<"vrooli.plan_manager.v1.validation.GetValidationOperationRequest"> & {
+  /**
+   * @generated from field: string operation_id = 1;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: bool wait = 2;
+   */
+  wait: boolean;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.validation.GetValidationOperationRequest.
+ * Use `create(GetValidationOperationRequestSchema)` to create a new message.
+ */
+export const GetValidationOperationRequestSchema: GenMessage<GetValidationOperationRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_validation_validation, 11);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.validation.GetValidationOperationResponse
+ */
+export type GetValidationOperationResponse = Message<"vrooli.plan_manager.v1.validation.GetValidationOperationResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.validation.ValidationOperation operation = 1;
+   */
+  operation?: ValidationOperation | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.validation.GetValidationOperationResponse.
+ * Use `create(GetValidationOperationResponseSchema)` to create a new message.
+ */
+export const GetValidationOperationResponseSchema: GenMessage<GetValidationOperationResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_validation_validation, 12);
+
+/**
  * @generated from message vrooli.plan_manager.v1.validation.RunValidationRequest
  */
 export type RunValidationRequest = Message<"vrooli.plan_manager.v1.validation.RunValidationRequest"> & {
@@ -181,7 +465,7 @@ export type RunValidationRequest = Message<"vrooli.plan_manager.v1.validation.Ru
  * Use `create(RunValidationRequestSchema)` to create a new message.
  */
 export const RunValidationRequestSchema: GenMessage<RunValidationRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 6);
+  messageDesc(file_plan_manager_v1_validation_validation, 13);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.RunValidationResponse
@@ -198,7 +482,7 @@ export type RunValidationResponse = Message<"vrooli.plan_manager.v1.validation.R
  * Use `create(RunValidationResponseSchema)` to create a new message.
  */
 export const RunValidationResponseSchema: GenMessage<RunValidationResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 7);
+  messageDesc(file_plan_manager_v1_validation_validation, 14);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneRequest
@@ -215,7 +499,7 @@ export type VerifyDefinitionOfDoneRequest = Message<"vrooli.plan_manager.v1.vali
  * Use `create(VerifyDefinitionOfDoneRequestSchema)` to create a new message.
  */
 export const VerifyDefinitionOfDoneRequestSchema: GenMessage<VerifyDefinitionOfDoneRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 8);
+  messageDesc(file_plan_manager_v1_validation_validation, 15);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse
@@ -240,7 +524,69 @@ export type VerifyDefinitionOfDoneResponse = Message<"vrooli.plan_manager.v1.val
  * Use `create(VerifyDefinitionOfDoneResponseSchema)` to create a new message.
  */
 export const VerifyDefinitionOfDoneResponseSchema: GenMessage<VerifyDefinitionOfDoneResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 9);
+  messageDesc(file_plan_manager_v1_validation_validation, 16);
+
+/**
+ * @generated from enum vrooli.plan_manager.v1.validation.ValidationOperationStatus
+ */
+export enum ValidationOperationStatus {
+  /**
+   * @generated from enum value: VALIDATION_OPERATION_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: VALIDATION_OPERATION_STATUS_QUEUED = 1;
+   */
+  QUEUED = 1,
+
+  /**
+   * @generated from enum value: VALIDATION_OPERATION_STATUS_RUNNING = 2;
+   */
+  RUNNING = 2,
+
+  /**
+   * @generated from enum value: VALIDATION_OPERATION_STATUS_TERMINAL = 3;
+   */
+  TERMINAL = 3,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.validation.ValidationOperationStatus.
+ */
+export const ValidationOperationStatusSchema: GenEnum<ValidationOperationStatus> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_validation_validation, 0);
+
+/**
+ * @generated from enum vrooli.plan_manager.v1.validation.ValidationChildStatus
+ */
+export enum ValidationChildStatus {
+  /**
+   * @generated from enum value: VALIDATION_CHILD_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: VALIDATION_CHILD_STATUS_QUEUED = 1;
+   */
+  QUEUED = 1,
+
+  /**
+   * @generated from enum value: VALIDATION_CHILD_STATUS_RUNNING = 2;
+   */
+  RUNNING = 2,
+
+  /**
+   * @generated from enum value: VALIDATION_CHILD_STATUS_TERMINAL = 3;
+   */
+  TERMINAL = 3,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.validation.ValidationChildStatus.
+ */
+export const ValidationChildStatusSchema: GenEnum<ValidationChildStatus> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_validation_validation, 1);
 
 /**
  * @generated from service vrooli.plan_manager.v1.validation.ValidationService
@@ -279,6 +625,44 @@ export const ValidationService: GenService<{
     methodKind: "unary";
     input: typeof DeriveBaselineScopeRequestSchema;
     output: typeof DeriveBaselineScopeResponseSchema;
+  },
+  /**
+   * StartValidation persists a durable operation and complete child set before
+   * dispatch. Scoped idempotency retries return the original operation.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.StartValidation
+   */
+  startValidation: {
+    methodKind: "unary";
+    input: typeof StartValidationRequestSchema;
+    output: typeof StartValidationResponseSchema;
+  },
+  /**
+   * GetValidationOperation inspects a durable operation or waits once. A
+   * transport timeout detaches without canceling server-owned work.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.GetValidationOperation
+   */
+  getValidationOperation: {
+    methodKind: "unary";
+    input: typeof GetValidationOperationRequestSchema;
+    output: typeof GetValidationOperationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.WaitValidationOperation
+   */
+  waitValidationOperation: {
+    methodKind: "unary";
+    input: typeof GetValidationOperationRequestSchema;
+    output: typeof GetValidationOperationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.ResumeValidationOperation
+   */
+  resumeValidationOperation: {
+    methodKind: "unary";
+    input: typeof GetValidationOperationRequestSchema;
+    output: typeof GetValidationOperationResponseSchema;
   },
   /**
    * RunValidation runs the derived baseline/check set on request and returns the

@@ -1,17 +1,78 @@
 {
   "_metadata": {
     "description": "OT-P0-008 CLI command parity",
-    "last_updated": "2025-12-16"
+    "last_validated_at": "2026-07-10T16:28:36-04:00"
   },
   "requirements": [
     {
       "id": "GCT-OT-P0-008",
-      "category": "operational_target.p0",
-      "prd_ref": "Operational Targets > P0 > OT-P0-008",
       "title": "CLI command parity",
-      "description": "CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)",
       "status": "pending",
-      "validation": []
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-008",
+      "category": "operational_target.p0",
+      "description": "CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)"
+    },
+    {
+      "id": "GCT-BASELINE-V2-P0",
+      "title": "Baselines pin one immutable comprehensive Test Genie run",
+      "status": "pending",
+      "prd_ref": "OT-P0-008",
+      "category": "operational_target.p0",
+      "description": "The baseline API and CLI persist a schema-versioned single-run anchor, pass every Test Genie phase diff through without a local phase registry, migrate same-run V1 manifests idempotently, reject mixed-run manifests with repair guidance, and pin or unpin the run exactly once.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestServiceCapturePersistsOneRichRunAnchor, TestFinalizeCaptureIsIdempotentUnderConcurrentRecovery, and TestServiceForwardsUnknownPhaseAndOpaqueArtifacts cover the single-run and exactly-once lifecycle."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/storage_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers stable same-run migration plus mixed, empty, partial, skipped, corrupt, already-V2, and concurrent migrate/delete cases."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/bucketing_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Fails if fixed Test Genie phase routing returns and preserves unknown phase descriptors and typed reasons losslessly."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/baseline/register_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves empty-create and per-surface edit commands are absent from the CLI."
+        }
+      ]
+    },
+    {
+      "id": "GCT-DURABLE-OPS-P0",
+      "title": "Baseline waits detach without changing durable outcomes",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "operational_target.p0",
+      "description": "Snapshot and diff intents remain pending when an attachment times out or is canceled, terminal cache state is never fabricated from transport failure, and the CLI reconnects exactly once by the existing durable run id after unexpected EOF without starting duplicate work.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves capture/diff attachment deadlines leave pending intents and no terminal cache or pin side effect."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/baseline/register_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves one blocking read plus one non-blocking recovery read on EOF, with no retry for ordinary inspect or non-EOF errors."
+        }
+      ]
     }
   ]
 }

@@ -7,6 +7,7 @@
 package baselines_v1
 
 import (
+	runs "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -21,7 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// GitState is the repository state recorded at capture time.
 type GitState struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Sha           string                 `protobuf:"bytes,1,opt,name=sha,proto3" json:"sha,omitempty"`
@@ -31,7 +31,7 @@ type GitState struct {
 	DirtySummary  string                 `protobuf:"bytes,5,opt,name=dirty_summary,json=dirtySummary,proto3" json:"dirty_summary,omitempty"`
 	CommitMessage string                 `protobuf:"bytes,6,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
 	CommitAuthor  string                 `protobuf:"bytes,7,opt,name=commit_author,json=commitAuthor,proto3" json:"commit_author,omitempty"`
-	CommitDate    string                 `protobuf:"bytes,8,opt,name=commit_date,json=commitDate,proto3" json:"commit_date,omitempty"` // RFC3339
+	CommitDate    string                 `protobuf:"bytes,8,opt,name=commit_date,json=commitDate,proto3" json:"commit_date,omitempty"`
 	Sandboxed     bool                   `protobuf:"varint,9,opt,name=sandboxed,proto3" json:"sandboxed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -130,32 +130,35 @@ func (x *GitState) GetSandboxed() bool {
 	return false
 }
 
-// SurfacePointer references a surface artifact by stable ID.
-type SurfacePointer struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SurfaceId     string                 `protobuf:"bytes,1,opt,name=surface_id,json=surfaceId,proto3" json:"surface_id,omitempty"`
-	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"` // test-genie-run | gct-local-snapshot | external
-	Ref           string                 `protobuf:"bytes,3,opt,name=ref,proto3" json:"ref,omitempty"`
-	CapturedAt    string                 `protobuf:"bytes,4,opt,name=captured_at,json=capturedAt,proto3" json:"captured_at,omitempty"` // RFC3339
-	Summary       string                 `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`                         // surface-specific short summary (raw JSON)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type RunAnchor struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RunId          string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	CapturedAt     string                 `protobuf:"bytes,2,opt,name=captured_at,json=capturedAt,proto3" json:"captured_at,omitempty"`
+	CaptureProfile string                 `protobuf:"bytes,3,opt,name=capture_profile,json=captureProfile,proto3" json:"capture_profile,omitempty"`
+	TreeDigest     string                 `protobuf:"bytes,4,opt,name=tree_digest,json=treeDigest,proto3" json:"tree_digest,omitempty"`
+	PhaseSetDigest string                 `protobuf:"bytes,5,opt,name=phase_set_digest,json=phaseSetDigest,proto3" json:"phase_set_digest,omitempty"`
+	// Opaque run-owned identity; never a filesystem path.
+	DescriptorSnapshotRef           string `protobuf:"bytes,6,opt,name=descriptor_snapshot_ref,json=descriptorSnapshotRef,proto3" json:"descriptor_snapshot_ref,omitempty"`
+	DescriptorSnapshotDigest        string `protobuf:"bytes,7,opt,name=descriptor_snapshot_digest,json=descriptorSnapshotDigest,proto3" json:"descriptor_snapshot_digest,omitempty"`
+	DescriptorSnapshotSchemaVersion int32  `protobuf:"varint,8,opt,name=descriptor_snapshot_schema_version,json=descriptorSnapshotSchemaVersion,proto3" json:"descriptor_snapshot_schema_version,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
-func (x *SurfacePointer) Reset() {
-	*x = SurfacePointer{}
+func (x *RunAnchor) Reset() {
+	*x = RunAnchor{}
 	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SurfacePointer) String() string {
+func (x *RunAnchor) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SurfacePointer) ProtoMessage() {}
+func (*RunAnchor) ProtoMessage() {}
 
-func (x *SurfacePointer) ProtoReflect() protoreflect.Message {
+func (x *RunAnchor) ProtoReflect() protoreflect.Message {
 	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -167,68 +170,145 @@ func (x *SurfacePointer) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SurfacePointer.ProtoReflect.Descriptor instead.
-func (*SurfacePointer) Descriptor() ([]byte, []int) {
+// Deprecated: Use RunAnchor.ProtoReflect.Descriptor instead.
+func (*RunAnchor) Descriptor() ([]byte, []int) {
 	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SurfacePointer) GetSurfaceId() string {
+func (x *RunAnchor) GetRunId() string {
 	if x != nil {
-		return x.SurfaceId
+		return x.RunId
 	}
 	return ""
 }
 
-func (x *SurfacePointer) GetKind() string {
-	if x != nil {
-		return x.Kind
-	}
-	return ""
-}
-
-func (x *SurfacePointer) GetRef() string {
-	if x != nil {
-		return x.Ref
-	}
-	return ""
-}
-
-func (x *SurfacePointer) GetCapturedAt() string {
+func (x *RunAnchor) GetCapturedAt() string {
 	if x != nil {
 		return x.CapturedAt
 	}
 	return ""
 }
 
-func (x *SurfacePointer) GetSummary() string {
+func (x *RunAnchor) GetCaptureProfile() string {
 	if x != nil {
-		return x.Summary
+		return x.CaptureProfile
 	}
 	return ""
 }
 
-// BaselineManifest is the stored baseline document.
+func (x *RunAnchor) GetTreeDigest() string {
+	if x != nil {
+		return x.TreeDigest
+	}
+	return ""
+}
+
+func (x *RunAnchor) GetPhaseSetDigest() string {
+	if x != nil {
+		return x.PhaseSetDigest
+	}
+	return ""
+}
+
+func (x *RunAnchor) GetDescriptorSnapshotRef() string {
+	if x != nil {
+		return x.DescriptorSnapshotRef
+	}
+	return ""
+}
+
+func (x *RunAnchor) GetDescriptorSnapshotDigest() string {
+	if x != nil {
+		return x.DescriptorSnapshotDigest
+	}
+	return ""
+}
+
+func (x *RunAnchor) GetDescriptorSnapshotSchemaVersion() int32 {
+	if x != nil {
+		return x.DescriptorSnapshotSchemaVersion
+	}
+	return 0
+}
+
+type MigrationInfo struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	FromSchemaVersion int32                  `protobuf:"varint,1,opt,name=from_schema_version,json=fromSchemaVersion,proto3" json:"from_schema_version,omitempty"`
+	MigratedAt        string                 `protobuf:"bytes,2,opt,name=migrated_at,json=migratedAt,proto3" json:"migrated_at,omitempty"`
+	DegradedReasons   []string               `protobuf:"bytes,3,rep,name=degraded_reasons,json=degradedReasons,proto3" json:"degraded_reasons,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *MigrationInfo) Reset() {
+	*x = MigrationInfo{}
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MigrationInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MigrationInfo) ProtoMessage() {}
+
+func (x *MigrationInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MigrationInfo.ProtoReflect.Descriptor instead.
+func (*MigrationInfo) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *MigrationInfo) GetFromSchemaVersion() int32 {
+	if x != nil {
+		return x.FromSchemaVersion
+	}
+	return 0
+}
+
+func (x *MigrationInfo) GetMigratedAt() string {
+	if x != nil {
+		return x.MigratedAt
+	}
+	return ""
+}
+
+func (x *MigrationInfo) GetDegradedReasons() []string {
+	if x != nil {
+		return x.DegradedReasons
+	}
+	return nil
+}
+
 type BaselineManifest struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	Name          string                     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Scenario      string                     `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Branch        string                     `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
-	CreatedAt     string                     `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // RFC3339
-	CreatedBy     string                     `protobuf:"bytes,5,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	Git           *GitState                  `protobuf:"bytes,6,opt,name=git,proto3" json:"git,omitempty"`
-	Surfaces      map[string]*SurfacePointer `protobuf:"bytes,7,rep,name=surfaces,proto3" json:"surfaces,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SchemaVersion int32                      `protobuf:"varint,8,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	// skipped records surfaces requested at capture time but not captured
-	// (surface_id → reason). Persisted so show/diff reveal a partial baseline
-	// instead of letting it masquerade as complete.
-	Skipped       map[string]string `protobuf:"bytes,9,rep,name=skipped,proto3" json:"skipped,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Scenario      string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedBy     string                 `protobuf:"bytes,5,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	Git           *GitState              `protobuf:"bytes,6,opt,name=git,proto3" json:"git,omitempty"`
+	Run           *RunAnchor             `protobuf:"bytes,7,opt,name=run,proto3" json:"run,omitempty"`
+	SchemaVersion int32                  `protobuf:"varint,8,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Migration     *MigrationInfo         `protobuf:"bytes,9,opt,name=migration,proto3" json:"migration,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BaselineManifest) Reset() {
 	*x = BaselineManifest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[2]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -240,7 +320,7 @@ func (x *BaselineManifest) String() string {
 func (*BaselineManifest) ProtoMessage() {}
 
 func (x *BaselineManifest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[2]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -253,7 +333,7 @@ func (x *BaselineManifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaselineManifest.ProtoReflect.Descriptor instead.
 func (*BaselineManifest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{2}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *BaselineManifest) GetName() string {
@@ -298,9 +378,9 @@ func (x *BaselineManifest) GetGit() *GitState {
 	return nil
 }
 
-func (x *BaselineManifest) GetSurfaces() map[string]*SurfacePointer {
+func (x *BaselineManifest) GetRun() *RunAnchor {
 	if x != nil {
-		return x.Surfaces
+		return x.Run
 	}
 	return nil
 }
@@ -312,223 +392,13 @@ func (x *BaselineManifest) GetSchemaVersion() int32 {
 	return 0
 }
 
-func (x *BaselineManifest) GetSkipped() map[string]string {
+func (x *BaselineManifest) GetMigration() *MigrationInfo {
 	if x != nil {
-		return x.Skipped
+		return x.Migration
 	}
 	return nil
 }
 
-// SurfaceDiff is one surface's comparison verdict.
-type SurfaceDiff struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	SurfaceId string                 `protobuf:"bytes,1,opt,name=surface_id,json=surfaceId,proto3" json:"surface_id,omitempty"`
-	// verdict: clean | changed | regression | new-failure | preexisting | not-comparable
-	Verdict     string   `protobuf:"bytes,2,opt,name=verdict,proto3" json:"verdict,omitempty"`
-	Regressions []string `protobuf:"bytes,3,rep,name=regressions,proto3" json:"regressions,omitempty"`
-	NewFailures []string `protobuf:"bytes,4,rep,name=new_failures,json=newFailures,proto3" json:"new_failures,omitempty"`
-	Preexisting []string `protobuf:"bytes,5,rep,name=preexisting,proto3" json:"preexisting,omitempty"`
-	Cleared     []string `protobuf:"bytes,6,rep,name=cleared,proto3" json:"cleared,omitempty"`
-	Summary     string   `protobuf:"bytes,7,opt,name=summary,proto3" json:"summary,omitempty"`
-	// changed carries neutral, advisory differences that are NOT failures — the
-	// visuals surface uses it to report "the UI moved, review before/after"
-	// (each entry carries the change magnitude). A surface whose only delta is
-	// `changed` has verdict `changed`, which never affects the diff exit code.
-	Changed       []string `protobuf:"bytes,8,rep,name=changed,proto3" json:"changed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SurfaceDiff) Reset() {
-	*x = SurfaceDiff{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SurfaceDiff) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SurfaceDiff) ProtoMessage() {}
-
-func (x *SurfaceDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SurfaceDiff.ProtoReflect.Descriptor instead.
-func (*SurfaceDiff) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *SurfaceDiff) GetSurfaceId() string {
-	if x != nil {
-		return x.SurfaceId
-	}
-	return ""
-}
-
-func (x *SurfaceDiff) GetVerdict() string {
-	if x != nil {
-		return x.Verdict
-	}
-	return ""
-}
-
-func (x *SurfaceDiff) GetRegressions() []string {
-	if x != nil {
-		return x.Regressions
-	}
-	return nil
-}
-
-func (x *SurfaceDiff) GetNewFailures() []string {
-	if x != nil {
-		return x.NewFailures
-	}
-	return nil
-}
-
-func (x *SurfaceDiff) GetPreexisting() []string {
-	if x != nil {
-		return x.Preexisting
-	}
-	return nil
-}
-
-func (x *SurfaceDiff) GetCleared() []string {
-	if x != nil {
-		return x.Cleared
-	}
-	return nil
-}
-
-func (x *SurfaceDiff) GetSummary() string {
-	if x != nil {
-		return x.Summary
-	}
-	return ""
-}
-
-func (x *SurfaceDiff) GetChanged() []string {
-	if x != nil {
-		return x.Changed
-	}
-	return nil
-}
-
-// PhaseDiff is one Test Genie phase's authoritative comparison verdict. Named
-// surfaces are presentation views over these phase diffs.
-type PhaseDiff struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	Phase     string                 `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
-	SurfaceId string                 `protobuf:"bytes,2,opt,name=surface_id,json=surfaceId,proto3" json:"surface_id,omitempty"`
-	// verdict: clean | regression | new-failure | preexisting | not-comparable
-	Verdict       string   `protobuf:"bytes,3,opt,name=verdict,proto3" json:"verdict,omitempty"`
-	Regressions   []string `protobuf:"bytes,4,rep,name=regressions,proto3" json:"regressions,omitempty"`
-	NewFailures   []string `protobuf:"bytes,5,rep,name=new_failures,json=newFailures,proto3" json:"new_failures,omitempty"`
-	Preexisting   []string `protobuf:"bytes,6,rep,name=preexisting,proto3" json:"preexisting,omitempty"`
-	Cleared       []string `protobuf:"bytes,7,rep,name=cleared,proto3" json:"cleared,omitempty"`
-	Summary       string   `protobuf:"bytes,8,opt,name=summary,proto3" json:"summary,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PhaseDiff) Reset() {
-	*x = PhaseDiff{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PhaseDiff) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PhaseDiff) ProtoMessage() {}
-
-func (x *PhaseDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PhaseDiff.ProtoReflect.Descriptor instead.
-func (*PhaseDiff) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *PhaseDiff) GetPhase() string {
-	if x != nil {
-		return x.Phase
-	}
-	return ""
-}
-
-func (x *PhaseDiff) GetSurfaceId() string {
-	if x != nil {
-		return x.SurfaceId
-	}
-	return ""
-}
-
-func (x *PhaseDiff) GetVerdict() string {
-	if x != nil {
-		return x.Verdict
-	}
-	return ""
-}
-
-func (x *PhaseDiff) GetRegressions() []string {
-	if x != nil {
-		return x.Regressions
-	}
-	return nil
-}
-
-func (x *PhaseDiff) GetNewFailures() []string {
-	if x != nil {
-		return x.NewFailures
-	}
-	return nil
-}
-
-func (x *PhaseDiff) GetPreexisting() []string {
-	if x != nil {
-		return x.Preexisting
-	}
-	return nil
-}
-
-func (x *PhaseDiff) GetCleared() []string {
-	if x != nil {
-		return x.Cleared
-	}
-	return nil
-}
-
-func (x *PhaseDiff) GetSummary() string {
-	if x != nil {
-		return x.Summary
-	}
-	return ""
-}
-
-// Staleness reports working-tree drift from the baseline commit.
 type Staleness struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CommitsSince  int32                  `protobuf:"varint,1,opt,name=commits_since,json=commitsSince,proto3" json:"commits_since,omitempty"`
@@ -540,7 +410,7 @@ type Staleness struct {
 
 func (x *Staleness) Reset() {
 	*x = Staleness{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[5]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -552,7 +422,7 @@ func (x *Staleness) String() string {
 func (*Staleness) ProtoMessage() {}
 
 func (x *Staleness) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[5]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -565,7 +435,7 @@ func (x *Staleness) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Staleness.ProtoReflect.Descriptor instead.
 func (*Staleness) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{5}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Staleness) GetCommitsSince() int32 {
@@ -589,35 +459,33 @@ func (x *Staleness) GetLikelyStale() bool {
 	return false
 }
 
-type CreateBaselineRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"` // empty = current branch
-	Include       []string               `protobuf:"bytes,4,rep,name=include,proto3" json:"include,omitempty"`
-	Fast          bool                   `protobuf:"varint,5,opt,name=fast,proto3" json:"fast,omitempty"`
-	CreatedBy     string                 `protobuf:"bytes,6,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	Reason        string                 `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
-	RepoId        int64                  `protobuf:"varint,8,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"` // 0 = active repo
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type RunArtifactCatalog struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RunId            string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	SchemaVersion    int32                  `protobuf:"varint,2,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Digest           string                 `protobuf:"bytes,3,opt,name=digest,proto3" json:"digest,omitempty"`
+	Artifacts        []*runs.ArtifactRef    `protobuf:"bytes,4,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	LegacyDiscovered bool                   `protobuf:"varint,5,opt,name=legacy_discovered,json=legacyDiscovered,proto3" json:"legacy_discovered,omitempty"`
+	DegradedReasons  []string               `protobuf:"bytes,6,rep,name=degraded_reasons,json=degradedReasons,proto3" json:"degraded_reasons,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
-func (x *CreateBaselineRequest) Reset() {
-	*x = CreateBaselineRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[6]
+func (x *RunArtifactCatalog) Reset() {
+	*x = RunArtifactCatalog{}
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateBaselineRequest) String() string {
+func (x *RunArtifactCatalog) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateBaselineRequest) ProtoMessage() {}
+func (*RunArtifactCatalog) ProtoMessage() {}
 
-func (x *CreateBaselineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[6]
+func (x *RunArtifactCatalog) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -628,90 +496,147 @@ func (x *CreateBaselineRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateBaselineRequest.ProtoReflect.Descriptor instead.
-func (*CreateBaselineRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{6}
+// Deprecated: Use RunArtifactCatalog.ProtoReflect.Descriptor instead.
+func (*RunArtifactCatalog) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CreateBaselineRequest) GetScenario() string {
+func (x *RunArtifactCatalog) GetRunId() string {
 	if x != nil {
-		return x.Scenario
+		return x.RunId
 	}
 	return ""
 }
 
-func (x *CreateBaselineRequest) GetName() string {
+func (x *RunArtifactCatalog) GetSchemaVersion() int32 {
 	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *CreateBaselineRequest) GetBranch() string {
-	if x != nil {
-		return x.Branch
-	}
-	return ""
-}
-
-func (x *CreateBaselineRequest) GetInclude() []string {
-	if x != nil {
-		return x.Include
-	}
-	return nil
-}
-
-func (x *CreateBaselineRequest) GetFast() bool {
-	if x != nil {
-		return x.Fast
-	}
-	return false
-}
-
-func (x *CreateBaselineRequest) GetCreatedBy() string {
-	if x != nil {
-		return x.CreatedBy
-	}
-	return ""
-}
-
-func (x *CreateBaselineRequest) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-func (x *CreateBaselineRequest) GetRepoId() int64 {
-	if x != nil {
-		return x.RepoId
+		return x.SchemaVersion
 	}
 	return 0
 }
 
-type CreateBaselineResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Baseline      *BaselineManifest      `protobuf:"bytes,1,opt,name=baseline,proto3" json:"baseline,omitempty"`
-	Skipped       map[string]string      `protobuf:"bytes,2,rep,name=skipped,proto3" json:"skipped,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // surface_id → reason it was skipped
-	DirtyWarning  string                 `protobuf:"bytes,3,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+func (x *RunArtifactCatalog) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
 }
 
-func (x *CreateBaselineResponse) Reset() {
-	*x = CreateBaselineResponse{}
+func (x *RunArtifactCatalog) GetArtifacts() []*runs.ArtifactRef {
+	if x != nil {
+		return x.Artifacts
+	}
+	return nil
+}
+
+func (x *RunArtifactCatalog) GetLegacyDiscovered() bool {
+	if x != nil {
+		return x.LegacyDiscovered
+	}
+	return false
+}
+
+func (x *RunArtifactCatalog) GetDegradedReasons() []string {
+	if x != nil {
+		return x.DegradedReasons
+	}
+	return nil
+}
+
+type VisualDelta struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Page            string                 `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	Label           string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Status          string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ChangedFraction float64                `protobuf:"fixed64,4,opt,name=changed_fraction,json=changedFraction,proto3" json:"changed_fraction,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *VisualDelta) Reset() {
+	*x = VisualDelta{}
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VisualDelta) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VisualDelta) ProtoMessage() {}
+
+func (x *VisualDelta) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VisualDelta.ProtoReflect.Descriptor instead.
+func (*VisualDelta) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *VisualDelta) GetPage() string {
+	if x != nil {
+		return x.Page
+	}
+	return ""
+}
+
+func (x *VisualDelta) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *VisualDelta) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *VisualDelta) GetChangedFraction() float64 {
+	if x != nil {
+		return x.ChangedFraction
+	}
+	return 0
+}
+
+type EvidenceComparison struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	BaseRunId       string                 `protobuf:"bytes,1,opt,name=base_run_id,json=baseRunId,proto3" json:"base_run_id,omitempty"`
+	CurrentRunId    string                 `protobuf:"bytes,2,opt,name=current_run_id,json=currentRunId,proto3" json:"current_run_id,omitempty"`
+	BaseCatalog     *RunArtifactCatalog    `protobuf:"bytes,3,opt,name=base_catalog,json=baseCatalog,proto3" json:"base_catalog,omitempty"`
+	CurrentCatalog  *RunArtifactCatalog    `protobuf:"bytes,4,opt,name=current_catalog,json=currentCatalog,proto3" json:"current_catalog,omitempty"`
+	VisualDeltas    []*VisualDelta         `protobuf:"bytes,5,rep,name=visual_deltas,json=visualDeltas,proto3" json:"visual_deltas,omitempty"`
+	DegradedReasons []string               `protobuf:"bytes,6,rep,name=degraded_reasons,json=degradedReasons,proto3" json:"degraded_reasons,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *EvidenceComparison) Reset() {
+	*x = EvidenceComparison{}
 	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateBaselineResponse) String() string {
+func (x *EvidenceComparison) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateBaselineResponse) ProtoMessage() {}
+func (*EvidenceComparison) ProtoMessage() {}
 
-func (x *CreateBaselineResponse) ProtoReflect() protoreflect.Message {
+func (x *EvidenceComparison) ProtoReflect() protoreflect.Message {
 	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -723,30 +648,51 @@ func (x *CreateBaselineResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateBaselineResponse.ProtoReflect.Descriptor instead.
-func (*CreateBaselineResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use EvidenceComparison.ProtoReflect.Descriptor instead.
+func (*EvidenceComparison) Descriptor() ([]byte, []int) {
 	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *CreateBaselineResponse) GetBaseline() *BaselineManifest {
+func (x *EvidenceComparison) GetBaseRunId() string {
 	if x != nil {
-		return x.Baseline
-	}
-	return nil
-}
-
-func (x *CreateBaselineResponse) GetSkipped() map[string]string {
-	if x != nil {
-		return x.Skipped
-	}
-	return nil
-}
-
-func (x *CreateBaselineResponse) GetDirtyWarning() string {
-	if x != nil {
-		return x.DirtyWarning
+		return x.BaseRunId
 	}
 	return ""
+}
+
+func (x *EvidenceComparison) GetCurrentRunId() string {
+	if x != nil {
+		return x.CurrentRunId
+	}
+	return ""
+}
+
+func (x *EvidenceComparison) GetBaseCatalog() *RunArtifactCatalog {
+	if x != nil {
+		return x.BaseCatalog
+	}
+	return nil
+}
+
+func (x *EvidenceComparison) GetCurrentCatalog() *RunArtifactCatalog {
+	if x != nil {
+		return x.CurrentCatalog
+	}
+	return nil
+}
+
+func (x *EvidenceComparison) GetVisualDeltas() []*VisualDelta {
+	if x != nil {
+		return x.VisualDeltas
+	}
+	return nil
+}
+
+func (x *EvidenceComparison) GetDegradedReasons() []string {
+	if x != nil {
+		return x.DegradedReasons
+	}
+	return nil
 }
 
 type SnapshotForBaselineRequest struct {
@@ -754,8 +700,6 @@ type SnapshotForBaselineRequest struct {
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
-	Include       []string               `protobuf:"bytes,4,rep,name=include,proto3" json:"include,omitempty"`
-	Fast          bool                   `protobuf:"varint,5,opt,name=fast,proto3" json:"fast,omitempty"`
 	CreatedBy     string                 `protobuf:"bytes,6,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	Reason        string                 `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
 	RepoId        int64                  `protobuf:"varint,8,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
@@ -814,20 +758,6 @@ func (x *SnapshotForBaselineRequest) GetBranch() string {
 	return ""
 }
 
-func (x *SnapshotForBaselineRequest) GetInclude() []string {
-	if x != nil {
-		return x.Include
-	}
-	return nil
-}
-
-func (x *SnapshotForBaselineRequest) GetFast() bool {
-	if x != nil {
-		return x.Fast
-	}
-	return false
-}
-
 func (x *SnapshotForBaselineRequest) GetCreatedBy() string {
 	if x != nil {
 		return x.CreatedBy
@@ -849,33 +779,18 @@ func (x *SnapshotForBaselineRequest) GetRepoId() int64 {
 	return 0
 }
 
-// SnapshotForBaselineResponse returns IMMEDIATELY once the one comprehensive
-// test-genie run has started — it does NOT block for the run to finish. The
-// pin + manifest write happen server-side when the run completes (durable across
-// client disconnect), so the response carries the run handle the caller follows,
-// not the finished baseline. Follow the run with `test-genie runs follow
-// <scenario> <run_id>`; when it completes the baseline is pinned and queryable
-// via GetBaseline.
 type SnapshotForBaselineResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// run_id is the comprehensive run the baseline will pin once it completes.
-	RunId    string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Scenario string `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Name     string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Branch   string `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
-	// estimated_total_seconds is the run's ETA (0 when unknown).
-	EstimatedTotalSeconds int32 `protobuf:"varint,5,opt,name=estimated_total_seconds,json=estimatedTotalSeconds,proto3" json:"estimated_total_seconds,omitempty"`
-	EtaKnown              bool  `protobuf:"varint,6,opt,name=eta_known,json=etaKnown,proto3" json:"eta_known,omitempty"`
-	// dirty_warning is set when the baseline is being captured against a dirty
-	// working tree (surfaced up front so the operator can abort).
-	DirtyWarning string `protobuf:"bytes,7,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
-	// coalesced is true when the snapshot rode an already-in-flight comprehensive
-	// run of the scenario (e.g. a diff/snapshot already running) instead of
-	// starting a second suite — the one-run-per-scenario guard. run_id is then the
-	// in-flight run's id, which the baseline pins on completion.
-	Coalesced     bool `protobuf:"varint,8,opt,name=coalesced,proto3" json:"coalesced,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	RunId                 string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Scenario              string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Name                  string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Branch                string                 `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	EstimatedTotalSeconds int32                  `protobuf:"varint,5,opt,name=estimated_total_seconds,json=estimatedTotalSeconds,proto3" json:"estimated_total_seconds,omitempty"`
+	EtaKnown              bool                   `protobuf:"varint,6,opt,name=eta_known,json=etaKnown,proto3" json:"eta_known,omitempty"`
+	DirtyWarning          string                 `protobuf:"bytes,7,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
+	Coalesced             bool                   `protobuf:"varint,8,opt,name=coalesced,proto3" json:"coalesced,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *SnapshotForBaselineResponse) Reset() {
@@ -965,15 +880,13 @@ func (x *SnapshotForBaselineResponse) GetCoalesced() bool {
 }
 
 type GetSnapshotStatusRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Branch   string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`            // empty = current branch
-	RunId    string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"` // optional; narrows to one snapshot run
-	RepoId   int64                  `protobuf:"varint,5,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
-	// wait, when true, blocks SERVER-SIDE until the run is terminal before
-	// reconciling status. When false, an in-flight run returns status=pending.
-	Wait          bool `protobuf:"varint,6,opt,name=wait,proto3" json:"wait,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	RunId         string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	RepoId        int64                  `protobuf:"varint,5,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
+	Wait          bool                   `protobuf:"varint,6,opt,name=wait,proto3" json:"wait,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1051,23 +964,17 @@ func (x *GetSnapshotStatusRequest) GetWait() bool {
 }
 
 type GetSnapshotStatusResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// status: pending | ready | failed | missing
-	Status   string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	Scenario string `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Name     string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Branch   string `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
-	RunId    string `protobuf:"bytes,5,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	// run_status mirrors test-genie's lifecycle status when known.
-	RunStatus string `protobuf:"bytes,6,opt,name=run_status,json=runStatus,proto3" json:"run_status,omitempty"`
-	// baseline is populated when status=ready.
-	Baseline *BaselineManifest `protobuf:"bytes,7,opt,name=baseline,proto3" json:"baseline,omitempty"`
-	// error is populated when status=failed or missing carries a diagnostic.
-	Error string `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
-	// similar_baselines lists visible baseline names for this scenario when an
-	// exact name is absent, so callers can render "did you mean ..." guidance.
-	SimilarBaselines            []string `protobuf:"bytes,9,rep,name=similar_baselines,json=similarBaselines,proto3" json:"similar_baselines,omitempty"`
-	RecommendedNextCheckSeconds int32    `protobuf:"varint,10,opt,name=recommended_next_check_seconds,json=recommendedNextCheckSeconds,proto3" json:"recommended_next_check_seconds,omitempty"`
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	Status                      string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Scenario                    string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Name                        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Branch                      string                 `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	RunId                       string                 `protobuf:"bytes,5,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	RunStatus                   string                 `protobuf:"bytes,6,opt,name=run_status,json=runStatus,proto3" json:"run_status,omitempty"`
+	Baseline                    *BaselineManifest      `protobuf:"bytes,7,opt,name=baseline,proto3" json:"baseline,omitempty"`
+	Error                       string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	SimilarBaselines            []string               `protobuf:"bytes,9,rep,name=similar_baselines,json=similarBaselines,proto3" json:"similar_baselines,omitempty"`
+	RecommendedNextCheckSeconds int32                  `protobuf:"varint,10,opt,name=recommended_next_check_seconds,json=recommendedNextCheckSeconds,proto3" json:"recommended_next_check_seconds,omitempty"`
 	unknownFields               protoimpl.UnknownFields
 	sizeCache                   protoimpl.SizeCache
 }
@@ -1176,7 +1083,7 @@ type GetBaselineRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"` // empty = current branch
+	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
 	RepoId        int64                  `protobuf:"varint,4,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1287,7 +1194,7 @@ func (x *GetBaselineResponse) GetBaseline() *BaselineManifest {
 type ListBaselinesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Branch        string                 `protobuf:"bytes,2,opt,name=branch,proto3" json:"branch,omitempty"` // empty + all_branches=false = current branch
+	Branch        string                 `protobuf:"bytes,2,opt,name=branch,proto3" json:"branch,omitempty"`
 	AllBranches   bool                   `protobuf:"varint,3,opt,name=all_branches,json=allBranches,proto3" json:"all_branches,omitempty"`
 	RepoId        int64                  `protobuf:"varint,4,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1401,7 +1308,6 @@ type StartDiffRequest struct {
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
-	Surface       string                 `protobuf:"bytes,4,opt,name=surface,proto3" json:"surface,omitempty"` // empty = all surfaces
 	RepoId        int64                  `protobuf:"varint,5,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1458,13 +1364,6 @@ func (x *StartDiffRequest) GetBranch() string {
 	return ""
 }
 
-func (x *StartDiffRequest) GetSurface() string {
-	if x != nil {
-		return x.Surface
-	}
-	return ""
-}
-
 func (x *StartDiffRequest) GetRepoId() int64 {
 	if x != nil {
 		return x.RepoId
@@ -1472,33 +1371,20 @@ func (x *StartDiffRequest) GetRepoId() int64 {
 	return 0
 }
 
-// StartDiffResponse returns IMMEDIATELY once the comprehensive run the diff will
-// compare against is resolved — it does NOT block for the run. The diff verdict
-// is computed + cached server-side when the run completes (durable across client
-// disconnect); resolve it with GetDiffResult using the returned run_id.
 type StartDiffResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// run_id is the comprehensive "current" run the diff compares the baseline
-	// against — freshly started, coalesced onto an in-flight run, or a reused
-	// completed run at the current clean sha.
-	RunId                 string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Scenario              string `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Name                  string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Branch                string `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
-	EstimatedTotalSeconds int32  `protobuf:"varint,5,opt,name=estimated_total_seconds,json=estimatedTotalSeconds,proto3" json:"estimated_total_seconds,omitempty"`
-	EtaKnown              bool   `protobuf:"varint,6,opt,name=eta_known,json=etaKnown,proto3" json:"eta_known,omitempty"`
-	// coalesced is true when the diff rode an already-in-flight comprehensive run
-	// of this scenario instead of starting a second suite.
-	Coalesced bool `protobuf:"varint,7,opt,name=coalesced,proto3" json:"coalesced,omitempty"`
-	// reused_run is true when a completed clean-tree run at the current sha was
-	// reused (no suite re-run); reused_sha carries the 8-char sha.
-	ReusedRun bool   `protobuf:"varint,8,opt,name=reused_run,json=reusedRun,proto3" json:"reused_run,omitempty"`
-	ReusedSha string `protobuf:"bytes,9,opt,name=reused_sha,json=reusedSha,proto3" json:"reused_sha,omitempty"`
-	// dirty_warning is set when the current working tree is dirty (reuse is
-	// skipped and verdicts may stem from uncommitted changes).
-	DirtyWarning  string `protobuf:"bytes,10,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	RunId                 string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Scenario              string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Name                  string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Branch                string                 `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	EstimatedTotalSeconds int32                  `protobuf:"varint,5,opt,name=estimated_total_seconds,json=estimatedTotalSeconds,proto3" json:"estimated_total_seconds,omitempty"`
+	EtaKnown              bool                   `protobuf:"varint,6,opt,name=eta_known,json=etaKnown,proto3" json:"eta_known,omitempty"`
+	Coalesced             bool                   `protobuf:"varint,7,opt,name=coalesced,proto3" json:"coalesced,omitempty"`
+	ReusedRun             bool                   `protobuf:"varint,8,opt,name=reused_run,json=reusedRun,proto3" json:"reused_run,omitempty"`
+	ReusedSha             string                 `protobuf:"bytes,9,opt,name=reused_sha,json=reusedSha,proto3" json:"reused_sha,omitempty"`
+	DirtyWarning          string                 `protobuf:"bytes,10,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *StartDiffResponse) Reset() {
@@ -1602,20 +1488,14 @@ func (x *StartDiffResponse) GetDirtyWarning() string {
 }
 
 type GetDiffResultRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Branch   string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
-	RunId    string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Surface  string                 `protobuf:"bytes,5,opt,name=surface,proto3" json:"surface,omitempty"` // empty = all surfaces
-	RepoId   int64                  `protobuf:"varint,6,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
-	// wait, when true, blocks SERVER-SIDE until the run is terminal and returns the
-	// ready result (no client polling). When false, an in-flight run returns
-	// status=in_progress immediately with a recommended next-check backoff.
-	Wait bool `protobuf:"varint,7,opt,name=wait,proto3" json:"wait,omitempty"`
-	// latest, when true and run_id is empty, resolves the latest StartDiff run
-	// recorded for this baseline. This is an interrupted-wait recovery path.
-	Latest        bool `protobuf:"varint,8,opt,name=latest,proto3" json:"latest,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	RunId         string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	RepoId        int64                  `protobuf:"varint,6,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
+	Wait          bool                   `protobuf:"varint,7,opt,name=wait,proto3" json:"wait,omitempty"`
+	Latest        bool                   `protobuf:"varint,8,opt,name=latest,proto3" json:"latest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1678,13 +1558,6 @@ func (x *GetDiffResultRequest) GetRunId() string {
 	return ""
 }
 
-func (x *GetDiffResultRequest) GetSurface() string {
-	if x != nil {
-		return x.Surface
-	}
-	return ""
-}
-
 func (x *GetDiffResultRequest) GetRepoId() int64 {
 	if x != nil {
 		return x.RepoId
@@ -1706,19 +1579,13 @@ func (x *GetDiffResultRequest) GetLatest() bool {
 	return false
 }
 
-// GetDiffResultResponse carries the cached diff or its in-flight status.
 type GetDiffResultResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// status: in_progress | ready | failed
-	Status string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	// diff is populated when status=ready.
-	Diff *DiffResult `protobuf:"bytes,2,opt,name=diff,proto3" json:"diff,omitempty"`
-	// error is populated when status=failed.
-	Error string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
-	// recommended_next_check_seconds is the backoff to wait before re-checking
-	// when status=in_progress (0 otherwise).
-	RecommendedNextCheckSeconds int32  `protobuf:"varint,4,opt,name=recommended_next_check_seconds,json=recommendedNextCheckSeconds,proto3" json:"recommended_next_check_seconds,omitempty"`
-	RunId                       string `protobuf:"bytes,5,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	Status                      string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Diff                        *DiffResult            `protobuf:"bytes,2,opt,name=diff,proto3" json:"diff,omitempty"`
+	Error                       string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	RecommendedNextCheckSeconds int32                  `protobuf:"varint,4,opt,name=recommended_next_check_seconds,json=recommendedNextCheckSeconds,proto3" json:"recommended_next_check_seconds,omitempty"`
+	RunId                       string                 `protobuf:"bytes,5,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields               protoimpl.UnknownFields
 	sizeCache                   protoimpl.SizeCache
 }
@@ -1788,19 +1655,15 @@ func (x *GetDiffResultResponse) GetRunId() string {
 	return ""
 }
 
-// DiffResult is the computed cross-surface comparison payload.
 type DiffResult struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	Baseline   *BaselineManifest      `protobuf:"bytes,1,opt,name=baseline,proto3" json:"baseline,omitempty"`
-	CurrentGit *GitState              `protobuf:"bytes,2,opt,name=current_git,json=currentGit,proto3" json:"current_git,omitempty"`
-	Staleness  *Staleness             `protobuf:"bytes,3,opt,name=staleness,proto3" json:"staleness,omitempty"`
-	Surfaces   []*SurfaceDiff         `protobuf:"bytes,4,rep,name=surfaces,proto3" json:"surfaces,omitempty"`
-	// verdict is the worst per-surface verdict, driving the CLI exit code.
-	Verdict string `protobuf:"bytes,5,opt,name=verdict,proto3" json:"verdict,omitempty"`
-	// dirty_warning is non-empty when the current working tree is dirty, where
-	// failures may stem from uncommitted changes rather than the diff itself.
-	DirtyWarning  string       `protobuf:"bytes,6,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
-	Phases        []*PhaseDiff `protobuf:"bytes,7,rep,name=phases,proto3" json:"phases,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Baseline      *BaselineManifest      `protobuf:"bytes,1,opt,name=baseline,proto3" json:"baseline,omitempty"`
+	CurrentGit    *GitState              `protobuf:"bytes,2,opt,name=current_git,json=currentGit,proto3" json:"current_git,omitempty"`
+	Staleness     *Staleness             `protobuf:"bytes,3,opt,name=staleness,proto3" json:"staleness,omitempty"`
+	Verdict       string                 `protobuf:"bytes,5,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	DirtyWarning  string                 `protobuf:"bytes,6,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
+	Phases        []*runs.PhaseDiff      `protobuf:"bytes,7,rep,name=phases,proto3" json:"phases,omitempty"`
+	Evidence      *EvidenceComparison    `protobuf:"bytes,8,opt,name=evidence,proto3" json:"evidence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1856,13 +1719,6 @@ func (x *DiffResult) GetStaleness() *Staleness {
 	return nil
 }
 
-func (x *DiffResult) GetSurfaces() []*SurfaceDiff {
-	if x != nil {
-		return x.Surfaces
-	}
-	return nil
-}
-
 func (x *DiffResult) GetVerdict() string {
 	if x != nil {
 		return x.Verdict
@@ -1877,18 +1733,20 @@ func (x *DiffResult) GetDirtyWarning() string {
 	return ""
 }
 
-func (x *DiffResult) GetPhases() []*PhaseDiff {
+func (x *DiffResult) GetPhases() []*runs.PhaseDiff {
 	if x != nil {
 		return x.Phases
 	}
 	return nil
 }
 
-// RunBusyInfo describes the in-progress run that caused a divergent StartDiff to
-// be rejected (carried as a FailedPrecondition error detail), so the CLI renders
-// wait/abort guidance without parsing strings. A diff only collides this way
-// with a genuinely different run shape (e.g. a raw `execute --preset quick`);
-// diffs and snapshots of the same scenario coalesce rather than collide.
+func (x *DiffResult) GetEvidence() *EvidenceComparison {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
 type RunBusyInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -2061,147 +1919,11 @@ func (x *DeleteBaselineResponse) GetDeleted() bool {
 	return false
 }
 
-type EditBaselineRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
-	Surface       string                 `protobuf:"bytes,4,opt,name=surface,proto3" json:"surface,omitempty"`
-	PinRunId      string                 `protobuf:"bytes,5,opt,name=pin_run_id,json=pinRunId,proto3" json:"pin_run_id,omitempty"`
-	Reason        string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
-	RepoId        int64                  `protobuf:"varint,7,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EditBaselineRequest) Reset() {
-	*x = EditBaselineRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[24]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EditBaselineRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EditBaselineRequest) ProtoMessage() {}
-
-func (x *EditBaselineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[24]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EditBaselineRequest.ProtoReflect.Descriptor instead.
-func (*EditBaselineRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{24}
-}
-
-func (x *EditBaselineRequest) GetScenario() string {
-	if x != nil {
-		return x.Scenario
-	}
-	return ""
-}
-
-func (x *EditBaselineRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *EditBaselineRequest) GetBranch() string {
-	if x != nil {
-		return x.Branch
-	}
-	return ""
-}
-
-func (x *EditBaselineRequest) GetSurface() string {
-	if x != nil {
-		return x.Surface
-	}
-	return ""
-}
-
-func (x *EditBaselineRequest) GetPinRunId() string {
-	if x != nil {
-		return x.PinRunId
-	}
-	return ""
-}
-
-func (x *EditBaselineRequest) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-func (x *EditBaselineRequest) GetRepoId() int64 {
-	if x != nil {
-		return x.RepoId
-	}
-	return 0
-}
-
-type EditBaselineResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Baseline      *BaselineManifest      `protobuf:"bytes,1,opt,name=baseline,proto3" json:"baseline,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EditBaselineResponse) Reset() {
-	*x = EditBaselineResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[25]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EditBaselineResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EditBaselineResponse) ProtoMessage() {}
-
-func (x *EditBaselineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[25]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EditBaselineResponse.ProtoReflect.Descriptor instead.
-func (*EditBaselineResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *EditBaselineResponse) GetBaseline() *BaselineManifest {
-	if x != nil {
-		return x.Baseline
-	}
-	return nil
-}
-
 var File_git_control_tower_v1_baselines_baselines_proto protoreflect.FileDescriptor
 
 const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\n" +
-	".git-control-tower/v1/baselines/baselines.proto\x12%vrooli.git_control_tower.v1.baselines\"\x96\x02\n" +
+	".git-control-tower/v1/baselines/baselines.proto\x12%vrooli.git_control_tower.v1.baselines\x1a\x1dtest-genie/v1/runs/runs.proto\"\x96\x02\n" +
 	"\bGitState\x12\x10\n" +
 	"\x03sha\x18\x01 \x01(\tR\x03sha\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1a\n" +
@@ -2212,15 +1934,23 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\rcommit_author\x18\a \x01(\tR\fcommitAuthor\x12\x1f\n" +
 	"\vcommit_date\x18\b \x01(\tR\n" +
 	"commitDate\x12\x1c\n" +
-	"\tsandboxed\x18\t \x01(\bR\tsandboxed\"\x90\x01\n" +
-	"\x0eSurfacePointer\x12\x1d\n" +
-	"\n" +
-	"surface_id\x18\x01 \x01(\tR\tsurfaceId\x12\x12\n" +
-	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x10\n" +
-	"\x03ref\x18\x03 \x01(\tR\x03ref\x12\x1f\n" +
-	"\vcaptured_at\x18\x04 \x01(\tR\n" +
-	"capturedAt\x12\x18\n" +
-	"\asummary\x18\x05 \x01(\tR\asummary\"\xf5\x04\n" +
+	"\tsandboxed\x18\t \x01(\bR\tsandboxed\"\xfa\x02\n" +
+	"\tRunAnchor\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vcaptured_at\x18\x02 \x01(\tR\n" +
+	"capturedAt\x12'\n" +
+	"\x0fcapture_profile\x18\x03 \x01(\tR\x0ecaptureProfile\x12\x1f\n" +
+	"\vtree_digest\x18\x04 \x01(\tR\n" +
+	"treeDigest\x12(\n" +
+	"\x10phase_set_digest\x18\x05 \x01(\tR\x0ephaseSetDigest\x126\n" +
+	"\x17descriptor_snapshot_ref\x18\x06 \x01(\tR\x15descriptorSnapshotRef\x12<\n" +
+	"\x1adescriptor_snapshot_digest\x18\a \x01(\tR\x18descriptorSnapshotDigest\x12K\n" +
+	"\"descriptor_snapshot_schema_version\x18\b \x01(\x05R\x1fdescriptorSnapshotSchemaVersion\"\x8b\x01\n" +
+	"\rMigrationInfo\x12.\n" +
+	"\x13from_schema_version\x18\x01 \x01(\x05R\x11fromSchemaVersion\x12\x1f\n" +
+	"\vmigrated_at\x18\x02 \x01(\tR\n" +
+	"migratedAt\x12)\n" +
+	"\x10degraded_reasons\x18\x03 \x03(\tR\x0fdegradedReasons\"\x9a\x03\n" +
 	"\x10BaselineManifest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x16\n" +
@@ -2229,67 +1959,41 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
 	"created_by\x18\x05 \x01(\tR\tcreatedBy\x12A\n" +
-	"\x03git\x18\x06 \x01(\v2/.vrooli.git_control_tower.v1.baselines.GitStateR\x03git\x12a\n" +
-	"\bsurfaces\x18\a \x03(\v2E.vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntryR\bsurfaces\x12%\n" +
-	"\x0eschema_version\x18\b \x01(\x05R\rschemaVersion\x12^\n" +
-	"\askipped\x18\t \x03(\v2D.vrooli.git_control_tower.v1.baselines.BaselineManifest.SkippedEntryR\askipped\x1ar\n" +
-	"\rSurfacesEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12K\n" +
-	"\x05value\x18\x02 \x01(\v25.vrooli.git_control_tower.v1.baselines.SurfacePointerR\x05value:\x028\x01\x1a:\n" +
-	"\fSkippedEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfb\x01\n" +
-	"\vSurfaceDiff\x12\x1d\n" +
-	"\n" +
-	"surface_id\x18\x01 \x01(\tR\tsurfaceId\x12\x18\n" +
-	"\averdict\x18\x02 \x01(\tR\averdict\x12 \n" +
-	"\vregressions\x18\x03 \x03(\tR\vregressions\x12!\n" +
-	"\fnew_failures\x18\x04 \x03(\tR\vnewFailures\x12 \n" +
-	"\vpreexisting\x18\x05 \x03(\tR\vpreexisting\x12\x18\n" +
-	"\acleared\x18\x06 \x03(\tR\acleared\x12\x18\n" +
-	"\asummary\x18\a \x01(\tR\asummary\x12\x18\n" +
-	"\achanged\x18\b \x03(\tR\achanged\"\xf5\x01\n" +
-	"\tPhaseDiff\x12\x14\n" +
-	"\x05phase\x18\x01 \x01(\tR\x05phase\x12\x1d\n" +
-	"\n" +
-	"surface_id\x18\x02 \x01(\tR\tsurfaceId\x12\x18\n" +
-	"\averdict\x18\x03 \x01(\tR\averdict\x12 \n" +
-	"\vregressions\x18\x04 \x03(\tR\vregressions\x12!\n" +
-	"\fnew_failures\x18\x05 \x03(\tR\vnewFailures\x12 \n" +
-	"\vpreexisting\x18\x06 \x03(\tR\vpreexisting\x12\x18\n" +
-	"\acleared\x18\a \x03(\tR\acleared\x12\x18\n" +
-	"\asummary\x18\b \x01(\tR\asummary\"x\n" +
+	"\x03git\x18\x06 \x01(\v2/.vrooli.git_control_tower.v1.baselines.GitStateR\x03git\x12B\n" +
+	"\x03run\x18\a \x01(\v20.vrooli.git_control_tower.v1.baselines.RunAnchorR\x03run\x12%\n" +
+	"\x0eschema_version\x18\b \x01(\x05R\rschemaVersion\x12R\n" +
+	"\tmigration\x18\t \x01(\v24.vrooli.git_control_tower.v1.baselines.MigrationInfoR\tmigration\"x\n" +
 	"\tStaleness\x12#\n" +
 	"\rcommits_since\x18\x01 \x01(\x05R\fcommitsSince\x12#\n" +
 	"\rfiles_changed\x18\x02 \x01(\x05R\ffilesChanged\x12!\n" +
-	"\flikely_stale\x18\x03 \x01(\bR\vlikelyStale\"\xdd\x01\n" +
-	"\x15CreateBaselineRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x18\n" +
-	"\ainclude\x18\x04 \x03(\tR\ainclude\x12\x12\n" +
-	"\x04fast\x18\x05 \x01(\bR\x04fast\x12\x1d\n" +
-	"\n" +
-	"created_by\x18\x06 \x01(\tR\tcreatedBy\x12\x16\n" +
-	"\x06reason\x18\a \x01(\tR\x06reason\x12\x17\n" +
-	"\arepo_id\x18\b \x01(\x03R\x06repoId\"\xb4\x02\n" +
-	"\x16CreateBaselineResponse\x12S\n" +
-	"\bbaseline\x18\x01 \x01(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\bbaseline\x12d\n" +
-	"\askipped\x18\x02 \x03(\v2J.vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.SkippedEntryR\askipped\x12#\n" +
-	"\rdirty_warning\x18\x03 \x01(\tR\fdirtyWarning\x1a:\n" +
-	"\fSkippedEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe2\x01\n" +
+	"\flikely_stale\x18\x03 \x01(\bR\vlikelyStale\"\x88\x02\n" +
+	"\x12RunArtifactCatalog\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12%\n" +
+	"\x0eschema_version\x18\x02 \x01(\x05R\rschemaVersion\x12\x16\n" +
+	"\x06digest\x18\x03 \x01(\tR\x06digest\x12D\n" +
+	"\tartifacts\x18\x04 \x03(\v2&.vrooli.test_genie.v1.runs.ArtifactRefR\tartifacts\x12+\n" +
+	"\x11legacy_discovered\x18\x05 \x01(\bR\x10legacyDiscovered\x12)\n" +
+	"\x10degraded_reasons\x18\x06 \x03(\tR\x0fdegradedReasons\"z\n" +
+	"\vVisualDelta\x12\x12\n" +
+	"\x04page\x18\x01 \x01(\tR\x04page\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12)\n" +
+	"\x10changed_fraction\x18\x04 \x01(\x01R\x0fchangedFraction\"\xa0\x03\n" +
+	"\x12EvidenceComparison\x12\x1e\n" +
+	"\vbase_run_id\x18\x01 \x01(\tR\tbaseRunId\x12$\n" +
+	"\x0ecurrent_run_id\x18\x02 \x01(\tR\fcurrentRunId\x12\\\n" +
+	"\fbase_catalog\x18\x03 \x01(\v29.vrooli.git_control_tower.v1.baselines.RunArtifactCatalogR\vbaseCatalog\x12b\n" +
+	"\x0fcurrent_catalog\x18\x04 \x01(\v29.vrooli.git_control_tower.v1.baselines.RunArtifactCatalogR\x0ecurrentCatalog\x12W\n" +
+	"\rvisual_deltas\x18\x05 \x03(\v22.vrooli.git_control_tower.v1.baselines.VisualDeltaR\fvisualDeltas\x12)\n" +
+	"\x10degraded_reasons\x18\x06 \x03(\tR\x0fdegradedReasons\"\xc0\x01\n" +
 	"\x1aSnapshotForBaselineRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x18\n" +
-	"\ainclude\x18\x04 \x03(\tR\ainclude\x12\x12\n" +
-	"\x04fast\x18\x05 \x01(\bR\x04fast\x12\x1d\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x1d\n" +
 	"\n" +
 	"created_by\x18\x06 \x01(\tR\tcreatedBy\x12\x16\n" +
 	"\x06reason\x18\a \x01(\tR\x06reason\x12\x17\n" +
-	"\arepo_id\x18\b \x01(\x03R\x06repoId\"\x94\x02\n" +
+	"\arepo_id\x18\b \x01(\x03R\x06repoIdJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"\x94\x02\n" +
 	"\x1bSnapshotForBaselineResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
@@ -2332,13 +2036,12 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\fall_branches\x18\x03 \x01(\bR\vallBranches\x12\x17\n" +
 	"\arepo_id\x18\x04 \x01(\x03R\x06repoId\"n\n" +
 	"\x15ListBaselinesResponse\x12U\n" +
-	"\tbaselines\x18\x01 \x03(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\tbaselines\"\x8d\x01\n" +
+	"\tbaselines\x18\x01 \x03(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\tbaselines\"y\n" +
 	"\x10StartDiffRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x18\n" +
-	"\asurface\x18\x04 \x01(\tR\asurface\x12\x17\n" +
-	"\arepo_id\x18\x05 \x01(\x03R\x06repoId\"\xc8\x02\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x17\n" +
+	"\arepo_id\x18\x05 \x01(\x03R\x06repoIdJ\x04\b\x04\x10\x05\"\xc8\x02\n" +
 	"\x11StartDiffResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
@@ -2352,32 +2055,31 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\n" +
 	"reused_sha\x18\t \x01(\tR\treusedSha\x12#\n" +
 	"\rdirty_warning\x18\n" +
-	" \x01(\tR\fdirtyWarning\"\xd4\x01\n" +
+	" \x01(\tR\fdirtyWarning\"\xc0\x01\n" +
 	"\x14GetDiffResultRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x15\n" +
-	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x18\n" +
-	"\asurface\x18\x05 \x01(\tR\asurface\x12\x17\n" +
+	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x17\n" +
 	"\arepo_id\x18\x06 \x01(\x03R\x06repoId\x12\x12\n" +
 	"\x04wait\x18\a \x01(\bR\x04wait\x12\x16\n" +
-	"\x06latest\x18\b \x01(\bR\x06latest\"\xe8\x01\n" +
+	"\x06latest\x18\b \x01(\bR\x06latestJ\x04\b\x05\x10\x06\"\xe8\x01\n" +
 	"\x15GetDiffResultResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12E\n" +
 	"\x04diff\x18\x02 \x01(\v21.vrooli.git_control_tower.v1.baselines.DiffResultR\x04diff\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12C\n" +
 	"\x1erecommended_next_check_seconds\x18\x04 \x01(\x05R\x1brecommendedNextCheckSeconds\x12\x15\n" +
-	"\x06run_id\x18\x05 \x01(\tR\x05runId\"\xdc\x03\n" +
+	"\x06run_id\x18\x05 \x01(\tR\x05runId\"\xdd\x03\n" +
 	"\n" +
 	"DiffResult\x12S\n" +
 	"\bbaseline\x18\x01 \x01(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\bbaseline\x12P\n" +
 	"\vcurrent_git\x18\x02 \x01(\v2/.vrooli.git_control_tower.v1.baselines.GitStateR\n" +
 	"currentGit\x12N\n" +
-	"\tstaleness\x18\x03 \x01(\v20.vrooli.git_control_tower.v1.baselines.StalenessR\tstaleness\x12N\n" +
-	"\bsurfaces\x18\x04 \x03(\v22.vrooli.git_control_tower.v1.baselines.SurfaceDiffR\bsurfaces\x12\x18\n" +
+	"\tstaleness\x18\x03 \x01(\v20.vrooli.git_control_tower.v1.baselines.StalenessR\tstaleness\x12\x18\n" +
 	"\averdict\x18\x05 \x01(\tR\averdict\x12#\n" +
-	"\rdirty_warning\x18\x06 \x01(\tR\fdirtyWarning\x12H\n" +
-	"\x06phases\x18\a \x03(\v20.vrooli.git_control_tower.v1.baselines.PhaseDiffR\x06phases\"X\n" +
+	"\rdirty_warning\x18\x06 \x01(\tR\fdirtyWarning\x12<\n" +
+	"\x06phases\x18\a \x03(\v2$.vrooli.test_genie.v1.runs.PhaseDiffR\x06phases\x12U\n" +
+	"\bevidence\x18\b \x01(\v29.vrooli.git_control_tower.v1.baselines.EvidenceComparisonR\bevidenceJ\x04\b\x04\x10\x05\"X\n" +
 	"\vRunBusyInfo\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x16\n" +
@@ -2388,29 +2090,15 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x17\n" +
 	"\arepo_id\x18\x04 \x01(\x03R\x06repoId\"2\n" +
 	"\x16DeleteBaselineResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"\xc6\x01\n" +
-	"\x13EditBaselineRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x18\n" +
-	"\asurface\x18\x04 \x01(\tR\asurface\x12\x1c\n" +
-	"\n" +
-	"pin_run_id\x18\x05 \x01(\tR\bpinRunId\x12\x16\n" +
-	"\x06reason\x18\x06 \x01(\tR\x06reason\x12\x17\n" +
-	"\arepo_id\x18\a \x01(\x03R\x06repoId\"k\n" +
-	"\x14EditBaselineResponse\x12S\n" +
-	"\bbaseline\x18\x01 \x01(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\bbaseline2\x95\n" +
-	"\n" +
-	"\x10BaselinesService\x12\x8d\x01\n" +
-	"\x0eCreateBaseline\x12<.vrooli.git_control_tower.v1.baselines.CreateBaselineRequest\x1a=.vrooli.git_control_tower.v1.baselines.CreateBaselineResponse\x12\x9c\x01\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted2\xfb\a\n" +
+	"\x10BaselinesService\x12\x9c\x01\n" +
 	"\x13SnapshotForBaseline\x12A.vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest\x1aB.vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse\x12\x96\x01\n" +
 	"\x11GetSnapshotStatus\x12?.vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest\x1a@.vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse\x12\x84\x01\n" +
 	"\vGetBaseline\x129.vrooli.git_control_tower.v1.baselines.GetBaselineRequest\x1a:.vrooli.git_control_tower.v1.baselines.GetBaselineResponse\x12\x8a\x01\n" +
 	"\rListBaselines\x12;.vrooli.git_control_tower.v1.baselines.ListBaselinesRequest\x1a<.vrooli.git_control_tower.v1.baselines.ListBaselinesResponse\x12~\n" +
 	"\tStartDiff\x127.vrooli.git_control_tower.v1.baselines.StartDiffRequest\x1a8.vrooli.git_control_tower.v1.baselines.StartDiffResponse\x12\x8a\x01\n" +
 	"\rGetDiffResult\x12;.vrooli.git_control_tower.v1.baselines.GetDiffResultRequest\x1a<.vrooli.git_control_tower.v1.baselines.GetDiffResultResponse\x12\x8d\x01\n" +
-	"\x0eDeleteBaseline\x12<.vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest\x1a=.vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse\x12\x87\x01\n" +
-	"\fEditBaseline\x12:.vrooli.git_control_tower.v1.baselines.EditBaselineRequest\x1a;.vrooli.git_control_tower.v1.baselines.EditBaselineResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines;baselines_v1b\x06proto3"
+	"\x0eDeleteBaseline\x12<.vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest\x1a=.vrooli.git_control_tower.v1.baselines.DeleteBaselineResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines;baselines_v1b\x06proto3"
 
 var (
 	file_git_control_tower_v1_baselines_baselines_proto_rawDescOnce sync.Once
@@ -2424,16 +2112,16 @@ func file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP() []byte {
 	return file_git_control_tower_v1_baselines_baselines_proto_rawDescData
 }
 
-var file_git_control_tower_v1_baselines_baselines_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_git_control_tower_v1_baselines_baselines_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_git_control_tower_v1_baselines_baselines_proto_goTypes = []any{
 	(*GitState)(nil),                    // 0: vrooli.git_control_tower.v1.baselines.GitState
-	(*SurfacePointer)(nil),              // 1: vrooli.git_control_tower.v1.baselines.SurfacePointer
-	(*BaselineManifest)(nil),            // 2: vrooli.git_control_tower.v1.baselines.BaselineManifest
-	(*SurfaceDiff)(nil),                 // 3: vrooli.git_control_tower.v1.baselines.SurfaceDiff
-	(*PhaseDiff)(nil),                   // 4: vrooli.git_control_tower.v1.baselines.PhaseDiff
-	(*Staleness)(nil),                   // 5: vrooli.git_control_tower.v1.baselines.Staleness
-	(*CreateBaselineRequest)(nil),       // 6: vrooli.git_control_tower.v1.baselines.CreateBaselineRequest
-	(*CreateBaselineResponse)(nil),      // 7: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse
+	(*RunAnchor)(nil),                   // 1: vrooli.git_control_tower.v1.baselines.RunAnchor
+	(*MigrationInfo)(nil),               // 2: vrooli.git_control_tower.v1.baselines.MigrationInfo
+	(*BaselineManifest)(nil),            // 3: vrooli.git_control_tower.v1.baselines.BaselineManifest
+	(*Staleness)(nil),                   // 4: vrooli.git_control_tower.v1.baselines.Staleness
+	(*RunArtifactCatalog)(nil),          // 5: vrooli.git_control_tower.v1.baselines.RunArtifactCatalog
+	(*VisualDelta)(nil),                 // 6: vrooli.git_control_tower.v1.baselines.VisualDelta
+	(*EvidenceComparison)(nil),          // 7: vrooli.git_control_tower.v1.baselines.EvidenceComparison
 	(*SnapshotForBaselineRequest)(nil),  // 8: vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
 	(*SnapshotForBaselineResponse)(nil), // 9: vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
 	(*GetSnapshotStatusRequest)(nil),    // 10: vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest
@@ -2450,49 +2138,42 @@ var file_git_control_tower_v1_baselines_baselines_proto_goTypes = []any{
 	(*RunBusyInfo)(nil),                 // 21: vrooli.git_control_tower.v1.baselines.RunBusyInfo
 	(*DeleteBaselineRequest)(nil),       // 22: vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
 	(*DeleteBaselineResponse)(nil),      // 23: vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
-	(*EditBaselineRequest)(nil),         // 24: vrooli.git_control_tower.v1.baselines.EditBaselineRequest
-	(*EditBaselineResponse)(nil),        // 25: vrooli.git_control_tower.v1.baselines.EditBaselineResponse
-	nil,                                 // 26: vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry
-	nil,                                 // 27: vrooli.git_control_tower.v1.baselines.BaselineManifest.SkippedEntry
-	nil,                                 // 28: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.SkippedEntry
+	(*runs.ArtifactRef)(nil),            // 24: vrooli.test_genie.v1.runs.ArtifactRef
+	(*runs.PhaseDiff)(nil),              // 25: vrooli.test_genie.v1.runs.PhaseDiff
 }
 var file_git_control_tower_v1_baselines_baselines_proto_depIdxs = []int32{
 	0,  // 0: vrooli.git_control_tower.v1.baselines.BaselineManifest.git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
-	26, // 1: vrooli.git_control_tower.v1.baselines.BaselineManifest.surfaces:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry
-	27, // 2: vrooli.git_control_tower.v1.baselines.BaselineManifest.skipped:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest.SkippedEntry
-	2,  // 3: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	28, // 4: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.skipped:type_name -> vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.SkippedEntry
-	2,  // 5: vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	2,  // 6: vrooli.git_control_tower.v1.baselines.GetBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	2,  // 7: vrooli.git_control_tower.v1.baselines.ListBaselinesResponse.baselines:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	20, // 8: vrooli.git_control_tower.v1.baselines.GetDiffResultResponse.diff:type_name -> vrooli.git_control_tower.v1.baselines.DiffResult
-	2,  // 9: vrooli.git_control_tower.v1.baselines.DiffResult.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	0,  // 10: vrooli.git_control_tower.v1.baselines.DiffResult.current_git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
-	5,  // 11: vrooli.git_control_tower.v1.baselines.DiffResult.staleness:type_name -> vrooli.git_control_tower.v1.baselines.Staleness
-	3,  // 12: vrooli.git_control_tower.v1.baselines.DiffResult.surfaces:type_name -> vrooli.git_control_tower.v1.baselines.SurfaceDiff
-	4,  // 13: vrooli.git_control_tower.v1.baselines.DiffResult.phases:type_name -> vrooli.git_control_tower.v1.baselines.PhaseDiff
-	2,  // 14: vrooli.git_control_tower.v1.baselines.EditBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	1,  // 15: vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry.value:type_name -> vrooli.git_control_tower.v1.baselines.SurfacePointer
-	6,  // 16: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:input_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineRequest
-	8,  // 17: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:input_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
-	10, // 18: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest
-	12, // 19: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:input_type -> vrooli.git_control_tower.v1.baselines.GetBaselineRequest
-	14, // 20: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:input_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
-	16, // 21: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartDiffRequest
-	18, // 22: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:input_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
-	22, // 23: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
-	24, // 24: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:input_type -> vrooli.git_control_tower.v1.baselines.EditBaselineRequest
-	7,  // 25: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:output_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineResponse
-	9,  // 26: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
-	11, // 27: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse
-	13, // 28: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
-	15, // 29: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
-	17, // 30: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartDiffResponse
-	19, // 31: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:output_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
-	23, // 32: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
-	25, // 33: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:output_type -> vrooli.git_control_tower.v1.baselines.EditBaselineResponse
-	25, // [25:34] is the sub-list for method output_type
-	16, // [16:25] is the sub-list for method input_type
+	1,  // 1: vrooli.git_control_tower.v1.baselines.BaselineManifest.run:type_name -> vrooli.git_control_tower.v1.baselines.RunAnchor
+	2,  // 2: vrooli.git_control_tower.v1.baselines.BaselineManifest.migration:type_name -> vrooli.git_control_tower.v1.baselines.MigrationInfo
+	24, // 3: vrooli.git_control_tower.v1.baselines.RunArtifactCatalog.artifacts:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
+	5,  // 4: vrooli.git_control_tower.v1.baselines.EvidenceComparison.base_catalog:type_name -> vrooli.git_control_tower.v1.baselines.RunArtifactCatalog
+	5,  // 5: vrooli.git_control_tower.v1.baselines.EvidenceComparison.current_catalog:type_name -> vrooli.git_control_tower.v1.baselines.RunArtifactCatalog
+	6,  // 6: vrooli.git_control_tower.v1.baselines.EvidenceComparison.visual_deltas:type_name -> vrooli.git_control_tower.v1.baselines.VisualDelta
+	3,  // 7: vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	3,  // 8: vrooli.git_control_tower.v1.baselines.GetBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	3,  // 9: vrooli.git_control_tower.v1.baselines.ListBaselinesResponse.baselines:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	20, // 10: vrooli.git_control_tower.v1.baselines.GetDiffResultResponse.diff:type_name -> vrooli.git_control_tower.v1.baselines.DiffResult
+	3,  // 11: vrooli.git_control_tower.v1.baselines.DiffResult.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	0,  // 12: vrooli.git_control_tower.v1.baselines.DiffResult.current_git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
+	4,  // 13: vrooli.git_control_tower.v1.baselines.DiffResult.staleness:type_name -> vrooli.git_control_tower.v1.baselines.Staleness
+	25, // 14: vrooli.git_control_tower.v1.baselines.DiffResult.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
+	7,  // 15: vrooli.git_control_tower.v1.baselines.DiffResult.evidence:type_name -> vrooli.git_control_tower.v1.baselines.EvidenceComparison
+	8,  // 16: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:input_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
+	10, // 17: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest
+	12, // 18: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:input_type -> vrooli.git_control_tower.v1.baselines.GetBaselineRequest
+	14, // 19: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:input_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
+	16, // 20: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartDiffRequest
+	18, // 21: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:input_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
+	22, // 22: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
+	9,  // 23: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
+	11, // 24: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse
+	13, // 25: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
+	15, // 26: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
+	17, // 27: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartDiffResponse
+	19, // 28: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:output_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
+	23, // 29: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
+	23, // [23:30] is the sub-list for method output_type
+	16, // [16:23] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name
 	16, // [16:16] is the sub-list for extension extendee
 	0,  // [0:16] is the sub-list for field type_name
@@ -2509,7 +2190,7 @@ func file_git_control_tower_v1_baselines_baselines_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_git_control_tower_v1_baselines_baselines_proto_rawDesc), len(file_git_control_tower_v1_baselines_baselines_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

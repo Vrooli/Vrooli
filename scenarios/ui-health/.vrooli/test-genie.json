@@ -1344,5 +1344,14 @@
   "runtimeClass": "static",
   "dimensions": [
     "ui"
+  ],
+  "evidenceKinds": [
+    "screenshot",
+    "visual.diff",
+    "console",
+    "network",
+    "dom",
+    "trace",
+    "har"
   ]
 }

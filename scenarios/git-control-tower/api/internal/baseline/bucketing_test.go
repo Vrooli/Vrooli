@@ -1,126 +1,80 @@
 package baseline
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
-// bucketPhaseDiffs folds a flat per-phase compare into one diff per phase-set
-// surface (option-c). Phases with no owning surface are dropped.
-func TestBucketPhaseDiffs(t *testing.T) {
-	cmp := CompareResult{
-		Verdict: "regression",
-		Phases: []PhaseDiff{
-			{Phase: "structure", Verdict: "clean"},
-			{Phase: "standards", Verdict: "new-failure", NewFailures: []string{"PRD-009"}},
-			{Phase: "unit", Verdict: "clean", Cleared: []string{"TestWasFlaky"}},
-			{Phase: "integration", Verdict: "regression", Regressions: []string{"TestInt"}},
-			{Phase: "smoke", Verdict: "preexisting", Preexisting: []string{"smoke-flake"}},
-			{Phase: "playbooks", Verdict: "clean"},
-			{Phase: "some-unmapped-phase", Verdict: "regression", Regressions: []string{"ignored"}},
-		},
+func TestProductionDoesNotRouteOnTestGeniePhaseKeys(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	paths := []string{
+		".",
+		"../../handlers/baseline",
+		"../../handlers/workflowreplay",
+		"../../../ui/src/features/baselines",
+		"../../../ui/src/components/ScenarioReviewPanelWorkflows.tsx",
 	}
-	got := bucketPhaseDiffs(cmp)
-
-	if len(got) != 4 {
-		t.Fatalf("expected 4 surfaces (structure, rules, tests, workflows), got %d: %v", len(got), got)
-	}
-	if got[SurfaceStructure].Verdict != VerdictClean {
-		t.Errorf("structure verdict = %s", got[SurfaceStructure].Verdict)
-	}
-	if got[SurfaceRules].Verdict != VerdictNewFailure || len(got[SurfaceRules].NewFailures) != 1 {
-		t.Errorf("rules diff = %+v", got[SurfaceRules])
-	}
-	// tests aggregates unit(clean+cleared) + integration(regression) + smoke(preexisting) ⇒ worst = regression.
-	tests := got[SurfaceTests]
-	if tests.Verdict != VerdictRegression {
-		t.Errorf("tests verdict = %s, want regression", tests.Verdict)
-	}
-	if len(tests.Regressions) != 1 || len(tests.Preexisting) != 1 || len(tests.Cleared) != 1 {
-		t.Errorf("tests aggregation lost findings: %+v", tests)
-	}
-	if got[SurfaceWorkflows].Verdict != VerdictClean {
-		t.Errorf("workflows verdict = %s", got[SurfaceWorkflows].Verdict)
-	}
-	// The unmapped phase contributes to no surface.
-	if _, ok := got["some-unmapped-phase"]; ok {
-		t.Error("unmapped phase should not create a surface")
-	}
-}
-
-// TestDiffVisuals proves the visuals surface is advisory: every per-page delta
-// is the neutral `changed` tier (never a failing verdict), and it never affects
-// the diff exit code. A clearly-broken render is NOT a concern here — it fails
-// earlier, at smoke time, on the test/smoke surface.
-func TestDiffVisuals(t *testing.T) {
-	// All identical ⇒ clean.
-	d := diffVisuals([]VisualDelta{
-		{Page: "/", Status: "identical"},
-		{Page: "/dashboard", Status: "identical"},
-	})
-	if d.Verdict != VerdictClean {
-		t.Errorf("identical: verdict = %s, want clean", d.Verdict)
-	}
-	if len(d.Changed) != 0 {
-		t.Errorf("identical: Changed = %v, want empty", d.Changed)
+	forbidden := []string{
+		"surfacePhases", "phaseSurface", "ListRunVisuals", "playbooksPhase",
+		`Phase: "structure"`, `Phase: "standards"`, `Phase: "unit"`,
+		`Phase: "integration"`, `Phase: "smoke"`, `Phase: "playbooks"`,
 	}
 
-	// A changed page ⇒ changed (advisory), with magnitude, and in the Changed
-	// bucket — NOT NewFailures/Regressions.
-	d = diffVisuals([]VisualDelta{
-		{Page: "/", Status: "identical"},
-		{Page: "/dashboard", Status: "changed", ChangedFraction: 0.12},
-	})
-	if d.Verdict != VerdictChanged {
-		t.Errorf("changed page: verdict = %s, want changed", d.Verdict)
-	}
-	if len(d.NewFailures) != 0 || len(d.Regressions) != 0 {
-		t.Errorf("changed page must not populate failure buckets: new=%v reg=%v", d.NewFailures, d.Regressions)
-	}
-	if len(d.Changed) != 1 || !strings.Contains(d.Changed[0], "12%") {
-		t.Errorf("changed page: Changed = %v, want one entry carrying magnitude", d.Changed)
-	}
-
-	// Added/removed pages are neutral review items, not failures.
-	d = diffVisuals([]VisualDelta{
-		{Page: "/new", Status: "added"},
-		{Page: "/gone", Status: "removed"},
-	})
-	if d.Verdict != VerdictChanged {
-		t.Errorf("added/removed: verdict = %s, want changed", d.Verdict)
-	}
-	if len(d.Changed) != 2 {
-		t.Errorf("added/removed: Changed = %v, want two review entries", d.Changed)
-	}
-
-	// A changed-only verdict must roll up to exit 0 (advisory).
-	if got := exitCodeForVerdictTest(string(VerdictChanged)); got != 0 {
-		t.Errorf("changed verdict exit code = %d, want 0 (advisory)", got)
-	}
-}
-
-// exitCodeForVerdictTest mirrors the CLI's exit-code rule (regression→1,
-// not-comparable→2, else 0) so the advisory contract is asserted at the API
-// boundary without importing the CLI package.
-func exitCodeForVerdictTest(verdict string) int {
-	switch verdict {
-	case string(VerdictRegression):
-		return 1
-	case string(VerdictNotComparable):
-		return 2
-	default:
-		return 0
-	}
-}
-
-// phaseSurface is the inverse index built from surfacePhases. Verify it covers
-// every phase declared and points back to the right surface.
-func TestPhaseSurfaceInverseIndex(t *testing.T) {
-	for surface, phases := range surfacePhases {
-		for _, p := range phases {
-			if phaseSurface[p] != surface {
-				t.Errorf("phase %q maps to %q, want %q", p, phaseSurface[p], surface)
+	for _, root := range paths {
+		info, err := os.Stat(root)
+		if err != nil {
+			t.Fatalf("stat %s: %v", root, err)
+		}
+		files := []string{root}
+		if info.IsDir() {
+			files = files[:0]
+			err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+				if walkErr != nil {
+					return walkErr
+				}
+				if !entry.IsDir() && !strings.Contains(path, "_test.go") && !strings.Contains(path, ".test.") {
+					files = append(files, path)
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatalf("walk %s: %v", root, err)
 			}
 		}
+		for _, path := range files {
+			content, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read %s: %v", path, err)
+			}
+			for _, token := range forbidden {
+				if strings.Contains(string(content), token) {
+					t.Errorf("production phase routing token %q remains in %s", token, path)
+				}
+			}
+		}
+	}
+}
+
+func TestUnknownPhaseAndTypedReasonsRemainLossless(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	phase := &runspb.PhaseDiff{
+		Phase: "future-provider-phase", Verdict: "not-comparable",
+		DescriptorB: &runspb.RunPhaseDescriptor{
+			Phase: "future-provider-phase", DisplayName: "Future Provider", Provider: "future-health",
+			EvidenceKinds: []string{"application/x-future-evidence"},
+		},
+		Reasons: []*runspb.PhaseComparisonReason{{
+			Code:   runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_NEW_PHASE,
+			Detail: "introduced after baseline capture",
+		}},
+	}
+	cmp := CompareResult{Verdict: "not-comparable", Phases: []*runspb.PhaseDiff{phase}}
+	if cmp.Phases[0] != phase {
+		t.Fatal("comparison copied or replaced the Test Genie phase message")
+	}
+	if got := cmp.Phases[0].GetDescriptorB().GetEvidenceKinds()[0]; got != "application/x-future-evidence" {
+		t.Fatalf("unknown evidence kind lost: %q", got)
 	}
 }

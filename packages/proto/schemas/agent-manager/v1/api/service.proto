@@ -256,30 +256,30 @@ service AgentManagerService {
     option (google.api.http) = {post: "/api/v1/runners/{runner_type}/probe"};
   }
 
-  // GetModelPolicyStatus returns activation state and the latest diagnostic.
-  rpc GetModelPolicyStatus(GetModelPolicyStatusRequest) returns (GetModelPolicyStatusResponse) {
-    option (google.api.http) = {get: "/api/v1/model-policy/status"};
+  // GetRolePolicyStatus returns activation state and the latest diagnostic.
+  rpc GetRolePolicyStatus(GetRolePolicyStatusRequest) returns (GetRolePolicyStatusResponse) {
+    option (google.api.http) = {get: "/api/v1/role-policy/status"};
   }
 
-  // GetModelPolicyCatalog returns the active, immutable declared catalog.
-  rpc GetModelPolicyCatalog(GetModelPolicyCatalogRequest) returns (GetModelPolicyCatalogResponse) {
-    option (google.api.http) = {get: "/api/v1/model-policy/catalog"};
+  // GetRolePolicyCatalog returns the active, immutable declared catalog.
+  rpc GetRolePolicyCatalog(GetRolePolicyCatalogRequest) returns (GetRolePolicyCatalogResponse) {
+    option (google.api.http) = {get: "/api/v1/role-policy/catalog"};
   }
 
-  // ValidateModelPolicyCatalog validates the configured catalog without activation.
-  rpc ValidateModelPolicyCatalog(ValidateModelPolicyCatalogRequest) returns (ValidateModelPolicyCatalogResponse) {
-    option (google.api.http) = {post: "/api/v1/model-policy/validate"};
+  // ValidateRolePolicyCatalog validates the configured catalog without activation.
+  rpc ValidateRolePolicyCatalog(ValidateRolePolicyCatalogRequest) returns (ValidateRolePolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/role-policy/validate"};
   }
 
-  // ReloadModelPolicyCatalog validates and atomically activates declared state.
-  rpc ReloadModelPolicyCatalog(ReloadModelPolicyCatalogRequest) returns (ReloadModelPolicyCatalogResponse) {
-    option (google.api.http) = {post: "/api/v1/model-policy/reload"};
+  // ReloadRolePolicyCatalog validates and atomically activates declared state.
+  rpc ReloadRolePolicyCatalog(ReloadRolePolicyCatalogRequest) returns (ReloadRolePolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/role-policy/reload"};
   }
 
-  // ExplainModelPolicy explains current profile resolution or a persisted run snapshot.
-  rpc ExplainModelPolicy(ExplainModelPolicyRequest) returns (ExplainModelPolicyResponse) {
+  // ExplainRolePolicy explains current profile resolution or a persisted run snapshot.
+  rpc ExplainRolePolicy(ExplainRolePolicyRequest) returns (ExplainRolePolicyResponse) {
     option (google.api.http) = {
-      post: "/api/v1/model-policy/explain"
+      post: "/api/v1/role-policy/explain"
       body: "*"
     };
   }
@@ -423,43 +423,19 @@ message GetProfileRequest {
   string profile_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-// AvailableModel describes a model option resolved for a profile.
-message AvailableModel {
-  // Model identifier.
-  string id = 1;
-
-  // Short label for display.
-  string label = 2;
-
-  // Optional description from the registry.
-  string description = 3;
-
-  // Provider inferred from the model id (when present).
-  string provider = 4;
-
-  // Sources that confirmed availability (e.g., registry, capabilities).
-  repeated string sources = 5;
-}
-
 // GetProfileResponse returns a single profile.
 message GetProfileResponse {
   // The profile.
   AgentProfile profile = 1;
 
-  // Available models for the profile's runner.
-  repeated AvailableModel available_models = 2;
-
-  // Named-policy-to-primary-model mappings for the profile's runner.
-  map<string, string> policy_models = 3;
+  reserved 2, 3;
+  reserved "available_models", "policy_models";
 }
 
 // ListProfilesRequest filters and paginates profile listings.
 message ListProfilesRequest {
-  // Filter by runner type.
-  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
+  reserved 1;
+  reserved "runner_type";
 
   // Pagination limit (default: 50, max: 100).
   optional int32 limit = 2 [(buf.validate.field).int32 = {
@@ -1062,118 +1038,99 @@ message ProbeRunnerResponse {
   ProbeResult result = 1;
 }
 
-// ModelPolicyDiagnostic preserves the actionable cause of validation failure.
-message ModelPolicyDiagnostic {
+// RolePolicyDiagnostic preserves the actionable cause of validation failure.
+message RolePolicyDiagnostic {
   string code = 1;
   string message = 2;
   string cause = 3;
 }
 
-message ModelPolicyRequirement {
+message RolePolicyRequirement {
   bool required = 1;
   string reason = 2;
 }
 
-message ModelPolicyReloadAttempt {
+message RolePolicyReloadAttempt {
   google.protobuf.Timestamp attempted_at = 1;
   bool succeeded = 2;
   string digest = 3;
-  ModelPolicyDiagnostic diagnostic = 4;
+  RolePolicyDiagnostic diagnostic = 4;
 }
 
-// ModelPolicyStatus is the operator-facing activation state.
-message ModelPolicyStatus {
+// RolePolicyStatus is the operator-facing activation state.
+message RolePolicyStatus {
   string path = 1;
-  ModelPolicyRequirement requirement = 2;
+  RolePolicyRequirement requirement = 2;
   bool ready = 3;
   string active_digest = 4;
   google.protobuf.Timestamp activated_at = 5;
-  ModelPolicyReloadAttempt last_reload_attempt = 6;
+  RolePolicyReloadAttempt last_reload_attempt = 6;
 }
 
-message ModelPolicySource {
-  string name = 1;
-  string reference = 2;
-  string verified_at = 3;
-}
-
-message ModelPolicyCatalogMetadata {
+message RolePolicyCatalogMetadata {
   string catalog_id = 1;
   string updated_at = 2;
-  repeated ModelPolicySource sources = 3;
 }
 
-message ModelPolicyModel {
-  string id = 1;
-  string description = 2;
-}
-
-message ModelPolicyRunnerInventory {
+message RolePolicyCandidate {
   RunnerType runner_type = 1;
-  repeated ModelPolicyModel models = 2;
-  bool supports_runner_default = 3;
-  repeated string dynamic_model_prefixes = 4;
+  string resource_role = 2;
 }
 
-message ModelPolicyCandidate {
-  RunnerType runner_type = 1;
-  ModelSelectionType selection_type = 2;
-  string model = 3;
-}
-
-message ModelPolicyDefinition {
-  string name = 1;
+message RolePolicyDefinition {
+  string role_ref = 1;
   string intent = 2;
-  repeated ModelPolicyCandidate candidates = 3;
+  string description = 3;
+  repeated RolePolicyCandidate candidates = 4;
 }
 
-// ModelPolicyCatalog is the read-only generated view of declared desired state.
-message ModelPolicyCatalog {
+// RolePolicyCatalog is the read-only portable desired-state view. Concrete
+// runner/model selections are available only in immutable execution snapshots.
+message RolePolicyCatalog {
   int32 schema_version = 1;
-  ModelPolicyCatalogMetadata metadata = 2;
-  string default_policy = 3;
-  repeated ModelPolicyRunnerInventory runners = 4;
-  repeated ModelPolicyDefinition policies = 5;
+  RolePolicyCatalogMetadata metadata = 2;
+  string default_role = 3;
+  repeated RolePolicyDefinition roles = 4;
 }
 
-message GetModelPolicyStatusRequest {}
+message GetRolePolicyStatusRequest {}
 
-message GetModelPolicyStatusResponse {
-  ModelPolicyStatus status = 1;
+message GetRolePolicyStatusResponse {
+  RolePolicyStatus status = 1;
 }
 
-message GetModelPolicyCatalogRequest {}
+message GetRolePolicyCatalogRequest {}
 
-message GetModelPolicyCatalogResponse {
-  ModelPolicyStatus status = 1;
-  ModelPolicyCatalog catalog = 2;
+message GetRolePolicyCatalogResponse {
+  RolePolicyStatus status = 1;
+  RolePolicyCatalog catalog = 2;
 }
 
-message ValidateModelPolicyCatalogRequest {}
+message ValidateRolePolicyCatalogRequest {}
 
-message ValidateModelPolicyCatalogResponse {
+message ValidateRolePolicyCatalogResponse {
   bool valid = 1;
   string candidate_digest = 2;
   string active_digest = 3;
-  ModelPolicyDiagnostic diagnostic = 4;
+  RolePolicyDiagnostic diagnostic = 4;
 }
 
-message ReloadModelPolicyCatalogRequest {}
+message ReloadRolePolicyCatalogRequest {}
 
-message ReloadModelPolicyCatalogResponse {
+message ReloadRolePolicyCatalogResponse {
   bool activated = 1;
-  ModelPolicyStatus status = 2;
-  ModelPolicyDiagnostic diagnostic = 3;
+  RolePolicyStatus status = 2;
+  RolePolicyDiagnostic diagnostic = 3;
 }
 
-message ExplainModelPolicyRequest {
+message ExplainRolePolicyRequest {
   oneof target {
     string profile_id = 1 [(buf.validate.field).string.uuid = true];
     string run_id = 2 [(buf.validate.field).string.uuid = true];
   }
 }
 
-message ExplainModelPolicyResponse {
+message ExplainRolePolicyResponse {
   string target_type = 1;
   string target_id = 2;
   ExecutionPolicySnapshot snapshot = 3;

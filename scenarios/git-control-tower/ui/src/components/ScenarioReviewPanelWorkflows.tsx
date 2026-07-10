@@ -1,7 +1,4 @@
-// Workflows tab (Plan B §4.4) — a focused, read-only view of test-genie
-// playbooks-phase runs. It no longer owns baseline state (Decision 2): baselines
-// are created and compared in the Baselines tab. Runs come through GCT's
-// WorkflowReplayService proxy; videos stream from the GCT REST video route.
+// Workflows tab — a typed workflow.video evidence lens across Test Genie runs.
 
 import { useState } from "react";
 import { Play, CheckCircle2, XCircle, Minus, AlertTriangle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
@@ -42,11 +39,11 @@ export function WorkflowsTab({
   const runsQuery = useRecentRuns(scenarioSlug, { repoId, enabled: testGenieAvailable });
   const runs = runsQuery.data ?? [];
   const triggerRun = useTriggerTestExecution(repoId);
-  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, "workflows", repoId);
+  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, repoId);
   const isRunning = triggerRun.isPending;
-  const runPlaybooks = () =>
+  const runWorkflows = () =>
     triggerRun.mutate(
-      { scenarioName: scenarioSlug, phases: ["playbooks"] },
+      { scenarioName: scenarioSlug, preset: "comprehensive" },
       { onSuccess: () => void runsQuery.refetch() },
     );
 
@@ -55,7 +52,7 @@ export function WorkflowsTab({
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
         <Play className="h-8 w-8 mb-3 opacity-50" />
         <p className="text-sm">test-genie is not available</p>
-        <p className="text-xs mt-1 text-slate-600">Start test-genie to see playbooks runs</p>
+        <p className="text-xs mt-1 text-slate-600">Start test-genie to see workflow evidence</p>
       </div>
     );
   }
@@ -76,9 +73,9 @@ export function WorkflowsTab({
         <SurfaceCaptureEmptyState
           surface="workflows"
           hasService={testGenieAvailable}
-          onCaptureLoose={runPlaybooks}
+          onCaptureLoose={runWorkflows}
           onCaptureBaseline={openCaptureBaseline}
-          captureLabel="Run playbooks"
+          captureLabel="Capture workflow evidence"
           isCapturing={isRunning}
         />
       ) : (
@@ -94,17 +91,17 @@ export function WorkflowsTab({
 
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-slate-500">
-              Workflow results from the latest test-genie playbooks runs.
+              Workflow recordings discovered by evidence kind across recent Test Genie runs.
             </p>
             <Button
               variant="outline"
               size="sm"
-              onClick={runPlaybooks}
+              onClick={runWorkflows}
               disabled={isRunning}
               className="h-7 px-3 gap-1.5 shrink-0"
             >
               {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-              Run playbooks
+              Capture workflows
             </Button>
           </div>
 
@@ -124,14 +121,14 @@ function RunRow({ run, scenario, repoId }: { run: RunSummary; scenario: string; 
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const detail = useRunDetail(scenario, run.runId, { repoId, enabled: expanded });
 
-  const Icon = STATUS_ICON[run.playbooksStatus || run.status] ?? AlertTriangle;
+  const Icon = STATUS_ICON[run.status] ?? AlertTriangle;
   const sha8 = run.gitSha ? run.gitSha.slice(0, 8) : "";
 
-  const lightboxItems: LightboxItem[] = (detail.data?.videos ?? []).map((v): LightboxItem => ({
-    label: v.workflow,
+  const lightboxItems: LightboxItem[] = (detail.data?.artifacts ?? []).map((artifact): LightboxItem => ({
+    label: artifact.label || artifact.id,
     sublabel: run.runId,
     type: "video",
-    url: workflowVideoUrl(scenario, run.runId, v.relPath),
+    url: workflowVideoUrl(scenario, run.runId, artifact.id),
   }));
 
   return (
@@ -146,12 +143,10 @@ function RunRow({ run, scenario, repoId }: { run: RunSummary; scenario: string; 
         ) : (
           <ChevronRight className="h-3.5 w-3.5 text-slate-500 shrink-0" />
         )}
-        <Icon className={`h-4 w-4 shrink-0 ${statusColor(run.playbooksStatus || run.status)}`} />
+        <Icon className={`h-4 w-4 shrink-0 ${statusColor(run.status)}`} />
         <span className="text-xs text-slate-300 font-mono truncate">{run.runId}</span>
         <div className="ml-auto flex items-center gap-3 text-[11px] text-slate-500 shrink-0">
-          {run.playbooksDurationSeconds > 0 && (
-            <span>{formatDuration(Math.round(run.playbooksDurationSeconds))}</span>
-          )}
+          {run.startedAt && run.completedAt && <span>{formatDuration(Math.max(0, Math.round((Date.parse(run.completedAt) - Date.parse(run.startedAt)) / 1000)))}</span>}
           {sha8 && <span className="font-mono">{sha8}</span>}
           {run.gitDirty && <span className="text-amber-500">dirty</span>}
           {run.startedAt && <span>{formatRelativeTime(run.startedAt)}</span>}

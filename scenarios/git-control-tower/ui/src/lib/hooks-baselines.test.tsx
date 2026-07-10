@@ -12,12 +12,12 @@ vi.mock("./api-baselines", () => ({
 describe("useCompareOnDemand", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    diffBaseline.mockResolvedValue({ verdict: "clean", surfaces: [] });
+    diffBaseline.mockResolvedValue({ verdict: "clean", phases: [] });
   });
 
   it("does not diff until start() and clears on exit()", async () => {
     const { result } = renderHookWithQueryClient(() =>
-      useCompareOnDemand("s", { baselineName: "b", surface: "tests" }),
+      useCompareOnDemand("s", { baselineName: "b" }),
     );
 
     // Idle: no server diff.
@@ -36,7 +36,7 @@ describe("useCompareOnDemand", () => {
 
   it("never diffs without a resolved baseline", () => {
     const { result } = renderHookWithQueryClient(() =>
-      useCompareOnDemand("s", { baselineName: "", surface: "tests" }),
+      useCompareOnDemand("s", { baselineName: "" }),
     );
     act(() => result.current.start());
     expect(diffBaseline).not.toHaveBeenCalled();

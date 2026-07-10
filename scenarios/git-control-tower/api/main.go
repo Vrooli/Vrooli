@@ -272,8 +272,11 @@ func main() {
 	}
 
 	if err := server.Run(server.Config{
-		Handler:      srv.Router(),
-		WriteTimeout: 5 * time.Minute, // workflow captures poll BAS and can take several minutes
+		Handler: srv.Router(),
+		// Baseline CLI attachments have a 30m transport ceiling. Durable intents
+		// survive longer queue/execution time; this margin prevents net/http from
+		// manufacturing an EOF before the bounded attachment can return state.
+		WriteTimeout: 31 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			srv.periodicCapture.Stop()
 			return srv.db.Close()

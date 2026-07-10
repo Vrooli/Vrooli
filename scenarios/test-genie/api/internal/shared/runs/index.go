@@ -48,23 +48,50 @@ var ErrRunNotFound = errors.New("run not found in index")
 // ErrRunPinned is returned when a delete is attempted on a pinned run without force.
 var ErrRunPinned = errors.New("run is pinned; unpin or use force to delete")
 
+// Terminal snapshot errors are typed so callers can distinguish a legacy run
+// from corrupt or future-version evidence without inventing empty fields.
+var (
+	ErrSnapshotNotFound           = errors.New("terminal run snapshot not found")
+	ErrInvalidTerminalSnapshot    = errors.New("invalid terminal run snapshot")
+	ErrUnsupportedSnapshotVersion = errors.New("unsupported terminal run snapshot version")
+)
+
+// TerminalSnapshotSchemaVersion is the first canonical durable terminal run
+// contract. Additive evolution may retain this version; incompatible changes
+// require a new version and an explicit reader migration.
+const TerminalSnapshotSchemaVersion = 1
+
+// TerminalSnapshot is the heavy, immutable terminal truth stored beside a
+// run's artifacts. Run is the compact enumeration projection; Result preserves
+// the complete orchestrator result without making the shared index package
+// depend on the orchestrator package.
+type TerminalSnapshot struct {
+	SchemaVersion int             `json:"schema_version"`
+	Run           RunRecord       `json:"run"`
+	Result        json.RawMessage `json:"result"`
+}
+
 // Index is the append-only run index backed by coverage/runs.index.json. All
 // mutations serialize through an advisory flock on a sibling lock file so
 // concurrent test-genie processes (multiple agents on one box) cannot corrupt
 // it.
 type Index struct {
-	path     string
-	lockPath string
+	scenarioDir string
+	path        string
+	lockPath    string
 }
 
 // NewIndex returns the Index for a scenario directory.
 func NewIndex(scenarioDir string) *Index {
 	path := sharedartifacts.RunsIndexPath(scenarioDir)
-	return &Index{path: path, lockPath: path + ".lock"}
+	return &Index{scenarioDir: scenarioDir, path: path, lockPath: path + ".lock"}
 }
 
 // Path returns the absolute path to the index file.
 func (i *Index) Path() string { return i.path }
+
+// ScenarioDir returns the scenario root owning this index and its run artifacts.
+func (i *Index) ScenarioDir() string { return i.scenarioDir }
 
 // withLock runs fn while holding an exclusive advisory lock on the index.
 func (i *Index) withLock(fn func() error) error {
@@ -201,6 +228,122 @@ func (i *Index) Update(runID string, mutate func(*RunRecord) error) error {
 		}
 		return ErrRunNotFound
 	})
+}
+
+// Finalize atomically publishes the heavy terminal snapshot before flipping
+// the compact index entry terminal, all under the same index lock. If snapshot
+// serialization or persistence fails, the index remains non-terminal so no
+// reader can mistake a partial finalization for complete evidence.
+func (i *Index) Finalize(runID string, result any, mutate func(*RunRecord) error) error {
+	return i.withLock(func() error {
+		records, err := i.readUnlocked()
+		if err != nil {
+			return err
+		}
+		for idx := range records {
+			if records[idx].RunID != runID {
+				continue
+			}
+			if err := mutate(&records[idx]); err != nil {
+				return err
+			}
+			if !isTerminalRecord(records[idx].Status) {
+				return fmt.Errorf("%w: status %q is not terminal", ErrInvalidTerminalSnapshot, records[idx].Status)
+			}
+			if err := writeTerminalSnapshot(i.scenarioDir, records[idx], result); err != nil {
+				return err
+			}
+			return i.writeUnlocked(records)
+		}
+		return ErrRunNotFound
+	})
+}
+
+// ReadTerminalSnapshot loads and validates the canonical terminal snapshot for
+// runID. A missing file identifies a pre-snapshot legacy run and is returned as
+// ErrSnapshotNotFound; corrupt and future-version files remain distinct errors.
+func (i *Index) ReadTerminalSnapshot(runID string) (TerminalSnapshot, error) {
+	path := sharedartifacts.RunSnapshotPath(i.scenarioDir, runID)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return TerminalSnapshot{}, ErrSnapshotNotFound
+		}
+		return TerminalSnapshot{}, fmt.Errorf("read terminal snapshot: %w", err)
+	}
+	var snapshot TerminalSnapshot
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		return TerminalSnapshot{}, fmt.Errorf("%w: decode: %v", ErrInvalidTerminalSnapshot, err)
+	}
+	if snapshot.SchemaVersion != TerminalSnapshotSchemaVersion {
+		return TerminalSnapshot{}, fmt.Errorf("%w: got %d", ErrUnsupportedSnapshotVersion, snapshot.SchemaVersion)
+	}
+	if snapshot.Run.RunID != runID || !isTerminalRecord(snapshot.Run.Status) || len(snapshot.Result) == 0 || string(snapshot.Result) == "null" {
+		return TerminalSnapshot{}, fmt.Errorf("%w: identity, status, or result is incomplete", ErrInvalidTerminalSnapshot)
+	}
+	return snapshot, nil
+}
+
+func writeTerminalSnapshot(scenarioDir string, record RunRecord, result any) error {
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("marshal terminal result: %w", err)
+	}
+	if string(resultJSON) == "null" {
+		return fmt.Errorf("%w: result is nil", ErrInvalidTerminalSnapshot)
+	}
+	snapshot := TerminalSnapshot{
+		SchemaVersion: TerminalSnapshotSchemaVersion,
+		Run:           record,
+		Result:        resultJSON,
+	}
+	data, err := json.MarshalIndent(snapshot, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal terminal snapshot: %w", err)
+	}
+	path := sharedartifacts.RunSnapshotPath(scenarioDir, record.RunID)
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create terminal snapshot dir: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, ".run-snapshot-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create terminal snapshot tmp: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write terminal snapshot tmp: %w", err)
+	}
+	if err := tmp.Chmod(0o644); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("chmod terminal snapshot tmp: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync terminal snapshot tmp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close terminal snapshot tmp: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("replace terminal snapshot: %w", err)
+	}
+	if dirHandle, err := os.Open(dir); err == nil {
+		_ = dirHandle.Sync()
+		_ = dirHandle.Close()
+	}
+	return nil
+}
+
+func isTerminalRecord(status string) bool {
+	switch status {
+	case StatusPassed, StatusFailed, StatusAborted:
+		return true
+	default:
+		return false
+	}
 }
 
 // Remove deletes a record by run ID. Missing runs are a no-op.

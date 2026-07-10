@@ -61,7 +61,7 @@ export function ScreenshotsTab({
   const [configOpen, setConfigOpen] = useState(false);
   const [comparing, setComparing] = useState(false);
 
-  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, "visuals", repoId);
+  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, repoId);
 
   // Compare mode for visuals shows the selected baseline's PINNED screenshots
   // beside the current loose capture (Plan C Phase 4). It is instantaneous —
@@ -71,7 +71,7 @@ export function ScreenshotsTab({
   const baselinesQuery = useBaselines(scenarioSlug, { repoId });
   const { defaultBaselineName } = useDefaultBaseline(scenarioSlug);
   const selectedBaseline = baselinesQuery.data?.find((b) => b.name === defaultBaselineName);
-  const baselineSnapshotId = selectedBaseline?.surfaces?.visuals?.ref ?? "";
+  const baselineSnapshotId = selectedBaseline?.run?.runId ?? "";
   const showCompare = comparing && Boolean(baselineSnapshotId);
   const beforeDetail = useVisualCaptureDetail(baselineSnapshotId, scenarioSlug, showCompare, repoId);
   const before: SnapshotSetMeta | undefined = showCompare ? beforeDetail.data : undefined;

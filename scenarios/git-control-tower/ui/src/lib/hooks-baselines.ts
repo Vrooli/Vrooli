@@ -11,9 +11,7 @@ import {
   diffBaseline,
   snapshotForBaseline,
   deleteBaseline,
-  editBaseline,
   type SnapshotBaselineParams,
-  type EditBaselineParams,
 } from "./api-baselines";
 import type {
   BaselineManifest,
@@ -53,12 +51,12 @@ export function useBaselineDiff(
   scenario: string,
   name: string,
   branch: string,
-  opts: { surface?: string; enabled?: boolean; repoId?: string | null } = {},
+  opts: { enabled?: boolean; repoId?: string | null } = {},
 ) {
-  const { surface = "", enabled = true, repoId } = opts;
+  const { enabled = true, repoId } = opts;
   return useQuery<DiffResult | undefined, Error>({
-    queryKey: queryKeys.baselineDiff(scenario, name, branch, surface, repoId),
-    queryFn: () => diffBaseline({ scenario, name, branch, surface, repoId }),
+    queryKey: queryKeys.baselineDiff(scenario, name, branch, "all", repoId),
+    queryFn: () => diffBaseline({ scenario, name, branch, repoId }),
     // The diff resolves the verdict server-side (start + server-side wait);
     // never poll it automatically.
     enabled: enabled && Boolean(scenario) && Boolean(name),
@@ -67,7 +65,7 @@ export function useBaselineDiff(
   });
 }
 
-export function useCreateBaseline(repoId?: string | null) {
+export function useSnapshotBaseline(repoId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation<unknown, Error, SnapshotBaselineParams>({
     mutationFn: (params) => snapshotForBaseline({ ...params, repoId }),
@@ -87,24 +85,13 @@ export function useDeleteBaseline(repoId?: string | null) {
   });
 }
 
-export function useEditBaseline(repoId?: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation<unknown, Error, EditBaselineParams>({
-    mutationFn: (params) => editBaseline({ ...params, repoId }),
-    onSuccess: (_data, params) => {
-      queryClient.invalidateQueries({ queryKey: ["baselines", repoId ?? "default", params.scenario] });
-    },
-  });
-}
-
 // ── On-demand compare (Plan C Decision 3) ─────────────────────────────────
 // The single compare-trigger used by every surface tab AND the full
 // BaselineCompareView. A diff re-executes the surface(s) server-side (minutes),
 // so comparison is an explicit start/exit action, never an on-mount fetch.
 //
 // Pass an explicit `baselineName`/`branch` for a specific baseline (compare
-// view), or omit them to compare against the per-scenario default baseline
-// (Decision 4). A `surface` narrows the diff to one surface; "" diffs all.
+// view), or omit them to compare against the per-scenario default baseline.
 
 export interface CompareOnDemand {
   /** True once the user has started the comparison. */
@@ -123,13 +110,12 @@ export interface CompareOnDemand {
 export function useCompareOnDemand(
   scenario: string,
   opts: {
-    surface?: string;
     baselineName?: string;
     branch?: string;
     repoId?: string | null;
   } = {},
 ): CompareOnDemand {
-  const { surface = "", branch = "", repoId } = opts;
+  const { branch = "", repoId } = opts;
   const { defaultBaselineName } = useDefaultBaseline(scenario);
   const baselineName = opts.baselineName ?? defaultBaselineName ?? "";
 
@@ -138,7 +124,6 @@ export function useCompareOnDemand(
   const exit = useCallback(() => setComparing(false), []);
 
   const diffQuery = useBaselineDiff(scenario, baselineName, branch, {
-    surface,
     enabled: comparing && Boolean(baselineName),
     repoId,
   });

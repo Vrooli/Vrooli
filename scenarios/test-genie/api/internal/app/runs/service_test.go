@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,32 @@ func seedRecord(t *testing.T, root string, rec sharedruns.RunRecord) {
 	t.Helper()
 	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Append(rec); err != nil {
 		t.Fatalf("seed %s: %v", rec.RunID, err)
+	}
+}
+
+func seedDescriptorSnapshot(t *testing.T, root, runID string, phases ...sharedruns.PhaseDescriptorSnapshot) {
+	t.Helper()
+	snapshot, err := sharedruns.NewDescriptorSnapshot(phases)
+	if err != nil {
+		t.Fatalf("build descriptor snapshot for %s: %v", runID, err)
+	}
+	scenarioDir := filepath.Join(root, "demo")
+	if err := sharedruns.WriteDescriptorSnapshot(scenarioDir, runID, snapshot); err != nil {
+		t.Fatalf("write descriptor snapshot for %s: %v", runID, err)
+	}
+	if err := sharedruns.NewIndex(scenarioDir).Update(runID, func(record *sharedruns.RunRecord) error {
+		record.DescriptorSnapshotSchemaVersion = snapshot.SchemaVersion
+		record.DescriptorSnapshotDigest = snapshot.Digest
+		return nil
+	}); err != nil {
+		t.Fatalf("stamp descriptor snapshot for %s: %v", runID, err)
+	}
+}
+
+func capturedPhase(phase, displayName string) sharedruns.PhaseDescriptorSnapshot {
+	return sharedruns.PhaseDescriptorSnapshot{
+		Phase: phase, DisplayName: displayName,
+		Applicability: sharedruns.ApplicabilityDecisionSnapshot{Status: "applies", Planned: true},
 	}
 }
 
@@ -114,6 +141,9 @@ func TestCompareRunsClassification(t *testing.T) {
 			{Name: "structure", Status: "passed"},
 		},
 	})
+	seedDescriptorSnapshot(t, root, "base",
+		capturedPhase("playbooks", "Workflows"), capturedPhase("unit", "Unit"), capturedPhase("structure", "Structure"),
+	)
 	// Current: workflows regressed, a new phase fails, unit still fails, structure clean.
 	seedRecord(t, root, sharedruns.RunRecord{
 		RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusFailed,
@@ -124,6 +154,10 @@ func TestCompareRunsClassification(t *testing.T) {
 			{Name: "integration", Status: "failed"}, // new failure (absent in base)
 		},
 	})
+	seedDescriptorSnapshot(t, root, "cur",
+		capturedPhase("playbooks", "Workflow Evidence"), capturedPhase("unit", "Unit"),
+		capturedPhase("structure", "Structure"), capturedPhase("integration", "Integration"),
+	)
 
 	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
@@ -145,6 +179,18 @@ func TestCompareRunsClassification(t *testing.T) {
 	if got["integration"] != verdictNewFailure {
 		t.Errorf("integration: want new-failure, got %s", got["integration"])
 	}
+	var integration *runspb.PhaseDiff
+	for _, phase := range resp.Msg.GetPhases() {
+		if phase.GetPhase() == "integration" {
+			integration = phase
+		}
+	}
+	if integration == nil || len(integration.GetReasons()) != 1 || integration.GetReasons()[0].GetCode() != runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_NEW_PHASE {
+		t.Fatalf("integration comparison reason = %+v", integration)
+	}
+	if gotDisplay := resp.Msg.GetPhases()[0].GetDescriptorB().GetDisplayName(); gotDisplay != "Workflow Evidence" {
+		t.Fatalf("captured current display name = %q", gotDisplay)
+	}
 	// Overall verdict is the worst (regression).
 	if resp.Msg.GetVerdict() != verdictRegression {
 		t.Errorf("overall verdict: want regression, got %s", resp.Msg.GetVerdict())
@@ -158,6 +204,75 @@ func TestCompareRunsClassification(t *testing.T) {
 	if len(filtered.Msg.GetPhases()) != 1 || filtered.Msg.GetPhases()[0].GetPhase() != "structure" {
 		t.Fatalf("phase filter failed: %v", filtered.Msg.GetPhases())
 	}
+}
+
+func TestCompareRunsUsesCapturedCatalogEvolutionAndTypedReasons(t *testing.T) { // [REQ:TESTGENIE-DESCRIPTOR-SNAPSHOT-P0]
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "old", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{
+			{Name: "stable", Status: "passed"},
+			{Name: "retired", Status: "passed"},
+			{Name: "conditional", Status: "passed"},
+			{Name: "runtime", Status: "passed"},
+		},
+	})
+	oldStable := capturedPhase("stable", "Original Label")
+	oldStable.Provider = "old-provider"
+	seedDescriptorSnapshot(t, root, "old",
+		oldStable, capturedPhase("retired", "Retired Phase"), capturedPhase("conditional", "Conditional"), capturedPhase("runtime", "Runtime"),
+	)
+
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "new", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{
+			{Name: "new-phase", Status: "passed"},
+			{Name: "stable", Status: "passed"},
+			{Name: "runtime", Status: "provider_unavailable"},
+		},
+	})
+	newStable := capturedPhase("stable", "Renamed Label")
+	newStable.Provider = "new-provider"
+	inapplicable := capturedPhase("conditional", "Conditional")
+	inapplicable.Applicability = sharedruns.ApplicabilityDecisionSnapshot{Status: "not_applicable", Planned: false}
+	seedDescriptorSnapshot(t, root, "new",
+		capturedPhase("new-phase", "New Phase"), newStable, inapplicable, capturedPhase("runtime", "Runtime"),
+	)
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "old", RunIdB: "new"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if got := resp.Msg.GetPhases()[0].GetPhase(); got != "new-phase" {
+		t.Fatalf("comparison order starts with %q, want current captured order", got)
+	}
+	byPhase := map[string]*runspb.PhaseDiff{}
+	for _, diff := range resp.Msg.GetPhases() {
+		byPhase[diff.GetPhase()] = diff
+	}
+	if got := byPhase["stable"].GetDescriptorA().GetDisplayName(); got != "Original Label" {
+		t.Fatalf("baseline historical label = %q", got)
+	}
+	if diff := byPhase["stable"]; diff.GetDescriptorB().GetDisplayName() != "Renamed Label" || diff.GetDescriptorB().GetProvider() != "new-provider" {
+		t.Fatalf("current historical descriptor = %+v", diff.GetDescriptorB())
+	}
+	assertComparisonReason(t, byPhase["new-phase"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_NEW_PHASE)
+	assertComparisonReason(t, byPhase["retired"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_RETIRED_PHASE)
+	assertComparisonReason(t, byPhase["conditional"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_INAPPLICABLE)
+	assertComparisonReason(t, byPhase["runtime"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE)
+}
+
+func assertComparisonReason(t *testing.T, diff *runspb.PhaseDiff, code runspb.PhaseComparisonReasonCode) {
+	t.Helper()
+	if diff == nil {
+		t.Fatalf("missing phase diff for reason %s", code)
+	}
+	for _, reason := range diff.GetReasons() {
+		if reason.GetCode() == code {
+			return
+		}
+	}
+	t.Fatalf("phase %s reasons = %+v, want %s", diff.GetPhase(), diff.GetReasons(), code)
 }
 
 func TestGetPhaseArtifact(t *testing.T) {
@@ -187,6 +302,101 @@ func TestGetPhaseArtifact(t *testing.T) {
 	// Missing artifact → NotFound.
 	if _, err := svc.GetPhaseArtifact(context.Background(), connect.NewRequest(&runspb.GetPhaseArtifactRequest{Scenario: "demo", RunId: "r1", Phase: "missing"})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("expected NotFound, got %v", err)
+	}
+}
+
+func TestListAndGetRunArtifactsUseOpaqueTypedReferences(t *testing.T) { // [REQ:TESTGENIE-TYPED-EVIDENCE-P0]
+	svc, root := newTestService(t)
+	scenarioDir := filepath.Join(root, "demo")
+	runID := "artifacts"
+	seedRecord(t, root, sharedruns.RunRecord{RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed})
+	seedDescriptorSnapshot(t, root, runID, sharedruns.PhaseDescriptorSnapshot{
+		Phase: "future-visual", EvidenceKinds: []string{sharedartifacts.ArtifactKindScreenshot},
+		Applicability: sharedruns.ApplicabilityDecisionSnapshot{Status: "applies", Planned: true},
+	})
+	pageDir := filepath.Join(sharedartifacts.RunUISmokePagesDir(scenarioDir, runID), "home")
+	if err := os.MkdirAll(pageDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pageDir, "page.json"), []byte(`{"page":"/home","label":"Home"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pageDir, "screenshot.png"), []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := sharedartifacts.DiscoverArtifactCatalog(
+		scenarioDir, runID, artifactPhaseDeclarations(scenarioDir, runID), time.Unix(100, 0), false,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sharedartifacts.WriteArtifactCatalog(scenarioDir, catalog); err != nil {
+		t.Fatal(err)
+	}
+
+	listed, err := svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{
+		Scenario: "demo", RunId: runID, Kinds: []string{sharedartifacts.ArtifactKindScreenshot},
+	}))
+	if err != nil {
+		t.Fatalf("ListRunArtifacts: %v", err)
+	}
+	if listed.Msg.GetLegacyDiscovered() || len(listed.Msg.GetArtifacts()) != 1 {
+		t.Fatalf("artifact list = %+v", listed.Msg)
+	}
+	artifact := listed.Msg.GetArtifacts()[0]
+	if artifact.GetProducingPhase() != "future-visual" || artifact.GetKind() != sharedartifacts.ArtifactKindScreenshot {
+		t.Fatalf("artifact metadata = %+v", artifact)
+	}
+	if strings.Contains(artifact.GetAccessPath(), "ui-smoke") || strings.Contains(artifact.GetId(), "screenshot") {
+		t.Fatalf("public reference leaks storage path: %+v", artifact)
+	}
+	if artifact.GetComparison().GetSemantics() != "advisory" {
+		t.Fatalf("visual comparison semantics = %+v", artifact.GetComparison())
+	}
+	got, err := svc.GetRunArtifact(context.Background(), connect.NewRequest(&runspb.GetRunArtifactRequest{
+		Scenario: "demo", RunId: runID, ArtifactId: artifact.GetId(),
+	}))
+	if err != nil {
+		t.Fatalf("GetRunArtifact: %v", err)
+	}
+	if got.Msg.GetArtifact().GetId() != artifact.GetId() {
+		t.Fatalf("detail = %+v", got.Msg)
+	}
+}
+
+func TestRunArtifactCatalogLegacyAndCrossRunErrorsAreExplicit(t *testing.T) { // [REQ:TESTGENIE-TYPED-EVIDENCE-P0]
+	svc, root := newTestService(t)
+	scenarioDir := filepath.Join(root, "demo")
+	for _, runID := range []string{"legacy-a", "legacy-b"} {
+		seedRecord(t, root, sharedruns.RunRecord{RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed})
+		runDir := sharedartifacts.RunDir(scenarioDir, runID)
+		if err := os.MkdirAll(runDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(runDir, "future.bin"), []byte(runID), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	legacy, err := svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Scenario: "demo", RunId: "legacy-a"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !legacy.Msg.GetLegacyDiscovered() || len(legacy.Msg.GetDegradedReasons()) == 0 {
+		t.Fatalf("legacy projection = %+v", legacy.Msg)
+	}
+	foreign, err := svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Scenario: "demo", RunId: "legacy-b"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.GetRunArtifact(context.Background(), connect.NewRequest(&runspb.GetRunArtifactRequest{
+		Scenario: "demo", RunId: "legacy-a", ArtifactId: foreign.Msg.GetArtifacts()[0].GetId(),
+	}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("foreign artifact code = %s err=%v", connect.CodeOf(err), err)
+	}
+	_, err = svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Scenario: "../demo", RunId: "legacy-a"}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("scenario traversal code = %s err=%v", connect.CodeOf(err), err)
 	}
 }
 

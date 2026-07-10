@@ -42,6 +42,13 @@ service RunsService {
   rpc CompareRuns(CompareRunsRequest) returns (CompareRunsResponse);
   // GetPhaseArtifact returns the raw phase-results JSON for a run+phase.
   rpc GetPhaseArtifact(GetPhaseArtifactRequest) returns (GetPhaseArtifactResponse);
+  // ListRunArtifacts returns the typed, path-free evidence catalog for a run.
+  // Kinds are open strings so future provider evidence passes through without
+  // a Test Genie or consumer schema change.
+  rpc ListRunArtifacts(ListRunArtifactsRequest) returns (ListRunArtifactsResponse);
+  // GetRunArtifact returns metadata for one opaque run-scoped artifact ID.
+  // Bytes are streamed through the access_path advertised on ArtifactRef.
+  rpc GetRunArtifact(GetRunArtifactRequest) returns (GetRunArtifactResponse);
 
   // GetRunFindings returns the per-phase maturity standing (Phase Capability
   // Contract) persisted in the run's findings.json, on demand.
@@ -187,6 +194,11 @@ message RunLiveStatus {
   // index record.
   repeated PhaseMaturityStanding terminal_standings = 17;
   repeated PhaseFindingsSummary terminal_findings_summaries = 18;
+  // degraded_reasons is non-empty when a terminal status could not be backed
+  // by the canonical snapshot (for example, a legacy, corrupt, or unsupported
+  // snapshot). Consumers must render this as UNKNOWN/degraded evidence rather
+  // than treating absent phase data as a zero-phase success.
+  repeated string degraded_reasons = 19;
 }
 
 message StartRunRequest {
@@ -259,6 +271,12 @@ message WaitRunRequest {
 message WaitRunResponse {
   RunLiveStatus status = 1;
   bool timed_out = 2; // true if the wait returned before the run was terminal
+  // terminal_run is the canonical durable RunInfo projection. It is populated
+  // only for a terminal response backed by a valid persisted snapshot, and is
+  // the same record returned by GetRun after retirement or restart.
+  RunInfo terminal_run = 3;
+  int32 terminal_snapshot_schema_version = 4;
+  repeated string degraded_reasons = 5;
 }
 
 message AbortRunRequest {
@@ -367,6 +385,58 @@ message PhaseInfo {
   PhaseFindingsSummary findings_summary = 9;
 }
 
+// PhaseDescriptorPolicy is the descriptor-owned execution policy captured for
+// a run. String values intentionally preserve the provider descriptor
+// vocabulary so additive policy values remain inspectable by older clients.
+message PhaseDescriptorPolicy {
+  string selection = 1;
+  string provider_readiness = 2;
+  string provider_lifecycle = 3;
+  string freshness = 4;
+  string result_gating = 5;
+  string unavailable = 6;
+}
+
+// PhaseApplicabilityDecision is the immutable applicability decision made for
+// one phase while planning this run. It is historical evidence, not a live
+// re-evaluation against the current target or provider catalog.
+message PhaseApplicabilityDecision {
+  string status = 1; // applies | not_applicable | unknown | invalid
+  repeated string reason_codes = 2;
+  repeated string reasons = 3;
+  bool planned = 4;
+}
+
+// RunPhaseDescriptor is the run-captured presentation and orchestration
+// metadata for one immutable phase machine key.
+message RunPhaseDescriptor {
+  string phase = 1;
+  string display_name = 2;
+  string description = 3;
+  string provider = 4;
+  int32 order_hint = 5;
+  string phase_class = 6;
+  string runtime_class = 7;
+  repeated string dimensions = 8;
+  string finding_source = 9;
+  PhaseDescriptorPolicy policy = 10;
+  string docs_path = 11;
+  string maturity_reference = 12;
+  string applicability_default = 13;
+  repeated string evidence_kinds = 14;
+  repeated string aliases = 15;
+  repeated string supersedes = 16;
+  PhaseApplicabilityDecision applicability = 17;
+}
+
+// RunDescriptorSnapshot is the complete descriptor catalog frozen at run
+// planning time. digest is sha256 over the canonical snapshot payload.
+message RunDescriptorSnapshot {
+  int32 schema_version = 1;
+  string digest = 2;
+  repeated RunPhaseDescriptor phases = 3;
+}
+
 // RunInfo mirrors the run index record.
 message RunInfo {
   string run_id = 1;
@@ -394,6 +464,9 @@ message RunInfo {
   string capture_profile = 15;
   repeated string planned_phases = 16;
   string phase_set_digest = 17;
+  int32 descriptor_snapshot_schema_version = 18;
+  string descriptor_snapshot_digest = 19;
+  RunDescriptorSnapshot descriptor_snapshot = 20;
 }
 
 message ListRunsRequest {
@@ -413,6 +486,8 @@ message GetRunRequest {
 
 message GetRunResponse {
   RunInfo run = 1;
+  int32 terminal_snapshot_schema_version = 2;
+  repeated string degraded_reasons = 3;
 }
 
 message DeleteRunRequest {
@@ -453,6 +528,23 @@ message CompareRunsRequest {
   string phase = 4; // optional: restrict to one phase
 }
 
+enum PhaseComparisonReasonCode {
+  PHASE_COMPARISON_REASON_CODE_UNSPECIFIED = 0;
+  PHASE_COMPARISON_REASON_CODE_NEW_PHASE = 1;
+  PHASE_COMPARISON_REASON_CODE_RETIRED_PHASE = 2;
+  PHASE_COMPARISON_REASON_CODE_INAPPLICABLE = 3;
+  PHASE_COMPARISON_REASON_CODE_SKIPPED = 4;
+  PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE = 5;
+  PHASE_COMPARISON_REASON_CODE_MISSING_ARTIFACT = 6;
+  PHASE_COMPARISON_REASON_CODE_INCOMPATIBLE_SCHEMA = 7;
+  PHASE_COMPARISON_REASON_CODE_LEGACY_METADATA_UNAVAILABLE = 8;
+}
+
+message PhaseComparisonReason {
+  PhaseComparisonReasonCode code = 1;
+  string detail = 2;
+}
+
 // PhaseDiff classifies the difference for a single phase between run A and B.
 message PhaseDiff {
   string phase = 1;
@@ -464,6 +556,9 @@ message PhaseDiff {
   repeated string new_failures = 6; // absent in A, failing in B
   repeated string preexisting_failures = 7; // failing in both
   repeated string cleared_failures = 8; // failing in A, passing in B
+  RunPhaseDescriptor descriptor_a = 9;
+  RunPhaseDescriptor descriptor_b = 10;
+  repeated PhaseComparisonReason reasons = 11;
 }
 
 message CompareRunsResponse {
@@ -506,6 +601,77 @@ message GetPhaseArtifactRequest {
 message GetPhaseArtifactResponse {
   string content = 1; // raw phase-results JSON
   string content_type = 2; // "application/json"
+}
+
+enum ArtifactAccessCapability {
+  ARTIFACT_ACCESS_CAPABILITY_UNSPECIFIED = 0;
+  ARTIFACT_ACCESS_CAPABILITY_STREAM = 1;
+}
+
+enum ArtifactProvenance {
+  ARTIFACT_PROVENANCE_UNSPECIFIED = 0;
+  ARTIFACT_PROVENANCE_CATALOG = 1;
+  ARTIFACT_PROVENANCE_LEGACY_DISCOVERY = 2;
+}
+
+message ArtifactRelationship {
+  string type = 1;
+  string target_artifact_id = 2;
+}
+
+// ArtifactComparison describes optional analyzer-owned comparison behavior.
+// Advisory visual semantics never alter the Test Genie run verdict.
+message ArtifactComparison {
+  string semantics = 1;
+  string analyzer = 2;
+  map<string, string> metadata = 3;
+}
+
+// ArtifactRef is the public, safe evidence reference. It intentionally has no
+// relative or absolute filesystem path; access is through the opaque ID and
+// run-scoped proxy route only.
+message ArtifactRef {
+  string id = 1;
+  string kind = 2;
+  string media_type = 3;
+  string label = 4;
+  string producing_phase = 5;
+  int64 size_bytes = 6;
+  string created_at = 7;
+  ArtifactAccessCapability access_capability = 8;
+  string access_path = 9;
+  map<string, string> metadata = 10;
+  repeated ArtifactRelationship relationships = 11;
+  ArtifactComparison comparison = 12;
+  ArtifactProvenance provenance = 13;
+}
+
+message ListRunArtifactsRequest {
+  string scenario = 1;
+  string run_id = 2;
+  repeated string kinds = 3;
+  // Optional metadata filter. Consumers never need a phase filter to discover
+  // screenshots, workflow recordings, or another evidence kind.
+  string producing_phase = 4;
+}
+
+message ListRunArtifactsResponse {
+  int32 schema_version = 1;
+  string digest = 2;
+  repeated ArtifactRef artifacts = 3;
+  bool legacy_discovered = 4;
+  repeated string degraded_reasons = 5;
+}
+
+message GetRunArtifactRequest {
+  string scenario = 1;
+  string run_id = 2;
+  string artifact_id = 3;
+}
+
+message GetRunArtifactResponse {
+  ArtifactRef artifact = 1;
+  bool legacy_discovered = 2;
 }
 
 message GetRunFindingsRequest {
@@ -594,6 +760,10 @@ message VisualDelta {
   // changed_fraction is the share of the downscaled luminance grid that moved
   // (0 unless status is "changed").
   double changed_fraction = 4;
+  // Opaque links back to the exact typed screenshot evidence. Empty when the
+  // page exists on only the opposite side or legacy discovery found no image.
+  string base_artifact_id = 5;
+  string current_artifact_id = 6;
 }
 
 message CompareRunVisualsResponse {

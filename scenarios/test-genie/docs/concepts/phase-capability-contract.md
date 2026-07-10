@@ -155,6 +155,65 @@ Severity still owns phase pass/fail per the shared health contract: only ERROR
 and BLOCKER findings fail a phase, so advisory findings never fail a run while the
 fleet migrates.
 
+## Run-scoped descriptor and evidence projection
+
+The provider contract is live planning input; the run snapshot is historical
+truth. At execution start, Test Genie captures the effective descriptor entries
+and applicability decisions for the planned run. Catalog changes after that
+point cannot rename, reorder, reattribute, or retroactively change the policy of
+historical phase results.
+
+Schema v1 is stored atomically at
+`coverage/runs/<run-id>/descriptor-snapshot.json` before the durable run index
+is promoted to `in_progress`. Its `ds:sha256:` digest and schema version are
+stamped into the compact run record and `RunInfo`; a write failure prevents
+phase execution. The later terminal snapshot embeds that same compact reference
+instead of copying or re-reading the live provider catalog.
+
+The run-owned projection is versioned and contains:
+
+- immutable phase machine key plus optional explicit alias/supersedes lineage;
+- display name, description, provider, ordering hint, phase/runtime class,
+  dimensions, finding source, policy, maturity/docs references, and declared
+  evidence kinds;
+- planned, applicable, not-applicable, skipped, and unavailable decisions with
+  typed reasons;
+- the schema version and digest of the captured descriptor catalog.
+
+Each terminal run also owns a typed artifact catalog. An artifact reference has
+an opaque run-scoped id, stable kind, media type, label, producing phase key,
+size/time metadata, safe access capability, relationships, and extensible
+metadata. Known kinds may receive specialized consumers, but unknown kinds must
+remain listable and retrievable through a safe generic path. Provider filesystem
+paths are storage details and never cross the browser/API boundary.
+
+Schema v1 is atomically stored at
+`coverage/runs/<run-id>/artifact-catalog.json` before terminal publication. It
+indexes the existing run tree and run-scoped logs rather than copying bytes into
+a second store. IDs include the run identity in their digest, so an ID from one
+run cannot address a same-named file in another. `ListRunArtifacts` and
+`GetRunArtifact` expose path-free metadata; bytes stream through the opaque
+`/api/v1/scenarios/<scenario>/runs/<run-id>/artifacts/<artifact-id>` route with
+regular-file, symlink, containment, content-type, and active-content guards.
+Pre-catalog runs use read-only discovery with explicit `legacy_discovery`
+provenance and degraded metadata. The initial kind vocabulary covers command
+output/logs, findings and coverage reports, phase results, screenshots, visual
+diffs, workflow video, trace, HAR, console, network, DOM, and generic files;
+kind remains an open string so future provider evidence survives unchanged.
+
+Terminal `WaitRun`, show, history, comparison, and downstream adapters all
+project one canonical persisted run snapshot. A pre-versioned run may be read
+through an explicit legacy/degraded projection; unknowable fields are never
+backfilled from the current catalog or represented as empty passing evidence.
+
+Comparison joins immutable phase keys and preserves both sides. New, retired,
+inapplicable, skipped, provider-unavailable, missing-artifact,
+incompatible-schema, and legacy-metadata-unavailable outcomes use typed reason
+codes rather than consumer-specific inference.
+Both descriptors returned with a phase diff come from their respective run
+snapshots. Finalization and comparison never consult `DefaultCatalog` to fill
+historical labels, provider attribution, ordering, policy, or applicability.
+
 ## What this is not
 
 - **Not a rewrite.** The substrate exists and is reused: the descriptor `maturity`

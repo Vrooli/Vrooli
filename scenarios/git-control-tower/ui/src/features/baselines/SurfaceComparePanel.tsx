@@ -15,7 +15,7 @@ import { MutationErrorBanner } from "../../components/ScenarioReviewPanelShared"
 import { useCompareOnDemand } from "../../lib/hooks-baselines";
 import { surfaceLabel, type BaselineSurface } from "./model";
 import { SurfaceBaselineBar } from "./SurfaceBaselineBar";
-import { DiffSection, SurfaceDiffBody } from "./parts";
+import { PhaseDiffCard, VerdictBadge } from "./parts";
 
 export function SurfaceComparePanel({
   scenario,
@@ -32,9 +32,8 @@ export function SurfaceComparePanel({
   onCaptureBaseline?: () => void;
   viewingLabel?: ReactNode;
 }) {
-  const compare = useCompareOnDemand(scenario, { surface, repoId });
+  const compare = useCompareOnDemand(scenario, { repoId });
   const label = surfaceLabel(surface);
-  const surfaceDiff = compare.diff?.surfaces.find((s) => s.surfaceId === surface);
 
   return (
     <div className="space-y-2">
@@ -55,13 +54,16 @@ export function SurfaceComparePanel({
           </div>
         ) : compare.error ? (
           <MutationErrorBanner error={compare.error} />
-        ) : surfaceDiff ? (
-          <DiffSection surfaceId={surface} diff={surfaceDiff}>
-            <SurfaceDiffBody diff={surfaceDiff} cleanLabel={`${label} match the baseline.`} />
-          </DiffSection>
+        ) : compare.diff ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              Comprehensive comparison <VerdictBadge verdict={compare.diff.verdict} />
+            </div>
+            {compare.diff.phases.map((phase) => <PhaseDiffCard key={phase.phase} diff={phase} />)}
+          </div>
         ) : (
           <p className="rounded-lg border border-dashed border-slate-800 px-3 py-2 text-xs text-slate-500">
-            This baseline did not capture {label.toLowerCase()}.
+            No dynamic phase comparison is available for this baseline.
           </p>
         ))}
     </div>

@@ -1,4 +1,39 @@
 # Open Issues
+
+## 2026-07-10 — Terminal wait and show disagree after durable fallback
+
+**Symptom:** `test-genie runs wait --json swarm-manager 20260710-142937-ae6a753e`
+returned terminal `failed` with zero phases and zero duration, while `runs show`
+for the same run returned 20 persisted phase results spanning 14:47:02–14:59:57
+UTC.
+
+**Root cause:** Terminal wait projects the run manager's reduced live/durable
+status fallback while show converts the persisted run record; there is no single
+versioned terminal snapshot projector shared by both paths.
+
+**Workaround:** Treat terminal wait output with missing phase data as degraded
+and inspect the same run with show. Do not relabel the zero-phase result as a
+pass or start a replacement run to manufacture baseline evidence.
+
+**Real fix:** Persist one canonical terminal snapshot atomically and hydrate
+wait, show, history, comparison, and downstream consumers from it before and
+after retirement/restart, with explicit legacy/corrupt degradation.
+
+**Owner:** test-genie run lifecycle.
+
+**Refs:** `api/internal/app/runs/lifecycle.go`;
+`api/internal/app/runs/convert.go`; run `20260710-142937-ae6a753e`.
+
+## Test Gaps — typed artifact catalog live proof
+
+Phase 4 has race-enabled unit and contract coverage for atomic catalogs,
+runtime-emitted unknown kinds, legacy discovery, screenshot/video enumeration,
+opaque list/detail/byte access, missing files, cross-run IDs, symlink escape,
+and active-content headers. The remaining proof belongs to Phase 10: a clean,
+lifecycle-managed run must confirm that real ui-health screenshots and
+workflow-health recordings are catalogued and streamed through opaque routes.
+Focused fixtures are not authoritative live evidence.
+
 - Detection refactor 2026-05: playbooks DB detection moved to `internal/playbooks/dbdetect`; the silent Postgres+Redis fallback is eliminated. Scenarios with no manifest/godeps/source evidence now provision nothing for legacy workflow seed helpers — fix at the source (declare the resource or add the driver import) rather than reinstating a fallback.
 - The scenario still needs to rebuild the CLI delegation workflow that triggers suite generation remotely.
 - Requirement modules now have `[REQ:TESTGENIE-*]` tags across Go + CLI suites, but we still need to run the orchestrator through the lifecycle to refresh requirement snapshots and add UI/E2E coverage (vault dashboard, delegated flows) before OT-P0-002 is truly multi-layer.

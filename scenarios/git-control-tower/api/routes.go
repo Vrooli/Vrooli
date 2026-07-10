@@ -84,7 +84,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}", s.handleVisualCaptureDelete).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/repo/visual-capture-storage", s.handleVisualCaptureClearAll).Methods("DELETE")
 
-	// Workflow run video proxy (Plan B): streams a test-genie playbooks-run
+	// Workflow run video proxy: streams a run-scoped opaque artifact
 	// video through GCT so the UI <video> element stays single-origin. The
 	// structured run/video listing comes from WorkflowReplayService (Connect);
 	// this is the binary side. ?scenario=&path= identify the artifact.

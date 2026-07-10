@@ -243,7 +243,7 @@ func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, ru
 		return &exitErr{code: exitNotComparable, err: err}
 	}
 	st := resp.Msg.GetStatus()
-	view := cliexec.BuildRunStandingViewFromLiveStatus(context.Background(), st, resp.Msg.GetTimedOut(), report.RunScoreCLI)
+	view := cliexec.BuildRunStandingViewFromWaitResponse(context.Background(), resp.Msg, report.RunScoreCLI)
 	if err := cliexec.WriteRunStandingJSON(w, view); err != nil {
 		return err
 	}

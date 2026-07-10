@@ -4,17 +4,17 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { ArtifactRef, PhaseDiff } from "../../../test-genie/v1/runs/runs_pb";
+import { file_test_genie_v1_runs_runs } from "../../../test-genie/v1/runs/runs_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file git-control-tower/v1/baselines/baselines.proto.
  */
 export const file_git_control_tower_v1_baselines_baselines: GenFile = /*@__PURE__*/
-  fileDesc("Ci5naXQtY29udHJvbC10b3dlci92MS9iYXNlbGluZXMvYmFzZWxpbmVzLnByb3RvEiV2cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzIrYBCghHaXRTdGF0ZRILCgNzaGEYASABKAkSDgoGYnJhbmNoGAIgASgJEhAKCGRldGFjaGVkGAMgASgIEg0KBWRpcnR5GAQgASgIEhUKDWRpcnR5X3N1bW1hcnkYBSABKAkSFgoOY29tbWl0X21lc3NhZ2UYBiABKAkSFQoNY29tbWl0X2F1dGhvchgHIAEoCRITCgtjb21taXRfZGF0ZRgIIAEoCRIRCglzYW5kYm94ZWQYCSABKAgiZQoOU3VyZmFjZVBvaW50ZXISEgoKc3VyZmFjZV9pZBgBIAEoCRIMCgRraW5kGAIgASgJEgsKA3JlZhgDIAEoCRITCgtjYXB0dXJlZF9hdBgEIAEoCRIPCgdzdW1tYXJ5GAUgASgJIogEChBCYXNlbGluZU1hbmlmZXN0EgwKBG5hbWUYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDgoGYnJhbmNoGAMgASgJEhIKCmNyZWF0ZWRfYXQYBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRI8CgNnaXQYBiABKAsyLy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdpdFN0YXRlElcKCHN1cmZhY2VzGAcgAygLMkUudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0LlN1cmZhY2VzRW50cnkSFgoOc2NoZW1hX3ZlcnNpb24YCCABKAUSVQoHc2tpcHBlZBgJIAMoCzJELnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdC5Ta2lwcGVkRW50cnkaZgoNU3VyZmFjZXNFbnRyeRILCgNrZXkYASABKAkSRAoFdmFsdWUYAiABKAsyNS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN1cmZhY2VQb2ludGVyOgI4ARouCgxTa2lwcGVkRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKlAQoLU3VyZmFjZURpZmYSEgoKc3VyZmFjZV9pZBgBIAEoCRIPCgd2ZXJkaWN0GAIgASgJEhMKC3JlZ3Jlc3Npb25zGAMgAygJEhQKDG5ld19mYWlsdXJlcxgEIAMoCRITCgtwcmVleGlzdGluZxgFIAMoCRIPCgdjbGVhcmVkGAYgAygJEg8KB3N1bW1hcnkYByABKAkSDwoHY2hhbmdlZBgIIAMoCSKhAQoJUGhhc2VEaWZmEg0KBXBoYXNlGAEgASgJEhIKCnN1cmZhY2VfaWQYAiABKAkSDwoHdmVyZGljdBgDIAEoCRITCgtyZWdyZXNzaW9ucxgEIAMoCRIUCgxuZXdfZmFpbHVyZXMYBSADKAkSEwoLcHJlZXhpc3RpbmcYBiADKAkSDwoHY2xlYXJlZBgHIAMoCRIPCgdzdW1tYXJ5GAggASgJIk8KCVN0YWxlbmVzcxIVCg1jb21taXRzX3NpbmNlGAEgASgFEhUKDWZpbGVzX2NoYW5nZWQYAiABKAUSFAoMbGlrZWx5X3N0YWxlGAMgASgIIpsBChVDcmVhdGVCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHaW5jbHVkZRgEIAMoCRIMCgRmYXN0GAUgASgIEhIKCmNyZWF0ZWRfYnkYBiABKAkSDgoGcmVhc29uGAcgASgJEg8KB3JlcG9faWQYCCABKAMihwIKFkNyZWF0ZUJhc2VsaW5lUmVzcG9uc2USSQoIYmFzZWxpbmUYASABKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkJhc2VsaW5lTWFuaWZlc3QSWwoHc2tpcHBlZBgCIAMoCzJKLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQ3JlYXRlQmFzZWxpbmVSZXNwb25zZS5Ta2lwcGVkRW50cnkSFQoNZGlydHlfd2FybmluZxgDIAEoCRouCgxTa2lwcGVkRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKgAQoaU25hcHNob3RGb3JCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHaW5jbHVkZRgEIAMoCRIMCgRmYXN0GAUgASgIEhIKCmNyZWF0ZWRfYnkYBiABKAkSDgoGcmVhc29uGAcgASgJEg8KB3JlcG9faWQYCCABKAMiuwEKG1NuYXBzaG90Rm9yQmFzZWxpbmVSZXNwb25zZRIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDAoEbmFtZRgDIAEoCRIOCgZicmFuY2gYBCABKAkSHwoXZXN0aW1hdGVkX3RvdGFsX3NlY29uZHMYBSABKAUSEQoJZXRhX2tub3duGAYgASgIEhUKDWRpcnR5X3dhcm5pbmcYByABKAkSEQoJY29hbGVzY2VkGAggASgIInkKGEdldFNuYXBzaG90U3RhdHVzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBmJyYW5jaBgDIAEoCRIOCgZydW5faWQYBCABKAkSDwoHcmVwb19pZBgFIAEoAxIMCgR3YWl0GAYgASgIIpwCChlHZXRTbmFwc2hvdFN0YXR1c1Jlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgRuYW1lGAMgASgJEg4KBmJyYW5jaBgEIAEoCRIOCgZydW5faWQYBSABKAkSEgoKcnVuX3N0YXR1cxgGIAEoCRJJCghiYXNlbGluZRgHIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdBINCgVlcnJvchgIIAEoCRIZChFzaW1pbGFyX2Jhc2VsaW5lcxgJIAMoCRImCh5yZWNvbW1lbmRlZF9uZXh0X2NoZWNrX3NlY29uZHMYCiABKAUiVQoSR2V0QmFzZWxpbmVSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB3JlcG9faWQYBCABKAMiYAoTR2V0QmFzZWxpbmVSZXNwb25zZRJJCghiYXNlbGluZRgBIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdCJfChRMaXN0QmFzZWxpbmVzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZicmFuY2gYAiABKAkSFAoMYWxsX2JyYW5jaGVzGAMgASgIEg8KB3JlcG9faWQYBCABKAMiYwoVTGlzdEJhc2VsaW5lc1Jlc3BvbnNlEkoKCWJhc2VsaW5lcxgBIAMoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdCJkChBTdGFydERpZmZSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB3N1cmZhY2UYBCABKAkSDwoHcmVwb19pZBgFIAEoAyLZAQoRU3RhcnREaWZmUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBG5hbWUYAyABKAkSDgoGYnJhbmNoGAQgASgJEh8KF2VzdGltYXRlZF90b3RhbF9zZWNvbmRzGAUgASgFEhEKCWV0YV9rbm93bhgGIAEoCBIRCgljb2FsZXNjZWQYByABKAgSEgoKcmV1c2VkX3J1bhgIIAEoCBISCgpyZXVzZWRfc2hhGAkgASgJEhUKDWRpcnR5X3dhcm5pbmcYCiABKAkilgEKFEdldERpZmZSZXN1bHRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg4KBnJ1bl9pZBgEIAEoCRIPCgdzdXJmYWNlGAUgASgJEg8KB3JlcG9faWQYBiABKAMSDAoEd2FpdBgHIAEoCBIOCgZsYXRlc3QYCCABKAgirwEKFUdldERpZmZSZXN1bHRSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSPwoEZGlmZhgCIAEoCzIxLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuRGlmZlJlc3VsdBINCgVlcnJvchgDIAEoCRImCh5yZWNvbW1lbmRlZF9uZXh0X2NoZWNrX3NlY29uZHMYBCABKAUSDgoGcnVuX2lkGAUgASgJIpIDCgpEaWZmUmVzdWx0EkkKCGJhc2VsaW5lGAEgASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0EkQKC2N1cnJlbnRfZ2l0GAIgASgLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HaXRTdGF0ZRJDCglzdGFsZW5lc3MYAyABKAsyMC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN0YWxlbmVzcxJECghzdXJmYWNlcxgEIAMoCzIyLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuU3VyZmFjZURpZmYSDwoHdmVyZGljdBgFIAEoCRIVCg1kaXJ0eV93YXJuaW5nGAYgASgJEkAKBnBoYXNlcxgHIAMoCzIwLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuUGhhc2VEaWZmIj8KC1J1bkJ1c3lJbmZvEhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIOCgZwcmVzZXQYAyABKAkiWAoVRGVsZXRlQmFzZWxpbmVSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB3JlcG9faWQYBCABKAMiKQoWRGVsZXRlQmFzZWxpbmVSZXNwb25zZRIPCgdkZWxldGVkGAEgASgIIosBChNFZGl0QmFzZWxpbmVSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB3N1cmZhY2UYBCABKAkSEgoKcGluX3J1bl9pZBgFIAEoCRIOCgZyZWFzb24YBiABKAkSDwoHcmVwb19pZBgHIAEoAyJhChRFZGl0QmFzZWxpbmVSZXNwb25zZRJJCghiYXNlbGluZRgBIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdDKVCgoQQmFzZWxpbmVzU2VydmljZRKNAQoOQ3JlYXRlQmFzZWxpbmUSPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkNyZWF0ZUJhc2VsaW5lUmVxdWVzdBo9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQ3JlYXRlQmFzZWxpbmVSZXNwb25zZRKcAQoTU25hcHNob3RGb3JCYXNlbGluZRJBLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuU25hcHNob3RGb3JCYXNlbGluZVJlcXVlc3QaQi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlNuYXBzaG90Rm9yQmFzZWxpbmVSZXNwb25zZRKWAQoRR2V0U25hcHNob3RTdGF0dXMSPy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldFNuYXBzaG90U3RhdHVzUmVxdWVzdBpALnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0U25hcHNob3RTdGF0dXNSZXNwb25zZRKEAQoLR2V0QmFzZWxpbmUSOS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldEJhc2VsaW5lUmVxdWVzdBo6LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0QmFzZWxpbmVSZXNwb25zZRKKAQoNTGlzdEJhc2VsaW5lcxI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuTGlzdEJhc2VsaW5lc1JlcXVlc3QaPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkxpc3RCYXNlbGluZXNSZXNwb25zZRJ+CglTdGFydERpZmYSNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN0YXJ0RGlmZlJlcXVlc3QaOC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN0YXJ0RGlmZlJlc3BvbnNlEooBCg1HZXREaWZmUmVzdWx0EjsudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXREaWZmUmVzdWx0UmVxdWVzdBo8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0RGlmZlJlc3VsdFJlc3BvbnNlEo0BCg5EZWxldGVCYXNlbGluZRI8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuRGVsZXRlQmFzZWxpbmVSZXF1ZXN0Gj0udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5EZWxldGVCYXNlbGluZVJlc3BvbnNlEocBCgxFZGl0QmFzZWxpbmUSOi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkVkaXRCYXNlbGluZVJlcXVlc3QaOy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkVkaXRCYXNlbGluZVJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZ2l0LWNvbnRyb2wtdG93ZXIvdjEvYmFzZWxpbmVzO2Jhc2VsaW5lc192MWIGcHJvdG8z");
+  fileDesc("Ci5naXQtY29udHJvbC10b3dlci92MS9iYXNlbGluZXMvYmFzZWxpbmVzLnByb3RvEiV2cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzIrYBCghHaXRTdGF0ZRILCgNzaGEYASABKAkSDgoGYnJhbmNoGAIgASgJEhAKCGRldGFjaGVkGAMgASgIEg0KBWRpcnR5GAQgASgIEhUKDWRpcnR5X3N1bW1hcnkYBSABKAkSFgoOY29tbWl0X21lc3NhZ2UYBiABKAkSFQoNY29tbWl0X2F1dGhvchgHIAEoCRITCgtjb21taXRfZGF0ZRgIIAEoCRIRCglzYW5kYm94ZWQYCSABKAgi6QEKCVJ1bkFuY2hvchIOCgZydW5faWQYASABKAkSEwoLY2FwdHVyZWRfYXQYAiABKAkSFwoPY2FwdHVyZV9wcm9maWxlGAMgASgJEhMKC3RyZWVfZGlnZXN0GAQgASgJEhgKEHBoYXNlX3NldF9kaWdlc3QYBSABKAkSHwoXZGVzY3JpcHRvcl9zbmFwc2hvdF9yZWYYBiABKAkSIgoaZGVzY3JpcHRvcl9zbmFwc2hvdF9kaWdlc3QYByABKAkSKgoiZGVzY3JpcHRvcl9zbmFwc2hvdF9zY2hlbWFfdmVyc2lvbhgIIAEoBSJbCg1NaWdyYXRpb25JbmZvEhsKE2Zyb21fc2NoZW1hX3ZlcnNpb24YASABKAUSEwoLbWlncmF0ZWRfYXQYAiABKAkSGAoQZGVncmFkZWRfcmVhc29ucxgDIAMoCSLIAgoQQmFzZWxpbmVNYW5pZmVzdBIMCgRuYW1lGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBmJyYW5jaBgDIAEoCRISCgpjcmVhdGVkX2F0GAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSPAoDZ2l0GAYgASgLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HaXRTdGF0ZRI9CgNydW4YByABKAsyMC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlJ1bkFuY2hvchIWCg5zY2hlbWFfdmVyc2lvbhgIIAEoBRJHCgltaWdyYXRpb24YCSABKAsyNC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLk1pZ3JhdGlvbkluZm8iTwoJU3RhbGVuZXNzEhUKDWNvbW1pdHNfc2luY2UYASABKAUSFQoNZmlsZXNfY2hhbmdlZBgCIAEoBRIUCgxsaWtlbHlfc3RhbGUYAyABKAgivAEKElJ1bkFydGlmYWN0Q2F0YWxvZxIOCgZydW5faWQYASABKAkSFgoOc2NoZW1hX3ZlcnNpb24YAiABKAUSDgoGZGlnZXN0GAMgASgJEjkKCWFydGlmYWN0cxgEIAMoCzImLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQXJ0aWZhY3RSZWYSGQoRbGVnYWN5X2Rpc2NvdmVyZWQYBSABKAgSGAoQZGVncmFkZWRfcmVhc29ucxgGIAMoCSJUCgtWaXN1YWxEZWx0YRIMCgRwYWdlGAEgASgJEg0KBWxhYmVsGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIYChBjaGFuZ2VkX2ZyYWN0aW9uGAQgASgBIssCChJFdmlkZW5jZUNvbXBhcmlzb24SEwoLYmFzZV9ydW5faWQYASABKAkSFgoOY3VycmVudF9ydW5faWQYAiABKAkSTwoMYmFzZV9jYXRhbG9nGAMgASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5SdW5BcnRpZmFjdENhdGFsb2cSUgoPY3VycmVudF9jYXRhbG9nGAQgASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5SdW5BcnRpZmFjdENhdGFsb2cSSQoNdmlzdWFsX2RlbHRhcxgFIAMoCzIyLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuVmlzdWFsRGVsdGESGAoQZGVncmFkZWRfcmVhc29ucxgGIAMoCSKNAQoaU25hcHNob3RGb3JCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSEgoKY3JlYXRlZF9ieRgGIAEoCRIOCgZyZWFzb24YByABKAkSDwoHcmVwb19pZBgIIAEoA0oECAQQBUoECAUQBiK7AQobU25hcHNob3RGb3JCYXNlbGluZVJlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgRuYW1lGAMgASgJEg4KBmJyYW5jaBgEIAEoCRIfChdlc3RpbWF0ZWRfdG90YWxfc2Vjb25kcxgFIAEoBRIRCglldGFfa25vd24YBiABKAgSFQoNZGlydHlfd2FybmluZxgHIAEoCRIRCgljb2FsZXNjZWQYCCABKAgieQoYR2V0U25hcHNob3RTdGF0dXNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg4KBnJ1bl9pZBgEIAEoCRIPCgdyZXBvX2lkGAUgASgDEgwKBHdhaXQYBiABKAginAIKGUdldFNuYXBzaG90U3RhdHVzUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBG5hbWUYAyABKAkSDgoGYnJhbmNoGAQgASgJEg4KBnJ1bl9pZBgFIAEoCRISCgpydW5fc3RhdHVzGAYgASgJEkkKCGJhc2VsaW5lGAcgASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0Eg0KBWVycm9yGAggASgJEhkKEXNpbWlsYXJfYmFzZWxpbmVzGAkgAygJEiYKHnJlY29tbWVuZGVkX25leHRfY2hlY2tfc2Vjb25kcxgKIAEoBSJVChJHZXRCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHcmVwb19pZBgEIAEoAyJgChNHZXRCYXNlbGluZVJlc3BvbnNlEkkKCGJhc2VsaW5lGAEgASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0Il8KFExpc3RCYXNlbGluZXNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBmJyYW5jaBgCIAEoCRIUCgxhbGxfYnJhbmNoZXMYAyABKAgSDwoHcmVwb19pZBgEIAEoAyJjChVMaXN0QmFzZWxpbmVzUmVzcG9uc2USSgoJYmFzZWxpbmVzGAEgAygLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0IlkKEFN0YXJ0RGlmZlJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHcmVwb19pZBgFIAEoA0oECAQQBSLZAQoRU3RhcnREaWZmUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBG5hbWUYAyABKAkSDgoGYnJhbmNoGAQgASgJEh8KF2VzdGltYXRlZF90b3RhbF9zZWNvbmRzGAUgASgFEhEKCWV0YV9rbm93bhgGIAEoCBIRCgljb2FsZXNjZWQYByABKAgSEgoKcmV1c2VkX3J1bhgIIAEoCBISCgpyZXVzZWRfc2hhGAkgASgJEhUKDWRpcnR5X3dhcm5pbmcYCiABKAkiiwEKFEdldERpZmZSZXN1bHRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg4KBnJ1bl9pZBgEIAEoCRIPCgdyZXBvX2lkGAYgASgDEgwKBHdhaXQYByABKAgSDgoGbGF0ZXN0GAggASgISgQIBRAGIq8BChVHZXREaWZmUmVzdWx0UmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEj8KBGRpZmYYAiABKAsyMS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRpZmZSZXN1bHQSDQoFZXJyb3IYAyABKAkSJgoecmVjb21tZW5kZWRfbmV4dF9jaGVja19zZWNvbmRzGAQgASgFEg4KBnJ1bl9pZBgFIAEoCSKTAwoKRGlmZlJlc3VsdBJJCghiYXNlbGluZRgBIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdBJECgtjdXJyZW50X2dpdBgCIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2l0U3RhdGUSQwoJc3RhbGVuZXNzGAMgASgLMjAudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFsZW5lc3MSDwoHdmVyZGljdBgFIAEoCRIVCg1kaXJ0eV93YXJuaW5nGAYgASgJEjQKBnBoYXNlcxgHIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VEaWZmEksKCGV2aWRlbmNlGAggASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5FdmlkZW5jZUNvbXBhcmlzb25KBAgEEAUiPwoLUnVuQnVzeUluZm8SEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEg4KBnByZXNldBgDIAEoCSJYChVEZWxldGVCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHcmVwb19pZBgEIAEoAyIpChZEZWxldGVCYXNlbGluZVJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgy+wcKEEJhc2VsaW5lc1NlcnZpY2USnAEKE1NuYXBzaG90Rm9yQmFzZWxpbmUSQS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlNuYXBzaG90Rm9yQmFzZWxpbmVSZXF1ZXN0GkIudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TbmFwc2hvdEZvckJhc2VsaW5lUmVzcG9uc2USlgEKEUdldFNuYXBzaG90U3RhdHVzEj8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRTbmFwc2hvdFN0YXR1c1JlcXVlc3QaQC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldFNuYXBzaG90U3RhdHVzUmVzcG9uc2UShAEKC0dldEJhc2VsaW5lEjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRCYXNlbGluZVJlcXVlc3QaOi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldEJhc2VsaW5lUmVzcG9uc2USigEKDUxpc3RCYXNlbGluZXMSOy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkxpc3RCYXNlbGluZXNSZXF1ZXN0GjwudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5MaXN0QmFzZWxpbmVzUmVzcG9uc2USfgoJU3RhcnREaWZmEjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFydERpZmZSZXF1ZXN0GjgudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFydERpZmZSZXNwb25zZRKKAQoNR2V0RGlmZlJlc3VsdBI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0RGlmZlJlc3VsdFJlcXVlc3QaPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldERpZmZSZXN1bHRSZXNwb25zZRKNAQoORGVsZXRlQmFzZWxpbmUSPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRlbGV0ZUJhc2VsaW5lUmVxdWVzdBo9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuRGVsZXRlQmFzZWxpbmVSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2dpdC1jb250cm9sLXRvd2VyL3YxL2Jhc2VsaW5lcztiYXNlbGluZXNfdjFiBnByb3RvMw", [file_test_genie_v1_runs_runs]);
 
 /**
- * GitState is the repository state recorded at capture time.
- *
  * @generated from message vrooli.git_control_tower.v1.baselines.GitState
  */
 export type GitState = Message<"vrooli.git_control_tower.v1.baselines.GitState"> & {
@@ -54,8 +54,6 @@ export type GitState = Message<"vrooli.git_control_tower.v1.baselines.GitState">
   commitAuthor: string;
 
   /**
-   * RFC3339
-   *
    * @generated from field: string commit_date = 8;
    */
   commitDate: string;
@@ -74,53 +72,87 @@ export const GitStateSchema: GenMessage<GitState> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_baselines_baselines, 0);
 
 /**
- * SurfacePointer references a surface artifact by stable ID.
- *
- * @generated from message vrooli.git_control_tower.v1.baselines.SurfacePointer
+ * @generated from message vrooli.git_control_tower.v1.baselines.RunAnchor
  */
-export type SurfacePointer = Message<"vrooli.git_control_tower.v1.baselines.SurfacePointer"> & {
+export type RunAnchor = Message<"vrooli.git_control_tower.v1.baselines.RunAnchor"> & {
   /**
-   * @generated from field: string surface_id = 1;
+   * @generated from field: string run_id = 1;
    */
-  surfaceId: string;
+  runId: string;
 
   /**
-   * test-genie-run | gct-local-snapshot | external
-   *
-   * @generated from field: string kind = 2;
-   */
-  kind: string;
-
-  /**
-   * @generated from field: string ref = 3;
-   */
-  ref: string;
-
-  /**
-   * RFC3339
-   *
-   * @generated from field: string captured_at = 4;
+   * @generated from field: string captured_at = 2;
    */
   capturedAt: string;
 
   /**
-   * surface-specific short summary (raw JSON)
-   *
-   * @generated from field: string summary = 5;
+   * @generated from field: string capture_profile = 3;
    */
-  summary: string;
+  captureProfile: string;
+
+  /**
+   * @generated from field: string tree_digest = 4;
+   */
+  treeDigest: string;
+
+  /**
+   * @generated from field: string phase_set_digest = 5;
+   */
+  phaseSetDigest: string;
+
+  /**
+   * Opaque run-owned identity; never a filesystem path.
+   *
+   * @generated from field: string descriptor_snapshot_ref = 6;
+   */
+  descriptorSnapshotRef: string;
+
+  /**
+   * @generated from field: string descriptor_snapshot_digest = 7;
+   */
+  descriptorSnapshotDigest: string;
+
+  /**
+   * @generated from field: int32 descriptor_snapshot_schema_version = 8;
+   */
+  descriptorSnapshotSchemaVersion: number;
 };
 
 /**
- * Describes the message vrooli.git_control_tower.v1.baselines.SurfacePointer.
- * Use `create(SurfacePointerSchema)` to create a new message.
+ * Describes the message vrooli.git_control_tower.v1.baselines.RunAnchor.
+ * Use `create(RunAnchorSchema)` to create a new message.
  */
-export const SurfacePointerSchema: GenMessage<SurfacePointer> = /*@__PURE__*/
+export const RunAnchorSchema: GenMessage<RunAnchor> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_baselines_baselines, 1);
 
 /**
- * BaselineManifest is the stored baseline document.
- *
+ * @generated from message vrooli.git_control_tower.v1.baselines.MigrationInfo
+ */
+export type MigrationInfo = Message<"vrooli.git_control_tower.v1.baselines.MigrationInfo"> & {
+  /**
+   * @generated from field: int32 from_schema_version = 1;
+   */
+  fromSchemaVersion: number;
+
+  /**
+   * @generated from field: string migrated_at = 2;
+   */
+  migratedAt: string;
+
+  /**
+   * @generated from field: repeated string degraded_reasons = 3;
+   */
+  degradedReasons: string[];
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.MigrationInfo.
+ * Use `create(MigrationInfoSchema)` to create a new message.
+ */
+export const MigrationInfoSchema: GenMessage<MigrationInfo> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 2);
+
+/**
  * @generated from message vrooli.git_control_tower.v1.baselines.BaselineManifest
  */
 export type BaselineManifest = Message<"vrooli.git_control_tower.v1.baselines.BaselineManifest"> & {
@@ -140,8 +172,6 @@ export type BaselineManifest = Message<"vrooli.git_control_tower.v1.baselines.Ba
   branch: string;
 
   /**
-   * RFC3339
-   *
    * @generated from field: string created_at = 4;
    */
   createdAt: string;
@@ -157,9 +187,9 @@ export type BaselineManifest = Message<"vrooli.git_control_tower.v1.baselines.Ba
   git?: GitState | undefined;
 
   /**
-   * @generated from field: map<string, vrooli.git_control_tower.v1.baselines.SurfacePointer> surfaces = 7;
+   * @generated from field: vrooli.git_control_tower.v1.baselines.RunAnchor run = 7;
    */
-  surfaces: { [key: string]: SurfacePointer };
+  run?: RunAnchor | undefined;
 
   /**
    * @generated from field: int32 schema_version = 8;
@@ -167,13 +197,9 @@ export type BaselineManifest = Message<"vrooli.git_control_tower.v1.baselines.Ba
   schemaVersion: number;
 
   /**
-   * skipped records surfaces requested at capture time but not captured
-   * (surface_id → reason). Persisted so show/diff reveal a partial baseline
-   * instead of letting it masquerade as complete.
-   *
-   * @generated from field: map<string, string> skipped = 9;
+   * @generated from field: vrooli.git_control_tower.v1.baselines.MigrationInfo migration = 9;
    */
-  skipped: { [key: string]: string };
+  migration?: MigrationInfo | undefined;
 };
 
 /**
@@ -181,129 +207,9 @@ export type BaselineManifest = Message<"vrooli.git_control_tower.v1.baselines.Ba
  * Use `create(BaselineManifestSchema)` to create a new message.
  */
 export const BaselineManifestSchema: GenMessage<BaselineManifest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 2);
-
-/**
- * SurfaceDiff is one surface's comparison verdict.
- *
- * @generated from message vrooli.git_control_tower.v1.baselines.SurfaceDiff
- */
-export type SurfaceDiff = Message<"vrooli.git_control_tower.v1.baselines.SurfaceDiff"> & {
-  /**
-   * @generated from field: string surface_id = 1;
-   */
-  surfaceId: string;
-
-  /**
-   * verdict: clean | changed | regression | new-failure | preexisting | not-comparable
-   *
-   * @generated from field: string verdict = 2;
-   */
-  verdict: string;
-
-  /**
-   * @generated from field: repeated string regressions = 3;
-   */
-  regressions: string[];
-
-  /**
-   * @generated from field: repeated string new_failures = 4;
-   */
-  newFailures: string[];
-
-  /**
-   * @generated from field: repeated string preexisting = 5;
-   */
-  preexisting: string[];
-
-  /**
-   * @generated from field: repeated string cleared = 6;
-   */
-  cleared: string[];
-
-  /**
-   * @generated from field: string summary = 7;
-   */
-  summary: string;
-
-  /**
-   * changed carries neutral, advisory differences that are NOT failures — the
-   * visuals surface uses it to report "the UI moved, review before/after"
-   * (each entry carries the change magnitude). A surface whose only delta is
-   * `changed` has verdict `changed`, which never affects the diff exit code.
-   *
-   * @generated from field: repeated string changed = 8;
-   */
-  changed: string[];
-};
-
-/**
- * Describes the message vrooli.git_control_tower.v1.baselines.SurfaceDiff.
- * Use `create(SurfaceDiffSchema)` to create a new message.
- */
-export const SurfaceDiffSchema: GenMessage<SurfaceDiff> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_baselines_baselines, 3);
 
 /**
- * PhaseDiff is one Test Genie phase's authoritative comparison verdict. Named
- * surfaces are presentation views over these phase diffs.
- *
- * @generated from message vrooli.git_control_tower.v1.baselines.PhaseDiff
- */
-export type PhaseDiff = Message<"vrooli.git_control_tower.v1.baselines.PhaseDiff"> & {
-  /**
-   * @generated from field: string phase = 1;
-   */
-  phase: string;
-
-  /**
-   * @generated from field: string surface_id = 2;
-   */
-  surfaceId: string;
-
-  /**
-   * verdict: clean | regression | new-failure | preexisting | not-comparable
-   *
-   * @generated from field: string verdict = 3;
-   */
-  verdict: string;
-
-  /**
-   * @generated from field: repeated string regressions = 4;
-   */
-  regressions: string[];
-
-  /**
-   * @generated from field: repeated string new_failures = 5;
-   */
-  newFailures: string[];
-
-  /**
-   * @generated from field: repeated string preexisting = 6;
-   */
-  preexisting: string[];
-
-  /**
-   * @generated from field: repeated string cleared = 7;
-   */
-  cleared: string[];
-
-  /**
-   * @generated from field: string summary = 8;
-   */
-  summary: string;
-};
-
-/**
- * Describes the message vrooli.git_control_tower.v1.baselines.PhaseDiff.
- * Use `create(PhaseDiffSchema)` to create a new message.
- */
-export const PhaseDiffSchema: GenMessage<PhaseDiff> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 4);
-
-/**
- * Staleness reports working-tree drift from the baseline commit.
- *
  * @generated from message vrooli.git_control_tower.v1.baselines.Staleness
  */
 export type Staleness = Message<"vrooli.git_control_tower.v1.baselines.Staleness"> & {
@@ -328,91 +234,122 @@ export type Staleness = Message<"vrooli.git_control_tower.v1.baselines.Staleness
  * Use `create(StalenessSchema)` to create a new message.
  */
 export const StalenessSchema: GenMessage<Staleness> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 4);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.RunArtifactCatalog
+ */
+export type RunArtifactCatalog = Message<"vrooli.git_control_tower.v1.baselines.RunArtifactCatalog"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: int32 schema_version = 2;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: string digest = 3;
+   */
+  digest: string;
+
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.ArtifactRef artifacts = 4;
+   */
+  artifacts: ArtifactRef[];
+
+  /**
+   * @generated from field: bool legacy_discovered = 5;
+   */
+  legacyDiscovered: boolean;
+
+  /**
+   * @generated from field: repeated string degraded_reasons = 6;
+   */
+  degradedReasons: string[];
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.RunArtifactCatalog.
+ * Use `create(RunArtifactCatalogSchema)` to create a new message.
+ */
+export const RunArtifactCatalogSchema: GenMessage<RunArtifactCatalog> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_baselines_baselines, 5);
 
 /**
- * @generated from message vrooli.git_control_tower.v1.baselines.CreateBaselineRequest
+ * @generated from message vrooli.git_control_tower.v1.baselines.VisualDelta
  */
-export type CreateBaselineRequest = Message<"vrooli.git_control_tower.v1.baselines.CreateBaselineRequest"> & {
+export type VisualDelta = Message<"vrooli.git_control_tower.v1.baselines.VisualDelta"> & {
   /**
-   * @generated from field: string scenario = 1;
+   * @generated from field: string page = 1;
    */
-  scenario: string;
+  page: string;
 
   /**
-   * @generated from field: string name = 2;
+   * @generated from field: string label = 2;
    */
-  name: string;
+  label: string;
 
   /**
-   * empty = current branch
-   *
-   * @generated from field: string branch = 3;
+   * @generated from field: string status = 3;
    */
-  branch: string;
+  status: string;
 
   /**
-   * @generated from field: repeated string include = 4;
+   * @generated from field: double changed_fraction = 4;
    */
-  include: string[];
-
-  /**
-   * @generated from field: bool fast = 5;
-   */
-  fast: boolean;
-
-  /**
-   * @generated from field: string created_by = 6;
-   */
-  createdBy: string;
-
-  /**
-   * @generated from field: string reason = 7;
-   */
-  reason: string;
-
-  /**
-   * 0 = active repo
-   *
-   * @generated from field: int64 repo_id = 8;
-   */
-  repoId: bigint;
+  changedFraction: number;
 };
 
 /**
- * Describes the message vrooli.git_control_tower.v1.baselines.CreateBaselineRequest.
- * Use `create(CreateBaselineRequestSchema)` to create a new message.
+ * Describes the message vrooli.git_control_tower.v1.baselines.VisualDelta.
+ * Use `create(VisualDeltaSchema)` to create a new message.
  */
-export const CreateBaselineRequestSchema: GenMessage<CreateBaselineRequest> = /*@__PURE__*/
+export const VisualDeltaSchema: GenMessage<VisualDelta> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_baselines_baselines, 6);
 
 /**
- * @generated from message vrooli.git_control_tower.v1.baselines.CreateBaselineResponse
+ * @generated from message vrooli.git_control_tower.v1.baselines.EvidenceComparison
  */
-export type CreateBaselineResponse = Message<"vrooli.git_control_tower.v1.baselines.CreateBaselineResponse"> & {
+export type EvidenceComparison = Message<"vrooli.git_control_tower.v1.baselines.EvidenceComparison"> & {
   /**
-   * @generated from field: vrooli.git_control_tower.v1.baselines.BaselineManifest baseline = 1;
+   * @generated from field: string base_run_id = 1;
    */
-  baseline?: BaselineManifest | undefined;
+  baseRunId: string;
 
   /**
-   * surface_id → reason it was skipped
-   *
-   * @generated from field: map<string, string> skipped = 2;
+   * @generated from field: string current_run_id = 2;
    */
-  skipped: { [key: string]: string };
+  currentRunId: string;
 
   /**
-   * @generated from field: string dirty_warning = 3;
+   * @generated from field: vrooli.git_control_tower.v1.baselines.RunArtifactCatalog base_catalog = 3;
    */
-  dirtyWarning: string;
+  baseCatalog?: RunArtifactCatalog | undefined;
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.RunArtifactCatalog current_catalog = 4;
+   */
+  currentCatalog?: RunArtifactCatalog | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.VisualDelta visual_deltas = 5;
+   */
+  visualDeltas: VisualDelta[];
+
+  /**
+   * @generated from field: repeated string degraded_reasons = 6;
+   */
+  degradedReasons: string[];
 };
 
 /**
- * Describes the message vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.
- * Use `create(CreateBaselineResponseSchema)` to create a new message.
+ * Describes the message vrooli.git_control_tower.v1.baselines.EvidenceComparison.
+ * Use `create(EvidenceComparisonSchema)` to create a new message.
  */
-export const CreateBaselineResponseSchema: GenMessage<CreateBaselineResponse> = /*@__PURE__*/
+export const EvidenceComparisonSchema: GenMessage<EvidenceComparison> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_baselines_baselines, 7);
 
 /**
@@ -433,16 +370,6 @@ export type SnapshotForBaselineRequest = Message<"vrooli.git_control_tower.v1.ba
    * @generated from field: string branch = 3;
    */
   branch: string;
-
-  /**
-   * @generated from field: repeated string include = 4;
-   */
-  include: string[];
-
-  /**
-   * @generated from field: bool fast = 5;
-   */
-  fast: boolean;
 
   /**
    * @generated from field: string created_by = 6;
@@ -468,20 +395,10 @@ export const SnapshotForBaselineRequestSchema: GenMessage<SnapshotForBaselineReq
   messageDesc(file_git_control_tower_v1_baselines_baselines, 8);
 
 /**
- * SnapshotForBaselineResponse returns IMMEDIATELY once the one comprehensive
- * test-genie run has started — it does NOT block for the run to finish. The
- * pin + manifest write happen server-side when the run completes (durable across
- * client disconnect), so the response carries the run handle the caller follows,
- * not the finished baseline. Follow the run with `test-genie runs follow
- * <scenario> <run_id>`; when it completes the baseline is pinned and queryable
- * via GetBaseline.
- *
  * @generated from message vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
  */
 export type SnapshotForBaselineResponse = Message<"vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse"> & {
   /**
-   * run_id is the comprehensive run the baseline will pin once it completes.
-   *
    * @generated from field: string run_id = 1;
    */
   runId: string;
@@ -502,8 +419,6 @@ export type SnapshotForBaselineResponse = Message<"vrooli.git_control_tower.v1.b
   branch: string;
 
   /**
-   * estimated_total_seconds is the run's ETA (0 when unknown).
-   *
    * @generated from field: int32 estimated_total_seconds = 5;
    */
   estimatedTotalSeconds: number;
@@ -514,19 +429,11 @@ export type SnapshotForBaselineResponse = Message<"vrooli.git_control_tower.v1.b
   etaKnown: boolean;
 
   /**
-   * dirty_warning is set when the baseline is being captured against a dirty
-   * working tree (surfaced up front so the operator can abort).
-   *
    * @generated from field: string dirty_warning = 7;
    */
   dirtyWarning: string;
 
   /**
-   * coalesced is true when the snapshot rode an already-in-flight comprehensive
-   * run of the scenario (e.g. a diff/snapshot already running) instead of
-   * starting a second suite — the one-run-per-scenario guard. run_id is then the
-   * in-flight run's id, which the baseline pins on completion.
-   *
    * @generated from field: bool coalesced = 8;
    */
   coalesced: boolean;
@@ -554,15 +461,11 @@ export type GetSnapshotStatusRequest = Message<"vrooli.git_control_tower.v1.base
   name: string;
 
   /**
-   * empty = current branch
-   *
    * @generated from field: string branch = 3;
    */
   branch: string;
 
   /**
-   * optional; narrows to one snapshot run
-   *
    * @generated from field: string run_id = 4;
    */
   runId: string;
@@ -573,9 +476,6 @@ export type GetSnapshotStatusRequest = Message<"vrooli.git_control_tower.v1.base
   repoId: bigint;
 
   /**
-   * wait, when true, blocks SERVER-SIDE until the run is terminal before
-   * reconciling status. When false, an in-flight run returns status=pending.
-   *
    * @generated from field: bool wait = 6;
    */
   wait: boolean;
@@ -593,8 +493,6 @@ export const GetSnapshotStatusRequestSchema: GenMessage<GetSnapshotStatusRequest
  */
 export type GetSnapshotStatusResponse = Message<"vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse"> & {
   /**
-   * status: pending | ready | failed | missing
-   *
    * @generated from field: string status = 1;
    */
   status: string;
@@ -620,30 +518,21 @@ export type GetSnapshotStatusResponse = Message<"vrooli.git_control_tower.v1.bas
   runId: string;
 
   /**
-   * run_status mirrors test-genie's lifecycle status when known.
-   *
    * @generated from field: string run_status = 6;
    */
   runStatus: string;
 
   /**
-   * baseline is populated when status=ready.
-   *
    * @generated from field: vrooli.git_control_tower.v1.baselines.BaselineManifest baseline = 7;
    */
   baseline?: BaselineManifest | undefined;
 
   /**
-   * error is populated when status=failed or missing carries a diagnostic.
-   *
    * @generated from field: string error = 8;
    */
   error: string;
 
   /**
-   * similar_baselines lists visible baseline names for this scenario when an
-   * exact name is absent, so callers can render "did you mean ..." guidance.
-   *
    * @generated from field: repeated string similar_baselines = 9;
    */
   similarBaselines: string[];
@@ -676,8 +565,6 @@ export type GetBaselineRequest = Message<"vrooli.git_control_tower.v1.baselines.
   name: string;
 
   /**
-   * empty = current branch
-   *
    * @generated from field: string branch = 3;
    */
   branch: string;
@@ -722,8 +609,6 @@ export type ListBaselinesRequest = Message<"vrooli.git_control_tower.v1.baseline
   scenario: string;
 
   /**
-   * empty + all_branches=false = current branch
-   *
    * @generated from field: string branch = 2;
    */
   branch: string;
@@ -783,13 +668,6 @@ export type StartDiffRequest = Message<"vrooli.git_control_tower.v1.baselines.St
   branch: string;
 
   /**
-   * empty = all surfaces
-   *
-   * @generated from field: string surface = 4;
-   */
-  surface: string;
-
-  /**
    * @generated from field: int64 repo_id = 5;
    */
   repoId: bigint;
@@ -803,19 +681,10 @@ export const StartDiffRequestSchema: GenMessage<StartDiffRequest> = /*@__PURE__*
   messageDesc(file_git_control_tower_v1_baselines_baselines, 16);
 
 /**
- * StartDiffResponse returns IMMEDIATELY once the comprehensive run the diff will
- * compare against is resolved — it does NOT block for the run. The diff verdict
- * is computed + cached server-side when the run completes (durable across client
- * disconnect); resolve it with GetDiffResult using the returned run_id.
- *
  * @generated from message vrooli.git_control_tower.v1.baselines.StartDiffResponse
  */
 export type StartDiffResponse = Message<"vrooli.git_control_tower.v1.baselines.StartDiffResponse"> & {
   /**
-   * run_id is the comprehensive "current" run the diff compares the baseline
-   * against — freshly started, coalesced onto an in-flight run, or a reused
-   * completed run at the current clean sha.
-   *
    * @generated from field: string run_id = 1;
    */
   runId: string;
@@ -846,17 +715,11 @@ export type StartDiffResponse = Message<"vrooli.git_control_tower.v1.baselines.S
   etaKnown: boolean;
 
   /**
-   * coalesced is true when the diff rode an already-in-flight comprehensive run
-   * of this scenario instead of starting a second suite.
-   *
    * @generated from field: bool coalesced = 7;
    */
   coalesced: boolean;
 
   /**
-   * reused_run is true when a completed clean-tree run at the current sha was
-   * reused (no suite re-run); reused_sha carries the 8-char sha.
-   *
    * @generated from field: bool reused_run = 8;
    */
   reusedRun: boolean;
@@ -867,9 +730,6 @@ export type StartDiffResponse = Message<"vrooli.git_control_tower.v1.baselines.S
   reusedSha: string;
 
   /**
-   * dirty_warning is set when the current working tree is dirty (reuse is
-   * skipped and verdicts may stem from uncommitted changes).
-   *
    * @generated from field: string dirty_warning = 10;
    */
   dirtyWarning: string;
@@ -907,30 +767,16 @@ export type GetDiffResultRequest = Message<"vrooli.git_control_tower.v1.baseline
   runId: string;
 
   /**
-   * empty = all surfaces
-   *
-   * @generated from field: string surface = 5;
-   */
-  surface: string;
-
-  /**
    * @generated from field: int64 repo_id = 6;
    */
   repoId: bigint;
 
   /**
-   * wait, when true, blocks SERVER-SIDE until the run is terminal and returns the
-   * ready result (no client polling). When false, an in-flight run returns
-   * status=in_progress immediately with a recommended next-check backoff.
-   *
    * @generated from field: bool wait = 7;
    */
   wait: boolean;
 
   /**
-   * latest, when true and run_id is empty, resolves the latest StartDiff run
-   * recorded for this baseline. This is an interrupted-wait recovery path.
-   *
    * @generated from field: bool latest = 8;
    */
   latest: boolean;
@@ -944,36 +790,25 @@ export const GetDiffResultRequestSchema: GenMessage<GetDiffResultRequest> = /*@_
   messageDesc(file_git_control_tower_v1_baselines_baselines, 18);
 
 /**
- * GetDiffResultResponse carries the cached diff or its in-flight status.
- *
  * @generated from message vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
  */
 export type GetDiffResultResponse = Message<"vrooli.git_control_tower.v1.baselines.GetDiffResultResponse"> & {
   /**
-   * status: in_progress | ready | failed
-   *
    * @generated from field: string status = 1;
    */
   status: string;
 
   /**
-   * diff is populated when status=ready.
-   *
    * @generated from field: vrooli.git_control_tower.v1.baselines.DiffResult diff = 2;
    */
   diff?: DiffResult | undefined;
 
   /**
-   * error is populated when status=failed.
-   *
    * @generated from field: string error = 3;
    */
   error: string;
 
   /**
-   * recommended_next_check_seconds is the backoff to wait before re-checking
-   * when status=in_progress (0 otherwise).
-   *
    * @generated from field: int32 recommended_next_check_seconds = 4;
    */
   recommendedNextCheckSeconds: number;
@@ -992,8 +827,6 @@ export const GetDiffResultResponseSchema: GenMessage<GetDiffResultResponse> = /*
   messageDesc(file_git_control_tower_v1_baselines_baselines, 19);
 
 /**
- * DiffResult is the computed cross-surface comparison payload.
- *
  * @generated from message vrooli.git_control_tower.v1.baselines.DiffResult
  */
 export type DiffResult = Message<"vrooli.git_control_tower.v1.baselines.DiffResult"> & {
@@ -1013,29 +846,24 @@ export type DiffResult = Message<"vrooli.git_control_tower.v1.baselines.DiffResu
   staleness?: Staleness | undefined;
 
   /**
-   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.SurfaceDiff surfaces = 4;
-   */
-  surfaces: SurfaceDiff[];
-
-  /**
-   * verdict is the worst per-surface verdict, driving the CLI exit code.
-   *
    * @generated from field: string verdict = 5;
    */
   verdict: string;
 
   /**
-   * dirty_warning is non-empty when the current working tree is dirty, where
-   * failures may stem from uncommitted changes rather than the diff itself.
-   *
    * @generated from field: string dirty_warning = 6;
    */
   dirtyWarning: string;
 
   /**
-   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.PhaseDiff phases = 7;
+   * @generated from field: repeated vrooli.test_genie.v1.runs.PhaseDiff phases = 7;
    */
   phases: PhaseDiff[];
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.EvidenceComparison evidence = 8;
+   */
+  evidence?: EvidenceComparison | undefined;
 };
 
 /**
@@ -1046,12 +874,6 @@ export const DiffResultSchema: GenMessage<DiffResult> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_baselines_baselines, 20);
 
 /**
- * RunBusyInfo describes the in-progress run that caused a divergent StartDiff to
- * be rejected (carried as a FailedPrecondition error detail), so the CLI renders
- * wait/abort guidance without parsing strings. A diff only collides this way
- * with a genuinely different run shape (e.g. a raw `execute --preset quick`);
- * diffs and snapshots of the same scenario coalesce rather than collide.
- *
  * @generated from message vrooli.git_control_tower.v1.baselines.RunBusyInfo
  */
 export type RunBusyInfo = Message<"vrooli.git_control_tower.v1.baselines.RunBusyInfo"> & {
@@ -1128,88 +950,10 @@ export const DeleteBaselineResponseSchema: GenMessage<DeleteBaselineResponse> = 
   messageDesc(file_git_control_tower_v1_baselines_baselines, 23);
 
 /**
- * @generated from message vrooli.git_control_tower.v1.baselines.EditBaselineRequest
- */
-export type EditBaselineRequest = Message<"vrooli.git_control_tower.v1.baselines.EditBaselineRequest"> & {
-  /**
-   * @generated from field: string scenario = 1;
-   */
-  scenario: string;
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name: string;
-
-  /**
-   * @generated from field: string branch = 3;
-   */
-  branch: string;
-
-  /**
-   * @generated from field: string surface = 4;
-   */
-  surface: string;
-
-  /**
-   * @generated from field: string pin_run_id = 5;
-   */
-  pinRunId: string;
-
-  /**
-   * @generated from field: string reason = 6;
-   */
-  reason: string;
-
-  /**
-   * @generated from field: int64 repo_id = 7;
-   */
-  repoId: bigint;
-};
-
-/**
- * Describes the message vrooli.git_control_tower.v1.baselines.EditBaselineRequest.
- * Use `create(EditBaselineRequestSchema)` to create a new message.
- */
-export const EditBaselineRequestSchema: GenMessage<EditBaselineRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 24);
-
-/**
- * @generated from message vrooli.git_control_tower.v1.baselines.EditBaselineResponse
- */
-export type EditBaselineResponse = Message<"vrooli.git_control_tower.v1.baselines.EditBaselineResponse"> & {
-  /**
-   * @generated from field: vrooli.git_control_tower.v1.baselines.BaselineManifest baseline = 1;
-   */
-  baseline?: BaselineManifest | undefined;
-};
-
-/**
- * Describes the message vrooli.git_control_tower.v1.baselines.EditBaselineResponse.
- * Use `create(EditBaselineResponseSchema)` to create a new message.
- */
-export const EditBaselineResponseSchema: GenMessage<EditBaselineResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 25);
-
-/**
  * @generated from service vrooli.git_control_tower.v1.baselines.BaselinesService
  */
 export const BaselinesService: GenService<{
   /**
-   * CreateBaseline writes a manifest WITHOUT capturing surfaces (power-user /
-   * UI path — pointers assembled manually via EditBaseline).
-   *
-   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline
-   */
-  createBaseline: {
-    methodKind: "unary";
-    input: typeof CreateBaselineRequestSchema;
-    output: typeof CreateBaselineResponseSchema;
-  },
-  /**
-   * SnapshotForBaseline creates a baseline AND captures every requested
-   * surface (the agent path).
-   *
    * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline
    */
   snapshotForBaseline: {
@@ -1218,10 +962,6 @@ export const BaselinesService: GenService<{
     output: typeof SnapshotForBaselineResponseSchema;
   },
   /**
-   * GetSnapshotStatus reports the durable snapshot-finalization state for a
-   * snapshot run. It is the operator-facing way to distinguish "still pending",
-   * "baseline ready", "run failed/aborted", and "no such snapshot intent".
-   *
    * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus
    */
   getSnapshotStatus: {
@@ -1230,8 +970,6 @@ export const BaselinesService: GenService<{
     output: typeof GetSnapshotStatusResponseSchema;
   },
   /**
-   * GetBaseline returns a single baseline manifest.
-   *
    * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline
    */
   getBaseline: {
@@ -1240,8 +978,6 @@ export const BaselinesService: GenService<{
     output: typeof GetBaselineResponseSchema;
   },
   /**
-   * ListBaselines enumerates baselines for a scenario (optionally one branch).
-   *
    * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines
    */
   listBaselines: {
@@ -1250,12 +986,6 @@ export const BaselinesService: GenService<{
     output: typeof ListBaselinesResponseSchema;
   },
   /**
-   * StartDiff starts (or reuses/coalesces) ONE comprehensive run and returns its
-   * handle IMMEDIATELY — it does not block for the run to finish. The diff
-   * verdict is computed and cached server-side when the run completes; retrieve
-   * it with GetDiffResult. Mirrors SnapshotForBaseline's durable, return-fast
-   * contract so an agent never sits on a silent block (the anti-polling rule).
-   *
    * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff
    */
   startDiff: {
@@ -1264,10 +994,6 @@ export const BaselinesService: GenService<{
     output: typeof StartDiffResponseSchema;
   },
   /**
-   * GetDiffResult returns the cached diff for a (baseline, run). While the run is
-   * still in flight it returns status=in_progress + a recommended next check;
-   * when the run finished but the cache was lost (crash) it recomputes once.
-   *
    * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult
    */
   getDiffResult: {
@@ -1276,24 +1002,12 @@ export const BaselinesService: GenService<{
     output: typeof GetDiffResultResponseSchema;
   },
   /**
-   * DeleteBaseline removes a baseline and unpins the test-genie runs it held.
-   *
    * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline
    */
   deleteBaseline: {
     methodKind: "unary";
     input: typeof DeleteBaselineRequestSchema;
     output: typeof DeleteBaselineResponseSchema;
-  },
-  /**
-   * EditBaseline re-points one surface at a different (pinned) test-genie run.
-   *
-   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline
-   */
-  editBaseline: {
-    methodKind: "unary";
-    input: typeof EditBaselineRequestSchema;
-    output: typeof EditBaselineResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_git_control_tower_v1_baselines_baselines, 0);

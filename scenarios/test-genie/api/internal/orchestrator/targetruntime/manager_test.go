@@ -2,11 +2,14 @@ package targetruntime
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +44,23 @@ func TestEnsureRunningStartsPathAwareScenarioAndResolvesPorts(t *testing.T) {
 	want := []string{"vrooli", "scenario", "start", "demo", "--clean-stale", "--path", scenarioDir}
 	if !reflect.DeepEqual(calls[0], want) {
 		t.Fatalf("start command = %#v, want %#v", calls[0], want)
+	}
+}
+
+func TestEnsureRunningPreservesLifecycleFailureOutput(t *testing.T) {
+	manager := New("demo", t.TempDir()).WithCommandRunner(func(ctx context.Context, dir string, env map[string]string, logWriter io.Writer, name string, args ...string) error {
+		_, _ = fmt.Fprintln(logWriter, "ui/src/features/notes/NotesCard.tsx(134,11): error TS2322: Property 'tableTestId' does not exist")
+		return errors.New("exit status 2")
+	})
+
+	_, err := manager.EnsureRunning(context.Background(), Needs{UI: true}, io.Discard)
+	if err == nil {
+		t.Fatal("EnsureRunning() error = nil, want lifecycle failure")
+	}
+	for _, want := range []string{"start target scenario demo", "exit status 2", "lifecycle start output", "TS2322", "tableTestId"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("EnsureRunning() error = %q, want %q", err, want)
+		}
 	}
 }
 

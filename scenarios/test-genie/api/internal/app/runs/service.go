@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -134,6 +135,9 @@ func (s *Service) scenarioDir(scenario string) (string, error) {
 	if scenario == "" {
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
+	if scenario == "." || scenario == ".." || strings.ContainsAny(scenario, `/\`) || filepath.Clean(scenario) != scenario {
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario must be a scenario slug"))
+	}
 	return filepath.Join(s.scenariosRoot, scenario), nil
 }
 
@@ -169,11 +173,15 @@ func (s *Service) GetRun(ctx context.Context, req *connect.Request[runspb.GetRun
 	if err != nil {
 		return nil, err
 	}
-	rec, err := sharedruns.NewIndex(dir).Find(strings.TrimSpace(req.Msg.GetRunId()))
+	projection, err := loadRunProjection(sharedruns.NewIndex(dir), strings.TrimSpace(req.Msg.GetRunId()))
 	if err != nil {
 		return nil, mapRunError(err)
 	}
-	return connect.NewResponse(&runspb.GetRunResponse{Run: toRunInfo(rec)}), nil
+	return connect.NewResponse(&runspb.GetRunResponse{
+		Run:                           toTerminalRunInfo(projection.record, projection.result, projection.descriptors),
+		TerminalSnapshotSchemaVersion: int32(projection.schemaVersion),
+		DegradedReasons:               projection.degraded,
+	}), nil
 }
 
 // DeleteRun removes a run's artifacts and index entry.
@@ -239,15 +247,15 @@ func (s *Service) CompareRuns(ctx context.Context, req *connect.Request[runspb.C
 		return nil, err
 	}
 	idx := sharedruns.NewIndex(dir)
-	recA, err := idx.Find(strings.TrimSpace(req.Msg.GetRunIdA()))
+	projectionA, err := loadRunProjection(idx, strings.TrimSpace(req.Msg.GetRunIdA()))
 	if err != nil {
 		return nil, mapRunError(err)
 	}
-	recB, err := idx.Find(strings.TrimSpace(req.Msg.GetRunIdB()))
+	projectionB, err := loadRunProjection(idx, strings.TrimSpace(req.Msg.GetRunIdB()))
 	if err != nil {
 		return nil, mapRunError(err)
 	}
-	resp := comparePhases(recA, recB, strings.TrimSpace(req.Msg.GetPhase()))
+	resp := comparePhases(projectionA, projectionB, strings.TrimSpace(req.Msg.GetPhase()))
 	return connect.NewResponse(resp), nil
 }
 
@@ -330,6 +338,147 @@ func (s *Service) GetPhaseArtifact(ctx context.Context, req *connect.Request[run
 		Content:     string(data),
 		ContentType: "application/json",
 	}), nil
+}
+
+// ListRunArtifacts projects the verified, run-owned artifact catalog without
+// exposing its private storage locators. Runs predating catalogs use a
+// read-only discovery projection with explicit legacy provenance.
+func (s *Service) ListRunArtifacts(ctx context.Context, req *connect.Request[runspb.ListRunArtifactsRequest]) (*connect.Response[runspb.ListRunArtifactsResponse], error) {
+	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	if err != nil {
+		return nil, err
+	}
+	runID := strings.TrimSpace(req.Msg.GetRunId())
+	if runID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("run_id is required"))
+	}
+	if _, err := sharedruns.NewIndex(dir).Find(runID); err != nil {
+		return nil, mapRunError(err)
+	}
+	declarations := artifactPhaseDeclarations(dir, runID)
+	catalog, err := sharedartifacts.ReadArtifactCatalog(dir, runID)
+	if errors.Is(err, sharedartifacts.ErrArtifactCatalogNotFound) {
+		catalog, err = sharedartifacts.DiscoverArtifactCatalog(dir, runID, declarations, time.Now().UTC(), true)
+	}
+	if err != nil {
+		return nil, mapArtifactError(err)
+	}
+	kinds := make(map[string]struct{}, len(req.Msg.GetKinds()))
+	for _, kind := range req.Msg.GetKinds() {
+		if normalized := strings.ToLower(strings.TrimSpace(kind)); normalized != "" {
+			kinds[normalized] = struct{}{}
+		}
+	}
+	producingPhase := strings.TrimSpace(req.Msg.GetProducingPhase())
+	out := make([]*runspb.ArtifactRef, 0, len(catalog.Artifacts))
+	for _, artifact := range catalog.Artifacts {
+		if len(kinds) > 0 {
+			if _, ok := kinds[artifact.Kind]; !ok {
+				continue
+			}
+		}
+		if producingPhase != "" && artifact.ProducingPhase != producingPhase {
+			continue
+		}
+		out = append(out, toArtifactRef(req.Msg.GetScenario(), runID, artifact))
+	}
+	response := &runspb.ListRunArtifactsResponse{
+		SchemaVersion:    int32(catalog.SchemaVersion),
+		Digest:           catalog.Digest,
+		Artifacts:        out,
+		LegacyDiscovered: catalog.LegacyDiscovered,
+	}
+	if catalog.LegacyDiscovered {
+		response.DegradedReasons = []string{"run predates persisted artifact catalogs; evidence was discovered read-only"}
+	}
+	return connect.NewResponse(response), nil
+}
+
+// GetRunArtifact returns safe metadata for one artifact and verifies that its
+// bytes still resolve to a regular file inside this run's allowed roots.
+func (s *Service) GetRunArtifact(ctx context.Context, req *connect.Request[runspb.GetRunArtifactRequest]) (*connect.Response[runspb.GetRunArtifactResponse], error) {
+	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	if err != nil {
+		return nil, err
+	}
+	runID := strings.TrimSpace(req.Msg.GetRunId())
+	artifactID := strings.TrimSpace(req.Msg.GetArtifactId())
+	if runID == "" || artifactID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("run_id and artifact_id are required"))
+	}
+	if _, err := sharedruns.NewIndex(dir).Find(runID); err != nil {
+		return nil, mapRunError(err)
+	}
+	artifact, _, err := sharedartifacts.ResolveCatalogArtifact(dir, runID, artifactID, artifactPhaseDeclarations(dir, runID))
+	if err != nil {
+		return nil, mapArtifactError(err)
+	}
+	return connect.NewResponse(&runspb.GetRunArtifactResponse{
+		Artifact:         toArtifactRef(req.Msg.GetScenario(), runID, artifact),
+		LegacyDiscovered: artifact.Provenance == sharedartifacts.ArtifactProvenanceLegacy,
+	}), nil
+}
+
+func artifactPhaseDeclarations(scenarioDir, runID string) []sharedartifacts.ArtifactPhaseDeclaration {
+	snapshot, err := sharedruns.ReadDescriptorSnapshot(scenarioDir, runID)
+	if err != nil {
+		return nil
+	}
+	out := make([]sharedartifacts.ArtifactPhaseDeclaration, 0, len(snapshot.Phases))
+	for _, descriptor := range snapshot.Phases {
+		out = append(out, sharedartifacts.ArtifactPhaseDeclaration{
+			Phase: descriptor.Phase, EvidenceKinds: append([]string(nil), descriptor.EvidenceKinds...),
+		})
+	}
+	return out
+}
+
+func toArtifactRef(scenario, runID string, artifact sharedartifacts.ArtifactRef) *runspb.ArtifactRef {
+	relationships := make([]*runspb.ArtifactRelationship, 0, len(artifact.Relationships))
+	for _, relationship := range artifact.Relationships {
+		relationships = append(relationships, &runspb.ArtifactRelationship{
+			Type: relationship.Type, TargetArtifactId: relationship.TargetArtifactID,
+		})
+	}
+	var comparison *runspb.ArtifactComparison
+	if artifact.Comparison != nil {
+		comparison = &runspb.ArtifactComparison{
+			Semantics: artifact.Comparison.Semantics,
+			Analyzer:  artifact.Comparison.Analyzer,
+			Metadata:  cloneStringMap(artifact.Comparison.Metadata),
+		}
+	}
+	provenance := runspb.ArtifactProvenance_ARTIFACT_PROVENANCE_CATALOG
+	if artifact.Provenance == sharedartifacts.ArtifactProvenanceLegacy {
+		provenance = runspb.ArtifactProvenance_ARTIFACT_PROVENANCE_LEGACY_DISCOVERY
+	}
+	return &runspb.ArtifactRef{
+		Id:               artifact.ID,
+		Kind:             artifact.Kind,
+		MediaType:        artifact.MediaType,
+		Label:            artifact.Label,
+		ProducingPhase:   artifact.ProducingPhase,
+		SizeBytes:        artifact.SizeBytes,
+		CreatedAt:        artifact.CreatedAt,
+		AccessCapability: runspb.ArtifactAccessCapability_ARTIFACT_ACCESS_CAPABILITY_STREAM,
+		AccessPath: "/api/v1/scenarios/" + url.PathEscape(strings.TrimSpace(scenario)) + "/runs/" +
+			url.PathEscape(runID) + "/artifacts/" + url.PathEscape(artifact.ID),
+		Metadata:      cloneStringMap(artifact.Metadata),
+		Relationships: relationships,
+		Comparison:    comparison,
+		Provenance:    provenance,
+	}
+}
+
+func cloneStringMap(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(input))
+	for key, value := range input {
+		out[key] = value
+	}
+	return out
 }
 
 // findingsArtifactDoc mirrors the on-disk findings.json shape (writer:
@@ -474,6 +623,14 @@ func (s *Service) CompareRunVisuals(ctx context.Context, req *connect.Request[ru
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	baseArtifactIDs, err := screenshotArtifactIDsByPage(dir, baseRunID)
+	if err != nil {
+		return nil, mapArtifactError(err)
+	}
+	curArtifactIDs, err := screenshotArtifactIDsByPage(dir, curRunID)
+	if err != nil {
+		return nil, mapArtifactError(err)
+	}
 
 	comparer := s.visualHealth
 	if comparer == nil {
@@ -492,13 +649,34 @@ func (s *Service) CompareRunVisuals(ctx context.Context, req *connect.Request[ru
 	deltas := make([]*runspb.VisualDelta, 0, len(visualResp.GetDeltas()))
 	for _, d := range visualResp.GetDeltas() {
 		deltas = append(deltas, &runspb.VisualDelta{
-			Page:            d.GetPage(),
-			Label:           d.GetLabel(),
-			Status:          d.GetStatus(),
-			ChangedFraction: d.GetChangedFraction(),
+			Page:              d.GetPage(),
+			Label:             d.GetLabel(),
+			Status:            d.GetStatus(),
+			ChangedFraction:   d.GetChangedFraction(),
+			BaseArtifactId:    baseArtifactIDs[d.GetPage()],
+			CurrentArtifactId: curArtifactIDs[d.GetPage()],
 		})
 	}
 	return connect.NewResponse(&runspb.CompareRunVisualsResponse{Deltas: deltas}), nil
+}
+
+func screenshotArtifactIDsByPage(scenarioDir, runID string) (map[string]string, error) {
+	catalog, err := sharedartifacts.ReadArtifactCatalog(scenarioDir, runID)
+	if errors.Is(err, sharedartifacts.ErrArtifactCatalogNotFound) {
+		catalog, err = sharedartifacts.DiscoverArtifactCatalog(
+			scenarioDir, runID, artifactPhaseDeclarations(scenarioDir, runID), time.Now().UTC(), true,
+		)
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, artifact := range catalog.Artifacts {
+		if artifact.Kind == sharedartifacts.ArtifactKindScreenshot && artifact.Metadata["page"] != "" {
+			out[artifact.Metadata["page"]] = artifact.ID
+		}
+	}
+	return out, nil
 }
 
 func (s *Service) visualCompareArtifacts(dir, runID string, visuals []sharedartifacts.RunVisual) []*visualpb.CompareArtifact {
@@ -551,6 +729,35 @@ func (s *Service) ResolveArtifact(scenario, runID, relPath string) (string, erro
 		return "", statErr
 	}
 	return abs, nil
+}
+
+// ResolveArtifactByID resolves the verified catalog entry used by the opaque
+// REST byte route. The returned metadata is safe to use for content headers.
+func (s *Service) ResolveArtifactByID(scenario, runID, artifactID string) (sharedartifacts.ArtifactRef, string, error) {
+	dir, err := s.scenarioDir(scenario)
+	if err != nil {
+		return sharedartifacts.ArtifactRef{}, "", err
+	}
+	runID = strings.TrimSpace(runID)
+	if _, err := sharedruns.NewIndex(dir).Find(runID); err != nil {
+		return sharedartifacts.ArtifactRef{}, "", err
+	}
+	return sharedartifacts.ResolveCatalogArtifact(
+		dir, runID, strings.TrimSpace(artifactID), artifactPhaseDeclarations(dir, runID),
+	)
+}
+
+func mapArtifactError(err error) error {
+	switch {
+	case errors.Is(err, sharedartifacts.ErrArtifactNotFound), errors.Is(err, os.ErrNotExist):
+		return connect.NewError(connect.CodeNotFound, errors.New("artifact not found"))
+	case errors.Is(err, sharedartifacts.ErrUnsafeArtifact):
+		return connect.NewError(connect.CodePermissionDenied, errors.New("artifact reference is unsafe"))
+	case errors.Is(err, sharedartifacts.ErrInvalidArtifactCatalog), errors.Is(err, sharedartifacts.ErrUnsupportedArtifactCatalogVersion):
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("artifact catalog is unavailable or invalid"))
+	default:
+		return connect.NewError(connect.CodeInternal, err)
+	}
 }
 
 func mapRunError(err error) error {

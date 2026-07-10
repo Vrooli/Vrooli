@@ -98,7 +98,7 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 type ProfileConfig struct {
 	RunnerType      domainpb.RunnerType
 	Model           string
-	ModelPreset     domainpb.ModelPreset
+	PolicyRef       string
 	MaxTurns        int32
 	TimeoutSeconds  int32
 	AllowedTools    []string
@@ -113,7 +113,7 @@ type ProfileConfig struct {
 func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
 		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CODEX,
-		ModelPreset:     domainpb.ModelPreset_MODEL_PRESET_SMART,
+		PolicyRef:       "codex.smart",
 		MaxTurns:        75,
 		TimeoutSeconds:  600,
 		AllowedTools:    []string{"read_file", "write_file", "append_file", "list_files", "analyze_code", "execute_command"},
@@ -132,7 +132,7 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		Description:          "Agent profile for system-monitor investigations",
 		RunnerType:           cfg.RunnerType,
 		Model:                cfg.Model,
-		ModelPreset:          cfg.ModelPreset,
+		PolicyRef:            cfg.PolicyRef,
 		MaxTurns:             cfg.MaxTurns,
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,

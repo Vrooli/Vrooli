@@ -92,25 +92,6 @@ func (s *Server) resolveTarget(ctx context.Context, repoID int64, branch string,
 	return rid, repoDir, branch, nil
 }
 
-func (s *Server) CreateBaseline(ctx context.Context, req *connect.Request[baselinesv1.CreateBaselineRequest]) (*connect.Response[baselinesv1.CreateBaselineResponse], error) {
-	m := req.Msg
-	rid, repoDir, err := s.repos.Resolve(ctx, m.GetRepoId())
-	if err != nil {
-		return nil, s.wrap("CreateBaseline", err)
-	}
-	res, err := s.svc.Create(ctx, bl.CreateRequest{
-		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(), Name: m.GetName(),
-		Branch: m.GetBranch(), Include: m.GetInclude(), Fast: m.GetFast(),
-		Capture: false, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
-	})
-	if err != nil {
-		return nil, s.wrap("CreateBaseline", err)
-	}
-	return connect.NewResponse(&baselinesv1.CreateBaselineResponse{
-		Baseline: manifestToProto(res.Manifest), Skipped: res.Skipped, DirtyWarning: res.DirtyWarning,
-	}), nil
-}
-
 // SnapshotForBaseline starts ONE comprehensive, durable test-genie run and
 // returns its handle IMMEDIATELY — it does not block for the run to finish. The
 // pin + manifest write happen on a server-owned goroutine when the run
@@ -134,8 +115,7 @@ func (s *Server) SnapshotForBaseline(ctx context.Context, req *connect.Request[b
 
 	pending, err := s.svc.StartCapture(ctx, bl.CreateRequest{
 		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(), Name: m.GetName(),
-		Branch: m.GetBranch(), Include: m.GetInclude(), Fast: m.GetFast(),
-		Capture: true, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
+		Branch: m.GetBranch(), CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
 	})
 	if err != nil {
 		var busy *bl.RunBusyError
@@ -197,8 +177,8 @@ func (s *Server) finalizeAsync(ctx context.Context, pending bl.PendingCapture) {
 				pending.Manifest.Scenario, pending.Manifest.Name, pending.Run.RunID, err)
 			return
 		}
-		s.logger.Printf("baselines.SnapshotForBaseline: pinned scenario=%s name=%s run=%s surfaces=%d skipped=%d",
-			pending.Manifest.Scenario, pending.Manifest.Name, res.Manifest.RunID(), len(res.Manifest.Surfaces), len(res.Skipped))
+		s.logger.Printf("baselines.SnapshotForBaseline: pinned scenario=%s name=%s run=%s",
+			pending.Manifest.Scenario, pending.Manifest.Name, res.Manifest.RunID())
 	}()
 }
 
@@ -299,7 +279,7 @@ func (s *Server) StartDiff(ctx context.Context, req *connect.Request[baselinesv1
 	}
 	out, err := s.svc.StartDiff(ctx, bl.StartDiffRequest{
 		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(),
-		Branch: branch, Name: m.GetName(), Surface: m.GetSurface(),
+		Branch: branch, Name: m.GetName(),
 	})
 	if err != nil {
 		return nil, s.wrapStartDiff(err)
@@ -367,7 +347,7 @@ func (s *Server) GetDiffResult(ctx context.Context, req *connect.Request[baselin
 	}
 	cd, nextCheck, err := s.svc.GetDiffResult(ctx, bl.GetDiffResultRequest{
 		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(),
-		Branch: branch, Name: m.GetName(), RunID: m.GetRunId(), Surface: m.GetSurface(),
+		Branch: branch, Name: m.GetName(), RunID: m.GetRunId(),
 		Wait: m.GetWait(), Latest: m.GetLatest(),
 	})
 	if err != nil {
@@ -417,22 +397,6 @@ func (s *Server) DeleteBaseline(ctx context.Context, req *connect.Request[baseli
 		return nil, s.wrap("DeleteBaseline", err)
 	}
 	return connect.NewResponse(&baselinesv1.DeleteBaselineResponse{Deleted: true}), nil
-}
-
-func (s *Server) EditBaseline(ctx context.Context, req *connect.Request[baselinesv1.EditBaselineRequest]) (*connect.Response[baselinesv1.EditBaselineResponse], error) {
-	m := req.Msg
-	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
-	if err != nil {
-		return nil, s.wrap("EditBaseline", err)
-	}
-	manifest, err := s.svc.Edit(ctx, bl.EditRequest{
-		RepoID: rid, Scenario: m.GetScenario(), Branch: branch, Name: m.GetName(),
-		Surface: m.GetSurface(), PinRunID: m.GetPinRunId(), Reason: m.GetReason(),
-	})
-	if err != nil {
-		return nil, s.wrap("EditBaseline", err)
-	}
-	return connect.NewResponse(&baselinesv1.EditBaselineResponse{Baseline: manifestToProto(manifest)}), nil
 }
 
 // wrap maps domain errors to Connect codes and logs internal ones.

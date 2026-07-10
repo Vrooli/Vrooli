@@ -41,6 +41,47 @@ type (
 	PIDProbe      func(pid int) bool
 )
 
+const maxLifecycleDiagnosticBytes = 8 * 1024
+
+// lifecycleDiagnostics retains the tail of lifecycle command output. Startup
+// failures frequently put the actionable compiler or configuration error last;
+// keeping that tail lets durable suite results name the failed contract instead
+// of reducing it to an exit status.
+type lifecycleDiagnostics struct {
+	data      []byte
+	truncated bool
+}
+
+func (d *lifecycleDiagnostics) Write(p []byte) (int, error) {
+	written := len(p)
+	if written == 0 {
+		return 0, nil
+	}
+	if written >= maxLifecycleDiagnosticBytes {
+		d.data = append(d.data[:0], p[written-maxLifecycleDiagnosticBytes:]...)
+		d.truncated = true
+		return written, nil
+	}
+	overflow := len(d.data) + written - maxLifecycleDiagnosticBytes
+	if overflow > 0 {
+		d.data = append(d.data[:0], d.data[overflow:]...)
+		d.truncated = true
+	}
+	d.data = append(d.data, p...)
+	return written, nil
+}
+
+func (d *lifecycleDiagnostics) String() string {
+	detail := strings.TrimSpace(string(d.data))
+	if detail == "" {
+		return ""
+	}
+	if d.truncated {
+		return "[last 8 KiB] " + detail
+	}
+	return detail
+}
+
 // Manager owns lifecycle operations for the scenario under test.
 type Manager struct {
 	Name         string
@@ -178,7 +219,18 @@ func (m *Manager) runLifecycle(ctx context.Context, env map[string]string, logWr
 	if action != "stop" && strings.TrimSpace(m.ScenarioDir) != "" {
 		args = append(args, "--path", m.ScenarioDir)
 	}
-	return m.runCommand(ctx, "", env, logWriter, "vrooli", args...)
+	var diagnostics lifecycleDiagnostics
+	writer := io.Writer(&diagnostics)
+	if logWriter != nil {
+		writer = io.MultiWriter(logWriter, &diagnostics)
+	}
+	if err := m.runCommand(ctx, "", env, writer, "vrooli", args...); err != nil {
+		if detail := diagnostics.String(); detail != "" {
+			return fmt.Errorf("%w; lifecycle %s output: %s", err, action, detail)
+		}
+		return err
+	}
+	return nil
 }
 
 func (m *Manager) waitForURLs(ctx context.Context, needs Needs) (URLs, error) {

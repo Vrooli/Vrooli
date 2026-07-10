@@ -303,5 +303,13 @@
   "runtimeClass": "execution",
   "dimensions": [
     "visual"
+  ],
+  "evidenceKinds": [
+    "workflow.video",
+    "screenshot",
+    "trace",
+    "har",
+    "console",
+    "network"
   ]
 }

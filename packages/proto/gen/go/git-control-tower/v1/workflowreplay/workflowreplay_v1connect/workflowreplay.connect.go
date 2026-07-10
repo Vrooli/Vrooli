@@ -44,8 +44,7 @@ const (
 // WorkflowReplayServiceClient is a client for the
 // vrooli.git_control_tower.v1.workflowreplay.WorkflowReplayService service.
 type WorkflowReplayServiceClient interface {
-	// ListRecentRuns returns the scenario's recent runs that include a playbooks
-	// phase, newest-first.
+	// ListRecentRuns returns recent runs containing workflow.video evidence.
 	ListRecentRuns(context.Context, *connect.Request[workflowreplay.ListRecentRunsRequest]) (*connect.Response[workflowreplay.ListRecentRunsResponse], error)
 	// GetRunDetail returns one run plus its recorded workflow videos.
 	GetRunDetail(context.Context, *connect.Request[workflowreplay.GetRunDetailRequest]) (*connect.Response[workflowreplay.GetRunDetailResponse], error)
@@ -98,8 +97,7 @@ func (c *workflowReplayServiceClient) GetRunDetail(ctx context.Context, req *con
 // WorkflowReplayServiceHandler is an implementation of the
 // vrooli.git_control_tower.v1.workflowreplay.WorkflowReplayService service.
 type WorkflowReplayServiceHandler interface {
-	// ListRecentRuns returns the scenario's recent runs that include a playbooks
-	// phase, newest-first.
+	// ListRecentRuns returns recent runs containing workflow.video evidence.
 	ListRecentRuns(context.Context, *connect.Request[workflowreplay.ListRecentRunsRequest]) (*connect.Response[workflowreplay.ListRecentRunsResponse], error)
 	// GetRunDetail returns one run plus its recorded workflow videos.
 	GetRunDetail(context.Context, *connect.Request[workflowreplay.GetRunDetailRequest]) (*connect.Response[workflowreplay.GetRunDetailResponse], error)

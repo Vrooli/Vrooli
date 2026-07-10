@@ -301,11 +301,11 @@ func (s *Server) setupRoutes() {
 		path, handler := runs_v1connect.NewRunsServiceHandler(s.runsService)
 		s.router.PathPrefix(path).Handler(handler)
 
-		// Binary artifact route: streams a run's recorded video (or other
-		// artifact) by run-relative path. Structured enumeration is Connect
-		// (RunsService.ListRunVideos); binary bytes stream over REST so the
-		// browser <video> element can range-request them. Consumed (proxied)
-		// by git-control-tower's WorkflowReplayService.
+		// Opaque binary artifact route: metadata is enumerated through the typed
+		// RunsService catalog while bytes use REST so media range requests work
+		// without buffering entire recordings through protobuf.
+		apiRouter.HandleFunc("/scenarios/{name}/runs/{runId}/artifacts/{artifactId}", s.handleGetRunArtifactByID).Methods("GET")
+		// Legacy path-based route retained only until GCT's Phase 5 cutover.
 		apiRouter.HandleFunc("/scenarios/{name}/runs/{runId}/artifact", s.handleGetRunArtifact).Methods("GET")
 	}
 }

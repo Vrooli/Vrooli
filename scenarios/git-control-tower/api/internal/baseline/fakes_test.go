@@ -74,9 +74,8 @@ type fakeRuns struct {
 	unpins     []pinCall
 	compare    CompareResult
 	compareErr error
-	// visuals is keyed by runID; a missing key returns an empty slice.
-	visuals    map[string][]RunVisual
-	visualsErr error
+	catalogs   map[string]ArtifactCatalog
+	catalogErr error
 	// visualDeltas is the canned CompareRunVisuals result; compareVisualsErr
 	// forces an error.
 	visualDeltas     []VisualDelta
@@ -97,11 +96,13 @@ func (f *fakeRuns) CompareRuns(_ context.Context, _, _, _, _ string) (CompareRes
 	return f.compare, f.compareErr
 }
 
-func (f *fakeRuns) ListRunVisuals(_ context.Context, _, runID string) ([]RunVisual, error) {
-	if f.visualsErr != nil {
-		return nil, f.visualsErr
+func (f *fakeRuns) ListRunArtifacts(_ context.Context, _, runID string) (ArtifactCatalog, error) {
+	if f.catalogErr != nil {
+		return ArtifactCatalog{}, f.catalogErr
 	}
-	return f.visuals[runID], nil
+	catalog := f.catalogs[runID]
+	catalog.RunID = runID
+	return catalog, nil
 }
 
 func (f *fakeRuns) CompareRunVisuals(_ context.Context, _, _, _ string) ([]VisualDelta, error) {

@@ -11,80 +11,65 @@ import (
 )
 
 type fakeRuns struct {
-	runs   []*runspb.RunInfo
-	videos []*runspb.RunVideo
+	runs      []*runspb.RunInfo
+	artifacts map[string][]*runspb.ArtifactRef
 }
 
 func (f fakeRuns) ListRuns(_ context.Context, _ string, _ int) ([]*runspb.RunInfo, error) {
 	return f.runs, nil
 }
-
 func (f fakeRuns) GetRun(_ context.Context, _, runID string) (*runspb.RunInfo, error) {
-	for _, r := range f.runs {
-		if r.RunId == runID {
-			return r, nil
+	for _, run := range f.runs {
+		if run.GetRunId() == runID {
+			return run, nil
 		}
 	}
 	return nil, connect.NewError(connect.CodeNotFound, nil)
 }
-
-func (f fakeRuns) ListRunVideos(_ context.Context, _, _ string) ([]*runspb.RunVideo, error) {
-	return f.videos, nil
-}
-
-func playbooksRun(id string) *runspb.RunInfo {
-	return &runspb.RunInfo{
-		RunId:  id,
-		Status: "passed",
-		Phases: []*runspb.PhaseInfo{{Name: "playbooks", Status: "passed", DurationSeconds: 12.5}},
+func (f fakeRuns) ListRunArtifacts(_ context.Context, _, runID string, kinds []string) ([]*runspb.ArtifactRef, error) {
+	if len(kinds) != 1 || kinds[0] != workflowVideoKind {
+		panic("workflow lens did not query by artifact kind")
 	}
+	return f.artifacts[runID], nil
 }
 
-func TestListRecentRunsFiltersToPlaybooks(t *testing.T) {
-	srv := NewServer(Deps{Runs: fakeRuns{runs: []*runspb.RunInfo{
-		playbooksRun("r1"),
-		{RunId: "r2", Status: "passed", Phases: []*runspb.PhaseInfo{{Name: "unit", Status: "passed"}}},
-		playbooksRun("r3"),
-	}}})
-
+func TestListRecentRunsSelectsWorkflowEvidenceNotPhase(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	srv := NewServer(Deps{Runs: fakeRuns{
+		runs: []*runspb.RunInfo{
+			{RunId: "future", Status: "passed", Phases: []*runspb.PhaseInfo{{Name: "future-provider", Status: "passed"}}},
+			{RunId: "legacy-phase-only", Status: "passed", Phases: []*runspb.PhaseInfo{{Name: "playbooks", Status: "passed"}}},
+		},
+		artifacts: map[string][]*runspb.ArtifactRef{
+			"future": {{Id: "artifact_0123456789abcdef0123456789abcdef", Kind: workflowVideoKind, Label: "login", ProducingPhase: "future-provider"}},
+		},
+	}})
 	resp, err := srv.ListRecentRuns(context.Background(), connect.NewRequest(&wrpb.ListRecentRunsRequest{Scenario: "demo"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := resp.Msg.GetRuns()
-	if len(got) != 2 {
-		t.Fatalf("expected 2 playbooks runs, got %d", len(got))
-	}
-	if got[0].RunId != "r1" || got[1].RunId != "r3" {
-		t.Fatalf("unexpected runs: %+v", got)
-	}
-	if got[0].PlaybooksStatus != "passed" || got[0].PlaybooksDurationSeconds != 12.5 {
-		t.Fatalf("playbooks phase not mapped: %+v", got[0])
+	if len(resp.Msg.GetRuns()) != 1 || resp.Msg.GetRuns()[0].GetRunId() != "future" {
+		t.Fatalf("artifact-driven runs = %+v", resp.Msg.GetRuns())
 	}
 }
 
-func TestListRecentRunsRequiresScenario(t *testing.T) {
-	srv := NewServer(Deps{Runs: fakeRuns{}})
-	_, err := srv.ListRecentRuns(context.Background(), connect.NewRequest(&wrpb.ListRecentRunsRequest{}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("expected InvalidArgument, got %v", err)
-	}
-}
-
-func TestGetRunDetailReturnsVideos(t *testing.T) {
+func TestGetRunDetailReturnsOpaqueWorkflowArtifacts(t *testing.T) {
+	artifact := &runspb.ArtifactRef{Id: "artifact_0123456789abcdef0123456789abcdef", Kind: workflowVideoKind, Label: "login"}
 	srv := NewServer(Deps{Runs: fakeRuns{
-		runs:   []*runspb.RunInfo{playbooksRun("r1")},
-		videos: []*runspb.RunVideo{{Workflow: "login", RelPath: "automation/login/video/a.webm", SizeBytes: 99}},
+		runs:      []*runspb.RunInfo{{RunId: "r1", Status: "passed"}},
+		artifacts: map[string][]*runspb.ArtifactRef{"r1": {artifact}},
 	}})
 	resp, err := srv.GetRunDetail(context.Background(), connect.NewRequest(&wrpb.GetRunDetailRequest{Scenario: "demo", RunId: "r1"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.Msg.GetRun().GetRunId() != "r1" {
-		t.Fatalf("unexpected run: %+v", resp.Msg.GetRun())
+	if len(resp.Msg.GetArtifacts()) != 1 || resp.Msg.GetArtifacts()[0].GetId() != artifact.GetId() {
+		t.Fatalf("artifacts = %+v", resp.Msg.GetArtifacts())
 	}
-	vids := resp.Msg.GetVideos()
-	if len(vids) != 1 || vids[0].RelPath != "automation/login/video/a.webm" {
-		t.Fatalf("unexpected videos: %+v", vids)
+}
+
+func TestListRecentRunsRequiresScenario(t *testing.T) {
+	_, err := NewServer(Deps{Runs: fakeRuns{}}).ListRecentRuns(context.Background(), connect.NewRequest(&wrpb.ListRecentRunsRequest{}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected InvalidArgument, got %v", err)
 	}
 }

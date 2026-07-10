@@ -1,12 +1,5 @@
-// Package workflowreplay implements the WorkflowReplayService Connect-RPC, a
-// thin proxy over test-genie's RunsService (Plan B Decision 3). It filters runs
-// to the playbooks phase and maps test-genie's run records to the compact shape
-// the GCT Workflows tab consumes, so the UI never calls test-genie directly.
-//
-// Binary video bytes are NOT served here; a GCT REST route streams them.
-//
-// Testing rule: handler tests inject a fake RunsClient; no real test-genie or
-// network is touched.
+// Package workflowreplay implements GCT's workflow-evidence lens over Test
+// Genie. Selection is by stable artifact kind, never by producer phase.
 package workflowreplay
 
 import (
@@ -22,66 +15,33 @@ import (
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
-// playbooksPhase is the test-genie phase whose runs the Workflows tab surfaces.
-const playbooksPhase = "playbooks"
+const (
+	workflowVideoKind = "workflow.video"
+	defaultLimit      = 10
+)
 
-// defaultLimit caps ListRecentRuns when the caller passes 0.
-const defaultLimit = 10
-
-// RunsClient is the narrow seam over test-genie's RunsService that this proxy
-// needs. The concrete implementation lives in the flat main package and is
-// wired in connect_wiring.go.
 type RunsClient interface {
 	ListRuns(ctx context.Context, scenario string, limit int) ([]*runspb.RunInfo, error)
 	GetRun(ctx context.Context, scenario, runID string) (*runspb.RunInfo, error)
-	ListRunVideos(ctx context.Context, scenario, runID string) ([]*runspb.RunVideo, error)
+	ListRunArtifacts(ctx context.Context, scenario, runID string, kinds []string) ([]*runspb.ArtifactRef, error)
 }
 
-// Server implements workflowreplay_v1connect.WorkflowReplayServiceHandler.
-type Server struct {
-	runs RunsClient
-}
+type Server struct{ runs RunsClient }
+type Deps struct{ Runs RunsClient }
 
-// Deps wires the Connect server.
-type Deps struct {
-	Runs RunsClient
-}
-
-// NewServer builds a Server.
 func NewServer(d Deps) *Server { return &Server{runs: d.Runs} }
 
-// NewHandler returns the (procedure-prefix, http.Handler) pair the router mounts.
 func NewHandler(d Deps, opts ...connect.HandlerOption) (string, http.Handler) {
 	return workflowreplay_v1connect.NewWorkflowReplayServiceHandler(NewServer(d), opts...)
 }
 
-func playbooksInfo(run *runspb.RunInfo) (*runspb.PhaseInfo, bool) {
-	for _, p := range run.GetPhases() {
-		if p.GetName() == playbooksPhase {
-			return p, true
-		}
-	}
-	return nil, false
-}
-
 func toSummary(run *runspb.RunInfo) *wrpb.RunSummary {
-	s := &wrpb.RunSummary{
-		RunId:       run.GetRunId(),
-		Status:      run.GetStatus(),
-		StartedAt:   run.GetStartedAt(),
-		CompletedAt: run.GetCompletedAt(),
-		GitSha:      run.GetGitSha(),
-		GitBranch:   run.GetGitBranch(),
-		GitDirty:    run.GetGitDirty(),
+	return &wrpb.RunSummary{
+		RunId: run.GetRunId(), Status: run.GetStatus(), StartedAt: run.GetStartedAt(),
+		CompletedAt: run.GetCompletedAt(), GitSha: run.GetGitSha(), GitBranch: run.GetGitBranch(), GitDirty: run.GetGitDirty(),
 	}
-	if p, ok := playbooksInfo(run); ok {
-		s.PlaybooksStatus = p.GetStatus()
-		s.PlaybooksDurationSeconds = p.GetDurationSeconds()
-	}
-	return s
 }
 
-// ListRecentRuns returns recent runs that include a playbooks phase, newest-first.
 func (s *Server) ListRecentRuns(ctx context.Context, req *connect.Request[wrpb.ListRecentRunsRequest]) (*connect.Response[wrpb.ListRecentRunsResponse], error) {
 	scenario := strings.TrimSpace(req.Msg.GetScenario())
 	if scenario == "" {
@@ -91,19 +51,20 @@ func (s *Server) ListRecentRuns(ctx context.Context, req *connect.Request[wrpb.L
 	if limit <= 0 {
 		limit = defaultLimit
 	}
-
-	// Over-fetch then filter: not every run includes playbooks, so ask for more
-	// than `limit` to fill the page after filtering.
 	runs, err := s.runs.ListRuns(ctx, scenario, limit*3)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
 	out := make([]*wrpb.RunSummary, 0, limit)
-	for _, r := range runs {
-		if _, ok := playbooksInfo(r); !ok {
+	for _, run := range runs {
+		artifacts, err := s.runs.ListRunArtifacts(ctx, scenario, run.GetRunId(), []string{workflowVideoKind})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
+		if len(artifacts) == 0 {
 			continue
 		}
-		out = append(out, toSummary(r))
+		out = append(out, toSummary(run))
 		if len(out) >= limit {
 			break
 		}
@@ -111,7 +72,6 @@ func (s *Server) ListRecentRuns(ctx context.Context, req *connect.Request[wrpb.L
 	return connect.NewResponse(&wrpb.ListRecentRunsResponse{Runs: out}), nil
 }
 
-// GetRunDetail returns one run plus its recorded workflow videos.
 func (s *Server) GetRunDetail(ctx context.Context, req *connect.Request[wrpb.GetRunDetailRequest]) (*connect.Response[wrpb.GetRunDetailResponse], error) {
 	scenario := strings.TrimSpace(req.Msg.GetScenario())
 	runID := strings.TrimSpace(req.Msg.GetRunId())
@@ -122,17 +82,9 @@ func (s *Server) GetRunDetail(ctx context.Context, req *connect.Request[wrpb.Get
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
-	videos, err := s.runs.ListRunVideos(ctx, scenario, runID)
+	artifacts, err := s.runs.ListRunArtifacts(ctx, scenario, runID, []string{workflowVideoKind})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
-	out := &wrpb.GetRunDetailResponse{Run: toSummary(run)}
-	for _, v := range videos {
-		out.Videos = append(out.Videos, &wrpb.WorkflowVideo{
-			Workflow:  v.GetWorkflow(),
-			RelPath:   v.GetRelPath(),
-			SizeBytes: v.GetSizeBytes(),
-		})
-	}
-	return connect.NewResponse(out), nil
+	return connect.NewResponse(&wrpb.GetRunDetailResponse{Run: toSummary(run), Artifacts: artifacts}), nil
 }

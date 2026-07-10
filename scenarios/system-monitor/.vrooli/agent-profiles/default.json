@@ -3,7 +3,7 @@
   "profileKey": "system-monitor/default",
   "description": "Agent profile for system-monitor investigations",
   "runnerType": "RUNNER_TYPE_CODEX",
-  "modelPreset": "MODEL_PRESET_SMART",
+  "policyRef": "codex.smart",
   "maxTurns": 75,
   "timeout": "600s",
   "allowedTools": [

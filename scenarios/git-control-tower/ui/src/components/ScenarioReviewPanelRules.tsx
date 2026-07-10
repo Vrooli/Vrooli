@@ -37,7 +37,7 @@ export function RulesTab({
   }, [onJobIdChange]);
   const jobStatus = useAuditorJobStatus(jobId, repoId);
   const [expandedViolation, setExpandedViolation] = useState<string | null>(null);
-  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, "rules", repoId);
+  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, repoId);
   const openBaselines = onOpenBaselines ?? (() => {});
 
   if (!auditorAvailable) {
@@ -236,4 +236,3 @@ export function RulesTab({
     </div>
   );
 }
-

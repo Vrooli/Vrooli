@@ -10,6 +10,7 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 )
 
@@ -244,6 +245,9 @@ func TestAbortTransitionsToAborted(t *testing.T) {
 	}
 	if rec.Status != sharedruns.StatusAborted {
 		t.Fatalf("durable status = %q, want aborted", rec.Status)
+	}
+	if catalog, err := sharedartifacts.ReadArtifactCatalog(scenarioDir, runID); err != nil || catalog.LegacyDiscovered {
+		t.Fatalf("aborted run artifact catalog = %+v err=%v", catalog, err)
 	}
 }
 
@@ -669,5 +673,87 @@ func TestFailedRunReconcilesDurableRecord(t *testing.T) {
 	}
 	if rec.CompletedAt.IsZero() {
 		t.Fatal("reconciled record must carry a CompletedAt")
+	}
+}
+
+func TestWaitHydratesCanonicalTerminalSnapshotAfterRestart(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
+	root := t.TempDir()
+	scenario := "demo"
+	runID := "20260710-142937-ae6a753e"
+	started := time.Now().UTC().Add(-20 * time.Second).Truncate(time.Second)
+	completed := started.Add(15 * time.Second)
+	idx := sharedruns.NewIndex(root + "/" + scenario)
+	descriptorSnapshot, err := sharedruns.NewDescriptorSnapshot([]sharedruns.PhaseDescriptorSnapshot{{
+		Phase: "unit", DisplayName: "Unit", Applicability: sharedruns.ApplicabilityDecisionSnapshot{Status: "applies", Planned: true},
+	}})
+	if err != nil {
+		t.Fatalf("build descriptor snapshot: %v", err)
+	}
+	if err := sharedruns.WriteDescriptorSnapshot(root+"/"+scenario, runID, descriptorSnapshot); err != nil {
+		t.Fatalf("write descriptor snapshot: %v", err)
+	}
+	if err := idx.Append(sharedruns.RunRecord{
+		RunID:                           runID,
+		Scenario:                        scenario,
+		StartedAt:                       started,
+		Status:                          sharedruns.StatusInProgress,
+		DescriptorSnapshotSchemaVersion: descriptorSnapshot.SchemaVersion,
+		DescriptorSnapshotDigest:        descriptorSnapshot.Digest,
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	result := &orchestrator.SuiteExecutionResult{
+		RunID:        runID,
+		ScenarioName: scenario,
+		StartedAt:    started,
+		CompletedAt:  completed,
+		Success:      false,
+		Verdict:      "FAIL",
+		Phases: []orchestrator.PhaseExecutionResult{
+			{Name: "unit", Status: "failed", DurationSeconds: 15},
+		},
+	}
+	if err := idx.Finalize(runID, result, func(r *sharedruns.RunRecord) error {
+		r.Status = sharedruns.StatusFailed
+		r.CompletedAt = completed
+		r.Phases = []sharedruns.PhaseRecord{{Name: "unit", Status: "failed", DurationSeconds: 15}}
+		return nil
+	}); err != nil {
+		t.Fatalf("finalize: %v", err)
+	}
+
+	// A new manager has no live registry state; Wait must hydrate the same full
+	// terminal truth from the persisted snapshot rather than return zero phases.
+	m := New(nil, root)
+	status, err := m.Wait(context.Background(), scenario, runID)
+	if err != nil {
+		t.Fatalf("wait after restart: %v", err)
+	}
+	if status.Result == nil || len(status.Result.Phases) != 1 {
+		t.Fatalf("terminal result phases = %+v, want one persisted phase", status.Result)
+	}
+	if got := status.Result.Phases[0]; got.Name != "unit" || got.Status != "failed" || got.DurationSeconds != 15 {
+		t.Fatalf("persisted phase = %+v", got)
+	}
+	if status.Verdict != "FAIL" || status.ElapsedSeconds != 15 || len(status.DegradedReasons) != 0 {
+		t.Fatalf("hydrated status = %+v", status)
+	}
+}
+
+func TestWaitMarksLegacyTerminalProjectionDegraded(t *testing.T) {
+	root := t.TempDir()
+	scenario := "demo"
+	runID := "legacy-run"
+	if err := sharedruns.NewIndex(root + "/" + scenario).Append(sharedruns.RunRecord{
+		RunID: runID, Scenario: scenario, StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	status, err := New(nil, root).Wait(context.Background(), scenario, runID)
+	if err != nil {
+		t.Fatalf("wait: %v", err)
+	}
+	if status.Result != nil || len(status.DegradedReasons) != 2 {
+		t.Fatalf("legacy status must be explicit degraded evidence: %+v", status)
 	}
 }

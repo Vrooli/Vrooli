@@ -48,6 +48,11 @@
   `FinalizeDiff` (atomic tmp+rename). If the finalize tail is lost (crash),
   `GetDiffResult` recomputes once on demand from the durable runs — the runs
   themselves never depend on the cache.
+- **Attachment failure is non-terminal.** `context.Canceled` and
+  `context.DeadlineExceeded` from a snapshot/diff wait leave the intent pending.
+  They never publish a failed snapshot or ready/not-comparable diff. The CLI may
+  perform one non-blocking recovery read by the same run ID after unexpected EOF;
+  it never retries `StartCapture`/`StartDiff` from that path.
 
 ## Enforcement Mechanisms
 [How each invariant is protected]
@@ -59,3 +64,6 @@
 - Run reuse + diff cache + recompute: `internal/baseline/service.go`
   (`resolveCurrentRun`, `FinalizeDiff`, `GetDiffResult`) + `storage.go`
   (`SaveDiffResult`/`LoadDiffResult`), tested in `service_test.go`.
+- Attachment detachment + one-read EOF recovery: `service.go::FinalizeCapture`/
+  `FinalizeDiff` and `cli/domains/baseline/register.go::durableReadWithEOFRecovery`,
+  tested under `-race` in their adjacent test files.
