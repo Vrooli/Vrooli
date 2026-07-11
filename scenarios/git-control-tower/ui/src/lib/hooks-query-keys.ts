@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import type { ContentSearchRequest, ViewMode } from "./api";
+import type { ArtifactFilters, EvidenceFilters, RunFilters } from "./api-evidence";
 
 export const queryKeys = {
   health: ["health"] as const,
@@ -42,10 +43,12 @@ export const queryKeys = {
     ["repo", "visual-captures", repoId ?? "default", "detail", id, slug] as const,
   captureStorage: (repoId?: string | null) =>
     ["repo", "visual-capture-storage", repoId ?? "default"] as const,
-  testExecutions: (scenarioName: string, repoId?: string | null) =>
-    ["repo", "test-executions", repoId ?? "default", scenarioName] as const,
-  testExecution: (id: string, repoId?: string | null) =>
-    ["repo", "test-executions", repoId ?? "default", "detail", id] as const,
+  testRuns: (scenario: string, filters: RunFilters, repoId?: string | null) =>
+    ["test-runs", repoId ?? "default", scenario, filters] as const,
+  testRun: (scenario: string, runId: string, filters: ArtifactFilters, repoId?: string | null) =>
+    ["test-runs", repoId ?? "default", scenario, runId, filters] as const,
+  evidence: (scenario: string, filters: EvidenceFilters, repoId?: string | null) =>
+    ["evidence", repoId ?? "default", scenario, filters] as const,
   tidinessScore: (scenarioName: string, repoId?: string | null) =>
     ["repo", "tidiness-score", repoId ?? "default", scenarioName] as const,
   tidinessIssues: (scenarioName: string, file?: string, repoId?: string | null, category?: string, severity?: string, limit?: number) =>
@@ -82,10 +85,6 @@ export const queryKeys = {
     ["baselines", repoId ?? "default", scenario, "detail", name, branch] as const,
   baselineDiff: (scenario: string, name: string, branch: string, surface: string, repoId?: string | null) =>
     ["baselines", repoId ?? "default", scenario, "diff", name, branch, surface] as const,
-  workflowRuns: (scenario: string, repoId?: string | null) =>
-    ["workflow-runs", repoId ?? "default", scenario] as const,
-  workflowRunDetail: (scenario: string, runId: string, repoId?: string | null) =>
-    ["workflow-runs", repoId ?? "default", scenario, "detail", runId] as const,
 };
 
 const REPO_STORAGE_KEY = "gct.activeRepoId";

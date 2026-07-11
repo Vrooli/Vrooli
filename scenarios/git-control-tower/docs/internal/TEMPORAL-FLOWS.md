@@ -1,20 +1,28 @@
 # Temporal Flows & Async Patterns
 
 ## Last Updated
-[Date]
+2026-07-10
 
 ## Async Flows Identified
 
 | Flow | Entry Point | Async Operations | Completion Signal |
 |------|-------------|------------------|-------------------|
-| [name] | [where it starts] | [what's async] | [how we know it's done] |
+| Baseline snapshot | `baseline snapshot` / `SnapshotForBaseline` | One comprehensive Test Genie run, terminal snapshot hydration, exactly-once pin, V2 manifest commit | Ready capture intent plus V2 manifest with `migration.pin_reconciled_at` |
+| Baseline diff | `baseline diff` / `StartDiff` | Current Test Genie run and descriptor-aware comparison | Ready diff intent plus durable comparison cache |
+| V1 migration | Baseline read/list | Validate one-run identity, rewrite V2 atomically, reconcile owner-scoped pin | V2 manifest whose reconciliation checkpoint is durable |
 
 ## Race Conditions
-[Identified race conditions and their status]
-- **Location**: description, mitigation status
+
+- Concurrent migration/list/delete serializes through baseline storage locks.
+  Pin reconciliation is owner-idempotent; only the successful pin is followed
+  by `pin_reconciled_at`.
+- A failed unpin during deletion leaves the manifest present so retry cannot
+  orphan an untracked pin.
+- Snapshot or diff caller cancellation cannot publish a false terminal result;
+  detached work owns its own context and commits only after terminal Test Genie
+  truth is available.
 
 ## Timing Assumptions
-[Implicit ordering or delay assumptions]
 
 - Snapshot/diff detached tails have a 30m attachment ceiling. Expiry leaves the
   durable intent pending; it is not an execution verdict.
@@ -24,7 +32,7 @@
   gets a fresh transport budget rather than subtracting prior queue residence.
 
 ## Checkpoint Flows
-[From progress-continuity-interruption-resilience]
+
 - **Snapshot:** `StartCapture` persists a pending intent before the handler
   dispatches its detached finalizer. Terminal Test Genie truth → one pin + V2
   manifest + ready intent. Resume through `snapshot status --run R [--wait]` or
@@ -38,4 +46,8 @@
   are returned and mutations are never replayed.
 
 ## Concurrency Concerns
-[Shared state, locking, coordination patterns]
+
+Baseline manifest replacement is atomic. In-process locks prevent duplicate
+capture/migration/delete mutations for one identity, while Test Genie's
+owner-scoped pins provide the cross-retry idempotency key. Multi-scenario waits
+use bounded concurrency and one `diff wait-all` attachment rather than polling.

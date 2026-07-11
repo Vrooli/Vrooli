@@ -46,6 +46,45 @@ endpoints that don't require parsing raw CLI output.
 | Audit log | [CODE: api/audit_logger.go]                       | SQLite-persisted log of all mutating operations |
 | Auditor | [CODE: api/auditor_client.go]                       | Quality / scenario-review pipelines |
 
+## Descriptor-aware review evidence
+
+The scenario review UI has exactly eight workflow tabs: Overview, Baselines,
+Metrics, Screenshots, Workflows, Tests, AI Changes, and Agent. Rules and Code
+Quality are not routable or persisted tabs; their underlying providers remain
+available through Test Genie phase findings and other reusable review checks.
+
+Every retained evidence view crosses one programmatic boundary:
+`EvidenceService`. GCT forwards Test Genie's canonical `RunInfo`, frozen
+descriptor snapshot, phase results, applicability/maturity summaries, and open
+`ArtifactRef` records without translating phase keys. Tests filters descriptor
+metadata, while Screenshots and Workflows select artifact kinds regardless of
+producer phase. Agent attachments retain the exact run/phase/artifact identity.
+Artifact bodies use run-scoped opaque IDs through the same-origin generic byte
+route; filesystem paths never enter the UI contract.
+
+Tests and Baselines are outcome-first projections over that boundary. Tests
+groups failed, skipped, unavailable, and finding-bearing phases ahead of clean
+phases; filters use only captured descriptor fields, historical runs are
+selectable, and expansion lazily requests the run's typed evidence catalog.
+Clean catalogs render incrementally in bounded batches. Baseline comparisons
+show exact base/current run and Git identity, dirty/stale state, catalog
+additions and retirements, aggregate outcome counts, and Test Genie comparison
+reasons. Phase keys and evidence kinds remain open data throughout; the UI has
+no Test Genie phase registry or surface-to-phase mapping.
+
+Artifact presentation is a separate, evidence-kind capability. A small renderer
+registry recognizes images and visual diffs, recordings, text/log output,
+JSON/findings reports, coverage, and trace/HAR/network/console evidence. It is
+never keyed by a producer phase. Unknown kinds always use the generic renderer,
+which exposes safe metadata, catalog or legacy provenance, relationships, and
+the authorized opaque artifact action without guessing from a filename.
+Screenshots groups captures and advisory comparisons by run and capture context;
+Workflows groups recordings and related operational evidence by run. Both tabs
+deduplicate stable artifact IDs, page metadata in bounded increments, and defer
+all image/video byte requests until the operator opens Preview. Evidence cards
+can attach the exact opaque identity to Agent or navigate to the exact captured
+run and producer phase in Tests.
+
 ## Operational targets
 
 The scenario implements the P0 targets and surfaces P1/P2 work as

@@ -91,6 +91,38 @@ Returns infrastructure readiness plus operational telemetry.
 - Monitoring dashboards
 - Agent readiness checks before test execution
 
+## Durable runs and typed evidence (Connect-RPC)
+
+`RunsService` is the canonical programmatic surface for lifecycle-managed suite
+runs. Its procedure paths are generated from
+`packages/proto/schemas/test-genie/v1/runs/runs.proto`; callers should use the
+generated client or the `test-genie runs` CLI instead of constructing REST
+polling loops.
+
+| RPC group | Methods | Contract |
+| --- | --- | --- |
+| Lifecycle | `StartRun`, `FollowRun`, `WaitRun`, `AbortRun`, `GetRunStatus` | The server owns execution. A client disconnect only detaches. Terminal `WaitRun` projects the same persisted snapshot as `GetRun`. |
+| History/retention | `ListRuns`, `GetRun`, `DeleteRun`, `PinRun`, `UnpinRun`, `FindRun` | Run IDs are durable; owner-scoped pins are idempotent and protect retained evidence. |
+| Comparison | `CompareRuns`, `CompareRunVisuals` | Joins immutable phase keys from each run's captured descriptor snapshot and returns typed comparability reasons. Visual deltas are advisory. |
+| Evidence | `ListRunArtifacts`, `GetRunArtifact`, `GetRunFindings` | Returns path-free typed metadata and opaque run-scoped IDs. Artifact bytes stream only through the validated opaque HTTP route. |
+| Compatibility | `GetPhaseArtifact`, `ListRunVideos`, `ListRunVisuals` | Retained for older callers; new consumers use the typed artifact catalog and never filter by producer phase. |
+
+New runs persist three coordinated durable records: the canonical terminal
+snapshot, the planning-time descriptor snapshot, and the runtime evidence
+catalog. Each carries schema/digest metadata. Missing legacy fields, digest
+failure, corrupt snapshots, or absent bytes produce explicit degraded/errors;
+they are never converted into an empty successful run.
+
+The opaque byte route is:
+
+```text
+GET /scenarios/{scenario}/runs/{runId}/artifacts/{artifactId}
+```
+
+The ID is valid only for its owning run. The handler rejects traversal,
+cross-run reuse, and symlink escape and applies content-type, no-sniff, and
+active-content sandbox headers.
+
 ---
 
 ## Suite Requests

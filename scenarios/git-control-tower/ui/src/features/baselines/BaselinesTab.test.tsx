@@ -13,6 +13,7 @@ vi.mock("../../lib/api-baselines", async (importOriginal) => {
     listBaselines: vi.fn(),
     snapshotForBaseline: vi.fn(),
     deleteBaseline: vi.fn(),
+    diffBaseline: vi.fn(),
   };
 });
 
@@ -78,6 +79,33 @@ describe("BaselinesTab", () => {
         expect.objectContaining({ scenario: "demo", name: "pre-launch" }),
       ),
     );
+  });
+
+  it("[REQ:GCT-DESCRIPTOR-REVIEW-P2] summarizes dynamic comparison outcomes and catalog evolution", async () => {
+    vi.mocked(api.listBaselines).mockResolvedValue([manifest("pre-launch")]);
+    vi.mocked(api.diffBaseline).mockResolvedValue({
+      verdict: "regression",
+      baseline: manifest("pre-launch"),
+      currentGit: { sha: "def67890", dirty: true },
+      staleness: { likelyStale: true, commitsSince: 3, filesChanged: 7 },
+      evidence: { baseRunId: "r1", currentRunId: "r2", visualDeltas: [{ page: "/", status: "changed", changedFraction: 0.1 }], degradedReasons: [] },
+      phases: [
+        { phase: "future-health", verdict: "regression", statusA: "passed", statusB: "failed", regressions: ["check-a"], newFailures: [], preexistingFailures: [], clearedFailures: [], reasons: [{ code: 1, detail: "New catalog phase" }], descriptorB: { displayName: "Future Health", provider: "future-provider" } },
+        { phase: "unit", verdict: "clean", statusA: "passed", statusB: "passed", regressions: [], newFailures: [], preexistingFailures: [], clearedFailures: [], reasons: [] },
+      ],
+    } as never);
+
+    renderWithQueryClient(<BaselinesTab scenarioSlug="demo" repoId={null} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Compare" }));
+    fireEvent.click(screen.getByRole("button", { name: /compare against working tree/i }));
+
+    expect(await screen.findByText("Regressions: 1")).toBeInTheDocument();
+    expect(screen.getByText("Catalog changed: 1 new / 0 retired")).toBeInTheDocument();
+    expect(screen.getByText(/Baseline likely stale/)).toBeInTheDocument();
+    expect(screen.getByText("Future Health")).toBeInTheDocument();
+    expect(screen.queryByText("unit")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /clean phases/i }));
+    expect(screen.getAllByText("unit").length).toBeGreaterThan(0);
   });
 });
 

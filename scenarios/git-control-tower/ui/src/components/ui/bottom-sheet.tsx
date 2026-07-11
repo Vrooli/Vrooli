@@ -8,7 +8,7 @@ interface BottomSheetProps {
   onClose: () => void;
   title?: string;
   children: ReactNode;
-  /** Height preset: "auto" fits content, "half" is 50vh, "full" is 100vh minus safe area */
+  /** Height preset: "auto" fits content, "half" is 50vh, "full" is 100% minus safe area */
   height?: "auto" | "half" | "full";
 }
 
@@ -77,7 +77,7 @@ export function BottomSheet({
 
   const heightClass =
     height === "full"
-      ? "h-[calc(100vh-env(safe-area-inset-top))]"
+      ? "h-[calc(100%-env(safe-area-inset-top))]"
       : height === "half"
         ? "max-h-[50vh]"
         : "max-h-[85vh]";

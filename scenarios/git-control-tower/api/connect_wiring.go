@@ -9,8 +9,8 @@ import (
 	"github.com/vrooli/api-core/connectx"
 
 	baselineH "git-control-tower/handlers/baseline"
+	evidenceH "git-control-tower/handlers/evidence"
 	repoH "git-control-tower/handlers/repo"
-	workflowreplayH "git-control-tower/handlers/workflowreplay"
 	worktreeH "git-control-tower/handlers/worktree"
 	"git-control-tower/internal/policygate"
 	repoD "git-control-tower/internal/repo"
@@ -70,17 +70,17 @@ func (s *Server) mountConnectHandlers() {
 		Repos:   baselineRepoResolver{repos: s.repos},
 	}, policyOpt)
 
-	// WorkflowReplay: thin proxy over typed test-genie run evidence for the
-	// Workflows tab (Decision 3 — the UI never calls test-genie directly).
-	// Reads are quick, so a short discovery-resolved client timeout suffices.
-	wrPath, wrHandler := workflowreplayH.NewHandler(workflowreplayH.Deps{
-		Runs: newWorkflowReplayRunsClient(30 * time.Second),
+	// Evidence: the shared descriptor-aware run and artifact surface consumed by
+	// Tests, Screenshots, Workflows, Overview, Baselines, and Agent. Selection is
+	// based on captured metadata and open artifact kinds, never phase keys.
+	evidencePath, evidenceHandler := evidenceH.NewHandler(evidenceH.Deps{
+		Runs: newEvidenceRunsClient(30 * time.Second),
 	}, policyOpt)
 
 	connectx.RegisterServices(s.router,
 		connectx.ServiceMount{Path: wtPath, Handler: wtHandler},
 		connectx.ServiceMount{Path: repoPath, Handler: repoHandler},
 		connectx.ServiceMount{Path: baselinePath, Handler: baselineHandler},
-		connectx.ServiceMount{Path: wrPath, Handler: wrHandler},
+		connectx.ServiceMount{Path: evidencePath, Handler: evidenceHandler},
 	)
 }

@@ -13,28 +13,25 @@ import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { MutationErrorBanner } from "../../components/ScenarioReviewPanelShared";
 import { useCompareOnDemand } from "../../lib/hooks-baselines";
-import { surfaceLabel, type BaselineSurface } from "./model";
 import { SurfaceBaselineBar } from "./SurfaceBaselineBar";
 import { PhaseDiffCard, VerdictBadge } from "./parts";
 
 export function SurfaceComparePanel({
   scenario,
-  surface,
+  contextLabel,
   repoId,
   onOpenBaselines,
   onCaptureBaseline,
   viewingLabel,
 }: {
   scenario: string;
-  surface: BaselineSurface;
+  contextLabel: string;
   repoId?: string | null;
   onOpenBaselines: () => void;
   onCaptureBaseline?: () => void;
   viewingLabel?: ReactNode;
 }) {
   const compare = useCompareOnDemand(scenario, { repoId });
-  const label = surfaceLabel(surface);
-
   return (
     <div className="space-y-2">
       <SurfaceBaselineBar
@@ -50,7 +47,7 @@ export function SurfaceComparePanel({
         (compare.isRunning ? (
           <div className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs text-slate-500">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Running {label.toLowerCase()} — this can take a few minutes.
+            Running comprehensive comparison for {contextLabel.toLowerCase()} — this can take a few minutes.
           </div>
         ) : compare.error ? (
           <MutationErrorBanner error={compare.error} />

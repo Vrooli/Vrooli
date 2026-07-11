@@ -38,23 +38,28 @@ export function EntityList({
 export function PhaseDiffCard({ diff }: { diff: PhaseDiff }) {
   const descriptor = diff.descriptorB ?? diff.descriptorA;
   const title = descriptor?.displayName || diff.phase;
+  const [expanded, setExpanded] = useState(diff.verdict !== "clean");
   return (
-    <section className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+    <section className="rounded-lg border border-slate-800 bg-slate-900/40">
+      <button type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
+        <div className="flex min-w-0 items-center gap-2">
+          {expanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
+          <div>
           <h3 className="text-sm font-medium text-slate-200">{title}</h3>
           <p className="text-[11px] font-mono text-slate-500">{diff.phase}{descriptor?.provider ? ` · ${descriptor.provider}` : ""}</p>
+          </div>
         </div>
         <VerdictBadge verdict={diff.verdict} />
-      </div>
-      <p className="text-xs text-slate-500">{diff.statusA || "absent"} → {diff.statusB || "absent"}</p>
-      <EntityList title="Regressions" items={diff.regressions} tone="regression" />
-      <EntityList title="New failures" items={diff.newFailures} tone="new" />
-      <EntityList title="Preexisting" items={diff.preexistingFailures} tone="preexisting" />
-      <EntityList title="Cleared" items={diff.clearedFailures} tone="cleared" />
-      {diff.reasons.map((reason, index) => (
-        <p key={`${reason.code}-${index}`} className="text-xs text-amber-400">{reason.detail || "Comparison metadata unavailable"}</p>
-      ))}
+      </button>
+      {expanded && <div className="space-y-2 border-t border-slate-800 px-3 pb-3 pt-2">
+        <p className="text-xs text-slate-500">{diff.statusA || "absent"} → {diff.statusB || "absent"}</p>
+        {descriptor?.description && <p className="text-xs text-slate-400">{descriptor.description}</p>}
+        <EntityList title="Regressions" items={diff.regressions} tone="regression" />
+        <EntityList title="New failures" items={diff.newFailures} tone="new" />
+        <EntityList title="Preexisting" items={diff.preexistingFailures} tone="preexisting" />
+        <EntityList title="Cleared" items={diff.clearedFailures} tone="cleared" />
+        {diff.reasons.map((reason, index) => <p key={`${reason.code}-${index}`} className="text-xs text-amber-400">{reason.detail || "Comparison metadata unavailable"}</p>)}
+      </div>}
     </section>
   );
 }
@@ -68,3 +73,5 @@ export function RunAnchorBadge({ manifest }: { manifest: BaselineManifest }) {
     </span>
   );
 }
+import { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";

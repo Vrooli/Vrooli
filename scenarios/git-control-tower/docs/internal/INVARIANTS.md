@@ -1,17 +1,26 @@
 # System Invariants
 
 ## Last Updated
-[Date]
+2026-07-10
 
 ## Critical Invariants
-[Must never be violated - type-enforced or test-validated]
 
 | Invariant | Domain Concept | Enforcement | Test Coverage |
 |-----------|----------------|-------------|---------------|
-| [description] | [what concept] | [types/validation/tests] | [test file] |
+| A baseline names exactly one immutable Test Genie run. | Baseline V2 identity | `BaselineManifest.Validate`, storage migration, removed create/edit/selective APIs | `internal/baseline/service_test.go`, handler and CLI tests |
+| GCT never routes on Test Genie phase keys. | Descriptor-driven evidence | Lossless `PhaseDiff`/`RunInfo` forwarding and production-code phase-registry guard | `handlers/evidence/phase_agnostic_guard_test.go` |
+| Artifact access is path-free and run-scoped. | Typed evidence | Test Genie opaque IDs plus GCT same-origin proxy; no provider path in proto/UI contracts | Evidence handler and artifact renderer tests |
+| UNKNOWN, degraded, missing, or not-comparable evidence cannot become PASS. | Honest comparison | Baseline result aggregation and durable operation status/exit codes | Baseline service/handler/CLI tests |
 
 ## Important Invariants
-[Should be preserved but violation is recoverable]
+
+- The review UI exposes exactly Overview, Baselines, Metrics, Screenshots,
+  Workflows, Tests, AI Changes, and Agent. Persisted legacy tab values migrate
+  to a retained destination; Rules and Code Quality are not routable tabs.
+- Screenshots and Workflows select stable artifact kinds across every producer
+  phase. Producer phase is preserved as provenance only.
+- Visual differences remain advisory unless an owning provider emits a separate
+  failing finding.
 
 ## Replay/Idempotency Invariants
 [Operations that must be safe to retry]
@@ -53,6 +62,13 @@
   They never publish a failed snapshot or ready/not-comparable diff. The CLI may
   perform one non-blocking recovery read by the same run ID after unexpected EOF;
   it never retries `StartCapture`/`StartDiff` from that path.
+- **Legacy retention reconciliation is checkpoint-after-effect.** A migratable
+  V1 manifest is atomically rewritten to a V2 run anchor, then the service asks
+  Test Genie for the idempotent `gct:baseline:<name>` pin, and only after success
+  persists `migration.pin_reconciled_at`. A failure or crash before the
+  checkpoint retries the same owner. Delete uses the inverse safe ordering:
+  successful idempotent unpin precedes manifest removal, so a failed transport
+  cannot orphan a pin without the recovery identity needed to retry.
 
 ## Enforcement Mechanisms
 [How each invariant is protected]
@@ -67,3 +83,7 @@
 - Attachment detachment + one-read EOF recovery: `service.go::FinalizeCapture`/
   `FinalizeDiff` and `cli/domains/baseline/register.go::durableReadWithEOFRecovery`,
   tested under `-race` in their adjacent test files.
+- Legacy migration pin/unpin ordering: `internal/baseline/service.go`
+  (`reconcileMigrationPin`, `Delete`) plus the persisted `MigrationInfo`
+  checkpoint, tested by the legacy migration, failure/retry, concurrent-read,
+  copied-real-data rehearsal, and delete-retry tests in `service_test.go`.

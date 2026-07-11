@@ -84,16 +84,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}", s.handleVisualCaptureDelete).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/repo/visual-capture-storage", s.handleVisualCaptureClearAll).Methods("DELETE")
 
-	// Workflow run video proxy: streams a run-scoped opaque artifact
-	// video through GCT so the UI <video> element stays single-origin. The
-	// structured run/video listing comes from WorkflowReplayService (Connect);
-	// this is the binary side. ?scenario=&path= identify the artifact.
-	s.router.HandleFunc("/api/v1/repo/workflow-runs/{runId}/video", s.handleWorkflowRunVideo).Methods("GET")
-
-	// Test-genie endpoints
-	s.router.HandleFunc("/api/v1/repo/test-execution", s.handleTestExecution).Methods("POST")
-	s.router.HandleFunc("/api/v1/repo/test-executions", s.handleTestExecutionList).Methods("GET")
-	s.router.HandleFunc("/api/v1/repo/test-executions/{id}", s.handleTestExecutionDetail).Methods("GET")
+	// Generic opaque evidence bytes. Metadata and authorization handles come
+	// from EvidenceService; paths never cross this boundary.
+	s.router.HandleFunc("/api/v1/repo/test-runs/{runId}/artifacts/{artifactId}", s.handleRunArtifact).Methods("GET")
 
 	// Tidiness-manager endpoints
 	s.router.HandleFunc("/api/v1/repo/tidiness-score", s.handleTidinessScore).Methods("GET")

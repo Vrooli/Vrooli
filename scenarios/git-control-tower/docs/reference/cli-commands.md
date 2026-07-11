@@ -41,57 +41,47 @@ Run `git-control-tower <group> --help` or `git-control-tower <group>
 | --- | --- |
 | `list`     | Query audit logs (`[--operation=TYPE] [--limit=N]`) |
 
-## `baseline` — Cross-surface review baselines (replaces `git stash` for diagnosis)
+## `baseline` — One-run review baselines (replaces `git stash` for diagnosis)
 
-A baseline is a manifest of pointers into a scenario's review surfaces
-(workflows, tests, structure, visuals, rules) captured before a change.
-`diff` it afterwards to ask "did my change cause this failure, or was it
-preexisting?" without touching the working tree. Backed by the
-`BaselinesService` Connect-RPC.
+A schema-V2 baseline pins exactly one immutable comprehensive Test Genie run.
+It preserves the run's Git/tree identity, captured descriptor catalog, dynamic
+phase results, and typed evidence references. `diff` it afterwards to ask "did
+my change cause this failure, or was it preexisting?" without touching the
+working tree. Backed by the `BaselinesService` Connect-RPC.
 
 | Subcommand | Description |
 | --- | --- |
-| `snapshot` | Capture a baseline (`--scenario --name [--branch] [--include w,t,...] [--fast\|--full] [--reason]`) |
-| `diff`     | Diff against the working tree (`--scenario --name [--branch] [--surface]`); exit `1` on regression, `2` on not-comparable |
+| `snapshot` | Start capture from one durable comprehensive run (`--scenario --name [--branch] [--run]`); `snapshot status --run R [--wait]` reattaches |
+| `diff`     | Start a durable descriptor-driven comparison (`--scenario --name [--branch] [--wait]`); `diff status --run R [--wait]` reattaches and `diff wait-all` waits once for several operations |
 | `list`     | List baselines (`--scenario [--branch] [--all-branches]`) |
 | `show`     | Show one baseline (`--scenario --name [--branch]`) |
-| `delete`   | Delete a baseline and unpin its test-genie runs (`--scenario --name [--branch]`) |
-| `create`   | Create an empty baseline, no capture (`--scenario --name [--branch]`) |
-| `edit`     | Re-point a surface at a pinned test-genie run (`--scenario --name --surface --pin-run <runID>`) |
+| `delete`   | Delete a baseline and unpin its single Test Genie run (`--scenario --name [--branch]`) |
 
-All subcommands accept `--json` for machine output. `diff` exit codes:
-`0` safe to proceed (clean, or only new/preexisting failures), `1` regression
-(something that passed at baseline fails now), `2` not-comparable.
+All baseline review subcommands accept `--json` for machine output. Terminal
+diff exit codes are `0` safe to proceed (clean, or only new/preexisting
+failures), `1` regression, `2` not-comparable, and `3` not ready. Snapshot and
+diff start calls persist an operation ID before background work begins. Ctrl-C,
+transport timeout, or unexpected EOF detaches the caller and never aborts or
+restarts the operation; status/wait performs one reattachment by durable ID.
 
-### Surfaces
+### Dynamic phases and typed evidence
 
-Every surface is backed by a test-genie phase except `visuals` (GCT-local
-snapshot capture). Capturing a surface runs the phase, pins the test-genie run,
-and `diff` compares via `RunsService.CompareRuns` — the same boundary as
-workflows↔playbooks (test-genie owns runs, GCT owns baselines):
+GCT does not map Test Genie phases into local surfaces. Capture starts one
+comprehensive run, pins it exactly once, and comparisons preserve every
+`PhaseDiff` plus typed reason from `RunsService.CompareRuns`. New, retired,
+inapplicable, skipped, unavailable, and unknown phases remain visible without a
+GCT code change. Screenshots, recordings, logs, reports, and unknown artifact
+kinds are referenced by opaque typed artifact IDs rather than filesystem paths.
 
-| Surface | test-genie phase(s) |
-| --- | --- |
-| `workflows` | `playbooks` |
-| `tests` | `unit`, `integration`, `smoke` |
-| `structure` | `structure` (layout / manifest / JSON health) |
-| `rules` | `standards` (scenario-auditor standards rules, run inside test-genie) |
-| `visuals` | n/a — GCT-local visual snapshot |
-
-Because rules and structure are test-genie phases, running the full test-genie
-suite for a scenario refreshes them, and `snapshot --include rules` runs only
-the `standards` phase.
-
-A surface that was requested but could not be captured (owning subsystem
-unreachable, capture error) is recorded as **skipped** on the manifest. `show`
-lists skipped surfaces and `diff` reports them as `not-comparable` (driving exit
-`2`), so a partial baseline never masquerades as a clean one. `diff` also warns
-when the current working tree is dirty, since failures may then stem from
-uncommitted changes rather than the diff itself.
+Legacy V1 manifests migrate only when every non-empty pointer names the same
+Test Genie run. Empty, partial, obsolete local-snapshot, corrupt, or mixed-run
+manifests remain diagnostic and require recapture; the CLI never chooses one
+pointer heuristically. Migration and pin reconciliation are idempotent, and a
+failed unpin leaves the manifest intact so deletion can be retried safely.
 
 ## CLI–API parity gaps
 
-Several API surfaces don't have CLI commands yet (e.g. visual capture,
-workflow capture, agent runs, tidiness, rules, SSH key management,
-credentials). These are intentionally UI-first today; surface them in
-the CLI when an agent flow needs them.
+Several API surfaces do not have CLI commands yet (for example descriptor-aware
+EvidenceService history/search, visual capture, agent runs, tidiness, SSH key
+management, and credentials). EvidenceService is intentionally UI-first;
+agents use Test Genie's canonical runs CLI and GCT's baseline commands.

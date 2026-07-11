@@ -10,10 +10,9 @@
 import type { ReactNode } from "react";
 import { Anchor, Camera, Loader2 } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { surfaceLabel, type BaselineSurface } from "./model";
 
 export function SurfaceCaptureEmptyState({
-  surface,
+  label,
   hasService,
   onCaptureLoose,
   onCaptureBaseline,
@@ -22,7 +21,7 @@ export function SurfaceCaptureEmptyState({
   serviceMessage,
   icon,
 }: {
-  surface: BaselineSurface;
+  label: string;
   hasService: boolean;
   onCaptureLoose: () => void;
   onCaptureBaseline: () => void;
@@ -33,13 +32,13 @@ export function SurfaceCaptureEmptyState({
   serviceMessage?: string;
   icon?: ReactNode;
 }) {
-  const label = surfaceLabel(surface).toLowerCase();
-  const looseLabel = captureLabel ?? `Capture ${label}`;
+  const normalizedLabel = label.toLowerCase();
+  const looseLabel = captureLabel ?? `Capture ${normalizedLabel}`;
 
   return (
     <div className="flex flex-col items-center justify-center py-12 text-slate-500">
       {icon}
-      <p className="text-sm">No {label} captured yet</p>
+      <p className="text-sm">No {normalizedLabel} captured yet</p>
       {hasService ? (
         <>
           <p className="text-xs mt-1 mb-3 text-slate-600 text-center max-w-xs">
@@ -70,7 +69,7 @@ export function SurfaceCaptureEmptyState({
         </>
       ) : (
         <p className="text-xs mt-1 text-slate-600 text-center max-w-xs">
-          {serviceMessage ?? `Start the owning service to capture ${label}.`}
+          {serviceMessage ?? `Start the owning service to capture ${normalizedLabel}.`}
         </p>
       )}
     </div>

@@ -2,10 +2,12 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OverviewTab } from "./ScenarioReviewPanelOverview";
 import { renderWithQueryClient } from "../test-utils";
-import type { AgentContextItem, RepoFileStats, SnapshotSetMeta, TestExecutionResult } from "../lib/api";
+import type { AgentContextItem, RepoFileStats } from "../lib/api";
+import type { RunInfo } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
 
 const mocks = vi.hoisted(() => ({
-  useTestExecutions: vi.fn(),
+  useRuns: vi.fn(),
+  useEvidence: vi.fn(),
   useTidinessScore: vi.fn(),
   useTidinessStaleness: vi.fn(),
   useScenarios: vi.fn(),
@@ -16,7 +18,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../lib/hooks", () => ({
-  useTestExecutions: mocks.useTestExecutions,
   useTidinessScore: mocks.useTidinessScore,
   useTidinessStaleness: mocks.useTidinessStaleness,
   useScenarios: mocks.useScenarios,
@@ -25,15 +26,20 @@ vi.mock("../lib/hooks", () => ({
   useReviewJobStatus: mocks.useReviewJobStatus,
 }));
 
+vi.mock("../lib/hooks-evidence", () => ({
+  useRuns: mocks.useRuns,
+  useEvidence: mocks.useEvidence,
+}));
+
 vi.mock("../lib/api-internals", () => ({
   fetchExternalUrl: mocks.fetchExternalUrl,
 }));
 
-function latestTest(overrides: Partial<TestExecutionResult> = {}): TestExecutionResult {
+function latestTest(overrides: Partial<RunInfo> = {}): RunInfo {
   return {
-    executionId: "exec-1",
-    scenarioName: "git-control-tower",
-    success: false,
+    runId: "run-1",
+    scenario: "git-control-tower",
+    status: "failed",
     startedAt: "2026-05-01T12:00:00Z",
     completedAt: "2026-05-01T12:01:00Z",
     phases: [
@@ -41,36 +47,14 @@ function latestTest(overrides: Partial<TestExecutionResult> = {}): TestExecution
         name: "smoke",
         status: "failed",
         durationSeconds: 8,
-        error: "Iframe bridge never signaled ready",
-        remediation: "Start the UI before smoke.",
       },
+      { name: "unit", status: "passed", durationSeconds: 52 },
     ],
-    phaseSummary: {
-      total: 2,
-      passed: 1,
-      failed: 1,
-      durationSeconds: 60,
-      observationCount: 0,
-    },
+    pins: [],
+    plannedPhases: ["smoke", "unit"],
+    descriptorSnapshot: { schemaVersion: 1, digest: "catalog", phases: [{ phase: "smoke", displayName: "Smoke", provider: "ui-health", dimensions: [], evidenceKinds: [], aliases: [], supersedes: [] }] },
     ...overrides,
-  };
-}
-
-function snapshot(overrides: Partial<SnapshotSetMeta> = {}): SnapshotSetMeta {
-  return {
-    id: "capture-1",
-    scenarioSlug: "git-control-tower",
-    role: "capture",
-    triggerType: "manual",
-    pages: ["/"],
-    screenshotCount: 2,
-    videoCount: 0,
-    createdAt: "2026-05-01T12:00:00Z",
-    sizeBytes: 2048,
-    status: "complete",
-    presets: [],
-    ...overrides,
-  };
+  } as RunInfo;
 }
 
 function fileStats(): RepoFileStats {
@@ -127,9 +111,18 @@ beforeEach(() => {
       },
     ],
   });
-  mocks.useTestExecutions.mockReturnValue({
-    data: { items: [latestTest()], count: 1 },
+  mocks.useRuns.mockReturnValue({
+    data: { runs: [latestTest()], total: 1 },
     isLoading: false,
+  });
+  mocks.useEvidence.mockReturnValue({
+    data: {
+      items: [
+        { run: latestTest(), artifact: { id: "image-1", kind: "screenshot", label: "Home", producingPhase: "ui-health" } },
+        { run: latestTest(), artifact: { id: "image-2", kind: "screenshot", label: "Settings", producingPhase: "future-provider" } },
+      ],
+      degradedReasons: [],
+    },
   });
   mocks.useTidinessScore.mockReturnValue({
     data: {
@@ -162,17 +155,7 @@ describe("OverviewTab", () => {
   it("renders scenario readiness, external URL, visual status, tests, quality, and change summary", async () => {
     mocks.fetchExternalUrl.mockResolvedValue("https://git-control-tower.local/");
 
-    renderOverview({
-      capture: snapshot({
-        pageDiscoveryMethod: "fallback",
-      }),
-      captureStaleness: {
-        isStale: true,
-        lastFileChange: "2026-05-01T12:30:00Z",
-        captureCreatedAt: "2026-05-01T12:00:00Z",
-      },
-      fileStats: fileStats(),
-    });
+    renderOverview({ fileStats: fileStats() });
 
     expect(screen.getByText("Git Control Tower")).toBeInTheDocument();
     expect(screen.getByText("running")).toBeInTheDocument();
@@ -191,7 +174,6 @@ describe("OverviewTab", () => {
     expect(screen.getByText("82/100")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText(/2 files changed since the last scan/i)).toBeInTheDocument();
-    expect(screen.getByText(/pages discovered via fallback/i)).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText("https://git-control-tower.local/")).toBeInTheDocument();
@@ -200,7 +182,6 @@ describe("OverviewTab", () => {
 
   it("routes overview context attachments to the agent tab seam", () => {
     const { onAttachToAgent } = renderOverview({
-      capture: snapshot(),
       fileStats: fileStats(),
     });
 
@@ -260,7 +241,8 @@ describe("OverviewTab", () => {
   });
 
   it("falls back to capability guidance when dependent services are unavailable", () => {
-    mocks.useTestExecutions.mockReturnValue({ data: undefined, isLoading: false });
+    mocks.useRuns.mockReturnValue({ data: undefined, isLoading: false });
+    mocks.useEvidence.mockReturnValue({ data: { items: [], degradedReasons: [] } });
     mocks.useTidinessScore.mockReturnValue({ data: undefined, isLoading: false, error: null });
     mocks.useTidinessStaleness.mockReturnValue({ data: undefined });
     mocks.useReviewSummary.mockReturnValue({ data: undefined });
@@ -270,7 +252,6 @@ describe("OverviewTab", () => {
       testGenieAvailable: false,
       tidinessAvailable: false,
       agentManagerAvailable: false,
-      capture: undefined,
     });
 
     expect(screen.getByText("No data")).toBeInTheDocument();

@@ -134,19 +134,11 @@ Commit-check runs are commit-scoped evidence captured by git-control-tower durin
 | DELETE | `/api/v1/repo/visual-captures/{id}`                        | Delete capture. |
 | GET    | `/api/v1/repo/visual-capture-storage`                      | Storage stats. |
 | DELETE | `/api/v1/repo/visual-capture-storage`                      | Clear all captures. |
-| POST   | `/api/v1/repo/workflow-capture`                            | Trigger a workflow capture. |
-| GET    | `/api/v1/repo/workflow-captures`                           | List workflow captures. |
-| GET    | `/api/v1/repo/workflow-captures/{id}`                      | Capture detail. |
-| GET    | `/api/v1/repo/workflow-captures/{id}/video/{filename}`     | Serve video. |
-| DELETE | `/api/v1/repo/workflow-captures/{id}`                      | Delete capture. |
+| GET    | `/api/v1/repo/test-runs/{runId}/artifacts/{artifactId}`    | Stream opaque typed run evidence; requires `scenario`. |
 
-## Test execution
+## Test runs and evidence (Connect-RPC)
 
-| Method | Path | Notes |
-| --- | --- | --- |
-| POST | `/api/v1/repo/test-execution`            | Trigger test run. |
-| GET  | `/api/v1/repo/test-executions`           | List runs. |
-| GET  | `/api/v1/repo/test-executions/{id}`      | Run detail. |
+`EvidenceService` exposes `StartRun`, `ListRuns`, `GetRun`, and `ListEvidence` on the generated Connect procedure paths. It preserves Test Genie's canonical `RunInfo`, captured descriptors, comparison/applicability metadata, and open `ArtifactRef.kind` strings without a GCT phase registry. List operations support server-side metadata filtering and pagination; artifact bodies are never embedded in list/detail responses.
 
 ## Tidiness & rules / auditor
 

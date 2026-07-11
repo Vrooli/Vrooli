@@ -2,230 +2,145 @@ import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ScreenshotsTab } from "./ScenarioReviewPanelScreenshots";
 import { WorkflowsTab } from "./ScenarioReviewPanelWorkflows";
+import { ArtifactEvidenceRenderer, artifactRendererKind } from "./ArtifactEvidenceRenderer";
 import { renderWithQueryClient } from "../test-utils";
-import { listRecentRuns, getRunDetail } from "../lib/api-workflowreplay";
-import type { RunSummary, GetRunDetailResponse } from "../lib/api-workflowreplay";
-import type { CapturePreset, SnapshotSetMeta } from "../lib/api";
+import { listEvidence, startRun } from "../lib/api-evidence";
+import { listBaselines } from "../lib/api-baselines";
+import type { ArtifactRef, RunInfo } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
 
-// The Workflows tab reads runs through the WorkflowReplayService client; mock
-// the thin api wrappers so tests drive the component deterministically.
-vi.mock("../lib/api-workflowreplay", () => ({
-  listRecentRuns: vi.fn(),
-  getRunDetail: vi.fn(),
-  workflowVideoUrl: (scenario: string, runId: string, artifactId: string) =>
-    `/api/v1/repo/workflow-runs/${runId}/video?scenario=${scenario}&artifact_id=${artifactId}`,
+vi.mock("../lib/api-evidence", () => ({
+  listEvidence: vi.fn(),
+  listRuns: vi.fn(),
+  getRun: vi.fn(),
+  startRun: vi.fn(),
+  runArtifactUrl: (scenario: string, runId: string, artifactId: string) =>
+    `/api/v1/repo/test-runs/${runId}/artifacts/${artifactId}?scenario=${scenario}`,
 }));
 
-// Baselines come from BaselinesService; the surface bar/selector list them. The
-// tests below exercise the loose-capture paths, so an empty baseline list is
-// the realistic default.
 vi.mock("../lib/api-baselines", async () => {
   const actual = await vi.importActual<typeof import("../lib/api-baselines")>("../lib/api-baselines");
   return { ...actual, listBaselines: vi.fn().mockResolvedValue([]) };
 });
 
-beforeEach(() => window.localStorage.clear());
-
-function run(overrides: Partial<RunSummary> = {}): RunSummary {
+function evidence(kind: string, producingPhase: string, id: string, label: string): { run: RunInfo; artifact: ArtifactRef } {
   return {
-    runId: "run-123",
-    status: "passed",
-    startedAt: "2026-05-26T12:00:00Z",
-    completedAt: "2026-05-26T12:01:00Z",
-    gitSha: "abc12345def",
-    gitBranch: "agi",
-    gitDirty: false,
-    ...overrides,
-  } as unknown as RunSummary;
+    run: {
+      runId: "run-abc",
+      scenario: "git-control-tower",
+      status: "passed",
+      startedAt: "2026-07-10T12:00:00Z",
+      completedAt: "2026-07-10T12:01:00Z",
+      gitSha: "abc12345def",
+      phases: [],
+      pins: [],
+      plannedPhases: [],
+    },
+    artifact: {
+      id,
+      kind,
+      label,
+      producingPhase,
+      mediaType: kind === "workflow.video" ? "video/webm" : "image/png",
+      sizeBytes: 10n,
+      metadata: {},
+      relationships: [],
+      accessCapability: 1,
+      provenance: 1,
+    },
+  } as unknown as { run: RunInfo; artifact: ArtifactRef };
 }
 
-const desktopPreset: CapturePreset = {
-  name: "Desktop Light",
-  width: 1440,
-  height: 900,
-  theme: "light",
-};
-
-const mobilePreset: CapturePreset = {
-  name: "Mobile Dark",
-  width: 390,
-  height: 844,
-  theme: "dark",
-};
-
-function capture(overrides: Partial<SnapshotSetMeta> = {}): SnapshotSetMeta {
-  return {
-    id: "capture-snap",
-    scenarioSlug: "git-control-tower",
-    role: "capture",
-    triggerType: "manual",
-    pages: ["/", "/settings"],
-    screenshotCount: 4,
-    videoCount: 0,
-    createdAt: "2026-05-01T12:10:00Z",
-    sizeBytes: 2048,
-    status: "complete",
-    presets: [desktopPreset, mobilePreset],
-    pageDiscoveryMethod: "lighthouse",
-    ...overrides,
-  };
-}
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(listBaselines).mockResolvedValue([]);
+  vi.mocked(startRun).mockResolvedValue({ runId: "run-new", scenario: "git-control-tower" } as never);
+  vi.mocked(listEvidence).mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0, hasMore: false, degradedReasons: [] } as never);
+});
 
 describe("ScreenshotsTab", () => {
-  it("shows the service message (no baseline vocabulary) when browser automation is unavailable", () => {
-    renderWithQueryClient(
-      <ScreenshotsTab
-        scenarioSlug="git-control-tower"
-        isMobile={false}
-        basAvailable={false}
-        isCapturing={false}
-        onCapture={vi.fn()}
-        onOpenBaselines={vi.fn()}
-        presetConfig={[desktopPreset]}
-        onPresetConfigChange={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("No visuals captured yet")).toBeInTheDocument();
-    expect(screen.getByText(/start browser-automation-studio/i)).toBeInTheDocument();
-    // Decision 1: no "set/reset baseline" vocabulary for screenshot snapshots.
-    expect(screen.queryByRole("button", { name: /set baseline/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /reset baseline/i })).not.toBeInTheDocument();
-  });
-
-  it("offers two capture intents (loose vs baseline) when nothing is captured", () => {
-    const onCapture = vi.fn();
-    renderWithQueryClient(
-      <ScreenshotsTab
-        scenarioSlug="git-control-tower"
-        isMobile={false}
-        basAvailable
-        isCapturing={false}
-        onCapture={onCapture}
-        onOpenBaselines={vi.fn()}
-        presetConfig={[desktopPreset]}
-        onPresetConfigChange={vi.fn()}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /capture screenshots/i }));
-    expect(onCapture).toHaveBeenCalledOnce();
+  it("uses the typed evidence empty state", async () => {
+    renderWithQueryClient(<ScreenshotsTab scenarioSlug="git-control-tower" testGenieAvailable onOpenBaselines={vi.fn()} />);
+    expect(await screen.findByText("No visuals captured yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /capture screenshots/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /capture baseline/i })).toBeInTheDocument();
   });
 
-  it("renders the current capture and switches presets/pages while preserving caller state", () => {
-    const onCapture = vi.fn();
-    const onPresetIndexChange = vi.fn();
-    const onSelectedPageChange = vi.fn();
+  it("[REQ:GCT-DESCRIPTOR-REVIEW-P2] renders screenshots from arbitrary producer phases and attaches opaque identity", async () => {
+    vi.mocked(listEvidence).mockResolvedValue({
+      items: [evidence("screenshot", "future-visual-provider", "opaque-image", "Settings page")],
+      total: 1, limit: 100, offset: 0, hasMore: false, degradedReasons: [],
+    } as never);
     const onAttachToAgent = vi.fn();
-
-    renderWithQueryClient(
-      <ScreenshotsTab
-        capture={capture()}
-        captureStaleness={{ isStale: true }}
-        scenarioSlug="git-control-tower"
-        isMobile={false}
-        basAvailable
-        isCapturing={false}
-        onCapture={onCapture}
-        onOpenBaselines={vi.fn()}
-        presetConfig={[desktopPreset, mobilePreset]}
-        onPresetConfigChange={vi.fn()}
-        agentManagerAvailable
-        onAttachToAgent={onAttachToAgent}
-        onPresetIndexChange={onPresetIndexChange}
-        onSelectedPageChange={onSelectedPageChange}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Mobile Dark" }));
-    fireEvent.click(screen.getByRole("button", { name: "/settings" }));
-
-    expect(onPresetIndexChange).toHaveBeenCalledWith(1);
-    expect(onSelectedPageChange).toHaveBeenCalledWith(1);
-    expect(screen.getByText(/files have changed since this capture/i)).toBeInTheDocument();
-    expect(screen.getByText("Page:")).toHaveTextContent("Page: /settings");
-    // Decision 1: even with data present, no "set/reset baseline" snapshot vocabulary.
-    expect(screen.queryByRole("button", { name: /set baseline/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /reset baseline/i })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /^re-capture$/i }));
-    expect(onCapture).toHaveBeenCalledOnce();
-
-    const attachButtons = screen.getAllByText("+ Agent");
-    const attachButton = attachButtons[0];
-    if (!attachButton) {
-      throw new Error("Expected screenshot attach button to render");
-    }
-    fireEvent.click(attachButton);
-
-    expect(onAttachToAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: "screenshot",
-        label: "Screenshot: /settings",
-        markdown: expect.stringContaining("390x844"),
-      }),
-    );
+    renderWithQueryClient(<ScreenshotsTab scenarioSlug="git-control-tower" testGenieAvailable agentManagerAvailable onAttachToAgent={onAttachToAgent} onOpenBaselines={vi.fn()} />);
+    expect(await screen.findByText("Settings page")).toBeInTheDocument();
+    expect(screen.getByText("future-visual-provider")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("+ Agent"));
+    expect(onAttachToAgent).toHaveBeenCalledWith(expect.objectContaining({ id: "artifact:run-abc:opaque-image", markdown: expect.stringContaining("future-visual-provider") }));
+    expect(document.querySelector("img")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("/test-runs/run-abc/artifacts/opaque-image");
   });
 });
 
 describe("WorkflowsTab", () => {
-  it("shows the two-action empty state (loose run + capture baseline)", async () => {
-    vi.mocked(listRecentRuns).mockResolvedValue([]);
-
-    renderWithQueryClient(
-      <WorkflowsTab
-        scenarioSlug="git-control-tower"
-        repoId={null}
-        testGenieAvailable
-        onOpenBaselines={vi.fn()}
-      />,
-    );
-
-    expect(await screen.findByText("No workflows captured yet")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /capture workflow evidence/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /capture baseline/i })).toBeInTheDocument();
-  });
-
   it("reports when test-genie is unavailable", () => {
-    renderWithQueryClient(
-      <WorkflowsTab
-        scenarioSlug="git-control-tower"
-        repoId={null}
-        testGenieAvailable={false}
-        onOpenBaselines={vi.fn()}
-      />,
-    );
+    renderWithQueryClient(<WorkflowsTab scenarioSlug="git-control-tower" testGenieAvailable={false} onOpenBaselines={vi.fn()} />);
     expect(screen.getByText(/test-genie is not available/i)).toBeInTheDocument();
-    expect(listRecentRuns).not.toHaveBeenCalled();
+    expect(listEvidence).not.toHaveBeenCalled();
   });
 
-  it("lists runs with typed workflow evidence and opens a recording by opaque id", async () => {
-    vi.mocked(listRecentRuns).mockResolvedValue([run({ runId: "run-abc" })]);
-    vi.mocked(getRunDetail).mockResolvedValue({
-      run: run({ runId: "run-abc" }),
-      artifacts: [{ id: "opaque-video-id", kind: "workflow.video", label: "login-smoke", sizeBytes: 10n }],
-    } as unknown as GetRunDetailResponse);
-
-    renderWithQueryClient(
-      <WorkflowsTab
-        scenarioSlug="git-control-tower"
-        repoId={null}
-        testGenieAvailable
-        onOpenBaselines={vi.fn()}
-      />,
-    );
-
-    // Run row renders once the list resolves.
+  it("[REQ:GCT-DESCRIPTOR-REVIEW-P2] discovers workflow media by kind regardless of producing phase", async () => {
+    vi.mocked(listEvidence).mockResolvedValue({
+      items: [evidence("workflow.video", "future-smoke-provider", "opaque-video", "Login recording")],
+      total: 1, limit: 100, offset: 0, hasMore: false, degradedReasons: [],
+    } as never);
+    renderWithQueryClient(<WorkflowsTab scenarioSlug="git-control-tower" testGenieAvailable onOpenBaselines={vi.fn()} />);
     fireEvent.click(await screen.findByText("run-abc"));
-
-    // Expanding fetches detail and renders a Watch button per video.
-    fireEvent.click(await screen.findByRole("button", { name: /login-smoke/i }));
-
+    expect(document.querySelector("video")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
-    const videoSrc = document.querySelector("video")?.getAttribute("src");
-    expect(videoSrc).toContain("/repo/workflow-runs/run-abc/video");
-    expect(videoSrc).toContain("artifact_id=opaque-video-id");
-    expect(videoSrc).not.toContain("automation/login-smoke/video/a.webm");
+    expect(document.querySelector("video")?.getAttribute("src")).toContain("/test-runs/run-abc/artifacts/opaque-video");
+    expect(screen.getAllByText(/future-smoke-provider/).length).toBeGreaterThan(0);
+  });
+
+  it("attaches workflow artifacts and opens the exact producer phase", async () => {
+    vi.mocked(listEvidence).mockResolvedValue({
+      items: [evidence("trace", "non-workflow-producer", "opaque-trace", "Login trace")],
+      total: 1, limit: 40, offset: 0, hasMore: false, degradedReasons: [],
+    } as never);
+    const onAttachToAgent = vi.fn();
+    const onOpenTests = vi.fn();
+    renderWithQueryClient(<WorkflowsTab scenarioSlug="git-control-tower" testGenieAvailable agentManagerAvailable onAttachToAgent={onAttachToAgent} onOpenTests={onOpenTests} onOpenBaselines={vi.fn()} />);
+    fireEvent.click(await screen.findByText("run-abc"));
+    fireEvent.click(screen.getByText("+ Agent"));
+    expect(onAttachToAgent).toHaveBeenCalledWith(expect.objectContaining({ id: "artifact:run-abc:opaque-trace" }));
+    fireEvent.click(screen.getByRole("button", { name: /open exact test phase/i }));
+    expect(onOpenTests).toHaveBeenCalledWith("run-abc", "non-workflow-producer");
+  });
+});
+
+describe("ArtifactEvidenceRenderer", () => {
+  it("[REQ:GCT-DESCRIPTOR-REVIEW-P2] registers known stable kinds and safely falls back for an unknown future kind", () => {
+    expect(artifactRendererKind("coverage.report")).toBe("coverage");
+    expect(artifactRendererKind("future.binary.evidence")).toBe("generic");
+    const item = evidence("future.binary.evidence", "future-provider", "opaque-future", "Future evidence");
+    item.artifact.accessCapability = 0;
+    item.artifact.provenance = 2;
+    item.artifact.metadata = { summary: "inspectable without bytes" };
+    item.artifact.relationships = [{ type: "derived_from", targetArtifactId: "opaque-source" } as never];
+    renderWithQueryClient(<ArtifactEvidenceRenderer scenario="git-control-tower" run={item.run as never} artifact={item.artifact as never} />);
+    expect(screen.getByText("Artifact · future.binary.evidence")).toBeInTheDocument();
+    expect(screen.getByText("Legacy discovery")).toBeInTheDocument();
+    expect(screen.getByText("Artifact bytes unavailable")).toBeInTheDocument();
+    expect(screen.getByText("opaque-source")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /open evidence/i })).not.toBeInTheDocument();
+  });
+
+  it("labels visual changes as advisory", () => {
+    const item = evidence("visual.diff", "visual-provider", "opaque-diff", "Dashboard comparison");
+    item.artifact.metadata = { changed_fraction: "0.125" };
+    renderWithQueryClient(<ArtifactEvidenceRenderer scenario="git-control-tower" run={item.run as never} artifact={item.artifact as never} />);
+    expect(screen.getByText(/12.5% changed/i)).toBeInTheDocument();
+    expect(screen.getByText(/do not alter the test verdict/i)).toBeInTheDocument();
   });
 });

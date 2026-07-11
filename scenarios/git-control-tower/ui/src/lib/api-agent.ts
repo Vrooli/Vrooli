@@ -164,7 +164,7 @@ export interface AgentStopResponse {
   status: string;
 }
 
-export type AgentContextKind = "test-failure" | "code-quality-issue" | "screenshot" | "change-summary" | "scenario-quality" | "rule-violation" | "rules-summary";
+export type AgentContextKind = "test-failure" | "screenshot" | "change-summary" | "scenario-quality";
 
 export interface AgentContextItem {
   kind: AgentContextKind;

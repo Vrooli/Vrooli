@@ -25,7 +25,7 @@
           "ref": "api/internal/baseline/service_test.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "TestServiceCapturePersistsOneRichRunAnchor, TestFinalizeCaptureIsIdempotentUnderConcurrentRecovery, and TestServiceForwardsUnknownPhaseAndOpaqueArtifacts cover the single-run and exactly-once lifecycle."
+          "notes": "TestServiceCapturePersistsOneRichRunAnchor and TestFinalizeCaptureIsIdempotentUnderConcurrentRecovery cover new captures; TestServiceLegacyMigrationReconcilesRetentionPinOnce, TestServiceLegacyMigrationPinFailureRemainsRetryable, and TestServiceListReconcilesEveryLegacyRetentionPin cover crash-safe exactly-once migration retention; TestCopiedBaselineMigrationRehearsal applies the same path twice to copied real manifests; TestServiceForwardsUnknownPhaseAndOpaqueArtifacts covers lossless dynamic evidence."
         },
         {
           "type": "test",

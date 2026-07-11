@@ -1,18 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertTriangle, Plus, Minus, Camera, ExternalLink } from "lucide-react";
 import { Button } from "./ui/button";
-import { useTestExecutions, useTidinessScore, useTidinessStaleness, useScenarios, useReviewSummary, useTriggerReviewRun, useReviewJobStatus } from "../lib/hooks";
+import { useTidinessScore, useTidinessStaleness, useScenarios, useReviewSummary, useTriggerReviewRun, useReviewJobStatus } from "../lib/hooks";
+import { useEvidence, useRuns } from "../lib/hooks-evidence";
 import { fetchExternalUrl } from "../lib/api-internals";
-import type { SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, RepoFileStats, AgentContextItem, Readiness } from "../lib/api";
+import type { RepoFileStats, AgentContextItem, Readiness } from "../lib/api";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AttachToAgentButton } from "./AgentTab";
-import { testFailureContextItems, changeSummaryContextItem, scenarioQualityContextItem } from "../lib/agentContext";
+import { runPhaseContextItem, changeSummaryContextItem, scenarioQualityContextItem } from "../lib/agentContext";
 import { formatDuration, formatRelativeTime, formatStalenessMessage } from "./ScenarioReviewPanelShared";
 import { BaselineDriftCallout } from "../features/baselines/BaselineDriftCallout";
 
 export function OverviewTab({
-  capture,
-  captureStaleness,
   scenarioSlug,
   repoId,
   basAvailable,
@@ -25,8 +24,6 @@ export function OverviewTab({
   onAttachToAgent,
   onOpenBaselines,
 }: {
-  capture?: SnapshotSetMeta;
-  captureStaleness?: SnapshotStalenessInfo;
   scenarioSlug: string;
   repoId?: string | null;
   basAvailable: boolean;
@@ -39,8 +36,9 @@ export function OverviewTab({
   onAttachToAgent?: (item: AgentContextItem) => void;
   onOpenBaselines?: () => void;
 }) {
-  const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
-  const latestTest = testExecutions.data?.items?.[0] as TestExecutionResult | undefined;
+  const testRuns = useRuns(scenarioSlug, { limit: 1 }, testGenieAvailable, repoId);
+  const latestTest = testRuns.data?.runs[0];
+  const visualEvidence = useEvidence(scenarioSlug, { kinds: ["visual.screenshot", "screenshot", "visual.diff"], limit: 100, runLimit: 10 }, testGenieAvailable, repoId);
   const tidinessScore = useTidinessScore(scenarioSlug, tidinessAvailable, repoId);
   const tidinessStaleness = useTidinessStaleness(scenarioSlug, tidinessAvailable, repoId);
   const scenarios = useScenarios();
@@ -65,8 +63,8 @@ export function OverviewTab({
     return () => { cancelled = true; };
   }, [scenarioSlug]);
 
-  // Used by both readiness fallback and visual status card
-  const latestSnapshot = capture;
+  const latestVisualRunId = visualEvidence.data?.items[0]?.run?.runId;
+  const latestVisualItems = visualEvidence.data?.items.filter((item) => item.run?.runId === latestVisualRunId) ?? [];
 
   // Use server-side readiness when available, fall back to client-side calculation.
   // Client-side fallback — the server-side calculation (review_readiness.go) is authoritative
@@ -75,9 +73,9 @@ export function OverviewTab({
     (tidinessStaleness.data ? !tidinessStaleness.data.stale_reason?.includes("no scans") : false);
 
   const readiness: Readiness = reviewSummary.data?.readiness ?? (() => {
-    const hasScreenshots = latestSnapshot && latestSnapshot.screenshotCount > 0;
+    const hasScreenshots = latestVisualItems.length > 0;
     const hasTests = Boolean(latestTest);
-    const testsPass = latestTest?.success ?? false;
+    const testsPass = latestTest?.status === "passed";
     const qualityScore = tidinessScore.data?.score ?? null;
     const qualityOk = hasBeenScanned && qualityScore !== null && qualityScore >= 60;
     if (hasScreenshots && hasTests && testsPass && qualityOk) return "green" as Readiness;
@@ -220,16 +218,10 @@ export function OverviewTab({
       <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-medium text-slate-400">Visual Status</h3>
-          {captureStaleness?.isStale && (
-            <span className="text-[11px] text-amber-400 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              Stale
-            </span>
-          )}
         </div>
         {!basAvailable ? (
           <p className="text-xs text-slate-500">Start browser-automation-studio to enable visual captures</p>
-        ) : !latestSnapshot ? (
+        ) : latestVisualItems.length === 0 ? (
           <div className="space-y-2">
             <p className="text-xs text-slate-500">No screenshots captured yet</p>
             <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1">
@@ -240,21 +232,13 @@ export function OverviewTab({
         ) : (
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Captured{captureStaleness?.isStale ? " (stale)" : ""}</span>
-              <span className="text-slate-200">{new Date(latestSnapshot.createdAt).toLocaleString()}</span>
+              <span className="text-slate-400">Captured</span>
+              <span className="text-slate-200">{latestVisualItems[0]?.run?.startedAt ? new Date(latestVisualItems[0].run.startedAt).toLocaleString() : "Unknown"}</span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-slate-400">Screenshots</span>
-              <span className="text-slate-200">{latestSnapshot.screenshotCount}</span>
+              <span className="text-slate-200">{latestVisualItems.length}</span>
             </div>
-            {latestSnapshot.pageDiscoveryMethod === "fallback" && (
-              <div className="flex items-start gap-2 mt-2 p-2 rounded bg-amber-950/30 border border-amber-900/40">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
-                <p className="text-[11px] text-amber-300">
-                  Pages discovered via fallback (root only). Add <code className="bg-slate-800 px-1 rounded">.vrooli/lighthouse.json</code> to capture all pages.
-                </p>
-              </div>
-            )}
             <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1 mt-2">
               {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
               Re-capture
@@ -267,42 +251,42 @@ export function OverviewTab({
       <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-medium text-slate-400">Test Status</h3>
-          {agentManagerAvailable && onAttachToAgent && latestTest && !latestTest.success && (
+          {agentManagerAvailable && onAttachToAgent && latestTest && latestTest.status !== "passed" && (
             <AttachToAgentButton onClick={() => {
-              const failedPhases = latestTest.phases.filter(p => p.status === "failed");
-              for (const item of testFailureContextItems(failedPhases, scenarioSlug)) {
-                onAttachToAgent(item);
+              const descriptors = new Map(latestTest.descriptorSnapshot?.phases.map((descriptor) => [descriptor.phase, descriptor]) ?? []);
+              for (const phase of latestTest.phases.filter((item) => item.status === "failed")) {
+                onAttachToAgent(runPhaseContextItem(latestTest, phase, descriptors.get(phase.name), scenarioSlug));
               }
             }} />
           )}
         </div>
         {!testGenieAvailable ? (
           <p className="text-xs text-slate-500">Start test-genie to enable automated tests</p>
-        ) : testExecutions.isLoading ? (
+        ) : testRuns.isLoading ? (
           <div className="h-12 animate-pulse bg-slate-800 rounded" />
         ) : !latestTest ? (
           <p className="text-xs text-slate-500">No tests run yet</p>
         ) : (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              {latestTest.success ? (
+              {latestTest.status === "passed" ? (
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               ) : (
                 <XCircle className="h-4 w-4 text-red-400" />
               )}
-              <span className={`text-xs font-medium ${latestTest.success ? "text-emerald-300" : "text-red-300"}`}>
-                {latestTest.success ? "Passed" : "Failed"}
+              <span className={`text-xs font-medium ${latestTest.status === "passed" ? "text-emerald-300" : "text-red-300"}`}>
+                {latestTest.status === "passed" ? "Passed" : latestTest.status.charAt(0).toUpperCase() + latestTest.status.slice(1)}
               </span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-slate-400">Phases</span>
               <span className="text-slate-200">
-                {latestTest.phaseSummary.passed}/{latestTest.phaseSummary.total} passed
+                {latestTest.phases.filter((phase) => phase.status === "passed").length}/{latestTest.phases.length} passed
               </span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-slate-400">Duration</span>
-              <span className="text-slate-200">{formatDuration(latestTest.phaseSummary.durationSeconds)}</span>
+              <span className="text-slate-200">{formatDuration(Math.round(latestTest.phases.reduce((total, phase) => total + phase.durationSeconds, 0)))}</span>
             </div>
             {latestTest.completedAt && (
               <div className="flex justify-between text-xs">
@@ -332,7 +316,7 @@ export function OverviewTab({
           !hasBeenScanned ? (
             <div className="space-y-2">
               <p className="text-xs text-slate-500">Not yet scanned</p>
-              <p className="text-[11px] text-slate-600">Open the Code Quality tab to run a scan</p>
+              <p className="text-[11px] text-slate-600">Run all checks to collect current phase findings</p>
             </div>
           ) : (
             <div className="space-y-2">

@@ -9,6 +9,7 @@ import { BaselineRow } from "./BaselineRow";
 import { BaselineCompareView } from "./BaselineCompareView";
 import { SetBaselineModal } from "./SetBaselineModal";
 import type { BaselineManifest } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
+import type { AgentContextItem } from "../../lib/api";
 
 // CrossTabTarget is the subset of review tabs the compare view can jump to
 // ("Open Workflows tab", etc.).
@@ -18,9 +19,11 @@ interface BaselinesTabProps {
   scenarioSlug: string;
   repoId?: string | null;
   onOpenTab?: (tab: CrossTabTarget) => void;
+  agentManagerAvailable?: boolean;
+  onAttachToAgent?: (item: AgentContextItem) => void;
 }
 
-export function BaselinesTab({ scenarioSlug, repoId }: BaselinesTabProps) {
+export function BaselinesTab({ scenarioSlug, repoId, agentManagerAvailable, onAttachToAgent }: BaselinesTabProps) {
   const baselinesQuery = useBaselines(scenarioSlug, { repoId });
   const del = useDeleteBaseline(repoId);
   const { defaultBaselineName, setDefaultBaseline } = useDefaultBaseline(scenarioSlug);
@@ -52,6 +55,8 @@ export function BaselinesTab({ scenarioSlug, repoId }: BaselinesTabProps) {
           scenario={scenarioSlug}
           baseline={comparing}
           repoId={repoId}
+          agentManagerAvailable={agentManagerAvailable}
+          onAttachToAgent={onAttachToAgent}
           onBack={() => setComparing(null)}
       />
     );

@@ -67,7 +67,11 @@ type RunAnchor struct {
 type MigrationInfo struct {
 	FromSchemaVersion int       `json:"from_schema_version"`
 	MigratedAt        time.Time `json:"migrated_at"`
-	DegradedReasons   []string  `json:"degraded_reasons,omitempty"`
+	// PinReconciledAt is written only after Test Genie has accepted the
+	// baseline's idempotent retention owner. Keeping this checkpoint beside the
+	// migrated manifest makes a crash between rewrite and pin safe to resume.
+	PinReconciledAt time.Time `json:"pin_reconciled_at,omitempty"`
+	DegradedReasons []string  `json:"degraded_reasons,omitempty"`
 }
 
 // BaselineManifest is stored under

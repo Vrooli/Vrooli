@@ -2602,7 +2602,7 @@ export default function App() {
 
     return (
       <div
-        className="h-screen flex flex-col bg-slate-950 text-slate-50"
+        className="h-full flex flex-col bg-slate-950 text-slate-50"
         data-testid="git-control-tower"
       >
         {/* Mobile Header */}
@@ -2789,7 +2789,7 @@ export default function App() {
   // Desktop Layout (original)
   return (
     <div
-      className="h-screen flex flex-col bg-slate-950 text-slate-50"
+      className="h-full flex flex-col bg-slate-950 text-slate-50"
       data-testid="git-control-tower"
     >
       {/* Status Header */}

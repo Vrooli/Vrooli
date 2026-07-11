@@ -58,13 +58,32 @@ The storage boundary alone understands the former surface-pointer schema:
 | Stored state | Outcome |
 |---|---|
 | V2 single-run manifest | Read directly; migration is a no-op. |
-| Complete V1 manifest whose five pointers reference one run | Atomically rewrite as one V2 run anchor and pin once. |
+| Complete V1 manifest whose five pointers reference one run | Atomically rewrite as one V2 run anchor, reconcile the idempotent Test Genie pin, then persist `pin_reconciled_at`. |
 | V1 pointers containing different run IDs | Reject as mixed-run and require recapture. |
 | Empty, partial, or skipped V1 pointers | Reject as incomplete and require recapture. |
 | Interrupted save/pin sequence | Reconcile persisted intent idempotently on recovery. |
 | Historical run missing descriptor or evidence metadata | Preserve identity and report explicit degraded reasons. |
 
 V1 is not exposed as a second API and cannot be edited into a V2 baseline.
+The pin checkpoint is written only after Test Genie accepts the retention
+owner. A crash before that checkpoint safely retries the same owner; a pin
+failure leaves the migrated manifest explicitly unreconciled and retryable.
+Deletion follows the inverse ordering: Test Genie must accept the idempotent
+unpin before the manifest is removed, so a transport failure retains the
+baseline identity needed for a safe retry instead of leaking an orphan pin.
+
+Before live migration, rehearse the real manifest population through an
+isolated copy with:
+
+```text
+GCT_BASELINE_REHEARSAL_SOURCE=<data>/<repo-id>/baselines \
+  go test ./internal/baseline -run TestCopiedBaselineMigrationRehearsal -v
+```
+
+The rehearsal never opens the source through `Storage`; it copies each direct
+scenario/branch manifest into test-owned temporary storage, runs the real
+migration and retention-reconciliation path twice, and reports migratable,
+already-V2, mixed, incomplete, corrupt, and simulated-pin counts.
 
 ## Storage and concurrency
 

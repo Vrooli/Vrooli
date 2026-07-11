@@ -32,6 +32,10 @@ type Service struct {
 	// GCT_DIFF_RUN_REUSE_TTL.
 	reuseTTL  time.Duration
 	captureMu sync.Mutex
+	// migrationMu serializes legacy retention reconciliation in this process.
+	// Test Genie's pin owner is itself idempotent, so concurrent processes and
+	// crash recovery still converge on one durable retention claim.
+	migrationMu sync.Mutex
 }
 
 // Deps wires the Service.
@@ -121,7 +125,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 	}
 
 	if err := s.storage.Save(req.RepoID, manifest, CreateOnly); err != nil {
-		s.unpinRun(ctx, manifest)
+		_ = s.unpinRun(ctx, manifest)
 		return CreateResult{}, err
 	}
 
@@ -206,7 +210,7 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 		return CreateResult{}, err
 	}
 	if err := s.storage.Save(pending.Req.RepoID, manifest, CreateOnly); err != nil {
-		s.unpinRun(ctx, manifest)
+		_ = s.unpinRun(ctx, manifest)
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", err.Error())
 		return CreateResult{}, err
 	}
@@ -321,12 +325,61 @@ func dirtyCaptureWarning(summary string) string {
 
 // Get returns a single baseline manifest.
 func (s *Service) Get(ctx context.Context, repoID int64, scenario, branch, name string) (BaselineManifest, error) {
-	return s.storage.Load(repoID, scenario, branch, name)
+	m, err := s.storage.Load(repoID, scenario, branch, name)
+	if err != nil {
+		return BaselineManifest{}, err
+	}
+	return s.reconcileMigrationPin(ctx, repoID, m)
 }
 
 // List returns baselines for a scenario; empty branch lists all branches.
 func (s *Service) List(ctx context.Context, repoID int64, scenario, branch string) ([]BaselineManifest, error) {
-	return s.storage.List(repoID, scenario, branch)
+	manifests, err := s.storage.List(repoID, scenario, branch)
+	if err != nil {
+		return nil, err
+	}
+	for i := range manifests {
+		manifests[i], err = s.reconcileMigrationPin(ctx, repoID, manifests[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return manifests, nil
+}
+
+// reconcileMigrationPin completes the retention half of a V1-to-V2 migration.
+// Storage can safely rewrite the manifest without network access, but only the
+// service owns the Test Genie seam. The persisted checkpoint is deliberately
+// written after PinRun: a crash may repeat an idempotent pin, but can never
+// publish a checkpoint for a retention claim that was not accepted.
+func (s *Service) reconcileMigrationPin(ctx context.Context, repoID int64, manifest BaselineManifest) (BaselineManifest, error) {
+	if manifest.Migration == nil || !manifest.Migration.PinReconciledAt.IsZero() {
+		return manifest, nil
+	}
+	if s.runs == nil {
+		return BaselineManifest{}, fmt.Errorf("reconcile migrated baseline %q retention pin: Test Genie runs client is unavailable", manifest.Name)
+	}
+
+	s.migrationMu.Lock()
+	defer s.migrationMu.Unlock()
+
+	// Another reader may have reconciled and persisted the checkpoint while we
+	// waited. Reload under the storage lock before issuing the external call.
+	current, err := s.storage.Load(repoID, manifest.Scenario, manifest.Branch, manifest.Name)
+	if err != nil {
+		return BaselineManifest{}, err
+	}
+	if current.Migration == nil || !current.Migration.PinReconciledAt.IsZero() {
+		return current, nil
+	}
+	if err := s.runs.PinRun(ctx, current.Scenario, current.RunID(), PinOwner(current.Name), "baseline-migration:"+current.Name); err != nil {
+		return BaselineManifest{}, fmt.Errorf("reconcile migrated baseline %q retention pin: %w", current.Name, err)
+	}
+	current.Migration.PinReconciledAt = s.now().UTC()
+	if err := s.storage.Save(repoID, current, Overwrite); err != nil {
+		return BaselineManifest{}, fmt.Errorf("checkpoint migrated baseline %q retention pin: %w", current.Name, err)
+	}
+	return current, nil
 }
 
 // SnapshotStatusRequest parameterizes GetSnapshotStatus.
@@ -359,7 +412,7 @@ type SnapshotStatus struct {
 // restart by replaying FinalizeCapture from the persisted intent.
 func (s *Service) GetSnapshotStatus(ctx context.Context, req SnapshotStatusRequest) (SnapshotStatus, error) {
 	out := SnapshotStatus{Status: "missing", Scenario: req.Scenario, Name: req.Name, Branch: req.Branch, RunID: req.RunID}
-	if manifest, err := s.storage.Load(req.RepoID, req.Scenario, req.Branch, req.Name); err == nil {
+	if manifest, err := s.Get(ctx, req.RepoID, req.Scenario, req.Branch, req.Name); err == nil {
 		m := manifest
 		out.Status = "ready"
 		out.Baseline = &m
@@ -399,7 +452,7 @@ func (s *Service) GetSnapshotStatus(ctx context.Context, req SnapshotStatusReque
 	}
 
 	if intent.Status == "ready" {
-		if manifest, err := s.storage.Load(req.RepoID, req.Scenario, req.Branch, req.Name); err == nil {
+		if manifest, err := s.Get(ctx, req.RepoID, req.Scenario, req.Branch, req.Name); err == nil {
 			m := manifest
 			out.Baseline = &m
 			out.RunID = m.RunID()
@@ -571,7 +624,7 @@ type PendingDiff struct {
 // ridden, never stacked). FinalizeDiff computes + caches the verdict on a
 // server-owned context. Mirrors StartCapture's durable, return-fast contract.
 func (s *Service) StartDiff(ctx context.Context, req StartDiffRequest) (StartDiffOutcome, error) {
-	manifest, err := s.storage.Load(req.RepoID, req.Scenario, req.Branch, req.Name)
+	manifest, err := s.Get(ctx, req.RepoID, req.Scenario, req.Branch, req.Name)
 	if err != nil {
 		return StartDiffOutcome{}, err
 	}
@@ -741,7 +794,7 @@ func (s *Service) GetDiffResult(ctx context.Context, req GetDiffResultRequest) (
 	// Either the run is terminal but uncached (the finalize tail was lost to a
 	// crash/restart), or Wait was requested and we block server-side via
 	// AwaitResult until terminal. Recompute once on demand; the runs are durable.
-	manifest, err := s.storage.Load(req.RepoID, req.Scenario, req.Branch, req.Name)
+	manifest, err := s.Get(ctx, req.RepoID, req.Scenario, req.Branch, req.Name)
 	if err != nil {
 		return CachedDiff{}, 0, err
 	}
@@ -832,18 +885,20 @@ func (s *Service) Delete(ctx context.Context, repoID int64, scenario, branch, na
 	if err != nil {
 		return err
 	}
-	s.unpinRun(ctx, manifest)
+	if err := s.unpinRun(ctx, manifest); err != nil {
+		return fmt.Errorf("release baseline %q retention pin: %w", manifest.Name, err)
+	}
 	return s.storage.Delete(repoID, scenario, branch, name)
 }
 
 // unpinRun releases the baseline's single run claim.
-func (s *Service) unpinRun(ctx context.Context, m BaselineManifest) {
+func (s *Service) unpinRun(ctx context.Context, m BaselineManifest) error {
 	if s.runs == nil {
-		return
+		return fmt.Errorf("Test Genie runs client is unavailable")
 	}
 	runID := m.RunID()
 	if runID == "" {
-		return
+		return fmt.Errorf("baseline has no retained run")
 	}
-	_ = s.runs.UnpinRun(ctx, m.Scenario, runID, PinOwner(m.Name))
+	return s.runs.UnpinRun(ctx, m.Scenario, runID, PinOwner(m.Name))
 }

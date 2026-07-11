@@ -3,6 +3,8 @@ package baseline
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -161,6 +163,236 @@ func TestFinalizeCaptureIsIdempotentUnderConcurrentRecovery(t *testing.T) { // [
 	}
 }
 
+func TestServiceLegacyMigrationReconcilesRetentionPinOnce(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	runs := &fakeRuns{}
+	svc, store := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "abc"})
+	writeRawManifest(t, store, "agi", "legacy", legacyFixture("legacy"))
+
+	const readers = 8
+	var wg sync.WaitGroup
+	errCh := make(chan error, readers)
+	for i := 0; i < readers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := svc.Get(context.Background(), 1, "foo", "agi", "legacy")
+			errCh <- err
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("Get migrated baseline: %v", err)
+		}
+	}
+	if len(runs.pins) != 1 {
+		t.Fatalf("migration pin calls = %+v, want one", runs.pins)
+	}
+	if got := runs.pins[0]; got.runID != "run-legacy" || got.by != PinOwner("legacy") || got.reason != "baseline-migration:legacy" {
+		t.Fatalf("migration pin = %+v", got)
+	}
+	persisted, err := store.Load(1, "foo", "agi", "legacy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if persisted.Migration == nil || persisted.Migration.PinReconciledAt.IsZero() {
+		t.Fatalf("migration pin checkpoint = %+v", persisted.Migration)
+	}
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "legacy"); err != nil {
+		t.Fatal(err)
+	}
+	if len(runs.pins) != 1 {
+		t.Fatalf("already reconciled migration repinned: %+v", runs.pins)
+	}
+}
+
+func TestServiceLegacyMigrationPinFailureRemainsRetryable(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	runs := &fakeRuns{pinErr: errors.New("test-genie unavailable")}
+	svc, store := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "abc"})
+	writeRawManifest(t, store, "agi", "retry", legacyFixture("retry"))
+
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "retry"); err == nil || !strings.Contains(err.Error(), "retention pin") {
+		t.Fatalf("migration pin error = %v", err)
+	}
+	persisted, err := store.Load(1, "foo", "agi", "retry")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if persisted.Migration == nil || !persisted.Migration.PinReconciledAt.IsZero() {
+		t.Fatalf("failed pin published checkpoint: %+v", persisted.Migration)
+	}
+
+	runs.pinErr = nil
+	got, err := svc.Get(context.Background(), 1, "foo", "agi", "retry")
+	if err != nil {
+		t.Fatalf("retry migration pin: %v", err)
+	}
+	if got.Migration.PinReconciledAt.IsZero() || len(runs.pins) != 2 {
+		t.Fatalf("retry result=%+v pins=%+v", got.Migration, runs.pins)
+	}
+}
+
+func TestServiceListReconcilesEveryLegacyRetentionPin(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	runs := &fakeRuns{}
+	svc, store := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "abc"})
+	writeRawManifest(t, store, "agi", "legacy-a", legacyFixture("legacy-a"))
+	writeRawManifest(t, store, "agi", "legacy-b", legacyFixture("legacy-b"))
+
+	manifests, err := svc.List(context.Background(), 1, "foo", "agi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifests) != 2 || len(runs.pins) != 2 {
+		t.Fatalf("listed=%d pins=%+v", len(manifests), runs.pins)
+	}
+	for _, manifest := range manifests {
+		if manifest.Migration == nil || manifest.Migration.PinReconciledAt.IsZero() {
+			t.Fatalf("manifest %q missing pin checkpoint: %+v", manifest.Name, manifest.Migration)
+		}
+	}
+	if _, err := svc.List(context.Background(), 1, "foo", "agi"); err != nil {
+		t.Fatal(err)
+	}
+	if len(runs.pins) != 2 {
+		t.Fatalf("second list repinned migrations: %+v", runs.pins)
+	}
+}
+
+// TestCopiedBaselineMigrationRehearsal is the copy-first Phase 10 proof path
+// for real baseline data. It never opens a manifest through production storage:
+// every direct scenario/branch manifest below GCT_BASELINE_REHEARSAL_SOURCE is
+// copied into t.TempDir before the actual Storage + Service migration runs.
+// Normal suites skip it; operators opt in with the data/<repo>/baselines path.
+func TestCopiedBaselineMigrationRehearsal(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	source := strings.TrimSpace(os.Getenv("GCT_BASELINE_REHEARSAL_SOURCE"))
+	if source == "" {
+		t.Skip("set GCT_BASELINE_REHEARSAL_SOURCE to rehearse copied real manifests")
+	}
+
+	store := newTestStorage(t)
+	runs := &fakeRuns{}
+	fixedNow := time.Date(2026, 7, 10, 23, 59, 0, 0, time.UTC)
+	svc := NewService(Deps{Storage: store, Runs: runs, Now: func() time.Time { return fixedNow }})
+	type counts struct {
+		total, migrated, alreadyV2, mixed, incomplete, corrupt, pins int
+	}
+	var got counts
+
+	err := filepath.WalkDir(source, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			return nil
+		}
+		rel, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		parts := strings.Split(filepath.ToSlash(rel), "/")
+		// Only manifests have scenario/branch/name.json. Snapshot/diff intent
+		// subtrees are different contracts and deliberately excluded.
+		if len(parts) != 3 || strings.HasPrefix(parts[2], ".") {
+			return nil
+		}
+		scenario, branch := parts[0], parts[1]
+		name := strings.TrimSuffix(parts[2], ".json")
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		dir, err := store.branchDir(1, scenario, branch)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+		copiedPath := store.manifestPath(dir, name)
+		if err := os.WriteFile(copiedPath, raw, 0o644); err != nil {
+			return err
+		}
+
+		got.total++
+		decoded, migrated, decodeErr := decodeManifest(raw, fixedNow)
+		if decodeErr != nil {
+			_, readErr := svc.Get(context.Background(), 1, scenario, branch, name)
+			if readErr == nil {
+				t.Fatalf("%s: rehearsal accepted manifest rejected by decoder", rel)
+			}
+			switch {
+			case errors.Is(decodeErr, ErrLegacyMixedRuns):
+				got.mixed++
+			case errors.Is(decodeErr, ErrLegacyIncomplete):
+				got.incomplete++
+			default:
+				got.corrupt++
+			}
+			if (errors.Is(decodeErr, ErrLegacyMixedRuns) || errors.Is(decodeErr, ErrLegacyIncomplete)) && !strings.Contains(readErr.Error(), "recapture") {
+				t.Fatalf("%s: legacy rejection is not actionable: %v", rel, readErr)
+			}
+			after, err := os.ReadFile(copiedPath)
+			if err != nil || string(after) != string(raw) {
+				t.Fatalf("%s: rejected migration modified copied data (err=%v)", rel, err)
+			}
+			return nil
+		}
+
+		needsPin := decoded.Migration != nil && decoded.Migration.PinReconciledAt.IsZero()
+		pinsBefore := len(runs.pins)
+		first, err := svc.Get(context.Background(), 1, scenario, branch, name)
+		if err != nil {
+			t.Fatalf("%s: first copied migration: %v", rel, err)
+		}
+		if migrated {
+			got.migrated++
+		} else {
+			got.alreadyV2++
+		}
+		if needsPin {
+			got.pins++
+			if len(runs.pins) != pinsBefore+1 || first.Migration == nil || first.Migration.PinReconciledAt.IsZero() {
+				t.Fatalf("%s: retention reconciliation mismatch: manifest=%+v pins=%+v", rel, first.Migration, runs.pins[pinsBefore:])
+			}
+		} else if len(runs.pins) != pinsBefore {
+			t.Fatalf("%s: already reconciled manifest acquired another pin", rel)
+		}
+		afterFirst, err := os.ReadFile(copiedPath)
+		if err != nil {
+			return err
+		}
+		if _, err := svc.Get(context.Background(), 1, scenario, branch, name); err != nil {
+			t.Fatalf("%s: second copied migration: %v", rel, err)
+		}
+		afterSecond, err := os.ReadFile(copiedPath)
+		if err != nil {
+			return err
+		}
+		if string(afterFirst) != string(afterSecond) || len(runs.pins) != pinsBefore+btoi(needsPin) {
+			t.Fatalf("%s: second pass was not idempotent", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.total == 0 {
+		t.Fatalf("no baseline manifests found under %s", source)
+	}
+	if got.pins != len(runs.pins) {
+		t.Fatalf("pin accounting mismatch: summary=%d calls=%d", got.pins, len(runs.pins))
+	}
+	t.Logf("copied migration rehearsal: total=%d migrated=%d already_v2=%d mixed=%d incomplete=%d corrupt=%d pins=%d", got.total, got.migrated, got.alreadyV2, got.mixed, got.incomplete, got.corrupt, got.pins)
+}
+
+func btoi(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
 func TestSnapshotStatusRecoversPersistedIntentAfterRestart(t *testing.T) {
 	exec := &fakeExecutor{result: terminalResult()}
 	runs := &fakeRuns{}
@@ -237,6 +469,28 @@ func TestServiceDeleteUnpinsSingleRunOnce(t *testing.T) {
 	}
 	if len(runs.unpins) != 1 || runs.unpins[0].runID != "run-1" {
 		t.Fatalf("unpins = %+v", runs.unpins)
+	}
+}
+
+func TestServiceDeletePreservesManifestWhenUnpinFails(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	runs := &fakeRuns{}
+	svc, _ := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "abc"})
+	seedBaseline(t, svc, "retry-delete")
+	runs.unpinErr = errors.New("test-genie unavailable")
+
+	if err := svc.Delete(context.Background(), 1, "foo", "agi", "retry-delete"); err == nil || !strings.Contains(err.Error(), "retention pin") {
+		t.Fatalf("Delete error = %v", err)
+	}
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "retry-delete"); err != nil {
+		t.Fatalf("failed unpin removed recovery identity: %v", err)
+	}
+
+	runs.unpinErr = nil
+	if err := svc.Delete(context.Background(), 1, "foo", "agi", "retry-delete"); err != nil {
+		t.Fatalf("retry Delete: %v", err)
+	}
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "retry-delete"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("retried delete left manifest: %v", err)
 	}
 }
 

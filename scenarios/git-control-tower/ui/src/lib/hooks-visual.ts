@@ -11,9 +11,6 @@ import {
   fetchCaptureStorageStats,
   deleteVisualCapture,
   clearAllCaptureStorage,
-  fetchTestExecutions,
-  fetchTestExecution,
-  triggerTestExecution,
   fetchTidinessScore,
   fetchTidinessIssues,
   fetchTidinessStaleness,
@@ -26,9 +23,6 @@ import type {
   SnapshotSetMeta,
   SnapshotSetDetail,
   CaptureStorageStats,
-  TestExecutionRequest,
-  TestExecutionResult,
-  TestExecutionListResponse,
   TidinessScoreResponse,
   TidinessIssue,
   TidinessStalenessInfo,
@@ -97,39 +91,6 @@ export function useClearAllCaptureStorage(repoId?: string | null) {
     mutationFn: () => clearAllCaptureStorage(repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.captureStorage(repoId) });
-    },
-  });
-}
-
-// ── Test Execution ─────────────────────────────────────────────────────
-
-export function useTestExecutions(scenarioName: string, enabled = true, repoId?: string | null) {
-  return useQuery<TestExecutionListResponse, Error>({
-    queryKey: queryKeys.testExecutions(scenarioName, repoId),
-    queryFn: () => fetchTestExecutions(scenarioName, 10, repoId ?? undefined),
-    enabled: enabled && Boolean(scenarioName),
-    refetchInterval: 15_000,
-  });
-}
-
-export function useTestExecution(id: string, enabled = true, repoId?: string | null) {
-  return useQuery<TestExecutionResult, Error>({
-    queryKey: queryKeys.testExecution(id, repoId),
-    queryFn: () => fetchTestExecution(id, repoId ?? undefined),
-    enabled: enabled && Boolean(id),
-    staleTime: 30_000,
-  });
-}
-
-export function useTriggerTestExecution(repoId?: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation<TestExecutionResult, Error, TestExecutionRequest>({
-    mutationFn: (request: TestExecutionRequest) =>
-      triggerTestExecution(request, repoId ?? undefined),
-    onSuccess: (_data, request) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.testExecutions(request.scenarioName, repoId),
-      });
     },
   });
 }

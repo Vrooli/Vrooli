@@ -1,24 +1,22 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { ClipboardCheck, Loader2, ChevronDown, Camera } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "./ui/card";
-import { useVisualCaptures, useTriggerVisualCapture, useCapabilities } from "../lib/hooks";
-import { getCapturePresets, setCapturePresets as saveCapturePresets } from "../lib/api";
+import { useTriggerVisualCapture, useCapabilities } from "../lib/hooks";
+import { getCapturePresets } from "../lib/api";
 import type { CapturePreset, RepoFileStats, AgentContextItem } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { AgentTab } from "./AgentTab";
 import { AIProvenanceTab } from "./AIProvenanceTab";
 import type { ScenarioReviewState, DeepPartial } from "../hooks/useScenarioReviewState";
 import { ScenarioPickerModal } from "./ScenarioPickerModal";
-import { MutationErrorBanner } from "./ScenarioReviewPanelShared";
 import { OverviewTab } from "./ScenarioReviewPanelOverview";
 import { ScreenshotsTab } from "./ScenarioReviewPanelScreenshots";
 import { WorkflowsTab } from "./ScenarioReviewPanelWorkflows";
 import { TestsTab } from "./ScenarioReviewPanelTests";
-import { CodeQualityTab } from "./ScenarioReviewPanelCodeQuality";
-import { RulesTab } from "./ScenarioReviewPanelRules";
 import { BaselinesTab } from "../features/baselines/BaselinesTab";
+import type { ReviewTab } from "../hooks/useUrlState";
 
-type Tab = "overview" | "baselines" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "ai-provenance" | "agent";
+type Tab = ReviewTab;
 
 interface ScenarioReviewPanelProps {
   scenarioSlug: string;
@@ -34,12 +32,16 @@ interface ScenarioReviewPanelProps {
   isMobile?: boolean;
 }
 
-export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeScenario, activeTab: controlledTab, onActiveTabChange, agentRunId, onAgentRunIdChange, scenarioState, onScenarioStateChange, isMobile }: ScenarioReviewPanelProps) {
+export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeScenario, activeTab: controlledTab, onActiveTabChange, agentRunId, onAgentRunIdChange, isMobile }: ScenarioReviewPanelProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [internalTab, setInternalTab] = useState<Tab>("overview");
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = onActiveTabChange ?? setInternalTab;
-  const capturesQuery = useVisualCaptures(scenarioSlug, true, repoId);
+  const [evidenceTarget, setEvidenceTarget] = useState<{ runId: string; phase: string } | null>(null);
+  const openExactTestPhase = useCallback((runId: string, phase: string) => {
+    setEvidenceTarget({ runId, phase });
+    setActiveTab("tests");
+  }, [setActiveTab]);
 
   // Filter fileStats to only include files belonging to this scenario
   const scenarioFileStats = useMemo(() => {
@@ -93,25 +95,10 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
   }, []);
   const clearAgentContext = useCallback(() => setAgentContext([]), []);
 
-  const snapshots = capturesQuery.data?.snapshots ?? [];
-  const completeSnapshots = snapshots.filter(s => s.status === "complete");
-  // The "current" view is the most recent loose capture (Plan C Decision 1).
-  // Baseline-pinned snapshots are surfaced only through a manifest's visuals
-  // pointer (Screenshots compare mode), never as a second visual-capture slot.
-  const currentCapture = [...completeSnapshots]
-    .filter(s => (s.role || "capture") === "capture")
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-  const captureStaleness = capturesQuery.data?.staleness;
-
   const [presetConfig, setPresetConfigState] = useState<CapturePreset[]>(() => getCapturePresets(scenarioSlug));
   useEffect(() => {
     setPresetConfigState(getCapturePresets(scenarioSlug));
   }, [scenarioSlug]);
-  const handlePresetConfigChange = useCallback((presets: CapturePreset[]) => {
-    setPresetConfigState(presets);
-    saveCapturePresets(scenarioSlug, presets);
-  }, [scenarioSlug]);
-
   const isCapturing = triggerCapture.isPending;
   const handleCapture = useCallback(() => triggerCapture.mutate({ scenarioSlug, presets: presetConfig }), [triggerCapture, scenarioSlug, presetConfig]);
 
@@ -122,8 +109,6 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
     screenshots: "Screenshots",
     workflows: "Workflows",
     tests: "Tests",
-    "code-quality": "Code Quality",
-    rules: "Rules",
     "ai-provenance": "AI Changes",
     agent: "Agent",
   };
@@ -135,8 +120,6 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
   const visibleTabs = (Object.keys(tabLabels) as Tab[]).filter(
     tab => {
       if (tab === "metrics") return Boolean(scenarioFileStats);
-      if (tab === "code-quality") return tidinessAvailable;
-      if (tab === "rules") return auditorAvailable;
       if (tab === "ai-provenance") return workspaceSandboxAvailable;
       if (tab === "agent") return agentManagerAvailable;
       return true;
@@ -179,8 +162,6 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
     <div className={`flex-1 ${activeTab === "agent" ? "flex flex-col overflow-hidden" : "overflow-y-auto px-4 py-4"}`}>
       {activeTab === "overview" ? (
         <OverviewTab
-          capture={currentCapture}
-          captureStaleness={captureStaleness}
           scenarioSlug={scenarioSlug}
           repoId={repoId}
           basAvailable={basAvailable}
@@ -198,46 +179,30 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           scenarioSlug={scenarioSlug}
           repoId={repoId}
           onOpenTab={(tab) => setActiveTab(tab)}
+          agentManagerAvailable={agentManagerAvailable}
+          onAttachToAgent={addAgentContext}
         />
       ) : activeTab === "metrics" ? (
         scenarioFileStats ? <AggregateMetricsContent fileStats={scenarioFileStats} /> : null
       ) : activeTab === "screenshots" ? (
-        capturesQuery.isLoading ? (
-          <div className="space-y-4">
-            <div className="h-48 animate-pulse bg-slate-800 rounded" />
-            <div className="h-48 animate-pulse bg-slate-800 rounded" />
-          </div>
-        ) : capturesQuery.error ? (
-          <MutationErrorBanner error={capturesQuery.error} />
-        ) : (
-          <ScreenshotsTab
-            capture={currentCapture}
-            captureStaleness={captureStaleness}
-            scenarioSlug={scenarioSlug}
-            repoId={repoId}
-            isMobile={isMobile ?? false}
-            basAvailable={basAvailable}
-            isCapturing={isCapturing}
-            onCapture={handleCapture}
-            presetConfig={presetConfig}
-            onPresetConfigChange={handlePresetConfigChange}
-            mutationError={triggerCapture.error}
-            onDismissError={() => triggerCapture.reset()}
-            agentManagerAvailable={agentManagerAvailable}
-            onAttachToAgent={addAgentContext}
-            onOpenBaselines={() => setActiveTab("baselines")}
-            initialPresetIndex={scenarioState?.screenshots.activePresetIndex}
-            initialSelectedPage={scenarioState?.screenshots.selectedPage}
-            onPresetIndexChange={(idx) => onScenarioStateChange?.({ screenshots: { activePresetIndex: idx } })}
-            onSelectedPageChange={(page) => onScenarioStateChange?.({ screenshots: { selectedPage: page } })}
-          />
-        )
+        <ScreenshotsTab
+          scenarioSlug={scenarioSlug}
+          repoId={repoId}
+          testGenieAvailable={testGenieAvailable}
+          agentManagerAvailable={agentManagerAvailable}
+          onAttachToAgent={addAgentContext}
+          onOpenBaselines={() => setActiveTab("baselines")}
+          onOpenTests={openExactTestPhase}
+        />
       ) : activeTab === "workflows" ? (
         <WorkflowsTab
           scenarioSlug={scenarioSlug}
           repoId={repoId}
           testGenieAvailable={testGenieAvailable}
+          agentManagerAvailable={agentManagerAvailable}
+          onAttachToAgent={addAgentContext}
           onOpenBaselines={() => setActiveTab("baselines")}
+          onOpenTests={openExactTestPhase}
         />
       ) : activeTab === "tests" ? (
         <TestsTab
@@ -247,28 +212,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           agentManagerAvailable={agentManagerAvailable}
           onAttachToAgent={addAgentContext}
           onOpenBaselines={() => setActiveTab("baselines")}
-        />
-      ) : activeTab === "code-quality" ? (
-        <CodeQualityTab
-          scenarioSlug={scenarioSlug}
-          repoId={repoId}
-          tidinessAvailable={tidinessAvailable}
-          fileStats={scenarioFileStats}
-          agentManagerAvailable={agentManagerAvailable}
-          onAttachToAgent={addAgentContext}
-          initialView={scenarioState?.codeQuality.view}
-          onViewChange={(v) => onScenarioStateChange?.({ codeQuality: { view: v } })}
-        />
-      ) : activeTab === "rules" ? (
-        <RulesTab
-          scenarioSlug={scenarioSlug}
-          repoId={repoId}
-          auditorAvailable={auditorAvailable}
-          agentManagerAvailable={agentManagerAvailable}
-          onAttachToAgent={addAgentContext}
-          initialJobId={scenarioState?.rules.jobId}
-          onJobIdChange={(id) => onScenarioStateChange?.({ rules: { jobId: id } })}
-          onOpenBaselines={() => setActiveTab("baselines")}
+          target={evidenceTarget}
         />
       ) : activeTab === "ai-provenance" ? (
         <AIProvenanceTab repoId={repoId} />
@@ -334,12 +278,6 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             {scenarioSlug}
             <ChevronDown className="h-3 w-3 text-slate-500 shrink-0" />
           </button>
-          {currentCapture && (
-            <span className="text-[11px] text-slate-500 hidden sm:inline shrink-0">
-              {`Captured ${new Date(currentCapture.createdAt).toLocaleString()}`}
-              {captureStaleness?.isStale && <span className="ml-1 text-amber-500">(stale)</span>}
-            </span>
-          )}
         </CardTitle>
         <div className="flex items-center gap-1 shrink-0">
           {basAvailable && activeTab !== "agent" && (

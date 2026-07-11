@@ -71,7 +71,9 @@ type pinCall struct{ scenario, runID, by, reason string }
 
 type fakeRuns struct {
 	pins       []pinCall
+	pinErr     error
 	unpins     []pinCall
+	unpinErr   error
 	compare    CompareResult
 	compareErr error
 	catalogs   map[string]ArtifactCatalog
@@ -84,12 +86,12 @@ type fakeRuns struct {
 
 func (f *fakeRuns) PinRun(_ context.Context, scenario, runID, by, reason string) error {
 	f.pins = append(f.pins, pinCall{scenario, runID, by, reason})
-	return nil
+	return f.pinErr
 }
 
 func (f *fakeRuns) UnpinRun(_ context.Context, scenario, runID, by string) error {
 	f.unpins = append(f.unpins, pinCall{scenario, runID, by, ""})
-	return nil
+	return f.unpinErr
 }
 
 func (f *fakeRuns) CompareRuns(_ context.Context, _, _, _, _ string) (CompareResult, error) {

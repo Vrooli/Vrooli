@@ -14,15 +14,18 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
-// handleWorkflowRunVideo proxies an opaque Test Genie workflow.video artifact
-// the browser stays single-origin (Plan B Decision 3). It forwards the Range
+// handleRunArtifact proxies any opaque Test Genie evidence artifact so the
+// browser stays single-origin. It forwards the Range
 // header so the <video> element can seek, and copies the streaming-relevant
-// response headers back. Structured listing is WorkflowReplayService; this is
-// the binary side.
-func (s *Server) handleWorkflowRunVideo(w http.ResponseWriter, r *http.Request) {
+// response headers back. Structured metadata comes from EvidenceService; this
+// is only the authorized byte side.
+func (s *Server) handleRunArtifact(w http.ResponseWriter, r *http.Request) {
 	runID := strings.TrimSpace(mux.Vars(r)["runId"])
 	scenario := strings.TrimSpace(r.URL.Query().Get("scenario"))
-	artifactID := strings.TrimSpace(r.URL.Query().Get("artifact_id"))
+	artifactID := strings.TrimSpace(mux.Vars(r)["artifactId"])
+	if artifactID == "" {
+		artifactID = strings.TrimSpace(r.URL.Query().Get("artifact_id"))
+	}
 	if scenario == "" || artifactID == "" {
 		http.Error(w, "scenario and artifact_id are required", http.StatusBadRequest)
 		return

@@ -626,7 +626,7 @@ export function BranchSelector({
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 w-[560px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)] overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/95 p-4 shadow-xl z-50">
+        <div className="absolute left-0 mt-2 w-[560px] max-w-[calc(100%-2rem)] max-h-[calc(100%-8rem)] overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/95 p-4 shadow-xl z-50">
           {content}
         </div>
       )}

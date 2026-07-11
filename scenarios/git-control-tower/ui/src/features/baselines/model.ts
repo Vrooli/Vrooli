@@ -8,30 +8,8 @@
 // new-failure / preexisting / not-comparable) — see baselines.proto.
 
 import type { BadgeProps } from "../../components/ui/badge";
-import type { PhaseDiff } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
+import { PhaseComparisonReasonCode, type PhaseDiff } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
 import type { RepoStatus } from "../../lib/api";
-
-export const BASELINE_SURFACES = ["workflows", "tests", "structure", "visuals", "rules"] as const;
-export type BaselineSurface = (typeof BASELINE_SURFACES)[number];
-
-export interface SurfaceMeta {
-  id: BaselineSurface;
-  label: string;
-  // What capturing this surface does, shown next to the checkbox in the modal.
-  captureNote: string;
-}
-
-export const SURFACE_META: Record<BaselineSurface, SurfaceMeta> = {
-  workflows: { id: "workflows", label: "Workflows", captureNote: "runs BAS workflows" },
-  tests: { id: "tests", label: "Tests", captureNote: "runs test-genie unit/integration" },
-  structure: { id: "structure", label: "Structure", captureNote: "file-tree + structure scan" },
-  visuals: { id: "visuals", label: "Visuals", captureNote: "captures page screenshots" },
-  rules: { id: "rules", label: "Rules", captureNote: "runs scenario-auditor rules" },
-};
-
-export function surfaceLabel(id: string): string {
-  return SURFACE_META[id as BaselineSurface]?.label ?? id;
-}
 
 // ── Verdicts ──────────────────────────────────────────────────────────────
 
@@ -81,6 +59,33 @@ export function countFindings(diff: PhaseDiff): {
     preexisting: diff.preexistingFailures.length,
     cleared: diff.clearedFailures.length,
   };
+}
+
+export interface ComparisonSummary {
+  regressions: number;
+  newFailures: number;
+  preexisting: number;
+  cleared: number;
+  notComparable: number;
+  catalogAdded: number;
+  catalogRetired: number;
+}
+
+export function summarizePhaseDiffs(phases: PhaseDiff[]): ComparisonSummary {
+  return phases.reduce<ComparisonSummary>((summary, phase) => {
+    summary.regressions += phase.regressions.length;
+    summary.newFailures += phase.newFailures.length;
+    summary.preexisting += phase.preexistingFailures.length;
+    summary.cleared += phase.clearedFailures.length;
+    if (phase.verdict === "not-comparable") summary.notComparable += 1;
+    if (phase.reasons.some((reason) => reason.code === PhaseComparisonReasonCode.NEW_PHASE)) summary.catalogAdded += 1;
+    if (phase.reasons.some((reason) => reason.code === PhaseComparisonReasonCode.RETIRED_PHASE)) summary.catalogRetired += 1;
+    return summary;
+  }, { regressions: 0, newFailures: 0, preexisting: 0, cleared: 0, notComparable: 0, catalogAdded: 0, catalogRetired: 0 });
+}
+
+export function phaseDiffNeedsAttention(diff: PhaseDiff): boolean {
+  return diff.verdict !== "clean" || diff.regressions.length > 0 || diff.newFailures.length > 0 || diff.reasons.length > 0;
 }
 
 // ── Working-tree dirtiness (drives the SetBaselineModal warning) ────────────

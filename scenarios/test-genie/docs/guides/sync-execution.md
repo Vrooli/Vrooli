@@ -296,31 +296,29 @@ else
 fi
 ```
 
-## Comparison: Async vs Sync
+## Durable execution pattern
 
-### Async Pattern (Original)
+Long suite execution is server-owned. Start once, retain the returned run ID,
+and block once; never poll and never infer the run outcome from the client
+connection lifetime.
+
 ```bash
-# Step 1: Start execution
-EXEC_ID=$(curl -s -X POST ".../execute" -d '{}' | jq -r '.execution_id')
+# Starts one lifecycle-managed run and returns its durable handle.
+vrooli scenario test my-scenario
 
-# Step 2: Poll for results
-while true; do
-  STATUS=$(curl -s ".../test-execution/${EXEC_ID}/results" | jq -r '.status')
-  if [ "$STATUS" != "running" ]; then
-    break
-  fi
-  sleep 5
-done
+# Use the exact wait command printed by the start response, once.
+test-genie runs wait --json my-scenario <run-id>
 
-# Step 3: Get final results
-curl -s ".../test-execution/${EXEC_ID}/results"
+# Read the same persisted terminal snapshot for inspection/parity.
+test-genie runs show <run-id> --scenario my-scenario --json
 ```
 
-### Sync Pattern (New - Much Simpler!)
-```bash
-# Single request gets everything
-curl -s -X POST ".../execute-sync" -d '{}'
-```
+Ctrl-C, timeout, or unexpected EOF only detaches the viewer. Reattach with the
+same run ID; do not start a replacement. Use `vrooli scenario test abort` only
+when the operator intends to terminate the owned run. The historical blocking
+`execute-sync` examples above are compatibility guidance for short API callers,
+not the repository validation protocol; [`docs/TESTING.md`](../../../../docs/TESTING.md)
+is authoritative.
 
 ## Best Practices
 

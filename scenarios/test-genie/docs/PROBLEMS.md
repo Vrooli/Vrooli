@@ -1,23 +1,25 @@
 # Open Issues
 
-## 2026-07-10 — Terminal wait and show disagree after durable fallback
+## Resolved 2026-07-10 — Terminal wait and show disagreed after durable fallback
 
 **Symptom:** `test-genie runs wait --json swarm-manager 20260710-142937-ae6a753e`
 returned terminal `failed` with zero phases and zero duration, while `runs show`
 for the same run returned 20 persisted phase results spanning 14:47:02–14:59:57
 UTC.
 
-**Root cause:** Terminal wait projects the run manager's reduced live/durable
-status fallback while show converts the persisted run record; there is no single
-versioned terminal snapshot projector shared by both paths.
+**Historical root cause:** Terminal wait projected the run manager's reduced
+live/durable status fallback while show converted the persisted run record; the
+two paths did not share a versioned terminal snapshot projector.
 
-**Workaround:** Treat terminal wait output with missing phase data as degraded
-and inspect the same run with show. Do not relabel the zero-phase result as a
-pass or start a replacement run to manufacture baseline evidence.
+**Historical workaround:** Treat terminal wait output with missing phase data as
+degraded and inspect the same run with show. Do not relabel the zero-phase
+result as a pass or start a replacement run to manufacture baseline evidence.
 
-**Real fix:** Persist one canonical terminal snapshot atomically and hydrate
-wait, show, history, comparison, and downstream consumers from it before and
-after retirement/restart, with explicit legacy/corrupt degradation.
+**Resolution:** New runs atomically persist one schema-versioned terminal
+snapshot and both wait and show project it before and after retirement/restart.
+Legacy, partial, and corrupt records remain explicitly degraded. The original
+run remains a diagnostic fixture; only a fresh exact-SHA lifecycle run may
+replace it as authoritative evidence.
 
 **Owner:** test-genie run lifecycle.
 

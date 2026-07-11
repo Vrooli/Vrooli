@@ -2,9 +2,7 @@ import { act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   useDeleteVisualCapture,
-  useTestExecutions,
   useTidinessIssues,
-  useTriggerTestExecution,
   useTriggerTidinessScan,
   useTriggerVisualCapture,
   useVisualCaptures,
@@ -18,9 +16,6 @@ const mockTriggerVisualCapture = vi.fn();
 const mockFetchCaptureStorageStats = vi.fn();
 const mockDeleteVisualCapture = vi.fn();
 const mockClearAllCaptureStorage = vi.fn();
-const mockFetchTestExecutions = vi.fn();
-const mockFetchTestExecution = vi.fn();
-const mockTriggerTestExecution = vi.fn();
 const mockFetchTidinessScore = vi.fn();
 const mockFetchTidinessIssues = vi.fn();
 const mockFetchTidinessStaleness = vi.fn();
@@ -34,9 +29,6 @@ vi.mock("./api", () => ({
   fetchCaptureStorageStats: (...args: unknown[]) => mockFetchCaptureStorageStats(...args),
   deleteVisualCapture: (...args: unknown[]) => mockDeleteVisualCapture(...args),
   clearAllCaptureStorage: (...args: unknown[]) => mockClearAllCaptureStorage(...args),
-  fetchTestExecutions: (...args: unknown[]) => mockFetchTestExecutions(...args),
-  fetchTestExecution: (...args: unknown[]) => mockFetchTestExecution(...args),
-  triggerTestExecution: (...args: unknown[]) => mockTriggerTestExecution(...args),
   fetchTidinessScore: (...args: unknown[]) => mockFetchTidinessScore(...args),
   fetchTidinessIssues: (...args: unknown[]) => mockFetchTidinessIssues(...args),
   fetchTidinessStaleness: (...args: unknown[]) => mockFetchTidinessStaleness(...args),
@@ -58,13 +50,6 @@ describe("visual, test, and tidiness hooks", () => {
       snapshots: [],
     });
     mockDeleteVisualCapture.mockResolvedValue(undefined);
-    mockFetchTestExecutions.mockResolvedValue({ executions: [] });
-    mockTriggerTestExecution.mockResolvedValue({
-      id: "test-1",
-      scenario_name: "git-control-tower",
-      status: "completed",
-      created_at: "2026-05-01T00:00:00Z",
-    });
     mockFetchTidinessIssues.mockResolvedValue([]);
     mockTriggerTidinessLightScan.mockResolvedValue({ success: true });
   });
@@ -73,14 +58,6 @@ describe("visual, test, and tidiness hooks", () => {
     renderHookWithQueryClient(() => useVisualCaptures("", true, "repo-1"));
 
     expect(mockFetchVisualCaptures).not.toHaveBeenCalled();
-  });
-
-  it("fetches test executions with the fixed list limit and repo context", async () => {
-    renderHookWithQueryClient(() => useTestExecutions("git-control-tower", true, "repo-1"));
-
-    await waitFor(() => {
-      expect(mockFetchTestExecutions).toHaveBeenCalledWith("git-control-tower", 10, "repo-1");
-    });
   });
 
   it("triggers visual capture and invalidates that scenario capture list", async () => {
@@ -143,23 +120,6 @@ describe("visual, test, and tidiness hooks", () => {
       });
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: queryKeys.visualCaptures("git-control-tower", "repo-3"),
-      });
-    });
-  });
-
-  it("invalidates scenario test executions after triggering a test run", async () => {
-    const { result, queryClient } = renderHookWithQueryClient(() => useTriggerTestExecution("repo-5"));
-    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-    const request = { scenarioName: "git-control-tower", suite: "unit" };
-
-    await act(async () => {
-      await result.current.mutateAsync(request);
-    });
-
-    await waitFor(() => {
-      expect(mockTriggerTestExecution).toHaveBeenCalledWith(request, "repo-5");
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.testExecutions("git-control-tower", "repo-5"),
       });
     });
   });

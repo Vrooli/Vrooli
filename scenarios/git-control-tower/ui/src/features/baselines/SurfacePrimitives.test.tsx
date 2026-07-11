@@ -46,7 +46,7 @@ describe("SurfaceCaptureEmptyState", () => {
     const onCaptureBaseline = vi.fn();
     render(
       <SurfaceCaptureEmptyState
-        surface="tests"
+        label="Tests"
         hasService
         onCaptureLoose={onCaptureLoose}
         onCaptureBaseline={onCaptureBaseline}
@@ -64,7 +64,7 @@ describe("SurfaceCaptureEmptyState", () => {
   it("disables capture and explains when the service is unavailable", () => {
     render(
       <SurfaceCaptureEmptyState
-        surface="tests"
+        label="Tests"
         hasService={false}
         onCaptureLoose={vi.fn()}
         onCaptureBaseline={vi.fn()}
@@ -153,14 +153,14 @@ describe("SurfaceComparePanel", () => {
       }),
     );
 
-    render(<SurfaceComparePanel scenario="s" surface="tests" onOpenBaselines={vi.fn()} />);
+    render(<SurfaceComparePanel scenario="s" contextLabel="Tests" onOpenBaselines={vi.fn()} />);
     expect(screen.getByText("Regressions (1)")).toBeInTheDocument();
     expect(screen.getByText("TestFoo")).toBeInTheDocument();
   });
 
   it("does not render a diff body before comparing", () => {
     useCompareOnDemand.mockReturnValue(compareHandle({ comparing: false }));
-    render(<SurfaceComparePanel scenario="s" surface="tests" onOpenBaselines={vi.fn()} />);
+    render(<SurfaceComparePanel scenario="s" contextLabel="Tests" onOpenBaselines={vi.fn()} />);
     // Bar is present; no diff frame.
     expect(screen.queryByText(/match the baseline/i)).not.toBeInTheDocument();
   });

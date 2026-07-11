@@ -8,16 +8,14 @@
 // generated package path (e.g. "/vrooli.git_control_tower.v1.baselines.
 // BaselinesService/ListBaselines"), so the transport uses the un-suffixed base.
 //
-// Cross-scenario reads (test-genie runs for the Workflows tab) are NEVER made
-// directly from the browser (Decision 3) — they flow through GCT's own
-// WorkflowReplayService, which is mounted on this same origin. That keeps the
-// UI single-origin (no CORS) and lets GCT apply scenario-context filtering
-// before the browser sees any test-genie data.
+// Cross-scenario Test Genie reads are NEVER made directly from the browser.
+// They flow through GCT's phase-agnostic EvidenceService on this same origin,
+// keeping the UI single-origin and artifact paths private.
 
 import { createClient, type Client } from "@connectrpc/connect";
 import { resolveApiBase, createScenarioConnectTransport } from "@vrooli/api-base";
 import { BaselinesService } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
-import { WorkflowReplayService } from "@vrooli/proto-types/git-control-tower/v1/workflowreplay/workflowreplay_pb";
+import { EvidenceService } from "@vrooli/proto-types/git-control-tower/v1/evidence/evidence_pb";
 
 // Bare origin (no "/api/v1" suffix): Connect appends the full procedure path.
 export const transport = createScenarioConnectTransport({ baseUrl: resolveApiBase() });
@@ -33,12 +31,8 @@ export const baselinesClient: Client<typeof BaselinesService> = createClient(
   transport,
 );
 
-/**
- * Connect client for GCT's WorkflowReplayService — the single-origin proxy over
- * typed test-genie run evidence. The Workflows tab reads runs through
- * this; binary video bytes stream over the separate REST video-proxy route.
- */
-export const workflowReplayClient: Client<typeof WorkflowReplayService> = createClient(
-  WorkflowReplayService,
+/** Shared phase-agnostic run and evidence surface for every review tab. */
+export const evidenceClient: Client<typeof EvidenceService> = createClient(
+  EvidenceService,
   transport,
 );

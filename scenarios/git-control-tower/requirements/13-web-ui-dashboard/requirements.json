@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P2-001 Web UI dashboard",
-    "last_updated": "2025-12-16"
+    "last_updated": "2026-07-10"
   },
   "requirements": [
     {
@@ -19,14 +19,49 @@
       "prd_ref": "OT-P2-001",
       "title": "Review arbitrary captured phases and typed evidence without phase-specific UI code",
       "description": "The review surface renders run-captured descriptors dynamically; Screenshots and Workflows discover artifacts by evidence kind across every producer phase; unknown kinds retain a safe fallback; navigation contains exactly Overview, Baselines, Metrics, Screenshots, Workflows, Tests, AI Changes, and Agent, with Rules and Code Quality absent.",
-      "status": "pending",
+      "status": "complete",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/evidence/connect_handler_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Preserves unknown descriptor and artifact metadata, filters captured descriptor metadata, and discovers kinds across arbitrary producer phases."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/evidence/phase_agnostic_guard_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Rejects fixed Test Genie phase keys and producer-phase comparisons in the generic production boundary."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ScenarioReviewPanelVisuals.test.tsx",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves screenshots and workflow media render from unknown producer phases through opaque IDs; media bytes remain deferred until Preview; unknown and legacy kinds retain metadata, provenance, relationships, authorized actions, and missing-byte states; visual diffs remain advisory; Agent and exact Tests navigation preserve run/phase/artifact identity."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/hooks/useUrlState.test.ts",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Pins the exact eight retained tabs and rejects removed Rules and Code Quality URL state."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ScenarioReviewPanelTests.test.tsx",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Exercises descriptor-driven attention grouping, provider/class/dimension/maturity filters, historical selection, lazy opaque artifacts, zero-phase and legacy degradation, and bounded rendering for a 50-phase catalog."
+        },
         {
           "type": "test",
           "ref": "ui/src/features/baselines/BaselinesTab.test.tsx",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Will render unknown/new/retired phase fixtures and generic artifact fallbacks without registration."
+          "status": "passing",
+          "notes": "Exercises single-run baseline identity, dynamic outcome counts, stale/dirty/catalog-change indicators, comparison reasons, and collapsed clean phases without a phase registry."
         }
       ]
     }

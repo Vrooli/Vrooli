@@ -243,9 +243,6 @@ export type {
   TidinessScenarioDetail,
 } from "./api-testing";
 export {
-  triggerTestExecution,
-  fetchTestExecutions,
-  fetchTestExecution,
   fetchTidinessScore,
   fetchTidinessIssues,
   fetchTidinessStaleness,

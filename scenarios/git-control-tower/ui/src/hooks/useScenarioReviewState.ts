@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { ReviewTab } from "./useUrlState";
+import { VALID_REVIEW_TABS, type ReviewTab } from "./useUrlState";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -11,12 +11,6 @@ export interface ScenarioReviewState {
   screenshots: {
     activePresetIndex: number;
     selectedPage: number;
-  };
-  codeQuality: {
-    view: "changed" | "scenario";
-  };
-  rules: {
-    jobId: string | null;
   };
 }
 
@@ -33,8 +27,6 @@ export const DEFAULT_STATE: ScenarioReviewState = {
   activeTab: "overview",
   agentRunId: null,
   screenshots: { activePresetIndex: 0, selectedPage: 0 },
-  codeQuality: { view: "changed" },
-  rules: { jobId: null },
 };
 
 // ---------------------------------------------------------------------------
@@ -46,7 +38,7 @@ const MAX_ENTRIES = 50;
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 interface StoredEntry {
-  version: 1;
+  version: 2;
   lastAccessed: number;
   state: ScenarioReviewState;
 }
@@ -65,13 +57,25 @@ function parseStoredEntry(raw: string): StoredEntry | null {
     return null;
   }
   const { version, lastAccessed, state } = parsed;
-  if (version !== 1 || typeof lastAccessed !== "number" || !isPlainObject(state)) {
+  if ((version !== 1 && version !== 2) || typeof lastAccessed !== "number" || !isPlainObject(state)) {
     return null;
   }
+  const candidateTab = typeof state.activeTab === "string" ? state.activeTab : "overview";
+  const activeTab = VALID_REVIEW_TABS.includes(candidateTab as ReviewTab)
+    ? candidateTab as ReviewTab
+    : "overview";
+  const screenshots = isPlainObject(state.screenshots) ? state.screenshots : {};
   return {
-    version: 1,
+    version: 2,
     lastAccessed,
-    state: deepMerge(DEFAULT_STATE, state as DeepPartial<ScenarioReviewState>),
+    state: {
+      activeTab,
+      agentRunId: typeof state.agentRunId === "string" ? state.agentRunId : null,
+      screenshots: {
+        activePresetIndex: typeof screenshots.activePresetIndex === "number" ? screenshots.activePresetIndex : 0,
+        selectedPage: typeof screenshots.selectedPage === "number" ? screenshots.selectedPage : 0,
+      },
+    },
   };
 }
 
@@ -102,7 +106,7 @@ export function loadState(slug: string): ScenarioReviewState {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${slug}`);
     if (!raw) return { ...DEFAULT_STATE };
     const entry = parseStoredEntry(raw);
-    if (!entry || entry.version !== 1 || !entry.state) return { ...DEFAULT_STATE };
+    if (!entry || !entry.state) return { ...DEFAULT_STATE };
     // Deep-merge stored partial with defaults to handle schema evolution
     return entry.state;
   } catch {
@@ -115,7 +119,7 @@ export function saveState(slug: string, state: ScenarioReviewState): void {
   if (!slug) return;
   try {
     const entry: StoredEntry = {
-      version: 1,
+      version: 2,
       lastAccessed: Date.now(),
       state,
     };

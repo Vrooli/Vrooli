@@ -100,8 +100,10 @@
     }
   ],
   "omitted": [
-    { "service": "WorkflowReplayService", "method": "ListRecentRuns", "reason": "UI-only proxy over typed test-genie run evidence for the GCT Workflows tab. No CLI surface — agents use `git-control-tower baseline` / test-genie `runs` directly." },
-    { "service": "WorkflowReplayService", "method": "GetRunDetail", "reason": "UI-only proxy over opaque test-genie workflow artifacts. No CLI surface — binary video streams over a REST route, structured data feeds the UI only." },
+    { "service": "EvidenceService", "method": "StartRun", "reason": "UI convenience over Test Genie's durable StartRun; agents use `vrooli scenario test` / `test-genie runs` directly." },
+    { "service": "EvidenceService", "method": "ListRuns", "reason": "UI-only descriptor-aware run history; agents use Test Genie's canonical runs CLI." },
+    { "service": "EvidenceService", "method": "GetRun", "reason": "UI-only run detail and typed artifact metadata; agents use Test Genie's canonical runs CLI." },
+    { "service": "EvidenceService", "method": "ListEvidence", "reason": "UI-only cross-run evidence search; artifact bytes remain behind opaque same-origin routes." },
     { "service": "BaselinesService", "method": "SnapshotForBaseline", "reason": "Hand-written in cli/domains/baseline (baseline snapshot) — custom Connect client with rich human output and dirty-tree/skip warnings; not manifest-bound." },
     { "service": "BaselinesService", "method": "GetSnapshotStatus", "reason": "Hand-written in cli/domains/baseline (baseline snapshot status) — custom Connect client with snapshot lifecycle exit codes and not-found diagnostics; not manifest-bound." },
     { "service": "BaselinesService", "method": "GetBaseline", "reason": "Hand-written in cli/domains/baseline (baseline show) — custom Connect client; not manifest-bound." },
