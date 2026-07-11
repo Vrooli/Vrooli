@@ -10,6 +10,7 @@ import (
 	"test-genie/internal/dbexec"
 	"test-genie/internal/execution"
 	"test-genie/internal/playbooksclaims"
+	"test-genie/internal/remediation"
 	"test-genie/internal/selfhealthsnapshots"
 	"test-genie/internal/storage/sqlfiles"
 
@@ -61,6 +62,7 @@ func applyDomainSchemas(db dbexec.Executor) error {
 	}{
 		{"execution", execution.Schema()},
 		{"playbooksclaims", playbooksclaims.Schema()},
+		{"remediation", remediation.Schema()},
 		{"selfhealthsnapshots", selfhealthsnapshots.Schema()},
 	}
 	for _, d := range domains {

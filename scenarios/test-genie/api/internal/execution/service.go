@@ -2,58 +2,40 @@ package execution
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
-	"test-genie/internal/queue"
-	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
 )
 
-// ErrSuiteRequestNotFound indicates the linked suite request does not exist.
-var ErrSuiteRequestNotFound = errors.New("suite request not found")
-
 type suiteExecutionEngine interface {
 	ExecuteWithEvents(ctx context.Context, req orchestrator.SuiteExecutionRequest, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error)
-}
-
-type suiteRequestManager interface {
-	Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error)
-	UpdateStatus(ctx context.Context, id uuid.UUID, status string) error
 }
 
 type suiteExecutionRecorder interface {
 	Create(ctx context.Context, record *SuiteExecutionRecord) error
 }
 
-// SuiteExecutionInput encapsulates the orchestration request plus optional linkage to a queued suite.
+// SuiteExecutionInput encapsulates a server-owned orchestration request.
 type SuiteExecutionInput struct {
-	Request        orchestrator.SuiteExecutionRequest
-	SuiteRequestID *uuid.UUID
+	Request orchestrator.SuiteExecutionRequest
 }
 
-// SuiteExecutionService coordinates the orchestrator, queue state transitions, and execution persistence.
+// SuiteExecutionService coordinates the orchestrator and execution persistence.
 type SuiteExecutionService struct {
-	engine        suiteExecutionEngine
-	executions    suiteExecutionRecorder
-	suiteRequests suiteRequestManager
+	engine     suiteExecutionEngine
+	executions suiteExecutionRecorder
 }
 
-func NewSuiteExecutionService(engine suiteExecutionEngine, executions suiteExecutionRecorder, suiteRequests suiteRequestManager) *SuiteExecutionService {
-	return &SuiteExecutionService{
-		engine:        engine,
-		executions:    executions,
-		suiteRequests: suiteRequests,
-	}
+func NewSuiteExecutionService(engine suiteExecutionEngine, executions suiteExecutionRecorder) *SuiteExecutionService {
+	return &SuiteExecutionService{engine: engine, executions: executions}
 }
 
-// Execute runs the suite, persists the result, and keeps queue state in sync.
+// Execute runs the suite and persists the result.
 func (s *SuiteExecutionService) Execute(ctx context.Context, input SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error) {
 	return s.run(ctx, input, nil)
 }
@@ -63,11 +45,9 @@ func (s *SuiteExecutionService) ExecuteWithEvents(ctx context.Context, input Sui
 	return s.run(ctx, input, emit)
 }
 
-// run is the single execute implementation: it marks the linked suite request
-// running (if any), drives the orchestrator (streaming events when emit is
-// non-nil), persists the execution record, and finalizes queue state. The
-// orchestrator's own per-phase writer no-ops a nil emit, so the two public
-// entrypoints share one body.
+// run is the single execute implementation. The orchestrator's own per-phase
+// writer no-ops a nil emit, so streaming and non-streaming callers share one
+// execution and persistence path.
 func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	if s.engine == nil {
 		return nil, fmt.Errorf("suite execution engine is not configured")
@@ -76,30 +56,20 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 		return nil, fmt.Errorf("suite execution repository is not configured")
 	}
 
-	var suiteID *uuid.UUID
-	if input.SuiteRequestID != nil {
-		suiteID = input.SuiteRequestID
-		if err := s.loadAndMarkSuiteRequest(ctx, *suiteID, input.Request.ScenarioName); err != nil {
-			return nil, err
-		}
-	}
-
 	startedAt := time.Now().UTC()
 	result, err := s.engine.ExecuteWithEvents(ctx, input.Request, emit)
 	if err != nil {
-		s.recordTerminalOutcome(ctx, input, suiteID, startedAt, classifyTerminalError(ctx, err))
-		s.markSuiteFailed(ctx, suiteID)
+		s.recordTerminalOutcome(ctx, input, startedAt, classifyTerminalError(ctx, err))
 		return nil, err
 	}
 	if result == nil {
-		s.recordTerminalOutcome(ctx, input, suiteID, startedAt, classifyTerminalError(ctx, nil))
-		s.markSuiteFailed(ctx, suiteID)
+		s.recordTerminalOutcome(ctx, input, startedAt, classifyTerminalError(ctx, nil))
 		return nil, errors.New("suite execution engine returned no result")
 	}
 
 	record := &SuiteExecutionRecord{
 		ID:                  uuid.New(),
-		SuiteRequestID:      suiteID,
+		RunID:               result.RunID,
 		ScenarioName:        result.ScenarioName,
 		PresetUsed:          result.PresetUsed,
 		RequestedPreset:     result.RequestedPreset,
@@ -114,60 +84,11 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 	}
 
 	if err := s.executions.Create(ctx, record); err != nil {
-		s.markSuiteFailed(ctx, suiteID)
 		return nil, err
-	}
-
-	if suiteID != nil {
-		if err := s.finalizeSuiteRequest(ctx, *suiteID, result.Success); err != nil {
-			return nil, err
-		}
-		result.SuiteRequestID = suiteID
 	}
 
 	result.ExecutionID = record.ID
 	return result, nil
-}
-
-func (s *SuiteExecutionService) loadAndMarkSuiteRequest(ctx context.Context, suiteID uuid.UUID, scenario string) error {
-	if s.suiteRequests == nil {
-		return fmt.Errorf("suite request service is not configured")
-	}
-	req, err := s.suiteRequests.Get(ctx, suiteID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrSuiteRequestNotFound
-		}
-		return err
-	}
-	if !strings.EqualFold(req.ScenarioName, scenario) {
-		return shared.NewValidationError("suiteRequestId does not match scenarioName")
-	}
-	if err := s.suiteRequests.UpdateStatus(ctx, suiteID, queue.StatusRunning); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrSuiteRequestNotFound
-		}
-		return err
-	}
-	return nil
-}
-
-func (s *SuiteExecutionService) finalizeSuiteRequest(ctx context.Context, suiteID uuid.UUID, success bool) error {
-	if s.suiteRequests == nil {
-		return fmt.Errorf("suite request service is not configured")
-	}
-	status := queue.StatusFailed
-	if success {
-		status = queue.StatusCompleted
-	}
-	return s.suiteRequests.UpdateStatus(ctx, suiteID, status)
-}
-
-func (s *SuiteExecutionService) markSuiteFailed(ctx context.Context, suiteID *uuid.UUID) {
-	if suiteID == nil || s.suiteRequests == nil {
-		return
-	}
-	_ = s.suiteRequests.UpdateStatus(ctx, *suiteID, queue.StatusFailed)
 }
 
 // recordTerminalOutcome persists a minimal suite_executions row for a
@@ -177,14 +98,14 @@ func (s *SuiteExecutionService) markSuiteFailed(ctx context.Context, suiteID *uu
 // execution error, so it is logged-by-omission (the caller already returns the
 // real error). The write uses a detached context because the request context
 // may already be cancelled (the very condition we are recording).
-func (s *SuiteExecutionService) recordTerminalOutcome(ctx context.Context, input SuiteExecutionInput, suiteID *uuid.UUID, startedAt time.Time, outcome TerminalOutcome) {
+func (s *SuiteExecutionService) recordTerminalOutcome(ctx context.Context, input SuiteExecutionInput, startedAt time.Time, outcome TerminalOutcome) {
 	if s.executions == nil {
 		return
 	}
 	writeCtx := context.WithoutCancel(ctx)
 	record := &SuiteExecutionRecord{
 		ID:              uuid.New(),
-		SuiteRequestID:  suiteID,
+		RunID:           input.Request.RunID,
 		ScenarioName:    input.Request.ScenarioName,
 		Success:         false,
 		TerminalOutcome: outcome,

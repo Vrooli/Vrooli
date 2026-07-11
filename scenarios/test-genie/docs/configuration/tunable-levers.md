@@ -23,23 +23,8 @@ These are normally provided by the Vrooli lifecycle system:
 | `TEST_GENIE_MAX_CONCURRENT_RUNS` | Run manager | `2` | GLOBAL cap on suites executing at once across ALL scenarios, shared by manually-started runs and the background fleet sweep. Requests beyond the cap are admitted as `queued` and promoted FIFO as slots free (not rejected). Floor 1. |
 | `TEST_GENIE_MAX_RUNS_PER_SCENARIO` | Run manager | `1` | Per-scenario in-progress cap. `1` is a correctness invariant (one live instance per scenario); raising it is documented-unsafe until per-run isolation lands. |
 | `TEST_GENIE_PLAYBOOKS_RETAIN` | Workflow compatibility | `0` | Keep temporary isolated Postgres/Redis/SQLite resources alive after legacy seed/debug paths |
-| `TEST_GENIE_QUEUE_STALE_AFTER` | Queue telemetry | `24h` | How long queued/delegated requests remain part of active queue counts before they are reported as stale |
 | `TEST_GENIE_SKIP_PLAYBOOKS` | Workflow compatibility | unset | Hard-disable workflow execution through the legacy playbooks alias |
 | `TEST_GENIE_DOCS_DIR` | Docs handlers | scenario default | Override docs directory served by the API |
-
-## Queue telemetry
-
-`TEST_GENIE_QUEUE_STALE_AFTER` is the main queue hygiene lever.
-
-- Format: Go duration string, for example `30m`, `6h`, or `24h`
-- A queued or delegated request older than this threshold is excluded from active `pending`, `queued`, and `delegated` counts
-- Stale rows are still counted separately as `stale` in health/status output so operators can see cleanup drift instead of silently losing visibility
-
-Example:
-
-```bash
-TEST_GENIE_QUEUE_STALE_AFTER=6h test-genie status
-```
 
 ## Workflow Compatibility
 

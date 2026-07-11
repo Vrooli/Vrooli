@@ -669,16 +669,15 @@ func TestWireProfileToAPI(t *testing.T) {
 		ID:          "p1",
 		ProfileKey:  "default",
 		Name:        "Default",
-		RunnerType:  "RUNNER_TYPE_CLAUDE_CODE",
+		RoleRef:     "code.default",
 		Description: "desc",
-		Model:       "claude-3",
 	}
 	got := wireProfileToAPI(&w)
 	if got.Key != "default" {
 		t.Errorf("Key: got %s", got.Key)
 	}
-	if got.RunnerType != "claude-code" {
-		t.Errorf("RunnerType: got %s, want claude-code", got.RunnerType)
+	if got.RoleRef != "code.default" {
+		t.Errorf("RoleRef: got %s, want code.default", got.RoleRef)
 	}
 }
 

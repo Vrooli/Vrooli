@@ -298,18 +298,13 @@ const literalSelectors = {
     nav: "test-genie-tab-nav",
     dashboard: "test-genie-tab-dashboard",
     runs: "test-genie-tab-runs",
-    generate: "test-genie-tab-generate",
     docs: "test-genie-tab-docs",
-    health: "test-genie-tab-health",
-    settings: "test-genie-tab-settings"
+    health: "test-genie-tab-health"
   },
   // Dashboard page
   dashboard: {
     continueSection: "test-genie-continue-section",
     header: "test-genie-header",
-    guidedFlows: "test-genie-guided-flows",
-    stats: "test-genie-stats",
-    queueHealth: "test-genie-queue-health",
     lastExecution: "test-genie-last-execution"
   },
   // Self-Health page
@@ -327,18 +322,15 @@ const literalSelectors = {
     subtabScenarios: "test-genie-subtab-scenarios",
     subtabHistory: "test-genie-subtab-history",
     scenarioTable: "test-genie-scenario-table",
+    testGenieScenario: "test-genie-scenario-row-test-genie",
     historyTable: "test-genie-history-table",
     scenarioDetail: "test-genie-scenario-detail",
     scenarioDetailBack: "test-genie-scenario-detail-back",
     scenarioTabOverview: "test-genie-scenario-tab-overview",
     scenarioTabRequirements: "test-genie-scenario-tab-requirements",
     scenarioTabHistory: "test-genie-scenario-tab-history",
-    // Fix agent selectors
-    fixWithAiButton: "test-genie-fix-with-ai-button",
-    startFixButton: "test-genie-start-fix-button",
-    fixMessagePopover: "test-genie-fix-message-popover",
     phaseCard: "test-genie-phase-card",
-    fixAgentStatus: "test-genie-fix-agent-status"
+    remediationPanel: "test-genie-remediation-panel"
   },
   // Requirements
   requirements: {
@@ -355,28 +347,6 @@ const literalSelectors = {
     // Help section
     helpSection: "test-genie-requirements-help",
     helpToggle: "test-genie-requirements-help-toggle",
-    // AI improve feature
-    improveButton: "test-genie-requirements-improve-button",
-    startImproveButton: "test-genie-start-improve-button",
-    cancelImproveButton: "test-genie-cancel-improve-button",
-    selectAllButton: "test-genie-select-all-button",
-    improveMessagePopover: "test-genie-improve-message-popover",
-    actionTypeSelector: "test-genie-action-type-selector",
-    improveStatus: "test-genie-requirements-improve-status"
-  },
-  // Generate page
-  generate: {
-    phaseSelector: "test-genie-phase-selector",
-    promptEditor: "test-genie-prompt-editor",
-    promptNavigator: "test-genie-prompt-navigator",
-    promptNavItem: "test-genie-prompt-nav-item",
-    copyAllButton: "test-genie-copy-all-prompts",
-    copyButton: "test-genie-copy-prompt",
-    spawnButton: "test-genie-spawn-agent",
-    presetSelector: "test-genie-preset-selector",
-    scopeButton: "test-genie-scope-button",
-    targetSelector: "test-genie-target-selector",
-    targetItem: "test-genie-target-item"
   },
   // Docs page
   docs: {
@@ -385,40 +355,27 @@ const literalSelectors = {
     copyPath: "test-genie-docs-copy-path",
     searchInput: "test-genie-docs-search"
   },
-  // Settings page
-  settings: {
-    panel: "test-genie-settings-panel",
-    warning: "test-genie-settings-warning",
-    saveButton: "test-genie-settings-save",
-    resetButton: "test-genie-settings-reset"
-  },
-  // Forms (used in Dashboard and Runs detail)
+  // Forms (used in Runs detail)
   forms: {
-    queueForm: "test-genie-queue-form",
     executionForm: "test-genie-execution-form",
-    submitQueue: "test-genie-submit-queue",
     submitExecution: "test-genie-submit-execution"
   },
   // Actions
   actions: {
-    queueTests: "test-genie-action-queue-tests",
     runTests: "test-genie-action-run-tests",
-    viewScenario: "test-genie-action-view-scenario",
-    copyPrompt: "test-genie-action-copy-prompt"
+    viewScenario: "test-genie-action-view-scenario"
   }
 } satisfies LiteralSelectorTree;
 
 const dynamicSelectorDefinitions = {
-  /*
-  Example dynamic selectors:
   scenarios: {
-    rowByName: defineDynamicSelector({
-      description: 'Scenario row by name',
-      testIdPattern: 'test-genie-scenario-row-${name}',
-      params: { name: { type: 'string' } },
-    }),
+    rowByName: {
+      kind: "dynamic-selector",
+      description: "Scenario directory row by scenario name",
+      testIdPattern: "test-genie-scenario-row-${name}",
+      params: { name: { type: "string" } }
+    }
   },
-  */
 } satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);

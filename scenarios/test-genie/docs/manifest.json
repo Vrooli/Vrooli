@@ -30,7 +30,7 @@
       "icon": "sliders",
       "description": "Operator-facing environment variables and tuning levers",
       "documents": [
-        { "path": "configuration/tunable-levers.md", "title": "Tunable Levers", "description": "Runtime, queue, CLI, and playbooks controls" }
+        { "path": "configuration/tunable-levers.md", "title": "Tunable Levers", "description": "Runtime, CLI, and playbooks controls" }
       ]
     },
     {
@@ -76,11 +76,10 @@
       "description": "In-depth guides for testing workflows",
       "documents": [
         { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the descriptor-backed phase architecture" },
-        { "path": "guides/test-generation.md", "title": "Test Generation", "description": "AI-powered test generation with Test Genie" },
+        { "path": "guides/test-generation.md", "title": "Evidence-Driven Remediation", "description": "Findings-first remediation with Test Genie" },
         { "path": "guides/ui-testability.md", "title": "Writing Testable UIs", "description": "Design UIs for browser automation" },
         { "path": "guides/custom-presets.md", "title": "Custom Presets", "description": "Create tailored test presets for CI/CD" },
         { "path": "guides/dashboard-guide.md", "title": "Dashboard Guide", "description": "Using the web dashboard UI" },
-        { "path": "guides/vault-testing.md", "title": "Vault Testing", "description": "Multi-phase lifecycle validation" },
         { "path": "guides/sync-execution.md", "title": "Synchronous Execution", "description": "Blocking test execution for agents" },
         { "path": "guides/validation-best-practices.md", "title": "Validation Best Practices", "description": "Quality validation guidelines" },
         { "path": "guides/end-to-end-example.md", "title": "End-to-End Example", "description": "Complete PRD to coverage walkthrough" },
@@ -100,7 +99,6 @@
         { "path": "reference/requirement-schema.md", "title": "Requirement Schema", "description": "JSON schema for requirement registry" },
         { "path": "reference/gaming-prevention.md", "title": "Gaming Prevention", "description": "Test integrity detection system" },
         { "path": "reference/examples.md", "title": "Gold Standard Examples", "description": "Exemplary testing implementations" },
-        { "path": "reference/sync-execution-cheatsheet.md", "title": "Sync Execution Cheatsheet", "description": "Quick reference for sync API" },
         { "path": "reference/vitest-requirement-reporter.md", "title": "Vitest Requirement Reporter", "description": "Custom reporter for requirement coverage tracking" },
         { "path": "reference/workflow-runner.md", "title": "Workflow Runner", "description": "Generic BAS workflow execution infrastructure" }
       ]

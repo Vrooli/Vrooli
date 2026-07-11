@@ -44,30 +44,30 @@ func TestExecuteCarriesDurableRunEvidence(t *testing.T) {
 	}
 }
 
-func TestGenerateCarriesActionEvidence(t *testing.T) {
+func TestRemediateCarriesActionEvidence(t *testing.T) {
 	group := Register(deps.Runtime{})
 
-	var generate *cliapp.Command
+	var remediate *cliapp.Command
 	for i := range group.Commands {
-		if group.Commands[i].Name == "generate" {
-			generate = &group.Commands[i]
+		if group.Commands[i].Name == "remediate" {
+			remediate = &group.Commands[i]
 			break
 		}
 	}
-	if generate == nil {
-		t.Fatalf("suites group has no generate command")
+	if remediate == nil {
+		t.Fatalf("suites group has no remediate command")
 	}
 
-	if generate.PrimitiveEvidence() != cliapp.PrimitiveAction {
-		t.Fatalf("generate observed evidence = %q, want action", generate.PrimitiveEvidence())
+	if remediate.PrimitiveEvidence() != cliapp.PrimitiveAction {
+		t.Fatalf("remediate observed evidence = %q, want action", remediate.PrimitiveEvidence())
 	}
-	if generate.Architecture.Primitive != cliapp.PrimitiveAction {
-		t.Fatalf("generate declared primitive = %q, want action", generate.Architecture.Primitive)
+	if remediate.Architecture.Primitive != cliapp.PrimitiveAction {
+		t.Fatalf("remediate declared primitive = %q, want action", remediate.Architecture.Primitive)
 	}
-	if generate.RunCtx == nil {
-		t.Fatalf("generate must use the RunCtx primitive path")
+	if remediate.RunCtx == nil {
+		t.Fatalf("remediate must use the RunCtx primitive path")
 	}
-	if generate.Run != nil {
-		t.Fatalf("generate should not keep a legacy Run handler")
+	if remediate.Run != nil {
+		t.Fatalf("remediate should not keep a legacy Run handler")
 	}
 }

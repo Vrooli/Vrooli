@@ -9,7 +9,7 @@ flowchart TB
     subgraph External["External Sources"]
         cli["vrooli CLI"]
         fs["Filesystem"]
-        db["PostgreSQL"]
+        db["SQLite"]
     end
 
     subgraph Scenarios["scenarios/"]
@@ -46,7 +46,7 @@ flowchart TB
 scenarios/
 ├── scenario_directory_service.go      # Orchestrates catalog lookups
 ├── scenario_directory_service_test.go
-├── scenario_directory_repository.go   # PostgreSQL persistence
+├── scenario_directory_repository.go   # SQLite execution-history projection
 ├── scenario_directory_repository_test.go
 ├── scenario_lister.go                 # Vrooli CLI integration
 ├── testing_capabilities.go            # Filesystem detection
@@ -59,7 +59,7 @@ scenarios/
 
 ### ScenarioSummary
 
-Aggregates queue and execution telemetry for a single scenario:
+Aggregates execution telemetry for a single scenario:
 
 ```go
 type ScenarioSummary struct {
@@ -67,8 +67,6 @@ type ScenarioSummary struct {
     ScenarioDescription string                 // From CLI metadata
     ScenarioStatus      string                 // From CLI metadata
     ScenarioTags        []string               // From CLI metadata
-    PendingRequests     int                    // Queued/delegated count
-    TotalRequests       int                    // All-time requests
     TotalExecutions     int                    // All-time executions
     LastExecutionAt     *time.Time             // Most recent run
     LastExecutionSuccess *bool                 // Pass/fail status
@@ -180,4 +178,3 @@ The runner:
 
 - [API README](../../README.md) — HTTP layer & endpoints
 - [Execution README](../execution/README.md) — Execution state management
-- [Queue README](../queue/README.md) — Suite request lifecycle

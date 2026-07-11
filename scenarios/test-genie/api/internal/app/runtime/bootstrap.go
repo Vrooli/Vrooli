@@ -14,13 +14,11 @@ import (
 	appvalidation "test-genie/internal/app/validation"
 	"test-genie/internal/eligibility"
 	"test-genie/internal/execution"
-	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/playbooksclaims"
-	"test-genie/internal/queue"
+	"test-genie/internal/remediation"
 	"test-genie/internal/requirements"
-	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/selfhealthsnapshots"
@@ -33,23 +31,22 @@ import (
 
 // Bootstrapped holds the concrete dependencies needed by the HTTP server.
 type Bootstrapped struct {
-	DB                         *database.RoutedDB
-	SuiteRequests              *queue.SuiteRequestService
-	ExecutionRepo              *execution.SuiteExecutionRepository
-	ExecutionHistory           execution.ExecutionHistory
-	ExecutionService           *execution.SuiteExecutionService
-	ExecutionPlanner           execution.ExecutionPlanner
-	RunManager                 *runmanager.Manager
-	ScenarioService            *scenarios.ScenarioDirectoryService
-	PhaseCatalog               phaseCatalogProvider
-	AgentService               *agentmanager.AgentService
-	FixService                 *fix.Service
-	RequirementsImproveService *requirementsimprove.Service
-	RequirementsSyncer         *RequirementsSyncerAdapter
-	PlaybooksClaims            *playbooksclaims.Service
-	EligibilityService         *appelig.Service
-	RunsService                *apprun.Service
-	ValidationService          *appvalidation.Service
+	DB                  *database.RoutedDB
+	ExecutionRepo       *execution.SuiteExecutionRepository
+	ExecutionHistory    execution.ExecutionHistory
+	ExecutionService    *execution.SuiteExecutionService
+	ExecutionPlanner    execution.ExecutionPlanner
+	RunManager          *runmanager.Manager
+	ScenarioService     *scenarios.ScenarioDirectoryService
+	PhaseCatalog        phaseCatalogProvider
+	AgentService        *agentmanager.AgentService
+	RemediationService  *remediation.Service
+	RemediationLauncher remediation.Launcher
+	RequirementsSyncer  *RequirementsSyncerAdapter
+	PlaybooksClaims     *playbooksclaims.Service
+	EligibilityService  *appelig.Service
+	RunsService         *apprun.Service
+	ValidationService   *appvalidation.Service
 }
 
 // RequirementsSyncerAdapter adapts the requirements.Service to a simple Sync interface.
@@ -100,8 +97,6 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		return nil, fmt.Errorf("failed to initialize orchestrator: %w", err)
 	}
 
-	suiteRequestRepo := queue.NewSQLiteSuiteRequestRepository(db)
-	suiteRequestService := queue.NewSuiteRequestService(suiteRequestRepo)
 	executionRepo := execution.NewSuiteExecutionRepository(db)
 	executionHistory := execution.NewExecutionHistoryService(executionRepo)
 	executionPlanner := execution.NewExecutionPlanService(runner, executionRepo)
@@ -109,7 +104,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	scenarioLister := scenarios.NewVrooliScenarioLister()
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
 
-	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo, suiteRequestService)
+	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo)
 
 	// The run manager owns durable run execution decoupled from any client
 	// request: it is the single engine every door (blocking REST, SSE gateway,
@@ -189,11 +184,8 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		}()
 	}
 
-	// Create fix service (for agent-based test fixing)
-	fixService := fix.NewService(agentService)
-
-	// Create requirements improve service (for agent-based requirements improvement)
-	reqImproveService := requirementsimprove.NewService(agentService)
+	remediationService := remediation.NewService(remediation.NewSQLiteRepository(db), nil)
+	remediationLauncher := remediation.NewAgentManagerAdapter(agentService)
 
 	// Create requirements syncer
 	reqSyncer := &RequirementsSyncerAdapter{
@@ -201,22 +193,21 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	}
 
 	return &Bootstrapped{
-		DB:                         db,
-		SuiteRequests:              suiteRequestService,
-		ExecutionRepo:              executionRepo,
-		ExecutionHistory:           executionHistory,
-		ExecutionService:           executionSvc,
-		ExecutionPlanner:           executionPlanner,
-		RunManager:                 runManager,
-		ScenarioService:            scenarioService,
-		PhaseCatalog:               runner,
-		AgentService:               agentService,
-		FixService:                 fixService,
-		RequirementsImproveService: reqImproveService,
-		RequirementsSyncer:         reqSyncer,
-		PlaybooksClaims:            claimsService,
-		EligibilityService:         eligibilityService,
-		RunsService:                runsService,
-		ValidationService:          validationService,
+		DB:                  db,
+		ExecutionRepo:       executionRepo,
+		ExecutionHistory:    executionHistory,
+		ExecutionService:    executionSvc,
+		ExecutionPlanner:    executionPlanner,
+		RunManager:          runManager,
+		ScenarioService:     scenarioService,
+		PhaseCatalog:        runner,
+		AgentService:        agentService,
+		RemediationService:  remediationService,
+		RemediationLauncher: remediationLauncher,
+		RequirementsSyncer:  reqSyncer,
+		PlaybooksClaims:     claimsService,
+		EligibilityService:  eligibilityService,
+		RunsService:         runsService,
+		ValidationService:   validationService,
 	}, nil
 }

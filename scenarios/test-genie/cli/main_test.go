@@ -17,7 +17,7 @@ import (
 	"connectrpc.com/connect"
 
 	"test-genie/cli/execute"
-	"test-genie/cli/generate"
+	"test-genie/cli/remediate"
 
 	"github.com/vrooli/cli-core/cliutil"
 
@@ -154,30 +154,30 @@ func TestBuildAPIBaseOptionsUsesPortEnv(t *testing.T) {
 	}
 }
 
-func TestGenerateCommandSendsRequest(t *testing.T) {
+func TestRemediateCommandSendsEvidenceSelectors(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/health":
 			fmt.Fprintf(w, `{"status":"ok","service":"test-genie"}`)
 			return
-		case "/api/v1/suite-requests":
+		case "/api/v1/scenarios/demo/remediation/jobs":
 		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		body, _ := io.ReadAll(r.Body)
 		defer r.Body.Close()
-		if !bytes.Contains(body, []byte(`"coverageTarget":80`)) {
-			t.Fatalf("expected coverage in payload, got %s", string(body))
+		if !bytes.Contains(body, []byte(`"sourceExecutionId":"00000000-0000-0000-0000-000000000001"`)) || !bytes.Contains(body, []byte(`"findingIds":["afid:1"]`)) || !bytes.Contains(body, []byte(`"roleRef":"code.default"`)) {
+			t.Fatalf("expected remediation selectors in payload, got %s", string(body))
 		}
-		fmt.Fprintf(w, `{"id":"1","scenarioName":"demo","status":"queued","requestedTypes":["unit"]}`)
+		fmt.Fprintf(w, `{"id":"1","scenario":"demo","status":"running"}`)
 	}))
 	defer server.Close()
 
 	t.Setenv("TEST_GENIE_API_BASE", server.URL)
 	app := newTestApp(t)
 
-	if err := app.Run([]string{"generate", "demo", "--coverage", "80", "--types", "unit"}); err != nil {
-		t.Fatalf("generate failed: %v", err)
+	if err := app.Run([]string{"remediate", "demo", "--execution", "00000000-0000-0000-0000-000000000001", "--findings", "afid:1", "--role", "code.default"}); err != nil {
+		t.Fatalf("remediate failed: %v", err)
 	}
 }
 
@@ -224,7 +224,7 @@ func TestStatusCommandRequestsHealth(t *testing.T) {
 		if r.URL.Path != "/health" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		fmt.Fprintf(w, `{"status":"ok","service":"test-genie","version":"1.0","dependencies":{"db":"up"},"operations":{"queue":{"pending":0,"queued":1,"delegated":0,"running":0,"failed":0,"oldestQueuedAgeSeconds":0}}}`)
+		fmt.Fprintf(w, `{"status":"ok","service":"test-genie","version":"1.0","dependencies":{"db":"up"}}`)
 	}))
 	defer server.Close()
 
@@ -251,15 +251,15 @@ func TestExecuteCommandHelpDoesNotCallAPI(t *testing.T) {
 	}
 }
 
-func TestGenerateCommandHelpDoesNotCallAPI(t *testing.T) {
+func TestRemediateCommandHelpDoesNotCallAPI(t *testing.T) {
 	app := newTestApp(t)
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"generate", "--help"}); err != nil {
-			t.Fatalf("generate help failed: %v", err)
+		if err := app.Run([]string{"remediate", "--help"}); err != nil {
+			t.Fatalf("remediate help failed: %v", err)
 		}
 	})
-	if !strings.Contains(output, generate.UsageLine) {
-		t.Fatalf("expected generate help output, got %s", output)
+	if !strings.Contains(output, remediate.UsageLine) {
+		t.Fatalf("expected remediate help output, got %s", output)
 	}
 }
 

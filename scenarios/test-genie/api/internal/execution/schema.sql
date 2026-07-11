@@ -11,7 +11,8 @@
 
 CREATE TABLE IF NOT EXISTS suite_executions (
     id TEXT PRIMARY KEY,
-    suite_request_id TEXT REFERENCES suite_requests(id) ON DELETE SET NULL,
+	-- Durable run artifact identity; required to reload immutable findings and descriptor snapshots.
+    run_id TEXT,
     scenario_name TEXT NOT NULL,
     preset_used TEXT,
     requested_preset TEXT,

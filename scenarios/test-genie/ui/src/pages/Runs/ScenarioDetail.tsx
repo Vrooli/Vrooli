@@ -1,22 +1,20 @@
-import { useId, useMemo, useState, useCallback } from "react";
-import { ArrowLeft, Bot } from "lucide-react";
+import { useId, useMemo, useCallback } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { MessagePopover } from "../../components/ui/MessagePopover";
 import { Breadcrumb } from "../../components/layout/Breadcrumb";
 import { ScenarioDetailTabNav } from "../../components/layout/ScenarioDetailTabNav";
 import { StatusPill } from "../../components/cards/StatusPill";
-import { PhaseResultCardSelectable } from "../../components/cards/PhaseResultCardSelectable";
-import { FixAgentStatusCard } from "../../components/cards/FixAgentStatusCard";
+import { PhaseResultCard } from "../../components/cards/PhaseResultCard";
+import { RemediationPanel } from "../../components/remediation/RemediationPanel";
 import { ExecutionForm } from "../../components/forms/ExecutionForm";
 import { ExecutionTimeline } from "../../components/history/ExecutionTimeline";
 import { RequirementsPanel } from "../../components/requirements";
 import { selectors } from "../../consts/selectors";
 import { useScenarios } from "../../hooks/useScenarios";
 import { useScenarioHistory } from "../../hooks/useExecutions";
-import { useFix } from "../../hooks/useFix";
 import { useUIStore } from "../../stores/uiStore";
 import { formatRelative } from "../../lib/formatters";
-import type { FixPhaseInfo, SuiteExecutionResult } from "../../lib/api";
+import type { SuiteExecutionResult } from "../../lib/api";
 
 interface ScenarioDetailProps {
   scenarioName: string;
@@ -58,9 +56,7 @@ export function ScenarioDetail({ scenarioName }: ScenarioDetailProps) {
     { label: scenarioName }
   ];
 
-  const status = scenario?.pendingRequests && scenario.pendingRequests > 0
-    ? "queued"
-    : scenario?.lastExecutionSuccess === false
+  const status = scenario?.lastExecutionSuccess === false
       ? "failed"
       : scenario?.lastExecutionSuccess === true
         ? "passed"
@@ -107,14 +103,10 @@ export function ScenarioDetail({ scenarioName }: ScenarioDetailProps) {
             )}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 text-center">
+          <div className="grid gap-3 sm:grid-cols-2 text-center">
             <div className="rounded-xl border border-white/5 bg-black/30 p-3">
               <p className="text-2xl font-semibold">{scenario?.totalExecutions ?? 0}</p>
               <p className="text-xs text-slate-400">Total runs</p>
-            </div>
-            <div className="rounded-xl border border-white/5 bg-black/30 p-3">
-              <p className="text-2xl font-semibold">{scenario?.pendingRequests ?? 0}</p>
-              <p className="text-xs text-slate-400">Pending</p>
             </div>
             <div className="rounded-xl border border-white/5 bg-black/30 p-3">
               <p className="text-2xl font-semibold">
@@ -178,79 +170,6 @@ interface OverviewTabProps {
 }
 
 function OverviewTab({ scenario, scenarioName, scenarioOptions, datalistId, onExecutionSuccess }: OverviewTabProps) {
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedPhases, setSelectedPhases] = useState<string[]>([]);
-  const [fixMessage, setFixMessage] = useState("");
-  const [dismissedFixId, setDismissedFixId] = useState<string | null>(null);
-
-  const { activeFix, isActive, spawn, stop, isSpawning, isStopping } = useFix(scenarioName);
-
-  // Get failed phases
-  const failedPhases = useMemo(() => {
-    if (!scenario?.lastExecutionPhases) return [];
-    return scenario.lastExecutionPhases.filter((p) => p.status !== "passed");
-  }, [scenario?.lastExecutionPhases]);
-
-  const hasFailedPhases = failedPhases.length > 0;
-
-  // Initialize selected phases when entering selection mode
-  const enterSelectionMode = useCallback(() => {
-    // Pre-select all failed phases
-    setSelectedPhases(failedPhases.map((p) => p.name));
-    setIsSelectionMode(true);
-  }, [failedPhases]);
-
-  const exitSelectionMode = useCallback(() => {
-    setIsSelectionMode(false);
-    setSelectedPhases([]);
-    setFixMessage("");
-  }, []);
-
-  const togglePhase = useCallback((phaseName: string) => {
-    setSelectedPhases((prev) =>
-      prev.includes(phaseName)
-        ? prev.filter((p) => p !== phaseName)
-        : [...prev, phaseName]
-    );
-  }, []);
-
-  const handleStartFix = useCallback(async () => {
-    if (selectedPhases.length === 0 || !scenario?.lastExecutionPhases) return;
-
-    // Build phase info from selected phases
-    const phases: FixPhaseInfo[] = scenario.lastExecutionPhases
-      .filter((p) => selectedPhases.includes(p.name))
-      .map((p) => ({
-        name: p.name,
-        status: p.status,
-        error: p.error,
-        durationSeconds: p.durationSeconds,
-        logPath: p.logPath
-      }));
-
-    try {
-      await spawn(phases, fixMessage || undefined);
-      exitSelectionMode();
-    } catch (err) {
-      console.error("Failed to spawn fix agent:", err);
-    }
-  }, [selectedPhases, scenario?.lastExecutionPhases, spawn, fixMessage, exitSelectionMode]);
-
-  const handleStopFix = useCallback(() => {
-    if (activeFix?.id) {
-      stop(activeFix.id);
-    }
-  }, [activeFix?.id, stop]);
-
-  const handleDismissFix = useCallback(() => {
-    if (activeFix?.id) {
-      setDismissedFixId(activeFix.id);
-    }
-  }, [activeFix?.id]);
-
-  // Show fix status card if there's an active fix (and it hasn't been dismissed)
-  const showFixStatus = isActive && activeFix && activeFix.id !== dismissedFixId;
-
   return (
     <div className="space-y-6">
       {/* Latest Execution Summary */}
@@ -266,65 +185,21 @@ function OverviewTab({ scenario, scenarioName, scenarioOptions, datalistId, onEx
               </h2>
             </div>
 
-            {/* Fix with AI button / Selection mode actions */}
-            {!isSelectionMode && hasFailedPhases && !isActive && (
-              <Button
-                variant="outline"
-                onClick={enterSelectionMode}
-                data-testid={selectors.runs.fixWithAiButton}
-              >
-                <Bot className="mr-2 h-4 w-4" />
-                Fix with AI
-              </Button>
-            )}
-            {isSelectionMode && (
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={exitSelectionMode}>
-                  Cancel
-                </Button>
-                <MessagePopover
-                  message={fixMessage}
-                  onChange={setFixMessage}
-                  disabled={isSpawning}
-                  placeholder="Add context for the fix agent..."
-                  data-testid={selectors.runs.fixMessagePopover}
-                />
-                <Button
-                  onClick={handleStartFix}
-                  disabled={selectedPhases.length === 0 || isSpawning}
-                  data-testid={selectors.runs.startFixButton}
-                >
-                  {isSpawning ? "Starting..." : `Start Fix (${selectedPhases.length} phase${selectedPhases.length !== 1 ? "s" : ""})`}
-                </Button>
-              </div>
-            )}
           </div>
 
           {/* Phase grid with selection support */}
           <div className="mt-4 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
             {scenario.lastExecutionPhases.map((phase) => (
-              <PhaseResultCardSelectable
+              <PhaseResultCard
                 key={phase.name}
                 phase={phase}
-                selectable={isSelectionMode}
-                selected={selectedPhases.includes(phase.name)}
-                disabled={phase.status === "passed"}
-                onToggle={() => togglePhase(phase.name)}
               />
             ))}
           </div>
         </section>
       )}
 
-      {/* Fix Agent Status */}
-      {showFixStatus && (
-        <FixAgentStatusCard
-          fix={activeFix}
-          onStop={handleStopFix}
-          onDismiss={handleDismissFix}
-          isStopping={isStopping}
-        />
-      )}
+      <RemediationPanel scenarioName={scenarioName} executionId={scenario?.lastExecutionId} />
 
       {/* Run Tests Form */}
       <ExecutionForm
@@ -344,7 +219,7 @@ interface HistoryTabProps {
   historyFetching: boolean;
   refetchHistory: () => void;
   applyFocusScenario: (scenario: string) => void;
-  setExecutionForm: (form: { scenarioName: string; preset: string; failFast: boolean; suiteRequestId: string }) => void;
+  setExecutionForm: (form: { scenarioName: string; preset: string; failFast: boolean }) => void;
 }
 
 function HistoryTab({
@@ -360,8 +235,7 @@ function HistoryTab({
     setExecutionForm({
       scenarioName: execution.scenarioName,
       preset: execution.preset ?? "quick",
-      failFast: true,
-      suiteRequestId: execution.suiteRequestId ?? ""
+      failFast: true
     });
   }, [applyFocusScenario, setExecutionForm]);
 

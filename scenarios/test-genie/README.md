@@ -12,16 +12,16 @@ make start
 # Run tests for any scenario
 test-genie execute my-scenario --preset comprehensive
 
-# View results
-test-genie status --executions
+# Wait for the durable run printed by execute
+test-genie runs wait --json --timeout=840 my-scenario <run-id>
 ```
 
 ## What Test Genie Does
 
 - **Executes tests** via a descriptor-backed health-provider phase pipeline
 - **Tracks requirements** by auto-syncing `[REQ:ID]` tags from test results
-- **Provides APIs** for agent automation (REST + CLI)
-- **Queues test generation** requests for downstream AI agents
+- **Turns completed execution evidence into ranked remediation jobs**
+- **Delegates agent policy and protected-workspace execution to Agent Manager**
 
 ## Architecture
 
@@ -71,14 +71,14 @@ test-genie execute <scenario> [--preset quick|smoke|comprehensive] [--fail-fast]
 # Check status
 test-genie status [--executions] [--verbose]
 
-# Queue test generation (delegates to AI agents)
-test-genie generate <scenario> --types unit,integration
+# Launch one remediation job from completed execution evidence
+test-genie remediate <scenario> --execution <uuid> --findings afid:example --role code.default
 
 # Trigger the scenario-local runner
 test-genie run-tests <scenario> [--type phased]
 
-# Run only the shared UI smoke harness
-test-genie ui-smoke <scenario>
+# Inspect the live descriptor-backed phase plan
+test-genie phases --help
 ```
 
 ## REST API
@@ -105,6 +105,12 @@ curl "http://localhost:${API_PORT}/api/v1/executions?scenario=my-scenario&limit=
 
 # Get phase catalog
 curl "http://localhost:${API_PORT}/api/v1/phases"
+
+# Inspect a completed run's remediation plan, then create one job from stable IDs
+curl "http://localhost:${API_PORT}/api/v1/scenarios/my-scenario/remediation/plans/<execution-uuid>"
+curl -X POST "http://localhost:${API_PORT}/api/v1/scenarios/my-scenario/remediation/jobs" \
+  -H "Content-Type: application/json" \
+  -d '{"sourceExecutionId":"<execution-uuid>","findingIds":["afid:example"],"roleRef":"code.default"}'
 ```
 
 See [docs/reference/api-endpoints.md](docs/reference/api-endpoints.md) for complete API reference.

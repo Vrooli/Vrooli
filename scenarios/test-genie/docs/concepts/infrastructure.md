@@ -20,7 +20,7 @@ api/
 │   ├── requirements/      # Requirements sync engine
 │   └── workspace.go       # Scenario workspace management
 ├── execution/             # Execution history and tracking
-├── queue/                 # Suite request queue
+├── remediation/           # Immutable evidence and verified remediation jobs
 └── scenarios/             # Scenario catalog and discovery
 ```
 

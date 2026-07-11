@@ -174,21 +174,6 @@ func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) (*wireSt
 	return &result, nil
 }
 
-type ensureProfileDefaults struct {
-	Name                 string `json:"name"`
-	ProfileKey           string `json:"profile_key"`
-	Description          string `json:"description,omitempty"`
-	RunnerType           int    `json:"runner_type,omitempty"`
-	MaxTurns             int    `json:"max_turns,omitempty"`
-	SkipPermissionPrompt bool   `json:"skip_permission_prompt,omitempty"`
-}
-
-type ensureProfileRequest struct {
-	ProfileKey     string                 `json:"profile_key"`
-	Defaults       *ensureProfileDefaults `json:"defaults,omitempty"`
-	UpdateExisting bool                   `json:"update_existing"`
-}
-
 // ReconcileProfiles applies Git Control Tower's manifest-declared profile source.
 func (c *AgentManagerClient) ReconcileProfiles(ctx context.Context) error {
 	var result struct {

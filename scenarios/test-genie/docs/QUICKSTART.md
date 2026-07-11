@@ -35,9 +35,9 @@ test-genie execute my-scenario --preset comprehensive
 **Via API:**
 ```bash
 API_PORT=$(vrooli scenario port test-genie API_PORT)
-curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
+curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
-  -d '{"preset": "comprehensive"}'
+  -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
 ```
 
 **Via Dashboard:**
@@ -50,7 +50,7 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute
 Results are available via:
 - **Dashboard** - Visual results with phase breakdowns
 - **API** - `GET /api/v1/executions/{id}`
-- **CLI** - `test-genie status --executions`
+- **CLI** - `test-genie runs list my-scenario`
 
 ## Test Presets
 
@@ -117,7 +117,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 
 ### Guides (How-To)
 - [Phased Testing](guides/phased-testing.md) - Understanding the descriptor-backed phase architecture
-- [Test Generation](guides/test-generation.md) - AI-powered test creation
+- [Evidence-Driven Remediation](guides/test-generation.md) - Act on completed execution findings
 - [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests
 - [UI Testability](guides/ui-testability.md) - Design testable UIs
@@ -128,7 +128,6 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [CLI Manifest Contract](phases/structure/cli-approaches.md) - Manifest-driven scenario CLI adapter patterns
 - [Custom Presets](guides/custom-presets.md) - Create tailored test presets for CI/CD
 - [Dashboard Guide](guides/dashboard-guide.md) - Using the web dashboard UI
-- [Vault Testing](guides/vault-testing.md) - Multi-phase lifecycle validation
 - [Sync Execution](guides/sync-execution.md) - Blocking execution for agents
 - [Validation Best Practices](guides/validation-best-practices.md) - Quality validation guidelines
 - [End-to-End Example](guides/end-to-end-example.md) - Complete PRD to coverage walkthrough
@@ -151,13 +150,18 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 
 ## Common Tasks
 
-### Generate Tests for a New Scenario
+### Remediate Findings from a Completed Run
 
 ```bash
-test-genie generate my-scenario --types unit,integration
+test-genie remediate my-scenario \
+  --execution <execution-uuid> \
+  --findings <stable-finding-id> \
+  --role code.default
 ```
 
-See [Test Generation Guide](guides/test-generation.md).
+Test Genie stores the selected run evidence, asks Agent Manager to perform the
+scoped work, then verifies the outcome with a server-owned rerun. See [Test
+Generation Guide](guides/test-generation.md).
 
 ### Track Requirements from Tests
 
@@ -178,17 +182,17 @@ test-genie execute my-scenario --preset comprehensive
 
 See [Requirements Sync Guide](phases/business/requirements-sync.md).
 
-### Use Sync Execution for CI/Agents
+### Wait for a Server-Owned Execution in CI/Agents
 
 ```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
-  -H "Content-Type: application/json" \
-  -d '{"preset": "smoke", "failFast": true}'
+test-genie execute my-scenario --preset smoke
+test-genie runs wait --json --timeout=840 my-scenario <run-id>
 ```
 
-Returns complete results in a single blocking request.
+The durable execution survives a disconnected caller. Wait once using the run ID
+printed by `execute` instead of relying on a blocking HTTP request.
 
-See [Sync Execution Guide](guides/sync-execution.md) and [Cheatsheet](reference/sync-execution-cheatsheet.md).
+See the [Server-Owned Execution Guide](guides/sync-execution.md).
 
 ## Troubleshooting
 

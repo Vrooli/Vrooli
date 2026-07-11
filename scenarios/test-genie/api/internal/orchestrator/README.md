@@ -77,7 +77,6 @@ Output of an execution:
 ```go
 type SuiteExecutionResult struct {
     ExecutionID    uuid.UUID              // Assigned after persistence
-    SuiteRequestID *uuid.UUID             // Linked queue request (if any)
     ScenarioName   string
     StartedAt      time.Time
     CompletedAt    time.Time

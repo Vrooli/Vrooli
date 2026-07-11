@@ -4,17 +4,11 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 
 ## Primary seams
 
-### Queue staleness policy
-
-- Package: `api/internal/queue`
-- Surface: `ActiveQueueWindow()` plus repository-owned snapshot logic
-- Why it exists: queue telemetry needs a policy boundary for "active" vs "stale" queued work. The HTTP layer and CLI should consume that decision, not invent their own filters.
-
 ### Scenario summary projection
 
 - Package: `api/internal/scenarios`
 - Surface: `ScenarioDirectoryRepository`
-- Why it exists: scenario catalog views should summarize queue and execution state without coupling callers to raw SQL or raw queue rows. The repository now shares the same active-queue cutoff as queue telemetry.
+- Why it exists: scenario catalog views summarize durable execution evidence without coupling callers to raw SQL rows.
 
 ### Execution bootstrap
 
@@ -81,14 +75,8 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 ### HTTP transport adapters
 
 - Package: `api/internal/app/httpserver`
-- Surface: handler interfaces such as suite queue, execution service, and scenario directory service
+- Surface: handler interfaces such as execution service and scenario directory service
 - Why it exists: handlers should be testable with stubs and should not own domain rules.
-
-### Generation phase control surface
-
-- Package: `ui/src/pages/Generate`
-- Surface: `PHASES_FOR_GENERATION` plus task-specific copy overrides in `PhaseSelector`
-- Why it exists: the generation UI only exposes a small, intentional set of phase levers. Labels, descriptions, and button states should come from one control surface so the dialog, selector, and tests do not drift.
 
 ### Phase command executors
 
@@ -104,7 +92,6 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 
 ## What should not become a seam
 
-- Queue stale filtering in the CLI. That belongs in persistence/repository code.
 - Playbooks observer-mode detection in raw workflow execution. That belongs in registry data and orchestration setup.
 - A second registry schema in the CLI. The command should delegate to the shared builder.
 - An implicit Test Genie WebSocket endpoint in integration checks. Real-time agent updates come from `agent-manager`, so Test Genie's core integration phase should not assume an internal socket exists.

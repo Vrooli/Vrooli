@@ -31,19 +31,6 @@ async function parseResponse(res: Response): Promise<unknown> {
   return payload;
 }
 
-export interface QueueSnapshot {
-  total: number;
-  queued: number;
-  delegated: number;
-  running: number;
-  completed: number;
-  failed: number;
-  pending: number;
-  timestamp: string;
-  oldestQueuedAt?: string;
-  oldestQueuedAgeSeconds?: number;
-}
-
 export interface PhaseSummary {
   total: number;
   passed: number;
@@ -60,7 +47,75 @@ export interface PhaseExecutionResult {
   error?: string;
   classification?: string;
   remediation?: string;
-  observations?: string[];
+  runnabilityVerdict?: string;
+  runnabilityReason?: string;
+  findingSource?: string;
+  findings?: Finding[];
+  observations?: Array<{ type?: string; message?: string }>;
+}
+
+export interface Finding {
+  stableId: string;
+  code: string;
+  source?: string;
+  severity: string;
+  class: string;
+  locations?: string[];
+  domains?: string[];
+  message?: string;
+  suggestion?: string;
+  effort?: string;
+  phase: string;
+  gating: boolean;
+  occurrences?: Array<{ phase: string; locations?: string[] }>;
+}
+
+export interface RemediationPhase {
+  name: string;
+  displayName?: string;
+  provider?: string;
+  docsPath?: string;
+  status: string;
+  runnabilityVerdict?: string;
+  runnabilityReason?: string;
+  remediation?: string;
+  maturityStanding?: string;
+  resultGating?: string;
+}
+
+export interface RemediationBundle {
+  id: string;
+  reason: string;
+  findingIds: string[];
+  phaseNames: string[];
+  rank: number;
+  gating: boolean;
+}
+
+export interface RemediationPlan {
+  sourceExecutionId: string;
+  sourceRunId: string;
+  scenario: string;
+  createdAt: string;
+  phases: RemediationPhase[];
+  findings: Finding[];
+  bundles: RemediationBundle[];
+	  requirements?: Array<{ id: string; title: string; description?: string; status?: string; liveStatus?: string; criticality?: string; validations?: string[] }>;
+  degraded: boolean;
+  degradedReasons?: string[];
+}
+
+export interface RemediationJob {
+  id: string;
+  scenario: string;
+  status: "created" | "running" | "agent_completed" | "verification_running" | "verified" | "failed" | "cancelled" | "degraded";
+  source: RemediationPlan;
+  selectedFindingIds: string[];
+	  selectedRequirementIds?: string[];
+  additionalContext?: string;
+  attribution?: { taskId?: string; runId?: string; roleRef?: string; resolvedProfile?: string; outputReference?: string };
+  verification?: { executionId?: string; runId?: string; completedAt?: string; degraded?: string; delta?: { resolved?: string[]; remaining?: string[]; new?: string[]; changedSeverity?: string[]; skipped?: string[]; unverifiable?: string[] } };
+  failure?: string;
 }
 
 export interface PhaseDescriptor {
@@ -110,8 +165,8 @@ export interface ExecutionPlanPreview {
 }
 
 export interface SuiteExecutionResult {
-  executionId?: string;
-  suiteRequestId?: string;
+	  executionId?: string;
+	  runId?: string;
   scenarioName: string;
   startedAt: string;
   completedAt: string;
@@ -126,7 +181,6 @@ export interface ApiHealthResponse {
   service: string;
   timestamp: string;
   operations?: {
-    queue?: QueueSnapshot;
     lastExecution?: {
       executionId?: string;
       scenario: string;
@@ -139,35 +193,12 @@ export interface ApiHealthResponse {
   };
 }
 
-export interface SuiteRequest {
-  id: string;
-  scenarioName: string;
-  requestedTypes: string[];
-  coverageTarget: number;
-  priority: string;
-  status: string;
-  notes?: string;
-  delegationIssueId?: string;
-  createdAt: string;
-  updatedAt: string;
-  estimatedQueueTimeSeconds?: number;
-}
-
-export interface QueueSuiteRequestInput {
-  scenarioName: string;
-  requestedTypes: string[];
-  coverageTarget: number;
-  priority: string;
-  notes?: string;
-}
-
 export interface ExecuteSuiteInput {
   scenarioName: string;
   preset?: string;
   phases?: string[];
   skip?: string[];
   failFast?: boolean;
-  suiteRequestId?: string;
 }
 
 export interface ScenarioSummary {
@@ -175,14 +206,6 @@ export interface ScenarioSummary {
   scenarioDescription?: string;
   scenarioStatus?: string;
   scenarioTags?: string[];
-  pendingRequests: number;
-  totalRequests: number;
-  lastRequestAt?: string;
-  lastRequestPriority?: string;
-  lastRequestStatus?: string;
-  lastRequestNotes?: string;
-  lastRequestCoverageTarget?: number;
-  lastRequestTypes?: string[];
   totalExecutions: number;
   lastExecutionAt?: string;
   lastExecutionId?: string;
@@ -375,16 +398,6 @@ export async function getSelfHealth(options: GetSelfHealthOptions = {}): Promise
   return {};
 }
 
-export async function fetchSuiteRequests(): Promise<SuiteRequest[]> {
-  const url = buildTestGenieApiUrl("/suite-requests");
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  const payload = await parseResponse<{ items: SuiteRequest[]; count: number }>(res);
-  return payload.items ?? [];
-}
-
 export async function fetchExecutionHistory(params?: {
   scenario?: string;
   limit?: number;
@@ -410,16 +423,6 @@ export async function fetchExecutionHistory(params?: {
   });
   const payload = await parseResponse<{ items: SuiteExecutionResult[]; count: number }>(res);
   return payload.items ?? [];
-}
-
-export async function queueSuiteRequest(input: QueueSuiteRequestInput): Promise<SuiteRequest> {
-  const url = buildTestGenieApiUrl("/suite-requests");
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input)
-  });
-  return parseResponse<SuiteRequest>(res);
 }
 
 export async function triggerSuiteExecution(input: ExecuteSuiteInput): Promise<SuiteExecutionResult> {
@@ -484,6 +487,43 @@ export async function fetchScenarioSummary(name: string): Promise<ScenarioSummar
     return null;
   }
   return parseResponse<ScenarioSummary>(res);
+}
+
+export async function fetchRemediationPlan(name: string, executionId: string): Promise<RemediationPlan> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}/remediation/plans/${encodeURIComponent(executionId)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, cache: "no-store" });
+  return parseResponse<RemediationPlan>(res);
+}
+
+export async function fetchRemediationJobs(name: string): Promise<RemediationJob[]> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}/remediation/jobs`, { baseUrl: API_BASE });
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, cache: "no-store" });
+  const payload = await parseResponse<{ items: RemediationJob[] }>(res);
+  return payload.items ?? [];
+}
+
+export async function createRemediationJob(name: string, input: { sourceExecutionId: string; findingIds: string[]; requirementIds?: string[]; roleRef: string; additionalContext?: string }): Promise<RemediationJob> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}/remediation/jobs`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  return parseResponse<RemediationJob>(res);
+}
+
+export async function cancelRemediationJob(name: string, id: string): Promise<RemediationJob> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}/remediation/jobs/${encodeURIComponent(id)}/cancel`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" } });
+  return parseResponse<RemediationJob>(res);
+}
+
+export async function refreshRemediationAgent(name: string, id: string): Promise<RemediationJob> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}/remediation/jobs/${encodeURIComponent(id)}/agent-status`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" } });
+  return parseResponse<RemediationJob>(res);
+}
+
+export async function verifyRemediationJob(name: string, id: string): Promise<RemediationJob> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}/remediation/jobs/${encodeURIComponent(id)}/verify`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" } });
+  return parseResponse<RemediationJob>(res);
 }
 
 // Requirements types
@@ -668,66 +708,6 @@ export interface AgentRole {
   source?: string;
 }
 
-export interface SpawnAgentsRequest {
-  prompts: string[];
-  preamble?: string;          // Immutable safety preamble (server validates this)
-  roleRef: string;
-  concurrency?: number;
-  maxTurns?: number;
-  timeoutSeconds?: number;
-  allowedTools?: string[];
-  skipPermissions?: boolean;
-  scenario?: string;
-  scope?: string[];
-  phases?: string[];
-  networkEnabled?: boolean;   // Enable network access for agents (default: false)
-}
-
-export interface SpawnAgentsResult {
-  promptIndex: number;
-  agentId?: string;
-  status: string;
-  sessionId?: string;
-  output?: string;
-  error?: string;
-}
-
-export interface SpawnAgentsResponse {
-  batchId: string;
-  items: SpawnAgentsResult[];
-  count: number;
-  capped?: boolean;
-  errors?: string[];
-}
-
-export interface ActiveAgent {
-  id: string;
-  runId?: string;
-  sessionId?: string;
-  scenario?: string;
-  scope?: string[];
-  phases?: string[];
-  model?: string;
-  status: "pending" | "running" | "completed" | "failed" | "timeout" | "stopped";
-  startedAt?: string;
-  completedAt?: string;
-  output?: string;
-  error?: string;
-  tokensUsed?: number;
-  costEstimate?: number;
-}
-
-export interface ActiveAgentsResponse {
-  items: ActiveAgent[];
-  count: number;
-}
-
-export interface BlockedCommandsResponse {
-  blockedPatterns: Array<{ pattern: string; description: string }>;
-  safeDefaults: string[];
-  safeBashPatterns: string[];
-}
-
 export async function fetchAgentRoles(): Promise<AgentRole[]> {
   const url = buildApiUrl("/agents/roles", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -736,101 +716,6 @@ export async function fetchAgentRoles(): Promise<AgentRole[]> {
   });
   const payload = await parseResponse<{ items: AgentRole[]; count: number }>(res);
   return payload.items ?? [];
-}
-
-export async function spawnAgents(payload: SpawnAgentsRequest): Promise<SpawnAgentsResponse> {
-  const url = buildApiUrl("/agents/spawn", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  return parseResponse<SpawnAgentsResponse>(res);
-}
-
-export async function fetchActiveAgents(includeAll = false): Promise<ActiveAgentsResponse> {
-  const url = buildApiUrl("/agents/active", { baseUrl: API_BASE });
-  const finalUrl = includeAll ? `${url}?all=true` : url;
-  const res = await fetch(finalUrl, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<ActiveAgentsResponse>(res);
-}
-
-export async function fetchAgent(id: string): Promise<ActiveAgent> {
-  const url = buildApiUrl(`/agents/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<ActiveAgent>(res);
-}
-
-export async function stopAgent(id: string): Promise<{ message: string; agent: ActiveAgent }> {
-  const url = buildApiUrl(`/agents/${encodeURIComponent(id)}/stop`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" }
-  });
-  return parseResponse<{ message: string; agent: ActiveAgent }>(res);
-}
-
-export interface StopAllAgentsResponse {
-  message: string;
-  stoppedCount: number;
-  stoppedIds: string[];
-}
-
-export async function stopAllAgents(): Promise<StopAllAgentsResponse> {
-  const url = buildApiUrl("/agents/stop-all", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" }
-  });
-  return parseResponse<StopAllAgentsResponse>(res);
-}
-
-export async function fetchBlockedCommands(): Promise<BlockedCommandsResponse> {
-  const url = buildApiUrl("/agents/blocked-commands", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<BlockedCommandsResponse>(res);
-}
-
-// Agent-manager integration
-
-export interface AgentManagerStatus {
-  enabled: boolean;
-  healthy: boolean;
-  url?: string;
-  profileId?: string;
-  error?: string;
-}
-
-export async function fetchAgentManagerStatus(): Promise<AgentManagerStatus> {
-  const url = buildApiUrl("/agents/status", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<AgentManagerStatus>(res);
-}
-
-export interface AgentManagerWSUrlResponse {
-  url: string;
-  enabled: boolean;
-}
-
-export async function fetchAgentManagerWSUrl(): Promise<AgentManagerWSUrlResponse> {
-  const url = buildApiUrl("/agents/ws-url", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<AgentManagerWSUrlResponse>(res);
 }
 
 // ========================================
@@ -843,10 +728,6 @@ export interface AppConfig {
   testGenieCLI: string;
   scenariosPath: string;
   timestamp: string;
-  securityModel: string;
-  directoryScoping: boolean;
-  pathValidation: boolean;
-  bashAllowlistOnly: boolean;
 }
 
 let cachedConfig: AppConfig | null = null;
@@ -1059,256 +940,6 @@ export function parseAgentStructuredOutput(output: string): AgentStructuredOutpu
 export function hasStructuredOutput(output: string): boolean {
   if (!output) return false;
   return /```json\s*\{[\s\S]*\}\s*```/.test(output);
-}
-
-// ========================================
-// Fix API (agent-based test fixing)
-// ========================================
-
-export type FixStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
-
-export interface FixPhaseInfo {
-  name: string;
-  status: string;
-  error?: string;
-  durationSeconds?: number;
-  logPath?: string;
-}
-
-export interface FixRecord {
-  id: string;
-  scenarioName: string;
-  phases: FixPhaseInfo[];
-  message?: string;
-  status: FixStatus;
-  runId?: string;
-  tag?: string;
-  startedAt: string;
-  completedAt?: string;
-  output?: string;
-  error?: string;
-}
-
-export interface SpawnFixRequest {
-  phases: FixPhaseInfo[];
-  message?: string;
-}
-
-export interface SpawnFixResponse {
-  fixId: string;
-  runId?: string;
-  tag: string;
-  status: FixStatus;
-  error?: string;
-}
-
-export interface ListFixesResponse {
-  items: FixRecord[];
-  count: number;
-}
-
-export interface ActiveFixResponse {
-  active: boolean;
-  fix?: FixRecord;
-}
-
-export async function spawnFix(
-  scenarioName: string,
-  phases: FixPhaseInfo[],
-  message?: string
-): Promise<SpawnFixResponse> {
-  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fix`, { baseUrl: API_BASE });
-  const body: SpawnFixRequest = { phases };
-  if (message) {
-    body.message = message;
-  }
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  return parseResponse<SpawnFixResponse>(res);
-}
-
-export async function fetchFix(scenarioName: string, fixId: string): Promise<FixRecord> {
-  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fixes/${encodeURIComponent(fixId)}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<FixRecord>(res);
-}
-
-export async function fetchFixes(scenarioName: string): Promise<ListFixesResponse> {
-  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fixes`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<ListFixesResponse>(res);
-}
-
-export async function fetchActiveFix(scenarioName: string): Promise<ActiveFixResponse> {
-  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fixes/active`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<ActiveFixResponse>(res);
-}
-
-export async function stopFix(scenarioName: string, fixId: string): Promise<{ success: boolean; message: string }> {
-  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fixes/${encodeURIComponent(fixId)}/stop`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" }
-  });
-  return parseResponse<{ success: boolean; message: string }>(res);
-}
-
-// =============================================================================
-// REQUIREMENTS IMPROVE API
-// =============================================================================
-
-export type ImproveActionType = "write_tests" | "update_requirements" | "both";
-export type ImproveStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
-
-export interface RequirementValidationInfo {
-  type: string;
-  ref: string;
-  phase?: string;
-  status: string;
-  liveStatus: string;
-}
-
-export interface RequirementImproveInfo {
-  id: string;
-  title: string;
-  description?: string;
-  status: string;
-  liveStatus: string;
-  criticality?: string;
-  modulePath: string;
-  validations?: RequirementValidationInfo[];
-}
-
-export interface RequirementsImproveRecord {
-  id: string;
-  scenarioName: string;
-  requirements: RequirementImproveInfo[];
-  actionType: ImproveActionType;
-  message?: string;
-  status: ImproveStatus;
-  runId?: string;
-  tag?: string;
-  startedAt: string;
-  completedAt?: string;
-  output?: string;
-  error?: string;
-}
-
-export interface SpawnRequirementsImproveRequest {
-  requirements: RequirementImproveInfo[];
-  actionType: ImproveActionType;
-  message?: string;
-}
-
-export interface SpawnRequirementsImproveResponse {
-  improveId: string;
-  runId?: string;
-  tag: string;
-  status: ImproveStatus;
-  error?: string;
-}
-
-export interface ListRequirementsImprovesResponse {
-  items: RequirementsImproveRecord[];
-  count: number;
-}
-
-export interface ActiveRequirementsImproveResponse {
-  active: boolean;
-  improve?: RequirementsImproveRecord;
-}
-
-export async function spawnRequirementsImprove(
-  scenarioName: string,
-  requirements: RequirementImproveInfo[],
-  actionType: ImproveActionType,
-  message?: string
-): Promise<SpawnRequirementsImproveResponse> {
-  const url = buildApiUrl(
-    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve`,
-    { baseUrl: API_BASE }
-  );
-  const body: SpawnRequirementsImproveRequest = { requirements, actionType };
-  if (message) {
-    body.message = message;
-  }
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  return parseResponse<SpawnRequirementsImproveResponse>(res);
-}
-
-export async function fetchRequirementsImprove(
-  scenarioName: string,
-  improveId: string
-): Promise<RequirementsImproveRecord> {
-  const url = buildApiUrl(
-    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve/${encodeURIComponent(improveId)}`,
-    { baseUrl: API_BASE }
-  );
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<RequirementsImproveRecord>(res);
-}
-
-export async function fetchRequirementsImproves(
-  scenarioName: string
-): Promise<ListRequirementsImprovesResponse> {
-  const url = buildApiUrl(
-    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve`,
-    { baseUrl: API_BASE }
-  );
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<ListRequirementsImprovesResponse>(res);
-}
-
-export async function fetchActiveRequirementsImprove(
-  scenarioName: string
-): Promise<ActiveRequirementsImproveResponse> {
-  const url = buildApiUrl(
-    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve/active`,
-    { baseUrl: API_BASE }
-  );
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return parseResponse<ActiveRequirementsImproveResponse>(res);
-}
-
-export async function stopRequirementsImprove(
-  scenarioName: string,
-  improveId: string
-): Promise<{ success: boolean; message: string }> {
-  const url = buildApiUrl(
-    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve/${encodeURIComponent(improveId)}/stop`,
-    { baseUrl: API_BASE }
-  );
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" }
-  });
-  return parseResponse<{ success: boolean; message: string }>(res);
 }
 
 // PlaybooksClaim mirrors the API's claimDTO (playbooks_claims_handlers.go):

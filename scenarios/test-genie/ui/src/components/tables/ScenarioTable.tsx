@@ -6,13 +6,12 @@ import { selectors } from "../../consts/selectors";
 import { formatRelative } from "../../lib/formatters";
 import type { ScenarioDirectoryEntry } from "../../hooks/useScenarios";
 
-type SortField = "name" | "status" | "pending" | "lastRun" | "lastFailure";
+type SortField = "name" | "status" | "lastRun" | "lastFailure";
 type SortDirection = "asc" | "desc";
 
 interface ScenarioTableProps {
   scenarios: ScenarioDirectoryEntry[];
   onScenarioClick: (scenarioName: string) => void;
-  onQueueClick: (scenario: ScenarioDirectoryEntry) => void;
   onRunClick: (scenario: ScenarioDirectoryEntry) => void;
   isLoading?: boolean;
 }
@@ -20,7 +19,6 @@ interface ScenarioTableProps {
 export function ScenarioTable({
   scenarios,
   onScenarioClick,
-  onQueueClick,
   onRunClick,
   isLoading
 }: ScenarioTableProps) {
@@ -46,9 +44,6 @@ export function ScenarioTable({
           break;
         case "status":
           comparison = (a.scenarioStatus ?? "").localeCompare(b.scenarioStatus ?? "");
-          break;
-        case "pending":
-          comparison = a.pendingRequests - b.pendingRequests;
           break;
         case "lastRun":
           comparison = (a.lastExecutionAt ?? "").localeCompare(b.lastExecutionAt ?? "");
@@ -122,14 +117,6 @@ export function ScenarioTable({
               </th>
               <th
                 className="px-4 py-3 cursor-pointer hover:text-white"
-                onClick={() => toggleSort("pending")}
-              >
-                <span className="flex items-center gap-1">
-                  Pending <SortIcon field="pending" />
-                </span>
-              </th>
-              <th
-                className="px-4 py-3 cursor-pointer hover:text-white"
                 onClick={() => toggleSort("lastRun")}
               >
                 <span className="flex items-center gap-1">
@@ -150,14 +137,14 @@ export function ScenarioTable({
           <tbody>
             {isLoading && filteredAndSorted.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-center text-slate-400" colSpan={6}>
+                <td className="px-4 py-6 text-center text-slate-400" colSpan={5}>
                   Loading scenarios...
                 </td>
               </tr>
             )}
             {!isLoading && filteredAndSorted.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-center text-slate-400" colSpan={6}>
+                <td className="px-4 py-6 text-center text-slate-400" colSpan={5}>
                   {search
                     ? `No scenarios match "${search}"`
                     : "No scenarios have been tracked yet. Run tests to populate this table."}
@@ -167,6 +154,7 @@ export function ScenarioTable({
             {filteredAndSorted.map((scenario) => (
               <tr
                 key={scenario.scenarioName}
+                data-testid={scenario.scenarioName === "test-genie" ? selectors.runs.testGenieScenario : `test-genie-scenario-row-${scenario.scenarioName}`}
                 className="border-t border-white/5 cursor-pointer hover:bg-white/5"
                 onClick={() => onScenarioClick(scenario.scenarioName)}
               >
@@ -180,15 +168,6 @@ export function ScenarioTable({
                 </td>
                 <td className="px-4 py-3">
                   <StatusPill status={scenario.scenarioStatus ?? "unknown"} />
-                </td>
-                <td className="px-4 py-3">
-                  {scenario.pendingRequests > 0 ? (
-                    <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs text-amber-100">
-                      {scenario.pendingRequests} pending
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-400">None</span>
-                  )}
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-300">
                   {scenario.lastExecutionAt
@@ -205,15 +184,7 @@ export function ScenarioTable({
                   >
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={() => onQueueClick(scenario)}
-                    >
-                      Queue
-                    </Button>
-                    <Button
-                      size="sm"
                       onClick={() => onRunClick(scenario)}
-                      disabled={!scenario.lastExecutionAt}
                     >
                       Run
                     </Button>

@@ -12,7 +12,6 @@ type Request struct {
 	Phases         []string `json:"phases,omitempty"`
 	Skip           []string `json:"skip,omitempty"`
 	FailFast       bool     `json:"failFast"`
-	SuiteRequestID string   `json:"suiteRequestId,omitempty"`
 
 	// DiagnosticsPreset ("none"|"light"|"full") overrides the playbooks
 	// diagnostics config for this run (richer BAS artifact capture).
@@ -67,7 +66,6 @@ type Response struct {
 	Success        bool           `json:"success"`
 	Verdict        string         `json:"verdict"`
 	ExecutionID    string         `json:"executionId"`
-	SuiteRequest   string         `json:"suiteRequestId"`
 	PresetUsed     string         `json:"presetUsed"`
 	StartedAt      string         `json:"startedAt"`
 	CompletedAt    string         `json:"completedAt"`

@@ -21,8 +21,8 @@
       "observed_primitive": "durable_run"
     },
     {
-      "path": "generate",
-      "command": "generate",
+      "path": "remediate",
+      "command": "remediate",
       "declared_primitive": "action",
       "observed_primitive": "action"
     },

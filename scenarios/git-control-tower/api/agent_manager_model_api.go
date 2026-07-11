@@ -10,8 +10,7 @@ type AgentProfile struct {
 	Key         string `json:"key,omitempty"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
-	Model       string `json:"model,omitempty"`
-	RunnerType  string `json:"runnerType,omitempty"`
+	RoleRef     string `json:"roleRef,omitempty"`
 }
 
 // AgentProfileListResponse wraps a list of profiles.

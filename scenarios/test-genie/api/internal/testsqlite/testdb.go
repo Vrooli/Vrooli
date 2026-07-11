@@ -64,11 +64,7 @@ func openRouted(t *testing.T, includeSeed bool) *database.RoutedDB {
 	if _, err := db.ExecContext(context.Background(), playbooksclaims.Schema()); err != nil {
 		t.Fatalf("apply playbooksclaims schema: %v", err)
 	}
-	if includeSeed {
-		if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "seed.sql")); err != nil {
-			t.Fatalf("apply sqlite seed: %v", err)
-		}
-	}
+	_ = includeSeed
 	return db
 }
 
@@ -99,11 +95,7 @@ func open(t *testing.T, includeSeed bool) *sql.DB {
 	if _, err := db.Exec(playbooksclaims.Schema()); err != nil {
 		t.Fatalf("apply playbooksclaims schema: %v", err)
 	}
-	if includeSeed {
-		if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "seed.sql")); err != nil {
-			t.Fatalf("apply sqlite seed: %v", err)
-		}
-	}
+	_ = includeSeed
 	return db
 }
 

@@ -183,9 +183,8 @@ type SuiteExecutionRequest struct {
 
 // SuiteExecutionResult captures the outcome of a run.
 type SuiteExecutionResult struct {
-	ExecutionID    uuid.UUID  `json:"executionId,omitempty"`
-	SuiteRequestID *uuid.UUID `json:"suiteRequestId,omitempty"`
-	RunID          string     `json:"runId,omitempty"`
+	ExecutionID uuid.UUID `json:"executionId,omitempty"`
+	RunID       string    `json:"runId,omitempty"`
 	// ArtifactDir is the stable, first-class run artifact root
 	// (coverage/runs/<runID>/) holding per-phase logs, validator JSON, and the
 	// findings document. Surfaced so a `--jsonl` consumer / TUI can locate a

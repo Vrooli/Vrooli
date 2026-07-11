@@ -21,16 +21,13 @@ import (
 	apprun "test-genie/internal/app/runs"
 	appvalidation "test-genie/internal/app/validation"
 	"test-genie/internal/execution"
-	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/playbooksclaims"
-	"test-genie/internal/queue"
-	"test-genie/internal/requirementsimprove"
+	"test-genie/internal/remediation"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
@@ -53,29 +50,21 @@ type Logger interface {
 
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
-	DB                         *database.RoutedDB
-	SuiteQueue                 suiteRequestQueue
-	Executions                 execution.ExecutionHistory
-	ExecutionPlanner           executionPlanner
-	RunManager                 *runmanager.Manager
-	Scenarios                  scenarioDirectory
-	PhaseCatalog               phaseCatalog
-	AgentService               *agentmanager.AgentService
-	FixService                 fixService
-	RequirementsImproveService requirementsImproveService
-	RequirementsSyncer         requirementsSyncer
-	PlaybooksClaims            *playbooksclaims.Service
-	EligibilityService         *appelig.Service
-	RunsService                *apprun.Service
-	ValidationService          *appvalidation.Service
-	Logger                     Logger
-}
-
-type suiteRequestQueue interface {
-	Queue(ctx context.Context, payload queue.QueueSuiteRequestInput) (*queue.SuiteRequest, error)
-	List(ctx context.Context, limit int) ([]queue.SuiteRequest, error)
-	Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error)
-	StatusSnapshot(ctx context.Context) (queue.SuiteRequestSnapshot, error)
+	DB                  *database.RoutedDB
+	Executions          execution.ExecutionHistory
+	ExecutionPlanner    executionPlanner
+	RunManager          *runmanager.Manager
+	Scenarios           scenarioDirectory
+	PhaseCatalog        phaseCatalog
+	AgentService        *agentmanager.AgentService
+	RemediationService  remediationService
+	RemediationLauncher remediation.Launcher
+	RequirementsSyncer  requirementsSyncer
+	PlaybooksClaims     *playbooksclaims.Service
+	EligibilityService  *appelig.Service
+	RunsService         *apprun.Service
+	ValidationService   *appvalidation.Service
+	Logger              Logger
 }
 
 type executionPlanner interface {
@@ -97,51 +86,47 @@ type phaseCatalog interface {
 	SaveGlobalPhaseToggles(orchestrator.PhaseToggleConfig) (orchestrator.PhaseToggleConfig, error)
 }
 
-type fixService interface {
-	Spawn(ctx context.Context, req fix.SpawnRequest) (*fix.SpawnResult, error)
-	Get(id string) (*fix.Record, bool)
-	ListByScenario(scenarioName string, limit int) []*fix.Record
-	GetActiveForScenario(scenarioName string) *fix.Record
-	Stop(ctx context.Context, id string) error
-	IsAgentAvailable(ctx context.Context) bool
-}
-
-type requirementsImproveService interface {
-	Spawn(ctx context.Context, req requirementsimprove.SpawnRequest) (*requirementsimprove.SpawnResult, error)
-	Get(id string) (*requirementsimprove.Record, bool)
-	ListByScenario(scenarioName string, limit int) []*requirementsimprove.Record
-	GetActiveForScenario(scenarioName string) *requirementsimprove.Record
-	Stop(ctx context.Context, id string) error
-	IsAgentAvailable(ctx context.Context) bool
-}
-
 type requirementsSyncer interface {
 	Sync(ctx context.Context, scenarioDir string) error
 }
 
+type remediationService interface {
+	Create(context.Context, remediation.Plan, []string, []string, string) (remediation.Job, error)
+	Get(context.Context, string) (remediation.Job, error)
+	List(context.Context, string, int) ([]remediation.Job, error)
+	Cancel(context.Context, string) (remediation.Job, error)
+	MarkRunning(context.Context, string, remediation.Attribution) (remediation.Job, error)
+	MarkAgentCompleted(context.Context, string, string) (remediation.Job, error)
+	StartVerification(context.Context, string, remediation.Verification) (remediation.Job, error)
+	ReserveVerification(context.Context, string) (remediation.Job, error)
+	SetVerificationRun(context.Context, string, remediation.Verification) (remediation.Job, error)
+	ReleaseVerificationReservation(context.Context, string) (remediation.Job, error)
+	CompleteVerification(context.Context, string, remediation.Verification, remediation.FindingDelta, string) (remediation.Job, error)
+	Fail(context.Context, string, string) (remediation.Job, error)
+}
+
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
 type Server struct {
-	config                     Config
-	db                         *database.RoutedDB
-	router                     *mux.Router
-	suiteRequests              suiteRequestQueue
-	executionHistory           execution.ExecutionHistory
-	executionPlanner           executionPlanner
-	runManager                 *runmanager.Manager
-	scenarios                  scenarioDirectory
-	phaseCatalog               phaseCatalog
-	logger                     Logger
-	agentService               *agentmanager.AgentService
-	fixService                 fixService
-	requirementsImproveService requirementsImproveService
-	requirementsSyncer         requirementsSyncer
-	playbooksClaims            *playbooksclaims.Service
-	eligibilityService         *appelig.Service
-	runsService                *apprun.Service
-	validationService          *appvalidation.Service
-	seedSessions               map[string]*seedSession
-	seedSessionsByScenario     map[string]string
-	seedSessionsMu             sync.Mutex
+	config                 Config
+	db                     *database.RoutedDB
+	router                 *mux.Router
+	executionHistory       execution.ExecutionHistory
+	executionPlanner       executionPlanner
+	runManager             *runmanager.Manager
+	scenarios              scenarioDirectory
+	phaseCatalog           phaseCatalog
+	logger                 Logger
+	agentService           *agentmanager.AgentService
+	remediationService     remediationService
+	remediationLauncher    remediation.Launcher
+	requirementsSyncer     requirementsSyncer
+	playbooksClaims        *playbooksclaims.Service
+	eligibilityService     *appelig.Service
+	runsService            *apprun.Service
+	validationService      *appvalidation.Service
+	seedSessions           map[string]*seedSession
+	seedSessionsByScenario map[string]string
+	seedSessionsMu         sync.Mutex
 }
 
 // New creates a configured HTTP server instance.
@@ -151,9 +136,6 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	}
 	if deps.DB == nil {
 		return nil, fmt.Errorf("database dependency is required")
-	}
-	if deps.SuiteQueue == nil {
-		return nil, fmt.Errorf("suite request service is required")
 	}
 	if deps.Executions == nil {
 		return nil, fmt.Errorf("execution history service is required")
@@ -180,26 +162,25 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	}
 
 	srv := &Server{
-		config:                     config,
-		db:                         deps.DB,
-		router:                     mux.NewRouter(),
-		suiteRequests:              deps.SuiteQueue,
-		executionHistory:           deps.Executions,
-		executionPlanner:           deps.ExecutionPlanner,
-		runManager:                 deps.RunManager,
-		scenarios:                  deps.Scenarios,
-		phaseCatalog:               deps.PhaseCatalog,
-		logger:                     logger,
-		agentService:               deps.AgentService,
-		fixService:                 deps.FixService,
-		requirementsImproveService: deps.RequirementsImproveService,
-		requirementsSyncer:         deps.RequirementsSyncer,
-		playbooksClaims:            deps.PlaybooksClaims,
-		eligibilityService:         deps.EligibilityService,
-		runsService:                deps.RunsService,
-		validationService:          deps.ValidationService,
-		seedSessions:               make(map[string]*seedSession),
-		seedSessionsByScenario:     make(map[string]string),
+		config:                 config,
+		db:                     deps.DB,
+		router:                 mux.NewRouter(),
+		executionHistory:       deps.Executions,
+		executionPlanner:       deps.ExecutionPlanner,
+		runManager:             deps.RunManager,
+		scenarios:              deps.Scenarios,
+		phaseCatalog:           deps.PhaseCatalog,
+		logger:                 logger,
+		agentService:           deps.AgentService,
+		remediationService:     deps.RemediationService,
+		remediationLauncher:    deps.RemediationLauncher,
+		requirementsSyncer:     deps.RequirementsSyncer,
+		playbooksClaims:        deps.PlaybooksClaims,
+		eligibilityService:     deps.EligibilityService,
+		runsService:            deps.RunsService,
+		validationService:      deps.ValidationService,
+		seedSessions:           make(map[string]*seedSession),
+		seedSessionsByScenario: make(map[string]string),
 	}
 
 	srv.setupRoutes()
@@ -215,9 +196,6 @@ func (s *Server) setupRoutes() {
 	apiRouter := s.router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/health", s.handleHealth).Methods("GET")
 	apiRouter.HandleFunc("/config", s.handleGetConfig).Methods("GET")
-	apiRouter.HandleFunc("/suite-requests", s.handleCreateSuiteRequest).Methods("POST")
-	apiRouter.HandleFunc("/suite-requests", s.handleListSuiteRequests).Methods("GET")
-	apiRouter.HandleFunc("/suite-requests/{id}", s.handleGetSuiteRequest).Methods("GET")
 	apiRouter.HandleFunc("/phases", s.handleListPhases).Methods("GET")
 	apiRouter.HandleFunc("/phases/applicability", s.handlePreviewPhaseApplicability).Methods("GET")
 	apiRouter.HandleFunc("/phases/settings", s.handleGetPhaseSettings).Methods("GET")
@@ -235,26 +213,17 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup", s.handlePlaybooksSeedCleanup).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup-force", s.handlePlaybooksSeedCleanupForce).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/files", s.handleListScenarioFiles).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/plans/{executionID}", s.handleGetRemediationPlan).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs", s.handleCreateRemediationJob).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs", s.handleListRemediationJobs).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}", s.handleGetRemediationJob).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/cancel", s.handleCancelRemediationJob).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/agent-status", s.handleRefreshRemediationAgent).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/verify", s.handleVerifyRemediationJob).Methods("POST")
 
-	// Agent routes (via agent-manager)
+	// Agent Manager exposes portable role choices. Remediation jobs are the only
+	// supported Test Genie surface that creates or controls agent runs.
 	apiRouter.HandleFunc("/agents/roles", s.handleListAgentRoles).Methods("GET")
-	apiRouter.HandleFunc("/agents/spawn", s.handleSpawnAgents).Methods("POST")
-	apiRouter.HandleFunc("/agents/active", s.handleListActiveAgents).Methods("GET")
-	apiRouter.HandleFunc("/agents/blocked-commands", s.handleGetBlockedCommands).Methods("GET")
-	apiRouter.HandleFunc("/agents/status", s.handleGetAgentManagerStatus).Methods("GET")
-	apiRouter.HandleFunc("/agents/ws-url", s.handleGetAgentManagerWSUrl).Methods("GET")
-	apiRouter.HandleFunc("/agents/{id}", s.handleGetAgent).Methods("GET")
-	apiRouter.HandleFunc("/agents/{id}/stop", s.handleStopAgent).Methods("POST")
-	apiRouter.HandleFunc("/agents/stop-all", s.handleStopAllAgents).Methods("POST")
-
-	// Fix routes (agent-based test fixing)
-	apiRouter.HandleFunc("/scenarios/{name}/fix", s.handleSpawnFix).Methods("POST")
-	// Deterministic fix (provider-driven autofix aggregate; dry-run by default)
-	apiRouter.HandleFunc("/scenarios/{name}/fix/deterministic", s.handleDeterministicFix).Methods("POST")
-	apiRouter.HandleFunc("/scenarios/{name}/fixes", s.handleListFixes).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/fixes/active", s.handleGetActiveFix).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/fixes/{id}", s.handleGetFix).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/fixes/{id}/stop", s.handleStopFix).Methods("POST")
 
 	// Docs endpoints for in-app documentation browser
 	apiRouter.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")
@@ -263,13 +232,6 @@ func (s *Server) setupRoutes() {
 	// Requirements endpoints for requirements sync UI
 	apiRouter.HandleFunc("/scenarios/{name}/requirements", s.handleGetScenarioRequirements).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/sync", s.handleSyncScenarioRequirements).Methods("POST")
-
-	// Requirements improve routes (agent-based requirements improvement)
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve", s.handleSpawnRequirementsImprove).Methods("POST")
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve", s.handleListRequirementsImproves).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/active", s.handleGetActiveRequirementsImprove).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}", s.handleGetRequirementsImprove).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}/stop", s.handleStopRequirementsImprove).Methods("POST")
 
 	// Workflow seed claim routes (legacy playbooks URL retained for clients)
 	apiRouter.HandleFunc("/playbooks/claims", s.handleListPlaybooksClaims).Methods("GET")

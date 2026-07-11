@@ -116,8 +116,6 @@ func (s *ScenarioDirectoryService) ListSummaries(ctx context.Context) ([]Scenari
 		}
 		summary := applyScenarioMetadata(ScenarioSummary{
 			ScenarioName:    name,
-			PendingRequests: 0,
-			TotalRequests:   0,
 			TotalExecutions: 0,
 		}, meta)
 		s.decorateScenario(&summary)
@@ -171,8 +169,6 @@ func (s *ScenarioDirectoryService) GetSummary(ctx context.Context, scenario stri
 
 	placeholder := applyScenarioMetadata(ScenarioSummary{
 		ScenarioName:    meta.Name,
-		PendingRequests: 0,
-		TotalRequests:   0,
 		TotalExecutions: 0,
 	}, *meta)
 	s.decorateScenario(&placeholder)

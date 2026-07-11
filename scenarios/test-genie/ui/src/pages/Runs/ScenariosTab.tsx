@@ -8,27 +8,11 @@ export function ScenariosTab() {
   const {
     navigateToScenarioDetail,
     applyFocusScenario,
-    setQueueForm,
     setExecutionForm,
-    setActiveTab
   } = useUIStore();
 
   const handleScenarioClick = (scenarioName: string) => {
     navigateToScenarioDetail(scenarioName);
-  };
-
-  const handleQueueClick = (scenario: ScenarioDirectoryEntry) => {
-    applyFocusScenario(scenario.scenarioName);
-    setQueueForm({
-      scenarioName: scenario.scenarioName,
-      requestedTypes: scenario.lastRequestTypes?.length
-        ? scenario.lastRequestTypes
-        : ["unit", "integration"],
-      coverageTarget: scenario.lastRequestCoverageTarget ?? 95,
-      priority: scenario.lastRequestPriority ?? "normal",
-      notes: scenario.lastRequestNotes ?? ""
-    });
-    setActiveTab("generate");
   };
 
   const handleRunClick = (scenario: ScenarioDirectoryEntry) => {
@@ -36,8 +20,7 @@ export function ScenariosTab() {
     setExecutionForm({
       scenarioName: scenario.scenarioName,
       preset: scenario.lastExecutionPreset ?? "quick",
-      failFast: true,
-      suiteRequestId: ""
+      failFast: true
     });
     // Navigate to scenario detail to show run form
     navigateToScenarioDetail(scenario.scenarioName);
@@ -56,7 +39,6 @@ export function ScenariosTab() {
       <ScenarioTable
         scenarios={scenarioDirectoryEntries}
         onScenarioClick={handleScenarioClick}
-        onQueueClick={handleQueueClick}
         onRunClick={handleRunClick}
         isLoading={isLoading}
       />

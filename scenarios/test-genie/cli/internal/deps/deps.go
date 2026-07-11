@@ -2,8 +2,8 @@ package deps
 
 import (
 	"test-genie/cli/execute"
-	"test-genie/cli/generate"
 	"test-genie/cli/playbooksseed"
+	"test-genie/cli/remediate"
 	"test-genie/cli/runlocal"
 	"test-genie/cli/status"
 
@@ -12,7 +12,7 @@ import (
 
 // Runtime contains the concrete clients needed by the CLI domains.
 type Runtime struct {
-	Generate   *generate.Client
+	Remediate  *remediate.Client
 	Execute    *execute.Client
 	RunLocal   *runlocal.Client
 	Seed       *playbooksseed.Client

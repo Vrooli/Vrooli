@@ -53,11 +53,9 @@ func TestExecutionHistoryService_LatestNilRepo(t *testing.T) {
 func TestExecutionHistoryService_GetProps(t *testing.T) {
 	id := uuid.New()
 	now := time.Now().UTC()
-	suiteID := uuid.New()
 	store := &stubExecutionRecordStore{
 		record: &SuiteExecutionRecord{
 			ID:                  id,
-			SuiteRequestID:      &suiteID,
 			ScenarioName:        "demo",
 			PresetUsed:          "quick",
 			RequestedPreset:     "quick",
@@ -75,8 +73,8 @@ func TestExecutionHistoryService_GetProps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if result == nil || result.SuiteRequestID == nil || *result.SuiteRequestID != suiteID {
-		t.Fatalf("expected suite request id to be preserved: %#v", result)
+	if result == nil {
+		t.Fatal("expected execution result")
 	}
 	if result.PresetUsed != "quick" {
 		t.Fatalf("expected preset to round-trip, got %s", result.PresetUsed)

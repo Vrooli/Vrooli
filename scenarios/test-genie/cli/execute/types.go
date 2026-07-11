@@ -23,7 +23,6 @@ type Args struct {
 	Phases                 []string
 	Skip                   []string
 	PhaseWarnings          []string
-	RequestID              string
 	DiagnosticsPreset      string
 	FailFast               bool
 	Wait                   bool // Force block-to-completion inline (CI / lifecycle); never auto-background

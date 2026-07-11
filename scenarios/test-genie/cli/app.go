@@ -3,9 +3,9 @@ package main
 import (
 	"test-genie/cli/domains"
 	"test-genie/cli/execute"
-	"test-genie/cli/generate"
 	"test-genie/cli/internal/deps"
 	"test-genie/cli/playbooksseed"
+	"test-genie/cli/remediate"
 	"test-genie/cli/runlocal"
 	"test-genie/cli/status"
 
@@ -49,7 +49,7 @@ func NewApp() (*App, error) {
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 			app.core = core
 			return domains.CommandGroups(deps.Runtime{
-				Generate:   generate.NewClient(core.APIClient),
+				Remediate:  remediate.NewClient(core.APIClient),
 				Execute:    execute.NewClient(core.APIClient, core.HTTPClient),
 				RunLocal:   runlocal.NewClient(core.APIClient),
 				Seed:       playbooksseed.NewClient(core.APIClient),

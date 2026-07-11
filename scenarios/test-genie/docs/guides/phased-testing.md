@@ -65,22 +65,25 @@ See [Presets Reference](../reference/presets.md) for detailed preset definitions
 
 ### Using the REST API
 
-For CI/CD and agent automation, use the synchronous execution API:
+For CI/CD and agent automation, create a server-owned execution and wait once
+for its durable result:
 
 ```bash
 # Get API port
 API_PORT=$(vrooli scenario port test-genie API_PORT)
 
 # Execute with comprehensive preset
-curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
+curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
   -d '{
+    "scenarioName": "my-scenario",
     "preset": "comprehensive",
     "failFast": true
   }'
 ```
 
-See [Sync Execution Guide](sync-execution.md) for complete API usage.
+Use the returned execution ID with the durable run protocol in the
+[Server-Owned Execution Guide](sync-execution.md).
 
 ### Using the Makefile
 

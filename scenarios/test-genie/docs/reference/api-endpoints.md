@@ -49,18 +49,6 @@ Returns infrastructure readiness plus operational telemetry.
     "database": "connected"
   },
   "operations": {
-    "queue": {
-      "total": 15,
-      "queued": 2,
-      "delegated": 1,
-      "running": 1,
-      "completed": 10,
-      "failed": 1,
-      "pending": 3,
-      "timestamp": "2025-01-15T10:30:00Z",
-      "oldestQueuedAt": "2025-01-15T10:25:00Z",
-      "oldestQueuedAgeSeconds": 300
-    },
     "lastExecution": {
       "executionId": "550e8400-e29b-41d4-a716-446655440000",
       "scenario": "my-scenario",
@@ -125,139 +113,35 @@ active-content sandbox headers.
 
 ---
 
-## Suite Requests
+## Remediation jobs
 
-Suite requests represent queued test generation jobs that may be delegated to downstream AI agents.
+Remediation starts from immutable execution evidence; it never accepts a
+free-form agent prompt or runtime-policy controls.
 
-### POST /api/v1/suite-requests
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/scenarios/{name}/remediation/plans/{executionId}` | Build stable-ID findings, requirement evidence, and cohesive bundles from a completed execution. |
+| `POST` | `/api/v1/scenarios/{name}/remediation/jobs` | Create and launch the one allowed active remediation job for the scenario. |
+| `GET` | `/api/v1/scenarios/{name}/remediation/jobs` | List durable job history and verification deltas. |
+| `GET` | `/api/v1/scenarios/{name}/remediation/jobs/{id}` | Read a job. |
+| `POST` | `/api/v1/scenarios/{name}/remediation/jobs/{id}/cancel` | Cancel an active job. |
+| `POST` | `/api/v1/scenarios/{name}/remediation/jobs/{id}/agent-status` | Reconcile Agent Manager's terminal status without resolving findings. |
+| `POST` | `/api/v1/scenarios/{name}/remediation/jobs/{id}/verify` | Start a server-owned verification rerun and persist its stable-ID delta. |
 
-Create a new test suite generation request.
+Create payload:
 
-**Request Body:**
 ```json
 {
-  "scenarioName": "my-scenario",
-  "requestedTypes": ["unit", "integration"],
-  "coverageTarget": 90,
-  "priority": "normal",
-  "notes": "Focus on API handler coverage"
+  "sourceExecutionId": "550e8400-e29b-41d4-a716-446655440000",
+  "findingIds": ["afid:contracts:missing-version"],
+  "requirementIds": ["REQ-001"],
+  "roleRef": "code.default",
+  "additionalContext": "Keep the public API compatible."
 }
 ```
 
-**Parameters:**
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `scenarioName` | string | Yes | - | Target scenario name |
-| `requestedTypes` | string[] | No | `["unit", "integration"]` | Test types to generate |
-| `coverageTarget` | int | No | `95` | Target coverage percentage (1-100) |
-| `priority` | string | No | `"normal"` | Queue priority |
-| `notes` | string | No | `""` | Additional context for generation |
-
-**Allowed Values:**
-
-| Field | Values |
-|-------|--------|
-| `requestedTypes` | `unit`, `integration`, `performance`, `vault`, `regression` |
-| `priority` | `low`, `normal`, `high`, `urgent` |
-
-**Response (201 Created):**
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "scenarioName": "my-scenario",
-  "requestedTypes": ["unit", "integration"],
-  "coverageTarget": 90,
-  "priority": "normal",
-  "status": "queued",
-  "notes": "Focus on API handler coverage",
-  "createdAt": "2025-01-15T10:30:00Z",
-  "updatedAt": "2025-01-15T10:30:00Z",
-  "estimatedQueueTimeSeconds": 150
-}
-```
-
-**Errors:**
-| Code | Cause |
-|------|-------|
-| 400 | Invalid JSON, missing scenarioName, invalid type/priority |
-
----
-
-### GET /api/v1/suite-requests
-
-List recent suite requests.
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `limit` | int | 50 | Maximum results (max 50) |
-
-**Response:**
-```json
-{
-  "items": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "scenarioName": "my-scenario",
-      "requestedTypes": ["unit", "integration"],
-      "coverageTarget": 90,
-      "priority": "normal",
-      "status": "completed",
-      "createdAt": "2025-01-15T10:30:00Z",
-      "updatedAt": "2025-01-15T10:35:00Z"
-    }
-  ],
-  "count": 1
-}
-```
-
-**Status Values:**
-| Status | Description |
-|--------|-------------|
-| `queued` | Waiting in queue |
-| `delegated` | Assigned to downstream agent |
-| `running` | Currently executing |
-| `completed` | Successfully finished |
-| `failed` | Execution failed |
-
----
-
-### GET /api/v1/suite-requests/{id}
-
-Get a specific suite request by ID.
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | UUID | Suite request identifier |
-
-**Response:**
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "scenarioName": "my-scenario",
-  "requestedTypes": ["unit", "integration"],
-  "coverageTarget": 90,
-  "priority": "normal",
-  "status": "running",
-  "notes": "Focus on API handler coverage",
-  "delegationIssueId": "12345",
-  "createdAt": "2025-01-15T10:30:00Z",
-  "updatedAt": "2025-01-15T10:32:00Z",
-  "estimatedQueueTimeSeconds": 150
-}
-```
-
-**Errors:**
-| Code | Cause |
-|------|-------|
-| 400 | Invalid UUID format |
-| 404 | Suite request not found |
-
----
+`prompts`, sandbox/tool/network settings, and provider runtime parameters are
+rejected. Agent Manager remains the policy owner.
 
 ## Test Execution
 
@@ -285,7 +169,6 @@ Resolve the actual phase plan and timing guidance for a request without running 
 | `phases` | string[] | No | all enabled phases | Explicit phase list; overrides `preset` |
 | `skip` | string[] | No | `[]` | Requested phase exclusions |
 | `failFast` | bool | No | `false` | Included for parity with the execute request surface |
-| `suiteRequestId` | UUID | No | - | Accepted but ignored by the planner |
 | `uiUrl` / `apiUrl` | string | No | auto-detected when possible | Runtime overrides for phases that depend on running services |
 | `scenarioPath` | string | No | resolved from scenario name | Absolute physical scenario directory to read and write |
 | `logicalRepoRoot` | string | No | none | Absolute repo root for repo-relative validation |
@@ -370,7 +253,6 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 ```json
 {
   "scenarioName": "my-scenario",
-  "suiteRequestId": "550e8400-e29b-41d4-a716-446655440000",
   "preset": "comprehensive",
   "phases": ["structure", "dependencies", "unit"],
   "skip": ["performance"],
@@ -383,7 +265,6 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `scenarioName` | string | Yes | - | Target scenario |
-| `suiteRequestId` | UUID | No | - | Link to queued request |
 | `preset` | string | No | `""` | Preset configuration |
 | `phases` | string[] | No | all | Phases to run |
 | `skip` | string[] | No | `[]` | Phases to skip |
@@ -456,7 +337,6 @@ Use `POST /api/v1/executions/plan` to see the actual selected phases, runtime es
 | Code | Cause |
 |------|-------|
 | 400 | Missing scenarioName, invalid preset/phase |
-| 404 | Suite request not found (if suiteRequestId provided) |
 | 500 | Execution service unavailable |
 
 ---
@@ -705,9 +585,8 @@ All errors follow this structure:
 | Error Message | Cause | Solution |
 |--------------|-------|----------|
 | `scenarioName is required` | Missing required field | Add scenarioName to request |
-| `requested type 'X' is not supported` | Invalid test type | Use: unit, integration, performance, vault, regression |
-| `priority 'X' is not supported` | Invalid priority | Use: low, normal, high, urgent |
-| `suite request id must be a valid UUID` | Invalid ID format | Provide valid UUID |
+| `invalid remediation selector` | An unknown source execution, finding, or requirement was selected | Reload the execution plan and select an offered stable ID |
+| `an active remediation job already exists` | The scenario already has work in progress | Observe, cancel, or verify the existing job first |
 | `execution service unavailable` | Service not running | Check test-genie status |
 
 ---
@@ -720,31 +599,22 @@ No rate limiting is currently enforced for local deployments.
 
 ## Example Workflows
 
-### Generate and Execute Tests
+### Execute, Remediate, and Verify
 
 ```bash
-# 1. Create suite request
-curl -X POST http://localhost:8080/api/v1/suite-requests \
-  -H "Content-Type: application/json" \
-  -d '{"scenarioName": "my-scenario", "requestedTypes": ["unit", "integration"]}'
-
-# Response includes ID: 550e8400-e29b-41d4-a716-446655440000
-
-# 2. Preview the actual plan and timing guidance
+# 1. Preview and execute a scenario suite
 curl -X POST http://localhost:8080/api/v1/executions/plan \
   -H "Content-Type: application/json" \
   -d '{
     "scenarioName": "my-scenario",
-    "suiteRequestId": "550e8400-e29b-41d4-a716-446655440000",
     "preset": "comprehensive"
   }'
 
-# 3. Execute the suite
+# 2. Use its completed execution UUID to create a remediation job.
 curl -X POST http://localhost:8080/api/v1/executions \
   -H "Content-Type: application/json" \
   -d '{
     "scenarioName": "my-scenario",
-    "suiteRequestId": "550e8400-e29b-41d4-a716-446655440000",
     "preset": "comprehensive"
   }'
 
@@ -783,6 +653,5 @@ curl -s http://localhost:8080/api/v1/phases | jq '.items[].name'
 
 - [CLI Commands](cli-commands.md) - CLI equivalents for all API operations
 - [Execution Configuration](configuration.md) - Timeouts, planning, and estimate behavior
-- [Sync Execution Guide](../guides/sync-execution.md) - Detailed sync endpoint usage
-- [Sync Execution Cheatsheet](sync-execution-cheatsheet.md) - Quick reference
+- [Server-Owned Execution Guide](../guides/sync-execution.md) - Durable execution and re-attach protocol
 - [Presets Reference](presets.md) - Preset definitions

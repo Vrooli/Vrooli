@@ -46,7 +46,7 @@ func (r *SuiteExecutionRepository) Create(ctx context.Context, record *SuiteExec
 	const q = `
 INSERT INTO suite_executions (
 	id,
-	suite_request_id,
+	run_id,
 	scenario_name,
 	preset_used,
 	requested_preset,
@@ -63,11 +63,6 @@ INSERT INTO suite_executions (
 	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`
 
-	var suiteRequestID any
-	if record.SuiteRequestID != nil {
-		suiteRequestID = record.SuiteRequestID.String()
-	}
-
 	// terminal_outcome is the run-level classification. A caller that did not
 	// set it (the normal completed-run path) gets passed/failed derived from
 	// the success flag; catastrophic callers set errored/aborted/timeout.
@@ -80,7 +75,7 @@ INSERT INTO suite_executions (
 		ctx,
 		q,
 		record.ID.String(),
-		suiteRequestID,
+		nullIfEmpty(record.RunID),
 		record.ScenarioName,
 		nullIfEmpty(record.PresetUsed),
 		nullIfEmpty(record.RequestedPreset),
@@ -108,7 +103,7 @@ func (r *SuiteExecutionRepository) ListRecent(ctx context.Context, scenario stri
 	baseQuery := `
 SELECT
 	id,
-	suite_request_id,
+	run_id,
 	scenario_name,
 	preset_used,
 	requested_preset,
@@ -154,7 +149,7 @@ func (r *SuiteExecutionRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 	const q = `
 SELECT
 	id,
-	suite_request_id,
+	run_id,
 	scenario_name,
 	preset_used,
 	requested_preset,
@@ -274,7 +269,7 @@ type rowScanner interface {
 func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) {
 	var record SuiteExecutionRecord
 	var rawID string
-	var rawSuite sql.NullString
+	var rawRun sql.NullString
 	var preset sql.NullString
 	var requestedPreset sql.NullString
 	var requestedPhases any
@@ -289,7 +284,7 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 
 	if err := scanner.Scan(
 		&rawID,
-		&rawSuite,
+		&rawRun,
 		&record.ScenarioName,
 		&preset,
 		&requestedPreset,
@@ -311,12 +306,10 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 		return record, err
 	}
 	record.ID = parsedID
-
-	if rawSuite.Valid {
-		if parsed, err := uuid.Parse(rawSuite.String); err == nil {
-			record.SuiteRequestID = &parsed
-		}
+	if rawRun.Valid {
+		record.RunID = rawRun.String
 	}
+
 	if preset.Valid {
 		record.PresetUsed = preset.String
 	}

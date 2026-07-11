@@ -18,15 +18,15 @@ import (
 // data-preserving substrate aligned with storage-steer's deferred
 // MigrationProvider direction (PRAGMA introspect → ALTER ADD COLUMN → backfill).
 func Migrate(ctx context.Context, db dbexec.Executor) error {
-	hasColumn, err := columnExists(ctx, db, "suite_executions", "terminal_outcome")
-	if err != nil {
-		return fmt.Errorf("introspect suite_executions: %w", err)
-	}
-	if !hasColumn {
-		// SQLite has no ADD COLUMN IF NOT EXISTS; the PRAGMA guard above is the
-		// idempotency check. Nullable column, no default, never a recreate.
-		if _, err := db.ExecContext(ctx, `ALTER TABLE suite_executions ADD COLUMN terminal_outcome TEXT`); err != nil {
-			return fmt.Errorf("add suite_executions.terminal_outcome: %w", err)
+	for _, column := range []string{"terminal_outcome", "run_id"} {
+		hasColumn, err := columnExists(ctx, db, "suite_executions", column)
+		if err != nil {
+			return fmt.Errorf("introspect suite_executions: %w", err)
+		}
+		if !hasColumn {
+			if _, err := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE suite_executions ADD COLUMN %s TEXT", column)); err != nil {
+				return fmt.Errorf("add suite_executions.%s: %w", column, err)
+			}
 		}
 	}
 	// Backfill rows that predate the column (or were written before it was

@@ -17,7 +17,6 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
-	"test-genie/internal/queue"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/shared"
@@ -28,66 +27,6 @@ import (
 	"github.com/vrooli/api-core/database"
 	apihealth "github.com/vrooli/api-core/health"
 )
-
-func TestServer_handleGetSuiteRequestSuccess(t *testing.T) {
-	id := uuid.New()
-	q := &stubSuiteQueue{
-		getResp: &queue.SuiteRequest{
-			ID:           id,
-			ScenarioName: "demo",
-			Status:       "queued",
-		},
-	}
-	server := &Server{
-		config:        Config{Port: "0"},
-		router:        mux.NewRouter(),
-		suiteRequests: q,
-		logger:        log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/suite-requests/"+id.String(), nil)
-	req = mux.SetURLVars(req, map[string]string{"id": id.String()})
-	rec := httptest.NewRecorder()
-
-	server.handleGetSuiteRequest(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
-	}
-
-	var payload queue.SuiteRequest
-	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.ID != id {
-		t.Fatalf("expected suite request %s, got %s", id, payload.ID)
-	}
-	if q.lastGet != id {
-		t.Fatalf("expected queue Get to receive %s, got %s", id, q.lastGet)
-	}
-}
-
-func TestServer_handleGetSuiteRequestNotFound(t *testing.T) {
-	q := &stubSuiteQueue{
-		getErr: sql.ErrNoRows,
-	}
-	server := &Server{
-		config:        Config{Port: "0"},
-		router:        mux.NewRouter(),
-		suiteRequests: q,
-		logger:        log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/suite-requests/123", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": uuid.NewString()})
-	rec := httptest.NewRecorder()
-
-	server.handleGetSuiteRequest(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d", rec.Code)
-	}
-}
 
 func TestServer_handleListScenarios(t *testing.T) {
 	scenarioSvc := &stubScenarioDirectory{
@@ -342,7 +281,7 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 	}{
 		{
 			name: "success",
-			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111","phases":["unit"],"failFast":true,"uiUrl":"http://localhost:35771","apiUrl":"http://localhost:17551"}`,
+			body: `{"scenarioName":"demo","phases":["unit"],"failFast":true,"uiUrl":"http://localhost:35771","apiUrl":"http://localhost:17551"}`,
 			executor: &stubSuiteExecutor{
 				result: &orchestrator.SuiteExecutionResult{
 					ExecutionID:  uuid.New(),
@@ -355,9 +294,6 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 			assert: func(t *testing.T, exec *stubSuiteExecutor) {
 				if exec.input.Request.ScenarioName != "demo" {
 					t.Fatalf("expected scenario demo, got %s", exec.input.Request.ScenarioName)
-				}
-				if exec.input.SuiteRequestID == nil {
-					t.Fatal("expected suite request ID to be set")
 				}
 				if exec.input.Request.UIURL != "http://localhost:35771" {
 					t.Fatalf("expected uiUrl to pass through, got %s", exec.input.Request.UIURL)
@@ -418,8 +354,8 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "invalid suite request id",
-			body:       `{"scenarioName":"demo","suiteRequestId":"not-a-uuid"}`,
+			name:       "retired suite request selector",
+			body:       `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111"}`,
 			executor:   &stubSuiteExecutor{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -428,9 +364,9 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 			// (500 + details), since the run is started decoupled and observed
 			// via the run manager rather than a synchronous Execute call.
 			name: "execution failure",
-			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111"}`,
+			body: `{"scenarioName":"demo"}`,
 			executor: &stubSuiteExecutor{
-				err: execution.ErrSuiteRequestNotFound,
+				err: errors.New("execution failed"),
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
@@ -519,19 +455,6 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 
 	mock.ExpectPing().WillReturnError(nil)
 
-	oldest := time.Now().Add(-2 * time.Minute)
-	q := &stubSuiteQueue{
-		snapshot: queue.SuiteRequestSnapshot{
-			Total:          5,
-			Queued:         3,
-			Delegated:      1,
-			Stale:          1,
-			Running:        1,
-			Completed:      0,
-			Failed:         0,
-			OldestQueuedAt: &oldest,
-		},
-	}
 	history := &fakeExecutionHistory{
 		latest: &orchestrator.SuiteExecutionResult{
 			ExecutionID:  uuid.New(),
@@ -546,7 +469,6 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 	server := &Server{
 		config:           Config{Port: "0", ServiceName: "Test Genie API"},
 		db:               database.NewFromPrimary(db),
-		suiteRequests:    q,
 		executionHistory: history,
 		logger:           log.New(io.Discard, "", 0),
 	}
@@ -587,16 +509,6 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected operations payload, got %#v", payload["operations"])
 	}
-	queuePayload, ok := operations["queue"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("expected queue payload, got %#v", operations)
-	}
-	if queuePayload["pending"].(float64) != 4 {
-		t.Fatalf("expected pending count 4, got %v", queuePayload["pending"])
-	}
-	if queuePayload["stale"].(float64) != 1 {
-		t.Fatalf("expected stale count 1, got %v", queuePayload["stale"])
-	}
 	executionPayload, ok := operations["lastExecution"].(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected last execution payload, got %#v", operations)
@@ -617,13 +529,11 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectPing().WillReturnError(errors.New("offline"))
-	q := &stubSuiteQueue{}
 	history := &fakeExecutionHistory{}
 
 	server := &Server{
 		config:           Config{Port: "0"},
 		db:               database.NewFromPrimary(db),
-		suiteRequests:    q,
 		executionHistory: history,
 		logger:           log.New(io.Discard, "", 0),
 	}
@@ -654,34 +564,6 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet mock expectations: %v", err)
 	}
-}
-
-type stubSuiteQueue struct {
-	getResp     *queue.SuiteRequest
-	getErr      error
-	lastGet     uuid.UUID
-	snapshot    queue.SuiteRequestSnapshot
-	snapshotErr error
-}
-
-func (s *stubSuiteQueue) Queue(ctx context.Context, payload queue.QueueSuiteRequestInput) (*queue.SuiteRequest, error) {
-	return nil, nil
-}
-
-func (s *stubSuiteQueue) List(ctx context.Context, limit int) ([]queue.SuiteRequest, error) {
-	return nil, nil
-}
-
-func (s *stubSuiteQueue) Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error) {
-	s.lastGet = id
-	return s.getResp, s.getErr
-}
-
-func (s *stubSuiteQueue) StatusSnapshot(ctx context.Context) (queue.SuiteRequestSnapshot, error) {
-	if s.snapshotErr != nil {
-		return queue.SuiteRequestSnapshot{}, s.snapshotErr
-	}
-	return s.snapshot, nil
 }
 
 type stubScenarioDirectory struct {

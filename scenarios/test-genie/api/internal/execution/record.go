@@ -12,7 +12,7 @@ import (
 // SuiteExecutionRecord captures a persisted execution outcome.
 type SuiteExecutionRecord struct {
 	ID                  uuid.UUID
-	SuiteRequestID      *uuid.UUID
+	RunID               string
 	ScenarioName        string
 	PresetUsed          string
 	RequestedPreset     string
@@ -36,6 +36,7 @@ type SuiteExecutionRecord struct {
 func (r SuiteExecutionRecord) ToExecutionResult() *orchestrator.SuiteExecutionResult {
 	result := &orchestrator.SuiteExecutionResult{
 		ExecutionID:         r.ID,
+		RunID:               r.RunID,
 		ScenarioName:        r.ScenarioName,
 		StartedAt:           r.StartedAt,
 		CompletedAt:         r.CompletedAt,
@@ -46,10 +47,6 @@ func (r SuiteExecutionRecord) ToExecutionResult() *orchestrator.SuiteExecutionRe
 		RequestedSkipPhases: append([]string(nil), r.RequestedSkipPhases...),
 		PlannedPhases:       append([]string(nil), r.PlannedPhases...),
 		FailFast:            r.FailFast,
-	}
-	if r.SuiteRequestID != nil {
-		id := *r.SuiteRequestID
-		result.SuiteRequestID = &id
 	}
 	if len(r.Phases) > 0 {
 		result.Phases = append([]orchestrator.PhaseExecutionResult(nil), r.Phases...)

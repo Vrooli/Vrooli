@@ -52,6 +52,9 @@ func buildSuiteExecutionInput(payload suiteExecutionPayload) (execution.SuiteExe
 	if scenario == "" {
 		return execution.SuiteExecutionInput{}, shared.NewValidationError("scenarioName is required")
 	}
+	if strings.TrimSpace(payload.SuiteRequestID) != "" {
+		return execution.SuiteExecutionInput{}, shared.NewValidationError("suiteRequestId has been removed; execute the scenario, then create a remediation job from its execution evidence")
+	}
 
 	request := orchestrator.SuiteExecutionRequest{
 		ScenarioName:           scenario,
@@ -68,19 +71,7 @@ func buildSuiteExecutionInput(payload suiteExecutionPayload) (execution.SuiteExe
 		LogicalScenarioRelPath: strings.TrimSpace(payload.LogicalScenarioRelPath),
 	}
 
-	var suiteRequestID *uuid.UUID
-	if id := strings.TrimSpace(payload.SuiteRequestID); id != "" {
-		parsed, err := uuid.Parse(id)
-		if err != nil {
-			return execution.SuiteExecutionInput{}, shared.NewValidationError("suiteRequestId must be a valid UUID")
-		}
-		suiteRequestID = &parsed
-	}
-
-	return execution.SuiteExecutionInput{
-		Request:        request,
-		SuiteRequestID: suiteRequestID,
-	}, nil
+	return execution.SuiteExecutionInput{Request: request}, nil
 }
 
 // handleExecuteSuite is the blocking REST adapter over the run manager: it

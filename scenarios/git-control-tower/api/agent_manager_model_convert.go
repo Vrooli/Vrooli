@@ -179,7 +179,6 @@ func wireProfileToAPI(w *wireAgentProfile) AgentProfile {
 		Key:         w.ProfileKey,
 		Name:        w.Name,
 		Description: w.Description,
-		Model:       w.Model,
-		RunnerType:  runnerTypeToString(w.RunnerType),
+		RoleRef:     w.RoleRef,
 	}
 }

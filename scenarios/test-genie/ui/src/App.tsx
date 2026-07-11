@@ -2,10 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TabNav } from "./components/layout/TabNav";
 import { DashboardPage } from "./pages/Dashboard";
 import { RunsPage } from "./pages/Runs";
-import { GeneratePage } from "./pages/Generate";
 import { DocsPage } from "./pages/Docs";
 import { HealthPage } from "./pages/Health";
-import { SettingsPage } from "./pages/Settings";
 import { useUIStore } from "./stores/uiStore";
 
 const queryClient = new QueryClient({
@@ -31,10 +29,8 @@ function AppContent() {
               <p className="mt-1 text-sm text-slate-300">
                 {activeTab === "dashboard" && "Quick actions and health overview"}
                 {activeTab === "runs" && "Scenarios and test history"}
-                {activeTab === "generate" && "AI-powered test generation"}
-                {activeTab === "docs" && "Documentation browser"}
-                {activeTab === "health" && "Test Genie's own reliability, conformance, and performance"}
-                {activeTab === "settings" && "Global phase toggles and safeguards"}
+	                {activeTab === "docs" && "Documentation browser"}
+	                {activeTab === "health" && "Test Genie's own reliability, conformance, and performance"}
               </p>
             </div>
             <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
@@ -45,10 +41,8 @@ function AppContent() {
         <main>
           {activeTab === "dashboard" && <DashboardPage />}
           {activeTab === "runs" && <RunsPage />}
-          {activeTab === "generate" && <GeneratePage />}
           {activeTab === "docs" && <DocsPage />}
           {activeTab === "health" && <HealthPage />}
-          {activeTab === "settings" && <SettingsPage />}
         </main>
       </div>
     </div>

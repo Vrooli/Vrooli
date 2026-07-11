@@ -1,7 +1,6 @@
 package local
 
 import (
-	"test-genie/cli/fix"
 	"test-genie/cli/fleet"
 	"test-genie/cli/health"
 	"test-genie/cli/internal/deps"
@@ -11,7 +10,6 @@ import (
 	"test-genie/cli/registry"
 	"test-genie/cli/requirements"
 	"test-genie/cli/runlocal"
-	"test-genie/cli/storage"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -58,12 +56,6 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				Run:         func(args []string) error { return phasecmd.Run(runtime.APIClient, args) },
 			},
 			{
-				Name:        "fix",
-				NeedsAPI:    true,
-				Description: "Remediate a scenario: --deterministic aggregates provider autofixers (dry-run; --apply to write), --fleet walks the priority-ordered fleet, else spawns a fix agent",
-				Run:         func(args []string) error { return fix.Run(runtime.APIClient, args) },
-			},
-			{
 				Name:        "fleet",
 				NeedsAPI:    true,
 				Description: "Fleet-wide health over stored runs: fleet status [--json] [--roster] (as-of stamped, most-errored first)",
@@ -74,12 +66,6 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Manage playbooks seed lifecycle (apply/cleanup)",
 				Run:         func(args []string) error { return playbooksseed.Run(runtime.Seed, args) },
-			},
-			{
-				Name:        "storage",
-				NeedsAPI:    false,
-				Description: "Run one-time storage maintenance tasks",
-				Run:         func(args []string) error { return storage.Run(args) },
 			},
 		},
 	}

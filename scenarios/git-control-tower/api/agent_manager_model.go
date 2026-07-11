@@ -37,21 +37,6 @@ func normalizeEventType(protoValue string) string {
 	return protoValue
 }
 
-// runnerTypeToString converts proto runner-type strings to UI-friendly form.
-func runnerTypeToString(wire string) string {
-	switch wire {
-	case "RUNNER_TYPE_CLAUDE_CODE":
-		return "claude-code"
-	case "RUNNER_TYPE_CUSTOM":
-		return "custom"
-	default:
-		if wire == "" {
-			return ""
-		}
-		return strings.ToLower(strings.TrimPrefix(wire, "RUNNER_TYPE_"))
-	}
-}
-
 // ============================================================================
 // Wire types — match proto-JSON (snake_case, enum strings, wrappers)
 // ============================================================================
@@ -171,8 +156,7 @@ type wireAgentProfile struct {
 	Name        string `json:"name,omitempty"`
 	ProfileKey  string `json:"profile_key,omitempty"`
 	Description string `json:"description,omitempty"`
-	RunnerType  string `json:"runner_type,omitempty"`
-	Model       string `json:"model,omitempty"`
+	RoleRef     string `json:"role_ref,omitempty"`
 	MaxTurns    int    `json:"max_turns,omitempty"`
 }
 

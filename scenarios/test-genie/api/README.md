@@ -58,9 +58,9 @@ flowchart TB
         record["record.go"]
     end
 
-    subgraph Queue["internal/queue"]
-        request["request.go"]
-        q_repo["repository.go"]
+    subgraph Remediation["internal/remediation"]
+        planner["planner.go"]
+        remediation_repo["repository.go"]
     end
 
     subgraph Scenarios["internal/scenarios"]
@@ -142,9 +142,10 @@ api/
 │   │   ├── history.go          # Read-only history access
 │   │   └── record.go           # Execution record type
 │   │
-│   ├── queue/                  # Suite request queue
-│   │   ├── request.go          # Queue service & validation
-│   │   └── repository.go       # PostgreSQL persistence
+│   ├── remediation/            # Evidence-bound remediation jobs
+│   │   ├── planner.go          # Finding normalization, ranking, and bundles
+│   │   ├── service.go          # Job lifecycle and verification transitions
+│   │   └── repository.go       # SQLite persistence
 │   │
 │   ├── scenarios/              # Scenario discovery
 │   │   ├── scenario_directory_service.go
@@ -172,10 +173,6 @@ sequenceDiagram
     CLI->>HTTP: POST /api/v1/executions
     HTTP->>Exec: Execute(input)
 
-    alt Has SuiteRequestID
-        Exec->>DB: Update status → running
-    end
-
     Exec->>Orch: Execute(request)
     Orch->>Orch: buildPhasePlan()
 
@@ -186,10 +183,6 @@ sequenceDiagram
 
     Orch-->>Exec: SuiteExecutionResult
     Exec->>DB: Create execution record
-
-    alt Has SuiteRequestID
-        Exec->>DB: Update status → completed/failed
-    end
 
     Exec-->>HTTP: SuiteExecutionResult
     HTTP-->>CLI: JSON response
@@ -254,21 +247,21 @@ Presets are named collections of phases:
 - **smoke**: `structure`, `integration`
 - **comprehensive**: all phases
 
-### Suite Requests
+### Remediation
 
-Suite requests queue generation intents. When executed with a `suiteRequestId`, the execution service:
-1. Marks the request as `running`
-2. Runs the orchestrator
-3. Marks the request as `completed` or `failed`
+Completed executions are immutable remediation evidence. The remediation API
+turns selected stable finding and requirement IDs into one active job per
+scenario, delegates only the scoped task to Agent Manager, and records a
+server-owned verification rerun plus its stable-ID delta.
 
 ## API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Infrastructure health check |
-| `POST` | `/api/v1/suite-requests` | Queue a generation request |
-| `GET` | `/api/v1/suite-requests` | List queued requests |
-| `GET` | `/api/v1/suite-requests/{id}` | Get request by ID |
+| `GET` | `/api/v1/scenarios/{name}/remediation/plans/{executionId}` | Read findings-first remediation evidence |
+| `POST` | `/api/v1/scenarios/{name}/remediation/jobs` | Create a scoped remediation job |
+| `POST` | `/api/v1/scenarios/{name}/remediation/jobs/{id}/verify` | Verify a completed job with a server-owned rerun |
 | `GET` | `/api/v1/phases` | List registered phases |
 | `POST` | `/api/v1/executions/plan` | Preview the selected phase plan, estimate, and timeout budget |
 | `POST` | `/api/v1/executions` | Execute a test suite |
@@ -286,7 +279,7 @@ Suite requests queue generation intents. When executed with a `suiteRequestId`, 
 | Add a new test phase | `internal/orchestrator/phases/` |
 | Modify phase selection logic | `internal/orchestrator/phase_plan.go` |
 | Change execution persistence | `internal/execution/repository.go` |
-| Add suite request validation | `internal/queue/request.go` |
+| Add remediation planning or lifecycle behavior | `internal/remediation/` |
 | Modify scenario discovery | `internal/scenarios/` |
 | Change environment config | `internal/app/runtime/config.go` |
 | Understand the bootstrap flow | `internal/app/runtime/bootstrap.go` |
@@ -304,8 +297,7 @@ go test -cover ./...             # With coverage
 
 - [Orchestrator README](internal/orchestrator/README.md) — Phase execution details
 - [Phases README](internal/orchestrator/phases/README.md) — Phase contracts & implementations
-- [HTTP Server README](internal/app/httpserver/README.md) — Handler patterns
-- [Execution README](internal/execution/README.md) — State management
+- [Remediation domain](internal/remediation/) — Evidence-bound job lifecycle and verification
 
 ## Execution Planning
 

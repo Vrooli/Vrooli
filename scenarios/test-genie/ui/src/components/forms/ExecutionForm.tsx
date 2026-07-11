@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { InfoTip } from "../cards/InfoTip";
 import { selectors } from "../../consts/selectors";
 import { useUIStore } from "../../stores/uiStore";
-import { PRESET_DETAILS, PHASE_LABELS } from "../../lib/constants";
+import { EXECUTION_PRESETS } from "../../lib/constants";
 import { useExecutionStream } from "../../hooks/useExecutionStream";
 import { useExecutionPlan } from "../../hooks/useExecutionPlan";
 import { cn } from "../../lib/utils";
@@ -38,6 +38,10 @@ function formatEstimateNote(source: string, confidence: string, sampleSize: numb
   return `${confidence} confidence`;
 }
 
+function formatPresetName(preset: string): string {
+  return preset.slice(0, 1).toUpperCase() + preset.slice(1);
+}
+
 export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, scenarioName, onSuccess }: ExecutionFormProps) {
   const queryClient = useQueryClient();
   const {
@@ -63,10 +67,10 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
     }
   });
 
-  // When a scenario is provided by the parent (e.g., scenario detail page), sync it and clear stale suite request links.
+  // When a scenario is provided by the parent (e.g., scenario detail page), sync it and clear stale execution form state.
   useEffect(() => {
     if (scenarioName) {
-      setExecutionForm({ scenarioName, suiteRequestId: "" });
+      setExecutionForm({ scenarioName });
     }
   }, [scenarioName, setExecutionForm]);
 
@@ -84,15 +88,14 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
     startStream({
       scenarioName: executionForm.scenarioName.trim(),
       preset: executionForm.preset,
-      failFast: executionForm.failFast,
-      suiteRequestId: executionForm.suiteRequestId.trim() || undefined
+      failFast: executionForm.failFast
     }).catch((err: Error) => {
       setExecutionFeedback(err.message);
       setFeedbackStatus("error");
     });
   };
 
-  const presetEntries = Object.entries(PRESET_DETAILS);
+  const presetEntries = EXECUTION_PRESETS;
   const planRequest = useMemo(() => ({
     scenarioName: executionForm.scenarioName.trim(),
     preset: executionForm.preset,
@@ -159,7 +162,7 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
             />
           </div>
           <p className="mt-2 text-sm text-slate-400">
-            Select a preset to run different test phases.
+            Select a preset; Test Genie resolves its live descriptor-backed phase plan below.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleReset} disabled={isStreaming}>
@@ -200,10 +203,10 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
         <div className="rounded-2xl border border-white/5 bg-black/30 p-4">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Preset phases</p>
           <p className="mt-1 text-sm text-slate-300">
-            Each preset runs different test phases. Click a card to select.
+            Click a card to select. The preview is the source of truth for current phases, descriptions, and time budgets.
           </p>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
-            {presetEntries.map(([presetKey, detail]) => (
+            {presetEntries.map((presetKey) => (
               <div
                 key={presetKey}
                 role="button"
@@ -222,16 +225,8 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
                     : "border-white/10 bg-black/30 hover:border-white/40"
                 )}
               >
-                <p className="font-semibold capitalize">{detail.label}</p>
-                <p className="mt-1 text-xs text-slate-400">{detail.description}</p>
-                <ul className="mt-3 space-y-1 text-xs text-slate-300">
-                  {detail.phases.map((phase) => (
-                    <li key={`${presetKey}-${phase}`} className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      <span>{PHASE_LABELS[phase] ?? phase}</span>
-                    </li>
-                  ))}
-                </ul>
+                <p className="font-semibold">{formatPresetName(presetKey)}</p>
+                <p className="mt-1 text-xs text-slate-400">Resolve the current plan from server descriptors.</p>
               </div>
             ))}
           </div>
@@ -277,7 +272,7 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
                   >
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <p className="font-semibold text-white">{PHASE_LABELS[phase.name] ?? phase.name}</p>
+                        <p className="font-semibold text-white">{phase.name}</p>
                         {phase.description && (
                           <p className="mt-1 text-xs text-slate-400">{phase.description}</p>
                         )}

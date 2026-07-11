@@ -85,65 +85,34 @@ func TestExecSQLFilePropagatesExecErrors(t *testing.T) {
 	}
 }
 
-func TestApplySchemaCreatesTablesAndOptionalSeed(t *testing.T) {
+func TestApplySchemaCreatesDomainTables(t *testing.T) {
 	db := openSQLite(t)
 
 	if err := ApplySchema(db, true); err != nil {
 		t.Fatalf("ApplySchema returned error: %v", err)
 	}
 
-	assertTableExists(t, db, "suite_requests")
 	assertTableExists(t, db, "suite_executions")
-
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_requests WHERE id = ?`, "00000000-0000-0000-0000-000000000001").Scan(&count); err != nil {
-		t.Fatalf("count seeded suite request: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("expected seeded suite request to exist, got count=%d", count)
-	}
-	var status string
-	if err := db.QueryRow(`SELECT status FROM suite_requests WHERE id = ?`, "00000000-0000-0000-0000-000000000001").Scan(&status); err != nil {
-		t.Fatalf("load seeded suite request status: %v", err)
-	}
-	if status != "completed" {
-		t.Fatalf("expected preview seed to be completed, got %q", status)
-	}
 }
 
-func TestApplySchemaWithoutSeedLeavesPreviewRowAbsent(t *testing.T) {
+func TestApplySchemaWithoutSeedStillCreatesDomainTables(t *testing.T) {
 	db := openSQLite(t)
 
 	if err := ApplySchema(db, false); err != nil {
 		t.Fatalf("ApplySchema returned error: %v", err)
 	}
 
-	assertTableExists(t, db, "suite_requests")
 	assertTableExists(t, db, "suite_executions")
-
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_requests`).Scan(&count); err != nil {
-		t.Fatalf("count suite requests: %v", err)
-	}
-	if count != 0 {
-		t.Fatalf("expected schema-only initialization to skip seed data, got %d rows", count)
-	}
 }
 
-func TestEnsureDatabaseSchemaExecutesSchemaAndSeed(t *testing.T) {
+func TestEnsureDatabaseSchemaExecutesSchema(t *testing.T) {
 	db := openSQLite(t)
 
 	if err := ensureDatabaseSchema(db); err != nil {
 		t.Fatalf("ensureDatabaseSchema returned error: %v", err)
 	}
 
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_requests`).Scan(&count); err != nil {
-		t.Fatalf("count suite requests: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("expected schema initialization to load seed row, got %d", count)
-	}
+	assertTableExists(t, db, "suite_executions")
 }
 
 func openSQLite(t *testing.T) *sql.DB {

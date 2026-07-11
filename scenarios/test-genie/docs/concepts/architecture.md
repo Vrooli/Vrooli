@@ -1,14 +1,14 @@
 # Test Genie Architecture
 
-Test Genie is a Go-native test orchestration scenario. The codebase follows screaming architecture at the package boundary: queueing, execution, provider-backed phases, workflow seed compatibility, scenarios, requirements, and transport all live in packages named after the domain capability they own.
+Test Genie is a Go-native test orchestration scenario. The codebase follows screaming architecture at the package boundary: execution, findings-first remediation, provider-backed phases, workflow seed compatibility, scenarios, requirements, and transport all live in packages named after the domain capability they own.
 
 ## Runtime Shape
 
 ```mermaid
 flowchart TB
     cli["CLI / UI / API Clients"] --> http["internal/app/httpserver"]
-    http --> queue["internal/queue"]
     http --> execution["internal/execution"]
+    http --> remediation["internal/remediation"]
     http --> scenarios["internal/scenarios"]
 
     execution --> orchestrator["internal/orchestrator"]
@@ -19,8 +19,8 @@ flowchart TB
     phases --> requirements["internal/requirements"]
     phases --> smoke["internal/smoke"]
 
-    queue --> sqlite[(SQLite)]
     execution --> sqlite
+    remediation --> sqlite
     scenarios --> sqlite
     playbooks --> fs["Scenario filesystem"]
     workspace --> fs
@@ -33,8 +33,8 @@ flowchart TB
 |--------|----------------|-------|
 | `internal/app/runtime` | Lifecycle-provided config and bootstrap | Reads ports, SQLite paths, scenario roots |
 | `internal/app/httpserver` | HTTP transport and payload shaping | No domain policy beyond request/response mapping |
-| `internal/queue` | Suite request lifecycle and queue telemetry | Owns stale-queue policy |
-| `internal/execution` | Execution records plus queue/execution coordination | Keeps queue state and persisted execution history consistent |
+| `internal/remediation` | Immutable source evidence, durable job lifecycle, stable-ID verification delta | Agent Manager policy remains external |
+| `internal/execution` | Execution records and persisted execution history | Server-owned runs are the verification authority |
 | `internal/orchestrator` | Phase planning, execution, artifacts, presets | Central coordinator for phased runs |
 | `internal/orchestrator/phases` | Phase-specific orchestration adapters | Structure, quality, workflow, business, performance, etc. |
 | `internal/playbooks` | Legacy BAS registry, seed, and artifact compatibility | Workflow validation/execution is delegated to workflow-health |
@@ -46,13 +46,16 @@ flowchart TB
 
 ## Current High-Value Boundaries
 
-### Queue vs transport
+### Remediation vs Agent Manager
 
-The queue package decides what counts as active work. Transport surfaces only render the snapshot. This matters because stale queued rows are a persistence concern, not a CLI formatting concern.
+Test Genie owns the evidence envelope, lifecycle, and verification result.
+Agent Manager owns role resolution, sandboxing, and runtime policy. The
+remediation adapter passes only task identity, selected evidence, and a portable
+role reference.
 
 ### Execution vs orchestration
 
-`internal/execution` owns persistence and queue transitions. `internal/orchestrator` owns running phases. Keeping those responsibilities separate makes it possible to stream, persist, or replay orchestration outcomes without coupling them to HTTP handlers.
+`internal/execution` owns persistence. `internal/orchestrator` owns running phases. Keeping those responsibilities separate makes it possible to stream, persist, or replay orchestration outcomes without coupling them to HTTP handlers.
 
 ### Execution bootstrap vs phase execution
 
@@ -66,9 +69,11 @@ The queue package decides what counts as active work. Transport surfaces only re
 
 CLI command packages own command UX. Shared response-decoding behavior lives in `cli/internal/apijson`, so transport failures like empty bodies are diagnosed consistently across commands.
 
-### Scenario summaries vs raw queue rows
+### Scenario summaries vs immutable evidence
 
-Scenario catalog summaries intentionally project queue and execution history into operator-facing telemetry. They should reuse the same queue staleness policy as queue health so one scenario does not look "pending" in one view and idle in another.
+Scenario catalog summaries identify the latest completed execution. Remediation
+always reloads that execution's persisted descriptor snapshot and findings
+artifact; it never infers work from dashboard counters.
 
 ### Requirements snapshots vs requirement sources
 
@@ -125,7 +130,6 @@ The most important operator-facing levers are:
 |------|-------|---------|
 | `TEST_GENIE_EXECUTION_TIMEOUT` | CLI | Extend blocking execution timeout for long suites |
 | `TEST_GENIE_PLAYBOOKS_RETAIN` | Playbooks phase | Keep temporary isolated Postgres/Redis/SQLite resources alive for debugging |
-| `TEST_GENIE_QUEUE_STALE_AFTER` | Queue/scenario summaries | Define when queued or delegated requests become stale telemetry |
 | `TEST_GENIE_SKIP_PLAYBOOKS` | Playbooks phase | Hard-disable the phase for debugging or constrained environments |
 
 See [Tunable Levers](../configuration/tunable-levers.md) for the full reference.

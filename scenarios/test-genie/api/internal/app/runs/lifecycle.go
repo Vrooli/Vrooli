@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
@@ -29,6 +28,9 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
+	if strings.TrimSpace(req.Msg.GetSuiteRequestId()) != "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("suite_request_id has been removed; create a remediation job from a completed execution instead"))
+	}
 
 	input := execution.SuiteExecutionInput{
 		Request: orchestrator.SuiteExecutionRequest{
@@ -46,14 +48,6 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 			LogicalScenarioRelPath: strings.TrimSpace(req.Msg.GetLogicalScenarioRelPath()),
 		},
 	}
-	if id := strings.TrimSpace(req.Msg.GetSuiteRequestId()); id != "" {
-		parsed, err := uuid.Parse(id)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("suite_request_id must be a valid UUID"))
-		}
-		input.SuiteRequestID = &parsed
-	}
-
 	etaTotal, etaKnown, err := s.previewPlan(ctx, input.Request)
 	if err != nil {
 		return nil, err

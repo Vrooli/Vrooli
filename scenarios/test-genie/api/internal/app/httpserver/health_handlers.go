@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator"
-	"test-genie/internal/queue"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -25,13 +24,6 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	operations := map[string]interface{}{}
-	if s.suiteRequests != nil {
-		if snapshot, err := s.suiteRequests.StatusSnapshot(r.Context()); err == nil {
-			operations["queue"] = queueSnapshotPayload(snapshot)
-		} else if err != nil {
-			s.log("queue snapshot failed", map[string]interface{}{"error": err.Error()})
-		}
-	}
 	if s.executionHistory != nil {
 		if latest, err := s.executionHistory.Latest(r.Context()); err == nil && latest != nil {
 			operations["lastExecution"] = executionSummaryPayload(latest)
@@ -55,29 +47,6 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.writeJSON(w, http.StatusOK, response)
-}
-
-func queueSnapshotPayload(snapshot queue.SuiteRequestSnapshot) map[string]interface{} {
-	payload := map[string]interface{}{
-		"total":     snapshot.Total,
-		"queued":    snapshot.Queued,
-		"delegated": snapshot.Delegated,
-		"stale":     snapshot.Stale,
-		"running":   snapshot.Running,
-		"completed": snapshot.Completed,
-		"failed":    snapshot.Failed,
-		"pending":   snapshot.Queued + snapshot.Delegated,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	}
-	if snapshot.OldestQueuedAt != nil {
-		payload["oldestQueuedAt"] = snapshot.OldestQueuedAt.Format(time.RFC3339)
-		age := time.Since(*snapshot.OldestQueuedAt).Seconds()
-		if age < 0 {
-			age = 0
-		}
-		payload["oldestQueuedAgeSeconds"] = int(age)
-	}
-	return payload
 }
 
 func executionSummaryPayload(result *orchestrator.SuiteExecutionResult) map[string]interface{} {
@@ -109,15 +78,11 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"repoRoot":          repoRoot,
-		"testGeniePath":     testGeniePath,
-		"testGenieCLI":      "test-genie", // CLI command name (should be on PATH)
-		"scenariosPath":     scenariosPath,
-		"timestamp":         time.Now().UTC().Format(time.RFC3339),
-		"securityModel":     "allowlist",
-		"directoryScoping":  true,
-		"pathValidation":    true,
-		"bashAllowlistOnly": true,
+		"repoRoot":      repoRoot,
+		"testGeniePath": testGeniePath,
+		"testGenieCLI":  "test-genie", // CLI command name (should be on PATH)
+		"scenariosPath": scenariosPath,
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	}
 
 	s.writeJSON(w, http.StatusOK, response)

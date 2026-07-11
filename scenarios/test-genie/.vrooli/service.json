@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "test-genie",
     "displayName": "Test Genie",
-    "description": "AI test-orchestration scenario that generates and executes coverage suites",
+    "description": "Descriptor-backed test orchestration and execution-evidence remediation",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
@@ -189,7 +189,7 @@
       "agent-manager": {
         "enabled": true,
         "required": false,
-      "description": "Optional AI-assisted generation and repair producer using Test Genie's declared role-only profile.",
+        "description": "Optional evidence-bound remediation executor using Test Genie's declared role-only profile.",
       "config": {
         "profiles": {
           "reconcile": true,
@@ -197,7 +197,7 @@
           "sources": [".vrooli/agent-profiles/generation.json"]
         }
       },
-        "degraded_behavior": "Core test execution continues when agent-manager is unavailable; AI-assisted generation/fix workflows return clear unavailable errors."
+        "degraded_behavior": "Core test execution continues when agent-manager is unavailable; evidence-bound remediation returns a clear unavailable error."
       },
       "browser-automation-studio": {
         "enabled": true,

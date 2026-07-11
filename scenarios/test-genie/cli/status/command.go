@@ -13,7 +13,7 @@ const UsageLine = "test-genie status"
 
 // HelpText returns the framework-rendered help body for the status command.
 func HelpText() string {
-	return `Show Test Genie health, queue state, and the latest execution summary.`
+	return `Show Test Genie health and the latest execution summary.`
 }
 
 // Run executes the status command.
@@ -54,15 +54,6 @@ func Run(client *Client) error {
 		})
 	}
 
-	q := resp.Operations.Queue
-	queueItems := []string{
-		fmt.Sprintf("pending=%d queued=%d delegated=%d stale=%d running=%d failed=%d", q.Pending, q.Queued, q.Delegated, q.Stale, q.Running, q.Failed),
-	}
-	if q.OldestQueuedAgeSecs > 0 {
-		queueItems = append(queueItems, fmt.Sprintf("oldest queued: %ds", q.OldestQueuedAgeSecs))
-	}
-	triage = append(triage, cliapp.TriageGroup{Heading: "Queue", Items: queueItems})
-
 	if len(resp.Dependencies) > 0 {
 		dependencyItems := make([]string, 0, len(resp.Dependencies))
 		for key, value := range resp.Dependencies {
@@ -75,8 +66,8 @@ func Run(client *Client) error {
 		Status: statusLines,
 		Triage: triage,
 		NextSteps: []string{
-			"test-genie generate <scenario>",
 			"test-genie execute <scenario>",
+			"test-genie remediate <scenario> --execution <uuid> --findings <stable-id> --role <role-ref>",
 		},
 	})
 }

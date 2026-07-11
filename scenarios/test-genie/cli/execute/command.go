@@ -74,7 +74,6 @@ func Run(client *Client, args []string) error {
 		Phases:                 parsed.Phases,
 		Skip:                   parsed.Skip,
 		FailFast:               parsed.FailFast,
-		SuiteRequestID:         parsed.RequestID,
 		DiagnosticsPreset:      parsed.DiagnosticsPreset,
 		UIURL:                  parsed.UIURL,
 		APIURL:                 parsed.APIURL,
@@ -163,7 +162,6 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.Preset, "preset", "", "Preset name")
 	fs.StringVar(&out.PhasesCSV, "phases", "", "Comma-separated phases to run")
 	fs.StringVar(&out.SkipCSV, "skip", "", "Comma-separated phases to skip")
-	fs.StringVar(&out.RequestID, "request-id", "", "Link to suite request")
 	fs.StringVar(&out.DiagnosticsPreset, "diagnostics-preset", "", "Workflow diagnostics capture: none|light|full (overrides testing.json)")
 	fs.BoolVar(&out.FailFast, "fail-fast", false, "Stop on first failure")
 	fs.BoolVar(&out.Wait, "wait", false, "Block to completion inline; never auto-background (CI / scripted use)")

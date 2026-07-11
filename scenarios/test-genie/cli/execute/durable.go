@@ -546,6 +546,5 @@ func toStartRunRequest(req Request) *runspb.StartRunRequest {
 		ScenarioPath:           req.ScenarioPath,
 		LogicalRepoRoot:        req.LogicalRepoRoot,
 		LogicalScenarioRelPath: req.LogicalScenarioRelPath,
-		SuiteRequestId:         req.SuiteRequestID,
 	}
 }

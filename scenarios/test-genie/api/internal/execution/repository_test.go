@@ -16,11 +16,10 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 	db := testsqlite.Open(t)
 	repo := NewSuiteExecutionRepository(db)
 	now := time.Now().UTC()
-	reqID := uuid.New()
 	execID := uuid.New()
 	record := &SuiteExecutionRecord{
 		ID:                  execID,
-		SuiteRequestID:      &reqID,
+		RunID:               "20260711-000000-evidence",
 		ScenarioName:        "demo",
 		PresetUsed:          "quick",
 		RequestedPreset:     "quick",
@@ -36,23 +35,6 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 		CompletedAt: now,
 	}
 
-	if _, err := db.Exec(`
-INSERT INTO suite_requests (
-	id, scenario_name, requested_types, coverage_target, priority, status, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-`,
-		reqID.String(),
-		"demo",
-		`["unit"]`,
-		95,
-		"normal",
-		"queued",
-		sqliteutil.FormatTimestamp(now.Add(-2*time.Minute)),
-		sqliteutil.FormatTimestamp(now.Add(-2*time.Minute)),
-	); err != nil {
-		t.Fatalf("seed request: %v", err)
-	}
-
 	if err := repo.Create(context.Background(), record); err != nil {
 		t.Fatalf("expected create to succeed: %v", err)
 	}
@@ -63,6 +45,9 @@ INSERT INTO suite_requests (
 	}
 	if stored == nil || stored.ID != execID {
 		t.Fatalf("unexpected execution: %#v", stored)
+	}
+	if stored.RunID != record.RunID {
+		t.Fatalf("expected run ID to round-trip, got %q", stored.RunID)
 	}
 	if len(stored.PlannedPhases) != 2 || stored.PlannedPhases[1] != "unit" {
 		t.Fatalf("expected planned phases to round-trip: %#v", stored)
@@ -79,12 +64,11 @@ func TestSuiteExecutionRepositoryListRecent(t *testing.T) {
 
 	if _, err := db.Exec(`
 INSERT INTO suite_executions (
-	id, suite_request_id, scenario_name, preset_used, requested_preset, requested_phases,
+	id, scenario_name, preset_used, requested_preset, requested_phases,
 	requested_skip_phases, planned_phases, fail_fast, success, phases, started_at, completed_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `,
 		"11111111-1111-1111-1111-111111111111",
-		nil,
 		"demo",
 		"quick",
 		"quick",
@@ -126,12 +110,11 @@ func TestSuiteExecutionRepositoryGetByID(t *testing.T) {
 
 	if _, err := db.Exec(`
 INSERT INTO suite_executions (
-	id, suite_request_id, scenario_name, preset_used, requested_preset, requested_phases,
+	id, scenario_name, preset_used, requested_preset, requested_phases,
 	requested_skip_phases, planned_phases, fail_fast, success, phases, started_at, completed_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `,
 		id.String(),
-		nil,
 		"demo",
 		nil,
 		nil,

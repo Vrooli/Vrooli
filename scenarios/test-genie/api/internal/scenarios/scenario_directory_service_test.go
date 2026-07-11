@@ -47,9 +47,7 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	repo := &fakeScenarioRepo{
 		listSummaries: []ScenarioSummary{
 			{
-				ScenarioName:    "ecosystem-manager",
-				PendingRequests: 2,
-				TotalRequests:   3,
+				ScenarioName: "ecosystem-manager",
 			},
 		},
 	}
@@ -78,7 +76,7 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	if second.ScenarioName != "test-genie" {
 		t.Fatalf("expected CLI-only scenario to be included, got %#v", second)
 	}
-	if second.TotalExecutions != 0 || second.TotalRequests != 0 {
+	if second.TotalExecutions != 0 {
 		t.Fatalf("expected zeroed stats for new scenario: %#v", second)
 	}
 }
