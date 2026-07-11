@@ -114,6 +114,24 @@ func (c *Client) GetProfileResponse(ctx context.Context, profileID string) (*api
 	return &result, nil
 }
 
+// GetRolePolicyCatalog returns portable role choices. Concrete models remain
+// resource-owned execution evidence and are never returned as user input.
+func (c *Client) GetRolePolicyCatalog(ctx context.Context) (*apipb.GetRolePolicyCatalogResponse, error) {
+	resp, err := c.doRequest(ctx, "GET", "/api/v1/role-policy/catalog", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+	var result apipb.GetRolePolicyCatalogResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // =============================================================================
 // TASKS
 // =============================================================================

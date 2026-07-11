@@ -805,6 +805,260 @@ class ExplainRolePolicyResponse(_message.Message):
     historical_without_snapshot: bool
     def __init__(self, target_type: _Optional[str] = ..., target_id: _Optional[str] = ..., snapshot: _Optional[_Union[_profile_pb2.ExecutionPolicySnapshot, _Mapping]] = ..., summary: _Optional[str] = ..., historical_without_snapshot: _Optional[bool] = ...) -> None: ...
 
+class PermissionPolicyDiagnostic(_message.Message):
+    __slots__ = ("code", "message", "cause")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    CAUSE_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    message: str
+    cause: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., cause: _Optional[str] = ...) -> None: ...
+
+class PermissionPolicyRequirement(_message.Message):
+    __slots__ = ("required", "reason")
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    required: bool
+    reason: str
+    def __init__(self, required: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class PermissionPolicyReloadAttempt(_message.Message):
+    __slots__ = ("attempted_at", "succeeded", "digest", "diagnostic")
+    ATTEMPTED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUCCEEDED_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    attempted_at: _timestamp_pb2.Timestamp
+    succeeded: bool
+    digest: str
+    diagnostic: PermissionPolicyDiagnostic
+    def __init__(self, attempted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., succeeded: _Optional[bool] = ..., digest: _Optional[str] = ..., diagnostic: _Optional[_Union[PermissionPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class PermissionPolicyStatus(_message.Message):
+    __slots__ = ("path", "requirement", "ready", "active_digest", "activated_at", "last_reload_attempt")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    REQUIREMENT_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_RELOAD_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    requirement: PermissionPolicyRequirement
+    ready: bool
+    active_digest: str
+    activated_at: _timestamp_pb2.Timestamp
+    last_reload_attempt: PermissionPolicyReloadAttempt
+    def __init__(self, path: _Optional[str] = ..., requirement: _Optional[_Union[PermissionPolicyRequirement, _Mapping]] = ..., ready: _Optional[bool] = ..., active_digest: _Optional[str] = ..., activated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_reload_attempt: _Optional[_Union[PermissionPolicyReloadAttempt, _Mapping]] = ...) -> None: ...
+
+class PermissionPolicyCatalogMetadata(_message.Message):
+    __slots__ = ("catalog_id", "updated_at")
+    CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    catalog_id: str
+    updated_at: str
+    def __init__(self, catalog_id: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+
+class PermissionPolicyMatcher(_message.Message):
+    __slots__ = ("kind", "pattern")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    PATTERN_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    pattern: str
+    def __init__(self, kind: _Optional[str] = ..., pattern: _Optional[str] = ...) -> None: ...
+
+class PermissionPolicyRule(_message.Message):
+    __slots__ = ("id", "action", "matcher", "rationale", "owner", "target_scope", "requires_hard_enforcement")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    MATCHER_FIELD_NUMBER: _ClassVar[int]
+    RATIONALE_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_HARD_ENFORCEMENT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    action: str
+    matcher: PermissionPolicyMatcher
+    rationale: str
+    owner: str
+    target_scope: str
+    requires_hard_enforcement: bool
+    def __init__(self, id: _Optional[str] = ..., action: _Optional[str] = ..., matcher: _Optional[_Union[PermissionPolicyMatcher, _Mapping]] = ..., rationale: _Optional[str] = ..., owner: _Optional[str] = ..., target_scope: _Optional[str] = ..., requires_hard_enforcement: _Optional[bool] = ...) -> None: ...
+
+class PermissionPolicyCatalog(_message.Message):
+    __slots__ = ("schema_version", "metadata", "target_scopes", "rules")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SCOPES_FIELD_NUMBER: _ClassVar[int]
+    RULES_FIELD_NUMBER: _ClassVar[int]
+    schema_version: int
+    metadata: PermissionPolicyCatalogMetadata
+    target_scopes: _containers.RepeatedScalarFieldContainer[str]
+    rules: _containers.RepeatedCompositeFieldContainer[PermissionPolicyRule]
+    def __init__(self, schema_version: _Optional[int] = ..., metadata: _Optional[_Union[PermissionPolicyCatalogMetadata, _Mapping]] = ..., target_scopes: _Optional[_Iterable[str]] = ..., rules: _Optional[_Iterable[_Union[PermissionPolicyRule, _Mapping]]] = ...) -> None: ...
+
+class PermissionPolicyEnforcement(_message.Message):
+    __slots__ = ("permissions", "caveats")
+    PERMISSIONS_FIELD_NUMBER: _ClassVar[int]
+    CAVEATS_FIELD_NUMBER: _ClassVar[int]
+    permissions: str
+    caveats: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, permissions: _Optional[str] = ..., caveats: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PermissionPolicyResourceResult(_message.Message):
+    __slots__ = ("runner_type", "scope", "installed", "status", "error", "desired_digest", "desired_fingerprint", "live_fingerprint", "drift", "changes", "native_paths", "enforcement", "unsupported_matchers")
+    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    DESIRED_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DESIRED_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    LIVE_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    DRIFT_FIELD_NUMBER: _ClassVar[int]
+    CHANGES_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_PATHS_FIELD_NUMBER: _ClassVar[int]
+    ENFORCEMENT_FIELD_NUMBER: _ClassVar[int]
+    UNSUPPORTED_MATCHERS_FIELD_NUMBER: _ClassVar[int]
+    runner_type: _types_pb2.RunnerType
+    scope: str
+    installed: bool
+    status: str
+    error: str
+    desired_digest: str
+    desired_fingerprint: str
+    live_fingerprint: str
+    drift: bool
+    changes: _containers.RepeatedScalarFieldContainer[str]
+    native_paths: _containers.RepeatedScalarFieldContainer[str]
+    enforcement: PermissionPolicyEnforcement
+    unsupported_matchers: _containers.RepeatedCompositeFieldContainer[PermissionPolicyMatcher]
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., scope: _Optional[str] = ..., installed: _Optional[bool] = ..., status: _Optional[str] = ..., error: _Optional[str] = ..., desired_digest: _Optional[str] = ..., desired_fingerprint: _Optional[str] = ..., live_fingerprint: _Optional[str] = ..., drift: _Optional[bool] = ..., changes: _Optional[_Iterable[str]] = ..., native_paths: _Optional[_Iterable[str]] = ..., enforcement: _Optional[_Union[PermissionPolicyEnforcement, _Mapping]] = ..., unsupported_matchers: _Optional[_Iterable[_Union[PermissionPolicyMatcher, _Mapping]]] = ...) -> None: ...
+
+class PermissionPolicyPlan(_message.Message):
+    __slots__ = ("catalog_digest", "resources", "hard_enforcement_satisfied", "missing_hard_enforcement_rule_ids")
+    CATALOG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    RESOURCES_FIELD_NUMBER: _ClassVar[int]
+    HARD_ENFORCEMENT_SATISFIED_FIELD_NUMBER: _ClassVar[int]
+    MISSING_HARD_ENFORCEMENT_RULE_IDS_FIELD_NUMBER: _ClassVar[int]
+    catalog_digest: str
+    resources: _containers.RepeatedCompositeFieldContainer[PermissionPolicyResourceResult]
+    hard_enforcement_satisfied: bool
+    missing_hard_enforcement_rule_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, catalog_digest: _Optional[str] = ..., resources: _Optional[_Iterable[_Union[PermissionPolicyResourceResult, _Mapping]]] = ..., hard_enforcement_satisfied: _Optional[bool] = ..., missing_hard_enforcement_rule_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PermissionPolicyReconcileResult(_message.Message):
+    __slots__ = ("catalog_digest", "started_at", "finished_at", "explicitly_authorized", "success", "hard_enforcement_satisfied", "missing_hard_enforcement_rule_ids", "resources")
+    CATALOG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXPLICITLY_AUTHORIZED_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    HARD_ENFORCEMENT_SATISFIED_FIELD_NUMBER: _ClassVar[int]
+    MISSING_HARD_ENFORCEMENT_RULE_IDS_FIELD_NUMBER: _ClassVar[int]
+    RESOURCES_FIELD_NUMBER: _ClassVar[int]
+    catalog_digest: str
+    started_at: _timestamp_pb2.Timestamp
+    finished_at: _timestamp_pb2.Timestamp
+    explicitly_authorized: bool
+    success: bool
+    hard_enforcement_satisfied: bool
+    missing_hard_enforcement_rule_ids: _containers.RepeatedScalarFieldContainer[str]
+    resources: _containers.RepeatedCompositeFieldContainer[PermissionPolicyResourceResult]
+    def __init__(self, catalog_digest: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., explicitly_authorized: _Optional[bool] = ..., success: _Optional[bool] = ..., hard_enforcement_satisfied: _Optional[bool] = ..., missing_hard_enforcement_rule_ids: _Optional[_Iterable[str]] = ..., resources: _Optional[_Iterable[_Union[PermissionPolicyResourceResult, _Mapping]]] = ...) -> None: ...
+
+class GetPermissionPolicyStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetPermissionPolicyStatusResponse(_message.Message):
+    __slots__ = ("status", "last_reconcile")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    LAST_RECONCILE_FIELD_NUMBER: _ClassVar[int]
+    status: PermissionPolicyStatus
+    last_reconcile: PermissionPolicyReconcileResult
+    def __init__(self, status: _Optional[_Union[PermissionPolicyStatus, _Mapping]] = ..., last_reconcile: _Optional[_Union[PermissionPolicyReconcileResult, _Mapping]] = ...) -> None: ...
+
+class GetPermissionPolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetPermissionPolicyCatalogResponse(_message.Message):
+    __slots__ = ("status", "catalog")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_FIELD_NUMBER: _ClassVar[int]
+    status: PermissionPolicyStatus
+    catalog: PermissionPolicyCatalog
+    def __init__(self, status: _Optional[_Union[PermissionPolicyStatus, _Mapping]] = ..., catalog: _Optional[_Union[PermissionPolicyCatalog, _Mapping]] = ...) -> None: ...
+
+class ValidatePermissionPolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ValidatePermissionPolicyCatalogResponse(_message.Message):
+    __slots__ = ("valid", "candidate_digest", "active_digest", "diagnostic")
+    VALID_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    valid: bool
+    candidate_digest: str
+    active_digest: str
+    diagnostic: PermissionPolicyDiagnostic
+    def __init__(self, valid: _Optional[bool] = ..., candidate_digest: _Optional[str] = ..., active_digest: _Optional[str] = ..., diagnostic: _Optional[_Union[PermissionPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class ReloadPermissionPolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ReloadPermissionPolicyCatalogResponse(_message.Message):
+    __slots__ = ("activated", "status", "diagnostic")
+    ACTIVATED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    activated: bool
+    status: PermissionPolicyStatus
+    diagnostic: PermissionPolicyDiagnostic
+    def __init__(self, activated: _Optional[bool] = ..., status: _Optional[_Union[PermissionPolicyStatus, _Mapping]] = ..., diagnostic: _Optional[_Union[PermissionPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class PlanPermissionPolicyRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class PlanPermissionPolicyResponse(_message.Message):
+    __slots__ = ("plan",)
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    plan: PermissionPolicyPlan
+    def __init__(self, plan: _Optional[_Union[PermissionPolicyPlan, _Mapping]] = ...) -> None: ...
+
+class ReconcilePermissionPolicyRequest(_message.Message):
+    __slots__ = ("explicitly_authorized",)
+    EXPLICITLY_AUTHORIZED_FIELD_NUMBER: _ClassVar[int]
+    explicitly_authorized: bool
+    def __init__(self, explicitly_authorized: _Optional[bool] = ...) -> None: ...
+
+class ReconcilePermissionPolicyResponse(_message.Message):
+    __slots__ = ("result",)
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    result: PermissionPolicyReconcileResult
+    def __init__(self, result: _Optional[_Union[PermissionPolicyReconcileResult, _Mapping]] = ...) -> None: ...
+
+class DoctorPermissionPolicyRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class DoctorPermissionPolicyResponse(_message.Message):
+    __slots__ = ("status", "plan", "healthy", "summary")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    HEALTHY_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    status: PermissionPolicyStatus
+    plan: PermissionPolicyPlan
+    healthy: bool
+    summary: str
+    def __init__(self, status: _Optional[_Union[PermissionPolicyStatus, _Mapping]] = ..., plan: _Optional[_Union[PermissionPolicyPlan, _Mapping]] = ..., healthy: _Optional[bool] = ..., summary: _Optional[str] = ...) -> None: ...
+
 class PurgeDataRequest(_message.Message):
     __slots__ = ("pattern", "targets", "dry_run")
     PATTERN_FIELD_NUMBER: _ClassVar[int]

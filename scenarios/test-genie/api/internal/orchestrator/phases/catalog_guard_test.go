@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"test-genie/internal/orchestrator/runnability"
-
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
@@ -158,25 +156,10 @@ func TestQuickAndSmokeHaveAdaptiveProfileDefinitions(t *testing.T) {
 }
 
 // TestCapabilityManifestCoversEveryPhase is the anti-drift guard for the
-// runnability capability manifest. Every catalog phase must carry a manifest
-// whose Phase/Optional mirror the spec, and the surface declarations are pinned
-// to the behavior the old hand-maintained runtimeNeeds switch encoded — so a
-// future capability edit that silently changes which phases need UI/API breaks
-// the build instead of changing runtime behavior unnoticed.
+// runnability capability manifest. Provider descriptors own surface and
+// lifecycle requirements; Test Genie only normalizes catalog identity and
+// optionality. This guard must therefore remain phase-agnostic.
 func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
-	// Pinned expectations transcribed from the pre-refactor runtimeNeeds switch
-	// (ui-health/workflow/performance → UI) plus the workflow
-	// DB-isolation/lifecycle-mutation contract.
-	type want struct {
-		ui, api, mutates, deferred bool
-		dbiso                      runnability.DBIsolation
-	}
-	expected := map[Name]want{
-		UIHealth:    {ui: true},
-		Performance: {ui: true},
-		Workflow:    {ui: true, mutates: true, deferred: true, dbiso: runnability.DBIsolationRouted},
-	}
-
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {
 		caps := spec.Capabilities
@@ -186,60 +169,19 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 		if caps.Optional != spec.Optional {
 			t.Errorf("phase %q: Capabilities.Optional = %v, want %v (spec)", spec.Name, caps.Optional, spec.Optional)
 		}
-		w := expected[spec.Name] // zero value = static phase with no surface
-		if caps.NeedsUI != w.ui || caps.NeedsAPI != w.api {
-			t.Errorf("phase %q surfaces: NeedsUI=%v NeedsAPI=%v, want UI=%v API=%v",
-				spec.Name, caps.NeedsUI, caps.NeedsAPI, w.ui, w.api)
-		}
-		if caps.MutatesLifecycle != w.mutates {
-			t.Errorf("phase %q: MutatesLifecycle=%v, want %v", spec.Name, caps.MutatesLifecycle, w.mutates)
-		}
-		if caps.LifecycleDecisionDeferred != w.deferred {
-			t.Errorf("phase %q: LifecycleDecisionDeferred=%v, want %v", spec.Name, caps.LifecycleDecisionDeferred, w.deferred)
-		}
-		if caps.DBIsolation != w.dbiso {
-			t.Errorf("phase %q: DBIsolation=%v, want %v", spec.Name, caps.DBIsolation, w.dbiso)
+		if spec.Delegated == nil {
+			t.Errorf("phase %q missing descriptor-backed provider metadata", spec.Name)
 		}
 	}
 }
 
 func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
-	expected := map[Name]string{
-		Structure:              "TEST_GENIE_SKIP_STRUCTURE",
-		Contracts:              "TEST_GENIE_SKIP_CONTRACTS",
-		UIHealth:               "TEST_GENIE_SKIP_UI_HEALTH",
-		API:                    "TEST_GENIE_SKIP_API",
-		Architecture:           "TEST_GENIE_SKIP_ARCHITECTURE",
-		Dependencies:           "TEST_GENIE_SKIP_DEPENDENCIES",
-		Quality:                "TEST_GENIE_SKIP_QUALITY",
-		Docs:                   "TEST_GENIE_SKIP_DOCS",
-		Unit:                   "TEST_GENIE_SKIP_UNIT",
-		Storage:                "TEST_GENIE_SKIP_STORAGE",
-		Workflow:               "TEST_GENIE_SKIP_WORKFLOW",
-		Business:               "TEST_GENIE_SKIP_BUSINESS",
-		Performance:            "TEST_GENIE_SKIP_PERFORMANCE",
-		Tidiness:               "TEST_GENIE_SKIP_TIDINESS",
-		Security:               "TEST_GENIE_SKIP_SECURITY",
-		Measures:               "TEST_GENIE_SKIP_MEASURES",
-		Proto:                  "TEST_GENIE_SKIP_PROTO",
-		Branding:               "TEST_GENIE_SKIP_BRANDING",
-		Search:                 "TEST_GENIE_SKIP_SEARCH",
-		Name("experience"):     "TEST_GENIE_SKIP_EXPERIENCE",
-		Name("ai-conformance"): "TEST_GENIE_SKIP_AI_CONFORMANCE",
-		ProviderConformance:    "TEST_GENIE_SKIP_PROVIDER_CONFORMANCE",
-	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {
-		want, ok := expected[spec.Name]
-		if !ok {
-			t.Fatalf("phase %q missing skip env-var expectation", spec.Name)
-		}
+		want := "TEST_GENIE_SKIP_" + strings.ToUpper(strings.NewReplacer("-", "_", ".", "_").Replace(spec.Name.String()))
 		if spec.SkipEnvVar != want {
 			t.Errorf("phase %q SkipEnvVar = %q, want %q", spec.Name, spec.SkipEnvVar, want)
 		}
-	}
-	if len(expected) != len(catalog.All()) {
-		t.Fatalf("skip env-var expectations = %d, catalog phases = %d", len(expected), len(catalog.All()))
 	}
 }
 

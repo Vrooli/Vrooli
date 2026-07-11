@@ -227,10 +227,11 @@ func summarizePhases(phases []Phase) execTypes.PhaseSummary {
 	for _, p := range phases {
 		summary.Total++
 		summary.DurationSeconds += int(p.DurationSeconds)
-		switch p.Status {
+		summary.ObservationCount += len(p.Observations)
+		switch strings.ToLower(p.Status) {
 		case "passed":
 			summary.Passed++
-		case "failed", "aborted":
+		case "failed", "aborted", "provider_unavailable":
 			summary.Failed++
 		case "skipped":
 			summary.Skipped++

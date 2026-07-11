@@ -116,12 +116,16 @@ func TestEventToMapDropsEmptyFields(t *testing.T) {
 }
 
 func TestBuildResponseAggregates(t *testing.T) {
-	phasesAcc := []Phase{{Name: "a", Status: "passed"}, {Name: "b", Status: "failed"}}
+	phasesAcc := []Phase{
+		{Name: "a", Status: "passed", DurationSeconds: 2},
+		{Name: "b", Status: "failed", DurationSeconds: 3},
+		{Name: "c", Status: "provider_unavailable", DurationSeconds: 4},
+	}
 	resp := buildResponse(&runspb.RunEvent{Event: evRunCompleted, Success: false, Verdict: "FAIL"}, phasesAcc)
 	if resp.Success || resp.Verdict != "FAIL" {
 		t.Fatalf("terminal not applied: %+v", resp)
 	}
-	if resp.PhaseSummary.Total != 2 || resp.PhaseSummary.Passed != 1 || resp.PhaseSummary.Failed != 1 {
+	if resp.PhaseSummary.Total != 3 || resp.PhaseSummary.Passed != 1 || resp.PhaseSummary.Failed != 2 || resp.PhaseSummary.DurationSeconds != 9 {
 		t.Fatalf("summary = %+v", resp.PhaseSummary)
 	}
 }

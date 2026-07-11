@@ -22,7 +22,7 @@ The Generate tab allows spawning multiple AI agents in parallel to generate test
 │ Layer 2: Test-Genie API (spawn orchestration)                   │
 │ - Server-generated preamble (appended to prompts)               │
 │ - Batch spawning via agent-manager Tasks + Runs                 │
-│ - Model and concurrency validation                              │
+│ - Portable role and concurrency validation                      │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -30,16 +30,16 @@ The Generate tab allows spawning multiple AI agents in parallel to generate test
 │ Layer 3: Agent-Manager (execution management)                   │
 │ - Profile-based configuration (tools, timeouts, permissions)    │
 │ - Task and Run lifecycle management                             │
-│ - Runner coordination (Claude Code execution)                   │
+│ - Resource-owned runner/model resolution                        │
 │ - WebSocket events for real-time status                         │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ Layer 4: Claude Code Runner                                     │
-│ - Tool-level restrictions                                       │
+│ Layer 4: Coding-agent resource                                  │
+│ - Native tool-level restrictions                                │
 │ - Working directory scope                                       │
-│ - Permission prompts for operations                             │
+│ - Resource-specific permission behavior                         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -89,6 +89,9 @@ The preamble is generated server-side by test-genie and cannot be modified by cl
 ### 2. Agent Profile Configuration
 
 Agent-manager profiles define the security constraints for execution:
+- **Role Ref**: A portable role such as `code.smart`; Agent Manager resolves it
+  through resource-owned policy and records the concrete runner/model only in
+  the immutable run snapshot.
 - **Allowed Tools**: Read, Write, Edit, Glob, Grep, Bash
 - **Skip Permissions**: false (agents must request permission for operations)
 - **Timeout**: 15 minutes maximum execution time
@@ -153,7 +156,7 @@ Test-genie uses batch spawning with unique tags:
 
 | Risk | Severity | Mitigation | Residual Risk |
 |------|----------|------------|---------------|
-| Arbitrary file read | Medium | Tool allowlist blocks most file access | Low - would need model to intentionally bypass |
+| Arbitrary file read | Medium | Tool allowlist blocks most file access | Low - would require an agent to intentionally bypass |
 | Arbitrary file write | Medium | Write tool restricted to scenario dir | Low - preamble instructs against |
 | Arbitrary code execution | High | Bash allowlist only permits safe commands | Low - extensive allowlist validation |
 | Resource exhaustion | Low | Timeout limits, manual stop capability | Medium - no CPU/memory limits |
@@ -173,6 +176,7 @@ Test-genie uses batch spawning with unique tags:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
+| `/api/v1/agents/roles` | GET | List portable role choices from Agent Manager |
 | `/api/v1/agents/spawn` | POST | Spawn new agents (batch) |
 | `/api/v1/agents/active` | GET | List active agents |
 | `/api/v1/agents/{id}` | GET | Get specific agent details |

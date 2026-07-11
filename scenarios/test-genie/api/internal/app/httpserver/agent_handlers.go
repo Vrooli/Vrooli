@@ -16,19 +16,18 @@ import (
 )
 
 // =============================================================================
-// MODELS - Agent model listing from agent-manager
+// ROLES - Portable agent-role listing from agent-manager
 // =============================================================================
 
-type agentModel struct {
+type agentRole struct {
 	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Provider    string `json:"provider"`
-	DisplayName string `json:"display_name"`
-	Source      string `json:"source"`
+	Label       string `json:"label"`
+	Intent      string `json:"intent"`
 	Description string `json:"description"`
+	Source      string `json:"source"`
 }
 
-func (s *Server) handleListAgentModels(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleListAgentRoles(w http.ResponseWriter, r *http.Request) {
 	if !s.agentService.IsAvailable(r.Context()) {
 		s.writeError(w, http.StatusServiceUnavailable, "agent-manager is not available")
 		return
@@ -37,45 +36,41 @@ func (s *Server) handleListAgentModels(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
 
-	resp, err := s.agentService.GetProfileWithModels(ctx)
+	resp, err := s.agentService.GetRoleCatalog(ctx)
 	if err != nil {
-		s.log("list agent models failed", map[string]interface{}{"error": err.Error()})
-		s.writeError(w, http.StatusBadGateway, fmt.Sprintf("failed to load agent models: %s", err.Error()))
+		s.log("list agent roles failed", map[string]interface{}{"error": err.Error()})
+		s.writeError(w, http.StatusBadGateway, fmt.Sprintf("failed to load agent roles: %s", err.Error()))
 		return
 	}
 
-	models := make([]agentModel, 0, len(resp.GetAvailableModels()))
-	for _, model := range resp.GetAvailableModels() {
-		id := strings.TrimSpace(model.GetId())
+	roles := make([]agentRole, 0, len(resp.GetCatalog().GetRoles()))
+	for _, role := range resp.GetCatalog().GetRoles() {
+		id := strings.TrimSpace(role.GetRoleRef())
 		if id == "" {
 			continue
 		}
 
-		label := strings.TrimSpace(model.GetLabel())
+		label := strings.TrimSpace(role.GetDescription())
 		if label == "" {
 			label = id
 		}
 
-		models = append(models, agentModel{
+		roles = append(roles, agentRole{
 			ID:          id,
-			Name:        label,
-			DisplayName: label,
-			Provider:    strings.TrimSpace(model.GetProvider()),
-			Source:      "agent-manager",
-			Description: strings.TrimSpace(model.GetDescription()),
+			Label:       label,
+			Intent:      strings.TrimSpace(role.GetIntent()),
+			Source:      "agent-manager-role-policy",
+			Description: strings.TrimSpace(role.GetDescription()),
 		})
 	}
 
-	sort.Slice(models, func(i, j int) bool {
-		if models[i].Provider == models[j].Provider {
-			return models[i].ID < models[j].ID
-		}
-		return models[i].Provider < models[j].Provider
+	sort.Slice(roles, func(i, j int) bool {
+		return roles[i].ID < roles[j].ID
 	})
 
 	payload := map[string]interface{}{
-		"items": models,
-		"count": len(models),
+		"items": roles,
+		"count": len(roles),
 	}
 	s.writeJSON(w, http.StatusOK, payload)
 }
@@ -86,7 +81,7 @@ func (s *Server) handleListAgentModels(w http.ResponseWriter, r *http.Request) {
 
 type agentSpawnRequest struct {
 	Prompts        []string `json:"prompts"`
-	Model          string   `json:"model"`
+	RoleRef        string   `json:"roleRef"`
 	Concurrency    int      `json:"concurrency"`
 	MaxTurns       int      `json:"maxTurns"`
 	TimeoutSeconds int      `json:"timeoutSeconds"`
@@ -135,9 +130,9 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	model := strings.TrimSpace(payload.Model)
-	if model == "" {
-		s.writeError(w, http.StatusBadRequest, "model is required")
+	roleRef := strings.TrimSpace(payload.RoleRef)
+	if roleRef == "" {
+		s.writeError(w, http.StatusBadRequest, "roleRef is required")
 		return
 	}
 
@@ -192,7 +187,7 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 		Scenario:    scenario,
 		Scope:       payload.Scope,
 		Prompts:     promptConfigs,
-		Model:       model,
+		RoleRef:     roleRef,
 		Concurrency: payload.Concurrency,
 		MaxTurns:    payload.MaxTurns,
 		Timeout:     timeout,

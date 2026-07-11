@@ -284,6 +284,47 @@ service AgentManagerService {
     };
   }
 
+  // GetPermissionPolicyStatus returns desired-permission activation state and
+  // the last persisted reconcile outcome.
+  rpc GetPermissionPolicyStatus(GetPermissionPolicyStatusRequest) returns (GetPermissionPolicyStatusResponse) {
+    option (google.api.http) = {get: "/api/v1/permission-policy/status"};
+  }
+
+  // GetPermissionPolicyCatalog returns the active portable desired state.
+  rpc GetPermissionPolicyCatalog(GetPermissionPolicyCatalogRequest) returns (GetPermissionPolicyCatalogResponse) {
+    option (google.api.http) = {get: "/api/v1/permission-policy/catalog"};
+  }
+
+  // ValidatePermissionPolicyCatalog validates declared state without activation.
+  rpc ValidatePermissionPolicyCatalog(ValidatePermissionPolicyCatalogRequest) returns (ValidatePermissionPolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/permission-policy/validate"};
+  }
+
+  // ReloadPermissionPolicyCatalog validates and atomically activates declared state.
+  rpc ReloadPermissionPolicyCatalog(ReloadPermissionPolicyCatalogRequest) returns (ReloadPermissionPolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/permission-policy/reload"};
+  }
+
+  // PlanPermissionPolicy reports resource-owned native projection drift.
+  rpc PlanPermissionPolicy(PlanPermissionPolicyRequest) returns (PlanPermissionPolicyResponse) {
+    option (google.api.http) = {post: "/api/v1/permission-policy/plan"};
+  }
+
+  // ReconcilePermissionPolicy applies one whole desired document through each
+  // owning resource after an explicit human authorization signal.
+  rpc ReconcilePermissionPolicy(ReconcilePermissionPolicyRequest) returns (ReconcilePermissionPolicyResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/permission-policy/reconcile"
+      body: "*"
+    };
+  }
+
+  // DoctorPermissionPolicy summarizes catalog readiness and resource planning
+  // without changing native resource files.
+  rpc DoctorPermissionPolicy(DoctorPermissionPolicyRequest) returns (DoctorPermissionPolicyResponse) {
+    option (google.api.http) = {post: "/api/v1/permission-policy/doctor"};
+  }
+
   // ==========================================================================
   // MAINTENANCE
   // ==========================================================================
@@ -1136,6 +1177,153 @@ message ExplainRolePolicyResponse {
   ExecutionPolicySnapshot snapshot = 3;
   string summary = 4;
   bool historical_without_snapshot = 5;
+}
+
+message PermissionPolicyDiagnostic {
+  string code = 1;
+  string message = 2;
+  string cause = 3;
+}
+
+message PermissionPolicyRequirement {
+  bool required = 1;
+  string reason = 2;
+}
+
+message PermissionPolicyReloadAttempt {
+  google.protobuf.Timestamp attempted_at = 1;
+  bool succeeded = 2;
+  string digest = 3;
+  PermissionPolicyDiagnostic diagnostic = 4;
+}
+
+message PermissionPolicyStatus {
+  string path = 1;
+  PermissionPolicyRequirement requirement = 2;
+  bool ready = 3;
+  string active_digest = 4;
+  google.protobuf.Timestamp activated_at = 5;
+  PermissionPolicyReloadAttempt last_reload_attempt = 6;
+}
+
+message PermissionPolicyCatalogMetadata {
+  string catalog_id = 1;
+  string updated_at = 2;
+}
+
+message PermissionPolicyMatcher {
+  string kind = 1;
+  string pattern = 2;
+}
+
+message PermissionPolicyRule {
+  string id = 1;
+  string action = 2;
+  PermissionPolicyMatcher matcher = 3;
+  string rationale = 4;
+  string owner = 5;
+  string target_scope = 6;
+  bool requires_hard_enforcement = 7;
+}
+
+message PermissionPolicyCatalog {
+  int32 schema_version = 1;
+  PermissionPolicyCatalogMetadata metadata = 2;
+  repeated string target_scopes = 3;
+  repeated PermissionPolicyRule rules = 4;
+}
+
+message PermissionPolicyEnforcement {
+  string permissions = 1;
+  repeated string caveats = 2;
+}
+
+message PermissionPolicyResourceResult {
+  RunnerType runner_type = 1;
+  string scope = 2;
+  bool installed = 3;
+  string status = 4;
+  string error = 5;
+  string desired_digest = 6;
+  string desired_fingerprint = 7;
+  string live_fingerprint = 8;
+  bool drift = 9;
+  repeated string changes = 10;
+  repeated string native_paths = 11;
+  PermissionPolicyEnforcement enforcement = 12;
+  repeated PermissionPolicyMatcher unsupported_matchers = 13;
+}
+
+message PermissionPolicyPlan {
+  string catalog_digest = 1;
+  repeated PermissionPolicyResourceResult resources = 2;
+  bool hard_enforcement_satisfied = 3;
+  repeated string missing_hard_enforcement_rule_ids = 4;
+}
+
+message PermissionPolicyReconcileResult {
+  string catalog_digest = 1;
+  google.protobuf.Timestamp started_at = 2;
+  google.protobuf.Timestamp finished_at = 3;
+  bool explicitly_authorized = 4;
+  bool success = 5;
+  bool hard_enforcement_satisfied = 6;
+  repeated string missing_hard_enforcement_rule_ids = 7;
+  repeated PermissionPolicyResourceResult resources = 8;
+}
+
+message GetPermissionPolicyStatusRequest {}
+
+message GetPermissionPolicyStatusResponse {
+  PermissionPolicyStatus status = 1;
+  PermissionPolicyReconcileResult last_reconcile = 2;
+}
+
+message GetPermissionPolicyCatalogRequest {}
+
+message GetPermissionPolicyCatalogResponse {
+  PermissionPolicyStatus status = 1;
+  PermissionPolicyCatalog catalog = 2;
+}
+
+message ValidatePermissionPolicyCatalogRequest {}
+
+message ValidatePermissionPolicyCatalogResponse {
+  bool valid = 1;
+  string candidate_digest = 2;
+  string active_digest = 3;
+  PermissionPolicyDiagnostic diagnostic = 4;
+}
+
+message ReloadPermissionPolicyCatalogRequest {}
+
+message ReloadPermissionPolicyCatalogResponse {
+  bool activated = 1;
+  PermissionPolicyStatus status = 2;
+  PermissionPolicyDiagnostic diagnostic = 3;
+}
+
+message PlanPermissionPolicyRequest {}
+
+message PlanPermissionPolicyResponse {
+  PermissionPolicyPlan plan = 1;
+}
+
+message ReconcilePermissionPolicyRequest {
+  bool explicitly_authorized = 1;
+}
+
+message ReconcilePermissionPolicyResponse {
+  PermissionPolicyReconcileResult result = 1;
+}
+
+message DoctorPermissionPolicyRequest {}
+
+message DoctorPermissionPolicyResponse {
+  PermissionPolicyStatus status = 1;
+  PermissionPolicyPlan plan = 2;
+  bool healthy = 3;
+  string summary = 4;
 }
 
 // =============================================================================

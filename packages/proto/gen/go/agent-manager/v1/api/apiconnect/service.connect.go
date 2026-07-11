@@ -138,6 +138,27 @@ const (
 	// AgentManagerServiceExplainRolePolicyProcedure is the fully-qualified name of the
 	// AgentManagerService's ExplainRolePolicy RPC.
 	AgentManagerServiceExplainRolePolicyProcedure = "/agent_manager.v1.AgentManagerService/ExplainRolePolicy"
+	// AgentManagerServiceGetPermissionPolicyStatusProcedure is the fully-qualified name of the
+	// AgentManagerService's GetPermissionPolicyStatus RPC.
+	AgentManagerServiceGetPermissionPolicyStatusProcedure = "/agent_manager.v1.AgentManagerService/GetPermissionPolicyStatus"
+	// AgentManagerServiceGetPermissionPolicyCatalogProcedure is the fully-qualified name of the
+	// AgentManagerService's GetPermissionPolicyCatalog RPC.
+	AgentManagerServiceGetPermissionPolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/GetPermissionPolicyCatalog"
+	// AgentManagerServiceValidatePermissionPolicyCatalogProcedure is the fully-qualified name of the
+	// AgentManagerService's ValidatePermissionPolicyCatalog RPC.
+	AgentManagerServiceValidatePermissionPolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/ValidatePermissionPolicyCatalog"
+	// AgentManagerServiceReloadPermissionPolicyCatalogProcedure is the fully-qualified name of the
+	// AgentManagerService's ReloadPermissionPolicyCatalog RPC.
+	AgentManagerServiceReloadPermissionPolicyCatalogProcedure = "/agent_manager.v1.AgentManagerService/ReloadPermissionPolicyCatalog"
+	// AgentManagerServicePlanPermissionPolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's PlanPermissionPolicy RPC.
+	AgentManagerServicePlanPermissionPolicyProcedure = "/agent_manager.v1.AgentManagerService/PlanPermissionPolicy"
+	// AgentManagerServiceReconcilePermissionPolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's ReconcilePermissionPolicy RPC.
+	AgentManagerServiceReconcilePermissionPolicyProcedure = "/agent_manager.v1.AgentManagerService/ReconcilePermissionPolicy"
+	// AgentManagerServiceDoctorPermissionPolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's DoctorPermissionPolicy RPC.
+	AgentManagerServiceDoctorPermissionPolicyProcedure = "/agent_manager.v1.AgentManagerService/DoctorPermissionPolicy"
 	// AgentManagerServicePurgeDataProcedure is the fully-qualified name of the AgentManagerService's
 	// PurgeData RPC.
 	AgentManagerServicePurgeDataProcedure = "/agent_manager.v1.AgentManagerService/PurgeData"
@@ -217,6 +238,23 @@ type AgentManagerServiceClient interface {
 	ReloadRolePolicyCatalog(context.Context, *connect.Request[api.ReloadRolePolicyCatalogRequest]) (*connect.Response[api.ReloadRolePolicyCatalogResponse], error)
 	// ExplainRolePolicy explains current profile resolution or a persisted run snapshot.
 	ExplainRolePolicy(context.Context, *connect.Request[api.ExplainRolePolicyRequest]) (*connect.Response[api.ExplainRolePolicyResponse], error)
+	// GetPermissionPolicyStatus returns desired-permission activation state and
+	// the last persisted reconcile outcome.
+	GetPermissionPolicyStatus(context.Context, *connect.Request[api.GetPermissionPolicyStatusRequest]) (*connect.Response[api.GetPermissionPolicyStatusResponse], error)
+	// GetPermissionPolicyCatalog returns the active portable desired state.
+	GetPermissionPolicyCatalog(context.Context, *connect.Request[api.GetPermissionPolicyCatalogRequest]) (*connect.Response[api.GetPermissionPolicyCatalogResponse], error)
+	// ValidatePermissionPolicyCatalog validates declared state without activation.
+	ValidatePermissionPolicyCatalog(context.Context, *connect.Request[api.ValidatePermissionPolicyCatalogRequest]) (*connect.Response[api.ValidatePermissionPolicyCatalogResponse], error)
+	// ReloadPermissionPolicyCatalog validates and atomically activates declared state.
+	ReloadPermissionPolicyCatalog(context.Context, *connect.Request[api.ReloadPermissionPolicyCatalogRequest]) (*connect.Response[api.ReloadPermissionPolicyCatalogResponse], error)
+	// PlanPermissionPolicy reports resource-owned native projection drift.
+	PlanPermissionPolicy(context.Context, *connect.Request[api.PlanPermissionPolicyRequest]) (*connect.Response[api.PlanPermissionPolicyResponse], error)
+	// ReconcilePermissionPolicy applies one whole desired document through each
+	// owning resource after an explicit human authorization signal.
+	ReconcilePermissionPolicy(context.Context, *connect.Request[api.ReconcilePermissionPolicyRequest]) (*connect.Response[api.ReconcilePermissionPolicyResponse], error)
+	// DoctorPermissionPolicy summarizes catalog readiness and resource planning
+	// without changing native resource files.
+	DoctorPermissionPolicy(context.Context, *connect.Request[api.DoctorPermissionPolicyRequest]) (*connect.Response[api.DoctorPermissionPolicyResponse], error)
 	// PurgeData deletes profiles, tasks, or runs matching a regex pattern.
 	PurgeData(context.Context, *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error)
 }
@@ -442,6 +480,48 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("ExplainRolePolicy")),
 			connect.WithClientOptions(opts...),
 		),
+		getPermissionPolicyStatus: connect.NewClient[api.GetPermissionPolicyStatusRequest, api.GetPermissionPolicyStatusResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetPermissionPolicyStatusProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetPermissionPolicyStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		getPermissionPolicyCatalog: connect.NewClient[api.GetPermissionPolicyCatalogRequest, api.GetPermissionPolicyCatalogResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetPermissionPolicyCatalogProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetPermissionPolicyCatalog")),
+			connect.WithClientOptions(opts...),
+		),
+		validatePermissionPolicyCatalog: connect.NewClient[api.ValidatePermissionPolicyCatalogRequest, api.ValidatePermissionPolicyCatalogResponse](
+			httpClient,
+			baseURL+AgentManagerServiceValidatePermissionPolicyCatalogProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ValidatePermissionPolicyCatalog")),
+			connect.WithClientOptions(opts...),
+		),
+		reloadPermissionPolicyCatalog: connect.NewClient[api.ReloadPermissionPolicyCatalogRequest, api.ReloadPermissionPolicyCatalogResponse](
+			httpClient,
+			baseURL+AgentManagerServiceReloadPermissionPolicyCatalogProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ReloadPermissionPolicyCatalog")),
+			connect.WithClientOptions(opts...),
+		),
+		planPermissionPolicy: connect.NewClient[api.PlanPermissionPolicyRequest, api.PlanPermissionPolicyResponse](
+			httpClient,
+			baseURL+AgentManagerServicePlanPermissionPolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("PlanPermissionPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		reconcilePermissionPolicy: connect.NewClient[api.ReconcilePermissionPolicyRequest, api.ReconcilePermissionPolicyResponse](
+			httpClient,
+			baseURL+AgentManagerServiceReconcilePermissionPolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ReconcilePermissionPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		doctorPermissionPolicy: connect.NewClient[api.DoctorPermissionPolicyRequest, api.DoctorPermissionPolicyResponse](
+			httpClient,
+			baseURL+AgentManagerServiceDoctorPermissionPolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("DoctorPermissionPolicy")),
+			connect.WithClientOptions(opts...),
+		),
 		purgeData: connect.NewClient[api.PurgeDataRequest, api.PurgeDataResponse](
 			httpClient,
 			baseURL+AgentManagerServicePurgeDataProcedure,
@@ -453,42 +533,49 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // agentManagerServiceClient implements AgentManagerServiceClient.
 type agentManagerServiceClient struct {
-	health                    *connect.Client[api.HealthRequest, api.HealthResponse]
-	createProfile             *connect.Client[api.CreateProfileRequest, api.CreateProfileResponse]
-	ensureProfile             *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
-	reconcileScenarioProfiles *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
-	getProfile                *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
-	listProfiles              *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
-	updateProfile             *connect.Client[api.UpdateProfileRequest, api.UpdateProfileResponse]
-	deleteProfile             *connect.Client[api.DeleteProfileRequest, api.DeleteProfileResponse]
-	createTask                *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
-	getTask                   *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
-	listTasks                 *connect.Client[api.ListTasksRequest, api.ListTasksResponse]
-	updateTask                *connect.Client[api.UpdateTaskRequest, api.UpdateTaskResponse]
-	deleteTask                *connect.Client[api.DeleteTaskRequest, api.DeleteTaskResponse]
-	cancelTask                *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
-	createRun                 *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
-	getRun                    *connect.Client[api.GetRunRequest, api.GetRunResponse]
-	getRunByTag               *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
-	listRuns                  *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
-	deleteRun                 *connect.Client[api.DeleteRunRequest, api.DeleteRunResponse]
-	stopRun                   *connect.Client[api.StopRunRequest, api.StopRunResponse]
-	stopRunByTag              *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
-	stopAllRuns               *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
-	quiesceScenario           *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
-	recoverRun                *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
-	getRunEvents              *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
-	getRunDiff                *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
-	approveRun                *connect.Client[api.ApproveRunRequest, api.ApproveRunResponse]
-	rejectRun                 *connect.Client[api.RejectRunRequest, api.RejectRunResponse]
-	getRunnerStatus           *connect.Client[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse]
-	probeRunner               *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
-	getRolePolicyStatus       *connect.Client[api.GetRolePolicyStatusRequest, api.GetRolePolicyStatusResponse]
-	getRolePolicyCatalog      *connect.Client[api.GetRolePolicyCatalogRequest, api.GetRolePolicyCatalogResponse]
-	validateRolePolicyCatalog *connect.Client[api.ValidateRolePolicyCatalogRequest, api.ValidateRolePolicyCatalogResponse]
-	reloadRolePolicyCatalog   *connect.Client[api.ReloadRolePolicyCatalogRequest, api.ReloadRolePolicyCatalogResponse]
-	explainRolePolicy         *connect.Client[api.ExplainRolePolicyRequest, api.ExplainRolePolicyResponse]
-	purgeData                 *connect.Client[api.PurgeDataRequest, api.PurgeDataResponse]
+	health                          *connect.Client[api.HealthRequest, api.HealthResponse]
+	createProfile                   *connect.Client[api.CreateProfileRequest, api.CreateProfileResponse]
+	ensureProfile                   *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
+	reconcileScenarioProfiles       *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
+	getProfile                      *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
+	listProfiles                    *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
+	updateProfile                   *connect.Client[api.UpdateProfileRequest, api.UpdateProfileResponse]
+	deleteProfile                   *connect.Client[api.DeleteProfileRequest, api.DeleteProfileResponse]
+	createTask                      *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
+	getTask                         *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
+	listTasks                       *connect.Client[api.ListTasksRequest, api.ListTasksResponse]
+	updateTask                      *connect.Client[api.UpdateTaskRequest, api.UpdateTaskResponse]
+	deleteTask                      *connect.Client[api.DeleteTaskRequest, api.DeleteTaskResponse]
+	cancelTask                      *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
+	createRun                       *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
+	getRun                          *connect.Client[api.GetRunRequest, api.GetRunResponse]
+	getRunByTag                     *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
+	listRuns                        *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
+	deleteRun                       *connect.Client[api.DeleteRunRequest, api.DeleteRunResponse]
+	stopRun                         *connect.Client[api.StopRunRequest, api.StopRunResponse]
+	stopRunByTag                    *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
+	stopAllRuns                     *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
+	quiesceScenario                 *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
+	recoverRun                      *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
+	getRunEvents                    *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
+	getRunDiff                      *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
+	approveRun                      *connect.Client[api.ApproveRunRequest, api.ApproveRunResponse]
+	rejectRun                       *connect.Client[api.RejectRunRequest, api.RejectRunResponse]
+	getRunnerStatus                 *connect.Client[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse]
+	probeRunner                     *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
+	getRolePolicyStatus             *connect.Client[api.GetRolePolicyStatusRequest, api.GetRolePolicyStatusResponse]
+	getRolePolicyCatalog            *connect.Client[api.GetRolePolicyCatalogRequest, api.GetRolePolicyCatalogResponse]
+	validateRolePolicyCatalog       *connect.Client[api.ValidateRolePolicyCatalogRequest, api.ValidateRolePolicyCatalogResponse]
+	reloadRolePolicyCatalog         *connect.Client[api.ReloadRolePolicyCatalogRequest, api.ReloadRolePolicyCatalogResponse]
+	explainRolePolicy               *connect.Client[api.ExplainRolePolicyRequest, api.ExplainRolePolicyResponse]
+	getPermissionPolicyStatus       *connect.Client[api.GetPermissionPolicyStatusRequest, api.GetPermissionPolicyStatusResponse]
+	getPermissionPolicyCatalog      *connect.Client[api.GetPermissionPolicyCatalogRequest, api.GetPermissionPolicyCatalogResponse]
+	validatePermissionPolicyCatalog *connect.Client[api.ValidatePermissionPolicyCatalogRequest, api.ValidatePermissionPolicyCatalogResponse]
+	reloadPermissionPolicyCatalog   *connect.Client[api.ReloadPermissionPolicyCatalogRequest, api.ReloadPermissionPolicyCatalogResponse]
+	planPermissionPolicy            *connect.Client[api.PlanPermissionPolicyRequest, api.PlanPermissionPolicyResponse]
+	reconcilePermissionPolicy       *connect.Client[api.ReconcilePermissionPolicyRequest, api.ReconcilePermissionPolicyResponse]
+	doctorPermissionPolicy          *connect.Client[api.DoctorPermissionPolicyRequest, api.DoctorPermissionPolicyResponse]
+	purgeData                       *connect.Client[api.PurgeDataRequest, api.PurgeDataResponse]
 }
 
 // Health calls agent_manager.v1.AgentManagerService.Health.
@@ -666,6 +753,43 @@ func (c *agentManagerServiceClient) ExplainRolePolicy(ctx context.Context, req *
 	return c.explainRolePolicy.CallUnary(ctx, req)
 }
 
+// GetPermissionPolicyStatus calls agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus.
+func (c *agentManagerServiceClient) GetPermissionPolicyStatus(ctx context.Context, req *connect.Request[api.GetPermissionPolicyStatusRequest]) (*connect.Response[api.GetPermissionPolicyStatusResponse], error) {
+	return c.getPermissionPolicyStatus.CallUnary(ctx, req)
+}
+
+// GetPermissionPolicyCatalog calls agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog.
+func (c *agentManagerServiceClient) GetPermissionPolicyCatalog(ctx context.Context, req *connect.Request[api.GetPermissionPolicyCatalogRequest]) (*connect.Response[api.GetPermissionPolicyCatalogResponse], error) {
+	return c.getPermissionPolicyCatalog.CallUnary(ctx, req)
+}
+
+// ValidatePermissionPolicyCatalog calls
+// agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog.
+func (c *agentManagerServiceClient) ValidatePermissionPolicyCatalog(ctx context.Context, req *connect.Request[api.ValidatePermissionPolicyCatalogRequest]) (*connect.Response[api.ValidatePermissionPolicyCatalogResponse], error) {
+	return c.validatePermissionPolicyCatalog.CallUnary(ctx, req)
+}
+
+// ReloadPermissionPolicyCatalog calls
+// agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog.
+func (c *agentManagerServiceClient) ReloadPermissionPolicyCatalog(ctx context.Context, req *connect.Request[api.ReloadPermissionPolicyCatalogRequest]) (*connect.Response[api.ReloadPermissionPolicyCatalogResponse], error) {
+	return c.reloadPermissionPolicyCatalog.CallUnary(ctx, req)
+}
+
+// PlanPermissionPolicy calls agent_manager.v1.AgentManagerService.PlanPermissionPolicy.
+func (c *agentManagerServiceClient) PlanPermissionPolicy(ctx context.Context, req *connect.Request[api.PlanPermissionPolicyRequest]) (*connect.Response[api.PlanPermissionPolicyResponse], error) {
+	return c.planPermissionPolicy.CallUnary(ctx, req)
+}
+
+// ReconcilePermissionPolicy calls agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy.
+func (c *agentManagerServiceClient) ReconcilePermissionPolicy(ctx context.Context, req *connect.Request[api.ReconcilePermissionPolicyRequest]) (*connect.Response[api.ReconcilePermissionPolicyResponse], error) {
+	return c.reconcilePermissionPolicy.CallUnary(ctx, req)
+}
+
+// DoctorPermissionPolicy calls agent_manager.v1.AgentManagerService.DoctorPermissionPolicy.
+func (c *agentManagerServiceClient) DoctorPermissionPolicy(ctx context.Context, req *connect.Request[api.DoctorPermissionPolicyRequest]) (*connect.Response[api.DoctorPermissionPolicyResponse], error) {
+	return c.doctorPermissionPolicy.CallUnary(ctx, req)
+}
+
 // PurgeData calls agent_manager.v1.AgentManagerService.PurgeData.
 func (c *agentManagerServiceClient) PurgeData(ctx context.Context, req *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error) {
 	return c.purgeData.CallUnary(ctx, req)
@@ -746,6 +870,23 @@ type AgentManagerServiceHandler interface {
 	ReloadRolePolicyCatalog(context.Context, *connect.Request[api.ReloadRolePolicyCatalogRequest]) (*connect.Response[api.ReloadRolePolicyCatalogResponse], error)
 	// ExplainRolePolicy explains current profile resolution or a persisted run snapshot.
 	ExplainRolePolicy(context.Context, *connect.Request[api.ExplainRolePolicyRequest]) (*connect.Response[api.ExplainRolePolicyResponse], error)
+	// GetPermissionPolicyStatus returns desired-permission activation state and
+	// the last persisted reconcile outcome.
+	GetPermissionPolicyStatus(context.Context, *connect.Request[api.GetPermissionPolicyStatusRequest]) (*connect.Response[api.GetPermissionPolicyStatusResponse], error)
+	// GetPermissionPolicyCatalog returns the active portable desired state.
+	GetPermissionPolicyCatalog(context.Context, *connect.Request[api.GetPermissionPolicyCatalogRequest]) (*connect.Response[api.GetPermissionPolicyCatalogResponse], error)
+	// ValidatePermissionPolicyCatalog validates declared state without activation.
+	ValidatePermissionPolicyCatalog(context.Context, *connect.Request[api.ValidatePermissionPolicyCatalogRequest]) (*connect.Response[api.ValidatePermissionPolicyCatalogResponse], error)
+	// ReloadPermissionPolicyCatalog validates and atomically activates declared state.
+	ReloadPermissionPolicyCatalog(context.Context, *connect.Request[api.ReloadPermissionPolicyCatalogRequest]) (*connect.Response[api.ReloadPermissionPolicyCatalogResponse], error)
+	// PlanPermissionPolicy reports resource-owned native projection drift.
+	PlanPermissionPolicy(context.Context, *connect.Request[api.PlanPermissionPolicyRequest]) (*connect.Response[api.PlanPermissionPolicyResponse], error)
+	// ReconcilePermissionPolicy applies one whole desired document through each
+	// owning resource after an explicit human authorization signal.
+	ReconcilePermissionPolicy(context.Context, *connect.Request[api.ReconcilePermissionPolicyRequest]) (*connect.Response[api.ReconcilePermissionPolicyResponse], error)
+	// DoctorPermissionPolicy summarizes catalog readiness and resource planning
+	// without changing native resource files.
+	DoctorPermissionPolicy(context.Context, *connect.Request[api.DoctorPermissionPolicyRequest]) (*connect.Response[api.DoctorPermissionPolicyResponse], error)
 	// PurgeData deletes profiles, tasks, or runs matching a regex pattern.
 	PurgeData(context.Context, *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error)
 }
@@ -967,6 +1108,48 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("ExplainRolePolicy")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceGetPermissionPolicyStatusHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetPermissionPolicyStatusProcedure,
+		svc.GetPermissionPolicyStatus,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetPermissionPolicyStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetPermissionPolicyCatalogHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetPermissionPolicyCatalogProcedure,
+		svc.GetPermissionPolicyCatalog,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetPermissionPolicyCatalog")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceValidatePermissionPolicyCatalogHandler := connect.NewUnaryHandler(
+		AgentManagerServiceValidatePermissionPolicyCatalogProcedure,
+		svc.ValidatePermissionPolicyCatalog,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ValidatePermissionPolicyCatalog")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceReloadPermissionPolicyCatalogHandler := connect.NewUnaryHandler(
+		AgentManagerServiceReloadPermissionPolicyCatalogProcedure,
+		svc.ReloadPermissionPolicyCatalog,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ReloadPermissionPolicyCatalog")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServicePlanPermissionPolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServicePlanPermissionPolicyProcedure,
+		svc.PlanPermissionPolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("PlanPermissionPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceReconcilePermissionPolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServiceReconcilePermissionPolicyProcedure,
+		svc.ReconcilePermissionPolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ReconcilePermissionPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceDoctorPermissionPolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServiceDoctorPermissionPolicyProcedure,
+		svc.DoctorPermissionPolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("DoctorPermissionPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServicePurgeDataHandler := connect.NewUnaryHandler(
 		AgentManagerServicePurgeDataProcedure,
 		svc.PurgeData,
@@ -1045,6 +1228,20 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceReloadRolePolicyCatalogHandler.ServeHTTP(w, r)
 		case AgentManagerServiceExplainRolePolicyProcedure:
 			agentManagerServiceExplainRolePolicyHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetPermissionPolicyStatusProcedure:
+			agentManagerServiceGetPermissionPolicyStatusHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetPermissionPolicyCatalogProcedure:
+			agentManagerServiceGetPermissionPolicyCatalogHandler.ServeHTTP(w, r)
+		case AgentManagerServiceValidatePermissionPolicyCatalogProcedure:
+			agentManagerServiceValidatePermissionPolicyCatalogHandler.ServeHTTP(w, r)
+		case AgentManagerServiceReloadPermissionPolicyCatalogProcedure:
+			agentManagerServiceReloadPermissionPolicyCatalogHandler.ServeHTTP(w, r)
+		case AgentManagerServicePlanPermissionPolicyProcedure:
+			agentManagerServicePlanPermissionPolicyHandler.ServeHTTP(w, r)
+		case AgentManagerServiceReconcilePermissionPolicyProcedure:
+			agentManagerServiceReconcilePermissionPolicyHandler.ServeHTTP(w, r)
+		case AgentManagerServiceDoctorPermissionPolicyProcedure:
+			agentManagerServiceDoctorPermissionPolicyHandler.ServeHTTP(w, r)
 		case AgentManagerServicePurgeDataProcedure:
 			agentManagerServicePurgeDataHandler.ServeHTTP(w, r)
 		default:
@@ -1194,6 +1391,34 @@ func (UnimplementedAgentManagerServiceHandler) ReloadRolePolicyCatalog(context.C
 
 func (UnimplementedAgentManagerServiceHandler) ExplainRolePolicy(context.Context, *connect.Request[api.ExplainRolePolicyRequest]) (*connect.Response[api.ExplainRolePolicyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ExplainRolePolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetPermissionPolicyStatus(context.Context, *connect.Request[api.GetPermissionPolicyStatusRequest]) (*connect.Response[api.GetPermissionPolicyStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetPermissionPolicyCatalog(context.Context, *connect.Request[api.GetPermissionPolicyCatalogRequest]) (*connect.Response[api.GetPermissionPolicyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ValidatePermissionPolicyCatalog(context.Context, *connect.Request[api.ValidatePermissionPolicyCatalogRequest]) (*connect.Response[api.ValidatePermissionPolicyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ReloadPermissionPolicyCatalog(context.Context, *connect.Request[api.ReloadPermissionPolicyCatalogRequest]) (*connect.Response[api.ReloadPermissionPolicyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) PlanPermissionPolicy(context.Context, *connect.Request[api.PlanPermissionPolicyRequest]) (*connect.Response[api.PlanPermissionPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.PlanPermissionPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ReconcilePermissionPolicy(context.Context, *connect.Request[api.ReconcilePermissionPolicyRequest]) (*connect.Response[api.ReconcilePermissionPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) DoctorPermissionPolicy(context.Context, *connect.Request[api.DoctorPermissionPolicyRequest]) (*connect.Response[api.DoctorPermissionPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.DoctorPermissionPolicy is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) PurgeData(context.Context, *connect.Request[api.PurgeDataRequest]) (*connect.Response[api.PurgeDataResponse], error) {

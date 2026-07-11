@@ -152,7 +152,7 @@ func TestArtifactCatalogRejectsCrossRunReuseMissingUnsafeAndDuplicateIDs(t *test
 	}
 }
 
-func TestArtifactCatalogLegacyDiscoveryIsExplicit(t *testing.T) {
+func TestArtifactCatalogLegacyDiscoveryIsStableAndExplicit(t *testing.T) {
 	scenarioDir := t.TempDir()
 	runID := "legacy"
 	writeTestArtifact(t, filepath.Join(RunDir(scenarioDir, runID), FindingsArtifactFile), `{}`)
@@ -162,6 +162,40 @@ func TestArtifactCatalogLegacyDiscoveryIsExplicit(t *testing.T) {
 	}
 	if !catalog.LegacyDiscovered || len(catalog.Artifacts) != 1 || catalog.Artifacts[0].Provenance != ArtifactProvenanceLegacy {
 		t.Fatalf("legacy catalog = %+v", catalog)
+	}
+	repeated, err := DiscoverArtifactCatalog(scenarioDir, runID, nil, time.Unix(200, 0), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog.Digest != repeated.Digest || catalog.GeneratedAt != repeated.GeneratedAt {
+		t.Fatalf("unchanged legacy projection is unstable: first=%+v repeated=%+v", catalog, repeated)
+	}
+}
+
+func TestReadArtifactCatalogRejectsMismatchedRunIdentity(t *testing.T) {
+	scenarioDir := t.TempDir()
+	writeTestArtifact(t, filepath.Join(RunDir(scenarioDir, "run-a"), "artifact.txt"), "evidence")
+	catalog, err := DiscoverArtifactCatalog(scenarioDir, "run-a", nil, time.Unix(100, 0), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteArtifactCatalog(scenarioDir, catalog); err != nil {
+		t.Fatal(err)
+	}
+	pathA := RunArtifactCatalogPath(scenarioDir, "run-a")
+	pathB := RunArtifactCatalogPath(scenarioDir, "run-b")
+	raw, err := os.ReadFile(pathA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(pathB), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pathB, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadArtifactCatalog(scenarioDir, "run-b"); !errors.Is(err, ErrInvalidArtifactCatalog) {
+		t.Fatalf("mismatched catalog error = %v, want ErrInvalidArtifactCatalog", err)
 	}
 }
 

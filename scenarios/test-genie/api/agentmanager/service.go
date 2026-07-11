@@ -101,9 +101,7 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 
 // ProfileConfig contains agent profile configuration.
 type ProfileConfig struct {
-	RunnerType      domainpb.RunnerType
-	Model           string
-	PolicyRef       string
+	RoleRef         string
 	MaxTurns        int32
 	TimeoutSeconds  int32
 	AllowedTools    []string
@@ -118,9 +116,8 @@ type ProfileConfig struct {
 // DefaultProfileConfig returns the default configuration for test generation.
 func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
-		RunnerType: domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		PolicyRef:  "claude-code.smart",
-		MaxTurns:   50,
+		RoleRef:  "code.smart",
+		MaxTurns: 50,
 		// 15 minute timeout for thorough test generation
 		TimeoutSeconds: 900,
 		AllowedTools: []string{
@@ -148,9 +145,7 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		Name:                 s.profileName,
 		ProfileKey:           s.profileKey,
 		Description:          "Agent profile for test-genie test generation",
-		RunnerType:           cfg.RunnerType,
-		Model:                cfg.Model,
-		PolicyRef:            cfg.PolicyRef,
+		RoleRef:              cfg.RoleRef,
 		MaxTurns:             cfg.MaxTurns,
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,
@@ -177,25 +172,12 @@ func (s *AgentService) GetProfileID() string {
 	return s.profileID
 }
 
-// GetProfileWithModels fetches the profile along with available models metadata.
-func (s *AgentService) GetProfileWithModels(ctx context.Context) (*apipb.GetProfileResponse, error) {
+// GetRoleCatalog returns portable role choices for Test Genie's agent-improvement UI.
+func (s *AgentService) GetRoleCatalog(ctx context.Context) (*apipb.GetRolePolicyCatalogResponse, error) {
 	if !s.enabled {
 		return nil, fmt.Errorf("agent-manager not enabled")
 	}
-
-	profileID := s.GetProfileID()
-	if profileID == "" {
-		if err := s.Initialize(ctx, DefaultProfileConfig()); err != nil {
-			return nil, fmt.Errorf("ensure profile: %w", err)
-		}
-		profileID = s.GetProfileID()
-	}
-
-	if profileID == "" {
-		return nil, fmt.Errorf("profile id unavailable")
-	}
-
-	return s.client.GetProfileResponse(ctx, profileID)
+	return s.client.GetRolePolicyCatalog(ctx)
 }
 
 // =============================================================================
@@ -214,7 +196,7 @@ type BatchSpawnRequest struct {
 	Scenario    string
 	Scope       []string
 	Prompts     []PromptConfig
-	Model       string
+	RoleRef     string
 	Concurrency int
 	MaxTurns    int
 	Timeout     time.Duration
@@ -333,10 +315,11 @@ func (s *AgentService) SpawnBatch(ctx context.Context, req BatchSpawnRequest) (*
 				Force:      true, // Bypass capacity limits
 			}
 
-			// Apply model override if specified
-			if req.Model != "" {
+			// Apply portable role override if specified. Concrete model selection
+			// remains resource-owned evidence in Agent Manager's run snapshot.
+			if req.RoleRef != "" {
 				runReq.InlineConfig = &domainpb.RunConfigOverrides{
-					Model: &req.Model,
+					RoleRef: &req.RoleRef,
 				}
 			}
 

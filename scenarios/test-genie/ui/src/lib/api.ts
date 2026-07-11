@@ -660,11 +660,10 @@ export async function fetchScenarioCoverage(name: string): Promise<ScenarioCover
   return { totalFiles, coveredFiles, overallCoverage };
 }
 
-export interface AgentModel {
+export interface AgentRole {
   id: string;
-  name?: string;
-  displayName?: string;
-  provider?: string;
+  label?: string;
+  intent?: string;
   description?: string;
   source?: string;
 }
@@ -672,7 +671,7 @@ export interface AgentModel {
 export interface SpawnAgentsRequest {
   prompts: string[];
   preamble?: string;          // Immutable safety preamble (server validates this)
-  model: string;
+  roleRef: string;
   concurrency?: number;
   maxTurns?: number;
   timeoutSeconds?: number;
@@ -729,14 +728,13 @@ export interface BlockedCommandsResponse {
   safeBashPatterns: string[];
 }
 
-export async function fetchAgentModels(provider?: string): Promise<AgentModel[]> {
-  const url = buildApiUrl("/agents/models", { baseUrl: API_BASE });
-  const finalUrl = provider ? `${url}?provider=${encodeURIComponent(provider)}` : url;
-  const res = await fetch(finalUrl, {
+export async function fetchAgentRoles(): Promise<AgentRole[]> {
+  const url = buildApiUrl("/agents/roles", { baseUrl: API_BASE });
+  const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
   });
-  const payload = await parseResponse<{ items: AgentModel[]; count: number }>(res);
+  const payload = await parseResponse<{ items: AgentRole[]; count: number }>(res);
   return payload.items ?? [];
 }
 

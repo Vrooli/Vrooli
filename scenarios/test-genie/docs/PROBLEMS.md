@@ -1,5 +1,52 @@
 # Open Issues
 
+## Resolved 2026-07-10 — Descriptor phase additions broke fixed test registries
+
+**Symptom:** The full API suite failed after the descriptor-owned `templates`
+phase appeared: catalog guards lacked templates-specific surface/skip entries,
+and the orchestration fixture called the live provider because its no-op runner
+list named only the older phases.
+
+**Root cause:** Test infrastructure retained three fixed phase registries after
+production orchestration became descriptor-driven. The tests therefore required
+coordinated Test Genie changes for a provider-owned catalog extension.
+
+**Resolution:** Orchestration fixtures now replace every discovered runner and
+detach provider transport generically. Capability guards validate normalized
+descriptor ownership without pinning phase surface metadata, and skip-variable
+guards derive the stable public name from each machine key. A synthetic future
+phase fixture proves planning and execution require no phase registration.
+
+**Owner:** Test Genie descriptor/catalog test architecture.
+
+**Refs:** `api/internal/orchestrator/suite_execution_test.go`;
+`api/internal/orchestrator/phases/catalog_guard_test.go`.
+
+## Resolved 2026-07-10 — Foreground execute dropped aggregate duration and unavailable failures
+
+**Symptom:** A lifecycle-managed `vrooli scenario test agent-manager --json`
+run published the terminal verdict, phase results, and findings, but its
+`phaseSummary.durationSeconds` was zero even though the phase durations were
+nonzero. A `provider_unavailable` phase also increased `total` without
+increasing any outcome bucket.
+
+**Root cause:** The foreground FollowRun renderer rebuilt its terminal summary
+with a private counting loop. Unlike the canonical wait/show summarizer, that
+loop did not accumulate phase duration and did not classify
+`provider_unavailable` as failed evidence.
+
+**Resolution:** Foreground execute, wait, and show rendering now share the same
+phase summarizer for total, outcome counts, duration, and observations. A
+regression fixture covers nonzero durations and unavailable providers. Run
+`20260711-034608-b6bdcd60` proved the repaired foreground summary and persisted
+show projection both contain two failed phases totaling three seconds, while
+the findings endpoint returns both phases.
+
+**Owner:** Test Genie CLI durable execution projection.
+
+**Refs:** `cli/execute/durable.go`; `cli/execute/standing.go`;
+`cli/execute/durable_test.go`.
+
 ## Resolved 2026-07-10 — Terminal wait and show disagreed after durable fallback
 
 **Symptom:** `test-genie runs wait --json swarm-manager 20260710-142937-ae6a753e`
@@ -31,10 +78,14 @@ replace it as authoritative evidence.
 Phase 4 has race-enabled unit and contract coverage for atomic catalogs,
 runtime-emitted unknown kinds, legacy discovery, screenshot/video enumeration,
 opaque list/detail/byte access, missing files, cross-run IDs, symlink escape,
-and active-content headers. The remaining proof belongs to Phase 10: a clean,
-lifecycle-managed run must confirm that real ui-health screenshots and
-workflow-health recordings are catalogued and streamed through opaque routes.
-Focused fixtures are not authoritative live evidence.
+and active-content headers. Phase 10's copy-first rehearsal also proved repeated
+wait/get/catalog projections and opaque resolution over 116 copied historical
+Test Genie runs and 2,237 artifacts without changing the copied byte tree; all
+116 honestly remained legacy because they predate canonical snapshots and
+persisted catalogs. The remaining proof is a clean, lifecycle-managed exact-SHA
+run confirming that new ui-health screenshots and workflow-health recordings
+are persisted and streamed through opaque routes. Copied historical evidence is
+strong migration evidence, but it is not an authoritative post-repair run.
 
 - Detection refactor 2026-05: playbooks DB detection moved to `internal/playbooks/dbdetect`; the silent Postgres+Redis fallback is eliminated. Scenarios with no manifest/godeps/source evidence now provision nothing for legacy workflow seed helpers — fix at the source (declare the resource or add the driver import) rather than reinstating a fallback.
 - The scenario still needs to rebuild the CLI delegation workflow that triggers suite generation remotely.

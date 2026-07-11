@@ -226,26 +226,14 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	}
 	orchestrator.retentionGC = nil
 	// Provider-backed phases are covered in the phase package. Orchestration
-	// tests replace them so a minimal fake scenario does not depend on live
-	// health-provider APIs.
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Structure, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Contracts, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.UIHealth, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.API, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Architecture, Runner: noOp, Optional: true})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Dependencies, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Quality, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Docs, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Storage, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Workflow, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Business, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Tidiness, Runner: noOp, Optional: true})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Security, Runner: noOp, Optional: true})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Measures, Runner: noOp, Optional: true})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Proto, Runner: noOp, Optional: true})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Branding, Runner: noOp, Optional: true})
+	// tests replace every discovered runner and detach its provider transport,
+	// so a future provider phase needs no fixture registration and a minimal
+	// fake scenario never depends on live provider APIs.
+	for _, spec := range orchestrator.catalog.All() {
+		spec.Runner = noOp
+		spec.Delegated = nil
+		orchestrator.catalog.Register(spec)
+	}
 }
 
 func TestDiscoverPhaseDefinitionsIgnoresScenarioLocalScripts(t *testing.T) {
@@ -301,6 +289,13 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		futurePhase := phasespkg.Name("future-provider-fixture")
+		orchestrator.catalog.Register(phasespkg.Spec{
+			Name: futurePhase,
+			Runner: func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+				return phasespkg.RunReport{}
+			},
+		})
 		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
@@ -318,6 +313,16 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		// changes, such as search applying only to search-enabled scenarios, do
 		// not require a hand-maintained fixture list.
 		expected := append([]string(nil), result.PlannedPhases...)
+		futurePlanned := false
+		for _, name := range expected {
+			if name == futurePhase.String() {
+				futurePlanned = true
+				break
+			}
+		}
+		if !futurePlanned {
+			t.Fatalf("synthetic phase %q was not planned; orchestration fixtures must accept catalog extensions without registration", futurePhase)
+		}
 		if len(result.Phases) != len(expected) {
 			t.Fatalf("expected %d phases, got %d", len(expected), len(result.Phases))
 		}

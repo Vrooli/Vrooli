@@ -10,7 +10,7 @@ import { PHASES_FOR_GENERATION, PHASE_LABELS } from "../../lib/constants";
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { cn } from "../../lib/utils";
-import { fetchAgentModels, spawnAgents, fetchAppConfig, type AgentModel, type SpawnAgentsResult, type AppConfig } from "../../lib/api";
+import { fetchAgentRoles, spawnAgents, fetchAppConfig, type AgentRole, type SpawnAgentsResult, type AppConfig } from "../../lib/api";
 
 const TASK_LABELS: Record<TaskType, string> = {
   bootstrap: "Bootstrap Tests",
@@ -19,7 +19,7 @@ const TASK_LABELS: Record<TaskType, string> = {
 };
 
 const MAX_PROMPTS = 12;
-const RECENT_MODEL_STORAGE_KEY = "test-genie-recent-agent-models";
+const RECENT_ROLE_STORAGE_KEY = "test-genie-recent-agent-roles";
 
 type PromptCombination = {
   id: string;
@@ -294,11 +294,11 @@ export function GeneratePage() {
   const [splitPhases, setSplitPhases] = useState(false);
   const [activePromptId, setActivePromptId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [agentModel, setAgentModel] = useState("");
-  const [recentModels, setRecentModels] = useState<string[]>([]);
-  const [modelOptions, setModelOptions] = useState<AgentModel[]>([]);
-  const [modelsLoading, setModelsLoading] = useState(false);
-  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [agentRole, setAgentRole] = useState("");
+  const [recentRoles, setRecentRoles] = useState<string[]>([]);
+  const [roleOptions, setRoleOptions] = useState<AgentRole[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [rolesError, setRolesError] = useState<string | null>(null);
   const [spawnConcurrency, setSpawnConcurrency] = useState(3);
   const [maxTurns, setMaxTurns] = useState(12);
   const [timeoutSeconds, setTimeoutSeconds] = useState(300);
@@ -338,11 +338,11 @@ export function GeneratePage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(RECENT_MODEL_STORAGE_KEY);
+      const raw = localStorage.getItem(RECENT_ROLE_STORAGE_KEY);
       if (raw) {
         const parsed: unknown = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          setRecentModels(parsed.filter((v) => typeof v === "string"));
+          setRecentRoles(parsed.filter((v) => typeof v === "string"));
         }
       }
     } catch {
@@ -351,29 +351,29 @@ export function GeneratePage() {
   }, []);
 
   useEffect(() => {
-    const loadModels = async () => {
-      setModelsLoading(true);
-      setModelsError(null);
+    const loadRoles = async () => {
+      setRolesLoading(true);
+      setRolesError(null);
       try {
-        const models = await fetchAgentModels();
-        setModelOptions(models);
-        const preferred = recentModels.find((m) => models.some((opt) => opt.id === m)) || models[0]?.id || "";
-        setAgentModel(preferred);
+        const roles = await fetchAgentRoles();
+        setRoleOptions(roles);
+        const preferred = recentRoles.find((roleRef) => roles.some((opt) => opt.id === roleRef)) || roles[0]?.id || "";
+        setAgentRole(preferred);
       } catch (err) {
-        setModelsError(err instanceof Error ? err.message : "Failed to load models");
+        setRolesError(err instanceof Error ? err.message : "Failed to load roles");
       } finally {
-        setModelsLoading(false);
+        setRolesLoading(false);
       }
     };
-    loadModels();
-  }, [recentModels]);
+    loadRoles();
+  }, [recentRoles]);
 
-  const saveRecentModel = (model: string) => {
-    if (!model) return;
-    setRecentModels((prev) => {
-      const next = [model, ...prev.filter((m) => m !== model)].slice(0, 5);
+  const saveRecentRole = (roleRef: string) => {
+    if (!roleRef) return;
+    setRecentRoles((prev) => {
+      const next = [roleRef, ...prev.filter((existing) => existing !== roleRef)].slice(0, 5);
       try {
-        localStorage.setItem(RECENT_MODEL_STORAGE_KEY, JSON.stringify(next));
+        localStorage.setItem(RECENT_ROLE_STORAGE_KEY, JSON.stringify(next));
       } catch {
         // ignore storage write errors
       }
@@ -482,7 +482,7 @@ export function GeneratePage() {
     Math.min(Number.isFinite(spawnConcurrency) ? spawnConcurrency : 1, Math.max(promptCount, 1))
   );
   const spawnDisabled =
-    isDisabled || promptCount === 0 || !agentModel || modelsLoading || Boolean(modelsError);
+    isDisabled || promptCount === 0 || !agentRole || rolesLoading || Boolean(rolesError);
 
   const handleSpawnAll = async () => {
     if (spawnDisabled || promptCount === 0) return;
@@ -503,7 +503,7 @@ export function GeneratePage() {
       const res = await spawnAgents({
         prompts: promptItems.map((p) => p.prompt),
         preamble: preamble || undefined,
-        model: agentModel,
+        roleRef: agentRole,
         concurrency: Math.max(1, Math.min(safeConcurrency, promptCount)),
         maxTurns: safeMaxTurns > 0 ? safeMaxTurns : undefined,
         timeoutSeconds: safeTimeout > 0 ? safeTimeout : undefined,
@@ -516,7 +516,7 @@ export function GeneratePage() {
       });
 
       setSpawnResults(res.items ?? []);
-      saveRecentModel(agentModel);
+      saveRecentRole(agentRole);
 
       const cappedNote = res.capped ? " (first batch capped; narrow scope to spawn all)" : "";
       setSpawnStatus(`Spawned ${res.items.length} agent${res.items.length === 1 ? "" : "s"}${cappedNote}.`);
@@ -851,7 +851,7 @@ export function GeneratePage() {
                       className="w-24 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
                     />
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">Abort if exceeded. 0 = model defaults.</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Abort if exceeded. 0 = role defaults.</p>
                 </div>
                 <div>
                   <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Network access</label>
@@ -905,28 +905,28 @@ export function GeneratePage() {
             <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Generate</p>
             <h3 className="mt-2 text-lg font-semibold">Spawn Test Agents</h3>
             <p className="mt-2 text-sm text-slate-300">
-              Select a model and spawn agents to generate tests for your scenario.
+              Select a portable role and spawn agents to generate tests for your scenario.
             </p>
           </div>
           <div className="flex flex-col gap-3 md:flex-row md:items-end">
             <div className="space-y-2 min-w-[250px]">
-              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Model</label>
+              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Role</label>
               <select
                 className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                value={agentModel}
-                onChange={(e) => setAgentModel(e.target.value)}
-                disabled={modelsLoading || modelOptions.length === 0}
+                value={agentRole}
+                onChange={(e) => setAgentRole(e.target.value)}
+                disabled={rolesLoading || roleOptions.length === 0}
               >
-                {modelsLoading && <option>Loading models…</option>}
-                {!modelsLoading && modelOptions.length === 0 && <option>No models available</option>}
-                {!modelsLoading &&
-                  modelOptions.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.displayName || m.name || m.id} {m.provider ? `(${m.provider})` : ""}
+                {rolesLoading && <option>Loading roles…</option>}
+                {!rolesLoading && roleOptions.length === 0 && <option>No roles available</option>}
+                {!rolesLoading &&
+                  roleOptions.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.label || role.id}{role.intent ? ` — ${role.intent}` : ""}
                     </option>
                   ))}
               </select>
-              {modelsError && <p className="text-xs text-rose-300">Model load failed: {modelsError}</p>}
+              {rolesError && <p className="text-xs text-rose-300">Role load failed: {rolesError}</p>}
             </div>
             <Button
               onClick={handleSpawnAll}

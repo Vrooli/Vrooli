@@ -271,6 +271,13 @@ func DiscoverArtifactCatalog(scenarioDir, runID string, declarations []ArtifactP
 			return ArtifactCatalog{}, err
 		}
 	}
+	if legacy {
+		// A legacy catalog is a read-only projection, not a newly persisted
+		// artifact. Anchor its generation time to the newest discovered byte so
+		// repeated reads of unchanged historical evidence have one stable digest.
+		// Empty legacy runs use the Unix epoch rather than wall-clock time.
+		catalog.GeneratedAt = stableLegacyCatalogTime(catalog.Artifacts).Format(time.RFC3339Nano)
+	}
 	sort.Slice(catalog.Artifacts, func(i, j int) bool {
 		if catalog.Artifacts[i].Kind != catalog.Artifacts[j].Kind {
 			return catalog.Artifacts[i].Kind < catalog.Artifacts[j].Kind
@@ -284,6 +291,17 @@ func DiscoverArtifactCatalog(scenarioDir, runID string, declarations []ArtifactP
 	}
 	catalog.Digest = digest
 	return catalog, nil
+}
+
+func stableLegacyCatalogTime(artifacts []ArtifactRef) time.Time {
+	latest := time.Unix(0, 0).UTC()
+	for _, artifact := range artifacts {
+		createdAt, err := time.Parse(time.RFC3339Nano, artifact.CreatedAt)
+		if err == nil && createdAt.After(latest) {
+			latest = createdAt
+		}
+	}
+	return latest
 }
 
 func declarationIndex(declarations []ArtifactPhaseDeclaration) map[string][]string {
@@ -574,6 +592,9 @@ func ReadArtifactCatalog(scenarioDir, runID string) (ArtifactCatalog, error) {
 	}
 	if err := validateArtifactCatalog(catalog); err != nil {
 		return ArtifactCatalog{}, err
+	}
+	if catalog.RunID != strings.TrimSpace(runID) {
+		return ArtifactCatalog{}, fmt.Errorf("%w: catalog run_id %q does not match requested run %q", ErrInvalidArtifactCatalog, catalog.RunID, strings.TrimSpace(runID))
 	}
 	expected, err := artifactCatalogDigest(catalog)
 	if err != nil {

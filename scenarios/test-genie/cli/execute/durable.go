@@ -460,22 +460,14 @@ func phaseFromEvent(ev *runspb.RunEvent) Phase {
 // buildResponse assembles a Response for the final summary from the accumulated
 // phase events and the terminal run_completed event.
 func buildResponse(terminal *runspb.RunEvent, phasesAcc []Phase) Response {
-	resp := Response{Phases: phasesAcc}
+	resp := Response{
+		Phases:       phasesAcc,
+		PhaseSummary: summarizePhases(phasesAcc),
+	}
 	if terminal != nil {
 		resp.Success = terminal.GetSuccess()
 		resp.Verdict = terminal.GetVerdict()
 		resp.Error = terminal.GetError()
-	}
-	for _, p := range phasesAcc {
-		resp.PhaseSummary.Total++
-		switch p.Status {
-		case "passed":
-			resp.PhaseSummary.Passed++
-		case "failed":
-			resp.PhaseSummary.Failed++
-		case "skipped":
-			resp.PhaseSummary.Skipped++
-		}
 	}
 	return resp
 }

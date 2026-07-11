@@ -112,7 +112,7 @@ export function ActionButtons({
         disabled={spawnDisabled}
         className="flex-1 sm:flex-none"
         data-testid={selectors.generate.spawnButton}
-        title={spawnDisabled ? "Configure a model to spawn agents" : "Spawn agents for these prompts"}
+        title={spawnDisabled ? "Configure a role to spawn agents" : "Spawn agents for these prompts"}
         onClick={() => onSpawnAll?.()}
       >
         <Sparkles className="mr-2 h-4 w-4" />

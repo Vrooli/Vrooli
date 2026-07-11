@@ -237,7 +237,7 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/files", s.handleListScenarioFiles).Methods("GET")
 
 	// Agent routes (via agent-manager)
-	apiRouter.HandleFunc("/agents/models", s.handleListAgentModels).Methods("GET")
+	apiRouter.HandleFunc("/agents/roles", s.handleListAgentRoles).Methods("GET")
 	apiRouter.HandleFunc("/agents/spawn", s.handleSpawnAgents).Methods("POST")
 	apiRouter.HandleFunc("/agents/active", s.handleListActiveAgents).Methods("GET")
 	apiRouter.HandleFunc("/agents/blocked-commands", s.handleGetBlockedCommands).Methods("GET")
