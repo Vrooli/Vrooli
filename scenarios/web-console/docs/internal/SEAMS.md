@@ -287,9 +287,12 @@ The client is the last hop; its durable guarantees:
   per animation frame (durable segment-finals still render immediately), so a
   high partial rate cannot jank the main thread and re-introduce client-side
   backpressure. Cancelled on every turn-terminal path. [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts]
-- **Bounded retention.** `allChunks` (HTTP-fallback / last-turn retry audio) is
-  bounded as a decodable prefix (`MAX_RETAINED_AUDIO_BYTES`) so a very long or
-  stuck session cannot grow it unbounded. [CODE: ui/src/audio-integration/hooks/voice/VoiceStreamProvider.ts]
+- **Processed-coverage retention.** `PcmVoiceStreamProvider` writes each
+  canonical PCM frame to the bounded origin-local turn journal before it is
+  released to the same-origin WebSocket. It compacts only on the server's
+  `processed_acknowledgement`; persisted next-sequence and sample cursors stay
+  intact even when all replay bytes have compacted. [CODE:
+  ui/src/audio-integration/hooks/voice/PcmVoiceStreamProvider.ts]
 
 ## Testability Seams
 
@@ -552,7 +555,9 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 
 **Module structure** (each file has one responsibility):
 - `voice/types.ts` — shared types, constants, `TranscriptionProvider` interface, `VoiceState` enum
-- `voice/VoiceStreamProvider.ts` — WebSocket streaming provider (preferred)
+- `voice/PcmVoiceStreamProvider.ts` — replay-safe PCM-v2 WebSocket provider
+  (preferred); the older MediaRecorder provider is not selected by the voice
+  core
 - `voice/WhisperProvider.ts` — HTTP batch transcription provider
 - `voice/WebSpeechProvider.ts` — Browser-native fallback + SpeechRecognition types
 - `voice/vad.ts` — Voice Activity Detection pure functions
@@ -566,14 +571,14 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 | Component | Production | Test |
 |-----------|-----------|------|
 | `WhisperProvider` | Records via MediaRecorder, POSTs audio to `/api/v1/voice/transcribe` | Mock `navigator.mediaDevices` + mock fetch |
-| `VoiceStreamProvider` | Starts MediaRecorder immediately on mic acquisition, buffers chunks until WebSocket connects, then streams to `/api/v1/voice/stream` | Mock WebSocket + mic + MediaRecorder |
+| `PcmVoiceStreamProvider` | Captures canonical PCM, journals before send, then streams v2 frames to `/api/v1/voice/stream` through the same-origin proxy; reconnect replay is deduplicated by the server session ledger | Mock WebSocket + mic + capture/journal seams |
 | `WebSpeechProvider` | Uses browser SpeechRecognition API with `continuous: true`, `interimResults: true` | Mock `window.SpeechRecognition` |
 | `TranscriptionProvider` interface | `start()`, `stop()`, `onResult`, `onError`, `onPartial` callbacks | Same interface, deterministic behavior |
 | Mic ownership registry | Sole production path to `navigator.mediaDevices.getUserMedia()`; providers call `acquireMicStream(owner, constraints)` | Mock `getUserMedia`, assert lease owner/release |
 | AudioContext singleton | Reused across recording sessions; resumed if suspended | Mock constructor, assert single creation |
 | Language parameter | `voiceLanguage` from store -> `lang` (WebSpeech) / `language` (Whisper/Stream); `"auto"` omits language param for Whisper auto-detection | Set store value, assert provider property |
-| Audio buffering (VoiceStreamProvider) | Chunks buffer in `pendingChunks` before WS connects; flushed on `ws.onopen` | Mock WS in CONNECTING state, verify chunks buffered then flushed |
-| WS reconnection | 2 attempts with exponential backoff (1s, 3s) + chunk buffering during reconnection | FakeWebSocket close simulation |
+| Audio buffering (PcmVoiceStreamProvider) | v2 frames are written to the turn journal before they enter the pending queue; journal data is authoritative for reconnect replay | Mock WS in CONNECTING state, verify journal-before-send ordering |
+| WS reconnection | 2 attempts with exponential backoff (1s, 3s) + at-least-once journal replay; server deduplicates by sequence/range/digest | FakeWebSocket close simulation |
 | Stale WS cleanup | `start()` closes previous WS and resets MediaRecorder before creating new ones | Call `start()` twice, verify first WS is closed |
 | Final timeout | `computeFinalTimeout(elapsed)`: max(10s, 2x recording duration), capped at 60s | Pure function, table-driven unit tests |
 | Audio bitrate | `AUDIO_BITRATE = 48_000` for MediaRecorder `audioBitsPerSecond` | Constant, ~6KB/s on localhost |

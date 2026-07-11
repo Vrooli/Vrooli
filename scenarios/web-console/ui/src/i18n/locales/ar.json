@@ -389,6 +389,8 @@
   },
   "messagesPane": {
     "copyMessageTitle": "نسخ الرسالة",
+    "viewAsPlainTextTitle": "عرض كنص عادي",
+    "viewAsMarkdownTitle": "عرض كماركداون",
     "readFromHereTitle": "اقرأ من هنا",
     "playAudioSettingsTitle": "تشغيل وفتح إعدادات الصوت",
     "audioSettingsHeading": "إعدادات الصوت",

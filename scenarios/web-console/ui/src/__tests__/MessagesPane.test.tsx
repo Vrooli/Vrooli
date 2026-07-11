@@ -290,6 +290,41 @@ describe("MessagesPane", () => {
     expect(screen.getByText("Hello World")).toBeInTheDocument();
   });
 
+  it("toggles a message between markdown and plain text views", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "# Heading" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    // Markdown by default
+    expect(screen.getByTestId("mock-markdown")).toBeInTheDocument();
+    expect(screen.queryByTestId("msg-plaintext-e1")).toBeNull();
+
+    const toggle = screen.getByTestId("msg-render-toggle-e1");
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(toggle);
+    expect(screen.queryByTestId("mock-markdown")).toBeNull();
+    const plain = screen.getByTestId("msg-plaintext-e1");
+    expect(plain).toBeInTheDocument();
+    expect(plain.textContent).toBe("# Heading");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(toggle);
+    expect(screen.getByTestId("mock-markdown")).toBeInTheDocument();
+    expect(screen.queryByTestId("msg-plaintext-e1")).toBeNull();
+  });
+
+  it("render mode toggle is independent per message", () => {
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, text: "first" }),
+      makeEvent({ id: "e2", sequence: 2, text: "second" }),
+    ]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("msg-render-toggle-e1"));
+    expect(screen.getByTestId("msg-plaintext-e1")).toBeInTheDocument();
+    expect(screen.queryByTestId("msg-plaintext-e2")).toBeNull();
+  });
+
   it("opens the Mermaid viewer from a diagram open action and closes it", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "diagram here" })]);
     render(<MessagesPane {...defaultProps} />);

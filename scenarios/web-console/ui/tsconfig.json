@@ -25,7 +25,11 @@
     "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"]
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@vrooli/audio-capture-browser": ["../../../packages/audio-capture-browser/src/index.ts"]
+    }
   },
   "include": ["src", "vite.config.ts"],
   "exclude": ["dist"]

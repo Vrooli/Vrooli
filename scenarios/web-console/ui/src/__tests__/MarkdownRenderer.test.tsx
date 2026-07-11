@@ -122,6 +122,59 @@ describe("MarkdownRenderer", () => {
     expect(onLinkClick.mock.calls[0]?.[0]).toBe("docs/plan.md");
   });
 
+  it("auto-links bare file paths in prose with the prose-path treatment", () => {
+    const onLinkClick = vi.fn();
+    render(<MarkdownRenderer content="Edited scenarios/web-console/ui/src/App.tsx:42 in place" onLinkClick={onLinkClick} />);
+    const link = document.querySelector("a[data-prose-path='true']");
+    expect(link).not.toBeNull();
+    expect(link?.textContent).toBe("scenarios/web-console/ui/src/App.tsx:42");
+    expect(link?.getAttribute("href")).toBe("scenarios/web-console/ui/src/App.tsx:42");
+    expect(link?.className).toContain("decoration-dotted");
+    link?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onLinkClick).toHaveBeenCalledTimes(1);
+    expect(onLinkClick.mock.calls[0]?.[0]).toBe("scenarios/web-console/ui/src/App.tsx:42");
+  });
+
+  it("does not auto-link slashed prose or bare module names", () => {
+    render(<MarkdownRenderer content="Use and/or logic on the TCP/IP stack with node.js" />);
+    expect(document.querySelector("a")).toBeNull();
+  });
+
+  it("does not auto-link paths inside inline code or authored links", () => {
+    render(<MarkdownRenderer content="See `src/lib/a.ts` and [b](docs/plan.md)" />);
+    expect(document.querySelector("a[data-prose-path='true']")).toBeNull();
+    // The authored link keeps its normal treatment.
+    const link = document.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("docs/plan.md");
+    expect(link?.className).not.toContain("decoration-dotted");
+  });
+
+  it("auto-links a deep absolute upload path in prose (live regression)", () => {
+    const path =
+      "/home/matthalloran8/.vrooli/cache/vrooli/web-console/uploads/e802040e-8e0a-4fed-a776-34d1eed75bb1/IMG_9951.png";
+    render(<MarkdownRenderer content={`Looks like it’s matching the negatives ${path}`} />);
+    const link = document.querySelector("a[data-prose-path='true']");
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute("href")).toBe(path);
+  });
+
+  it("does not chip non-path inline code like and/or or file://", () => {
+    render(<MarkdownRenderer content="Use `and/or` with `TCP/IP`, `50/50`, `vrooli.com`, `file://`" onFileReferenceClick={() => {}} />);
+    // Chips render a button with an Open title; none of these should get one.
+    expect(document.querySelector("button[title^='Open ']")).toBeNull();
+  });
+
+  it("still chips real paths and plain filenames in inline code", () => {
+    render(<MarkdownRenderer content="See `~/notes/todo.txt` and `README.md`" onFileReferenceClick={() => {}} />);
+    const chips = document.querySelectorAll("button[title^='Open ']");
+    expect(chips).toHaveLength(2);
+  });
+
+  it("does not auto-link inside autolinked URLs", () => {
+    render(<MarkdownRenderer content="Docs at https://example.com/docs/guide.md today" />);
+    expect(document.querySelector("a[data-prose-path='true']")).toBeNull();
+  });
+
   it("renders strikethrough text (GFM)", () => {
     render(<MarkdownRenderer content={"This is ~~deleted~~ text"} />);
     const del = document.querySelector("del");

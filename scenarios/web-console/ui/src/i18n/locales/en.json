@@ -391,6 +391,8 @@
   },
   "messagesPane": {
     "copyMessageTitle": "Copy message",
+    "viewAsPlainTextTitle": "View as plain text",
+    "viewAsMarkdownTitle": "View as markdown",
     "readFromHereTitle": "Read from here",
     "playAudioSettingsTitle": "Play and open audio settings",
     "audioSettingsHeading": "Audio Settings",

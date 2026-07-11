@@ -9,6 +9,7 @@ import {
   ChevronUp,
   ChevronsUpDown,
   Copy,
+  FileCode2,
   Loader2,
   Play,
   RotateCw,
@@ -144,6 +145,8 @@ interface MessageRowProps {
   isDimmed: boolean;
   isExpanded: boolean;
   onToggleExpanded: (eventId: string) => void;
+  isPlaintext: boolean;
+  onToggleRenderMode: (eventId: string) => void;
   onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
   onFileReferenceClick: (path: string) => void;
   onMermaidOpen: (code: string) => void;
@@ -178,6 +181,8 @@ const MessageRow = memo(function MessageRow({
   isDimmed,
   isExpanded,
   onToggleExpanded,
+  isPlaintext,
+  onToggleRenderMode,
   onLinkClick,
   onFileReferenceClick,
   onMermaidOpen,
@@ -199,7 +204,7 @@ const MessageRow = memo(function MessageRow({
     const observer = new ResizeObserver(() => measure());
     observer.observe(node);
     return () => observer.disconnect();
-  }, [event.text, isExpanded]);
+  }, [event.text, isExpanded, isPlaintext]);
 
   const isUser = event.role === "user";
   const isTtsActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
@@ -247,6 +252,22 @@ const MessageRow = memo(function MessageRow({
           {copiedEventId === event.id
             ? <Check className="h-3.5 w-3.5 text-green-400" />
             : <Copy className="h-3.5 w-3.5" />}
+        </button>
+
+        <button
+          data-testid={`msg-render-toggle-${event.id}`}
+          onClick={() => onToggleRenderMode(event.id)}
+          aria-pressed={isPlaintext}
+          className={cn(
+            "rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10",
+            isPlaintext && "text-wc-accent",
+          )}
+          title={isPlaintext
+            ? t(strings.messagesPane.viewAsMarkdownTitle)
+            : t(strings.messagesPane.viewAsPlainTextTitle)}
+          type="button"
+        >
+          <FileCode2 className="h-3.5 w-3.5" />
         </button>
 
         {!isUser && (
@@ -403,7 +424,16 @@ const MessageRow = memo(function MessageRow({
           style={{ fontSize: `${fontSize}px` }}
           className="text-wc-text-primary"
         >
-          <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+          {isPlaintext ? (
+            <pre
+              data-testid={`msg-plaintext-${event.id}`}
+              className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono"
+            >
+              {event.text}
+            </pre>
+          ) : (
+            <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+          )}
         </div>
 
         {isCollapsed && (
@@ -438,6 +468,7 @@ const MessageRow = memo(function MessageRow({
   prevProps.isSearchFocused === nextProps.isSearchFocused &&
   prevProps.isDimmed === nextProps.isDimmed &&
   prevProps.isExpanded === nextProps.isExpanded &&
+  prevProps.isPlaintext === nextProps.isPlaintext &&
   prevProps.onLinkClick === nextProps.onLinkClick &&
   prevProps.onFileReferenceClick === nextProps.onFileReferenceClick &&
   prevProps.onMermaidOpen === nextProps.onMermaidOpen
@@ -513,6 +544,17 @@ export default function MessagesPane({
 
   // --- Collapse ---
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  // --- Render mode (markdown by default; ids in this set show plain text) ---
+  const [plaintextIds, setPlaintextIds] = useState<Set<string>>(new Set());
+  const toggleRenderMode = useCallback((eventId: string) => {
+    setPlaintextIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  }, []);
 
   // --- Export selection (session-scoped source of truth shared by the
   // navigator's selection mode and the export drawer) ---
@@ -1019,6 +1061,8 @@ export default function MessagesPane({
                     isDimmed={!!searchQuery && !searchMatchSet.has(event.id)}
                     isExpanded={expandedIds.has(event.id)}
                     onToggleExpanded={toggleExpanded}
+                    isPlaintext={plaintextIds.has(event.id)}
+                    onToggleRenderMode={toggleRenderMode}
                     onLinkClick={handleMarkdownLinkClick}
                     onFileReferenceClick={handleInlineCodeFileClick}
                     onMermaidOpen={handleMermaidOpen}

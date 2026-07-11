@@ -32,6 +32,7 @@ export * from "./hooks/voice/micLifecyclePolicy";
 export * from "./hooks/voice/voiceCaptureController";
 export * from "./hooks/voice/streamHealth";
 export { VoiceStreamProvider } from "./hooks/voice/VoiceStreamProvider";
+export { PcmVoiceStreamProvider } from "./hooks/voice/PcmVoiceStreamProvider";
 export { WhisperProvider } from "./hooks/voice/WhisperProvider";
 export { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
 export * from "./hooks/voice/wakeword";

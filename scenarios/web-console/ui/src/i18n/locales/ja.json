@@ -385,6 +385,8 @@
   },
   "messagesPane": {
     "copyMessageTitle": "メッセージをコピー",
+    "viewAsPlainTextTitle": "プレーンテキストで表示",
+    "viewAsMarkdownTitle": "マークダウンで表示",
     "readFromHereTitle": "ここから読み上げ",
     "playAudioSettingsTitle": "再生して音声設定を開く",
     "audioSettingsHeading": "音声設定",

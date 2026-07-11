@@ -1,6 +1,7 @@
 import { Component, memo, useMemo, type ComponentPropsWithoutRef, type MouseEvent, type ReactNode, type ErrorInfo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { remarkProsePaths } from "./utils/remarkProsePaths";
 import { CodeBlock } from "./components/CodeBlock";
 import { InlineCode } from "./components/InlineCode";
 import { MermaidDiagram } from "./components/MermaidDiagram";
@@ -77,15 +78,23 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 
       pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
 
-      a: ({ href, children, ...props }: ComponentPropsWithoutRef<"a">) => {
+      a: ({ href, children, ...props }: ComponentPropsWithoutRef<"a"> & { "data-prose-path"?: string }) => {
         const safeHref = href ?? "";
         const external = isExternalHref(safeHref);
+        // Auto-detected bare paths get a quieter treatment than authored
+        // links: dotted underline, solid on hover.
+        const isProsePath = props["data-prose-path"] === "true";
         return (
           <a
             href={safeHref}
             target={external ? "_blank" : undefined}
             rel={external ? "noopener noreferrer" : undefined}
-            className="text-wc-accent underline underline-offset-2 hover:text-wc-accent/80"
+            className={
+              isProsePath
+                ? "text-wc-accent/90 underline decoration-dotted underline-offset-2 hover:decoration-solid hover:text-wc-accent"
+                : "text-wc-accent underline underline-offset-2 hover:text-wc-accent/80"
+            }
+            title={isProsePath ? `Open ${safeHref}` : undefined}
             onClick={(event) => onLinkClick?.(safeHref, event)}
             {...props}
           >
@@ -162,7 +171,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 
   // If search is active, wrap rendered output with highlighting
   const rendered = (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+    <ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>
       {safeContent}
     </ReactMarkdown>
   );

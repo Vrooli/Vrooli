@@ -403,6 +403,8 @@ export const strings = {
   },
   messagesPane: {
     copyMessageTitle: "messagesPane.copyMessageTitle",
+    viewAsPlainTextTitle: "messagesPane.viewAsPlainTextTitle",
+    viewAsMarkdownTitle: "messagesPane.viewAsMarkdownTitle",
     readFromHereTitle: "messagesPane.readFromHereTitle",
     playAudioSettingsTitle: "messagesPane.playAudioSettingsTitle",
     audioSettingsHeading: "messagesPane.audioSettingsHeading",

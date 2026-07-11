@@ -245,15 +245,16 @@ function apiBaseToWsBase(apiBase: string): string {
  * web-console's API, which proxies the upstream WebSocket to audio-tools
  * server-side (Phase E of the UI↔own-API migration).
  */
-export function buildVoiceStreamWsUrl(language?: string): string {
+export function buildVoiceStreamWsUrl(language?: string, sessionId?: string, resumeToken?: string): string {
   const wsBase = apiBaseToWsBase(API_BASE.replace(/\/$/, ""));
-  // Declare-first (audio-tools/audioformat): the web-console always records
-  // WebM/Opus via MediaRecorder, so declare `format=webm` rather than relying on
-  // the backend sniffing the first chunk. Sniffing is fragile — if the leading
-  // frame on the wire isn't the WebM/EBML header it fails with "could not
-  // determine audio codec"; declaring the codec skips the sniff entirely.
-  const params = new URLSearchParams({ format: "webm" });
+  // Legacy MediaRecorder callers stay on WebM. Passing a durable session
+  // identity opts the canonical PCM provider into the replay-safe v2 wire
+  // contract, without changing the legacy transport during migration.
+  const params = new URLSearchParams({ format: sessionId ? "pcm_s16le" : "webm" });
   if (language) params.set("language", language);
+  if (sessionId) params.set("protocol_version", "2");
+  if (sessionId) params.set("session_id", sessionId);
+  if (resumeToken) params.set("resume_token", resumeToken);
   return `${wsBase}/api/v1/voice/stream?${params.toString()}`;
 }
 
@@ -455,4 +456,3 @@ export async function deleteSpeakerVerificationProfile(profileId: string): Promi
   const resp = await audioAdminClient.deleteSpeakerProfile({ profileId });
   return decodeSpeakerConfig(resp.config);
 }
-

@@ -36,7 +36,7 @@ import {
 } from "../../audio-integration";
 import { fetchCapabilities, type CapabilityState } from "../../api/capabilities";
 import { probeWhisperHealth } from "../../hooks/useVoiceInput";
-import { VoiceStreamProvider, WhisperProvider, WebSpeechProvider } from "../../audio-integration";
+import { PcmVoiceStreamProvider, WhisperProvider, WebSpeechProvider } from "../../audio-integration";
 import type { TranscriptionProvider } from "../../audio-integration";
 import { getSharedAudioContext } from "../../audio-integration/hooks/voice/sharedAudioContext";
 import { createAudioFilterChain } from "../../audio-integration/hooks/voice/audioUtils";
@@ -1868,7 +1868,7 @@ function TestMicrophoneCard() {
     let provider: TranscriptionProvider;
     let providerUsed: string;
     if (backend === "whisper-stream") {
-      provider = new VoiceStreamProvider();
+      provider = new PcmVoiceStreamProvider();
       providerUsed = t(strings.settings.voiceInputSection.testMicBackendWhisperStream);
     } else if (backend === "whisper-http") {
       provider = new WhisperProvider();

@@ -37,7 +37,7 @@ import { installMicLifecycleCleanup, subscribeMicLeases, getActiveMicLeases } fr
 import { VoiceCaptureController } from "../index";
 import { decideMicLifecycle, isStandaloneDisplayMode, selectStaleLeases } from "../index";
 import type { LifecycleReleaseScope, MicReleaseReason, MicLeaseSnapshot } from "../index";
-import { VoiceStreamProvider } from "../index";
+import { PcmVoiceStreamProvider, VoiceStreamProvider } from "../index";
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
 import { decidePassiveArm } from "./voice/passiveArmDecision";
@@ -80,6 +80,10 @@ const INITIAL_STATE: VoiceInputState = {
   passiveListeningActive: false,
   staleLiveMicLease: false,
 };
+
+function isStreamingProvider(provider: TranscriptionProvider | null): provider is VoiceStreamProvider | PcmVoiceStreamProvider {
+  return provider instanceof VoiceStreamProvider || provider instanceof PcmVoiceStreamProvider;
+}
 
 /**
  * Retention TTL for a rejection's audio blob. After this timeout fires the
@@ -861,8 +865,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           // the mic button, eliminating 10-100ms of connection latency.
           // DOC: docs/internal/VOICE-LATENCY.md#websocket-pre-connection
           if (streamingAvailableRef.current) {
-            controller.ensure(() => new VoiceStreamProvider());
-            if (providerRef.current instanceof VoiceStreamProvider) {
+            controller.ensure(() => new PcmVoiceStreamProvider());
+            if (isStreamingProvider(providerRef.current)) {
               const currentLanguage = voiceLanguageRef.current;
               const lang = currentLanguage === "auto" ? "" : (currentLanguage.split("-")[0] ?? "en");
               providerRef.current.preConnect(lang);
@@ -1047,9 +1051,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       if (!providerRef.current) {
         if (backendRef.current === "whisper") {
           controller.set(streamingAvailableRef.current
-            ? new VoiceStreamProvider()
+            ? new PcmVoiceStreamProvider()
             : new WhisperProvider());
-          console.info("[voice] Provider:", streamingAvailableRef.current ? "VoiceStream" : "WhisperHTTP");
+          console.info("[voice] Provider:", streamingAvailableRef.current ? "PCMVoiceStreamV2" : "WhisperHTTP");
         } else if (backendRef.current === "web-speech") {
           controller.set(new WebSpeechProvider());
           console.info("[voice] Provider: WebSpeech");
@@ -1076,7 +1080,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       }
 
       // Wire up segment-final handler for persistent mode
-      if (provider instanceof VoiceStreamProvider) {
+      if (isStreamingProvider(provider)) {
         provider.onSegmentFinal = handleSegmentFinal;
         // A segment-accepted event proves verification is wired up and the
         // profile is configured. We no longer surface a soft banner when a
@@ -1532,7 +1536,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     provider.onError = null;
     if (provider.onPartial !== undefined) provider.onPartial = null;
     if (provider.onStatus !== undefined) provider.onStatus = null;
-    if (provider instanceof VoiceStreamProvider) {
+    if (isStreamingProvider(provider)) {
       provider.onSegmentFinal = null;
       provider.onSegmentAccepted = null;
       provider.onSegmentRejected = null;

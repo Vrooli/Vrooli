@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { Check, Copy, FileText } from "lucide-react";
 import { useCodeCopy } from "../hooks/useCodeCopy";
-import { looksLikeFileReference } from "../../../lib/fileReferences";
+import { looksLikeInlineFileReference } from "../../../lib/fileReferences";
 
 interface InlineCodeProps {
   children: ReactNode;
@@ -23,7 +23,7 @@ export function InlineCode({ children, onFileReferenceClick }: InlineCodeProps) 
   const isFileRef =
     onFileReferenceClick !== undefined &&
     textContent.length > 0 &&
-    looksLikeFileReference(textContent);
+    looksLikeInlineFileReference(textContent);
 
   if (isFileRef) {
     return (
