@@ -110,14 +110,6 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		profileKey = DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
 	}
 
-	// Build the resolved profile and validate compatibility with runtime mode.
-	resolvedProfile := BuildDefaultProfileForRuntimeMode(profileKey, team.Runtime.Mode)
-	if err := validateProfileCompatibility(team, resolvedProfile); err != nil {
-		result.Error = fmt.Errorf("profile mismatch: %w", err)
-		result.Status = store.HeartbeatStatusFailed
-		return result, result.Error
-	}
-
 	contract := team.Contract()
 
 	// Build the prompt (single-process leader-led teams use Claude Code interop)
@@ -188,9 +180,8 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		return result, result.Error
 	}
 
-	// Create run — include Defaults so agent-manager can auto-create the
-	// profile if EnsureProfile failed at startup (e.g. agent-manager wasn't
-	// ready yet).
+	// Create a run using the reconciled, scenario-owned profile. Runtime
+	// selection belongs to Agent Manager's role resolver, not heartbeat code.
 	//
 	// Environment carries VROOLI_PROMPT_MANAGER_ATTRIBUTION so the spawned
 	// agent's CLI inherits structured attribution and forwards it as the
@@ -201,9 +192,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	runReq := &CreateRunRequest{
 		TaskID: createdTask.ID,
 		ProfileRef: &ProfileRef{
-			ProfileKey:     profileKey,
-			Defaults:       resolvedProfile,
-			UpdateExisting: true,
+			ProfileKey: profileKey,
 		},
 		Tag: &runTag,
 		Environment: map[string]string{

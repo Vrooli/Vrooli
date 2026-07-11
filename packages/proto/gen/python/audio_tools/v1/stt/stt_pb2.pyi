@@ -39,6 +39,12 @@ class StrategyPreference(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRATEGY_PREFERENCE_VAD: _ClassVar[StrategyPreference]
     STRATEGY_PREFERENCE_OVERLAP: _ClassVar[StrategyPreference]
     STRATEGY_PREFERENCE_PASSTHROUGH: _ClassVar[StrategyPreference]
+
+class StreamDeliveryClass(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STREAM_DELIVERY_CLASS_UNSPECIFIED: _ClassVar[StreamDeliveryClass]
+    STREAM_DELIVERY_CLASS_PROGRESS: _ClassVar[StreamDeliveryClass]
+    STREAM_DELIVERY_CLASS_DURABLE: _ClassVar[StreamDeliveryClass]
 SPEAKER_MODE_UNSPECIFIED: SpeakerMode
 SPEAKER_MODE_OFF: SpeakerMode
 SPEAKER_MODE_FILTER: SpeakerMode
@@ -54,6 +60,9 @@ STRATEGY_PREFERENCE_AUTO: StrategyPreference
 STRATEGY_PREFERENCE_VAD: StrategyPreference
 STRATEGY_PREFERENCE_OVERLAP: StrategyPreference
 STRATEGY_PREFERENCE_PASSTHROUGH: StrategyPreference
+STREAM_DELIVERY_CLASS_UNSPECIFIED: StreamDeliveryClass
+STREAM_DELIVERY_CLASS_PROGRESS: StreamDeliveryClass
+STREAM_DELIVERY_CLASS_DURABLE: StreamDeliveryClass
 
 class TranscribeRequest(_message.Message):
     __slots__ = ("audio", "format", "language", "skip_speaker_verification", "initial_prompt")
@@ -584,32 +593,54 @@ class TranscribeStreamRequest(_message.Message):
     AUDIO_CHUNK_FIELD_NUMBER: _ClassVar[int]
     END_FIELD_NUMBER: _ClassVar[int]
     start: StreamStart
-    audio_chunk: bytes
+    audio_chunk: StreamAudioChunk
     end: StreamEnd
-    def __init__(self, start: _Optional[_Union[StreamStart, _Mapping]] = ..., audio_chunk: _Optional[bytes] = ..., end: _Optional[_Union[StreamEnd, _Mapping]] = ...) -> None: ...
+    def __init__(self, start: _Optional[_Union[StreamStart, _Mapping]] = ..., audio_chunk: _Optional[_Union[StreamAudioChunk, _Mapping]] = ..., end: _Optional[_Union[StreamEnd, _Mapping]] = ...) -> None: ...
 
 class StreamStart(_message.Message):
-    __slots__ = ("config", "language", "initial_prompt", "skip_speaker_verification", "input_format", "input_sample_rate_hz")
+    __slots__ = ("config", "language", "initial_prompt", "skip_speaker_verification", "input_format", "input_sample_rate_hz", "protocol_version", "session_id", "generation", "resume_token")
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     INITIAL_PROMPT_FIELD_NUMBER: _ClassVar[int]
     SKIP_SPEAKER_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
     INPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
     INPUT_SAMPLE_RATE_HZ_FIELD_NUMBER: _ClassVar[int]
+    PROTOCOL_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    RESUME_TOKEN_FIELD_NUMBER: _ClassVar[int]
     config: StreamConfig
     language: str
     initial_prompt: str
     skip_speaker_verification: bool
     input_format: _common_pb2.AudioFormat
     input_sample_rate_hz: int
-    def __init__(self, config: _Optional[_Union[StreamConfig, _Mapping]] = ..., language: _Optional[str] = ..., initial_prompt: _Optional[str] = ..., skip_speaker_verification: _Optional[bool] = ..., input_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., input_sample_rate_hz: _Optional[int] = ...) -> None: ...
+    protocol_version: int
+    session_id: str
+    generation: int
+    resume_token: str
+    def __init__(self, config: _Optional[_Union[StreamConfig, _Mapping]] = ..., language: _Optional[str] = ..., initial_prompt: _Optional[str] = ..., skip_speaker_verification: _Optional[bool] = ..., input_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., input_sample_rate_hz: _Optional[int] = ..., protocol_version: _Optional[int] = ..., session_id: _Optional[str] = ..., generation: _Optional[int] = ..., resume_token: _Optional[str] = ...) -> None: ...
+
+class StreamAudioChunk(_message.Message):
+    __slots__ = ("audio", "sequence", "start_sample", "end_sample", "sha256")
+    AUDIO_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    START_SAMPLE_FIELD_NUMBER: _ClassVar[int]
+    END_SAMPLE_FIELD_NUMBER: _ClassVar[int]
+    SHA256_FIELD_NUMBER: _ClassVar[int]
+    audio: bytes
+    sequence: int
+    start_sample: int
+    end_sample: int
+    sha256: bytes
+    def __init__(self, audio: _Optional[bytes] = ..., sequence: _Optional[int] = ..., start_sample: _Optional[int] = ..., end_sample: _Optional[int] = ..., sha256: _Optional[bytes] = ...) -> None: ...
 
 class StreamEnd(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class TranscribeStreamEvent(_message.Message):
-    __slots__ = ("segment", "partial", "wake_word", "speaker_rejection", "error", "done", "vad_state")
+    __slots__ = ("segment", "partial", "wake_word", "speaker_rejection", "error", "done", "vad_state", "acknowledgement", "session_status")
     SEGMENT_FIELD_NUMBER: _ClassVar[int]
     PARTIAL_FIELD_NUMBER: _ClassVar[int]
     WAKE_WORD_FIELD_NUMBER: _ClassVar[int]
@@ -617,6 +648,8 @@ class TranscribeStreamEvent(_message.Message):
     ERROR_FIELD_NUMBER: _ClassVar[int]
     DONE_FIELD_NUMBER: _ClassVar[int]
     VAD_STATE_FIELD_NUMBER: _ClassVar[int]
+    ACKNOWLEDGEMENT_FIELD_NUMBER: _ClassVar[int]
+    SESSION_STATUS_FIELD_NUMBER: _ClassVar[int]
     segment: StreamSegment
     partial: StreamPartial
     wake_word: StreamWakeWord
@@ -624,10 +657,42 @@ class TranscribeStreamEvent(_message.Message):
     error: StreamError
     done: StreamDone
     vad_state: StreamVadState
-    def __init__(self, segment: _Optional[_Union[StreamSegment, _Mapping]] = ..., partial: _Optional[_Union[StreamPartial, _Mapping]] = ..., wake_word: _Optional[_Union[StreamWakeWord, _Mapping]] = ..., speaker_rejection: _Optional[_Union[StreamSpeakerRejection, _Mapping]] = ..., error: _Optional[_Union[StreamError, _Mapping]] = ..., done: _Optional[_Union[StreamDone, _Mapping]] = ..., vad_state: _Optional[_Union[StreamVadState, _Mapping]] = ...) -> None: ...
+    acknowledgement: StreamAcknowledgement
+    session_status: StreamSessionStatus
+    def __init__(self, segment: _Optional[_Union[StreamSegment, _Mapping]] = ..., partial: _Optional[_Union[StreamPartial, _Mapping]] = ..., wake_word: _Optional[_Union[StreamWakeWord, _Mapping]] = ..., speaker_rejection: _Optional[_Union[StreamSpeakerRejection, _Mapping]] = ..., error: _Optional[_Union[StreamError, _Mapping]] = ..., done: _Optional[_Union[StreamDone, _Mapping]] = ..., vad_state: _Optional[_Union[StreamVadState, _Mapping]] = ..., acknowledgement: _Optional[_Union[StreamAcknowledgement, _Mapping]] = ..., session_status: _Optional[_Union[StreamSessionStatus, _Mapping]] = ...) -> None: ...
+
+class StreamAcknowledgement(_message.Message):
+    __slots__ = ("received_sequence", "processed_sequence", "received_end_sample", "processed_end_sample", "delivery_class")
+    RECEIVED_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    PROCESSED_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    RECEIVED_END_SAMPLE_FIELD_NUMBER: _ClassVar[int]
+    PROCESSED_END_SAMPLE_FIELD_NUMBER: _ClassVar[int]
+    DELIVERY_CLASS_FIELD_NUMBER: _ClassVar[int]
+    received_sequence: int
+    processed_sequence: int
+    received_end_sample: int
+    processed_end_sample: int
+    delivery_class: StreamDeliveryClass
+    def __init__(self, received_sequence: _Optional[int] = ..., processed_sequence: _Optional[int] = ..., received_end_sample: _Optional[int] = ..., processed_end_sample: _Optional[int] = ..., delivery_class: _Optional[_Union[StreamDeliveryClass, str]] = ...) -> None: ...
+
+class StreamSessionStatus(_message.Message):
+    __slots__ = ("session_id", "generation", "state", "queue_position", "capability_outcome", "recovery_guidance")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    QUEUE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_GUIDANCE_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    generation: int
+    state: str
+    queue_position: int
+    capability_outcome: str
+    recovery_guidance: str
+    def __init__(self, session_id: _Optional[str] = ..., generation: _Optional[int] = ..., state: _Optional[str] = ..., queue_position: _Optional[int] = ..., capability_outcome: _Optional[str] = ..., recovery_guidance: _Optional[str] = ...) -> None: ...
 
 class StreamSegment(_message.Message):
-    __slots__ = ("text", "start_ms", "end_ms", "detected_language", "provider_tier", "model_id", "latency_ms")
+    __slots__ = ("text", "start_ms", "end_ms", "detected_language", "provider_tier", "model_id", "latency_ms", "segment_id", "generation", "start_sample", "end_sample", "alignment_quality")
     TEXT_FIELD_NUMBER: _ClassVar[int]
     START_MS_FIELD_NUMBER: _ClassVar[int]
     END_MS_FIELD_NUMBER: _ClassVar[int]
@@ -635,6 +700,11 @@ class StreamSegment(_message.Message):
     PROVIDER_TIER_FIELD_NUMBER: _ClassVar[int]
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    SEGMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    START_SAMPLE_FIELD_NUMBER: _ClassVar[int]
+    END_SAMPLE_FIELD_NUMBER: _ClassVar[int]
+    ALIGNMENT_QUALITY_FIELD_NUMBER: _ClassVar[int]
     text: str
     start_ms: int
     end_ms: int
@@ -642,7 +712,12 @@ class StreamSegment(_message.Message):
     provider_tier: _common_pb2.ProviderTier
     model_id: str
     latency_ms: float
-    def __init__(self, text: _Optional[str] = ..., start_ms: _Optional[int] = ..., end_ms: _Optional[int] = ..., detected_language: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
+    segment_id: str
+    generation: int
+    start_sample: int
+    end_sample: int
+    alignment_quality: str
+    def __init__(self, text: _Optional[str] = ..., start_ms: _Optional[int] = ..., end_ms: _Optional[int] = ..., detected_language: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., segment_id: _Optional[str] = ..., generation: _Optional[int] = ..., start_sample: _Optional[int] = ..., end_sample: _Optional[int] = ..., alignment_quality: _Optional[str] = ...) -> None: ...
 
 class StreamPartial(_message.Message):
     __slots__ = ("text",)
@@ -693,17 +768,23 @@ class StreamVadState(_message.Message):
     def __init__(self, voiced: _Optional[bool] = ..., silence_elapsed_ms: _Optional[int] = ..., silence_timeout_ms: _Optional[int] = ..., tick_seq: _Optional[int] = ..., silence_timed_out: _Optional[bool] = ...) -> None: ...
 
 class StreamDone(_message.Message):
-    __slots__ = ("final_text", "provider_tier", "provider_id", "model_id", "latency_ms", "fell_back_to_unary")
+    __slots__ = ("final_text", "provider_tier", "provider_id", "model_id", "latency_ms", "fell_back_to_unary", "processed_sequence", "processed_end_sample", "terminal_reason")
     FINAL_TEXT_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_TIER_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
     FELL_BACK_TO_UNARY_FIELD_NUMBER: _ClassVar[int]
+    PROCESSED_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    PROCESSED_END_SAMPLE_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_REASON_FIELD_NUMBER: _ClassVar[int]
     final_text: str
     provider_tier: _common_pb2.ProviderTier
     provider_id: str
     model_id: str
     latency_ms: float
     fell_back_to_unary: bool
-    def __init__(self, final_text: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., fell_back_to_unary: _Optional[bool] = ...) -> None: ...
+    processed_sequence: int
+    processed_end_sample: int
+    terminal_reason: str
+    def __init__(self, final_text: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., fell_back_to_unary: _Optional[bool] = ..., processed_sequence: _Optional[int] = ..., processed_end_sample: _Optional[int] = ..., terminal_reason: _Optional[str] = ...) -> None: ...

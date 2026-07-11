@@ -20,15 +20,26 @@ class ExperimentStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EXPERIMENT_STATUS_SUCCEEDED: _ClassVar[ExperimentStatus]
     EXPERIMENT_STATUS_FAILED: _ClassVar[ExperimentStatus]
     EXPERIMENT_STATUS_CANCELED: _ClassVar[ExperimentStatus]
+
+class ReplayLane(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    REPLAY_LANE_UNSPECIFIED: _ClassVar[ReplayLane]
+    REPLAY_LANE_DETERMINISTIC: _ClassVar[ReplayLane]
+    REPLAY_LANE_REALTIME: _ClassVar[ReplayLane]
+    REPLAY_LANE_PRODUCT_PATH: _ClassVar[ReplayLane]
 EXPERIMENT_STATUS_UNSPECIFIED: ExperimentStatus
 EXPERIMENT_STATUS_QUEUED: ExperimentStatus
 EXPERIMENT_STATUS_RUNNING: ExperimentStatus
 EXPERIMENT_STATUS_SUCCEEDED: ExperimentStatus
 EXPERIMENT_STATUS_FAILED: ExperimentStatus
 EXPERIMENT_STATUS_CANCELED: ExperimentStatus
+REPLAY_LANE_UNSPECIFIED: ReplayLane
+REPLAY_LANE_DETERMINISTIC: ReplayLane
+REPLAY_LANE_REALTIME: ReplayLane
+REPLAY_LANE_PRODUCT_PATH: ReplayLane
 
 class ExperimentRecipe(_message.Message):
-    __slots__ = ("clip_ids", "strategies", "realtime_repeats", "chunk_ms", "seed", "long_form", "realized_clip_ids", "realized_reference", "realized_duration_ms", "augmentation", "realized_augmentation_conditions", "speaker", "realized_speaker_conditions", "dropped_span_threshold_words", "latency_tail_seconds")
+    __slots__ = ("clip_ids", "strategies", "realtime_repeats", "chunk_ms", "seed", "long_form", "realized_clip_ids", "realized_reference", "realized_duration_ms", "augmentation", "realized_augmentation_conditions", "speaker", "realized_speaker_conditions", "dropped_span_threshold_words", "latency_tail_seconds", "cells")
     CLIP_IDS_FIELD_NUMBER: _ClassVar[int]
     STRATEGIES_FIELD_NUMBER: _ClassVar[int]
     REALTIME_REPEATS_FIELD_NUMBER: _ClassVar[int]
@@ -44,6 +55,7 @@ class ExperimentRecipe(_message.Message):
     REALIZED_SPEAKER_CONDITIONS_FIELD_NUMBER: _ClassVar[int]
     DROPPED_SPAN_THRESHOLD_WORDS_FIELD_NUMBER: _ClassVar[int]
     LATENCY_TAIL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    CELLS_FIELD_NUMBER: _ClassVar[int]
     clip_ids: _containers.RepeatedScalarFieldContainer[str]
     strategies: _containers.RepeatedCompositeFieldContainer[_eval_pb2.EvalStrategy]
     realtime_repeats: int
@@ -59,7 +71,28 @@ class ExperimentRecipe(_message.Message):
     realized_speaker_conditions: _containers.RepeatedCompositeFieldContainer[SpeakerCondition]
     dropped_span_threshold_words: int
     latency_tail_seconds: int
-    def __init__(self, clip_ids: _Optional[_Iterable[str]] = ..., strategies: _Optional[_Iterable[_Union[_eval_pb2.EvalStrategy, _Mapping]]] = ..., realtime_repeats: _Optional[int] = ..., chunk_ms: _Optional[int] = ..., seed: _Optional[int] = ..., long_form: _Optional[_Union[LongFormRecipe, _Mapping]] = ..., realized_clip_ids: _Optional[_Iterable[str]] = ..., realized_reference: _Optional[str] = ..., realized_duration_ms: _Optional[int] = ..., augmentation: _Optional[_Union[AugmentationRecipe, _Mapping]] = ..., realized_augmentation_conditions: _Optional[_Iterable[_Union[AugmentationCondition, _Mapping]]] = ..., speaker: _Optional[_Union[SpeakerExperimentRecipe, _Mapping]] = ..., realized_speaker_conditions: _Optional[_Iterable[_Union[SpeakerCondition, _Mapping]]] = ..., dropped_span_threshold_words: _Optional[int] = ..., latency_tail_seconds: _Optional[int] = ...) -> None: ...
+    cells: _containers.RepeatedCompositeFieldContainer[EvaluationCell]
+    def __init__(self, clip_ids: _Optional[_Iterable[str]] = ..., strategies: _Optional[_Iterable[_Union[_eval_pb2.EvalStrategy, _Mapping]]] = ..., realtime_repeats: _Optional[int] = ..., chunk_ms: _Optional[int] = ..., seed: _Optional[int] = ..., long_form: _Optional[_Union[LongFormRecipe, _Mapping]] = ..., realized_clip_ids: _Optional[_Iterable[str]] = ..., realized_reference: _Optional[str] = ..., realized_duration_ms: _Optional[int] = ..., augmentation: _Optional[_Union[AugmentationRecipe, _Mapping]] = ..., realized_augmentation_conditions: _Optional[_Iterable[_Union[AugmentationCondition, _Mapping]]] = ..., speaker: _Optional[_Union[SpeakerExperimentRecipe, _Mapping]] = ..., realized_speaker_conditions: _Optional[_Iterable[_Union[SpeakerCondition, _Mapping]]] = ..., dropped_span_threshold_words: _Optional[int] = ..., latency_tail_seconds: _Optional[int] = ..., cells: _Optional[_Iterable[_Union[EvaluationCell, _Mapping]]] = ...) -> None: ...
+
+class EvaluationCell(_message.Message):
+    __slots__ = ("engine_id", "strategy", "policy_profile", "replay_lane", "fault_profile", "warm_start", "repeat_count", "label")
+    ENGINE_ID_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    POLICY_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    REPLAY_LANE_FIELD_NUMBER: _ClassVar[int]
+    FAULT_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    WARM_START_FIELD_NUMBER: _ClassVar[int]
+    REPEAT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    engine_id: str
+    strategy: str
+    policy_profile: str
+    replay_lane: ReplayLane
+    fault_profile: str
+    warm_start: bool
+    repeat_count: int
+    label: str
+    def __init__(self, engine_id: _Optional[str] = ..., strategy: _Optional[str] = ..., policy_profile: _Optional[str] = ..., replay_lane: _Optional[_Union[ReplayLane, str]] = ..., fault_profile: _Optional[str] = ..., warm_start: _Optional[bool] = ..., repeat_count: _Optional[int] = ..., label: _Optional[str] = ...) -> None: ...
 
 class LongFormRecipe(_message.Message):
     __slots__ = ("enabled", "target_duration_seconds", "gap_ms", "tag_contains", "sweep_durations_seconds")
@@ -162,18 +195,26 @@ class Experiment(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., status: _Optional[_Union[ExperimentStatus, str]] = ..., recipe: _Optional[_Union[ExperimentRecipe, _Mapping]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., result_ref: _Optional[str] = ..., machine_json: _Optional[str] = ...) -> None: ...
 
 class ExperimentRun(_message.Message):
-    __slots__ = ("id", "experiment_id", "strategy", "condition_json", "created_at")
+    __slots__ = ("id", "experiment_id", "strategy", "condition_json", "created_at", "engine_id", "policy_profile", "replay_lane", "fault_profile")
     ID_FIELD_NUMBER: _ClassVar[int]
     EXPERIMENT_ID_FIELD_NUMBER: _ClassVar[int]
     STRATEGY_FIELD_NUMBER: _ClassVar[int]
     CONDITION_JSON_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    ENGINE_ID_FIELD_NUMBER: _ClassVar[int]
+    POLICY_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    REPLAY_LANE_FIELD_NUMBER: _ClassVar[int]
+    FAULT_PROFILE_FIELD_NUMBER: _ClassVar[int]
     id: str
     experiment_id: str
     strategy: str
     condition_json: str
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., experiment_id: _Optional[str] = ..., strategy: _Optional[str] = ..., condition_json: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    engine_id: str
+    policy_profile: str
+    replay_lane: ReplayLane
+    fault_profile: str
+    def __init__(self, id: _Optional[str] = ..., experiment_id: _Optional[str] = ..., strategy: _Optional[str] = ..., condition_json: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., engine_id: _Optional[str] = ..., policy_profile: _Optional[str] = ..., replay_lane: _Optional[_Union[ReplayLane, str]] = ..., fault_profile: _Optional[str] = ...) -> None: ...
 
 class ExperimentEvent(_message.Message):
     __slots__ = ("experiment_id", "status", "progress", "message", "at")

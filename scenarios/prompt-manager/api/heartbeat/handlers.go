@@ -360,14 +360,6 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate profile key compatibility with runtime mode for known defaults.
-	if req.ProfileKey != "" {
-		if req.ProfileKey == DefaultProfileKeyCodex && team.Runtime.Mode == teamconfig.RuntimeModeSingleProcess {
-			http.Error(w, "profile key "+req.ProfileKey+" uses Codex runner which is incompatible with single-process runtime mode; use "+DefaultProfileKeyClaudeCode+" or a Claude Code profile", http.StatusBadRequest)
-			return
-		}
-	}
-
 	// Create config
 	config := &store.HeartbeatConfig{
 		TeamID:     teamID,
@@ -494,13 +486,6 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		config.Enabled = *req.Enabled
 	}
 
-	// Validate profile key compatibility with runtime mode for known defaults.
-	if req.ProfileKey != nil && *req.ProfileKey != "" {
-		if *req.ProfileKey == DefaultProfileKeyCodex && team.Runtime.Mode == teamconfig.RuntimeModeSingleProcess {
-			http.Error(w, "profile key "+*req.ProfileKey+" uses Codex runner which is incompatible with single-process runtime mode; use "+DefaultProfileKeyClaudeCode+" or a Claude Code profile", http.StatusBadRequest)
-			return
-		}
-	}
 	engagementEvent, err := h.operatorEngagementEventFromRequest(r, teamID, "heartbeat-config-updated")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -311,110 +311,28 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 		teamID, agentID, result.RunID, result.Status)
 }
 
-// ensureProfile ensures both heartbeat profiles exist in agent-manager.
+// ensureProfile reconciles the heartbeat profiles declared in service.json.
 func (s *Scheduler) ensureProfile(ctx context.Context) error {
 	if s.agentClient == nil {
 		return nil
 	}
-
-	profiles := []struct {
-		key         string
-		runtimeMode string
-	}{
-		{DefaultProfileKeyCodex, teamconfig.RuntimeModeMultiProcess},
-		{DefaultProfileKeyClaudeCode, teamconfig.RuntimeModeSingleProcess},
-	}
-	for _, p := range profiles {
-		req := &EnsureProfileRequest{
-			ProfileKey:     p.key,
-			Defaults:       BuildDefaultProfileForRuntimeMode(p.key, p.runtimeMode),
-			UpdateExisting: true,
-		}
-		resp, err := s.agentClient.EnsureProfile(ctx, req)
-		if err != nil {
-			return err
-		}
-		if resp.Created {
-			log.Printf("Created heartbeat profile: %s", p.key)
-		}
-	}
-
-	return nil
+	return s.agentClient.ReconcileScenarioProfiles(ctx, "prompt-manager")
 }
 
-// Default profile key constants.
+// Default profile keys are scenario-owned portable profiles. Runtime mode
+// selects execution limits and interaction shape, never a concrete runner.
 const (
-	// DefaultProfileKeyCodex is used for multi-process teams (Codex runner).
-	DefaultProfileKeyCodex = "prompt-manager-heartbeat"
-	// DefaultProfileKeyClaudeCode is used for single-process teams (Claude Code runner).
-	DefaultProfileKeyClaudeCode = "prompt-manager-heartbeat-cc"
+	DefaultProfileKeyMultiProcess  = "prompt-manager/heartbeat"
+	DefaultProfileKeySingleProcess = "prompt-manager/heartbeat-single-process"
 )
 
-// DefaultProfileKeyForRuntimeMode returns the appropriate default profile key
-// for the given runtime mode. Single-process teams get Claude Code; everything
-// else gets Codex.
+// DefaultProfileKeyForRuntimeMode returns the portable profile appropriate for
+// the team's interaction mode.
 func DefaultProfileKeyForRuntimeMode(runtimeMode string) string {
 	if runtimeMode == teamconfig.RuntimeModeSingleProcess {
-		return DefaultProfileKeyClaudeCode
+		return DefaultProfileKeySingleProcess
 	}
-	return DefaultProfileKeyCodex
-}
-
-// BuildDefaultProfile returns the default Codex agent profile for the given key.
-// Exported so the executor can embed defaults in CreateRun requests.
-// For runtime-aware resolution, use BuildDefaultProfileForRuntimeMode instead.
-func BuildDefaultProfile(profileKey string) *AgentProfile {
-	return buildCodexProfile(profileKey)
-}
-
-// BuildDefaultProfileForRuntimeMode returns the correct default AgentProfile
-// for the given profile key and runtime mode. Known default keys always map to
-// their specific runner; unknown custom keys use the runtime mode as a heuristic.
-func BuildDefaultProfileForRuntimeMode(profileKey, runtimeMode string) *AgentProfile {
-	switch profileKey {
-	case DefaultProfileKeyClaudeCode:
-		return buildClaudeCodeProfile(profileKey)
-	case DefaultProfileKeyCodex:
-		return buildCodexProfile(profileKey)
-	default:
-		// Custom keys: fall back to runtime-mode heuristic.
-		if runtimeMode == teamconfig.RuntimeModeSingleProcess {
-			return buildClaudeCodeProfile(profileKey)
-		}
-		return buildCodexProfile(profileKey)
-	}
-}
-
-func buildCodexProfile(profileKey string) *AgentProfile {
-	return &AgentProfile{
-		Name:                 "Prompt Manager Heartbeat",
-		ProfileKey:           profileKey,
-		Description:          "Profile for multi-process team heartbeat execution",
-		RunnerType:           "RUNNER_TYPE_CODEX",
-		ModelPreset:          "MODEL_PRESET_SMART",
-		MaxTurns:             50,
-		Timeout:              DurationToProtojson(10 * time.Minute),
-		AllowedTools:         []string{"read_file", "write_file", "execute_command"},
-		SkipPermissionPrompt: true,
-		SandboxConfig:        &SandboxConfig{Mode: "SANDBOX_MODE_PROTECTED"},
-		CreatedBy:            "prompt-manager",
-	}
-}
-
-func buildClaudeCodeProfile(profileKey string) *AgentProfile {
-	return &AgentProfile{
-		Name:                 "Prompt Manager Heartbeat (Claude Code)",
-		ProfileKey:           profileKey,
-		Description:          "Profile for single-process team heartbeat execution",
-		RunnerType:           "RUNNER_TYPE_CLAUDE_CODE",
-		ModelPreset:          "MODEL_PRESET_SMART",
-		MaxTurns:             200,
-		Timeout:              DurationToProtojson(30 * time.Minute),
-		AllowedTools:         []string{},
-		SkipPermissionPrompt: true,
-		SandboxConfig:        &SandboxConfig{Mode: "SANDBOX_MODE_PROTECTED"},
-		CreatedBy:            "prompt-manager",
-	}
+	return DefaultProfileKeyMultiProcess
 }
 
 // makeKey creates a unique key for a team/agent combination

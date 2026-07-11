@@ -193,7 +193,7 @@ Heartbeat execution uses three explicit seams:
   `RunRegistry` depend on the `AgentClient` interface instead of the concrete `*AgentManagerClient`.
   Tests substitute `mockAgentClient` (in `mock_agent_client_test.go`) with configurable responses
   and error injection for all agent-manager API calls (CreateTask, CreateRun, GetRun, WaitForRun,
-  StopRun, EnsureProfile, Health). The concrete `*AgentManagerClient` satisfies this interface
+  StopRun, EnsureProfile, ReconcileScenarioProfiles, Health). The concrete `*AgentManagerClient` satisfies this interface
   and has a `testBaseURL` field for httptest-based integration tests.
 - **Scheduler → Executor**: `heartbeat.Scheduler` depends on the `HeartbeatExecutor` interface, allowing
   tests to substitute fake executors to validate scheduling behavior without running agent-manager.
@@ -207,35 +207,18 @@ Heartbeat execution uses three explicit seams:
   `X-Vrooli-Attribution` and record engagement only for `kind=operator-direct`. Agent-member and
   writer-skill activity never resets the idle clock.
 
-### Timeout Serialization Seam
+### Scenario-owned Profile Reconciliation
 
-Go's `time.Duration` serializes as nanosecond integers (e.g., `600000000000` for 10 minutes) via
-`encoding/json`. Agent-manager uses `google.protobuf.Duration` which expects the protojson canonical
-string format (e.g., `"600s"`). With `protojson.UnmarshalOptions{DiscardUnknown: false}`, the
-nanosecond integer causes `EnsureProfile` to fail at startup, which then causes every `CreateRun`
-to fail with "profile not found".
+Prompt Manager declares its heartbeat profiles in `.vrooli/agent-profiles/`
+and registers both files in its Agent Manager dependency configuration.
+`Scheduler.Start()` calls `ReconcileScenarioProfiles("prompt-manager")`; the
+consumer never sends inline profile defaults, runner types, models, or policy
+references.
 
-**Fix:** `AgentProfile.Timeout` is typed as `string` (not `time.Duration`). The `DurationToProtojson()`
-helper converts Go durations to protojson format. This is validated by:
-- `TestEnsureProfileRequest_ProtojsonCompatibility` — verifies timeout is a JSON string, not a number
-- `TestEnsureProfileRequest_ProtojsonRoundTrip` — validates the full payload structure
-- `TestDurationToProtojson` — unit tests for the helper function
-
-### Contract Test Coverage
-
-Cross-scenario payloads (prompt-manager → agent-manager) are validated by contract tests in
-`client_contract_test.go`. These tests verify:
-- All field names are snake_case (protojson UseProtoNames)
-- Duration fields use protojson string format
-- Enum fields use proto enum name strings (e.g., `RUNNER_TYPE_CODEX`)
-- No unknown fields that would be rejected by `DiscardUnknown=false`
-
-### EnsureProfile → CreateRun Dependency Chain
-
-`Scheduler.Start()` calls `ensureProfile()` to create the heartbeat profile in agent-manager.
-If this fails (e.g., due to a serialization bug), the profile is never created, and all subsequent
-`CreateRun` calls fail with "profile not found". The `TestEnsureProfileFailure_CausesCreateRunProfileNotFound`
-integration test validates this failure chain end-to-end.
+`CreateRun` sends only the reconciled `profile_key`. `EnsureProfile` remains a
+read-only key-to-ID lookup for run-list filtering, so a missing profile is a
+clear startup/reconciliation failure rather than an opportunity for a consumer
+to create one. `client_contract_test.go` pins both request shapes as key-only.
 
 Member cleanup is centralized in the team handlers:
 
@@ -327,21 +310,15 @@ and the queued-dequeue goroutine in `OnMemberComplete`.
 **Testing:** `TestEnqueue_ExecuteFailure_ClearsRunningState` uses a `failingExecutor` to verify
 the state is cleared and re-enqueue succeeds.
 
-### CreateRun ProfileRef.Defaults
+### CreateRun Profile Reference
 
 [CODE: api/heartbeat/executor.go, api/heartbeat/client.go]
 
-The `CreateRunRequest.ProfileRef` must always include `Defaults` (a full `AgentProfile`).
-Agent-manager's `resolveRunConfig` calls `EnsureProfile` internally, and if the profile
-doesn't exist and no defaults are provided, it returns a validation error. The `EnsureProfile`
-call at scheduler startup is non-fatal (logs warning, continues), so the profile may not
-exist when `CreateRun` is called. Including defaults makes `CreateRun` self-sufficient.
-
-`BuildDefaultProfile(profileKey)` is the exported constructor for the default heartbeat
-profile, shared between `Scheduler.ensureProfile()` and `Executor.Execute()`.
-
-**Testing:** `TestExecute_CreateRunIncludesDefaults` verifies the ProfileRef always has
-non-nil Defaults with required fields populated.
+The `CreateRunRequest.ProfileRef` contains only the stable, scenario-owned
+profile key. Agent Manager resolves the profile's portable `roleRef` through
+resource-owned policy and records the concrete runner/model only in the
+immutable execution snapshot. `TestExecute_CreateRunUsesDeclaredProfile`
+prevents inline defaults from returning.
 
 ---
 

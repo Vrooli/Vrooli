@@ -40,7 +40,7 @@
     }
   },
   "phases": {
-    "standards": {
+    "quality": {
       "timeout": "120s"
     }
   },

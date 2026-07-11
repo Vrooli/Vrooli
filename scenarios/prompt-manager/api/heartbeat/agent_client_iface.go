@@ -11,6 +11,7 @@ import (
 type AgentClient interface {
 	Health(ctx context.Context) (bool, error)
 	EnsureProfile(ctx context.Context, req *EnsureProfileRequest) (*EnsureProfileResponse, error)
+	ReconcileScenarioProfiles(ctx context.Context, scenario string) error
 	CreateTask(ctx context.Context, task *Task) (*Task, error)
 	CreateRun(ctx context.Context, req *CreateRunRequest) (*Run, error)
 	GetRun(ctx context.Context, runID string) (*Run, error)

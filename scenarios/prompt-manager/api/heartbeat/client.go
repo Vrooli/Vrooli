@@ -6,26 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
 )
-
-// DurationToProtojson converts a Go time.Duration to the protojson string
-// format for google.protobuf.Duration (e.g. "600s"). Returns "" for zero.
-func DurationToProtojson(d time.Duration) string {
-	if d == 0 {
-		return ""
-	}
-	s := d.Seconds()
-	if s == math.Trunc(s) {
-		return fmt.Sprintf("%ds", int64(s))
-	}
-	return fmt.Sprintf("%gs", s)
-}
 
 // AgentManagerClient provides HTTP client for agent-manager API
 type AgentManagerClient struct {
@@ -42,41 +28,17 @@ func NewAgentManagerClient(timeout time.Duration) *AgentManagerClient {
 	}
 }
 
-// ProfileRef identifies a profile by key and optional defaults.
+// ProfileRef identifies a reconciled scenario-owned profile by key.
 type ProfileRef struct {
-	ProfileKey     string        `json:"profile_key"`
-	Defaults       *AgentProfile `json:"defaults,omitempty"`
-	UpdateExisting bool          `json:"update_existing,omitempty"`
+	ProfileKey string `json:"profile_key"`
 }
 
-// AgentProfile defines the configuration for running an agent.
+// AgentProfile is the portable profile identity returned by Agent Manager.
 // JSON tags use snake_case to match agent-manager's protojson schema.
 type AgentProfile struct {
-	ID                   string   `json:"id,omitempty"`
-	Name                 string   `json:"name"`
-	ProfileKey           string   `json:"profile_key"`
-	Description          string   `json:"description,omitempty"`
-	RunnerType           string   `json:"runner_type"`
-	Model                string   `json:"model,omitempty"`
-	ModelPreset          string   `json:"model_preset,omitempty"`
-	MaxTurns             int32    `json:"max_turns,omitempty"`
-	Timeout              string   `json:"timeout,omitempty"` // protojson Duration format, e.g. "600s"
-	AllowedTools         []string `json:"allowed_tools,omitempty"`
-	SkipPermissionPrompt bool     `json:"skip_permission_prompt,omitempty"`
-	// SandboxConfig.Mode is the single source of truth for whether the
-	// run is sandboxed (replaces the older RequiresSandbox bool removed
-	// in the agent-manager Phase 1 reliability pass). See
-	// scenarios/agent-manager/api/internal/domain/decisions.go DeriveRunMode.
-	SandboxConfig *SandboxConfig `json:"sandbox_config,omitempty"`
-	CreatedBy     string         `json:"created_by,omitempty"`
-}
-
-// SandboxConfig is the prompt-manager-side view of the agent-manager
-// proto SandboxConfig. Only the Mode is consulted by heartbeat callers;
-// the remaining fields are filled in by agent-manager's
-// resolveSandboxConfig before the run is created.
-type SandboxConfig struct {
-	Mode string `json:"mode,omitempty"` // proto enum name, e.g. "SANDBOX_MODE_PROTECTED"
+	ID         string `json:"id,omitempty"`
+	ProfileKey string `json:"profile_key"`
+	RoleRef    string `json:"role_ref,omitempty"`
 }
 
 // Task represents a task for agent execution.
@@ -192,11 +154,9 @@ type GetRunResponse struct {
 	Run *Run `json:"run"`
 }
 
-// EnsureProfileRequest requests a profile by key.
+// EnsureProfileRequest resolves a reconciled profile by key.
 type EnsureProfileRequest struct {
-	ProfileKey     string        `json:"profile_key"`
-	Defaults       *AgentProfile `json:"defaults,omitempty"`
-	UpdateExisting bool          `json:"update_existing,omitempty"`
+	ProfileKey string `json:"profile_key"`
 }
 
 // EnsureProfileResponse is the response from ensure profile
@@ -217,28 +177,43 @@ func (c *AgentManagerClient) Health(ctx context.Context) (bool, error) {
 	return resp.StatusCode == http.StatusOK, nil
 }
 
-// EnsureProfile resolves a profile by key, creating it with defaults if needed
+// EnsureProfile resolves an existing named profile for read paths that need its
+// ID. Scenario-owned profiles are created only by reconciliation.
 func (c *AgentManagerClient) EnsureProfile(ctx context.Context, req *EnsureProfileRequest) (*EnsureProfileResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
-
 	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/profiles/ensure", body)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, c.parseError(resp)
 	}
-
 	var result EnsureProfileResponse
 	if err := c.parseResponse(resp, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
+}
+
+// ReconcileScenarioProfiles applies a scenario's manifest-declared profile sources.
+func (c *AgentManagerClient) ReconcileScenarioProfiles(ctx context.Context, scenario string) error {
+	body, err := json.Marshal(map[string]string{"scenario": scenario})
+	if err != nil {
+		return fmt.Errorf("marshal reconcile request: %w", err)
+	}
+	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/profiles/reconcile-scenario", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return c.parseError(resp)
+	}
+	return nil
 }
 
 // CreateTask creates a new task

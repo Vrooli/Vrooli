@@ -7,29 +7,25 @@ import (
 
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/vrooli/internal/cli/resourcecli"
-	"github.com/vrooli/vrooli/internal/codingagents"
 )
 
 // codingAgentUpstreamEntries is the SSOT list of coding-agent resources the
 // aggregate upstream-check spans. Each runs the resource CLI's own
 // `upstream-check --json`, so per-resource source/pin config stays owned by
 // the resource (resources/<name>/cli/main.go), never duplicated here.
-var codingAgentUpstreamEntries = buildCodingAgentUpstreamEntries()
-
-func buildCodingAgentUpstreamEntries() []upstreamcheck.AggregateEntry {
-	agents := codingagents.Catalog
-	entries := make([]upstreamcheck.AggregateEntry, 0, len(agents))
-	for _, agent := range agents {
-		entries = append(entries, upstreamcheck.AggregateEntry{
-			Name:     agent.Name,
-			CheckCmd: []string{agent.ResourceCLI, "upstream-check", "--json"},
-		})
-	}
-	return entries
+var codingAgentUpstreamEntries = []upstreamcheck.AggregateEntry{
+	{Name: "claude-code", CheckCmd: []string{"resource-claude-code", "upstream-check", "--json"}},
+	{Name: "codex", CheckCmd: []string{"resource-codex", "upstream-check", "--json"}},
+	{Name: "opencode", CheckCmd: []string{"resource-opencode", "upstream-check", "--json"}},
+	{Name: "grok", CheckCmd: []string{"resource-grok", "upstream-check", "--json"}},
 }
 
 func knownCodingAgentResourceNames() string {
-	return strings.Join(codingagents.Names(), ", ")
+	names := make([]string, 0, len(codingAgentUpstreamEntries))
+	for _, entry := range codingAgentUpstreamEntries {
+		names = append(names, entry.Name)
+	}
+	return strings.Join(names, ", ")
 }
 
 func parseResourceUpstreamCheckRequest(args []string) (resourcecli.UpstreamCheckRequest, error) {

@@ -17,6 +17,7 @@ type mockAgentClient struct {
 
 	ensureProfileResp *EnsureProfileResponse
 	ensureProfileErr  error
+	reconcileErr      error
 
 	listRunsResp *ListRunsResponse
 	listRunsErr  error
@@ -164,6 +165,10 @@ func (m *mockAgentClient) EnsureProfile(_ context.Context, req *EnsureProfileReq
 		return m.ensureProfileResp, nil
 	}
 	return &EnsureProfileResponse{Created: false}, nil
+}
+
+func (m *mockAgentClient) ReconcileScenarioProfiles(_ context.Context, _ string) error {
+	return m.reconcileErr
 }
 
 func (m *mockAgentClient) CreateTask(_ context.Context, task *Task) (*Task, error) {

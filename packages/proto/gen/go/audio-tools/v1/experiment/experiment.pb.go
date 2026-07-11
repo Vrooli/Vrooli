@@ -82,6 +82,58 @@ func (ExperimentStatus) EnumDescriptor() ([]byte, []int) {
 	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{0}
 }
 
+type ReplayLane int32
+
+const (
+	ReplayLane_REPLAY_LANE_UNSPECIFIED   ReplayLane = 0
+	ReplayLane_REPLAY_LANE_DETERMINISTIC ReplayLane = 1
+	ReplayLane_REPLAY_LANE_REALTIME      ReplayLane = 2
+	ReplayLane_REPLAY_LANE_PRODUCT_PATH  ReplayLane = 3
+)
+
+// Enum value maps for ReplayLane.
+var (
+	ReplayLane_name = map[int32]string{
+		0: "REPLAY_LANE_UNSPECIFIED",
+		1: "REPLAY_LANE_DETERMINISTIC",
+		2: "REPLAY_LANE_REALTIME",
+		3: "REPLAY_LANE_PRODUCT_PATH",
+	}
+	ReplayLane_value = map[string]int32{
+		"REPLAY_LANE_UNSPECIFIED":   0,
+		"REPLAY_LANE_DETERMINISTIC": 1,
+		"REPLAY_LANE_REALTIME":      2,
+		"REPLAY_LANE_PRODUCT_PATH":  3,
+	}
+)
+
+func (x ReplayLane) Enum() *ReplayLane {
+	p := new(ReplayLane)
+	*p = x
+	return p
+}
+
+func (x ReplayLane) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReplayLane) Descriptor() protoreflect.EnumDescriptor {
+	return file_audio_tools_v1_experiment_experiment_proto_enumTypes[1].Descriptor()
+}
+
+func (ReplayLane) Type() protoreflect.EnumType {
+	return &file_audio_tools_v1_experiment_experiment_proto_enumTypes[1]
+}
+
+func (x ReplayLane) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReplayLane.Descriptor instead.
+func (ReplayLane) EnumDescriptor() ([]byte, []int) {
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{1}
+}
+
 type ExperimentRecipe struct {
 	state                          protoimpl.MessageState   `protogen:"open.v1"`
 	ClipIds                        []string                 `protobuf:"bytes,1,rep,name=clip_ids,json=clipIds,proto3" json:"clip_ids,omitempty"`
@@ -101,8 +153,12 @@ type ExperimentRecipe struct {
 	// When realtime_repeats > 0, pace only the final N seconds of each clip at
 	// 1x. A value of 0 keeps full real-time pacing.
 	LatencyTailSeconds int32 `protobuf:"varint,15,opt,name=latency_tail_seconds,json=latencyTailSeconds,proto3" json:"latency_tail_seconds,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// cells supersedes strategy-only execution for new experiments. Legacy
+	// strategies remain readable so historic Whisper reports are explicitly
+	// legacy data rather than a parallel runner.
+	Cells         []*EvaluationCell `protobuf:"bytes,16,rep,name=cells,proto3" json:"cells,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExperimentRecipe) Reset() {
@@ -240,6 +296,116 @@ func (x *ExperimentRecipe) GetLatencyTailSeconds() int32 {
 	return 0
 }
 
+func (x *ExperimentRecipe) GetCells() []*EvaluationCell {
+	if x != nil {
+		return x.Cells
+	}
+	return nil
+}
+
+// EvaluationCell is one reproducible provider/strategy/policy/fault unit.
+// Promotion requires named lane evidence; tail-latency approximation is never
+// equivalent to a realtime lane.
+type EvaluationCell struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EngineId      string                 `protobuf:"bytes,1,opt,name=engine_id,json=engineId,proto3" json:"engine_id,omitempty"`
+	Strategy      string                 `protobuf:"bytes,2,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	PolicyProfile string                 `protobuf:"bytes,3,opt,name=policy_profile,json=policyProfile,proto3" json:"policy_profile,omitempty"`
+	ReplayLane    ReplayLane             `protobuf:"varint,4,opt,name=replay_lane,json=replayLane,proto3,enum=vrooli.audio_tools.v1.experiment.ReplayLane" json:"replay_lane,omitempty"`
+	FaultProfile  string                 `protobuf:"bytes,5,opt,name=fault_profile,json=faultProfile,proto3" json:"fault_profile,omitempty"`
+	WarmStart     bool                   `protobuf:"varint,6,opt,name=warm_start,json=warmStart,proto3" json:"warm_start,omitempty"`
+	RepeatCount   int32                  `protobuf:"varint,7,opt,name=repeat_count,json=repeatCount,proto3" json:"repeat_count,omitempty"`
+	Label         string                 `protobuf:"bytes,8,opt,name=label,proto3" json:"label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EvaluationCell) Reset() {
+	*x = EvaluationCell{}
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvaluationCell) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvaluationCell) ProtoMessage() {}
+
+func (x *EvaluationCell) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvaluationCell.ProtoReflect.Descriptor instead.
+func (*EvaluationCell) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *EvaluationCell) GetEngineId() string {
+	if x != nil {
+		return x.EngineId
+	}
+	return ""
+}
+
+func (x *EvaluationCell) GetStrategy() string {
+	if x != nil {
+		return x.Strategy
+	}
+	return ""
+}
+
+func (x *EvaluationCell) GetPolicyProfile() string {
+	if x != nil {
+		return x.PolicyProfile
+	}
+	return ""
+}
+
+func (x *EvaluationCell) GetReplayLane() ReplayLane {
+	if x != nil {
+		return x.ReplayLane
+	}
+	return ReplayLane_REPLAY_LANE_UNSPECIFIED
+}
+
+func (x *EvaluationCell) GetFaultProfile() string {
+	if x != nil {
+		return x.FaultProfile
+	}
+	return ""
+}
+
+func (x *EvaluationCell) GetWarmStart() bool {
+	if x != nil {
+		return x.WarmStart
+	}
+	return false
+}
+
+func (x *EvaluationCell) GetRepeatCount() int32 {
+	if x != nil {
+		return x.RepeatCount
+	}
+	return 0
+}
+
+func (x *EvaluationCell) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
 type LongFormRecipe struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	Enabled               bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
@@ -258,7 +424,7 @@ type LongFormRecipe struct {
 
 func (x *LongFormRecipe) Reset() {
 	*x = LongFormRecipe{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[1]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -270,7 +436,7 @@ func (x *LongFormRecipe) String() string {
 func (*LongFormRecipe) ProtoMessage() {}
 
 func (x *LongFormRecipe) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[1]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -283,7 +449,7 @@ func (x *LongFormRecipe) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LongFormRecipe.ProtoReflect.Descriptor instead.
 func (*LongFormRecipe) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{1}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *LongFormRecipe) GetEnabled() bool {
@@ -333,7 +499,7 @@ type AugmentationRecipe struct {
 
 func (x *AugmentationRecipe) Reset() {
 	*x = AugmentationRecipe{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[2]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -345,7 +511,7 @@ func (x *AugmentationRecipe) String() string {
 func (*AugmentationRecipe) ProtoMessage() {}
 
 func (x *AugmentationRecipe) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[2]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -358,7 +524,7 @@ func (x *AugmentationRecipe) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AugmentationRecipe.ProtoReflect.Descriptor instead.
 func (*AugmentationRecipe) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{2}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AugmentationRecipe) GetNoiseTypes() []string {
@@ -403,7 +569,7 @@ type AugmentationCondition struct {
 
 func (x *AugmentationCondition) Reset() {
 	*x = AugmentationCondition{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[3]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -415,7 +581,7 @@ func (x *AugmentationCondition) String() string {
 func (*AugmentationCondition) ProtoMessage() {}
 
 func (x *AugmentationCondition) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[3]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -428,7 +594,7 @@ func (x *AugmentationCondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AugmentationCondition.ProtoReflect.Descriptor instead.
 func (*AugmentationCondition) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{3}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AugmentationCondition) GetId() string {
@@ -488,7 +654,7 @@ type SpeakerExperimentRecipe struct {
 
 func (x *SpeakerExperimentRecipe) Reset() {
 	*x = SpeakerExperimentRecipe{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[4]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -500,7 +666,7 @@ func (x *SpeakerExperimentRecipe) String() string {
 func (*SpeakerExperimentRecipe) ProtoMessage() {}
 
 func (x *SpeakerExperimentRecipe) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[4]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -513,7 +679,7 @@ func (x *SpeakerExperimentRecipe) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpeakerExperimentRecipe.ProtoReflect.Descriptor instead.
 func (*SpeakerExperimentRecipe) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{4}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SpeakerExperimentRecipe) GetTargetProfileId() string {
@@ -579,7 +745,7 @@ type SpeakerCondition struct {
 
 func (x *SpeakerCondition) Reset() {
 	*x = SpeakerCondition{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[5]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -591,7 +757,7 @@ func (x *SpeakerCondition) String() string {
 func (*SpeakerCondition) ProtoMessage() {}
 
 func (x *SpeakerCondition) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[5]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -604,7 +770,7 @@ func (x *SpeakerCondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpeakerCondition.ProtoReflect.Descriptor instead.
 func (*SpeakerCondition) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{5}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SpeakerCondition) GetId() string {
@@ -667,7 +833,7 @@ type Experiment struct {
 
 func (x *Experiment) Reset() {
 	*x = Experiment{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[6]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -679,7 +845,7 @@ func (x *Experiment) String() string {
 func (*Experiment) ProtoMessage() {}
 
 func (x *Experiment) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[6]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -692,7 +858,7 @@ func (x *Experiment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Experiment.ProtoReflect.Descriptor instead.
 func (*Experiment) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{6}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Experiment) GetId() string {
@@ -772,13 +938,17 @@ type ExperimentRun struct {
 	Strategy      string                 `protobuf:"bytes,3,opt,name=strategy,proto3" json:"strategy,omitempty"`
 	ConditionJson string                 `protobuf:"bytes,4,opt,name=condition_json,json=conditionJson,proto3" json:"condition_json,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	EngineId      string                 `protobuf:"bytes,7,opt,name=engine_id,json=engineId,proto3" json:"engine_id,omitempty"`
+	PolicyProfile string                 `protobuf:"bytes,8,opt,name=policy_profile,json=policyProfile,proto3" json:"policy_profile,omitempty"`
+	ReplayLane    ReplayLane             `protobuf:"varint,9,opt,name=replay_lane,json=replayLane,proto3,enum=vrooli.audio_tools.v1.experiment.ReplayLane" json:"replay_lane,omitempty"`
+	FaultProfile  string                 `protobuf:"bytes,10,opt,name=fault_profile,json=faultProfile,proto3" json:"fault_profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExperimentRun) Reset() {
 	*x = ExperimentRun{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[7]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -790,7 +960,7 @@ func (x *ExperimentRun) String() string {
 func (*ExperimentRun) ProtoMessage() {}
 
 func (x *ExperimentRun) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[7]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -803,7 +973,7 @@ func (x *ExperimentRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExperimentRun.ProtoReflect.Descriptor instead.
 func (*ExperimentRun) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{7}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ExperimentRun) GetId() string {
@@ -841,6 +1011,34 @@ func (x *ExperimentRun) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *ExperimentRun) GetEngineId() string {
+	if x != nil {
+		return x.EngineId
+	}
+	return ""
+}
+
+func (x *ExperimentRun) GetPolicyProfile() string {
+	if x != nil {
+		return x.PolicyProfile
+	}
+	return ""
+}
+
+func (x *ExperimentRun) GetReplayLane() ReplayLane {
+	if x != nil {
+		return x.ReplayLane
+	}
+	return ReplayLane_REPLAY_LANE_UNSPECIFIED
+}
+
+func (x *ExperimentRun) GetFaultProfile() string {
+	if x != nil {
+		return x.FaultProfile
+	}
+	return ""
+}
+
 type ExperimentEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ExperimentId  string                 `protobuf:"bytes,1,opt,name=experiment_id,json=experimentId,proto3" json:"experiment_id,omitempty"`
@@ -854,7 +1052,7 @@ type ExperimentEvent struct {
 
 func (x *ExperimentEvent) Reset() {
 	*x = ExperimentEvent{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[8]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -866,7 +1064,7 @@ func (x *ExperimentEvent) String() string {
 func (*ExperimentEvent) ProtoMessage() {}
 
 func (x *ExperimentEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[8]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -879,7 +1077,7 @@ func (x *ExperimentEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExperimentEvent.ProtoReflect.Descriptor instead.
 func (*ExperimentEvent) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{8}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ExperimentEvent) GetExperimentId() string {
@@ -933,7 +1131,7 @@ type StartExperimentRequest struct {
 
 func (x *StartExperimentRequest) Reset() {
 	*x = StartExperimentRequest{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[9]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -945,7 +1143,7 @@ func (x *StartExperimentRequest) String() string {
 func (*StartExperimentRequest) ProtoMessage() {}
 
 func (x *StartExperimentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[9]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -958,7 +1156,7 @@ func (x *StartExperimentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartExperimentRequest.ProtoReflect.Descriptor instead.
 func (*StartExperimentRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{9}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StartExperimentRequest) GetName() string {
@@ -1002,7 +1200,7 @@ type StartExperimentResponse struct {
 
 func (x *StartExperimentResponse) Reset() {
 	*x = StartExperimentResponse{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[10]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1014,7 +1212,7 @@ func (x *StartExperimentResponse) String() string {
 func (*StartExperimentResponse) ProtoMessage() {}
 
 func (x *StartExperimentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[10]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1027,7 +1225,7 @@ func (x *StartExperimentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartExperimentResponse.ProtoReflect.Descriptor instead.
 func (*StartExperimentResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{10}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StartExperimentResponse) GetExperiment() *Experiment {
@@ -1060,7 +1258,7 @@ type GetExperimentRequest struct {
 
 func (x *GetExperimentRequest) Reset() {
 	*x = GetExperimentRequest{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[11]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1072,7 +1270,7 @@ func (x *GetExperimentRequest) String() string {
 func (*GetExperimentRequest) ProtoMessage() {}
 
 func (x *GetExperimentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[11]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1085,7 +1283,7 @@ func (x *GetExperimentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExperimentRequest.ProtoReflect.Descriptor instead.
 func (*GetExperimentRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{11}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetExperimentRequest) GetId() string {
@@ -1105,7 +1303,7 @@ type GetExperimentResponse struct {
 
 func (x *GetExperimentResponse) Reset() {
 	*x = GetExperimentResponse{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[12]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1117,7 +1315,7 @@ func (x *GetExperimentResponse) String() string {
 func (*GetExperimentResponse) ProtoMessage() {}
 
 func (x *GetExperimentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[12]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1130,7 +1328,7 @@ func (x *GetExperimentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExperimentResponse.ProtoReflect.Descriptor instead.
 func (*GetExperimentResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{12}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetExperimentResponse) GetExperiment() *Experiment {
@@ -1156,7 +1354,7 @@ type WaitExperimentRequest struct {
 
 func (x *WaitExperimentRequest) Reset() {
 	*x = WaitExperimentRequest{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[13]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1168,7 +1366,7 @@ func (x *WaitExperimentRequest) String() string {
 func (*WaitExperimentRequest) ProtoMessage() {}
 
 func (x *WaitExperimentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[13]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1181,7 +1379,7 @@ func (x *WaitExperimentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitExperimentRequest.ProtoReflect.Descriptor instead.
 func (*WaitExperimentRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{13}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *WaitExperimentRequest) GetId() string {
@@ -1201,7 +1399,7 @@ type WaitExperimentResponse struct {
 
 func (x *WaitExperimentResponse) Reset() {
 	*x = WaitExperimentResponse{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[14]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1213,7 +1411,7 @@ func (x *WaitExperimentResponse) String() string {
 func (*WaitExperimentResponse) ProtoMessage() {}
 
 func (x *WaitExperimentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[14]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1226,7 +1424,7 @@ func (x *WaitExperimentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitExperimentResponse.ProtoReflect.Descriptor instead.
 func (*WaitExperimentResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{14}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *WaitExperimentResponse) GetExperiment() *Experiment {
@@ -1254,7 +1452,7 @@ type ListExperimentsRequest struct {
 
 func (x *ListExperimentsRequest) Reset() {
 	*x = ListExperimentsRequest{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[15]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1266,7 +1464,7 @@ func (x *ListExperimentsRequest) String() string {
 func (*ListExperimentsRequest) ProtoMessage() {}
 
 func (x *ListExperimentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[15]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1279,7 +1477,7 @@ func (x *ListExperimentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExperimentsRequest.ProtoReflect.Descriptor instead.
 func (*ListExperimentsRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{15}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListExperimentsRequest) GetStatus() ExperimentStatus {
@@ -1312,7 +1510,7 @@ type ListExperimentsResponse struct {
 
 func (x *ListExperimentsResponse) Reset() {
 	*x = ListExperimentsResponse{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[16]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1324,7 +1522,7 @@ func (x *ListExperimentsResponse) String() string {
 func (*ListExperimentsResponse) ProtoMessage() {}
 
 func (x *ListExperimentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[16]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1337,7 +1535,7 @@ func (x *ListExperimentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExperimentsResponse.ProtoReflect.Descriptor instead.
 func (*ListExperimentsResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{16}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListExperimentsResponse) GetExperiments() []*Experiment {
@@ -1356,7 +1554,7 @@ type CancelExperimentRequest struct {
 
 func (x *CancelExperimentRequest) Reset() {
 	*x = CancelExperimentRequest{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[17]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1368,7 +1566,7 @@ func (x *CancelExperimentRequest) String() string {
 func (*CancelExperimentRequest) ProtoMessage() {}
 
 func (x *CancelExperimentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[17]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1381,7 +1579,7 @@ func (x *CancelExperimentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelExperimentRequest.ProtoReflect.Descriptor instead.
 func (*CancelExperimentRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{17}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CancelExperimentRequest) GetId() string {
@@ -1400,7 +1598,7 @@ type CancelExperimentResponse struct {
 
 func (x *CancelExperimentResponse) Reset() {
 	*x = CancelExperimentResponse{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[18]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1412,7 +1610,7 @@ func (x *CancelExperimentResponse) String() string {
 func (*CancelExperimentResponse) ProtoMessage() {}
 
 func (x *CancelExperimentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[18]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1425,7 +1623,7 @@ func (x *CancelExperimentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelExperimentResponse.ProtoReflect.Descriptor instead.
 func (*CancelExperimentResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{18}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CancelExperimentResponse) GetExperiment() *Experiment {
@@ -1444,7 +1642,7 @@ type DeleteExperimentRequest struct {
 
 func (x *DeleteExperimentRequest) Reset() {
 	*x = DeleteExperimentRequest{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[19]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1456,7 +1654,7 @@ func (x *DeleteExperimentRequest) String() string {
 func (*DeleteExperimentRequest) ProtoMessage() {}
 
 func (x *DeleteExperimentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[19]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1469,7 +1667,7 @@ func (x *DeleteExperimentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteExperimentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteExperimentRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{19}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DeleteExperimentRequest) GetId() string {
@@ -1489,7 +1687,7 @@ type DeleteExperimentResponse struct {
 
 func (x *DeleteExperimentResponse) Reset() {
 	*x = DeleteExperimentResponse{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[20]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1501,7 +1699,7 @@ func (x *DeleteExperimentResponse) String() string {
 func (*DeleteExperimentResponse) ProtoMessage() {}
 
 func (x *DeleteExperimentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[20]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1514,7 +1712,7 @@ func (x *DeleteExperimentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteExperimentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteExperimentResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{20}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DeleteExperimentResponse) GetId() string {
@@ -1540,7 +1738,7 @@ type StreamExperimentEventsRequest struct {
 
 func (x *StreamExperimentEventsRequest) Reset() {
 	*x = StreamExperimentEventsRequest{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[21]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1552,7 +1750,7 @@ func (x *StreamExperimentEventsRequest) String() string {
 func (*StreamExperimentEventsRequest) ProtoMessage() {}
 
 func (x *StreamExperimentEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[21]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1565,7 +1763,7 @@ func (x *StreamExperimentEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamExperimentEventsRequest.ProtoReflect.Descriptor instead.
 func (*StreamExperimentEventsRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{21}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *StreamExperimentEventsRequest) GetId() string {
@@ -1584,7 +1782,7 @@ type GetExperimentReportRequest struct {
 
 func (x *GetExperimentReportRequest) Reset() {
 	*x = GetExperimentReportRequest{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[22]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1596,7 +1794,7 @@ func (x *GetExperimentReportRequest) String() string {
 func (*GetExperimentReportRequest) ProtoMessage() {}
 
 func (x *GetExperimentReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[22]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1609,7 +1807,7 @@ func (x *GetExperimentReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExperimentReportRequest.ProtoReflect.Descriptor instead.
 func (*GetExperimentReportRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{22}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetExperimentReportRequest) GetId() string {
@@ -1630,7 +1828,7 @@ type GetExperimentReportResponse struct {
 
 func (x *GetExperimentReportResponse) Reset() {
 	*x = GetExperimentReportResponse{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[23]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1642,7 +1840,7 @@ func (x *GetExperimentReportResponse) String() string {
 func (*GetExperimentReportResponse) ProtoMessage() {}
 
 func (x *GetExperimentReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[23]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1655,7 +1853,7 @@ func (x *GetExperimentReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExperimentReportResponse.ProtoReflect.Descriptor instead.
 func (*GetExperimentReportResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{23}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetExperimentReportResponse) GetExperiment() *Experiment {
@@ -1688,7 +1886,7 @@ type CompareExperimentsRequest struct {
 
 func (x *CompareExperimentsRequest) Reset() {
 	*x = CompareExperimentsRequest{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[24]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1700,7 +1898,7 @@ func (x *CompareExperimentsRequest) String() string {
 func (*CompareExperimentsRequest) ProtoMessage() {}
 
 func (x *CompareExperimentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[24]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1713,7 +1911,7 @@ func (x *CompareExperimentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareExperimentsRequest.ProtoReflect.Descriptor instead.
 func (*CompareExperimentsRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{24}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CompareExperimentsRequest) GetIds() []string {
@@ -1734,7 +1932,7 @@ type ComparedExperiment struct {
 
 func (x *ComparedExperiment) Reset() {
 	*x = ComparedExperiment{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[25]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1746,7 +1944,7 @@ func (x *ComparedExperiment) String() string {
 func (*ComparedExperiment) ProtoMessage() {}
 
 func (x *ComparedExperiment) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[25]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1759,7 +1957,7 @@ func (x *ComparedExperiment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComparedExperiment.ProtoReflect.Descriptor instead.
 func (*ComparedExperiment) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{25}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ComparedExperiment) GetExperiment() *Experiment {
@@ -1792,7 +1990,7 @@ type CompareExperimentsResponse struct {
 
 func (x *CompareExperimentsResponse) Reset() {
 	*x = CompareExperimentsResponse{}
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[26]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1804,7 +2002,7 @@ func (x *CompareExperimentsResponse) String() string {
 func (*CompareExperimentsResponse) ProtoMessage() {}
 
 func (x *CompareExperimentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[26]
+	mi := &file_audio_tools_v1_experiment_experiment_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1817,7 +2015,7 @@ func (x *CompareExperimentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareExperimentsResponse.ProtoReflect.Descriptor instead.
 func (*CompareExperimentsResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{26}
+	return file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *CompareExperimentsResponse) GetExperiments() []*ComparedExperiment {
@@ -1831,7 +2029,7 @@ var File_audio_tools_v1_experiment_experiment_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_experiment_experiment_proto_rawDesc = "" +
 	"\n" +
-	"*audio-tools/v1/experiment/experiment.proto\x12 vrooli.audio_tools.v1.experiment\x1a\x1eaudio-tools/v1/eval/eval.proto\x1a\x1caudio-tools/v1/stt/stt.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\a\n" +
+	"*audio-tools/v1/experiment/experiment.proto\x12 vrooli.audio_tools.v1.experiment\x1a\x1eaudio-tools/v1/eval/eval.proto\x1a\x1caudio-tools/v1/stt/stt.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\b\n" +
 	"\x10ExperimentRecipe\x12\x19\n" +
 	"\bclip_ids\x18\x01 \x03(\tR\aclipIds\x12H\n" +
 	"\n" +
@@ -1850,7 +2048,19 @@ const file_audio_tools_v1_experiment_experiment_proto_rawDesc = "" +
 	"\aspeaker\x18\f \x01(\v29.vrooli.audio_tools.v1.experiment.SpeakerExperimentRecipeR\aspeaker\x12r\n" +
 	"\x1brealized_speaker_conditions\x18\r \x03(\v22.vrooli.audio_tools.v1.experiment.SpeakerConditionR\x19realizedSpeakerConditions\x12?\n" +
 	"\x1cdropped_span_threshold_words\x18\x0e \x01(\x05R\x19droppedSpanThresholdWords\x120\n" +
-	"\x14latency_tail_seconds\x18\x0f \x01(\x05R\x12latencyTailSeconds\"\xd4\x01\n" +
+	"\x14latency_tail_seconds\x18\x0f \x01(\x05R\x12latencyTailSeconds\x12F\n" +
+	"\x05cells\x18\x10 \x03(\v20.vrooli.audio_tools.v1.experiment.EvaluationCellR\x05cells\"\xbc\x02\n" +
+	"\x0eEvaluationCell\x12\x1b\n" +
+	"\tengine_id\x18\x01 \x01(\tR\bengineId\x12\x1a\n" +
+	"\bstrategy\x18\x02 \x01(\tR\bstrategy\x12%\n" +
+	"\x0epolicy_profile\x18\x03 \x01(\tR\rpolicyProfile\x12M\n" +
+	"\vreplay_lane\x18\x04 \x01(\x0e2,.vrooli.audio_tools.v1.experiment.ReplayLaneR\n" +
+	"replayLane\x12#\n" +
+	"\rfault_profile\x18\x05 \x01(\tR\ffaultProfile\x12\x1d\n" +
+	"\n" +
+	"warm_start\x18\x06 \x01(\bR\twarmStart\x12!\n" +
+	"\frepeat_count\x18\a \x01(\x05R\vrepeatCount\x12\x14\n" +
+	"\x05label\x18\b \x01(\tR\x05label\"\xd4\x01\n" +
 	"\x0eLongFormRecipe\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x126\n" +
 	"\x17target_duration_seconds\x18\x02 \x01(\x05R\x15targetDurationSeconds\x12\x15\n" +
@@ -1901,14 +2111,20 @@ const file_audio_tools_v1_experiment_experiment_proto_rawDesc = "" +
 	"\n" +
 	"result_ref\x18\t \x01(\tR\tresultRef\x12!\n" +
 	"\fmachine_json\x18\n" +
-	" \x01(\tR\vmachineJson\"\xd6\x01\n" +
+	" \x01(\tR\vmachineJson\"\x8e\x03\n" +
 	"\rExperimentRun\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
 	"\rexperiment_id\x18\x02 \x01(\tR\fexperimentId\x12\x1a\n" +
 	"\bstrategy\x18\x03 \x01(\tR\bstrategy\x12%\n" +
 	"\x0econdition_json\x18\x04 \x01(\tR\rconditionJson\x129\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtJ\x04\b\x05\x10\x06R\fmetrics_json\"\xe4\x01\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1b\n" +
+	"\tengine_id\x18\a \x01(\tR\bengineId\x12%\n" +
+	"\x0epolicy_profile\x18\b \x01(\tR\rpolicyProfile\x12M\n" +
+	"\vreplay_lane\x18\t \x01(\x0e2,.vrooli.audio_tools.v1.experiment.ReplayLaneR\n" +
+	"replayLane\x12#\n" +
+	"\rfault_profile\x18\n" +
+	" \x01(\tR\ffaultProfileJ\x04\b\x05\x10\x06R\fmetrics_json\"\xe4\x01\n" +
 	"\x0fExperimentEvent\x12#\n" +
 	"\rexperiment_id\x18\x01 \x01(\tR\fexperimentId\x12J\n" +
 	"\x06status\x18\x02 \x01(\x0e22.vrooli.audio_tools.v1.experiment.ExperimentStatusR\x06status\x12\x1a\n" +
@@ -1983,7 +2199,13 @@ const file_audio_tools_v1_experiment_experiment_proto_rawDesc = "" +
 	"\x19EXPERIMENT_STATUS_RUNNING\x10\x02\x12\x1f\n" +
 	"\x1bEXPERIMENT_STATUS_SUCCEEDED\x10\x03\x12\x1c\n" +
 	"\x18EXPERIMENT_STATUS_FAILED\x10\x04\x12\x1e\n" +
-	"\x1aEXPERIMENT_STATUS_CANCELED\x10\x052\xfe\t\n" +
+	"\x1aEXPERIMENT_STATUS_CANCELED\x10\x05*\x80\x01\n" +
+	"\n" +
+	"ReplayLane\x12\x1b\n" +
+	"\x17REPLAY_LANE_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19REPLAY_LANE_DETERMINISTIC\x10\x01\x12\x18\n" +
+	"\x14REPLAY_LANE_REALTIME\x10\x02\x12\x1c\n" +
+	"\x18REPLAY_LANE_PRODUCT_PATH\x10\x032\xfe\t\n" +
 	"\x11ExperimentService\x12\x86\x01\n" +
 	"\x0fStartExperiment\x128.vrooli.audio_tools.v1.experiment.StartExperimentRequest\x1a9.vrooli.audio_tools.v1.experiment.StartExperimentResponse\x12\x80\x01\n" +
 	"\rGetExperiment\x126.vrooli.audio_tools.v1.experiment.GetExperimentRequest\x1a7.vrooli.audio_tools.v1.experiment.GetExperimentResponse\x12\x83\x01\n" +
@@ -2007,98 +2229,103 @@ func file_audio_tools_v1_experiment_experiment_proto_rawDescGZIP() []byte {
 	return file_audio_tools_v1_experiment_experiment_proto_rawDescData
 }
 
-var file_audio_tools_v1_experiment_experiment_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_audio_tools_v1_experiment_experiment_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_audio_tools_v1_experiment_experiment_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_audio_tools_v1_experiment_experiment_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_audio_tools_v1_experiment_experiment_proto_goTypes = []any{
 	(ExperimentStatus)(0),                 // 0: vrooli.audio_tools.v1.experiment.ExperimentStatus
-	(*ExperimentRecipe)(nil),              // 1: vrooli.audio_tools.v1.experiment.ExperimentRecipe
-	(*LongFormRecipe)(nil),                // 2: vrooli.audio_tools.v1.experiment.LongFormRecipe
-	(*AugmentationRecipe)(nil),            // 3: vrooli.audio_tools.v1.experiment.AugmentationRecipe
-	(*AugmentationCondition)(nil),         // 4: vrooli.audio_tools.v1.experiment.AugmentationCondition
-	(*SpeakerExperimentRecipe)(nil),       // 5: vrooli.audio_tools.v1.experiment.SpeakerExperimentRecipe
-	(*SpeakerCondition)(nil),              // 6: vrooli.audio_tools.v1.experiment.SpeakerCondition
-	(*Experiment)(nil),                    // 7: vrooli.audio_tools.v1.experiment.Experiment
-	(*ExperimentRun)(nil),                 // 8: vrooli.audio_tools.v1.experiment.ExperimentRun
-	(*ExperimentEvent)(nil),               // 9: vrooli.audio_tools.v1.experiment.ExperimentEvent
-	(*StartExperimentRequest)(nil),        // 10: vrooli.audio_tools.v1.experiment.StartExperimentRequest
-	(*StartExperimentResponse)(nil),       // 11: vrooli.audio_tools.v1.experiment.StartExperimentResponse
-	(*GetExperimentRequest)(nil),          // 12: vrooli.audio_tools.v1.experiment.GetExperimentRequest
-	(*GetExperimentResponse)(nil),         // 13: vrooli.audio_tools.v1.experiment.GetExperimentResponse
-	(*WaitExperimentRequest)(nil),         // 14: vrooli.audio_tools.v1.experiment.WaitExperimentRequest
-	(*WaitExperimentResponse)(nil),        // 15: vrooli.audio_tools.v1.experiment.WaitExperimentResponse
-	(*ListExperimentsRequest)(nil),        // 16: vrooli.audio_tools.v1.experiment.ListExperimentsRequest
-	(*ListExperimentsResponse)(nil),       // 17: vrooli.audio_tools.v1.experiment.ListExperimentsResponse
-	(*CancelExperimentRequest)(nil),       // 18: vrooli.audio_tools.v1.experiment.CancelExperimentRequest
-	(*CancelExperimentResponse)(nil),      // 19: vrooli.audio_tools.v1.experiment.CancelExperimentResponse
-	(*DeleteExperimentRequest)(nil),       // 20: vrooli.audio_tools.v1.experiment.DeleteExperimentRequest
-	(*DeleteExperimentResponse)(nil),      // 21: vrooli.audio_tools.v1.experiment.DeleteExperimentResponse
-	(*StreamExperimentEventsRequest)(nil), // 22: vrooli.audio_tools.v1.experiment.StreamExperimentEventsRequest
-	(*GetExperimentReportRequest)(nil),    // 23: vrooli.audio_tools.v1.experiment.GetExperimentReportRequest
-	(*GetExperimentReportResponse)(nil),   // 24: vrooli.audio_tools.v1.experiment.GetExperimentReportResponse
-	(*CompareExperimentsRequest)(nil),     // 25: vrooli.audio_tools.v1.experiment.CompareExperimentsRequest
-	(*ComparedExperiment)(nil),            // 26: vrooli.audio_tools.v1.experiment.ComparedExperiment
-	(*CompareExperimentsResponse)(nil),    // 27: vrooli.audio_tools.v1.experiment.CompareExperimentsResponse
-	(*eval.EvalStrategy)(nil),             // 28: vrooli.audio_tools.v1.eval.EvalStrategy
-	(stt.SpeakerMode)(0),                  // 29: vrooli.audio_tools.v1.stt.SpeakerMode
-	(*timestamppb.Timestamp)(nil),         // 30: google.protobuf.Timestamp
-	(*eval.EvalReport)(nil),               // 31: vrooli.audio_tools.v1.eval.EvalReport
+	(ReplayLane)(0),                       // 1: vrooli.audio_tools.v1.experiment.ReplayLane
+	(*ExperimentRecipe)(nil),              // 2: vrooli.audio_tools.v1.experiment.ExperimentRecipe
+	(*EvaluationCell)(nil),                // 3: vrooli.audio_tools.v1.experiment.EvaluationCell
+	(*LongFormRecipe)(nil),                // 4: vrooli.audio_tools.v1.experiment.LongFormRecipe
+	(*AugmentationRecipe)(nil),            // 5: vrooli.audio_tools.v1.experiment.AugmentationRecipe
+	(*AugmentationCondition)(nil),         // 6: vrooli.audio_tools.v1.experiment.AugmentationCondition
+	(*SpeakerExperimentRecipe)(nil),       // 7: vrooli.audio_tools.v1.experiment.SpeakerExperimentRecipe
+	(*SpeakerCondition)(nil),              // 8: vrooli.audio_tools.v1.experiment.SpeakerCondition
+	(*Experiment)(nil),                    // 9: vrooli.audio_tools.v1.experiment.Experiment
+	(*ExperimentRun)(nil),                 // 10: vrooli.audio_tools.v1.experiment.ExperimentRun
+	(*ExperimentEvent)(nil),               // 11: vrooli.audio_tools.v1.experiment.ExperimentEvent
+	(*StartExperimentRequest)(nil),        // 12: vrooli.audio_tools.v1.experiment.StartExperimentRequest
+	(*StartExperimentResponse)(nil),       // 13: vrooli.audio_tools.v1.experiment.StartExperimentResponse
+	(*GetExperimentRequest)(nil),          // 14: vrooli.audio_tools.v1.experiment.GetExperimentRequest
+	(*GetExperimentResponse)(nil),         // 15: vrooli.audio_tools.v1.experiment.GetExperimentResponse
+	(*WaitExperimentRequest)(nil),         // 16: vrooli.audio_tools.v1.experiment.WaitExperimentRequest
+	(*WaitExperimentResponse)(nil),        // 17: vrooli.audio_tools.v1.experiment.WaitExperimentResponse
+	(*ListExperimentsRequest)(nil),        // 18: vrooli.audio_tools.v1.experiment.ListExperimentsRequest
+	(*ListExperimentsResponse)(nil),       // 19: vrooli.audio_tools.v1.experiment.ListExperimentsResponse
+	(*CancelExperimentRequest)(nil),       // 20: vrooli.audio_tools.v1.experiment.CancelExperimentRequest
+	(*CancelExperimentResponse)(nil),      // 21: vrooli.audio_tools.v1.experiment.CancelExperimentResponse
+	(*DeleteExperimentRequest)(nil),       // 22: vrooli.audio_tools.v1.experiment.DeleteExperimentRequest
+	(*DeleteExperimentResponse)(nil),      // 23: vrooli.audio_tools.v1.experiment.DeleteExperimentResponse
+	(*StreamExperimentEventsRequest)(nil), // 24: vrooli.audio_tools.v1.experiment.StreamExperimentEventsRequest
+	(*GetExperimentReportRequest)(nil),    // 25: vrooli.audio_tools.v1.experiment.GetExperimentReportRequest
+	(*GetExperimentReportResponse)(nil),   // 26: vrooli.audio_tools.v1.experiment.GetExperimentReportResponse
+	(*CompareExperimentsRequest)(nil),     // 27: vrooli.audio_tools.v1.experiment.CompareExperimentsRequest
+	(*ComparedExperiment)(nil),            // 28: vrooli.audio_tools.v1.experiment.ComparedExperiment
+	(*CompareExperimentsResponse)(nil),    // 29: vrooli.audio_tools.v1.experiment.CompareExperimentsResponse
+	(*eval.EvalStrategy)(nil),             // 30: vrooli.audio_tools.v1.eval.EvalStrategy
+	(stt.SpeakerMode)(0),                  // 31: vrooli.audio_tools.v1.stt.SpeakerMode
+	(*timestamppb.Timestamp)(nil),         // 32: google.protobuf.Timestamp
+	(*eval.EvalReport)(nil),               // 33: vrooli.audio_tools.v1.eval.EvalReport
 }
 var file_audio_tools_v1_experiment_experiment_proto_depIdxs = []int32{
-	28, // 0: vrooli.audio_tools.v1.experiment.ExperimentRecipe.strategies:type_name -> vrooli.audio_tools.v1.eval.EvalStrategy
-	2,  // 1: vrooli.audio_tools.v1.experiment.ExperimentRecipe.long_form:type_name -> vrooli.audio_tools.v1.experiment.LongFormRecipe
-	3,  // 2: vrooli.audio_tools.v1.experiment.ExperimentRecipe.augmentation:type_name -> vrooli.audio_tools.v1.experiment.AugmentationRecipe
-	4,  // 3: vrooli.audio_tools.v1.experiment.ExperimentRecipe.realized_augmentation_conditions:type_name -> vrooli.audio_tools.v1.experiment.AugmentationCondition
-	5,  // 4: vrooli.audio_tools.v1.experiment.ExperimentRecipe.speaker:type_name -> vrooli.audio_tools.v1.experiment.SpeakerExperimentRecipe
-	6,  // 5: vrooli.audio_tools.v1.experiment.ExperimentRecipe.realized_speaker_conditions:type_name -> vrooli.audio_tools.v1.experiment.SpeakerCondition
-	29, // 6: vrooli.audio_tools.v1.experiment.SpeakerExperimentRecipe.verification_mode:type_name -> vrooli.audio_tools.v1.stt.SpeakerMode
-	29, // 7: vrooli.audio_tools.v1.experiment.SpeakerCondition.verification_mode:type_name -> vrooli.audio_tools.v1.stt.SpeakerMode
-	0,  // 8: vrooli.audio_tools.v1.experiment.Experiment.status:type_name -> vrooli.audio_tools.v1.experiment.ExperimentStatus
-	1,  // 9: vrooli.audio_tools.v1.experiment.Experiment.recipe:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRecipe
-	30, // 10: vrooli.audio_tools.v1.experiment.Experiment.created_at:type_name -> google.protobuf.Timestamp
-	30, // 11: vrooli.audio_tools.v1.experiment.Experiment.started_at:type_name -> google.protobuf.Timestamp
-	30, // 12: vrooli.audio_tools.v1.experiment.Experiment.finished_at:type_name -> google.protobuf.Timestamp
-	30, // 13: vrooli.audio_tools.v1.experiment.ExperimentRun.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 14: vrooli.audio_tools.v1.experiment.ExperimentEvent.status:type_name -> vrooli.audio_tools.v1.experiment.ExperimentStatus
-	30, // 15: vrooli.audio_tools.v1.experiment.ExperimentEvent.at:type_name -> google.protobuf.Timestamp
-	1,  // 16: vrooli.audio_tools.v1.experiment.StartExperimentRequest.recipe:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRecipe
-	7,  // 17: vrooli.audio_tools.v1.experiment.StartExperimentResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
-	7,  // 18: vrooli.audio_tools.v1.experiment.GetExperimentResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
-	8,  // 19: vrooli.audio_tools.v1.experiment.GetExperimentResponse.runs:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRun
-	7,  // 20: vrooli.audio_tools.v1.experiment.WaitExperimentResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
-	8,  // 21: vrooli.audio_tools.v1.experiment.WaitExperimentResponse.runs:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRun
-	0,  // 22: vrooli.audio_tools.v1.experiment.ListExperimentsRequest.status:type_name -> vrooli.audio_tools.v1.experiment.ExperimentStatus
-	7,  // 23: vrooli.audio_tools.v1.experiment.ListExperimentsResponse.experiments:type_name -> vrooli.audio_tools.v1.experiment.Experiment
-	7,  // 24: vrooli.audio_tools.v1.experiment.CancelExperimentResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
-	7,  // 25: vrooli.audio_tools.v1.experiment.GetExperimentReportResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
-	31, // 26: vrooli.audio_tools.v1.experiment.GetExperimentReportResponse.report:type_name -> vrooli.audio_tools.v1.eval.EvalReport
-	8,  // 27: vrooli.audio_tools.v1.experiment.GetExperimentReportResponse.runs:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRun
-	7,  // 28: vrooli.audio_tools.v1.experiment.ComparedExperiment.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
-	31, // 29: vrooli.audio_tools.v1.experiment.ComparedExperiment.report:type_name -> vrooli.audio_tools.v1.eval.EvalReport
-	8,  // 30: vrooli.audio_tools.v1.experiment.ComparedExperiment.runs:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRun
-	26, // 31: vrooli.audio_tools.v1.experiment.CompareExperimentsResponse.experiments:type_name -> vrooli.audio_tools.v1.experiment.ComparedExperiment
-	10, // 32: vrooli.audio_tools.v1.experiment.ExperimentService.StartExperiment:input_type -> vrooli.audio_tools.v1.experiment.StartExperimentRequest
-	12, // 33: vrooli.audio_tools.v1.experiment.ExperimentService.GetExperiment:input_type -> vrooli.audio_tools.v1.experiment.GetExperimentRequest
-	14, // 34: vrooli.audio_tools.v1.experiment.ExperimentService.WaitExperiment:input_type -> vrooli.audio_tools.v1.experiment.WaitExperimentRequest
-	16, // 35: vrooli.audio_tools.v1.experiment.ExperimentService.ListExperiments:input_type -> vrooli.audio_tools.v1.experiment.ListExperimentsRequest
-	18, // 36: vrooli.audio_tools.v1.experiment.ExperimentService.CancelExperiment:input_type -> vrooli.audio_tools.v1.experiment.CancelExperimentRequest
-	20, // 37: vrooli.audio_tools.v1.experiment.ExperimentService.DeleteExperiment:input_type -> vrooli.audio_tools.v1.experiment.DeleteExperimentRequest
-	22, // 38: vrooli.audio_tools.v1.experiment.ExperimentService.StreamExperimentEvents:input_type -> vrooli.audio_tools.v1.experiment.StreamExperimentEventsRequest
-	23, // 39: vrooli.audio_tools.v1.experiment.ExperimentService.GetExperimentReport:input_type -> vrooli.audio_tools.v1.experiment.GetExperimentReportRequest
-	25, // 40: vrooli.audio_tools.v1.experiment.ExperimentService.CompareExperiments:input_type -> vrooli.audio_tools.v1.experiment.CompareExperimentsRequest
-	11, // 41: vrooli.audio_tools.v1.experiment.ExperimentService.StartExperiment:output_type -> vrooli.audio_tools.v1.experiment.StartExperimentResponse
-	13, // 42: vrooli.audio_tools.v1.experiment.ExperimentService.GetExperiment:output_type -> vrooli.audio_tools.v1.experiment.GetExperimentResponse
-	15, // 43: vrooli.audio_tools.v1.experiment.ExperimentService.WaitExperiment:output_type -> vrooli.audio_tools.v1.experiment.WaitExperimentResponse
-	17, // 44: vrooli.audio_tools.v1.experiment.ExperimentService.ListExperiments:output_type -> vrooli.audio_tools.v1.experiment.ListExperimentsResponse
-	19, // 45: vrooli.audio_tools.v1.experiment.ExperimentService.CancelExperiment:output_type -> vrooli.audio_tools.v1.experiment.CancelExperimentResponse
-	21, // 46: vrooli.audio_tools.v1.experiment.ExperimentService.DeleteExperiment:output_type -> vrooli.audio_tools.v1.experiment.DeleteExperimentResponse
-	9,  // 47: vrooli.audio_tools.v1.experiment.ExperimentService.StreamExperimentEvents:output_type -> vrooli.audio_tools.v1.experiment.ExperimentEvent
-	24, // 48: vrooli.audio_tools.v1.experiment.ExperimentService.GetExperimentReport:output_type -> vrooli.audio_tools.v1.experiment.GetExperimentReportResponse
-	27, // 49: vrooli.audio_tools.v1.experiment.ExperimentService.CompareExperiments:output_type -> vrooli.audio_tools.v1.experiment.CompareExperimentsResponse
-	41, // [41:50] is the sub-list for method output_type
-	32, // [32:41] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	30, // 0: vrooli.audio_tools.v1.experiment.ExperimentRecipe.strategies:type_name -> vrooli.audio_tools.v1.eval.EvalStrategy
+	4,  // 1: vrooli.audio_tools.v1.experiment.ExperimentRecipe.long_form:type_name -> vrooli.audio_tools.v1.experiment.LongFormRecipe
+	5,  // 2: vrooli.audio_tools.v1.experiment.ExperimentRecipe.augmentation:type_name -> vrooli.audio_tools.v1.experiment.AugmentationRecipe
+	6,  // 3: vrooli.audio_tools.v1.experiment.ExperimentRecipe.realized_augmentation_conditions:type_name -> vrooli.audio_tools.v1.experiment.AugmentationCondition
+	7,  // 4: vrooli.audio_tools.v1.experiment.ExperimentRecipe.speaker:type_name -> vrooli.audio_tools.v1.experiment.SpeakerExperimentRecipe
+	8,  // 5: vrooli.audio_tools.v1.experiment.ExperimentRecipe.realized_speaker_conditions:type_name -> vrooli.audio_tools.v1.experiment.SpeakerCondition
+	3,  // 6: vrooli.audio_tools.v1.experiment.ExperimentRecipe.cells:type_name -> vrooli.audio_tools.v1.experiment.EvaluationCell
+	1,  // 7: vrooli.audio_tools.v1.experiment.EvaluationCell.replay_lane:type_name -> vrooli.audio_tools.v1.experiment.ReplayLane
+	31, // 8: vrooli.audio_tools.v1.experiment.SpeakerExperimentRecipe.verification_mode:type_name -> vrooli.audio_tools.v1.stt.SpeakerMode
+	31, // 9: vrooli.audio_tools.v1.experiment.SpeakerCondition.verification_mode:type_name -> vrooli.audio_tools.v1.stt.SpeakerMode
+	0,  // 10: vrooli.audio_tools.v1.experiment.Experiment.status:type_name -> vrooli.audio_tools.v1.experiment.ExperimentStatus
+	2,  // 11: vrooli.audio_tools.v1.experiment.Experiment.recipe:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRecipe
+	32, // 12: vrooli.audio_tools.v1.experiment.Experiment.created_at:type_name -> google.protobuf.Timestamp
+	32, // 13: vrooli.audio_tools.v1.experiment.Experiment.started_at:type_name -> google.protobuf.Timestamp
+	32, // 14: vrooli.audio_tools.v1.experiment.Experiment.finished_at:type_name -> google.protobuf.Timestamp
+	32, // 15: vrooli.audio_tools.v1.experiment.ExperimentRun.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 16: vrooli.audio_tools.v1.experiment.ExperimentRun.replay_lane:type_name -> vrooli.audio_tools.v1.experiment.ReplayLane
+	0,  // 17: vrooli.audio_tools.v1.experiment.ExperimentEvent.status:type_name -> vrooli.audio_tools.v1.experiment.ExperimentStatus
+	32, // 18: vrooli.audio_tools.v1.experiment.ExperimentEvent.at:type_name -> google.protobuf.Timestamp
+	2,  // 19: vrooli.audio_tools.v1.experiment.StartExperimentRequest.recipe:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRecipe
+	9,  // 20: vrooli.audio_tools.v1.experiment.StartExperimentResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
+	9,  // 21: vrooli.audio_tools.v1.experiment.GetExperimentResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
+	10, // 22: vrooli.audio_tools.v1.experiment.GetExperimentResponse.runs:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRun
+	9,  // 23: vrooli.audio_tools.v1.experiment.WaitExperimentResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
+	10, // 24: vrooli.audio_tools.v1.experiment.WaitExperimentResponse.runs:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRun
+	0,  // 25: vrooli.audio_tools.v1.experiment.ListExperimentsRequest.status:type_name -> vrooli.audio_tools.v1.experiment.ExperimentStatus
+	9,  // 26: vrooli.audio_tools.v1.experiment.ListExperimentsResponse.experiments:type_name -> vrooli.audio_tools.v1.experiment.Experiment
+	9,  // 27: vrooli.audio_tools.v1.experiment.CancelExperimentResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
+	9,  // 28: vrooli.audio_tools.v1.experiment.GetExperimentReportResponse.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
+	33, // 29: vrooli.audio_tools.v1.experiment.GetExperimentReportResponse.report:type_name -> vrooli.audio_tools.v1.eval.EvalReport
+	10, // 30: vrooli.audio_tools.v1.experiment.GetExperimentReportResponse.runs:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRun
+	9,  // 31: vrooli.audio_tools.v1.experiment.ComparedExperiment.experiment:type_name -> vrooli.audio_tools.v1.experiment.Experiment
+	33, // 32: vrooli.audio_tools.v1.experiment.ComparedExperiment.report:type_name -> vrooli.audio_tools.v1.eval.EvalReport
+	10, // 33: vrooli.audio_tools.v1.experiment.ComparedExperiment.runs:type_name -> vrooli.audio_tools.v1.experiment.ExperimentRun
+	28, // 34: vrooli.audio_tools.v1.experiment.CompareExperimentsResponse.experiments:type_name -> vrooli.audio_tools.v1.experiment.ComparedExperiment
+	12, // 35: vrooli.audio_tools.v1.experiment.ExperimentService.StartExperiment:input_type -> vrooli.audio_tools.v1.experiment.StartExperimentRequest
+	14, // 36: vrooli.audio_tools.v1.experiment.ExperimentService.GetExperiment:input_type -> vrooli.audio_tools.v1.experiment.GetExperimentRequest
+	16, // 37: vrooli.audio_tools.v1.experiment.ExperimentService.WaitExperiment:input_type -> vrooli.audio_tools.v1.experiment.WaitExperimentRequest
+	18, // 38: vrooli.audio_tools.v1.experiment.ExperimentService.ListExperiments:input_type -> vrooli.audio_tools.v1.experiment.ListExperimentsRequest
+	20, // 39: vrooli.audio_tools.v1.experiment.ExperimentService.CancelExperiment:input_type -> vrooli.audio_tools.v1.experiment.CancelExperimentRequest
+	22, // 40: vrooli.audio_tools.v1.experiment.ExperimentService.DeleteExperiment:input_type -> vrooli.audio_tools.v1.experiment.DeleteExperimentRequest
+	24, // 41: vrooli.audio_tools.v1.experiment.ExperimentService.StreamExperimentEvents:input_type -> vrooli.audio_tools.v1.experiment.StreamExperimentEventsRequest
+	25, // 42: vrooli.audio_tools.v1.experiment.ExperimentService.GetExperimentReport:input_type -> vrooli.audio_tools.v1.experiment.GetExperimentReportRequest
+	27, // 43: vrooli.audio_tools.v1.experiment.ExperimentService.CompareExperiments:input_type -> vrooli.audio_tools.v1.experiment.CompareExperimentsRequest
+	13, // 44: vrooli.audio_tools.v1.experiment.ExperimentService.StartExperiment:output_type -> vrooli.audio_tools.v1.experiment.StartExperimentResponse
+	15, // 45: vrooli.audio_tools.v1.experiment.ExperimentService.GetExperiment:output_type -> vrooli.audio_tools.v1.experiment.GetExperimentResponse
+	17, // 46: vrooli.audio_tools.v1.experiment.ExperimentService.WaitExperiment:output_type -> vrooli.audio_tools.v1.experiment.WaitExperimentResponse
+	19, // 47: vrooli.audio_tools.v1.experiment.ExperimentService.ListExperiments:output_type -> vrooli.audio_tools.v1.experiment.ListExperimentsResponse
+	21, // 48: vrooli.audio_tools.v1.experiment.ExperimentService.CancelExperiment:output_type -> vrooli.audio_tools.v1.experiment.CancelExperimentResponse
+	23, // 49: vrooli.audio_tools.v1.experiment.ExperimentService.DeleteExperiment:output_type -> vrooli.audio_tools.v1.experiment.DeleteExperimentResponse
+	11, // 50: vrooli.audio_tools.v1.experiment.ExperimentService.StreamExperimentEvents:output_type -> vrooli.audio_tools.v1.experiment.ExperimentEvent
+	26, // 51: vrooli.audio_tools.v1.experiment.ExperimentService.GetExperimentReport:output_type -> vrooli.audio_tools.v1.experiment.GetExperimentReportResponse
+	29, // 52: vrooli.audio_tools.v1.experiment.ExperimentService.CompareExperiments:output_type -> vrooli.audio_tools.v1.experiment.CompareExperimentsResponse
+	44, // [44:53] is the sub-list for method output_type
+	35, // [35:44] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_experiment_experiment_proto_init() }
@@ -2111,8 +2338,8 @@ func file_audio_tools_v1_experiment_experiment_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_experiment_experiment_proto_rawDesc), len(file_audio_tools_v1_experiment_experiment_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   27,
+			NumEnums:      2,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

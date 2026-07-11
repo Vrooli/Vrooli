@@ -591,7 +591,7 @@ message DeleteSpeakerProfileClipResponse {
 message TranscribeStreamRequest {
   oneof payload {
     StreamStart start = 1;
-    bytes audio_chunk = 2;
+    StreamAudioChunk audio_chunk = 2;
     StreamEnd end = 3;
   }
 }
@@ -610,6 +610,22 @@ message StreamStart {
   // capture rate). It does NOT change the fixed internal target
   // (16 kHz mono); the substrate resamples to canonical regardless.
   int32 input_sample_rate_hz = 6;
+  // protocol_version is currently 2. A server rejects versions it cannot
+  // preserve rather than silently accepting unacknowledged audio.
+  int32 protocol_version = 7;
+  string session_id = 8;
+  uint64 generation = 9;
+  string resume_token = 10;
+}
+
+// StreamAudioChunk carries a monotonic identity and canonical sample range.
+// A retry repeats the same identity and digest; it never creates new audio.
+message StreamAudioChunk {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  uint64 sequence = 2;
+  int64 start_sample = 3;
+  int64 end_sample = 4;
+  bytes sha256 = 5;
 }
 
 message StreamEnd {}
@@ -623,7 +639,36 @@ message TranscribeStreamEvent {
     StreamError error = 5;
     StreamDone done = 6;
     StreamVadState vad_state = 7;
+    StreamAcknowledgement acknowledgement = 8;
+    StreamSessionStatus session_status = 9;
   }
+}
+
+enum StreamDeliveryClass {
+  STREAM_DELIVERY_CLASS_UNSPECIFIED = 0;
+  STREAM_DELIVERY_CLASS_PROGRESS = 1;
+  STREAM_DELIVERY_CLASS_DURABLE = 2;
+}
+
+// StreamAcknowledgement exposes two distinct cursors. Received coverage may
+// be replayable but only processed coverage permits client journal compaction.
+message StreamAcknowledgement {
+  int64 received_sequence = 1;
+  int64 processed_sequence = 2;
+  int64 received_end_sample = 3;
+  int64 processed_end_sample = 4;
+  StreamDeliveryClass delivery_class = 5;
+}
+
+// StreamSessionStatus covers admission and recovery transitions without
+// exposing transcript or retained audio in routine telemetry.
+message StreamSessionStatus {
+  string session_id = 1;
+  uint64 generation = 2;
+  string state = 3;
+  int32 queue_position = 4;
+  string capability_outcome = 5;
+  string recovery_guidance = 6;
 }
 
 message StreamSegment {
@@ -634,6 +679,11 @@ message StreamSegment {
   vrooli.audio_tools.v1.common.ProviderTier provider_tier = 5;
   string model_id = 6;
   double latency_ms = 7;
+  string segment_id = 8;
+  uint64 generation = 9;
+  int64 start_sample = 10;
+  int64 end_sample = 11;
+  string alignment_quality = 12;
 }
 
 message StreamPartial {
@@ -693,4 +743,7 @@ message StreamDone {
   string model_id = 4;
   double latency_ms = 5;
   bool fell_back_to_unary = 6;
+  int64 processed_sequence = 7;
+  int64 processed_end_sample = 8;
+  string terminal_reason = 9;
 }

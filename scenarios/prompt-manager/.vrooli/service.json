@@ -172,7 +172,17 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Executes heartbeat runs via task/run API. Heartbeat system degrades when unavailable.",
+      "description": "Executes heartbeat runs through Prompt Manager's declared role-only profiles. Heartbeat system degrades when unavailable.",
+      "config": {
+        "profiles": {
+          "reconcile": true,
+          "mode": "update_if_unmodified",
+          "sources": [
+            ".vrooli/agent-profiles/heartbeat.json",
+            ".vrooli/agent-profiles/heartbeat-single-process.json"
+          ]
+        }
+      },
         "degraded_behavior": "Scheduled heartbeat runs are skipped until agent-manager is available"
       }
     },

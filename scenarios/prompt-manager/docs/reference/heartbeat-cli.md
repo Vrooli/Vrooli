@@ -103,7 +103,7 @@ prompt-manager team heartbeat my-team agent-1
 # Heartbeat for my-team/agent-1:
 #   Enabled:  true
 #   Schedule: 0 */6 * * * (every 6 hours)
-#   Profile:  prompt-manager-heartbeat
+#   Profile:  prompt-manager/heartbeat
 #   Last Run: 2026-02-01T10:00:00Z (completed)
 #   Next Run: 2026-02-01T16:00:00Z
 ```
@@ -122,7 +122,7 @@ prompt-manager team heartbeat-enable <team-id> <agent-id> --schedule=<cron> [--p
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--schedule` | Yes | Cron expression for execution schedule |
-| `--profile` | No | Agent-manager profile key override. Defaults to `prompt-manager-heartbeat` for multi-process teams and `prompt-manager-heartbeat-cc` for single-process teams |
+| `--profile` | No | Declared Agent Manager profile key override. Defaults to `prompt-manager/heartbeat` for multi-process teams and `prompt-manager/heartbeat-single-process` for single-process teams. |
 | `--json` | No | Output as JSON |
 
 **Schedule Examples:**

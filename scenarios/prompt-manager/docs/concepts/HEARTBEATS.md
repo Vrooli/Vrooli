@@ -94,7 +94,7 @@ store/teams/{team-id}/
   "agentId": "agent-1",
   "enabled": false,
   "schedule": "0 */6 * * *",
-  "profileKey": "prompt-manager-heartbeat",
+  "profileKey": "prompt-manager/heartbeat",
   "lastExecution": {
     "startedAt": "2026-02-01T10:00:00Z",
     "endedAt": "2026-02-01T10:05:32Z",
@@ -215,12 +215,14 @@ The schedule uses standard cron expression format with optional seconds:
 
 ## Integration with agent-manager
 
-Heartbeats execute via the agent-manager scenario using profiles:
+Heartbeats execute via Agent Manager using Prompt Manager's declared profiles:
 
-1. **Profile Resolution**: Uses `EnsureProfile` to create/retrieve the heartbeat profile
-2. **Task Creation**: Creates a task with the built prompt
-3. **Run Execution**: Starts a run with `RUN_MODE_IN_PLACE`
-4. **Completion Tracking**: Polls for completion and updates config
+1. **Profile Reconciliation**: Scheduler startup reconciles the registered
+   role-only files under `.vrooli/agent-profiles/`.
+2. **Task Creation**: Creates a task with the built prompt.
+3. **Run Execution**: Starts a run with the reconciled profile key; Agent
+   Manager owns role resolution and concrete runner/model selection.
+4. **Completion Tracking**: Polls for completion and updates config.
 
 See [CODE: api/heartbeat/client.go] for the client implementation.
 

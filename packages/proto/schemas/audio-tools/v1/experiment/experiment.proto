@@ -60,6 +60,31 @@ message ExperimentRecipe {
   // When realtime_repeats > 0, pace only the final N seconds of each clip at
   // 1x. A value of 0 keeps full real-time pacing.
   int32 latency_tail_seconds = 15;
+  // cells supersedes strategy-only execution for new experiments. Legacy
+  // strategies remain readable so historic Whisper reports are explicitly
+  // legacy data rather than a parallel runner.
+  repeated EvaluationCell cells = 16;
+}
+
+enum ReplayLane {
+  REPLAY_LANE_UNSPECIFIED = 0;
+  REPLAY_LANE_DETERMINISTIC = 1;
+  REPLAY_LANE_REALTIME = 2;
+  REPLAY_LANE_PRODUCT_PATH = 3;
+}
+
+// EvaluationCell is one reproducible provider/strategy/policy/fault unit.
+// Promotion requires named lane evidence; tail-latency approximation is never
+// equivalent to a realtime lane.
+message EvaluationCell {
+  string engine_id = 1;
+  string strategy = 2;
+  string policy_profile = 3;
+  ReplayLane replay_lane = 4;
+  string fault_profile = 5;
+  bool warm_start = 6;
+  int32 repeat_count = 7;
+  string label = 8;
 }
 
 message LongFormRecipe {
@@ -132,6 +157,10 @@ message ExperimentRun {
   string strategy = 3;
   string condition_json = 4;
   google.protobuf.Timestamp created_at = 6;
+  string engine_id = 7;
+  string policy_profile = 8;
+  ReplayLane replay_lane = 9;
+  string fault_profile = 10;
 }
 
 message ExperimentEvent {

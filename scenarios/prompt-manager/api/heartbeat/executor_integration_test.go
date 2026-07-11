@@ -135,8 +135,8 @@ func TestExecute_FullLifecycle(t *testing.T) {
 	if runReq.RunMode != "" {
 		t.Errorf("expected run mode to be derived from sandbox config, got %s", runReq.RunMode)
 	}
-	if runReq.ProfileRef == nil || !runReq.ProfileRef.UpdateExisting {
-		t.Error("expected profile ref to update existing profile defaults")
+	if runReq.ProfileRef == nil {
+		t.Error("expected a profile-key-only run reference")
 	}
 
 	// Wait for async completion to call OnComplete
@@ -394,7 +394,7 @@ func TestTriggerManual_DefaultProfile(t *testing.T) {
 		t.Fatalf("TriggerManual: %v", err)
 	}
 
-	if mockClient.createRunCalls[0].ProfileRef.ProfileKey != "prompt-manager-heartbeat" {
+	if mockClient.createRunCalls[0].ProfileRef.ProfileKey != DefaultProfileKeyMultiProcess {
 		t.Errorf("expected default profile, got %s", mockClient.createRunCalls[0].ProfileRef.ProfileKey)
 	}
 }
@@ -492,14 +492,8 @@ func TestExecute_SingleProcessTeam_UsesClaudeCodeProfile(t *testing.T) {
 		t.Fatalf("expected 1 CreateRun call, got %d", len(mockClient.createRunCalls))
 	}
 	ref := mockClient.createRunCalls[0].ProfileRef
-	if ref.ProfileKey != DefaultProfileKeyClaudeCode {
-		t.Errorf("expected profile key %q, got %q", DefaultProfileKeyClaudeCode, ref.ProfileKey)
-	}
-	if ref.Defaults == nil {
-		t.Fatal("expected Defaults to be set")
-	}
-	if ref.Defaults.RunnerType != "RUNNER_TYPE_CLAUDE_CODE" {
-		t.Errorf("expected RUNNER_TYPE_CLAUDE_CODE, got %s", ref.Defaults.RunnerType)
+	if ref.ProfileKey != DefaultProfileKeySingleProcess {
+		t.Errorf("expected profile key %q, got %q", DefaultProfileKeySingleProcess, ref.ProfileKey)
 	}
 }
 
@@ -523,29 +517,8 @@ func TestExecute_MultiProcessTeam_UsesCodexProfile(t *testing.T) {
 	}
 
 	ref := mockClient.createRunCalls[0].ProfileRef
-	if ref.ProfileKey != DefaultProfileKeyCodex {
-		t.Errorf("expected profile key %q, got %q", DefaultProfileKeyCodex, ref.ProfileKey)
-	}
-	if ref.Defaults.RunnerType != "RUNNER_TYPE_CODEX" {
-		t.Errorf("expected RUNNER_TYPE_CODEX, got %s", ref.Defaults.RunnerType)
-	}
-}
-
-func TestExecute_SingleProcessWithCodexProfile_Fails(t *testing.T) {
-	teamStore, agentStore, _ := setupExecutorTestEnvWithRuntimeMode(t, "single-process")
-
-	mockClient := newMockAgentClient()
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-
-	result, err := executor.Execute(context.Background(), "team-1", "agent-1", DefaultProfileKeyCodex)
-	if err == nil {
-		t.Fatal("expected error for profile mismatch")
-	}
-	if !IsProfileMismatch(err) {
-		t.Errorf("expected ProfileMismatchError, got: %v", err)
-	}
-	if result.Status != store.HeartbeatStatusFailed {
-		t.Errorf("expected failed status, got %s", result.Status)
+	if ref.ProfileKey != DefaultProfileKeyMultiProcess {
+		t.Errorf("expected profile key %q, got %q", DefaultProfileKeyMultiProcess, ref.ProfileKey)
 	}
 }
 
@@ -568,8 +541,8 @@ func TestTriggerManual_SingleProcessTeam_DefaultsToClaudeCode(t *testing.T) {
 	}
 
 	ref := mockClient.createRunCalls[0].ProfileRef
-	if ref.ProfileKey != DefaultProfileKeyClaudeCode {
-		t.Errorf("expected %q, got %q", DefaultProfileKeyClaudeCode, ref.ProfileKey)
+	if ref.ProfileKey != DefaultProfileKeySingleProcess {
+		t.Errorf("expected %q, got %q", DefaultProfileKeySingleProcess, ref.ProfileKey)
 	}
 }
 
@@ -796,10 +769,9 @@ func TestEnsureProfileFailure_CausesCreateRunProfileNotFound(t *testing.T) {
 	}
 }
 
-// TestExecute_CreateRunIncludesDefaults verifies that the CreateRun request
-// always includes Defaults in the ProfileRef, so agent-manager can auto-create
-// the profile even if EnsureProfile failed at startup.
-func TestExecute_CreateRunIncludesDefaults(t *testing.T) {
+// TestExecute_CreateRunUsesDeclaredProfile verifies that the CreateRun request
+// refers only to the scenario-owned profile; reconciliation owns creation.
+func TestExecute_CreateRunUsesDeclaredProfile(t *testing.T) {
 	teamStore, agentStore, _ := setupExecutorTestEnv(t)
 
 	mockClient := newMockAgentClient().
@@ -812,7 +784,7 @@ func TestExecute_CreateRunIncludesDefaults(t *testing.T) {
 	executor.OnComplete = onComplete
 	defer waitComplete()
 
-	profileKey := "prompt-manager-heartbeat"
+	profileKey := "prompt-manager/heartbeat"
 	_, err := executor.Execute(context.Background(), "team-1", "agent-1", profileKey)
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
@@ -827,18 +799,6 @@ func TestExecute_CreateRunIncludesDefaults(t *testing.T) {
 	}
 	if ref.ProfileKey != profileKey {
 		t.Errorf("expected profile key %q, got %q", profileKey, ref.ProfileKey)
-	}
-	if ref.Defaults == nil {
-		t.Fatal("expected Defaults to be set in ProfileRef (required for auto-create)")
-	}
-	if ref.Defaults.ProfileKey != profileKey {
-		t.Errorf("expected Defaults.ProfileKey %q, got %q", profileKey, ref.Defaults.ProfileKey)
-	}
-	if ref.Defaults.RunnerType == "" {
-		t.Error("expected Defaults.RunnerType to be populated")
-	}
-	if ref.Defaults.Timeout == "" {
-		t.Error("expected Defaults.Timeout to be populated")
 	}
 }
 

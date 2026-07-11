@@ -127,7 +127,7 @@ GET /teams/{teamId}/heartbeats
     "agentId": "agent-1",
     "enabled": true,
     "schedule": "0 */6 * * *",
-    "profileKey": "prompt-manager-heartbeat",
+    "profileKey": "prompt-manager/heartbeat",
     "lastExecution": {
       "startedAt": "2026-02-01T10:00:00Z",
       "endedAt": "2026-02-01T10:05:32Z",
@@ -159,7 +159,7 @@ GET /teams/{teamId}/heartbeats/{agentId}
   "agentId": "agent-1",
   "enabled": true,
   "schedule": "0 */6 * * *",
-  "profileKey": "prompt-manager-heartbeat",
+  "profileKey": "prompt-manager/heartbeat",
   "lastExecution": null,
   "nextExecution": "2026-02-01T16:00:00Z",
   "createdAt": "2026-01-15T00:00:00Z",
