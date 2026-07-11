@@ -71,9 +71,6 @@ func GetRunnerType(run *domain.Run, profile *domain.AgentProfile) domain.RunnerT
 	if run != nil && run.ResolvedConfig != nil {
 		return run.ResolvedConfig.RunnerType
 	}
-	if profile != nil {
-		return profile.RunnerType
-	}
 	return domain.RunnerTypeClaudeCode
 }
 

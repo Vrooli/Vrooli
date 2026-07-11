@@ -1,4 +1,4 @@
-package modelpolicy
+package rolepolicy
 
 import (
 	"bytes"
@@ -16,9 +16,9 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-// Revision is an immutable, validated catalog snapshot. Its digest is the
-// SHA-256 of the exact source bytes, so operator-visible revisions correspond
-// to a reviewable Git artifact rather than a re-marshaled approximation.
+// Revision is an immutable validated catalog revision. Digest is calculated
+// from exact source bytes so an execution snapshot can cite a reviewable
+// declared-state artifact.
 type Revision struct {
 	digest  string
 	catalog *Catalog
@@ -44,10 +44,14 @@ func Parse(data []byte) (*Revision, error) {
 
 	var catalog Catalog
 	if err := decoder.Decode(&catalog); err != nil {
-		return nil, domain.NewConfigInvalidError("modelPolicyCatalog", "failed to parse catalog: "+err.Error(), err)
+		return nil, domain.NewConfigInvalidError("rolePolicyCatalog", "failed to parse catalog: "+err.Error(), err)
 	}
-	if err := ensureJSONEOF(decoder); err != nil {
-		return nil, domain.NewConfigInvalidError("modelPolicyCatalog", "failed to parse catalog: "+err.Error(), err)
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			err = fmt.Errorf("catalog contains multiple JSON values")
+		}
+		return nil, domain.NewConfigInvalidError("rolePolicyCatalog", "failed to parse catalog: "+err.Error(), err)
 	}
 	if err := catalog.Validate(); err != nil {
 		return nil, err
@@ -63,13 +67,15 @@ func Parse(data []byte) (*Revision, error) {
 func Load(path string) (*Revision, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, domain.NewConfigInvalidError("modelPolicyCatalog", fmt.Sprintf("failed to read catalog at %s", path), err)
+		return nil, domain.NewConfigInvalidError("rolePolicyCatalog", fmt.Sprintf("failed to read catalog at %s", path), err)
 	}
 	return Parse(data)
 }
 
+// ResolvePath returns the one repository-owned role-policy location. Tests
+// can override it without reading user-owned coding-agent configuration.
 func ResolvePath() string {
-	if path := strings.TrimSpace(os.Getenv("AGENT_MANAGER_MODEL_POLICY_CATALOG_PATH")); path != "" {
+	if path := strings.TrimSpace(os.Getenv("AGENT_MANAGER_ROLE_POLICY_CATALOG_PATH")); path != "" {
 		return path
 	}
 	root, err := repocontract.ResolveRepoRoot()
@@ -77,19 +83,7 @@ func ResolvePath() string {
 		root = "."
 	}
 	if resolved, err := repocontract.ResolveScenarioPath(root, "agent-manager"); err == nil {
-		return filepath.Join(resolved, "config", "model-policy-catalog.json")
+		return filepath.Join(resolved, "config", "role-policy-catalog.json")
 	}
-	return filepath.Join(root, "scenarios", "agent-manager", "config", "model-policy-catalog.json")
-}
-
-func ensureJSONEOF(decoder *json.Decoder) error {
-	var extra any
-	err := decoder.Decode(&extra)
-	if err == io.EOF {
-		return nil
-	}
-	if err == nil {
-		return fmt.Errorf("catalog contains multiple JSON values")
-	}
-	return err
+	return filepath.Join(root, "scenarios", "agent-manager", "config", "role-policy-catalog.json")
 }

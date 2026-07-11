@@ -1,7 +1,7 @@
 import { Edit, Trash2 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { networkAccessLabel, runnerTypeLabel, sandboxModeLabel } from "../lib/utils";
+import { networkAccessLabel, sandboxModeLabel } from "../lib/utils";
 import { formatStandardDateTime } from "../lib/dateTime";
 import type { AgentProfile } from "../types";
 import { SandboxMode } from "../types";
@@ -54,13 +54,7 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
 
       {/* Badges */}
       <div className="flex flex-wrap gap-2">
-        <Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>
-        {profile.policyRef && (
-          <Badge variant="outline">Policy: {profile.policyRef}</Badge>
-        )}
-        {profile.model && profile.model.trim() !== "" && (
-          <Badge variant="outline">{profile.model}</Badge>
-        )}
+        <Badge variant="secondary">{profile.roleRef}</Badge>
         {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== SandboxMode.UNSPECIFIED && (
           <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
         )}

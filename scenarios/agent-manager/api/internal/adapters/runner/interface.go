@@ -112,9 +112,9 @@ type Capabilities struct {
 	// MaxTurns is the maximum number of turns this runner supports (0 = unlimited).
 	MaxTurns int
 
-	// SupportedModels combines catalog-declared static models with any
-	// runtime-discovered overlay. Codec implementations must only contribute
-	// dynamic entries; boot wiring adds static entries from modelpolicy.
+	// SupportedModels contains only runtime-discovered model facts. Concrete
+	// coding-agent selections come from resource-owned role resolution and are
+	// captured in immutable run snapshots, never composed into runner mechanics.
 	SupportedModels []string
 
 	// SupportsRunnerDefault reports whether omitting the model flag is a valid
@@ -122,7 +122,7 @@ type Capabilities struct {
 	SupportsRunnerDefault bool
 
 	// DynamicModelPrefixes names runtime-discovered namespaces owned by the
-	// codec rather than by the static model-policy catalog.
+	// codec.
 	DynamicModelPrefixes []string
 
 	// SupportedFeatures lists which typed FeatureFlags this runner supports.

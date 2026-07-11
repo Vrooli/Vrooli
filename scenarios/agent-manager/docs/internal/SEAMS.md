@@ -160,22 +160,20 @@ implements `Codec`; `core.Runner` owns launch/scan/transcript/events.
   registry plumbing), not a copy of the availability/probe/labels/transcript
   boilerplate. Adding Grok was the forcing function that extracted it.
 
-**Model-policy composition and drift gates:**
-- `config/model-policy-catalog.json` is the static inventory and named-policy
-  source of truth. `internal/modelpolicy` strictly parses it, rejects semantic
-  drift with field-specific diagnostics, and identifies an immutable revision
-  as `sha256:<64 lowercase hex characters>` over the exact source bytes.
-- Raw codecs advertise only measured runner mechanics, runner-default support,
-  dynamic namespaces, and runtime-discovered models. `WithCatalogModelSource`
-  composes the active revision's static inventory with that dynamic overlay on
-  every capabilities read, so an atomic reload changes new callers without
-  reconstructing runners. `WithCatalogModels` remains a fixed-source test helper.
-- `codecs/model_parity_test.go` gates catalog runner entries, runner-default
-  support, dynamic prefixes, absence of compiled static model IDs, and the
-  composed model view.
+**Role-policy resolution and capability gates:**
+- `config/role-policy-catalog.json` declares portable roles and ordered
+  `(runner, resourceRole)` candidates only. `internal/rolepolicy` strictly
+  parses it, rejects semantic drift with field-specific diagnostics, and
+  identifies an immutable revision as `sha256:<64 lowercase hex characters>`
+  over the exact source bytes.
+- Raw codecs advertise measured runner mechanics and runtime-discovered model
+  namespaces. They do not compose a static model inventory: concrete selection
+  is resolved by the owning resource at run creation and retained only in the
+  immutable execution snapshot.
+- `codecs/model_parity_test.go` gates valid role-catalog runner references
+  without importing concrete model data into codec capability output.
 - `runner/runnertype_conformance_test.go` requires the RunnerType set to match
-  `domain.ValidRunnerTypes()`, the generated proto enum, and catalog runner
-  keys.
+  `domain.ValidRunnerTypes()` and the generated proto enum.
 
 **Capability honesty (Grok):** grok's headless stdout surfaces assistant text +
 session id but NOT tool-call/result events or token/cost — even when a tool
@@ -187,10 +185,10 @@ runs. `Grok.Capabilities()` reflects exactly that (no tool events, no cost);
 
 ---
 
-### 1aa. Model-policy Activation State (`internal/modelpolicy.State`)
+### 1aa. Role-policy Activation State (`internal/rolepolicy.State`)
 
 **Purpose:** Own exactly one validated active catalog revision and make catalog
-failure/reload state observable without letting orchestration or codecs create
+failure/reload state observable without letting orchestration create
 independent caches.
 
 **Contract:**
@@ -203,40 +201,31 @@ independent caches.
   attempt and retains the prior active revision.
 - `Status()` returns path, requirement reason, readiness, active digest,
   activation time, and the latest reload attempt as a deep copy.
-- `Active()`, `ModelIDs()`, and `IterModels()` are the only runtime revision
-  reads. Orchestration receives this same state through `WithModelPolicyState`.
+- `Active()` is the only runtime revision read. Orchestration receives this
+  same state through its role-policy resolver seam.
 
-**Production wiring:** `api/main.go` constructs the state before runners,
-decorates codecs with live model sources, supplies the state to the health
-probe, and registers a critical `model_policy_catalog` check on `/health`.
-Agent-manager's built-in policy-backed profiles make the catalog required; no
-active revision therefore yields HTTP 503 readiness with path and cause.
+**Production wiring:** `api/main.go` constructs the state before accepting
+runs and registers a critical role-policy readiness check. A role catalog
+contains only portable `(runner, resourceRole)` candidates; each resource
+resolves concrete model/fallback data when a run is created.
 
-**Tests:** `internal/modelpolicy/state_test.go`,
-`api/modelpolicy_health_test.go`, and
-`codecs/model_parity_test.go::TestCatalogModelSourceReflectsAtomicReload`.
+**Tests:** `internal/rolepolicy` state and resolver contract tests.
 
 ---
 
-### 1ab. Run Policy Resolution Snapshot (modelpolicy → orchestration)
+### 1ab. Run Role Resolution Snapshot (rolepolicy → orchestration)
 
-**Purpose:** Convert profile plus inline model intent into a durable,
+**Purpose:** Convert profile plus inline role intent into a durable,
 explainable candidate sequence before the run row is created.
 
 **Contract:**
 - The SQLite startup migration maps supported legacy FAST/CHEAP/SMART profile
-  rows once to runner.fast|cheap|smart and removes the obsolete columns.
+  rows once to `code.*` roles and removes the obsolete columns.
   Runtime profile, API, scenario-config, and execution surfaces accept no
-  legacy preset input; authority is `policyRef` plus the resulting snapshot.
-- An explicit model must exist in the active static inventory or a declared
-  dynamic namespace. No undeclared direct override bypass exists.
-- An omitted model resolves to an explicit runner_default candidate rather
-  than an empty-string sentinel.
-- Creation-time preflight walks candidates in catalog order, recording each
-  runner/model result. If declared model IDs are stale, a later explicit
-  runner_default candidate can be selected; if none is viable, creation fails
-  with the candidate reasons instead of deferring an opaque spawn failure.
-- RunConfig.PolicySnapshot persists catalog digest, policy ref, full ordered
+  legacy preset input; authority is `roleRef` plus the resulting snapshot.
+- Creation-time preflight resolves resource-owned candidates in catalog order,
+  recording each concrete runner/model result and any unavailable candidate.
+- RunConfig.PolicySnapshot persists catalog digest, role ref, full ordered
   candidates, selected index/candidate, source/precedence explanation, and
   preflight evidence inside the existing resolved_config JSON column.
 - The generated RunConfig policy_snapshot field is output-only in practice:
@@ -248,12 +237,11 @@ explainable candidate sequence before the run row is created.
   doing so would falsely attribute a mutable current revision to a past run.
 
 **Production wiring:** Orchestrator.resolveRunConfig receives the one
-modelpolicy.State injected at boot and writes the snapshot before
+rolepolicy state/resolver injected at boot and writes the snapshot before
 RunRepository.Create. Reload changes new resolutions only; an already-built
 snapshot owns copied candidate values and its original digest.
 
-**Tests:** internal/modelpolicy/resolution_test.go,
-internal/orchestration/modelpolicy_resolution_test.go, and
+**Tests:** internal/rolepolicy resolution tests,
 internal/database/repository_test.go::TestRunWithComplexFields, plus
 internal/protoconv/convert_test.go::TestExecutionPolicySnapshotRoundTrip.
 
@@ -278,25 +266,23 @@ JSON round-trip restart/resume, and an atomic catalog reload between attempts.
 
 ---
 
-### 1ac. Model-policy Operator Surface (modelpolicy → handlers/CLI/UI)
+### 1ac. Role-policy Operator Surface (rolepolicy → handlers/CLI/UI)
 
-`handlers.WithModelPolicyState` injects the same activation owner used by
-readiness and orchestration. Generated API responses expose status, active
-catalog inspection, non-activating validation, atomic reload, and profile/run
-explanation. `protoconv.ModelPolicyCatalogToProto` sorts map-backed runners and
-policies so JSON and human output remain diff-friendly.
+Handlers inject the same role-policy activation owner used by readiness and
+orchestration. Generated API responses expose status, active catalog
+inspection, non-activating validation, atomic reload, and profile/run
+explanation. Roles are sorted deterministically for diff-friendly output.
 
 The former `runner models`, `runner models-update`, and
 `/api/v1/runner-models` routes are intentionally absent. Catalog inspection is
-available only through the generated `policy catalog` contract.
+available only through the generated `role-policy catalog` contract.
 Reload accepts no catalog payload, so it cannot become a competing desired-state
 writer. Profile explanation uses the same resolver/preflight path as run
 creation. Run explanation returns nil for historical rows without snapshots
 rather than reconstructing provenance from the active catalog. The CLI group is
-`agent-manager policy`; the Settings UI is read-only.
+`agent-manager role-policy`; the Settings UI is read-only.
 
-**Tests:** `internal/handlers/model_policy_test.go` and
-`cli/app_test.go::TestApp_CmdPolicy_HelpAndUnknownSubcommand`.
+**Tests:** role-policy handler and CLI contract tests.
 
 ---
 
@@ -934,9 +920,9 @@ The codec seam (§1a) makes this small. Using Grok as the worked example:
    Save run/resume/failure stdout to `codecs/testdata/<name>_trace.jsonl`.
 2. **Enum tri-source** (gated by `runnertype_conformance_test.go`): add
    `RUNNER_TYPE_<NAME>` to `packages/proto/.../types.proto` (`make gen-code`),
-   `domain.RunnerType<Name>` + `ValidRunnerTypes()`, and a runner entry in
-   `config/model-policy-catalog.json`. Add the proto↔domain cases in
-   `protoconv/convert.go`.
+   `domain.RunnerType<Name>` + `ValidRunnerTypes()`, and a corresponding
+   candidate for the runner in `config/role-policy-catalog.json`. Add the
+   proto↔domain cases in `protoconv/convert.go`.
 3. **Codec**: add `codecs/<name>.go` embedding `baseCodec` (via `resolveBinary`)
    + `<name>_test.go` written against the captured trace. Keep
    `Capabilities()` honest — only the bools the trace proves.
@@ -1076,11 +1062,11 @@ The structured-log + lifecycle-event surfaces are tested in
 `obs/log_test.go` (key stability, format selection, RunCtx threading)
 and `obs/events_test.go` (taxonomy coverage, sink-nil safety).
 
-Catalog activation is observable through the `model_policy_catalog` critical
+Catalog activation is observable through the `role_policy_catalog` critical
 dependency on `/health`. Initial-load failure reports HTTP 503 with the
 resolved path, requirement reason, last attempt time, and root cause. Successful
 boot logs the active digest. Failed reload state remains available through
-`modelpolicy.State.Status()` while the previously active digest stays ready;
+`rolepolicy.State.Status()` while the previously active digest stays ready;
 the read-only operator status/reload commands are added by the control-surface
 phase rather than creating a second state owner.
 

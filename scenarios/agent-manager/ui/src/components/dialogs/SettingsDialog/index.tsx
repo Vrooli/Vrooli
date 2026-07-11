@@ -18,13 +18,13 @@ import { OrchestrationTab } from "./OrchestrationTab";
 import type { OrchestrationTabHandle } from "./OrchestrationTab";
 import { MaintenanceTab } from "./MaintenanceTab";
 import { ModelPricingTab } from "./ModelPricingTab";
-import { ModelPolicyTab } from "./ModelPolicyTab";
-import { useInvestigationSettings, useMaintenance, useModelPolicyCatalog } from "../../../hooks/useApi";
+import { RolePolicyTab } from "./RolePolicyTab";
+import { useInvestigationSettings, useMaintenance, useRolePolicyCatalog } from "../../../hooks/useApi";
 import { useOrchestrationSettings } from "../../../hooks/useOrchestrationSettings";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 const TAB_DESCRIPTIONS: Record<string, string> = {
-  models: "Inspect the active Git-managed model policy catalog and activation state",
+  roles: "Inspect the active Git-managed role policy catalog and activation state",
   pricing: "View and manage model pricing with overrides",
   investigation: "Configure investigation and apply-fix agent behavior",
   orchestration: "Configure run lifecycle, safety, health detection, and termination behavior",
@@ -42,10 +42,10 @@ export function SettingsDialog({
   onOpenChange,
   onPurgeComplete,
 }: SettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState("models");
+  const [activeTab, setActiveTab] = useState("roles");
 
   // API hooks
-  const modelPolicy = useModelPolicyCatalog({ enabled: open });
+	const rolePolicy = useRolePolicyCatalog({ enabled: open });
   const maintenance = useMaintenance();
   const investigationSettings = useInvestigationSettings();
 
@@ -118,7 +118,7 @@ export function SettingsDialog({
             {/* Tab bar — sticky, scrollable on mobile */}
             <div className="px-4 sm:px-6 pb-2 pt-1 shrink-0 border-b border-border">
               <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5">
-                <TabsTrigger value="models" className="shrink-0">Model Policy</TabsTrigger>
+                <TabsTrigger value="roles" className="shrink-0">Role Policy</TabsTrigger>
                 <TabsTrigger value="pricing" className="shrink-0">Model Pricing</TabsTrigger>
                 <TabsTrigger value="investigation" className="shrink-0">Investigation</TabsTrigger>
                 <TabsTrigger value="orchestration" className="shrink-0">Orchestration</TabsTrigger>
@@ -128,8 +128,8 @@ export function SettingsDialog({
 
             {/* Scrollable tab content */}
             <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4">
-              <TabsContent value="models" className="mt-0">
-                <ModelPolicyTab data={modelPolicy.data} loading={modelPolicy.loading} error={modelPolicy.error} />
+              <TabsContent value="roles" className="mt-0">
+                <RolePolicyTab data={rolePolicy.data} loading={rolePolicy.loading} error={rolePolicy.error} />
               </TabsContent>
               <TabsContent value="pricing" className="mt-0">
                 <ModelPricingTab />

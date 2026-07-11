@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "catalogId": "agent-manager-coding-permission-policy",
+    "updatedAt": "2026-07-10"
+  },
+  "targetScopes": ["user"],
+  "rules": [
+    {
+      "id": "deny-destructive-root",
+      "action": "deny",
+      "matcher": {"kind": "bash", "pattern": "rm -rf /"},
+      "rationale": "Never permit recursive deletion of the filesystem root.",
+      "owner": "agent-manager",
+      "targetScope": "user",
+      "requiresHardEnforcement": false
+    }
+  ]
+}

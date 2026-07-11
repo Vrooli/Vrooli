@@ -102,9 +102,9 @@ func NewOpenCodeForTest() *OpenCode {
 	return c
 }
 
-// Capabilities satisfies [Codec]. Static model visibility is injected from
-// modelpolicy by boot wiring; the codec contributes only locally-pulled Ollama
-// models discovered through OpenCode's first-class provider block.
+// Capabilities satisfies [Codec]. It reports only locally-pulled Ollama models
+// discovered through OpenCode's first-class provider block; resource role
+// resolution owns concrete coding-agent model selection.
 func (c *OpenCode) Capabilities() runner.Capabilities {
 	return runner.Capabilities{
 		SupportsMessages:         true,

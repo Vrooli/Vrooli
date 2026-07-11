@@ -167,13 +167,12 @@ func TestSandboxCwdContract_ProtectedRoutesThroughSandbox(t *testing.T) {
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "sandbox-cwd-contract-protected",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Model:      "mock-model",
+		ID:   uuid.New(),
+		Name: "sandbox-cwd-contract-protected",
+
 		// The contract under test: Mode is the single source of truth
 		// for whether this run goes through the sandbox provider.
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, RoleRef: "code.default",
 	})
 	if err != nil {
 		t.Fatalf("CreateProfile: %v", err)
@@ -304,11 +303,10 @@ func TestSandboxCwdContract_OffRunsInPlace(t *testing.T) {
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{
-		ID:            uuid.New(),
-		Name:          "sandbox-cwd-contract-off",
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		Model:         "mock-model",
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		ID:   uuid.New(),
+		Name: "sandbox-cwd-contract-off",
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	if err != nil {
 		t.Fatalf("CreateProfile: %v", err)

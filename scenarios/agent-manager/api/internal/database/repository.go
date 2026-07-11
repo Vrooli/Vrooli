@@ -79,9 +79,7 @@ type profileRow struct {
 	Name                 string                   `db:"name"`
 	ProfileKey           string                   `db:"profile_key"`
 	Description          string                   `db:"description"`
-	RunnerType           string                   `db:"runner_type"`
-	Model                string                   `db:"model"`
-	PolicyRef            string                   `db:"policy_ref"`
+	RoleRef              string                   `db:"role_ref"`
 	MaxTurns             int                      `db:"max_turns"`
 	TimeoutMs            int64                    `db:"timeout_ms"`
 	AllowedTools         StringSlice              `db:"allowed_tools"`
@@ -110,9 +108,7 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		Name:                 r.Name,
 		ProfileKey:           r.ProfileKey,
 		Description:          r.Description,
-		RunnerType:           domain.RunnerType(r.RunnerType),
-		Model:                r.Model,
-		PolicyRef:            r.PolicyRef,
+		RoleRef:              r.RoleRef,
 		MaxTurns:             r.MaxTurns,
 		Timeout:              time.Duration(r.TimeoutMs) * time.Millisecond,
 		AllowedTools:         r.AllowedTools,
@@ -142,9 +138,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		Name:                 p.Name,
 		ProfileKey:           p.ProfileKey,
 		Description:          p.Description,
-		RunnerType:           string(p.RunnerType),
-		Model:                p.Model,
-		PolicyRef:            p.PolicyRef,
+		RoleRef:              p.RoleRef,
 		MaxTurns:             p.MaxTurns,
 		TimeoutMs:            int64(p.Timeout / time.Millisecond),
 		AllowedTools:         p.AllowedTools,
@@ -168,7 +162,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 	}
 }
 
-const profileColumns = `id, name, profile_key, description, runner_type, model, policy_ref, max_turns, timeout_ms,
+const profileColumns = `id, name, profile_key, description, role_ref, max_turns, timeout_ms,
 	allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
 	network_access, sandbox_config, allowed_paths, denied_paths, created_by, owner_scenario, source_path,
 	source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at`
@@ -182,11 +176,11 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 	profile.UpdatedAt = now
 
 	row := profileFromDomain(profile)
-	query := `INSERT INTO agent_profiles (id, name, profile_key, description, runner_type, model, policy_ref, max_turns, timeout_ms,
+	query := `INSERT INTO agent_profiles (id, name, profile_key, description, role_ref, max_turns, timeout_ms,
 		allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
 		network_access, sandbox_config, allowed_paths, denied_paths, created_by, owner_scenario, source_path,
 		source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at)
-		VALUES (:id, :name, :profile_key, :description, :runner_type, :model, :policy_ref, :max_turns, :timeout_ms,
+		VALUES (:id, :name, :profile_key, :description, :role_ref, :max_turns, :timeout_ms,
 		:allowed_tools, :denied_tools, :skip_permission_prompt, :features, :extra_flags,
 		:network_access, :sandbox_config, :allowed_paths, :denied_paths, :created_by, :owner_scenario, :source_path,
 		:source_hash, :last_applied_hash, :source_updated_at, :local_override, :created_at, :updated_at)`
@@ -257,7 +251,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 	row := profileFromDomain(profile)
 
 	query := `UPDATE agent_profiles SET name = :name, profile_key = :profile_key, description = :description,
-		runner_type = :runner_type, model = :model, policy_ref = :policy_ref, max_turns = :max_turns, timeout_ms = :timeout_ms,
+		role_ref = :role_ref, max_turns = :max_turns, timeout_ms = :timeout_ms,
 		allowed_tools = :allowed_tools, denied_tools = :denied_tools,
 		skip_permission_prompt = :skip_permission_prompt, features = :features, extra_flags = :extra_flags,
 		network_access = :network_access,

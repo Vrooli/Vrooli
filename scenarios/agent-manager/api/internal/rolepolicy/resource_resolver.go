@@ -49,6 +49,13 @@ type ResourceRoleResolver struct {
 	executor CommandExecutor
 }
 
+// Resolver is the narrow role-resolution seam used by the Agent Manager role
+// catalog. Implementations must return resource-owned concrete evidence and
+// never consult an Agent Manager model inventory.
+type Resolver interface {
+	Resolve(ctx context.Context, runner domain.RunnerType, role string) (ResolvedRole, error)
+}
+
 func NewResourceRoleResolver(executor CommandExecutor) *ResourceRoleResolver {
 	if executor == nil {
 		executor = commandExecutor{}

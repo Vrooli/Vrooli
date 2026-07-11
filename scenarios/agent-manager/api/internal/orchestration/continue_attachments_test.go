@@ -51,13 +51,15 @@ func setupContinueTest(t *testing.T, opts ...orchestration.Option) (
 
 	// Create a profile via the service (so it exists in DB for lookups).
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "continue-attach-profile",
-		ProfileKey:    "continue-attach-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "continue-attach-profile",
+		ProfileKey: "continue-attach-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef:
+
+		// Create a task via the service.
+		"code.default",
 	})
 
-	// Create a task via the service.
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "continue-attach-task",
 		Description: "task for attachment continuation tests",

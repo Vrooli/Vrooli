@@ -8,9 +8,10 @@ import (
 
 func Register(deps support.Dependencies) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
-		Title: "Model Policy",
+		Title: "Role Policy",
 		Commands: []cliapp.Command{
-			support.Command("policy", "Inspect, validate, reload, and explain model policy", deps.Policy),
+			support.Command("role-policy", "Inspect, validate, reload, and explain portable role policy", deps.Policy),
+			support.Command("permission-policy", "Inspect, plan, and reconcile global portable permissions", deps.PermissionPolicy),
 		},
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
-	"agent-manager/internal/modelpolicy"
+	"agent-manager/internal/rolepolicy"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -17,7 +17,7 @@ import (
 //
 //  1. Go      — domain.ValidRunnerTypes()
 //  2. proto   — the generated RunnerType enum (domainpb.RunnerType_value)
-//  3. JSON    — the keys of config/model-policy-catalog.json's "runners" map
+//  3. JSON    — runner candidates in config/role-policy-catalog.json
 //
 // Adding a runner (e.g. grok) must touch all three; this test fails loudly if
 // one is forgotten, making the Phase-4 enum addition self-checking.
@@ -40,20 +40,22 @@ func TestRunnerTypeTriSourceConformance(t *testing.T) {
 		protoSet[protoEnumToRunnerValue(name)] = struct{}{}
 	}
 
-	revision, err := modelpolicy.Load(modelpolicy.ResolvePath())
+	revision, err := rolepolicy.Load(rolepolicy.ResolvePath())
 	if err != nil {
-		t.Fatalf("load model policy catalog: %v", err)
+		t.Fatalf("load role policy catalog: %v", err)
 	}
 	jsonSet := make(map[string]struct{})
-	for key := range revision.Catalog().Runners {
-		jsonSet[string(key)] = struct{}{}
+	for _, role := range revision.Catalog().Roles {
+		for _, candidate := range role.Candidates {
+			jsonSet[string(candidate.Runner)] = struct{}{}
+		}
 	}
 
 	if diff := setDiff(goSet, protoSet); diff != "" {
 		t.Errorf("Go vs proto RunnerType sets diverge:\n%s", diff)
 	}
 	if diff := setDiff(goSet, jsonSet); diff != "" {
-		t.Errorf("Go vs model-policy-catalog.json RunnerType sets diverge:\n%s", diff)
+		t.Errorf("Go vs role-policy-catalog.json RunnerType sets diverge:\n%s", diff)
 	}
 }
 

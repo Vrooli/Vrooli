@@ -126,33 +126,43 @@ func TestInitSchema_WithLegacyRunsTable_AddsInvestigationColumns(t *testing.T) {
 	}
 }
 
-func TestMigrateProfileModelPolicyColumnsBackfillsNamedPolicyAndDropsLegacyColumns(t *testing.T) {
+func TestMigrateProfileRolePolicyColumnsBackfillsPortableRoleAndDropsLegacyColumns(t *testing.T) {
 	db, cleanup := setupRawTestDB(t)
 	defer cleanup()
 	if _, err := db.Exec(`
 		CREATE TABLE agent_profiles (
 			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL UNIQUE,
+			profile_key TEXT NOT NULL UNIQUE,
+			description TEXT,
 			runner_type TEXT NOT NULL,
 			model_preset TEXT,
-			fallback_runner_types TEXT DEFAULT '[]'
+			fallback_runner_types TEXT DEFAULT '[]',
+			max_turns INTEGER, timeout_ms INTEGER, allowed_tools TEXT DEFAULT '[]', denied_tools TEXT DEFAULT '[]',
+			skip_permission_prompt INTEGER DEFAULT 0, features TEXT DEFAULT '{}', extra_flags TEXT DEFAULT '{}',
+			network_access TEXT NOT NULL DEFAULT 'localhost', sandbox_config TEXT DEFAULT '{}',
+			allowed_paths TEXT DEFAULT '[]', denied_paths TEXT DEFAULT '[]', created_by TEXT,
+			owner_scenario TEXT DEFAULT '', source_path TEXT DEFAULT '', source_hash TEXT DEFAULT '',
+			last_applied_hash TEXT DEFAULT '', source_updated_at TEXT, local_override INTEGER DEFAULT 0,
+			created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
 		);
-		INSERT INTO agent_profiles (id, runner_type, model_preset, fallback_runner_types)
-		VALUES ('profile-1', 'codex', 'SMART', '["claude-code"]');
+		INSERT INTO agent_profiles (id, name, profile_key, runner_type, model_preset, fallback_runner_types)
+		VALUES ('profile-1', 'profile-1', 'profile-1', 'codex', 'SMART', '["claude-code"]');
 	`); err != nil {
 		t.Fatalf("seed legacy profiles: %v", err)
 	}
 
-	if err := db.migrateProfileModelPolicyColumns(context.Background()); err != nil {
+	if err := db.migrateProfileRolePolicyColumns(context.Background()); err != nil {
 		t.Fatalf("migrate legacy profiles: %v", err)
 	}
-	var policyRef string
-	if err := db.Get(&policyRef, "SELECT policy_ref FROM agent_profiles WHERE id = 'profile-1'"); err != nil {
+	var roleRef string
+	if err := db.QueryRowx("SELECT role_ref FROM agent_profiles WHERE id = 'profile-1'").Scan(&roleRef); err != nil {
 		t.Fatalf("read migrated profile: %v", err)
 	}
-	if policyRef != "codex.smart" {
-		t.Fatalf("policy_ref = %q, want codex.smart", policyRef)
+	if roleRef != "code.smart" {
+		t.Fatalf("role_ref = %q, want code.smart", roleRef)
 	}
-	for _, column := range []string{"model_preset", "fallback_runner_types"} {
+	for _, column := range []string{"model_preset", "fallback_runner_types", "policy_ref", "runner_type"} {
 		var count int
 		if err := db.Get(&count, "SELECT COUNT(*) FROM pragma_table_info('agent_profiles') WHERE name = ?", column); err != nil {
 			t.Fatalf("inspect %s: %v", column, err)
@@ -163,17 +173,79 @@ func TestMigrateProfileModelPolicyColumnsBackfillsNamedPolicyAndDropsLegacyColum
 	}
 }
 
-func TestMigrateProfileModelPolicyColumnsRejectsUnknownPreset(t *testing.T) {
+func TestMigrateProfileRolePolicyColumnsRejectsUnknownPreset(t *testing.T) {
 	db, cleanup := setupRawTestDB(t)
 	defer cleanup()
 	if _, err := db.Exec(`
-		CREATE TABLE agent_profiles (id TEXT PRIMARY KEY, runner_type TEXT NOT NULL, model_preset TEXT);
-		INSERT INTO agent_profiles (id, runner_type, model_preset) VALUES ('profile-1', 'codex', 'TURBO');
+		CREATE TABLE agent_profiles (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, profile_key TEXT NOT NULL UNIQUE, runner_type TEXT NOT NULL, model_preset TEXT);
+		INSERT INTO agent_profiles (id, name, profile_key, runner_type, model_preset) VALUES ('profile-1', 'profile-1', 'profile-1', 'codex', 'TURBO');
 	`); err != nil {
 		t.Fatalf("seed legacy profile: %v", err)
 	}
-	if err := db.migrateProfileModelPolicyColumns(context.Background()); err == nil || !strings.Contains(err.Error(), "unsupported model_preset") {
+	if err := db.migrateProfileRolePolicyColumns(context.Background()); err == nil || !strings.Contains(err.Error(), "unsupported model_preset") {
 		t.Fatalf("migration error = %v, want unsupported preset diagnostic", err)
+	}
+}
+
+func TestMigrateProfileRolePolicyColumnsMapsSupportedPoliciesAndDefaults(t *testing.T) {
+	db, cleanup := setupRawTestDB(t)
+	defer cleanup()
+	if _, err := db.Exec(`
+		CREATE TABLE agent_profiles (
+			id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, profile_key TEXT NOT NULL UNIQUE,
+			description TEXT, max_turns INTEGER, timeout_ms INTEGER, allowed_tools TEXT DEFAULT '[]', denied_tools TEXT DEFAULT '[]',
+			skip_permission_prompt INTEGER DEFAULT 0, features TEXT DEFAULT '{}', extra_flags TEXT DEFAULT '{}',
+			network_access TEXT NOT NULL DEFAULT 'localhost', sandbox_config TEXT DEFAULT '{}', allowed_paths TEXT DEFAULT '[]',
+			denied_paths TEXT DEFAULT '[]', created_by TEXT, owner_scenario TEXT DEFAULT '', source_path TEXT DEFAULT '',
+			source_hash TEXT DEFAULT '', last_applied_hash TEXT DEFAULT '', source_updated_at TEXT, local_override INTEGER DEFAULT 0,
+			created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')),
+			runner_type TEXT NOT NULL,
+			model TEXT,
+			policy_ref TEXT DEFAULT '',
+			role_ref TEXT DEFAULT ''
+		);
+		INSERT INTO agent_profiles (id, name, profile_key, runner_type, policy_ref) VALUES
+			('fast', 'fast', 'fast', 'claude-code', 'claude-code.fast'),
+			('cheap', 'cheap', 'cheap', 'opencode', 'opencode.cheap'),
+			('default', 'default', 'default', 'grok', '');
+	`); err != nil {
+		t.Fatalf("seed legacy profiles: %v", err)
+	}
+
+	if err := db.migrateProfileRolePolicyColumns(context.Background()); err != nil {
+		t.Fatalf("migrate legacy profiles: %v", err)
+	}
+	var got []struct {
+		ID      string `db:"id"`
+		RoleRef string `db:"role_ref"`
+	}
+	if err := db.Select(&got, "SELECT id, role_ref FROM agent_profiles ORDER BY id"); err != nil {
+		t.Fatalf("read migrated profiles: %v", err)
+	}
+	want := map[string]string{"cheap": "code.cheap", "default": "code.default", "fast": "code.fast"}
+	for _, profile := range got {
+		if profile.RoleRef != want[profile.ID] {
+			t.Fatalf("profile %q role_ref = %q, want %q", profile.ID, profile.RoleRef, want[profile.ID])
+		}
+	}
+}
+
+func TestMigrateProfileRolePolicyColumnsRejectsExplicitModel(t *testing.T) {
+	db, cleanup := setupRawTestDB(t)
+	defer cleanup()
+	if _, err := db.Exec(`
+		CREATE TABLE agent_profiles (
+			id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, profile_key TEXT NOT NULL UNIQUE, runner_type TEXT NOT NULL, model TEXT,
+			policy_ref TEXT DEFAULT '', role_ref TEXT DEFAULT ''
+		);
+		INSERT INTO agent_profiles (id, name, profile_key, runner_type, model) VALUES ('profile-1', 'profile-1', 'profile-1', 'codex', 'gpt-5.4');
+	`); err != nil {
+		t.Fatalf("seed direct-model profile: %v", err)
+	}
+
+	err := db.migrateProfileRolePolicyColumns(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "cannot migrate explicit model") {
+		t.Fatalf("migration error = %v, want explicit-model diagnostic", err)
 	}
 }
 
@@ -235,12 +307,11 @@ func TestProfileCRUD(t *testing.T) {
 	ctx := context.Background()
 
 	profile := &domain.AgentProfile{
-		ID:                   uuid.New(),
-		Name:                 "test-profile",
-		ProfileKey:           "test-profile",
-		Description:          "A test profile",
-		RunnerType:           domain.RunnerTypeClaudeCode,
-		Model:                "claude-sonnet-4-20250514",
+		ID:          uuid.New(),
+		Name:        "test-profile",
+		ProfileKey:  "test-profile",
+		Description: "A test profile",
+
 		MaxTurns:             100,
 		Timeout:              30 * time.Minute,
 		AllowedTools:         []string{"read", "write"},
@@ -248,10 +319,12 @@ func TestProfileCRUD(t *testing.T) {
 		SkipPermissionPrompt: true,
 		AllowedPaths:         []string{"/home/user"},
 		DeniedPaths:          []string{"/etc"},
-		CreatedBy:            "test-user",
+		CreatedBy:            "test-user", RoleRef:
+
+		// Create
+		"code.default",
 	}
 
-	// Create
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -267,8 +340,8 @@ func TestProfileCRUD(t *testing.T) {
 	if got.Name != profile.Name {
 		t.Errorf("expected name %q, got %q", profile.Name, got.Name)
 	}
-	if got.RunnerType != profile.RunnerType {
-		t.Errorf("expected runner type %q, got %q", profile.RunnerType, got.RunnerType)
+	if got.RoleRef != profile.RoleRef {
+		t.Errorf("expected role ref %q, got %q", profile.RoleRef, got.RoleRef)
 	}
 	if len(got.AllowedTools) != 2 {
 		t.Errorf("expected 2 allowed tools, got %d", len(got.AllowedTools))
@@ -333,8 +406,7 @@ func TestProfileListPagination(t *testing.T) {
 			ID:          uuid.New(),
 			Name:        fmt.Sprintf("profile-%d", i),
 			ProfileKey:  fmt.Sprintf("profile-%d", i),
-			Description: "Test",
-			RunnerType:  domain.RunnerTypeClaudeCode,
+			Description: "Test", RoleRef: "code.default",
 		}
 		if err := repos.Profiles.Create(ctx, profile); err != nil {
 			t.Fatalf("Create profile %d: %v", i, err)
@@ -378,8 +450,8 @@ func TestProfileWithFeatureFlags(t *testing.T) {
 		ID:         uuid.New(),
 		Name:       "features-profile",
 		ProfileKey: "features-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Features:   domain.FeatureFlags{EnableBrowser: true},
+
+		Features: domain.FeatureFlags{EnableBrowser: true}, RoleRef: "code.default",
 	}
 
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
@@ -424,8 +496,9 @@ func TestProfileWithZeroFeatureFlags(t *testing.T) {
 		ID:         uuid.New(),
 		Name:       "zero-features-profile",
 		ProfileKey: "zero-features-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Features:   domain.FeatureFlags{}, // Zero value
+
+		Features: domain.FeatureFlags{}, RoleRef: // Zero value
+		"code.default",
 	}
 
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
@@ -456,11 +529,11 @@ func TestProfileWithExtraFlags(t *testing.T) {
 		ID:         uuid.New(),
 		Name:       "extra-flags-profile",
 		ProfileKey: "extra-flags-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
+
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools=Read,Write"},
 			domain.RunnerTypeCodex:      []string{"--verbose"},
-		},
+		}, RoleRef: "code.default",
 	}
 
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
@@ -515,8 +588,8 @@ func TestProfileWithNilExtraFlags(t *testing.T) {
 		ID:         uuid.New(),
 		Name:       "nil-extras-profile",
 		ProfileKey: "nil-extras-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		ExtraFlags: nil,
+
+		ExtraFlags: nil, RoleRef: "code.default",
 	}
 
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
@@ -549,11 +622,11 @@ func TestProfileWithFeaturesAndExtraFlags(t *testing.T) {
 		ID:         uuid.New(),
 		Name:       "full-flags-profile",
 		ProfileKey: "full-flags-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Features:   domain.FeatureFlags{EnableBrowser: true},
+
+		Features: domain.FeatureFlags{EnableBrowser: true},
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--verbose"},
-		},
+		}, RoleRef: "code.default",
 	}
 
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
@@ -1182,8 +1255,7 @@ func TestRunListFilters(t *testing.T) {
 	profile := &domain.AgentProfile{
 		ID:         uuid.New(),
 		Name:       "filter-profile",
-		ProfileKey: "filter-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
+		ProfileKey: "filter-profile", RoleRef: "code.default",
 	}
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
 		t.Fatalf("Create profile: %v", err)
@@ -1902,7 +1974,7 @@ func TestRunWithComplexFields(t *testing.T) {
 	}
 
 	// Create profile
-	profile := &domain.AgentProfile{ID: uuid.New(), Name: "complex-profile", ProfileKey: "complex-profile", RunnerType: domain.RunnerTypeClaudeCode}
+	profile := &domain.AgentProfile{ID: uuid.New(), Name: "complex-profile", ProfileKey: "complex-profile", RoleRef: "code.default"}
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
 		t.Fatalf("Create profile: %v", err)
 	}
@@ -1938,7 +2010,7 @@ func TestRunWithComplexFields(t *testing.T) {
 			DeniedTools:  []string{},
 			PolicySnapshot: &domain.ExecutionPolicySnapshot{
 				CatalogDigest: "sha256:test-revision",
-				PolicyRef:     "codex.smart",
+				RoleRef:       "code.smart",
 				Candidates: []domain.ExecutionCandidate{{
 					RunnerType:    domain.RunnerTypeCodex,
 					SelectionType: domain.ModelSelectionTypeModel,

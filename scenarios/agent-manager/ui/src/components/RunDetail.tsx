@@ -1303,10 +1303,10 @@ function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals
               {runnerTypeLabel(run.resolvedConfig.runnerType)}
             </div>
           ) : null}
-          {run.resolvedConfig?.policyRef ? (
+          {run.resolvedConfig?.roleRef ? (
             <div>
-              <span className="text-muted-foreground">Model policy: </span>
-              {run.resolvedConfig.policyRef}
+              <span className="text-muted-foreground">Role: </span>
+              {run.resolvedConfig.roleRef}
             </div>
           ) : null}
           {run.actualModel || run.resolvedConfig?.model ? (

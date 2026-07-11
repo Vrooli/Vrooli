@@ -107,7 +107,7 @@ func TestEvaluateRequest_Fields(t *testing.T) {
 	}
 	profile := &domain.AgentProfile{
 		ID:   uuid.New(),
-		Name: "test-profile",
+		Name: "test-profile", RoleRef: "code.default",
 	}
 
 	req := policy.EvaluateRequest{

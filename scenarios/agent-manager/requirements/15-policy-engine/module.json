@@ -13,16 +13,16 @@
       "title": "Policy Engine Core",
       "validation": [
         {
-          "notes": "Test policy evaluation",
+          "notes": "Test portable role resolution records immutable resource-owned evidence",
           "phase": "unit",
-          "ref": "api/internal/modelpolicy/resolution_test.go::TestResolveNamedPolicyProducesExplicitImmutableCandidates",
+          "ref": "api/internal/rolepolicy/resolution_test.go::TestResolveCapturesConcreteResourceEvidenceWithoutDroppingUnavailableFallback",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify policy enforcement",
+          "notes": "Verify persisted role snapshot skips unavailable candidates",
           "phase": "integration",
-          "ref": "api/internal/orchestration/modelpolicy_resolution_test.go::TestResolveRunConfigFallsBackToExplicitRunnerDefaultWhenCatalogModelsAreStale",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackSkipsUnavailablePersistedCandidate",
           "status": "pending",
           "type": "test"
         },
@@ -48,30 +48,30 @@
           "type": "test"
         },
         {
-          "notes": "Verify catalog reload cannot rewrite a running execution",
+          "notes": "Verify catalog reload failures retain the active role revision",
           "phase": "integration",
-          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackIgnoresCatalogReloadDuringExecution",
+          "ref": "api/internal/rolepolicy/state_test.go::TestStateRetainsActiveRevisionAfterInvalidReload",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify read-only status/catalog and removal of whole-document mutation",
+          "notes": "Verify read-only role status/catalog and removed legacy surface",
           "phase": "integration",
-          "ref": "api/internal/handlers/model_policy_test.go::TestModelPolicyStatusCatalogAndLegacyMutationCutover",
+          "ref": "api/internal/handlers/role_policy_test.go::TestRolePolicyStatusCatalogAndLegacySurfaceRemoval",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify failed controlled reload preserves the active revision",
+          "notes": "Verify controlled role-policy reload preserves the active revision",
           "phase": "integration",
-          "ref": "api/internal/handlers/model_policy_test.go::TestModelPolicyValidateAndFailedReloadPreserveActiveRevision",
+          "ref": "api/internal/handlers/role_policy_test.go::TestRolePolicyValidateAndFailedReloadPreserveActiveRevision",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify profile explanation exposes the candidate sequence",
+          "notes": "Verify role snapshot round-trips its requested role and candidate sequence",
           "phase": "integration",
-          "ref": "api/internal/handlers/model_policy_test.go::TestExplainModelPolicyProfileUsesCurrentResolution",
+          "ref": "api/internal/protoconv/convert_test.go::TestExecutionPolicySnapshotRoundTrip",
           "status": "pending",
           "type": "test"
         },

@@ -50,7 +50,7 @@
 
 ## Test Gaps
 
-The model-policy boundary has focused coverage for catalog validation and
+The role-policy boundary has focused coverage for catalog validation and
 atomic activation, profile-to-snapshot resolution, cross-runner fallback,
 explicit runner-default launch, unavailable-runner skips, terminal exhaustion,
 persisted-candidate restart/resume, and catalog reload during execution.
@@ -58,19 +58,19 @@ Repository tests cover supported legacy-row migration, obsolete-column removal,
 unknown-value rejection, and historical snapshot round trips. Operator contract
 tests cover status, catalog inspection, validation, failed-reload preservation,
 explanation, and removal of the whole-document mutation command. Seeded-profile
-reconciliation now validates the migrated scenario-owned `policyRef` files;
+reconciliation now validates the migrated scenario-owned `roleRef` files;
 the broader API suite retains only the separately tracked app-issue-tracker
 missing-manifest fixture failure. Unit Health also reports pre-existing UI
 policy-projection drift and requirement-tagging debt outside this plan.
 
 ## Technical Debt
 
-### Resolved: Model-policy legacy profile inputs
-Profiles now store one `policyRef` or an explicit direct model. Database startup
-maps supported `FAST`/`CHEAP`/`SMART` rows to `<runner>.<intent>`, rejects
-unknown preset values, and removes the old preset/fallback columns. Historical
-runs keep their persisted snapshot (or their honest snapshot-less
-runner/model projection) without consulting current policy.
+### Resolved: Legacy profile inputs
+Profiles now store one portable `roleRef`. Database startup maps supported
+legacy policy and runner-only values to `code.*` roles, rejects explicit or
+unknown concrete selections, and removes legacy columns. Historical runs keep
+their persisted snapshot (or their honest snapshot-less runner/model
+projection) without consulting current policy.
 
 ### TD-001: Template README Cleanup
 **Description**: Generated README.md is template boilerplate, needs replacement with scenario-specific content.
@@ -91,9 +91,9 @@ scenario-owned profile JSON, but did not search the entire repository for typed
 proto consumers and manual HTTP projections before deleting the generated enum
 and field.
 **Fix**: Migrated test-genie, scenario-to-cloud, system-monitor,
-scenario-to-desktop, and prompt-manager heartbeat adapters to runner-qualified
-`policyRef` values and updated their contract tests. The supported scenario
-profile files use the same named-policy contract.
+scenario-to-desktop, and prompt-manager heartbeat adapters to portable
+`roleRef` values and updated their contract tests. The supported scenario
+profile files use the same role contract.
 **Prevention**: Proto hard cutovers require a repo-wide structural consumer
 search that includes generated-type imports and manual JSON field projections;
 target-scenario compilation alone is not a sufficient consumer matrix.

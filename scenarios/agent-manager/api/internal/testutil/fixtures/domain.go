@@ -41,8 +41,7 @@ func NewAgentProfile(t *testing.T, opts ...AgentProfileOpt) *domain.AgentProfile
 		Name:          "test-profile",
 		ProfileKey:    "test-profile",
 		Description:   "Test agent profile",
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		Model:         "claude-3-opus",
+		RoleRef:       "code.default",
 		MaxTurns:      100,
 		NetworkAccess: domain.NetworkAccessLocalhost,
 		CreatedAt:     now,
@@ -65,12 +64,8 @@ func WithAgentProfileName(name string) AgentProfileOpt {
 	}
 }
 
-func WithAgentProfileRunner(runnerType domain.RunnerType) AgentProfileOpt {
-	return func(p *domain.AgentProfile) { p.RunnerType = runnerType }
-}
-
-func WithAgentProfileModel(model string) AgentProfileOpt {
-	return func(p *domain.AgentProfile) { p.Model = model }
+func WithAgentProfileRole(roleRef string) AgentProfileOpt {
+	return func(p *domain.AgentProfile) { p.RoleRef = roleRef }
 }
 
 func WithAgentProfileSandboxConfig(cfg *domain.SandboxConfig) AgentProfileOpt {

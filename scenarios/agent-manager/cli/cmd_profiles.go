@@ -64,9 +64,9 @@ Options:
 Examples:
   agent-manager profile list
   agent-manager profile get abc123
-  agent-manager profile create --name "My Agent" --runner-type claude-code
+  agent-manager profile create --name "My Agent" --role-ref code.default
   agent-manager profile delete abc123
-  agent-manager profile ensure --key "my-agent" --name "My Agent" --runner-type claude-code
+  agent-manager profile ensure --key "my-agent" --name "My Agent" --role-ref code.default
   agent-manager profile reconcile-scenario --scenario swarm-manager`)
 	return nil
 }
@@ -113,8 +113,8 @@ func (a *App) profileList(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("%-36s  %-20s  %-12s  %-10s  %-12s\n", "ID", "NAME", "RUNNER", "SANDBOX", "MANUAL_REVIEW")
-	fmt.Printf("%-36s  %-20s  %-12s  %-10s  %-12s\n", strings.Repeat("-", 36), strings.Repeat("-", 20), strings.Repeat("-", 12), strings.Repeat("-", 10), strings.Repeat("-", 12))
+	fmt.Printf("%-36s  %-20s  %-16s  %-10s  %-12s\n", "ID", "NAME", "ROLE", "SANDBOX", "MANUAL_REVIEW")
+	fmt.Printf("%-36s  %-20s  %-16s  %-10s  %-12s\n", strings.Repeat("-", 36), strings.Repeat("-", 20), strings.Repeat("-", 16), strings.Repeat("-", 10), strings.Repeat("-", 12))
 	for _, p := range profiles {
 		name := p.Name
 		if len(name) > 20 {
@@ -125,8 +125,7 @@ func (a *App) profileList(args []string) error {
 		if p.SandboxConfig != nil && p.SandboxConfig.ManualReview {
 			manualReview = "yes"
 		}
-		runner := formatEnumValue(p.RunnerType, "RUNNER_TYPE_", "-")
-		fmt.Printf("%-36s  %-20s  %-12s  %-10s  %-12s\n", p.Id, name, runner, sandbox, manualReview)
+		fmt.Printf("%-36s  %-20s  %-16s  %-10s  %-12s\n", p.Id, name, p.RoleRef, sandbox, manualReview)
 	}
 
 	return nil
@@ -168,10 +167,7 @@ func (a *App) profileGet(args []string) error {
 	if profile.ProfileKey != "" {
 		fmt.Printf("Profile Key:    %s\n", profile.ProfileKey)
 	}
-	fmt.Printf("Runner Type:    %s\n", formatEnumValue(profile.RunnerType, "RUNNER_TYPE_", "-"))
-	if profile.Model != "" {
-		fmt.Printf("Model:          %s\n", profile.Model)
-	}
+	fmt.Printf("Role:           %s\n", profile.RoleRef)
 	if profile.MaxTurns > 0 {
 		fmt.Printf("Max Turns:      %d\n", profile.MaxTurns)
 	}
@@ -211,8 +207,7 @@ func (a *App) profileCreate(args []string) error {
 	name := fs.String("name", "", "Profile name (required)")
 	profileKey := fs.String("profile-key", "", "Stable profile key (defaults to name)")
 	description := fs.String("description", "", "Profile description")
-	runnerType := fs.String("runner-type", "claude-code", "Runner type (claude-code, codex, opencode)")
-	model := fs.String("model", "", "Model to use")
+	roleRef := fs.String("role-ref", "", "Portable role from the active role-policy catalog (required)")
 	maxTurns := fs.Int("max-turns", 0, "Maximum turns")
 	timeout := fs.String("timeout", "", "Execution timeout (e.g., 30m)")
 	sandboxMode := fs.String("sandbox-mode", "", "Sandbox mode (off/tracking/protected); empty preserves the SandboxConfig default")
@@ -232,13 +227,15 @@ func (a *App) profileCreate(args []string) error {
 	if *name == "" {
 		return fmt.Errorf("--name is required")
 	}
+	if strings.TrimSpace(*roleRef) == "" {
+		return fmt.Errorf("--role-ref is required")
+	}
 
 	req := &domainpb.AgentProfile{
 		Name:                 *name,
 		ProfileKey:           strings.TrimSpace(*profileKey),
 		Description:          *description,
-		RunnerType:           parseRunnerType(*runnerType),
-		Model:                *model,
+		RoleRef:              strings.TrimSpace(*roleRef),
 		MaxTurns:             int32(*maxTurns),
 		SkipPermissionPrompt: *skipPermissions,
 		CreatedBy:            *createdBy,
@@ -300,8 +297,7 @@ func (a *App) profileUpdate(args []string) error {
 	name := fs.String("name", "", "Profile name")
 	profileKey := fs.String("profile-key", "", "Stable profile key")
 	description := fs.String("description", "", "Profile description")
-	runnerType := fs.String("runner-type", "", "Runner type")
-	model := fs.String("model", "", "Model to use")
+	roleRef := fs.String("role-ref", "", "Portable role from the active role-policy catalog")
 	maxTurns := fs.Int("max-turns", 0, "Maximum turns")
 	timeout := fs.String("timeout", "", "Execution timeout")
 	sandboxMode := fs.String("sandbox-mode", "", "Sandbox mode (off/tracking/protected); empty preserves the existing SandboxConfig")
@@ -347,11 +343,8 @@ func (a *App) profileUpdate(args []string) error {
 	if *description != "" {
 		req.Description = *description
 	}
-	if *runnerType != "" {
-		req.RunnerType = parseRunnerType(*runnerType)
-	}
-	if *model != "" {
-		req.Model = *model
+	if *roleRef != "" {
+		req.RoleRef = strings.TrimSpace(*roleRef)
 	}
 	if *maxTurns > 0 {
 		req.MaxTurns = int32(*maxTurns)
@@ -452,8 +445,7 @@ func (a *App) profileEnsure(args []string) error {
 	updateExisting := fs.Bool("update", false, "Update existing profile with provided defaults")
 	name := fs.String("name", "", "Default profile name")
 	description := fs.String("description", "", "Default profile description")
-	runnerType := fs.String("runner-type", "claude-code", "Default runner type (claude-code, codex, opencode)")
-	model := fs.String("model", "", "Default model to use")
+	roleRef := fs.String("role-ref", "", "Default portable role from the active role-policy catalog (required)")
 	maxTurns := fs.Int("max-turns", 0, "Default maximum turns")
 	timeout := fs.String("timeout", "", "Default execution timeout (e.g., 30m)")
 	sandboxMode := fs.String("sandbox-mode", "", "Default sandbox mode (off/tracking/protected); empty preserves the SandboxConfig default")
@@ -469,13 +461,15 @@ func (a *App) profileEnsure(args []string) error {
 	if *profileKey == "" {
 		return fmt.Errorf("--key is required")
 	}
+	if strings.TrimSpace(*roleRef) == "" {
+		return fmt.Errorf("--role-ref is required")
+	}
 
 	defaults := &domainpb.AgentProfile{
 		ProfileKey:  *profileKey,
 		Name:        *name,
 		Description: *description,
-		RunnerType:  parseRunnerType(*runnerType),
-		Model:       *model,
+		RoleRef:     strings.TrimSpace(*roleRef),
 		MaxTurns:    int32(*maxTurns),
 	}
 	if defaults.Name == "" {

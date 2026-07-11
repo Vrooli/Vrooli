@@ -21,16 +21,14 @@ func TestAgentProfile_Validate(t *testing.T) {
 		{
 			name: "valid profile",
 			profile: &AgentProfile{
-				Name:       "test-profile",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test-profile", RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty name",
 			profile: &AgentProfile{
-				Name:       "",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "", RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "name",
@@ -38,27 +36,23 @@ func TestAgentProfile_Validate(t *testing.T) {
 		{
 			name: "whitespace only name",
 			profile: &AgentProfile{
-				Name:       "   ",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "   ", RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "name",
 		},
 		{
-			name: "invalid runner type",
-			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: "invalid-runner",
-			},
+			name:    "missing role ref",
+			profile: &AgentProfile{Name: "test"},
 			wantErr: true,
-			errMsg:  "runnerType",
+			errMsg:  "roleRef",
 		},
 		{
 			name: "negative max turns",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
-				MaxTurns:   -1,
+				Name: "test",
+
+				MaxTurns: -1, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "maxTurns",
@@ -66,9 +60,9 @@ func TestAgentProfile_Validate(t *testing.T) {
 		{
 			name: "negative timeout",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
-				Timeout:    -1,
+				Name: "test",
+
+				Timeout: -1, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "timeout",
@@ -76,10 +70,10 @@ func TestAgentProfile_Validate(t *testing.T) {
 		{
 			name: "overlapping allowed/denied tools",
 			profile: &AgentProfile{
-				Name:         "test",
-				RunnerType:   RunnerTypeClaudeCode,
+				Name: "test",
+
 				AllowedTools: []string{"Read", "Write"},
-				DeniedTools:  []string{"Write", "Bash"},
+				DeniedTools:  []string{"Write", "Bash"}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "Tools",
@@ -87,10 +81,10 @@ func TestAgentProfile_Validate(t *testing.T) {
 		{
 			name: "overlapping allowed/denied paths",
 			profile: &AgentProfile{
-				Name:         "test",
-				RunnerType:   RunnerTypeClaudeCode,
+				Name: "test",
+
 				AllowedPaths: []string{"src/", "tests/"},
-				DeniedPaths:  []string{"tests/", "docs/"},
+				DeniedPaths:  []string{"tests/", "docs/"}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "Paths",
@@ -98,10 +92,11 @@ func TestAgentProfile_Validate(t *testing.T) {
 		{
 			name: "zero values are valid defaults",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeCodex,
-				MaxTurns:   0, // 0 = unlimited
-				Timeout:    0, // 0 = use default
+				Name: "test",
+
+				MaxTurns: 0,          // 0 = unlimited
+				Timeout:  0, RoleRef: // 0 = use default
+				"code.default",
 			},
 			wantErr: false,
 		},
@@ -1349,40 +1344,40 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "nil extra flags is valid",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
-				ExtraFlags: nil,
+				Name: "test",
+
+				ExtraFlags: nil, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty extra flags is valid",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
-				ExtraFlags: RunnerExtraFlags{},
+				Name: "test",
+
+				ExtraFlags: RunnerExtraFlags{}, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "valid extra flags",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"--verbose"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid runner type key",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerType("bogus"): []string{"--flag"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "extraFlags",
@@ -1390,8 +1385,8 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "too many flags (over 20)",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: func() []string {
 						flags := make([]string, 21)
@@ -1400,7 +1395,7 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 						}
 						return flags
 					}(),
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "extraFlags",
@@ -1408,11 +1403,11 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "empty flag rejected",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{""},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "extraFlags",
@@ -1420,11 +1415,11 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "whitespace-only flag rejected",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"   "},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "extraFlags",
@@ -1432,11 +1427,11 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "flag without dash prefix rejected",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"noDash"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "extraFlags",
@@ -1444,11 +1439,11 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "pipe shell metacharacter rejected",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"--flag|evil"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "extraFlags",
@@ -1456,11 +1451,11 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "semicolon shell metacharacter rejected",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"--flag;rm"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "extraFlags",
@@ -1468,11 +1463,11 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "backtick shell metacharacter rejected",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"--flag`cmd`"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "extraFlags",
@@ -1480,11 +1475,11 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "dollar sign shell metacharacter rejected",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"--flag$HOME"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "extraFlags",
@@ -1492,31 +1487,31 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 		{
 			name: "flag with equals value is valid",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"--timeout=30"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "multiple runner types valid",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"--verbose"},
 					RunnerTypeCodex:      []string{"--verbose"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "exactly 20 flags is valid",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
+				Name: "test",
+
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: func() []string {
 						flags := make([]string, 20)
@@ -1525,7 +1520,7 @@ func TestExtraFlags_StructuralValidation(t *testing.T) {
 						}
 						return flags
 					}(),
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
@@ -1561,39 +1556,39 @@ func TestAgentProfile_Validate_WithFeatures(t *testing.T) {
 		{
 			name: "profile with EnableBrowser true is valid",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
-				Features:   FeatureFlags{EnableBrowser: true},
+				Name: "test",
+
+				Features: FeatureFlags{EnableBrowser: true}, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "profile with EnableBrowser false is valid",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
-				Features:   FeatureFlags{EnableBrowser: false},
+				Name: "test",
+
+				Features: FeatureFlags{EnableBrowser: false}, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "profile with zero features is valid",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
-				Features:   FeatureFlags{},
+				Name: "test",
+
+				Features: FeatureFlags{}, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
 		{
 			name: "profile with features and valid extra flags",
 			profile: &AgentProfile{
-				Name:       "test",
-				RunnerType: RunnerTypeClaudeCode,
-				Features:   FeatureFlags{EnableBrowser: true},
+				Name: "test",
+
+				Features: FeatureFlags{EnableBrowser: true},
 				ExtraFlags: RunnerExtraFlags{
 					RunnerTypeClaudeCode: []string{"--verbose"},
-				},
+				}, RoleRef: "code.default",
 			},
 			wantErr: false,
 		},
@@ -1616,9 +1611,9 @@ func TestAgentProfile_Validate_WithFeatures(t *testing.T) {
 func TestRunConfig_ApplyProfile_CopiesFeatures(t *testing.T) {
 	t.Run("features are copied by value", func(t *testing.T) {
 		profile := &AgentProfile{
-			Name:       "test",
-			RunnerType: RunnerTypeClaudeCode,
-			Features:   FeatureFlags{EnableBrowser: true},
+			Name: "test",
+
+			Features: FeatureFlags{EnableBrowser: true}, RoleRef: "code.default",
 		}
 		cfg := DefaultRunConfig()
 		cfg.ApplyProfile(profile)
@@ -1636,11 +1631,11 @@ func TestRunConfig_ApplyProfile_CopiesFeatures(t *testing.T) {
 
 	t.Run("extra flags are deep copied", func(t *testing.T) {
 		profile := &AgentProfile{
-			Name:       "test",
-			RunnerType: RunnerTypeClaudeCode,
+			Name: "test",
+
 			ExtraFlags: RunnerExtraFlags{
 				RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools"},
-			},
+			}, RoleRef: "code.default",
 		}
 		cfg := DefaultRunConfig()
 		cfg.ApplyProfile(profile)
@@ -1667,9 +1662,9 @@ func TestRunConfig_ApplyProfile_CopiesFeatures(t *testing.T) {
 
 	t.Run("nil extra flags remain nil in config", func(t *testing.T) {
 		profile := &AgentProfile{
-			Name:       "test",
-			RunnerType: RunnerTypeClaudeCode,
-			ExtraFlags: nil,
+			Name: "test",
+
+			ExtraFlags: nil, RoleRef: "code.default",
 		}
 		cfg := DefaultRunConfig()
 		cfg.ApplyProfile(profile)

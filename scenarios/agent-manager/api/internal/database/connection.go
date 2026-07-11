@@ -235,8 +235,8 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
-	if err := db.migrateProfileModelPolicyColumns(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to migrate profile model policy columns")
+	if err := db.migrateProfileRolePolicyColumns(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to migrate profile role policy columns")
 		return err
 	}
 
@@ -254,11 +254,16 @@ func (db *DB) initSchema() error {
 	return nil
 }
 
-// migrateProfileModelPolicyColumns hard-cuts profiles from the legacy
-// model_preset/fallback_runner_types inputs to one named policy_ref. Known
-// presets map deterministically to <runner>.<intent>; unknown values fail the
-// migration instead of silently changing execution behavior.
-func (db *DB) migrateProfileModelPolicyColumns(ctx context.Context) error {
+// migrateProfileRolePolicyColumns translates every supported historical
+// profile intent into the portable role_ref contract. It deliberately does not
+// guess a role for an explicit concrete model: model names are resource-owned
+// facts, so a silent translation would change the operator's intent.
+//
+// Once every row has a portable role, the table is rebuilt in the same
+// migration. The retired columns are not retained as a compatibility escape
+// hatch: historical concrete selections remain in each run's resolved_config
+// snapshot, never in mutable profile intent.
+func (db *DB) migrateProfileRolePolicyColumns(ctx context.Context) error {
 	var tableCount int
 	if err := db.GetContext(ctx, &tableCount, `
 		SELECT COUNT(*) FROM sqlite_master
@@ -281,10 +286,18 @@ func (db *DB) migrateProfileModelPolicyColumns(ctx context.Context) error {
 	for _, column := range columns {
 		has[column.Name] = true
 	}
+	if !has["runner_type"] && !has["model"] && !has["policy_ref"] && !has["model_preset"] && !has["fallback_runner_types"] {
+		return nil
+	}
 
 	if !has["policy_ref"] {
 		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles ADD COLUMN policy_ref TEXT DEFAULT ''"); err != nil {
 			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("add policy_ref: %w", err)}
+		}
+	}
+	if !has["role_ref"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles ADD COLUMN role_ref TEXT DEFAULT ''"); err != nil {
+			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("add role_ref: %w", err)}
 		}
 	}
 
@@ -321,7 +334,133 @@ func (db *DB) migrateProfileModelPolicyColumns(ctx context.Context) error {
 			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("drop fallback_runner_types: %w", err)}
 		}
 	}
+
+	modelExpression := "''"
+	if has["model"] {
+		modelExpression = "COALESCE(model, '')"
+	}
+	type legacyProfile struct {
+		ID        string `db:"id"`
+		Runner    string `db:"runner_type"`
+		Model     string `db:"model"`
+		PolicyRef string `db:"policy_ref"`
+	}
+	profiles := make([]legacyProfile, 0)
+	query := fmt.Sprintf(`
+		SELECT id, runner_type, %s AS model, COALESCE(policy_ref, '') AS policy_ref
+		FROM agent_profiles
+		WHERE TRIM(COALESCE(role_ref, '')) = ''
+		ORDER BY id
+	`, modelExpression)
+	if err := db.SelectContext(ctx, &profiles, query); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "AgentProfile", Cause: fmt.Errorf("read legacy profiles: %w", err)}
+	}
+	for _, profile := range profiles {
+		roleRef, err := portableRoleForLegacyProfile(profile.Runner, profile.PolicyRef, profile.Model)
+		if err != nil {
+			return &domain.DatabaseError{
+				Operation:  "migration",
+				EntityType: "AgentProfile",
+				Cause:      fmt.Errorf("profile %q: %w", profile.ID, err),
+			}
+		}
+		if _, err := db.ExecContext(ctx, "UPDATE agent_profiles SET role_ref = ?, policy_ref = '' WHERE id = ?", roleRef, profile.ID); err != nil {
+			return &domain.DatabaseError{Operation: "migration", EntityType: "AgentProfile", Cause: fmt.Errorf("set role_ref for profile %q: %w", profile.ID, err)}
+		}
+	}
+	return db.rebuildRoleOnlyProfiles(ctx)
+}
+
+// rebuildRoleOnlyProfiles removes mutable legacy runner/model/policy inputs
+// after migration. SQLite table reconstruction is intentional: it makes the
+// hard cut durable for existing installations rather than merely hiding old
+// columns behind new application code.
+func (db *DB) rebuildRoleOnlyProfiles(ctx context.Context) error {
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
+	rollback := func(cause error) error {
+		_ = tx.Rollback()
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: cause}
+	}
+
+	statements := []string{
+		`CREATE TABLE agent_profiles_role_only (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL UNIQUE,
+			profile_key TEXT NOT NULL UNIQUE,
+			description TEXT,
+			role_ref TEXT NOT NULL,
+			max_turns INTEGER,
+			timeout_ms INTEGER,
+			allowed_tools TEXT DEFAULT '[]',
+			denied_tools TEXT DEFAULT '[]',
+			skip_permission_prompt INTEGER DEFAULT 0,
+			features TEXT DEFAULT '{}',
+			extra_flags TEXT DEFAULT '{}',
+			network_access TEXT NOT NULL DEFAULT 'localhost',
+			sandbox_config TEXT DEFAULT '{}',
+			allowed_paths TEXT DEFAULT '[]',
+			denied_paths TEXT DEFAULT '[]',
+			created_by TEXT,
+			owner_scenario TEXT DEFAULT '',
+			source_path TEXT DEFAULT '',
+			source_hash TEXT DEFAULT '',
+			last_applied_hash TEXT DEFAULT '',
+			source_updated_at TEXT,
+			local_override INTEGER DEFAULT 0,
+			created_at TEXT DEFAULT (datetime('now')),
+			updated_at TEXT DEFAULT (datetime('now'))
+		)`,
+		`INSERT INTO agent_profiles_role_only (
+			id, name, profile_key, description, role_ref, max_turns, timeout_ms,
+			allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
+			network_access, sandbox_config, allowed_paths, denied_paths, created_by,
+			owner_scenario, source_path, source_hash, last_applied_hash, source_updated_at,
+			local_override, created_at, updated_at
+		) SELECT
+			id, name, profile_key, description, role_ref, max_turns, timeout_ms,
+			allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
+			network_access, sandbox_config, allowed_paths, denied_paths, created_by,
+			owner_scenario, source_path, source_hash, last_applied_hash, source_updated_at,
+			local_override, created_at, updated_at
+		FROM agent_profiles`,
+		`DROP TABLE agent_profiles`,
+		`ALTER TABLE agent_profiles_role_only RENAME TO agent_profiles`,
+		`CREATE INDEX IF NOT EXISTS idx_agent_profiles_name ON agent_profiles(name)`,
+	}
+	for _, statement := range statements {
+		if _, err := tx.ExecContext(ctx, statement); err != nil {
+			return rollback(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
 	return nil
+}
+
+func portableRoleForLegacyProfile(runner, policyRef, model string) (string, error) {
+	if model = strings.TrimSpace(model); model != "" {
+		return "", fmt.Errorf("cannot migrate explicit model %q; replace it with a portable role_ref before startup", model)
+	}
+	if policyRef = strings.TrimSpace(policyRef); policyRef != "" {
+		parts := strings.Split(policyRef, ".")
+		if len(parts) != 2 || !domain.RunnerType(parts[0]).IsValid() {
+			return "", fmt.Errorf("unsupported legacy policy_ref %q", policyRef)
+		}
+		switch parts[1] {
+		case "default", "fast", "smart", "cheap":
+			return "code." + parts[1], nil
+		default:
+			return "", fmt.Errorf("unsupported legacy policy_ref %q", policyRef)
+		}
+	}
+	if !domain.RunnerType(strings.TrimSpace(runner)).IsValid() {
+		return "", fmt.Errorf("unsupported legacy runner_type %q", runner)
+	}
+	return "code.default", nil
 }
 
 // ensureProfileSourceColumns adds source reconciliation metadata columns to

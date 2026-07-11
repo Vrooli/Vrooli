@@ -2,31 +2,22 @@
 // AI_CHECK: react_coherence=1 | LAST: 2026-02-06
 
 import { useState } from "react";
-import type { ModelSelectionMode } from "../components/ModelConfigSelector";
-import type { ProfileFormData, RunnerType, Task } from "../types";
-import { RunMode, RunnerType as RunnerTypeEnum } from "../types";
+import type { ProfileFormData, Task } from "../types";
+import { RunMode } from "../types";
 
 export interface InlineRunConfig {
-  runnerType: RunnerType;
-  model: string;
-  policyRef: string;
-  modelMode: ModelSelectionMode;
+  roleRef: string;
   maxTurns: number;
   timeoutMinutes: number;
   runMode: RunMode;
   skipPermissionPrompt: boolean;
 }
 
-export type ProfileFormState = ProfileFormData & {
-  modelMode: ModelSelectionMode;
-};
+export type ProfileFormState = ProfileFormData;
 
 function createInitialInlineConfig(): InlineRunConfig {
   return {
-    runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "",
-    policyRef: "",
-    modelMode: "default",
+    roleRef: "code.default",
     maxTurns: 100,
     timeoutMinutes: 30,
     runMode: RunMode.SANDBOXED,
@@ -39,10 +30,7 @@ function createInitialProfileFormData(): ProfileFormState {
     name: "",
     profileKey: "",
     description: "",
-    runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "",
-    policyRef: "",
-    modelMode: "default",
+    roleRef: "code.default",
     maxTurns: 100,
     sandboxMode: "protected" as const,
     networkAccess: "localhost" as const,

@@ -66,22 +66,23 @@ func TestCreateInvestigationRun_WithAttachmentIDs(t *testing.T) {
 	})
 
 	sourceProfile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "source-profile",
-		ProfileKey:    "source-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "source-profile",
+		ProfileKey: "source-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef:
+
+		// Pre-create the investigation profile with a concrete Model so the CreateRun
+		// config validation doesn't hit the model-policy resolution path (the
+		// built-in default profile uses the smart policy, which requires a
+		// configured registry we don't wire up for this unit test).
+		"code.default",
 	})
 
-	// Pre-create the investigation profile with a concrete Model so the CreateRun
-	// config validation doesn't hit the model-policy resolution path (the
-	// built-in default profile uses the smart policy, which requires a
-	// configured registry we don't wire up for this unit test).
 	mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "investigation-profile",
-		ProfileKey:    domain.InvestigationTag,
-		RunnerType:    domain.RunnerTypeCodex,
-		Model:         "mock-model",
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "investigation-profile",
+		ProfileKey: domain.InvestigationTag,
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 
 	now := time.Now()
@@ -182,17 +183,16 @@ func TestCreateInvestigationRun_SkipsBlankAttachmentIDs(t *testing.T) {
 		ProjectRoot: t.TempDir(),
 	})
 	sourceProfile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "source-profile-blank",
-		ProfileKey:    "source-blank-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "source-profile-blank",
+		ProfileKey: "source-blank-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "investigation-profile-blank",
-		ProfileKey:    domain.InvestigationTag,
-		RunnerType:    domain.RunnerTypeCodex,
-		Model:         "mock-model",
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "investigation-profile-blank",
+		ProfileKey: domain.InvestigationTag,
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	now := time.Now()
 	sourceRunID := uuid.New()
@@ -277,22 +277,22 @@ func TestCreateInvestigationApplyRun_WithAttachmentIDs(t *testing.T) {
 	// Both built-in profiles need concrete Model values so the CreateRun
 	// validation doesn't require a model registry.
 	mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "investigation-profile-apply-test",
-		ProfileKey:    domain.InvestigationTag,
-		RunnerType:    domain.RunnerTypeCodex,
-		Model:         "mock-model",
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "investigation-profile-apply-test",
+		ProfileKey: domain.InvestigationTag,
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	applyProfile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "apply-investigation-profile-test",
-		ProfileKey:    domain.InvestigationApplyTag,
-		RunnerType:    domain.RunnerTypeCodex,
-		Model:         "mock-model",
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "apply-investigation-profile-test",
+		ProfileKey: domain.InvestigationApplyTag,
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef:
+
+		// Seed an investigation task (which the apply flow will copy attachments
+		// from) and a completed investigation run referencing it.
+		"code.default",
 	})
 
-	// Seed an investigation task (which the apply flow will copy attachments
-	// from) and a completed investigation run referencing it.
 	investigationTask := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "investigation-task",
 		Description: "investigation that apply will build on",

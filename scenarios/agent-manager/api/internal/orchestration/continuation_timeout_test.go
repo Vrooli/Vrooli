@@ -96,10 +96,10 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "timeout-test-profile",
-		ProfileKey:    "timeout-test-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "timeout-test-profile",
+		ProfileKey: "timeout-test-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "timeout-test-task",
@@ -204,10 +204,10 @@ func TestContinuation_FailurePreservesSessionID(t *testing.T) {
 
 	// Create profile and task
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "fail-session-profile",
-		ProfileKey:    "fail-session-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "fail-session-profile",
+		ProfileKey: "fail-session-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "fail-session-task",

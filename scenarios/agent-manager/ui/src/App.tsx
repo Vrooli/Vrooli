@@ -1,6 +1,6 @@
 import { lazy, Profiler, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
-import { useHealth, useModelPolicyCatalog, useProfiles, useRuns, useRunners, useTasks, useRunStatusCounts } from "./hooks/useApi";
+import { useHealth, useRolePolicyCatalog, useProfiles, useRuns, useTasks, useRunStatusCounts } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
 import { useRunEventStore } from "./hooks/useRunEventStore";
 import type { Run, RunEvent } from "./types";
@@ -50,8 +50,7 @@ export default function App() {
   const tasks = useTasks({ enabled: needsTaskData });
   const runs = useRuns({ limit: runsLimit });
   const runStatusCounts = useRunStatusCounts({ enabled: isDashboardRoute });
-  const runners = useRunners({ enabled: needsRunnerData });
-  const modelPolicy = useModelPolicyCatalog({ enabled: needsRunnerData });
+	const modelPolicy = useRolePolicyCatalog({ enabled: needsRunnerData });
   const isMobile = useIsMobile();
   const runEventStore = useRunEventStore();
   const reconciliationInFlightRef = useRef<Set<string>>(new Set());
@@ -243,8 +242,7 @@ export default function App() {
                 open={quickRunOpen}
                 onOpenChange={setQuickRunOpen}
                 profiles={profiles.data || []}
-                runners={runners.data ?? undefined}
-                modelPolicyCatalog={modelPolicy.data?.catalog}
+                rolePolicyCatalog={modelPolicy.data?.catalog}
                 defaultProjectRoot={(() => {
                   const raw = health.data?.metrics?.default_project_root;
                   if (!raw) return undefined;
@@ -309,8 +307,7 @@ export default function App() {
                         onUpdateProfile={profiles.updateProfile}
                         onDeleteProfile={profiles.deleteProfile}
                         onRefresh={profiles.refetch}
-                        runners={runners.data ?? undefined}
-                        modelPolicyCatalog={modelPolicy.data?.catalog}
+                        rolePolicyCatalog={modelPolicy.data?.catalog}
                       />
                     </ProfiledPage>
                   </ErrorBoundary>
@@ -335,8 +332,7 @@ export default function App() {
                         onCreateRun={runs.createRun}
                         onCreateProfile={profiles.createProfile}
                         onRefresh={tasks.refetch}
-                        runners={runners.data ?? undefined}
-                        modelPolicyCatalog={modelPolicy.data?.catalog}
+                        rolePolicyCatalog={modelPolicy.data?.catalog}
                       />
                     </ProfiledPage>
                   </ErrorBoundary>

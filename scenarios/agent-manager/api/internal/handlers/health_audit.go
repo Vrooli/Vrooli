@@ -6,8 +6,8 @@
 //   GET /api/v1/health/runners  — current snapshot of every runner
 //   GET /api/v1/health/audit    — paginated audit history with filters
 //
-// These are the sole health-audit HTTP surface; desired-state model inventory
-// lives under /api/v1/model-policy/catalog.
+// These are the sole health-audit HTTP surface; portable desired role state
+// lives under /api/v1/role-policy/catalog.
 
 package handlers
 

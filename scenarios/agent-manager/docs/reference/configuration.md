@@ -29,52 +29,60 @@ The "Internal" sections back individual machinery; operators rarely touch them d
 
 Validation happens at construction (`Levers.Validate()`); invalid values fail fast at startup rather than producing strange runtime behavior.
 
-## Model-policy catalog
+## Role-policy catalog
 
-The model-policy catalog is declared state, not a mutable tuning document. Its
-default path is `config/model-policy-catalog.json`; operators may point an
-isolated instance at another file with
-`AGENT_MANAGER_MODEL_POLICY_CATALOG_PATH`. The file must pass the strict typed
-and semantic contract before it can become active.
+Portable coding intent is declared in `config/role-policy-catalog.json`. Each
+role contains an ordered list of `(runner, resourceRole)` references only;
+Agent Manager does not keep a concrete model inventory here. At run creation,
+each resource resolves its role through its own `policy resolve --json`
+protocol. The persisted execution snapshot records concrete model/fallback
+choices, resource policy path and digest, provenance, permission-enforcement
+posture, and unavailable-candidate diagnostics.
 
 | Variable | Default | Effect |
 |---|---|---|
-| `AGENT_MANAGER_MODEL_POLICY_CATALOG_PATH` | Repository-resolved `scenarios/agent-manager/config/model-policy-catalog.json` | Selects the declared catalog file loaded and reported by agent-manager. |
+| `AGENT_MANAGER_ROLE_POLICY_CATALOG_PATH` | Repository-resolved `scenarios/agent-manager/config/role-policy-catalog.json` | Selects the portable role catalog loaded and reported by Agent Manager. |
 
-Agent-manager's built-in policy-backed profiles make this configuration a
-readiness dependency. A missing, unreadable, or invalid initial catalog makes
-`/health` return unready with the resolved path and cause. Reload first validates
-the full candidate and activates it atomically; a failed reload leaves the
-previous valid revision active. There is intentionally no "catalog optional"
-environment toggle and no API for editing the document inline: update the
-Git-tracked file, validate it, then use the controlled reload surface.
+The role catalog is a readiness dependency. A failed reload keeps the prior
+active revision, and only subsequent runs see a successful new revision.
 
-Operator workflow:
+For a deploy that may require binary rollback, back up the Agent Manager SQLite
+database before starting the new binary. Startup maps supported legacy profile
+intent to `code.*` roles, rejects explicit/unknown concrete selections, then
+rebuilds `agent_profiles` without `runner_type`, `model`, or `policy_ref`.
+Historical run snapshots are retained unchanged and remain the audit source for
+their concrete runner/model choices. Catalog rollback restores the last
+known-good role document, then uses `agent-manager role-policy validate` and
+`agent-manager role-policy reload`; a rejected reload leaves the active digest
+unchanged.
 
-1. Edit `config/model-policy-catalog.json` (or the configured external path) and review it as declared state.
-2. Run `agent-manager policy validate`; this validates without changing the active revision.
-3. Run `agent-manager policy reload`; activation affects new runs only.
-4. Use `agent-manager policy status`, `policy catalog`, and `policy explain profile|run <id>` to inspect path, digest, candidates, precedence, and diagnostics.
+## Desired-permission catalog
 
-The reload request carries no document payload. A failed reload preserves the
-previous active digest.
+Global coding-agent permission intent is declared separately in
+`config/permission-policy-catalog.json`. Each rule has a stable ID, portable
+`bash` matcher, action, rationale, owner, target scope, and an explicit
+hard-enforcement requirement. This is not a profile or workspace-sandbox
+policy: it is the desired state later projected by each resource's own
+`permissions plan|reconcile` adapter.
 
-Profiles select either a named `policyRef`, an explicit `model` plus runner,
-or the runner default. These choices are mutually exclusive; fallback order is
-owned only by the named policy's candidate list. On first startup after the
-hard cutover, supported legacy profile rows are migrated deterministically:
-`FAST`, `CHEAP`, and `SMART` become `<runner>.fast`,
-`<runner>.cheap`, and `<runner>.smart`. Unknown legacy values fail startup
-with an explicit migration diagnostic instead of silently selecting a default.
-Historical run snapshots are not rewritten.
+| Variable | Default | Effect |
+|---|---|---|
+| `AGENT_MANAGER_PERMISSION_POLICY_CATALOG_PATH` | Repository-resolved `scenarios/agent-manager/config/permission-policy-catalog.json` | Selects the desired-permissions catalog. |
 
-For a deploy that may require binary rollback, back up the agent-manager SQLite
-database before starting the new binary. The migration removes the obsolete
-profile columns, so an older binary cannot safely reuse the migrated database.
-Catalog rollback itself is simpler: restore the last known-good catalog file,
-run `agent-manager policy validate`, then `agent-manager policy reload`.
-Inspect `policy status` to confirm the active digest. A rejected reload needs
-no recovery because the prior revision remains active.
+The catalog records exact-byte digests and reloads atomically; a rejected
+reload preserves the active revision. Agent Manager may write a temporary
+portable document to invoke a resource CLI, but it never reads or writes a
+resource's native permission files. Global native desired permissions,
+role/fallback selection, and per-run workspace-sandbox/profile restrictions
+are distinct safety layers.
+
+Agent Manager activates this catalog at startup and retains the last
+reconciliation metadata in SQLite. That evidence contains catalog digests,
+resource-reported fingerprints, native target paths, enforcement posture, and
+per-resource outcomes; it never contains copies of native resource files. A
+reconcile requires the shared explicit-human authorization signal and runs in
+deterministic runner/scope order. If any resource is unavailable or fails,
+the result remains auditable but is never reported as global success.
 
 ## Execution
 

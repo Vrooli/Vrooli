@@ -17,7 +17,7 @@ func TestResolveSandboxConfig_PromotesProfilePathsToAcceptance(t *testing.T) {
 	profile := &domain.AgentProfile{
 		AllowedPaths:  []string{"src/**", "docs/**"},
 		DeniedPaths:   []string{"vendor/**"},
-		SandboxConfig: domain.DefaultSandboxConfig(),
+		SandboxConfig: domain.DefaultSandboxConfig(), RoleRef: "code.default",
 	}
 	cfg, err := o.resolveSandboxConfig(CreateRunRequest{}, profile)
 	if err != nil {
@@ -35,7 +35,7 @@ func TestResolveSandboxConfig_RequestPathsOverrideProfile(t *testing.T) {
 	o := &Orchestrator{}
 	profile := &domain.AgentProfile{
 		AllowedPaths:  []string{"src/**"},
-		SandboxConfig: domain.DefaultSandboxConfig(),
+		SandboxConfig: domain.DefaultSandboxConfig(), RoleRef: "code.default",
 	}
 	req := CreateRunRequest{AllowedPaths: []string{"tests/**"}}
 	cfg, err := o.resolveSandboxConfig(req, profile)
@@ -53,7 +53,7 @@ func TestResolveSandboxConfig_MergesWithExistingAcceptance(t *testing.T) {
 	cfg.Acceptance.Allow.PathGlobs = []string{"existing/**"}
 	profile := &domain.AgentProfile{
 		AllowedPaths:  []string{"src/**"},
-		SandboxConfig: cfg,
+		SandboxConfig: cfg, RoleRef: "code.default",
 	}
 	resolved, err := o.resolveSandboxConfig(CreateRunRequest{}, profile)
 	if err != nil {

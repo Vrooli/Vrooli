@@ -21,10 +21,10 @@ import (
 func newParkableRun(t *testing.T, ctx context.Context, svc orchestration.Service, repos *database.Repositories) *domain.Run {
 	t.Helper()
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "park-profile",
-		ProfileKey:    "park-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "park-profile",
+		ProfileKey: "park-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "park-task",

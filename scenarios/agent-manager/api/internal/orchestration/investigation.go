@@ -246,7 +246,7 @@ func (o *Orchestrator) CreateInvestigationRun(
 		ctx,
 		task.ID,
 		investigationTag,
-		investigationProfileRefWithOverrides(req.RunnerType, req.PolicyRef),
+		investigationProfileRefWithOverrides(req.RoleRef),
 		req.RunIDs,
 		nil,
 		req.Environment,
@@ -337,7 +337,7 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		ctx,
 		applyTask.ID,
 		investigationApplyTag,
-		applyInvestigationProfileRefWithOverrides(req.RunnerType, req.PolicyRef),
+		applyInvestigationProfileRefWithOverrides(req.RoleRef),
 		nil,
 		&investigationRunID,
 		req.Environment,
@@ -653,8 +653,8 @@ func buildRunOverview(run *domain.Run, task *domain.Task, profile *domain.AgentP
 		if c.Model != "" {
 			sb.WriteString(fmt.Sprintf("**Model**: %s\n", c.Model))
 		}
-		if c.PolicyRef != "" {
-			sb.WriteString(fmt.Sprintf("**Model Policy**: %s\n", c.PolicyRef))
+		if c.RoleRef != "" {
+			sb.WriteString(fmt.Sprintf("**Role**: %s\n", c.RoleRef))
 		}
 		if c.MaxTurns > 0 {
 			sb.WriteString(fmt.Sprintf("**Max Turns**: %d\n", c.MaxTurns))
@@ -963,7 +963,7 @@ func buildAgentSetupAttachment(profile *domain.AgentProfile, projectRoot string,
 	if profile.Description != "" {
 		sb.WriteString(fmt.Sprintf("**Description**: %s\n", profile.Description))
 	}
-	sb.WriteString(fmt.Sprintf("**Runner**: %s\n", profile.RunnerType))
+	sb.WriteString(fmt.Sprintf("**Role**: %s\n", profile.RoleRef))
 	if len(profile.AllowedTools) > 0 {
 		sb.WriteString(fmt.Sprintf("**Allowed Tools**: %s\n", strings.Join(profile.AllowedTools, ", ")))
 	}
@@ -1260,11 +1260,11 @@ func buildApplyPrompt(template string, investigationRunID uuid.UUID, customConte
 	return sb.String()
 }
 
-// investigationProfileRefWithOverrides applies caller-provided runner/policy overrides
-// on top of the default investigation profile. Nil overrides preserve the defaults.
-func investigationProfileRefWithOverrides(runnerType *domain.RunnerType, policyRef *string) *ProfileRef {
+// investigationProfileRefWithOverrides applies a caller-provided portable role
+// on top of the default investigation profile. Nil preserves the default.
+func investigationProfileRefWithOverrides(roleRef *string) *ProfileRef {
 	defaults := defaultInvestigationProfile()
-	applyInvestigationOverrides(defaults, runnerType, policyRef)
+	applyInvestigationOverrides(defaults, roleRef)
 	return &ProfileRef{
 		ProfileKey: investigationProfileKey,
 		Defaults:   defaults,
@@ -1273,25 +1273,22 @@ func investigationProfileRefWithOverrides(runnerType *domain.RunnerType, policyR
 
 // applyInvestigationProfileRefWithOverrides mirrors investigationProfileRefWithOverrides
 // for the apply flow.
-func applyInvestigationProfileRefWithOverrides(runnerType *domain.RunnerType, policyRef *string) *ProfileRef {
+func applyInvestigationProfileRefWithOverrides(roleRef *string) *ProfileRef {
 	defaults := defaultApplyInvestigationProfile()
-	applyInvestigationOverrides(defaults, runnerType, policyRef)
+	applyInvestigationOverrides(defaults, roleRef)
 	return &ProfileRef{
 		ProfileKey: investigationApplyProfileKey,
 		Defaults:   defaults,
 	}
 }
 
-// applyInvestigationOverrides mutates the profile with caller-provided runner/policy.
-func applyInvestigationOverrides(profile *domain.AgentProfile, runnerType *domain.RunnerType, policyRef *string) {
+// applyInvestigationOverrides mutates the profile with a caller-provided role.
+func applyInvestigationOverrides(profile *domain.AgentProfile, roleRef *string) {
 	if profile == nil {
 		return
 	}
-	if runnerType != nil && runnerType.IsValid() {
-		profile.RunnerType = *runnerType
-	}
-	if policyRef != nil {
-		profile.PolicyRef = strings.TrimSpace(*policyRef)
+	if roleRef != nil {
+		profile.RoleRef = strings.TrimSpace(*roleRef)
 	}
 }
 
@@ -1300,8 +1297,7 @@ func defaultInvestigationProfile() *domain.AgentProfile {
 		Name:        "Agent-Manager Investigation",
 		ProfileKey:  investigationProfileKey,
 		Description: "Agent profile for behavioral analysis of failed agent runs (read-only)",
-		RunnerType:  domain.RunnerTypeCodex,
-		PolicyRef:   "codex.smart",
+		RoleRef:     "code.smart",
 		MaxTurns:    75, // Increased for active exploration
 		Timeout:     investigationReportTimeout,
 		AllowedTools: []string{
@@ -1339,8 +1335,7 @@ func defaultApplyInvestigationProfile() *domain.AgentProfile {
 		Name:        "Agent-Manager Apply Investigation",
 		ProfileKey:  investigationApplyProfileKey,
 		Description: "Agent profile for applying investigation recommendations (has write capabilities)",
-		RunnerType:  domain.RunnerTypeCodex,
-		PolicyRef:   "codex.smart",
+		RoleRef:     "code.smart",
 		MaxTurns:    100, // More turns for implementing fixes
 		Timeout:     investigationApplyReportTimeout,
 		AllowedTools: []string{

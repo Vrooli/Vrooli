@@ -74,16 +74,17 @@ func (a *App) commandGroups() []cliapp.CommandGroup {
 
 func (a *App) dependencies() support.Dependencies {
 	return support.Dependencies{
-		Profile:     a.cmdProfile,
-		Task:        a.cmdTask,
-		Run:         a.cmdRun,
-		Runner:      a.cmdRunner,
-		Policy:      a.cmdPolicy,
-		Settings:    a.cmdSettings,
-		Maintenance: a.cmdMaintenance,
-		Ops:         a.cmdOps,
-		Health:      a.cmdHealth,
-		Events:      a.cmdEvents,
+		Profile:          a.cmdProfile,
+		Task:             a.cmdTask,
+		Run:              a.cmdRun,
+		Runner:           a.cmdRunner,
+		Policy:           a.cmdPolicy,
+		PermissionPolicy: a.cmdPermissionPolicy,
+		Settings:         a.cmdSettings,
+		Maintenance:      a.cmdMaintenance,
+		Ops:              a.cmdOps,
+		Health:           a.cmdHealth,
+		Events:           a.cmdEvents,
 	}
 }
 

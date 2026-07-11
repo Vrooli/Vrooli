@@ -79,13 +79,12 @@ func TestOrchestrator_ProfileCRUD(t *testing.T) {
 
 	// Create
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Model:      "claude-3-opus",
-		MaxTurns:   100,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "test-profile",
+
+		MaxTurns:  100,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 
 	created := mustCreateProfile(t, svc, ctx, profile)
@@ -142,9 +141,7 @@ func TestOrchestrator_EnsureProfile(t *testing.T) {
 	result, err := svc.EnsureProfile(ctx, orchestration.EnsureProfileRequest{
 		ProfileKey: "system-monitor-investigator",
 		Defaults: &domain.AgentProfile{
-			Name:       "System Monitor Investigator",
-			RunnerType: domain.RunnerTypeCodex,
-			Model:      "codex-mini-latest",
+			Name: "System Monitor Investigator", RoleRef: "code.default",
 		},
 	})
 	if err != nil {
@@ -171,9 +168,7 @@ func TestOrchestrator_EnsureProfile(t *testing.T) {
 		ProfileKey:     "system-monitor-investigator",
 		UpdateExisting: true,
 		Defaults: &domain.AgentProfile{
-			Name:       "System Monitor Investigator",
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Model:      "claude-3-opus",
+			Name: "System Monitor Investigator", RoleRef: "code.default",
 		},
 	})
 	if err != nil {
@@ -182,8 +177,8 @@ func TestOrchestrator_EnsureProfile(t *testing.T) {
 	if !result.Updated {
 		t.Errorf("expected profile to be updated")
 	}
-	if result.Profile.RunnerType != domain.RunnerTypeClaudeCode {
-		t.Errorf("expected runner type to update, got %v", result.Profile.RunnerType)
+	if result.Profile.RoleRef != "code.default" {
+		t.Errorf("expected portable role to update, got %q", result.Profile.RoleRef)
 	}
 }
 
@@ -348,12 +343,11 @@ func TestOrchestrator_RunOperations(t *testing.T) {
 
 	// First create a profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "run-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Model:      "claude-3-opus",
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "run-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -449,11 +443,11 @@ func TestOrchestrator_ListProfiles_Pagination(t *testing.T) {
 	// Create multiple profiles
 	for i := 0; i < 10; i++ {
 		profile := &domain.AgentProfile{
-			ID:         uuid.New(),
-			Name:       "profile-" + uuid.New().String(),
-			RunnerType: domain.RunnerTypeClaudeCode,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			ID:   uuid.New(),
+			Name: "profile-" + uuid.New().String(),
+
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(), RoleRef: "code.default",
 		}
 		mustCreateProfile(t, svc, ctx, profile)
 	}
@@ -764,11 +758,11 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "idempotent-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "idempotent-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -854,11 +848,11 @@ func TestOrchestrator_SlotEnforcement_BlocksAtCapacity(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "slot-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "slot-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -929,11 +923,11 @@ func TestOrchestrator_SlotEnforcement_ForceBypassesLimit(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "force-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "force-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -988,11 +982,11 @@ func TestOrchestrator_SlotEnforcement_CountsStartingRuns(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "starting-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "starting-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1056,11 +1050,11 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "under-capacity-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "under-capacity-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1144,11 +1138,11 @@ func TestOrchestrator_CreateRun_InlineEnableBrowser(t *testing.T) {
 	ctx := context.Background()
 
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "browser-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "browser-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1194,14 +1188,14 @@ func TestOrchestrator_CreateRun_ExtraFlagsValidation(t *testing.T) {
 
 	// Create profile with extra flags
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "flags-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
+		ID:   uuid.New(),
+		Name: "flags-test-profile",
+
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--forbidden"},
 		},
 		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1256,14 +1250,14 @@ func TestOrchestrator_CreateRun_ExtraFlagsInlineOverride(t *testing.T) {
 
 	// Create profile with extra flags
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "inline-override-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
+		ID:   uuid.New(),
+		Name: "inline-override-profile",
+
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--profile-flag"},
 		},
 		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1310,14 +1304,14 @@ func TestOrchestrator_CreateRun_NoFlagValidator(t *testing.T) {
 	ctx := context.Background()
 
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "no-validator-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
+		ID:   uuid.New(),
+		Name: "no-validator-profile",
+
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--anything-goes"},
 		},
 		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1355,11 +1349,11 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "no-limit-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "no-limit-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1436,16 +1430,17 @@ func TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot(t *testing.T) {
 	ctx := context.Background()
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "resolve-root-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Model:      "claude-3-opus",
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "resolve-root-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef:
+
+		// Create task with relative projectRoot "." — the exact scenario that
+		// caused the bug when investigation runs inherited this from source tasks.
+		"code.default",
 	})
 
-	// Create task with relative projectRoot "." — the exact scenario that
-	// caused the bug when investigation runs inherited this from source tasks.
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		ID:          uuid.New(),
 		Title:       "Relative Root Task",

@@ -22,22 +22,21 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/modelpolicy"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/protoconv"
+	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/storage"
 
 	agentconfig "agent-manager/internal/config"
@@ -54,11 +53,13 @@ import (
 
 // Handler provides HTTP handlers for all API endpoints.
 type Handler struct {
-	svc         orchestration.Service
-	hub         *WebSocketHub
-	validator   protovalidate.Validator
-	storage     storage.Service
-	modelPolicy *modelpolicy.State
+	svc                   orchestration.Service
+	hub                   *WebSocketHub
+	validator             protovalidate.Validator
+	storage               storage.Service
+	rolePolicy            *rolepolicy.State
+	permissionPolicyState *permissionpolicy.State
+	permissionPolicy      *permissionpolicy.Service
 }
 
 // HandlerOption configures the Handler.
@@ -71,11 +72,21 @@ func WithStorage(s storage.Service) HandlerOption {
 	}
 }
 
-// WithModelPolicyState installs the sole catalog activation owner used by the
+// WithRolePolicyState installs the sole catalog activation owner used by the
 // read-only operator surface and controlled validate/reload commands.
-func WithModelPolicyState(state *modelpolicy.State) HandlerOption {
+func WithRolePolicyState(state *rolepolicy.State) HandlerOption {
 	return func(h *Handler) {
-		h.modelPolicy = state
+		h.rolePolicy = state
+	}
+}
+
+// WithPermissionPolicy installs the desired-permission state and service.
+// The service owns resource projection and audit evidence; handlers only
+// translate the generated API contract.
+func WithPermissionPolicy(state *permissionpolicy.State, service *permissionpolicy.Service) HandlerOption {
+	return func(h *Handler) {
+		h.permissionPolicyState = state
+		h.permissionPolicy = service
 	}
 }
 
@@ -163,11 +174,18 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
 	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
-	r.HandleFunc("/api/v1/model-policy/status", h.GetModelPolicyStatus).Methods("GET")
-	r.HandleFunc("/api/v1/model-policy/catalog", h.GetModelPolicyCatalog).Methods("GET")
-	r.HandleFunc("/api/v1/model-policy/validate", h.ValidateModelPolicyCatalog).Methods("POST")
-	r.HandleFunc("/api/v1/model-policy/reload", h.ReloadModelPolicyCatalog).Methods("POST")
-	r.HandleFunc("/api/v1/model-policy/explain", h.ExplainModelPolicy).Methods("POST")
+	r.HandleFunc("/api/v1/role-policy/status", h.GetRolePolicyStatus).Methods("GET")
+	r.HandleFunc("/api/v1/role-policy/catalog", h.GetRolePolicyCatalog).Methods("GET")
+	r.HandleFunc("/api/v1/role-policy/validate", h.ValidateRolePolicyCatalog).Methods("POST")
+	r.HandleFunc("/api/v1/role-policy/reload", h.ReloadRolePolicyCatalog).Methods("POST")
+	r.HandleFunc("/api/v1/role-policy/explain", h.ExplainRolePolicy).Methods("POST")
+	r.HandleFunc("/api/v1/permission-policy/status", h.GetPermissionPolicyStatus).Methods("GET")
+	r.HandleFunc("/api/v1/permission-policy/catalog", h.GetPermissionPolicyCatalog).Methods("GET")
+	r.HandleFunc("/api/v1/permission-policy/validate", h.ValidatePermissionPolicyCatalog).Methods("POST")
+	r.HandleFunc("/api/v1/permission-policy/reload", h.ReloadPermissionPolicyCatalog).Methods("POST")
+	r.HandleFunc("/api/v1/permission-policy/plan", h.PlanPermissionPolicy).Methods("POST")
+	r.HandleFunc("/api/v1/permission-policy/reconcile", h.ReconcilePermissionPolicy).Methods("POST")
+	r.HandleFunc("/api/v1/permission-policy/doctor", h.DoctorPermissionPolicy).Methods("POST")
 
 	// Path validation (proxied to workspace-sandbox)
 	r.HandleFunc("/api/v1/validate-path", h.ValidatePath).Methods("GET")
@@ -949,11 +967,8 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	availableModels, policyModels := h.resolveProfileModels(r.Context(), profile)
 	writeProtoJSON(w, http.StatusOK, &apipb.GetProfileResponse{
-		Profile:         protoconv.AgentProfileToProto(profile),
-		AvailableModels: availableModels,
-		PolicyModels:    policyModels,
+		Profile: protoconv.AgentProfileToProto(profile),
 	})
 }
 
@@ -969,20 +984,6 @@ func (h *Handler) ListProfiles(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "offset", "must be a number")
 		return
 	}
-	runnerTypeRaw := queryFirst(r, "runner_type", "runnerType")
-	var runnerTypeFilter *domain.RunnerType
-	var runnerTypeProto *domainpb.RunnerType
-	if runnerTypeRaw != "" {
-		if parsed, ok := parseRunnerType(runnerTypeRaw); ok {
-			runnerTypeFilter = &parsed
-			converted := protoconv.RunnerTypeToProto(parsed)
-			runnerTypeProto = &converted
-		} else {
-			writeSimpleError(w, r, "runner_type", "invalid runner type")
-			return
-		}
-	}
-
 	req := apipb.ListProfilesRequest{}
 	if limitProvided {
 		value := int32(limit)
@@ -991,9 +992,6 @@ func (h *Handler) ListProfiles(w http.ResponseWriter, r *http.Request) {
 	if offsetProvided {
 		value := int32(offset)
 		req.Offset = &value
-	}
-	if runnerTypeProto != nil {
-		req.RunnerType = runnerTypeProto
 	}
 	if !h.validateProto(w, r, &req) {
 		return
@@ -1013,16 +1011,6 @@ func (h *Handler) ListProfiles(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, r, err)
 		return
-	}
-
-	if runnerTypeFilter != nil {
-		filtered := make([]*domain.AgentProfile, 0, len(profiles))
-		for _, profile := range profiles {
-			if profile.RunnerType == *runnerTypeFilter {
-				filtered = append(filtered, profile)
-			}
-		}
-		profiles = filtered
 	}
 
 	writeProtoJSON(w, http.StatusOK, &apipb.ListProfilesResponse{
@@ -1424,17 +1412,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if protoReq.InlineConfig != nil {
 		inline := protoReq.InlineConfig
-		if inline.RunnerType != nil && *inline.RunnerType != domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
-			runner := protoconv.RunnerTypeFromProto(*inline.RunnerType)
-			req.RunnerType = &runner
-		}
-		if inline.Model != nil {
-			model := inline.GetModel()
-			req.Model = &model
-		}
-		if inline.PolicyRef != nil {
-			policyRef := inline.GetPolicyRef()
-			req.PolicyRef = &policyRef
+		if inline.RoleRef != nil {
+			roleRef := inline.GetRoleRef()
+			req.RoleRef = &roleRef
 		}
 		if inline.MaxTurns != nil {
 			maxTurns := int(inline.GetMaxTurns())
@@ -1532,8 +1512,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		ProjectRoot   string            `json:"projectRoot,omitempty"`
 		ScopePaths    []string          `json:"scopePaths,omitempty"`
 		AttachmentIDs []string          `json:"attachmentIds,omitempty"`
-		RunnerType    string            `json:"runnerType,omitempty"`
-		PolicyRef     string            `json:"policyRef,omitempty"`
+		RoleRef       string            `json:"roleRef,omitempty"`
 		Environment   map[string]string `json:"environment,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1562,13 +1541,6 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	runnerType, err := parseOptionalRunnerType(req.RunnerType)
-	if err != nil {
-		writeSimpleError(w, r, "runnerType", err.Error())
-		return
-	}
-	policyRef := optionalTrimmedString(req.PolicyRef)
-
 	run, err := h.svc.CreateInvestigationRun(r.Context(), orchestration.CreateInvestigationRequest{
 		RunIDs:        runIDs,
 		CustomContext: req.CustomContext,
@@ -1576,8 +1548,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		ProjectRoot:   req.ProjectRoot,
 		ScopePaths:    req.ScopePaths,
 		AttachmentIDs: req.AttachmentIDs,
-		RunnerType:    runnerType,
-		PolicyRef:     policyRef,
+		RoleRef:       optionalTrimmedString(req.RoleRef),
 		Environment:   req.Environment,
 	})
 	if err != nil {
@@ -1650,8 +1621,7 @@ func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Req
 		InvestigationRunID string            `json:"investigationRunId"`
 		CustomContext      string            `json:"customContext,omitempty"`
 		AttachmentIDs      []string          `json:"attachmentIds,omitempty"`
-		RunnerType         string            `json:"runnerType,omitempty"`
-		PolicyRef          string            `json:"policyRef,omitempty"`
+		RoleRef            string            `json:"roleRef,omitempty"`
 		Environment        map[string]string `json:"environment,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1669,19 +1639,11 @@ func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	runnerType, err := parseOptionalRunnerType(req.RunnerType)
-	if err != nil {
-		writeSimpleError(w, r, "runnerType", err.Error())
-		return
-	}
-	policyRef := optionalTrimmedString(req.PolicyRef)
-
 	run, err := h.svc.CreateInvestigationApplyRun(r.Context(), orchestration.CreateInvestigationApplyRequest{
 		InvestigationRunID: runID,
 		CustomContext:      req.CustomContext,
 		AttachmentIDs:      req.AttachmentIDs,
-		RunnerType:         runnerType,
-		PolicyRef:          policyRef,
+		RoleRef:            optionalTrimmedString(req.RoleRef),
 		Environment:        req.Environment,
 	})
 	if err != nil {
@@ -2837,44 +2799,44 @@ func (h *Handler) ProbeRunner(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetModelPolicyStatus returns truthful catalog activation state.
-func (h *Handler) GetModelPolicyStatus(w http.ResponseWriter, r *http.Request) {
-	if h.modelPolicy == nil {
-		writeSimpleError(w, r, "model_policy", "model policy state is not configured")
+// GetRolePolicyStatus returns truthful portable catalog activation state.
+func (h *Handler) GetRolePolicyStatus(w http.ResponseWriter, r *http.Request) {
+	if h.rolePolicy == nil {
+		writeSimpleError(w, r, "role_policy", "role policy state is not configured")
 		return
 	}
-	writeProtoJSON(w, http.StatusOK, &apipb.GetModelPolicyStatusResponse{
-		Status: protoconv.ModelPolicyStatusToProto(h.modelPolicy.Status()),
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRolePolicyStatusResponse{
+		Status: protoconv.RolePolicyStatusToProto(h.rolePolicy.Status()),
 	})
 }
 
-// GetModelPolicyCatalog exposes only the active validated revision.
-func (h *Handler) GetModelPolicyCatalog(w http.ResponseWriter, r *http.Request) {
-	if h.modelPolicy == nil {
-		writeSimpleError(w, r, "model_policy", "model policy state is not configured")
+// GetRolePolicyCatalog exposes only portable roles and resource-role candidates.
+func (h *Handler) GetRolePolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if h.rolePolicy == nil {
+		writeSimpleError(w, r, "role_policy", "role policy state is not configured")
 		return
 	}
-	var catalog *modelpolicy.Catalog
-	if active := h.modelPolicy.Active(); active != nil {
+	var catalog *rolepolicy.Catalog
+	if active := h.rolePolicy.Active(); active != nil {
 		catalog = active.Catalog()
 	}
-	writeProtoJSON(w, http.StatusOK, &apipb.GetModelPolicyCatalogResponse{
-		Status:  protoconv.ModelPolicyStatusToProto(h.modelPolicy.Status()),
-		Catalog: protoconv.ModelPolicyCatalogToProto(catalog),
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRolePolicyCatalogResponse{
+		Status:  protoconv.RolePolicyStatusToProto(h.rolePolicy.Status()),
+		Catalog: protoconv.RolePolicyCatalogToProto(catalog),
 	})
 }
 
-// ValidateModelPolicyCatalog validates declared state without activation.
-func (h *Handler) ValidateModelPolicyCatalog(w http.ResponseWriter, r *http.Request) {
-	if h.modelPolicy == nil {
-		writeSimpleError(w, r, "model_policy", "model policy state is not configured")
+// ValidateRolePolicyCatalog validates declared state without activation.
+func (h *Handler) ValidateRolePolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if h.rolePolicy == nil {
+		writeSimpleError(w, r, "role_policy", "role policy state is not configured")
 		return
 	}
-	status := h.modelPolicy.Status()
-	revision, err := h.modelPolicy.Validate()
-	response := &apipb.ValidateModelPolicyCatalogResponse{ActiveDigest: status.ActiveDigest}
+	status := h.rolePolicy.Status()
+	revision, err := h.rolePolicy.Validate()
+	response := &apipb.ValidateRolePolicyCatalogResponse{ActiveDigest: status.ActiveDigest}
 	if err != nil {
-		response.Diagnostic = protoconv.ModelPolicyDiagnosticToProto(modelpolicy.DiagnosticForError(err))
+		response.Diagnostic = protoconv.RolePolicyDiagnosticToProto(&rolepolicy.Diagnostic{Code: rolepolicy.DiagnosticCodeCatalogInvalid, Message: err.Error(), Cause: err.Error()})
 	} else {
 		response.Valid = true
 		response.CandidateDigest = revision.Digest()
@@ -2882,32 +2844,32 @@ func (h *Handler) ValidateModelPolicyCatalog(w http.ResponseWriter, r *http.Requ
 	writeProtoJSON(w, http.StatusOK, response)
 }
 
-// ReloadModelPolicyCatalog validates before one atomic activation swap.
-func (h *Handler) ReloadModelPolicyCatalog(w http.ResponseWriter, r *http.Request) {
-	if h.modelPolicy == nil {
-		writeSimpleError(w, r, "model_policy", "model policy state is not configured")
+// ReloadRolePolicyCatalog validates before one atomic activation swap.
+func (h *Handler) ReloadRolePolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if h.rolePolicy == nil {
+		writeSimpleError(w, r, "role_policy", "role policy state is not configured")
 		return
 	}
-	_, err := h.modelPolicy.Reload()
-	response := &apipb.ReloadModelPolicyCatalogResponse{
+	_, err := h.rolePolicy.Reload()
+	response := &apipb.ReloadRolePolicyCatalogResponse{
 		Activated: err == nil,
-		Status:    protoconv.ModelPolicyStatusToProto(h.modelPolicy.Status()),
+		Status:    protoconv.RolePolicyStatusToProto(h.rolePolicy.Status()),
 	}
 	if err != nil {
-		response.Diagnostic = protoconv.ModelPolicyDiagnosticToProto(modelpolicy.DiagnosticForError(err))
+		response.Diagnostic = protoconv.RolePolicyDiagnosticToProto(&rolepolicy.Diagnostic{Code: rolepolicy.DiagnosticCodeCatalogInvalid, Message: err.Error(), Cause: err.Error()})
 	}
 	writeProtoJSON(w, http.StatusOK, response)
 }
 
-// ExplainModelPolicy resolves a profile now or returns a run's persisted
+// ExplainRolePolicy resolves a profile now or returns a run's persisted
 // snapshot. Historical runs never borrow provenance from the current catalog.
-func (h *Handler) ExplainModelPolicy(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ExplainRolePolicy(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeSimpleError(w, r, "body", "failed to read request body")
 		return
 	}
-	var req apipb.ExplainModelPolicyRequest
+	var req apipb.ExplainRolePolicyRequest
 	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
@@ -2916,7 +2878,7 @@ func (h *Handler) ExplainModelPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := &apipb.ExplainModelPolicyResponse{}
+	response := &apipb.ExplainRolePolicyResponse{}
 	var snapshot *domain.ExecutionPolicySnapshot
 	switch {
 	case req.GetProfileId() != "":
@@ -2953,107 +2915,139 @@ func (h *Handler) ExplainModelPolicy(w http.ResponseWriter, r *http.Request) {
 	writeProtoJSON(w, http.StatusOK, response)
 }
 
-func (h *Handler) resolveProfileModels(ctx context.Context, profile *domain.AgentProfile) ([]*apipb.AvailableModel, map[string]string) {
-	if profile == nil {
-		return nil, nil
+func (h *Handler) permissionPolicyConfigured(w http.ResponseWriter, r *http.Request) bool {
+	if h.permissionPolicyState == nil || h.permissionPolicy == nil {
+		writeSimpleError(w, r, "permission_policy", "permission policy service is not configured")
+		return false
 	}
-
-	if h.modelPolicy == nil || h.modelPolicy.Active() == nil {
-		return nil, nil
-	}
-	catalog := h.modelPolicy.Active().Catalog()
-
-	statuses, _ := h.svc.GetRunnerStatus(ctx)
-
-	runnerInventory, ok := catalog.Runners[profile.RunnerType]
-	if !ok {
-		return nil, nil
-	}
-
-	supported := make(map[string]struct{})
-	if len(statuses) > 0 {
-		for _, status := range statuses {
-			if status.Type != profile.RunnerType {
-				continue
-			}
-			for _, model := range status.Capabilities.SupportedModels {
-				trimmed := strings.TrimSpace(model)
-				if trimmed == "" {
-					continue
-				}
-				supported[trimmed] = struct{}{}
-			}
-			break
-		}
-	}
-
-	available := make([]*apipb.AvailableModel, 0, len(runnerInventory.Models))
-	for _, model := range runnerInventory.Models {
-		id := strings.TrimSpace(model.ID)
-		if id == "" {
-			continue
-		}
-		if len(supported) > 0 {
-			if _, ok := supported[id]; !ok {
-				continue
-			}
-		}
-
-		label, provider := splitModelID(id)
-		sources := []string{"model_policy_catalog"}
-		if len(supported) > 0 {
-			sources = append(sources, "capabilities")
-		}
-		available = append(available, &apipb.AvailableModel{
-			Id:          id,
-			Label:       label,
-			Description: strings.TrimSpace(model.Description),
-			Provider:    provider,
-			Sources:     sources,
-		})
-	}
-
-	sort.Slice(available, func(i, j int) bool {
-		return available[i].Id < available[j].Id
-	})
-
-	var policyModels map[string]string
-	for policyRef, policy := range catalog.Policies {
-		modelID := ""
-		for _, candidate := range policy.Candidates {
-			if candidate.Runner != profile.RunnerType || candidate.Selection.Type != modelpolicy.SelectionTypeModel {
-				continue
-			}
-			modelID = strings.TrimSpace(candidate.Selection.Model)
-			break
-		}
-		if modelID == "" {
-			continue
-		}
-		if len(supported) > 0 {
-			if _, ok := supported[modelID]; !ok {
-				continue
-			}
-		}
-		if policyModels == nil {
-			policyModels = make(map[string]string)
-		}
-		policyModels[policyRef] = modelID
-	}
-
-	if len(available) == 0 {
-		return nil, nil
-	}
-
-	return available, policyModels
+	return true
 }
 
-func splitModelID(id string) (label string, provider string) {
-	parts := strings.SplitN(id, "/", 2)
-	if len(parts) == 2 {
-		return parts[1], parts[0]
+// GetPermissionPolicyStatus returns activation state and the last persisted
+// reconcile evidence. It never triggers a native resource operation.
+func (h *Handler) GetPermissionPolicyStatus(w http.ResponseWriter, r *http.Request) {
+	if !h.permissionPolicyConfigured(w, r) {
+		return
 	}
-	return id, ""
+	last, err := h.permissionPolicy.LastReconcile(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.GetPermissionPolicyStatusResponse{
+		Status:        protoconv.PermissionPolicyStatusToProto(h.permissionPolicyState.Status()),
+		LastReconcile: protoconv.PermissionPolicyReconcileResultToProto(last),
+	})
+}
+
+// GetPermissionPolicyCatalog exposes the global portable desired state, not
+// native resource configuration or runner-specific syntax.
+func (h *Handler) GetPermissionPolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if !h.permissionPolicyConfigured(w, r) {
+		return
+	}
+	var catalog *permissionpolicy.Catalog
+	if active := h.permissionPolicyState.Active(); active != nil {
+		catalog = active.Catalog()
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.GetPermissionPolicyCatalogResponse{
+		Status:  protoconv.PermissionPolicyStatusToProto(h.permissionPolicyState.Status()),
+		Catalog: protoconv.PermissionPolicyCatalogToProto(catalog),
+	})
+}
+
+func (h *Handler) ValidatePermissionPolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if !h.permissionPolicyConfigured(w, r) {
+		return
+	}
+	status := h.permissionPolicyState.Status()
+	revision, err := h.permissionPolicyState.Validate()
+	response := &apipb.ValidatePermissionPolicyCatalogResponse{ActiveDigest: status.ActiveDigest}
+	if err != nil {
+		response.Diagnostic = protoconv.PermissionPolicyDiagnosticToProto(&permissionpolicy.Diagnostic{Code: permissionpolicy.DiagnosticCodeCatalogInvalid, Message: err.Error(), Cause: err.Error()})
+	} else {
+		response.Valid = true
+		response.CandidateDigest = revision.Digest()
+	}
+	writeProtoJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) ReloadPermissionPolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if !h.permissionPolicyConfigured(w, r) {
+		return
+	}
+	_, err := h.permissionPolicyState.Reload()
+	response := &apipb.ReloadPermissionPolicyCatalogResponse{
+		Activated: err == nil,
+		Status:    protoconv.PermissionPolicyStatusToProto(h.permissionPolicyState.Status()),
+	}
+	if err != nil {
+		response.Diagnostic = protoconv.PermissionPolicyDiagnosticToProto(&permissionpolicy.Diagnostic{Code: permissionpolicy.DiagnosticCodeCatalogInvalid, Message: err.Error(), Cause: err.Error()})
+	}
+	writeProtoJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) PlanPermissionPolicy(w http.ResponseWriter, r *http.Request) {
+	if !h.permissionPolicyConfigured(w, r) {
+		return
+	}
+	plan, err := h.permissionPolicy.Plan(r.Context())
+	if err != nil {
+		writeSimpleError(w, r, "permission_policy", err.Error())
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.PlanPermissionPolicyResponse{Plan: protoconv.PermissionPolicyPlanToProto(plan)})
+}
+
+func (h *Handler) ReconcilePermissionPolicy(w http.ResponseWriter, r *http.Request) {
+	if !h.permissionPolicyConfigured(w, r) {
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+	var request apipb.ReconcilePermissionPolicyRequest
+	if err := protoconv.UnmarshalJSON(body, &request); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !request.ExplicitlyAuthorized {
+		writeSimpleError(w, r, "explicitly_authorized", "explicit human authorization is required")
+		return
+	}
+	result, err := h.permissionPolicy.Reconcile(r.Context(), true)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.ReconcilePermissionPolicyResponse{Result: protoconv.PermissionPolicyReconcileResultToProto(&result)})
+}
+
+func (h *Handler) DoctorPermissionPolicy(w http.ResponseWriter, r *http.Request) {
+	if !h.permissionPolicyConfigured(w, r) {
+		return
+	}
+	plan, err := h.permissionPolicy.Plan(r.Context())
+	if err != nil {
+		writeSimpleError(w, r, "permission_policy", err.Error())
+		return
+	}
+	status := h.permissionPolicyState.Status()
+	healthy := status.Ready && plan.HardEnforcementSatisfied
+	summary := "permission policy is ready; no required hard-enforcement gap was detected"
+	if !status.Ready {
+		summary = "permission policy catalog is not ready"
+	} else if !plan.HardEnforcementSatisfied {
+		summary = "one or more required permission rules lack native or hook-backed enforcement"
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.DoctorPermissionPolicyResponse{
+		Status:  protoconv.PermissionPolicyStatusToProto(status),
+		Plan:    protoconv.PermissionPolicyPlanToProto(plan),
+		Healthy: healthy,
+		Summary: summary,
+	})
 }
 
 // PurgeData deletes profiles, tasks, or runs matching a regex pattern.

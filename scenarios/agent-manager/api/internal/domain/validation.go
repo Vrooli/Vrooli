@@ -187,15 +187,9 @@ func (p *AgentProfile) Validate() error {
 		}
 	}
 
-	// RunnerType must be valid
-	if !p.RunnerType.IsValid() {
-		return NewValidationErrorWithHint("runnerType", "invalid runner type",
-			"valid types: claude-code, codex, opencode")
-	}
-
-	// Direct model and named policy are mutually exclusive.
-	if strings.TrimSpace(p.Model) != "" && strings.TrimSpace(p.PolicyRef) != "" {
-		return NewValidationError("policyRef", "cannot set model and policy reference together")
+	if strings.TrimSpace(p.RoleRef) == "" {
+		return NewValidationErrorWithHint("roleRef", "field is required",
+			"Select a portable role from the active role-policy catalog")
 	}
 
 	// MaxTurns must be non-negative

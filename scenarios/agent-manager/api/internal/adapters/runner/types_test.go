@@ -43,11 +43,10 @@ func TestExecuteRequest_GetTag(t *testing.T) {
 
 func TestExecuteRequest_GetConfig(t *testing.T) {
 	profile := &domain.AgentProfile{
-		Name:       "test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Model:      "opus",
-		MaxTurns:   50,
-		Timeout:    time.Hour,
+		Name: "test-profile",
+
+		MaxTurns: 50,
+		Timeout:  time.Hour, RoleRef: "code.default",
 	}
 	resolvedConfig := &domain.RunConfig{
 		RunnerType: domain.RunnerTypeCodex,

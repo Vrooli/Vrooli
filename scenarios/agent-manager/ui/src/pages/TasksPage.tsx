@@ -24,14 +24,12 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { ModelConfigSelector } from "../components/ModelConfigSelector";
+import { RoleSelector } from "../components/RoleSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { runnerTypeLabel } from "../lib/utils";
-import { catalogInventoryForRunner, policyOptionsForRunner } from "../lib/modelPolicyCatalog";
-import type { ModelPolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
-import type { AgentProfile, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
-import { RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
+import type { RolePolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+import type { AgentProfile, ProfileFormData, Run, RunFormData, Task, TaskFormData } from "../types";
+import { RunMode, TaskStatus } from "../types";
 import { formatStandardRelativeTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
@@ -41,12 +39,6 @@ import { TaskDetail } from "../components/TaskDetail";
 import { ContextAttachmentEditor } from "../components/ContextAttachmentEditor";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { useTasksRunDialogState } from "../hooks/useTasksRunDialogState";
-
-const RUNNER_TYPES: RunnerType[] = [
-  RunnerTypeEnum.CLAUDE_CODE,
-  RunnerTypeEnum.CODEX,
-  RunnerTypeEnum.OPENCODE,
-];
 
 interface TasksPageProps {
   tasks: Task[];
@@ -60,8 +52,7 @@ interface TasksPageProps {
   onCreateRun: (run: RunFormData) => Promise<Run>;
   onCreateProfile: (profile: ProfileFormData) => Promise<AgentProfile>;
   onRefresh: () => void;
-  runners?: Record<string, RunnerStatus>;
-  modelPolicyCatalog?: ModelPolicyCatalog;
+  rolePolicyCatalog?: RolePolicyCatalog;
 }
 
 const taskStatusLabel = (status: TaskStatus): string => {
@@ -83,10 +74,6 @@ const taskStatusLabel = (status: TaskStatus): string => {
     default:
       return "queued";
   }
-};
-
-const getModelId = (model: string | { id: string }): string => {
-  return typeof model === "string" ? model : model.id;
 };
 
 const STATUS_FILTER_OPTIONS = [
@@ -158,28 +145,11 @@ export function TasksPage({
   onCreateRun,
   onCreateProfile,
   onRefresh,
-  runners,
-  modelPolicyCatalog,
+  rolePolicyCatalog,
 }: TasksPageProps) {
   const { isDesktop } = useViewportSize();
   const [searchParams] = useSearchParams();
   const taskIdParam = searchParams.get("taskId");
-  const getInventoryForRunner = (runnerType: RunnerType) => {
-    return catalogInventoryForRunner(modelPolicyCatalog, runnerType);
-  };
-
-  const getModelsForRunner = (runnerType: RunnerType) => {
-    const inventory = getInventoryForRunner(runnerType);
-    if (inventory?.models?.length) {
-      return inventory.models;
-    }
-    const runner = runners?.[runnerType];
-    return runner?.supportedModels ?? [];
-  };
-
-  const getPoliciesForRunner = (runnerType: RunnerType) => {
-    return policyOptionsForRunner(modelPolicyCatalog, runnerType);
-  };
 
   // Selection state
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -315,13 +285,7 @@ export function TasksPage({
       if (runConfigMode === "profile") {
         request.agentProfileId = selectedProfileId;
       } else {
-        request.runnerType = inlineConfig.runnerType;
-        if (inlineConfig.modelMode === "model" && inlineConfig.model.trim() !== "") {
-          request.model = inlineConfig.model;
-        }
-        if (inlineConfig.modelMode === "policy") {
-          request.policyRef = inlineConfig.policyRef;
-        }
+        request.roleRef = inlineConfig.roleRef;
         request.maxTurns = inlineConfig.maxTurns;
         request.timeoutMinutes = inlineConfig.timeoutMinutes;
         request.runMode = inlineConfig.runMode;
@@ -347,11 +311,7 @@ export function TasksPage({
     try {
       const newProfile = await onCreateProfile({
         ...profileFormData,
-        model:
-          profileFormData.modelMode === "model"
-            ? profileFormData.model?.trim() ?? ""
-            : "",
-        policyRef: profileFormData.modelMode === "policy" ? profileFormData.policyRef?.trim() ?? "" : "",
+        roleRef: profileFormData.roleRef.trim(),
         timeoutMinutes: profileFormData.timeoutMinutes ?? 30,
       });
       setSelectedProfileId(newProfile.id);
@@ -789,7 +749,7 @@ export function TasksPage({
                         <option value="">Select a profile...</option>
                         {profiles.map((profile) => (
                           <option key={profile.id} value={profile.id}>
-                            {profile.name} ({runnerTypeLabel(profile.runnerType)})
+                            {profile.name} ({profile.roleRef})
                           </option>
                         ))}
                       </select>
@@ -824,53 +784,12 @@ export function TasksPage({
                 <p className="text-xs text-muted-foreground">
                   Run with custom settings without saving a profile.
                 </p>
-                <div className="space-y-2">
-                  <Label htmlFor="runnerType">Runner Type *</Label>
-                  <select
-                    id="runnerType"
-                    value={String(inlineConfig.runnerType)}
-                    onChange={(e) => {
-                      const newRunnerType = Number(e.target.value) as RunnerType;
-                      const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
-                      const firstPolicy = getPoliciesForRunner(newRunnerType)[0]?.ref ?? "";
-                      setInlineConfig({
-                        ...inlineConfig,
-                        runnerType: newRunnerType,
-                        model:
-                          inlineConfig.modelMode === "model"
-                            ? firstModel
-                            : inlineConfig.model,
-                        policyRef: inlineConfig.modelMode === "policy" ? firstPolicy : inlineConfig.policyRef,
-                      });
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {RUNNER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {runnerTypeLabel(type)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <ModelConfigSelector
-                  value={{
-                    mode: inlineConfig.modelMode,
-                    model: inlineConfig.model,
-                    policyRef: inlineConfig.policyRef,
-                  }}
-                  onChange={(selection) =>
-                    setInlineConfig({
-                      ...inlineConfig,
-                      modelMode: selection.mode,
-                      model: selection.model,
-                      policyRef: selection.policyRef,
-                    })
-                  }
-                  models={getModelsForRunner(inlineConfig.runnerType)}
-                  policies={getPoliciesForRunner(inlineConfig.runnerType)}
-                  label="Model Selection"
+                <RoleSelector
+                  catalog={rolePolicyCatalog}
+                  value={inlineConfig.roleRef}
+                  onChange={(roleRef) => setInlineConfig({ ...inlineConfig, roleRef })}
+                  label="Execution Role"
+                  id="inlineRoleRef"
                 />
 
                 <div className="grid gap-4 grid-cols-2">
@@ -1002,8 +921,7 @@ export function TasksPage({
                   </CardContent>
                 </Card>
               )}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <Label htmlFor="profileName">Name *</Label>
                   <Input
                     id="profileName"
@@ -1014,36 +932,6 @@ export function TasksPage({
                     placeholder="e.g., Claude Code Default"
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="profileRunnerType">Runner Type *</Label>
-                  <select
-                    id="profileRunnerType"
-                    value={String(profileFormData.runnerType)}
-                    onChange={(e) => {
-                      const newRunnerType = Number(e.target.value) as RunnerType;
-                      const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
-                      const firstPolicy = getPoliciesForRunner(newRunnerType)[0]?.ref ?? "";
-                      setProfileFormData({
-                        ...profileFormData,
-                        runnerType: newRunnerType,
-                        model:
-                          profileFormData.modelMode === "model"
-                            ? firstModel
-                            : profileFormData.model,
-                        policyRef: profileFormData.modelMode === "policy" ? firstPolicy : profileFormData.policyRef,
-                      });
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {RUNNER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {runnerTypeLabel(type)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -1071,23 +959,12 @@ export function TasksPage({
                 />
               </div>
 
-              <ModelConfigSelector
-                value={{
-                  mode: profileFormData.modelMode,
-                  model: profileFormData.model ?? "",
-                  policyRef: profileFormData.policyRef ?? "",
-                }}
-                onChange={(selection) =>
-                  setProfileFormData({
-                    ...profileFormData,
-                    modelMode: selection.mode,
-                    model: selection.model,
-                    policyRef: selection.policyRef,
-                  })
-                }
-                models={getModelsForRunner(profileFormData.runnerType)}
-                policies={getPoliciesForRunner(profileFormData.runnerType)}
-                label="Model Selection"
+              <RoleSelector
+                catalog={rolePolicyCatalog}
+                value={profileFormData.roleRef}
+                onChange={(roleRef) => setProfileFormData({ ...profileFormData, roleRef })}
+                label="Execution Role"
+                id="profileRoleRef"
               />
 
               <div className="grid gap-4 md:grid-cols-2">

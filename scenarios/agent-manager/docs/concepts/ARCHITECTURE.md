@@ -11,13 +11,13 @@ The system reduces to eight concepts. Anything outside this list is plumbing, no
 | **Run** | One execution of an agent against a task. Carries status, phase, transcript, sandbox, identity. | `internal/domain.Run` |
 | **Runner** | The generic stdout-scan-decode-emit-wait pipeline. One implementation, four model bindings (claude-code, codex, opencode, grok). | `internal/adapters/runner/core.Runner` |
 | **Codec** | Per-model translation: arg shape, JSON event schema, transcript replay. Each embeds the shared `baseCodec` (`base.go`) and contains only its unique surface. | `internal/adapters/runner/codecs/*.go` |
-| **Model policy** | Versioned static model inventory plus named, ordered runner/model or runner-default candidate policies. A validated source-byte digest identifies each immutable revision. | `config/model-policy-catalog.json` + `internal/modelpolicy` |
+| **Role policy** | Versioned portable roles with ordered `(runner, resourceRole)` candidates. Resource-owned policy resolves concrete models and fallbacks into immutable run evidence. | `config/role-policy-catalog.json` + `internal/rolepolicy` |
 | **Phase** | One step of the run lifecycle (Setup, Acquire, Execute, Validate, Result, Finalize). Pure-ish function with explicit input struct. | `internal/orchestration/phases/*.go` |
 | **Sandbox** | Per-run overlayfs workspace for accountability/provenance — captures which files this run changed, not for safety. | `internal/adapters/sandbox` + `scenarios/workspace-sandbox` |
 | **Gate** (`emit.Gate`) | The single Emit choke point. Future invariants (dedupe, audit hooks, ordering) attach inside the gate. | `internal/orchestration/emit.Gate` |
 | **Tunables** (`config.Levers`) | Single home for every adjustable threshold (timeouts, intervals, buffers). One struct, validated on load. | `internal/config/levers.go` |
 
-Adding a new runner = one ~250 LOC codec file plus one catalog inventory entry. Adding a model or changing fallback policy = a catalog-only change. Adding a new phase = one file in `phases/`. Adding a new tunable = one field on `Levers` with a default + validation. Anything else means the architecture is not being respected — open a discussion.
+Adding a new runner = one codec plus a resource-owned role-policy implementation and an Agent Manager role-catalog candidate. Concrete model and fallback changes belong to the owning resource policy. Adding a new phase = one file in `phases/`. Adding a new tunable = one field on `Levers` with a default + validation.
 
 ## Folder structure (post-Phase-6 refactor)
 
@@ -88,46 +88,23 @@ These behaviors are normative. Future changes must preserve them or fail loudly.
 
 4. **`Levers` is the only home for adjustable thresholds.** A new hard-coded duration, count, or buffer size in agent-manager source is a code-review fail. Add it to `config/levers.go` with a default and documented purpose.
 
-## Model-policy activation flow
+## Role-policy activation flow
 
-`internal/modelpolicy.State` is the sole runtime owner of the catalog path and
-active immutable revision. Startup creates the state even when loading fails so
-the exact path and validation diagnostic remain observable. A candidate reload
-is fully parsed and semantically validated before one atomic active-pointer
-swap; a failed reload retains the previous revision.
+`internal/rolepolicy.State` owns the portable role catalog path and active
+immutable revision. Startup preserves the path and validation diagnostic even
+when activation fails. A candidate reload is fully parsed and validated before
+an atomic active-pointer swap; a failed reload retains the previous revision.
 
-The same state feeds codec model visibility, periodic model-health probing, and
-orchestration policy resolution. No consumer keeps its own catalog cache.
-`/health` treats the state as a critical dependency because built-in agent
-profiles require declared policy: required state with no active revision is
-unready, while a failed reload after a successful activation remains ready on
-the prior digest.
+Role policy has no model inventory. At run creation, its ordered
+`(runner, resourceRole)` candidates are resolved by the owning resources into
+concrete model/fallback candidates. The immutable snapshot persists the role,
+catalog digest, resource-policy provenance, enforcement posture, availability
+preflight, selected candidate, and concrete runner/model evidence. Profile and
+run-create surfaces accept only `roleRef`; historical snapshot-less rows remain
+readable and are never backfilled from mutable current policy.
 
-Run creation now persists the chosen revision, full ordered candidates,
-selected candidate, resolution source, and preflight evidence inside
-RunConfig.PolicySnapshot. The generated RunConfig API contract exposes that
-snapshot on run detail, while create surfaces deliberately accept the separate
-RunConfigOverrides type so callers cannot submit orchestration-owned snapshot
-state. Only the SQLite startup migration reads legacy FAST/CHEAP/SMART profile
-rows and maps them once to named policy references; runtime profile, API, and
-scenario-owned configuration surfaces accept only `policyRef` or an explicit
-model. Historical rows without policy_snapshot remain
-readable as legacy records; they are not backfilled from current policy because
-that would invent provenance. Creation-time preflight walks
-past stale model IDs and can choose an explicit runner_default, preserving the
-installed CLI's safe fallback without encoding it as an empty model ID. The
-runtime executor consumes only PolicySnapshot.Candidates for policy-backed
-runs. It records attempted, skipped, failed, selected, and terminal exhausted
-candidate outcomes with the snapshot digest and index, and can cross runner
-boundaries without reading the active catalog. Before each launch it persists
-the projected runner/model pair; restart/resume retries that interrupted
-candidate at least once without replaying earlier candidates. Historical rows
-with no snapshot remain readable and execute once with their stored
-runner/model projection; they never borrow candidates or provenance from the
-current catalog.
-
-The operator surface projects the same state through generated protobuf
-contracts at `/api/v1/model-policy/{status,catalog,validate,reload,explain}`.
+The operator surface projects portable role state through generated protobuf
+contracts at `/api/v1/role-policy/{status,catalog,validate,reload,explain}`.
 Catalog inspection is read-only. Validation never activates, reload validates
 before the atomic state swap, profile explanation resolves against the active
 revision, and run explanation returns only the snapshot persisted with that

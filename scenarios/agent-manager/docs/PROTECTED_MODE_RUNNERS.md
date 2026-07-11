@@ -154,14 +154,14 @@ upstream CLI allows," not faked support.
 > gate). The grok resource's PreToolUse deny hook enforces. Per-run
 > enforcement is a filed follow-up.
 
-**Model advertisement (`SupportedModels`).** Static model visibility comes
-only from the validated `config/model-policy-catalog.json` revision. Raw
-codecs contain no curated model IDs. At boot, `WithCatalogModels` composes the
-catalog inventory with locally-pulled `ollama/*` models that codex + opencode
-discover via a cached (60s TTL) exec to the probe SSOT (`resource-ollama models
-list --json`, wrapped in `codecs/ollama.go`). The probe is agent-safe: an
-unreachable daemon or absent SSOT degrades to the static catalog view, never
-an error. `SupportedFeatures` /
+**Model advertisement (`SupportedModels`).** Raw codecs contain no curated
+cloud model IDs. `SupportedModels` is limited to locally-pulled `ollama/*`
+models that codex + opencode discover via a cached (60s TTL) exec to the probe
+SSOT (`resource-ollama models list --json`, wrapped in `codecs/ollama.go`).
+The probe is agent-safe: an unreachable daemon or absent SSOT reports no
+dynamic entries, never an error. Resource-owned `policy resolve` supplies the
+concrete cloud model only when Agent Manager creates a run, and the result is
+retained in that run's immutable snapshot. `SupportedFeatures` /
 `AllowedExtraFlags` differ per upstream CLI (claude exposes
 `EnableBrowser` / `--disallowedTools`; codex + opencode expose `--verbose`)
 — these are genuine upstream differences, documented not reconciled.

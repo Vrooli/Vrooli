@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "catalogId": "agent-manager-coding-role-policy",
+    "updatedAt": "2026-07-10"
+  },
+  "defaultRole": "code.default",
+  "roles": {
+    "code.default": {
+      "description": "Balanced implementation work with portable fallback.",
+      "intent": "balanced coding",
+      "candidates": [
+        {"runner": "codex", "resourceRole": "code.default"},
+        {"runner": "claude-code", "resourceRole": "code.default"},
+        {"runner": "opencode", "resourceRole": "code.default"},
+        {"runner": "grok", "resourceRole": "code.default"}
+      ]
+    },
+    "code.fast": {
+      "description": "Low-latency implementation and focused edits.",
+      "intent": "fast coding",
+      "candidates": [
+        {"runner": "codex", "resourceRole": "code.fast"},
+        {"runner": "claude-code", "resourceRole": "code.fast"},
+        {"runner": "opencode", "resourceRole": "code.fast"},
+        {"runner": "grok", "resourceRole": "code.fast"}
+      ]
+    },
+    "code.smart": {
+      "description": "Highest-capability coding and reasoning work.",
+      "intent": "high capability coding",
+      "candidates": [
+        {"runner": "codex", "resourceRole": "code.smart"},
+        {"runner": "claude-code", "resourceRole": "code.smart"},
+        {"runner": "opencode", "resourceRole": "code.smart"},
+        {"runner": "grok", "resourceRole": "code.smart"}
+      ]
+    },
+    "code.cheap": {
+      "description": "Cost-conscious coding work.",
+      "intent": "cost-conscious coding",
+      "candidates": [
+        {"runner": "codex", "resourceRole": "code.cheap"},
+        {"runner": "claude-code", "resourceRole": "code.cheap"},
+        {"runner": "opencode", "resourceRole": "code.cheap"},
+        {"runner": "grok", "resourceRole": "code.cheap"}
+      ]
+    }
+  }
+}

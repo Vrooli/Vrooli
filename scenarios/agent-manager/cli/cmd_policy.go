@@ -27,16 +27,16 @@ func (a *App) cmdPolicy(args []string) error {
 	case "help", "-h", "--help":
 		return a.policyHelp()
 	default:
-		return fmt.Errorf("unknown policy subcommand: %s\n\nRun 'agent-manager policy help' for usage", args[0])
+		return fmt.Errorf("unknown role-policy subcommand: %s\n\nRun 'agent-manager role-policy help' for usage", args[0])
 	}
 }
 
 func (a *App) policyHelp() error {
-	fmt.Println(`Usage: agent-manager policy <subcommand> [options]
+	fmt.Println(`Usage: agent-manager role-policy <subcommand> [options]
 
 Subcommands:
   status                 Show active revision, path, readiness, and latest diagnostic
-  catalog                Inspect the active declared runner/model/policy catalog
+  catalog                Inspect the active portable role catalog
   validate               Validate configured declared state without activation
   reload                 Validate and atomically activate configured declared state
   explain profile <id>   Resolve a profile against the active catalog
@@ -91,21 +91,11 @@ func (a *App) policyCatalog(args []string) error {
 		fmt.Println("Catalog: no validated revision is active")
 		return nil
 	}
-	fmt.Printf("Catalog: %s (schema %d, default %s)\n", response.Catalog.Metadata.GetCatalogId(), response.Catalog.SchemaVersion, response.Catalog.DefaultPolicy)
-	for _, runner := range response.Catalog.Runners {
-		fmt.Printf("  Runner %s: %d declared models; runner_default=%t\n", policyRunnerLabel(runner.RunnerType.String()), len(runner.Models), runner.SupportsRunnerDefault)
-		for _, model := range runner.Models {
-			fmt.Printf("    - %s: %s\n", model.Id, model.Description)
-		}
-	}
-	for _, policy := range response.Catalog.Policies {
-		fmt.Printf("  Policy %s (%s):\n", policy.Name, policy.Intent)
-		for index, candidate := range policy.Candidates {
-			fmt.Printf("    %d. %s / %s", index, policyRunnerLabel(candidate.RunnerType.String()), policySelectionLabel(candidate.SelectionType.String()))
-			if candidate.Model != "" {
-				fmt.Printf(" / %s", candidate.Model)
-			}
-			fmt.Println()
+	fmt.Printf("Catalog: %s (schema %d, default role %s)\n", response.Catalog.Metadata.GetCatalogId(), response.Catalog.SchemaVersion, response.Catalog.DefaultRole)
+	for _, role := range response.Catalog.Roles {
+		fmt.Printf("  Role %s (%s): %s\n", role.RoleRef, role.Intent, role.Description)
+		for index, candidate := range role.Candidates {
+			fmt.Printf("    %d. %s / %s\n", index, policyRunnerLabel(candidate.RunnerType.String()), candidate.ResourceRole)
 		}
 	}
 	return nil
@@ -128,7 +118,7 @@ func (a *App) policyValidate(args []string) error {
 		printPolicyDiagnostic(response.Diagnostic)
 	}
 	if !response.Valid {
-		return fmt.Errorf("model policy catalog is invalid")
+		return fmt.Errorf("role policy catalog is invalid")
 	}
 	return nil
 }
@@ -151,26 +141,26 @@ func (a *App) policyReload(args []string) error {
 		}
 	}
 	if !response.Activated {
-		return fmt.Errorf("model policy catalog was not activated; the previous revision remains active")
+		return fmt.Errorf("role policy catalog was not activated; the previous revision remains active")
 	}
 	return nil
 }
 
 func (a *App) policyExplain(args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("usage: agent-manager policy explain <profile|run> <id> [--json]")
+		return fmt.Errorf("usage: agent-manager role-policy explain <profile|run> <id> [--json]")
 	}
 	targetType, targetID := strings.ToLower(args[0]), args[1]
 	jsonOutput, err := parsePolicyFlags("policy explain", args[2:])
 	if err != nil {
 		return err
 	}
-	request := &apipb.ExplainModelPolicyRequest{}
+	request := &apipb.ExplainRolePolicyRequest{}
 	switch targetType {
 	case "profile":
-		request.Target = &apipb.ExplainModelPolicyRequest_ProfileId{ProfileId: targetID}
+		request.Target = &apipb.ExplainRolePolicyRequest_ProfileId{ProfileId: targetID}
 	case "run":
-		request.Target = &apipb.ExplainModelPolicyRequest_RunId{RunId: targetID}
+		request.Target = &apipb.ExplainRolePolicyRequest_RunId{RunId: targetID}
 	default:
 		return fmt.Errorf("explain target must be profile or run")
 	}
@@ -188,7 +178,7 @@ func (a *App) policyExplain(args []string) error {
 		fmt.Println("Snapshot: unavailable")
 		return nil
 	}
-	fmt.Printf("Catalog revision: %s\nPolicy: %s\nSelected index: %d\n", response.Snapshot.CatalogDigest, response.Snapshot.PolicyRef, response.Snapshot.SelectedIndex)
+	fmt.Printf("Catalog revision: %s\nRole: %s\nSelected index: %d\n", response.Snapshot.CatalogDigest, response.Snapshot.RoleRef, response.Snapshot.SelectedIndex)
 	for index, candidate := range response.Snapshot.Candidates {
 		fmt.Printf("  %d. %s / %s", index, policyRunnerLabel(candidate.RunnerType.String()), policySelectionLabel(candidate.SelectionType.String()))
 		if candidate.Model != "" {
@@ -202,7 +192,7 @@ func (a *App) policyExplain(args []string) error {
 	return nil
 }
 
-func printPolicyStatus(status *apipb.ModelPolicyStatus) {
+func printPolicyStatus(status *apipb.RolePolicyStatus) {
 	if status == nil {
 		fmt.Println("Status: unavailable")
 		return
@@ -218,7 +208,7 @@ func printPolicyStatus(status *apipb.ModelPolicyStatus) {
 	}
 }
 
-func printPolicyDiagnostic(diagnostic *apipb.ModelPolicyDiagnostic) {
+func printPolicyDiagnostic(diagnostic *apipb.RolePolicyDiagnostic) {
 	if diagnostic == nil {
 		return
 	}

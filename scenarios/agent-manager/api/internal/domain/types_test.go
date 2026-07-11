@@ -233,8 +233,7 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 	t.Run("applies all fields from profile", func(t *testing.T) {
 		cfg := &RunConfig{}
 		profile := &AgentProfile{
-			RunnerType:           RunnerTypeCodex,
-			Model:                "opus",
+
 			MaxTurns:             100,
 			Timeout:              time.Hour,
 			AllowedTools:         []string{"Read", "Write"},
@@ -242,16 +241,13 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 			SkipPermissionPrompt: true,
 			SandboxConfig:        &SandboxConfig{Mode: SandboxModeOff},
 			AllowedPaths:         []string{"/src"},
-			DeniedPaths:          []string{"/secrets"},
+			DeniedPaths:          []string{"/secrets"}, RoleRef: "code.default",
 		}
 
 		cfg.ApplyProfile(profile)
 
-		if cfg.RunnerType != RunnerTypeCodex {
-			t.Errorf("RunnerType = %s, want %s", cfg.RunnerType, RunnerTypeCodex)
-		}
-		if cfg.Model != "opus" {
-			t.Errorf("Model = %s, want opus", cfg.Model)
+		if cfg.RoleRef != "code.default" {
+			t.Errorf("RoleRef = %q, want code.default", cfg.RoleRef)
 		}
 		if cfg.MaxTurns != 100 {
 			t.Errorf("MaxTurns = %d, want 100", cfg.MaxTurns)
@@ -284,10 +280,10 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 		// profile pointer carries no signal and must not clobber it.
 		cfg := DefaultRunConfig()
 		profile := &AgentProfile{
-			RunnerType: RunnerTypeCodex,
-			Model:      "opus",
-			MaxTurns:   100,
+
+			MaxTurns: 100, RoleRef:
 			// SandboxConfig deliberately left nil.
+			"code.default",
 		}
 
 		cfg.ApplyProfile(profile)

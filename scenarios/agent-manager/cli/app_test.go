@@ -126,7 +126,7 @@ func TestApp_RegisterCommands_Groups(t *testing.T) {
 		"Tasks",
 		"Runs",
 		"Runners",
-		"Model Policy",
+		"Role Policy",
 		"Settings",
 		"Maintenance",
 		"Operational Stats",

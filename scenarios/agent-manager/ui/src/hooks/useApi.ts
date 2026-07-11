@@ -44,7 +44,7 @@ import {
   GetRunDiffResponseSchema,
   GetRunEventsResponseSchema,
   GetRunResponseSchema,
-  GetModelPolicyCatalogResponseSchema,
+  GetRolePolicyCatalogResponseSchema,
   GetRunnerStatusResponseSchema,
   GetTaskResponseSchema,
   ListProfilesResponseSchema,
@@ -312,14 +312,11 @@ function resolveProfileKey(profile: ProfileFormData): string {
 }
 
 function buildProfile(profile: ProfileFormData): AgentProfile {
-  const model = profile.model?.trim() ?? "";
   return create(AgentProfileSchema, {
     name: profile.name,
     profileKey: resolveProfileKey(profile),
     description: profile.description ?? "",
-    runnerType: profile.runnerType,
-    model,
-    policyRef: profile.policyRef?.trim() ?? "",
+    roleRef: profile.roleRef.trim(),
     maxTurns: profile.maxTurns ?? 0,
     timeout: durationFromMinutes(profile.timeoutMinutes),
     allowedTools: profile.allowedTools ?? [],
@@ -361,14 +358,8 @@ function buildTask(task: TaskFormData): Task {
 
 function buildRunConfigOverrides(run: RunFormData) {
   const payload: Record<string, unknown> = {};
-  if (run.runnerType !== undefined) {
-    payload.runnerType = run.runnerType;
-  }
-  if (run.policyRef !== undefined) {
-    payload.policyRef = run.policyRef.trim();
-  }
-  if (run.model !== undefined && run.model.trim() !== "") {
-    payload.model = run.model;
+  if (run.roleRef !== undefined) {
+    payload.roleRef = run.roleRef.trim();
   }
   if (run.maxTurns !== undefined) {
     payload.maxTurns = run.maxTurns;
@@ -437,9 +428,7 @@ function buildRunConfigOverrides(run: RunFormData) {
 
 function hasInlineConfig(run: RunFormData): boolean {
   return Boolean(
-    run.runnerType !== undefined ||
-      run.model !== undefined ||
-      run.policyRef !== undefined ||
+    run.roleRef !== undefined ||
       run.maxTurns !== undefined ||
       run.timeoutMinutes !== undefined ||
       run.allowedTools !== undefined ||
@@ -755,7 +744,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
       projectRoot?: string,
       scopePaths?: string[],
       attachmentIds?: string[],
-      overrides?: { runnerType?: string; policyRef?: string }
+		overrides?: { roleRef?: string }
     ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigate", {
         method: "POST",
@@ -766,8 +755,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
           projectRoot,
           scopePaths,
           attachmentIds,
-          runnerType: overrides?.runnerType,
-          policyRef: overrides?.policyRef,
+			roleRef: overrides?.roleRef,
         }),
       });
       const message = parseProto(CreateRunResponseSchema, created);
@@ -783,7 +771,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
       investigationRunId: string,
       customContext?: string,
       attachmentIds?: string[],
-      overrides?: { runnerType?: string; policyRef?: string }
+		overrides?: { roleRef?: string }
     ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigation-apply", {
         method: "POST",
@@ -791,8 +779,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
           investigationRunId,
           customContext,
           attachmentIds,
-          runnerType: overrides?.runnerType,
-          policyRef: overrides?.policyRef,
+			roleRef: overrides?.roleRef,
         }),
       });
       const message = parseProto(CreateRunResponseSchema, created);
@@ -1038,18 +1025,18 @@ export function useRunners(options?: { enabled?: boolean }) {
   return { data, loading, error, refetch: fetchRunners };
 }
 
-// Model-policy catalog hook. This is a read-only projection of Git-managed
+// Role-policy catalog hook. This is a read-only projection of Git-managed
 // declared state; reload and validation remain explicit operator commands.
-export function useModelPolicyCatalog(options?: { enabled?: boolean }) {
-  const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<MessageShape<typeof GetModelPolicyCatalogResponseSchema> | null>(null);
+export function useRolePolicyCatalog(options?: { enabled?: boolean }) {
+	const enabled = options?.enabled ?? true;
+	const { data, loading, error, setData, setLoading, setError } = useApiState<MessageShape<typeof GetRolePolicyCatalogResponseSchema> | null>(null);
 
   const fetchCatalog = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const payload = await apiRequest<unknown>("/model-policy/catalog");
-      setData(parseProto(GetModelPolicyCatalogResponseSchema, payload));
+		const payload = await apiRequest<unknown>("/role-policy/catalog");
+		setData(parseProto(GetRolePolicyCatalogResponseSchema, payload));
     } catch (err) {
       setError((err as Error).message);
     } finally {

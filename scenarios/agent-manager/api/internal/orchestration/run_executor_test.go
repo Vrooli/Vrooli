@@ -40,7 +40,6 @@ func newTestFixtures(t *testing.T) *testFixtures {
 	t.Helper()
 	profile := fixtures.NewAgentProfile(t,
 		fixtures.WithAgentProfileName("test-profile"),
-		fixtures.WithAgentProfileModel("claude-3-opus"),
 	)
 	task := fixtures.NewTask(t,
 		fixtures.WithTaskDescription("A test task for executor tests"),

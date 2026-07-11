@@ -47,10 +47,10 @@ func TestContinueRun_PreservesCustomEnvAndIdentity(t *testing.T) {
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "continue-env-profile",
-		ProfileKey:    "continue-env-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "continue-env-profile",
+		ProfileKey: "continue-env-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "continue-env-task",

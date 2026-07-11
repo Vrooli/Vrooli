@@ -27,9 +27,7 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		Name:                 p.Name,
 		ProfileKey:           p.ProfileKey,
 		Description:          p.Description,
-		RunnerType:           RunnerTypeToProto(p.RunnerType),
-		Model:                p.Model,
-		PolicyRef:            p.PolicyRef,
+		RoleRef:              p.RoleRef,
 		MaxTurns:             int32(p.MaxTurns),
 		Timeout:              DurationToProto(p.Timeout),
 		AllowedTools:         p.AllowedTools,
@@ -63,9 +61,7 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		Name:                 p.Name,
 		ProfileKey:           p.ProfileKey,
 		Description:          p.Description,
-		RunnerType:           RunnerTypeFromProto(p.RunnerType),
-		Model:                p.Model,
-		PolicyRef:            p.PolicyRef,
+		RoleRef:              p.RoleRef,
 		MaxTurns:             int(p.MaxTurns),
 		Timeout:              DurationFromProto(p.Timeout),
 		AllowedTools:         p.AllowedTools,
@@ -470,7 +466,7 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 	return &pb.RunConfig{
 		RunnerType:           RunnerTypeToProto(c.RunnerType),
 		Model:                c.Model,
-		PolicyRef:            c.PolicyRef,
+		RoleRef:              c.RoleRef,
 		MaxTurns:             int32(c.MaxTurns),
 		Timeout:              DurationToProto(c.Timeout),
 		AllowedTools:         c.AllowedTools,
@@ -494,7 +490,7 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 	return &domain.RunConfig{
 		RunnerType:           RunnerTypeFromProto(c.RunnerType),
 		Model:                c.Model,
-		PolicyRef:            c.PolicyRef,
+		RoleRef:              c.RoleRef,
 		MaxTurns:             int(c.MaxTurns),
 		Timeout:              DurationFromProto(c.Timeout),
 		AllowedTools:         c.AllowedTools,
@@ -522,7 +518,7 @@ func ExecutionPolicySnapshotToProto(snapshot *domain.ExecutionPolicySnapshot) *p
 	}
 	return &pb.ExecutionPolicySnapshot{
 		CatalogDigest:     snapshot.CatalogDigest,
-		PolicyRef:         snapshot.PolicyRef,
+		RoleRef:           snapshot.RoleRef,
 		Candidates:        candidates,
 		SelectedIndex:     int32(snapshot.SelectedIndex),
 		SelectedCandidate: ExecutionCandidateToProto(snapshot.SelectedCandidate),
@@ -544,7 +540,7 @@ func ExecutionPolicySnapshotFromProto(snapshot *pb.ExecutionPolicySnapshot) *dom
 	}
 	return &domain.ExecutionPolicySnapshot{
 		CatalogDigest:     snapshot.CatalogDigest,
-		PolicyRef:         snapshot.PolicyRef,
+		RoleRef:           snapshot.RoleRef,
 		Candidates:        candidates,
 		SelectedIndex:     int(snapshot.SelectedIndex),
 		SelectedCandidate: ExecutionCandidateFromProto(snapshot.SelectedCandidate),
@@ -557,6 +553,15 @@ func ExecutionCandidateToProto(candidate domain.ExecutionCandidate) *pb.Executio
 		RunnerType:    RunnerTypeToProto(candidate.RunnerType),
 		SelectionType: ModelSelectionTypeToProto(candidate.SelectionType),
 		Model:         candidate.Model,
+		ResourceRole:  candidate.ResourceRole,
+		Fallbacks:     append([]string(nil), candidate.Fallbacks...),
+		Available:     candidate.Available,
+		FailureCode:   candidate.FailureCode,
+		Failure:       candidate.Failure,
+		Provenance:    &pb.ResourceProvenance{Source: candidate.Provenance.Source, ObservedAt: candidate.Provenance.ObservedAt},
+		Enforcement:   &pb.PermissionEnforcement{Permissions: candidate.Enforcement.Permissions, Caveats: append([]string(nil), candidate.Enforcement.Caveats...)},
+		PolicyPath:    candidate.PolicyPath,
+		PolicyDigest:  candidate.PolicyDigest,
 	}
 }
 
@@ -564,11 +569,25 @@ func ExecutionCandidateFromProto(candidate *pb.ExecutionCandidate) domain.Execut
 	if candidate == nil {
 		return domain.ExecutionCandidate{}
 	}
-	return domain.ExecutionCandidate{
+	result := domain.ExecutionCandidate{
 		RunnerType:    RunnerTypeFromProto(candidate.RunnerType),
 		SelectionType: ModelSelectionTypeFromProto(candidate.SelectionType),
 		Model:         candidate.Model,
+		ResourceRole:  candidate.ResourceRole,
+		Fallbacks:     append([]string(nil), candidate.Fallbacks...),
+		Available:     candidate.Available,
+		FailureCode:   candidate.FailureCode,
+		Failure:       candidate.Failure,
+		PolicyPath:    candidate.PolicyPath,
+		PolicyDigest:  candidate.PolicyDigest,
 	}
+	if candidate.Provenance != nil {
+		result.Provenance = domain.ResourceProvenance{Source: candidate.Provenance.Source, ObservedAt: candidate.Provenance.ObservedAt}
+	}
+	if candidate.Enforcement != nil {
+		result.Enforcement = domain.PermissionEnforcement{Permissions: candidate.Enforcement.Permissions, Caveats: append([]string(nil), candidate.Enforcement.Caveats...)}
+	}
+	return result
 }
 
 func PolicyResolutionExplanationToProto(explanation domain.PolicyResolutionExplanation) *pb.PolicyResolutionExplanation {
@@ -582,12 +601,10 @@ func PolicyResolutionExplanationToProto(explanation domain.PolicyResolutionExpla
 		})
 	}
 	return &pb.PolicyResolutionExplanation{
-		Source:             explanation.Source,
-		Summary:            explanation.Summary,
-		RequestedRunner:    RunnerTypeToProto(explanation.RequestedRunner),
-		RequestedModel:     explanation.RequestedModel,
-		RequestedPolicyRef: explanation.RequestedPolicyRef,
-		Preflight:          preflight,
+		Source:           explanation.Source,
+		Summary:          explanation.Summary,
+		RequestedRoleRef: explanation.RequestedRoleRef,
+		Preflight:        preflight,
 	}
 }
 
@@ -608,12 +625,10 @@ func PolicyResolutionExplanationFromProto(explanation *pb.PolicyResolutionExplan
 		})
 	}
 	return domain.PolicyResolutionExplanation{
-		Source:             explanation.Source,
-		Summary:            explanation.Summary,
-		RequestedRunner:    RunnerTypeFromProto(explanation.RequestedRunner),
-		RequestedModel:     explanation.RequestedModel,
-		RequestedPolicyRef: explanation.RequestedPolicyRef,
-		Preflight:          preflight,
+		Source:           explanation.Source,
+		Summary:          explanation.Summary,
+		RequestedRoleRef: explanation.RequestedRoleRef,
+		Preflight:        preflight,
 	}
 }
 

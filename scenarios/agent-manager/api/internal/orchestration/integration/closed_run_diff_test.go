@@ -190,11 +190,10 @@ func runClosedDiffScenario(t *testing.T, archive *sandbox.DiffResult) (orchestra
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{
-		ID:            uuid.New(),
-		Name:          "closed-run-diff",
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		Model:         "mock-model",
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		ID:   uuid.New(),
+		Name: "closed-run-diff",
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, RoleRef: "code.default",
 	})
 	if err != nil {
 		t.Fatalf("CreateProfile: %v", err)

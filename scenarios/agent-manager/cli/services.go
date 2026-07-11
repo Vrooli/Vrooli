@@ -19,31 +19,33 @@ import (
 
 // Services aggregates all domain-specific services.
 type Services struct {
-	Profiles    *ProfileService
-	Tasks       *TaskService
-	Runs        *RunService
-	Runners     *RunnerService
-	Policy      *PolicyService
-	Settings    *SettingsService
-	Maintenance *MaintenanceService
-	Operational *OperationalService
-	HealthAudit *HealthAuditService
-	Events      *EventsService
+	Profiles         *ProfileService
+	Tasks            *TaskService
+	Runs             *RunService
+	Runners          *RunnerService
+	Policy           *PolicyService
+	PermissionPolicy *PermissionPolicyService
+	Settings         *SettingsService
+	Maintenance      *MaintenanceService
+	Operational      *OperationalService
+	HealthAudit      *HealthAuditService
+	Events           *EventsService
 }
 
 // NewServices creates a new Services instance with all domain services.
 func NewServices(api *cliutil.APIClient) *Services {
 	return &Services{
-		Profiles:    &ProfileService{api: api},
-		Tasks:       &TaskService{api: api},
-		Runs:        &RunService{api: api},
-		Runners:     &RunnerService{api: api},
-		Policy:      &PolicyService{api: api},
-		Settings:    &SettingsService{api: api},
-		Maintenance: &MaintenanceService{api: api},
-		Operational: &OperationalService{api: api},
-		HealthAudit: &HealthAuditService{api: api},
-		Events:      &EventsService{api: api},
+		Profiles:         &ProfileService{api: api},
+		Tasks:            &TaskService{api: api},
+		Runs:             &RunService{api: api},
+		Runners:          &RunnerService{api: api},
+		Policy:           &PolicyService{api: api},
+		PermissionPolicy: &PermissionPolicyService{api: api},
+		Settings:         &SettingsService{api: api},
+		Maintenance:      &MaintenanceService{api: api},
+		Operational:      &OperationalService{api: api},
+		HealthAudit:      &HealthAuditService{api: api},
+		Events:           &EventsService{api: api},
 	}
 }
 
@@ -655,64 +657,158 @@ type PolicyService struct {
 	api *cliutil.APIClient
 }
 
-func (s *PolicyService) Status() ([]byte, *apipb.GetModelPolicyStatusResponse, error) {
-	body, err := s.api.Get("/api/v1/model-policy/status", nil)
+func (s *PolicyService) Status() ([]byte, *apipb.GetRolePolicyStatusResponse, error) {
+	body, err := s.api.Get("/api/v1/role-policy/status", nil)
 	if err != nil {
 		return body, nil, err
 	}
-	var response apipb.GetModelPolicyStatusResponse
+	var response apipb.GetRolePolicyStatusResponse
 	if err := unmarshalProtoResponse(body, &response); err != nil {
 		return body, nil, err
 	}
 	return body, &response, nil
 }
 
-func (s *PolicyService) Catalog() ([]byte, *apipb.GetModelPolicyCatalogResponse, error) {
-	body, err := s.api.Get("/api/v1/model-policy/catalog", nil)
+func (s *PolicyService) Catalog() ([]byte, *apipb.GetRolePolicyCatalogResponse, error) {
+	body, err := s.api.Get("/api/v1/role-policy/catalog", nil)
 	if err != nil {
 		return body, nil, err
 	}
-	var response apipb.GetModelPolicyCatalogResponse
+	var response apipb.GetRolePolicyCatalogResponse
 	if err := unmarshalProtoResponse(body, &response); err != nil {
 		return body, nil, err
 	}
 	return body, &response, nil
 }
 
-func (s *PolicyService) Validate() ([]byte, *apipb.ValidateModelPolicyCatalogResponse, error) {
-	body, err := s.api.Request("POST", "/api/v1/model-policy/validate", nil, nil)
+func (s *PolicyService) Validate() ([]byte, *apipb.ValidateRolePolicyCatalogResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/role-policy/validate", nil, nil)
 	if err != nil {
 		return body, nil, err
 	}
-	var response apipb.ValidateModelPolicyCatalogResponse
+	var response apipb.ValidateRolePolicyCatalogResponse
 	if err := unmarshalProtoResponse(body, &response); err != nil {
 		return body, nil, err
 	}
 	return body, &response, nil
 }
 
-func (s *PolicyService) Reload() ([]byte, *apipb.ReloadModelPolicyCatalogResponse, error) {
-	body, err := s.api.Request("POST", "/api/v1/model-policy/reload", nil, nil)
+func (s *PolicyService) Reload() ([]byte, *apipb.ReloadRolePolicyCatalogResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/role-policy/reload", nil, nil)
 	if err != nil {
 		return body, nil, err
 	}
-	var response apipb.ReloadModelPolicyCatalogResponse
+	var response apipb.ReloadRolePolicyCatalogResponse
 	if err := unmarshalProtoResponse(body, &response); err != nil {
 		return body, nil, err
 	}
 	return body, &response, nil
 }
 
-func (s *PolicyService) Explain(req *apipb.ExplainModelPolicyRequest) ([]byte, *apipb.ExplainModelPolicyResponse, error) {
+func (s *PolicyService) Explain(req *apipb.ExplainRolePolicyRequest) ([]byte, *apipb.ExplainRolePolicyResponse, error) {
 	payload, err := marshalProtoRequest(req)
 	if err != nil {
 		return nil, nil, err
 	}
-	body, err := s.api.Request("POST", "/api/v1/model-policy/explain", nil, payload)
+	body, err := s.api.Request("POST", "/api/v1/role-policy/explain", nil, payload)
 	if err != nil {
 		return body, nil, err
 	}
-	var response apipb.ExplainModelPolicyResponse
+	var response apipb.ExplainRolePolicyResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+// PermissionPolicyService exposes the global desired-permission control plane.
+// The server delegates all native projection to the owning resource CLIs.
+type PermissionPolicyService struct {
+	api *cliutil.APIClient
+}
+
+func (s *PermissionPolicyService) Status() ([]byte, *apipb.GetPermissionPolicyStatusResponse, error) {
+	body, err := s.api.Get("/api/v1/permission-policy/status", nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.GetPermissionPolicyStatusResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PermissionPolicyService) Catalog() ([]byte, *apipb.GetPermissionPolicyCatalogResponse, error) {
+	body, err := s.api.Get("/api/v1/permission-policy/catalog", nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.GetPermissionPolicyCatalogResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PermissionPolicyService) Validate() ([]byte, *apipb.ValidatePermissionPolicyCatalogResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/permission-policy/validate", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.ValidatePermissionPolicyCatalogResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PermissionPolicyService) Reload() ([]byte, *apipb.ReloadPermissionPolicyCatalogResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/permission-policy/reload", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.ReloadPermissionPolicyCatalogResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PermissionPolicyService) Plan() ([]byte, *apipb.PlanPermissionPolicyResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/permission-policy/plan", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.PlanPermissionPolicyResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PermissionPolicyService) Reconcile(req *apipb.ReconcilePermissionPolicyRequest) ([]byte, *apipb.ReconcilePermissionPolicyResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/permission-policy/reconcile", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.ReconcilePermissionPolicyResponse
+	if err := unmarshalProtoResponse(body, &response); err != nil {
+		return body, nil, err
+	}
+	return body, &response, nil
+}
+
+func (s *PermissionPolicyService) Doctor() ([]byte, *apipb.DoctorPermissionPolicyResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/permission-policy/doctor", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var response apipb.DoctorPermissionPolicyResponse
 	if err := unmarshalProtoResponse(body, &response); err != nil {
 		return body, nil, err
 	}

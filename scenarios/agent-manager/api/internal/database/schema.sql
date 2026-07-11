@@ -9,9 +9,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     name TEXT NOT NULL UNIQUE,
     profile_key TEXT NOT NULL UNIQUE,
     description TEXT,
-    runner_type TEXT NOT NULL,
-    model TEXT,
-    policy_ref TEXT DEFAULT '',
+    role_ref TEXT NOT NULL,
     max_turns INTEGER,
     timeout_ms INTEGER,
     allowed_tools TEXT DEFAULT '[]',
@@ -213,6 +211,24 @@ CREATE TABLE IF NOT EXISTS policies (
 
 CREATE INDEX IF NOT EXISTS idx_policies_enabled ON policies(enabled);
 CREATE INDEX IF NOT EXISTS idx_policies_priority ON policies(priority);
+
+-- ============================================================================
+-- Permission policy reconcile audit - Agent Manager-owned metadata only
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS permission_policy_reconcile_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    catalog_digest TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT NOT NULL,
+    explicitly_authorized INTEGER NOT NULL,
+    success INTEGER NOT NULL,
+    hard_enforcement_satisfied INTEGER NOT NULL,
+    missing_hard_enforcement_rule_ids TEXT NOT NULL,
+    resource_results TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_permission_policy_reconcile_audit_finished
+    ON permission_policy_reconcile_audit(finished_at DESC);
 
 -- ============================================================================
 -- Scope Locks - Concurrency control

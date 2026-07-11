@@ -67,7 +67,7 @@ func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
 		Model:      "gpt-primary",
 		PolicySnapshot: &domain.ExecutionPolicySnapshot{
 			CatalogDigest: "sha256:catalog-revision",
-			PolicyRef:     "codex.smart",
+			RoleRef:       "code.smart",
 			Candidates: []domain.ExecutionCandidate{
 				{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "gpt-primary"},
 				{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeRunnerDefault},
@@ -78,10 +78,9 @@ func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
 				SelectionType: domain.ModelSelectionTypeRunnerDefault,
 			},
 			Explanation: domain.PolicyResolutionExplanation{
-				Source:             "named_policy",
-				Summary:            "resolved before run creation",
-				RequestedRunner:    domain.RunnerTypeCodex,
-				RequestedPolicyRef: "codex.smart",
+				Source:           "portable_role",
+				Summary:          "resolved before run creation",
+				RequestedRoleRef: "code.smart",
 				Preflight: []domain.CandidatePreflight{
 					{
 						Index:     0,
@@ -323,12 +322,11 @@ func TestDurationConversions(t *testing.T) {
 
 func TestAgentProfileRoundTrip(t *testing.T) {
 	original := &domain.AgentProfile{
-		ID:                   uuid.New(),
-		Name:                 "test-profile",
-		ProfileKey:           "test-profile-key",
-		Description:          "A test profile",
-		RunnerType:           domain.RunnerTypeClaudeCode,
-		Model:                "claude-3-opus",
+		ID:          uuid.New(),
+		Name:        "test-profile",
+		ProfileKey:  "test-profile-key",
+		Description: "A test profile",
+
 		MaxTurns:             100,
 		Timeout:              10 * time.Minute,
 		AllowedTools:         []string{"read", "write"},
@@ -338,7 +336,7 @@ func TestAgentProfileRoundTrip(t *testing.T) {
 		DeniedPaths:          []string{"/secrets"},
 		CreatedBy:            "test-user",
 		CreatedAt:            time.Now().Truncate(time.Second),
-		UpdatedAt:            time.Now().Truncate(time.Second),
+		UpdatedAt:            time.Now().Truncate(time.Second), RoleRef: "code.default",
 	}
 
 	proto := AgentProfileToProto(original)
@@ -353,8 +351,8 @@ func TestAgentProfileRoundTrip(t *testing.T) {
 	if result.ProfileKey != original.ProfileKey {
 		t.Errorf("ProfileKey: expected %v, got %v", original.ProfileKey, result.ProfileKey)
 	}
-	if result.RunnerType != original.RunnerType {
-		t.Errorf("RunnerType: expected %v, got %v", original.RunnerType, result.RunnerType)
+	if result.RoleRef != original.RoleRef {
+		t.Errorf("RoleRef: expected %q, got %q", original.RoleRef, result.RoleRef)
 	}
 	if result.MaxTurns != original.MaxTurns {
 		t.Errorf("MaxTurns: expected %v, got %v", original.MaxTurns, result.MaxTurns)
@@ -888,14 +886,14 @@ func TestAgentProfileWithFeaturesRoundTrip(t *testing.T) {
 		ID:         uuid.New(),
 		Name:       "features-profile",
 		ProfileKey: "features-key",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Features:   domain.FeatureFlags{EnableBrowser: true},
+
+		Features: domain.FeatureFlags{EnableBrowser: true},
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools"},
 			domain.RunnerTypeCodex:      []string{"--verbose"},
 		},
 		CreatedAt: time.Now().Truncate(time.Second),
-		UpdatedAt: time.Now().Truncate(time.Second),
+		UpdatedAt: time.Now().Truncate(time.Second), RoleRef: "code.default",
 	}
 
 	proto := AgentProfileToProto(original)
@@ -932,8 +930,8 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 		Id:          uuid.New().String(),
 		Name:        "test",
 		Description: "test profile",
-		RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		MaxTurns:    100,
+
+		MaxTurns: 100, RoleRef: "code.default",
 	}
 
 	data, err := MarshalJSON(profile)
@@ -949,8 +947,8 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	if result.Name != profile.Name {
 		t.Errorf("Name: expected %v, got %v", profile.Name, result.Name)
 	}
-	if result.RunnerType != profile.RunnerType {
-		t.Errorf("RunnerType: expected %v, got %v", profile.RunnerType, result.RunnerType)
+	if result.RoleRef != profile.RoleRef {
+		t.Errorf("RoleRef: expected %q, got %q", profile.RoleRef, result.RoleRef)
 	}
 }
 

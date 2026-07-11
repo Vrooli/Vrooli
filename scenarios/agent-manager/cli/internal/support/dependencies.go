@@ -5,16 +5,17 @@ import "github.com/vrooli/cli-core/cliapp"
 type CommandFunc func(args []string) error
 
 type Dependencies struct {
-	Profile     CommandFunc
-	Task        CommandFunc
-	Run         CommandFunc
-	Runner      CommandFunc
-	Policy      CommandFunc
-	Settings    CommandFunc
-	Maintenance CommandFunc
-	Ops         CommandFunc
-	Health      CommandFunc
-	Events      CommandFunc
+	Profile          CommandFunc
+	Task             CommandFunc
+	Run              CommandFunc
+	Runner           CommandFunc
+	Policy           CommandFunc
+	PermissionPolicy CommandFunc
+	Settings         CommandFunc
+	Maintenance      CommandFunc
+	Ops              CommandFunc
+	Health           CommandFunc
+	Events           CommandFunc
 }
 
 func Command(name, description string, run CommandFunc) cliapp.Command {

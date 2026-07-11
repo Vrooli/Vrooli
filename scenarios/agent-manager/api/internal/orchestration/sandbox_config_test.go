@@ -126,7 +126,7 @@ func TestResolveSandboxConfig_ProfileConfigUsed(t *testing.T) {
 	o := &Orchestrator{}
 	profileCfg := domain.DefaultSandboxConfig()
 	profileCfg.ManualReview = true
-	profile := &domain.AgentProfile{SandboxConfig: profileCfg}
+	profile := &domain.AgentProfile{SandboxConfig: profileCfg, RoleRef: "code.default"}
 
 	cfg, err := o.resolveSandboxConfig(CreateRunRequest{}, profile)
 	if err != nil {
@@ -146,7 +146,7 @@ func TestResolveSandboxConfig_RequestOverridesProfile(t *testing.T) {
 	o := &Orchestrator{}
 	profileCfg := domain.DefaultSandboxConfig()
 	profileCfg.ManualReview = true
-	profile := &domain.AgentProfile{SandboxConfig: profileCfg}
+	profile := &domain.AgentProfile{SandboxConfig: profileCfg, RoleRef: "code.default"}
 
 	reqCfg := domain.DefaultSandboxConfig()
 	reqCfg.ManualReview = false

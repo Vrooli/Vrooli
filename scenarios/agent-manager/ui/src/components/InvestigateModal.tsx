@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Label } from "./ui/label";
-import { Input } from "./ui/input";
+import { RoleSelector } from "./RoleSelector";
 import { Textarea } from "./ui/textarea";
 import { ScopePathsManager } from "./ScopePathsManager";
 import { AttachmentPreview } from "./AttachmentPreview";
@@ -29,7 +29,7 @@ import type {
   InvestigationDepth,
 } from "../types";
 import { DEFAULT_INVESTIGATION_CONTEXT } from "../types";
-import { useInvestigationSettings } from "../hooks/useApi";
+import { useInvestigationSettings, useRolePolicyCatalog } from "../hooks/useApi";
 import { useAttachments } from "../hooks/useAttachments";
 
 interface InvestigateModalProps {
@@ -51,19 +51,11 @@ interface InvestigateModalProps {
     projectRoot?: string,
     scopePaths?: string[],
     attachmentIds?: string[],
-    overrides?: { runnerType?: string; policyRef?: string }
+    overrides?: { roleRef?: string }
   ) => Promise<void>;
   loading?: boolean;
   error?: string | null;
 }
-
-const runnerOverrideOptions: { value: string; label: string }[] = [
-  { value: "", label: "Default (profile)" },
-  { value: "claude-code", label: "Claude Code" },
-  { value: "codex", label: "Codex" },
-  { value: "opencode", label: "OpenCode" },
-  { value: "grok", label: "Grok" },
-];
 
 const depthOptions: {
   value: InvestigationDepth;
@@ -154,10 +146,8 @@ export function InvestigateModal({
   const [projectRoot, setProjectRoot] = useState(defaultProjectRoot);
   const [scopePaths, setScopePaths] = useState<string[]>(defaultScopePaths);
 
-  // Runner + named-policy overrides (optional). Empty string preserves the
-  // investigation profile's catalog-backed default.
-  const [runnerOverride, setRunnerOverride] = useState<string>("");
-  const [policyOverride, setPolicyOverride] = useState<string>("");
+  // Empty preserves the investigation profile's catalog-backed default.
+  const [roleOverride, setRoleOverride] = useState<string>("");
 
   // Image attachments — uploaded eagerly via the shared attachments hook.
   const {
@@ -172,6 +162,7 @@ export function InvestigateModal({
 
   // Get default settings
   const { data: settings } = useInvestigationSettings();
+  const rolePolicy = useRolePolicyCatalog({ enabled: open });
 
   // Reset state when modal opens
   useEffect(() => {
@@ -180,8 +171,7 @@ export function InvestigateModal({
       setShowContext(false);
       setProjectRoot(defaultProjectRoot);
       setScopePaths(defaultScopePaths);
-      setRunnerOverride("");
-      setPolicyOverride("");
+      setRoleOverride("");
       clearAttachments();
     }
   }, [open, defaultProjectRoot, defaultScopePaths, clearAttachments]);
@@ -236,11 +226,8 @@ export function InvestigateModal({
   const handleSubmit = async () => {
     const attachmentIds = getUploadedIds();
     const overrides =
-      runnerOverride || policyOverride
-        ? {
-            runnerType: runnerOverride || undefined,
-            policyRef: policyOverride || undefined,
-          }
+      roleOverride
+        ? { roleRef: roleOverride }
         : undefined;
     await onSubmit(
       customContext.trim(),
@@ -320,34 +307,13 @@ export function InvestigateModal({
                 </div>
               )}
 
-              {/* Agent overrides are optional. The named policy owns its complete
-                  candidate sequence, including cross-runner fallback. */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="investigate-runner-override">Runner</Label>
-                  <select
-                    id="investigate-runner-override"
-                    value={runnerOverride}
-                    onChange={(event) => setRunnerOverride(event.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {runnerOverrideOptions.map((option) => (
-                      <option key={option.value || "default"} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="investigate-policy-override">Policy reference</Label>
-                  <Input
-                    id="investigate-policy-override"
-                    value={policyOverride}
-                    onChange={(event) => setPolicyOverride(event.target.value)}
-                    placeholder="Default profile policy"
-                  />
-                </div>
-              </div>
+              <RoleSelector
+                catalog={rolePolicy.data?.catalog}
+                value={roleOverride || rolePolicy.data?.catalog?.defaultRole || ""}
+                onChange={setRoleOverride}
+                label="Role override"
+                id="investigate-role-override"
+              />
 
               {/* Context Selection (collapsible) */}
               <div className="space-y-2">

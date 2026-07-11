@@ -47,10 +47,10 @@ func TestStopRun_WithTerminatorEmitsStatusEventAndBroadcast(t *testing.T) {
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "stop-profile",
-		ProfileKey:    "stop-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "stop-profile",
+		ProfileKey: "stop-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:     "stop task",
@@ -164,10 +164,10 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "continue-profile",
-		ProfileKey:    "continue-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		Name:       "continue-profile",
+		ProfileKey: "continue-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:     "continue task",
@@ -316,10 +316,10 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "protected-continue-profile",
-		ProfileKey:    "protected-continue-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		Name:       "protected-continue-profile",
+		ProfileKey: "protected-continue-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "protected continue task",
@@ -437,10 +437,10 @@ func TestContinueRun_ResumeFailureDoesNotMarkRunRunning(t *testing.T) {
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:          "resume-fail-profile",
-		ProfileKey:    "resume-fail-" + uuid.New().String()[:8],
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		Name:       "resume-fail-profile",
+		ProfileKey: "resume-fail-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:     "resume fail task",

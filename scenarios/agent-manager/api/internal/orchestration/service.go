@@ -31,13 +31,13 @@ import (
 	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
-	"agent-manager/internal/modelpolicy"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/storage"
 
@@ -226,9 +226,7 @@ type CreateRunRequest struct {
 	SourceInvestigationRunID *uuid.UUID  `json:"sourceInvestigationRunId,omitempty"`
 
 	// Inline config (optional - used if no profile, or overrides profile)
-	RunnerType           *domain.RunnerType      `json:"runnerType,omitempty"`
-	Model                *string                 `json:"model,omitempty"`
-	PolicyRef            *string                 `json:"policyRef,omitempty"`
+	RoleRef              *string                 `json:"roleRef,omitempty"`
 	MaxTurns             *int                    `json:"maxTurns,omitempty"`
 	Timeout              *time.Duration          `json:"timeout,omitempty"`
 	AllowedTools         []string                `json:"allowedTools,omitempty"`
@@ -381,11 +379,9 @@ type CreateInvestigationRequest struct {
 	ProjectRoot   string                    `json:"projectRoot,omitempty"` // Root directory for investigation (explicit, no guessing)
 	ScopePaths    []string                  `json:"scopePaths,omitempty"`  // Paths where agent can make changes
 	AttachmentIDs []string                  `json:"attachmentIds,omitempty"`
-	// Runner + named-policy overrides for the investigation agent. When nil, the default
-	// investigation profile's values apply. Callers use this to pick a runner or
-	// policy whose candidate sequence currently works, without editing the catalog.
-	RunnerType *domain.RunnerType `json:"runnerType,omitempty"`
-	PolicyRef  *string            `json:"policyRef,omitempty"`
+	// RoleRef overrides the portable role on the default investigation profile.
+	// Resource-owned role resolution selects the concrete runner/model snapshot.
+	RoleRef *string `json:"roleRef,omitempty"`
 	// Environment carries custom VROOLI_-prefixed variables (e.g.
 	// VROOLI_SHADOW_SCENARIOS) into the investigation runner process — same
 	// contract as CreateRunRequest.Environment. Without this, an investigation
@@ -399,9 +395,8 @@ type CreateInvestigationApplyRequest struct {
 	InvestigationRunID uuid.UUID `json:"investigationRunId"`
 	CustomContext      string    `json:"customContext,omitempty"`
 	AttachmentIDs      []string  `json:"attachmentIds,omitempty"`
-	// Runner + named-policy overrides for the apply agent; same semantics as investigation.
-	RunnerType *domain.RunnerType `json:"runnerType,omitempty"`
-	PolicyRef  *string            `json:"policyRef,omitempty"`
+	// RoleRef overrides the portable role on the default apply profile.
+	RoleRef *string `json:"roleRef,omitempty"`
 	// Environment carries custom VROOLI_-prefixed variables into the apply runner
 	// process; same contract as CreateInvestigationRequest.Environment.
 	Environment map[string]string `json:"environment,omitempty"`
@@ -539,9 +534,8 @@ type Orchestrator struct {
 	// Storage label for health reporting (e.g., sqlite).
 	storageLabel string
 
-	// Model policy state is the single active-revision seam. Resolution reads
-	// this state directly; orchestration must not maintain a second cache.
-	modelPolicy *modelpolicy.State
+	rolePolicy   *rolepolicy.State
+	roleResolver rolepolicy.Resolver
 
 	// Model + runner health audit (SQLite-persisted, populated by runtime
 	// classification + the periodic probe). Snapshots derive from
@@ -694,10 +688,12 @@ func WithStorageLabel(label string) Option {
 	}
 }
 
-// WithModelPolicyState wires the single active model-policy revision owner.
-func WithModelPolicyState(state *modelpolicy.State) Option {
+// WithRolePolicyState wires portable role resolution. The resolver is an
+// explicit seam so tests never need installed resource CLIs.
+func WithRolePolicyState(state *rolepolicy.State, resolver rolepolicy.Resolver) Option {
 	return func(o *Orchestrator) {
-		o.modelPolicy = state
+		o.rolePolicy = state
+		o.roleResolver = resolver
 	}
 }
 
@@ -1581,20 +1577,8 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 
 	// Apply inline overrides
-	if req.RunnerType != nil {
-		cfg.RunnerType = *req.RunnerType
-	}
-	if req.PolicyRef != nil {
-		cfg.PolicyRef = strings.TrimSpace(*req.PolicyRef)
-		if cfg.PolicyRef != "" {
-			cfg.Model = ""
-		}
-	}
-	if req.Model != nil {
-		cfg.Model = *req.Model
-		if strings.TrimSpace(cfg.Model) != "" {
-			cfg.PolicyRef = ""
-		}
+	if req.RoleRef != nil {
+		cfg.RoleRef = strings.TrimSpace(*req.RoleRef)
 	}
 	if req.MaxTurns != nil {
 		cfg.MaxTurns = *req.MaxTurns
@@ -1634,11 +1618,9 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		cfg.DeniedPaths = req.DeniedPaths
 	}
 	// Validate the resolved config
-	if !cfg.RunnerType.IsValid() {
-		return nil, nil, domain.NewValidationError("runnerType", "invalid runner type: "+string(cfg.RunnerType))
-	}
-	if strings.TrimSpace(cfg.Model) != "" && strings.TrimSpace(cfg.PolicyRef) != "" {
-		return nil, nil, domain.NewValidationError("policyRef", "cannot set model and policy reference together")
+	if strings.TrimSpace(cfg.RoleRef) == "" {
+		return nil, nil, domain.NewValidationErrorWithHint("roleRef", "field is required",
+			"Select a portable role from the active role-policy catalog")
 	}
 	if err := o.resolveExecutionPolicy(ctx, cfg); err != nil {
 		return nil, nil, err
@@ -1663,66 +1645,43 @@ func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.R
 	if cfg == nil {
 		return domain.NewValidationError("runConfig", "field is required")
 	}
-	if o.modelPolicy == nil {
-		if strings.TrimSpace(cfg.PolicyRef) != "" {
-			return domain.NewValidationError("modelPolicyCatalog", "model policy state is not configured")
+	if strings.TrimSpace(cfg.RoleRef) != "" {
+		if o.rolePolicy == nil || o.roleResolver == nil {
+			return domain.NewValidationError("rolePolicyCatalog", "role policy state or resource resolver is not configured")
 		}
-		// Test-only/minimal orchestrators may omit the state. Production boot
-		// always injects it and readiness prevents traffic without a revision.
+		resolution, err := o.rolePolicy.Resolve(ctx, o.roleResolver, cfg.RoleRef)
+		if err != nil {
+			return err
+		}
+		snapshot := resolution.Snapshot()
+		if snapshot == nil || len(snapshot.Candidates) == 0 {
+			return domain.NewValidationError("rolePolicyCatalog", "role resolution produced no candidates")
+		}
+		selectedIndex, preflight, err := o.selectInitialCandidate(ctx, snapshot.Candidates)
+		if err != nil {
+			return err
+		}
+		snapshot.SelectedIndex = selectedIndex
+		snapshot.SelectedCandidate = snapshot.Candidates[selectedIndex]
+		snapshot.Explanation.Preflight = preflight
+		snapshot.Explanation.Summary = fmt.Sprintf(
+			"%s; selected candidate %d (%s/%s)",
+			snapshot.Explanation.Summary,
+			selectedIndex,
+			snapshot.SelectedCandidate.RunnerType,
+			snapshot.SelectedCandidate.Model,
+		)
+		cfg.PolicySnapshot = snapshot
+		cfg.RunnerType = snapshot.SelectedCandidate.RunnerType
+		cfg.Model = snapshot.SelectedCandidate.Model
 		return nil
 	}
-
-	var (
-		snapshot *domain.ExecutionPolicySnapshot
-		err      error
-	)
-	switch {
-	case strings.TrimSpace(cfg.PolicyRef) != "":
-		snapshot, err = o.modelPolicy.ResolvePolicy(cfg.PolicyRef)
-	case strings.TrimSpace(cfg.Model) != "":
-		snapshot, err = o.modelPolicy.ResolveDirectModel(cfg.RunnerType, cfg.Model)
-	default:
-		snapshot, err = o.modelPolicy.ResolveRunnerDefault(cfg.RunnerType)
-	}
-	if err != nil {
-		return err
-	}
-	if snapshot == nil || len(snapshot.Candidates) == 0 {
-		return domain.NewValidationError("modelPolicyCatalog", "resolution produced no candidates")
-	}
-
-	selectedIndex, preflight, err := o.selectInitialCandidate(ctx, snapshot.Candidates)
-	if err != nil {
-		return err
-	}
-	snapshot.SelectedIndex = selectedIndex
-	snapshot.SelectedCandidate = snapshot.Candidates[selectedIndex]
-	snapshot.Explanation.Preflight = preflight
-	snapshot.Explanation.Summary = fmt.Sprintf(
-		"%s; selected candidate %d (%s/%s)",
-		snapshot.Explanation.Summary,
-		selectedIndex,
-		snapshot.SelectedCandidate.RunnerType,
-		snapshot.SelectedCandidate.SelectionType,
-	)
-
-	selected := snapshot.SelectedCandidate
-	cfg.PolicySnapshot = snapshot
-	cfg.RunnerType = selected.RunnerType
-	switch selected.SelectionType {
-	case domain.ModelSelectionTypeModel:
-		cfg.Model = selected.Model
-	case domain.ModelSelectionTypeRunnerDefault:
-		cfg.Model = ""
-	default:
-		return domain.NewValidationError("modelPolicyCatalog", "resolution selected an invalid candidate type")
-	}
-	return nil
+	return domain.NewValidationError("roleRef", "field is required")
 }
 
 func (o *Orchestrator) selectInitialCandidate(ctx context.Context, candidates []domain.ExecutionCandidate) (int, []domain.CandidatePreflight, error) {
 	if len(candidates) == 0 {
-		return -1, nil, domain.NewValidationError("modelPolicyCatalog", "resolution produced no candidates")
+		return -1, nil, domain.NewValidationError("rolePolicyCatalog", "resolution produced no candidates")
 	}
 	if o.runners == nil {
 		// Minimal unit orchestrators omit adapters. Production always injects
@@ -1733,6 +1692,20 @@ func (o *Orchestrator) selectInitialCandidate(ctx context.Context, candidates []
 	checks := make([]domain.CandidatePreflight, 0, len(candidates))
 	for index, candidate := range candidates {
 		check := domain.CandidatePreflight{Index: index, Candidate: candidate}
+		// Availability is resource-resolution evidence for portable roles.
+		// Legacy snapshots predate that field, so their zero value must not
+		// make every historical/direct candidate unavailable.
+		if candidate.ResourceRole != "" && !candidate.Available {
+			check.Reason = candidate.Failure
+			if check.Reason == "" {
+				check.Reason = candidate.FailureCode
+			}
+			if check.Reason == "" {
+				check.Reason = "resource role is unavailable"
+			}
+			checks = append(checks, check)
+			continue
+		}
 		resolvedRunner, err := o.runners.Get(candidate.RunnerType)
 		if err != nil || resolvedRunner == nil {
 			check.Reason = "runner is not registered"
@@ -1772,7 +1745,7 @@ func (o *Orchestrator) selectInitialCandidate(ctx context.Context, candidates []
 		reasons = append(reasons, fmt.Sprintf("candidate %d %s/%s: %s", check.Index, check.Candidate.RunnerType, check.Candidate.SelectionType, check.Reason))
 	}
 	return -1, checks, domain.NewValidationErrorWithHint(
-		"modelPolicyCatalog",
+		"rolePolicyCatalog",
 		"no policy candidate passed runner/model preflight",
 		strings.Join(reasons, "; "),
 	)
@@ -2207,14 +2180,10 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	// Get the runner type from resolved config or profile
+	// The immutable resolved config is the sole execution authority.
 	var runnerType domain.RunnerType
 	if run.ResolvedConfig != nil {
 		runnerType = run.ResolvedConfig.RunnerType
-	} else if run.AgentProfileID != nil {
-		if profile, err := o.GetProfile(ctx, *run.AgentProfileID); err == nil && profile != nil {
-			runnerType = profile.RunnerType
-		}
 	}
 
 	// Stop execution if we have a runner type
@@ -2276,14 +2245,10 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 // responsible for the precondition gate (CanContinueRun for continue, the parked
 // guard for wake) before calling this.
 func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, message string, attachmentIDs []string, reason string) (*domain.Run, error) {
-	// Get the runner type from resolved config
+	// The immutable resolved config is the sole execution authority.
 	var runnerType domain.RunnerType
 	if run.ResolvedConfig != nil {
 		runnerType = run.ResolvedConfig.RunnerType
-	} else if run.AgentProfileID != nil {
-		if profile, err := o.GetProfile(ctx, *run.AgentProfileID); err == nil && profile != nil {
-			runnerType = profile.RunnerType
-		}
 	}
 
 	if runnerType == "" {
@@ -3138,7 +3103,7 @@ func (o *Orchestrator) ExplainProfilePolicy(ctx context.Context, profileID uuid.
 		return nil, err
 	}
 	if cfg == nil || cfg.PolicySnapshot == nil {
-		return nil, domain.NewValidationError("modelPolicyCatalog", "profile resolution produced no policy snapshot")
+		return nil, domain.NewValidationError("rolePolicyCatalog", "profile resolution produced no policy snapshot")
 	}
 	return cfg.PolicySnapshot, nil
 }

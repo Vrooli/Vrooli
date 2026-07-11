@@ -103,11 +103,10 @@ func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{
-		ID:            uuid.New(),
-		Name:          "spawn-burst",
-		RunnerType:    domain.RunnerTypeClaudeCode,
-		Model:         "claude-3-opus",
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		ID:   uuid.New(),
+		Name: "spawn-burst",
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	if err != nil {
 		t.Fatalf("CreateProfile: %v", err)

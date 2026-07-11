@@ -143,7 +143,7 @@ func TestClaude_BuildArgs_FeaturesAndExtraFlags(t *testing.T) {
 func TestClaude_BuildArgs_SystemPrompt(t *testing.T) {
 	c := NewClaudeForTest()
 	t.Run("includes --append-system-prompt when set", func(t *testing.T) {
-		req := runner.ExecuteRequest{RunID: uuid.New(), SystemPrompt: "You are an investigation agent.", Profile: &domain.AgentProfile{RunnerType: domain.RunnerTypeClaudeCode}}
+		req := runner.ExecuteRequest{RunID: uuid.New(), SystemPrompt: "You are an investigation agent.", Profile: &domain.AgentProfile{RoleRef: "code.default"}}
 		args := c.BuildArgs(c.NewState(), req)
 		found := false
 		for i, a := range args {
@@ -159,7 +159,7 @@ func TestClaude_BuildArgs_SystemPrompt(t *testing.T) {
 		}
 	})
 	t.Run("omits --append-system-prompt when empty", func(t *testing.T) {
-		req := runner.ExecuteRequest{RunID: uuid.New(), Profile: &domain.AgentProfile{RunnerType: domain.RunnerTypeClaudeCode}}
+		req := runner.ExecuteRequest{RunID: uuid.New(), Profile: &domain.AgentProfile{RoleRef: "code.default"}}
 		args := c.BuildArgs(c.NewState(), req)
 		for _, a := range args {
 			if a == "--append-system-prompt" {
@@ -171,7 +171,7 @@ func TestClaude_BuildArgs_SystemPrompt(t *testing.T) {
 
 func TestClaude_BuildArgs_DefaultMaxTurnsAndStdinSentinel(t *testing.T) {
 	c := NewClaudeForTest()
-	args := c.BuildArgs(c.NewState(), runner.ExecuteRequest{RunID: uuid.New(), Profile: &domain.AgentProfile{RunnerType: domain.RunnerTypeClaudeCode}})
+	args := c.BuildArgs(c.NewState(), runner.ExecuteRequest{RunID: uuid.New(), Profile: &domain.AgentProfile{RoleRef: "code.default"}})
 	// Default max-turns should be 30 when no override.
 	gotMaxTurns := ""
 	for i, a := range args {

@@ -1,7 +1,7 @@
 // Package domain defines the core domain entities for agent-manager.
 //
 // This package contains the central concepts that agent-manager operates on:
-// - AgentProfile: defines HOW an agent runs (runner config, permissions)
+// - AgentProfile: defines HOW an agent runs (portable role, permissions)
 // - Task: defines WHAT needs to be done (scope, context, requirements)
 // - Run: a concrete execution linking Task to AgentProfile within a sandbox
 // - RunEvent: append-only event stream capturing all agent activity
@@ -28,12 +28,11 @@ type AgentProfile struct {
 	ProfileKey  string    `json:"profileKey" db:"profile_key"`
 	Description string    `json:"description,omitempty" db:"description"`
 
-	// Runner configuration
-	RunnerType RunnerType    `json:"runnerType" db:"runner_type"`
-	Model      string        `json:"model,omitempty" db:"model"`
-	PolicyRef  string        `json:"policyRef,omitempty" db:"policy_ref"`
-	MaxTurns   int           `json:"maxTurns,omitempty" db:"max_turns"`
-	Timeout    time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
+	// RoleRef is portable desired intent. Concrete runner/model selections are
+	// captured only in a run's immutable PolicySnapshot.
+	RoleRef  string        `json:"roleRef,omitempty" db:"role_ref"`
+	MaxTurns int           `json:"maxTurns,omitempty" db:"max_turns"`
+	Timeout  time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
 
 	// Tool permissions
 	AllowedTools []string `json:"allowedTools,omitempty" db:"allowed_tools"`
@@ -111,9 +110,30 @@ const (
 
 // ExecutionCandidate is one immutable runner/model attempt in resolved order.
 type ExecutionCandidate struct {
-	RunnerType    RunnerType         `json:"runnerType"`
-	SelectionType ModelSelectionType `json:"selectionType"`
-	Model         string             `json:"model,omitempty"`
+	RunnerType    RunnerType            `json:"runnerType"`
+	SelectionType ModelSelectionType    `json:"selectionType"`
+	Model         string                `json:"model,omitempty"`
+	ResourceRole  string                `json:"resourceRole,omitempty"`
+	Fallbacks     []string              `json:"fallbacks,omitempty"`
+	Available     bool                  `json:"available"`
+	FailureCode   string                `json:"failureCode,omitempty"`
+	Failure       string                `json:"failure,omitempty"`
+	Provenance    ResourceProvenance    `json:"provenance,omitempty"`
+	Enforcement   PermissionEnforcement `json:"enforcement,omitempty"`
+	PolicyPath    string                `json:"policyPath,omitempty"`
+	PolicyDigest  string                `json:"policyDigest,omitempty"`
+}
+
+// ResourceProvenance pins where a resource-owned role decision came from.
+type ResourceProvenance struct {
+	Source     string `json:"source,omitempty"`
+	ObservedAt string `json:"observedAt,omitempty"`
+}
+
+// PermissionEnforcement reports the resource's actual enforcement posture.
+type PermissionEnforcement struct {
+	Permissions string   `json:"permissions,omitempty"`
+	Caveats     []string `json:"caveats,omitempty"`
 }
 
 // CandidatePreflight records the creation-time availability evidence used to
@@ -129,20 +149,18 @@ type CandidatePreflight struct {
 // sequence. It is persisted with the run so operators never need to reconstruct
 // precedence from the current profile or catalog.
 type PolicyResolutionExplanation struct {
-	Source             string               `json:"source"`
-	Summary            string               `json:"summary"`
-	RequestedRunner    RunnerType           `json:"requestedRunner,omitempty"`
-	RequestedModel     string               `json:"requestedModel,omitempty"`
-	RequestedPolicyRef string               `json:"requestedPolicyRef,omitempty"`
-	Preflight          []CandidatePreflight `json:"preflight,omitempty"`
+	Source           string               `json:"source"`
+	Summary          string               `json:"summary"`
+	RequestedRoleRef string               `json:"requestedRoleRef,omitempty"`
+	Preflight        []CandidatePreflight `json:"preflight,omitempty"`
 }
 
 // ExecutionPolicySnapshot is the immutable model/runner decision attached to a
 // run at creation. Execution must consume Candidates from this snapshot rather
-// than rereading the active model-policy catalog.
+// than rereading the active role-policy catalog.
 type ExecutionPolicySnapshot struct {
 	CatalogDigest     string                      `json:"catalogDigest"`
-	PolicyRef         string                      `json:"policyRef,omitempty"`
+	RoleRef           string                      `json:"roleRef,omitempty"`
 	Candidates        []ExecutionCandidate        `json:"candidates"`
 	SelectedIndex     int                         `json:"selectedIndex"`
 	SelectedCandidate ExecutionCandidate          `json:"selectedCandidate"`
@@ -884,7 +902,7 @@ type RunConfig struct {
 	// Runner configuration
 	RunnerType RunnerType    `json:"runnerType"`
 	Model      string        `json:"model,omitempty"`
-	PolicyRef  string        `json:"policyRef,omitempty"`
+	RoleRef    string        `json:"roleRef,omitempty"`
 	MaxTurns   int           `json:"maxTurns,omitempty"`
 	Timeout    time.Duration `json:"timeout,omitempty"`
 
@@ -927,9 +945,7 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	if profile == nil {
 		return
 	}
-	c.RunnerType = profile.RunnerType
-	c.Model = profile.Model
-	c.PolicyRef = profile.PolicyRef
+	c.RoleRef = profile.RoleRef
 	c.MaxTurns = profile.MaxTurns
 	c.Timeout = profile.Timeout
 	c.AllowedTools = profile.AllowedTools

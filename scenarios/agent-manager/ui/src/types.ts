@@ -1,4 +1,4 @@
-import { RunMode, RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+import { RunMode } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
 // Re-export proto type for reading Task objects from API
 export type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/domain/task_pb";
@@ -16,7 +16,6 @@ export interface ContextAttachmentData {
 }
 
 export {
-  RunnerType,
   NetworkAccess,
   SandboxMode,
   TaskStatus,
@@ -28,6 +27,8 @@ export {
   RunEventType,
   RecoveryAction,
 } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+
+export { RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
 export type {
   AgentProfile,
@@ -68,9 +69,7 @@ export interface ProfileFormData {
   name: string;
   profileKey?: string;
   description?: string;
-  runnerType: RunnerType;
-  model?: string;
-  policyRef?: string;
+  roleRef: string;
   maxTurns?: number;
   timeoutMinutes?: number;
   allowedTools?: string[];
@@ -101,9 +100,7 @@ export interface RunFormData {
   agentProfileId?: string;
   tag?: string;
   existingSandboxId?: string;
-  runnerType?: RunnerType;
-  model?: string;
-  policyRef?: string;
+  roleRef?: string;
   maxTurns?: number;
   timeoutMinutes?: number;
   allowedTools?: string[];

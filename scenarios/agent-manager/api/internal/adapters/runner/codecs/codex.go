@@ -108,9 +108,9 @@ func NewCodexForTest() *Codex {
 	return c
 }
 
-// Capabilities satisfies [Codec]. Static model visibility is injected from
-// modelpolicy by boot wiring; the codec contributes only locally-pulled Ollama
-// models discovered via the cached lister.
+// Capabilities satisfies [Codec]. It reports only locally-pulled Ollama models
+// discovered via the cached lister; resource role resolution owns concrete
+// coding-agent model selection.
 func (c *Codex) Capabilities() runner.Capabilities {
 	return runner.Capabilities{
 		SupportsMessages:         true,

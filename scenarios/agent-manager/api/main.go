@@ -24,14 +24,15 @@ import (
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
-	"agent-manager/internal/modelpolicy"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/spawn"
+	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/pricing/providers"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
 
@@ -53,24 +54,26 @@ type Config struct {
 
 // Server wires the HTTP router, database, and orchestration service
 type Server struct {
-	config               *Config
-	db                   *database.DB
-	logger               *logrus.Logger
-	router               *mux.Router
-	orchestrator         orchestration.Service
-	statsService         orchestration.StatsService
-	statsRepo            repository.StatsRepository
-	pricingService       pricing.Service
-	wsHub                *handlers.WebSocketHub
-	reconciler           *orchestration.Reconciler
-	awaitRegistry        *orchestration.AwaitRegistry
-	recommendationWorker *orchestration.RecommendationWorker
-	modelHealthProbe     *healthstore.Probe
-	modelPolicyState     *modelpolicy.State
-	storage              storage.Service
-	statsEngine          *stats.Engine
-	healthStore          *healthstore.Store
-	eventRepo            eventlog.Repository
+	config                *Config
+	db                    *database.DB
+	logger                *logrus.Logger
+	router                *mux.Router
+	orchestrator          orchestration.Service
+	statsService          orchestration.StatsService
+	statsRepo             repository.StatsRepository
+	pricingService        pricing.Service
+	wsHub                 *handlers.WebSocketHub
+	reconciler            *orchestration.Reconciler
+	awaitRegistry         *orchestration.AwaitRegistry
+	recommendationWorker  *orchestration.RecommendationWorker
+	modelHealthProbe      *healthstore.Probe
+	rolePolicyState       *rolepolicy.State
+	permissionPolicyState *permissionpolicy.State
+	permissionPolicy      *permissionpolicy.Service
+	storage               storage.Service
+	statsEngine           *stats.Engine
+	healthStore           *healthstore.Store
+	eventRepo             eventlog.Repository
 }
 
 // NewServer initializes configuration, database, and routes
@@ -122,24 +125,26 @@ func NewServer() (*Server, error) {
 	// as-is instead of decoding to /). This is required for model names containing slashes
 	// like "aion-labs/aion-1.0" which are URL-encoded to "aion-labs%2Faion-1.0".
 	srv := &Server{
-		config:               cfg,
-		db:                   db,
-		logger:               logger,
-		router:               mux.NewRouter().UseEncodedPath(),
-		orchestrator:         deps.orchestrator,
-		statsService:         deps.statsService,
-		statsRepo:            deps.statsRepo,
-		pricingService:       deps.pricingService,
-		modelHealthProbe:     deps.modelHealthProbe,
-		modelPolicyState:     deps.modelPolicyState,
-		wsHub:                wsHub,
-		reconciler:           deps.reconciler,
-		awaitRegistry:        deps.awaitRegistry,
-		recommendationWorker: deps.recommendationWorker,
-		storage:              uploadStorage,
-		statsEngine:          deps.statsEngine,
-		healthStore:          deps.healthStore,
-		eventRepo:            deps.eventRepo,
+		config:                cfg,
+		db:                    db,
+		logger:                logger,
+		router:                mux.NewRouter().UseEncodedPath(),
+		orchestrator:          deps.orchestrator,
+		statsService:          deps.statsService,
+		statsRepo:             deps.statsRepo,
+		pricingService:        deps.pricingService,
+		modelHealthProbe:      deps.modelHealthProbe,
+		rolePolicyState:       deps.rolePolicyState,
+		permissionPolicyState: deps.permissionPolicyState,
+		permissionPolicy:      deps.permissionPolicy,
+		wsHub:                 wsHub,
+		reconciler:            deps.reconciler,
+		awaitRegistry:         deps.awaitRegistry,
+		recommendationWorker:  deps.recommendationWorker,
+		storage:               uploadStorage,
+		statsEngine:           deps.statsEngine,
+		healthStore:           deps.healthStore,
+		eventRepo:             deps.eventRepo,
 	}
 
 	// Start the reconciler for orphan detection and stale run recovery
@@ -190,18 +195,20 @@ func NewServer() (*Server, error) {
 
 // orchestratorDeps holds the orchestrator and related services
 type orchestratorDeps struct {
-	orchestrator         orchestration.Service
-	statsService         orchestration.StatsService
-	statsRepo            repository.StatsRepository
-	pricingService       pricing.Service
-	reconciler           *orchestration.Reconciler
-	awaitRegistry        *orchestration.AwaitRegistry
-	recommendationWorker *orchestration.RecommendationWorker
-	modelHealthProbe     *healthstore.Probe
-	modelPolicyState     *modelpolicy.State
-	statsEngine          *stats.Engine
-	healthStore          *healthstore.Store
-	eventRepo            eventlog.Repository
+	orchestrator          orchestration.Service
+	statsService          orchestration.StatsService
+	statsRepo             repository.StatsRepository
+	pricingService        pricing.Service
+	reconciler            *orchestration.Reconciler
+	awaitRegistry         *orchestration.AwaitRegistry
+	recommendationWorker  *orchestration.RecommendationWorker
+	modelHealthProbe      *healthstore.Probe
+	rolePolicyState       *rolepolicy.State
+	permissionPolicyState *permissionpolicy.State
+	permissionPolicy      *permissionpolicy.Service
+	statsEngine           *stats.Engine
+	healthStore           *healthstore.Store
+	eventRepo             eventlog.Repository
 }
 
 // createOrchestrator creates the orchestration service with all dependencies.
@@ -221,18 +228,32 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	statsRepo := repos.Stats
 	investigationSettingsRepo := repos.InvestigationSettings
 
-	modelPolicyPath := modelpolicy.ResolvePath()
-	modelPolicyState, err := modelpolicy.NewState(modelPolicyPath, modelpolicy.Requirement{
+	rolePolicyPath := rolepolicy.ResolvePath()
+	rolePolicyState, err := rolepolicy.NewState(rolePolicyPath, rolepolicy.Requirement{
 		Required: true,
-		Reason:   "runner catalog visibility and built-in policy-backed profiles require declared model policy",
+		Reason:   "portable role selection must resolve through resource-owned coding-agent policies",
 	})
 	if err != nil {
-		// Keep the state object: /health must expose the resolved path and
-		// exact failure instead of silently continuing with a nil store.
-		bootLog.Error("required model policy catalog is not ready", "path", modelPolicyPath, obs.KeyError, err.Error())
+		bootLog.Error("required role policy catalog is not ready", "path", rolePolicyPath, obs.KeyError, err.Error())
 	} else {
-		bootLog.Info("model policy catalog activated", "path", modelPolicyPath, "digest", modelPolicyState.Status().ActiveDigest)
+		bootLog.Info("role policy catalog activated", "path", rolePolicyPath, "digest", rolePolicyState.Status().ActiveDigest)
 	}
+
+	permissionPolicyPath := permissionpolicy.ResolvePath()
+	permissionPolicyState, err := permissionpolicy.NewState(permissionPolicyPath, permissionpolicy.Requirement{
+		Required: true,
+		Reason:   "global coding-agent permission intent must be validated before reconciliation",
+	})
+	if err != nil {
+		bootLog.Error("required permission policy catalog is not ready", "path", permissionPolicyPath, obs.KeyError, err.Error())
+	} else {
+		bootLog.Info("permission policy catalog activated", "path", permissionPolicyPath, "digest", permissionPolicyState.Status().ActiveDigest)
+	}
+	permissionPolicy := permissionpolicy.NewService(
+		permissionPolicyState,
+		permissionpolicy.NewResourcePermissionProjector(nil),
+		permissionpolicy.NewSQLiteAuditStore(db.DB),
+	)
 
 	// Create runner registry
 	runnerRegistry := runner.NewRegistry()
@@ -249,9 +270,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("stub Claude runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeClaudeCode), obs.KeyError, err.Error())
 		}
 	} else {
-		claudeRunner = runnercore.NewRunner(codecs.WithCatalogModelSource(claudeCodec, func() []string {
-			return modelPolicyState.ModelIDs(domain.RunnerTypeClaudeCode)
-		}), hostLauncher, nil)
+		claudeRunner = runnercore.NewRunner(claudeCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(claudeRunner); err != nil {
 			bootLog.Warn("Claude runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeClaudeCode), obs.KeyError, err.Error())
 		}
@@ -273,9 +292,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("stub Codex runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeCodex), obs.KeyError, err.Error())
 		}
 	} else {
-		codexRunner = runnercore.NewRunner(codecs.WithCatalogModelSource(codexCodec, func() []string {
-			return modelPolicyState.ModelIDs(domain.RunnerTypeCodex)
-		}), hostLauncher, nil)
+		codexRunner = runnercore.NewRunner(codexCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(codexRunner); err != nil {
 			bootLog.Warn("Codex runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeCodex), obs.KeyError, err.Error())
 		}
@@ -297,9 +314,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("stub OpenCode runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeOpenCode), obs.KeyError, err.Error())
 		}
 	} else {
-		openCodeRunner = runnercore.NewRunner(codecs.WithCatalogModelSource(openCodeCodec, func() []string {
-			return modelPolicyState.ModelIDs(domain.RunnerTypeOpenCode)
-		}), hostLauncher, nil)
+		openCodeRunner = runnercore.NewRunner(openCodeCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(openCodeRunner); err != nil {
 			bootLog.Warn("OpenCode runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeOpenCode), obs.KeyError, err.Error())
 		}
@@ -325,9 +340,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("stub Grok runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeGrok), obs.KeyError, err.Error())
 		}
 	} else {
-		grokRunner = runnercore.NewRunner(codecs.WithCatalogModelSource(grokCodec, func() []string {
-			return modelPolicyState.ModelIDs(domain.RunnerTypeGrok)
-		}), hostLauncher, nil)
+		grokRunner = runnercore.NewRunner(grokCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(grokRunner); err != nil {
 			bootLog.Warn("Grok runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeGrok), obs.KeyError, err.Error())
 		}
@@ -403,11 +416,10 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	)
 
 	healthStore := healthstore.NewStore(db.DB)
-	var catalogRunners []string
-	modelPolicyState.IterModels(func(runnerType string, _ []string) bool {
-		catalogRunners = append(catalogRunners, runnerType)
-		return true
-	})
+	catalogRunners := make([]string, 0, len(domain.ValidRunnerTypes()))
+	for _, runnerType := range domain.ValidRunnerTypes() {
+		catalogRunners = append(catalogRunners, string(runnerType))
+	}
 	healthStore.RegisterRunners(catalogRunners)
 
 	orchConfig := orchestration.DefaultConfig()
@@ -475,7 +487,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithBroadcaster(wsHub),
 		orchestration.WithTerminator(terminator),
 		orchestration.WithStorageLabel(storageLabel),
-		orchestration.WithModelPolicyState(modelPolicyState),
+		orchestration.WithRolePolicyState(rolePolicyState, rolepolicy.NewResourceRoleResolver(nil)),
 		orchestration.WithHealthStore(healthStore),
 		orchestration.WithRecommendationExtractor(recommendationExtractor),
 		orchestration.WithInvestigationSettings(investigationSettingsRepo),
@@ -576,7 +588,10 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("invalid AGENT_MANAGER_MODEL_HEALTH_INTERVAL", "raw", raw, obs.KeyError, err.Error())
 		}
 	}
-	modelHealthProbe := healthstore.NewProbe(healthStore, modelPolicyState, modelResolver, nil, probeCfg)
+	// Models are resource-owned runtime facts. The health store continues to
+	// record execution observations, but Agent Manager does not schedule model
+	// probes from a static local inventory.
+	modelHealthProbe := healthstore.NewProbe(healthStore, nil, modelResolver, nil, probeCfg)
 
 	// Operational stats engine: incrementally aggregates typed-operational
 	// events (fallbacks, health transitions, sandbox ops, heartbeat misses,
@@ -590,18 +605,20 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 
 	bootLog.Info("orchestrator initialized", "storage", storageLabel, "sandbox", sandboxURL)
 	return orchestratorDeps{
-		orchestrator:         orch,
-		statsService:         statsSvc,
-		statsRepo:            statsRepo,
-		pricingService:       pricingSvc,
-		reconciler:           reconciler,
-		awaitRegistry:        awaitRegistry,
-		recommendationWorker: recommendationWorker,
-		modelHealthProbe:     modelHealthProbe,
-		modelPolicyState:     modelPolicyState,
-		statsEngine:          statsEngine,
-		healthStore:          healthStore,
-		eventRepo:            eventRepo,
+		orchestrator:          orch,
+		statsService:          statsSvc,
+		statsRepo:             statsRepo,
+		pricingService:        pricingSvc,
+		reconciler:            reconciler,
+		awaitRegistry:         awaitRegistry,
+		recommendationWorker:  recommendationWorker,
+		modelHealthProbe:      modelHealthProbe,
+		rolePolicyState:       rolePolicyState,
+		permissionPolicyState: permissionPolicyState,
+		permissionPolicy:      permissionPolicy,
+		statsEngine:           statsEngine,
+		healthStore:           healthStore,
+		eventRepo:             eventRepo,
 	}
 }
 
@@ -622,7 +639,8 @@ func (s *Server) setupRoutes() {
 	healthHandler := health.New().
 		Version("1.0.0").
 		Check(health.DB(rawDB), health.Critical).
-		Check(modelPolicyHealthChecker(s.modelPolicyState), health.Critical).
+		Check(rolePolicyHealthChecker(s.rolePolicyState), health.Critical).
+		Check(permissionPolicyHealthChecker(s.permissionPolicyState), health.Critical).
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	// Detailed health for UI (includes sandbox + runner dependencies).
@@ -630,7 +648,8 @@ func (s *Server) setupRoutes() {
 	handler := handlers.New(
 		s.orchestrator,
 		handlers.WithStorage(s.storage),
-		handlers.WithModelPolicyState(s.modelPolicyState),
+		handlers.WithRolePolicyState(s.rolePolicyState),
+		handlers.WithPermissionPolicy(s.permissionPolicyState, s.permissionPolicy),
 	)
 	handler.SetWebSocketHub(s.wsHub)
 	s.router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
@@ -683,7 +702,9 @@ func (s *Server) setupRoutes() {
 	routesLog.Info("metrics endpoint registered", "path", "/metrics")
 }
 
-func modelPolicyHealthChecker(state *modelpolicy.State) health.Checker {
+// rolePolicyHealthChecker keeps portable role authority a readiness
+// dependency. A run can never safely resolve a role from an absent catalog.
+func rolePolicyHealthChecker(state *rolepolicy.State) health.Checker {
 	if state == nil {
 		return nil
 	}
@@ -691,7 +712,7 @@ func modelPolicyHealthChecker(state *modelpolicy.State) health.Checker {
 		status := state.Status()
 		if err := state.ReadinessError(); err != nil {
 			detail := health.NewErrorDetail(
-				modelpolicy.DiagnosticCodeCatalogInvalid,
+				rolepolicy.DiagnosticCodeCatalogInvalid,
 				err.Error(),
 				"configuration",
 				true,
@@ -702,15 +723,37 @@ func modelPolicyHealthChecker(state *modelpolicy.State) health.Checker {
 				"requirement_reason": status.Requirement.Reason,
 				"active_digest":      status.ActiveDigest,
 			}
-			if status.LastReloadAttempt != nil {
-				detail.Details["last_reload_attempt_at"] = status.LastReloadAttempt.AttemptedAt.Format(time.RFC3339Nano)
-				if status.LastReloadAttempt.Diagnostic != nil {
-					detail.Details["cause"] = status.LastReloadAttempt.Diagnostic.Cause
-				}
-			}
-			return health.CheckResult{Name: "model_policy_catalog", Connected: false, Error: detail}
+			return health.CheckResult{Name: "role_policy_catalog", Connected: false, Error: detail}
 		}
-		return health.CheckResult{Name: "model_policy_catalog", Connected: true}
+		return health.CheckResult{Name: "role_policy_catalog", Connected: true}
+	})
+}
+
+// permissionPolicyHealthChecker separates invalid global desired state from
+// resource availability. Resource projection is an explicit operator action;
+// it is never performed as a side effect of an infrastructure health probe.
+func permissionPolicyHealthChecker(state *permissionpolicy.State) health.Checker {
+	if state == nil {
+		return nil
+	}
+	return health.CheckerFunc(func(context.Context) health.CheckResult {
+		status := state.Status()
+		if err := state.ReadinessError(); err != nil {
+			detail := health.NewErrorDetail(
+				permissionpolicy.DiagnosticCodeCatalogInvalid,
+				err.Error(),
+				"configuration",
+				true,
+			)
+			detail.Details = map[string]any{
+				"path":               status.Path,
+				"required":           status.Requirement.Required,
+				"requirement_reason": status.Requirement.Reason,
+				"active_digest":      status.ActiveDigest,
+			}
+			return health.CheckResult{Name: "permission_policy_catalog", Connected: false, Error: detail}
+		}
+		return health.CheckResult{Name: "permission_policy_catalog", Connected: true}
 	})
 }
 

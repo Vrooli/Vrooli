@@ -17,6 +17,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
+	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
@@ -68,6 +69,10 @@ func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
 	// is the single source of truth for RunMode, so a default-config
 	// run resolves to sandboxed and preflightScopePath needs a project
 	// root.
+	roleState, err := rolepolicy.NewState(rolepolicy.ResolvePath(), rolepolicy.Requirement{Required: true})
+	if err != nil {
+		t.Fatalf("load role policy state: %v", err)
+	}
 	orch := orchestration.New(
 		repos.Profiles,
 		repos.Tasks,
@@ -79,6 +84,7 @@ func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
+		orchestration.WithRolePolicyState(roleState, handlerRoleResolver{}),
 	)
 
 	// Create handler
@@ -91,6 +97,15 @@ func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
 	r.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 
 	return handler, r
+}
+
+type handlerRoleResolver struct{}
+
+func (handlerRoleResolver) Resolve(_ context.Context, runnerType domain.RunnerType, role string) (rolepolicy.ResolvedRole, error) {
+	return rolepolicy.ResolvedRole{
+		Runner: runnerType, Role: role, Model: "test-model", Provenance: rolepolicy.ResourceProvenance{Source: "handler test", ObservedAt: "2026-07-10"},
+		Enforcement: rolepolicy.EnforcementPosture{Permissions: "native"}, PolicyPath: "/tmp/test-policy", PolicyDigest: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+	}, nil
 }
 
 // =============================================================================
@@ -109,8 +124,8 @@ func TestCreateProfile_Success(t *testing.T) {
 			Name:        "test-profile",
 			ProfileKey:  "test-profile-key",
 			Description: "Test profile for unit tests",
-			RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-			MaxTurns:    100,
+
+			MaxTurns: 100, RoleRef: "code.default",
 		},
 	})
 
@@ -147,17 +162,17 @@ func TestCreateProfile_ValidationError(t *testing.T) {
 	}{
 		{
 			name:    "empty name",
-			profile: &pb.AgentProfile{Name: "", ProfileKey: "test-key", RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE},
+			profile: &pb.AgentProfile{Name: "", ProfileKey: "test-key", RoleRef: "code.default"},
 			errCode: "VALIDATION",
 		},
 		{
-			name:    "invalid runner type",
-			profile: &pb.AgentProfile{Name: "test", ProfileKey: "test-key", RunnerType: pb.RunnerType_RUNNER_TYPE_UNSPECIFIED},
+			name:    "missing role reference",
+			profile: &pb.AgentProfile{Name: "test", ProfileKey: "test-key"},
 			errCode: "VALIDATION",
 		},
 		{
 			name:    "negative max turns",
-			profile: &pb.AgentProfile{Name: "test", ProfileKey: "test-key", RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE, MaxTurns: -1},
+			profile: &pb.AgentProfile{Name: "test", ProfileKey: "test-key", MaxTurns: -1, RoleRef: "code.default"},
 			errCode: "VALIDATION",
 		},
 	}
@@ -187,8 +202,7 @@ func TestGetProfile_Success(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "test-profile",
-			ProfileKey: "test-profile-key",
-			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			ProfileKey: "test-profile-key", RoleRef: "code.default",
 		},
 	})
 
@@ -243,8 +257,7 @@ func TestListProfiles(t *testing.T) {
 		body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 			Profile: &pb.AgentProfile{
 				Name:       "profile-" + string(rune('A'+i)),
-				ProfileKey: "profile-key-" + string(rune('A'+i)),
-				RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+				ProfileKey: "profile-key-" + string(rune('A'+i)), RoleRef: "code.default",
 			},
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
@@ -280,8 +293,7 @@ func TestUpdateProfile_Success(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "original-name",
-			ProfileKey: "original-key",
-			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			ProfileKey: "original-key", RoleRef: "code.default",
 		},
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
@@ -299,8 +311,7 @@ func TestUpdateProfile_Success(t *testing.T) {
 		Profile: &pb.AgentProfile{
 			Name:        "updated-name",
 			ProfileKey:  "updated-key",
-			Description: "Updated description",
-			RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			Description: "Updated description", RoleRef: "code.default",
 		},
 	})
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/profiles/"+created.Id, bytes.NewReader(body))
@@ -333,8 +344,7 @@ func TestDeleteProfile_Success(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "to-delete",
-			ProfileKey: "to-delete-key",
-			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			ProfileKey: "to-delete-key", RoleRef: "code.default",
 		},
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
@@ -624,8 +634,7 @@ func TestCreateRun_Success(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "runner-profile",
-			ProfileKey: "runner-profile-key",
-			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			ProfileKey: "runner-profile-key", RoleRef: "code.default",
 		},
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
@@ -690,7 +699,7 @@ func TestCreateRun_InvalidNestedEnumIncludesParseDetail(t *testing.T) {
 			"defaults":{
 				"name":"Probe",
 				"profile_key":"probe",
-				"runner_type":"RUNNER_TYPE_CODEX",
+				"role_ref":"code.default",
 				"sandbox_config":{"mode":"off"}
 			}
 		}
@@ -1009,8 +1018,7 @@ func TestUpdateProfile_InvalidUUID(t *testing.T) {
 		ProfileId: "invalid-uuid",
 		Profile: &pb.AgentProfile{
 			Name:       "updated",
-			ProfileKey: "updated-key",
-			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			ProfileKey: "updated-key", RoleRef: "code.default",
 		},
 	})
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/profiles/invalid-uuid", bytes.NewReader(body))
@@ -1116,8 +1124,7 @@ func TestLargePayload_Profile(t *testing.T) {
 		Profile: &pb.AgentProfile{
 			Name:        "test-profile",
 			ProfileKey:  "test-profile-key",
-			Description: string(longDesc),
-			RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			Description: string(longDesc), RoleRef: "code.default",
 		},
 	})
 
@@ -1144,8 +1151,7 @@ func createTestProfile(t *testing.T, router *mux.Router) *pb.AgentProfile {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "test-profile-" + uuid.New().String()[:8],
-			ProfileKey: "test-profile-key-" + uuid.New().String()[:8],
-			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			ProfileKey: "test-profile-key-" + uuid.New().String()[:8], RoleRef: "code.default",
 		},
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
