@@ -70,14 +70,12 @@ class ListTrialTasksResponse(_message.Message):
     def __init__(self, tasks: _Optional[_Iterable[_Union[TrialTask, _Mapping]]] = ...) -> None: ...
 
 class RunTrialsRequest(_message.Message):
-    __slots__ = ("suite", "task_id", "model")
+    __slots__ = ("suite", "task_id")
     SUITE_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
-    MODEL_FIELD_NUMBER: _ClassVar[int]
     suite: str
     task_id: str
-    model: str
-    def __init__(self, suite: _Optional[str] = ..., task_id: _Optional[str] = ..., model: _Optional[str] = ...) -> None: ...
+    def __init__(self, suite: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
 
 class RunTrialsResponse(_message.Message):
     __slots__ = ("runs",)

@@ -112,7 +112,6 @@ message StreamCompletionRequest {
   bool web_search_enabled = 4;
   repeated string selected_skill_ids = 5;
   vrooli.portal.v1.shared.ChatMode mode = 6;
-  vrooli.portal.v1.shared.AgentHarness agent_harness = 7;
 }
 
 message CompletionEvent {

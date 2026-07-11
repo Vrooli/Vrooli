@@ -161,22 +161,20 @@ class RegenerateResponse(_message.Message):
     def __init__(self, assistant_message: _Optional[_Union[Message, _Mapping]] = ...) -> None: ...
 
 class StreamCompletionRequest(_message.Message):
-    __slots__ = ("chat_id", "from_message_id", "model", "web_search_enabled", "selected_skill_ids", "mode", "agent_harness")
+    __slots__ = ("chat_id", "from_message_id", "model", "web_search_enabled", "selected_skill_ids", "mode")
     CHAT_ID_FIELD_NUMBER: _ClassVar[int]
     FROM_MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     WEB_SEARCH_ENABLED_FIELD_NUMBER: _ClassVar[int]
     SELECTED_SKILL_IDS_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
-    AGENT_HARNESS_FIELD_NUMBER: _ClassVar[int]
     chat_id: str
     from_message_id: str
     model: str
     web_search_enabled: bool
     selected_skill_ids: _containers.RepeatedScalarFieldContainer[str]
     mode: _common_pb2.ChatMode
-    agent_harness: _common_pb2.AgentHarness
-    def __init__(self, chat_id: _Optional[str] = ..., from_message_id: _Optional[str] = ..., model: _Optional[str] = ..., web_search_enabled: _Optional[bool] = ..., selected_skill_ids: _Optional[_Iterable[str]] = ..., mode: _Optional[_Union[_common_pb2.ChatMode, str]] = ..., agent_harness: _Optional[_Union[_common_pb2.AgentHarness, str]] = ...) -> None: ...
+    def __init__(self, chat_id: _Optional[str] = ..., from_message_id: _Optional[str] = ..., model: _Optional[str] = ..., web_search_enabled: _Optional[bool] = ..., selected_skill_ids: _Optional[_Iterable[str]] = ..., mode: _Optional[_Union[_common_pb2.ChatMode, str]] = ...) -> None: ...
 
 class CompletionEvent(_message.Message):
     __slots__ = ("kind", "message_id", "text", "search_attachment", "usage", "error_code", "error_message")

@@ -147,6 +147,8 @@ message ValidationOperation {
   int32 transport_wait_budget_seconds = 16;
   int32 recommended_wait_seconds = 17;
   int32 schema_version = 18;
+  string scope_fingerprint = 19;
+  string queue_reason = 20;
 }
 
 message StartValidationRequest {

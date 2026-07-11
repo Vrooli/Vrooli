@@ -117,7 +117,7 @@ class ValidationChildOperation(_message.Message):
     def __init__(self, id: _Optional[str] = ..., command: _Optional[str] = ..., oracle: _Optional[bool] = ..., status: _Optional[_Union[ValidationChildStatus, str]] = ..., attempt: _Optional[int] = ..., external_id: _Optional[str] = ..., verdict: _Optional[_Union[_model_pb2.ValidationVerdict, str]] = ..., detail: _Optional[str] = ..., error: _Optional[_Union[ValidationOperationError, _Mapping]] = ..., queued_at: _Optional[str] = ..., started_at: _Optional[str] = ..., terminal_at: _Optional[str] = ...) -> None: ...
 
 class ValidationOperation(_message.Message):
-    __slots__ = ("id", "plan_id", "phase_id", "idempotency_key", "status", "attempt", "children", "result", "result_ref", "error", "queued_at", "started_at", "terminal_at", "queue_budget_seconds", "execution_budget_seconds", "transport_wait_budget_seconds", "recommended_wait_seconds", "schema_version")
+    __slots__ = ("id", "plan_id", "phase_id", "idempotency_key", "status", "attempt", "children", "result", "result_ref", "error", "queued_at", "started_at", "terminal_at", "queue_budget_seconds", "execution_budget_seconds", "transport_wait_budget_seconds", "recommended_wait_seconds", "schema_version", "scope_fingerprint", "queue_reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -136,6 +136,8 @@ class ValidationOperation(_message.Message):
     TRANSPORT_WAIT_BUDGET_SECONDS_FIELD_NUMBER: _ClassVar[int]
     RECOMMENDED_WAIT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    QUEUE_REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     plan_id: str
     phase_id: str
@@ -154,7 +156,9 @@ class ValidationOperation(_message.Message):
     transport_wait_budget_seconds: int
     recommended_wait_seconds: int
     schema_version: int
-    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., status: _Optional[_Union[ValidationOperationStatus, str]] = ..., attempt: _Optional[int] = ..., children: _Optional[_Iterable[_Union[ValidationChildOperation, _Mapping]]] = ..., result: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., result_ref: _Optional[str] = ..., error: _Optional[_Union[ValidationOperationError, _Mapping]] = ..., queued_at: _Optional[str] = ..., started_at: _Optional[str] = ..., terminal_at: _Optional[str] = ..., queue_budget_seconds: _Optional[int] = ..., execution_budget_seconds: _Optional[int] = ..., transport_wait_budget_seconds: _Optional[int] = ..., recommended_wait_seconds: _Optional[int] = ..., schema_version: _Optional[int] = ...) -> None: ...
+    scope_fingerprint: str
+    queue_reason: str
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., status: _Optional[_Union[ValidationOperationStatus, str]] = ..., attempt: _Optional[int] = ..., children: _Optional[_Iterable[_Union[ValidationChildOperation, _Mapping]]] = ..., result: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., result_ref: _Optional[str] = ..., error: _Optional[_Union[ValidationOperationError, _Mapping]] = ..., queued_at: _Optional[str] = ..., started_at: _Optional[str] = ..., terminal_at: _Optional[str] = ..., queue_budget_seconds: _Optional[int] = ..., execution_budget_seconds: _Optional[int] = ..., transport_wait_budget_seconds: _Optional[int] = ..., recommended_wait_seconds: _Optional[int] = ..., schema_version: _Optional[int] = ..., scope_fingerprint: _Optional[str] = ..., queue_reason: _Optional[str] = ...) -> None: ...
 
 class StartValidationRequest(_message.Message):
     __slots__ = ("plan_id", "phase_id", "idempotency_key")

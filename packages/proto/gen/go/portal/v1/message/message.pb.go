@@ -854,7 +854,6 @@ type StreamCompletionRequest struct {
 	WebSearchEnabled bool                   `protobuf:"varint,4,opt,name=web_search_enabled,json=webSearchEnabled,proto3" json:"web_search_enabled,omitempty"`
 	SelectedSkillIds []string               `protobuf:"bytes,5,rep,name=selected_skill_ids,json=selectedSkillIds,proto3" json:"selected_skill_ids,omitempty"`
 	Mode             shared.ChatMode        `protobuf:"varint,6,opt,name=mode,proto3,enum=vrooli.portal.v1.shared.ChatMode" json:"mode,omitempty"`
-	AgentHarness     shared.AgentHarness    `protobuf:"varint,7,opt,name=agent_harness,json=agentHarness,proto3,enum=vrooli.portal.v1.shared.AgentHarness" json:"agent_harness,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -929,13 +928,6 @@ func (x *StreamCompletionRequest) GetMode() shared.ChatMode {
 		return x.Mode
 	}
 	return shared.ChatMode(0)
-}
-
-func (x *StreamCompletionRequest) GetAgentHarness() shared.AgentHarness {
-	if x != nil {
-		return x.AgentHarness
-	}
-	return shared.AgentHarness(0)
 }
 
 type CompletionEvent struct {
@@ -1092,15 +1084,14 @@ const file_portal_v1_message_message_proto_rawDesc = "" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x14\n" +
 	"\x05model\x18\x02 \x01(\tR\x05model\"d\n" +
 	"\x12RegenerateResponse\x12N\n" +
-	"\x11assistant_message\x18\x01 \x01(\v2!.vrooli.portal.v1.message.MessageR\x10assistantMessage\"\xcf\x02\n" +
+	"\x11assistant_message\x18\x01 \x01(\v2!.vrooli.portal.v1.message.MessageR\x10assistantMessage\"\x83\x02\n" +
 	"\x17StreamCompletionRequest\x12\x17\n" +
 	"\achat_id\x18\x01 \x01(\tR\x06chatId\x12&\n" +
 	"\x0ffrom_message_id\x18\x02 \x01(\tR\rfromMessageId\x12\x14\n" +
 	"\x05model\x18\x03 \x01(\tR\x05model\x12,\n" +
 	"\x12web_search_enabled\x18\x04 \x01(\bR\x10webSearchEnabled\x12,\n" +
 	"\x12selected_skill_ids\x18\x05 \x03(\tR\x10selectedSkillIds\x125\n" +
-	"\x04mode\x18\x06 \x01(\x0e2!.vrooli.portal.v1.shared.ChatModeR\x04mode\x12J\n" +
-	"\ragent_harness\x18\a \x01(\x0e2%.vrooli.portal.v1.shared.AgentHarnessR\fagentHarness\"\xe1\x02\n" +
+	"\x04mode\x18\x06 \x01(\x0e2!.vrooli.portal.v1.shared.ChatModeR\x04mode\"\xe1\x02\n" +
 	"\x0fCompletionEvent\x12A\n" +
 	"\x04kind\x18\x01 \x01(\x0e2-.vrooli.portal.v1.message.CompletionEventKindR\x04kind\x12\x1d\n" +
 	"\n" +
@@ -1165,7 +1156,6 @@ var file_portal_v1_message_message_proto_goTypes = []any{
 	(*CompletionEvent)(nil),         // 14: vrooli.portal.v1.message.CompletionEvent
 	(*shared.SearchHit)(nil),        // 15: vrooli.portal.v1.shared.SearchHit
 	(shared.ChatMode)(0),            // 16: vrooli.portal.v1.shared.ChatMode
-	(shared.AgentHarness)(0),        // 17: vrooli.portal.v1.shared.AgentHarness
 }
 var file_portal_v1_message_message_proto_depIdxs = []int32{
 	0,  // 0: vrooli.portal.v1.message.Message.role:type_name -> vrooli.portal.v1.message.MessageRole
@@ -1176,25 +1166,24 @@ var file_portal_v1_message_message_proto_depIdxs = []int32{
 	2,  // 5: vrooli.portal.v1.message.EditMessageResponse.message:type_name -> vrooli.portal.v1.message.Message
 	2,  // 6: vrooli.portal.v1.message.RegenerateResponse.assistant_message:type_name -> vrooli.portal.v1.message.Message
 	16, // 7: vrooli.portal.v1.message.StreamCompletionRequest.mode:type_name -> vrooli.portal.v1.shared.ChatMode
-	17, // 8: vrooli.portal.v1.message.StreamCompletionRequest.agent_harness:type_name -> vrooli.portal.v1.shared.AgentHarness
-	1,  // 9: vrooli.portal.v1.message.CompletionEvent.kind:type_name -> vrooli.portal.v1.message.CompletionEventKind
-	3,  // 10: vrooli.portal.v1.message.CompletionEvent.search_attachment:type_name -> vrooli.portal.v1.message.SearchAttachment
-	4,  // 11: vrooli.portal.v1.message.CompletionEvent.usage:type_name -> vrooli.portal.v1.message.UsageRecord
-	5,  // 12: vrooli.portal.v1.message.MessageService.GetTree:input_type -> vrooli.portal.v1.message.GetTreeRequest
-	7,  // 13: vrooli.portal.v1.message.MessageService.SendMessage:input_type -> vrooli.portal.v1.message.SendMessageRequest
-	9,  // 14: vrooli.portal.v1.message.MessageService.EditMessage:input_type -> vrooli.portal.v1.message.EditMessageRequest
-	11, // 15: vrooli.portal.v1.message.MessageService.Regenerate:input_type -> vrooli.portal.v1.message.RegenerateRequest
-	13, // 16: vrooli.portal.v1.message.MessageService.StreamCompletion:input_type -> vrooli.portal.v1.message.StreamCompletionRequest
-	6,  // 17: vrooli.portal.v1.message.MessageService.GetTree:output_type -> vrooli.portal.v1.message.GetTreeResponse
-	8,  // 18: vrooli.portal.v1.message.MessageService.SendMessage:output_type -> vrooli.portal.v1.message.SendMessageResponse
-	10, // 19: vrooli.portal.v1.message.MessageService.EditMessage:output_type -> vrooli.portal.v1.message.EditMessageResponse
-	12, // 20: vrooli.portal.v1.message.MessageService.Regenerate:output_type -> vrooli.portal.v1.message.RegenerateResponse
-	14, // 21: vrooli.portal.v1.message.MessageService.StreamCompletion:output_type -> vrooli.portal.v1.message.CompletionEvent
-	17, // [17:22] is the sub-list for method output_type
-	12, // [12:17] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	1,  // 8: vrooli.portal.v1.message.CompletionEvent.kind:type_name -> vrooli.portal.v1.message.CompletionEventKind
+	3,  // 9: vrooli.portal.v1.message.CompletionEvent.search_attachment:type_name -> vrooli.portal.v1.message.SearchAttachment
+	4,  // 10: vrooli.portal.v1.message.CompletionEvent.usage:type_name -> vrooli.portal.v1.message.UsageRecord
+	5,  // 11: vrooli.portal.v1.message.MessageService.GetTree:input_type -> vrooli.portal.v1.message.GetTreeRequest
+	7,  // 12: vrooli.portal.v1.message.MessageService.SendMessage:input_type -> vrooli.portal.v1.message.SendMessageRequest
+	9,  // 13: vrooli.portal.v1.message.MessageService.EditMessage:input_type -> vrooli.portal.v1.message.EditMessageRequest
+	11, // 14: vrooli.portal.v1.message.MessageService.Regenerate:input_type -> vrooli.portal.v1.message.RegenerateRequest
+	13, // 15: vrooli.portal.v1.message.MessageService.StreamCompletion:input_type -> vrooli.portal.v1.message.StreamCompletionRequest
+	6,  // 16: vrooli.portal.v1.message.MessageService.GetTree:output_type -> vrooli.portal.v1.message.GetTreeResponse
+	8,  // 17: vrooli.portal.v1.message.MessageService.SendMessage:output_type -> vrooli.portal.v1.message.SendMessageResponse
+	10, // 18: vrooli.portal.v1.message.MessageService.EditMessage:output_type -> vrooli.portal.v1.message.EditMessageResponse
+	12, // 19: vrooli.portal.v1.message.MessageService.Regenerate:output_type -> vrooli.portal.v1.message.RegenerateResponse
+	14, // 20: vrooli.portal.v1.message.MessageService.StreamCompletion:output_type -> vrooli.portal.v1.message.CompletionEvent
+	16, // [16:21] is the sub-list for method output_type
+	11, // [11:16] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_portal_v1_message_message_proto_init() }

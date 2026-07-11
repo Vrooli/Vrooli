@@ -86,7 +86,6 @@ message ListTrialTasksResponse {
 message RunTrialsRequest {
   string suite = 1; // optional; run a whole suite
   string task_id = 2; // optional; run a single task
-  string model = 3; // optional; local-model id (default from config)
 }
 
 message RunTrialsResponse {

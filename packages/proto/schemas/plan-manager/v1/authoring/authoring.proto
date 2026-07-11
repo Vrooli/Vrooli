@@ -172,6 +172,7 @@ message PhaseDraft {
   string validation = 14;
   repeated string risks_hazards = 15;
   string handoff_notes = 16;
+  shared.ValidationScope validation_scope = 17;
 }
 
 // AuthoringProgress is the compact navigation snapshot returned by every normal

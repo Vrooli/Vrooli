@@ -334,6 +334,18 @@ message ChangeBoundary {
   string operator_only_reason = 3;
 }
 
+enum ValidationScopeMode {
+  VALIDATION_SCOPE_MODE_UNSPECIFIED = 0;
+  VALIDATION_SCOPE_MODE_NARROW = 1;
+  VALIDATION_SCOPE_MODE_FULL_PLAN = 2;
+}
+
+message ValidationScope {
+  ValidationScopeMode mode = 1;
+  ChangeBoundary boundary = 2;
+  string rationale = 3;
+}
+
 // RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
 // by the authoring wizard and stored on the plan.
 //
@@ -547,6 +559,7 @@ message Phase {
   // Optional per-phase boundary refinement. NARROWS the plan-level boundary for
   // phase-specific checks; it never widens the plan blast radius.
   ChangeBoundary change_boundary = 19;
+  ValidationScope validation_scope = 20;
 }
 
 // PlanDecision is one pinned plan-time contract decision (rendered D1..Dn under

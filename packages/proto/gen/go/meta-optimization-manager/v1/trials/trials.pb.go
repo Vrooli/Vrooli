@@ -358,7 +358,6 @@ type RunTrialsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Suite         string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`                 // optional; run a whole suite
 	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"` // optional; run a single task
-	Model         string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`                 // optional; local-model id (default from config)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -403,13 +402,6 @@ func (x *RunTrialsRequest) GetSuite() string {
 func (x *RunTrialsRequest) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
-	}
-	return ""
-}
-
-func (x *RunTrialsRequest) GetModel() string {
-	if x != nil {
-		return x.Model
 	}
 	return ""
 }
@@ -848,11 +840,10 @@ const file_meta_optimization_manager_v1_trials_trials_proto_rawDesc = "" +
 	"\x15ListTrialTasksRequest\x12\x14\n" +
 	"\x05suite\x18\x01 \x01(\tR\x05suite\"e\n" +
 	"\x16ListTrialTasksResponse\x12K\n" +
-	"\x05tasks\x18\x01 \x03(\v25.vrooli.meta_optimization_manager.v1.trials.TrialTaskR\x05tasks\"W\n" +
+	"\x05tasks\x18\x01 \x03(\v25.vrooli.meta_optimization_manager.v1.trials.TrialTaskR\x05tasks\"A\n" +
 	"\x10RunTrialsRequest\x12\x14\n" +
 	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x17\n" +
-	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x14\n" +
-	"\x05model\x18\x03 \x01(\tR\x05model\"]\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"]\n" +
 	"\x11RunTrialsResponse\x12H\n" +
 	"\x04runs\x18\x01 \x03(\v24.vrooli.meta_optimization_manager.v1.trials.TrialRunR\x04runs\"\xd2\x01\n" +
 	"\x11TrialHistoryPoint\x12*\n" +

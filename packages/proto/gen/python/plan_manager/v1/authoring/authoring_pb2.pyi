@@ -70,7 +70,7 @@ class AutofillResult(_message.Message):
     def __init__(self, source: _Optional[str] = ..., section_key: _Optional[str] = ..., filled: _Optional[bool] = ..., degraded: _Optional[bool] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class PhaseDraft(_message.Message):
-    __slots__ = ("id", "order", "title", "intent", "references", "required_reading", "reminders", "acceptance", "no_code_refs_reason", "relevant_context", "affected_areas", "steps", "expected_outputs", "validation", "risks_hazards", "handoff_notes")
+    __slots__ = ("id", "order", "title", "intent", "references", "required_reading", "reminders", "acceptance", "no_code_refs_reason", "relevant_context", "affected_areas", "steps", "expected_outputs", "validation", "risks_hazards", "handoff_notes", "validation_scope")
     ID_FIELD_NUMBER: _ClassVar[int]
     ORDER_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -87,6 +87,7 @@ class PhaseDraft(_message.Message):
     VALIDATION_FIELD_NUMBER: _ClassVar[int]
     RISKS_HAZARDS_FIELD_NUMBER: _ClassVar[int]
     HANDOFF_NOTES_FIELD_NUMBER: _ClassVar[int]
+    VALIDATION_SCOPE_FIELD_NUMBER: _ClassVar[int]
     id: str
     order: int
     title: str
@@ -103,7 +104,8 @@ class PhaseDraft(_message.Message):
     validation: str
     risks_hazards: _containers.RepeatedScalarFieldContainer[str]
     handoff_notes: str
-    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., references: _Optional[_Iterable[_Union[_model_pb2.Reference, _Mapping]]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., no_code_refs_reason: _Optional[str] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., affected_areas: _Optional[_Iterable[str]] = ..., steps: _Optional[_Iterable[str]] = ..., expected_outputs: _Optional[_Iterable[str]] = ..., validation: _Optional[str] = ..., risks_hazards: _Optional[_Iterable[str]] = ..., handoff_notes: _Optional[str] = ...) -> None: ...
+    validation_scope: _model_pb2.ValidationScope
+    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., references: _Optional[_Iterable[_Union[_model_pb2.Reference, _Mapping]]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., no_code_refs_reason: _Optional[str] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., affected_areas: _Optional[_Iterable[str]] = ..., steps: _Optional[_Iterable[str]] = ..., expected_outputs: _Optional[_Iterable[str]] = ..., validation: _Optional[str] = ..., risks_hazards: _Optional[_Iterable[str]] = ..., handoff_notes: _Optional[str] = ..., validation_scope: _Optional[_Union[_model_pb2.ValidationScope, _Mapping]] = ...) -> None: ...
 
 class AuthoringProgress(_message.Message):
     __slots__ = ("session_id", "current_section_key", "current_phase_id", "mandatory_sections_total", "mandatory_sections_filled", "phases_total", "phases_complete", "remaining_required_inputs", "ready_to_finalize")

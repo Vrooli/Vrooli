@@ -655,6 +655,8 @@ type ValidationOperation struct {
 	TransportWaitBudgetSeconds int32                       `protobuf:"varint,16,opt,name=transport_wait_budget_seconds,json=transportWaitBudgetSeconds,proto3" json:"transport_wait_budget_seconds,omitempty"`
 	RecommendedWaitSeconds     int32                       `protobuf:"varint,17,opt,name=recommended_wait_seconds,json=recommendedWaitSeconds,proto3" json:"recommended_wait_seconds,omitempty"`
 	SchemaVersion              int32                       `protobuf:"varint,18,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	ScopeFingerprint           string                      `protobuf:"bytes,19,opt,name=scope_fingerprint,json=scopeFingerprint,proto3" json:"scope_fingerprint,omitempty"`
+	QueueReason                string                      `protobuf:"bytes,20,opt,name=queue_reason,json=queueReason,proto3" json:"queue_reason,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -813,6 +815,20 @@ func (x *ValidationOperation) GetSchemaVersion() int32 {
 		return x.SchemaVersion
 	}
 	return 0
+}
+
+func (x *ValidationOperation) GetScopeFingerprint() string {
+	if x != nil {
+		return x.ScopeFingerprint
+	}
+	return ""
+}
+
+func (x *ValidationOperation) GetQueueReason() string {
+	if x != nil {
+		return x.QueueReason
+	}
+	return ""
 }
 
 type StartValidationRequest struct {
@@ -1264,7 +1280,7 @@ const file_plan_manager_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\v \x01(\tR\tstartedAt\x12\x1f\n" +
 	"\vterminal_at\x18\f \x01(\tR\n" +
-	"terminalAt\"\xf3\x06\n" +
+	"terminalAt\"\xc3\a\n" +
 	"\x13ValidationOperation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x19\n" +
@@ -1287,7 +1303,9 @@ const file_plan_manager_v1_validation_validation_proto_rawDesc = "" +
 	"\x18execution_budget_seconds\x18\x0f \x01(\x05R\x16executionBudgetSeconds\x12A\n" +
 	"\x1dtransport_wait_budget_seconds\x18\x10 \x01(\x05R\x1atransportWaitBudgetSeconds\x128\n" +
 	"\x18recommended_wait_seconds\x18\x11 \x01(\x05R\x16recommendedWaitSeconds\x12%\n" +
-	"\x0eschema_version\x18\x12 \x01(\x05R\rschemaVersion\"u\n" +
+	"\x0eschema_version\x18\x12 \x01(\x05R\rschemaVersion\x12+\n" +
+	"\x11scope_fingerprint\x18\x13 \x01(\tR\x10scopeFingerprint\x12!\n" +
+	"\fqueue_reason\x18\x14 \x01(\tR\vqueueReason\"u\n" +
 	"\x16StartValidationRequest\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12\x19\n" +
 	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12'\n" +

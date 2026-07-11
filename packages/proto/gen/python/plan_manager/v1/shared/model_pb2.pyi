@@ -137,6 +137,12 @@ class NextActionKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NEXT_ACTION_KIND_OPTIONAL: _ClassVar[NextActionKind]
     NEXT_ACTION_KIND_RECOVERY: _ClassVar[NextActionKind]
 
+class ValidationScopeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    VALIDATION_SCOPE_MODE_UNSPECIFIED: _ClassVar[ValidationScopeMode]
+    VALIDATION_SCOPE_MODE_NARROW: _ClassVar[ValidationScopeMode]
+    VALIDATION_SCOPE_MODE_FULL_PLAN: _ClassVar[ValidationScopeMode]
+
 class LogEntryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     LOG_ENTRY_TYPE_UNSPECIFIED: _ClassVar[LogEntryType]
@@ -241,6 +247,9 @@ NEXT_ACTION_KIND_RECOMMENDED: NextActionKind
 NEXT_ACTION_KIND_ALTERNATIVE: NextActionKind
 NEXT_ACTION_KIND_OPTIONAL: NextActionKind
 NEXT_ACTION_KIND_RECOVERY: NextActionKind
+VALIDATION_SCOPE_MODE_UNSPECIFIED: ValidationScopeMode
+VALIDATION_SCOPE_MODE_NARROW: ValidationScopeMode
+VALIDATION_SCOPE_MODE_FULL_PLAN: ValidationScopeMode
 LOG_ENTRY_TYPE_UNSPECIFIED: LogEntryType
 LOG_ENTRY_TYPE_DECISION: LogEntryType
 LOG_ENTRY_TYPE_FINDING: LogEntryType
@@ -421,6 +430,16 @@ class ChangeBoundary(_message.Message):
     operator_only_reason: str
     def __init__(self, acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., operator_only_reason: _Optional[str] = ...) -> None: ...
 
+class ValidationScope(_message.Message):
+    __slots__ = ("mode", "boundary", "rationale")
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    BOUNDARY_FIELD_NUMBER: _ClassVar[int]
+    RATIONALE_FIELD_NUMBER: _ClassVar[int]
+    mode: ValidationScopeMode
+    boundary: ChangeBoundary
+    rationale: str
+    def __init__(self, mode: _Optional[_Union[ValidationScopeMode, str]] = ..., boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., rationale: _Optional[str] = ...) -> None: ...
+
 class RegressionAnchor(_message.Message):
     __slots__ = ("strategy", "scenario", "baseline_name", "head_sha", "allowlist_paths", "commands", "captured_at", "unavailable")
     STRATEGY_FIELD_NUMBER: _ClassVar[int]
@@ -580,7 +599,7 @@ class CommandValidationFinding(_message.Message):
     def __init__(self, command_text: _Optional[str] = ..., verdict: _Optional[str] = ..., validation_level: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., issue_codes: _Optional[_Iterable[str]] = ..., suggestions: _Optional[_Iterable[str]] = ..., guidance: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class Phase(_message.Message):
-    __slots__ = ("id", "order", "title", "intent", "required_reading", "reminders", "baseline_scope", "acceptance", "status", "last_validation", "references", "relevant_context", "affected_areas", "steps", "expected_outputs", "validation", "handoff_notes", "risks_hazards", "change_boundary")
+    __slots__ = ("id", "order", "title", "intent", "required_reading", "reminders", "baseline_scope", "acceptance", "status", "last_validation", "references", "relevant_context", "affected_areas", "steps", "expected_outputs", "validation", "handoff_notes", "risks_hazards", "change_boundary", "validation_scope")
     ID_FIELD_NUMBER: _ClassVar[int]
     ORDER_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -600,6 +619,7 @@ class Phase(_message.Message):
     HANDOFF_NOTES_FIELD_NUMBER: _ClassVar[int]
     RISKS_HAZARDS_FIELD_NUMBER: _ClassVar[int]
     CHANGE_BOUNDARY_FIELD_NUMBER: _ClassVar[int]
+    VALIDATION_SCOPE_FIELD_NUMBER: _ClassVar[int]
     id: str
     order: int
     title: str
@@ -619,7 +639,8 @@ class Phase(_message.Message):
     handoff_notes: str
     risks_hazards: _containers.RepeatedScalarFieldContainer[str]
     change_boundary: ChangeBoundary
-    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., baseline_scope: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., status: _Optional[_Union[PhaseStatus, str]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., affected_areas: _Optional[_Iterable[str]] = ..., steps: _Optional[_Iterable[str]] = ..., expected_outputs: _Optional[_Iterable[str]] = ..., validation: _Optional[str] = ..., handoff_notes: _Optional[str] = ..., risks_hazards: _Optional[_Iterable[str]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ...) -> None: ...
+    validation_scope: ValidationScope
+    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., baseline_scope: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., status: _Optional[_Union[PhaseStatus, str]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., affected_areas: _Optional[_Iterable[str]] = ..., steps: _Optional[_Iterable[str]] = ..., expected_outputs: _Optional[_Iterable[str]] = ..., validation: _Optional[str] = ..., handoff_notes: _Optional[str] = ..., risks_hazards: _Optional[_Iterable[str]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., validation_scope: _Optional[_Union[ValidationScope, _Mapping]] = ...) -> None: ...
 
 class PlanDecision(_message.Message):
     __slots__ = ("title", "statement")
