@@ -189,7 +189,14 @@
       "agent-manager": {
         "enabled": true,
         "required": false,
-        "description": "Optional AI-assisted generation and repair producer used by agent workflows and WebSocket status streaming.",
+      "description": "Optional AI-assisted generation and repair producer using Test Genie's declared role-only profile.",
+      "config": {
+        "profiles": {
+          "reconcile": true,
+          "mode": "update_if_unmodified",
+          "sources": [".vrooli/agent-profiles/generation.json"]
+        }
+      },
         "degraded_behavior": "Core test execution continues when agent-manager is unavailable; AI-assisted generation/fix workflows return clear unavailable errors."
       },
       "browser-automation-studio": {

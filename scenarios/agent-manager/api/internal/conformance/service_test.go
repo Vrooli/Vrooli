@@ -1,12 +1,18 @@
 package conformance
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
 	"testing"
 )
+
+type failingPermissionPosture struct{ err error }
+
+func (p failingPermissionPosture) ReadinessError(context.Context) error { return p.err }
 
 func TestValidateReportsDependencyAndRoleProfileContract(t *testing.T) {
 	repo := t.TempDir()
@@ -20,7 +26,7 @@ func TestValidateReportsDependencyAndRoleProfileContract(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write(filepath.Join(root, ".vrooli", "service.json"), `{"dependencies":{"scenarios":{"agent-manager":{"enabled":true,"config":{"profiles":{"sources":[".vrooli/agent-profiles/default.json"]}}}}}}`)
+	write(filepath.Join(root, ".vrooli", "service.json"), `{"dependencies":{"scenarios":{"agent-manager":{"enabled":true,"config":{"profiles":{"reconcile":true,"mode":"update_if_unmodified","sources":[".vrooli/agent-profiles/default.json"]}}}}}}`)
 	write(filepath.Join(root, ".vrooli", "agent-profiles", "default.json"), `{"profileKey":"consumer/default","roleRef":"code.default"}`)
 	copyRoleCatalog(t, repo)
 	report, err := (Service{RepoRoot: repo}).Validate("consumer", "")
@@ -149,7 +155,7 @@ func TestValidateRejectsEscapingScenarioPaths(t *testing.T) {
 	}
 }
 
-func TestValidateReportsUndeclaredProfileSourcesAndDirectSpawnAsAdvisory(t *testing.T) {
+func TestValidateReportsUndeclaredProfileSourcesAndDirectSpawnAsBlocking(t *testing.T) {
 	repo := t.TempDir()
 	copyRoleCatalog(t, repo)
 	root := filepath.Join(repo, "scenarios", "consumer")
@@ -159,7 +165,7 @@ func TestValidateReportsUndeclaredProfileSourcesAndDirectSpawnAsAdvisory(t *test
 	if err := os.MkdirAll(filepath.Join(root, "api"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "service.json"), []byte(`{"dependencies":{"scenarios":{"agent-manager":{"enabled":true,"config":{"profiles":{"sources":[]}}}}}}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "service.json"), []byte(`{"dependencies":{"scenarios":{"agent-manager":{"enabled":true}}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, ".vrooli", "agent-profiles", "orphan.json"), []byte(`{"profileKey":"consumer/orphan","roleRef":"code.default"}`), 0o644); err != nil {
@@ -172,7 +178,26 @@ func TestValidateReportsUndeclaredProfileSourcesAndDirectSpawnAsAdvisory(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Findings) != 2 || report.Findings[0].Code != CodeDirectSpawnBypass || report.Findings[0].Severity != "SEVERITY_WARNING" || report.Findings[1].Code != CodeProfileOrphan {
+	if len(report.Findings) != 2 || report.Findings[0].Code != CodeDirectSpawnBypass || report.Findings[0].Severity != "SEVERITY_ERROR" || report.Findings[1].Code != CodeProfileOrphan {
+		t.Fatalf("findings = %#v", report.Findings)
+	}
+}
+
+func TestValidateReportsUnreadyGlobalPermissionPosture(t *testing.T) {
+	repo := t.TempDir()
+	copyRoleCatalog(t, repo)
+	root := filepath.Join(repo, "scenarios", "consumer", ".vrooli")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "service.json"), []byte(`{"dependencies":{"scenarios":{"agent-manager":{"enabled":true}}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, err := (Service{RepoRoot: repo, PermissionPosture: failingPermissionPosture{err: errors.New("hard enforcement is stale")}}).Validate("consumer", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Findings) != 1 || report.Findings[0].Code != CodePermissionPosture || report.Findings[0].Severity != "SEVERITY_ERROR" {
 		t.Fatalf("findings = %#v", report.Findings)
 	}
 }

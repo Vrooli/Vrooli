@@ -50,6 +50,21 @@
 
 ## Test Gaps
 
+### P-006: Comprehensive health suite has unrelated inherited debt (2026-07-11)
+**Severity**: Medium (verification), not a role/permission cutover defect.
+**Description**: Test Genie run `20260711-155454-0b8cfb01` reached terminal
+`FAIL` in broad existing health phases: structure, contracts, UI, API,
+dependencies, quality, unit, storage, tidiness, security, measures, proto, and
+templates. Its provider-conformance and business phases passed. The docs phase
+was unavailable because Knowledge Observatory cannot compile its stale
+`AgentProfile.RunnerType`/`Model` adapter usage after the hard cutover; that
+external consumer defect is tracked as `knw-1783784244326771566`.
+**Mitigation**: Keep role-policy, permission-policy, profile-reconcile, and
+agent-conformance validation focused and green; resolve each owning health
+provider or scenario debt independently before treating the comprehensive
+scenario suite as a release gate for this cutover.
+**Status**: Open; not remediated by compatibility restoration.
+
 The role-policy boundary has focused coverage for catalog validation and
 atomic activation, profile-to-snapshot resolution, cross-runner fallback,
 explicit runner-default launch, unavailable-runner skips, terminal exhaustion,

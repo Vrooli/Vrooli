@@ -38,6 +38,7 @@ const eagerWaitWindow = 30 * time.Second
 var (
 	waitNow       = time.Now
 	waitStatePath = defaultWaitStatePath
+	parkForAwait  = cliutil.ParkForAwait
 )
 
 // printTimeoutHint emits the cadence governor + the exact re-invoke command after
@@ -186,17 +187,23 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	// the result injected as the next turn (zero tokens while parked). Outside an
 	// AM run this is a no-op (parked=false) and we fall through to the normal
 	// blocking wait — human / CI / raw-terminal behaviour is unchanged.
-	if park, parked, perr := cliutil.ParkForAwait(cliutil.ParkRequest{
-		Producer: cliutil.ParkProducerTestGenie,
-		Key:      scenario + "/" + runID,
-	}); parked {
-		if perr == nil {
-			fmt.Fprintln(w, park.Message)
-			return nil
+	// JSON wait is the documented machine contract: it must return a real
+	// WaitRun snapshot and exit code. Parking here can return success before a
+	// queued run is dispatched when the caller's agent host does not deliver the
+	// wake callback. Human waits may still park to save an agent turn.
+	if !*jsonOut {
+		if park, parked, perr := parkForAwait(cliutil.ParkRequest{
+			Producer: cliutil.ParkProducerTestGenie,
+			Key:      scenario + "/" + runID,
+		}); parked {
+			if perr == nil {
+				fmt.Fprintln(w, park.Message)
+				return nil
+			}
+			// We are in an AM run but park failed — degrade gracefully to the inline
+			// wait (no worse than before park existed).
+			fmt.Fprintf(stderrOut, "agent-manager park unavailable (%v) — waiting inline instead\n", perr)
 		}
-		// We are in an AM run but park failed — degrade gracefully to the inline
-		// wait (no worse than before park existed).
-		fmt.Fprintf(stderrOut, "agent-manager park unavailable (%v) — waiting inline instead\n", perr)
 	}
 
 	cl, err := client(apiClient)

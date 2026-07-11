@@ -169,14 +169,13 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
 	profileKey := os.Getenv("AGENT_MANAGER_PROFILE_KEY")
 	if profileKey == "" {
-		profileKey = "test-genie"
+		profileKey = "test-genie/generation"
 	}
 
 	agentService := agentmanager.NewAgentService(agentmanager.Config{
-		ProfileName: "Test Genie Agent",
-		ProfileKey:  profileKey,
-		Timeout:     30 * time.Second,
-		Enabled:     agentEnabled,
+		ProfileKey: profileKey,
+		Timeout:    30 * time.Second,
+		Enabled:    agentEnabled,
 	})
 
 	// Initialize profile at startup (non-blocking)
@@ -184,7 +183,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			if err := agentService.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
+			if err := agentService.Initialize(ctx); err != nil {
 				log.Printf("[agent-manager] Warning: failed to initialize profile: %v", err)
 			}
 		}()

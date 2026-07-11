@@ -35,3 +35,15 @@ func TestTestGenieOwnDescriptorPassesContract(t *testing.T) {
 		requireNoCode(t, report, code)
 	}
 }
+
+// TestAgentManagerDescriptorHasGatedAgentConformanceLadder prevents the
+// provider-owned Agent Manager phase from regressing to advisory maturity
+// rungs after its fleet conformance gate has been activated.
+func TestAgentManagerDescriptorHasGatedAgentConformanceLadder(t *testing.T) {
+	repoRoot := repoRootFromTest(t)
+	report, err := New(repoRoot).ValidateScenario(context.Background(), "agent-manager", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario(agent-manager): %v", err)
+	}
+	requireNoCode(t, report, CodeRungUngated)
+}

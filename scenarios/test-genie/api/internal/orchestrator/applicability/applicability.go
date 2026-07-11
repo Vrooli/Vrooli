@@ -39,9 +39,20 @@ type Context struct {
 	HasUI                 bool
 	HasAPI                bool
 	Files                 map[string]bool
+	PathGlobs             map[string][]string
+	ScenarioDependencies  map[string]DependencyStatus
 	ServiceCapabilities   map[string]bool
+	ServiceTags           map[string]bool
 	TestingConfigSections map[string]bool
 }
+
+type DependencyStatus string
+
+const (
+	DependencyAbsent   DependencyStatus = "absent"
+	DependencyDisabled DependencyStatus = "disabled"
+	DependencyPresent  DependencyStatus = "present"
+)
 
 type Reason struct {
 	Code    string `json:"code"`
@@ -131,12 +142,34 @@ func evaluatePredicate(predicate providerdescriptor.Predicate, ctx Context) (Rea
 			return Reason{Code: "applicability.file_exists", Message: fmt.Sprintf("target file %s exists", path)}, true, nil
 		}
 		return Reason{Code: "applicability.file_missing", Message: fmt.Sprintf("target file %s is absent", path)}, false, nil
+	case strings.TrimSpace(predicate.PathGlob) != "":
+		glob := strings.TrimSpace(predicate.PathGlob)
+		if matches := ctx.PathGlobs[glob]; len(matches) > 0 {
+			return Reason{Code: "applicability.path_glob_matched", Message: fmt.Sprintf("target path glob %s matched %s", glob, strings.Join(matches, ", "))}, true, nil
+		}
+		return Reason{Code: "applicability.path_glob_unmatched", Message: fmt.Sprintf("target path glob %s matched no files", glob)}, false, nil
+	case strings.TrimSpace(predicate.ScenarioDependency) != "":
+		dependency := normalizeKey(predicate.ScenarioDependency)
+		switch ctx.dependencyStatus(dependency) {
+		case DependencyPresent:
+			return Reason{Code: "applicability.scenario_dependency_present", Message: fmt.Sprintf("target has enabled scenario dependency %s", dependency)}, true, nil
+		case DependencyDisabled:
+			return Reason{Code: "applicability.scenario_dependency_disabled", Message: fmt.Sprintf("target has disabled scenario dependency %s", dependency)}, false, nil
+		default:
+			return Reason{Code: "applicability.scenario_dependency_absent", Message: fmt.Sprintf("target lacks scenario dependency %s", dependency)}, false, nil
+		}
 	case strings.TrimSpace(predicate.ServiceCapability) != "":
 		capability := normalizeKey(predicate.ServiceCapability)
 		if ctx.hasCapability(capability) {
 			return Reason{Code: "applicability.service_capability_present", Message: fmt.Sprintf("target declares service capability %s", capability)}, true, nil
 		}
 		return Reason{Code: "applicability.service_capability_absent", Message: fmt.Sprintf("target does not declare service capability %s", capability)}, false, nil
+	case strings.TrimSpace(predicate.ServiceTag) != "":
+		tag := normalizeKey(predicate.ServiceTag)
+		if hasNormalizedKey(ctx.ServiceTags, tag) {
+			return Reason{Code: "applicability.service_tag_present", Message: fmt.Sprintf("target declares service tag %s", tag)}, true, nil
+		}
+		return Reason{Code: "applicability.service_tag_absent", Message: fmt.Sprintf("target does not declare service tag %s", tag)}, false, nil
 	case predicate.HasUI != nil:
 		if ctx.HasUI == *predicate.HasUI {
 			return Reason{Code: "applicability.has_ui_matched", Message: fmt.Sprintf("target UI availability matched %t", *predicate.HasUI)}, true, nil
@@ -191,6 +224,21 @@ func (ctx Context) hasCapability(capability string) bool {
 	return hasNormalizedKey(ctx.ServiceCapabilities, capability)
 }
 
+func (ctx Context) dependencyStatus(dependency string) DependencyStatus {
+	if ctx.ScenarioDependencies == nil {
+		return DependencyAbsent
+	}
+	if status, ok := ctx.ScenarioDependencies[dependency]; ok {
+		return status
+	}
+	for name, status := range ctx.ScenarioDependencies {
+		if normalizeKey(name) == dependency {
+			return status
+		}
+	}
+	return DependencyAbsent
+}
+
 func (ctx Context) hasTestingConfigSection(section string) bool {
 	return hasNormalizedKey(ctx.TestingConfigSections, section)
 }
@@ -227,7 +275,16 @@ func countPredicateFields(predicate providerdescriptor.Predicate) int {
 	if strings.TrimSpace(predicate.FileExists) != "" {
 		count++
 	}
+	if strings.TrimSpace(predicate.PathGlob) != "" {
+		count++
+	}
+	if strings.TrimSpace(predicate.ScenarioDependency) != "" {
+		count++
+	}
 	if strings.TrimSpace(predicate.ServiceCapability) != "" {
+		count++
+	}
+	if strings.TrimSpace(predicate.ServiceTag) != "" {
 		count++
 	}
 	if predicate.HasUI != nil {

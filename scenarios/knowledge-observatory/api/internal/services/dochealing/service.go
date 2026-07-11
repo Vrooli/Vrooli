@@ -349,9 +349,6 @@ func (s *Service) finalizeRun(ctx context.Context, jobID, runID string, req Heal
 }
 
 func (s *Service) spawnAgent(ctx context.Context, jobID string, req HealRequest, prompt, scopePath, projectRoot string) (string, error) {
-	if err := s.agent.EnsureProfile(ctx); err != nil {
-		return "", err
-	}
 	title := fmt.Sprintf("Documentation healing: %s", req.ScenarioName)
 	runReq := AgentRunRequest{
 		Title:       title,

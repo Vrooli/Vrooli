@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"test-genie/internal/orchestrator/applicability"
@@ -143,7 +144,10 @@ type phaseApplicabilityNotice struct {
 }
 
 func (o *SuiteOrchestrator) evaluatePhaseApplicability(defs []phases.Definition, env workspacepkg.Environment, cfg *workspacepkg.Config) (map[string]phaseApplicabilityNotice, error) {
-	ctx := buildApplicabilityContext(env, cfg, o.descriptorPredicates())
+	ctx, err := buildApplicabilityContext(env, cfg, o.descriptorPredicates())
+	if err != nil {
+		return nil, err
+	}
 	results := make(map[string]phaseApplicabilityNotice, len(defs))
 	for _, def := range defs {
 		key := def.Name.Key()
@@ -165,11 +169,15 @@ func (o *SuiteOrchestrator) evaluatePhaseApplicability(defs []phases.Definition,
 			}
 			continue
 		}
-		results[key] = phaseApplicabilityNotice{
+		notice := phaseApplicabilityNotice{
 			Definition: def,
 			Result:     applicability.Evaluate(def.Name.String(), entry.Descriptor.Applicability, ctx),
 			Descriptor: entry.Descriptor,
 		}
+		if notice.Result.Status == applicability.StatusInvalid {
+			return nil, fmt.Errorf("phase_applicability_invalid: phase %q from %s: %s", def.Name.String(), entry.Descriptor.Path, applicabilityReasons(notice.Result.Reasons))
+		}
+		results[key] = notice
 	}
 	return results, nil
 }
@@ -227,27 +235,82 @@ func allRequestedPhasesAreNotApplicable(requested []string, notices []phaseAppli
 	return true
 }
 
-func buildApplicabilityContext(env workspacepkg.Environment, cfg *workspacepkg.Config, predicates []providerdescriptor.Predicate) applicability.Context {
+func applicabilityReasons(reasons []applicability.Reason) string {
+	parts := make([]string, 0, len(reasons))
+	for _, reason := range reasons {
+		parts = append(parts, reason.Code+": "+reason.Message)
+	}
+	return strings.Join(parts, "; ")
+}
+
+func buildApplicabilityContext(env workspacepkg.Environment, cfg *workspacepkg.Config, predicates []providerdescriptor.Predicate) (applicability.Context, error) {
 	ctx := applicability.Context{
 		ScenarioName:          env.ScenarioName,
 		ScenarioDir:           env.ScenarioDir,
 		HasUI:                 dirExists(filepath.Join(env.ScenarioDir, "ui")),
 		HasAPI:                dirExists(filepath.Join(env.ScenarioDir, "api")),
 		Files:                 map[string]bool{},
+		PathGlobs:             map[string][]string{},
+		ScenarioDependencies:  scenarioDependencies(env.ScenarioDir),
 		ServiceCapabilities:   serviceCapabilities(env.ScenarioDir),
+		ServiceTags:           serviceTags(env.ScenarioDir),
 		TestingConfigSections: testingConfigSections(cfg),
 	}
 	for _, predicate := range predicates {
-		if strings.TrimSpace(predicate.FileExists) == "" {
-			continue
+		if filePath := strings.TrimSpace(predicate.FileExists); filePath != "" {
+			rel := filepath.ToSlash(filepath.Clean(filePath))
+			if rel == "." {
+				continue
+			}
+			ctx.Files[rel] = fileExists(filepath.Join(env.ScenarioDir, filepath.FromSlash(rel)))
 		}
-		rel := filepath.ToSlash(filepath.Clean(strings.TrimSpace(predicate.FileExists)))
-		if rel == "." {
-			continue
+		if glob := strings.TrimSpace(predicate.PathGlob); glob != "" {
+			matches, err := safePathGlob(env.ScenarioDir, glob)
+			if err != nil {
+				return applicability.Context{}, fmt.Errorf("invalid applicability pathGlob %q: %w", glob, err)
+			}
+			ctx.PathGlobs[glob] = matches
 		}
-		ctx.Files[rel] = fileExists(filepath.Join(env.ScenarioDir, filepath.FromSlash(rel)))
 	}
-	return ctx
+	return ctx, nil
+}
+
+func safePathGlob(scenarioDir, pattern string) ([]string, error) {
+	pattern = filepath.ToSlash(strings.TrimSpace(pattern))
+	if pattern == "" || filepath.IsAbs(pattern) || strings.HasPrefix(pattern, "/") {
+		return nil, fmt.Errorf("must be a non-empty target-relative pattern")
+	}
+	for _, segment := range strings.Split(pattern, "/") {
+		if segment == ".." {
+			return nil, fmt.Errorf("must not traverse outside the target")
+		}
+	}
+	matches, err := filepath.Glob(filepath.Join(scenarioDir, filepath.FromSlash(pattern)))
+	if err != nil {
+		return nil, err
+	}
+	root, err := filepath.EvalSymlinks(scenarioDir)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, 0, len(matches))
+	for _, match := range matches {
+		info, err := os.Stat(match)
+		if err != nil || info.IsDir() {
+			continue
+		}
+		resolved, err := filepath.EvalSymlinks(match)
+		if err != nil {
+			continue
+		}
+		rel, err := filepath.Rel(root, resolved)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return nil, fmt.Errorf("match escapes target: %s", match)
+		}
+		result = append(result, filepath.ToSlash(rel))
+	}
+	sort.Strings(result)
+	return result, nil
 }
 
 func dirExists(path string) bool {
@@ -265,32 +328,64 @@ func testingConfigSections(cfg *workspacepkg.Config) map[string]bool {
 	if cfg == nil {
 		return sections
 	}
-	if len(cfg.Phases) > 0 {
-		sections["phases"] = true
-	}
-	if len(cfg.Presets) > 0 {
-		sections["presets"] = true
-	}
-	if cfg.Requirements.Enforce != nil || cfg.Requirements.Sync != nil {
-		sections["requirements"] = true
+	for section, present := range cfg.Sections {
+		if present {
+			sections[section] = true
+		}
 	}
 	return sections
 }
 
 func serviceCapabilities(scenarioDir string) map[string]bool {
-	capabilities := map[string]bool{}
+	return serviceStringFacts(scenarioDir, "capabilities")
+}
+
+func serviceTags(scenarioDir string) map[string]bool {
+	return serviceStringFacts(scenarioDir, "tags")
+}
+
+func serviceStringFacts(scenarioDir, field string) map[string]bool {
+	values := map[string]bool{}
 	raw, err := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "service.json"))
 	if err != nil {
-		return capabilities
+		return values
 	}
 	var doc map[string]any
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		return capabilities
+		return values
 	}
-	addStringSlice(capabilities, nestedStringSlice(doc, "service", "tags"))
-	addStringSlice(capabilities, nestedStringSlice(doc, "service", "capabilities"))
-	addStringSlice(capabilities, nestedStringSlice(doc, "capabilities"))
-	return capabilities
+	addStringSlice(values, nestedStringSlice(doc, "service", field))
+	return values
+}
+
+func scenarioDependencies(scenarioDir string) map[string]applicability.DependencyStatus {
+	result := map[string]applicability.DependencyStatus{}
+	raw, err := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "service.json"))
+	if err != nil {
+		return result
+	}
+	var doc struct {
+		Dependencies struct {
+			Scenarios map[string]struct {
+				Enabled *bool `json:"enabled"`
+			} `json:"scenarios"`
+		} `json:"dependencies"`
+	}
+	if json.Unmarshal(raw, &doc) != nil {
+		return result
+	}
+	for name, dependency := range doc.Dependencies.Scenarios {
+		key := strings.ToLower(strings.TrimSpace(name))
+		if key == "" {
+			continue
+		}
+		if dependency.Enabled != nil && !*dependency.Enabled {
+			result[key] = applicability.DependencyDisabled
+		} else {
+			result[key] = applicability.DependencyPresent
+		}
+	}
+	return result
 }
 
 func nestedStringSlice(doc map[string]any, path ...string) []string {

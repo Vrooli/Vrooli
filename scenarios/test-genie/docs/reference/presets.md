@@ -84,6 +84,7 @@ test-genie execute my-scenario --preset comprehensive
 | Branding | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. | 2m |
 | Search | Validates search-enabled scenarios through Search Hub's search maturity contract. | 90s |
 | Provider Conformance | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. | 90s |
+| Agent Conformance | Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles. | 45s |
 | Templates | Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager. | 90s |
 
 ## Preset Comparison
@@ -112,6 +113,7 @@ test-genie execute my-scenario --preset comprehensive
 | Branding | Adaptive | Adaptive | No | Yes |
 | Search | Adaptive | Adaptive | No | Yes |
 | Provider Conformance | Adaptive | Adaptive | No | Yes |
+| Agent Conformance | Adaptive | Adaptive | No | Yes |
 | Templates | Adaptive | Adaptive | No | Yes |
 
 ## Custom Presets

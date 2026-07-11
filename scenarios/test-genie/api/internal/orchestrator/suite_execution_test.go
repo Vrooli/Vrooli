@@ -1398,3 +1398,23 @@ func stubPhaseCommandCapture(t *testing.T, fn func(context.Context, string, io.W
 	restore := phasespkg.OverrideCommandCapture(fn)
 	t.Cleanup(restore)
 }
+
+func TestSafePathGlobRejectsEscapesAndOnlyReturnsContainedFiles(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli", "agent-profiles"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	profile := filepath.Join(root, ".vrooli", "agent-profiles", "default.json")
+	if err := os.WriteFile(profile, []byte(`{}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	matches, err := safePathGlob(root, ".vrooli/agent-profiles/*.json")
+	if err != nil || len(matches) != 1 || matches[0] != ".vrooli/agent-profiles/default.json" {
+		t.Fatalf("safePathGlob = %v, %v", matches, err)
+	}
+	for _, pattern := range []string{"/etc/*", "../*.json", "["} {
+		if _, err := safePathGlob(root, pattern); err == nil {
+			t.Fatalf("safePathGlob(%q) succeeded, want rejection", pattern)
+		}
+	}
+}

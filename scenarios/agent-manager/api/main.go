@@ -664,7 +664,7 @@ func (s *Server) setupRoutes() {
 	if repoRoot == "" {
 		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
 	}
-	conformancePath, conformanceHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(conformance.NewHandler(repoRoot))
+	conformancePath, conformanceHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(conformance.NewHandler(repoRoot, s.permissionPolicy))
 	s.router.PathPrefix(strings.TrimRight(conformancePath, "/")).Handler(conformanceHandler)
 
 	// Register all API routes via the handlers package

@@ -1,13 +1,13 @@
 {
   "_metadata": {
     "description": "Provide CLI interface for knowledge exploration and management operations",
-    "last_validated_at": "2026-06-20T18:52:01-04:00"
+    "last_validated_at": "2026-07-11T12:20:10-04:00"
   },
   "requirements": [
     {
       "id": "KO-CLI-001",
       "title": "Required standard commands",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
       "description": "CLI provides status, help, and version commands as per scenario lifecycle contract",
       "validation": [
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "KO-CLI-002",
       "title": "Search command",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
       "description": "knowledge-observatory search \u003cquery\u003e performs semantic search and displays ranked results",
       "validation": [
@@ -30,14 +30,14 @@
           "type": "test",
           "ref": "cli/maintenance_commands_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "KO-CLI-003",
       "title": "Health command",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
       "description": "knowledge-observatory health displays knowledge system quality metrics",
       "validation": [
@@ -45,14 +45,14 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "KO-CLI-004",
       "title": "Graph command",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
       "description": "knowledge-observatory graph generates knowledge relationship visualization data",
       "validation": [
@@ -60,14 +60,14 @@
           "type": "test",
           "ref": "cli/maintenance_commands_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "KO-CLI-005",
       "title": "CLI error handling",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
       "description": "Graceful error messages for missing API, invalid arguments, and resource unavailability",
       "validation": [
@@ -75,7 +75,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

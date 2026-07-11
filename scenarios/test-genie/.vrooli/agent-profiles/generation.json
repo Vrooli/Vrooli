@@ -1,0 +1,11 @@
+{
+  "name": "test-genie-agent",
+  "profileKey": "test-genie/generation",
+  "description": "Portable profile for Test Genie agent-assisted generation and repair",
+  "roleRef": "code.smart",
+  "maxTurns": 50,
+  "timeout": "900s",
+  "allowedTools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+  "sandboxConfig": {"mode": "SANDBOX_MODE_PROTECTED"},
+  "createdBy": "test-genie"
+}

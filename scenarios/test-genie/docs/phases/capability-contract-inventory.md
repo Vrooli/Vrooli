@@ -27,6 +27,7 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | Phase | Provider | Capabilities | Posture | docs.path |
 |-------|----------|--------------|---------|-----------|
 | `ai-conformance` | ai-gateway | 4 | provider-delegated | `scenarios/test-genie/docs/phases/ai-conformance/README.md` |
+| `agent-conformance` | agent-manager | 1 | provider-delegated | `scenarios/test-genie/docs/phases/agent-conformance/README.md` |
 | `api` | api-health | 6 | provider-delegated | `scenarios/test-genie/docs/phases/api/README.md` |
 | `architecture` | architecture-cartographer | 5 | provider-delegated | `scenarios/test-genie/docs/phases/architecture/README.md` |
 | `branding` | brand-manager | 6 | provider-delegated | `scenarios/test-genie/docs/phases/branding/README.md` |

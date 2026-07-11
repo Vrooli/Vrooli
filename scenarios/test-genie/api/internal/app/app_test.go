@@ -49,9 +49,8 @@ func TestNewServerWiresRuntimeDependenciesIntoHTTPTransport(t *testing.T) {
 		ScenariosRoot: "/tmp/scenarios",
 	}
 	agentSvc := agentmanager.NewAgentService(agentmanager.Config{
-		ProfileName: "Test Genie Agent",
-		ProfileKey:  "test-genie",
-		Enabled:     true,
+		ProfileKey: "test-genie/generation",
+		Enabled:    true,
 	})
 	bootstrapped := &runtime.Bootstrapped{
 		DB:           &database.RoutedDB{},

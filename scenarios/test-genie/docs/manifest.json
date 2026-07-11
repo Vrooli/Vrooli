@@ -58,7 +58,8 @@
         { "path": "phases/performance/README.md", "title": "Performance Phase", "description": "Benchmarks and performance testing" },
         { "path": "phases/performance/lighthouse.md", "title": "Lighthouse Integration", "description": "Performance and accessibility testing" },
         { "path": "phases/performance/performance-testing.md", "title": "Performance Testing", "description": "Build benchmarks and regression detection" },
-        { "path": "phases/search/README.md", "title": "Search Phase", "description": "Search maturity validation for search-enabled scenarios" }
+        { "path": "phases/search/README.md", "title": "Search Phase", "description": "Search maturity validation for search-enabled scenarios" },
+        { "path": "phases/agent-conformance/README.md", "title": "Agent Conformance Phase", "description": "Portable Agent Manager dependency and role-profile validation" }
       ]
     },
     {

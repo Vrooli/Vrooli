@@ -1,13 +1,13 @@
 {
   "_metadata": {
     "description": "Generate and visualize knowledge relationship graphs showing concept connections",
-    "last_validated_at": "2026-06-25T17:34:36-04:00"
+    "last_validated_at": "2026-07-11T12:20:10-04:00"
   },
   "requirements": [
     {
       "id": "KO-KG-001",
       "title": "Graph generation from vector relationships",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
       "description": "Build graph structure by finding semantically similar entries and creating edges based on similarity strength",
       "validation": [
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/graph_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -37,7 +37,7 @@
     {
       "id": "KO-KG-003",
       "title": "Graph rendering performance \u003c 2s",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
       "description": "Graph generation and rendering for up to 1000 nodes must complete in under 2 seconds",
       "validation": [
@@ -45,14 +45,14 @@
           "type": "test",
           "ref": "api/graph_performance_test.go",
           "phase": "performance",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "KO-KG-004",
       "title": "Graph metadata extraction",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
       "description": "Extract and include relevant metadata (source, scenario, quality) in graph nodes",
       "validation": [
@@ -60,7 +60,7 @@
           "type": "test",
           "ref": "api/graph_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

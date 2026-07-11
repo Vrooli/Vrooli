@@ -3,7 +3,6 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"log"
 	"path"
 	"strings"
 	"sync"
@@ -19,30 +18,27 @@ import (
 // It wraps the agent-manager client and handles profile management,
 // batch spawning, and status tracking for test generation.
 type AgentService struct {
-	client      *Client
-	profileName string
-	profileKey  string
-	profileID   string
-	mu          sync.RWMutex
-	enabled     bool
+	client     *Client
+	profileKey string
+	profileID  string
+	mu         sync.RWMutex
+	enabled    bool
 }
 
 // Config contains configuration for the agent service.
 type Config struct {
-	ProfileName string
-	ProfileKey  string
-	Timeout     time.Duration
-	Enabled     bool
+	ProfileKey string
+	Timeout    time.Duration
+	Enabled    bool
 }
 
 // NewAgentService creates a new agent service.
 func NewAgentService(cfg Config) *AgentService {
 	client := NewClient(cfg.Timeout)
 	return &AgentService{
-		client:      client,
-		profileName: cfg.ProfileName,
-		profileKey:  cfg.ProfileKey,
-		enabled:     cfg.Enabled,
+		client:     client,
+		profileKey: cfg.ProfileKey,
+		enabled:    cfg.Enabled,
 	}
 }
 
@@ -68,100 +64,34 @@ func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
 	return s.client.ResolveURL(ctx)
 }
 
-// Initialize ensures the agent profile exists.
-// Call this at startup to create/update the test-genie profile.
-func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error {
+// Initialize reconciles Test Genie's manifest-declared profile source.
+func (s *AgentService) Initialize(ctx context.Context) error {
 	if !s.enabled {
 		return nil
 	}
 
-	resp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
-		ProfileKey:     s.profileKey,
-		Defaults:       s.buildProfile(cfg),
-		UpdateExisting: false,
-	})
+	resp, err := s.client.ReconcileScenarioProfiles(ctx, "test-genie")
 	if err != nil {
-		return fmt.Errorf("ensure profile: %w", err)
+		return fmt.Errorf("reconcile profile: %w", err)
 	}
 
 	s.mu.Lock()
-	if resp.Profile != nil {
-		s.profileID = resp.Profile.Id
+	for _, item := range resp.Results {
+		if item.ProfileKey == s.profileKey {
+			s.profileID = item.ProfileId
+		}
 	}
 	s.mu.Unlock()
 
-	if resp.Created {
-		log.Printf("[agent-manager] Created profile '%s' (id=%s)", s.profileName, s.profileID)
-	} else {
-		log.Printf("[agent-manager] Resolved profile '%s' (id=%s)", s.profileName, s.profileID)
+	if s.profileID == "" {
+		return fmt.Errorf("reconciliation returned no profile %q", s.profileKey)
 	}
-
 	return nil
-}
-
-// ProfileConfig contains agent profile configuration.
-type ProfileConfig struct {
-	RoleRef         string
-	MaxTurns        int32
-	TimeoutSeconds  int32
-	AllowedTools    []string
-	SkipPermissions bool
-	// SandboxMode selects the per-run sandbox execution mode. Empty
-	// (Unspecified) lets agent-manager apply its DefaultSandboxConfig
-	// (Mode=Protected). Set to SANDBOX_MODE_OFF for in-place runs.
-	// See agent-manager's domain.DeriveRunMode for the contract.
-	SandboxMode domainpb.SandboxMode
-}
-
-// DefaultProfileConfig returns the default configuration for test generation.
-func DefaultProfileConfig() *ProfileConfig {
-	return &ProfileConfig{
-		RoleRef:  "code.smart",
-		MaxTurns: 50,
-		// 15 minute timeout for thorough test generation
-		TimeoutSeconds: 900,
-		AllowedTools: []string{
-			"Read",  // Read files
-			"Write", // Create/overwrite files
-			"Edit",  // Modify files
-			"Glob",  // Find files by pattern
-			"Grep",  // Search file contents
-			"Bash",  // Execute allowed commands
-		},
-		SkipPermissions: false, // Require confirmation for safety
-		// Run in workspace-sandbox so the test-genie CLI's sandbox-aware
-		// resolution (cliutil.ResolveScenarioPath) gets activated:
-		// agent-manager injects VROOLI_SANDBOX_{ID,MERGED,SCOPE} only
-		// for sandboxed runs, and without those env vars the CLI
-		// silently falls back to the real-repo path. ManualReview
-		// defaults to false (auto-apply), so any test/test-fix edits
-		// flow into the canonical repo with provenance recorded.
-		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_PROTECTED,
-	}
-}
-
-func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
-	profile := &domainpb.AgentProfile{
-		Name:                 s.profileName,
-		ProfileKey:           s.profileKey,
-		Description:          "Agent profile for test-genie test generation",
-		RoleRef:              cfg.RoleRef,
-		MaxTurns:             cfg.MaxTurns,
-		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
-		AllowedTools:         cfg.AllowedTools,
-		SkipPermissionPrompt: cfg.SkipPermissions,
-		CreatedBy:            "test-genie",
-	}
-	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
-		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
-	}
-	return profile
 }
 
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
 	return &apipb.ProfileRef{
 		ProfileKey: s.profileKey,
-		Defaults:   s.buildProfile(DefaultProfileConfig()),
 	}
 }
 

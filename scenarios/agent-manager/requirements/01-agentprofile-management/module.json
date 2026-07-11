@@ -9,7 +9,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "description": "System must allow creation of agent profiles with name, description, runner configuration settings, and permission scopes",
+      "description": "System must allow creation and scenario-owned reconciliation of portable role-based agent profiles with runner-neutral controls and permission posture",
       "validation": [
         {
           "type": "test",
@@ -52,6 +52,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Test profile deletion"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/profile_reconcile_test.go::TestReadScenarioProfileConfigRejectsUnknownAndDuplicateSources",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verify strict enabled-dependency, profile source, and reconciliation mode validation for scenario-owned portable profiles"
         }
       ]
     },

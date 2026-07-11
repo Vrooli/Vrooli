@@ -2,7 +2,7 @@
   "_metadata": {
     "auto_sync_enabled": true,
     "description": "Knowledge Observatory requirement registry mapping operational targets to implementation requirements",
-    "last_validated_at": "2026-06-20T18:52:01-04:00",
+    "last_validated_at": "2026-07-11T12:20:10-04:00",
     "schema_version": "1.0.0"
   },
   "imports": [
@@ -17,7 +17,7 @@
     {
       "id": "KO-P0-001",
       "title": "Semantic search across Qdrant",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
       "category": "search",
       "description": "Natural-language search returning ranked results across collections",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/search_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Search handler and service tests validate query flow"
         },
         {
@@ -41,7 +41,7 @@
     {
       "id": "KO-P0-002",
       "title": "Knowledge quality metrics",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
       "category": "metrics",
       "description": "Coherence, freshness, redundancy, and coverage metrics per collection",
@@ -50,7 +50,7 @@
           "type": "test",
           "ref": "api/metrics_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Metrics calculations verified in API tests"
         },
         {
@@ -65,7 +65,7 @@
     {
       "id": "KO-P0-003",
       "title": "Knowledge graph access",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
       "category": "graph",
       "description": "API-powered graph endpoint for semantic relationships",
@@ -74,7 +74,7 @@
           "type": "test",
           "ref": "api/graph_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Graph service behavior covered by tests"
         }
       ]
@@ -82,7 +82,7 @@
     {
       "id": "KO-P0-004",
       "title": "API endpoints for knowledge queries",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-004",
       "category": "api",
       "description": "Stable REST endpoints for search, health, and graph queries",
@@ -91,7 +91,7 @@
           "type": "test",
           "ref": "api/main_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Route registration and health handler coverage"
         }
       ]
@@ -99,7 +99,7 @@
     {
       "id": "KO-P0-005",
       "title": "CLI exploration commands",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
       "category": "cli",
       "description": "CLI workflows for search, health, and graph inspection",
@@ -108,7 +108,7 @@
           "type": "test",
           "ref": "cli/maintenance_commands_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI command behavior validated via Go tests"
         }
       ]
@@ -116,7 +116,7 @@
     {
       "id": "KO-P0-006",
       "title": "Operator dashboard UI",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
       "category": "ui",
       "description": "Matrix-style monitoring UI with search, metrics, and health views",
@@ -125,7 +125,7 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "UI renders and smoke checks covered"
         }
       ]

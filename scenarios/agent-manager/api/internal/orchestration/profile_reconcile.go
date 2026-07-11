@@ -31,7 +31,8 @@ const (
 type scenarioServiceProfileConfig struct {
 	Dependencies struct {
 		Scenarios map[string]struct {
-			Config json.RawMessage `json:"config"`
+			Enabled *bool           `json:"enabled"`
+			Config  json.RawMessage `json:"config"`
 		} `json:"scenarios"`
 	} `json:"dependencies"`
 }
@@ -125,8 +126,21 @@ func readScenarioProfileConfig(servicePath string) (*profileSourcesConfig, error
 		return nil, domain.NewValidationErrorWithHint("dependencies.scenarios.agent-manager", "dependency is required",
 			"Declare agent-manager under dependencies.scenarios with config.profiles.sources")
 	}
+	if dep.Enabled != nil && !*dep.Enabled {
+		return nil, domain.NewValidationErrorWithHint("dependencies.scenarios.agent-manager.enabled", "dependency must be enabled",
+			"Enable agent-manager before reconciling its scenario-owned profiles")
+	}
 	if len(dep.Config) == 0 {
 		return &profileSourcesConfig{}, nil
+	}
+	var configObject map[string]json.RawMessage
+	if err := json.Unmarshal(dep.Config, &configObject); err != nil || configObject == nil {
+		return nil, domain.NewConfigInvalidError("dependencies.scenarios.agent-manager.config", "must be a JSON object containing profiles", err)
+	}
+	profilesRaw, hasProfiles := configObject["profiles"]
+	if !hasProfiles || string(profilesRaw) == "null" {
+		return nil, domain.NewValidationErrorWithHint("dependencies.scenarios.agent-manager.config.profiles", "field is required",
+			"Declare profiles.reconcile, profiles.mode, and profiles.sources or omit config when no scenario-owned profile is needed")
 	}
 	var cfg profileSourcesConfig
 	decoder := json.NewDecoder(bytes.NewReader(dep.Config))
@@ -141,9 +155,24 @@ func readScenarioProfileConfig(servicePath string) (*profileSourcesConfig, error
 		}
 		return nil, domain.NewConfigInvalidError("dependencies.scenarios.agent-manager.config", "failed to parse profile config", err)
 	}
+	if cfg.Profiles.Reconcile == nil {
+		return nil, domain.NewValidationErrorWithHint("config.profiles.reconcile", "field is required",
+			"Set whether the declared scenario-owned profiles reconcile")
+	}
+	if !validProfileReconcileMode(strings.TrimSpace(cfg.Profiles.Mode)) {
+		return nil, domain.NewValidationErrorWithHint("config.profiles.mode", "invalid reconcile mode",
+			"valid values: create_only, update_if_unmodified, force")
+	}
+	if len(cfg.Profiles.Sources) == 0 {
+		return nil, domain.NewValidationErrorWithHint("config.profiles.sources", "must declare at least one source",
+			"Omit config entirely when the scenario uses only direct portable role requests")
+	}
 	seen := make(map[string]struct{}, len(cfg.Profiles.Sources))
 	for _, source := range cfg.Profiles.Sources {
 		key := strings.TrimSpace(source)
+		if key == "" {
+			return nil, domain.NewValidationErrorWithHint("config.profiles.sources", "profile source must not be empty", "Declare a target-relative profile JSON file")
+		}
 		if _, exists := seen[key]; exists {
 			return nil, domain.NewValidationErrorWithHint("config.profiles.sources", "duplicate profile source", "Declare each scenario-owned source once")
 		}

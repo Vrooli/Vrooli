@@ -15,8 +15,12 @@ type Handler struct {
 	service Service
 }
 
-func NewHandler(repoRoot string) *Handler {
-	return &Handler{service: Service{RepoRoot: repoRoot}}
+func NewHandler(repoRoot string, posture ...PermissionPostureReader) *Handler {
+	var reader PermissionPostureReader
+	if len(posture) > 0 {
+		reader = posture[0]
+	}
+	return &Handler{service: Service{RepoRoot: repoRoot, PermissionPosture: reader}}
 }
 
 func (h *Handler) ValidateScenario(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
@@ -40,8 +44,13 @@ func (h *Handler) ValidateScenario(_ context.Context, req *connect.Request[scena
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &scenariovalidationv1.ValidateScenarioResponse{Scenario: report.Scenario, Status: status, Assessment: buildAssessment(report), NativeDetail: packedDetail}
-	_ = collector.Stop()
+	response := &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario:     report.Scenario,
+		Status:       status,
+		Assessment:   buildAssessment(report),
+		NativeDetail: packedDetail,
+		Metrics:      collector.Stop(),
+	}
 	return connect.NewResponse(response), nil
 }
 
@@ -69,7 +78,7 @@ func buildAssessment(report Report) *commonv1.MaturityAssessment {
 	next := ""
 	for _, finding := range report.Findings {
 		findingLevel, required := maturityFor(finding)
-		findings = append(findings, &commonv1.AssessmentFinding{Code: finding.Code, Severity: finding.Severity, Title: finding.Title, Message: finding.Message, Location: finding.Location, Remediation: finding.Remediation, FixClass: "detection_only", Maturity: &commonv1.FindingMaturity{CapabilityId: "portable_profiles", LocalLevel: findingLevel, Dimension: "contracts", CleanRequirement: required}})
+		findings = append(findings, &commonv1.AssessmentFinding{Code: finding.Code, Severity: finding.Severity, Title: finding.Title, Message: finding.Message, Location: finding.Location, Remediation: finding.Remediation, FixClass: "detection_only", Maturity: &commonv1.FindingMaturity{CapabilityId: "portable_profiles", LocalLevel: findingLevel, GlobalImpact: globalImpactFor(finding), Dimension: "contracts", CleanRequirement: required}})
 		bySeverity[finding.Severity]++
 		if required == commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED {
 			blocking = append(blocking, finding.Code)
@@ -96,7 +105,24 @@ func maturityFor(finding Finding) (string, commonv1.CleanRequirement) {
 		return "L1", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED
 	case CodeRoleUnresolved:
 		return "L2", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED
+	case CodeDirectSpawnBypass:
+		return "L3", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED
+	case CodePermissionPosture:
+		return "L4", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED
 	default:
 		return "L3", commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY
+	}
+}
+
+func globalImpactFor(finding Finding) commonv1.GlobalImpact {
+	switch finding.Code {
+	case CodeDependencyMissing, CodeDependencyDisabled, CodeDirectSpawnBypass:
+		return commonv1.GlobalImpact_GLOBAL_IMPACT_CAPABILITY_GAP
+	case CodePermissionPosture:
+		return commonv1.GlobalImpact_GLOBAL_IMPACT_SAFETY_BLOCKER
+	case CodeProfileInvalid, CodeProfileOrphan, CodeProfileOwnership, CodeProfileLegacy, CodeRoleUnresolved:
+		return commonv1.GlobalImpact_GLOBAL_IMPACT_EVOLVABILITY_GAP
+	default:
+		return commonv1.GlobalImpact_GLOBAL_IMPACT_ADVISORY
 	}
 }

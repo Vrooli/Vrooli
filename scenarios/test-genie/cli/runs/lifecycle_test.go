@@ -150,6 +150,23 @@ func TestRunWaitJSONSnapshot(t *testing.T) {
 	}
 }
 
+func TestRunWaitJSONNeverParksBeforeWaitRun(t *testing.T) {
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{Status: "passed"}})
+	previous := parkForAwait
+	parkForAwait = func(cliutil.ParkRequest) (*cliutil.ParkResult, bool, error) {
+		t.Fatal("JSON wait must call WaitRun, not park before the run is terminal")
+		return nil, false, nil
+	}
+	t.Cleanup(func() { parkForAwait = previous })
+	var out bytes.Buffer
+	if err := runWait(nil, []string{"--json", "demo", "R"}, &out); err != nil {
+		t.Fatalf("JSON wait: %v", err)
+	}
+	if !strings.Contains(out.String(), `"status": "passed"`) {
+		t.Fatalf("expected WaitRun JSON snapshot, got %q", out.String())
+	}
+}
+
 func TestRunWaitJSONUsesCanonicalTerminalPhasesAndDurations(t *testing.T) {
 	withStreamServer(t, &streamServer{
 		waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed", Verdict: "FAIL"},

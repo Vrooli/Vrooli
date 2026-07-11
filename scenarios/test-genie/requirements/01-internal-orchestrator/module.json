@@ -31,10 +31,10 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/orchestrator/phases/phase_integration_test.go",
+          "ref": "api/internal/orchestrator/suite_execution_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Ensures the Go-native integration phase exercises CLI+Bats suites without legacy scripts"
+          "notes": "Covers descriptor-backed suite planning and execution without legacy scripts"
         }
       ]
     },

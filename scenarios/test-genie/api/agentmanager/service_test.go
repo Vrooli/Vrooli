@@ -7,65 +7,19 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-func TestDefaultProfileConfigHasExpectedSafetyDefaults(t *testing.T) {
-	cfg := DefaultProfileConfig()
-
-	if cfg.RoleRef != "code.smart" {
-		t.Fatalf("expected portable smart role, got %q", cfg.RoleRef)
-	}
-	if cfg.TimeoutSeconds != 900 {
-		t.Fatalf("expected 900 second timeout, got %d", cfg.TimeoutSeconds)
-	}
-	if cfg.SkipPermissions {
-		t.Fatal("expected permission prompts to remain enabled by default")
-	}
-	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_PROTECTED {
-		t.Fatalf("expected SandboxMode=PROTECTED so test-genie runs always reach the workspace-sandbox merged dir; got %v", cfg.SandboxMode)
-	}
-}
-
-func TestBuildProfileAndDefaultProfileRef(t *testing.T) {
+func TestDefaultProfileRefUsesDeclaredProfileOnly(t *testing.T) {
 	svc := NewAgentService(Config{
-		ProfileName: "Test Genie Agent",
-		ProfileKey:  "test-genie",
-		Timeout:     5 * time.Second,
-		Enabled:     true,
+		ProfileKey: "test-genie/generation",
+		Timeout:    5 * time.Second,
+		Enabled:    true,
 	})
-
-	profile := svc.buildProfile(&ProfileConfig{
-		RoleRef:         "code.smart",
-		MaxTurns:        12,
-		TimeoutSeconds:  45,
-		AllowedTools:    []string{"Read", "Write"},
-		SkipPermissions: true,
-		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_PROTECTED,
-	})
-
-	if profile.Name != "Test Genie Agent" {
-		t.Fatalf("expected profile name to be propagated, got %q", profile.Name)
-	}
-	if profile.ProfileKey != "test-genie" {
-		t.Fatalf("expected profile key to be propagated, got %q", profile.ProfileKey)
-	}
-	if profile.RoleRef != "code.smart" {
-		t.Fatalf("expected role reference to be propagated, got %q", profile.RoleRef)
-	}
-	if profile.Timeout.AsDuration() != 45*time.Second {
-		t.Fatalf("expected timeout to be converted to duration, got %s", profile.Timeout.AsDuration())
-	}
-	if !profile.SkipPermissionPrompt {
-		t.Fatal("expected SkipPermissionPrompt to mirror the config")
-	}
-	if profile.SandboxConfig == nil || profile.SandboxConfig.Mode != domainpb.SandboxMode_SANDBOX_MODE_PROTECTED {
-		t.Fatalf("expected SandboxConfig.Mode=PROTECTED to mirror cfg.SandboxMode, got %+v", profile.SandboxConfig)
-	}
 
 	ref := svc.defaultProfileRef()
-	if ref.ProfileKey != "test-genie" {
+	if ref.ProfileKey != "test-genie/generation" {
 		t.Fatalf("expected default profile ref to use profile key, got %q", ref.ProfileKey)
 	}
-	if ref.Defaults == nil || ref.Defaults.Name != "Test Genie Agent" {
-		t.Fatal("expected default profile ref to include generated defaults")
+	if ref.Defaults != nil || ref.UpdateExisting {
+		t.Fatal("expected default profile ref to use only the reconciled profile key")
 	}
 }
 

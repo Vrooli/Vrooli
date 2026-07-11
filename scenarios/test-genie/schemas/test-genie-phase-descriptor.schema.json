@@ -70,6 +70,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["default"],
+	  "not": { "required": ["any", "all"] },
       "properties": {
         "default": { "enum": ["applies", "not_applicable", "unknown"] },
         "any": { "type": "array", "items": { "$ref": "#/$defs/predicate" } },
@@ -127,7 +128,10 @@
       "maxProperties": 1,
       "properties": {
         "fileExists": { "type": "string", "minLength": 1 },
+        "pathGlob": { "type": "string", "minLength": 1 },
+        "scenarioDependency": { "type": "string", "minLength": 1 },
         "serviceCapability": { "type": "string", "minLength": 1 },
+        "serviceTag": { "type": "string", "minLength": 1 },
         "hasUI": { "type": "boolean" },
         "hasAPI": { "type": "boolean" },
         "testingConfigSection": { "type": "string", "minLength": 1 }

@@ -134,6 +134,27 @@ readiness outage would misrepresent the catalog's enforcement contract.
 - `internal/permissionpolicy/service_test.go::TestReadinessRequiresCurrentHardEnforcementEvidence`
 - `internal/permissionpolicy/audit_store_test.go::TestSQLiteAuditStoreRoundTripsOnlyReconcileMetadata`
 
+## I10. Role selection is portable; execution uses an immutable resolved snapshot
+
+**Statement.** New profile and run-create intent names a portable `roleRef`,
+never a concrete runner or model. Agent Manager resolves the ordered
+cross-runner candidate list through resource-owned role policy before
+execution, persists that result as the execution policy snapshot, and retries
+or resumes only from the stored snapshot. Current role policy must never
+rewrite a historical run's concrete candidate evidence.
+
+**Why.** Resource-owned model inventories can change independently of an
+in-flight or historical run. Re-resolving those rows against mutable policy
+would make fallback behavior and audit evidence non-reproducible, while
+accepting runner/model inputs would duplicate resource authority in consumer
+configuration.
+
+**Tests:**
+- `internal/rolepolicy/state_test.go` — strict activation, atomic reload, and previous-revision retention.
+- `internal/rolepolicy/resolution_test.go` — portable role resolution and immutable candidate construction.
+- `internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners` — fallback execution never mutates the stored snapshot.
+- `internal/orchestration/phases/execute_test.go::TestPolicySnapshotResumeStartsAtPersistedCandidate` — resume continues from stored evidence rather than current policy.
+
 ## How to add an invariant here
 
 1. The statement must be checkable. "Don't do X" without a test that fails when someone does X is not an invariant — it's wishful thinking.

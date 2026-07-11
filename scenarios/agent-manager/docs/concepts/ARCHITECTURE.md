@@ -125,12 +125,14 @@ owns profile sources, registered sources, role-only profile inputs, profile-key
 ownership, and role catalog membership. It reports an orphan file even when a
 scenario has no dependency declaration, so the descriptor's profile-glob
 applicability cannot hide configuration drift. Direct role-request consumers
-need not invent a profile file. A deliberately narrow static scan reports a
-direct coding-agent executable spawn as advisory L3 evidence; it is not gating
-until fleet evidence proves low false-positive risk. The provider never
-reconciles profiles, projects permissions, starts target services, or writes
-target files. Missing, disabled, legacy, invalid, and unresolved-role findings
-are returned as structured maturity evidence.
+need not invent a profile file. A deliberately narrow static scan treats a
+direct coding-agent executable spawn as a blocking L3 capability gap: the
+fleet has clean evidence for the rule, so a consumer must route execution
+through Agent Manager instead. The provider also reports an unready required
+global permission posture as a blocking L4 safety issue. It never reconciles
+profiles, projects permissions, starts target services, or writes target
+files. Missing, disabled, legacy, invalid, and unresolved-role findings are
+returned as structured maturity evidence.
 
 ## Restart-resume invariants
 

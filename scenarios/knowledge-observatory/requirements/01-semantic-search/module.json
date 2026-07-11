@@ -1,13 +1,13 @@
 {
   "_metadata": {
     "description": "Enable semantic search across all Qdrant collections using natural language queries",
-    "last_validated_at": "2026-06-20T18:52:01-04:00"
+    "last_validated_at": "2026-07-11T12:20:10-04:00"
   },
   "requirements": [
     {
       "id": "KO-SS-001",
       "title": "Semantic search API endpoint",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
       "description": "POST /api/v1/knowledge/search endpoint accepts natural language queries and returns semantically similar results from Qdrant",
       "validation": [
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/search_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },

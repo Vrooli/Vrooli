@@ -85,7 +85,10 @@ type Applicability struct {
 
 type Predicate struct {
 	FileExists           string `json:"fileExists,omitempty"`
+	PathGlob             string `json:"pathGlob,omitempty"`
+	ScenarioDependency   string `json:"scenarioDependency,omitempty"`
 	ServiceCapability    string `json:"serviceCapability,omitempty"`
+	ServiceTag           string `json:"serviceTag,omitempty"`
 	HasUI                *bool  `json:"hasUI,omitempty"`
 	HasAPI               *bool  `json:"hasAPI,omitempty"`
 	TestingConfigSection string `json:"testingConfigSection,omitempty"`
@@ -104,7 +107,7 @@ func (p *Predicate) UnmarshalJSON(raw []byte) error {
 	}
 	for key := range fields {
 		switch key {
-		case "fileExists", "serviceCapability", "hasUI", "hasAPI", "testingConfigSection":
+		case "fileExists", "pathGlob", "scenarioDependency", "serviceCapability", "serviceTag", "hasUI", "hasAPI", "testingConfigSection":
 		default:
 			decoded.unknownFields = append(decoded.unknownFields, key)
 		}
@@ -455,6 +458,9 @@ func validateApplicability(d *Descriptor) []Diagnostic {
 	if strings.TrimSpace(d.Applicability.ApplicabilityRPC) != "" {
 		add("unsupported_applicability_rpc", "applicabilityRpc is reserved but not implemented")
 	}
+	if len(d.Applicability.Any) > 0 && len(d.Applicability.All) > 0 {
+		add("ambiguous_applicability", "applicability.any and applicability.all are mutually exclusive")
+	}
 	for i, predicate := range append(append([]Predicate(nil), d.Applicability.Any...), d.Applicability.All...) {
 		if len(predicate.unknownFields) > 0 {
 			add("invalid_predicate", fmt.Sprintf("predicate %d uses unsupported fields: %s", i, strings.Join(predicate.unknownFields, ", ")))
@@ -472,7 +478,16 @@ func countPredicateFields(p Predicate) int {
 	if strings.TrimSpace(p.FileExists) != "" {
 		count++
 	}
+	if strings.TrimSpace(p.PathGlob) != "" {
+		count++
+	}
+	if strings.TrimSpace(p.ScenarioDependency) != "" {
+		count++
+	}
 	if strings.TrimSpace(p.ServiceCapability) != "" {
+		count++
+	}
+	if strings.TrimSpace(p.ServiceTag) != "" {
 		count++
 	}
 	if p.HasUI != nil {

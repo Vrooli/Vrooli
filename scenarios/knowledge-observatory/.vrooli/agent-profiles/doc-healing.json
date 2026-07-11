@@ -1,0 +1,23 @@
+{
+  "name": "knowledge-observatory-doc-healing",
+  "profileKey": "knowledge-observatory/doc-healing",
+  "description": "Portable profile for documentation healing with reviewable sandboxed changes",
+  "roleRef": "code.smart",
+  "maxTurns": 20,
+  "timeout": "600s",
+  "allowedTools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "LS"],
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED",
+    "manualReview": true,
+    "acceptance": {
+      "mode": "SANDBOX_ACCEPTANCE_MODE_ALLOWLIST",
+      "allow": {
+        "pathGlobs": ["scenarios/*/docs/**", "scenarios/*/*.md", "docs/**"],
+        "extensions": [".md", ".json", ".txt"]
+      },
+      "ignoreBinary": true
+    }
+  },
+  "createdBy": "knowledge-observatory"
+}

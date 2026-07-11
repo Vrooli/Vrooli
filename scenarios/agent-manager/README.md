@@ -35,7 +35,9 @@ The codebase uses a **screaming architecture** where folder structure expresses 
 ```
 api/internal/
 ├── domain/           # Core entities (Task, Run, AgentProfile, Policy)
-├── modelpolicy/      # Catalog validation, atomic activation, and resolution snapshots
+├── rolepolicy/       # Portable-role catalog, atomic activation, and resource-owned resolution snapshots
+├── permissionpolicy/ # Desired portable permissions, projection plans, and reconciliation audit evidence
+├── conformance/      # Read-only Test Genie validation of consumer configuration
 ├── orchestration/    # Coordination layer - wires components together
 ├── adapters/         # External integration seams
 │   ├── runner/       # Generic runner pipeline + claude-code, codex, opencode, and grok codecs
@@ -147,6 +149,16 @@ agent-manager role-policy validate
 agent-manager role-policy reload
 agent-manager role-policy explain profile <id>
 agent-manager role-policy explain run <id>
+
+# Desired global permission intent (resources retain native-file ownership)
+agent-manager permission-policy status
+agent-manager permission-policy validate
+agent-manager permission-policy plan
+agent-manager permission-policy doctor
+agent-manager permission-policy reconcile --i-was-explicitly-authorized
+
+# Scenario-owned profile sources
+agent-manager profile reconcile-scenario --scenario <scenario> --dry-run
 ```
 
 See [docs/reference/configuration.md](docs/reference/configuration.md#role-policy-catalog)

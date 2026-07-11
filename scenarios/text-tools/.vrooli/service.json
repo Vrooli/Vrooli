@@ -21,6 +21,7 @@
       "redis-cache",
       "qdrant-vectors"
     ],
+    "capabilities": ["search"],
     "parent": "vrooli",
     "type": "scenario",
     "category": "general",

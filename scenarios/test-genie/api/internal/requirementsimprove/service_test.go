@@ -11,10 +11,9 @@ import (
 
 func newDisabledRequirementsAgentService() *agentmanager.AgentService {
 	return agentmanager.NewAgentService(agentmanager.Config{
-		ProfileName: "Test Genie Agent",
-		ProfileKey:  "test-genie",
-		Enabled:     false,
-		Timeout:     time.Second,
+		ProfileKey: "test-genie/generation",
+		Enabled:    false,
+		Timeout:    time.Second,
 	})
 }
 

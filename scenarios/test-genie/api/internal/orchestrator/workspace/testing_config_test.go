@@ -124,6 +124,9 @@ func TestLoadTestingConfigIgnoresUnitPolicyProfile(t *testing.T) {
 		if unit.Timeout != 120*time.Second {
 			t.Fatalf("expected unit timeout to equal 120s, got %s", unit.Timeout)
 		}
+		if !cfg.Sections["unit"] || !cfg.Sections["phases"] || !cfg.Sections["presets"] {
+			t.Fatalf("top-level testing sections = %v, want unit, phases, and presets", cfg.Sections)
+		}
 		if got := cfg.Presets["smoke"]; !reflect.DeepEqual([]string{"unit"}, got) {
 			t.Fatalf("unexpected smoke preset phases: %v", got)
 		}

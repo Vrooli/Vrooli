@@ -88,6 +88,13 @@ func TestLoadRejectsDescriptorErrors(t *testing.T) {
 			want:     "invalid_evidence_kind",
 			scenario: "search-hub",
 		},
+		{
+			name: "any and all are mutually exclusive",
+			body: strings.Replace(validDescriptor("search-hub", "search"),
+				`"applicability":{"default":"not_applicable","any":[{"fileExists":".vrooli/search.json"},{"serviceCapability":"search"}]}`,
+				`"applicability":{"default":"not_applicable","any":[{"serviceTag":"search"}],"all":[{"hasAPI":true}]}`, 1),
+			want: "ambiguous_applicability", scenario: "search-hub",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

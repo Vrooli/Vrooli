@@ -153,6 +153,45 @@ func TestEvaluateInvalidDeclarations(t *testing.T) {
 	}
 }
 
+func TestEvaluateDependencyGlobAndTagPredicates(t *testing.T) {
+	tests := []struct {
+		name       string
+		predicate  providerdescriptor.Predicate
+		ctx        Context
+		wantStatus Status
+		wantCode   string
+	}{
+		{
+			name: "enabled dependency applies", predicate: providerdescriptor.Predicate{ScenarioDependency: "agent-manager"},
+			ctx:        Context{ScenarioDependencies: map[string]DependencyStatus{"agent-manager": DependencyPresent}},
+			wantStatus: StatusApplies, wantCode: "applicability.scenario_dependency_present",
+		},
+		{
+			name: "disabled dependency is distinct", predicate: providerdescriptor.Predicate{ScenarioDependency: "agent-manager"},
+			ctx:        Context{ScenarioDependencies: map[string]DependencyStatus{"agent-manager": DependencyDisabled}},
+			wantStatus: StatusNotApplicable, wantCode: "applicability.scenario_dependency_disabled",
+		},
+		{
+			name: "requested glob applies with matches", predicate: providerdescriptor.Predicate{PathGlob: ".vrooli/agent-profiles/*.json"},
+			ctx:        Context{PathGlobs: map[string][]string{".vrooli/agent-profiles/*.json": {".vrooli/agent-profiles/default.json"}}},
+			wantStatus: StatusApplies, wantCode: "applicability.path_glob_matched",
+		},
+		{
+			name: "tag is distinct from capability", predicate: providerdescriptor.Predicate{ServiceTag: "agentic"},
+			ctx:        Context{ServiceTags: map[string]bool{"agentic": true}},
+			wantStatus: StatusApplies, wantCode: "applicability.service_tag_present",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Evaluate("generic", providerdescriptor.Applicability{Default: "not_applicable", Any: []providerdescriptor.Predicate{tc.predicate}}, tc.ctx)
+			if got.Status != tc.wantStatus || !hasReason(got, tc.wantCode) {
+				t.Fatalf("result = %#v, want status %s and code %s", got, tc.wantStatus, tc.wantCode)
+			}
+		})
+	}
+}
+
 func hasReason(result Result, code string) bool {
 	for _, reason := range result.Reasons {
 		if reason.Code == code {

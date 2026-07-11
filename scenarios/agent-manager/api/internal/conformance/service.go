@@ -3,6 +3,7 @@
 package conformance
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -30,6 +31,7 @@ const (
 	CodeProfileLegacy      = "agent_conformance.profile_legacy_field"
 	CodeRoleUnresolved     = "agent_conformance.role_unresolved"
 	CodeDirectSpawnBypass  = "agent_conformance.direct_spawn_bypass"
+	CodePermissionPosture  = "agent_conformance.permission_posture"
 )
 
 type Finding struct {
@@ -43,7 +45,16 @@ type Report struct {
 	Findings []Finding
 }
 
-type Service struct{ RepoRoot string }
+// PermissionPostureReader exposes only the read-only readiness assertion that
+// conformance needs. Native permission configuration remains resource-owned.
+type PermissionPostureReader interface {
+	ReadinessError(context.Context) error
+}
+
+type Service struct {
+	RepoRoot          string
+	PermissionPosture PermissionPostureReader
+}
 
 func (s Service) Validate(scenario, explicitPath string) (Report, error) {
 	scenario = strings.TrimSpace(scenario)
@@ -168,6 +179,7 @@ func (s Service) Validate(scenario, explicitPath string) (Report, error) {
 	}
 	reportOrphanProfiles(&report, abs, declaredSources)
 	reportDirectSpawnBypasses(&report, abs)
+	reportPermissionPosture(&report, s.PermissionPosture)
 	sortFindings(report.Findings)
 	return report, nil
 }
@@ -206,7 +218,16 @@ func reportOrphanProfiles(report *Report, root string, declared ...map[string]bo
 
 func reportDirectSpawnBypasses(report *Report, root string) {
 	for _, path := range directSpawnBypasses(root) {
-		report.addAdvisory(CodeDirectSpawnBypass, "Direct coding-agent spawn bypass", path, "Request a profile key or portable role through Agent Manager instead of invoking a coding-agent executable directly.")
+		report.add(CodeDirectSpawnBypass, "Direct coding-agent spawn bypass", path, "Request a profile key or portable role through Agent Manager instead of invoking a coding-agent executable directly.")
+	}
+}
+
+func reportPermissionPosture(report *Report, reader PermissionPostureReader) {
+	if reader == nil {
+		return
+	}
+	if err := reader.ReadinessError(context.Background()); err != nil {
+		report.add(CodePermissionPosture, "Global permission posture is not ready", "permission-policy", "Reconcile the active desired-permission catalog with explicit authorization and restore every required hard-enforcement rule: "+err.Error())
 	}
 }
 

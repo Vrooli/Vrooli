@@ -1,127 +1,75 @@
 {
-  "scenario": "agent-manager",
-  "title": "Agent Manager",
-  "description": "Lifecycle orchestration for code-runner agents (Claude Code, Codex, OpenCode) with sandboxed execution and per-run accountability.",
-  "sections": {
-    "concepts": {
+  "version": "2.0.0",
+  "title": "Agent Manager Documentation",
+  "description": "Portable role, permission, profile, and run orchestration for coding agents with resource-owned native adapters and per-run accountability.",
+  "defaultDocument": "../README.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "agent-manager",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Register every durable Agent Manager document. Keep portable role and permission intent separate from resource-owned native projections and concrete execution evidence."
+  },
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "documents": [
+        {"path": "../README.md", "docType": "readme", "title": "README", "description": "Scenario overview and operator entrypoint", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
+        {"path": "../PRD.md", "docType": "prd", "title": "Product Requirements", "description": "Product intent and operational targets", "maturity": "active", "requiredBy": ["oriented"], "completion": "required"},
+        {"path": "manifest.json", "docType": "manifest", "title": "Documentation Manifest", "description": "Machine-readable documentation contract", "maturity": "active", "requiredBy": ["generated"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "concepts",
       "title": "Concepts",
-      "description": "Architectural patterns and invariants. Read these first.",
-      "docs": [
-        {
-          "path": "concepts/ARCHITECTURE.md",
-          "title": "Architecture",
-          "description": "Domain compression, folder structure, and the four big invariants that keep the codebase maintainable."
-        }
+      "documents": [
+        {"path": "concepts/ARCHITECTURE.md", "docType": "architecture", "title": "Architecture", "description": "Domain map, role policy, permission policy, immutable snapshots, and conformance", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
       ]
     },
-    "reference": {
+    {
+      "id": "reference",
       "title": "Reference",
-      "description": "Configuration, error codes, API surface.",
-      "docs": [
-        {
-          "path": "reference/configuration.md",
-          "title": "Configuration (Levers)",
-          "description": "Every adjustable threshold in agent-manager — timeouts, intervals, buffers — organized by lever section."
-        },
-        {
-          "path": "reference/operational-stats.md",
-          "title": "Operational Stats (API + CLI)",
-          "description": "HTTP endpoints, CLI commands, and the honesty contract for the typed-event-derived stats and health surfaces."
-        }
+      "documents": [
+        {"path": "reference/configuration.md", "docType": "configuration", "title": "Configuration", "description": "Role catalogs, permission catalogs, profiles, reconciliation, and operator workflows", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/operational-stats.md", "docType": "operational-stats", "title": "Operational Stats", "description": "API and CLI operational stats reference", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
       ]
     },
-    "guides": {
+    {
+      "id": "guides",
       "title": "Guides",
-      "description": "How-to documentation for common operator workflows.",
-      "docs": [
-        {
-          "path": "PROTECTED_MODE_RUNNERS.md",
-          "title": "Protected Mode Runners",
-          "description": "How sandboxed runners (claude, codex, opencode) launch under bwrap and resolve VROOLI_SANDBOX_* env vars."
-        },
-        {
-          "path": "runner-transcript-recovery.md",
-          "title": "Runner Transcript Recovery",
-          "description": "How agent-manager survives its own restart by replaying transcripts and reattaching to detached runner processes."
-        }
+      "documents": [
+        {"path": "PROTECTED_MODE_RUNNERS.md", "docType": "protected-mode-runners", "title": "Protected Mode Runners", "description": "Sandboxed runner launch and environment behavior", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "runner-transcript-recovery.md", "docType": "runner-transcript-recovery", "title": "Runner Transcript Recovery", "description": "Restart recovery and detached runner transcript replay", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "FAILURE_TOPOGRAPHY.md", "docType": "failure-topography", "title": "Failure Topography", "description": "Failure modes and operator recovery paths", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "RESEARCH.md", "docType": "research", "title": "Research", "description": "Research findings and open design questions", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"}
       ]
     },
-    "perf": {
-      "title": "Performance",
-      "description": "Browser performance audit findings and optimization plans.",
-      "docs": [
-        {
-          "path": "perf/2026-05-04-ui-lists-resize-graphs-audit.md",
-          "title": "UI Lists, Resize, and Graphs Audit",
-          "description": "Headless React profiler audit of agent-manager list, resize, run-detail, and stats graph interactions."
-        }
-      ]
-    },
-    "internal": {
+    {
+      "id": "internal",
       "title": "Internal",
-      "description": "Implementation notes for contributors.",
-      "docs": [
-        {
-          "path": "internal/INVARIANTS.md",
-          "title": "Invariants",
-          "description": "Normative contracts the code enforces. Every entry pairs a statement with the test that pins it; refactors must preserve them."
-        },
-        {
-          "path": "internal/ASSUMPTIONS.md",
-          "title": "Assumptions",
-          "description": "Facts the code takes for granted about the world (codex internals, sandbox layout, heartbeat callers). Document drift here before fixing it."
-        },
-        {
-          "path": "internal/SEAMS.md",
-          "title": "Seams",
-          "description": "Every testability boundary in the codebase — what's mockable, where the seam lives, and the test that exercises it."
-        },
-        {
-          "path": "internal/TEMPORAL-FLOWS.md",
-          "title": "Temporal Flows",
-          "description": "Cadences, timeouts, and timing-sensitive contracts. Maps every timing surface to its lever and regression test."
-        },
-        {
-          "path": "internal/PROBLEMS.md",
-          "title": "Problems",
-          "description": "Outstanding architectural problems and their resolution status."
-        },
-        {
-          "path": "internal/PROGRESS.md",
-          "title": "Progress",
-          "description": "Refactor + initiative progress journal."
-        },
-        {
-          "path": "internal/ERROR_SEMANTICS.md",
-          "title": "Error Semantics",
-          "description": "Error code taxonomy: when each domain.ErrCode* fires, who consumes it, and operator-facing messaging."
-        },
-        {
-          "path": "internal/COHERENCE_NOTES.md",
-          "title": "Coherence Notes",
-          "description": "Cross-package invariants and contracts that aren't obvious from one file alone."
-        },
-        {
-          "path": "internal/UTILS_UNIFICATION_NOTES.md",
-          "title": "Utils Unification Notes",
-          "description": "Notes on consolidating utility functions across packages."
-        },
-        {
-          "path": "internal/EVENT_TAXONOMY.md",
-          "title": "Event Taxonomy",
-          "description": "Typed-operational run events, payload schemas, schema versioning, and the dispatch table contract."
-        },
-        {
-          "path": "FAILURE_TOPOGRAPHY.md",
-          "title": "Failure Topography",
-          "description": "Map of every failure mode the system handles, and how it routes to operator-actionable error events."
-        },
-        {
-          "path": "RESEARCH.md",
-          "title": "Research",
-          "description": "Research findings and open design questions."
-        }
+      "documents": [
+        {"path": "internal/INVARIANTS.md", "docType": "invariants", "title": "Invariants", "description": "Normative contracts and their regression tests", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/ASSUMPTIONS.md", "docType": "assumptions", "title": "Assumptions", "description": "Explicit operating assumptions", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/SEAMS.md", "docType": "seams", "title": "Seams", "description": "Mockable boundaries and ownership seams", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/TEMPORAL-FLOWS.md", "docType": "temporal-flows", "title": "Temporal Flows", "description": "Cadences, timeouts, and timing-sensitive contracts", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/PROBLEMS.md", "docType": "problems", "title": "Problems", "description": "Known issues, debt, and resolved incidents", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/PROGRESS.md", "docType": "progress", "title": "Progress", "description": "Durable refactor and initiative journal", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/ERROR_SEMANTICS.md", "docType": "error-semantics", "title": "Error Semantics", "description": "Domain error taxonomy and recovery semantics", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/COHERENCE_NOTES.md", "docType": "coherence-notes", "title": "Coherence Notes", "description": "Cross-package contracts", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/UTILS_UNIFICATION_NOTES.md", "docType": "utils-unification", "title": "Utilities Unification", "description": "Utility consolidation notes", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "internal/EVENT_TAXONOMY.md", "docType": "event-taxonomy", "title": "Event Taxonomy", "description": "Typed run-event payload taxonomy", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/STORAGE_AUDIT.md", "docType": "storage-audit", "title": "Storage Audit", "description": "Persistence and storage audit notes", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/UNIT_TEST_ARCHITECTURE.md", "docType": "unit-test-architecture", "title": "Unit Test Architecture", "description": "Test seam and architecture guidance", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "performance",
+      "title": "Performance",
+      "documents": [
+        {"path": "perf/2026-05-04-ui-lists-resize-graphs-audit.md", "docType": "ui-performance-audit", "title": "UI Performance Audit", "description": "Profiler audit for lists, resize behavior, and graphs", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
       ]
     }
-  }
+  ]
 }

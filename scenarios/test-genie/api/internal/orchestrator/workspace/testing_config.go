@@ -20,6 +20,7 @@ type Config struct {
 	Phases       map[string]PhaseSettings
 	Presets      map[string][]string
 	Requirements RequirementSettings
+	Sections     map[string]bool
 }
 
 type PhaseSettings struct {
@@ -65,10 +66,20 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse %s: %w", configPath, err)
 	}
 
+	var sections map[string]json.RawMessage
+	if err := json.Unmarshal(data, &sections); err != nil {
+		return nil, fmt.Errorf("failed to parse %s top-level sections: %w", configPath, err)
+	}
 	cfg := &Config{
 		Phases:       map[string]PhaseSettings{},
 		Presets:      map[string][]string{},
 		Requirements: RequirementSettings{},
+		Sections:     map[string]bool{},
+	}
+	for section := range sections {
+		if normalized := strings.ToLower(strings.TrimSpace(section)); normalized != "" {
+			cfg.Sections[normalized] = true
+		}
 	}
 
 	for name, phase := range raw.Phases {
@@ -103,8 +114,7 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 		Sync:    raw.Requirements.Sync,
 	}
 
-	if len(cfg.Phases) == 0 && len(cfg.Presets) == 0 &&
-		cfg.Requirements.Enforce == nil && cfg.Requirements.Sync == nil {
+	if len(cfg.Sections) == 0 {
 		return nil, nil
 	}
 	return cfg, nil

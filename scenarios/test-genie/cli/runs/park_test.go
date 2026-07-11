@@ -21,11 +21,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// TestRunWaitParksInsideAgentManagerRun proves that inside an agent-manager run
-// `runs wait` parks (prints the clean tool-result, exits 0) instead of blocking
-// on WaitRun. A successful park returns before the test-genie client is built, so
-// the (unset) stream server would only be reached on a park-failure regression.
-func TestRunWaitParksInsideAgentManagerRun(t *testing.T) {
+// TestRunWaitHumanParksInsideAgentManagerRun proves that interactive waits may
+// park, while the JSON machine contract always performs its actual WaitRun RPC.
+func TestRunWaitHumanParksInsideAgentManagerRun(t *testing.T) {
 	const runID = "run-uuid-tg"
 	am := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -64,7 +62,7 @@ func TestRunWaitParksInsideAgentManagerRun(t *testing.T) {
 	withStreamServer(t, &streamServer{})
 
 	var buf bytes.Buffer
-	if err := runWait(nil, []string{"--json", "demo", "R"}, &buf); err != nil {
+	if err := runWait(nil, []string{"demo", "R"}, &buf); err != nil {
 		t.Fatalf("runWait should park cleanly, got: %v", err)
 	}
 	if !strings.Contains(buf.String(), "PARKED") {

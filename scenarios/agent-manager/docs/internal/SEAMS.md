@@ -710,7 +710,7 @@ Two append-only tables (`model_health_audit`, `runner_health_audit`) are the sou
 
 **Wired in:**
 - `orchestration.WithHealthStore(*health.Store)` — orchestration option; the per-run `healthMarkerAdapter` writes audit rows on every `MarkModel{Healthy,Unavailable}` from the executor.
-- `health.NewProbe(store, modelPolicyState, resolveProber, classifier, config)` — periodic probe reads the same active catalog revision used by resolution and codec visibility; it writes audit rows on every probe outcome with classified `fallback.Reason`.
+- `health.NewProbe(store, rolePolicyState, resolveProber, classifier, config)` — periodic probe reads the same active catalog revision used by resolution and codec visibility; it writes audit rows on every probe outcome with classified `fallback.Reason`.
 - `Orchestrator.GetModelHealthSnapshot` reads from the store via `Snapshot`.
 
 **Why a seam:**

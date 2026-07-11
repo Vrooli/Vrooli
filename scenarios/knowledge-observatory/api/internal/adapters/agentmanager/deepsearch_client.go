@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -18,37 +17,15 @@ import (
 
 // DeepSearchProfileConfig defines the agent profile for deep search.
 type DeepSearchProfileConfig struct {
-	ProfileKey      string
-	ProfileName     string
-	Description     string
-	RunnerType      domainpb.RunnerType
-	Model           string
-	MaxTurns        int32
-	TimeoutSeconds  int32
-	AllowedTools    []string
-	SkipPermissions bool
-	// SandboxMode selects the sandbox execution mode. Read-only deep
-	// search runs in-place because there are no writes to audit. See
-	// agent-manager domain.DeriveRunMode.
-	SandboxMode domainpb.SandboxMode
-	CreatedBy   string
+	ProfileKey string
+	CreatedBy  string
 }
 
 // DefaultDeepSearchProfileConfig returns the default deep search profile settings.
 func DefaultDeepSearchProfileConfig() DeepSearchProfileConfig {
 	return DeepSearchProfileConfig{
-		ProfileKey:      "deep-documentation-search",
-		ProfileName:     "Deep Documentation Search",
-		Description:     "Agent profile for read-only documentation deep search",
-		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		Model:           "claude-3-haiku",
-		MaxTurns:        10,
-		TimeoutSeconds:  60,
-		AllowedTools:    []string{"Read", "Glob", "Grep"},
-		SkipPermissions: true,
-		// Read-only — no sandbox needed.
-		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_OFF,
-		CreatedBy:   "knowledge-observatory",
+		ProfileKey: "knowledge-observatory/deep-search",
+		CreatedBy:  "knowledge-observatory",
 	}
 }
 
@@ -56,8 +33,6 @@ func DefaultDeepSearchProfileConfig() DeepSearchProfileConfig {
 type DeepSearchClient struct {
 	client *Client
 	cfg    DeepSearchProfileConfig
-	mu     sync.RWMutex
-	id     string
 }
 
 // NewDeepSearchClient creates a new deep search client.
@@ -76,25 +51,21 @@ func NewDeepSearchClientWithBaseURL(timeout time.Duration, cfg DeepSearchProfile
 	}
 }
 
-func (c *DeepSearchClient) EnsureProfile(ctx context.Context) error {
-	resp, err := c.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
-		ProfileKey:     c.cfg.ProfileKey,
-		Defaults:       c.buildProfile(),
-		UpdateExisting: false,
-	})
+func (c *DeepSearchClient) reconcileProfiles(ctx context.Context) error {
+	resp, err := c.client.ReconcileScenarioProfiles(ctx, "knowledge-observatory")
 	if err != nil {
-		return fmt.Errorf("ensure profile: %w", err)
+		return fmt.Errorf("reconcile scenario profiles: %w", err)
 	}
-	if resp.Profile != nil && resp.Profile.Id != "" {
-		c.mu.Lock()
-		c.id = resp.Profile.Id
-		c.mu.Unlock()
+	for _, result := range resp.Results {
+		if result.GetProfileKey() == c.cfg.ProfileKey && result.GetProfileId() != "" {
+			return nil
+		}
 	}
-	return nil
+	return fmt.Errorf("reconciliation returned no profile %q", c.cfg.ProfileKey)
 }
 
 func (c *DeepSearchClient) CreateRun(ctx context.Context, req deepsearch.AgentRunRequest) (string, error) {
-	if err := c.EnsureProfile(ctx); err != nil {
+	if err := c.reconcileProfiles(ctx); err != nil {
 		return "", err
 	}
 	createdTask, err := c.client.CreateTask(ctx, &domainpb.Task{
@@ -108,24 +79,15 @@ func (c *DeepSearchClient) CreateRun(ctx context.Context, req deepsearch.AgentRu
 		return "", fmt.Errorf("create task: %w", err)
 	}
 	runReq := &apipb.CreateRunRequest{
-		TaskId:  createdTask.Id,
-		Force:   true,
-		Prompt:  &req.Prompt,
-		RunMode: c.resolveRunMode(),
+		TaskId: createdTask.Id,
+		Force:  true,
+		Prompt: &req.Prompt,
 	}
 	if req.Tag != "" {
 		tag := req.Tag
 		runReq.Tag = &tag
 	}
-	if c.profileID() != "" {
-		id := c.profileID()
-		runReq.AgentProfileId = &id
-	} else {
-		runReq.ProfileRef = &apipb.ProfileRef{
-			ProfileKey: c.cfg.ProfileKey,
-			Defaults:   c.buildProfile(),
-		}
-	}
+	runReq.ProfileRef = &apipb.ProfileRef{ProfileKey: c.cfg.ProfileKey}
 	if req.Timeout > 0 {
 		runReq.InlineConfig = &domainpb.RunConfigOverrides{
 			Timeout: durationpb.New(req.Timeout),
@@ -186,39 +148,6 @@ func (c *DeepSearchClient) GetRunEvents(ctx context.Context, runID string, after
 		}
 	}
 	return out, nil
-}
-
-func (c *DeepSearchClient) buildProfile() *domainpb.AgentProfile {
-	profile := &domainpb.AgentProfile{
-		Name:                 c.cfg.ProfileName,
-		ProfileKey:           c.cfg.ProfileKey,
-		Description:          c.cfg.Description,
-		RunnerType:           c.cfg.RunnerType,
-		Model:                c.cfg.Model,
-		MaxTurns:             c.cfg.MaxTurns,
-		Timeout:              durationpb.New(time.Duration(c.cfg.TimeoutSeconds) * time.Second),
-		AllowedTools:         c.cfg.AllowedTools,
-		SkipPermissionPrompt: c.cfg.SkipPermissions,
-		CreatedBy:            c.cfg.CreatedBy,
-	}
-	if c.cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
-		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: c.cfg.SandboxMode}
-	}
-	return profile
-}
-
-func (c *DeepSearchClient) profileID() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.id
-}
-
-// resolveRunMode lets agent-manager derive the mode from the resolved
-// SandboxConfig (single source of truth). Returning nil here is the
-// preferred default; the orchestrator's domain.DeriveRunMode handles
-// the OFF→InPlace and other-→Sandboxed mapping.
-func (c *DeepSearchClient) resolveRunMode() *domainpb.RunMode {
-	return nil
 }
 
 func mapRunStatus(status domainpb.RunStatus) deepsearch.RunStatus {

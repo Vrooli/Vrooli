@@ -9,4 +9,5 @@ This registry mirrors the operational targets captured in the PRD:
 ## Usage
 - Tag source/tests with `[REQ:ID]` (see each module JSON file for canonical IDs).
 - Run the full suite via `test-genie execute test-genie --preset comprehensive` or `cd scenarios/test-genie && make test`.
-- Requirement status sync happens automatically after comprehensive test execution.
+- Requirement status auto-sync happens automatically after comprehensive test execution.
+- Validate the registry with `vrooli scenario requirements validate test-genie --json` before changing requirement status or validation references.

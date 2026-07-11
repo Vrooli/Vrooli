@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Interactive UI dashboard for visualizing knowledge system health and exploring semantic relationships",
-    "last_validated_at": "2026-06-20T18:52:01-04:00"
+    "last_validated_at": "2026-07-11T12:20:10-04:00"
   },
   "requirements": [
     {
@@ -82,7 +82,7 @@
     {
       "id": "KO-HD-006",
       "title": "UI smoke test",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
       "description": "Production bundle loads successfully with iframe bridge ready",
       "validation": [
@@ -90,7 +90,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

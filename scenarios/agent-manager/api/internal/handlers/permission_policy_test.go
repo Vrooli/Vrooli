@@ -73,7 +73,7 @@ func TestPermissionPolicyStatusAndAuthorizationGate(t *testing.T) {
 	}
 	var response apipb.GetPermissionPolicyStatusResponse
 	if err := protoconv.UnmarshalJSON(status.Body.Bytes(), &response); err != nil || !response.Status.Ready {
-		t.Fatalf("status response = %#v, err = %v", response, err)
+		t.Fatalf("status ready = %t, err = %v", response.GetStatus().GetReady(), err)
 	}
 
 	reconcile := httptest.NewRecorder()

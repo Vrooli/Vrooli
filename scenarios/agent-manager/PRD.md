@@ -15,7 +15,7 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | AgentProfile Management | Create and manage agent profiles with runner configurations and permissions
+- [ ] OT-P0-001 | AgentProfile Management | Create and reconcile portable role-based agent profiles with runner-neutral controls and permission posture
 - [ ] OT-P0-002 | Task Management | Implement CRUD operations for tasks with status tracking
 - [ ] OT-P0-003 | Run Creation | Enable run creation with sandbox allocation and mode selection
 - [ ] OT-P0-004 | Run Status Tracking | Track and update run status with timestamps

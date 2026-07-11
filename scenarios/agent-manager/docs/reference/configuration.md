@@ -100,24 +100,32 @@ candidate, makes `/health` degraded with an actionable operator message.
 
 `agent-conformance` is a read-only Test Genie phase declared by Agent Manager.
 It applies only to scenarios that declare Agent Manager or own an agent-profile
-file. Its L0–L4 maturity ladder checks an enabled dependency; every
+file. Its L0–L4 maturity ladder checks a declared dependency that is not
+explicitly disabled; every
 scenario-owned profile file is declared; `profileKey` ownership and portable
-`roleRef` inputs; role catalog resolution; and, at advisory L3, narrowly
-detected direct coding-agent executable spawns.
+`roleRef` inputs; role catalog resolution; and, at L3, narrowly detected
+direct coding-agent executable spawns.
 Consumers that request a portable role directly at runtime may have no
 scenario-owned profile source. Direct runner/model/policy fields are rejected
 as legacy inputs.
 
+At the top rung, conformance also reads Agent Manager's permission-policy
+readiness. A required hard-enforcement rule with stale, failed, or unsupported
+native projection produces a blocking permission-posture finding; the phase
+does not reconcile or write native permission files itself.
+
 When `dependencies.scenarios.agent-manager.config.profiles` is present, its
-schema is strict: unknown fields and duplicate source entries are rejected by
-both dry-run reconciliation and conformance validation.
+schema is strict: it must declare `reconcile`, a valid `mode`, and at least one
+target-relative `sources` entry. Unknown fields, duplicate or empty sources,
+and disabled dependencies are rejected by both dry-run reconciliation and
+conformance validation. Omit `config` entirely when a consumer makes only a
+direct portable role request and owns no profile source.
 
 The validation provider never reconciles a profile, changes permission policy,
-starts a target, or writes target source. Direct-spawn detection is advisory:
-it only recognizes executable construction adjacent to a known coding-agent
-command, so it must earn gating status through fleet evidence rather than
-blocking a scenario on a broad static heuristic. Correct a finding in the owning scenario, verify with
-`agent-manager profiles reconcile-scenario --scenario <scenario> --dry-run`,
+starts a target, or writes target source. Direct-spawn detection is gating after
+fleet conformance established that its narrow executable-construction patterns
+do not produce false positives. Correct a finding in the owning scenario, verify with
+`agent-manager profile reconcile-scenario --scenario <scenario> --dry-run`,
 then rerun the phase. User-owned SQLite state is never rewritten during
 startup; back it up and perform any required local-data evolution deliberately
 while the scenario is stopped.
