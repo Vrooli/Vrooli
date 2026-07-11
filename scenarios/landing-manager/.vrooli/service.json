@@ -246,7 +246,16 @@
     "scenarios": {
       "agent-manager": {
         "description": "AI agent orchestration and run management for landing-page customization",
-        "required": false
+        "required": false,
+        "config": {
+          "profiles": {
+            "reconcile": true,
+            "mode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-profiles/default.json"
+            ]
+          }
+        }
       }
     }
   },

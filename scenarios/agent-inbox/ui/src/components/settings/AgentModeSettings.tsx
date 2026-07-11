@@ -1,5 +1,4 @@
-import { Bot, FolderOpen, Cpu, RotateCcw, CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import { RUNNER_OPTIONS, type RunnerType } from "../../lib/api";
+import { Bot, FolderOpen, RotateCcw, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import type { AgentModeSettings as Settings } from "../../hooks/useAgentSettings";
 import { usePathValidation } from "../../hooks/usePathValidation";
 
@@ -14,7 +13,7 @@ interface AgentModeSettingsProps {
 
 /**
  * Settings panel for configuring agent mode defaults.
- * Allows users to set their preferred runner, project path, etc.
+ * Stores only the local workspace default; Agent Manager owns role resolution.
  */
 export function AgentModeSettings({
   settings,
@@ -52,33 +51,6 @@ export function AgentModeSettings({
 
       {/* Settings form */}
       <div className="space-y-5">
-        {/* Default Runner */}
-        <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-2">
-            <Cpu className="h-4 w-4" />
-            Default Runner
-          </label>
-          <select
-            value={settings.defaultRunner}
-            onChange={(e) => onSettingsChange({ defaultRunner: e.target.value as RunnerType })}
-            className="
-              w-full px-3 py-2 rounded-lg
-              bg-zinc-800 border border-zinc-700
-              text-white
-              focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500
-            "
-          >
-            {RUNNER_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-zinc-500">
-            The default agent runner to use for new agent chats
-          </p>
-        </div>
-
         {/* Default Project Path */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-2">
@@ -124,50 +96,7 @@ export function AgentModeSettings({
           )}
         </div>
 
-        {/* Default Model */}
-        <div>
-          <label className="text-sm font-medium text-zinc-300 mb-2 block">
-            Default Model (optional)
-          </label>
-          <input
-            type="text"
-            value={settings.defaultModel}
-            onChange={(e) => onSettingsChange({ defaultModel: e.target.value })}
-            placeholder="Use runner default"
-            className="
-              w-full px-3 py-2 rounded-lg
-              bg-zinc-800 border border-zinc-700
-              text-white placeholder-zinc-500
-              focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500
-            "
-          />
-          <p className="mt-1 text-xs text-zinc-500">
-            Override the runner&apos;s default model (e.g., &quot;claude-opus-4&quot;)
-          </p>
-        </div>
-
-        {/* Default Max Turns */}
-        <div>
-          <label className="text-sm font-medium text-zinc-300 mb-2 block">
-            Default Max Turns
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={settings.defaultMaxTurns}
-            onChange={(e) => onSettingsChange({ defaultMaxTurns: parseInt(e.target.value) || 0 })}
-            placeholder="0 (unlimited)"
-            className="
-              w-full px-3 py-2 rounded-lg
-              bg-zinc-800 border border-zinc-700
-              text-white placeholder-zinc-500
-              focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500
-            "
-          />
-          <p className="mt-1 text-xs text-zinc-500">
-            Maximum conversation turns before stopping (0 = unlimited)
-          </p>
-        </div>
+        <p className="text-xs text-zinc-500">Agent Manager resolves the portable coding role, concrete runner, model, and limits.</p>
       </div>
 
       {/* Info box */}

@@ -219,10 +219,10 @@ resolves concrete model/fallback data when a run is created.
 explainable candidate sequence before the run row is created.
 
 **Contract:**
-- The SQLite startup migration maps supported legacy FAST/CHEAP/SMART profile
-  rows once to `code.*` roles and removes the obsolete columns.
-  Runtime profile, API, scenario-config, and execution surfaces accept no
+- Runtime profile, API, scenario-config, and execution surfaces accept no
   legacy preset input; authority is `roleRef` plus the resulting snapshot.
+  SQLite startup applies only the current declarative schema and never rewrites
+  operator data.
 - Creation-time preflight resolves resource-owned candidates in catalog order,
   recording each concrete runner/model result and any unavailable candidate.
 - RunConfig.PolicySnapshot persists catalog digest, role ref, full ordered

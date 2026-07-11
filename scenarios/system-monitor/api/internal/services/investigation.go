@@ -16,7 +16,6 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
@@ -118,7 +117,7 @@ func (s *InvestigationService) initializeAgentProfile() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := s.agentSvc.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
+	if err := s.agentSvc.Initialize(ctx); err != nil {
 		s.log.Warn("failed to initialize agent profile", "error", err)
 	}
 }
@@ -839,233 +838,14 @@ func (s *InvestigationService) loadTriggersFromConfig() error {
 // Agent Configuration Methods
 // =============================================================================
 
-// AgentConfigResponse represents the current agent configuration.
-type AgentConfigResponse struct {
-	Enabled         bool     `json:"enabled"`
-	ProfileID       string   `json:"profile_id,omitempty"`
-	ProfileName     string   `json:"profile_name"`
-	RunnerType      string   `json:"runner_type"`
-	Model           string   `json:"model"`
-	MaxTurns        int32    `json:"max_turns"`
-	TimeoutSeconds  int32    `json:"timeout_seconds"`
-	AllowedTools    []string `json:"allowed_tools"`
-	SkipPermissions bool     `json:"skip_permissions"`
-	// SandboxMode is the proto enum string ("off"/"tracking"/"protected"/"unspecified").
-	// system-monitor agents run with Mode=Off because they manipulate
-	// host system state. Replaces the older RequiresSandbox/RequiresApproval
-	// JSON pair removed in the agent-manager Phase 1 reliability pass.
-	SandboxMode string `json:"sandbox_mode"`
-}
-
-// RunnerResponse represents an available runner.
-type RunnerResponse struct {
-	Type            string   `json:"type"`
-	Name            string   `json:"name"`
-	Available       bool     `json:"available"`
-	Message         string   `json:"message,omitempty"`
-	InstallHint     string   `json:"install_hint,omitempty"`
-	SupportedModels []string `json:"supported_models,omitempty"`
-}
-
 // AgentStatusResponse represents the agent-manager status.
 type AgentStatusResponse struct {
-	Enabled      bool             `json:"enabled"`
-	Available    bool             `json:"available"`
-	ProfileID    string           `json:"profile_id,omitempty"`
-	ActiveRuns   int              `json:"active_runs"`
-	RunnerStatus []RunnerResponse `json:"runners,omitempty"`
-	AgentManager string           `json:"agent_manager_url,omitempty"`
-	LastError    string           `json:"last_error,omitempty"`
-}
-
-// GetAgentConfig returns the current agent configuration.
-func (s *InvestigationService) GetAgentConfig(ctx context.Context) (*AgentConfigResponse, error) {
-	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
-		// Return defaults when agent-manager is not enabled
-		defaultCfg := agentmanager.DefaultProfileConfig()
-		return &AgentConfigResponse{
-			Enabled:         false,
-			ProfileName:     s.config.AgentManager.ProfileName,
-			RunnerType:      runnerTypeToString(defaultCfg.RunnerType),
-			Model:           defaultCfg.Model,
-			MaxTurns:        defaultCfg.MaxTurns,
-			TimeoutSeconds:  defaultCfg.TimeoutSeconds,
-			AllowedTools:    defaultCfg.AllowedTools,
-			SkipPermissions: defaultCfg.SkipPermissions,
-			SandboxMode:     sandboxModeToString(defaultCfg.SandboxMode),
-		}, nil
-	}
-
-	profile, err := s.agentSvc.GetProfile(ctx)
-	if err != nil {
-		// Return defaults with error context
-		defaultCfg := agentmanager.DefaultProfileConfig()
-		return &AgentConfigResponse{
-			Enabled:         true,
-			ProfileName:     s.config.AgentManager.ProfileName,
-			RunnerType:      runnerTypeToString(defaultCfg.RunnerType),
-			Model:           defaultCfg.Model,
-			MaxTurns:        defaultCfg.MaxTurns,
-			TimeoutSeconds:  defaultCfg.TimeoutSeconds,
-			AllowedTools:    defaultCfg.AllowedTools,
-			SkipPermissions: defaultCfg.SkipPermissions,
-			SandboxMode:     sandboxModeToString(defaultCfg.SandboxMode),
-		}, nil
-	}
-
-	timeoutSecs := int32(600)
-	if profile.Timeout != nil {
-		timeoutSecs = int32(profile.Timeout.AsDuration().Seconds())
-	}
-
-	return &AgentConfigResponse{
-		Enabled:         true,
-		ProfileID:       profile.Id,
-		ProfileName:     profile.Name,
-		RunnerType:      runnerTypeToString(profile.RunnerType),
-		Model:           profile.Model,
-		MaxTurns:        profile.MaxTurns,
-		TimeoutSeconds:  timeoutSecs,
-		AllowedTools:    profile.AllowedTools,
-		SkipPermissions: profile.SkipPermissionPrompt,
-		SandboxMode:     profileSandboxModeString(profile),
-	}, nil
-}
-
-// sandboxModeToString renders an agent-manager SandboxMode enum as the
-// stable JSON string used in the system-monitor REST API. Empty input
-// (Unspecified) is rendered as "" so callers can distinguish "the
-// profile didn't set a mode" from "the profile set Off explicitly".
-func sandboxModeToString(m domainpb.SandboxMode) string {
-	switch m {
-	case domainpb.SandboxMode_SANDBOX_MODE_OFF:
-		return "off"
-	case domainpb.SandboxMode_SANDBOX_MODE_TRACKING:
-		return "tracking"
-	case domainpb.SandboxMode_SANDBOX_MODE_PROTECTED:
-		return "protected"
-	default:
-		return ""
-	}
-}
-
-// profileSandboxModeString returns the SandboxMode of an agent-manager
-// profile as a string. Empty when SandboxConfig is nil.
-func profileSandboxModeString(profile *domainpb.AgentProfile) string {
-	if profile == nil || profile.SandboxConfig == nil {
-		return ""
-	}
-	return sandboxModeToString(profile.SandboxConfig.Mode)
-}
-
-// stringToSandboxMode parses the string accepted by the system-monitor
-// REST API back to the agent-manager SandboxMode enum. Empty / unknown
-// values map to Unspecified so the orchestrator's DefaultSandboxConfig
-// kicks in.
-func stringToSandboxMode(s string) domainpb.SandboxMode {
-	switch s {
-	case "off":
-		return domainpb.SandboxMode_SANDBOX_MODE_OFF
-	case "tracking":
-		return domainpb.SandboxMode_SANDBOX_MODE_TRACKING
-	case "protected":
-		return domainpb.SandboxMode_SANDBOX_MODE_PROTECTED
-	default:
-		return domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED
-	}
-}
-
-// GetAvailableRunners returns available runners from agent-manager.
-func (s *InvestigationService) GetAvailableRunners(ctx context.Context) ([]RunnerResponse, error) {
-	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
-		// Agent-manager is required; return a disabled placeholder
-		return []RunnerResponse{
-			{
-				Type:      "agent-manager",
-				Name:      "agent-manager",
-				Available: false,
-				Message:   "agent-manager is required for investigations",
-			},
-		}, nil
-	}
-
-	runners, err := s.agentSvc.GetAvailableRunners(ctx)
-	if err != nil {
-		return nil, apierrors.Internal("Unable to retrieve available runners", err)
-	}
-
-	result := make([]RunnerResponse, 0, len(runners))
-	for _, r := range runners {
-		result = append(result, RunnerResponse{
-			Type:            r.Name,
-			Name:            r.Name,
-			Available:       r.Available,
-			Message:         r.Message,
-			InstallHint:     r.InstallHint,
-			SupportedModels: r.SupportedModels,
-		})
-	}
-
-	return result, nil
-}
-
-// UpdateAgentConfig updates the agent profile configuration.
-//
-// sandboxMode replaces the previous (requiresSandbox bool, requiresApproval bool)
-// pair. Accepted strings: "off", "tracking", "protected", "" (unspecified —
-// agent-manager applies DefaultSandboxConfig).
-func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions bool, sandboxMode string) (*AgentConfigResponse, error) {
-	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
-		return nil, apierrors.Unavailable("agent-manager")
-	}
-
-	cfg := &agentmanager.ProfileConfig{
-		RunnerType:      stringToRunnerType(runnerType),
-		Model:           model,
-		MaxTurns:        maxTurns,
-		TimeoutSeconds:  timeoutSeconds,
-		AllowedTools:    allowedTools,
-		SkipPermissions: skipPermissions,
-		SandboxMode:     stringToSandboxMode(sandboxMode),
-	}
-
-	// Apply defaults if not provided
-	defaultCfg := agentmanager.DefaultProfileConfig()
-	if cfg.Model == "" {
-		cfg.Model = defaultCfg.Model
-	}
-	if cfg.MaxTurns == 0 {
-		cfg.MaxTurns = defaultCfg.MaxTurns
-	}
-	if cfg.TimeoutSeconds == 0 {
-		cfg.TimeoutSeconds = defaultCfg.TimeoutSeconds
-	}
-	if len(cfg.AllowedTools) == 0 {
-		cfg.AllowedTools = defaultCfg.AllowedTools
-	}
-
-	profile, err := s.agentSvc.UpdateProfile(ctx, cfg)
-	if err != nil {
-		return nil, apierrors.Internal("Failed to update agent configuration", err)
-	}
-
-	timeoutSecs := int32(600)
-	if profile.Timeout != nil {
-		timeoutSecs = int32(profile.Timeout.AsDuration().Seconds())
-	}
-
-	return &AgentConfigResponse{
-		Enabled:         true,
-		ProfileID:       profile.Id,
-		ProfileName:     profile.Name,
-		RunnerType:      runnerTypeToString(profile.RunnerType),
-		Model:           profile.Model,
-		MaxTurns:        profile.MaxTurns,
-		TimeoutSeconds:  timeoutSecs,
-		AllowedTools:    profile.AllowedTools,
-		SkipPermissions: profile.SkipPermissionPrompt,
-		SandboxMode:     profileSandboxModeString(profile),
-	}, nil
+	Enabled      bool   `json:"enabled"`
+	Available    bool   `json:"available"`
+	ProfileID    string `json:"profile_id,omitempty"`
+	ActiveRuns   int    `json:"active_runs"`
+	AgentManager string `json:"agent_manager_url,omitempty"`
+	LastError    string `json:"last_error,omitempty"`
 }
 
 // GetAgentStatus returns the current agent-manager status.
@@ -1093,51 +873,7 @@ func (s *InvestigationService) GetAgentStatus(ctx context.Context) (*AgentStatus
 		status.ActiveRuns = len(runs)
 	}
 
-	// Get runner status
-	runners, err := s.agentSvc.GetAvailableRunners(ctx)
-	if err == nil {
-		for _, r := range runners {
-			status.RunnerStatus = append(status.RunnerStatus, RunnerResponse{
-				Type:            r.Name,
-				Name:            r.Name,
-				Available:       r.Available,
-				Message:         r.Message,
-				SupportedModels: r.SupportedModels,
-			})
-		}
-	} else {
-		status.LastError = err.Error()
-	}
-
 	return status, nil
-}
-
-// runnerTypeToString converts RunnerType enum to string.
-func runnerTypeToString(rt domainpb.RunnerType) string {
-	switch rt {
-	case domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE:
-		return "claude-code"
-	case domainpb.RunnerType_RUNNER_TYPE_CODEX:
-		return "codex"
-	case domainpb.RunnerType_RUNNER_TYPE_OPENCODE:
-		return "opencode"
-	default:
-		return "unknown"
-	}
-}
-
-// stringToRunnerType converts string to RunnerType enum.
-func stringToRunnerType(s string) domainpb.RunnerType {
-	switch strings.ToLower(s) {
-	case "claude-code", "claude_code":
-		return domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE
-	case "codex":
-		return domainpb.RunnerType_RUNNER_TYPE_CODEX
-	case "opencode":
-		return domainpb.RunnerType_RUNNER_TYPE_OPENCODE
-	default:
-		return domainpb.RunnerType_RUNNER_TYPE_CODEX
-	}
 }
 
 // saveTriggersToConfig saves trigger configuration to JSON file

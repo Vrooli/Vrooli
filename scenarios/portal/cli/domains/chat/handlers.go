@@ -55,7 +55,6 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		Model:            ctx.Flag("model"),
 		WebSearchEnabled: ctx.BoolFlag("web-search"),
 		Mode:             parseChatMode(ctx.Flag("mode")),
-		AgentHarness:     parseAgentHarness(ctx.Flag("harness")),
 	}
 	resp, err := h.client.CreateChat(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -238,27 +237,12 @@ func parseChatMode(value string) sharedv1.ChatMode {
 	}
 }
 
-func parseAgentHarness(value string) sharedv1.AgentHarness {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "codex":
-		return sharedv1.AgentHarness_AGENT_HARNESS_CODEX
-	case "opencode":
-		return sharedv1.AgentHarness_AGENT_HARNESS_OPENCODE
-	case "grok":
-		return sharedv1.AgentHarness_AGENT_HARNESS_GROK
-	case "claude-code", "":
-		return sharedv1.AgentHarness_AGENT_HARNESS_CLAUDE_CODE
-	default:
-		return sharedv1.AgentHarness_AGENT_HARNESS_UNSPECIFIED
-	}
-}
-
 func formatChat(c *chatv1.Chat) string {
 	if c == nil {
 		return "(nil)"
 	}
-	return fmt.Sprintf("%s - %s [group=%s mode=%s harness=%s model=%s web_search=%t active_leaf=%s]",
-		c.GetId(), c.GetTitle(), c.GetGroupId(), c.GetMode().String(), c.GetAgentHarness().String(), c.GetModel(), c.GetWebSearchEnabled(), c.GetActiveLeafMessageId())
+	return fmt.Sprintf("%s - %s [group=%s mode=%s model=%s web_search=%t active_leaf=%s]",
+		c.GetId(), c.GetTitle(), c.GetGroupId(), c.GetMode().String(), c.GetModel(), c.GetWebSearchEnabled(), c.GetActiveLeafMessageId())
 }
 
 func formatGroup(g *chatv1.ChatGroup) string {

@@ -54,22 +54,21 @@ The role-policy boundary has focused coverage for catalog validation and
 atomic activation, profile-to-snapshot resolution, cross-runner fallback,
 explicit runner-default launch, unavailable-runner skips, terminal exhaustion,
 persisted-candidate restart/resume, and catalog reload during execution.
-Repository tests cover supported legacy-row migration, obsolete-column removal,
-unknown-value rejection, and historical snapshot round trips. Operator contract
-tests cover status, catalog inspection, validation, failed-reload preservation,
-explanation, and removal of the whole-document mutation command. Seeded-profile
-reconciliation now validates the migrated scenario-owned `roleRef` files;
-the broader API suite retains only the separately tracked app-issue-tracker
-missing-manifest fixture failure. Unit Health also reports pre-existing UI
-policy-projection drift and requirement-tagging debt outside this plan.
+Repository tests cover the clean role-only profile schema and historical
+snapshot round trips. Operator contract tests cover status, catalog inspection,
+validation, failed-reload preservation, explanation, and removal of the
+whole-document mutation command. Seeded-profile reconciliation validates
+scenario-owned `roleRef` files; the broader API suite retains only the
+separately tracked app-issue-tracker missing-manifest fixture failure. Unit
+Health also reports pre-existing UI policy-projection drift and
+requirement-tagging debt outside this plan.
 
 ## Technical Debt
 
 ### Resolved: Legacy profile inputs
-Profiles now store one portable `roleRef`. Database startup maps supported
-legacy policy and runner-only values to `code.*` roles, rejects explicit or
-unknown concrete selections, and removes legacy columns. Historical runs keep
-their persisted snapshot (or their honest snapshot-less runner/model
+Profiles store one portable `roleRef`. Database startup applies the current
+declarative schema without changing persisted operator data. Historical runs
+keep their persisted snapshot (or their honest snapshot-less runner/model
 projection) without consulting current policy.
 
 ### TD-001: Template README Cleanup

@@ -47,14 +47,13 @@ The role catalog is a readiness dependency. A failed reload keeps the prior
 active revision, and only subsequent runs see a successful new revision.
 
 For a deploy that may require binary rollback, back up the Agent Manager SQLite
-database before starting the new binary. Startup maps supported legacy profile
-intent to `code.*` roles, rejects explicit/unknown concrete selections, then
-rebuilds `agent_profiles` without `runner_type`, `model`, or `policy_ref`.
-Historical run snapshots are retained unchanged and remain the audit source for
-their concrete runner/model choices. Catalog rollback restores the last
-known-good role document, then uses `agent-manager role-policy validate` and
-`agent-manager role-policy reload`; a rejected reload leaves the active digest
-unchanged.
+database before starting the new binary. Profiles store portable `roleRef`
+intent only; historical run snapshots remain the audit source for their
+concrete runner/model choices. Evolving local development data is a deliberate,
+one-shot maintenance operation performed while the scenario is stopped, never
+a startup side effect. Catalog rollback restores the last known-good role
+document, then uses `agent-manager role-policy validate` and `agent-manager
+role-policy reload`; a rejected reload leaves the active digest unchanged.
 
 ## Desired-permission catalog
 
@@ -96,6 +95,32 @@ resource is unavailable. When a rule requires hard enforcement, current
 reconciliation evidence for the active catalog digest must show a native or
 hook-backed resource; missing or stale evidence, or a missing enforcing
 candidate, makes `/health` degraded with an actionable operator message.
+
+## Agent-conformance validation
+
+`agent-conformance` is a read-only Test Genie phase declared by Agent Manager.
+It applies only to scenarios that declare Agent Manager or own an agent-profile
+file. Its L0–L4 maturity ladder checks an enabled dependency; every
+scenario-owned profile file is declared; `profileKey` ownership and portable
+`roleRef` inputs; role catalog resolution; and, at advisory L3, narrowly
+detected direct coding-agent executable spawns.
+Consumers that request a portable role directly at runtime may have no
+scenario-owned profile source. Direct runner/model/policy fields are rejected
+as legacy inputs.
+
+When `dependencies.scenarios.agent-manager.config.profiles` is present, its
+schema is strict: unknown fields and duplicate source entries are rejected by
+both dry-run reconciliation and conformance validation.
+
+The validation provider never reconciles a profile, changes permission policy,
+starts a target, or writes target source. Direct-spawn detection is advisory:
+it only recognizes executable construction adjacent to a known coding-agent
+command, so it must earn gating status through fleet evidence rather than
+blocking a scenario on a broad static heuristic. Correct a finding in the owning scenario, verify with
+`agent-manager profiles reconcile-scenario --scenario <scenario> --dry-run`,
+then rerun the phase. User-owned SQLite state is never rewritten during
+startup; back it up and perform any required local-data evolution deliberately
+while the scenario is stopped.
 
 ## Execution
 

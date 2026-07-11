@@ -166,18 +166,17 @@ Compaction on a non-SQLite backend returns `503` (unsupported).
 
 ---
 
-## Agent Configuration
+## Agent Manager status
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/agent/config` | Get agent configuration |
-| PUT | `/api/v1/agent/config` | Update agent config |
-| GET | `/api/v1/agent/runners` | Get available runners |
 | GET | `/api/v1/agent/status` | Get agent status |
 
-### PUT /api/v1/agent/config
-
-Configurable fields: `runner`, `model`, `max_turns`, `timeout`, `tools`, `skip_permissions`, `requires_sandbox`, `requires_approval`
+System Monitor does not select runners, models, or profile defaults. Its
+scenario-owned `.vrooli/agent-profiles/default.json` declares portable
+`roleRef` intent and is reconciled through Agent Manager. Operators inspect
+role and native-resource state in Agent Manager; System Monitor only reports
+its integration availability and active investigation count.
 
 `[CODE: api/internal/handlers/investigations.go]`
 

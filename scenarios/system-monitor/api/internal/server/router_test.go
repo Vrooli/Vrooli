@@ -583,18 +583,6 @@ func (f *fakeInvestigationManager) StopInvestigationAgent(context.Context, strin
 	return nil
 }
 
-func (f *fakeInvestigationManager) GetAgentConfig(context.Context) (*services.AgentConfigResponse, error) {
-	return &services.AgentConfigResponse{}, nil
-}
-
-func (f *fakeInvestigationManager) GetAvailableRunners(context.Context) ([]services.RunnerResponse, error) {
-	return nil, nil
-}
-
-func (f *fakeInvestigationManager) UpdateAgentConfig(context.Context, string, string, int32, int32, []string, bool, string) (*services.AgentConfigResponse, error) {
-	return &services.AgentConfigResponse{}, nil
-}
-
 func (f *fakeInvestigationManager) GetAgentStatus(context.Context) (*services.AgentStatusResponse, error) {
 	return &services.AgentStatusResponse{}, nil
 }

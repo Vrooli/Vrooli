@@ -23,7 +23,6 @@ vi.mock("@connectrpc/connect", () => ({
 }));
 
 import {
-  AgentHarness,
   ChatMode,
   createPortalChat,
   createPortalGroup,
@@ -66,7 +65,6 @@ describe("api/chat Connect wrappers", () => {
       model: "",
       webSearchEnabled: false,
       mode: ChatMode.LLM,
-      agentHarness: AgentHarness.CLAUDE_CODE,
     });
     expect(clients.chat.createGroup).toHaveBeenCalledWith({ name: "Core", color: "#123456" });
     expect(clients.chat.updateGroup).toHaveBeenCalledWith({
@@ -120,7 +118,6 @@ describe("api/chat Connect wrappers", () => {
         webSearchEnabled: false,
         selectedSkillIds: [],
         mode: ChatMode.LLM,
-        agentHarness: AgentHarness.CLAUDE_CODE,
       },
       { signal },
     );

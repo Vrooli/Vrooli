@@ -9,7 +9,7 @@
       "description": "Build configurable policy engine for enforcing run constraints",
       "id": "REQ-P1-004",
       "prd_ref": "OT-P1-004",
-      "status": "draft",
+      "status": "in_progress",
       "title": "Policy Engine Core",
       "validation": [
         {

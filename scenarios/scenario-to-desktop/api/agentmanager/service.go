@@ -11,7 +11,6 @@ import (
 	"github.com/vrooli/api-core/scenario"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // AgentService provides agent execution services for scenario-to-desktop.
@@ -77,9 +76,9 @@ func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
 	return s.client.ResolveURL(ctx)
 }
 
-// Initialize ensures the agent profile exists.
-// Call this at startup to create/update the scenario-to-desktop profile.
-func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error {
+// Initialize reconciles the scenario-owned role-only profile source.
+// Call this at startup; profile definition remains in .vrooli/agent-profiles.
+func (s *AgentService) Initialize(ctx context.Context) error {
 	if !s.enabled {
 		return nil
 	}
@@ -102,63 +101,6 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 		resp.Scenario, resp.Created, resp.Updated, resp.Unchanged, resp.Failed)
 
 	return nil
-}
-
-// ProfileConfig contains agent profile configuration.
-type ProfileConfig struct {
-	RunnerType      domainpb.RunnerType
-	Model           string
-	ModelPreset     domainpb.ModelPreset
-	MaxTurns        int32
-	TimeoutSeconds  int32
-	AllowedTools    []string
-	SkipPermissions bool
-	// SandboxMode selects the sandbox execution mode. Pipeline
-	// investigations run in-place because they exercise local build
-	// tools and produce reports rather than mutating the canonical
-	// repo. See agent-manager domain.DeriveRunMode.
-	SandboxMode domainpb.SandboxMode
-}
-
-// DefaultProfileConfig returns the default configuration for pipeline investigations.
-func DefaultProfileConfig() *ProfileConfig {
-	return &ProfileConfig{
-		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CODEX,
-		ModelPreset: domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:    75,
-		// 10 minute timeout for thorough build investigation
-		TimeoutSeconds: 600,
-		AllowedTools: []string{
-			"read_file",       // Read build logs, config files
-			"list_files",      // Browse generated desktop wrapper
-			"execute_command", // Run build commands, npm, etc.
-			"analyze_code",    // Understand build scripts
-			"write_file",      // Write investigation report
-		},
-		SkipPermissions: true, // Auto-approve for automated investigations
-		// In-place execution for local desktop wrapper builds.
-		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_OFF,
-	}
-}
-
-func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
-	profile := &domainpb.AgentProfile{
-		Name:                 s.profileName,
-		ProfileKey:           s.profileKey,
-		Description:          "Agent profile for scenario-to-desktop pipeline investigations",
-		RunnerType:           cfg.RunnerType,
-		Model:                cfg.Model,
-		ModelPreset:          cfg.ModelPreset,
-		MaxTurns:             cfg.MaxTurns,
-		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
-		AllowedTools:         cfg.AllowedTools,
-		SkipPermissionPrompt: cfg.SkipPermissions,
-		CreatedBy:            "scenario-to-desktop",
-	}
-	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
-		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
-	}
-	return profile
 }
 
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
@@ -188,10 +130,6 @@ type ExecuteRequest struct {
 	Prompt string
 	// Working directory for execution
 	WorkingDir string
-	// Optional override for runner type (uses profile default if empty)
-	RunnerType *domainpb.RunnerType
-	// Optional override for model (uses profile default if empty)
-	Model string
 	// Context attachments for structured context (optional)
 	ContextAttachments []*domainpb.ContextAttachment
 }
@@ -238,17 +176,6 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		Tag:        &tag,
 		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
 		Force:      true, // Bypass capacity limits for investigations
-	}
-
-	// Apply inline config overrides if provided
-	if req.RunnerType != nil || req.Model != "" {
-		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
-		if req.RunnerType != nil {
-			runReq.InlineConfig.RunnerType = req.RunnerType
-		}
-		if req.Model != "" {
-			runReq.InlineConfig.Model = &req.Model
-		}
 	}
 
 	// Pipeline investigations are diagnostic — the deliverable is a
@@ -337,16 +264,6 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 		Tag:        &tag,
 		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
 		Force:      true,
-	}
-
-	if req.RunnerType != nil || req.Model != "" {
-		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
-		if req.RunnerType != nil {
-			runReq.InlineConfig.RunnerType = req.RunnerType
-		}
-		if req.Model != "" {
-			runReq.InlineConfig.Model = &req.Model
-		}
 	}
 
 	// Pipeline investigations are diagnostic — see Execute() above for

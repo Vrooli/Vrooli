@@ -9,7 +9,7 @@
       "description": "Track and report token usage and API costs for runs",
       "id": "REQ-P2-002",
       "prd_ref": "OT-P2-002",
-      "status": "draft",
+      "status": "planned",
       "title": "Cost Tracking System",
       "validation": [
         {

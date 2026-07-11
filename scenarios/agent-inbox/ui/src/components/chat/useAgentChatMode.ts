@@ -98,10 +98,7 @@ export function useAgentChatMode({
     try {
       const agentConfig: AgentChatConfig = {
         message: pendingAgentMessage,
-        runner_type: config.runner_type,
         project_path: config.project_path,
-        model: config.model || undefined,
-        max_turns: config.max_turns || undefined,
       };
       await startAgentMode(chatData.chat.id, agentConfig);
       setShowAgentStartModal(false);

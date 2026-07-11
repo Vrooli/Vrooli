@@ -309,7 +309,7 @@ func NewProcessorWithDefaults(storage tasks.StorageAPI, assembler *prompts.Assem
 
 	// Create agent service with default config
 	agentSvc := agentmanager.NewAgentService(agentmanager.Config{
-		TaskProfileKey: "ecosystem-manager-tasks",
+		TaskProfileKey: "ecosystem-manager/tasks",
 		Timeout:        30 * time.Second,
 		VrooliRoot:     vrooliRoot,
 	})
@@ -1105,13 +1105,4 @@ func (qp *Processor) incrementExecutionCount() bool {
 		return true
 	}
 	return false
-}
-
-// UpdateAgentProfiles propagates current settings to agent-manager profiles.
-// This should be called when agent-related settings change (runner_type, max_turns, etc.)
-func (qp *Processor) UpdateAgentProfiles(ctx context.Context) error {
-	if qp.agentSvc == nil {
-		return nil
-	}
-	return qp.agentSvc.UpdateProfiles(ctx)
 }

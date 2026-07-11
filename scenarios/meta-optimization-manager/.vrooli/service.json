@@ -266,14 +266,23 @@
         "description": "Clean-on-all-tools reference-scenario health read by the convergence reference-eligibility check.",
         "degraded_behavior": "Reference eligibility falls back to template-staleness only."
       },
-      "agent-manager": {
-        "type": "scenario",
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "The sandboxed-agent spawner for the empirical trials gate (profile ensure / task create / run create --run-mode sandboxed / run get / run diff, runner=opencode + local model). Owns sandboxing + diff attribution internally; MoM never talks to a sandbox directly. Explicit-invocation only.",
-        "degraded_behavior": "Each `trials run` degrades to a recorded VerdictError with a clear reason; recorded history still serves and the suite never blocks."
-      }
+    "agent-manager": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "startup_policy": "try_start",
+      "description": "The sandboxed-agent spawner for the empirical trials gate. MoM reconciles its declared role-only trials profile, then creates a task and sandboxed run, polls it, and collects the diff. Agent Manager owns runtime and resource selection; MoM never talks to a sandbox directly. Explicit-invocation only.",
+      "config": {
+        "profiles": {
+          "reconcile": true,
+          "mode": "update_if_unmodified",
+          "sources": [
+            ".vrooli/agent-profiles/trials.json"
+          ]
+        }
+      },
+      "degraded_behavior": "Each `trials run` degrades to a recorded VerdictError with a clear reason; recorded history still serves and the suite never blocks."
+    }
     }
   },
   "environment": {

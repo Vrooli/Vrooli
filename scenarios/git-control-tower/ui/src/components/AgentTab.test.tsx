@@ -310,7 +310,7 @@ describe("AgentTab", () => {
     }
     const [request] = firstCreateCall;
     expect(request.scenarioSlug).toBe("git-control-tower");
-    expect(request.profileKey).toBe("git-control-tower-reviewer");
+    expect(request.profileKey).toBe("git-control-tower/reviewer");
     expect(request.prompt).toContain("Fix the smoke failure");
     expect(request.prompt).toContain("Git Control Tower");
     expect(request.prompt).toContain("Iframe bridge did not signal ready.");

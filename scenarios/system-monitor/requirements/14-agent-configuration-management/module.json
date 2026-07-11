@@ -5,41 +5,41 @@
   "requirements": [
     {
       "id": "REQ-P1-004",
-      "title": "Agent Configuration Management",
+      "title": "Portable Agent Profile Adoption",
       "status": "complete",
       "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-014",
       "category": "api",
-      "description": "Create comprehensive agent configuration system supporting runner type selection, model specification, maximum turns limit, and timeout settings.",
+      "description": "System Monitor declares a scenario-owned, role-only Agent Manager profile and never exposes runner, model, or policy selection locally.",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Test configuration persistence"
+          "notes": "Verify System Monitor reconciles its declared profile source"
         },
         {
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Verify parameter validation"
+          "notes": "Verify legacy runner/model inputs are absent from the consumer surface"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validate agent behavior with different configs"
+          "notes": "Validate investigations request the reconciled profile key"
         },
         {
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "Config retrieval \u003c 100ms"
+          "notes": "Status retrieval remains lightweight without profile mutation"
         },
         {
           "type": "test",
           "phase": "business",
           "status": "implemented",
-          "notes": "Agents operate within specified parameters"
+          "notes": "Portable role policy remains the sole model-selection authority"
         }
       ]
     }

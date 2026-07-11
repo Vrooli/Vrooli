@@ -53,211 +53,27 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 	}
 }
 
-func TestInitSchema_WithLegacyRunsTable_AddsInvestigationColumns(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "agent-manager-legacy.db")
-	dsn := fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)",
-		dbPath,
-	)
-
-	sqlDB, err := sqlx.Connect("sqlite", dsn)
-	if err != nil {
-		t.Fatalf("connect sqlite: %v", err)
-	}
-	defer func() { _ = sqlDB.Close() }()
-
-	log := logrus.New()
-	log.SetOutput(os.Stdout)
-	log.SetLevel(logrus.PanicLevel)
-
-	legacySchema := `
-		CREATE TABLE IF NOT EXISTS runs (
-			id TEXT PRIMARY KEY,
-			task_id TEXT NOT NULL,
-			agent_profile_id TEXT,
-			tag TEXT,
-			status TEXT DEFAULT 'pending',
-			session_id TEXT,
-			recommendation_status TEXT DEFAULT 'none',
-			recommendation_queued_at TEXT,
-			created_at TEXT DEFAULT (datetime('now'))
-		);
-	`
-	if _, err := sqlDB.Exec(legacySchema); err != nil {
-		t.Fatalf("seed legacy runs schema: %v", err)
-	}
-
-	wrapped := &DB{DB: sqlDB, log: log}
-	if err := wrapped.initSchema(); err != nil {
-		t.Fatalf("init schema with legacy runs table: %v", err)
-	}
-
-	var hasSourceRunIDs int
-	if err := sqlDB.Get(&hasSourceRunIDs, `
-		SELECT COUNT(*) FROM pragma_table_info('runs') WHERE name = 'source_run_ids'
-	`); err != nil {
-		t.Fatalf("check source_run_ids column: %v", err)
-	}
-	if hasSourceRunIDs != 1 {
-		t.Fatalf("expected source_run_ids column to exist, got count %d", hasSourceRunIDs)
-	}
-
-	var hasSourceInvestigationRunID int
-	if err := sqlDB.Get(&hasSourceInvestigationRunID, `
-		SELECT COUNT(*) FROM pragma_table_info('runs') WHERE name = 'source_investigation_run_id'
-	`); err != nil {
-		t.Fatalf("check source_investigation_run_id column: %v", err)
-	}
-	if hasSourceInvestigationRunID != 1 {
-		t.Fatalf("expected source_investigation_run_id column to exist, got count %d", hasSourceInvestigationRunID)
-	}
-
-	for _, col := range []string{"requested_model", "actual_model"} {
-		var count int
-		if err := sqlDB.Get(&count, `
-			SELECT COUNT(*) FROM pragma_table_info('runs') WHERE name = ?
-		`, col); err != nil {
-			t.Fatalf("check %s column: %v", col, err)
-		}
-		if count != 1 {
-			t.Fatalf("expected %s column to exist after migration, got count %d", col, count)
-		}
-	}
-}
-
-func TestMigrateProfileRolePolicyColumnsBackfillsPortableRoleAndDropsLegacyColumns(t *testing.T) {
-	db, cleanup := setupRawTestDB(t)
+func TestInitSchemaCreatesRoleOnlyProfileTable(t *testing.T) {
+	db, cleanup := setupTestDB(t)
 	defer cleanup()
-	if _, err := db.Exec(`
-		CREATE TABLE agent_profiles (
-			id TEXT PRIMARY KEY,
-			name TEXT NOT NULL UNIQUE,
-			profile_key TEXT NOT NULL UNIQUE,
-			description TEXT,
-			runner_type TEXT NOT NULL,
-			model_preset TEXT,
-			fallback_runner_types TEXT DEFAULT '[]',
-			max_turns INTEGER, timeout_ms INTEGER, allowed_tools TEXT DEFAULT '[]', denied_tools TEXT DEFAULT '[]',
-			skip_permission_prompt INTEGER DEFAULT 0, features TEXT DEFAULT '{}', extra_flags TEXT DEFAULT '{}',
-			network_access TEXT NOT NULL DEFAULT 'localhost', sandbox_config TEXT DEFAULT '{}',
-			allowed_paths TEXT DEFAULT '[]', denied_paths TEXT DEFAULT '[]', created_by TEXT,
-			owner_scenario TEXT DEFAULT '', source_path TEXT DEFAULT '', source_hash TEXT DEFAULT '',
-			last_applied_hash TEXT DEFAULT '', source_updated_at TEXT, local_override INTEGER DEFAULT 0,
-			created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
-		);
-		INSERT INTO agent_profiles (id, name, profile_key, runner_type, model_preset, fallback_runner_types)
-		VALUES ('profile-1', 'profile-1', 'profile-1', 'codex', 'SMART', '["claude-code"]');
-	`); err != nil {
-		t.Fatalf("seed legacy profiles: %v", err)
+
+	var roleRefColumns int
+	if err := db.Get(&roleRefColumns, "SELECT COUNT(*) FROM pragma_table_info('agent_profiles') WHERE name = 'role_ref'"); err != nil {
+		t.Fatalf("inspect role_ref: %v", err)
+	}
+	if roleRefColumns != 1 {
+		t.Fatalf("role_ref columns = %d, want 1", roleRefColumns)
 	}
 
-	if err := db.migrateProfileRolePolicyColumns(context.Background()); err != nil {
-		t.Fatalf("migrate legacy profiles: %v", err)
-	}
-	var roleRef string
-	if err := db.QueryRowx("SELECT role_ref FROM agent_profiles WHERE id = 'profile-1'").Scan(&roleRef); err != nil {
-		t.Fatalf("read migrated profile: %v", err)
-	}
-	if roleRef != "code.smart" {
-		t.Fatalf("role_ref = %q, want code.smart", roleRef)
-	}
-	for _, column := range []string{"model_preset", "fallback_runner_types", "policy_ref", "runner_type"} {
+	for _, legacyColumn := range []string{"runner_type", "model", "policy_ref", "model_preset", "fallback_runner_types"} {
 		var count int
-		if err := db.Get(&count, "SELECT COUNT(*) FROM pragma_table_info('agent_profiles') WHERE name = ?", column); err != nil {
-			t.Fatalf("inspect %s: %v", column, err)
+		if err := db.Get(&count, "SELECT COUNT(*) FROM pragma_table_info('agent_profiles') WHERE name = ?", legacyColumn); err != nil {
+			t.Fatalf("inspect %s: %v", legacyColumn, err)
 		}
 		if count != 0 {
-			t.Fatalf("legacy column %s still exists", column)
+			t.Fatalf("legacy column %s unexpectedly present", legacyColumn)
 		}
 	}
-}
-
-func TestMigrateProfileRolePolicyColumnsRejectsUnknownPreset(t *testing.T) {
-	db, cleanup := setupRawTestDB(t)
-	defer cleanup()
-	if _, err := db.Exec(`
-		CREATE TABLE agent_profiles (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, profile_key TEXT NOT NULL UNIQUE, runner_type TEXT NOT NULL, model_preset TEXT);
-		INSERT INTO agent_profiles (id, name, profile_key, runner_type, model_preset) VALUES ('profile-1', 'profile-1', 'profile-1', 'codex', 'TURBO');
-	`); err != nil {
-		t.Fatalf("seed legacy profile: %v", err)
-	}
-	if err := db.migrateProfileRolePolicyColumns(context.Background()); err == nil || !strings.Contains(err.Error(), "unsupported model_preset") {
-		t.Fatalf("migration error = %v, want unsupported preset diagnostic", err)
-	}
-}
-
-func TestMigrateProfileRolePolicyColumnsMapsSupportedPoliciesAndDefaults(t *testing.T) {
-	db, cleanup := setupRawTestDB(t)
-	defer cleanup()
-	if _, err := db.Exec(`
-		CREATE TABLE agent_profiles (
-			id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, profile_key TEXT NOT NULL UNIQUE,
-			description TEXT, max_turns INTEGER, timeout_ms INTEGER, allowed_tools TEXT DEFAULT '[]', denied_tools TEXT DEFAULT '[]',
-			skip_permission_prompt INTEGER DEFAULT 0, features TEXT DEFAULT '{}', extra_flags TEXT DEFAULT '{}',
-			network_access TEXT NOT NULL DEFAULT 'localhost', sandbox_config TEXT DEFAULT '{}', allowed_paths TEXT DEFAULT '[]',
-			denied_paths TEXT DEFAULT '[]', created_by TEXT, owner_scenario TEXT DEFAULT '', source_path TEXT DEFAULT '',
-			source_hash TEXT DEFAULT '', last_applied_hash TEXT DEFAULT '', source_updated_at TEXT, local_override INTEGER DEFAULT 0,
-			created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')),
-			runner_type TEXT NOT NULL,
-			model TEXT,
-			policy_ref TEXT DEFAULT '',
-			role_ref TEXT DEFAULT ''
-		);
-		INSERT INTO agent_profiles (id, name, profile_key, runner_type, policy_ref) VALUES
-			('fast', 'fast', 'fast', 'claude-code', 'claude-code.fast'),
-			('cheap', 'cheap', 'cheap', 'opencode', 'opencode.cheap'),
-			('default', 'default', 'default', 'grok', '');
-	`); err != nil {
-		t.Fatalf("seed legacy profiles: %v", err)
-	}
-
-	if err := db.migrateProfileRolePolicyColumns(context.Background()); err != nil {
-		t.Fatalf("migrate legacy profiles: %v", err)
-	}
-	var got []struct {
-		ID      string `db:"id"`
-		RoleRef string `db:"role_ref"`
-	}
-	if err := db.Select(&got, "SELECT id, role_ref FROM agent_profiles ORDER BY id"); err != nil {
-		t.Fatalf("read migrated profiles: %v", err)
-	}
-	want := map[string]string{"cheap": "code.cheap", "default": "code.default", "fast": "code.fast"}
-	for _, profile := range got {
-		if profile.RoleRef != want[profile.ID] {
-			t.Fatalf("profile %q role_ref = %q, want %q", profile.ID, profile.RoleRef, want[profile.ID])
-		}
-	}
-}
-
-func TestMigrateProfileRolePolicyColumnsRejectsExplicitModel(t *testing.T) {
-	db, cleanup := setupRawTestDB(t)
-	defer cleanup()
-	if _, err := db.Exec(`
-		CREATE TABLE agent_profiles (
-			id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, profile_key TEXT NOT NULL UNIQUE, runner_type TEXT NOT NULL, model TEXT,
-			policy_ref TEXT DEFAULT '', role_ref TEXT DEFAULT ''
-		);
-		INSERT INTO agent_profiles (id, name, profile_key, runner_type, model) VALUES ('profile-1', 'profile-1', 'profile-1', 'codex', 'gpt-5.4');
-	`); err != nil {
-		t.Fatalf("seed direct-model profile: %v", err)
-	}
-
-	err := db.migrateProfileRolePolicyColumns(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "cannot migrate explicit model") {
-		t.Fatalf("migration error = %v, want explicit-model diagnostic", err)
-	}
-}
-
-func setupRawTestDB(t *testing.T) (*DB, func()) {
-	t.Helper()
-	sqlDB, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "raw.db"))
-	if err != nil {
-		t.Fatalf("connect raw sqlite: %v", err)
-	}
-	log := logrus.New()
-	log.SetLevel(logrus.PanicLevel)
-	return &DB{DB: sqlDB, log: log}, func() { _ = sqlDB.Close() }
 }
 
 func TestDataDirPrefersCanonicalStorageOverLegacyFallbackEnv(t *testing.T) {

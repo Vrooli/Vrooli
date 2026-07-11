@@ -19,7 +19,7 @@ type fakeService struct {
 	run     internaltrials.TrialRun
 	runErr  error
 	gate    internaltrials.GateCoverage
-	lastReq struct{ suite, taskID, model string }
+	lastReq struct{ suite, taskID string }
 }
 
 func (f *fakeService) ListTrialTasks(_ context.Context, suite string) ([]internaltrials.TrialTask, error) {
@@ -27,8 +27,8 @@ func (f *fakeService) ListTrialTasks(_ context.Context, suite string) ([]interna
 	return f.tasks, nil
 }
 
-func (f *fakeService) RunTrials(_ context.Context, suite, taskID, model string) ([]internaltrials.TrialRun, error) {
-	f.lastReq.suite, f.lastReq.taskID, f.lastReq.model = suite, taskID, model
+func (f *fakeService) RunTrials(_ context.Context, suite, taskID string) ([]internaltrials.TrialRun, error) {
+	f.lastReq.suite, f.lastReq.taskID = suite, taskID
 	return f.runs, nil
 }
 
@@ -62,11 +62,11 @@ func TestHandlerListTasks(t *testing.T) {
 func TestHandlerRunTrialsThreadsArgs(t *testing.T) {
 	svc := &fakeService{runs: []internaltrials.TrialRun{{ID: "r1", Verdict: internaltrials.VerdictPass, At: time.Now()}}}
 	h := NewConnectHandler(Deps{Service: svc})
-	resp, err := h.RunTrials(context.Background(), connect.NewRequest(&trialsv1.RunTrialsRequest{Suite: "bugfix", TaskId: "trial/x", Model: "ollama/z"}))
+	resp, err := h.RunTrials(context.Background(), connect.NewRequest(&trialsv1.RunTrialsRequest{Suite: "bugfix", TaskId: "trial/x"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if svc.lastReq.taskID != "trial/x" || svc.lastReq.model != "ollama/z" {
+	if svc.lastReq.taskID != "trial/x" || svc.lastReq.suite != "bugfix" {
 		t.Fatalf("args not threaded: %+v", svc.lastReq)
 	}
 	if len(resp.Msg.GetRuns()) != 1 || resp.Msg.GetRuns()[0].GetVerdict() != trialsv1.TrialVerdict_TRIAL_VERDICT_PASS {

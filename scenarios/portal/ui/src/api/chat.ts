@@ -21,7 +21,6 @@ export interface CreatePortalChatInput {
   title: string;
   groupId?: string;
   mode?: ChatMode;
-  agentHarness?: AgentHarness;
   model?: string;
   webSearchEnabled?: boolean;
 }
@@ -42,7 +41,6 @@ export interface StreamPortalCompletionInput {
   webSearchEnabled?: boolean;
   selectedSkillIds?: string[];
   mode?: ChatMode;
-  agentHarness?: AgentHarness;
   signal?: AbortSignal;
 }
 
@@ -57,7 +55,6 @@ export async function createPortalChat(input: CreatePortalChatInput): Promise<Ch
     model: input.model ?? "",
     webSearchEnabled: input.webSearchEnabled ?? false,
     mode: input.mode ?? ChatMode.LLM,
-    agentHarness: input.agentHarness ?? AgentHarness.CLAUDE_CODE,
   });
   if (!response.chat) {
     throw new Error("create chat response did not include a chat");
@@ -138,7 +135,6 @@ export async function* streamPortalCompletion(
       webSearchEnabled: input.webSearchEnabled ?? false,
       selectedSkillIds: input.selectedSkillIds ?? [],
       mode: input.mode ?? ChatMode.LLM,
-      agentHarness: input.agentHarness ?? AgentHarness.CLAUDE_CODE,
     },
     { signal: input.signal },
   );

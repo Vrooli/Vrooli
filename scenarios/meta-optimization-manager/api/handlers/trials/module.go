@@ -71,7 +71,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        trialsconnect.TrialsServiceRunTrialsProcedure,
 		Method:      "POST",
 		Summary:     "Run trials (explicit invocation)",
-		Description: "Dispatches a task or suite through agent-manager's sandboxed runner (run create --run-mode sandboxed, runner=opencode + a local model), evaluates the produced diff against the fixture oracle, and records the runs (OT-P1-001). EXPLICIT INVOCATION ONLY — never auto-runs; always sandboxed.",
+		Description: "Reconciles MoM's declared role-only profile, then dispatches a task or suite through Agent Manager's sandboxed runner, evaluates the produced diff against the fixture oracle, and records the runs (OT-P1-001). EXPLICIT INVOCATION ONLY — never auto-runs; always sandboxed.",
 		Category:    "trials",
 		Response: &module.Schema{
 			Type:       "object",

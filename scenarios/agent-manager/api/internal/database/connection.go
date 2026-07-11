@@ -2,10 +2,10 @@ package database
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -17,12 +17,14 @@ import (
 	_ "modernc.org/sqlite" // SQLite driver
 )
 
-// Default configuration values
 const (
-	defaultQueryTimeout     = 30 * time.Second
-	defaultMigrationTimeout = 60 * time.Second
-	defaultPingTimeout      = 5 * time.Second
+	defaultQueryTimeout  = 30 * time.Second
+	defaultSchemaTimeout = 60 * time.Second
+	defaultPingTimeout   = 5 * time.Second
 )
+
+//go:embed schema.sql
+var schema string
 
 // DB wraps sqlx.DB with additional functionality for agent-manager.
 type DB struct {
@@ -53,17 +55,11 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 			IsTransient: true,
 		}
 	}
-
-	// SQLite only supports a single connection
 	db.SetMaxOpenConns(1)
 
-	dbWrapper := &DB{
-		DB:  db,
-		log: log,
-	}
-
-	// Initialize database schema
+	dbWrapper := &DB{DB: db, log: log}
 	if err := dbWrapper.initSchema(); err != nil {
+		_ = db.Close()
 		log.WithError(err).Error("Failed to initialize database schema")
 		return nil, err
 	}
@@ -96,18 +92,14 @@ func sqliteDSN(log *logrus.Logger) (string, error) {
 			return "", domain.NewConfigInvalidError("AM_SQLITE_PATH", "resolve canonical sqlite path", err)
 		}
 		root = path
-		goto ensureDir
 	}
 
-ensureDir:
 	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
 		return "", domain.NewConfigInvalidError("AM_SQLITE_PATH", "prepare sqlite directory", err)
 	}
-
 	if log != nil {
 		log.WithField("path", root).Info("Using SQLite database")
 	}
-
 	return fmt.Sprintf(
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
 		root,
@@ -115,17 +107,10 @@ ensureDir:
 }
 
 func scenarioDBPath() (string, error) {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
 		return "", err
 	}
-	// Variant-aware path scope (Baseline Modes): under a shadow engagement the
-	// lifecycle injects VROOLI_STORAGE_NAMESPACE, so the shadow's SQLite file is
-	// scoped to "agent-manager_shadow" and never shares live's database. Falls
-	// back to the bare slug outside the lifecycle (local run / tests).
 	scenarioID, err := storage.ScenarioNamespace("agent-manager")
 	if err != nil {
 		return "", err
@@ -134,21 +119,14 @@ func scenarioDBPath() (string, error) {
 }
 
 // Close closes the database connection.
-func (db *DB) Close() error {
-	return db.DB.Close()
-}
+func (db *DB) Close() error { return db.DB.Close() }
 
 // HealthCheck performs a health check on the database.
 func (db *DB) HealthCheck() error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultPingTimeout)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
-		return &domain.DatabaseError{
-			Operation:   "health_check",
-			EntityType:  "Database",
-			Cause:       err,
-			IsTransient: true,
-		}
+		return &domain.DatabaseError{Operation: "health_check", EntityType: "Database", Cause: err, IsTransient: true}
 	}
 	return nil
 }
@@ -157,793 +135,37 @@ func (db *DB) HealthCheck() error {
 func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 	tx, err := db.Beginx()
 	if err != nil {
-		return &domain.DatabaseError{
-			Operation:   "transaction_begin",
-			EntityType:  "Database",
-			Cause:       err,
-			IsTransient: true,
-		}
+		return &domain.DatabaseError{Operation: "transaction_begin", EntityType: "Database", Cause: err}
 	}
-
 	defer func() {
 		if r := recover(); r != nil {
 			_ = tx.Rollback()
 			panic(r)
 		}
 	}()
-
 	if err := fn(tx); err != nil {
 		_ = tx.Rollback()
 		return err
 	}
-
 	if err := tx.Commit(); err != nil {
-		return &domain.DatabaseError{
-			Operation:   "transaction_commit",
-			EntityType:  "Database",
-			Cause:       err,
-			IsTransient: true,
-		}
+		return &domain.DatabaseError{Operation: "transaction_commit", EntityType: "Database", Cause: err}
 	}
 	return nil
 }
 
-// initSchema initializes the database schema.
+// initSchema applies the current declarative schema. Data evolution is a
+// deliberate, one-shot operator action; startup never mutates legacy data.
 func (db *DB) initSchema() error {
-	schemaPath := filepath.Join(filepath.Dir(getCurrentFilePath()), "schema.sql")
-
-	schemaBytes, err := os.ReadFile(schemaPath)
-	if err != nil {
-		db.log.WithError(err).WithField("path", schemaPath).Error("Failed to read schema file")
-		return &domain.DatabaseError{
-			Operation:  "schema_read",
-			EntityType: "Schema",
-			Cause:      fmt.Errorf("failed to read schema file at %s: %w", schemaPath, err),
-		}
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), defaultMigrationTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultSchemaTimeout)
 	defer cancel()
-
-	if err := db.ensureRunsTableCompatibility(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to prepare runs table compatibility")
-		return err
-	}
-
-	if err := db.ensureRunEventsSchemaVersion(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to add schema_version column to run_events")
-		return err
-	}
-
-	if err := db.dropInvestigationPromptColumns(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to drop investigation prompt columns")
-		return err
-	}
-
-	if err := db.ensureProfileNetworkAccessColumn(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to add network_access column to agent_profiles")
-		return err
-	}
-
-	if err := db.dropProfileRequiresApprovalColumn(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to drop requires_approval column from agent_profiles")
-		return err
-	}
-
-	if err := db.ensureProfileSourceColumns(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to add source metadata columns to agent_profiles")
-		return err
-	}
-
-	if err := db.migrateProfileRolePolicyColumns(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to migrate profile role policy columns")
-		return err
-	}
-
-	_, err = db.ExecContext(ctx, string(schemaBytes))
-	if err != nil {
-		db.log.WithError(err).Error("Failed to execute schema initialization")
-		return &domain.DatabaseError{
-			Operation:  "schema_init",
-			EntityType: "Schema",
-			Cause:      err,
+	if _, err := db.ExecContext(ctx, schema); err != nil {
+		if db.log != nil {
+			db.log.WithError(err).Error("Failed to execute schema initialization")
 		}
+		return &domain.DatabaseError{Operation: "schema_init", EntityType: "Schema", Cause: err}
 	}
-
-	db.log.Info("Database schema initialized successfully")
-	return nil
-}
-
-// migrateProfileRolePolicyColumns translates every supported historical
-// profile intent into the portable role_ref contract. It deliberately does not
-// guess a role for an explicit concrete model: model names are resource-owned
-// facts, so a silent translation would change the operator's intent.
-//
-// Once every row has a portable role, the table is rebuilt in the same
-// migration. The retired columns are not retained as a compatibility escape
-// hatch: historical concrete selections remain in each run's resolved_config
-// snapshot, never in mutable profile intent.
-func (db *DB) migrateProfileRolePolicyColumns(ctx context.Context) error {
-	var tableCount int
-	if err := db.GetContext(ctx, &tableCount, `
-		SELECT COUNT(*) FROM sqlite_master
-		WHERE type = 'table' AND name = 'agent_profiles'
-	`); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-	}
-	if tableCount == 0 {
-		return nil
-	}
-
-	type tableColumn struct {
-		Name string `db:"name"`
-	}
-	var columns []tableColumn
-	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('agent_profiles')"); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-	}
-	has := make(map[string]bool, len(columns))
-	for _, column := range columns {
-		has[column.Name] = true
-	}
-	if !has["runner_type"] && !has["model"] && !has["policy_ref"] && !has["model_preset"] && !has["fallback_runner_types"] {
-		return nil
-	}
-
-	if !has["policy_ref"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles ADD COLUMN policy_ref TEXT DEFAULT ''"); err != nil {
-			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("add policy_ref: %w", err)}
-		}
-	}
-	if !has["role_ref"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles ADD COLUMN role_ref TEXT DEFAULT ''"); err != nil {
-			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("add role_ref: %w", err)}
-		}
-	}
-
-	if has["model_preset"] {
-		var unsupported int
-		if err := db.GetContext(ctx, &unsupported, `
-			SELECT COUNT(*) FROM agent_profiles
-			WHERE TRIM(COALESCE(model_preset, '')) <> ''
-			  AND UPPER(TRIM(model_preset)) NOT IN ('FAST', 'CHEAP', 'SMART')
-		`); err != nil {
-			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-		}
-		if unsupported > 0 {
-			return &domain.DatabaseError{
-				Operation: "migration", EntityType: "AgentProfile",
-				Cause: fmt.Errorf("%d profile(s) contain unsupported model_preset values", unsupported),
-			}
-		}
-		if _, err := db.ExecContext(ctx, `
-			UPDATE agent_profiles
-			SET policy_ref = LOWER(TRIM(runner_type)) || '.' || LOWER(TRIM(model_preset))
-			WHERE TRIM(COALESCE(policy_ref, '')) = ''
-			  AND TRIM(COALESCE(model_preset, '')) <> ''
-		`); err != nil {
-			return &domain.DatabaseError{Operation: "migration", EntityType: "AgentProfile", Cause: fmt.Errorf("backfill policy_ref: %w", err)}
-		}
-		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles DROP COLUMN model_preset"); err != nil {
-			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("drop model_preset: %w", err)}
-		}
-	}
-
-	if has["fallback_runner_types"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles DROP COLUMN fallback_runner_types"); err != nil {
-			return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: fmt.Errorf("drop fallback_runner_types: %w", err)}
-		}
-	}
-
-	modelExpression := "''"
-	if has["model"] {
-		modelExpression = "COALESCE(model, '')"
-	}
-	type legacyProfile struct {
-		ID        string `db:"id"`
-		Runner    string `db:"runner_type"`
-		Model     string `db:"model"`
-		PolicyRef string `db:"policy_ref"`
-	}
-	profiles := make([]legacyProfile, 0)
-	query := fmt.Sprintf(`
-		SELECT id, runner_type, %s AS model, COALESCE(policy_ref, '') AS policy_ref
-		FROM agent_profiles
-		WHERE TRIM(COALESCE(role_ref, '')) = ''
-		ORDER BY id
-	`, modelExpression)
-	if err := db.SelectContext(ctx, &profiles, query); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "AgentProfile", Cause: fmt.Errorf("read legacy profiles: %w", err)}
-	}
-	for _, profile := range profiles {
-		roleRef, err := portableRoleForLegacyProfile(profile.Runner, profile.PolicyRef, profile.Model)
-		if err != nil {
-			return &domain.DatabaseError{
-				Operation:  "migration",
-				EntityType: "AgentProfile",
-				Cause:      fmt.Errorf("profile %q: %w", profile.ID, err),
-			}
-		}
-		if _, err := db.ExecContext(ctx, "UPDATE agent_profiles SET role_ref = ?, policy_ref = '' WHERE id = ?", roleRef, profile.ID); err != nil {
-			return &domain.DatabaseError{Operation: "migration", EntityType: "AgentProfile", Cause: fmt.Errorf("set role_ref for profile %q: %w", profile.ID, err)}
-		}
-	}
-	return db.rebuildRoleOnlyProfiles(ctx)
-}
-
-// rebuildRoleOnlyProfiles removes mutable legacy runner/model/policy inputs
-// after migration. SQLite table reconstruction is intentional: it makes the
-// hard cut durable for existing installations rather than merely hiding old
-// columns behind new application code.
-func (db *DB) rebuildRoleOnlyProfiles(ctx context.Context) error {
-	tx, err := db.BeginTxx(ctx, nil)
-	if err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-	}
-	rollback := func(cause error) error {
-		_ = tx.Rollback()
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: cause}
-	}
-
-	statements := []string{
-		`CREATE TABLE agent_profiles_role_only (
-			id TEXT PRIMARY KEY,
-			name TEXT NOT NULL UNIQUE,
-			profile_key TEXT NOT NULL UNIQUE,
-			description TEXT,
-			role_ref TEXT NOT NULL,
-			max_turns INTEGER,
-			timeout_ms INTEGER,
-			allowed_tools TEXT DEFAULT '[]',
-			denied_tools TEXT DEFAULT '[]',
-			skip_permission_prompt INTEGER DEFAULT 0,
-			features TEXT DEFAULT '{}',
-			extra_flags TEXT DEFAULT '{}',
-			network_access TEXT NOT NULL DEFAULT 'localhost',
-			sandbox_config TEXT DEFAULT '{}',
-			allowed_paths TEXT DEFAULT '[]',
-			denied_paths TEXT DEFAULT '[]',
-			created_by TEXT,
-			owner_scenario TEXT DEFAULT '',
-			source_path TEXT DEFAULT '',
-			source_hash TEXT DEFAULT '',
-			last_applied_hash TEXT DEFAULT '',
-			source_updated_at TEXT,
-			local_override INTEGER DEFAULT 0,
-			created_at TEXT DEFAULT (datetime('now')),
-			updated_at TEXT DEFAULT (datetime('now'))
-		)`,
-		`INSERT INTO agent_profiles_role_only (
-			id, name, profile_key, description, role_ref, max_turns, timeout_ms,
-			allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
-			network_access, sandbox_config, allowed_paths, denied_paths, created_by,
-			owner_scenario, source_path, source_hash, last_applied_hash, source_updated_at,
-			local_override, created_at, updated_at
-		) SELECT
-			id, name, profile_key, description, role_ref, max_turns, timeout_ms,
-			allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
-			network_access, sandbox_config, allowed_paths, denied_paths, created_by,
-			owner_scenario, source_path, source_hash, last_applied_hash, source_updated_at,
-			local_override, created_at, updated_at
-		FROM agent_profiles`,
-		`DROP TABLE agent_profiles`,
-		`ALTER TABLE agent_profiles_role_only RENAME TO agent_profiles`,
-		`CREATE INDEX IF NOT EXISTS idx_agent_profiles_name ON agent_profiles(name)`,
-	}
-	for _, statement := range statements {
-		if _, err := tx.ExecContext(ctx, statement); err != nil {
-			return rollback(err)
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	if db.log != nil {
+		db.log.Info("Database schema initialized successfully")
 	}
 	return nil
-}
-
-func portableRoleForLegacyProfile(runner, policyRef, model string) (string, error) {
-	if model = strings.TrimSpace(model); model != "" {
-		return "", fmt.Errorf("cannot migrate explicit model %q; replace it with a portable role_ref before startup", model)
-	}
-	if policyRef = strings.TrimSpace(policyRef); policyRef != "" {
-		parts := strings.Split(policyRef, ".")
-		if len(parts) != 2 || !domain.RunnerType(parts[0]).IsValid() {
-			return "", fmt.Errorf("unsupported legacy policy_ref %q", policyRef)
-		}
-		switch parts[1] {
-		case "default", "fast", "smart", "cheap":
-			return "code." + parts[1], nil
-		default:
-			return "", fmt.Errorf("unsupported legacy policy_ref %q", policyRef)
-		}
-	}
-	if !domain.RunnerType(strings.TrimSpace(runner)).IsValid() {
-		return "", fmt.Errorf("unsupported legacy runner_type %q", runner)
-	}
-	return "code.default", nil
-}
-
-// ensureProfileSourceColumns adds source reconciliation metadata columns to
-// agent_profiles for existing databases.
-func (db *DB) ensureProfileSourceColumns(ctx context.Context) error {
-	var tableCount int
-	if err := db.GetContext(ctx, &tableCount, `
-		SELECT COUNT(*) FROM sqlite_master
-		WHERE type = 'table' AND name = 'agent_profiles'
-	`); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-	}
-	if tableCount == 0 {
-		return nil
-	}
-
-	type tableColumn struct {
-		Name string `db:"name"`
-	}
-	var columns []tableColumn
-	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('agent_profiles')"); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-	}
-	hasColumn := make(map[string]bool, len(columns))
-	for _, col := range columns {
-		hasColumn[col.Name] = true
-	}
-
-	additions := map[string]string{
-		"owner_scenario":    "ALTER TABLE agent_profiles ADD COLUMN owner_scenario TEXT DEFAULT ''",
-		"source_path":       "ALTER TABLE agent_profiles ADD COLUMN source_path TEXT DEFAULT ''",
-		"source_hash":       "ALTER TABLE agent_profiles ADD COLUMN source_hash TEXT DEFAULT ''",
-		"last_applied_hash": "ALTER TABLE agent_profiles ADD COLUMN last_applied_hash TEXT DEFAULT ''",
-		"source_updated_at": "ALTER TABLE agent_profiles ADD COLUMN source_updated_at TEXT",
-		"local_override":    "ALTER TABLE agent_profiles ADD COLUMN local_override INTEGER DEFAULT 0",
-	}
-	for name, stmt := range additions {
-		if hasColumn[name] {
-			continue
-		}
-		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "migration",
-				EntityType: "Schema",
-				Cause:      fmt.Errorf("add column %s: %w", name, err),
-			}
-		}
-	}
-	return nil
-}
-
-func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
-	var runsTableCount int
-	if err := db.GetContext(ctx, &runsTableCount, `
-		SELECT COUNT(*)
-		FROM sqlite_master
-		WHERE type = 'table' AND name = 'runs'
-	`); err != nil {
-		return &domain.DatabaseError{
-			Operation:  "schema_preflight",
-			EntityType: "Schema",
-			Cause:      err,
-		}
-	}
-	if runsTableCount == 0 {
-		return nil
-	}
-
-	type tableColumn struct {
-		Name string `db:"name"`
-	}
-	var columns []tableColumn
-	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('runs')"); err != nil {
-		return &domain.DatabaseError{
-			Operation:  "schema_preflight",
-			EntityType: "Schema",
-			Cause:      err,
-		}
-	}
-
-	hasColumn := make(map[string]bool, len(columns))
-	for _, col := range columns {
-		hasColumn[col.Name] = true
-	}
-
-	if !hasColumn["source_run_ids"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN source_run_ids TEXT DEFAULT '[]'"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["source_investigation_run_id"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN source_investigation_run_id TEXT"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["identity_token_hash"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN identity_token_hash TEXT"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["identity_token_revoked_at"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN identity_token_revoked_at TEXT"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["requested_model"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN requested_model TEXT DEFAULT ''"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["actual_model"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN actual_model TEXT DEFAULT ''"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["runner_pid"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN runner_pid INTEGER DEFAULT 0"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["runner_pgid"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN runner_pgid INTEGER DEFAULT 0"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["transcript_path"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN transcript_path TEXT DEFAULT ''"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["transcript_cursor"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN transcript_cursor INTEGER DEFAULT 0"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	if !hasColumn["transcript_last_seq"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN transcript_last_seq INTEGER DEFAULT 0"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	// parent_run_id / conversation_id were added by the auditability-contract
-	// rollout (execute/agent-manager-sandbox-auto-apply-defaults). They power
-	// per-run conversation grouping (Decision D7) and are nullable / default
-	// empty so existing rows decode unchanged.
-	if !hasColumn["parent_run_id"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN parent_run_id TEXT"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-	if !hasColumn["conversation_id"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN conversation_id TEXT DEFAULT ''"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	// custom_env persists the caller-supplied VROOLI_-prefixed env (JSON
-	// object) so the continue/wake path can re-inject it. Nullable so
-	// existing rows decode unchanged. Added by the park/resume Phase 0 work
-	// (the latent "continue drops custom env + identity" fix).
-	if !hasColumn["custom_env"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN custom_env TEXT"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	// await_handle persists the externally-owned async work a parked run is
-	// waiting on ({producer, key, deadline} as JSON) so an agent-manager restart
-	// can re-spawn the waiter for every parked run. Nullable so existing rows
-	// decode unchanged. Added by the park/resume Phase 2 work (parked state).
-	if !hasColumn["await_handle"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN await_handle TEXT"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "schema_preflight",
-				EntityType: "Schema",
-				Cause:      err,
-			}
-		}
-	}
-
-	// last_await_* + the re-park guard counters persist what a run most recently
-	// awaited (so a woken agent can re-fetch the result without re-running the
-	// blocking producer) and the bookkeeping the no-progress re-park guard needs.
-	// All nullable / default so existing rows decode unchanged. Added by the
-	// park/resume re-park-guard work.
-	if !hasColumn["last_await_key"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN last_await_key TEXT DEFAULT ''"); err != nil {
-			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
-		}
-	}
-	if !hasColumn["last_await_result"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN last_await_result TEXT DEFAULT ''"); err != nil {
-			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
-		}
-	}
-	if !hasColumn["last_await_resolved_at"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN last_await_resolved_at TEXT"); err != nil {
-			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
-		}
-	}
-	if !hasColumn["last_wake_seq"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN last_wake_seq INTEGER DEFAULT 0"); err != nil {
-			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
-		}
-	}
-	if !hasColumn["same_key_park_streak"] {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN same_key_park_streak INTEGER DEFAULT 0"); err != nil {
-			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
-		}
-	}
-
-	return nil
-}
-
-// dropInvestigationPromptColumns removes prompt_template and apply_prompt_template
-// from investigation_settings if they exist (prompts now live in prompt-manager skills).
-func (db *DB) dropInvestigationPromptColumns(ctx context.Context) error {
-	var tableCount int
-	if err := db.GetContext(ctx, &tableCount, `
-		SELECT COUNT(*) FROM sqlite_master
-		WHERE type = 'table' AND name = 'investigation_settings'
-	`); err != nil {
-		return &domain.DatabaseError{
-			Operation:  "migration",
-			EntityType: "Schema",
-			Cause:      err,
-		}
-	}
-	if tableCount == 0 {
-		return nil
-	}
-
-	type tableColumn struct {
-		Name string `db:"name"`
-	}
-	var columns []tableColumn
-	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('investigation_settings')"); err != nil {
-		return &domain.DatabaseError{
-			Operation:  "migration",
-			EntityType: "Schema",
-			Cause:      err,
-		}
-	}
-
-	hasColumn := make(map[string]bool, len(columns))
-	for _, col := range columns {
-		hasColumn[col.Name] = true
-	}
-
-	for _, col := range []string{"prompt_template", "apply_prompt_template"} {
-		if hasColumn[col] {
-			if _, err := db.ExecContext(ctx, "ALTER TABLE investigation_settings DROP COLUMN "+col); err != nil {
-				return &domain.DatabaseError{
-					Operation:  "migration",
-					EntityType: "Schema",
-					Cause:      fmt.Errorf("drop column %s: %w", col, err),
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-// ensureProfileNetworkAccessColumn adds the network_access column to agent_profiles
-// if it doesn't already exist (migration for existing databases).
-func (db *DB) ensureProfileNetworkAccessColumn(ctx context.Context) error {
-	var tableCount int
-	if err := db.GetContext(ctx, &tableCount, `
-		SELECT COUNT(*) FROM sqlite_master
-		WHERE type = 'table' AND name = 'agent_profiles'
-	`); err != nil {
-		return &domain.DatabaseError{
-			Operation:  "migration",
-			EntityType: "Schema",
-			Cause:      err,
-		}
-	}
-	if tableCount == 0 {
-		return nil
-	}
-
-	type tableColumn struct {
-		Name string `db:"name"`
-	}
-	var columns []tableColumn
-	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('agent_profiles')"); err != nil {
-		return &domain.DatabaseError{
-			Operation:  "migration",
-			EntityType: "Schema",
-			Cause:      err,
-		}
-	}
-
-	hasColumn := false
-	for _, col := range columns {
-		if col.Name == "network_access" {
-			hasColumn = true
-			break
-		}
-	}
-
-	if !hasColumn {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles ADD COLUMN network_access TEXT NOT NULL DEFAULT 'localhost'"); err != nil {
-			return &domain.DatabaseError{
-				Operation:  "migration",
-				EntityType: "Schema",
-				Cause:      fmt.Errorf("add column network_access: %w", err),
-			}
-		}
-	}
-
-	return nil
-}
-
-// dropProfileRequiresApprovalColumn removes the legacy requires_approval column
-// from agent_profiles. The column was retired by agent-sandbox-audit-foundation
-// (manualReview now lives on SandboxConfig). Before dropping, any row with
-// requires_approval=1 has its sandbox_config JSON updated to set
-// manualReview=true so prior operator intent is preserved.
-func (db *DB) dropProfileRequiresApprovalColumn(ctx context.Context) error {
-	var tableCount int
-	if err := db.GetContext(ctx, &tableCount, `
-		SELECT COUNT(*) FROM sqlite_master
-		WHERE type = 'table' AND name = 'agent_profiles'
-	`); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-	}
-	if tableCount == 0 {
-		return nil
-	}
-
-	type tableColumn struct {
-		Name string `db:"name"`
-	}
-	var columns []tableColumn
-	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('agent_profiles')"); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-	}
-	hasColumn := false
-	for _, col := range columns {
-		if col.Name == "requires_approval" {
-			hasColumn = true
-			break
-		}
-	}
-	if !hasColumn {
-		return nil
-	}
-
-	// Preserve operator intent: rows that had requires_approval=1 carry over
-	// to sandbox_config.manualReview=true. Use json_set so a NULL or empty
-	// sandbox_config still produces a minimal valid object.
-	if _, err := db.ExecContext(ctx, `
-		UPDATE agent_profiles
-		SET sandbox_config = json_set(
-			COALESCE(NULLIF(sandbox_config, ''), '{}'),
-			'$.manualReview', json('true')
-		)
-		WHERE requires_approval = 1
-	`); err != nil {
-		return &domain.DatabaseError{
-			Operation: "migration", EntityType: "Schema",
-			Cause: fmt.Errorf("backfill manualReview from requires_approval: %w", err),
-		}
-	}
-
-	if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles DROP COLUMN requires_approval"); err != nil {
-		return &domain.DatabaseError{
-			Operation: "migration", EntityType: "Schema",
-			Cause: fmt.Errorf("drop column requires_approval: %w", err),
-		}
-	}
-	return nil
-}
-
-// ensureRunEventsSchemaVersion adds the schema_version column to run_events
-// for existing databases. New databases pick it up via schema.sql.
-//
-// schema_version identifies the on-wire shape of `data`; the eventlog package
-// owns the (event_type, schema_version) → payload-type registry.
-func (db *DB) ensureRunEventsSchemaVersion(ctx context.Context) error {
-	var tableCount int
-	if err := db.GetContext(ctx, &tableCount, `
-		SELECT COUNT(*) FROM sqlite_master
-		WHERE type = 'table' AND name = 'run_events'
-	`); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-	}
-	if tableCount == 0 {
-		return nil
-	}
-
-	type tableColumn struct {
-		Name string `db:"name"`
-	}
-	var columns []tableColumn
-	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('run_events')"); err != nil {
-		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
-	}
-	for _, col := range columns {
-		if col.Name == "schema_version" {
-			return nil
-		}
-	}
-
-	if _, err := db.ExecContext(ctx, "ALTER TABLE run_events ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1"); err != nil {
-		return &domain.DatabaseError{
-			Operation:  "migration",
-			EntityType: "Schema",
-			Cause:      fmt.Errorf("add column schema_version: %w", err),
-		}
-	}
-	return nil
-}
-
-func getCurrentFilePath() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filename
 }

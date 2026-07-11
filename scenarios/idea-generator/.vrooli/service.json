@@ -26,6 +26,7 @@
       "minio-storage",
       "ollama-ai"
     ],
+    "capabilities": ["ai"],
     "parent": "vrooli",
     "type": "scenario",
     "category": "general",

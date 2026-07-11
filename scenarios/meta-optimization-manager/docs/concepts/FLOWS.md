@@ -32,7 +32,7 @@ The workflow and state-transition map for **meta-optimization-manager**. Most fl
 ```
 resolve  → fixture for the task family (defines success + supplies the idempotency rev)
 reuse?   → a recent identical (task, model, fixture-rev) run is returned as-is (no double spend)
-dispatch → agent-manager: profile ensure → task create (scope = fixture target/) → run create --run-mode sandboxed
+dispatch → agent-manager: reconcile MoM's declared role-only profile → task create (scope = fixture target/) → run create --run-mode sandboxed
 running  → agent-manager owns the sandbox; MoM polls run get until terminal
 collect  → run diff + run get metrics = EVIDENCE (diff, tokens, wall-time, changed-files); NO verdict yet
 evaluated→ MoM Evaluator: deterministic fixture oracle (copy target/ + apply diff + run check), else agent-judge

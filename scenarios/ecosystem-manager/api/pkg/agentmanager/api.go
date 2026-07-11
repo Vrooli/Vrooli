@@ -16,10 +16,6 @@ type AgentServiceAPI interface {
 	// Call this at startup to create/update the profile.
 	Initialize(ctx context.Context) error
 
-	// UpdateProfiles updates the task profile with current settings.
-	// Call this when settings change to propagate new config.
-	UpdateProfiles(ctx context.Context) error
-
 	// ResolveURL returns the current agent-manager base URL.
 	ResolveURL(ctx context.Context) (string, error)
 

@@ -12,7 +12,7 @@
       "description": "Enable runs with multiple sequential agent interaction phases",
       "id": "REQ-P2-001",
       "prd_ref": "OT-P2-001",
-      "status": "draft",
+      "status": "planned",
       "title": "Multi-Phase Run Support",
       "validation": [
         {

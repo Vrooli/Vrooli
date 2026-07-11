@@ -41,9 +41,6 @@ type InvestigationManager interface {
 	UpdateTrigger(ctx context.Context, id string, enabled *bool, autoFix *bool, threshold *float64) error
 	GetInvestigationAgentStatus(ctx context.Context, id string) (*models.Investigation, error)
 	StopInvestigationAgent(ctx context.Context, id string) error
-	GetAgentConfig(ctx context.Context) (*services.AgentConfigResponse, error)
-	GetAvailableRunners(ctx context.Context) ([]services.RunnerResponse, error)
-	UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions bool, sandboxMode string) (*services.AgentConfigResponse, error)
 	GetAgentStatus(ctx context.Context) (*services.AgentStatusResponse, error)
 }
 

@@ -34,7 +34,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/repository/memory_test.go::TestMemoryRunRepository_CRUD",
+          "ref": "api/internal/database/repository_test.go::TestRunCRUD",
           "phase": "integration",
           "status": "implemented",
           "notes": "Verify repository-level run operations"

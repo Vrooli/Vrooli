@@ -207,7 +207,7 @@ live smoke confirmed `GET /api/v1/metrics/current` returns `404`, while
   - `UpdateTrigger` → `UpdateTriggerRequest`
   - `ExecuteScript` → `ExecuteScriptRequest`
   - `GenerateReport` → `GenerateReportRequest`
-- Handlers without matching proto types kept as-is: `UpdateCooldownPeriod`, `UpdateTriggerThreshold`, `UpdateAgentConfig`.
+- Handlers without matching proto types kept as-is: `UpdateCooldownPeriod`, `UpdateTriggerThreshold`.
 
 #### F22: Response envelope inconsistency — map[string]string instead of proto types (MEDIUM → RESOLVED)
 - Replaced `httputil.JSON(w, map[string]string{"status": "..."})` with proto response types:

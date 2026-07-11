@@ -183,14 +183,14 @@ func (s *Server) initClients() error {
 }
 
 func (s *Server) initServices() {
-	// Best-effort: ensure the default agent profile exists once agent-manager is reachable.
+	// Best-effort: reconcile the manifest-declared agent profile once reachable.
 	go func() {
 		for i := 0; i < 10; i++ {
 			time.Sleep(time.Duration(i*5+5) * time.Second)
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			if s.capabilities.IsAvailable(ctx, "agent-manager") {
-				if _, err := s.agentManagerClient.EnsureDefaultProfile(ctx); err != nil {
-					log.Printf("warn: ensure default agent profile: %v", err)
+				if err := s.agentManagerClient.ReconcileProfiles(ctx); err != nil {
+					log.Printf("warn: reconcile agent profile: %v", err)
 				} else {
 					cancel()
 					return

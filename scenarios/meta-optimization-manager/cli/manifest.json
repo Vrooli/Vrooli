@@ -158,8 +158,7 @@
           "flags": [
             { "name": "task", "description": "Run a single task by id (the default scope; takes precedence)" },
             { "name": "suite", "description": "Run a whole suite family (add-feature|research|comprehend|bugfix|negative)" },
-            { "name": "all", "bool": true, "description": "Run the full generated suite (every family). Opt-in — guards against accidental cost." },
-            { "name": "model", "description": "Local-model id (default from config)" }
+            { "name": "all", "bool": true, "description": "Run the full generated suite (every family). Opt-in — guards against accidental cost." }
           ],
           "binding": { "kind": "connect-rpc", "service": "TrialsService", "method": "RunTrials" },
           "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }

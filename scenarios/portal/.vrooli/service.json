@@ -220,7 +220,14 @@
         "type": "scenario",
         "enabled": true,
         "required": false,
-        "description": "Provides coding-agent chat execution for agent-mode conversations."
+      "description": "Provides coding-agent chat execution through Portal's declared role-only profile.",
+      "config": {
+        "profiles": {
+          "reconcile": true,
+          "mode": "update_if_unmodified",
+          "sources": [".vrooli/agent-profiles/agent-chat.json"]
+        }
+      }
       },
       "prompt-manager": {
         "type": "scenario",

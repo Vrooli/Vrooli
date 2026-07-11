@@ -185,11 +185,18 @@
       }
     },
     "scenarios": {
-      "agent-manager": {
+    "agent-manager": {
         "type": "scenario",
         "enabled": true,
         "required": false,
-        "description": "Provides coding agent execution (Claude Code, Codex, OpenCode) for task dispatch"
+      "description": "Provides portable coding-agent execution for task dispatch",
+      "config": {
+        "profiles": {
+          "reconcile": true,
+          "mode": "update_if_unmodified",
+          "sources": [".vrooli/agent-profiles/default.json"]
+        }
+      }
       },
       "scenario-to-cloud": {
         "type": "scenario",

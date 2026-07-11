@@ -9,7 +9,7 @@ import (
 )
 
 // CommandRunner is the seam for invoking agent-manager's CLI (the live dispatch
-// path: profile ensure / task create / run create / run get / run diff).
+// path: profile reconcile-scenario / task create / run create / run get / run diff).
 // agent-manager owns sandboxing internally — the trials domain never talks to a
 // sandbox directly. Production wires execRunner; tests inject a fake. A nil
 // runner means "no live dispatch" — RunTask yields an honest VerdictError rather

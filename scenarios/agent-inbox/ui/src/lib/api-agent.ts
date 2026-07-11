@@ -16,14 +16,11 @@ import {
 // Re-export all types and helpers from agent-types
 export {
   AgentModeError,
-  RUNNER_OPTIONS,
-  SUPPORTED_RUNNER_TYPES,
   isCompactionEvent,
   getCompactionReduction,
 } from "./api-agent-types";
 
 export type {
-  RunnerType,
   AgentRunStatus,
   AgentChatConfig,
   AgentModeResponse,

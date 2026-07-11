@@ -143,19 +143,6 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Propagate agent settings changes to agent-manager profiles
-	if agentSettingsChanged(oldSettings, validated) {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if err := h.processor.UpdateAgentProfiles(ctx); err != nil {
-				log.Printf("Warning: failed to update agent-manager profiles: %v", err)
-			} else {
-				log.Printf("Agent-manager profiles updated with new settings")
-			}
-		}()
-	}
-
 	// Broadcast settings change via WebSocket
 	h.wsManager.BroadcastUpdate("settings_updated", validated)
 
@@ -318,9 +305,6 @@ func runSettingsCommand(name string, args ...string) ([]byte, error) {
 // agentSettingsChanged returns true if any agent-related settings changed.
 // These settings affect agent-manager profiles and need to be propagated.
 func agentSettingsChanged(old, new settings.Settings) bool {
-	if old.RunnerType != new.RunnerType {
-		return true
-	}
 	if old.MaxTurns != new.MaxTurns {
 		return true
 	}

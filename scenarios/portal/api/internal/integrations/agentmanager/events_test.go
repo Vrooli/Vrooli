@@ -4,16 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	internalchat "portal/internal/chat"
 )
-
-func TestRunnerTypeMapsHarnesses(t *testing.T) {
-	require.Equal(t, "RUNNER_TYPE_CLAUDE_CODE", RunnerType(internalchat.AgentHarnessClaudeCode))
-	require.Equal(t, "RUNNER_TYPE_CODEX", RunnerType(internalchat.AgentHarnessCodex))
-	require.Equal(t, "RUNNER_TYPE_OPENCODE", RunnerType(internalchat.AgentHarnessOpencode))
-	require.Equal(t, "RUNNER_TYPE_GROK", RunnerType(internalchat.AgentHarnessGrok))
-}
 
 func TestWebSocketURLConvertsHTTPBase(t *testing.T) {
 	got, err := WebSocketURL("http://localhost:17400")

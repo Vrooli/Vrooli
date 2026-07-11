@@ -457,7 +457,7 @@ func initTaskOrchestration(dataDir string, pipelineOrchestrator *pipeline.Defaul
 	})
 
 	initCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	if err := agentSvc.Initialize(initCtx, agentmanager.DefaultProfileConfig()); err != nil {
+	if err := agentSvc.Initialize(initCtx); err != nil {
 		logger.Warn("failed to initialize agent-manager profile", "error", err)
 	}
 	cancel()

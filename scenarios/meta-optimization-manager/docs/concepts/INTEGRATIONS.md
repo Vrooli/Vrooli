@@ -26,7 +26,7 @@ All **soft / degrade gracefully**:
 - **completeness-scoring** — `GetScore` for the maturity dimension.
 - **code-facts / architecture-cartographer** — structural data for convergence fitness counts (read, not re-run).
 - **scenario-auditor / test-genie** — clean-on-all-tools status for reference health (read, not re-run).
-- **agent-manager** — `trials` dispatch: the sandboxed-agent spawner (`profile ensure` / `task create` / `run create --run-mode sandboxed` / `run get` / `run diff`). It owns sandboxing + diff attribution internally; MoM never talks to a sandbox directly.
+- **agent-manager** — `trials` dispatch: reconcile MoM's declared role-only profile, then create a task and `run create --run-mode sandboxed`, poll with `run get`, and collect the diff with `run diff`. It owns runtime/resource selection, sandboxing, and diff attribution; MoM never talks to a sandbox directly.
 
 ## Third-Party Services
 

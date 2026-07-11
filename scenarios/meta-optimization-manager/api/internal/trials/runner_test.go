@@ -19,7 +19,7 @@ type fakeCmd struct {
 	runCreateOut string
 	runGets      []string
 	diffOut      string
-	errOn        string // "profile ensure" | "task create" | "run create" | "run get" | "run diff"
+	errOn        string // "profile reconcile-scenario" | "task create" | "run create" | "run get" | "run diff"
 	getIdx       int
 }
 
@@ -30,7 +30,7 @@ func (f *fakeCmd) run(_ context.Context, name string, args ...string) ([]byte, e
 		return nil, fmt.Errorf("boom: %s", key)
 	}
 	switch key {
-	case "profile ensure":
+	case "profile reconcile-scenario":
 		return []byte(f.profileOut), nil
 	case "task create":
 		return []byte(f.taskOut), nil
@@ -56,7 +56,7 @@ func completeRunJSON() string {
 
 func happyFake() *fakeCmd {
 	return &fakeCmd{
-		profileOut:   `{"profile":{"id":"prof-1"},"created":true}`,
+		profileOut:   `{"scenario":"meta-optimization-manager","results":[{"profile_key":"meta-optimization-manager/trials","profile_id":"prof-1"}]}`,
 		taskOut:      `{"task":{"id":"task-1"}}`,
 		runCreateOut: `{"run":{"id":"run-1","status":"RUN_STATUS_RUNNING"},"queue_depth":0}`,
 		runGets:      []string{completeRunJSON()},
@@ -71,7 +71,7 @@ func fixtureForTest() Fixture {
 func TestRunnerHappyPathCollectsEvidence(t *testing.T) {
 	f := happyFake()
 	r := NewRunnerWithCommand(f.run)
-	res := r.RunTask(context.Background(), TrialTask{ID: "trial/g1", Suite: SuiteAddFeature}, fixtureForTest(), "ollama/x")
+	res := r.RunTask(context.Background(), TrialTask{ID: "trial/g1", Suite: SuiteAddFeature}, fixtureForTest())
 
 	if res.Verdict != VerdictUnspecified {
 		t.Fatalf("runner must NOT decide a verdict on success, got %v (detail=%q)", res.Verdict, res.Detail)
@@ -79,15 +79,15 @@ func TestRunnerHappyPathCollectsEvidence(t *testing.T) {
 	if res.Tokens != 1234 || res.DurationMs != 5000 || res.ChangedFiles != 2 {
 		t.Fatalf("metrics parsed wrong: %+v", res)
 	}
-	if res.SandboxDiffRef != "sbx-9" || res.RunID != "run-1" || res.Model != "ollama/x" {
+	if res.SandboxDiffRef != "sbx-9" || res.RunID != "run-1" {
 		t.Fatalf("evidence pointers wrong: %+v", res)
 	}
 	if !strings.Contains(res.Diff, "+hello") {
 		t.Fatalf("diff not captured: %q", res.Diff)
 	}
 
-	// Command sequencing: ensure → task create → run create → run get → run diff.
-	wantSeq := []string{"profile ensure", "task create", "run create", "run get", "run diff"}
+	// Command sequencing: reconcile → task create → run create → run get → run diff.
+	wantSeq := []string{"profile reconcile-scenario", "task create", "run create", "run get", "run diff"}
 	if len(f.calls) != len(wantSeq) {
 		t.Fatalf("expected %d calls, got %d: %v", len(wantSeq), len(f.calls), f.calls)
 	}
@@ -114,7 +114,7 @@ func TestRunnerPollsUntilTerminal(t *testing.T) {
 		completeRunJSON(),
 	}
 	r := newRunnerForTest(f.run, time.Millisecond)
-	res := r.RunTask(context.Background(), TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest(), "m")
+	res := r.RunTask(context.Background(), TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest())
 	if res.Verdict != VerdictUnspecified || res.Tokens != 1234 {
 		t.Fatalf("poll-to-terminal failed: %+v", res)
 	}
@@ -130,12 +130,12 @@ func TestRunnerPollsUntilTerminal(t *testing.T) {
 }
 
 func TestRunnerStepErrorsDegradeToVerdictError(t *testing.T) {
-	steps := []string{"profile ensure", "task create", "run create", "run get", "run diff"}
+	steps := []string{"profile reconcile-scenario", "task create", "run create", "run get", "run diff"}
 	for _, step := range steps {
 		f := happyFake()
 		f.errOn = step
 		r := NewRunnerWithCommand(f.run)
-		res := r.RunTask(context.Background(), TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest(), "m")
+		res := r.RunTask(context.Background(), TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest())
 		if res.Verdict != VerdictError {
 			t.Fatalf("step %q error must yield VerdictError, got %v", step, res.Verdict)
 		}
@@ -149,7 +149,7 @@ func TestRunnerFailedStatusIsErrorAndSkipsDiff(t *testing.T) {
 	f := happyFake()
 	f.runGets = []string{`{"run":{"id":"run-1","status":"RUN_STATUS_FAILED","error_msg":"agent crashed","changed_files":3}}`}
 	r := NewRunnerWithCommand(f.run)
-	res := r.RunTask(context.Background(), TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest(), "m")
+	res := r.RunTask(context.Background(), TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest())
 	if res.Verdict != VerdictError {
 		t.Fatalf("failed run must be VerdictError, got %v", res.Verdict)
 	}
@@ -167,7 +167,7 @@ func TestRunnerAbstentionCollectsNoDiff(t *testing.T) {
 	f := happyFake()
 	f.runGets = []string{`{"run":{"id":"run-1","status":"RUN_STATUS_COMPLETE","changed_files":0,"summary":{"tokens_used":50}}}`}
 	r := NewRunnerWithCommand(f.run)
-	res := r.RunTask(context.Background(), TrialTask{ID: "neg", Suite: SuiteNegative, Negative: true}, fixtureForTest(), "m")
+	res := r.RunTask(context.Background(), TrialTask{ID: "neg", Suite: SuiteNegative, Negative: true}, fixtureForTest())
 	if res.Verdict != VerdictUnspecified {
 		t.Fatalf("evidence run should leave verdict to the evaluator, got %v", res.Verdict)
 	}
@@ -187,18 +187,18 @@ func TestRunnerNonTerminalTimesOut(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // pre-cancel so the first poll select hits ctx.Done deterministically
 	r := newRunnerForTest(f.run, time.Hour)
-	res := r.RunTask(ctx, TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest(), "m")
+	res := r.RunTask(ctx, TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest())
 	if res.Verdict != VerdictError {
 		t.Fatalf("a run that never reaches terminal must be VerdictError, got %v", res.Verdict)
 	}
 }
 
-func TestRunnerDefaultsModelLabel(t *testing.T) {
+func TestRunnerReconcilesDeclaredProfile(t *testing.T) {
 	f := happyFake()
 	r := NewRunnerWithCommand(f.run)
-	res := r.RunTask(context.Background(), TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest(), "")
-	if res.Model != defaultModel {
-		t.Fatalf("empty model should default to %q, got %q", defaultModel, res.Model)
+	_ = r.RunTask(context.Background(), TrialTask{ID: "g", Suite: SuiteAddFeature}, fixtureForTest())
+	if !argsContain(f.calls, "--scenario", trialScenario) {
+		t.Fatalf("profile reconciliation missing scenario: %v", f.calls)
 	}
 }
 

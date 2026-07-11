@@ -30,7 +30,7 @@
 - [ ] OT-P1-011 | Historical trend analysis | Trend analysis over time (currently only within report generation; no timeline endpoint)
 - [x] OT-P1-012 | Alert webhook support | Cooldown-based alert webhook delivery on threshold violations
 - [x] OT-P1-013 | Investigation cooldown management | Configurable cooldown period with reset capability
-- [x] OT-P1-014 | Agent configuration management | Configure runner type, model, max turns, and timeout
+- [x] OT-P1-014 | Portable agent profile adoption | Reconcile a scenario-owned role-only profile; Agent Manager owns runner and model resolution
 - [ ] OT-P1-015 | Custom metric collection via API | Ingest custom metrics via API (currently only built-in collectors)
 - [ ] OT-P1-016 | Alert routing to multiple channels | Route alerts to multiple channels (webhook configured; email not implemented)
 - [ ] OT-P1-017 | Resource prediction models | Predictive resource modeling (not implemented)

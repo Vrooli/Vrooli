@@ -69,16 +69,6 @@ type eventsResponse struct {
 	RunID  string       `json:"run_id"`
 }
 
-var supportedRunnerTypes = []string{"claude-code", "codex", "opencode"}
-
-func supportedRunnerUsage() string {
-	return strings.Join(supportedRunnerTypes, "|")
-}
-
-func supportedRunnerDescription() string {
-	return "Runner type: " + strings.Join(supportedRunnerTypes, ", ")
-}
-
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "agent",
@@ -205,16 +195,13 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 func runStart(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("agent start")
 	message := fs.String("message", "", "Initial agent message")
-	runner := fs.String("runner", supportedRunnerTypes[0], supportedRunnerDescription())
 	projectPath := fs.String("project", ".", "Project path for the agent workspace")
-	model := fs.String("model", "", "Optional model override")
-	maxTurns := fs.Int("max-turns", 0, "Optional max turns")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: agent start <chat-id> --message TEXT [--runner %s] [--project PATH] [--json]", supportedRunnerUsage())
+		return fmt.Errorf("usage: agent start <chat-id> --message TEXT [--project PATH] [--json]")
 	}
 	if strings.TrimSpace(*message) == "" {
 		return fmt.Errorf("--message is required")
@@ -223,14 +210,7 @@ func runStart(core *cliapp.ScenarioApp, args []string) error {
 
 	input := map[string]interface{}{
 		"message":      *message,
-		"runner_type":  strings.TrimSpace(*runner),
 		"project_path": support.AbsPath(*projectPath),
-	}
-	if strings.TrimSpace(*model) != "" {
-		input["model"] = strings.TrimSpace(*model)
-	}
-	if *maxTurns > 0 {
-		input["max_turns"] = *maxTurns
 	}
 
 	body, err := core.Request("POST", "/chats/"+id+"/agent-mode/start", nil, input)
@@ -248,7 +228,7 @@ func runStart(core *cliapp.ScenarioApp, args []string) error {
 		Changes: []string{
 			"Chat ID: " + resp.ChatID,
 			"Task ID: " + resp.TaskID,
-			"Runner: " + strings.TrimSpace(*runner),
+			"Profile: agent-inbox/default",
 			"Project: " + support.AbsPath(*projectPath),
 		},
 		NextCommand: []string{support.CLIName + " agent status " + id, support.CLIName + " agent events " + id},

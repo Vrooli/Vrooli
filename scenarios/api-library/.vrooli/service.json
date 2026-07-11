@@ -28,6 +28,7 @@
       "url": "https://github.com/Vrooli/Vrooli",
       "directory": "/scenarios/api-library"
     },
+    "capabilities": ["search"],
     "license": "MIT",
     "homepage": "https://github.com/Vrooli/Vrooli",
     "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",

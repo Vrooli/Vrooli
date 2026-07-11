@@ -3,12 +3,9 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -22,9 +19,7 @@ import (
 type AgentService struct {
 	client         *Client
 	taskProfileKey string
-	taskProfileID  string
 	vrooliRoot     string
-	mu             sync.RWMutex
 }
 
 // Config contains configuration for the agent service.
@@ -59,52 +54,18 @@ func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
 	return s.client.ResolveURL(ctx)
 }
 
-// Initialize ensures the task profile exists.
-// Call this at startup to create/update the profile.
+// Initialize reconciles the manifest-declared task profile.
 func (s *AgentService) Initialize(ctx context.Context) error {
-	taskCfg := s.buildTaskProfileConfig()
-	taskResp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
-		ProfileKey:     s.taskProfileKey,
-		Defaults:       s.buildProfile(s.taskProfileKey, "ecosystem-manager-tasks", "Agent profile for ecosystem-manager task execution", taskCfg),
-		UpdateExisting: false,
-	})
+	resp, err := s.client.ReconcileScenarioProfiles(ctx, "ecosystem-manager")
 	if err != nil {
-		return fmt.Errorf("ensure task profile: %w", err)
+		return fmt.Errorf("reconcile task profile: %w", err)
 	}
-
-	s.mu.Lock()
-	if taskResp.Profile != nil {
-		s.taskProfileID = taskResp.Profile.Id
-	}
-	s.mu.Unlock()
-
-	if taskResp.Created {
-		log.Printf("[agent-manager] Created task profile '%s' (id=%s)", s.taskProfileKey, s.taskProfileID)
-	} else {
-		log.Printf("[agent-manager] Resolved task profile '%s' (id=%s)", s.taskProfileKey, s.taskProfileID)
-	}
-
-	return nil
-}
-
-// UpdateProfiles updates the task profile with current settings.
-// Call this when settings change to propagate new config.
-func (s *AgentService) UpdateProfiles(ctx context.Context) error {
-	s.mu.RLock()
-	taskID := s.taskProfileID
-	s.mu.RUnlock()
-
-	if taskID != "" {
-		taskCfg := s.buildTaskProfileConfig()
-		profile := s.buildProfile(s.taskProfileKey, "ecosystem-manager-tasks", "Agent profile for ecosystem-manager task execution", taskCfg)
-		profile.Id = taskID
-		if _, err := s.client.UpdateProfile(ctx, taskID, profile); err != nil {
-			return fmt.Errorf("update task profile: %w", err)
+	for _, item := range resp.Results {
+		if item.ProfileKey == s.taskProfileKey && item.ProfileId != "" {
+			return nil
 		}
-		log.Printf("[agent-manager] Updated task profile '%s'", s.taskProfileKey)
 	}
-
-	return nil
+	return fmt.Errorf("reconcile task profile did not return %q", s.taskProfileKey)
 }
 
 // =============================================================================
@@ -282,73 +243,9 @@ func (s *AgentService) WaitForRun(ctx context.Context, runID string) (*domainpb.
 	return s.client.WaitForRun(ctx, runID, 2*time.Second)
 }
 
-// =============================================================================
-// PROFILE CONFIGURATION
-// =============================================================================
-
-// ProfileConfig contains agent profile configuration.
-type ProfileConfig struct {
-	RunnerType      domainpb.RunnerType
-	MaxTurns        int32
-	TimeoutSeconds  int32
-	AllowedTools    []string
-	SkipPermissions bool
-	// SandboxMode selects the sandbox execution mode. Task runs use
-	// SANDBOX_MODE_TRACKING so each iteration's code-level diff is observable
-	// by the anti-gaming classifier; tracking runs auto-merge their changes by
-	// default, so live files still reflect the agent's edits for the next
-	// re-audit. See agent-manager domain.DeriveRunMode.
-	SandboxMode domainpb.SandboxMode
-}
-
-func (s *AgentService) buildTaskProfileConfig() *ProfileConfig {
-	currentSettings := settings.GetSettings()
-
-	return &ProfileConfig{
-		RunnerType:      s.getRunnerType(),
-		MaxTurns:        int32(currentSettings.MaxTurns),
-		TimeoutSeconds:  int32(currentSettings.TaskTimeout * 60), // Convert minutes to seconds
-		AllowedTools:    parseToolsList(currentSettings.AllowedTools),
-		SkipPermissions: currentSettings.SkipPermissions,
-		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_TRACKING, // observable diff for anti-gaming
-	}
-}
-
-func (s *AgentService) getRunnerType() domainpb.RunnerType {
-	currentSettings := settings.GetSettings()
-	switch strings.ToLower(currentSettings.RunnerType) {
-	case "codex":
-		return domainpb.RunnerType_RUNNER_TYPE_CODEX
-	case "opencode":
-		return domainpb.RunnerType_RUNNER_TYPE_OPENCODE
-	default:
-		return domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE
-	}
-}
-
-func (s *AgentService) buildProfile(profileKey, name, description string, cfg *ProfileConfig) *domainpb.AgentProfile {
-	profile := &domainpb.AgentProfile{
-		Name:                 name,
-		ProfileKey:           profileKey,
-		Description:          description,
-		RunnerType:           cfg.RunnerType,
-		MaxTurns:             cfg.MaxTurns,
-		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
-		AllowedTools:         cfg.AllowedTools,
-		SkipPermissionPrompt: cfg.SkipPermissions,
-		CreatedBy:            "ecosystem-manager",
-	}
-	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
-		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
-	}
-	return profile
-}
-
 func (s *AgentService) buildTaskProfileRef() *apipb.ProfileRef {
-	cfg := s.buildTaskProfileConfig()
 	return &apipb.ProfileRef{
 		ProfileKey: s.taskProfileKey,
-		Defaults:   s.buildProfile(s.taskProfileKey, "ecosystem-manager-tasks", "Agent profile for ecosystem-manager task execution", cfg),
 	}
 }
 
@@ -378,21 +275,5 @@ func (s *AgentService) buildExecuteResult(run *domainpb.Run) *ExecuteResult {
 		result.DurationSeconds = int(duration.Seconds())
 	}
 
-	return result
-}
-
-// parseToolsList splits a comma-separated tools string into a slice.
-func parseToolsList(tools string) []string {
-	if tools == "" {
-		return nil
-	}
-	parts := strings.Split(tools, ",")
-	result := make([]string, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
 	return result
 }

@@ -33,7 +33,9 @@ api/internal/
 │   └── invariants.go          # Runtime invariant enforcement
 ├── config/
 │   └── levers.go              # Single Tunables struct (timeouts, intervals, buffers)
-├── modelpolicy/               # Typed catalog, strict validation, immutable revisions
+├── rolepolicy/                # Portable role catalog, resource resolution, immutable revisions
+├── permissionpolicy/          # Declared permissions, projection planning, reconciliation audit
+├── conformance/               # Read-only scenario dependency/profile validation provider
 ├── orchestration/
 │   ├── run_executor.go        # Thin coordinator (~560 LOC). Owns shared state + phase ordering only.
 │   ├── recovery.go            # Restart-resume logic (RecoverInFlightRuns, drainTranscript, tailer)
@@ -109,6 +111,26 @@ Catalog inspection is read-only. Validation never activates, reload validates
 before the atomic state swap, profile explanation resolves against the active
 revision, and run explanation returns only the snapshot persisted with that
 run. The Settings UI is an inspection view; declared state remains Git-managed.
+
+## Agent-conformance provider
+
+Agent Manager owns the `agent-conformance` Test Genie descriptor and implements
+the shared `ScenarioValidationService`. Test Genie supplies only generic target
+facts; the descriptor applies when a target declares the Agent Manager scenario
+dependency or contains a bounded `.vrooli/agent-profiles/*.json` source.
+
+The provider resolves only target-local, repository-contained paths and is
+read-only: it validates enabled dependency declarations and, when a scenario
+owns profile sources, registered sources, role-only profile inputs, profile-key
+ownership, and role catalog membership. It reports an orphan file even when a
+scenario has no dependency declaration, so the descriptor's profile-glob
+applicability cannot hide configuration drift. Direct role-request consumers
+need not invent a profile file. A deliberately narrow static scan reports a
+direct coding-agent executable spawn as advisory L3 evidence; it is not gating
+until fleet evidence proves low false-positive risk. The provider never
+reconciles profiles, projects permissions, starts target services, or writes
+target files. Missing, disabled, legacy, invalid, and unresolved-role findings
+are returned as structured maturity evidence.
 
 ## Restart-resume invariants
 

@@ -65,7 +65,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/repository/memory_test.go::TestMemoryTaskRepository_CRUD",
+          "ref": "api/internal/database/repository_test.go::TestTaskCRUD",
           "phase": "integration",
           "status": "implemented",
           "notes": "Verify repository-level task operations"

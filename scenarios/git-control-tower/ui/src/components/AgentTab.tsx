@@ -263,7 +263,7 @@ export function AgentTab({
     const prompt = composePrompt(message, resolvedItems, envelope);
     if (!prompt.trim()) return;
 
-    const profileKey = selectedProfileId ? undefined : "git-control-tower-reviewer";
+    const profileKey = selectedProfileId ? undefined : "git-control-tower/reviewer";
     const uploadedIds = getUploadedIds();
 
     createRun.mutate(

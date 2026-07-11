@@ -19,9 +19,6 @@
       },
       {
         "serviceCapability": "ai-search"
-      },
-      {
-        "fileExists": ".vrooli/ai.json"
       }
     ]
   },

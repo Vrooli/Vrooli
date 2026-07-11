@@ -66,7 +66,6 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	resp, err := h.client.RunTrials(context.Background(), connect.NewRequest(&trialsv1.RunTrialsRequest{
 		Suite:  suite,
 		TaskId: task,
-		Model:  strings.TrimSpace(ctx.Flag("model")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("trials run", err, nil)
@@ -79,7 +78,7 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		results = append(results, formatRun(r))
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Dispatched/recorded %d run(s). Identical recent runs are reused (idempotent by task+model+fixture-rev).", len(resp.Msg.Runs))},
+		Summary:        []string{fmt.Sprintf("Dispatched/recorded %d run(s). Identical recent runs are reused (idempotent by task+fixture-rev).", len(resp.Msg.Runs))},
 		ResultsHeading: "Runs",
 		Results:        results,
 		RetrievalHints: []string{"`trials show <run-id>` — full run detail", "`trials history` — the trend"},
@@ -122,7 +121,6 @@ func (h *handlers) show(ctx cliapp.RunContext) error {
 	results := []string{
 		formatRun(r),
 		fmt.Sprintf("  sandbox diff: %s", emptyDash(r.GetSandboxDiffRef())),
-		fmt.Sprintf("  model: %s", emptyDash(r.GetModel())),
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Run %s.", r.GetId())},

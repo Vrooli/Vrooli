@@ -55,9 +55,6 @@ const (
 	MaxRecyclerFailureThreshold    = 10
 )
 
-// Valid runner types
-var ValidRunnerTypes = []string{"claude-code", "codex", "opencode"}
-
 // Default settings values
 const (
 	DefaultSlots                     = 1
@@ -70,7 +67,6 @@ const (
 	DefaultActive                    = false
 	DefaultImportanceAwareScheduling = false
 	DefaultCondensedMode             = false
-	DefaultRunnerType                = "claude-code"
 
 	// Execution limit default (0 = unlimited)
 	DefaultExecutionLimit = 0

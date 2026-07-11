@@ -2,8 +2,7 @@
   "name": "development-toolchain-validator-default",
   "profileKey": "development-toolchain-validator/default",
   "description": "Sandboxed runner used to execute a skill against a pristine golden scenario; the sandbox diff is the artifact the validator evaluates against the pinned manifest.",
-  "runnerType": "RUNNER_TYPE_CLAUDE_CODE",
-  "modelPreset": "MODEL_PRESET_SMART",
+  "roleRef": "code.smart",
   "maxTurns": 600,
   "timeout": "3600s",
   "allowedTools": [

@@ -9,7 +9,7 @@
       "description": "Track and enforce concurrent run limits and resource capacity",
       "id": "REQ-P1-002",
       "prd_ref": "OT-P1-002",
-      "status": "draft",
+      "status": "planned",
       "title": "Resource Limit Tracking",
       "validation": [
         {

@@ -9,7 +9,7 @@
       "description": "Develop a CLI tool supporting all core operations including profile management, task execution, run monitoring, and artifact retrieval. Include proper error handling and help documentation.",
       "id": "REQ-P1-009",
       "prd_ref": "OT-P1-009",
-      "status": "draft",
+      "status": "planned",
       "title": "Command Line Interface Implementation",
       "validation": [
         {

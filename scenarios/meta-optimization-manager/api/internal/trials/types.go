@@ -1,8 +1,8 @@
 // Package trials is the empirical local-model gate: it generates a task suite
 // from the Guide space, dispatches each task through agent-manager's real
-// sandboxed-agent primitive (profile ensure → task create → run create
-// --run-mode sandboxed → poll run get → run diff, runner=opencode + a local
-// model), then EVALUATES the produced evidence against a fixture oracle it owns
+// sandboxed-agent primitive (profile reconcile-scenario → task create → run
+// create --run-mode sandboxed → poll run get → run diff), then EVALUATES the
+// produced evidence against a fixture oracle it owns
 // — deterministic checks where possible, an agent-judge fallback otherwise — and
 // records success-rate + tokens + wall-time as a historical trend. Readiness is
 // ultimately PROVEN here, not declared from coverage. It also reports the

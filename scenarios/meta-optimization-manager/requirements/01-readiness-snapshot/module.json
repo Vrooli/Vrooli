@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-001 — one-call readiness snapshot across the three projections + empirical trend.",
-    "last_validated_at": "2026-06-26T16:13:33-04:00",
+    "last_validated_at": "2026-07-10T10:50:06-04:00",
     "module": "readiness-snapshot",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -24,13 +24,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API: coverage joins denominator (space verb) against numerator (live registries); target api/internal/coverage."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI: status output shape (typed proto-JSON); target cli/domains/coverage."
         },
         {
@@ -56,7 +56,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API: owner-down path yields per-projection unavailable, not error."
         },
         {
@@ -70,7 +70,7 @@
     {
       "id": "MOM-READINESS-003",
       "title": "cell drill-down: list denominator grid rows and explain one cell with provenance",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "coverage",
       "description": "Beyond the aggregate snapshot, `coverage cells` lists the denominator grid rows (filterable by projection/status) and `coverage explain \u003ccell-id\u003e` returns one cell with its owner, status, basis x sufficiency, and citations — the per-cell attestation behind the numbers.",
@@ -84,13 +84,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API: ListCells filters + ExplainCell provenance; target api/internal/coverage."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI: cells/explain output shape; target cli/domains/coverage."
         }
       ]

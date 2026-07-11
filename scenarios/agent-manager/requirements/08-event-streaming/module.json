@@ -13,42 +13,42 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Append",
+          "ref": "api/internal/adapters/event/sqlite_test.go::TestSQLiteStore_Append",
           "phase": "unit",
           "status": "failing",
           "notes": "Test event append and persistence"
         },
         {
           "type": "test",
-          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Append_MultipleEvents",
+          "ref": "api/internal/adapters/event/sqlite_test.go::TestSQLiteStore_Append_MultipleEvents",
           "phase": "unit",
           "status": "failing",
           "notes": "Test multiple event append with ordering"
         },
         {
           "type": "test",
-          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Get_WithFilters",
+          "ref": "api/internal/adapters/event/sqlite_test.go::TestSQLiteStore_Get_WithFilters",
           "phase": "unit",
           "status": "failing",
           "notes": "Test event filtering by type"
         },
         {
           "type": "test",
-          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Get_AfterSequence",
+          "ref": "api/internal/adapters/event/sqlite_test.go::TestSQLiteStore_Get_AfterSequence",
           "phase": "integration",
           "status": "implemented",
           "notes": "Test event ordering with AfterSequence"
         },
         {
           "type": "test",
-          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Stream",
+          "ref": "api/internal/adapters/event/sqlite_test.go::TestSQLiteStore_Stream",
           "phase": "integration",
           "status": "implemented",
           "notes": "Test event streaming"
         },
         {
           "type": "test",
-          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_IsolatesByRunID",
+          "ref": "api/internal/adapters/event/sqlite_test.go::TestSQLiteStore_IsolatesByRunID",
           "phase": "integration",
           "status": "implemented",
           "notes": "Test run isolation for events"

@@ -68,31 +68,16 @@ curl -X PUT http://localhost:8080/api/v1/investigations/triggers/{id}/threshold 
 
 `[CODE: initialization/configuration/investigation-triggers.json]`
 
-## Agent-Manager Settings
+## Agent-Manager integration
 
-Agent configuration controls how AI investigation agents are spawned:
-
-| Setting | Description |
-|---------|-------------|
-| `runner` | Agent runner type (e.g., claude-code, codex) |
-| `model` | AI model to use |
-| `max_turns` | Maximum conversation turns |
-| `timeout` | Agent execution timeout |
-| `tools` | Enabled tools list |
-| `skip_permissions` | Skip permission prompts |
-| `requires_sandbox` | Run in sandbox mode |
-| `requires_approval` | Require human approval before actions |
-
-Manage via the API:
+System Monitor's portable investigation profile is owned by
+`.vrooli/agent-profiles/default.json`; it declares `roleRef` and runner-neutral
+execution controls. System Monitor does not expose a runner/model/profile
+editor. Reconcile the declared profile through Agent Manager and use Agent
+Manager's role-policy and desired-permission surfaces for operator changes.
 
 ```bash
-# Get current agent config
-curl http://localhost:8080/api/v1/agent/config
-
-# Update agent config
-curl -X PUT http://localhost:8080/api/v1/agent/config \
-  -H "Content-Type: application/json" \
-  -d '{"runner": "claude-code", "model": "claude-sonnet-4-6"}'
+agent-manager profiles reconcile-scenario --scenario system-monitor --dry-run
 ```
 
 ## Storage Backend

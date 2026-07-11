@@ -29,8 +29,6 @@ type Config struct {
 type StreamInput struct {
 	ChatID        string
 	FromMessageID string
-	Model         string
-	Harness       internalchat.AgentHarness
 }
 
 type StreamResult struct {
@@ -50,7 +48,7 @@ func (s *Service) Stream(ctx context.Context, input StreamInput, emit func(agent
 	if s == nil || s.chat == nil || s.agent == nil {
 		return StreamResult{}, agentmanager.ErrUnavailable
 	}
-	chat, err := s.chat.GetChat(ctx, input.ChatID)
+	_, err := s.chat.GetChat(ctx, input.ChatID)
 	if err != nil {
 		return StreamResult{}, err
 	}
@@ -66,22 +64,9 @@ func (s *Service) Stream(ctx context.Context, input StreamInput, emit func(agent
 	if err != nil {
 		return StreamResult{}, err
 	}
-	harness := input.Harness
-	if harness == "" {
-		harness = chat.AgentHarness
-	}
-	if harness == "" {
-		harness = internalchat.DefaultAgentHarness
-	}
-	model := strings.TrimSpace(input.Model)
-	if model == "" {
-		model = chat.Model
-	}
 	session, err := s.agent.Start(ctx, agentmanager.StartInput{
-		ChatID:  input.ChatID,
-		Prompt:  prompt,
-		Harness: harness,
-		Model:   model,
+		ChatID: input.ChatID,
+		Prompt: prompt,
 	})
 	if err != nil {
 		return StreamResult{}, err
@@ -112,7 +97,7 @@ func (s *Service) Stream(ctx context.Context, input StreamInput, emit func(agent
 		ChatID:          input.ChatID,
 		ParentMessageID: fromID,
 		Content:         content,
-		Model:           string(harness),
+		Model:           "agent-manager",
 	})
 	if err != nil {
 		return StreamResult{}, err

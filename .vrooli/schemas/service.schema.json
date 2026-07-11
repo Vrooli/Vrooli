@@ -58,6 +58,15 @@
           },
           "description": "Free-form keywords for search and filtering"
         },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true,
+          "description": "Stable machine-readable capabilities exposed by this scenario; unlike free-form tags, these support declarative automation."
+        },
         "maintainers": {
           "type": "array",
           "items": {

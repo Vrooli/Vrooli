@@ -2,8 +2,7 @@
   "name": "system-monitor-investigator",
   "profileKey": "system-monitor/default",
   "description": "Agent profile for system-monitor investigations",
-  "runnerType": "RUNNER_TYPE_CODEX",
-  "policyRef": "codex.smart",
+  "roleRef": "code.smart",
   "maxTurns": 75,
   "timeout": "600s",
   "allowedTools": [

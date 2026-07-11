@@ -40,10 +40,7 @@ export function useAgentChatActions({
         // Start agent mode with the first message
         await startAgentMode(chatId, {
           message: payload.content.trim(),
-          runner_type: config.runner_type,
           project_path: config.project_path,
-          model: config.model || undefined,
-          max_turns: config.max_turns || undefined,
         });
 
         // Refresh chat data to get updated agent state

@@ -68,23 +68,6 @@ func TestBuildRunTag(t *testing.T) {
 }
 
 // =============================================================================
-// DefaultProfileConfig
-// =============================================================================
-
-func TestDefaultProfileConfig(t *testing.T) {
-	cfg := DefaultProfileConfig()
-
-	assert.Equal(t, domainpb.RunnerType_RUNNER_TYPE_CODEX, cfg.RunnerType)
-	assert.Equal(t, domainpb.ModelPreset_MODEL_PRESET_SMART, cfg.ModelPreset)
-	assert.Equal(t, int32(75), cfg.MaxTurns)
-	assert.Equal(t, int32(600), cfg.TimeoutSeconds)
-	assert.True(t, len(cfg.AllowedTools) > 0, "should have allowed tools")
-	assert.True(t, cfg.SkipPermissions)
-	assert.Equal(t, domainpb.SandboxMode_SANDBOX_MODE_OFF, cfg.SandboxMode,
-		"scenario-to-desktop investigations run in-place against the local build tooling")
-}
-
-// =============================================================================
 // AgentService.IsEnabled / IsAvailable
 // =============================================================================
 
@@ -296,7 +279,7 @@ func TestClient_WaitForRun(t *testing.T) {
 func TestAgentService_Initialize(t *testing.T) {
 	t.Run("noop when disabled", func(t *testing.T) {
 		svc := &AgentService{enabled: false}
-		err := svc.Initialize(context.Background(), DefaultProfileConfig())
+		err := svc.Initialize(context.Background())
 		assert.NoError(t, err)
 	})
 
@@ -322,7 +305,7 @@ func TestAgentService_Initialize(t *testing.T) {
 		defer srv.Close()
 
 		svc := newTestService(t, srv.URL)
-		err := svc.Initialize(context.Background(), DefaultProfileConfig())
+		err := svc.Initialize(context.Background())
 		require.NoError(t, err)
 		assert.Equal(t, "profile-xyz", svc.GetProfileID())
 	})
@@ -541,26 +524,4 @@ func TestNewUUID(t *testing.T) {
 	// Uniqueness
 	id2 := NewUUID()
 	assert.NotEqual(t, id, id2)
-}
-
-// =============================================================================
-// buildProfile
-// =============================================================================
-
-func TestBuildProfile(t *testing.T) {
-	svc := &AgentService{
-		profileName: "test-profile",
-		profileKey:  "test-key",
-	}
-
-	cfg := DefaultProfileConfig()
-	profile := svc.buildProfile(cfg)
-
-	assert.Equal(t, "test-profile", profile.Name)
-	assert.Equal(t, "test-key", profile.ProfileKey)
-	assert.Equal(t, int32(75), profile.MaxTurns)
-	assert.Equal(t, "scenario-to-desktop", profile.CreatedBy)
-	assert.NotNil(t, profile.Timeout)
-	assert.Equal(t, cfg.AllowedTools, profile.AllowedTools)
-	assert.True(t, profile.SkipPermissionPrompt)
 }

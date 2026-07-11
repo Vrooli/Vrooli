@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P1-001 — empirical local-model readiness trials.",
-    "last_validated_at": "2026-06-26T16:13:33-04:00",
+    "last_validated_at": "2026-07-10T10:50:06-04:00",
     "module": "trials",
     "prd_ref": "PRD.md",
     "priority": "P1",
@@ -14,7 +14,7 @@
       "status": "planned",
       "prd_ref": "OT-P1-001",
       "category": "trials",
-      "description": "`trials run` dispatches SWE tasks (add-feature/research/comprehend/bugfix + negative cases) through agent-manager's sandboxed primitive (profile ensure → task create → run create --run-mode sandboxed → poll run get → run diff, runner=opencode + local-model), then evaluates the produced diff in MoM against the fixture oracle (deterministic-first, agent-judge fallback; negatives pass on correct abstention) and appends success-rate + tokens + wall-time + fixture-rev to a historical time-series. agent-manager is the spawner only; the verdict is MoM's.",
+      "description": "`trials run` reconciles MoM's declared role-only profile, then dispatches SWE tasks (add-feature/research/comprehend/bugfix + negative cases) through Agent Manager's sandboxed primitive (task create → run create --run-mode sandboxed → poll run get → run diff). Agent Manager owns runtime/resource selection; MoM evaluates the produced diff against the fixture oracle (deterministic-first, agent-judge fallback; negatives pass on correct abstention) and appends success-rate + tokens + wall-time + fixture-rev to a historical time-series.",
       "tags": [
         "trials",
         "agent-manager",
@@ -26,7 +26,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API: Runner seam-tested with a faked agent-manager CommandRunner (sequence + metric parse + step-error → VerdictError); Evaluator tested (oracle pass/fail, negative abstention, agent-judge fallback); Service idempotency + orchestration; target api/internal/trials."
         },
         {
@@ -46,7 +46,7 @@
     {
       "id": "MOM-TRIALS-002",
       "title": "tracks % of Guide tasks with a live empirical gate",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "trials",
       "description": "Each Guide-space task category maps to zero or more empirical gates; the trials domain computes and reports gate coverage over the Guide space as a recursive readiness metric.",
@@ -59,13 +59,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API: gate-coverage computation over the Guide space; target api/internal/trials."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI: trials coverage output; target cli/domains/trials."
         }
       ]
@@ -73,7 +73,7 @@
     {
       "id": "MOM-TRIALS-003",
       "title": "list the task suite and inspect a run with its sandbox diff",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "trials",
       "description": "`trials list` enumerates the task suite generated from the Guide space, and `trials show \u003crun-id\u003e` returns one run with its verdict, tokens, wall-time, and the agent-manager sandbox diff reference that attributes changed files to that run.",
@@ -87,13 +87,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API: ListTrialTasks from the Guide space + GetTrialRun with sandbox diff ref; target api/internal/trials."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI: trials list/show; target cli/domains/trials."
         }
       ]

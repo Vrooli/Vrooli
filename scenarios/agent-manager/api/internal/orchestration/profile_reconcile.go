@@ -1,11 +1,13 @@
 package orchestration
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,10 +129,36 @@ func readScenarioProfileConfig(servicePath string) (*profileSourcesConfig, error
 		return &profileSourcesConfig{}, nil
 	}
 	var cfg profileSourcesConfig
-	if err := json.Unmarshal(dep.Config, &cfg); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(dep.Config))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&cfg); err != nil {
 		return nil, domain.NewConfigInvalidError("dependencies.scenarios.agent-manager.config", "failed to parse profile config", err)
 	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			err = fmt.Errorf("multiple JSON values")
+		}
+		return nil, domain.NewConfigInvalidError("dependencies.scenarios.agent-manager.config", "failed to parse profile config", err)
+	}
+	seen := make(map[string]struct{}, len(cfg.Profiles.Sources))
+	for _, source := range cfg.Profiles.Sources {
+		key := strings.TrimSpace(source)
+		if _, exists := seen[key]; exists {
+			return nil, domain.NewValidationErrorWithHint("config.profiles.sources", "duplicate profile source", "Declare each scenario-owned source once")
+		}
+		seen[key] = struct{}{}
+	}
 	return &cfg, nil
+}
+
+// ValidateScenarioProfileConfig validates Agent Manager's declared dependency
+// configuration without touching the profile repository or target files. It is
+// shared by read-only conformance and mutating reconciliation to prevent the
+// two surfaces from accepting different manifests.
+func ValidateScenarioProfileConfig(servicePath string) error {
+	_, err := readScenarioProfileConfig(servicePath)
+	return err
 }
 
 func (o *Orchestrator) reconcileProfileSource(ctx context.Context, scenario, scenarioRoot, source, mode string, dryRun bool) ProfileReconcileResult {

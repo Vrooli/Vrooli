@@ -15,7 +15,6 @@ type MockAgentService struct {
 	// Configuration for return values
 	IsAvailableResult bool
 	InitializeError   error
-	UpdateProfilesErr error
 	ResolveURLResult  string
 	ResolveURLError   error
 
@@ -50,7 +49,6 @@ type MockAgentService struct {
 	Calls struct {
 		IsAvailable      int
 		Initialize       int
-		UpdateProfiles   int
 		ResolveURL       int
 		ExecuteTask      int
 		ExecuteTaskAsync int
@@ -107,13 +105,6 @@ func (m *MockAgentService) Initialize(ctx context.Context) error {
 	defer m.mu.Unlock()
 	m.Calls.Initialize++
 	return m.InitializeError
-}
-
-func (m *MockAgentService) UpdateProfiles(ctx context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.Calls.UpdateProfiles++
-	return m.UpdateProfilesErr
 }
 
 func (m *MockAgentService) ResolveURL(ctx context.Context) (string, error) {
@@ -187,7 +178,6 @@ func (m *MockAgentService) Reset() {
 	m.Calls = struct {
 		IsAvailable      int
 		Initialize       int
-		UpdateProfiles   int
 		ResolveURL       int
 		ExecuteTask      int
 		ExecuteTaskAsync int

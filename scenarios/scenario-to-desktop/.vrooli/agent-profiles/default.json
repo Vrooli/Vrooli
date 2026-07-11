@@ -2,8 +2,7 @@
   "name": "scenario-to-desktop",
   "profileKey": "scenario-to-desktop/default",
   "description": "Agent profile for scenario-to-desktop pipeline investigations",
-  "runnerType": "RUNNER_TYPE_CODEX",
-  "modelPreset": "MODEL_PRESET_SMART",
+  "roleRef": "code.smart",
   "maxTurns": 75,
   "timeout": "600s",
   "allowedTools": [

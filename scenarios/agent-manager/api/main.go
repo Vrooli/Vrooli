@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"agent-manager/internal/adapters/runner/codecs"
 	runnercore "agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/conformance"
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
@@ -45,6 +47,7 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 // Config holds runtime configuration
@@ -653,6 +656,16 @@ func (s *Server) setupRoutes() {
 	)
 	handler.SetWebSocketHub(s.wsHub)
 	s.router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
+
+	// Agent conformance is a read-only shared validation provider. Its
+	// descriptor determines applicability; this mount contains no Test Genie
+	// phase selection policy.
+	repoRoot := os.Getenv("PROJECT_ROOT")
+	if repoRoot == "" {
+		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+	}
+	conformancePath, conformanceHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(conformance.NewHandler(repoRoot))
+	s.router.PathPrefix(strings.TrimRight(conformancePath, "/")).Handler(conformanceHandler)
 
 	// Register all API routes via the handlers package
 	// WebSocket hub was created in NewServer and is shared with orchestrator

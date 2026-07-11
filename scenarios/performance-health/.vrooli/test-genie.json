@@ -427,5 +427,10 @@
   "runtimeClass": "execution",
   "dimensions": [
     "performance"
+  ],
+  "evidenceKinds": [
+    "command.output",
+    "findings.report",
+    "trace"
   ]
 }

@@ -13,7 +13,7 @@ import (
 // recentRunsLimit bounds the recent-runs list returned alongside the trend.
 const recentRunsLimit = 20
 
-// idempotencyWindow is how recently an identical (task, model, fixture-rev) run
+// idempotencyWindow is how recently an identical (task, fixture-rev) run
 // must have completed for a re-run to reuse it instead of dispatching again.
 // Trials are expensive and operator-invoked; this stops an accidental immediate
 // re-run from double-spending while still letting the trend grow over time.
@@ -22,7 +22,7 @@ const idempotencyWindow = 15 * time.Minute
 // Service is the trials application surface.
 type Service interface {
 	ListTrialTasks(ctx context.Context, suite string) ([]TrialTask, error)
-	RunTrials(ctx context.Context, suite, taskID, model string) ([]TrialRun, error)
+	RunTrials(ctx context.Context, suite, taskID string) ([]TrialRun, error)
 	GetTrialHistory(ctx context.Context, taskID, suite string) (History, error)
 	GetTrialRun(ctx context.Context, id string) (TrialRun, error)
 	GetGateCoverage(ctx context.Context) (GateCoverage, error)
@@ -92,7 +92,7 @@ func (s *service) ListTrialTasks(ctx context.Context, suite string) ([]TrialTask
 // spend) → Runner collects evidence via agent-manager's sandboxed primitive →
 // Evaluator decides the verdict → record. Every failure mode degrades that one
 // run to an honest VerdictError and is still recorded; the suite never blocks.
-func (s *service) RunTrials(ctx context.Context, suite, taskID, model string) ([]TrialRun, error) {
+func (s *service) RunTrials(ctx context.Context, suite, taskID string) ([]TrialRun, error) {
 	tasks, err := s.resolveTasks(ctx, suite, taskID)
 	if err != nil {
 		return nil, err
@@ -100,10 +100,9 @@ func (s *service) RunTrials(ctx context.Context, suite, taskID, model string) ([
 	if len(tasks) == 0 {
 		return nil, fmt.Errorf("trials: no matching tasks to run")
 	}
-	effModel := effectiveModel(model)
 	runs := make([]TrialRun, 0, len(tasks))
 	for _, t := range tasks {
-		runs = append(runs, s.runOne(ctx, t, model, effModel))
+		runs = append(runs, s.runOne(ctx, t))
 	}
 	return runs, nil
 }
@@ -111,7 +110,7 @@ func (s *service) RunTrials(ctx context.Context, suite, taskID, model string) ([
 // runOne resolves the fixture, applies idempotency, dispatches, evaluates, and
 // records one task. It never returns an error — failures become a recorded
 // VerdictError so a partial suite still reports.
-func (s *service) runOne(ctx context.Context, t TrialTask, model, effModel string) TrialRun {
+func (s *service) runOne(ctx context.Context, t TrialTask) TrialRun {
 	// A missing fixture means no deterministic substrate exists for this family —
 	// an honest VerdictError (recorded for history), never a fabricated pass.
 	fixture, ok, ferr := s.fixtures.Resolve(ctx, t)
@@ -120,7 +119,6 @@ func (s *service) runOne(ctx context.Context, t TrialTask, model, effModel strin
 			ID:          uuid.NewString(),
 			TaskID:      t.ID,
 			Suite:       t.Suite,
-			Model:       effModel,
 			GuideTaskID: t.GuideTaskID,
 			Verdict:     VerdictError,
 			At:          s.clock.Now().UTC(),
@@ -129,24 +127,19 @@ func (s *service) runOne(ctx context.Context, t TrialTask, model, effModel strin
 
 	// Idempotency: reuse a recent, identical, non-error run rather than spend
 	// another local-model dispatch on it.
-	if reused, found := s.reusableRun(ctx, t.ID, effModel, fixture.Rev); found {
+	if reused, found := s.reusableRun(ctx, t.ID, fixture.Rev); found {
 		return reused
 	}
 
-	res := s.runner.RunTask(ctx, t, fixture, model)
+	res := s.runner.RunTask(ctx, t, fixture)
 	verdict := res.Verdict
 	if verdict != VerdictError {
 		verdict = s.evaluator.Judge(ctx, t, fixture, res)
-	}
-	resolvedModel := res.Model
-	if resolvedModel == "" {
-		resolvedModel = effModel
 	}
 	return s.record(ctx, TrialRun{
 		ID:             uuid.NewString(),
 		TaskID:         t.ID,
 		Suite:          t.Suite,
-		Model:          resolvedModel,
 		GuideTaskID:    t.GuideTaskID,
 		FixtureRev:     fixture.Rev,
 		Verdict:        verdict,
@@ -169,13 +162,13 @@ func (s *service) record(ctx context.Context, run TrialRun) TrialRun {
 	return run
 }
 
-// reusableRun returns a recent identical (task, model, fixture-rev) run if one
+// reusableRun returns a recent identical (task, fixture-rev) run if one
 // exists within the idempotency window and did not itself error.
-func (s *service) reusableRun(ctx context.Context, taskID, model, fixtureRev string) (TrialRun, bool) {
+func (s *service) reusableRun(ctx context.Context, taskID, fixtureRev string) (TrialRun, bool) {
 	if s.repo == nil || fixtureRev == "" {
 		return TrialRun{}, false
 	}
-	prev, ok, err := s.repo.LatestRun(ctx, taskID, model, fixtureRev)
+	prev, ok, err := s.repo.LatestRun(ctx, taskID, "", fixtureRev)
 	if err != nil || !ok {
 		return TrialRun{}, false
 	}
@@ -186,15 +179,6 @@ func (s *service) reusableRun(ctx context.Context, taskID, model, fixtureRev str
 		return TrialRun{}, false
 	}
 	return prev, true
-}
-
-// effectiveModel resolves the model label the same way the Runner does, so the
-// idempotency key computed before dispatch matches the model recorded after.
-func effectiveModel(model string) string {
-	if model == "" {
-		return defaultModel
-	}
-	return model
 }
 
 // resolveTasks picks the tasks to run: one by id, else a suite, else all.

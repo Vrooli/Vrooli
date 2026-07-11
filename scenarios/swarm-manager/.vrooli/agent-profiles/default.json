@@ -2,8 +2,7 @@
   "name": "swarm-manager-default",
   "profileKey": "swarm-manager/default",
   "description": "Agent profile for swarm-manager research and execution",
-  "runnerType": "RUNNER_TYPE_CLAUDE_CODE",
-  "modelPreset": "MODEL_PRESET_SMART",
+  "roleRef": "code.smart",
   "maxTurns": 600,
   "timeout": "3600s",
   "allowedTools": [

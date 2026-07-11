@@ -16,9 +16,6 @@
     "default": "not_applicable",
     "any": [
       {
-        "fileExists": ".vrooli/search.json"
-      },
-      {
         "serviceCapability": "search"
       },
       {

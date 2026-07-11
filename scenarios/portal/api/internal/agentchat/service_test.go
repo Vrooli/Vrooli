@@ -80,7 +80,6 @@ func TestStreamStartsAgentRunAndPersistsAgentMessage(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, "Update the portal tests", fake.startInput.Prompt)
-	require.Equal(t, internalchat.AgentHarnessCodex, fake.startInput.Harness)
 	require.Equal(t, internalchat.RoleAgent, result.Message.Role)
 	require.Equal(t, user.ID, result.Message.ParentMessageID)
 	require.Contains(t, result.Message.Content, "Agent progress 50%")

@@ -36,13 +36,9 @@ type fakeRunner struct {
 	calls  int
 }
 
-func (f *fakeRunner) RunTask(_ context.Context, _ TrialTask, _ Fixture, model string) RunResult {
+func (f *fakeRunner) RunTask(_ context.Context, _ TrialTask, _ Fixture) RunResult {
 	f.calls++
-	r := f.result
-	if r.Model == "" {
-		r.Model = model
-	}
-	return r
+	return f.result
 }
 
 // fakeFixtures returns a fixed fixture for every task (or a per-task map). ok is
@@ -186,7 +182,7 @@ func TestRunTrialsDispatchesAndRecords(t *testing.T) {
 	svc := newSvc(gen, runner, repo)
 
 	// Run a single task.
-	runs, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x")
+	runs, err := svc.RunTrials(context.Background(), "", "trial/g1")
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -202,15 +198,15 @@ func TestRunTrialsDispatchesAndRecords(t *testing.T) {
 
 	// Run a whole suite.
 	runner.calls = 0
-	runs, err = svc.RunTrials(context.Background(), SuiteAddFeature, "", "")
-	if err != nil || len(runs) != 1 || runner.calls != 1 {
-		t.Fatalf("suite run failed: runs=%d calls=%d err=%v", len(runs), runner.calls, err)
+	runs, err = svc.RunTrials(context.Background(), SuiteAddFeature, "")
+	if err != nil || len(runs) != 1 || runner.calls != 0 {
+		t.Fatalf("suite run should reuse the just-recorded matching task: runs=%d calls=%d err=%v", len(runs), runner.calls, err)
 	}
 }
 
 func TestRunTrialsUnknownTaskErrors(t *testing.T) {
 	svc := newSvc(&fakeGen{tasks: tasksFixture()}, &fakeRunner{}, &fakeRepo{})
-	if _, err := svc.RunTrials(context.Background(), "", "trial/nope", ""); err == nil {
+	if _, err := svc.RunTrials(context.Background(), "", "trial/nope"); err == nil {
 		t.Fatalf("expected error for unknown task")
 	}
 }
@@ -218,7 +214,7 @@ func TestRunTrialsUnknownTaskErrors(t *testing.T) {
 func TestRunTrialsAllTasksWhenUnscoped(t *testing.T) {
 	runner := &fakeRunner{result: RunResult{Verdict: VerdictPass}}
 	svc := newSvc(&fakeGen{tasks: tasksFixture()}, runner, &fakeRepo{})
-	runs, err := svc.RunTrials(context.Background(), "", "", "")
+	runs, err := svc.RunTrials(context.Background(), "", "")
 	if err != nil || len(runs) != 3 {
 		t.Fatalf("expected 3 runs (whole suite), got %d err=%v", len(runs), err)
 	}
@@ -282,7 +278,7 @@ func TestRunTrialsEvaluatorDecidesVerdict(t *testing.T) {
 		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, ev,
 		mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)))
 
-	runs, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x")
+	runs, err := svc.RunTrials(context.Background(), "", "trial/g1")
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -303,7 +299,7 @@ func TestRunTrialsRunnerErrorSkipsEvaluator(t *testing.T) {
 	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, &fakeRepo{},
 		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, ev,
 		mocks.NewFakeClock(time.Now()))
-	runs, err := svc.RunTrials(context.Background(), "", "trial/g1", "m")
+	runs, err := svc.RunTrials(context.Background(), "", "trial/g1")
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -320,7 +316,7 @@ func TestRunTrialsMissingFixtureRecordsError(t *testing.T) {
 	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, &fakeRepo{},
 		&fakeFixtures{missing: map[string]bool{"trial/g1": true}}, &fakeEvaluator{verdict: VerdictPass},
 		mocks.NewFakeClock(time.Now()))
-	runs, err := svc.RunTrials(context.Background(), "", "trial/g1", "m")
+	runs, err := svc.RunTrials(context.Background(), "", "trial/g1")
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -341,16 +337,16 @@ func TestRunTrialsIdempotencyReuse(t *testing.T) {
 	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, repo, fx, ev, clk)
 
 	// First run dispatches and records.
-	if _, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x"); err != nil {
+	if _, err := svc.RunTrials(context.Background(), "", "trial/g1"); err != nil {
 		t.Fatal(err)
 	}
 	if runner.calls != 1 || len(repo.runs) != 1 {
 		t.Fatalf("first run should dispatch+record: calls=%d recorded=%d", runner.calls, len(repo.runs))
 	}
 
-	// Immediate identical re-run (same task, model, fixture-rev) REUSES — no new
+	// Immediate identical re-run (same task and fixture revision) REUSES — no new
 	// dispatch, no new record.
-	runs, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x")
+	runs, err := svc.RunTrials(context.Background(), "", "trial/g1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,12 +357,13 @@ func TestRunTrialsIdempotencyReuse(t *testing.T) {
 		t.Fatalf("re-run should reuse the prior run, got %+v", runs[0])
 	}
 
-	// A different model is a different key → dispatches.
-	if _, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/other"); err != nil {
+	// A changed fixture revision is a different key → dispatches.
+	fx.fixture.Rev = "rev2"
+	if _, err := svc.RunTrials(context.Background(), "", "trial/g1"); err != nil {
 		t.Fatal(err)
 	}
 	if runner.calls != 2 {
-		t.Fatalf("different model must dispatch, calls=%d", runner.calls)
+		t.Fatalf("changed fixture revision must dispatch, calls=%d", runner.calls)
 	}
 }
 
@@ -381,7 +378,7 @@ func TestRunTrialsIdempotencyWindowExpiry(t *testing.T) {
 	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, repo,
 		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, &fakeEvaluator{verdict: VerdictPass}, clk)
 
-	if _, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x"); err != nil {
+	if _, err := svc.RunTrials(context.Background(), "", "trial/g1"); err != nil {
 		t.Fatal(err)
 	}
 	if runner.calls != 1 {
@@ -400,7 +397,7 @@ func TestRunTrialsIdempotencyIgnoresPriorError(t *testing.T) {
 	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, repo,
 		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, &fakeEvaluator{verdict: VerdictPass}, clk)
 
-	if _, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x"); err != nil {
+	if _, err := svc.RunTrials(context.Background(), "", "trial/g1"); err != nil {
 		t.Fatal(err)
 	}
 	if runner.calls != 1 {
@@ -410,7 +407,7 @@ func TestRunTrialsIdempotencyIgnoresPriorError(t *testing.T) {
 
 func TestRunResultErrorVerdictOnNilRunner(t *testing.T) {
 	r := NewRunnerWithCommand(nil)
-	res := r.RunTask(context.Background(), TrialTask{ID: "x"}, Fixture{Family: "f"}, "")
+	res := r.RunTask(context.Background(), TrialTask{ID: "x"}, Fixture{Family: "f"})
 	if res.Verdict != VerdictError {
 		t.Fatalf("nil runner should yield VerdictError, got %v", res.Verdict)
 	}

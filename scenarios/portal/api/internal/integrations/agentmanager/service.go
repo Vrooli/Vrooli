@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
-
-	internalchat "portal/internal/chat"
 )
 
 const (
@@ -42,11 +40,8 @@ const (
 type StartInput struct {
 	ChatID      string
 	Prompt      string
-	Harness     internalchat.AgentHarness
-	Model       string
 	ProjectRoot string
 	ParentRunID string
-	MaxTurns    int32
 }
 
 type Session struct {
@@ -141,6 +136,9 @@ func (c *HTTPClient) Start(ctx context.Context, input StartInput) (Session, erro
 	if projectRoot == "" {
 		projectRoot = defaultProjectRoot()
 	}
+	if err := c.reconcileProfile(ctx); err != nil {
+		return Session{}, err
+	}
 	taskID, err := c.createTask(ctx, prompt, projectRoot)
 	if err != nil {
 		return Session{}, err
@@ -177,19 +175,12 @@ func (c *HTTPClient) createTask(ctx context.Context, prompt, projectRoot string)
 }
 
 func (c *HTTPClient) createRun(ctx context.Context, taskID string, input StartInput) (string, error) {
-	inlineConfig := map[string]any{
-		"runner_type": RunnerType(input.Harness),
-		"max_turns":   defaultMaxTurns(input.MaxTurns),
-	}
-	if model := strings.TrimSpace(input.Model); model != "" {
-		inlineConfig["model"] = model
-	}
 	payload := map[string]any{
-		"task_id":       taskID,
-		"tag":           "portal-" + strings.TrimSpace(input.ChatID),
-		"run_mode":      "RUN_MODE_SANDBOXED",
-		"inline_config": inlineConfig,
-		"prompt":        strings.TrimSpace(input.Prompt),
+		"task_id":     taskID,
+		"tag":         "portal-" + strings.TrimSpace(input.ChatID),
+		"run_mode":    "RUN_MODE_SANDBOXED",
+		"profile_ref": map[string]any{"profile_key": "portal/agent-chat"},
+		"prompt":      strings.TrimSpace(input.Prompt),
 	}
 	if parent := strings.TrimSpace(input.ParentRunID); parent != "" {
 		payload["parent_run_id"] = parent
@@ -207,6 +198,24 @@ func (c *HTTPClient) createRun(ctx context.Context, taskID string, input StartIn
 		return "", fmt.Errorf("agent-manager returned run without id")
 	}
 	return resp.Run.ID, nil
+}
+
+func (c *HTTPClient) reconcileProfile(ctx context.Context) error {
+	var result struct {
+		Results []struct {
+			ProfileKey string `json:"profile_key"`
+			ProfileID  string `json:"profile_id"`
+		} `json:"results"`
+	}
+	if err := c.post(ctx, "/api/v1/profiles/reconcile-scenario", map[string]any{"scenario": "portal"}, &result); err != nil {
+		return fmt.Errorf("reconcile agent profile: %w", err)
+	}
+	for _, item := range result.Results {
+		if item.ProfileKey == "portal/agent-chat" && item.ProfileID != "" {
+			return nil
+		}
+	}
+	return fmt.Errorf("reconcile agent profile returned no portal/agent-chat profile")
 }
 
 func (c *HTTPClient) post(ctx context.Context, path string, payload any, out any) error {
@@ -237,19 +246,6 @@ func (c *HTTPClient) post(ctx context.Context, path string, payload any, out any
 	return nil
 }
 
-func RunnerType(h internalchat.AgentHarness) string {
-	switch h {
-	case internalchat.AgentHarnessCodex:
-		return "RUNNER_TYPE_CODEX"
-	case internalchat.AgentHarnessOpencode:
-		return "RUNNER_TYPE_OPENCODE"
-	case internalchat.AgentHarnessGrok:
-		return "RUNNER_TYPE_GROK"
-	default:
-		return "RUNNER_TYPE_CLAUDE_CODE"
-	}
-}
-
 func WebSocketURL(baseURL string) (string, error) {
 	parsed, err := url.Parse(strings.TrimRight(baseURL, "/") + "/api/v1/ws")
 	if err != nil {
@@ -276,11 +272,4 @@ func defaultProjectRoot() string {
 		return wd
 	}
 	return "."
-}
-
-func defaultMaxTurns(value int32) int32 {
-	if value > 0 {
-		return value
-	}
-	return 20
 }

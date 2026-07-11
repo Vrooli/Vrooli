@@ -21,27 +21,22 @@ type RunResult struct {
 	ChangedFiles   int     // run.changed_files — the abstention signal for negative cases
 	SandboxDiffRef string  // sandbox id / diff path — an attribution pointer
 	Diff           string  // the unified diff the agent produced (empty when it abstained)
-	Model          string
-	RunID          string // agent-manager run id (evidence pointer)
-	Detail         string // human note (e.g. why a run errored); not persisted to the wire
+	RunID          string  // agent-manager run id (evidence pointer)
+	Detail         string  // human note (e.g. why a run errored); not persisted to the wire
 }
 
 // Runner dispatches one trial task through agent-manager's real sandboxed
-// primitive (runner=opencode + a local model) and reports the EVIDENCE. It NEVER
+// primitive and reports the EVIDENCE. It NEVER
 // returns an error — a failed dispatch is an honest VerdictError, so a broken
 // sandbox degrades one run rather than failing the whole suite.
 type Runner interface {
-	RunTask(ctx context.Context, task TrialTask, fixture Fixture, model string) RunResult
+	RunTask(ctx context.Context, task TrialTask, fixture Fixture) RunResult
 }
 
-// defaultModel is the local-model id used when the caller passes none. The
-// concrete model is configured operator-side; this is a sane fallback label.
-const defaultModel = "ollama/qwen2.5-coder"
-
-// trialProfileKey is the idempotent agent-manager profile the trials gate binds
-// its runner+model to. `profile ensure` is keyed on it, so repeated trials reuse
-// one profile rather than accumulating them.
-const trialProfileKey = "mom-trial-opencode"
+const (
+	trialScenario   = "meta-optimization-manager"
+	trialProfileKey = "meta-optimization-manager/trials"
+)
 
 // defaultPollInterval bounds how often the Runner polls a sandboxed run for
 // terminal status. Trials are long and operator-invoked; a few seconds keeps the
@@ -60,7 +55,7 @@ const (
 )
 
 // execTrialRunner is the production Runner. It drives agent-manager's
-// profile ensure → task create → run create --run-mode sandboxed → poll run get
+// profile reconcile-scenario → task create → run create --run-mode sandboxed → poll run get
 // → run diff sequence through the CommandRunner seam and parses each response
 // JSON (tolerant of extra/unknown fields, pinned to agent-manager's snake_case
 // API shape). Any step failure degrades to VerdictError with a detail — never a
@@ -95,11 +90,8 @@ func isTerminalStatus(s string) bool {
 	}
 }
 
-func (r *execTrialRunner) RunTask(ctx context.Context, task TrialTask, fixture Fixture, model string) RunResult {
-	if model == "" {
-		model = defaultModel
-	}
-	res := RunResult{Verdict: VerdictError, Model: model}
+func (r *execTrialRunner) RunTask(ctx context.Context, task TrialTask, fixture Fixture) RunResult {
+	res := RunResult{Verdict: VerdictError}
 	if r.run == nil {
 		res.Detail = "no dispatch runner configured"
 		return res
@@ -110,10 +102,11 @@ func (r *execTrialRunner) RunTask(ctx context.Context, task TrialTask, fixture F
 	ctx, cancel := context.WithTimeout(ctx, dispatchTimeout)
 	defer cancel()
 
-	// 1. profile ensure — idempotent runner+model binding.
-	profileID, err := r.ensureProfile(ctx, model)
+	// 1. Reconcile the manifest-declared profile; runtime selection belongs to
+	// Agent Manager's role resolver, never to this consumer.
+	profileID, err := r.reconcileProfile(ctx)
 	if err != nil {
-		res.Detail = "profile ensure failed: " + err.Error()
+		res.Detail = "profile reconciliation failed: " + err.Error()
 		return res
 	}
 
@@ -226,28 +219,30 @@ func (run amRun) durationMs() int64 {
 	return d.Milliseconds()
 }
 
-// ensureProfile resolves the idempotent trials profile (opencode + model).
-func (r *execTrialRunner) ensureProfile(ctx context.Context, model string) (string, error) {
-	out, err := r.run(ctx, "agent-manager", "profile", "ensure",
-		"--key", trialProfileKey,
-		"--name", "MoM trials (opencode)",
-		"--runner-type", "opencode",
-		"--model", model,
-		"--json",
-	)
+// reconcileProfile applies MoM's manifest-declared, role-only profile and
+// returns its stable Agent Manager ID. Reconciliation is idempotent; it cannot
+// introduce a caller-selected runner, model, or policy.
+func (r *execTrialRunner) reconcileProfile(ctx context.Context) (string, error) {
+	out, err := r.run(ctx, "agent-manager", "profile", "reconcile-scenario",
+		"--scenario", trialScenario, "--json")
 	if err != nil {
 		return "", err
 	}
 	var env struct {
-		Profile *amProfile `json:"profile"`
+		Results []struct {
+			ProfileKey string `json:"profile_key"`
+			ProfileID  string `json:"profile_id"`
+		} `json:"results"`
 	}
 	if err := json.Unmarshal(out, &env); err != nil {
-		return "", fmt.Errorf("decode profile ensure: %w", err)
+		return "", fmt.Errorf("decode profile reconciliation: %w", err)
 	}
-	if env.Profile == nil || env.Profile.ID == "" {
-		return "", errors.New("profile ensure returned no profile id")
+	for _, item := range env.Results {
+		if item.ProfileKey == trialProfileKey && item.ProfileID != "" {
+			return item.ProfileID, nil
+		}
 	}
-	return env.Profile.ID, nil
+	return "", fmt.Errorf("profile reconciliation returned no id for %q", trialProfileKey)
 }
 
 // createTask creates the agent task scoped to the fixture's target codebase.

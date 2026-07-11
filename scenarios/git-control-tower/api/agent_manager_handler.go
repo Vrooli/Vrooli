@@ -145,6 +145,8 @@ func buildAgentRunRequest(taskID string, req AgentRunRequest) agentRunCreateInte
 		runReq.AgentProfileID = req.ProfileID
 	} else if req.ProfileKey != "" {
 		runReq.ProfileRef = &agentProfileRef{ProfileKey: req.ProfileKey}
+	} else {
+		runReq.ProfileRef = &agentProfileRef{ProfileKey: "git-control-tower/reviewer"}
 	}
 	return runReq
 }

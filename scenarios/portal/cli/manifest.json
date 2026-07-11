@@ -25,7 +25,6 @@
             { "name": "group-id", "description": "Optional chat group id" },
             { "name": "model", "description": "Model override" },
             { "name": "mode", "description": "Chat mode: llm or agent", "default": "llm" },
-            { "name": "harness", "description": "Agent harness: claude-code, codex, opencode, or grok", "default": "claude-code" },
             { "name": "web-search", "bool": true, "description": "Enable web search for this chat" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "CreateChat" },
@@ -152,7 +151,6 @@
             { "name": "from", "description": "Message id to complete from" },
             { "name": "model", "description": "Model override" },
             { "name": "mode", "description": "Chat mode: llm or agent", "default": "llm" },
-            { "name": "harness", "description": "Agent harness: claude-code, codex, opencode, or grok", "default": "claude-code" },
             { "name": "skill-ids", "description": "Comma-separated selected skill ids" },
             { "name": "web-search", "bool": true, "description": "Enable passive web search" }
           ],

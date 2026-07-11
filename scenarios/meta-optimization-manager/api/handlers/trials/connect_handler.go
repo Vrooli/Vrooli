@@ -44,7 +44,7 @@ func (h *connectHandler) ListTrialTasks(ctx context.Context, req *connect.Reques
 }
 
 func (h *connectHandler) RunTrials(ctx context.Context, req *connect.Request[trialsv1.RunTrialsRequest]) (*connect.Response[trialsv1.RunTrialsResponse], error) {
-	runs, err := h.deps.Service.RunTrials(ctx, req.Msg.GetSuite(), req.Msg.GetTaskId(), req.Msg.GetModel())
+	runs, err := h.deps.Service.RunTrials(ctx, req.Msg.GetSuite(), req.Msg.GetTaskId())
 	if err != nil {
 		h.deps.Logger.Printf("trials.RunTrials: %v", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -117,7 +117,6 @@ func runToProto(r internaltrials.TrialRun) *trialsv1.TrialRun {
 		Id:             r.ID,
 		TaskId:         r.TaskID,
 		Suite:          r.Suite,
-		Model:          r.Model,
 		Verdict:        verdictToProto(r.Verdict),
 		Tokens:         r.Tokens,
 		DurationMs:     r.DurationMs,

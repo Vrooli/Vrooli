@@ -101,7 +101,7 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 type ProfileConfig struct {
 	RunnerType      domainpb.RunnerType
 	Model           string
-	ModelPreset     domainpb.ModelPreset
+	PolicyRef       string
 	MaxTurns        int32
 	TimeoutSeconds  int32
 	AllowedTools    []string
@@ -115,9 +115,9 @@ type ProfileConfig struct {
 // DefaultProfileConfig returns the default configuration for deployment investigations.
 func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
-		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CODEX,
-		ModelPreset: domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:    75,
+		RunnerType: domainpb.RunnerType_RUNNER_TYPE_CODEX,
+		PolicyRef:  "codex.smart",
+		MaxTurns:   75,
 		// 10 minute timeout for thorough VPS investigation
 		TimeoutSeconds: 600,
 		AllowedTools: []string{
@@ -140,7 +140,7 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		Description:          "Agent profile for scenario-to-cloud deployment investigations",
 		RunnerType:           cfg.RunnerType,
 		Model:                cfg.Model,
-		ModelPreset:          cfg.ModelPreset,
+		PolicyRef:            cfg.PolicyRef,
 		MaxTurns:             cfg.MaxTurns,
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,

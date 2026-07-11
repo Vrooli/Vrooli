@@ -1,0 +1,12 @@
+{
+  "name": "ecosystem-manager-tasks",
+  "profileKey": "ecosystem-manager/tasks",
+  "description": "Portable profile for Ecosystem Manager task execution",
+  "roleRef": "code.default",
+  "maxTurns": 80,
+  "timeout": "1800s",
+  "allowedTools": ["Read", "Write", "Edit", "Bash", "LS", "Glob", "Grep"],
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {"mode": "SANDBOX_MODE_TRACKING"},
+  "createdBy": "ecosystem-manager"
+}

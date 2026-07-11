@@ -17,7 +17,6 @@ import {
 import { CompletionEventKind, MessageRole } from "@vrooli/proto-types/portal/v1/message/message_pb";
 
 import {
-  AgentHarness,
   ChatMode,
   createPortalChat,
   createPortalGroup,
@@ -132,7 +131,6 @@ export function ChatWorkspace() {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(defaultModel);
   const [mode, setMode] = useState<ChatMode>(ChatMode.LLM);
-  const [agentHarness, setAgentHarness] = useState<AgentHarness>(AgentHarness.CLAUDE_CODE);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
   const [skillDraft, setSkillDraft] = useState("");
   const [streamText, setStreamText] = useState("");
@@ -243,11 +241,6 @@ export function ChatWorkspace() {
     }
     setModel(selectedChat.model || defaultModel);
     setMode(selectedChat.mode === ChatMode.AGENT ? ChatMode.AGENT : ChatMode.LLM);
-    setAgentHarness(
-      selectedChat.agentHarness === AgentHarness.UNSPECIFIED
-        ? AgentHarness.CLAUDE_CODE
-        : selectedChat.agentHarness,
-    );
     setWebSearchEnabled(selectedChat.webSearchEnabled);
   }, [selectedChat]);
 
@@ -261,7 +254,6 @@ export function ChatWorkspace() {
             ? t(strings.chat.sidebar.newAgentTitle)
             : t(strings.chat.sidebar.newChatTitle),
         mode: nextMode,
-        agentHarness,
         model,
         webSearchEnabled,
       });
@@ -272,7 +264,7 @@ export function ChatWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, [agentHarness, model, refreshChats, t, webSearchEnabled]);
+  }, [model, refreshChats, t, webSearchEnabled]);
 
   const handleCreateGroup = useCallback(async () => {
     setError("");
@@ -329,7 +321,6 @@ export function ChatWorkspace() {
         webSearchEnabled,
         selectedSkillIds,
         mode,
-        agentHarness,
         signal: controller.signal,
       })) {
         if (event.kind === CompletionEventKind.TOKEN) {
@@ -355,7 +346,6 @@ export function ChatWorkspace() {
     }
   }, [
     activeLeafMessageId,
-    agentHarness,
     draft,
     mode,
     model,
@@ -523,21 +513,6 @@ export function ChatWorkspace() {
               >
                 <option value="openai/gpt-4.1-mini">{t(strings.chat.controls.modelFast)}</option>
                 <option value="anthropic/claude-3.5-sonnet">{t(strings.chat.controls.modelReasoning)}</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-app-muted-foreground">
-              <span>{t(strings.chat.controls.agentHarness)}</span>
-              <select
-                data-testid={selectors.chat.harnessSelect}
-                value={String(agentHarness)}
-                onChange={(event) => setAgentHarness(Number(event.target.value))}
-                disabled={mode !== ChatMode.AGENT}
-                className="rounded-control border border-app-border bg-app-background px-3 py-2 text-sm text-app-foreground disabled:opacity-60"
-              >
-                <option value={String(AgentHarness.CLAUDE_CODE)}>{t(strings.chat.controls.harnessClaude)}</option>
-                <option value={String(AgentHarness.CODEX)}>{t(strings.chat.controls.harnessCodex)}</option>
-                <option value={String(AgentHarness.OPENCODE)}>{t(strings.chat.controls.harnessOpencode)}</option>
-                <option value={String(AgentHarness.GROK)}>{t(strings.chat.controls.harnessGrok)}</option>
               </select>
             </label>
             <label className="flex items-center gap-2 self-end rounded-control border border-app-border bg-app-background px-3 py-2 text-sm">

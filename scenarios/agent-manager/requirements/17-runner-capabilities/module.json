@@ -12,7 +12,7 @@
       "description": "Implement a capability registry system to track and query supported features of different runners. Registry must maintain version information, supported operations, and resource requirements for each runner type.",
       "id": "REQ-P1-006",
       "prd_ref": "OT-P1-006",
-      "status": "draft",
+      "status": "in_progress",
       "title": "Runner Capability Registry",
       "validation": [
         {

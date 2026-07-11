@@ -11,7 +11,6 @@ import (
 	"github.com/vrooli/api-core/scenario"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // AgentService provides agent execution services for system-monitor.
@@ -67,9 +66,8 @@ func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
 	return s.client.ResolveURL(ctx)
 }
 
-// Initialize ensures the agent profile exists.
-// Call this at startup to create/update the system-monitor profile.
-func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error {
+// Initialize reconciles the scenario-owned role-only profile source.
+func (s *AgentService) Initialize(ctx context.Context) error {
 	if !s.enabled {
 		return nil
 	}
@@ -94,92 +92,10 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 	return nil
 }
 
-// ProfileConfig contains agent profile configuration.
-type ProfileConfig struct {
-	RunnerType      domainpb.RunnerType
-	Model           string
-	PolicyRef       string
-	MaxTurns        int32
-	TimeoutSeconds  int32
-	AllowedTools    []string
-	SkipPermissions bool
-	// SandboxMode selects the per-run sandbox execution mode. system-monitor
-	// runs in-place by default because it controls system-level state that
-	// must hit the host directly. See agent-manager domain.DeriveRunMode.
-	SandboxMode domainpb.SandboxMode
-}
-
-// DefaultProfileConfig returns the default configuration for system-monitor.
-func DefaultProfileConfig() *ProfileConfig {
-	return &ProfileConfig{
-		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CODEX,
-		PolicyRef:       "codex.smart",
-		MaxTurns:        75,
-		TimeoutSeconds:  600,
-		AllowedTools:    []string{"read_file", "write_file", "append_file", "list_files", "analyze_code", "execute_command"},
-		SkipPermissions: true,
-		// system-monitor needs to mutate host state (start/stop services,
-		// edit config files outside the sandbox merged dir), so the
-		// sandbox is explicitly disabled rather than left implicit.
-		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_OFF,
-	}
-}
-
-func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
-	profile := &domainpb.AgentProfile{
-		Name:                 s.profileName,
-		ProfileKey:           s.profileKey,
-		Description:          "Agent profile for system-monitor investigations",
-		RunnerType:           cfg.RunnerType,
-		Model:                cfg.Model,
-		PolicyRef:            cfg.PolicyRef,
-		MaxTurns:             cfg.MaxTurns,
-		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
-		AllowedTools:         cfg.AllowedTools,
-		SkipPermissionPrompt: cfg.SkipPermissions,
-		CreatedBy:            "system-monitor",
-	}
-	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
-		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
-	}
-	return profile
-}
-
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
 	return &apipb.ProfileRef{
 		ProfileKey: s.profileKey,
 	}
-}
-
-// EnsureProfile resolves the profile by key, creating it with defaults if needed.
-func (s *AgentService) EnsureProfile(ctx context.Context, cfg *ProfileConfig, updateExisting bool) (*domainpb.AgentProfile, error) {
-	if !s.enabled {
-		return nil, fmt.Errorf("agent-manager not enabled")
-	}
-
-	if cfg == nil {
-		cfg = DefaultProfileConfig()
-	}
-
-	resp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
-		ProfileKey:     s.profileKey,
-		Defaults:       s.buildProfile(cfg),
-		UpdateExisting: updateExisting,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("ensure profile: %w", err)
-	}
-
-	if resp.Profile != nil {
-		s.mu.Lock()
-		s.profileID = resp.Profile.Id
-		if resp.Profile.Name != "" {
-			s.profileName = resp.Profile.Name
-		}
-		s.mu.Unlock()
-	}
-
-	return resp.Profile, nil
 }
 
 // GetProfileID returns the current profile ID.
@@ -187,102 +103,6 @@ func (s *AgentService) GetProfileID() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.profileID
-}
-
-// GetProfile returns the current agent profile.
-func (s *AgentService) GetProfile(ctx context.Context) (*domainpb.AgentProfile, error) {
-	if !s.enabled {
-		return nil, fmt.Errorf("agent-manager not enabled")
-	}
-
-	if s.GetProfileID() == "" {
-		if _, err := s.EnsureProfile(ctx, DefaultProfileConfig(), false); err != nil {
-			return nil, err
-		}
-	}
-
-	profileID := s.GetProfileID()
-	return s.client.GetProfile(ctx, profileID)
-}
-
-// UpdateProfile updates the agent profile configuration.
-func (s *AgentService) UpdateProfile(ctx context.Context, cfg *ProfileConfig) (*domainpb.AgentProfile, error) {
-	if !s.enabled {
-		return nil, fmt.Errorf("agent-manager not enabled")
-	}
-
-	if s.GetProfileID() == "" {
-		if _, err := s.EnsureProfile(ctx, cfg, false); err != nil {
-			return nil, err
-		}
-	}
-
-	profile := s.buildProfile(cfg)
-	profile.Id = s.GetProfileID()
-	if profile.Id == "" {
-		return nil, fmt.Errorf("profile not initialized")
-	}
-
-	updated, err := s.client.UpdateProfile(ctx, profile.Id, profile)
-	if err != nil {
-		return nil, fmt.Errorf("update profile: %w", err)
-	}
-
-	return updated, nil
-}
-
-// =============================================================================
-// RUNNERS
-// =============================================================================
-
-// RunnerInfo contains information about an available runner.
-type RunnerInfo struct {
-	Type            domainpb.RunnerType
-	Name            string
-	Available       bool
-	Message         string
-	InstallHint     string
-	SupportedModels []string
-	Capabilities    *domainpb.RunnerCapabilities
-}
-
-// GetAvailableRunners returns all available runners with their info.
-func (s *AgentService) GetAvailableRunners(ctx context.Context) ([]RunnerInfo, error) {
-	if !s.enabled {
-		return nil, fmt.Errorf("agent-manager not enabled")
-	}
-
-	runners, err := s.client.GetRunnerStatus(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get runners: %w", err)
-	}
-
-	result := make([]RunnerInfo, 0, len(runners))
-	for _, r := range runners {
-		result = append(result, RunnerInfo{
-			Type:            r.RunnerType,
-			Name:            runnerTypeName(r.RunnerType),
-			Available:       r.Available,
-			Message:         r.Message,
-			InstallHint:     r.InstallHint,
-			SupportedModels: r.SupportedModels,
-			Capabilities:    r.Capabilities,
-		})
-	}
-	return result, nil
-}
-
-func runnerTypeName(rt domainpb.RunnerType) string {
-	switch rt {
-	case domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE:
-		return "claude-code"
-	case domainpb.RunnerType_RUNNER_TYPE_CODEX:
-		return "codex"
-	case domainpb.RunnerType_RUNNER_TYPE_OPENCODE:
-		return "opencode"
-	default:
-		return "unknown"
-	}
 }
 
 // =============================================================================
@@ -297,12 +117,6 @@ type ExecuteRequest struct {
 	Prompt string
 	// Working directory for execution
 	WorkingDir string
-	// Optional override for runner type (uses profile default if empty)
-	RunnerType *domainpb.RunnerType
-	// Optional override for model (uses profile default if empty)
-	Model string
-	// Optional inline config overrides
-	InlineConfig *domainpb.RunConfigOverrides
 }
 
 // ExecuteResult contains the result of agent execution.
@@ -349,19 +163,6 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 	}
 
 	// Apply inline config overrides if provided
-	if req.InlineConfig != nil {
-		runReq.InlineConfig = req.InlineConfig
-	} else if req.RunnerType != nil || req.Model != "" {
-		// Build inline config from individual overrides
-		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
-		if req.RunnerType != nil {
-			runReq.InlineConfig.RunnerType = req.RunnerType
-		}
-		if req.Model != "" {
-			runReq.InlineConfig.Model = &req.Model
-		}
-	}
-
 	// Inherits the contract default ManualReview=false: investigation reports
 	// are written to disk as part of the deliverable and should auto-apply so
 	// they land in the investigations directory without operator approval.
@@ -438,18 +239,6 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 		Tag:        &tag,
 		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
 		Force:      true,
-	}
-
-	if req.InlineConfig != nil {
-		runReq.InlineConfig = req.InlineConfig
-	} else if req.RunnerType != nil || req.Model != "" {
-		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
-		if req.RunnerType != nil {
-			runReq.InlineConfig.RunnerType = req.RunnerType
-		}
-		if req.Model != "" {
-			runReq.InlineConfig.Model = &req.Model
-		}
 	}
 
 	// Inherits ManualReview=false — see Execute() above.

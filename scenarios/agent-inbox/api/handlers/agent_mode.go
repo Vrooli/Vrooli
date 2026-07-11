@@ -14,10 +14,7 @@ import (
 // StartAgentModeRequest is the request body for starting agent mode.
 type StartAgentModeRequest struct {
 	Message     string `json:"message"`      // Initial message to send to the agent
-	RunnerType  string `json:"runner_type"`  // Supported agent-manager runner type
 	ProjectPath string `json:"project_path"` // Directory where the agent will operate
-	Model       string `json:"model,omitempty"`
-	MaxTurns    int    `json:"max_turns,omitempty"`
 }
 
 // AgentModeResponse is the response after starting or modifying agent mode.
@@ -45,13 +42,6 @@ func (h *Handlers) StartAgentMode(w http.ResponseWriter, r *http.Request) {
 	// Validate required fields
 	if req.Message == "" {
 		h.WriteAppError(w, r, domain.ErrInvalidInput("message is required"))
-		return
-	}
-	if req.RunnerType == "" {
-		req.RunnerType = string(integrations.DefaultRunnerType)
-	}
-	if !integrations.IsSupportedRunnerType(integrations.RunnerType(req.RunnerType)) {
-		h.WriteAppError(w, r, domain.ErrInvalidInput("runner_type must be one of: "+integrations.SupportedRunnerTypeList()))
 		return
 	}
 	if req.ProjectPath == "" {
@@ -99,10 +89,7 @@ func (h *Handlers) StartAgentMode(w http.ResponseWriter, r *http.Request) {
 
 	// Start agent chat
 	cfg := integrations.AgentChatConfig{
-		RunnerType:  integrations.RunnerType(req.RunnerType),
 		ProjectPath: req.ProjectPath,
-		Model:       req.Model,
-		MaxTurns:    req.MaxTurns,
 	}
 
 	session, err := agentClient.StartAgentChat(r.Context(), req.Message, cfg)

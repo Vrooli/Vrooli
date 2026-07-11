@@ -20,6 +20,7 @@
       "qdrant-vectors",
       "ollama-ai"
     ],
+    "capabilities": ["ai"],
     "parent": "vrooli",
     "type": "scenario",
     "category": "general",

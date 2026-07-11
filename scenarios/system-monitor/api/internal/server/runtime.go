@@ -53,7 +53,7 @@ func Run(cfg *config.Config) error {
 
 	if agentSvc.IsEnabled() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		if err := agentSvc.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
+		if err := agentSvc.Initialize(ctx); err != nil {
 			slog.Warn("Failed to initialize agent-manager profile", "error", err)
 			slog.Info("Investigations require agent-manager; anomaly checks will fail until it is available")
 		}

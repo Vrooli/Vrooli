@@ -13,8 +13,8 @@ func TestDefaultProfileConfig(t *testing.T) {
 	if cfg.RunnerType != domainpb.RunnerType_RUNNER_TYPE_CODEX {
 		t.Fatalf("expected default runner type CODEX, got %v", cfg.RunnerType)
 	}
-	if cfg.ModelPreset != domainpb.ModelPreset_MODEL_PRESET_SMART {
-		t.Fatalf("expected default model preset SMART, got %v", cfg.ModelPreset)
+	if cfg.PolicyRef != "codex.smart" {
+		t.Fatalf("expected default Codex smart policy, got %q", cfg.PolicyRef)
 	}
 	if cfg.MaxTurns != 75 {
 		t.Fatalf("expected default max turns 75, got %d", cfg.MaxTurns)
@@ -43,8 +43,7 @@ func TestBuildProfile(t *testing.T) {
 
 	cfg := &ProfileConfig{
 		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CODEX,
-		Model:           "model-x",
-		ModelPreset:     domainpb.ModelPreset_MODEL_PRESET_SMART,
+		PolicyRef:       "codex.smart",
 		MaxTurns:        10,
 		TimeoutSeconds:  30,
 		AllowedTools:    []string{"read_file"},
@@ -58,6 +57,9 @@ func TestBuildProfile(t *testing.T) {
 	}
 	if profile.ProfileKey != "scenario-to-cloud" {
 		t.Fatalf("expected profile key to match, got %q", profile.ProfileKey)
+	}
+	if profile.PolicyRef != "codex.smart" {
+		t.Fatalf("expected policy reference to be preserved, got %q", profile.PolicyRef)
 	}
 	if profile.Timeout.AsDuration() != 30*time.Second {
 		t.Fatalf("expected timeout to be 30s, got %s", profile.Timeout.AsDuration())

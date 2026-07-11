@@ -113,7 +113,6 @@ func (h *handlers) stream(ctx cliapp.RunContext) error {
 		WebSearchEnabled: ctx.BoolFlag("web-search"),
 		SelectedSkillIds: splitCSV(ctx.Flag("skill-ids")),
 		Mode:             parseChatMode(ctx.Flag("mode")),
-		AgentHarness:     parseAgentHarness(ctx.Flag("harness")),
 	}
 	stream, err := h.client.StreamCompletion(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -159,21 +158,6 @@ func parseChatMode(value string) sharedv1.ChatMode {
 		return sharedv1.ChatMode_CHAT_MODE_LLM
 	default:
 		return sharedv1.ChatMode_CHAT_MODE_UNSPECIFIED
-	}
-}
-
-func parseAgentHarness(value string) sharedv1.AgentHarness {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "codex":
-		return sharedv1.AgentHarness_AGENT_HARNESS_CODEX
-	case "opencode":
-		return sharedv1.AgentHarness_AGENT_HARNESS_OPENCODE
-	case "grok":
-		return sharedv1.AgentHarness_AGENT_HARNESS_GROK
-	case "claude-code", "":
-		return sharedv1.AgentHarness_AGENT_HARNESS_CLAUDE_CODE
-	default:
-		return sharedv1.AgentHarness_AGENT_HARNESS_UNSPECIFIED
 	}
 }
 

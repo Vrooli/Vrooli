@@ -158,18 +158,6 @@ describe("ChatWorkspace", () => {
     expect(screen.getByTestId(selectors.chat.composer)).toBeInTheDocument();
   });
 
-  it("enables the agent harness selector when agent mode is selected", async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<ChatWorkspace />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId(selectors.chat.modeSelect)).toBeInTheDocument();
-    });
-    expect(screen.getByTestId(selectors.chat.harnessSelect)).toBeDisabled();
-    await user.selectOptions(screen.getByTestId(selectors.chat.modeSelect), String(ChatMode.AGENT));
-    expect(screen.getByTestId(selectors.chat.harnessSelect)).toBeEnabled();
-  });
-
   it("sends a message and consumes streamed completion events", async () => {
     const user = userEvent.setup();
     renderWithProviders(<ChatWorkspace />);

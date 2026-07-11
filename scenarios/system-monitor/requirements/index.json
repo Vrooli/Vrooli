@@ -108,7 +108,7 @@
       "id": "MOD-P1-014",
       "path": "14-agent-configuration-management",
       "priority": "P1",
-      "title": "Agent configuration management (runner type, model, max turns, timeout)"
+      "title": "Portable Agent Manager profile adoption"
     },
     {
       "id": "MOD-P1-015",

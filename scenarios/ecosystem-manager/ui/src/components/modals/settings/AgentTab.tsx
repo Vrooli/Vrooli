@@ -7,13 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import type { AgentSettings, SettingsConstraints } from '@/types/api';
 
 interface AgentTabProps {
@@ -22,44 +15,12 @@ interface AgentTabProps {
   constraints?: SettingsConstraints;
 }
 
-const runnerOptions = [
-  { value: 'claude-code', label: 'Claude Code', description: 'Anthropic Claude Code CLI' },
-  { value: 'codex', label: 'OpenAI Codex', description: 'OpenAI Codex agent' },
-  { value: 'opencode', label: 'OpenCode', description: 'Open-source multi-model CLI' },
-] as const;
-
 export function AgentTab({ settings, onChange, constraints }: AgentTabProps) {
-  return (
-    <div className="space-y-6">
-      {/* AI Runner Type */}
-      <div className="space-y-3">
-	        <Label htmlFor="runner-type">AI Runner</Label>
-	        <Select
-	          value={settings.runner_type}
-          onValueChange={(value) => {
-            if (value === 'claude-code' || value === 'codex' || value === 'opencode') {
-              onChange({ runner_type: value });
-            }
-          }}
-        >
-          <SelectTrigger id="runner-type" className="w-full">
-            <SelectValue placeholder="Select AI runner" />
-          </SelectTrigger>
-          <SelectContent>
-            {runnerOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                <div className="flex flex-col">
-                  <span>{option.label}</span>
-                  <span className="text-xs text-slate-500">{option.description}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-slate-500">
-          Select which AI agent to use for task execution. Claude Code is recommended for most use cases.
-        </p>
-      </div>
+	return (
+		<div className="space-y-6">
+			<p className="text-xs text-slate-500">
+				Agent Manager resolves the portable task role. This scenario does not select a concrete coding-agent runner or model.
+			</p>
 
       {/* Maximum Turns */}
       <div className="space-y-3">

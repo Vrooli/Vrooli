@@ -189,8 +189,6 @@ func (h *Handler) streamAgent(ctx context.Context, req *messagev1.StreamCompleti
 	result, err := h.agent.Stream(ctx, agentchat.StreamInput{
 		ChatID:        req.GetChatId(),
 		FromMessageID: req.GetFromMessageId(),
-		Model:         req.GetModel(),
-		Harness:       internalchat.AgentHarnessFromProto(req.GetAgentHarness()),
 	}, func(ev agentmanager.ActivityEvent) error {
 		return stream.Send(&messagev1.CompletionEvent{
 			Kind:      messagev1.CompletionEventKind_COMPLETION_EVENT_KIND_AGENT_ACTIVITY,

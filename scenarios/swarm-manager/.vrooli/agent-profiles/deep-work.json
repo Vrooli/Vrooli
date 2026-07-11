@@ -2,8 +2,7 @@
   "name": "swarm-manager-deep-work",
   "profileKey": "swarm-manager/deep-work",
   "description": "High-capability profile for Swarm Manager initiative investigation, planning, and repo-editing phases",
-  "runnerType": "RUNNER_TYPE_CLAUDE_CODE",
-  "modelPreset": "MODEL_PRESET_SMART",
+  "roleRef": "code.smart",
   "maxTurns": 900,
   "timeout": "5400s",
   "allowedTools": [

@@ -71,30 +71,6 @@ func (c *testClient) Health(ctx context.Context) (bool, error) {
 	return resp.StatusCode == http.StatusOK, nil
 }
 
-// EnsureProfile tests the ensure profile endpoint.
-func (c *testClient) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.doRequestTest(ctx, "POST", "/api/v1/profiles/ensure", body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
-	}
-
-	var result apipb.EnsureProfileResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
 // CreateTask tests the create task endpoint.
 func (c *testClient) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb.Task, error) {
 	req := &apipb.CreateTaskRequest{Task: task}
@@ -244,63 +220,6 @@ func TestClient_Health(t *testing.T) {
 			}
 			if ok != tt.wantOK {
 				t.Errorf("Health() = %v, want %v", ok, tt.wantOK)
-			}
-		})
-	}
-}
-
-func TestClient_EnsureProfile(t *testing.T) {
-	tests := []struct {
-		name       string
-		statusCode int
-		response   map[string]any
-		wantErr    bool
-	}{
-		{
-			name:       "success creates profile",
-			statusCode: http.StatusOK,
-			response: map[string]any{
-				"profile": map[string]any{
-					"id":         "test-profile-id",
-					"profileKey": "test-key",
-				},
-				"created": true,
-			},
-			wantErr: false,
-		},
-		{
-			name:       "error returns error",
-			statusCode: http.StatusInternalServerError,
-			response:   map[string]any{"error": "internal error"},
-			wantErr:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if !strings.HasSuffix(r.URL.Path, "/profiles/ensure") {
-					t.Errorf("expected path ending with /profiles/ensure, got %s", r.URL.Path)
-				}
-				if r.Method != "POST" {
-					t.Errorf("expected POST, got %s", r.Method)
-				}
-				writeJSONResponse(t, w, tt.statusCode, tt.response)
-			}))
-			defer server.Close()
-
-			client := newTestClient(server)
-			req := &apipb.EnsureProfileRequest{
-				ProfileKey: "test-key",
-			}
-
-			resp, err := client.EnsureProfile(context.Background(), req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("EnsureProfile() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && resp == nil {
-				t.Error("EnsureProfile() returned nil response without error")
 			}
 		})
 	}

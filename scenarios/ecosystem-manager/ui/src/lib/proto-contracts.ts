@@ -209,9 +209,6 @@ const isEnabledFor = (v: unknown): v is Settings["recycler"]["enabled_for"] =>
 const isModelProvider = (v: unknown): v is Settings["recycler"]["model_provider"] =>
   v === "ollama" || v === "openrouter";
 
-const isRunnerType = (v: unknown): v is Settings["agent"]["runner_type"] =>
-  v === "claude-code" || v === "codex" || v === "opencode";
-
 // ---------------------------------------------------------------------------
 // Mapping functions: proto → UI types
 // ---------------------------------------------------------------------------
@@ -366,7 +363,6 @@ const DEFAULT_SETTINGS: Settings = {
     skip_permissions: true,
     task_timeout_minutes: 30,
     idle_timeout_cap_minutes: 30,
-    runner_type: "claude-code",
   },
   display: { theme: "dark", condensed_mode: false },
   recycler: {
@@ -401,7 +397,6 @@ export function mapProtoSettings(proto: ProtoSettings): Settings {
       skip_permissions: proto.skipPermissions,
       task_timeout_minutes: proto.taskTimeout || DEFAULT_SETTINGS.agent.task_timeout_minutes,
       idle_timeout_cap_minutes: proto.idleTimeoutCap || DEFAULT_SETTINGS.agent.idle_timeout_cap_minutes,
-      runner_type: isRunnerType(proto.runnerType) ? proto.runnerType : DEFAULT_SETTINGS.agent.runner_type,
     },
     display: {
       theme: isTheme(proto.theme) ? proto.theme : DEFAULT_SETTINGS.display.theme,
@@ -441,7 +436,6 @@ export function mapUiSettingsToProtoJson(settings: Settings): Record<string, unk
     skip_permissions: settings.agent.skip_permissions,
     task_timeout: settings.agent.task_timeout_minutes,
     idle_timeout_cap: settings.agent.idle_timeout_cap_minutes,
-    runner_type: settings.agent.runner_type,
     recycler: {
       enabled_for: settings.recycler.enabled_for,
       interval_seconds: settings.recycler.recycle_interval,
