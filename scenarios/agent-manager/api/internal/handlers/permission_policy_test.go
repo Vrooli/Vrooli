@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/protoconv"
 
@@ -94,6 +97,32 @@ func TestPermissionPolicyReconcileReturnsPartialEvidence(t *testing.T) {
 	}
 	if response.Result == nil || response.Result.Success || len(response.Result.Resources) != 4 || projector.calls != 4 {
 		t.Fatalf("response = %#v, calls=%d", response.Result, projector.calls)
+	}
+}
+
+func TestPermissionPolicyPlanLogReportsDriftAndUnsupportedMatchers(t *testing.T) {
+	var logs bytes.Buffer
+	obs.InitWithWriter("json", "info", &logs)
+	t.Cleanup(func() { obs.Init("text", "info") })
+
+	logPermissionPolicyPlan("permission_policy_planned", permissionpolicy.AggregatePlan{
+		CatalogDigest:            "catalog-digest",
+		HardEnforcementSatisfied: true,
+		Resources: []permissionpolicy.ResourcePlan{{
+			Drift:               true,
+			UnsupportedMatchers: []permissionpolicy.Matcher{{Kind: "bash", Pattern: "not logged as an attribute"}},
+		}},
+	})
+
+	var record map[string]any
+	if err := json.Unmarshal(logs.Bytes(), &record); err != nil {
+		t.Fatalf("decode structured log: %v; output=%s", err, logs.String())
+	}
+	if record["msg"] != "permission_policy_planned" || record[obs.KeyPermissionPolicyDriftCount] != float64(1) || record[obs.KeyPermissionPolicyUnsupportedCount] != float64(1) {
+		t.Fatalf("log record = %#v", record)
+	}
+	if strings.Contains(logs.String(), "not logged as an attribute") {
+		t.Fatalf("log leaked portable matcher pattern: %s", logs.String())
 	}
 }
 

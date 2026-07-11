@@ -113,6 +113,27 @@ There is **no empty-diff branch** anywhere — code or docs.
 
 **The exception.** Proto schemas reserve the wire ID *and* the field name when a field is removed; this is required by the protocol to prevent silent reuse. Reservation comments are present-tense ("reserved to prevent reuse"), not narrative ("was removed in Phase 1").
 
+## I9. Global permission reconciliation is explicit, resource-owned, and auditable
+
+**Statement.** Agent Manager may reconcile only the active whole-document
+portable permission catalog after explicit human authorization. Resource CLIs
+are the sole owners of native syntax and native-file writes; Agent Manager
+persists only catalog-qualified, per-resource reconciliation metadata. A
+resource failure or unavailable resource never becomes a global success, while
+an optional unavailable resource does not by itself make readiness unhealthy.
+
+**Why.** Global desired permissions must remain inspectable without duplicating
+resource-specific configuration engines or letting a detected agent mutate
+native policy silently. Treating a partial multi-resource apply as success
+would conceal drift. Conversely, making every optional resource failure a
+readiness outage would misrepresent the catalog's enforcement contract.
+
+**Tests:**
+- `internal/permissionpolicy/service_test.go::TestReconcileRequiresExplicitAuthorization`
+- `internal/permissionpolicy/service_test.go::TestReconcilePersistsPartialFailureInDeterministicOrder`
+- `internal/permissionpolicy/service_test.go::TestReadinessRequiresCurrentHardEnforcementEvidence`
+- `internal/permissionpolicy/audit_store_test.go::TestSQLiteAuditStoreRoundTripsOnlyReconcileMetadata`
+
 ## How to add an invariant here
 
 1. The statement must be checkable. "Don't do X" without a test that fails when someone does X is not an invariant — it's wishful thinking.

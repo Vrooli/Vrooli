@@ -75,6 +75,17 @@ const (
 	KeyError     = "error"
 	KeyMessage   = "message"
 	KeyComponent = "component"
+
+	// Permission-policy control-plane evidence. These describe whole-document
+	// lifecycle outcomes only; rule patterns and native config content are never
+	// emitted through structured logs.
+	KeyPermissionPolicyDigest           = "permissionPolicyDigest"
+	KeyPermissionPolicyResourceCount    = "permissionPolicyResourceCount"
+	KeyPermissionPolicyDriftCount       = "permissionPolicyDriftCount"
+	KeyPermissionPolicyUnsupportedCount = "permissionPolicyUnsupportedCount"
+	KeyHardEnforcementSatisfied         = "hardEnforcementSatisfied"
+	KeyMissingHardEnforcementRuleIDs    = "missingHardEnforcementRuleIDs"
+	KeyPermissionPolicyPartialFailure   = "permissionPolicyPartialFailure"
 )
 
 // =============================================================================

@@ -134,6 +134,33 @@ func TestReconcileReportsMissingHardEnforcementAndContinues(t *testing.T) {
 	if len(projector.calls) != 4 {
 		t.Fatalf("projector calls = %#v", projector.calls)
 	}
+	if err := service.ReadinessError(context.Background()); err == nil {
+		t.Fatal("ReadinessError() = nil, want required hard-enforcement failure")
+	}
+}
+
+func TestReadinessRequiresCurrentHardEnforcementEvidence(t *testing.T) {
+	state := activePermissionState(t, hardEnforcementCatalog(t))
+	service := newService(state, &reconcileProjector{}, &memoryAuditStore{}, time.Now)
+	if err := service.ReadinessError(context.Background()); err == nil {
+		t.Fatal("ReadinessError() = nil, want missing assessment failure")
+	}
+
+	projector := &reconcileProjector{
+		results: map[domain.RunnerType]ProjectionResult{
+			domain.RunnerTypeClaudeCode: resultFor(domain.RunnerTypeClaudeCode, "hook_backed"),
+			domain.RunnerTypeCodex:      resultFor(domain.RunnerTypeCodex, "intent_only"),
+			domain.RunnerTypeGrok:       resultFor(domain.RunnerTypeGrok, "hook_backed"),
+			domain.RunnerTypeOpenCode:   resultFor(domain.RunnerTypeOpenCode, "native"),
+		},
+	}
+	service = newService(state, projector, &memoryAuditStore{}, time.Now)
+	if _, err := service.Reconcile(context.Background(), true); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+	if err := service.ReadinessError(context.Background()); err != nil {
+		t.Fatalf("ReadinessError() = %v, want nil after enforced reconcile", err)
+	}
 }
 
 func activePermissionState(t *testing.T, catalog string) *State {

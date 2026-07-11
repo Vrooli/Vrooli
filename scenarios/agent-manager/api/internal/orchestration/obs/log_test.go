@@ -23,6 +23,10 @@ func TestStableKeysAreUnique(t *testing.T) {
 		KeyExitCode, KeyTerminalCode, KeyOutcome,
 		KeyQueueDepth, KeyActiveCount, KeyStartingCount,
 		KeyError, KeyMessage, KeyComponent,
+		KeyPermissionPolicyDigest, KeyPermissionPolicyResourceCount,
+		KeyPermissionPolicyDriftCount, KeyPermissionPolicyUnsupportedCount,
+		KeyHardEnforcementSatisfied, KeyMissingHardEnforcementRuleIDs,
+		KeyPermissionPolicyPartialFailure,
 	}
 	seen := make(map[string]struct{}, len(keys))
 	for _, k := range keys {

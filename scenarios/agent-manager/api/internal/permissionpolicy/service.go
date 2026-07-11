@@ -3,6 +3,7 @@ package permissionpolicy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -156,6 +157,45 @@ func (s *Service) LastReconcile(ctx context.Context) (*ReconcileResult, error) {
 		return result, err
 	}
 	return result.Clone(), nil
+}
+
+// ReadinessError reports only conditions that make required global permission
+// intent unsafe. Optional unavailable resources remain visible in reconciliation
+// evidence without degrading readiness; a required hard-enforcement rule must
+// instead have a current successful enforcement assessment.
+func (s *Service) ReadinessError(ctx context.Context) error {
+	if s == nil || s.state == nil {
+		return ErrNoActiveCatalog
+	}
+	if err := s.state.ReadinessError(); err != nil {
+		return err
+	}
+	revision := s.state.Active()
+	if revision == nil || revision.Catalog() == nil {
+		return ErrNoActiveCatalog
+	}
+	hasHardRequirement := false
+	for _, rule := range revision.Catalog().Rules {
+		if rule.RequiresHardEnforcement {
+			hasHardRequirement = true
+			break
+		}
+	}
+	if !hasHardRequirement {
+		return nil
+	}
+
+	last, err := s.LastReconcile(ctx)
+	if err != nil {
+		return fmt.Errorf("load permission reconciliation evidence: %w", err)
+	}
+	if last == nil || last.CatalogDigest != revision.Digest() {
+		return fmt.Errorf("required hard-enforcement rules have not been reconciled for active catalog %s; run permission-policy doctor and reconcile with explicit authorization", revision.Digest())
+	}
+	if !last.HardEnforcementSatisfied {
+		return fmt.Errorf("required hard-enforcement rules lack a native or hook-backed resource: %v", last.MissingHardEnforcementRuleIDs)
+	}
+	return nil
 }
 
 func allResourcesReconciled(resources []ResourcePlan) bool {

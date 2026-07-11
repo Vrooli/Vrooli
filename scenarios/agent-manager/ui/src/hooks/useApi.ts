@@ -43,6 +43,8 @@ import {
   UpdateTaskResponseSchema,
   GetRunDiffResponseSchema,
   GetRunEventsResponseSchema,
+  GetPermissionPolicyCatalogResponseSchema,
+  GetPermissionPolicyStatusResponseSchema,
   GetRunResponseSchema,
   GetRolePolicyCatalogResponseSchema,
   GetRunnerStatusResponseSchema,
@@ -57,6 +59,12 @@ import {
   PurgeTarget,
   ProbeRunnerResponseSchema,
   RejectRunRequestSchema,
+  DoctorPermissionPolicyResponseSchema,
+  PlanPermissionPolicyResponseSchema,
+  ReconcilePermissionPolicyRequestSchema,
+  ReconcilePermissionPolicyResponseSchema,
+  ReloadPermissionPolicyCatalogResponseSchema,
+  ValidatePermissionPolicyCatalogResponseSchema,
   UpdateProfileRequestSchema,
   UpdateProfileResponseSchema,
 } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
@@ -1049,6 +1057,78 @@ export function useRolePolicyCatalog(options?: { enabled?: boolean }) {
   }, [enabled, fetchCatalog]);
 
   return { data, loading, error, refetch: fetchCatalog };
+}
+
+type PermissionPolicyData = {
+  status: MessageShape<typeof GetPermissionPolicyStatusResponseSchema>;
+  catalog: MessageShape<typeof GetPermissionPolicyCatalogResponseSchema>;
+};
+
+// Permission-policy actions are intentionally whole-document operations. The
+// UI never exposes resource-native patterns or individual rule mutation.
+export function usePermissionPolicy(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  const { data, loading, error, setData, setLoading, setError } = useApiState<PermissionPolicyData | null>(null);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [statusPayload, catalogPayload] = await Promise.all([
+        apiRequest<unknown>("/permission-policy/status"),
+        apiRequest<unknown>("/permission-policy/catalog"),
+      ]);
+      setData({
+        status: parseProto(GetPermissionPolicyStatusResponseSchema, statusPayload),
+        catalog: parseProto(GetPermissionPolicyCatalogResponseSchema, catalogPayload),
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setLoading, setError]);
+
+  useEffect(() => {
+    if (enabled) void refetch();
+  }, [enabled, refetch]);
+
+  const validate = useCallback(async () => {
+    const payload = await apiRequest<unknown>("/permission-policy/validate", { method: "POST" });
+    const response = parseProto(ValidatePermissionPolicyCatalogResponseSchema, payload);
+    await refetch();
+    return response;
+  }, [refetch]);
+
+  const reload = useCallback(async () => {
+    const payload = await apiRequest<unknown>("/permission-policy/reload", { method: "POST" });
+    const response = parseProto(ReloadPermissionPolicyCatalogResponseSchema, payload);
+    await refetch();
+    return response;
+  }, [refetch]);
+
+  const plan = useCallback(async () => {
+    const payload = await apiRequest<unknown>("/permission-policy/plan", { method: "POST" });
+    return parseProto(PlanPermissionPolicyResponseSchema, payload);
+  }, []);
+
+  const doctor = useCallback(async () => {
+    const payload = await apiRequest<unknown>("/permission-policy/doctor", { method: "POST" });
+    return parseProto(DoctorPermissionPolicyResponseSchema, payload);
+  }, []);
+
+  const reconcile = useCallback(async () => {
+    const request = create(ReconcilePermissionPolicyRequestSchema, { explicitlyAuthorized: true });
+    const payload = await apiRequest<unknown>("/permission-policy/reconcile", {
+      method: "POST",
+      body: JSON.stringify(toProtoJson(ReconcilePermissionPolicyRequestSchema, request)),
+    });
+    const response = parseProto(ReconcilePermissionPolicyResponseSchema, payload);
+    await refetch();
+    return response;
+  }, [refetch]);
+
+  return { data, loading, error, refetch, validate, reload, plan, doctor, reconcile };
 }
 
 // Probe runner function (standalone for use in components)

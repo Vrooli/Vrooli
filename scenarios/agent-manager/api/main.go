@@ -640,7 +640,7 @@ func (s *Server) setupRoutes() {
 		Version("1.0.0").
 		Check(health.DB(rawDB), health.Critical).
 		Check(rolePolicyHealthChecker(s.rolePolicyState), health.Critical).
-		Check(permissionPolicyHealthChecker(s.permissionPolicyState), health.Critical).
+		Check(permissionPolicyHealthChecker(s.permissionPolicyState, s.permissionPolicy), health.Critical).
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	// Detailed health for UI (includes sandbox + runner dependencies).
@@ -708,7 +708,7 @@ func rolePolicyHealthChecker(state *rolepolicy.State) health.Checker {
 	if state == nil {
 		return nil
 	}
-	return health.CheckerFunc(func(context.Context) health.CheckResult {
+	return health.CheckerFunc(func(ctx context.Context) health.CheckResult {
 		status := state.Status()
 		if err := state.ReadinessError(); err != nil {
 			detail := health.NewErrorDetail(
@@ -732,11 +732,11 @@ func rolePolicyHealthChecker(state *rolepolicy.State) health.Checker {
 // permissionPolicyHealthChecker separates invalid global desired state from
 // resource availability. Resource projection is an explicit operator action;
 // it is never performed as a side effect of an infrastructure health probe.
-func permissionPolicyHealthChecker(state *permissionpolicy.State) health.Checker {
+func permissionPolicyHealthChecker(state *permissionpolicy.State, service *permissionpolicy.Service) health.Checker {
 	if state == nil {
 		return nil
 	}
-	return health.CheckerFunc(func(context.Context) health.CheckResult {
+	return health.CheckerFunc(func(ctx context.Context) health.CheckResult {
 		status := state.Status()
 		if err := state.ReadinessError(); err != nil {
 			detail := health.NewErrorDetail(
@@ -752,6 +752,22 @@ func permissionPolicyHealthChecker(state *permissionpolicy.State) health.Checker
 				"active_digest":      status.ActiveDigest,
 			}
 			return health.CheckResult{Name: "permission_policy_catalog", Connected: false, Error: detail}
+		}
+		if service != nil {
+			if err := service.ReadinessError(ctx); err != nil {
+				detail := health.NewErrorDetail(
+					"PERMISSION_POLICY_HARD_ENFORCEMENT_UNREADY",
+					err.Error(),
+					"permission_enforcement",
+					true,
+				)
+				detail.Details = map[string]any{
+					"path":               status.Path,
+					"active_digest":      status.ActiveDigest,
+					"requirement_reason": status.Requirement.Reason,
+				}
+				return health.CheckResult{Name: "permission_policy_enforcement", Connected: false, Error: detail}
+			}
 		}
 		return health.CheckResult{Name: "permission_policy_catalog", Connected: true}
 	})

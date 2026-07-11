@@ -286,6 +286,33 @@ rather than reconstructing provenance from the active catalog. The CLI group is
 
 ---
 
+### 1ad. Desired-permission Control Plane (`permissionpolicy` → handlers/CLI/UI)
+
+`internal/permissionpolicy.State` atomically owns the declared portable
+permission catalog; `Service` owns deterministic resource planning,
+authorization-gated reconciliation, and metadata-only audit evidence. Resource
+CLIs remain the only native-file writers. The generated API and CLI expose only
+whole-document status, catalog, validate, reload, plan, reconcile, and doctor
+operations; the Settings **Permissions** tab uses those same endpoints.
+
+Required hard-enforcement rules have a readiness contract beyond catalog
+syntax: current reconcile evidence must match the active digest and report a
+native or hook-backed enforcing resource. Optional unavailable resources stay
+visible in plan/audit evidence without degrading health. The UI requires an
+explicit authorization acknowledgement before it enables reconcile, and it
+does not offer individual-rule or native-syntax mutation.
+
+The structured-log surface records `permission_policy_reloaded`, plan/doctor
+observations, `permission_policy_reconcile_started`, and reconcile completion.
+Stable attributes carry only catalog digest, resource/drift/unsupported counts,
+hard-enforcement state, missing rule IDs, and partial-failure state—never rule
+patterns or copies of native files.
+
+**Tests:** `internal/permissionpolicy/service_test.go`, permission-policy
+handler tests, and UI lint/type checks.
+
+---
+
 ### 1b. Flag Validator (`adapters/runner`)
 
 **Purpose:** Validate runner-specific CLI flags against runner allowlists without coupling orchestration to runner internals.

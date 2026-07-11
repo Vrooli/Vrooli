@@ -34,6 +34,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/protoconv"
 	"agent-manager/internal/rolepolicy"
@@ -2983,6 +2984,9 @@ func (h *Handler) ReloadPermissionPolicyCatalog(w http.ResponseWriter, r *http.R
 	}
 	if err != nil {
 		response.Diagnostic = protoconv.PermissionPolicyDiagnosticToProto(&permissionpolicy.Diagnostic{Code: permissionpolicy.DiagnosticCodeCatalogInvalid, Message: err.Error(), Cause: err.Error()})
+		obs.Component("permission-policy").Error("permission_policy_reload_failed", obs.KeyError, err.Error(), obs.KeyPermissionPolicyDigest, response.Status.GetActiveDigest())
+	} else {
+		obs.Component("permission-policy").Info("permission_policy_reloaded", obs.KeyPermissionPolicyDigest, response.Status.GetActiveDigest())
 	}
 	writeProtoJSON(w, http.StatusOK, response)
 }
@@ -2996,6 +3000,7 @@ func (h *Handler) PlanPermissionPolicy(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "permission_policy", err.Error())
 		return
 	}
+	logPermissionPolicyPlan("permission_policy_planned", plan)
 	writeProtoJSON(w, http.StatusOK, &apipb.PlanPermissionPolicyResponse{Plan: protoconv.PermissionPolicyPlanToProto(plan)})
 }
 
@@ -3017,11 +3022,13 @@ func (h *Handler) ReconcilePermissionPolicy(w http.ResponseWriter, r *http.Reque
 		writeSimpleError(w, r, "explicitly_authorized", "explicit human authorization is required")
 		return
 	}
+	obs.Component("permission-policy").Info("permission_policy_reconcile_started", obs.KeyPermissionPolicyDigest, h.permissionPolicyState.Status().ActiveDigest)
 	result, err := h.permissionPolicy.Reconcile(r.Context(), true)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
+	logPermissionPolicyReconcile(result)
 	writeProtoJSON(w, http.StatusOK, &apipb.ReconcilePermissionPolicyResponse{Result: protoconv.PermissionPolicyReconcileResultToProto(&result)})
 }
 
@@ -3034,6 +3041,7 @@ func (h *Handler) DoctorPermissionPolicy(w http.ResponseWriter, r *http.Request)
 		writeSimpleError(w, r, "permission_policy", err.Error())
 		return
 	}
+	logPermissionPolicyPlan("permission_policy_doctor_planned", plan)
 	status := h.permissionPolicyState.Status()
 	healthy := status.Ready && plan.HardEnforcementSatisfied
 	summary := "permission policy is ready; no required hard-enforcement gap was detected"
@@ -3048,6 +3056,53 @@ func (h *Handler) DoctorPermissionPolicy(w http.ResponseWriter, r *http.Request)
 		Healthy: healthy,
 		Summary: summary,
 	})
+}
+
+func logPermissionPolicyPlan(event string, plan permissionpolicy.AggregatePlan) {
+	driftCount, unsupportedCount := permissionPolicyObservationCounts(plan.Resources)
+	attrs := []any{
+		obs.KeyPermissionPolicyDigest, plan.CatalogDigest,
+		obs.KeyPermissionPolicyResourceCount, len(plan.Resources),
+		obs.KeyPermissionPolicyDriftCount, driftCount,
+		obs.KeyPermissionPolicyUnsupportedCount, unsupportedCount,
+		obs.KeyHardEnforcementSatisfied, plan.HardEnforcementSatisfied,
+		obs.KeyMissingHardEnforcementRuleIDs, plan.MissingHardEnforcementRuleIDs,
+	}
+	logger := obs.Component("permission-policy")
+	if !plan.HardEnforcementSatisfied || unsupportedCount > 0 {
+		logger.Warn(event, attrs...)
+		return
+	}
+	logger.Info(event, attrs...)
+}
+
+func logPermissionPolicyReconcile(result permissionpolicy.ReconcileResult) {
+	driftCount, unsupportedCount := permissionPolicyObservationCounts(result.Resources)
+	attrs := []any{
+		obs.KeyPermissionPolicyDigest, result.CatalogDigest,
+		obs.KeyPermissionPolicyResourceCount, len(result.Resources),
+		obs.KeyPermissionPolicyDriftCount, driftCount,
+		obs.KeyPermissionPolicyUnsupportedCount, unsupportedCount,
+		obs.KeyHardEnforcementSatisfied, result.HardEnforcementSatisfied,
+		obs.KeyMissingHardEnforcementRuleIDs, result.MissingHardEnforcementRuleIDs,
+		obs.KeyPermissionPolicyPartialFailure, !result.Success,
+	}
+	logger := obs.Component("permission-policy")
+	if !result.Success || unsupportedCount > 0 {
+		logger.Warn("permission_policy_reconcile_completed", attrs...)
+		return
+	}
+	logger.Info("permission_policy_reconcile_completed", attrs...)
+}
+
+func permissionPolicyObservationCounts(resources []permissionpolicy.ResourcePlan) (driftCount, unsupportedCount int) {
+	for _, resource := range resources {
+		if resource.Drift {
+			driftCount++
+		}
+		unsupportedCount += len(resource.UnsupportedMatchers)
+	}
+	return driftCount, unsupportedCount
 }
 
 // PurgeData deletes profiles, tasks, or runs matching a regex pattern.

@@ -84,6 +84,19 @@ reconcile requires the shared explicit-human authorization signal and runs in
 deterministic runner/scope order. If any resource is unavailable or fails,
 the result remains auditable but is never reported as global success.
 
+The Settings **Permissions** tab is a compact operator surface for the same
+whole-document workflow: inspect status and declared rules, validate/reload,
+plan/doctor, then reconcile only after explicitly confirming authorization.
+It deliberately has no per-rule editor and never exposes native resource
+syntax as an Agent Manager input.
+
+Readiness treats required hard-enforcement rules more strictly than optional
+resources. A catalog with no such rule remains ready even if an optional
+resource is unavailable. When a rule requires hard enforcement, current
+reconciliation evidence for the active catalog digest must show a native or
+hook-backed resource; missing or stale evidence, or a missing enforcing
+candidate, makes `/health` degraded with an actionable operator message.
+
 ## Execution
 
 Run-level execution behavior.
