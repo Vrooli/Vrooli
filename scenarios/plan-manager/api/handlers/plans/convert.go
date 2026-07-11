@@ -130,6 +130,7 @@ func phaseFromProtoChecked(ph *sharedv1.Phase) (internalplans.Phase, error) {
 		HandoffNotes:    ph.GetHandoffNotes(),
 		RisksHazards:    ph.GetRisksHazards(),
 		ChangeBoundary:  planproto.ChangeBoundaryFromProto(ph.GetChangeBoundary()),
+		ValidationScope: planproto.ValidationScopeFromProto(ph.GetValidationScope()),
 	}, nil
 }
 

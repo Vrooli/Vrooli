@@ -22,3 +22,32 @@ CREATE TABLE IF NOT EXISTS validation_results (
 
 -- Lookup is "the latest result for this (plan, phase)" — index the scope + time.
 CREATE INDEX IF NOT EXISTS idx_validation_results_scope ON validation_results(plan_id, phase_id, ran_at);
+
+-- validation_operations is the durable ownership record for a long validation.
+-- payload_json contains the complete versioned domain record, including child
+-- checkpoints and the terminal result. Indexed columns support dedup/recovery
+-- without interpreting the payload in SQL.
+CREATE TABLE IF NOT EXISTS validation_operations (
+  id               TEXT PRIMARY KEY,
+  plan_id          TEXT NOT NULL,
+  phase_id         TEXT NOT NULL DEFAULT '',
+  idempotency_key  TEXT NOT NULL DEFAULT '',
+  status           TEXT NOT NULL,
+  queued_at        TEXT NOT NULL,
+  updated_at       TEXT NOT NULL,
+  payload_json     TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_validation_operations_idempotency
+ON validation_operations(plan_id, phase_id, idempotency_key)
+WHERE idempotency_key <> '';
+
+-- The caller key is only a retry alias. The durable safety boundary is one
+-- active graph per plan/phase, including unkeyed starts. Terminal history is
+-- intentionally unconstrained so a later validation can be created.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_validation_operations_one_active_scope
+ON validation_operations(plan_id, phase_id)
+WHERE status <> 'terminal';
+
+CREATE INDEX IF NOT EXISTS idx_validation_operations_recovery
+ON validation_operations(status, updated_at);

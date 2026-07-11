@@ -106,6 +106,7 @@ func phaseDraftsToPlanPhases(drafts []PhaseDraft) []planmodel.Phase {
 			Acceptance:      draft.Acceptance,
 			References:      append([]planmodel.Reference(nil), draft.References...),
 			RelevantContext: relevantContext,
+			ValidationScope: draft.ValidationScope,
 			Status:          planmodel.PhaseStatusTodo,
 		})
 	}

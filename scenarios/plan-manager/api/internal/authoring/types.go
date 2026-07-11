@@ -70,6 +70,7 @@ const (
 	PhaseFieldReminders        PhaseField = "reminders"
 	PhaseFieldNoCodeRefsReason PhaseField = "no_code_refs_reason"
 	PhaseFieldRelevantContext  PhaseField = "relevant_context"
+	PhaseFieldValidationScope  PhaseField = "validation_scope"
 )
 
 // Section is one authored or auto-filled section of a plan-in-progress. key/
@@ -118,6 +119,7 @@ type PhaseDraft struct {
 	Reminders        []string
 	NoCodeRefsReason string
 	RelevantContext  []planmodel.RelevantContextItem
+	ValidationScope  planmodel.ValidationScope
 }
 
 // Session is the transient state of a guided authoring flow. It persists across

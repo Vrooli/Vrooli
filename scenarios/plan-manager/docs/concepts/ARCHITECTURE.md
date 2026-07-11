@@ -56,6 +56,22 @@ proto contracts.
 
 The structured shape of what flows here is defined once in [`PLAN-MODEL.md`](PLAN-MODEL.md).
 
+### Durable validation lifecycle
+
+Validation is a server-owned operation, not the lifetime of one Connect/HTTP
+request. The validation domain persists an operation id and its child baseline
+intents before dispatch, then records queued, running, and terminal transitions
+plus each child result exactly once. Independent scenario oracles run
+concurrently with bounded fan-out; informational repository diffs stay separate
+from verdict-producing children.
+
+Queue residence, child execution, and transport attachment have distinct
+budgets. A client timeout, disconnect, or unexpected EOF detaches the caller but
+does not cancel the operation. Start/show/wait/resume reattach by durable id and
+idempotency key, including after service restart. PASS requires every required
+oracle child to be terminal and comparable; unavailable, missing, timed-out, or
+not-comparable evidence remains UNKNOWN/degraded.
+
 ## Shared Infrastructure
 
 - `api/internal/server/` — HTTP composition.

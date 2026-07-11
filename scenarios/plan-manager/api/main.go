@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"plan-manager/internal/clock"
 	internalexecution "plan-manager/internal/execution"
@@ -163,7 +164,12 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// One blocking validation attachment is budgeted at 15m. The operation
+		// remains durable beyond this transport window; the extra margin lets the
+		// handler return its terminal/current projection instead of being cut off
+		// by api-core's 30s default write timeout.
+		WriteTimeout: 17 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

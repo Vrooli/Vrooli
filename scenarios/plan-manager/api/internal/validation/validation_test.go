@@ -2,13 +2,19 @@ package validation_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
+	"plan-manager/internal/testutil/mocks"
 	"plan-manager/internal/validation"
 
 	"github.com/stretchr/testify/require"
@@ -51,6 +57,98 @@ func (f fakeStaleness) Compute(_ context.Context, _ internalplans.Reference) (in
 type fakeCommandValidator struct {
 	results map[string]validation.CommandReferenceResult
 	calls   []validation.CommandReferenceRequest
+}
+
+type fakeDurableStore struct {
+	mu      sync.Mutex
+	ops     map[string]validation.ValidationOperation
+	byKey   map[string]string
+	byScope map[string]string
+	results map[string]validation.Result
+}
+
+func newFakeDurableStore() *fakeDurableStore {
+	return &fakeDurableStore{ops: map[string]validation.ValidationOperation{}, byKey: map[string]string{}, byScope: map[string]string{}, results: map[string]validation.Result{}}
+}
+
+func cloneOperation(op validation.ValidationOperation) validation.ValidationOperation {
+	data, _ := json.Marshal(op)
+	var cloned validation.ValidationOperation
+	_ = json.Unmarshal(data, &cloned)
+	return cloned
+}
+
+func (s *fakeDurableStore) CreateOperation(_ context.Context, op validation.ValidationOperation) (validation.ValidationOperation, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := op.PlanID + "\x00" + op.PhaseID + "\x00" + op.IdempotencyKey
+	scope := op.PlanID + "\x00" + op.PhaseID
+	if id := s.byScope[scope]; id != "" && !s.ops[id].Terminal() {
+		return cloneOperation(s.ops[id]), false, nil
+	}
+	if op.IdempotencyKey != "" {
+		if id := s.byKey[key]; id != "" {
+			return cloneOperation(s.ops[id]), false, nil
+		}
+		s.byKey[key] = op.ID
+	}
+	s.ops[op.ID] = cloneOperation(op)
+	s.byScope[scope] = op.ID
+	return cloneOperation(op), true, nil
+}
+
+func (s *fakeDurableStore) SaveOperation(_ context.Context, op validation.ValidationOperation) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ops[op.ID] = cloneOperation(op)
+	return nil
+}
+
+func (s *fakeDurableStore) GetOperation(_ context.Context, id string) (validation.ValidationOperation, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	op, ok := s.ops[id]
+	return cloneOperation(op), ok, nil
+}
+
+func (s *fakeDurableStore) ListNonTerminalOperations(context.Context) ([]validation.ValidationOperation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []validation.ValidationOperation
+	for _, op := range s.ops {
+		if !op.Terminal() {
+			out = append(out, cloneOperation(op))
+		}
+	}
+	return out, nil
+}
+
+func (s *fakeDurableStore) SaveResult(_ context.Context, result validation.Result) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.results[result.ID]; !exists {
+		s.results[result.ID] = result
+	}
+	return nil
+}
+
+func (s *fakeDurableStore) GetResult(_ context.Context, id string) (validation.Result, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	result, found := s.results[id]
+	return result, found, nil
+}
+
+func (s *fakeDurableStore) LastResult(_ context.Context, planID, phaseID string) (validation.Result, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var latest validation.Result
+	for _, result := range s.results {
+		if result.PlanID == planID && result.PhaseID == phaseID && result.RanAt >= latest.RanAt {
+			latest = result
+		}
+	}
+	return latest, latest.ID != "", nil
 }
 
 func (f *fakeCommandValidator) ValidateCommandReference(_ context.Context, req validation.CommandReferenceRequest) (validation.CommandReferenceResult, error) {
@@ -291,28 +389,63 @@ func TestDeriveBaselineScope(t *testing.T) {
 		},
 		RegressionAnchor: internalplans.RegressionAnchor{
 			BaselineName: "impl",
-			Commands:     []string{"git-control-tower baseline diff --scenario foo --name impl --wait"},
+			Commands:     []string{"git-control-tower baseline diff --scenario foo --name impl --wait --json"},
 		},
 	}
 	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
 	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
 	require.NoError(t, err)
 
-	require.Contains(t, scope.Commands, "git-control-tower baseline snapshot status --scenario foo --name impl --wait --json")
-	require.Contains(t, scope.Commands, "git-control-tower baseline snapshot status --scenario bar --name impl --wait --json")
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl --wait")
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl --wait")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl --wait --json")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl --wait --json")
 	require.Contains(t, scope.Commands, "git diff --stat", "non-scenario code => repo-level diff")
 	require.Contains(t, scope.Locations, "scenarios/foo")
 	require.Contains(t, scope.Locations, "repo")
 	// Anchor command is deduped, not duplicated.
 	foo := 0
 	for _, c := range scope.Commands {
-		if c == "git-control-tower baseline diff --scenario foo --name impl --wait" {
+		if c == "git-control-tower baseline diff --scenario foo --name impl --wait --json" {
 			foo++
 		}
 	}
 	require.Equal(t, 1, foo, "anchor command deduped against derived command")
+	require.Len(t, scope.Commands, 3, "one semantic scenario oracle each plus one informational repo diff")
+}
+
+func TestDeriveBaselineScopeCompilesFleetToOneOraclePerScenario(t *testing.T) { // [REQ:PM-VALID-001]
+	allow := make([]string, 0, 22)
+	for i := 0; i < 22; i++ {
+		allow = append(allow, fmt.Sprintf("scenarios/scenario-%02d/**", i))
+	}
+	allow = append(allow, "packages/proto/**")
+	plan := planWith(nil, nil)
+	plan.ChangeBoundary.AcceptanceAllow = allow
+	plan.RegressionAnchor.BaselineName = "fixture"
+	// The human and JSON projections of the same GCT oracle must collapse.
+	plan.RegressionAnchor.Commands = []string{
+		"git-control-tower baseline diff --scenario scenario-00 --name fixture --wait",
+		"git-control-tower baseline diff --scenario scenario-00 --name fixture --wait --json",
+	}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
+	require.NoError(t, err)
+	require.Len(t, scope.Commands, 23, "one oracle per scenario plus one informational repo diff, with no snapshots or render duplicates")
+	for _, command := range scope.Commands {
+		require.NotContains(t, command, "snapshot status")
+	}
+}
+
+func TestDeriveBaselineScopeUsesExplicitNarrowPhaseScope(t *testing.T) { // [REQ:PM-VALID-001]
+	plan := durableValidationPlan()
+	plan.ChangeBoundary.AcceptanceAllow = []string{"scenarios/agent-manager/**", "scenarios/plan-manager/**"}
+	plan.Phases = []internalplans.Phase{{
+		ID: "phase-3", Title: "Agent Manager work", Intent: "Narrow validation.",
+		ValidationScope: planmodel.ValidationScope{Mode: planmodel.ValidationScopeNarrow, Boundary: internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/agent-manager/**"}}},
+	}}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "phase-3")
+	require.NoError(t, err)
+	require.Equal(t, []string{"git-control-tower baseline diff --scenario agent-manager --name impl --wait --json"}, scope.Commands)
 }
 
 func TestDeriveBaselineScopeDoesNotFabricateGCTCommandWithoutName(t *testing.T) {
@@ -335,7 +468,7 @@ func TestDeriveBaselineScopeUsesTypedAnchorWithoutReferences(t *testing.T) {
 	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
 	require.NoError(t, err)
 	require.Contains(t, scope.Locations, "scenarios/plan-manager")
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario plan-manager --name hardening --wait")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario plan-manager --name hardening --wait --json")
 }
 
 func TestDeriveBaselineScopeUsesHeadAllowlistAnchorWithoutReferences(t *testing.T) {
@@ -376,8 +509,8 @@ func TestDeriveBaselineScopeFromChangeBoundary(t *testing.T) {
 	require.NoError(t, err)
 
 	// Boundary scenario foo and reference scenario bar both produce oracle pairs.
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl --wait")
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl --wait")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl --wait --json")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl --wait --json")
 	// Non-scenario allow globs become ONE path-scoped informational diff (no sha).
 	require.Contains(t, scope.Commands, "git diff --stat -- docs/** packages/proto/**")
 	require.Contains(t, scope.Locations, "scenarios/foo")
@@ -452,6 +585,278 @@ func TestRunValidationVerdicts(t *testing.T) {
 	require.Equal(t, validation.VerdictUnknown, res.Verdict)
 }
 
+func durableValidationPlan() internalplans.Plan {
+	plan := planWith(nil, nil)
+	plan.ChangeBoundary.AcceptanceAllow = []string{"scenarios/foo/**"}
+	plan.RegressionAnchor = internalplans.RegressionAnchor{
+		Strategy: internalplans.AnchorStrategyChangeBoundary, BaselineName: "impl",
+	}
+	return plan
+}
+
+func TestDurableValidationConcurrentIdempotencyRunsOneChildSet(t *testing.T) { // [REQ:PM-VALID-004]
+	store := newFakeDurableStore()
+	release := make(chan struct{})
+	var callsMu sync.Mutex
+	var calls int
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
+		Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			callsMu.Lock()
+			calls++
+			callsMu.Unlock()
+			<-release
+			return []byte(`{"runId":"run-child"}`), nil
+		},
+	})
+
+	const starters = 12
+	ids := make(chan string, starters)
+	var wg sync.WaitGroup
+	for i := 0; i < starters; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			op, _, err := svc.StartValidation(context.Background(), "p1", "", "same-request")
+			require.NoError(t, err)
+			ids <- op.ID
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	var operationID string
+	for id := range ids {
+		if operationID == "" {
+			operationID = id
+		}
+		require.Equal(t, operationID, id)
+	}
+	close(release)
+	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	op, err := svc.GetValidationOperation(waitCtx, operationID, true)
+	require.NoError(t, err)
+	require.True(t, op.Terminal())
+	require.NotNil(t, op.Result)
+	require.NotEmpty(t, op.ResultRef)
+	require.Len(t, op.Children, 1)
+	for _, child := range op.Children {
+		require.Equal(t, validation.ChildTerminal, child.Status)
+		require.Equal(t, 1, child.Attempt)
+		require.Equal(t, "run-child", child.ExternalID)
+	}
+	callsMu.Lock()
+	require.Equal(t, len(op.Children), calls)
+	callsMu.Unlock()
+}
+
+func TestDurableValidationConcurrentUnkeyedStartsCoalesce(t *testing.T) { // [REQ:PM-VALID-004]
+	store := newFakeDurableStore()
+	release := make(chan struct{})
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
+		Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) { <-release; return nil, nil },
+	})
+	const starters = 8
+	ids := make(chan string, starters)
+	var wg sync.WaitGroup
+	for i := 0; i < starters; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			op, _, err := svc.StartValidation(context.Background(), "p1", "", "")
+			require.NoError(t, err)
+			ids <- op.ID
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	var first string
+	for id := range ids {
+		if first == "" {
+			first = id
+		}
+		require.Equal(t, first, id)
+	}
+	close(release)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	op, err := svc.GetValidationOperation(ctx, first, true)
+	require.NoError(t, err)
+	require.Len(t, op.Children, 1)
+	require.Contains(t, op.ScopeFingerprint, "sha256:")
+}
+
+func TestDurableValidationCallerCancellationDetachesAndTerminalPersists(t *testing.T) { // [REQ:PM-VALID-004]
+	store := newFakeDurableStore()
+	release := make(chan struct{})
+	started := make(chan struct{})
+	var once sync.Once
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
+		Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			once.Do(func() { close(started) })
+			<-release
+			return []byte(`{"run_id":"run-after-detach"}`), nil
+		},
+	})
+	op, _, err := svc.StartValidation(context.Background(), "p1", "", "detach")
+	require.NoError(t, err)
+	<-started
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	detached, err := svc.GetValidationOperation(ctx, op.ID, true)
+	var attachmentEnded validation.ErrAttachmentEnded
+	require.ErrorAs(t, err, &attachmentEnded)
+	require.Equal(t, op.ID, attachmentEnded.OperationID)
+	require.False(t, detached.Terminal())
+	close(release)
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer waitCancel()
+	terminal, err := svc.GetValidationOperation(waitCtx, op.ID, true)
+	require.NoError(t, err)
+	require.True(t, terminal.Terminal())
+	require.NotNil(t, terminal.Result)
+	stored, ok, err := store.LastResult(context.Background(), "p1", "")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, terminal.ResultRef, stored.ID)
+}
+
+func TestDurableValidationRestartRecoversQueuedCheckpoint(t *testing.T) { // [REQ:PM-VALID-004]
+	store := newFakeDurableStore()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	command := "git-control-tower baseline diff --scenario foo --name impl --wait --json"
+	queued := validation.ValidationOperation{
+		ID: "op-restart", PlanID: "p1", Status: validation.OperationQueued, QueuedAt: now,
+		ExecutionBudgetSeconds: 60, RecommendedWaitSeconds: 60,
+		Children: []validation.ValidationChild{{
+			ID: "op-restart:1", Command: command, Oracle: true,
+			Status: validation.ChildQueued, QueuedAt: now,
+		}},
+		Result: &validation.Result{PlanID: "p1", CommandsRun: []string{command}},
+	}
+	_, created, err := store.CreateOperation(context.Background(), queued)
+	require.NoError(t, err)
+	require.True(t, created)
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
+		Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return []byte(`{"runId":"run-recovered"}`), nil
+		},
+	})
+	require.NoError(t, svc.RecoverPending(context.Background()))
+	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	op, err := svc.GetValidationOperation(waitCtx, queued.ID, true)
+	require.NoError(t, err)
+	require.True(t, op.Terminal())
+	require.Equal(t, 1, op.Attempt)
+	require.Equal(t, 1, op.Children[0].Attempt)
+	require.Equal(t, "run-recovered", op.Children[0].ExternalID)
+}
+
+func TestDurableValidationQueueResidenceDoesNotConsumeExecutionBudget(t *testing.T) { // [REQ:PM-VALID-004]
+	store := newFakeDurableStore()
+	clock := mocks.NewFakeClock(time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC))
+	queuedAt := clock.Now().UTC().Format(time.RFC3339Nano)
+	clock.Advance(10*time.Minute - time.Second) // near the former shared command ceiling
+	command := "git-control-tower baseline diff --scenario foo --name impl --wait --json"
+	queued := validation.ValidationOperation{
+		ID: "op-queue", PlanID: "p1", Status: validation.OperationQueued, QueuedAt: queuedAt,
+		QueueBudgetSeconds: 600, ExecutionBudgetSeconds: 5,
+		Children: []validation.ValidationChild{{ID: "op-queue:1", Command: command, Oracle: true, Status: validation.ChildQueued, QueuedAt: queuedAt}},
+		Result:   &validation.Result{ID: "op-queue:result", PlanID: "p1", CommandsRun: []string{command}},
+	}
+	_, _, err := store.CreateOperation(context.Background(), queued)
+	require.NoError(t, err)
+	remaining := make(chan time.Duration, 1)
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store, Clock: clock,
+		Runner: func(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+			deadline, ok := ctx.Deadline()
+			require.True(t, ok)
+			remaining <- time.Until(deadline)
+			return []byte(`{"runId":"run-after-queue"}`), nil
+		},
+	})
+	require.NoError(t, svc.RecoverPending(context.Background()))
+	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	op, err := svc.GetValidationOperation(waitCtx, queued.ID, true)
+	require.NoError(t, err)
+	require.True(t, op.Terminal())
+	require.Greater(t, <-remaining, 4*time.Second)
+}
+
+func TestDurableValidationBoundsConcurrentScenarioChildren(t *testing.T) { // [REQ:PM-VALID-004]
+	store := newFakeDurableStore()
+	plan := durableValidationPlan()
+	plan.ChangeBoundary.AcceptanceAllow = []string{
+		"scenarios/a/**", "scenarios/b/**", "scenarios/c/**",
+		"scenarios/d/**", "scenarios/e/**", "scenarios/f/**",
+	}
+	release := make(chan struct{})
+	started := make(chan struct{}, 12)
+	var mu sync.Mutex
+	inFlight, maximum := 0, 0
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Results: store, Operations: store,
+		Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			mu.Lock()
+			inFlight++
+			if inFlight > maximum {
+				maximum = inFlight
+			}
+			mu.Unlock()
+			started <- struct{}{}
+			<-release
+			mu.Lock()
+			inFlight--
+			mu.Unlock()
+			return []byte(`{"runId":"run-bounded"}`), nil
+		},
+	})
+	op, _, err := svc.StartValidation(context.Background(), "p1", "", "bounded")
+	require.NoError(t, err)
+	<-started
+	mu.Lock()
+	require.Equal(t, 1, maximum, "one claimed child per operation leaves capacity for competing operations")
+	mu.Unlock()
+	close(release)
+	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	op, err = svc.GetValidationOperation(waitCtx, op.ID, true)
+	require.NoError(t, err)
+	require.True(t, op.Terminal())
+	require.Len(t, op.Children, 6)
+	mu.Lock()
+	require.LessOrEqual(t, maximum, 4)
+	mu.Unlock()
+}
+
+func TestDurableValidationUnavailableOracleCannotPublishPass(t *testing.T) { // [REQ:PM-VALID-004]
+	store := newFakeDurableStore()
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
+		Runner: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+			if strings.HasPrefix(strings.Join(args, " "), "baseline diff ") {
+				return nil, validation.ErrToolNotFound
+			}
+			return []byte(`{"runId":"snapshot-ready"}`), nil
+		},
+	})
+	op, _, err := svc.StartValidation(context.Background(), "p1", "", "unknown")
+	require.NoError(t, err)
+	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	op, err = svc.GetValidationOperation(waitCtx, op.ID, true)
+	require.NoError(t, err)
+	require.True(t, op.Terminal())
+	require.NotNil(t, op.Result)
+	require.Equal(t, validation.VerdictUnknown, op.Result.Verdict)
+}
+
 // TestCaptureBaselineShellsGCTFromAnchorIntent proves CaptureBaseline derives the
 // snapshot command from the typed anchor intent and degrades honestly when the
 // intent is a placeholder or git-control-tower is absent.
@@ -467,7 +872,7 @@ func TestCaptureBaselineShellsGCTFromAnchorIntent(t *testing.T) {
 		Runner: func(_ context.Context, name string, args ...string) ([]byte, error) {
 			calls = append(calls, name+" "+strings.Join(args, " "))
 			if len(args) >= 3 && args[0] == "baseline" && args[1] == "snapshot" && args[2] == "status" {
-				return []byte(`{"status":"ready","baseline":{"surfaces":{"tests":{},"rules":{}}}}`), nil
+				return []byte(`{"status":"ready","baseline":{"schemaVersion":2,"run":{"runId":"run-v2"}}}`), nil
 			}
 			return []byte("snapshot started"), nil
 		},
@@ -477,7 +882,8 @@ func TestCaptureBaselineShellsGCTFromAnchorIntent(t *testing.T) {
 	require.True(t, cap1.Captured)
 	require.Equal(t, "plan-manager", cap1.Scenario)
 	require.Equal(t, "impl-baseline", cap1.BaselineName)
-	require.Equal(t, 2, cap1.CapturedSurfaceCount)
+	require.Equal(t, "run-v2", cap1.RunID)
+	require.Equal(t, 2, cap1.SchemaVersion)
 	require.Len(t, calls, 2)
 	require.Contains(t, calls[0], "git-control-tower baseline snapshot --scenario plan-manager --name impl-baseline")
 	require.Contains(t, calls[1], "git-control-tower baseline snapshot status --scenario plan-manager --name impl-baseline --wait --json")
@@ -502,7 +908,7 @@ func TestCaptureBaselineShellsGCTFromAnchorIntent(t *testing.T) {
 	require.Contains(t, cap3.Detail, "git-control-tower unavailable")
 }
 
-func TestCaptureBaselineRejectsZeroSurfaceGCTBaseline(t *testing.T) {
+func TestCaptureBaselineRejectsLegacySurfaceManifestWithoutV2RunAnchor(t *testing.T) {
 	ctx := context.Background()
 	plan := planWith(nil, nil)
 	plan.RegressionAnchor = internalplans.RegressionAnchor{Scenario: "audio-tools", BaselineName: "stt-scaling-analysis-plan"}
@@ -519,11 +925,9 @@ func TestCaptureBaselineRejectsZeroSurfaceGCTBaseline(t *testing.T) {
 	cap, err := svc.CaptureBaseline(ctx, "p1")
 	require.NoError(t, err)
 	require.False(t, cap.Captured)
-	require.Equal(t, 0, cap.CapturedSurfaceCount)
-	require.Equal(t, "test-genie unreachable", cap.SkippedSurfaces["tests"])
-	require.Contains(t, cap.Detail, "captured 0 surfaces")
-	require.Contains(t, cap.Detail, "tests: test-genie unreachable")
-	require.Contains(t, cap.Detail, "HEAD sha + allowlist")
+	require.Empty(t, cap.RunID)
+	require.Contains(t, cap.Detail, "V2 run anchor")
+	require.Contains(t, cap.Detail, "schema=0")
 }
 
 func TestCaptureBaselineRejectsUnverifiableGCTBaseline(t *testing.T) {
@@ -543,8 +947,8 @@ func TestCaptureBaselineRejectsUnverifiableGCTBaseline(t *testing.T) {
 	cap, err := svc.CaptureBaseline(ctx, "p1")
 	require.NoError(t, err)
 	require.False(t, cap.Captured)
-	require.Contains(t, cap.Detail, "validation failed")
-	require.Contains(t, cap.Detail, "unusable")
+	require.Contains(t, cap.Detail, "finalization failed")
+	require.Contains(t, cap.Detail, "not yet a usable oracle")
 }
 
 func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
@@ -863,14 +1267,14 @@ func TestVerifyDoDDerivesFromReferences(t *testing.T) {
 	require.True(t, ok, "DoD derives an oracle from references when the anchor has no commands")
 	require.Equal(t, validation.VerdictPass, res.Verdict)
 	require.NotEmpty(t, ran, "a baseline command was actually derived and run")
-	require.Contains(t, res.CommandsRun, "git-control-tower baseline diff --scenario foo --name impl --wait")
+	require.Contains(t, res.CommandsRun, "git-control-tower baseline diff --scenario foo --name impl --wait --json")
 }
 
 func TestVerifyDefinitionOfDone(t *testing.T) {
 	plan := internalplans.Plan{
 		ID:               "p1",
 		Slug:             "p1",
-		RegressionAnchor: internalplans.RegressionAnchor{Commands: []string{"git-control-tower baseline diff --scenario foo --name impl --wait"}},
+		RegressionAnchor: internalplans.RegressionAnchor{Commands: []string{"git-control-tower baseline diff --scenario foo --name impl --wait --json"}},
 	}
 
 	// DoD met: oracle exits 0.

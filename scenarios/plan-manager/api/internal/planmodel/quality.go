@@ -135,6 +135,16 @@ func assessPlanStructureQuality(p Plan) []QualityFinding {
 	if !HasGlobalSkillContextOrNoSkillReason(p.RelevantContext) {
 		findings = append(findings, qualityWarning("plan.relevant_context", "plan_missing_skill_context", "plan carries no evidence of a skill sweep: no global skill setup item and no NO_SKILL_CONTEXT/NO_CONTEXT skip reason"))
 	}
+	if len(p.ChangeBoundary.AffectedScenarios()) > 1 {
+		for _, phase := range p.Phases {
+			if phase.ValidationScope.Mode == ValidationScopeUnspecified && phase.ChangeBoundary.IsZero() {
+				findings = append(findings, qualityFailure(PhaseQualityLocation(phase)+".validation_scope", "phase_validation_scope_required", "multi-scenario plan phases must declare narrow validation scope or full_plan rationale"))
+			}
+			if phase.ValidationScope.Mode == ValidationScopeFullPlan && strings.TrimSpace(phase.ValidationScope.Rationale) == "" {
+				findings = append(findings, qualityFailure(PhaseQualityLocation(phase)+".validation_scope", "phase_validation_full_scope_rationale_required", "full_plan validation scope requires rationale"))
+			}
+		}
+	}
 	return findings
 }
 

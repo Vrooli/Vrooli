@@ -36,15 +36,22 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	})
 	root := repoRoot()
 	resolver := newCodeFactsReferenceResolver(root)
+	store := internalvalidation.NewSQLiteResultStore(db, clk)
 	svc := internalvalidation.NewService(internalvalidation.Deps{
-		Plans:     planAdapter{svc: plansSvc},
-		Resolver:  resolver,
-		Staleness: internalvalidation.NewExistenceStaleness(internalvalidation.NewFileResolver(root)),
-		Runner:    internalvalidation.DefaultRunner(),
-		Results:   internalvalidation.NewSQLiteResultStore(db, clk),
-		Clock:     clk,
-		Commands:  newCLIHealthCommandValidator(),
+		Plans:      planAdapter{svc: plansSvc},
+		Resolver:   resolver,
+		Staleness:  internalvalidation.NewExistenceStaleness(internalvalidation.NewFileResolver(root)),
+		Runner:     internalvalidation.DefaultRunner(),
+		Results:    store,
+		Operations: store,
+		Clock:      clk,
+		Commands:   newCLIHealthCommandValidator(),
 	})
+	// Recovery is idempotent: persisted queued/running operations resume from
+	// their child checkpoints and terminal children are never re-dispatched.
+	if err := svc.RecoverPending(context.Background()); err != nil && logger != nil {
+		logger.Printf("validation operation recovery: %v", err)
+	}
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
@@ -105,7 +112,11 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("validation_resolve_references", validationconnect.ValidationServiceResolveReferencesProcedure, "Resolve code references", "Resolves a plan/phase's [CODE:]/[REQ:] references against code-facts (OT-P0-004). Degrades to unresolved when code-facts is down."),
 	endpoint("validation_compute_staleness", validationconnect.ValidationServiceComputeStalenessProcedure, "Compute staleness tiers", "Computes staleness tiers for a plan/phase's references (OT-P0-004)."),
 	endpoint("validation_derive_baseline_scope", validationconnect.ValidationServiceDeriveBaselineScopeProcedure, "Derive baseline scope", "Derives the exact baseline/validation command set across all affected locations (OT-P0-005)."),
-	endpoint("validation_run", validationconnect.ValidationServiceRunValidationProcedure, "Run validation", "Runs the derived baseline/check set on request and returns the result + staleness (OT-P0-005). Degrades to unknown rather than fabricating a pass."),
+	endpoint("validation_start", validationconnect.ValidationServiceStartValidationProcedure, "Start durable validation", "Persists a validation operation and child set before dispatch; scoped idempotency retries return the original operation."),
+	endpoint("validation_operation", validationconnect.ValidationServiceGetValidationOperationProcedure, "Inspect or wait for validation", "Reads a durable validation operation or performs one server-side blocking wait without polling."),
+	endpoint("validation_wait", validationconnect.ValidationServiceWaitValidationOperationProcedure, "Wait for validation", "Performs one server-side blocking wait by durable operation id."),
+	endpoint("validation_resume", validationconnect.ValidationServiceResumeValidationOperationProcedure, "Resume validation", "Reconciles queued/running child checkpoints after interruption or restart and waits once."),
+	endpoint("validation_run", validationconnect.ValidationServiceRunValidationProcedure, "Run validation", "Compatibility blocking validation over the durable operation substrate."),
 	endpoint("validation_verify_dod", validationconnect.ValidationServiceVerifyDefinitionOfDoneProcedure, "Verify Definition of Done", "Verifies a plan's DoD against the regression anchor as an oracle (OT-P0-005)."),
 }
 

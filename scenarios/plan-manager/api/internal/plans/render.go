@@ -389,6 +389,9 @@ func renderPhase(ph Phase, fallbackOrder int) string {
 	}
 	b.WriteString("\n")
 	renderStringList(&b, "Affected Areas", ph.AffectedAreas, false)
+	if ph.ValidationScope.Mode != planmodel.ValidationScopeUnspecified {
+		b.WriteString(renderValidationScope(ph.ValidationScope))
+	}
 	if !ph.ChangeBoundary.IsZero() {
 		b.WriteString(renderPhaseChangeBoundary(ph.ChangeBoundary))
 	}
@@ -439,6 +442,25 @@ func renderPhase(ph Phase, fallbackOrder int) string {
 		}
 		b.WriteString("\n")
 	}
+	return b.String()
+}
+
+func renderValidationScope(scope planmodel.ValidationScope) string {
+	var b strings.Builder
+	b.WriteString("**Validation Scope:**\n")
+	fmt.Fprintf(&b, "- Mode: %s\n", scope.Mode)
+	if scope.Mode == planmodel.ValidationScopeFullPlan {
+		fmt.Fprintf(&b, "- Rationale: %s\n", scope.Rationale)
+	}
+	if scope.Mode == planmodel.ValidationScopeNarrow {
+		if len(scope.Boundary.AcceptanceAllow) > 0 {
+			fmt.Fprintf(&b, "- Allow: %s\n", backtickJoin(scope.Boundary.AcceptanceAllow))
+		}
+		if len(scope.Boundary.AcceptanceDeny) > 0 {
+			fmt.Fprintf(&b, "- Deny: %s\n", backtickJoin(scope.Boundary.AcceptanceDeny))
+		}
+	}
+	b.WriteString("\n")
 	return b.String()
 }
 

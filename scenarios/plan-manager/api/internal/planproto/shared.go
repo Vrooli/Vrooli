@@ -203,6 +203,7 @@ func PhaseToProto(ph planmodel.Phase) *sharedv1.Phase {
 		HandoffNotes:    ph.HandoffNotes,
 		RisksHazards:    ph.RisksHazards,
 		ChangeBoundary:  ChangeBoundaryToProto(ph.ChangeBoundary),
+		ValidationScope: ValidationScopeToProto(ph.ValidationScope),
 	}
 }
 
@@ -232,6 +233,7 @@ func PhaseFromProto(ph *sharedv1.Phase) planmodel.Phase {
 		HandoffNotes:    ph.GetHandoffNotes(),
 		RisksHazards:    ph.GetRisksHazards(),
 		ChangeBoundary:  ChangeBoundaryFromProto(ph.GetChangeBoundary()),
+		ValidationScope: ValidationScopeFromProto(ph.GetValidationScope()),
 	}
 }
 
@@ -311,6 +313,34 @@ func ChangeBoundaryFromProto(b *sharedv1.ChangeBoundary) planmodel.ChangeBoundar
 		AcceptanceDeny:     b.GetAcceptanceDeny(),
 		OperatorOnlyReason: b.GetOperatorOnlyReason(),
 	}
+}
+
+func ValidationScopeToProto(scope planmodel.ValidationScope) *sharedv1.ValidationScope {
+	if scope.Mode == planmodel.ValidationScopeUnspecified {
+		return nil
+	}
+	mode := sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_UNSPECIFIED
+	if scope.Mode == planmodel.ValidationScopeNarrow {
+		mode = sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_NARROW
+	}
+	if scope.Mode == planmodel.ValidationScopeFullPlan {
+		mode = sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_FULL_PLAN
+	}
+	return &sharedv1.ValidationScope{Mode: mode, Boundary: ChangeBoundaryToProto(scope.Boundary), Rationale: scope.Rationale}
+}
+
+func ValidationScopeFromProto(scope *sharedv1.ValidationScope) planmodel.ValidationScope {
+	if scope == nil {
+		return planmodel.ValidationScope{}
+	}
+	mode := planmodel.ValidationScopeUnspecified
+	if scope.GetMode() == sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_NARROW {
+		mode = planmodel.ValidationScopeNarrow
+	}
+	if scope.GetMode() == sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_FULL_PLAN {
+		mode = planmodel.ValidationScopeFullPlan
+	}
+	return planmodel.ValidationScope{Mode: mode, Boundary: ChangeBoundaryFromProto(scope.GetBoundary()), Rationale: scope.GetRationale()}
 }
 
 func WorkPostureToProto(p planmodel.WorkPosture) sharedv1.WorkPosture {

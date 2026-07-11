@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"sync"
 	"testing"
@@ -22,10 +23,12 @@ import (
 // handler built and returning a canned response (or error).
 type validationRecorder struct {
 	validationconnect.UnimplementedValidationServiceHandler
-	mu   sync.Mutex
-	req  proto.Message
-	resp proto.Message
-	err  error
+	mu        sync.Mutex
+	req       proto.Message
+	resp      proto.Message
+	err       error
+	waitErr   error
+	waitCalls int
 }
 
 func (r *validationRecorder) record(req proto.Message) {
@@ -82,6 +85,49 @@ func (r *validationRecorder) RunValidation(_ context.Context, req *connect.Reque
 		return connect.NewResponse(m), nil
 	}
 	return connect.NewResponse(&validationv1.RunValidationResponse{Result: &sharedv1.ValidationResult{}}), nil
+}
+
+func (r *validationRecorder) StartValidation(_ context.Context, req *connect.Request[validationv1.StartValidationRequest]) (*connect.Response[validationv1.StartValidationResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*validationv1.StartValidationResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&validationv1.StartValidationResponse{Operation: &validationv1.ValidationOperation{}}), nil
+}
+
+func (r *validationRecorder) GetValidationOperation(_ context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
+	return r.validationOperation(req)
+}
+
+func (r *validationRecorder) WaitValidationOperation(_ context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
+	r.mu.Lock()
+	r.waitCalls++
+	call := r.waitCalls
+	waitErr := r.waitErr
+	r.mu.Unlock()
+	if call == 1 && waitErr != nil {
+		r.record(req.Msg)
+		return nil, waitErr
+	}
+	return r.validationOperation(req)
+}
+
+func (r *validationRecorder) ResumeValidationOperation(_ context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
+	return r.validationOperation(req)
+}
+
+func (r *validationRecorder) validationOperation(req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*validationv1.GetValidationOperationResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&validationv1.GetValidationOperationResponse{Operation: &validationv1.ValidationOperation{}}), nil
 }
 
 func (r *validationRecorder) VerifyDefinitionOfDone(_ context.Context, req *connect.Request[validationv1.VerifyDefinitionOfDoneRequest]) (*connect.Response[validationv1.VerifyDefinitionOfDoneResponse], error) {
@@ -149,6 +195,40 @@ func TestValidationRequestMapping(t *testing.T) {
 				m := req.(*validationv1.DeriveBaselineScopeRequest)
 				require.Equal(t, "plan-1", m.GetPlanId())
 				require.Equal(t, "phase-4", m.GetPhaseId())
+			},
+		},
+		{
+			name: "start maps plan, phase, and idempotency key", cmd: "start",
+			argv: []string{"plan-1", "--phase", "phase-5", "--idempotency-key", "retry-1"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*validationv1.StartValidationRequest)
+				require.Equal(t, "plan-1", m.GetPlanId())
+				require.Equal(t, "phase-5", m.GetPhaseId())
+				require.Equal(t, "retry-1", m.GetIdempotencyKey())
+			},
+		},
+		{
+			name: "show maps operation without wait", cmd: "show", argv: []string{"op-1"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*validationv1.GetValidationOperationRequest)
+				require.Equal(t, "op-1", m.GetOperationId())
+				require.False(t, m.GetWait())
+			},
+		},
+		{
+			name: "wait maps operation with blocking wait", cmd: "wait", argv: []string{"op-2"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*validationv1.GetValidationOperationRequest)
+				require.Equal(t, "op-2", m.GetOperationId())
+				require.True(t, m.GetWait())
+			},
+		},
+		{
+			name: "resume maps operation with blocking wait", cmd: "resume", argv: []string{"op-3"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*validationv1.GetValidationOperationRequest)
+				require.Equal(t, "op-3", m.GetOperationId())
+				require.True(t, m.GetWait())
 			},
 		},
 		{
@@ -236,6 +316,49 @@ func TestValidationOutputRendering(t *testing.T) {
 		require.Contains(t, out, "all green")
 	})
 
+	t.Run("start renders durable id and wait command", func(t *testing.T) {
+		rec := &validationRecorder{resp: &validationv1.StartValidationResponse{
+			Operation:    &validationv1.ValidationOperation{Id: "op-123", Status: validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_QUEUED, ScopeFingerprint: "sha256:scope", QueueReason: "awaiting scheduler claim"},
+			Deduplicated: true,
+		}}
+		app, groups := newValidationFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "start"), app, "plan-1", "--idempotency-key", "same")
+		require.NoError(t, err)
+		require.Contains(t, out, "Validation operation: op-123")
+		require.Contains(t, out, "no child work was duplicated")
+		require.Contains(t, out, "Scope fingerprint: sha256:scope.")
+		require.Contains(t, out, "Queue reason: awaiting scheduler claim.")
+		require.Contains(t, out, "plan-manager validate wait op-123")
+	})
+
+	t.Run("wait renders terminal durable result", func(t *testing.T) {
+		rec := &validationRecorder{resp: &validationv1.GetValidationOperationResponse{Operation: &validationv1.ValidationOperation{
+			Id: "op-terminal", Status: validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_TERMINAL,
+			Attempt: 1, Result: &sharedv1.ValidationResult{Verdict: sharedv1.ValidationVerdict_VALIDATION_VERDICT_PASS, Staleness: sharedv1.StalenessTier_STALENESS_TIER_FRESH, Detail: "oracle clean"},
+		}}}
+		app, groups := newValidationFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "wait"), app, "op-terminal")
+		require.NoError(t, err)
+		require.Contains(t, out, "Status: terminal")
+		require.Contains(t, out, "Verdict: pass")
+		require.Contains(t, out, "oracle clean")
+	})
+
+	t.Run("wait reconnects once with inspect after unexpected EOF", func(t *testing.T) {
+		rec := &validationRecorder{
+			waitErr: connect.NewError(connect.CodeUnavailable, io.ErrUnexpectedEOF),
+			resp: &validationv1.GetValidationOperationResponse{Operation: &validationv1.ValidationOperation{
+				Id: "op-recovered", Status: validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_RUNNING,
+			}},
+		}
+		app, groups := newValidationFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "wait"), app, "op-recovered")
+		require.Error(t, err, "a recovered non-terminal inspection must not become success")
+		require.Contains(t, out, "recovery read by durable operation id")
+		require.Equal(t, 1, rec.waitCalls)
+		require.False(t, rec.lastRequest().(*validationv1.GetValidationOperationRequest).GetWait())
+	})
+
 	t.Run("verify-dod renders met verdict", func(t *testing.T) {
 		rec := &validationRecorder{resp: &validationv1.VerifyDefinitionOfDoneResponse{
 			DodMet: true,
@@ -302,6 +425,13 @@ func TestResolutionLabel(t *testing.T) {
 	require.Equal(t, "future", resolutionLabel(sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_FUTURE))
 	require.Equal(t, "missing", resolutionLabel(sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_MISSING))
 	require.Equal(t, "unspecified", resolutionLabel(sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNSPECIFIED))
+}
+
+func TestUnexpectedEOFDetection(t *testing.T) {
+	require.True(t, isUnexpectedEOF(io.ErrUnexpectedEOF))
+	require.True(t, isUnexpectedEOF(connect.NewError(connect.CodeUnavailable, io.ErrUnexpectedEOF)))
+	require.False(t, isUnexpectedEOF(connect.NewError(connect.CodeUnavailable, errBoom())))
+	require.True(t, isAttachmentEnd(connect.NewError(connect.CodeDeadlineExceeded, context.DeadlineExceeded)))
 }
 
 func TestFormatReference(t *testing.T) {

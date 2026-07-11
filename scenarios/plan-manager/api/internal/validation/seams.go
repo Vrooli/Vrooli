@@ -41,7 +41,17 @@ type StalenessComputer interface {
 // returns its live result, but nothing is cached for later cheap reads.
 type ResultStore interface {
 	SaveResult(ctx context.Context, r Result) error
+	GetResult(ctx context.Context, id string) (Result, bool, error)
 	LastResult(ctx context.Context, planID, phaseID string) (Result, bool, error)
+}
+
+// OperationStore is the durable checkpoint ledger for validation operations.
+// CreateOperation atomically deduplicates by (plan, phase, idempotency key).
+type OperationStore interface {
+	CreateOperation(ctx context.Context, op ValidationOperation) (stored ValidationOperation, created bool, err error)
+	SaveOperation(ctx context.Context, op ValidationOperation) error
+	GetOperation(ctx context.Context, id string) (ValidationOperation, bool, error)
+	ListNonTerminalOperations(ctx context.Context) ([]ValidationOperation, error)
 }
 
 // CommandRunner is the exec seam for running baseline/check commands (the live
@@ -55,10 +65,10 @@ type CommandRunner func(ctx context.Context, name string, args ...string) ([]byt
 // timeout-bounded). Wired in the handler module; tests inject a fake instead.
 func DefaultRunner() CommandRunner { return execRunner }
 
-// validationTimeout bounds a single baseline/check dispatch. Generous so a
+// commandExecutionTimeout bounds a single baseline/check dispatch. Generous so a
 // legitimately long baseline isn't killed, but finite so a hung command cannot
 // block forever.
-const validationTimeout = 10 * time.Minute
+const commandExecutionTimeout = 10 * time.Minute
 
 // ErrToolNotFound is returned by a CommandRunner when the command is not on PATH.
 // The caller treats this as UNKNOWN (the check could not be performed) rather
@@ -92,7 +102,7 @@ func execRunner(ctx context.Context, name string, args ...string) ([]byte, error
 	if _, err := exec.LookPath(name); err != nil {
 		return nil, fmt.Errorf("command %q: %w", name, ErrToolNotFound)
 	}
-	ctx, cancel := context.WithTimeout(ctx, validationTimeout)
+	ctx, cancel := context.WithTimeout(ctx, commandExecutionTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
 	if err != nil {

@@ -285,6 +285,11 @@ type Phase struct {
 	// Optional per-phase boundary refinement. When set it NARROWS the plan-level
 	// boundary for phase-specific checks; it never widens the plan blast radius.
 	ChangeBoundary ChangeBoundary
+	// ValidationScope is an authored declaration of whether phase validation is
+	// deliberately narrow or intentionally covers the full plan boundary.
+	// ChangeBoundary remains the legacy narrowing representation and is read as
+	// a narrow scope when ValidationScope is absent.
+	ValidationScope ValidationScope
 	// AUTHORED professional phase fields (see docs/concepts/PLAN-MODEL.md).
 	AffectedAreas   []string
 	Steps           []string
@@ -292,6 +297,20 @@ type Phase struct {
 	Validation      string
 	HandoffNotes    string
 	RisksHazards    []string
+}
+
+type ValidationScopeMode string
+
+const (
+	ValidationScopeUnspecified ValidationScopeMode = ""
+	ValidationScopeNarrow      ValidationScopeMode = "narrow"
+	ValidationScopeFullPlan    ValidationScopeMode = "full_plan"
+)
+
+type ValidationScope struct {
+	Mode      ValidationScopeMode
+	Boundary  ChangeBoundary
+	Rationale string
 }
 
 // Plan is the top-level structured record.

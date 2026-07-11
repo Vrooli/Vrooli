@@ -277,9 +277,21 @@ mirror from SQLite:
 
 For a draft authoring session, use the authoring repair lane
 (`author context-list/update/remove` and section/phase reference submission) and
-run `plan-manager author validate <session>`. `plan-manager validate run <plan>`
-is for persisted plans; if it is pointed at a draft-only handle, the CLI hints at
-the authoring validation command.
+run `plan-manager author validate <session>`. Persisted plans use the durable
+validation lane:
+
+```text
+plan-manager validate start <plan> [--phase P] [--idempotency-key K]
+plan-manager validate show <operation-id>
+plan-manager validate wait <operation-id>
+plan-manager validate resume <operation-id>
+```
+
+`start` returns before child baselines finish. `wait` is one blocking attachment;
+`resume` is the restart/interruption re-entry point. On unexpected EOF,
+cancellation, or transport deadline the CLI performs exactly one non-blocking
+recovery read by operation ID and never starts duplicate work. `validate run
+<plan>` remains a blocking compatibility wrapper.
 
 ## `phase` — direct phases on a persisted plan
 

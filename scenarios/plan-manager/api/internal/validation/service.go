@@ -2,12 +2,14 @@ package validation
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
@@ -27,9 +29,12 @@ type Service interface {
 	// finalized snapshot status before calling it captured. This is the
 	// execution-start "capture the before when before is true" action; it degrades
 	// honestly (Captured=false + Detail) when the anchor intent is incomplete,
-	// git-control-tower is unavailable, or the finalized manifest captured zero
-	// surfaces — never a fabricated capture.
+	// git-control-tower is unavailable, or the finalized manifest lacks its V2
+	// run anchor — never a fabricated capture.
 	CaptureBaseline(ctx context.Context, planID string) (BaselineCapture, error)
+	StartValidation(ctx context.Context, planID, phaseID, idempotencyKey string) (ValidationOperation, bool, error)
+	GetValidationOperation(ctx context.Context, operationID string, wait bool) (ValidationOperation, error)
+	RecoverPending(ctx context.Context) error
 	RunValidation(ctx context.Context, planID, phaseID string) (Result, error)
 	// LastValidation returns the most recent STORED validation result for a
 	// plan/phase (the cheap read path the execution context server uses). ok=false
@@ -39,13 +44,17 @@ type Service interface {
 }
 
 type service struct {
-	plans     PlanSource
-	resolver  ReferenceResolver
-	staleness StalenessComputer
-	runner    CommandRunner
-	results   ResultStore
-	clock     clock.Clock
-	commands  CommandReferenceValidator
+	plans      PlanSource
+	resolver   ReferenceResolver
+	staleness  StalenessComputer
+	runner     CommandRunner
+	results    ResultStore
+	operations OperationStore
+	clock      clock.Clock
+	commands   CommandReferenceValidator
+	opMu       sync.Mutex
+	active     map[string]chan struct{}
+	workers    chan struct{}
 }
 
 // Deps wires the validation Service. plans is required; resolver/staleness/runner/
@@ -53,13 +62,14 @@ type service struct {
 // false positive). A nil Results store means RunValidation still returns its live
 // result but caches nothing — LastValidation then reports "no result yet".
 type Deps struct {
-	Plans     PlanSource
-	Resolver  ReferenceResolver
-	Staleness StalenessComputer
-	Runner    CommandRunner
-	Results   ResultStore
-	Clock     clock.Clock
-	Commands  CommandReferenceValidator
+	Plans      PlanSource
+	Resolver   ReferenceResolver
+	Staleness  StalenessComputer
+	Runner     CommandRunner
+	Results    ResultStore
+	Operations OperationStore
+	Clock      clock.Clock
+	Commands   CommandReferenceValidator
 }
 
 // NewService constructs the validation Service.
@@ -69,13 +79,16 @@ func NewService(d Deps) Service {
 		clk = clock.System{}
 	}
 	return &service{
-		plans:     d.Plans,
-		resolver:  d.Resolver,
-		staleness: d.Staleness,
-		runner:    d.Runner,
-		results:   d.Results,
-		clock:     clk,
-		commands:  d.Commands,
+		plans:      d.Plans,
+		resolver:   d.Resolver,
+		staleness:  d.Staleness,
+		runner:     d.Runner,
+		results:    d.Results,
+		operations: d.Operations,
+		clock:      clk,
+		commands:   d.Commands,
+		active:     make(map[string]chan struct{}),
+		workers:    make(chan struct{}, maxValidationConcurrency),
 	}
 }
 
@@ -289,129 +302,101 @@ func (s *service) CaptureBaseline(ctx context.Context, planID string) (BaselineC
 	health := s.validateCapturedBaseline(ctx, scenario, name)
 	if !health.usable {
 		return BaselineCapture{
-			Scenario:             scenario,
-			BaselineName:         name,
-			CapturedSurfaceCount: health.capturedSurfaceCount,
-			SkippedSurfaces:      health.skipped,
-			Detail:               health.detail,
+			Scenario:        scenario,
+			BaselineName:    name,
+			RunID:           health.runID,
+			SchemaVersion:   health.schemaVersion,
+			DegradedReasons: health.degradedReasons,
+			Detail:          health.detail,
 		}, nil
 	}
 	return BaselineCapture{
-		Captured:             true,
-		Scenario:             scenario,
-		BaselineName:         name,
-		CapturedSurfaceCount: health.capturedSurfaceCount,
-		SkippedSurfaces:      health.skipped,
-		Detail:               fmt.Sprintf("captured baseline %s for %s with %d surface(s)", name, scenario, health.capturedSurfaceCount),
+		Captured:      true,
+		Scenario:      scenario,
+		BaselineName:  name,
+		RunID:         health.runID,
+		SchemaVersion: health.schemaVersion,
+		Detail:        fmt.Sprintf("captured baseline %s for %s anchored to Test Genie run %s", name, scenario, health.runID),
 	}, nil
 }
 
 type baselineCaptureHealth struct {
-	usable               bool
-	capturedSurfaceCount int
-	skipped              map[string]string
-	detail               string
+	usable          bool
+	runID           string
+	schemaVersion   int
+	degradedReasons []string
+	detail          string
 }
 
 func (s *service) validateCapturedBaseline(ctx context.Context, scenario, name string) baselineCaptureHealth {
 	out, err := s.runner(ctx, "git-control-tower", "baseline", "snapshot", "status", "--scenario", scenario, "--name", name, "--wait", "--json")
 	if err != nil {
 		return baselineCaptureHealth{
-			detail: fmt.Sprintf("baseline snapshot started but finalized validation failed: %v; treat %q as unusable and fall back to HEAD sha + allowlist diff until git-control-tower reports captured surfaces", err, name),
+			detail: fmt.Sprintf("baseline snapshot started but finalization failed: %v; operation can be resumed by baseline name/run id and %q is not yet a usable oracle", err, name),
 		}
 	}
-	count, skipped, parseErr := parseBaselineStatusHealth(out)
+	health, parseErr := parseBaselineStatusHealth(out)
 	if parseErr != nil {
 		return baselineCaptureHealth{
-			detail: fmt.Sprintf("baseline snapshot completed but validation output was unreadable: %v; treat %q as unusable and fall back to HEAD sha + allowlist diff", parseErr, name),
+			detail: fmt.Sprintf("baseline snapshot completed but its V2 run anchor was unreadable: %v; treat %q as unusable", parseErr, name),
 		}
 	}
-	if count == 0 {
-		return baselineCaptureHealth{
-			capturedSurfaceCount: count,
-			skipped:              skipped,
-			detail:               fmt.Sprintf("baseline %q is unusable: captured 0 surfaces; %s; fall back to HEAD sha + allowlist diff until the skipped surfaces are fixed", name, summarizeSkippedSurfaces(skipped)),
-		}
-	}
-	return baselineCaptureHealth{usable: true, capturedSurfaceCount: count, skipped: skipped}
+	return health
 }
 
-func parseBaselineStatusHealth(out []byte) (int, map[string]string, error) {
-	var resp struct {
-		Status   string `json:"status"`
-		Error    string `json:"error"`
-		Baseline struct {
-			Surfaces map[string]json.RawMessage `json:"surfaces"`
-			Skipped  map[string]string          `json:"skipped"`
-		} `json:"baseline"`
+func parseBaselineStatusHealth(out []byte) (baselineCaptureHealth, error) {
+	if len(strings.TrimSpace(string(out))) == 0 {
+		return baselineCaptureHealth{}, errors.New("empty baseline status output")
 	}
-	if err := json.Unmarshal(out, &resp); err == nil {
-		if resp.Status != "" && resp.Status != "ready" {
-			detail := strings.TrimSpace(resp.Error)
-			if detail == "" {
-				detail = resp.Status
-			}
-			return 0, resp.Baseline.Skipped, fmt.Errorf("snapshot status %s", detail)
+	var root map[string]json.RawMessage
+	if err := json.Unmarshal(out, &root); err != nil {
+		return baselineCaptureHealth{}, fmt.Errorf("decode snapshot status JSON: %w", err)
+	}
+	status := jsonString(root, "status")
+	if status != "" && status != "ready" {
+		detail := jsonString(root, "error")
+		if detail == "" {
+			detail = status
 		}
-		return len(resp.Baseline.Surfaces), resp.Baseline.Skipped, nil
+		return baselineCaptureHealth{}, fmt.Errorf("snapshot status %s", detail)
 	}
-	text := string(out)
-	count := 0
-	inSurfaces := false
-	inSkipped := false
-	skipped := map[string]string{}
-	for _, line := range strings.Split(text, "\n") {
-		trimmed := strings.TrimSpace(line)
-		switch {
-		case trimmed == "surfaces:":
-			inSurfaces = true
-			inSkipped = false
-		case strings.HasPrefix(trimmed, "not captured"):
-			inSurfaces = false
-			inSkipped = true
-		case inSurfaces && trimmed != "":
-			count++
-		case inSkipped && trimmed != "":
-			trimmed = strings.TrimLeft(trimmed, "!* \t")
-			fields := strings.Fields(trimmed)
-			if len(fields) > 1 && len([]rune(fields[0])) == 1 && !strings.Contains(fields[0], ":") {
-				trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, fields[0]))
-				fields = strings.Fields(trimmed)
-			}
-			if len(fields) > 0 {
-				reason := strings.TrimSpace(strings.TrimPrefix(trimmed, fields[0]))
-				skipped[fields[0]] = reason
-			}
-		}
+	var manifest map[string]json.RawMessage
+	if raw := root["baseline"]; len(raw) > 0 {
+		_ = json.Unmarshal(raw, &manifest)
 	}
-	if count == 0 && len(skipped) == 0 && strings.TrimSpace(text) == "" {
-		return 0, nil, errors.New("empty baseline status output")
+	if len(manifest) == 0 {
+		return baselineCaptureHealth{}, errors.New("ready snapshot has no baseline manifest")
 	}
-	if len(skipped) == 0 {
-		skipped = nil
+	schemaVersion := jsonInt(manifest, "schemaVersion", "schema_version")
+	var run map[string]json.RawMessage
+	if raw := manifest["run"]; len(raw) > 0 {
+		_ = json.Unmarshal(raw, &run)
 	}
-	return count, skipped, nil
+	runID := jsonString(run, "runId", "run_id")
+	if schemaVersion != 2 || runID == "" {
+		return baselineCaptureHealth{runID: runID, schemaVersion: schemaVersion}, fmt.Errorf("expected schema V2 with one non-empty run anchor (schema=%d run=%q)", schemaVersion, runID)
+	}
+	return baselineCaptureHealth{usable: true, runID: runID, schemaVersion: schemaVersion}, nil
 }
 
-func summarizeSkippedSurfaces(skipped map[string]string) string {
-	if len(skipped) == 0 {
-		return "no skipped-surface reason was reported"
-	}
-	keys := make([]string, 0, len(skipped))
-	for k := range skipped {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, k := range keys {
-		reason := strings.TrimSpace(skipped[k])
-		if reason == "" {
-			parts = append(parts, k)
-			continue
+func jsonString(values map[string]json.RawMessage, keys ...string) string {
+	for _, key := range keys {
+		var value string
+		if raw := values[key]; len(raw) > 0 && json.Unmarshal(raw, &value) == nil {
+			return strings.TrimSpace(value)
 		}
-		parts = append(parts, k+": "+reason)
 	}
-	return "skipped surfaces: " + strings.Join(parts, "; ")
+	return ""
+}
+
+func jsonInt(values map[string]json.RawMessage, keys ...string) int {
+	for _, key := range keys {
+		var value int
+		if raw := values[key]; len(raw) > 0 && json.Unmarshal(raw, &value) == nil {
+			return value
+		}
+	}
+	return 0
 }
 
 // planIdentifier prefers the human slug for log/reason text, falling back to id.
@@ -422,7 +407,449 @@ func planIdentifier(p planmodel.Plan) string {
 	return strings.TrimSpace(p.ID)
 }
 
+const (
+	defaultQueueBudget         = 2 * time.Minute
+	defaultExecutionBudget     = 30 * time.Minute
+	defaultTransportWaitBudget = 15 * time.Minute
+	maxValidationConcurrency   = 4
+)
+
+// StartValidation persists the complete child plan before any command is
+// dispatched. A repeated scoped idempotency key returns the original operation
+// and never creates a second child set.
+func (s *service) StartValidation(ctx context.Context, planID, phaseID, idempotencyKey string) (ValidationOperation, bool, error) {
+	if s.operations == nil {
+		return ValidationOperation{}, false, errors.New("durable validation operation store is unavailable")
+	}
+	p, err := s.plans.GetPlan(ctx, planID)
+	if err != nil {
+		return ValidationOperation{}, false, err
+	}
+	refs, err := s.scopedReferences(p, phaseID)
+	if err != nil {
+		return ValidationOperation{}, false, err
+	}
+	checks := compileValidationChecks(p, refs, effectiveBoundary(p, phaseID))
+	staleReport, _ := s.ComputeStaleness(ctx, planID, phaseID)
+	now := s.now()
+	op := ValidationOperation{
+		SchemaVersion:              CurrentOperationSchemaVersion,
+		ID:                         uuid.NewString(),
+		PlanID:                     p.ID,
+		PhaseID:                    phaseID,
+		IdempotencyKey:             strings.TrimSpace(idempotencyKey),
+		Status:                     OperationQueued,
+		QueuedAt:                   now,
+		QueueBudgetSeconds:         int(defaultQueueBudget.Seconds()),
+		ExecutionBudgetSeconds:     int(defaultExecutionBudget.Seconds()),
+		TransportWaitBudgetSeconds: int(defaultTransportWaitBudget.Seconds()),
+		RecommendedWaitSeconds:     int((defaultQueueBudget + commandExecutionTimeout).Seconds()),
+		ScopeFingerprint:           scopeFingerprint(p, phaseID, checks),
+		QueueReason:                "awaiting scheduler claim",
+		Result: &Result{
+			ID: "", PlanID: p.ID, PhaseID: phaseID, Staleness: staleReport.Overall,
+			CommandsRun: checkCommands(checks),
+		},
+	}
+	op.Result.ID = op.ID + ":result"
+	for i, check := range checks {
+		op.Children = append(op.Children, ValidationChild{
+			ID: fmt.Sprintf("%s:%d", op.ID, i+1), Check: check, Command: check.Command,
+			Oracle: check.Oracle, Status: ChildQueued, QueuedAt: now,
+		})
+	}
+	stored, created, err := s.operations.CreateOperation(ctx, op)
+	if err != nil {
+		return ValidationOperation{}, false, err
+	}
+	if !stored.Terminal() {
+		s.launchValidation(context.WithoutCancel(ctx), stored.ID)
+	}
+	return stored, !created, nil
+}
+
+func scopeFingerprint(p planmodel.Plan, phaseID string, checks []ValidationCheck) string {
+	parts := []string{p.ID, p.ContentHash, phaseID}
+	for _, check := range checks {
+		parts = append(parts, string(check.Kind)+":"+check.SemanticKey)
+	}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	return fmt.Sprintf("sha256:%x", sum[:])
+}
+
+func checkCommands(checks []ValidationCheck) []string {
+	commands := make([]string, 0, len(checks))
+	for _, check := range checks {
+		commands = append(commands, check.Command)
+	}
+	return commands
+}
+
+// GetValidationOperation inspects or waits once on a durable operation. A
+// transport deadline only ends this attachment; the returned operation remains
+// non-terminal and server-owned work continues.
+func (s *service) GetValidationOperation(ctx context.Context, operationID string, wait bool) (ValidationOperation, error) {
+	op, found, err := s.operations.GetOperation(ctx, strings.TrimSpace(operationID))
+	if err != nil {
+		return ValidationOperation{}, err
+	}
+	if !found {
+		return ValidationOperation{}, ErrOperationNotFound{ID: operationID}
+	}
+	if op.Terminal() || !wait {
+		if !op.Terminal() {
+			s.launchValidation(context.WithoutCancel(ctx), op.ID)
+		}
+		return op, nil
+	}
+	done := s.launchValidation(context.WithoutCancel(ctx), op.ID)
+	attachmentEnded := false
+	select {
+	case <-done:
+	case <-ctx.Done():
+		// Detach without canceling the server-owned execution. A durable reread
+		// below is intentionally followed by a typed non-success outcome unless
+		// terminal truth won the race.
+		attachmentEnded = true
+	}
+	op, found, err = s.operations.GetOperation(context.WithoutCancel(ctx), op.ID)
+	if err != nil {
+		return ValidationOperation{}, err
+	}
+	if !found {
+		return ValidationOperation{}, ErrOperationNotFound{ID: operationID}
+	}
+	if !op.Terminal() && attachmentEnded {
+		return op, ErrAttachmentEnded{OperationID: op.ID, Cause: ctx.Err()}
+	}
+	if !op.Terminal() {
+		return op, fmt.Errorf("validation dispatcher ended before durable terminal checkpoint for %s", op.ID)
+	}
+	return op, nil
+}
+
+// RecoverPending reattaches every queued/running record after process restart.
+func (s *service) RecoverPending(ctx context.Context) error {
+	if s.operations == nil {
+		return nil
+	}
+	operations, err := s.operations.ListNonTerminalOperations(ctx)
+	if err != nil {
+		return err
+	}
+	for _, op := range operations {
+		changed := false
+		for i := range op.Children {
+			if op.Children[i].Status == ChildRunning {
+				op.Children[i].Status = ChildQueued
+				op.Children[i].StartedAt = ""
+				op.Children[i].Error = &OperationError{Code: "claim_recovered", Detail: "recovered unfinished child claim after restart"}
+				changed = true
+			}
+		}
+		if changed {
+			op.Status, op.QueueReason = OperationQueued, "recovered unfinished child claim after restart"
+			if err := s.operations.SaveOperation(context.WithoutCancel(ctx), op); err != nil {
+				return err
+			}
+		}
+		s.launchValidation(context.WithoutCancel(ctx), op.ID)
+	}
+	return nil
+}
+
+func (s *service) launchValidation(ctx context.Context, operationID string) <-chan struct{} {
+	s.opMu.Lock()
+	if done, ok := s.active[operationID]; ok {
+		s.opMu.Unlock()
+		return done
+	}
+	done := make(chan struct{})
+	s.active[operationID] = done
+	s.opMu.Unlock()
+	go func() {
+		defer func() {
+			s.opMu.Lock()
+			delete(s.active, operationID)
+			close(done)
+			s.opMu.Unlock()
+		}()
+		s.executeValidationOperation(ctx, operationID)
+	}()
+	return done
+}
+
+func (s *service) executeValidationOperation(ctx context.Context, operationID string) {
+	op, found, err := s.operations.GetOperation(ctx, operationID)
+	if err != nil || !found || op.Terminal() {
+		return
+	}
+	// An operation owns at most one running child. This is an intentional
+	// per-operation share: it ensures a large operation cannot occupy every
+	// global worker while other queued operations are waiting. Crucially, this
+	// loop creates no goroutine for queued children; only this operation runner
+	// exists until a child has actually claimed a global worker.
+	for _, child := range op.Children {
+		if child.Status == ChildTerminal {
+			continue
+		}
+		select {
+		case s.workers <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
+		if !s.markOperationClaimed(operationID) {
+			<-s.workers
+			return
+		}
+		executionBudget := time.Duration(op.ExecutionBudgetSeconds) * time.Second
+		if executionBudget <= 0 {
+			executionBudget = defaultExecutionBudget
+		}
+		// The execution clock begins at the durable claim boundary. Queue
+		// residence cannot consume either this operation budget or the child
+		// dispatch timeout.
+		execCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), executionBudget)
+		s.runValidationChild(execCtx, operationID, child.ID)
+		cancel()
+		<-s.workers
+	}
+
+	op, found, err = s.operations.GetOperation(context.WithoutCancel(ctx), operationID)
+	if err != nil || !found {
+		return
+	}
+	// A failed child checkpoint must never be papered over by a terminal parent.
+	// Leave the operation resumable so a later attachment or restart can replay
+	// only the children whose terminal truth was not durably recorded.
+	for _, child := range op.Children {
+		if child.Status != ChildTerminal {
+			return
+		}
+	}
+	resultID := op.ID + ":result"
+	if op.Result != nil && op.Result.ID != "" {
+		resultID = op.Result.ID
+	}
+	result := Result{
+		ID: resultID, PlanID: op.PlanID, PhaseID: op.PhaseID,
+		Verdict: verdictFromChildren(op.Children), RanAt: s.now(),
+	}
+	if op.Result != nil {
+		result.Staleness = op.Result.Staleness
+		result.CommandsRun = append([]string(nil), op.Result.CommandsRun...)
+	}
+	for _, child := range op.Children {
+		result.Detail = joinDetails(result.Detail, child.Detail)
+	}
+	if p, perr := s.plans.GetPlan(context.WithoutCancel(ctx), op.PlanID); perr == nil {
+		readinessResult := readiness.Evaluate(context.WithoutCancel(ctx), p, readiness.Options{
+			PhaseID: op.PhaseID, Mode: readiness.PreflightMode(),
+			CommandValidator: s.readinessCommandValidator(), ReferenceResolver: s.resolver,
+		})
+		result.CommandFindings = append(result.CommandFindings, commandFindingsFromReadiness(readinessResult.Findings)...)
+		result.Verdict = combineValidationVerdicts(result.Verdict, verdictFromReadiness(readinessResult.Verdict))
+		result.Detail = joinDetails(result.Detail, readinessResult.Detail)
+	} else {
+		result.Verdict = VerdictUnknown
+		result.Detail = joinDetails(result.Detail, "validation readiness unavailable: "+perr.Error())
+	}
+
+	persistCtx := context.Background()
+	resultPersisted := false
+	if s.results != nil {
+		if err := s.results.SaveResult(persistCtx, result); err != nil {
+			op.Error = &OperationError{Code: "result_persistence_failed", Detail: err.Error()}
+			result.Verdict = VerdictUnknown
+		} else {
+			resultPersisted = true
+			if committed, found, err := s.results.GetResult(persistCtx, result.ID); err == nil && found {
+				// A crash replay cannot replace the first committed terminal truth.
+				result = committed
+			}
+		}
+	}
+	if !resultPersisted && s.results != nil {
+		// Result persistence is the terminal commit boundary. Keep the operation
+		// non-terminal and recoverable rather than publishing success-shaped state.
+		op.Error = &OperationError{Code: "result_persistence_failed", Detail: result.Detail}
+		_ = s.operations.SaveOperation(persistCtx, op)
+		return
+	}
+	op.Status = OperationTerminal
+	op.TerminalAt = s.now()
+	op.Result = &result
+	if resultPersisted {
+		op.ResultRef = result.ID
+	}
+	_ = s.operations.SaveOperation(persistCtx, op)
+}
+
+func (s *service) markOperationClaimed(operationID string) bool {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+	op, found, err := s.operations.GetOperation(context.Background(), operationID)
+	if err != nil || !found || op.Terminal() {
+		return false
+	}
+	if op.StartedAt == "" {
+		op.StartedAt = s.now()
+		op.Attempt++
+	}
+	op.Status = OperationRunning
+	op.QueueReason = ""
+	return s.operations.SaveOperation(context.Background(), op) == nil
+}
+
+func (s *service) expireValidationChild(operationID, childID string, cause error) {
+	s.updateChild(operationID, childID, func(child *ValidationChild) {
+		child.Status = ChildTerminal
+		child.TerminalAt = s.now()
+		child.Verdict = VerdictUnknown
+		child.Detail = fmt.Sprintf("unknown %s: execution budget ended before dispatch", child.Command)
+		child.Error = &OperationError{Code: "execution_timeout", Detail: cause.Error()}
+	})
+}
+
+func (s *service) runValidationChild(ctx context.Context, operationID, childID string) {
+	child, ok := s.updateChild(operationID, childID, func(child *ValidationChild) {
+		child.Status = ChildRunning
+		child.Attempt++
+		if child.StartedAt == "" {
+			child.StartedAt = s.now()
+		}
+	})
+	if !ok {
+		return
+	}
+	name, args := splitCommand(child.Command)
+	var output []byte
+	var runErr error
+	if name == "" {
+		runErr = errors.New("empty command")
+	} else if s.runner == nil {
+		runErr = fmt.Errorf("command %q: %w", name, ErrToolNotFound)
+	} else {
+		output, runErr = s.runner(ctx, name, args...)
+	}
+	classified := classifyCommandRun(child.Command, child.Oracle, runErr)
+	s.updateChild(operationID, childID, func(child *ValidationChild) {
+		child.Status = ChildTerminal
+		child.TerminalAt = s.now()
+		child.Verdict = classified.verdict
+		child.Detail = classified.detail
+		child.ExternalID = externalRunID(output)
+		child.Error = operationErrorFor(runErr)
+	})
+}
+
+func (s *service) updateChild(operationID, childID string, mutate func(*ValidationChild)) (ValidationChild, bool) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+	op, found, err := s.operations.GetOperation(context.Background(), operationID)
+	if err != nil || !found || op.Terminal() {
+		return ValidationChild{}, false
+	}
+	for i := range op.Children {
+		if op.Children[i].ID != childID {
+			continue
+		}
+		mutate(&op.Children[i])
+		if err := s.operations.SaveOperation(context.Background(), op); err != nil {
+			return ValidationChild{}, false
+		}
+		return op.Children[i], true
+	}
+	return ValidationChild{}, false
+}
+
+func verdictFromChildren(children []ValidationChild) Verdict {
+	passed := 0
+	unknown := false
+	for _, child := range children {
+		if !child.Oracle {
+			continue
+		}
+		switch child.Verdict {
+		case VerdictFail:
+			return VerdictFail
+		case VerdictPass:
+			passed++
+		default:
+			unknown = true
+		}
+	}
+	if unknown || passed == 0 {
+		return VerdictUnknown
+	}
+	return VerdictPass
+}
+
+func operationErrorFor(err error) *OperationError {
+	if err == nil {
+		return nil
+	}
+	code := "command_failed"
+	switch {
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+		code = "execution_timeout"
+	case errors.Is(err, ErrToolNotFound):
+		code = "tool_unavailable"
+	default:
+		var exitErr CommandExitError
+		if errors.As(err, &exitErr) && exitErr.Code == 2 {
+			code = "not_comparable"
+		}
+	}
+	return &OperationError{Code: code, Detail: err.Error()}
+}
+
+func externalRunID(output []byte) string {
+	var value any
+	if len(output) == 0 || json.Unmarshal(output, &value) != nil {
+		return ""
+	}
+	return findRunID(value)
+}
+
+func findRunID(value any) string {
+	switch typed := value.(type) {
+	case map[string]any:
+		for _, key := range []string{"runId", "run_id"} {
+			if id, ok := typed[key].(string); ok && strings.TrimSpace(id) != "" {
+				return strings.TrimSpace(id)
+			}
+		}
+		for _, nested := range typed {
+			if id := findRunID(nested); id != "" {
+				return id
+			}
+		}
+	case []any:
+		for _, nested := range typed {
+			if id := findRunID(nested); id != "" {
+				return id
+			}
+		}
+	}
+	return ""
+}
+
 func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Result, error) {
+	if s.operations != nil {
+		op, _, err := s.StartValidation(ctx, planID, phaseID, "")
+		if err != nil {
+			return Result{}, err
+		}
+		op, err = s.GetValidationOperation(ctx, op.ID, true)
+		if err != nil {
+			return Result{}, err
+		}
+		if op.Result == nil || !op.Terminal() {
+			return Result{}, fmt.Errorf("validation operation %s remains %s; reattach by operation id", op.ID, op.Status)
+		}
+		return *op.Result, nil
+	}
 	p, err := s.plans.GetPlan(ctx, planID)
 	if err != nil {
 		return Result{}, err
@@ -679,6 +1106,11 @@ func classifyCommandRun(cmd string, oracle bool, err error) commandRunResult {
 		result.detail = fmt.Sprintf("unknown %s: tool not found", cmd)
 		return result
 	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		result.verdict = VerdictUnknown
+		result.detail = fmt.Sprintf("unknown %s: execution attachment ended (%v)", cmd, err)
+		return result
+	}
 	var exitErr CommandExitError
 	if errors.As(err, &exitErr) && exitErr.Code == 2 {
 		result.verdict = VerdictUnknown
@@ -702,75 +1134,35 @@ func (s *service) now() string {
 // and non-scenario references are repo-level paths with no scenario baseline
 // oracle today.
 //
-// Commands are emitted in tiers:
-//   - one git-control-tower snapshot-status + baseline diff ORACLE pair per
-//     affected scenario, only when a baseline name exists (the verified GCT CLI
-//     requires --scenario and --name); no oracle is fabricated otherwise.
-//   - one INFORMATIONAL `git diff --stat [<sha>] -- <repo paths>` for the
-//     non-scenario allowed paths — never an oracle (see isOracleCommand).
-//
-// The plan's own regression-anchor commands are folded in. Output is deduped and
-// stably ordered so the command set is deterministic.
+// The typed compiler emits one baseline-diff oracle per scenario and at most one
+// informational repo diff. Snapshot status is capture metadata, not work.
 func deriveScope(p planmodel.Plan, refs []planmodel.Reference, boundary planmodel.ChangeBoundary) BaselineScope {
-	scenarios := map[string]bool{}
-	for _, name := range boundary.AffectedScenarios() {
-		scenarios[name] = true
+	checks := compileValidationChecks(p, refs, boundary)
+	locations := make([]string, 0, len(checks))
+	// Locations report the intended boundary even when no executable oracle can
+	// yet be formed (for example a legacy plan without a baseline name).
+	for _, scenario := range boundary.AffectedScenarios() {
+		locations = appendUnique(locations, "scenarios/"+scenario)
 	}
-	repoLevel := false
 	for _, ref := range refs {
-		if ref.Kind != planmodel.ReferenceCode || ref.Future {
-			continue
-		}
-		if name := scenarioFromTarget(ref.Target); name != "" {
-			scenarios[name] = true
-		} else {
-			repoLevel = true
-		}
-	}
-
-	locations := make([]string, 0, len(scenarios)+1)
-	commands := make([]string, 0, len(scenarios)+2)
-	for _, c := range planmodel.RegressionAnchorCommands(p.RegressionAnchor) {
-		commands = appendUnique(commands, c)
-	}
-	switch p.RegressionAnchor.Strategy {
-	case planmodel.AnchorStrategyScenarioBaseline:
-		if scenario := strings.TrimSpace(p.RegressionAnchor.Scenario); scenario != "" {
-			locations = appendUnique(locations, "scenarios/"+scenario)
-		}
-	case planmodel.AnchorStrategyHeadShaAllowlist:
-		locations = appendUnique(locations, "repo")
-	}
-	names := make([]string, 0, len(scenarios))
-	for name := range scenarios {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		locations = appendUnique(locations, "scenarios/"+name)
-		commands = append(commands, baselineCommands(name, p.RegressionAnchor)...)
-	}
-	// Repo-level paths: boundary non-scenario allow globs (preferred, path-scoped)
-	// plus any non-scenario reference. These have no scenario baseline oracle, so
-	// emit a single INFORMATIONAL diff scoped to the boundary's repo paths.
-	repoPaths := boundary.RepoPaths()
-	if len(repoPaths) > 0 || repoLevel {
-		locations = appendUnique(locations, "repo")
-		cmd := "git diff --stat"
-		if sha := strings.TrimSpace(p.RegressionAnchor.HeadSha); sha != "" && !planmodel.ContainsUnresolvedPlaceholder(sha) {
-			if strings.ToLower(sha) != "captured at execution start" {
-				cmd += " " + sha
+		if ref.Kind == planmodel.ReferenceCode && !ref.Future {
+			if scenario := scenarioFromTarget(ref.Target); scenario != "" {
+				locations = appendUnique(locations, "scenarios/"+scenario)
 			}
 		}
-		if len(repoPaths) > 0 {
-			cmd += " -- " + strings.Join(repoPaths, " ")
+	}
+	if len(boundary.RepoPaths()) > 0 || p.RegressionAnchor.Strategy == planmodel.AnchorStrategyHeadShaAllowlist {
+		locations = appendUnique(locations, "repo")
+	}
+	for _, check := range checks {
+		if check.Scenario != "" {
+			locations = appendUnique(locations, "scenarios/"+check.Scenario)
 		}
-		commands = appendUnique(commands, cmd)
+		if check.Kind == ValidationCheckRepoDiff {
+			locations = appendUnique(locations, "repo")
+		}
 	}
-	for _, c := range p.RegressionAnchor.Commands {
-		commands = appendUnique(commands, c)
-	}
-	return BaselineScope{Commands: commands, Locations: locations}
+	return BaselineScope{Commands: checkCommands(checks), Locations: locations}
 }
 
 // effectiveBoundary returns the boundary that scopes validation for a phase: the
@@ -779,23 +1171,20 @@ func deriveScope(p planmodel.Plan, refs []planmodel.Reference, boundary planmode
 func effectiveBoundary(p planmodel.Plan, phaseID string) planmodel.ChangeBoundary {
 	if strings.TrimSpace(phaseID) != "" {
 		for _, ph := range p.Phases {
-			if ph.ID == phaseID && !ph.ChangeBoundary.IsZero() {
-				return ph.ChangeBoundary
+			if ph.ID == phaseID {
+				switch ph.ValidationScope.Mode {
+				case planmodel.ValidationScopeNarrow:
+					return ph.ValidationScope.Boundary
+				case planmodel.ValidationScopeFullPlan:
+					return p.ChangeBoundary
+				}
+				if !ph.ChangeBoundary.IsZero() {
+					return ph.ChangeBoundary
+				}
 			}
 		}
 	}
 	return p.ChangeBoundary
-}
-
-func baselineCommands(scenario string, anchor planmodel.RegressionAnchor) []string {
-	name := strings.TrimSpace(anchor.BaselineName)
-	if name == "" || strings.ContainsAny(name, " \t\r\n") {
-		return nil
-	}
-	return []string{
-		fmt.Sprintf("git-control-tower baseline snapshot status --scenario %s --name %s --wait --json", scenario, name),
-		fmt.Sprintf("git-control-tower baseline diff --scenario %s --name %s --wait", scenario, name),
-	}
 }
 
 func scenarioFromTarget(target string) string {

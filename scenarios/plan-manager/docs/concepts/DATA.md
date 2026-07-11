@@ -96,10 +96,13 @@ home store. As built:
   indexes enforce dedup: `(plan_id, idempotency_key)` for keyed retries, and
   `(plan_id, execution_id, attribution_run_id, type, normalized title)` for keyless
   attribution dedup.
-- `validation` persists **no** tables in v1: reference resolution, staleness, and
-  baseline outcomes are computed on demand and returned (execution calls
-  `RunValidation`/`ComputeStaleness` when it needs the just-in-time signal).
-  A `validation_results` table is a future caching concern, not v1.
+- `validation_results` (owned by `validation`) — immutable/stable-id terminal
+  results read cheaply by execution when deciding whether a phase can complete.
+- `validation_operations` (owned by `validation`) — the durable queued/running/
+  terminal operation envelope. Its JSON payload checkpoints every oracle and
+  informational child, attempts, external run IDs, typed errors, independent
+  budgets, and the terminal result reference. A partial unique index on
+  `(plan_id, phase_id, idempotency_key)` prevents duplicate child dispatch.
 
 Exact columns live alongside the domain code (`api/internal/<domain>/schema.sql`);
 this map is the ownership contract.
@@ -107,6 +110,9 @@ this map is the ownership contract.
 ## Migrations And Compatibility
 
 - Schema is created idempotently from the embedded `schema.sql` per domain on boot.
+- Non-terminal validation operations are recovered on boot. Terminal children
+  are not replayed; a running child whose final checkpoint was interrupted may
+  be reattached/reissued only through its downstream durable/idempotent command.
 - Because the store is shared with legacy markdown plan data, the first
   migration concern is **adopting / coexisting with** the existing `~/.vrooli/plans`
   file store: plan-manager reads the existing plans and writes the structured

@@ -20,11 +20,13 @@ import (
 
 // fakeValidationService is a minimal stand-in for internalvalidation.Service.
 type fakeValidationService struct {
-	report internalvalidation.ReferenceReport
-	scope  internalvalidation.BaselineScope
-	result internalvalidation.Result
-	dodMet bool
-	err    error
+	report       internalvalidation.ReferenceReport
+	scope        internalvalidation.BaselineScope
+	result       internalvalidation.Result
+	operation    internalvalidation.ValidationOperation
+	deduplicated bool
+	dodMet       bool
+	err          error
 
 	gotPlanID  string
 	gotPhaseID string
@@ -49,6 +51,18 @@ func (f *fakeValidationService) RunValidation(_ context.Context, planID, phaseID
 	f.gotPlanID, f.gotPhaseID = planID, phaseID
 	return f.result, f.err
 }
+
+func (f *fakeValidationService) StartValidation(_ context.Context, planID, phaseID, _ string) (internalvalidation.ValidationOperation, bool, error) {
+	f.gotPlanID, f.gotPhaseID = planID, phaseID
+	return f.operation, f.deduplicated, f.err
+}
+
+func (f *fakeValidationService) GetValidationOperation(_ context.Context, operationID string, _ bool) (internalvalidation.ValidationOperation, error) {
+	f.operation.ID = operationID
+	return f.operation, f.err
+}
+
+func (f *fakeValidationService) RecoverPending(context.Context) error { return f.err }
 
 func (f *fakeValidationService) CaptureBaseline(_ context.Context, planID string) (internalvalidation.BaselineCapture, error) {
 	f.gotPlanID = planID
@@ -104,6 +118,31 @@ func TestComputeStalenessSuccess(t *testing.T) {
 	require.Equal(t, sharedv1.StalenessTier_STALENESS_TIER_LIGHTLY_STALE, resp.Msg.GetOverall())
 	require.Len(t, resp.Msg.GetReferences(), 1)
 	require.False(t, resp.Msg.GetDegraded())
+}
+
+func TestDurableValidationOperationHandlers(t *testing.T) { // [REQ:PM-VALID-004]
+	svc := &fakeValidationService{
+		operation: internalvalidation.ValidationOperation{
+			ID: "op-1", PlanID: "p1", Status: internalvalidation.OperationRunning,
+			ScopeFingerprint: "sha256:scope", QueueReason: "awaiting scheduler claim",
+			Children: []internalvalidation.ValidationChild{{ID: "op-1:1", Status: internalvalidation.ChildTerminal, ExternalID: "run-1"}},
+		},
+		deduplicated: true,
+	}
+	h := newValidationHandler(svc)
+	started, err := h.StartValidation(context.Background(), connect.NewRequest(&validationv1.StartValidationRequest{
+		PlanId: "p1", PhaseId: "ph-1", IdempotencyKey: "same",
+	}))
+	require.NoError(t, err)
+	require.True(t, started.Msg.GetDeduplicated())
+	require.Equal(t, "op-1", started.Msg.GetOperation().GetId())
+	require.Equal(t, "run-1", started.Msg.GetOperation().GetChildren()[0].GetExternalId())
+	require.Equal(t, "sha256:scope", started.Msg.GetOperation().GetScopeFingerprint())
+	require.Equal(t, "awaiting scheduler claim", started.Msg.GetOperation().GetQueueReason())
+
+	waited, err := h.WaitValidationOperation(context.Background(), connect.NewRequest(&validationv1.GetValidationOperationRequest{OperationId: "op-1"}))
+	require.NoError(t, err)
+	require.Equal(t, "op-1", waited.Msg.GetOperation().GetId())
 }
 
 func TestDeriveBaselineScopeSuccess(t *testing.T) {

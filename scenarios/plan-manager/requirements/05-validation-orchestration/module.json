@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-005 — baseline-aware validation: compute the exact check set, run on request, verify DoD.",
-    "last_validated_at": "2026-07-02T21:19:14-04:00",
+    "last_validated_at": "2026-07-10T16:28:06-04:00",
     "module": "validation-orchestration",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -105,6 +105,43 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Readiness validates command setup and doc/code/requirement context targets through injected seams."
+        }
+      ]
+    },
+    {
+      "id": "PM-VALID-004",
+      "title": "Validation is a durable reattachable operation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "validation",
+      "description": "Validation persists its operation and child baseline intents before dispatch, executes independent scenario oracles concurrently with bounded fan-out, stores each child result exactly once, and remains retrievable after client cancellation, timeout, unexpected EOF, or service restart. Transport timeout never cancels server-owned work or becomes PASS.",
+      "tags": [
+        "validation",
+        "durability",
+        "idempotency",
+        "concurrency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers caller cancellation, restart recovery, concurrent idempotent duplicate start, queue/execution budget separation, bounded concurrency, persisted terminal results, and UNKNOWN unavailable children."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/sqlite_operation_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves SQLite idempotency under concurrent starts and lossless partial child checkpoint round-trips."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/validation/handlers_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers start/show/wait/resume request mapping and one inspect reconnect after unexpected EOF."
         }
       ]
     }

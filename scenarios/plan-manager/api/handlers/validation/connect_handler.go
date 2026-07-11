@@ -63,6 +63,34 @@ func (h *connectHandler) DeriveBaselineScope(ctx context.Context, req *connect.R
 	}), nil
 }
 
+func (h *connectHandler) StartValidation(ctx context.Context, req *connect.Request[validationv1.StartValidationRequest]) (*connect.Response[validationv1.StartValidationResponse], error) {
+	op, deduplicated, err := h.deps.Service.StartValidation(ctx, req.Msg.GetPlanId(), req.Msg.GetPhaseId(), req.Msg.GetIdempotencyKey())
+	if err != nil {
+		return nil, internalvalidation.ToConnectError(err)
+	}
+	return connect.NewResponse(&validationv1.StartValidationResponse{
+		Operation: operationToProto(op), Deduplicated: deduplicated,
+	}), nil
+}
+
+func (h *connectHandler) GetValidationOperation(ctx context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
+	op, err := h.deps.Service.GetValidationOperation(ctx, req.Msg.GetOperationId(), req.Msg.GetWait())
+	if err != nil {
+		return nil, internalvalidation.ToConnectError(err)
+	}
+	return connect.NewResponse(&validationv1.GetValidationOperationResponse{Operation: operationToProto(op)}), nil
+}
+
+func (h *connectHandler) WaitValidationOperation(ctx context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
+	req.Msg.Wait = true
+	return h.GetValidationOperation(ctx, req)
+}
+
+func (h *connectHandler) ResumeValidationOperation(ctx context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
+	req.Msg.Wait = true
+	return h.GetValidationOperation(ctx, req)
+}
+
 func (h *connectHandler) RunValidation(ctx context.Context, req *connect.Request[validationv1.RunValidationRequest]) (*connect.Response[validationv1.RunValidationResponse], error) {
 	res, err := h.deps.Service.RunValidation(ctx, req.Msg.GetPlanId(), req.Msg.GetPhaseId())
 	if err != nil {

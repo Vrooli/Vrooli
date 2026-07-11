@@ -1102,8 +1102,110 @@
           }
         },
         {
+          "name": "start",
+          "description": "Start a durable validation operation and return its id",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Scope to one phase id"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Scoped retry key; duplicates return the original operation"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "StartValidation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Inspect a durable validation operation without waiting",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Validation operation id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "GetValidationOperation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block once for a durable validation operation",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Validation operation id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "WaitValidationOperation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Resume and wait once on a queued/running validation after restart",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Validation operation id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ResumeValidationOperation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "run",
-          "description": "Run the derived baseline/check set and report the verdict",
+          "description": "Compatibility blocking validation; prefer start then wait",
           "positionals": [
             {
               "name": "plan",

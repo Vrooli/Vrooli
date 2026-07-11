@@ -24,6 +24,106 @@ import (
 	planmodel "plan-manager/internal/planmodel"
 )
 
+// OperationStatus is the durable lifecycle of a validation operation.
+type OperationStatus string
+
+const (
+	OperationQueued   OperationStatus = "queued"
+	OperationRunning  OperationStatus = "running"
+	OperationTerminal OperationStatus = "terminal"
+)
+
+// ChildStatus is the durable lifecycle of one command child.
+type ChildStatus string
+
+const (
+	ChildQueued   ChildStatus = "queued"
+	ChildRunning  ChildStatus = "running"
+	ChildTerminal ChildStatus = "terminal"
+)
+
+// OperationError is a typed, persisted failure. Detail is operator-facing;
+// callers branch on Code rather than parsing it.
+type OperationError struct {
+	Code   string
+	Detail string
+}
+
+// ValidationChild is one durable oracle or informational command checkpoint.
+type ValidationChild struct {
+	ID string
+	// Check is the durable semantic identity. Command is only the deterministic
+	// dispatch projection retained for operators and legacy compatibility.
+	Check      ValidationCheck
+	Command    string
+	Oracle     bool
+	Status     ChildStatus
+	Attempt    int
+	ExternalID string
+	Verdict    Verdict
+	Detail     string
+	Error      *OperationError
+	QueuedAt   string
+	StartedAt  string
+	TerminalAt string
+}
+
+// ValidationCheckKind is deliberately small: each kind has one stable meaning
+// and therefore one semantic deduplication key.
+type ValidationCheckKind string
+
+const (
+	ValidationCheckScenarioDiff ValidationCheckKind = "scenario_baseline_diff"
+	ValidationCheckRepoDiff     ValidationCheckKind = "repo_diff"
+	ValidationCheckCustom       ValidationCheckKind = "custom_command"
+)
+
+// ValidationCheck is a typed validation work item. SemanticKey is independent
+// of presentation flags such as --json, so rendering variants cannot multiply
+// expensive work.
+type ValidationCheck struct {
+	Kind        ValidationCheckKind
+	SemanticKey string
+	Scenario    string
+	Baseline    string
+	Paths       []string
+	Command     string
+	Oracle      bool
+}
+
+// ValidationOperation is the server-owned, reattachable validation record.
+// Queue, execution, and transport budgets are deliberately independent.
+type ValidationOperation struct {
+	SchemaVersion              int
+	ID                         string
+	PlanID                     string
+	PhaseID                    string
+	IdempotencyKey             string
+	Status                     OperationStatus
+	Attempt                    int
+	Children                   []ValidationChild
+	Result                     *Result
+	ResultRef                  string
+	Error                      *OperationError
+	QueuedAt                   string
+	StartedAt                  string
+	TerminalAt                 string
+	QueueBudgetSeconds         int
+	ExecutionBudgetSeconds     int
+	TransportWaitBudgetSeconds int
+	RecommendedWaitSeconds     int
+	// ScopeFingerprint pins the plan content/scope compiled into this operation.
+	// A changed plan gets a fresh validation only after the active operation ends.
+	ScopeFingerprint string
+	// QueueReason is durable operator guidance while the operation is not terminal.
+	QueueReason string
+}
+
+const CurrentOperationSchemaVersion = 2
+
+// Terminal reports whether no more server-owned work remains.
+func (o ValidationOperation) Terminal() bool { return o.Status == OperationTerminal }
+
 // Verdict is the outcome of a validation/DoD check. Unknown is the honest
 // degraded result when a composed dependency is unavailable — never a false pass.
 type Verdict string
@@ -69,12 +169,13 @@ type BaselineScope struct {
 // Detail when git-control-tower is unavailable or the anchor intent is still a
 // placeholder — never a fabricated capture.
 type BaselineCapture struct {
-	Captured             bool
-	Scenario             string
-	BaselineName         string
-	CapturedSurfaceCount int
-	SkippedSurfaces      map[string]string
-	Detail               string
+	Captured        bool
+	Scenario        string
+	BaselineName    string
+	RunID           string
+	SchemaVersion   int
+	DegradedReasons []string
+	Detail          string
 }
 
 type CommandReferenceValidator interface {

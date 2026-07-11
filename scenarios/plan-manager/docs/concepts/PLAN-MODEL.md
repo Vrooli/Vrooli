@@ -144,6 +144,7 @@ runner walks and the unit context is scoped to.
 | `intent` | authored | What this phase accomplishes. |
 | `affected_areas[]` | authored | The files/dirs/surfaces this phase touches, as orienting prose lines (complements typed `references[]`). |
 | `change_boundary` | authored (optional) | Optional per-phase boundary refinement. **Narrows** the plan-level boundary for phase-specific checks; it never widens the plan blast radius. |
+| `validation_scope` | authored | Every phase in a multi-scenario plan declares either `narrow` with an explicit boundary or `full_plan` with a rationale. References never implicitly narrow validation. |
 | `relevant_context[]` | authored + discovered | Phase-scoped setup items with kind, reason, instruction, command/argv, target, required flag, repeat policy, source, and status. New authored phases must include at least one phase-scoped relevant-context item or an explicit `NO_CONTEXT: <reason>` note. |
 | `steps[]` | authored | Ordered implementation steps — the concrete sequence an implementation agent follows. Mandatory for implementation phases. |
 | `expected_outputs[]` | authored | The artifacts/outputs this phase should produce (new files, generated code, passing suites). |
@@ -471,13 +472,18 @@ locator never reaches the references section.
 
 Readiness/preflight is the shared execution-grade contract across drafts and
 persisted plans. Author `validate`, preview guidance, finalize, and persisted
-`validate run` all consume the same readiness evaluator for deterministic plan
+durable validation operations all consume the same readiness evaluator for deterministic plan
 quality and structured setup checks. The pure quality kernel lives in
 `planmodel`; the application-level readiness layer adds optional dependency
 checks for CLI command validity and context/reference resolution. Deterministic
 quality failures block finalize before persistence. External dependency outages
 degrade honestly instead of becoming passes, so an operator can distinguish "the
 plan is thin" from "the resolver is unavailable."
+
+Persisted validation uses `validate start` followed by exactly one `wait` (or
+`resume` after service restart). The operation record and every child checkpoint
+survive client disconnects. `validate show` is read-only, and `validate run` is a
+compatibility wrapper rather than the preferred lifecycle.
 
 - **Regression anchor** — **boundary-native** typed **intent** at authoring, fresh
   **snapshot** at execution start. New plans author the `change_boundary`

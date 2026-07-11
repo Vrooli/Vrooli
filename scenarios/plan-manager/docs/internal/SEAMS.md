@@ -210,11 +210,11 @@ seam, not new seams — see [`../concepts/FLOWS.md`](../concepts/FLOWS.md)
 
 | | |
 |---|---|
-| **Seam** | Validation reads plans, resolves references, computes staleness, runs regression oracles, validates CLI command references, and stores last-known results |
-| **Interface** | `api/internal/validation/seams.go::{PlanSource,ReferenceResolver,StalenessComputer,ResultStore,CommandRunner}` plus the command-reference validator consumed by `validation.Service`. |
-| **Production wiring** | `api/handlers/validation/module.go::Module` adapts the plans service as `PlanSource`, wires code-facts-backed reference resolution with a filesystem floor, existence/git staleness, the LookPath-guarded runner for `git-control-tower` / diff commands, the SQLite result store, and CLI-health command validation. |
-| **Test fake** | `api/internal/validation/validation_test.go` uses fake plans, resolver, staleness, command runner, result store behavior, and command validator results; `api/handlers/validation/codefacts_resolver_test.go` exercises the code-facts adapter fallback. |
-| **Why it exists** | Validation is the boundary where external evidence becomes a plan verdict. Missing `code-facts`, unavailable staleness evidence, absent `git-control-tower`, non-comparable baseline diffs, and command-catalog gaps must produce `UNKNOWN`/degraded or explicit failures, never a false `PASS`. The result store is also the cheap handoff to execution: execution reads the last stored result instead of triggering live validation while rendering status. |
+| **Seam** | Validation reads plans, resolves references, computes staleness, runs regression oracles, checkpoints durable operations, validates CLI command references, and stores terminal results |
+| **Interface** | `api/internal/validation/seams.go::{PlanSource,ReferenceResolver,StalenessComputer,ResultStore,OperationStore,CommandRunner}` plus the command-reference validator consumed by `validation.Service`. |
+| **Production wiring** | `api/handlers/validation/module.go::Module` adapts the plans service, wires code-facts/filesystem/git evidence, the LookPath-guarded command runner, and one SQLite store implementing both terminal results and durable operation checkpoints. Boot invokes idempotent non-terminal recovery before serving requests. |
+| **Test fake** | `api/internal/validation/validation_test.go` uses concurrent in-memory operation/result stores and disconnecting runners; `sqlite_operation_test.go` proves database dedup/checkpoint round trips; handler/CLI tests cover start/show/wait/resume and EOF recovery. |
+| **Why it exists** | Validation is the boundary where external evidence becomes a plan verdict. Intent and the complete child set commit before dispatch; child results persist independently of the caller; execution reads only the stable terminal result. Missing/unavailable/not-comparable evidence remains `UNKNOWN`, never a false `PASS`. |
 
 ### Execution plan / validation / velocity / log seams
 

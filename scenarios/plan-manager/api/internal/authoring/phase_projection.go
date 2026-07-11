@@ -67,10 +67,39 @@ func applyPhaseField(phase *PhaseDraft, field PhaseField, content string) error 
 		// never become an executable command argv. Executable setup context flows
 		// through typed context-submit.
 		phase.RelevantContext = append(phase.RelevantContext, noteContextItemsFromLines(content, phase.ID)...)
+	case PhaseFieldValidationScope:
+		scope, err := parseValidationScope(content)
+		if err != nil {
+			return ErrAuthoredMarkup{SectionKey: SectionPhases, Reason: err.Error()}
+		}
+		phase.ValidationScope = scope
 	default:
 		return ErrInvalidSession{Reason: "unknown phase field " + string(field)}
 	}
 	return nil
+}
+
+// parseValidationScope accepts either `full_plan: <rationale>` or a compact
+// boundary block (`narrow:` followed by allow/deny entries). It is intentionally
+// explicit: references and prose never narrow validation authorization.
+func parseValidationScope(content string) (planmodel.ValidationScope, error) {
+	content = strings.TrimSpace(content)
+	lower := strings.ToLower(content)
+	if strings.HasPrefix(lower, "full_plan:") {
+		rationale := strings.TrimSpace(content[len("full_plan:"):])
+		if rationale == "" {
+			return planmodel.ValidationScope{}, fmt.Errorf("full_plan validation scope requires rationale")
+		}
+		return planmodel.ValidationScope{Mode: planmodel.ValidationScopeFullPlan, Rationale: rationale}, nil
+	}
+	if strings.HasPrefix(lower, "narrow:") {
+		boundary := planmodel.ParseBoundarySection(strings.TrimSpace(content[len("narrow:"):]))
+		if !boundary.HasAllow() {
+			return planmodel.ValidationScope{}, fmt.Errorf("narrow validation scope requires acceptance_allow paths")
+		}
+		return planmodel.ValidationScope{Mode: planmodel.ValidationScopeNarrow, Boundary: boundary}, nil
+	}
+	return planmodel.ValidationScope{}, fmt.Errorf("validation scope must start with narrow: or full_plan:")
 }
 
 func syncPhaseSection(sess Session) Session {

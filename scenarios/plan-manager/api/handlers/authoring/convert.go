@@ -129,6 +129,7 @@ func phaseDraftToProto(phase internalauthoring.PhaseDraft) *authoringv1.PhaseDra
 		Validation:       phase.Validation,
 		RisksHazards:     append([]string(nil), phase.RisksHazards...),
 		HandoffNotes:     phase.HandoffNotes,
+		ValidationScope:  planproto.ValidationScopeToProto(phase.ValidationScope),
 	}
 }
 

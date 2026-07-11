@@ -163,6 +163,33 @@ func parsePhaseChangeBoundary(block string) ChangeBoundary {
 	return b.Normalized()
 }
 
+func parsePhaseValidationScope(block string) ValidationScope {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return ValidationScope{}
+	}
+	var scope ValidationScope
+	for _, line := range strings.Split(block, "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		lower := strings.ToLower(line)
+		switch {
+		case strings.HasPrefix(lower, "mode:"):
+			scope.Mode = ValidationScopeMode(strings.TrimSpace(line[len("Mode:"):]))
+		case strings.HasPrefix(lower, "rationale:"):
+			scope.Rationale = strings.TrimSpace(line[len("Rationale:"):])
+		case strings.HasPrefix(lower, "allow:"):
+			scope.Boundary.AcceptanceAllow = splitCommaList(line[len("Allow:"):])
+		case strings.HasPrefix(lower, "deny:"):
+			scope.Boundary.AcceptanceDeny = splitCommaList(line[len("Deny:"):])
+		}
+	}
+	scope.Boundary = scope.Boundary.Normalized()
+	if scope.Mode != ValidationScopeNarrow && scope.Mode != ValidationScopeFullPlan {
+		return ValidationScope{}
+	}
+	return scope
+}
+
 // ParseRegressionAnchorBlock converts the rendered Regression Anchor section, or
 // a legacy prose anchor, into typed anchor fields. New plans should render the
 // structured bullet form; legacy prose remains readable but is marked explicitly
@@ -576,6 +603,7 @@ func parsePhases(markdown string) ([]Phase, error) {
 		ph.Validation = extractPhaseBlock(body, markerPhaseValidation)
 		ph.HandoffNotes = extractPhaseBlock(body, markerHandoffNotes)
 		ph.ChangeBoundary = parsePhaseChangeBoundary(extractPhaseBlock(body, markerChangeBoundary))
+		ph.ValidationScope = parsePhaseValidationScope(extractPhaseBlock(body, markerValidationScope))
 		applyLegacyPhaseSections(&ph, body)
 		contextBody := extractPhaseContextSetup(body)
 		if contextBody != "" {
@@ -605,6 +633,7 @@ const (
 	markerRisksHazards    = "**Risks / Hazards:**"
 	markerHandoffNotes    = "**Handoff Notes:**"
 	markerChangeBoundary  = "**Change Boundary:**"
+	markerValidationScope = "**Validation Scope:**"
 	markerReminders       = "**Reminders:**"
 	markerBaselineScope   = "**Baseline scope:**"
 	markerPhaseReferences = "**References:**"
@@ -613,7 +642,7 @@ const (
 
 var phaseBlockMarkers = []string{
 	markerAffectedAreas, markerPhaseContext, markerOrderedSteps, markerExpectedOutputs,
-	markerPhaseValidation, markerRisksHazards, markerHandoffNotes, markerChangeBoundary,
+	markerPhaseValidation, markerRisksHazards, markerHandoffNotes, markerChangeBoundary, markerValidationScope,
 	markerReminders, markerBaselineScope, markerPhaseReferences, markerRequiredReading,
 }
 

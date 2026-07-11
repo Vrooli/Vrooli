@@ -92,6 +92,27 @@ response includes the markdown, rendered mirror metadata, a `repaired` flag, and
 the resolved plan metadata so root and scenario CLIs can preserve provenance
 without issuing a second lookup. CLI mirror: `plan-manager plans render`.
 
+## ValidationService durable operations
+
+Plan validation is a server-owned operation. `StartValidation` persists an
+operation, its complete child oracle set, and an optional scoped idempotency key
+before bounded concurrent dispatch. The remaining methods inspect or reattach
+to that durable identity; transport lifetime never determines the verdict.
+
+| RPC | Purpose | CLI mirror |
+| --- | --- | --- |
+| `StartValidation` | Persist queued operation/children and return the stable operation ID. Repeating the same `(plan, phase, idempotency_key)` returns the original operation. | `plan-manager validate start` |
+| `GetValidationOperation` | Read current checkpoints and terminal result without waiting. | `plan-manager validate show` |
+| `WaitValidationOperation` | Block once for the existing operation; timeout/cancel only detaches. | `plan-manager validate wait` |
+| `ResumeValidationOperation` | Resume unfinished queued/running children after restart and block once. Terminal children are not replayed. | `plan-manager validate resume` |
+| `RunValidation` | Compatibility blocking wrapper over the durable lifecycle. | `plan-manager validate run` |
+
+Queue residence, operation execution, individual child execution, and transport
+attachment have independent budgets. Every required oracle must be terminal and
+comparable for PASS; missing, unavailable, timed-out, or not-comparable evidence
+remains UNKNOWN/degraded. Unexpected EOF permits one non-blocking inspection by
+operation ID and never a duplicate start.
+
 ---
 
 ## Adding a new endpoint

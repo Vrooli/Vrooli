@@ -610,6 +610,24 @@
           }
         },
         {
+          "path": "internal/INVARIANTS.md",
+          "docType": "invariants",
+          "title": "Validation Replay and Idempotency Invariants",
+          "description": "Durable validation commit boundaries, scoped idempotency, and safe retry rules",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "docType": "temporal-flows",
+          "title": "Validation Temporal Flows",
+          "description": "Queued, running, terminal, detach, and restart checkpoint behavior",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
           "path": "internal/PROGRESS.md",
           "docType": "progress",
           "title": "Progress",
