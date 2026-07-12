@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "React UI: a scenario-centric branding dashboard and a brand creation/editing wizard with live, theme-aware preview.",
-    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
     "module": "ui",
     "prd_ref": "PRD.md",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "UI-001",
       "title": "Dashboard shows branding status across all scenarios",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "ui",
       "criticality": "P1",
@@ -24,7 +24,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned UI coverage at ui/src/components/Dashboard/Dashboard.test.tsx once the dashboard is built."
         }
       ]
@@ -32,7 +32,7 @@
     {
       "id": "UI-002",
       "title": "Wizard creates and edits brands with application preview",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "ui",
       "criticality": "P1",
@@ -46,7 +46,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned UI coverage at ui/src/components/Wizard/Wizard.test.tsx once the wizard is built."
         }
       ]
@@ -54,7 +54,7 @@
     {
       "id": "UI-003",
       "title": "Preview brand application in both dark and light themes",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "ui",
       "criticality": "P1",
@@ -68,7 +68,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned UI coverage at ui/src/components/Preview/ThemePreview.test.tsx once theme preview is built."
         }
       ]

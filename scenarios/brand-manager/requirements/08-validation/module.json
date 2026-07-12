@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "The headline: branding validation delivered as a first-class test-genie delegated phase via ScenarioValidationService, emitting findings on FINDING_SOURCE_BRANDING with a maturity ladder and deterministic auto-fixes.",
-    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
     "module": "validation",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "VALID-001",
       "title": "Serve ScenarioValidationService for the test-genie branding phase",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "validation",
       "criticality": "P0",
@@ -25,7 +25,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/validation/service_test.go once ScenarioValidationService is implemented."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "VALID-002",
       "title": "Evaluate the branding rule set into severity-gated findings",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "validation",
       "criticality": "P0",
@@ -47,7 +47,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/validation/rules_test.go once the branding rule set is implemented."
         }
       ]
@@ -55,7 +55,7 @@
     {
       "id": "VALID-003",
       "title": "Return a branding MaturityAssessment ladder",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "validation",
       "criticality": "P0",
@@ -68,7 +68,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/validation/maturity_test.go once the maturity ladder is implemented."
         }
       ]
@@ -76,7 +76,7 @@
     {
       "id": "VALID-004",
       "title": "Offer deterministic, idempotent branding auto-fixes",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "validation",
       "criticality": "P0",
@@ -90,7 +90,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/validation/autofix_test.go once deterministic auto-fix is implemented."
         }
       ]

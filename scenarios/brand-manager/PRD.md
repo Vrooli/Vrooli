@@ -21,22 +21,22 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | Brand CRUD + Versioning | Create, read, update, delete, and version brands with identity, visuals, colors, typography, voice, and notes via Connect-RPC API and CLI (optimistic concurrency + idempotency preserved)
-- [x] OT-P0-002 | SQLite Storage | Single SQLite DB (WAL) at `~/.vrooli/brand-manager/brand-manager.db` with tables for brands, brand_versions, assignments, and assets; asset files at `~/.vrooli/brand-manager/assets/{brand_id}/`
-- [x] OT-P0-003 | AI Generation | **Text** facets (palette, typography, voice) use the local LLM provider chain (Ollama-first, OpenRouter fallback). **Image** facets — logo/favicon generation, prompt-based logo editing, background removal, and derived icon variants — run through the **image-tools** scenario (the reusable image capability) via a narrow `ImageBackend` client seam: submit the AI op → wait once for the durable job → download the blob → store as a brand asset. image-tools owns model/backend/provider selection, local backends, and an opt-in BYOK cloud fallback; brand-manager owns brand semantics, prompt recipes, and asset/version policy.
-- [x] OT-P0-004 | Programmatic Application | Apply brand elements to scenarios via CSS custom properties with `/* brand-manager:<element> */` markers, `manifest.json` `_brand`/`icons`/`theme_color`/`background_color` keys, the derived favicon/apple-touch/maskable icon set, and atomic static-asset copy
-- [x] OT-P0-005 | DESIGN.md Export | Generate root-level `DESIGN.md` per scenario during apply from structured brand data + user notes
-- [x] OT-P0-006 | Branding Validation as a test-genie Phase | Branding validation is delivered as a first-class test-genie **delegated phase** via `ScenarioValidationService` (`ValidateScenario`/`PreviewFix`/`ApplyFix`). `vrooli scenario test <scenario>` surfaces severity-gated branding findings (has-display-name, has-logo, has-favicon, has-color-system, has-typography, wcag-aa-contrast, brand-markers-applied), returns a `MaturityAssessment` ladder, and offers deterministic auto-fixes. Findings flow on the `FINDING_SOURCE_BRANDING` channel.
-- [x] OT-P0-007 | Discovery Scanner | Scan existing scenario state (service.json, theme/token files, static assets, manifests, `DESIGN.md`) and auto-populate draft brands with confidence scores
-- [x] OT-P0-008 | Brand Assignment | Link brands to scenarios, track what was applied, when, and at what version; support partial application (individual elements)
-- [x] OT-P0-009 | CLI Surface (manifest-driven) | Commands: create, list, get, update, delete, versions, assign, unassign, scenario-status, generate, discover, apply, scan — all manifest-declared Connect-RPC bindings (no programmatic shell)
-- [x] OT-P0-010 | WCAG AA Contrast | Validate contrast for defined color pairings (primary-on-background, text-on-surface) during generation and validation; reject / flag non-compliant pairings
+- [ ] OT-P0-001 | Brand CRUD + Versioning | Create, read, update, delete, and version brands with identity, visuals, colors, typography, voice, and notes via Connect-RPC API and CLI (optimistic concurrency + idempotency preserved)
+- [ ] OT-P0-002 | SQLite Storage | Single SQLite DB (WAL) at `~/.vrooli/brand-manager/brand-manager.db` with tables for brands, brand_versions, assignments, and assets; asset files at `~/.vrooli/brand-manager/assets/{brand_id}/`
+- [ ] OT-P0-003 | AI Generation | **Text** facets (palette, typography, voice) use the local LLM provider chain (Ollama-first, OpenRouter fallback). **Image** facets — logo/favicon generation, prompt-based logo editing, background removal, and derived icon variants — run through the **image-tools** scenario (the reusable image capability) via a narrow `ImageBackend` client seam: submit the AI op → wait once for the durable job → download the blob → store as a brand asset. image-tools owns model/backend/provider selection, local backends, and an opt-in BYOK cloud fallback; brand-manager owns brand semantics, prompt recipes, and asset/version policy.
+- [ ] OT-P0-004 | Programmatic Application | Apply brand elements to scenarios via CSS custom properties with `/* brand-manager:<element> */` markers, `manifest.json` `_brand`/`icons`/`theme_color`/`background_color` keys, the derived favicon/apple-touch/maskable icon set, and atomic static-asset copy
+- [ ] OT-P0-005 | DESIGN.md Export | Generate root-level `DESIGN.md` per scenario during apply from structured brand data + user notes
+- [ ] OT-P0-006 | Branding Validation as a test-genie Phase | Branding validation is delivered as a first-class test-genie **delegated phase** via `ScenarioValidationService` (`ValidateScenario`/`PreviewFix`/`ApplyFix`). `vrooli scenario test <scenario>` surfaces severity-gated branding findings (has-display-name, has-logo, has-favicon, has-color-system, has-typography, wcag-aa-contrast, brand-markers-applied), returns a `MaturityAssessment` ladder, and offers deterministic auto-fixes. Findings flow on the `FINDING_SOURCE_BRANDING` channel.
+- [ ] OT-P0-007 | Discovery Scanner | Scan existing scenario state (service.json, theme/token files, static assets, manifests, `DESIGN.md`) and auto-populate draft brands with confidence scores
+- [ ] OT-P0-008 | Brand Assignment | Link brands to scenarios, track what was applied, when, and at what version; support partial application (individual elements)
+- [ ] OT-P0-009 | CLI Surface (manifest-driven) | Commands: create, list, get, update, delete, versions, assign, unassign, scenario-status, generate, discover, apply, scan — all manifest-declared Connect-RPC bindings (no programmatic shell)
+- [ ] OT-P0-010 | WCAG AA Contrast | Validate contrast for defined color pairings (primary-on-background, text-on-surface) during generation and validation; reject / flag non-compliant pairings
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | UI Dashboard | Scenario-centric view of branding status across all scenarios with brand-library browsing and search
-- [x] OT-P1-002 | UI Wizard | Brand creation/editing with live preview, generation-option selection, and application preview before applying
-- [x] OT-P1-003 | Dark/Light Theme Preview | Preview brand application in both theme modes before committing
-- [x] OT-P1-004 | Framework-Extensible Scanning | Scanner plugins per framework/language beyond CSS + JSON (e.g., Tailwind config, SCSS)
+- [ ] OT-P1-001 | UI Dashboard | Scenario-centric view of branding status across all scenarios with brand-library browsing and search
+- [ ] OT-P1-002 | UI Wizard | Brand creation/editing with live preview, generation-option selection, and application preview before applying
+- [ ] OT-P1-003 | Dark/Light Theme Preview | Preview brand application in both theme modes before committing
+- [ ] OT-P1-004 | Framework-Extensible Scanning | Scanner plugins per framework/language beyond CSS + JSON (e.g., Tailwind config, SCSS)
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Agent-Assisted Application | Spawn sandboxed agents via agent-manager for complex/non-standard scenario integrations with a mandatory inline-marker constraint (deferred; declare agent-manager only when built)

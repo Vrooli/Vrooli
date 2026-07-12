@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "AI generation of brand text facets via the local LLM chain (Ollama-first, OpenRouter fallback) and brand imagery (logo/favicon generation, prompt-based editing, background removal, derived icon variants) via the image-tools scenario through a narrow ImageBackend client seam. Degrades gracefully when text providers or image-tools are absent.",
-    "last_validated_at": "2026-06-29T00:00:00-04:00",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
     "module": "generation",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "GEN-001",
       "title": "Generate brand text via the Ollama-first provider chain",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "generation",
       "criticality": "P0",
@@ -24,7 +24,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by api/internal/generation/service_test.go (GenerateElements paths) + providers_test.go (chain ordering)."
         }
       ]
@@ -32,7 +32,7 @@
     {
       "id": "GEN-002",
       "title": "Generate brand imagery via image-tools (logo / favicon)",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "generation",
       "criticality": "P0",
@@ -46,7 +46,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by api/internal/generation/service_test.go (GenerateImage via FakeImageBackend) + handler tests; live readiness via image-tools models doctor/explain."
         }
       ]
@@ -54,7 +54,7 @@
     {
       "id": "GEN-004",
       "title": "Edit an existing brand image by instruction via image-tools",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "generation",
       "criticality": "P0",
@@ -69,7 +69,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by api/internal/generation/service_test.go (EditImage) + handler test (EditBrandImage, missing-source NotFound)."
         }
       ]
@@ -77,7 +77,7 @@
     {
       "id": "GEN-005",
       "title": "Remove a brand image background via image-tools",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "generation",
       "criticality": "P0",
@@ -92,7 +92,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by api/internal/generation/service_test.go (RemoveBackground)."
         }
       ]
@@ -100,7 +100,7 @@
     {
       "id": "GEN-006",
       "title": "Derive a deterministic platform icon set",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "generation",
       "criticality": "P0",
@@ -115,7 +115,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by api/internal/generation/service_test.go (DeriveIcons full set + favicon-only selection)."
         }
       ]
@@ -123,7 +123,7 @@
     {
       "id": "GEN-003",
       "title": "Generation degrades gracefully when a backend is unreachable",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "generation",
       "criticality": "P0",
@@ -137,7 +137,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by error-mapping tests (ErrProvidersUnavailable, ErrImageBackendNotReady→FailedPrecondition) in service_test.go + connect_handler_test.go."
         }
       ]

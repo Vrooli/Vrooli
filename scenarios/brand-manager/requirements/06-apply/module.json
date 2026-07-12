@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Programmatic application of brand elements into a target scenario (CSS markers, manifest _brand/icons/theme keys, asset + icon-set copy) plus DESIGN.md export.",
-    "last_validated_at": "2026-06-29T00:00:00-04:00",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
     "module": "apply",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "APPLY-001",
       "title": "Apply colors and typography via marked CSS custom properties",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "apply",
       "criticality": "P0",
@@ -25,7 +25,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/apply/css_test.go once the marker-based apply engine is ported."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "APPLY-002",
       "title": "Apply manifest _brand keys and copy static assets atomically",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "apply",
       "criticality": "P0",
@@ -47,7 +47,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/apply/manifest_test.go once manifest/asset apply is ported."
         }
       ]
@@ -55,7 +55,7 @@
     {
       "id": "APPLY-003",
       "title": "Re-applying an unchanged brand is idempotent",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "apply",
       "criticality": "P0",
@@ -68,7 +68,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/apply/idempotency_test.go once apply idempotency is ported."
         }
       ]
@@ -76,7 +76,7 @@
     {
       "id": "APPLY-004",
       "title": "Export a root-level DESIGN.md during apply",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "apply",
       "criticality": "P0",
@@ -89,7 +89,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/apply/designdoc_test.go once DESIGN.md export is ported."
         }
       ]
@@ -97,7 +97,7 @@
     {
       "id": "APPLY-005",
       "title": "Install the derived PWA/launcher icon set and manifest icon metadata",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "apply",
       "criticality": "P0",
@@ -113,7 +113,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by api/internal/apply/service_test.go (TestApply_InstallsIconSetAndManifestIconsIdempotently)."
         }
       ]

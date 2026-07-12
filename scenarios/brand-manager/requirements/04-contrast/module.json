@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "WCAG AA contrast checking for brand color pairings, dog-fooded by the scenario that validates contrast for others.",
-    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
     "module": "contrast",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "CONTRAST-001",
       "title": "Compute WCAG contrast ratio for a color pairing",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "contrast",
       "criticality": "P0",
@@ -25,7 +25,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/contrast/ratio_test.go once the contrast engine is ported."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "CONTRAST-002",
       "title": "Flag non-compliant brand color pairings",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "contrast",
       "criticality": "P0",
@@ -46,7 +46,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/contrast/pairings_test.go once pairing checks are ported."
         }
       ]

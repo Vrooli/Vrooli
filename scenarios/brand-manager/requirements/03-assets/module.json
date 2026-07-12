@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Binary brand-asset storage (logos, favicons, derived icon variants, transparent cutouts) on the filesystem, tracked by metadata rows in SQLite. Upsert-by-(brand_id, filename): exploratory AI generations land under unique filenames (preserved, never clobbered) while canonical/derived assets use stable names.",
-    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
     "module": "assets",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "ASSET-001",
       "title": "Store brand asset files under a per-brand directory",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "assets",
       "criticality": "P0",
@@ -25,7 +25,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/assets/store_test.go once asset storage is ported."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "ASSET-002",
       "title": "Asset writes are atomic and do not corrupt on failure",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "assets",
       "criticality": "P0",
@@ -46,7 +46,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/assets/atomic_test.go once atomic asset writes are ported."
         }
       ]

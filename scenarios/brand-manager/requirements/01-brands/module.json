@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Brand CRUD + versioning, persisted in the single SQLite (WAL) brand-manager database. The authoring core every other domain reads from.",
-    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
     "module": "brands",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRAND-001",
       "title": "Create, read, update, and delete brands with full identity payload",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "brands",
       "criticality": "P0",
@@ -25,7 +25,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/brands/service_test.go once the brands domain is ported."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "BRAND-002",
       "title": "Each brand mutation produces an immutable brand version",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "brands",
       "criticality": "P0",
@@ -46,7 +46,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/brands/versions_test.go once versioning is ported."
         }
       ]
@@ -54,7 +54,7 @@
     {
       "id": "BRAND-003",
       "title": "Mutations enforce optimistic concurrency and idempotency",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "brands",
       "criticality": "P0",
@@ -67,7 +67,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/brands/concurrency_test.go once concurrency control is ported."
         }
       ]
@@ -75,7 +75,7 @@
     {
       "id": "BRAND-004",
       "title": "Brands persist in a single SQLite (WAL) database that survives restart",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "storage",
       "criticality": "P0",
@@ -89,7 +89,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned unit coverage at api/internal/repository/sqlite_test.go once the SQLite repository is ported."
         }
       ]
