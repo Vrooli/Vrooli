@@ -3,11 +3,11 @@ package validate
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	maturityreport "github.com/vrooli/maturity-go/report"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -63,12 +63,12 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 			msg.GetScenario(), statusLabel(msg.GetStatus()), errors, warnings, infos,
 		),
 	}
-	if assessmentReport := maturityreport.BuildMaturityListReport(msg.GetAssessment()); len(assessmentReport.Summary) > 0 {
-		summaryLines = append(summaryLines, assessmentReport.Summary...)
-		if len(assessmentReport.Results) > 0 {
-			results = append(results, "")
-			results = append(results, assessmentReport.Results...)
-		}
+	if presentation := assessment.GetPresentation(); presentation != nil && presentation.GetContractVersion() != "" {
+		summaryLines = append(summaryLines, formatPresentationSummary(presentation)...)
+		results = append(results, "")
+		results = append(results, formatPresentationResults(presentation)...)
+	} else {
+		summaryLines = append(summaryLines, "Canonical presentation unavailable (historical or degraded provider response).")
 	}
 	if err := cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
 		Summary:        summaryLines,
@@ -84,6 +84,60 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		return fmt.Errorf("scenario %s validation errored", msg.GetScenario())
 	}
 	return nil
+}
+
+func formatPresentationSummary(p *commonv1.PhasePresentation) []string {
+	if p == nil {
+		return nil
+	}
+	lines := []string{fmt.Sprintf("Presentation %s: %s", p.GetContractVersion(), p.GetCurrentLevel())}
+	if p.GetAtMaximum() {
+		return append(lines, "Maximum maturity reached.")
+	}
+	if action := strings.TrimSpace(p.GetNextAction()); action != "" {
+		line := "Next: " + action
+		if focus := strings.TrimSpace(p.GetFocusCapabilityLabel()); focus != "" {
+			line += " [→ " + focus + "]"
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+func formatPresentationResults(p *commonv1.PhasePresentation) []string {
+	if p == nil {
+		return nil
+	}
+	lines := make([]string, 0, len(p.GetCapabilities())+1)
+	for _, capability := range p.GetCapabilities() {
+		if capability == nil {
+			continue
+		}
+		line := fmt.Sprintf("%s: %s", firstNonEmpty(capability.GetLabel(), capability.GetId()), capability.GetCurrentLevel())
+		if next := capability.GetNextLevel(); next != "" {
+			line += " → " + next
+		}
+		lines = append(lines, line)
+		for _, finding := range capability.GetFindings() {
+			if finding == nil {
+				continue
+			}
+			lines = append(lines, fmt.Sprintf("  %s ×%d [%s]", finding.GetCode(), finding.GetCount(), strings.TrimPrefix(finding.GetFixAffordance().String(), "FIX_AFFORDANCE_")))
+		}
+	}
+	if len(p.GetDocumentationTopics()) > 0 {
+		lines = append(lines, "Docs: "+strings.Join(p.GetDocumentationTopics(), " · "))
+	}
+	return lines
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func statusLabel(s scenariovalidationv1.ValidationStatus) string {

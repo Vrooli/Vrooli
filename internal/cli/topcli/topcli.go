@@ -30,7 +30,6 @@ const (
 	CommandHygiene      CommandID = "hygiene"
 	CommandLifecycle    CommandID = "lifecycle"
 	CommandAuth         CommandID = "auth"
-	CommandAgentPolicy  CommandID = "agent-policy"
 	CommandRecovery     CommandID = "recovery"
 	CommandHost         CommandID = "host"
 	CommandCapacity     CommandID = "capacity"
@@ -58,7 +57,6 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandContract), Group: "Maintenance Commands", Summary: "Inspect and validate the repository contract", Handler: CommandContract, Suggestable: true},
 		{Name: string(CommandHygiene), Group: "Maintenance Commands", Summary: "Run repository hygiene checks", Handler: CommandHygiene, Suggestable: true},
 		{Name: string(CommandAuth), Group: "Maintenance Commands", Summary: "Report sign-in state for host tools (buf, future: claude/codex/gh/...)", Handler: CommandAuth, Suggestable: true},
-		{Name: string(CommandAgentPolicy), Group: "Maintenance Commands", Summary: "Manage permissions across every installed coding-agent resource", Handler: CommandAgentPolicy, Suggestable: true},
 		{Name: string(CommandRecovery), Group: "Maintenance Commands", Summary: "Baseline Modes recovery floor: restore points and engagement manifests", Handler: CommandRecovery, Suggestable: true},
 		{Name: string(CommandHost), Group: "Maintenance Commands", Summary: "Inspect local host inventory via the shared Go collector", Handler: CommandHost, Suggestable: true},
 		{Name: string(CommandCapacity), Group: "Maintenance Commands", Summary: "Arbitrate host resource capacity (GPU VRAM/RAM/CPU) via the claim ledger", Handler: CommandCapacity, Suggestable: true},

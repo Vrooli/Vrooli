@@ -19,6 +19,7 @@ import {
   validateScenario,
   type FindingSeverity,
   type ValidationFinding,
+  type ValidationPresentation,
 } from "../../api/validation";
 
 type SeverityFilter = "all" | "error" | "warning" | "info";
@@ -143,6 +144,7 @@ export function ValidationDetailPage() {
 
       {result ? (
         <>
+          {result.presentation ? <PresentationCard presentation={result.presentation} /> : null}
           <Card>
             <CardHeader>
               <CardTitle>{t(strings.pages.validation.summary.heading)}</CardTitle>
@@ -240,6 +242,44 @@ export function ValidationDetailPage() {
         </>
       ) : null}
     </section>
+  );
+}
+
+function PresentationCard({ presentation }: { presentation: ValidationPresentation }) {
+  const { t } = useTranslation();
+  return (
+    <Card data-testid="validation-canonical-presentation">
+      <CardHeader>
+        <CardTitle>{t(strings.pages.validation.presentation.heading)}</CardTitle>
+      </CardHeader>
+      <CardBody className="flex flex-col gap-4">
+        <p className="text-sm text-app-muted-foreground">{t(strings.pages.validation.presentation.contract, { version: presentation.contractVersion })}</p>
+        {presentation.northStar ? <p className="text-sm"><strong>{t(strings.pages.validation.presentation.northStar)}</strong> {presentation.northStar}</p> : null}
+        {presentation.atMaximum ? (
+          <p className="text-sm">{t(strings.pages.validation.presentation.maximum)}</p>
+        ) : presentation.nextAction ? (
+          <p className="text-sm"><strong>{t(strings.pages.validation.presentation.next)}</strong> {presentation.nextAction}{presentation.focusCapabilityLabel ? ` [→ ${presentation.focusCapabilityLabel}]` : ""}</p>
+        ) : null}
+        <ul className="flex flex-col gap-3">
+          {presentation.capabilities.map((capability) => (
+            <li key={capability.id} className="rounded-panel border border-app-border p-3">
+              <p className="font-medium">{capability.label || capability.id}</p>
+              <p className="text-sm text-app-muted-foreground">{capability.currentLevel}{capability.nextLevel ? ` → ${capability.nextLevel}` : ""}</p>
+              {capability.currentSummary ? <p className="mt-1 text-sm">{capability.currentSummary}</p> : null}
+              {capability.nextUnlock ? <p className="mt-1 text-sm"><strong>{t(strings.pages.validation.presentation.unlock)}</strong> {capability.nextUnlock}</p> : null}
+              {capability.findings.length > 0 ? (
+                <ul className="mt-2 flex flex-col gap-1 text-sm">
+                  {capability.findings.map((finding) => (
+                    <li key={finding.code}>{t(strings.pages.validation.presentation.codeRollup, { code: finding.code, count: finding.count, state: finding.fixAffordance.toLowerCase() })}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+        {presentation.documentationTopics.length > 0 ? <p className="text-xs text-app-muted-foreground">{t(strings.pages.validation.presentation.docs, { topics: presentation.documentationTopics.join(" · ") })}</p> : null}
+      </CardBody>
+    </Card>
   );
 }
 

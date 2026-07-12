@@ -87,12 +87,17 @@ type RunRecord struct {
 	// completed run only when it matches the shape it needs (git-control-tower
 	// reuses a clean-tree comprehensive+baseline run instead of re-running it).
 	// Empty on runs that predate shape stamping.
-	Preset         string            `json:"preset,omitempty"`
-	CaptureProfile string            `json:"capture_profile,omitempty"`
-	PlannedPhases  []string          `json:"planned_phases,omitempty"`
-	PhaseSetDigest string            `json:"phase_set_digest,omitempty"`
-	Diagnostics    DiagnosticsConfig `json:"diagnostics"`
-	Pins           []PinRecord       `json:"pins,omitempty"`
+	Preset         string   `json:"preset,omitempty"`
+	CaptureProfile string   `json:"capture_profile,omitempty"`
+	PlannedPhases  []string `json:"planned_phases,omitempty"`
+	PhaseSetDigest string   `json:"phase_set_digest,omitempty"`
+	// DescriptorSnapshotSchemaVersion and DescriptorSnapshotDigest identify
+	// the run-scoped provider catalog frozen at planning time. The heavy
+	// snapshot remains beside the run artifacts rather than bloating this index.
+	DescriptorSnapshotSchemaVersion int               `json:"descriptor_snapshot_schema_version,omitempty"`
+	DescriptorSnapshotDigest        string            `json:"descriptor_snapshot_digest,omitempty"`
+	Diagnostics                     DiagnosticsConfig `json:"diagnostics"`
+	Pins                            []PinRecord       `json:"pins,omitempty"`
 }
 
 // IsPinned reports whether the run is protected from retention GC.

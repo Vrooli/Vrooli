@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 	"experience-manager/internal/spec"
+	"github.com/vrooli/maturity-go/assessment"
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
@@ -38,6 +39,9 @@ func TestSharedValidateScenarioUsesParserReport(t *testing.T) { // [REQ:EXPERIEN
 	}
 	if resp.Msg.GetAssessment() == nil {
 		t.Fatal("expected maturity assessment")
+	}
+	if err := assessment.ValidatePhasePresentation(resp.Msg.GetAssessment()); err != nil {
+		t.Fatalf("direct response must carry canonical phase presentation: %v", err)
 	}
 }
 

@@ -5,7 +5,9 @@ import { createClient } from "@connectrpc/connect";
 
 import {
   type AssessmentFinding as ProtoFinding,
+  FixAffordance,
   type MaturityAssessment,
+  type PhasePresentation,
 } from "@vrooli/proto-types/common/v1/maturity_pb";
 import {
   ScenarioValidationService,
@@ -33,11 +35,43 @@ export type ValidationSummary = {
   infos: number;
 };
 
+export type ValidationPresentationFinding = {
+  code: string;
+  severity: FindingSeverity;
+  count: number;
+  remediation: string;
+  fixAffordance: string;
+};
+
+export type ValidationCapabilityPresentation = {
+  id: string;
+  label: string;
+  currentLevel: string;
+  nextLevel: string;
+  currentSummary: string;
+  nextUnlock: string;
+  findings: ValidationPresentationFinding[];
+};
+
+export type ValidationPresentation = {
+  contractVersion: string;
+  currentLevel: string;
+  nextLevel: string;
+  northStar: string;
+  nextAction: string;
+  nextActionReason: string;
+  focusCapabilityLabel: string;
+  atMaximum: boolean;
+  documentationTopics: string[];
+  capabilities: ValidationCapabilityPresentation[];
+};
+
 export type ValidationResult = {
   scenario: string;
   passed: boolean;
   findings: ValidationFinding[];
   summary: ValidationSummary;
+  presentation?: ValidationPresentation;
   ranAt: string;
 };
 
@@ -77,6 +111,36 @@ function summaryFromAssessment(p: MaturityAssessment | undefined): ValidationSum
   };
 }
 
+function presentationFromProto(p: PhasePresentation | undefined): ValidationPresentation | undefined {
+  if (!p || !p.contractVersion) return undefined;
+  return {
+    contractVersion: p.contractVersion,
+    currentLevel: p.currentLevel,
+    nextLevel: p.nextLevel,
+    northStar: p.northStar,
+    nextAction: p.nextAction,
+    nextActionReason: p.nextActionReason,
+    focusCapabilityLabel: p.focusCapabilityLabel,
+    atMaximum: p.atMaximum,
+    documentationTopics: [...p.documentationTopics],
+    capabilities: p.capabilities.map((capability) => ({
+      id: capability.id,
+      label: capability.label,
+      currentLevel: capability.currentLevel,
+      nextLevel: capability.nextLevel,
+      currentSummary: capability.currentSummary,
+      nextUnlock: capability.nextUnlock,
+      findings: capability.findings.map((finding) => ({
+        code: finding.code,
+        severity: severityFromProto(finding.severity),
+        count: finding.count,
+        remediation: finding.remediation,
+        fixAffordance: FixAffordance[finding.fixAffordance],
+      })),
+    })),
+  };
+}
+
 function resultFromProto(p: ProtoResponse): ValidationResult {
   const assessment = p.assessment;
   return {
@@ -84,6 +148,7 @@ function resultFromProto(p: ProtoResponse): ValidationResult {
     passed: p.status === ValidationStatus.PASSED,
     findings: (assessment?.findings ?? []).map(findingFromProto),
     summary: summaryFromAssessment(assessment),
+    presentation: presentationFromProto(assessment?.presentation),
     ranAt: new Date().toISOString(),
   };
 }

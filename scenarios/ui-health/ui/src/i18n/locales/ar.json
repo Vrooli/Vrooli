@@ -149,6 +149,16 @@
         "location": "Location",
         "suggestion": "Suggestion"
       },
+      "presentation": {
+        "heading": "Capability presentation",
+        "contract": "Contract {{version}}",
+        "northStar": "North Star:",
+        "maximum": "Maximum maturity reached.",
+        "next": "Next:",
+        "unlock": "Unlock:",
+        "codeRollup": "{{code}} ×{{count}} · {{state}}",
+        "docs": "Docs: {{topics}}"
+      },
       "loading": "Running validation…",
       "error": "Validation failed: {{message}}",
       "revalidate": "Revalidate",

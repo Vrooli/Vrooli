@@ -31,6 +31,9 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 	if resp.Msg.GetMetrics().GetWallClockMs() < 0 {
 		t.Fatalf("wall_clock_ms = %d, want non-negative", resp.Msg.GetMetrics().GetWallClockMs())
 	}
+	if err := assessment.ValidatePhasePresentation(resp.Msg.GetAssessment()); err != nil {
+		t.Fatalf("direct response must carry canonical phase presentation: %v", err)
+	}
 }
 
 func TestFixRPCPreviewAndApply(t *testing.T) {

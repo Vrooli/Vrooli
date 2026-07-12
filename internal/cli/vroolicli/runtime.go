@@ -19,7 +19,6 @@ import (
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
-	"github.com/vrooli/vrooli/internal/cli/agentpolicyhandlers"
 	"github.com/vrooli/vrooli/internal/cli/authhandlers"
 	"github.com/vrooli/vrooli/internal/cli/capacityhandlers"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
@@ -950,10 +949,6 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		topcli.CommandAuth: authhandlers.RootHandler(authhandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,
 			OutputFormat: projectOutputFormat,
-		}),
-		topcli.CommandAgentPolicy: agentpolicyhandlers.RootHandler(agentpolicyhandlers.HandlerDeps[*CommandContext]{
-			Stdout: commandStdout,
-			Stderr: func(ctx *CommandContext) io.Writer { return ctx.Stderr },
 		}),
 		topcli.CommandRecovery: recoveryhandlers.RootHandler(recoveryhandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,

@@ -10,7 +10,7 @@
 //     single shape, so the canonical version moved here.
 //
 // Decide() is the only authoritative gate function. Callers (resource
-// CLIs, scenario CLIs, future `vrooli agent-policy` fan-out) compose
+// CLIs and scenario CLIs compose
 // it with cliutil.DetectCallerKind to gate mutating verbs against
 // agent callers.
 //

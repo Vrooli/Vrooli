@@ -509,6 +509,10 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 				skills[skill] = struct{}{}
 			}
 		}
+		fixClass := strings.TrimSpace(finding.FixClass)
+		if fixClass == "" && assessed.Mapping.EffectiveFixClass() == FixClassManual {
+			fixClass = string(FixClassManual)
+		}
 		out.Findings = append(out.Findings, &commonv1.AssessmentFinding{
 			Code:             finding.Code,
 			Severity:         severity,
@@ -517,7 +521,7 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 			Location:         finding.Location,
 			Remediation:      finding.Remediation,
 			AutofixAvailable: finding.AutofixAvailable,
-			FixClass:         strings.TrimSpace(finding.FixClass),
+			FixClass:         fixClass,
 			Maturity: &commonv1.FindingMaturity{
 				LocalLevel:          assessed.Mapping.LocalLevelImpact,
 				GlobalImpact:        GlobalImpactToProto(assessed.Mapping.GlobalImpact),
@@ -543,6 +547,7 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 	out.AutofixableCount = autofixable
 	out.AutofixableTotal = int32(len(input.Findings))
 	out.RecommendedSkillIds = sortedKeys(skills)
+	out.Presentation = BuildPhasePresentation(out)
 	if err := ValidateAssessment(out); err != nil {
 		return nil, err
 	}

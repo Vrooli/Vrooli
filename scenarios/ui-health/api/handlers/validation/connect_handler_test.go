@@ -273,6 +273,9 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 	if m.GetWallClockMs() < 0 {
 		t.Fatalf("wall clock must be non-negative, got %d", m.GetWallClockMs())
 	}
+	if err := assessment.ValidatePhasePresentation(resp.Msg.GetAssessment()); err != nil {
+		t.Fatalf("direct response must carry canonical phase presentation: %v", err)
+	}
 	env := m.GetEnvironment()
 	if env == nil {
 		t.Fatal("metrics environment must be populated with the stdlib baseline")

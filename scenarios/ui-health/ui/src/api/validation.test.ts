@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { create } from "@bufbuild/protobuf";
 
 import {
+  FixAffordance,
   MaturityAssessmentSchema,
 } from "@vrooli/proto-types/common/v1/maturity_pb";
 import {
@@ -48,6 +49,21 @@ describe("validateScenario (FromProto)", () => {
           SEVERITY_WARNING: 1,
           SEVERITY_INFO: 1,
         },
+        presentation: {
+          contractVersion: "v1",
+          currentLevel: "L1",
+          nextLevel: "L2",
+          nextAction: "Add the missing slot.",
+          focusCapabilityLabel: "Manifest Contract",
+          documentationTopics: ["ui-health missing-slot canonical fix"],
+          capabilities: [{
+            id: "manifest_contract",
+            label: "Manifest Contract",
+            currentLevel: "L1",
+            nextLevel: "L2",
+            findings: [{ code: "missing-slot", severity: "SEVERITY_ERROR", count: 1, fixAffordance: FixAffordance.MANUAL }],
+          }],
+        },
       }),
     });
     vi.spyOn(validationClient, "validateScenario").mockResolvedValueOnce(proto);
@@ -59,5 +75,10 @@ describe("validateScenario (FromProto)", () => {
       "info",
     ]);
     expect(out.summary).toEqual({ errors: 1, warnings: 1, infos: 1 });
+    expect(out.presentation).toMatchObject({
+      contractVersion: "v1",
+      nextAction: "Add the missing slot.",
+      capabilities: [{ id: "manifest_contract", findings: [{ code: "missing-slot", count: 1, fixAffordance: "MANUAL" }] }],
+    });
   });
 });
