@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	buf.build/go/protovalidate v1.1.0
+	connectrpc.com/connect v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
@@ -23,7 +24,6 @@ require (
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	cel.dev/expr v0.24.0 // indirect
-	connectrpc.com/connect v1.19.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect

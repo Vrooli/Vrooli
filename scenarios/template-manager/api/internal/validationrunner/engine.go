@@ -36,8 +36,11 @@ func (r EngineRunner) ValidateTemplate(ctx context.Context, req ValidateRequest)
 		templateID = "react-vite"
 	}
 	report, err := engine.ValidateTemplate(ctx, templatecontracts.TemplateValidateRequest{
-		Mode:         templatecontracts.TemplateValidationMode(mode),
-		TemplateName: templateID,
+		Mode:          templatecontracts.TemplateValidationMode(mode),
+		TemplateName:  templateID,
+		TestPreset:    req.TestPreset,
+		WarningPolicy: templatecontracts.TemplateValidationWarningPolicy(req.WarningPolicy),
+		RetainTemp:    req.RetainTemp,
 	})
 	if err != nil {
 		return ValidateResult{}, err

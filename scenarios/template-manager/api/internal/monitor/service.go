@@ -236,7 +236,7 @@ func (s *Service) templateIDs(ctx context.Context) ([]string, error) {
 	}
 	out := make([]string, 0, len(records))
 	for _, record := range records {
-		if record.Status == "active" && strings.TrimSpace(record.ID) != "" {
+		if record.Status != "retired" && strings.TrimSpace(record.ID) != "" {
 			out = append(out, record.ID)
 		}
 	}

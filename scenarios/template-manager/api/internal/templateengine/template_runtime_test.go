@@ -302,6 +302,16 @@ func TestRunTemplateValidateDefaultsToShallowAndSupportsTemplateFilter(t *testin
 	}
 }
 
+func TestValidateTemplateDeepRejectsConcurrentArtifactOwner(t *testing.T) {
+	deepValidationSemaphore <- struct{}{}
+	defer func() { <-deepValidationSemaphore }()
+
+	_, issues := validateTemplateDeep(HandlerDeps[struct{}]{}, struct{}{}, scenariocli.TemplateInfo{Name: "react-vite"}, scenariocli.TemplateValidateRequest{})
+	if len(issues) != 1 || !strings.Contains(issues[0].Message, "already in progress") {
+		t.Fatalf("issues = %#v, want concurrent deep-validation rejection", issues)
+	}
+}
+
 func TestRunTemplateValidateRoutesHookOutputToStderr(t *testing.T) {
 	repoRoot := t.TempDir()
 	seedRepoContract(t, repoRoot)
@@ -527,6 +537,9 @@ func TestRunTemplateValidateDeepFailsWhenTestGenieJSONReportsFailure(t *testing.
 	if !strings.Contains(report.Issues[0].Message, "unit: go test failed") {
 		t.Fatalf("issue message = %q", report.Issues[0].Message)
 	}
+	if report.Issues[0].Path != testGenieDeepValidationPhaseResultsPath {
+		t.Fatalf("issue path = %q, want stable phase-results path", report.Issues[0].Path)
+	}
 }
 
 func TestRunTemplateValidateDeepParsesTestGenieJSONOnNonzeroExit(t *testing.T) {
@@ -629,11 +642,62 @@ func TestRunTemplateValidateDeepReportsTestGenieStartupErrorDetails(t *testing.T
 	if !strings.Contains(report.Issues[0].Message, "startup failed before phases") {
 		t.Fatalf("issue message = %q, want explicit startup classification", report.Issues[0].Message)
 	}
+	if report.Issues[0].Path != testGenieDeepValidationStartupPath {
+		t.Fatalf("issue path = %q, want stable startup path", report.Issues[0].Path)
+	}
+}
+
+func TestParseTestGenieJSONResultUsesStableDebtPaths(t *testing.T) {
+	tests := []struct {
+		name     string
+		output   string
+		wantPath string
+	}{
+		{
+			name:     "protocol",
+			output:   "not json",
+			wantPath: testGenieDeepValidationProtocolPath,
+		},
+		{
+			name: "startup",
+			output: `{
+  "success": false,
+  "error": "scenario start failed",
+  "phaseSummary": {"total": 0, "passed": 0, "failed": 0}
+}`,
+			wantPath: testGenieDeepValidationStartupPath,
+		},
+		{
+			name: "phase results",
+			output: `{
+  "success": false,
+  "phaseSummary": {"total": 3, "passed": 1, "failed": 2},
+  "phases": [
+    {"name": "dependencies", "status": "failed", "error": "module metadata drift"},
+    {"name": "workflow", "status": "failed", "error": "target missing"}
+  ]
+}`,
+			wantPath: testGenieDeepValidationPhaseResultsPath,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseTestGenieJSONResult("react-vite", []byte(tt.output))
+			if result.Issue == nil {
+				t.Fatal("Issue = nil, want failure")
+			}
+			if result.Issue.Path != tt.wantPath {
+				t.Fatalf("issue path = %q, want %q", result.Issue.Path, tt.wantPath)
+			}
+		})
+	}
 }
 
 func TestRunTemplateValidateDeepKeepsRelocationsDuringTestGenie(t *testing.T) {
 	repoRoot := t.TempDir()
 	seedRepoContract(t, repoRoot)
+	writeTestFile(t, filepath.Join(repoRoot, "packages", "proto", "Makefile"), "generate:\n\t@true\n")
 	templateName := "demo-template"
 	templateDir := filepath.Join(repoRoot, "templates", "scenarios", templateName)
 	if err := os.MkdirAll(filepath.Join(templateDir, "proto"), 0o755); err != nil {
@@ -692,6 +756,9 @@ func TestRunTemplateValidateDeepKeepsRelocationsDuringTestGenie(t *testing.T) {
 	if _, err := os.Stat(relocatedPath); !os.IsNotExist(err) {
 		t.Fatalf("relocated path cleanup err = %v, want not exist", err)
 	}
+	if !capturedCommand(capture.calls, "make", "generate") {
+		t.Fatalf("calls = %#v, want proto regeneration after relocation cleanup", capture.calls)
+	}
 }
 
 func TestRunTemplateValidateDeepRetainTempKeepsRelocationsForRerun(t *testing.T) {
@@ -749,6 +816,28 @@ func TestRunTemplateValidateDeepRetainTempKeepsRelocationsForRerun(t *testing.T)
 	}
 	cleanupRelocationTargets([]scenariocli.ResolvedRelocation{{To: filepath.Dir(relocatedPath)}})
 	_ = os.RemoveAll(deepRun.TempRoot)
+}
+
+func TestPrepareDeepValidationWorkspaceLinksCanonicalSchemas(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeTestFile(t, filepath.Join(repoRoot, ".vrooli", "schemas", "cli-manifest.schema.json"), `{"type":"object"}`)
+	tempRoot := filepath.Join(t.TempDir(), "workspace")
+
+	if err := prepareDeepValidationWorkspace(repoRoot, tempRoot); err != nil {
+		t.Fatalf("prepareDeepValidationWorkspace() error = %v", err)
+	}
+
+	schemasPath := filepath.Join(tempRoot, ".vrooli", "schemas")
+	info, err := os.Lstat(schemasPath)
+	if err != nil {
+		t.Fatalf("Lstat(%q) error = %v", schemasPath, err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("schemas path mode = %v, want symlink", info.Mode())
+	}
+	if _, err := os.Stat(filepath.Join(schemasPath, "cli-manifest.schema.json")); err != nil {
+		t.Fatalf("shared schema unavailable from deep workspace: %v", err)
+	}
 }
 
 func TestValidateTemplateSourceFlagsHardcodedLocalReplaceTargets(t *testing.T) {
@@ -993,6 +1082,25 @@ func (c *capturedSubprocess) Run(_ struct{}, spec scenarioexec.SubprocessSpec) e
 		_, _ = io.WriteString(spec.Stdout, c.stdout)
 	}
 	return c.err
+}
+
+func capturedCommand(calls []scenarioexec.SubprocessSpec, name string, args ...string) bool {
+	for _, call := range calls {
+		if call.Name != name || len(call.Args) != len(args) {
+			continue
+		}
+		matched := true
+		for i := range args {
+			if call.Args[i] != args[i] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 // newRelocationTestDeps builds a HandlerDeps that captures subprocess

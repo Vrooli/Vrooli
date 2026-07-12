@@ -20,10 +20,10 @@ Template Manager has several stateful workflows because generation, validation, 
 3. Runner executes the current engine path: subprocess seam before cutover, in-process engine after cutover.
 4. Parser converts JSON output into phase results and findings.
 5. Repository stores immutable run evidence.
-6. Debt mapper upserts stable debt entries without duplicating repeated findings.
+6. Debt mapper upserts stable debt entries without duplicating repeated findings. A failed deep run resolves only superseded Test Genie summary entries before upserting its current failure-class entry; source and fleet debt retain their independent lifecycle.
 7. API/CLI/UI expose run status and details.
 
-Failure behavior: runner timeout or parse failure marks the run failed and records diagnostic text; it must not corrupt existing debt state.
+Failure behavior: runner timeout or parse failure marks the run failed and records diagnostic text under a stable Test Genie failure class; it must not corrupt unrelated debt state.
 
 ## Provenance Autofix Flow
 

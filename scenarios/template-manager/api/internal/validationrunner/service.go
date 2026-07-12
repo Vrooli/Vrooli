@@ -17,9 +17,12 @@ type Runner interface {
 }
 
 type ValidateRequest struct {
-	TemplateID string
-	Mode       catalog.ValidationMode
-	Trigger    string
+	TemplateID    string
+	Mode          catalog.ValidationMode
+	Trigger       string
+	TestPreset    string
+	WarningPolicy string
+	RetainTemp    bool
 }
 
 type ValidateResult struct {
@@ -66,8 +69,12 @@ func (s *Service) RunValidation(ctx context.Context, req ValidateRequest) (catal
 	if req.Mode == "" {
 		req.Mode = catalog.ModeShallow
 	}
+	// A deep validation owns a Test Genie run whose completion is evidence even
+	// when the HTTP client disconnects. Detach the complete engine-and-persist
+	// path from the request here, rather than only detaching the final writes.
+	executionCtx := context.WithoutCancel(ctx)
 	started := s.now()
-	result, err := s.runner.ValidateTemplate(ctx, req)
+	result, err := s.runner.ValidateTemplate(executionCtx, req)
 	finished := s.now()
 	if err != nil {
 		return catalog.ValidationRun{}, err
@@ -81,6 +88,11 @@ func (s *Service) RunValidation(ctx context.Context, req ValidateRequest) (catal
 	if result.Target == "" {
 		result.Target = fmt.Sprintf("templates/scenarios/%s", result.TemplateID)
 	}
+	// The real Test Genie execution is server-owned and can finish after the
+	// caller's HTTP attachment has gone away. Its completed result is evidence,
+	// so persist the terminal run and debt projection independently of request
+	// cancellation rather than losing it at the final write.
+	persistenceCtx := executionCtx
 	status := "failed"
 	if result.Success {
 		status = "passed"
@@ -97,14 +109,27 @@ func (s *Service) RunValidation(ctx context.Context, req ValidateRequest) (catal
 		PhaseResults: result.PhaseResults,
 		Findings:     result.Findings,
 	}
-	if err := s.repo.SaveValidationRun(ctx, run); err != nil {
+	if err := s.repo.SaveValidationRun(persistenceCtx, run); err != nil {
 		return catalog.ValidationRun{}, err
+	}
+	// A clean deep validation is the release gate for source-owned debt. Fleet
+	// drift is intentionally excluded: it describes downstream divergence, not
+	// a defect in the current template release.
+	if run.Mode == catalog.ModeDeep && run.Status == "passed" && len(run.Findings) == 0 {
+		if err := s.repo.ResolveSourceDebt(persistenceCtx, run.TemplateID, finished); err != nil {
+			return catalog.ValidationRun{}, err
+		}
+	}
+	if run.Mode == catalog.ModeDeep && run.Status != "passed" {
+		if err := s.repo.ResolveSupersededDeepValidationDebt(persistenceCtx, run.TemplateID, finished); err != nil {
+			return catalog.ValidationRun{}, err
+		}
 	}
 	for _, finding := range result.Findings {
 		if strings.TrimSpace(finding.Key) == "" {
 			continue
 		}
-		if err := s.repo.UpsertDebt(ctx, catalog.DebtEntry{
+		if err := s.repo.UpsertDebt(persistenceCtx, catalog.DebtEntry{
 			Key:         finding.Key,
 			TemplateID:  run.TemplateID,
 			Source:      nonEmpty(finding.Source, "template validation"),

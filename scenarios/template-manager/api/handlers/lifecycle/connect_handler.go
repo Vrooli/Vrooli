@@ -5,19 +5,22 @@ import (
 	"errors"
 	"sort"
 
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/catalog"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templateengine"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/validationrunner"
 
 	"connectrpc.com/connect"
 	lifecyclev1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/lifecycle"
 )
 
 type connectHandler struct {
-	engine *templateengine.Engine
+	engine     *templateengine.Engine
+	validation *validationrunner.Service
 }
 
-func NewConnectHandler(engine *templateengine.Engine) *connectHandler {
-	return &connectHandler{engine: engine}
+func NewConnectHandler(engine *templateengine.Engine, validation *validationrunner.Service) *connectHandler {
+	return &connectHandler{engine: engine, validation: validation}
 }
 
 func (h *connectHandler) GenerateScenario(ctx context.Context, req *connect.Request[lifecyclev1.GenerateScenarioRequest]) (*connect.Response[lifecyclev1.GenerateScenarioResponse], error) {
@@ -101,25 +104,28 @@ func (h *connectHandler) DetemplateScenario(ctx context.Context, req *connect.Re
 }
 
 func (h *connectHandler) ValidateTemplate(ctx context.Context, req *connect.Request[lifecyclev1.ValidateTemplateRequest]) (*connect.Response[lifecyclev1.ValidateTemplateResponse], error) {
-	engine, err := h.requireEngine()
-	if err != nil {
-		return nil, err
+	if h.validation == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("validation runner unavailable"))
 	}
-	report, err := engine.ValidateTemplate(ctx, templatecontracts.TemplateValidateRequest{
-		Mode:          templatecontracts.TemplateValidationMode(req.Msg.Mode),
-		TemplateName:  req.Msg.Template,
+	run, err := h.validation.RunValidation(ctx, validationrunner.ValidateRequest{
+		TemplateID:    req.Msg.Template,
+		Mode:          validationMode(req.Msg.Mode),
 		TestPreset:    req.Msg.TestPreset,
-		WarningPolicy: templatecontracts.TemplateValidationWarningPolicy(req.Msg.WarningPolicy),
+		WarningPolicy: req.Msg.WarningPolicy,
 		RetainTemp:    req.Msg.RetainTemp,
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	resp := &lifecyclev1.ValidateTemplateResponse{Mode: string(report.Mode), Template: report.TemplateName, Count: int32(report.Count)}
-	for _, issue := range report.Issues {
-		resp.Issues = append(resp.Issues, &lifecyclev1.TemplateValidationIssue{Template: issue.Template, Path: issue.Path, Message: issue.Message})
+	resp := &lifecyclev1.ValidateTemplateResponse{Mode: string(run.Mode), Template: run.TemplateID, Count: 1}
+	for _, finding := range run.Findings {
+		resp.Issues = append(resp.Issues, &lifecyclev1.TemplateValidationIssue{Template: run.TemplateID, Message: finding.Summary})
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func validationMode(mode string) catalog.ValidationMode {
+	return catalog.ValidationMode(mode)
 }
 
 func (h *connectHandler) DriftReport(ctx context.Context, req *connect.Request[lifecyclev1.DriftReportRequest]) (*connect.Response[lifecyclev1.DriftReportResponse], error) {

@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/modules"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/monitor"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/server"
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templateengine"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/validationrunner"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -125,6 +126,9 @@ func main() {
 	}
 
 	catalogRepo := catalog.NewSQLiteRepository(db)
+	if err := syncScenarioTemplateRegistry(context.Background(), catalogRepo); err != nil {
+		log.Fatalf("scenario template registry synchronization failed: %v", err)
+	}
 	validationRunner, err := validationrunner.NewEngineRunner("")
 	if err != nil {
 		log.Fatalf("template engine initialization failed: %v", err)
@@ -143,7 +147,7 @@ func main() {
 		validationH.Module(db, log.Default()),
 		debtH.Module(db, log.Default()),
 		guidanceH.Module(log.Default()),
-		lifecycleH.Module(log.Default()),
+		lifecycleH.Module(log.Default(), validationRunner.Engine, validationService),
 		measuresModule,
 		monitorH.Module(monitorService),
 		resourceTemplateH.Module(log.Default()),
@@ -177,4 +181,26 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func syncScenarioTemplateRegistry(ctx context.Context, repo catalog.Repository) error {
+	engine, err := templateengine.New("")
+	if err != nil {
+		return err
+	}
+	infos, err := engine.ListTemplates(ctx)
+	if err != nil {
+		return err
+	}
+	templates := make([]catalog.ScenarioTemplate, 0, len(infos))
+	for _, info := range infos {
+		templates = append(templates, catalog.ScenarioTemplate{
+			ID:           info.Name,
+			Version:      info.Manifest.Version,
+			ManifestPath: filepath.ToSlash(filepath.Join("templates", "scenarios", info.Name, "template.json")),
+			SourcePath:   filepath.ToSlash(filepath.Join("templates", "scenarios", info.Name)),
+			UpdatedAt:    time.Now().UTC(),
+		})
+	}
+	return repo.SyncScenarioTemplates(ctx, templates)
 }

@@ -98,8 +98,12 @@ first noticed. For example, use `react-vite.router.future-flags-missing`
 rather than a generated scenario path. Validation and drift reruns should update
 the same debt entry's last-seen timestamp instead of creating duplicates.
 
-Close debt only after the template source is fixed, shallow validation passes,
-and at least one generated-scenario proof shows the defect no longer appears.
+Close source debt only after the template source is fixed, shallow validation
+passes, and at least one generated-scenario proof shows the defect no longer
+appears. Test Genie deep-validation summaries are different: their canonical
+failure-class entry represents the latest terminal deep run, so a later
+terminal deep run supersedes the older summary while preserving it as resolved
+history. This prevents changing provider prose from creating fresh debt rows.
 
 ## Orientation Guidance
 

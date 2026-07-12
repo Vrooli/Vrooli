@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS monitor_state (
 INSERT OR IGNORE INTO template_records
   (id, kind, display_name, version, manifest_path, source_path, tags_json, status, current_version, latest_version, lag_count, updated_at)
 VALUES
-  ('react-vite', 'scenario', 'React Vite Scenario', '1.6.0', 'templates/scenarios/react-vite/template.json', 'templates/scenarios/react-vite', '["scenario","react","vite"]', 'active', '1.6.0', '1.6.0', 0, '2026-07-09T00:00:00Z'),
+  ('react-vite', 'scenario', 'React Vite Scenario', '1.6.2', 'templates/scenarios/react-vite/template.json', 'templates/scenarios/react-vite', '["scenario","react","vite"]', 'quarantined', '1.6.2', '1.6.2', 0, '2026-07-10T00:00:00Z'),
   ('landing-page-react-vite', 'scenario', 'Landing Page React Vite Scenario', '', 'templates/scenarios/landing-page-react-vite/template.json', 'templates/scenarios/landing-page-react-vite', '["scenario","landing-page"]', 'debt', '', '', 0, '2026-07-09T00:00:00Z'),
   ('vrooli-default', 'design', 'Vrooli Default Design Kit', '', 'templates/design/vrooli-default/metadata.json', 'templates/design/vrooli-default', '["design"]', 'active', '', '', 0, '2026-07-09T00:00:00Z'),
   ('vrooli-command-display', 'design', 'Vrooli Command Display Design Kit', '', 'templates/design/vrooli-command-display/metadata.json', 'templates/design/vrooli-command-display', '["design"]', 'active', '', '', 0, '2026-07-09T00:00:00Z'),

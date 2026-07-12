@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Operational requirements for Template Manager's accountable ownership of Vrooli template handling.",
-    "last_validated_at": "2026-07-10T09:21:27-04:00",
+    "last_validated_at": "2026-07-10T13:17:11-04:00",
     "module": "template-domain",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -154,7 +154,7 @@
     {
       "id": "TM-P1-002",
       "title": "Dashboard And Measures",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "ui",
       "criticality": "P1",
@@ -169,7 +169,7 @@
           "type": "test",
           "ref": "ui/src/App.tsx",
           "phase": "ui-health",
-          "status": "failing",
+          "status": "implemented",
           "notes": "UI tests cover loading, empty, error, a11y, and data-rendering states for all dashboard surfaces."
         },
         {

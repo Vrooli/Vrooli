@@ -28,6 +28,17 @@ type TemplateRecord struct {
 	UpdatedAt      time.Time
 }
 
+// ScenarioTemplate is the source-of-truth projection read from a scenario
+// template manifest. The registry persists it so validation history and source
+// metadata share one template identity.
+type ScenarioTemplate struct {
+	ID           string
+	Version      string
+	ManifestPath string
+	SourcePath   string
+	UpdatedAt    time.Time
+}
+
 type ValidationMode string
 
 const (

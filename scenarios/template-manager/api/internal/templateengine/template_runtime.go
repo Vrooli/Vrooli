@@ -22,6 +22,21 @@ import (
 
 var unresolvedTemplatePattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
 
+// Deep validation regenerates shared packages/proto artifacts. One run must
+// own that workspace at a time, otherwise a rejected concurrent run can clean
+// artifacts while the active generated scenario is compiling.
+var deepValidationSemaphore = make(chan struct{}, 1)
+
+// Test Genie detail changes as individual phases discover new evidence. Keep
+// the Template Manager debt identity tied to the failure class instead of that
+// volatile prose, while retaining the complete message for an operator.
+const (
+	testGenieDeepValidationProtocolPath     = "test-genie/deep-validation/protocol"
+	testGenieDeepValidationStartupPath      = "test-genie/deep-validation/startup"
+	testGenieDeepValidationPhaseResultsPath = "test-genie/deep-validation/phase-results"
+	testGenieDeepValidationWarningsPath     = "test-genie/deep-validation/warnings"
+)
+
 func TemplateCommandHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 	return func(ctx C, args []string) error {
 		if len(args) == 0 {
@@ -296,6 +311,12 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		ScenarioID: scenarioID,
 		TestPreset: coalesce(req.TestPreset, DefaultTemplateValidationTestPreset),
 	}
+	select {
+	case deepValidationSemaphore <- struct{}{}:
+		defer func() { <-deepValidationSemaphore }()
+	default:
+		return run, []TemplateValidationIssue{newTemplateValidationIssue(info.Name, "deep validation is already in progress; wait for the active run before retrying")}
+	}
 	if issue := validateDeepPrerequisites(deps, info); issue != nil {
 		return run, []TemplateValidationIssue{*issue}
 	}
@@ -320,7 +341,11 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 	marker.RelocationArtifacts = append([]string(nil), run.RelocationArtifacts...)
 	_ = templatevalidation.WriteMarker(marker)
 	if len(relocations) > 0 && !req.RetainTemp {
-		defer cleanupRelocationTargets(relocations)
+		defer func() {
+			if err := cleanupDeepValidationRelocations(deps, ctx, relocations); err != nil {
+				issues = append(issues, newTemplateValidationIssue(info.Name, err.Error()))
+			}
+		}()
 	}
 	if len(issues) > 0 {
 		return run, issues
@@ -349,6 +374,10 @@ func validateDeepPrerequisites[C any](deps HandlerDeps[C], info TemplateInfo) *T
 
 func newTemplateValidationIssue(templateName, message string) TemplateValidationIssue {
 	return TemplateValidationIssue{Template: templateName, Message: message}
+}
+
+func newTestGenieDeepValidationIssue(templateName, path, message string) TemplateValidationIssue {
+	return TemplateValidationIssue{Template: templateName, Path: path, Message: message}
 }
 
 func initDeepValidationRun(repoRoot, templateName, scenarioID, testPreset string, retainTemp bool) (TemplateValidationDeepRun, templatevalidation.RunMarker, bool, error) {
@@ -434,7 +463,7 @@ func runDeepValidationTestGenie[C any](deps HandlerDeps[C], ctx C, templateName,
 		if issue := testGenieFailureIssueFromJSON(templateName, stdout.Bytes()); issue != nil {
 			return []TemplateValidationIssue{*issue}
 		}
-		return []TemplateValidationIssue{newTemplateValidationIssue(templateName, "test-genie deep validation failed: "+deepValidationFailureMessage(stdout.String(), stderr.String(), err))}
+		return []TemplateValidationIssue{newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationProtocolPath, "test-genie deep validation failed: "+deepValidationFailureMessage(stdout.String(), stderr.String(), err))}
 	}
 	result := parseTestGenieJSONResult(templateName, stdout.Bytes())
 	if req.WarningPolicy != TemplateValidationWarningPolicyIgnore {
@@ -444,7 +473,7 @@ func runDeepValidationTestGenie[C any](deps HandlerDeps[C], ctx C, templateName,
 		return []TemplateValidationIssue{*result.Issue}
 	}
 	if req.WarningPolicy == TemplateValidationWarningPolicyFail && result.WarningSummary.Total > 0 {
-		return []TemplateValidationIssue{newTemplateValidationIssue(templateName, fmt.Sprintf("test-genie deep validation reported %d warning(s)", run.WarningSummary.Total))}
+		return []TemplateValidationIssue{newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationWarningsPath, fmt.Sprintf("test-genie deep validation reported %d warning(s)", run.WarningSummary.Total))}
 	}
 	return nil
 }
@@ -529,6 +558,25 @@ func runProtoGenerateForCleanupResult[C any](deps HandlerDeps[C], ctx C, result 
 	return nil
 }
 
+func cleanupDeepValidationRelocations[C any](deps HandlerDeps[C], ctx C, relocations []ResolvedRelocation) error {
+	cleanupRelocationTargets(relocations)
+	if !hasProtoRelocation(deps.Root(ctx), relocations) {
+		return nil
+	}
+	return runProtoGenerateForCleanupResult(deps, ctx, &templatevalidation.CleanupResult{NeedsProtoGenerate: true})
+}
+
+func hasProtoRelocation(repoRoot string, relocations []ResolvedRelocation) bool {
+	protoSchemasRoot := filepath.Clean(filepath.Join(repoRoot, "packages", "proto", "schemas"))
+	for _, relocation := range relocations {
+		target := filepath.Clean(relocation.To)
+		if target == protoSchemasRoot || strings.HasPrefix(target, protoSchemasRoot+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
 func testGenieFailureIssueFromJSON(templateName string, output []byte) *TemplateValidationIssue {
 	type testGenieResponse struct {
 		Success *bool `json:"success"`
@@ -574,27 +622,21 @@ func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGeni
 
 	data := bytes.TrimSpace(output)
 	if len(data) == 0 {
-		return parsedTestGenieResult{Issue: &TemplateValidationIssue{
-			Template: templateName,
-			Message:  "test-genie deep validation produced no JSON output",
-		}}
+		issue := newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationProtocolPath, "test-genie deep validation produced no JSON output")
+		return parsedTestGenieResult{Issue: &issue}
 	}
 	var response testGenieResponse
 	if err := json.Unmarshal(data, &response); err != nil {
-		return parsedTestGenieResult{Issue: &TemplateValidationIssue{
-			Template: templateName,
-			Message:  fmt.Sprintf("test-genie deep validation returned invalid JSON: %v", err),
-		}}
+		issue := newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationProtocolPath, fmt.Sprintf("test-genie deep validation returned invalid JSON: %v", err))
+		return parsedTestGenieResult{Issue: &issue}
 	}
 	result := parsedTestGenieResult{
 		Success:        response.Success,
 		WarningSummary: response.WarningSummary,
 	}
 	if response.Success == nil {
-		result.Issue = &TemplateValidationIssue{
-			Template: templateName,
-			Message:  "test-genie deep validation JSON omitted success",
-		}
+		issue := newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationProtocolPath, "test-genie deep validation JSON omitted success")
+		result.Issue = &issue
 		return result
 	}
 	if *response.Success {
@@ -606,10 +648,8 @@ func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGeni
 			startupFailure = append(startupFailure, detail)
 		}
 		if len(startupFailure) > 0 {
-			result.Issue = &TemplateValidationIssue{
-				Template: templateName,
-				Message:  "test-genie deep validation startup failed before phases: " + truncateForIssue(strings.Join(startupFailure, "; "), 2000),
-			}
+			issue := newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationStartupPath, "test-genie deep validation startup failed before phases: "+truncateForIssue(strings.Join(startupFailure, "; "), 2000))
+			result.Issue = &issue
 			return result
 		}
 	}
@@ -635,10 +675,8 @@ func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGeni
 	} else if strings.TrimSpace(response.Error) != "" {
 		summary += "; " + strings.TrimSpace(response.Error)
 	}
-	result.Issue = &TemplateValidationIssue{
-		Template: templateName,
-		Message:  "test-genie deep validation failed: " + truncateForIssue(summary, 2000),
-	}
+	issue := newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationPhaseResultsPath, "test-genie deep validation failed: "+truncateForIssue(summary, 2000))
+	result.Issue = &issue
 	return result
 }
 
@@ -663,6 +701,20 @@ func prepareDeepValidationWorkspace(repoRoot, tempRoot string) error {
 		if err := os.WriteFile(filepath.Join(tempRoot, ".vrooli", "repo-contract.json"), data, 0o644); err != nil {
 			return err
 		}
+	}
+	// Generated scenario manifests resolve their schemas relative to the
+	// repository root. The temporary validation workspace is deliberately a
+	// minimal repo, so retain the canonical schema directory as a shared,
+	// read-only dependency rather than making generated scenarios special-case
+	// schema validation.
+	schemasSrc := filepath.Join(repoRoot, ".vrooli", "schemas")
+	schemasDst := filepath.Join(tempRoot, ".vrooli", "schemas")
+	if _, err := os.Stat(schemasSrc); err == nil {
+		if err := os.Symlink(schemasSrc, schemasDst); err != nil && !os.IsExist(err) {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
 	}
 	for _, dir := range []string{"packages", "resources", "templates", "cmd", "internal"} {
 		src := filepath.Join(repoRoot, dir)

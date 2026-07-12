@@ -98,6 +98,79 @@ func TestSQLiteRepositorySeededDebtIncludesPhase3Audit(t *testing.T) {
 	}
 }
 
+func TestSQLiteRepositoryProjectsScenarioReleaseStatus(t *testing.T) {
+	repo := newTestRepository(t)
+	ctx := context.Background()
+	now := time.Date(2026, 7, 10, 18, 0, 0, 0, time.UTC)
+	if err := repo.SyncScenarioTemplates(ctx, []ScenarioTemplate{{
+		ID:           "candidate",
+		Version:      "1.0.0",
+		ManifestPath: "templates/scenarios/candidate/template.json",
+		SourcePath:   "templates/scenarios/candidate",
+		UpdatedAt:    now,
+	}}); err != nil {
+		t.Fatalf("SyncScenarioTemplates: %v", err)
+	}
+
+	assertStatus := func(want string) {
+		t.Helper()
+		record, err := repo.GetTemplate(ctx, "candidate")
+		if err != nil {
+			t.Fatalf("GetTemplate: %v", err)
+		}
+		if record.Status != want {
+			t.Fatalf("status = %q, want %q", record.Status, want)
+		}
+	}
+	assertStatus("quarantined")
+
+	if err := repo.SaveValidationRun(ctx, ValidationRun{
+		ID: "candidate-failed", TemplateID: "candidate", Mode: ModeDeep, Status: "failed", StartedAt: now, FinishedAt: now,
+	}); err != nil {
+		t.Fatalf("SaveValidationRun(failed): %v", err)
+	}
+	assertStatus("quarantined")
+
+	if err := repo.SaveValidationRun(ctx, ValidationRun{
+		ID: "candidate-passed", TemplateID: "candidate", Mode: ModeDeep, Status: "passed", StartedAt: now, FinishedAt: now.Add(time.Second),
+	}); err != nil {
+		t.Fatalf("SaveValidationRun(passed): %v", err)
+	}
+	if err := repo.UpsertDebt(ctx, DebtEntry{
+		Key: "candidate.source", TemplateID: "candidate", Source: "template validation", Severity: "error", Status: "open", Title: "source defect", Detail: "source defect", FirstSeenAt: now, LastSeenAt: now,
+	}); err != nil {
+		t.Fatalf("UpsertDebt(source): %v", err)
+	}
+	assertStatus("debt")
+
+	if err := repo.ResolveSourceDebt(ctx, "candidate", now.Add(2*time.Second)); err != nil {
+		t.Fatalf("ResolveSourceDebt: %v", err)
+	}
+	if err := repo.UpsertDebt(ctx, DebtEntry{
+		Key: "drift.candidate.downstream", TemplateID: "candidate", Source: "template drift", Severity: "warning", Status: "open", Title: "downstream drift", Detail: "downstream drift", FirstSeenAt: now, LastSeenAt: now,
+	}); err != nil {
+		t.Fatalf("UpsertDebt(drift): %v", err)
+	}
+	assertStatus("active")
+}
+
+func TestSQLiteRepositoryListTemplatesProjectsStatusWithSingleConnection(t *testing.T) {
+	repo := newTestRepository(t)
+
+	// Production deliberately caps SQLite at one connection. Listing the
+	// registry must finish its row scan before deriving each record's status,
+	// because status projection performs follow-up queries on that same pool.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	records, err := repo.ListTemplates(ctx, KindScenario)
+	if err != nil {
+		t.Fatalf("ListTemplates: %v", err)
+	}
+	if len(records) == 0 {
+		t.Fatal("ListTemplates returned no scenario templates")
+	}
+}
+
 func newTestRepository(t *testing.T) Repository {
 	t.Helper()
 	db := testdb.NewSQLite(t)

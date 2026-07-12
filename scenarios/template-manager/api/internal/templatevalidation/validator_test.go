@@ -26,6 +26,9 @@ func (f fakeRepo) GetTemplate(context.Context, string) (catalog.TemplateRecord, 
 	}
 	return f.template, nil
 }
+func (f fakeRepo) SyncScenarioTemplates(context.Context, []catalog.ScenarioTemplate) error {
+	return nil
+}
 func (f fakeRepo) SaveValidationRun(context.Context, catalog.ValidationRun) error { return nil }
 func (f fakeRepo) ListValidationRuns(context.Context, string) ([]catalog.ValidationRun, error) {
 	return nil, nil
@@ -38,7 +41,11 @@ func (f fakeRepo) SaveDriftSnapshot(context.Context, catalog.DriftSnapshot) erro
 func (f fakeRepo) ListDriftSnapshots(context.Context, string) ([]catalog.DriftSnapshot, error) {
 	return nil, nil
 }
-func (f fakeRepo) UpsertDebt(context.Context, catalog.DebtEntry) error { return nil }
+func (f fakeRepo) UpsertDebt(context.Context, catalog.DebtEntry) error        { return nil }
+func (f fakeRepo) ResolveSourceDebt(context.Context, string, time.Time) error { return nil }
+func (f fakeRepo) ResolveSupersededDeepValidationDebt(context.Context, string, time.Time) error {
+	return nil
+}
 func (f fakeRepo) ListDebt(context.Context, string, string) ([]catalog.DebtEntry, error) {
 	return f.debt, nil
 }

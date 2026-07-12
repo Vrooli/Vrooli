@@ -39,18 +39,30 @@ func (r *sqliteRepository) ListTemplates(ctx context.Context, kind TemplateKind)
 	}
 	defer rows.Close()
 
-	var out []TemplateRecord
+	var records []TemplateRecord
 	for rows.Next() {
 		record, err := scanTemplate(rows)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, record)
+		records = append(records, record)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate templates: %w", err)
 	}
-	return out, nil
+	// Status projection performs follow-up queries. Release the cursor first:
+	// Template Manager intentionally uses a single SQLite connection, so asking
+	// the pool for another connection while this cursor is open deadlocks every
+	// registry request behind it.
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close template rows: %w", err)
+	}
+	for i := range records {
+		if err := r.projectStatus(ctx, &records[i]); err != nil {
+			return nil, err
+		}
+	}
+	return records, nil
 }
 
 func (r *sqliteRepository) GetTemplate(ctx context.Context, id string) (TemplateRecord, error) {
@@ -62,7 +74,46 @@ func (r *sqliteRepository) GetTemplate(ctx context.Context, id string) (Template
 	if err != nil {
 		return TemplateRecord{}, fmt.Errorf("get template %q: %w", id, err)
 	}
+	if err := r.projectStatus(ctx, &record); err != nil {
+		return TemplateRecord{}, err
+	}
 	return record, nil
+}
+
+func (r *sqliteRepository) SyncScenarioTemplates(ctx context.Context, templates []ScenarioTemplate) error {
+	for _, template := range templates {
+		if template.ID == "" {
+			continue
+		}
+		updatedAt := template.UpdatedAt.UTC().Format(timeFormat)
+		if template.UpdatedAt.IsZero() {
+			updatedAt = time.Now().UTC().Format(timeFormat)
+		}
+		_, err := r.db.ExecContext(ctx, `
+INSERT INTO template_records
+  (id, kind, display_name, version, manifest_path, source_path, tags_json, status, current_version, latest_version, lag_count, updated_at)
+VALUES (?, 'scenario', ?, ?, ?, ?, '["scenario"]', 'quarantined', ?, ?, 0, ?)
+ON CONFLICT(id) DO UPDATE SET
+  version = excluded.version,
+  manifest_path = excluded.manifest_path,
+  source_path = excluded.source_path,
+  current_version = excluded.current_version,
+  latest_version = excluded.latest_version,
+  updated_at = excluded.updated_at`,
+			template.ID,
+			template.ID,
+			template.Version,
+			template.ManifestPath,
+			template.SourcePath,
+			template.Version,
+			template.Version,
+			updatedAt,
+		)
+		if err != nil {
+			return fmt.Errorf("sync scenario template %q: %w", template.ID, err)
+		}
+	}
+	return nil
 }
 
 func (r *sqliteRepository) SaveValidationRun(ctx context.Context, run ValidationRun) error {
@@ -276,6 +327,77 @@ ON CONFLICT(key) DO UPDATE SET
 		return fmt.Errorf("upsert debt %q: %w", entry.Key, err)
 	}
 	return nil
+}
+
+func (r *sqliteRepository) ResolveSourceDebt(ctx context.Context, templateID string, resolvedAt time.Time) error {
+	_, err := r.db.ExecContext(ctx, `
+UPDATE debt_entries
+SET status = 'resolved', last_seen_at = ?
+WHERE template_id = ? AND status = 'open' AND source <> 'template drift'`,
+		resolvedAt.UTC().Format(timeFormat), templateID)
+	if err != nil {
+		return fmt.Errorf("resolve source debt for %q: %w", templateID, err)
+	}
+	return nil
+}
+
+// ResolveSupersededDeepValidationDebt keeps the ledger to the current Test
+// Genie deep-validation outcome. Older runs encoded their volatile summary in
+// the key; newer runs use a canonical failure-class key. Neither should remain
+// open after a later deep run has produced fresh Test Genie evidence.
+func (r *sqliteRepository) ResolveSupersededDeepValidationDebt(ctx context.Context, templateID string, resolvedAt time.Time) error {
+	_, err := r.db.ExecContext(ctx, `
+UPDATE debt_entries
+SET status = 'resolved', last_seen_at = ?
+WHERE template_id = ? AND status = 'open' AND source <> 'template drift'
+  AND key LIKE ?`,
+		resolvedAt.UTC().Format(timeFormat), templateID, templateID+".test-genie%")
+	if err != nil {
+		return fmt.Errorf("resolve superseded deep-validation debt for %q: %w", templateID, err)
+	}
+	return nil
+}
+
+func (r *sqliteRepository) projectStatus(ctx context.Context, record *TemplateRecord) error {
+	if record.Status == "retired" || record.Kind != KindScenario {
+		return nil
+	}
+
+	var latestDeep string
+	err := r.db.QueryRowContext(ctx, `
+SELECT status FROM validation_runs
+WHERE template_id = ? AND mode = 'deep'
+ORDER BY finished_at DESC, id DESC
+LIMIT 1`, record.ID).Scan(&latestDeep)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("read latest deep validation for %q: %w", record.ID, err)
+	}
+	if errors.Is(err, sql.ErrNoRows) || !isPassingStatus(latestDeep) {
+		record.Status = "quarantined"
+		return nil
+	}
+
+	var openSourceDebt int
+	if err := r.db.QueryRowContext(ctx, `
+SELECT COUNT(*) FROM debt_entries
+WHERE template_id = ? AND status = 'open' AND source <> 'template drift'`, record.ID).Scan(&openSourceDebt); err != nil {
+		return fmt.Errorf("count source debt for %q: %w", record.ID, err)
+	}
+	if openSourceDebt > 0 {
+		record.Status = "debt"
+		return nil
+	}
+	record.Status = "active"
+	return nil
+}
+
+func isPassingStatus(status string) bool {
+	switch status {
+	case "passed", "ok", "success", "green":
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *sqliteRepository) ListDebt(ctx context.Context, templateID, status string) ([]DebtEntry, error) {

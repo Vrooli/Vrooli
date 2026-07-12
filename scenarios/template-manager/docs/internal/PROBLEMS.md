@@ -48,6 +48,31 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-07-11 — react-vite deep validation has remaining provider-boundary debt
+
+**Symptom:** The fresh comprehensive generated-scenario run executes all 20
+Test Genie phases but fails dependencies, workflow, and proto.
+
+**Root cause:** The generated scenario itself now passes documentation, unit,
+business, and tidiness gates. The remaining failures are provider assumptions
+that do not fully model a temporary generated scenario: dependency health reads
+the shared repository root, workflow execution cannot discover temporary
+runtime ports, and proto health cannot discover the generated Connect handler.
+
+**Workaround:** Keep react-vite quarantined. Inspect the canonical ledger entry
+`react-vite.test-genie.deep-validation.phase-results` and retained workspace
+`/tmp/vrooli-template-deep-983430887` rather than historical summary rows.
+
+**Real fix:** Repair the external workflow and dependency target-boundary
+defects `knw-1783709862952116493` and `knw-1783710133998988533`, and make
+proto implementation discovery honor the generated temporary scenario path.
+
+**Owner:** The owning provider scenarios.
+
+**Refs:** `validation-0f1b4951-ed84-458a-ab3b-cd588eddf306`; Test Genie run
+`20260712-004751-0742f640`; Template Manager run
+`validation-b157ccf9-3a64-4617-935b-0d685876479c`.
+
 ### 2026-07-09 — comprehensive maturity gates remain red
 
 **Symptom:** Focused Template Manager phase validations pass, but the default
