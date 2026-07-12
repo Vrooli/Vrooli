@@ -745,6 +745,21 @@
               "description": "Per-scenario validation RPC timeout, e.g. 10s or 1m"
             },
             {
+              "name": "fleet-timeout",
+              "default": "2m",
+              "description": "Whole-scan deadline; completed target evidence is retained when it expires"
+            },
+            {
+              "name": "concurrency",
+              "default": "6",
+              "description": "Maximum concurrent validation RPCs"
+            },
+            {
+              "name": "retries",
+              "default": "1",
+              "description": "Additional attempts for an unavailable validation RPC within the fleet deadline"
+            },
+            {
               "name": "fast",
               "bool": true,
               "description": "Skip live eval evidence checks for a quick descriptor/state scan"

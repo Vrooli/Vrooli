@@ -46,6 +46,12 @@ func TestQueryRecordsTelemetry(t *testing.T) {
 	require.GreaterOrEqual(t, s.ProviderResults["cli-health.commands"].LatencyMs, int64(0))
 	require.Equal(t, resp.GetLatencyMs(), s.LatencyMs)
 	require.False(t, s.Reranked)
+	require.Equal(t, "explicit_all", s.RoutingMode)
+	require.Equal(t, 3, s.EligibleProviderCount)
+	require.Equal(t, 3, s.SelectedProviderCount)
+	require.Zero(t, s.WithheldExternalCount)
+	require.Zero(t, s.QueuedProviderCount)
+	require.Empty(t, s.ResponseDegradeReason)
 }
 
 func TestQueryRecordsZeroResultAndDegraded(t *testing.T) {
@@ -66,6 +72,13 @@ func TestQueryRecordsZeroResultAndDegraded(t *testing.T) {
 	provider := rec.samples[0].ProviderResults["cli-health.commands"]
 	require.True(t, provider.Degraded)
 	require.Equal(t, "other", provider.DegradeReason)
+	require.Equal(t, "provider_leg,zero_result", rec.samples[0].ResponseDegradeReason)
+}
+
+func TestResponseDegradeReasonClassifiesCoexistingCauses(t *testing.T) {
+	groups := []*routingv1.ProviderResultGroup{{ProviderId: "down", Degraded: true}}
+	require.Equal(t, "classifier,reranker,provider_leg,zero_result",
+		routing.ResponseDegradeReason(true, true, groups, 0))
 }
 
 func TestQueryNoRecorderIsNoop(t *testing.T) {

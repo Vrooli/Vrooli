@@ -34,6 +34,17 @@ Use this document to answer:
 | Product activation | deferred | Define after PRD users and workflows are real. |
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
 | Performance budgets | deferred | Define in `../internal/PERFORMANCE.md`. |
+| Federated measure-search p95 | active | `.vrooli/search.json` requires a 1500ms p95 and telemetry evidence. The interactive provider uses deterministic matching and canonical parameter resolution; unresolved parameters remain explicit rather than spending the request budget on an LLM extraction. |
+
+## Interactive Search Boundary
+
+The Search Hub provider is an interactive **measure-selection** surface. It
+matches a declaration and resolves deterministic parameters such as a canonical
+time window. It deliberately does not enable the optional LLM parameter
+extractor by default: an unresolved enum or free-form parameter returns an
+honest incomplete result instead of turning a federated search into a
+long-running inference request. Call the selected measure's owning scenario
+through its direct measures execute surface when a full computation is needed.
 
 ## Alerts / Health
 

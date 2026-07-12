@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -268,9 +270,11 @@ func TestFixApplyUsesApplyRPCAndJSON(t *testing.T) {
 }
 
 type fakeValidationClient struct {
+	mu                   sync.Mutex
 	responses            map[string]*scenariovalidationv1.ValidateScenarioResponse
 	fixResp              *scenariovalidationv1.FixResponse
 	err                  error
+	validateFn           func(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error)
 	calls                int
 	previewCalls         int
 	applyCalls           int
@@ -278,13 +282,20 @@ type fakeValidationClient struct {
 	lastIncludeExecution bool
 }
 
-func (f *fakeValidationClient) ValidateScenario(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+func (f *fakeValidationClient) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	f.mu.Lock()
 	f.calls++
 	f.lastIncludeExecution = req.Msg.GetIncludeExecution()
-	if f.err != nil {
-		return nil, f.err
-	}
+	err := f.err
+	validateFn := f.validateFn
 	resp := f.responses[req.Msg.GetScenario()]
+	f.mu.Unlock()
+	if validateFn != nil {
+		return validateFn(ctx, req)
+	}
+	if err != nil {
+		return nil, err
+	}
 	if resp == nil {
 		resp = &scenariovalidationv1.ValidateScenarioResponse{
 			Scenario:   req.Msg.GetScenario(),
@@ -293,6 +304,87 @@ func (f *fakeValidationClient) ValidateScenario(_ context.Context, req *connect.
 		}
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func TestValidateFleetUsesBoundedConcurrencyAndKeepsEveryResult(t *testing.T) {
+	const targetCount = 48
+	targets := make([]target, targetCount)
+	for i := range targets {
+		targets[i] = target{Scenario: fmt.Sprintf("scenario-%02d", i)}
+	}
+	var mu sync.Mutex
+	inFlight, peak := 0, 0
+	client := &fakeValidationClient{validateFn: func(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+		mu.Lock()
+		inFlight++
+		if inFlight > peak {
+			peak = inFlight
+		}
+		mu.Unlock()
+		defer func() {
+			mu.Lock()
+			inFlight--
+			mu.Unlock()
+		}()
+		select {
+		case <-time.After(15 * time.Millisecond):
+			return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{Scenario: req.Msg.GetScenario(), Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: cleanAssessment(req.Msg.GetScenario())}), nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}}
+	started := time.Now()
+	results := validateFleet(client, targets, fleetScanOptions{PerTargetTimeout: time.Second, FleetTimeout: time.Second, Concurrency: 6, IncludeEvals: true})
+	elapsed := time.Since(started)
+	if len(results) != targetCount {
+		t.Fatalf("result count = %d, want %d", len(results), targetCount)
+	}
+	if peak > 6 || peak < 2 {
+		t.Fatalf("peak in-flight = %d, want bounded concurrency between 2 and 6", peak)
+	}
+	if elapsed >= 300*time.Millisecond {
+		t.Fatalf("fleet elapsed = %s; serial execution would take about %s", elapsed, targetCount*15*time.Millisecond)
+	}
+	for i, result := range results {
+		if result.Scenario != targets[i].Scenario || result.Status != "passed" || result.Attempts != 1 {
+			t.Fatalf("result[%d] = %#v", i, result)
+		}
+	}
+}
+
+func TestValidateFleetReportsScanDeadlineForQueuedAndRunningTargets(t *testing.T) {
+	targets := []target{{Scenario: "a"}, {Scenario: "b"}, {Scenario: "c"}, {Scenario: "d"}}
+	client := &fakeValidationClient{validateFn: func(ctx context.Context, _ *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	results := validateFleet(client, targets, fleetScanOptions{PerTargetTimeout: time.Second, FleetTimeout: 25 * time.Millisecond, Concurrency: 1, IncludeEvals: true})
+	if len(results) != len(targets) {
+		t.Fatalf("result count = %d, want %d", len(results), len(targets))
+	}
+	for _, result := range results {
+		if result.Status != "unavailable" || result.UnavailabilityCause != "scan_deadline_exhausted" {
+			t.Fatalf("result = %#v, want scan-deadline unavailable", result)
+		}
+	}
+}
+
+func TestValidateFleetRetriesTransientUnavailableTarget(t *testing.T) {
+	var mu sync.Mutex
+	attempts := 0
+	client := &fakeValidationClient{validateFn: func(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+		mu.Lock()
+		defer mu.Unlock()
+		attempts++
+		if attempts == 1 {
+			return nil, errors.New("connection reset")
+		}
+		return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{Scenario: req.Msg.GetScenario(), Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: cleanAssessment(req.Msg.GetScenario())}), nil
+	}}
+	results := validateFleet(client, []target{{Scenario: "retry"}}, fleetScanOptions{PerTargetTimeout: time.Second, FleetTimeout: time.Second, Concurrency: 1, Retries: 1, IncludeEvals: true})
+	if len(results) != 1 || results[0].Status != "passed" || results[0].Attempts != 2 || results[0].RetryOutcome != "recovered" {
+		t.Fatalf("result = %#v, want recovered second attempt", results)
+	}
 }
 
 func (f *fakeValidationClient) PreviewFix(_ context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
@@ -573,13 +665,19 @@ func scanContextWithOptions(root string, asJSON bool, fast bool, includeEvals bo
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
 		{Name: "root", Default: "."},
 		{Name: "timeout", Default: "30s"},
+		{Name: "fleet-timeout", Default: "2m"},
+		{Name: "concurrency", Default: "6"},
+		{Name: "retries", Default: "1"},
 		{Name: "fast", Bool: true},
 		{Name: "include-evals", Bool: true},
 	}}
 	ctx, out := cliapptest.NewCapturedRunContext(nil, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
-			"root":    root,
-			"timeout": "5s",
+			"root":          root,
+			"timeout":       "5s",
+			"fleet-timeout": "30s",
+			"concurrency":   "6",
+			"retries":       "1",
 		},
 		BoolFlags: map[string]bool{"fast": fast, "include-evals": includeEvals},
 		JSON:      asJSON,

@@ -26,6 +26,22 @@ type TelemetrySample struct {
 	Degraded        bool
 	Reranked        bool
 	LatencyMs       int64
+	// RoutingMode and the fan-out counts explain why a query paid the latency it
+	// did without storing its text. Eligible is the active fleet seen by the
+	// router; selected is the final live fan-out (including a permitted
+	// escalation); withheld_external is deliberately excluded automatic scope;
+	// queued is the excess over the bounded fan-out worker budget.
+	RoutingMode           string
+	EligibleProviderCount int
+	SelectedProviderCount int
+	WithheldExternalCount int
+	QueuedProviderCount   int
+	ClassifierLatencyMs   int64
+	ResolverLatencyMs     int64
+	FanoutLatencyMs       int64
+	RerankLatencyMs       int64
+	RerankCandidateCount  int
+	ResponseDegradeReason string
 	// AutoRoutedExternal is true when the automatic path folded a SCOPE_EXTERNAL
 	// provider into the fan-out because the query was judged web-shaped
 	// (OT-P2-002). Lets the metrics surface measure the auto-routed-external rate.
@@ -34,6 +50,29 @@ type TelemetrySample struct {
 	// escalated to a withheld external provider (OT-P2-002 fallback). Lets the
 	// metrics surface measure the escalation rate.
 	Escalated bool
+}
+
+// ResponseDegradeReason records the response-level cause categories. It is a
+// compact, closed vocabulary (comma-separated only when causes coexist), not
+// a copy of unbounded provider error text.
+func ResponseDegradeReason(classifierFailed, rerankerFailed bool, groups []*routingv1.ProviderResultGroup, resultCount int) string {
+	reasons := make([]string, 0, 4)
+	if classifierFailed {
+		reasons = append(reasons, "classifier")
+	}
+	if rerankerFailed {
+		reasons = append(reasons, "reranker")
+	}
+	for _, g := range groups {
+		if g.GetDegraded() {
+			reasons = append(reasons, "provider_leg")
+			break
+		}
+	}
+	if resultCount == 0 {
+		reasons = append(reasons, "zero_result")
+	}
+	return strings.Join(reasons, ",")
 }
 
 // ProviderTelemetry is one provider leg's telemetry projection. DegradeReason

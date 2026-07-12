@@ -26,6 +26,13 @@ follow and are mechanically guarded (plan §6 Validation #4/#5):
   one generic adapter driven by each descriptor's `ResultMapping`.
   Adding a provider is a registry row, never router code.
 
+Provider availability state is intentionally equally thin: the router retains
+only a short-lived circuit-breaker count and recovery time per provider ID. A
+repeatedly failing leaf is reported as unavailable without consuming the query
+budget; one half-open recovery probe later returns to the provider's live
+endpoint. It never retains prior hits, so mutable provider data is never shown
+as current while that provider is down.
+
 See [`DOMAINS.md`](DOMAINS.md) for the five product domains (`registry`,
 `providers`, `routing`, `rerank`, `metrics`) and the pipeline that
 composes them.

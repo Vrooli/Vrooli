@@ -45,6 +45,12 @@ func (r *Router) Status(ctx context.Context) (*routingv1.StatusResponse, error) 
 // degraded with a human note in `freshness`.
 func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescriptor) *routingv1.ProviderHealth {
 	h := &routingv1.ProviderHealth{ProviderId: p.GetProviderId()}
+	if open, note := r.providerBreakers.status(p.GetProviderId(), r.deps.Now()); open {
+		h.Reachable = false
+		h.Degraded = true
+		h.Freshness = note
+		return h
+	}
 
 	hj := p.GetEndpoint().GetHttpJson()
 	if hj == nil {

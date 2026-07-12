@@ -46,15 +46,26 @@ func (b *TelemetryBridge) Record(ctx context.Context, s internalrouting.Telemetr
 		}
 	}
 	if err := b.store.Record(ctx, internalmetrics.Sample{
-		QueryHash:          s.QueryHash,
-		RoutedTypes:        s.RoutedTypes,
-		ProviderResults:    providerResults,
-		ResultCount:        s.ResultCount,
-		Degraded:           s.Degraded,
-		Reranked:           s.Reranked,
-		AutoRoutedExternal: s.AutoRoutedExternal,
-		Escalated:          s.Escalated,
-		LatencyMs:          s.LatencyMs,
+		QueryHash:             s.QueryHash,
+		RoutedTypes:           s.RoutedTypes,
+		ProviderResults:       providerResults,
+		ResultCount:           s.ResultCount,
+		Degraded:              s.Degraded,
+		Reranked:              s.Reranked,
+		AutoRoutedExternal:    s.AutoRoutedExternal,
+		Escalated:             s.Escalated,
+		LatencyMs:             s.LatencyMs,
+		RoutingMode:           s.RoutingMode,
+		EligibleProviderCount: s.EligibleProviderCount,
+		SelectedProviderCount: s.SelectedProviderCount,
+		WithheldExternalCount: s.WithheldExternalCount,
+		QueuedProviderCount:   s.QueuedProviderCount,
+		ClassifierLatencyMs:   s.ClassifierLatencyMs,
+		ResolverLatencyMs:     s.ResolverLatencyMs,
+		FanoutLatencyMs:       s.FanoutLatencyMs,
+		RerankLatencyMs:       s.RerankLatencyMs,
+		RerankCandidateCount:  s.RerankCandidateCount,
+		ResponseDegradeReason: s.ResponseDegradeReason,
 	}); err != nil {
 		b.logger.Printf("metrics.TelemetryBridge.Record: %v", err)
 	}

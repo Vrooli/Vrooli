@@ -31,6 +31,17 @@ CREATE TABLE IF NOT EXISTS query_telemetry (
   auto_routed_external INTEGER NOT NULL DEFAULT 0, -- 1 when a web-shaped query auto-routed an external provider (OT-P2-002)
   escalated    INTEGER NOT NULL DEFAULT 0, -- 1 when an empty project corpus escalated to external (OT-P2-002)
   latency_ms   INTEGER NOT NULL DEFAULT 0,
+  routing_mode TEXT NOT NULL DEFAULT '', -- explicit_all|explicit_scoped|automatic|automatic_fallback
+  eligible_provider_count INTEGER NOT NULL DEFAULT 0,
+  selected_provider_count INTEGER NOT NULL DEFAULT 0,
+  withheld_external_count INTEGER NOT NULL DEFAULT 0,
+  queued_provider_count INTEGER NOT NULL DEFAULT 0,
+  classifier_latency_ms INTEGER NOT NULL DEFAULT 0,
+  resolver_latency_ms INTEGER NOT NULL DEFAULT 0,
+  fanout_latency_ms INTEGER NOT NULL DEFAULT 0,
+  rerank_latency_ms INTEGER NOT NULL DEFAULT 0,
+  rerank_candidate_count INTEGER NOT NULL DEFAULT 0,
+  response_degrade_reason TEXT NOT NULL DEFAULT '',
   created_at   TEXT NOT NULL
 );
 

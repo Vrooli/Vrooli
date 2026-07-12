@@ -42,7 +42,9 @@
         "score_scale": "SCORE_SCALE_COSINE_0_1"
       },
       "performance": {
-        "p95_ms": 20000
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true
       },
       "tuning": {
         "engine": "dense",

@@ -195,3 +195,30 @@ func TestProvider_EmptyIndex(t *testing.T) {
 		t.Fatalf("expected lexical matcher label, got %q", label)
 	}
 }
+
+func TestProvider_DefaultsToInteractiveNoopExtraction(t *testing.T) {
+	called := false
+	p := NewProvider([]measures.MeasureDeclaration{needsMeasure()}, Config{
+		Executor: &fakeExecutor{},
+		Completer: measures.CompleterFunc(func(context.Context, string) (string, error) {
+			called = true
+			return `{"found":true,"value":"ignored","confidence":1}`, nil
+		}),
+		OllamaAvailable: func(context.Context) bool { return true },
+	})
+
+	hits, _, err := p.Query(context.Background(), "how many open backlog items for an initiative", 1)
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	if len(hits) != 1 || len(hits[0].Needs) != 1 {
+		t.Fatalf("default query must return a fast unresolved hit, got %#v", hits)
+	}
+	if called {
+		t.Fatal("default interactive search must not invoke the optional LLM extractor")
+	}
+	_, ollama, _, _, _ := p.Status(context.Background())
+	if ollama {
+		t.Fatal("status must not advertise an unused LLM extraction leg")
+	}
+}

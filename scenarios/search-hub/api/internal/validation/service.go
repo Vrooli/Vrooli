@@ -904,16 +904,16 @@ func validatePerformanceBudget(report *Report, providerPath, class string, extra
 // excluded — an empty result for a junk query is correct rejection, not
 // degradation.
 func degradedRate(suite *evalv1.EvalSuite, run *evalv1.EvalRun) (float64, bool) {
-	negative := make(map[string]bool)
+	excluded := make(map[string]bool)
 	for _, c := range suite.GetCases() {
-		if c.GetExpectNoStrongHit() {
-			negative[c.GetCaseId()] = true
+		if c.GetExpectNoStrongHit() || strings.EqualFold(strings.TrimSpace(c.GetStatus()), "candidate") {
+			excluded[c.GetCaseId()] = true
 		}
 	}
 	total := 0
 	degraded := 0
 	for _, r := range run.GetResults() {
-		if negative[r.GetCaseId()] {
+		if excluded[r.GetCaseId()] {
 			continue
 		}
 		total++

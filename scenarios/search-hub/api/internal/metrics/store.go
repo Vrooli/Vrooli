@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -48,9 +49,20 @@ type Sample struct {
 	// AutoRoutedExternal / Escalated record the OT-P2-002 auto-external decisions
 	// so the Insights surface can report the auto-routed-external and escalation
 	// rates for validation.
-	AutoRoutedExternal bool
-	Escalated          bool
-	LatencyMs          int64
+	AutoRoutedExternal    bool
+	Escalated             bool
+	LatencyMs             int64
+	RoutingMode           string
+	EligibleProviderCount int
+	SelectedProviderCount int
+	WithheldExternalCount int
+	QueuedProviderCount   int
+	ClassifierLatencyMs   int64
+	ResolverLatencyMs     int64
+	FanoutLatencyMs       int64
+	RerankLatencyMs       int64
+	RerankCandidateCount  int
+	ResponseDegradeReason string
 }
 
 // ProviderResult is one provider leg's persisted telemetry.
@@ -98,6 +110,23 @@ type Insights struct {
 	LatencyP50Ms              int64
 	LatencyP95Ms              int64
 	ProviderUsage             []ProviderUsage
+	RoutingBuckets            []RoutingBucket
+}
+
+// RoutingBucket is the fleet-scale read model. Its bucket is derived from the
+// selected fan-out, so automatic routing and explicit-all can be compared at
+// the same fleet size without retaining raw query text.
+type RoutingBucket struct {
+	RoutingMode     string
+	FanoutBucket    string
+	Queries         int64
+	DegradedQueries int64
+	LatencyP50Ms    int64
+	LatencyP95Ms    int64
+	ClassifierP95Ms int64
+	ResolverP95Ms   int64
+	FanoutP95Ms     int64
+	RerankP95Ms     int64
 }
 
 // Store is the telemetry persistence seam. Production wires the SQLite-backed
@@ -140,13 +169,28 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		name string
 		ddl  string
 	}{
+		{name: "routing_mode", ddl: "ALTER TABLE query_telemetry ADD COLUMN routing_mode TEXT NOT NULL DEFAULT ''"},
+		{name: "eligible_provider_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN eligible_provider_count INTEGER NOT NULL DEFAULT 0"},
+		{name: "selected_provider_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN selected_provider_count INTEGER NOT NULL DEFAULT 0"},
+		{name: "withheld_external_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN withheld_external_count INTEGER NOT NULL DEFAULT 0"},
+		{name: "queued_provider_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN queued_provider_count INTEGER NOT NULL DEFAULT 0"},
+		{name: "classifier_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN classifier_latency_ms INTEGER NOT NULL DEFAULT 0"},
+		{name: "resolver_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN resolver_latency_ms INTEGER NOT NULL DEFAULT 0"},
+		{name: "fanout_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN fanout_latency_ms INTEGER NOT NULL DEFAULT 0"},
+		{name: "rerank_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN rerank_latency_ms INTEGER NOT NULL DEFAULT 0"},
+		{name: "rerank_candidate_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN rerank_candidate_count INTEGER NOT NULL DEFAULT 0"},
+		{name: "response_degrade_reason", ddl: "ALTER TABLE query_telemetry ADD COLUMN response_degrade_reason TEXT NOT NULL DEFAULT ''"},
 		{name: "latency_ms", ddl: "ALTER TABLE query_telemetry_provider ADD COLUMN latency_ms INTEGER NOT NULL DEFAULT 0"},
 		{name: "degraded", ddl: "ALTER TABLE query_telemetry_provider ADD COLUMN degraded INTEGER NOT NULL DEFAULT 0"},
 		{name: "degrade_reason", ddl: "ALTER TABLE query_telemetry_provider ADD COLUMN degrade_reason TEXT NOT NULL DEFAULT ''"},
 	} {
-		exists, err := columnExists(ctx, db, "query_telemetry_provider", col.name)
+		table := "query_telemetry_provider"
+		if strings.Contains(col.ddl, "ALTER TABLE query_telemetry ADD") {
+			table = "query_telemetry"
+		}
+		exists, err := columnExists(ctx, db, table, col.name)
 		if err != nil {
-			return fmt.Errorf("inspect query_telemetry_provider.%s: %w", col.name, err)
+			return fmt.Errorf("inspect %s.%s: %w", table, col.name, err)
 		}
 		if exists {
 			continue
@@ -158,7 +202,7 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 				continue
 			}
-			return fmt.Errorf("migrate query_telemetry_provider.%s: %w", col.name, err)
+			return fmt.Errorf("migrate %s.%s: %w", table, col.name, err)
 		}
 	}
 	return nil
@@ -201,11 +245,15 @@ func (s *sqliteStore) Record(ctx context.Context, sample Sample) error {
 	}
 
 	res, err := s.db.ExecContext(ctx, `
-INSERT INTO query_telemetry (query_hash, routed_types, result_count, zero_result, degraded, reranked, auto_routed_external, escalated, latency_ms, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+INSERT INTO query_telemetry (query_hash, routed_types, result_count, zero_result, degraded, reranked, auto_routed_external, escalated, latency_ms, routing_mode, eligible_provider_count, selected_provider_count, withheld_external_count, queued_provider_count, classifier_latency_ms, resolver_latency_ms, fanout_latency_ms, rerank_latency_ms, rerank_candidate_count, response_degrade_reason, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		sample.QueryHash, strings.Join(sample.RoutedTypes, ","), sample.ResultCount, zero,
 		boolToInt(sample.Degraded), boolToInt(sample.Reranked),
-		boolToInt(sample.AutoRoutedExternal), boolToInt(sample.Escalated), sample.LatencyMs, now)
+		boolToInt(sample.AutoRoutedExternal), boolToInt(sample.Escalated), sample.LatencyMs,
+		sample.RoutingMode, sample.EligibleProviderCount, sample.SelectedProviderCount,
+		sample.WithheldExternalCount, sample.QueuedProviderCount, sample.ClassifierLatencyMs,
+		sample.ResolverLatencyMs, sample.FanoutLatencyMs, sample.RerankLatencyMs,
+		sample.RerankCandidateCount, sample.ResponseDegradeReason, now)
 	if err != nil {
 		return fmt.Errorf("insert query_telemetry: %w", err)
 	}
@@ -261,7 +309,105 @@ FROM query_telemetry`+filter.queryWhere, filter.queryArgs...)
 		return nil, err
 	}
 	out.ProviderUsage = usage
+	buckets, err := s.routingBuckets(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	out.RoutingBuckets = buckets
 	return out, nil
+}
+
+func fanoutBucket(n int) string {
+	switch {
+	case n <= 1:
+		return "1"
+	case n <= 6:
+		return "2-6"
+	case n <= 12:
+		return "7-12"
+	case n <= 24:
+		return "13-24"
+	default:
+		return "25+"
+	}
+}
+
+func (s *sqliteStore) routingBuckets(ctx context.Context, filter telemetryFilter) ([]RoutingBucket, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT routing_mode, selected_provider_count, degraded, latency_ms, classifier_latency_ms, resolver_latency_ms, fanout_latency_ms, rerank_latency_ms FROM query_telemetry`+filter.queryWhere, filter.queryArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("query routing buckets: %w", err)
+	}
+	defer rows.Close()
+	type values struct {
+		latency, classifier, resolver, fanout, rerank []int64
+		degraded                                      int64
+	}
+	grouped := map[string]*values{}
+	for rows.Next() {
+		var mode string
+		var selected, degraded int
+		var latency, classifier, resolver, fanout, rerank int64
+		if err := rows.Scan(&mode, &selected, &degraded, &latency, &classifier, &resolver, &fanout, &rerank); err != nil {
+			return nil, fmt.Errorf("scan routing bucket: %w", err)
+		}
+		if mode == "" {
+			mode = "unknown"
+		}
+		key := mode + "\x00" + fanoutBucket(selected)
+		v := grouped[key]
+		if v == nil {
+			v = &values{}
+			grouped[key] = v
+		}
+		v.latency = append(v.latency, latency)
+		v.classifier = append(v.classifier, classifier)
+		v.resolver = append(v.resolver, resolver)
+		v.fanout = append(v.fanout, fanout)
+		v.rerank = append(v.rerank, rerank)
+		v.degraded += int64(degraded)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate routing buckets: %w", err)
+	}
+	out := make([]RoutingBucket, 0, len(grouped))
+	for key, v := range grouped {
+		parts := strings.SplitN(key, "\x00", 2)
+		out = append(out, RoutingBucket{
+			RoutingMode:     parts[0],
+			FanoutBucket:    parts[1],
+			Queries:         int64(len(v.latency)),
+			DegradedQueries: v.degraded,
+			LatencyP50Ms:    percentile(v.latency, 0.50),
+			LatencyP95Ms:    percentile(v.latency, 0.95),
+			ClassifierP95Ms: percentile(v.classifier, 0.95),
+			ResolverP95Ms:   percentile(v.resolver, 0.95),
+			FanoutP95Ms:     percentile(v.fanout, 0.95),
+			RerankP95Ms:     percentile(v.rerank, 0.95),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].RoutingMode != out[j].RoutingMode {
+			return out[i].RoutingMode < out[j].RoutingMode
+		}
+		return out[i].FanoutBucket < out[j].FanoutBucket
+	})
+	return out, nil
+}
+
+func percentile(values []int64, p float64) int64 {
+	if len(values) == 0 {
+		return 0
+	}
+	values = append([]int64(nil), values...)
+	sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
+	idx := int(float64(len(values))*p+0.999999) - 1
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(values) {
+		idx = len(values) - 1
+	}
+	return values[idx]
 }
 
 type telemetryFilter struct {

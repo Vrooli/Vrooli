@@ -1180,6 +1180,23 @@ func TestValidateScenarioAdequateCorpusPasses(t *testing.T) {
 	}
 }
 
+func TestDegradedRateExcludesCandidateAndNegativeCases(t *testing.T) {
+	suite := &evalv1.EvalSuite{Cases: []*evalv1.EvalCase{
+		{CaseId: "reviewed", ExpectIds: []string{"live"}},
+		{CaseId: "candidate", ExpectIds: []string{"proposal"}, Status: "candidate"},
+		{CaseId: "negative", ExpectNoStrongHit: true},
+	}}
+	run := &evalv1.EvalRun{Results: []*evalv1.CaseResult{
+		{CaseId: "reviewed"},
+		{CaseId: "candidate"},
+		{CaseId: "negative"},
+	}}
+	rate, ok := degradedRate(suite, run)
+	if !ok || rate != 1 {
+		t.Fatalf("degradedRate = (%v, %v), want (1, true)", rate, ok)
+	}
+}
+
 func hasFinding(report Report, code string) bool {
 	for _, finding := range report.Findings {
 		if finding.Code == code {

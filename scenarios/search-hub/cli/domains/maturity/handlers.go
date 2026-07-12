@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -20,7 +22,12 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-const defaultScanTimeout = 30 * time.Second
+const (
+	defaultScanTimeout      = 30 * time.Second
+	defaultFleetTimeout     = 2 * time.Minute
+	defaultFleetConcurrency = 6
+	defaultFleetRetries     = 1
+)
 
 type validationClient interface {
 	ValidateScenario(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error)
@@ -46,6 +53,7 @@ type scanReport struct {
 	ValidationMode   string           `json:"validation_mode"`
 	ModeMeaning      string           `json:"mode_meaning"`
 	ProviderLiveness providerLiveness `json:"provider_liveness"`
+	Fleet            fleetReport      `json:"fleet"`
 	Summary          scanSummary      `json:"summary"`
 	Results          []scenarioResult `json:"results"`
 	Groups           scanGroups       `json:"groups"`
@@ -58,14 +66,26 @@ type providerLiveness struct {
 }
 
 type scanSummary struct {
-	Total       int `json:"total"`
-	Passed      int `json:"passed"`
-	Failed      int `json:"failed"`
-	Degraded    int `json:"degraded"`
-	Unavailable int `json:"unavailable"`
-	Findings    int `json:"findings"`
-	Blocking    int `json:"blocking"`
-	Advisory    int `json:"advisory"`
+	Total             int `json:"total"`
+	Passed            int `json:"passed"`
+	Failed            int `json:"failed"`
+	Degraded          int `json:"degraded"`
+	Unavailable       int `json:"unavailable"`
+	Findings          int `json:"findings"`
+	Blocking          int `json:"blocking"`
+	Advisory          int `json:"advisory"`
+	DeadlineExhausted int `json:"deadline_exhausted"`
+	Retried           int `json:"retried"`
+}
+
+// fleetReport separates the scan-wide resource budget from each validation
+// RPC's deadline. This makes a partial scan explainable without relabelling a
+// slow or unavailable provider as a maturity failure.
+type fleetReport struct {
+	TimeoutMS   int64 `json:"timeout_ms"`
+	Concurrency int   `json:"concurrency"`
+	Retries     int   `json:"retries"`
+	ElapsedMS   int64 `json:"elapsed_ms"`
 }
 
 type scanGroups struct {
@@ -90,6 +110,11 @@ type scenarioResult struct {
 	AdvisoryFindingCodes  []string             `json:"advisory_finding_codes,omitempty"`
 	RecommendedNextAction string               `json:"recommended_next_action,omitempty"`
 	RepairCommands        []string             `json:"repair_commands,omitempty"`
+	QueueMS               int64                `json:"queue_ms"`
+	ExecutionMS           int64                `json:"execution_ms"`
+	Attempts              int                  `json:"attempts"`
+	RetryOutcome          string               `json:"retry_outcome,omitempty"`
+	UnavailabilityCause   string               `json:"unavailability_cause,omitempty"`
 	Error                 string               `json:"error,omitempty"`
 }
 
@@ -179,12 +204,25 @@ func (h *handlers) scanCall(ctx cliapp.OperationContext) (scanReport, error) {
 			return scanReport{}, fmt.Errorf("invalid --timeout %q: %w", raw, err)
 		}
 	}
+	fleetTimeout, err := parsePositiveDuration(ctx.Flag("fleet-timeout"), defaultFleetTimeout, "--fleet-timeout")
+	if err != nil {
+		return scanReport{}, err
+	}
+	concurrency, err := parsePositiveInt(ctx.Flag("concurrency"), defaultFleetConcurrency, "--concurrency")
+	if err != nil {
+		return scanReport{}, err
+	}
+	retries, err := parseNonNegativeInt(ctx.Flag("retries"), defaultFleetRetries, "--retries")
+	if err != nil {
+		return scanReport{}, err
+	}
 	targets, err := discoverTargets(root)
 	if err != nil {
 		return scanReport{}, err
 	}
 	report := scanReport{
 		RepoRoot: root,
+		Fleet:    fleetReport{TimeoutMS: fleetTimeout.Milliseconds(), Concurrency: concurrency, Retries: retries},
 		ProviderLiveness: providerLiveness{
 			State:  "not_checked",
 			Source: "search-hub ScenarioValidationService",
@@ -205,11 +243,173 @@ func (h *handlers) scanCall(ctx cliapp.OperationContext) (scanReport, error) {
 		report.ValidationMode = "fast"
 		report.ModeMeaning = "inventory only: descriptor/corpus shape; live eval and latency proof are skipped"
 	}
-	for _, target := range targets {
-		report.add(h.validateTarget(client, timeout, target, includeEvals))
+	started := time.Now()
+	for _, result := range validateFleet(client, targets, fleetScanOptions{
+		PerTargetTimeout: timeout,
+		FleetTimeout:     fleetTimeout,
+		Concurrency:      concurrency,
+		Retries:          retries,
+		IncludeEvals:     includeEvals,
+	}) {
+		report.add(result)
 	}
+	report.Fleet.ElapsedMS = time.Since(started).Milliseconds()
 	report.finish()
 	return report, nil
+}
+
+type fleetScanOptions struct {
+	PerTargetTimeout time.Duration
+	FleetTimeout     time.Duration
+	Concurrency      int
+	Retries          int
+	IncludeEvals     bool
+}
+
+// validateFleet uses a fixed worker pool so fleet latency scales with batches,
+// while result indexing and final sorting keep JSON stable regardless of
+// provider completion order. Every discovered target produces one result.
+func validateFleet(client validationClient, targets []target, opts fleetScanOptions) []scenarioResult {
+	if len(targets) == 0 {
+		return nil
+	}
+	if opts.Concurrency <= 0 {
+		opts.Concurrency = defaultFleetConcurrency
+	}
+	if opts.Concurrency > len(targets) {
+		opts.Concurrency = len(targets)
+	}
+	fleetCtx, cancel := context.WithTimeout(context.Background(), opts.FleetTimeout)
+	defer cancel()
+	started := time.Now()
+	results := make([]scenarioResult, len(targets))
+	jobs := make(chan int)
+	var workers sync.WaitGroup
+	for range opts.Concurrency {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for index := range jobs {
+				queuedAt := time.Since(started)
+				if fleetCtx.Err() != nil {
+					results[index] = scanDeadlineResult(targets[index], queuedAt)
+					continue
+				}
+				results[index] = validateTargetWithPolicy(fleetCtx, client, opts, targets[index], queuedAt)
+			}
+		}()
+	}
+	for index := range targets {
+		jobs <- index
+	}
+	close(jobs)
+	workers.Wait()
+	return results
+}
+
+func validateTargetWithPolicy(fleetCtx context.Context, client validationClient, opts fleetScanOptions, target target, queued time.Duration) scenarioResult {
+	started := time.Now()
+	result := scenarioResult{Scenario: target.Scenario, Path: target.Path, ApplicabilityReason: target.Reason, QueueMS: queued.Milliseconds()}
+	for attempt := 0; attempt <= opts.Retries; attempt++ {
+		if fleetCtx.Err() != nil {
+			return unavailableResult(result, "scan_deadline_exhausted", fleetCtx.Err(), attempt, started)
+		}
+		requestCtx, cancel := context.WithTimeout(fleetCtx, opts.PerTargetTimeout)
+		resp, err := client.ValidateScenario(requestCtx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+			Scenario: target.Scenario, Path: target.Path, IncludeExecution: opts.IncludeEvals,
+		}))
+		cancel()
+		if err == nil {
+			result.Status = statusLabel(resp.Msg.GetStatus())
+			result.ProviderLiveness = providerLiveness{State: "available", Source: "search-hub ScenarioValidationService"}
+			if a := resp.Msg.GetAssessment(); a != nil {
+				applyAssessment(&result, a)
+			}
+			result.EvalEvidence = decodeEvalEvidence(resp.Msg.GetNativeDetail())
+			result.Attempts = attempt + 1
+			if attempt == 0 {
+				result.RetryOutcome = "not_needed"
+			} else {
+				result.RetryOutcome = "recovered"
+			}
+			result.ExecutionMS = time.Since(started).Milliseconds()
+			result.RecommendedNextAction = recommendedNextAction(result)
+			result.RepairCommands = repairCommands(result)
+			return result
+		}
+		if attempt == opts.Retries {
+			return unavailableResult(result, classifyUnavailableCause(fleetCtx, err), err, attempt+1, started)
+		}
+	}
+	return unavailableResult(result, "transport_error", errors.New("validation retry policy exhausted"), opts.Retries+1, started)
+}
+
+func scanDeadlineResult(target target, queued time.Duration) scenarioResult {
+	return unavailableResult(scenarioResult{
+		Scenario: target.Scenario, Path: target.Path, ApplicabilityReason: target.Reason, QueueMS: queued.Milliseconds(),
+	}, "scan_deadline_exhausted", context.DeadlineExceeded, 0, time.Now())
+}
+
+func unavailableResult(result scenarioResult, cause string, err error, attempts int, started time.Time) scenarioResult {
+	result.Status = "unavailable"
+	result.ProviderLiveness = providerLiveness{State: "unavailable", Source: "search-hub ScenarioValidationService", Message: err.Error()}
+	result.UnavailabilityCause = cause
+	result.Error = err.Error()
+	result.Attempts = attempts
+	if attempts > 1 {
+		result.RetryOutcome = "exhausted"
+	} else if attempts == 1 {
+		result.RetryOutcome = "not_retried"
+	} else {
+		result.RetryOutcome = "not_started"
+	}
+	result.ExecutionMS = time.Since(started).Milliseconds()
+	result.RecommendedNextAction = recommendedNextAction(result)
+	result.RepairCommands = repairCommands(result)
+	return result
+}
+
+func classifyUnavailableCause(fleetCtx context.Context, err error) string {
+	if fleetCtx.Err() != nil {
+		return "scan_deadline_exhausted"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "validation_timeout"
+	}
+	return "transport_error"
+}
+
+func parsePositiveDuration(raw string, fallback time.Duration, flag string) (time.Duration, error) {
+	if strings.TrimSpace(raw) == "" {
+		return fallback, nil
+	}
+	value, err := time.ParseDuration(raw)
+	if err != nil || value <= 0 {
+		return 0, fmt.Errorf("%s must be a positive duration", flag)
+	}
+	return value, nil
+}
+
+func parsePositiveInt(raw string, fallback int, flag string) (int, error) {
+	value, err := parseNonNegativeInt(raw, fallback, flag)
+	if err != nil || value <= 0 {
+		if err != nil {
+			return 0, err
+		}
+		return 0, fmt.Errorf("%s must be greater than zero", flag)
+	}
+	return value, nil
+}
+
+func parseNonNegativeInt(raw string, fallback int, flag string) (int, error) {
+	if strings.TrimSpace(raw) == "" {
+		return fallback, nil
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < 0 {
+		return 0, fmt.Errorf("%s must be a non-negative integer", flag)
+	}
+	return value, nil
 }
 
 func (h *handlers) scanActionReport(_ cliapp.OperationContext, report scanReport) cliapp.MutationReport {
@@ -303,45 +503,6 @@ func (h *handlers) fixReport(_ cliapp.OperationContext, report *scenariovalidati
 		next = append(next, "`maturity fix <scenario> --apply` — write these mechanical descriptor fixes")
 	}
 	return cliapp.MutationReport{Result: result, Changes: changes, NextCommand: next}
-}
-
-func (h *handlers) validateTarget(client validationClient, timeout time.Duration, target target, includeEvals bool) scenarioResult {
-	runCtx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	resp, err := client.ValidateScenario(runCtx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
-		Scenario:         target.Scenario,
-		Path:             target.Path,
-		IncludeExecution: includeEvals,
-	}))
-	if err != nil {
-		return scenarioResult{
-			Scenario:            target.Scenario,
-			Path:                target.Path,
-			Status:              "unavailable",
-			ApplicabilityReason: target.Reason,
-			ProviderLiveness: providerLiveness{
-				State:   "unavailable",
-				Source:  "search-hub ScenarioValidationService",
-				Message: err.Error(),
-			},
-			RecommendedNextAction: "Start search-hub through lifecycle and rerun maturity scan.",
-			Error:                 err.Error(),
-		}
-	}
-	out := scenarioResult{
-		Scenario:            target.Scenario,
-		Path:                target.Path,
-		Status:              statusLabel(resp.Msg.GetStatus()),
-		ApplicabilityReason: target.Reason,
-		ProviderLiveness:    providerLiveness{State: "available", Source: "search-hub ScenarioValidationService"},
-	}
-	if a := resp.Msg.GetAssessment(); a != nil {
-		applyAssessment(&out, a)
-	}
-	out.EvalEvidence = decodeEvalEvidence(resp.Msg.GetNativeDetail())
-	out.RecommendedNextAction = recommendedNextAction(out)
-	out.RepairCommands = repairCommands(out)
-	return out
 }
 
 // decodeEvalEvidence reads the eval_evidence array the validation service packs
@@ -476,6 +637,12 @@ func (r *scanReport) add(result scenarioResult) {
 	r.Summary.Findings += len(result.Findings)
 	r.Summary.Blocking += len(result.BlockingFindingCodes)
 	r.Summary.Advisory += len(result.AdvisoryFindingCodes)
+	if result.UnavailabilityCause == "scan_deadline_exhausted" {
+		r.Summary.DeadlineExhausted++
+	}
+	if result.Attempts > 1 {
+		r.Summary.Retried++
+	}
 	r.Groups.ByStatus[result.Status] = append(r.Groups.ByStatus[result.Status], result.Scenario)
 	if result.ProviderLiveness.State == "unavailable" && r.ProviderLiveness.State != "available" {
 		r.ProviderLiveness = result.ProviderLiveness

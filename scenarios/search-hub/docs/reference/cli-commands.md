@@ -143,7 +143,7 @@ search-hub providers remove cli-health.commands
 
 ## Scenario commands — `maturity` (fleet certification)
 
-### `search-hub maturity scan [--fast] [--json] [--root <dir>]`
+### `search-hub maturity scan [--fast] [--json] [--root <dir>] [--timeout <duration>] [--fleet-timeout <duration>] [--concurrency <n>] [--retries <n>]`
 
 Scans every search-applicable scenario (those owning `.vrooli/search.json` **or**
 declaring a `search`/`ai-search` service capability — the same target set as the
@@ -162,7 +162,16 @@ Test Genie `search` phase) and reports certification status.
 ```bash
 search-hub maturity scan --json                 # full certification scan
 search-hub maturity scan --fast --json          # inventory only
+search-hub maturity scan --concurrency 12 --fleet-timeout 90s --json
 ```
+
+`--timeout` bounds one validation RPC; `--fleet-timeout` bounds the complete
+scan. The latter never discards evidence already returned: each target is
+reported in deterministic scenario order with `queue_ms`, `execution_ms`,
+`attempts`, and a retry outcome. An unavailable target states whether the
+cause was a transport error, its validation deadline, or fleet-deadline
+exhaustion. `--retries` is the number of additional attempts, still constrained
+by the fleet deadline.
 
 ### `search-hub maturity fix <scenario> [--apply] [--rule <code,…>] [--json]`
 

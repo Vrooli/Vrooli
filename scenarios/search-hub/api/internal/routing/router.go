@@ -60,9 +60,11 @@ const (
 	defaultRerankTimeout = 10 * time.Second
 	// defaultResponseCushion reserves a small tail of the query budget for
 	// response construction, telemetry stamping, and Connect header write-out.
-	defaultResponseCushion       = 500 * time.Millisecond
-	defaultRerankBreakerFailures = 3
-	defaultRerankBreakerCooldown = 60 * time.Second
+	defaultResponseCushion         = 500 * time.Millisecond
+	defaultRerankBreakerFailures   = 3
+	defaultRerankBreakerCooldown   = 60 * time.Second
+	defaultProviderBreakerFailures = 3
+	defaultProviderBreakerCooldown = 30 * time.Second
 	// maxResponseBytes caps how much of a provider response the router reads,
 	// so a misbehaving leaf cannot exhaust memory.
 	maxResponseBytes = 8 << 20 // 8 MiB
@@ -115,7 +117,10 @@ type Deps struct {
 	QueryTimeout       time.Duration
 	RerankTimeout      time.Duration
 	RerankBreaker      RerankBreakerConfig
-	Now                func() time.Time
+	// ProviderBreaker prevents repeated down providers from spending the query
+	// deadline. It tracks availability only; no provider results are cached.
+	ProviderBreaker RerankBreakerConfig
+	Now             func() time.Time
 	// AutoRouteExternal gates OT-P2-002: when true, the automatic (classifier)
 	// path may fold SCOPE_EXTERNAL providers back into the fan-out — either
 	// because the classifier judged the query web-shaped (above
@@ -135,8 +140,9 @@ type RerankBreakerConfig struct {
 
 // Router executes federated queries across registered providers.
 type Router struct {
-	deps          Deps
-	rerankBreaker *rerankBreaker
+	deps             Deps
+	rerankBreaker    *rerankBreaker
+	providerBreakers *providerBreakers
 }
 
 // NewRouter constructs a Router, applying defaults for the optional Deps
@@ -167,11 +173,21 @@ func NewRouter(d Deps) *Router {
 	if d.RerankBreaker.Cooldown <= 0 {
 		d.RerankBreaker.Cooldown = defaultRerankBreakerCooldown
 	}
+	if d.ProviderBreaker.FailureThreshold <= 0 {
+		d.ProviderBreaker.FailureThreshold = defaultProviderBreakerFailures
+	}
+	if d.ProviderBreaker.Cooldown <= 0 {
+		d.ProviderBreaker.Cooldown = defaultProviderBreakerCooldown
+	}
 	return &Router{
 		deps: d,
 		rerankBreaker: newRerankBreaker(rerankBreakerConfig{
 			FailureThreshold: d.RerankBreaker.FailureThreshold,
 			Cooldown:         d.RerankBreaker.Cooldown,
+		}),
+		providerBreakers: newProviderBreakers(rerankBreakerConfig{
+			FailureThreshold: d.ProviderBreaker.FailureThreshold,
+			Cooldown:         d.ProviderBreaker.Cooldown,
 		}),
 	}
 }
@@ -217,6 +233,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	if err != nil {
 		return nil, fmt.Errorf("list providers: %w", err)
 	}
+	resolverLatency := r.deps.Now().Sub(start).Milliseconds()
 
 	var (
 		targets            []*registryv1.ProviderDescriptor
@@ -225,19 +242,32 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		pendingExternal    []*registryv1.ProviderDescriptor
 		autoRoutedExternal bool
 		escalated          bool
+		routingMode        string
+		classifierLatency  int64
 	)
 	if hasExplicit {
+		if req.GetAll() {
+			routingMode = "explicit_all"
+		} else {
+			routingMode = "explicit_scoped"
+		}
 		// Explicit selectors (--all / --type / --group) reach every active
 		// provider, including SCOPE_EXTERNAL ones — the operator asked for them.
 		targets = selectTargets(active, req)
 	} else {
+		routingMode = "automatic"
 		// Automatic/classifier routing never auto-hits an external (e.g.
 		// rate-limited / paid) corpus UNLESS the operator opted in
 		// (AutoRouteExternal) and the classifier judged the query web-shaped.
 		// External providers always stay reachable via the explicit path above.
 		autoCandidates, withheldExternal := partitionByScope(active)
 		var webShaped bool
+		classifierStarted := r.deps.Now()
 		targets, autoExplain, classifierError, webShaped = r.autoSelect(qctx, autoCandidates, query)
+		classifierLatency = r.deps.Now().Sub(classifierStarted).Milliseconds()
+		if classifierError {
+			routingMode = "automatic_fallback"
+		}
 		pendingExternal = withheldExternal
 		switch {
 		case r.deps.AutoRouteExternal && webShaped && len(withheldExternal) > 0:
@@ -253,6 +283,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		}
 	}
 
+	fanoutStarted := r.deps.Now()
 	groups := r.fanOut(qctx, targets, query, limit)
 
 	// OT-P2-002 fallback escalation: if the project corpus returned nothing —
@@ -269,8 +300,11 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 			autoExplain = append(autoExplain, escalationLine(pendingExternal, weakReason))
 		}
 	}
+	fanoutLatency := r.deps.Now().Sub(fanoutStarted).Milliseconds()
 
+	rerankStarted := r.deps.Now()
 	ranked, reranked, rerankDegraded, rerankExplain := r.maybeRerank(qctx, query, groups)
+	rerankLatency := r.deps.Now().Sub(rerankStarted).Milliseconds()
 
 	resp := &routingv1.QueryResponse{
 		Ranked:   ranked,
@@ -301,6 +335,17 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		sample := buildSample(query, targets, resp)
 		sample.AutoRoutedExternal = autoRoutedExternal
 		sample.Escalated = escalated
+		sample.RoutingMode = routingMode
+		sample.EligibleProviderCount = len(active)
+		sample.SelectedProviderCount = len(targets)
+		sample.WithheldExternalCount = len(pendingExternal)
+		sample.QueuedProviderCount = max(0, len(targets)-r.deps.Concurrency)
+		sample.ClassifierLatencyMs = classifierLatency
+		sample.ResolverLatencyMs = resolverLatency
+		sample.FanoutLatencyMs = fanoutLatency
+		sample.RerankLatencyMs = rerankLatency
+		sample.RerankCandidateCount = len(fuseGroups(groups))
+		sample.ResponseDegradeReason = ResponseDegradeReason(classifierError, rerankDegraded, groups, sample.ResultCount)
 		r.deps.Recorder.Record(qctx, sample)
 	}
 	return resp, nil
@@ -577,7 +622,12 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
+			if ok, note := r.providerBreakers.allow(t.GetProviderId(), r.deps.Now()); !ok {
+				groups[i] = degrade(&routingv1.ProviderResultGroup{ProviderId: t.GetProviderId()}, note)
+				return
+			}
 			groups[i] = r.callProvider(ctx, t, query, limit)
+			r.providerBreakers.record(t.GetProviderId(), groups[i].GetDegraded(), r.deps.Now())
 		}(i, t)
 	}
 	wg.Wait()

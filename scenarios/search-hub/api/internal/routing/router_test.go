@@ -265,6 +265,32 @@ func TestUnreachableProviderDegrades(t *testing.T) {
 	require.Contains(t, resp.GetGroups()[0].GetNote(), "unreachable")
 }
 
+func TestProviderCircuitFailsFastAndRecoversWithProbe(t *testing.T) {
+	now := time.Date(2026, 7, 12, 0, 0, 0, 0, time.UTC)
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {err: errors.New("connection refused")},
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:          &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Resolver:        staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:            doer,
+		Now:             func() time.Time { return now },
+		ProviderBreaker: routing.RerankBreakerConfig{FailureThreshold: 2, Cooldown: time.Minute},
+	})
+	for range 2 {
+		resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true})
+		require.NoError(t, err)
+		require.True(t, resp.GetDegraded())
+	}
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true})
+	require.NoError(t, err)
+	require.Contains(t, resp.GetGroups()[0].GetNote(), "circuit unavailable")
+	now = now.Add(time.Minute)
+	resp, err = r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true})
+	require.NoError(t, err)
+	require.Contains(t, resp.GetGroups()[0].GetNote(), "connection refused", "the half-open probe reached the live provider")
+}
+
 func TestTransportErrorDegrades(t *testing.T) {
 	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}}
 	resolver := staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}}

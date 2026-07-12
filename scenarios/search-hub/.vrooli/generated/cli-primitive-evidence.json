@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "d1a32994ac0c19a02294233a155592c1d5fe50aef122f9817270e6b020eba09e",
+  "manifest_hash": "18418238e8fe334f00cbe0222aeb60356e814dbb1bd08888707df39972167535",
   "commands": [
     {
       "path": "evals compare",

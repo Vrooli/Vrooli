@@ -18,9 +18,9 @@ import (
 type Provider struct {
 	matcher   *LexicalMatcher
 	engine    *measures.Engine
-	completer measures.Completer
 	threshold float64
 	avail     func(ctx context.Context) bool
+	usesLLM   bool
 }
 
 // Config tunes a Provider. The zero value is production-ready (filesystem
@@ -36,13 +36,19 @@ type Config struct {
 	// api-core discovery; a test injects a fake (or measures.Executor(nil) to
 	// force resolve-only).
 	Executor measures.Executor
-	// Extractor is the constrained param extractor. nil uses the ollama-backed
-	// LLMExtractor; a test injects a deterministic one (or relies on the
-	// canonical time_window resolver, which needs no extractor).
+	// Extractor is the constrained param extractor. A supplied extractor always
+	// wins; otherwise the provider keeps the interactive search path
+	// deterministic unless EnableLLMExtraction is explicitly enabled.
 	Extractor measures.ParamExtractor
-	// Completer overrides the extractor's transport (used to wire the default
-	// extractor); nil uses the gateway.
+	// Completer overrides the extractor's transport when LLM extraction is
+	// explicitly enabled; nil uses the gateway.
 	Completer measures.Completer
+	// EnableLLMExtraction opts this provider into the potentially slow
+	// constrained extractor for non-canonical parameters. It is deliberately
+	// false by default: search-hub needs an interactive routing leg, while a
+	// caller that needs a fully parameterized computation can use the owning
+	// measure's direct execute surface.
+	EnableLLMExtraction bool
 	// OllamaAvailable reports extractor-backend reachability for Status. nil uses
 	// the real `resource-ollama status` probe; tests inject a deterministic stub
 	// so Status stays hermetic.
@@ -57,14 +63,17 @@ func NewProvider(decls []measures.MeasureDeclaration, cfg Config) *Provider {
 		threshold = measures.DefaultConfidenceThreshold
 	}
 
-	completer := cfg.Completer
-	if completer == nil {
-		completer = newOllamaCompleter()
-	}
-
 	extractor := cfg.Extractor
 	if extractor == nil {
-		extractor = measures.NewLLMExtractor(completer)
+		if cfg.EnableLLMExtraction {
+			completer := cfg.Completer
+			if completer == nil {
+				completer = newOllamaCompleter()
+			}
+			extractor = measures.NewLLMExtractor(completer)
+		} else {
+			extractor = measures.NoopExtractor{}
+		}
 	}
 
 	executor := cfg.Executor
@@ -91,9 +100,9 @@ func NewProvider(decls []measures.MeasureDeclaration, cfg Config) *Provider {
 	return &Provider{
 		matcher:   matcher,
 		engine:    measures.NewEngine(matcher, opts...),
-		completer: completer,
 		threshold: threshold,
 		avail:     avail,
+		usesLLM:   cfg.EnableLLMExtraction || cfg.Extractor != nil,
 	}
 }
 
@@ -127,7 +136,7 @@ func (p *Provider) Len() int { return p.matcher.Len() }
 func (p *Provider) Status(ctx context.Context) (available, ollama, qdrant bool, indexed int, matcher string) {
 	indexed = p.matcher.Len()
 	available = indexed > 0
-	ollama = p.avail(ctx)
+	ollama = p.usesLLM && p.avail(ctx)
 	qdrant = false
 	matcher = "lexical"
 	return available, ollama, qdrant, indexed, matcher

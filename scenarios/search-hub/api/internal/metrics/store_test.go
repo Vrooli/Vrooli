@@ -60,10 +60,20 @@ func TestRecordAndAggregate(t *testing.T) {
 			"cli-health.commands":   {HitCount: 3, LatencyMs: 200},
 			"swarm-manager.records": {HitCount: 2, LatencyMs: 500},
 		},
-		ResultCount:        5,
-		Reranked:           true,
-		AutoRoutedExternal: true,
-		LatencyMs:          200,
+		ResultCount:           5,
+		Reranked:              true,
+		AutoRoutedExternal:    true,
+		LatencyMs:             200,
+		RoutingMode:           "automatic",
+		EligibleProviderCount: 12,
+		SelectedProviderCount: 7,
+		WithheldExternalCount: 1,
+		QueuedProviderCount:   1,
+		ClassifierLatencyMs:   10,
+		ResolverLatencyMs:     5,
+		FanoutLatencyMs:       150,
+		RerankLatencyMs:       35,
+		RerankCandidateCount:  5,
 	}))
 	require.NoError(t, store.Record(ctx, metrics.Sample{
 		QueryHash:   "h3",
@@ -104,6 +114,20 @@ func TestRecordAndAggregate(t *testing.T) {
 	require.Equal(t, int64(1), usage["swarm-manager.records"].TimesRouted)
 	require.Equal(t, int64(2), usage["swarm-manager.records"].TotalHits)
 	require.Equal(t, int64(500), usage["swarm-manager.records"].LatencyP95Ms)
+
+	// The routing bucket is the fleet-scale view: mode + fan-out range with
+	// stage latency, not raw query text or an unbounded fan-out cardinality.
+	require.Len(t, got.RoutingBuckets, 2)
+	byMode := map[string]metrics.RoutingBucket{}
+	for _, bucket := range got.RoutingBuckets {
+		byMode[bucket.RoutingMode] = bucket
+	}
+	auto := byMode["automatic"]
+	require.Equal(t, "7-12", auto.FanoutBucket)
+	require.Equal(t, int64(1), auto.Queries)
+	require.Equal(t, int64(200), auto.LatencyP95Ms)
+	require.Equal(t, int64(10), auto.ClassifierP95Ms)
+	require.Equal(t, int64(150), auto.FanoutP95Ms)
 }
 
 func TestInsightsWindowFiltersOldRows(t *testing.T) {
