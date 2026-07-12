@@ -97,10 +97,12 @@ synthetic passing presentation. Historical runs retain whatever was persisted;
 they are not backfilled from the current provider catalog.
 
 The retired `PhaseMaturityStanding` wire fields remain decode-only at their
-original protobuf numbers for historical run/event bytes. New writers never
-set them. A reader exposes such data as `legacy_maturity_standing`, with no
-v1 presentation attached; this prevents a field-number reinterpretation from
-inventing a malformed canonical story for an older run.
+original protobuf numbers for historical run, event, and `findings.json` bytes.
+New writers never set them. A reader exposes such data as
+`legacy_maturity_standing` (and `test-genie runs findings` labels it a
+historical, non-canonical standing), with no v1 presentation attached; this
+prevents a field-number reinterpretation from inventing a malformed canonical
+story for an older run.
 
 The Phase Presentation v1 audit rejected a capability-prerequisite schema
 extension. Existing ladder gates, blocking codes, current/next levels, and

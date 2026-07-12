@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	"test-genie/internal/execution"
+	"test-genie/internal/selfhealth"
 	"test-genie/internal/selfhealthsnapshots"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -17,6 +18,18 @@ type fakeSnapshotReader struct {
 	latest    selfhealthsnapshots.Snapshot
 	hasLatest bool
 	series    []selfhealthsnapshots.Snapshot
+}
+
+func TestConformanceToProtoPreservesTypedClassification(t *testing.T) {
+	got := conformanceToProto(selfhealth.ConformanceReport{Providers: []selfhealth.ProviderConformance{{
+		Provider:       "ui-health",
+		Phase:          "ui-health",
+		Classification: selfhealth.ConformanceUnavailable,
+		ReasonCodes:    []string{selfhealth.ReasonProviderUnreachable},
+	}}})
+	if len(got) != 1 || got[0].GetClassification() != string(selfhealth.ConformanceUnavailable) || len(got[0].GetReasonCodes()) != 1 || got[0].GetReasonCodes()[0] != selfhealth.ReasonProviderUnreachable {
+		t.Fatalf("typed conformance classification was lost in API mapping: %+v", got)
+	}
 }
 
 func (f fakeSnapshotReader) Latest(context.Context) (selfhealthsnapshots.Snapshot, bool, error) {

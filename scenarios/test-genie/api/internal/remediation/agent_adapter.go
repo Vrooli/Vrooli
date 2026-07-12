@@ -38,7 +38,7 @@ func (a *AgentManagerAdapter) Launch(ctx context.Context, job Job, roleRef strin
 	}
 	task := &domainpb.Task{Title: "Remediate Test Genie findings for " + job.Scenario, Description: taskPacket(job),
 		ScopePath: path.Join("scenarios", job.Scenario), CreatedBy: "test-genie"}
-	result, err := a.agents.SpawnRemediation(ctx, agentmanager.RemediationSpawnRequest{Task: task, Tag: "test-genie-remediation-" + job.ID, RoleRef: roleRef})
+	result, err := a.agents.SpawnRemediation(ctx, agentmanager.RemediationSpawnRequest{Task: task, Tag: fmt.Sprintf("test-genie-remediation-%s-%d", job.ID, job.LaunchAttempt), RoleRef: roleRef, IdempotencyKey: launchIdempotencyKey(job)})
 	if err != nil {
 		return Attribution{}, err
 	}

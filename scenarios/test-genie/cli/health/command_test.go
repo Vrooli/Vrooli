@@ -37,8 +37,8 @@ func sampleResponse() *runspb.GetSelfHealthResponse {
 		SelfHealth: &runspb.SelfHealth{
 			Catalog: &runspb.CatalogSummary{TotalPhases: 12, DelegatedPhases: 12, NativePhases: 0},
 			Conformance: []*runspb.ProviderConformance{
-				{Phase: "proto", Provider: "proto-health", Reachable: true, ContractValid: true, IdentityOk: true, SpecValid: true, MetricsAdopted: true, AdoptionScore: 1.0},
-				{Phase: "contracts", Provider: "cli-health", Reachable: true, ContractValid: true, IdentityOk: true, SpecValid: true, MetricsAdopted: false, AdoptionScore: 0.8},
+				{Phase: "proto", Provider: "proto-health", Classification: "compliant", Reachable: true, ContractValid: true, IdentityOk: true, SpecValid: true, MetricsAdopted: true, AdoptionScore: 1.0},
+				{Phase: "contracts", Provider: "cli-health", Classification: "violation", ReasonCodes: []string{"metrics_missing"}, Reachable: true, ContractValid: true, IdentityOk: true, SpecValid: true, MetricsAdopted: false, AdoptionScore: 0.8},
 			},
 			ConformanceFreshness: "live",
 			Ledger: &runspb.ReliabilityLedger{
@@ -61,7 +61,7 @@ func TestHealthHumanSummary(t *testing.T) {
 		t.Fatalf("run: %v", err)
 	}
 	out := buf.String()
-	for _, want := range []string{"Test Genie self-health", "12 phases", "Conformance (live)", "availability=90.0%", "proto"} {
+	for _, want := range []string{"Test Genie self-health", "12 phases", "Conformance (live)", "1 compliant", "1 violation(s)", "metrics_missing", "availability=90.0%", "proto"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("summary missing %q:\n%s", want, out)
 		}

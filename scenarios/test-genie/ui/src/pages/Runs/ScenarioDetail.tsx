@@ -6,6 +6,7 @@ import { ScenarioDetailTabNav } from "../../components/layout/ScenarioDetailTabN
 import { StatusPill } from "../../components/cards/StatusPill";
 import { PhaseResultCard } from "../../components/cards/PhaseResultCard";
 import { RemediationPanel } from "../../components/remediation/RemediationPanel";
+import { RunArtifactCatalog } from "../../components/artifacts/RunArtifactCatalog";
 import { ExecutionForm } from "../../components/forms/ExecutionForm";
 import { ExecutionTimeline } from "../../components/history/ExecutionTimeline";
 import { RequirementsPanel } from "../../components/requirements";
@@ -200,6 +201,7 @@ function OverviewTab({ scenario, scenarioName, scenarioOptions, datalistId, onEx
       )}
 
       <RemediationPanel scenarioName={scenarioName} executionId={scenario?.lastExecutionId} />
+      <RunArtifactCatalog scenarioName={scenarioName} runId={scenario?.lastRunId} />
 
       {/* Run Tests Form */}
       <ExecutionForm

@@ -95,13 +95,16 @@ type remediationService interface {
 	Get(context.Context, string) (remediation.Job, error)
 	List(context.Context, string, int) ([]remediation.Job, error)
 	Cancel(context.Context, string) (remediation.Job, error)
+	PrepareLaunch(context.Context, string, string) (remediation.Job, error)
+	RetryLaunch(context.Context, string) (remediation.Job, error)
+	RecordLaunchFailure(context.Context, string, string) (remediation.Job, error)
 	MarkRunning(context.Context, string, remediation.Attribution) (remediation.Job, error)
 	MarkAgentCompleted(context.Context, string, string) (remediation.Job, error)
 	StartVerification(context.Context, string, remediation.Verification) (remediation.Job, error)
 	ReserveVerification(context.Context, string) (remediation.Job, error)
 	SetVerificationRun(context.Context, string, remediation.Verification) (remediation.Job, error)
 	ReleaseVerificationReservation(context.Context, string) (remediation.Job, error)
-	CompleteVerification(context.Context, string, remediation.Verification, remediation.FindingDelta, string) (remediation.Job, error)
+	CompleteVerification(context.Context, string, remediation.Verification, remediation.FindingDelta, remediation.RequirementDelta, string) (remediation.Job, error)
 	Fail(context.Context, string, string) (remediation.Job, error)
 }
 
@@ -218,6 +221,8 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs", s.handleListRemediationJobs).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}", s.handleGetRemediationJob).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/cancel", s.handleCancelRemediationJob).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/recover", s.handleRecoverRemediationJob).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/retry", s.handleRetryRemediationJob).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/agent-status", s.handleRefreshRemediationAgent).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/verify", s.handleVerifyRemediationJob).Methods("POST")
 
@@ -267,8 +272,6 @@ func (s *Server) setupRoutes() {
 		// RunsService catalog while bytes use REST so media range requests work
 		// without buffering entire recordings through protobuf.
 		apiRouter.HandleFunc("/scenarios/{name}/runs/{runId}/artifacts/{artifactId}", s.handleGetRunArtifactByID).Methods("GET")
-		// Legacy path-based route retained only until GCT's Phase 5 cutover.
-		apiRouter.HandleFunc("/scenarios/{name}/runs/{runId}/artifact", s.handleGetRunArtifact).Methods("GET")
 	}
 }
 

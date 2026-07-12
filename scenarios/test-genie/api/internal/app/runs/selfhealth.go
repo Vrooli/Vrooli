@@ -149,16 +149,20 @@ func conformanceToProto(report selfhealth.ConformanceReport) []*runspb.ProviderC
 	out := make([]*runspb.ProviderConformance, 0, len(report.Providers))
 	for _, pr := range report.Providers {
 		out = append(out, &runspb.ProviderConformance{
-			Provider:       pr.Provider,
-			Phase:          pr.Phase,
-			Reachable:      pr.Reachable,
-			ContractValid:  pr.ContractValid,
-			IdentityOk:     pr.IdentityOK,
-			SpecValid:      pr.SpecValid,
-			MetricsAdopted: pr.MetricsAdopted,
-			AdoptionScore:  pr.AdoptionScore,
-			Violations:     pr.Violations,
-			Autofix:        autofixCoverageToProto(pr.Autofix),
+			Provider:            pr.Provider,
+			Phase:               pr.Phase,
+			Classification:      string(pr.Classification),
+			ReasonCodes:         append([]string(nil), pr.ReasonCodes...),
+			Reachable:           pr.Reachable,
+			ContractValid:       pr.ContractValid,
+			IdentityOk:          pr.IdentityOK,
+			SpecValid:           pr.SpecValid,
+			MetricsAdopted:      pr.MetricsAdopted,
+			FixContractRequired: pr.FixContractRequired,
+			FixContractValid:    pr.FixContractValid,
+			AdoptionScore:       pr.AdoptionScore,
+			Violations:          pr.Violations,
+			Autofix:             autofixCoverageToProto(pr.Autofix),
 		})
 	}
 	return out

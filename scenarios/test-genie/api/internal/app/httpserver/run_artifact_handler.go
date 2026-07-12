@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -61,36 +60,4 @@ func validOpaqueArtifactID(id string) bool {
 		}
 	}
 	return true
-}
-
-// handleGetRunArtifact is the legacy relative-path route. New consumers use
-// handleGetRunArtifactByID; this remains temporarily for the Phase 5 GCT
-// consumer cutover and is not advertised by the typed artifact catalog.
-func (s *Server) handleGetRunArtifact(w http.ResponseWriter, r *http.Request) {
-	if s.runsService == nil {
-		s.writeError(w, http.StatusNotFound, "runs service unavailable")
-		return
-	}
-	vars := mux.Vars(r)
-	scenario := vars["name"]
-	runID := vars["runId"]
-	relPath := r.URL.Query().Get("path")
-
-	abs, err := s.runsService.ResolveArtifact(scenario, runID, relPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			s.writeError(w, http.StatusNotFound, "artifact not found")
-			return
-		}
-		s.writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// http.ServeContent infers most types from the extension; pin the common
-	// video container explicitly since mime tables vary across hosts.
-	if strings.EqualFold(filepath.Ext(abs), ".webm") {
-		w.Header().Set("Content-Type", "video/webm")
-	}
-	w.Header().Set("Cache-Control", "private, max-age=300")
-	http.ServeFile(w, r, abs)
 }

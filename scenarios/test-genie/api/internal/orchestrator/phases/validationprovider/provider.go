@@ -726,11 +726,8 @@ func failure(provider Provider, scenario string, class shared.FailureClass, err 
 }
 
 func requireAssessment(provider Provider, a *commonv1.MaturityAssessment) error {
-	if err := assessment.RequireIdentity(provider.ProviderScenario, provider.Phase, a); err != nil {
-		return fmt.Errorf("%s response violates maturity assessment contract: %w", provider.ProviderScenario, err)
-	}
-	if err := assessment.ValidatePhasePresentation(a); err != nil {
-		return fmt.Errorf("%s response violates phase presentation contract: %w", provider.ProviderScenario, err)
+	if err := assessment.RequireProviderContract(provider.ProviderScenario, provider.Phase, a); err != nil {
+		return fmt.Errorf("%s response violates the provider maturity contract: %w", provider.ProviderScenario, err)
 	}
 	return nil
 }

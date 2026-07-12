@@ -492,11 +492,15 @@ type findingsArtifactDoc struct {
 	Verdict     string `json:"verdict"`
 	CompletedAt string `json:"completedAt"`
 	Phases      []struct {
-		Name              string                       `json:"name"`
-		Status            string                       `json:"status"`
-		FindingSource     string                       `json:"findingSource"`
-		PhasePresentation *commonv1.PhasePresentation  `json:"phasePresentation"`
-		FindingsSummary   *runspb.PhaseFindingsSummary `json:"findingsSummary"`
+		Name          string `json:"name"`
+		Status        string `json:"status"`
+		FindingSource string `json:"findingSource"`
+		// MaturityStanding is decode-only historical evidence. It must remain
+		// distinct from PhasePresentation: a retired standing cannot truthfully
+		// be rendered as the canonical v1 provider presentation.
+		MaturityStanding  *runspb.PhaseMaturityStanding `json:"maturityStanding"`
+		PhasePresentation *commonv1.PhasePresentation   `json:"phasePresentation"`
+		FindingsSummary   *runspb.PhaseFindingsSummary  `json:"findingsSummary"`
 	} `json:"phases"`
 }
 
@@ -532,6 +536,7 @@ func (s *Service) GetRunFindings(ctx context.Context, req *connect.Request[runsp
 			Name:              p.Name,
 			Status:            p.Status,
 			FindingSource:     p.FindingSource,
+			MaturityStanding:  p.MaturityStanding,
 			PhasePresentation: p.PhasePresentation,
 			FindingsSummary:   p.FindingsSummary,
 		})
@@ -711,25 +716,6 @@ func readRunArtifact(dir, runID, relPath string) ([]byte, error) {
 		return nil, err
 	}
 	return os.ReadFile(abs)
-}
-
-// ResolveArtifact maps a (scenario, runID, run-relative path) to an absolute
-// filesystem path under the run's artifact root, rejecting traversal. Used by
-// the REST binary artifact route to stream videos without exposing
-// scenariosRoot. Returns os.ErrNotExist when the resolved file is missing.
-func (s *Service) ResolveArtifact(scenario, runID, relPath string) (string, error) {
-	dir, err := s.scenarioDir(scenario)
-	if err != nil {
-		return "", err
-	}
-	abs, err := sharedartifacts.ResolveRunArtifact(dir, strings.TrimSpace(runID), relPath)
-	if err != nil {
-		return "", err
-	}
-	if _, statErr := os.Stat(abs); statErr != nil {
-		return "", statErr
-	}
-	return abs, nil
 }
 
 // ResolveArtifactByID resolves the verified catalog entry used by the opaque

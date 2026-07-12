@@ -24,6 +24,7 @@ type ScenarioSummary struct {
 	TotalExecutions           int                                 `json:"totalExecutions"`
 	LastExecutionAt           *time.Time                          `json:"lastExecutionAt,omitempty"`
 	LastExecutionID           *uuid.UUID                          `json:"lastExecutionId,omitempty"`
+	LastRunID                 string                              `json:"lastRunId,omitempty"`
 	LastExecutionPreset       string                              `json:"lastExecutionPreset,omitempty"`
 	LastExecutionSuccess      *bool                               `json:"lastExecutionSuccess,omitempty"`
 	LastExecutionPhases       []orchestrator.PhaseExecutionResult `json:"lastExecutionPhases,omitempty"`
@@ -36,6 +37,7 @@ type executionSummary struct {
 	TotalExecutions           int
 	LastExecutionAt           *time.Time
 	LastExecutionID           *uuid.UUID
+	LastRunID                 string
 	LastExecutionPreset       string
 	LastExecutionSuccess      *bool
 	LastExecutionPhases       []orchestrator.PhaseExecutionResult
@@ -99,6 +101,7 @@ func (r *ScenarioDirectoryRepository) buildSummaries(ctx context.Context, names 
 			summary.TotalExecutions = executionSummary.TotalExecutions
 			summary.LastExecutionAt = executionSummary.LastExecutionAt
 			summary.LastExecutionID = executionSummary.LastExecutionID
+			summary.LastRunID = executionSummary.LastRunID
 			summary.LastExecutionPreset = executionSummary.LastExecutionPreset
 			summary.LastExecutionSuccess = executionSummary.LastExecutionSuccess
 			summary.LastExecutionPhases = append([]orchestrator.PhaseExecutionResult(nil), executionSummary.LastExecutionPhases...)
@@ -158,6 +161,7 @@ func (r *ScenarioDirectoryRepository) loadExecutionSummaries(ctx context.Context
 SELECT
 	scenario_name,
 	id,
+	run_id,
 	preset_used,
 	success,
 	phases,
@@ -176,6 +180,7 @@ ORDER BY scenario_name ASC, completed_at DESC
 		var (
 			scenarioName string
 			rawID        string
+			runID        sql.NullString
 			preset       sql.NullString
 			success      int
 			phasesValue  any
@@ -184,6 +189,7 @@ ORDER BY scenario_name ASC, completed_at DESC
 		if err := rows.Scan(
 			&scenarioName,
 			&rawID,
+			&runID,
 			&preset,
 			&success,
 			&phasesValue,
@@ -216,6 +222,7 @@ ORDER BY scenario_name ASC, completed_at DESC
 			entry.LastExecutionID = &parsedID
 		}
 		entry.LastExecutionPreset = preset.String
+		entry.LastRunID = runID.String
 		entry.LastExecutionSuccess = &succeeded
 
 		var phases []orchestrator.PhaseExecutionResult

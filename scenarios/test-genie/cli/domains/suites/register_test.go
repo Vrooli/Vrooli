@@ -43,31 +43,3 @@ func TestExecuteCarriesDurableRunEvidence(t *testing.T) {
 		t.Fatalf("execute must keep its legacy Run handler")
 	}
 }
-
-func TestRemediateCarriesActionEvidence(t *testing.T) {
-	group := Register(deps.Runtime{})
-
-	var remediate *cliapp.Command
-	for i := range group.Commands {
-		if group.Commands[i].Name == "remediate" {
-			remediate = &group.Commands[i]
-			break
-		}
-	}
-	if remediate == nil {
-		t.Fatalf("suites group has no remediate command")
-	}
-
-	if remediate.PrimitiveEvidence() != cliapp.PrimitiveAction {
-		t.Fatalf("remediate observed evidence = %q, want action", remediate.PrimitiveEvidence())
-	}
-	if remediate.Architecture.Primitive != cliapp.PrimitiveAction {
-		t.Fatalf("remediate declared primitive = %q, want action", remediate.Architecture.Primitive)
-	}
-	if remediate.RunCtx == nil {
-		t.Fatalf("remediate must use the RunCtx primitive path")
-	}
-	if remediate.Run != nil {
-		t.Fatalf("remediate should not keep a legacy Run handler")
-	}
-}

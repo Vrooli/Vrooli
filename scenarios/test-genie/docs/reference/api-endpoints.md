@@ -93,7 +93,7 @@ polling loops.
 | History/retention | `ListRuns`, `GetRun`, `DeleteRun`, `PinRun`, `UnpinRun`, `FindRun` | Run IDs are durable; owner-scoped pins are idempotent and protect retained evidence. |
 | Comparison | `CompareRuns`, `CompareRunVisuals` | Joins immutable phase keys from each run's captured descriptor snapshot and returns typed comparability reasons. Visual deltas are advisory. |
 | Evidence | `ListRunArtifacts`, `GetRunArtifact`, `GetRunFindings` | Returns path-free typed metadata and opaque run-scoped IDs. Artifact bytes stream only through the validated opaque HTTP route. |
-| Compatibility | `GetPhaseArtifact`, `ListRunVideos`, `ListRunVisuals` | Retained for older callers; new consumers use the typed artifact catalog and never filter by producer phase. |
+| Compatibility | `GetPhaseArtifact`, `ListRunVideos`, `ListRunVisuals` | Retained for older callers; new consumers use the typed artifact catalog and never filter by producer phase. The legacy relative-path artifact HTTP route has been removed. |
 
 New runs persist three coordinated durable records: the canonical terminal
 snapshot, the planning-time descriptor snapshot, and the runtime evidence

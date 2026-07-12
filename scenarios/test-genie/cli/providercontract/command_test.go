@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -71,21 +72,18 @@ func TestProbesResolveAgainstCatalog(t *testing.T) {
 func TestCheckRestartsThenValidatesAssessment(t *testing.T) {
 	restore := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
 		joined := name + " " + strings.Join(args, " ")
-		switch joined {
-		case "vrooli scenario restart cli-health":
-			return []byte("ok"), nil
-		case "cli-health validate scenario demo --json":
-			return []byte(validProviderJSON("demo", "cli-health", "contracts", "2026-06-16", "L3")), nil
-		default:
+		if joined != "vrooli scenario restart cli-health" {
 			t.Fatalf("unexpected command: %s", joined)
-			return nil, nil
 		}
+		return []byte("ok"), nil
 	})
 	defer restore()
 	srv := newValidationServer(t, validProviderResponse("demo", "cli-health", "contracts", "2026-06-16", "L3"))
 	defer srv.Close()
 	restoreURL := stubProviderBaseURL(t, srv.URL)
 	defer restoreURL()
+	restoreFix := stubFixConformanceProbe(t)
+	defer restoreFix()
 
 	probe, err := ResolveProbe("contracts")
 	if err != nil {
@@ -97,6 +95,9 @@ func TestCheckRestartsThenValidatesAssessment(t *testing.T) {
 	}
 	if !got.Restarted || got.Status != "ok" || got.Assessment.CurrentLevel != "L3" {
 		t.Fatalf("unexpected result: %#v", got)
+	}
+	if got.Presentation == nil || got.Presentation.ContractVersion != assessment.PhasePresentationContractVersion {
+		t.Fatalf("check result must surface the provider presentation, got %#v", got.Presentation)
 	}
 }
 
@@ -139,10 +140,13 @@ func TestCheckIncludesCapabilitySummary(t *testing.T) {
 		NextLevel:       "L1",
 		Reason:          "lowest current level with required/blocking findings",
 	}
+	resp.Assessment.Presentation = assessment.BuildPhasePresentation(resp.Assessment)
 	srv := newValidationServer(t, resp)
 	defer srv.Close()
 	restoreURL := stubProviderBaseURL(t, srv.URL)
 	defer restoreURL()
+	restoreFix := stubFixConformanceProbe(t)
+	defer restoreFix()
 
 	probe, err := ResolveProbe("ui-health")
 	if err != nil {
@@ -171,6 +175,8 @@ func TestCheckRejectsMissingAssessment(t *testing.T) {
 	defer srv.Close()
 	restoreURL := stubProviderBaseURL(t, srv.URL)
 	defer restoreURL()
+	restoreFix := stubFixConformanceProbe(t)
+	defer restoreFix()
 
 	probe, err := ResolveProbe("contracts")
 	if err != nil {
@@ -187,6 +193,8 @@ func TestCheckRejectsStaleProviderIdentity(t *testing.T) {
 	defer srv.Close()
 	restoreURL := stubProviderBaseURL(t, srv.URL)
 	defer restoreURL()
+	restoreFix := stubFixConformanceProbe(t)
+	defer restoreFix()
 
 	probe, err := ResolveProbe("contracts")
 	if err != nil {
@@ -195,6 +203,55 @@ func TestCheckRejectsStaleProviderIdentity(t *testing.T) {
 	_, err = Check(context.Background(), Args{Target: "demo", Restart: false, Timeout: time.Second}, probe)
 	if err == nil || !strings.Contains(err.Error(), `assessment.provider="old-health"`) {
 		t.Fatalf("expected provider mismatch error, got %v", err)
+	}
+}
+
+func TestCheckRejectsMissingPresentation(t *testing.T) {
+	resp := validProviderResponse("demo", "cli-health", "contracts", "2026-06-16", "L3")
+	resp.Assessment.Presentation = nil
+	srv := newValidationServer(t, resp)
+	defer srv.Close()
+	restoreURL := stubProviderBaseURL(t, srv.URL)
+	defer restoreURL()
+	restoreFix := stubFixConformanceProbe(t)
+	defer restoreFix()
+
+	probe, err := ResolveProbe("contracts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := Check(context.Background(), Args{Target: "demo", Restart: false, Timeout: time.Second}, probe)
+	if err == nil || !strings.Contains(err.Error(), "assessment.presentation is required") {
+		t.Fatalf("check must fail exactly like the run gate on a missing presentation, got %v", err)
+	}
+	found := false
+	for _, code := range got.ReasonCodes {
+		if code == "presentation_invalid" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("reason codes = %v, want presentation_invalid", got.ReasonCodes)
+	}
+}
+
+func TestCheckRejectsMissingMetrics(t *testing.T) {
+	resp := validProviderResponse("demo", "cli-health", "contracts", "2026-06-16", "L3")
+	resp.Metrics = nil
+	srv := newValidationServer(t, resp)
+	defer srv.Close()
+	restoreURL := stubProviderBaseURL(t, srv.URL)
+	defer restoreURL()
+	restoreFix := stubFixConformanceProbe(t)
+	defer restoreFix()
+
+	probe, err := ResolveProbe("contracts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Check(context.Background(), Args{Target: "demo", Restart: false, Timeout: time.Second}, probe)
+	if err == nil || !strings.Contains(err.Error(), "metrics_missing") {
+		t.Fatalf("check must enforce metrics adoption like the fleet scan, got %v", err)
 	}
 }
 
@@ -214,6 +271,8 @@ func TestCheckDocsProviderRestartsThenValidatesRPCWrapperAssessment(t *testing.T
 	defer srv.Close()
 	restoreURL := stubProviderBaseURL(t, srv.URL)
 	defer restoreURL()
+	restoreFix := stubFixConformanceProbe(t)
+	defer restoreFix()
 
 	probe, err := ResolveProbe("docs")
 	if err != nil {
@@ -242,6 +301,8 @@ func TestCheckTidinessProviderUsesLifecycleDiscoveredRPCProbe(t *testing.T) {
 	defer srv.Close()
 	restoreURL := stubProviderBaseURL(t, srv.URL)
 	defer restoreURL()
+	restoreFix := stubFixConformanceProbe(t)
+	defer restoreFix()
 
 	probe, err := ResolveProbe("tidiness")
 	if err != nil {
@@ -311,6 +372,20 @@ func TestRestartScanProvidersHonorsSubject(t *testing.T) {
 	}
 }
 
+// stubFixConformanceProbe replaces the live PreviewFix/ApplyFix transport with
+// a minimal conforming pair so Check tests stay hermetic even for providers
+// whose descriptors declare implemented auto-fixes.
+func stubFixConformanceProbe(t *testing.T) func() {
+	t.Helper()
+	previous := fixConformanceProbe
+	fixConformanceProbe = func(ctx context.Context, provider, target, path string, ruleIDs []string, timeout time.Duration) (*scenariovalidationv1.FixResponse, *scenariovalidationv1.FixResponse, error) {
+		return &scenariovalidationv1.FixResponse{Scenario: target}, &scenariovalidationv1.FixResponse{Scenario: target}, nil
+	}
+	return func() {
+		fixConformanceProbe = previous
+	}
+}
+
 func stubCommandRunner(t *testing.T, fn func(name string, args ...string) ([]byte, error)) func() {
 	t.Helper()
 	previous := commandRunner
@@ -352,31 +427,20 @@ func newValidationServer(t *testing.T, resp *scenariovalidationv1.ValidateScenar
 }
 
 func validProviderResponse(scenario, provider, phase, version, level string) *scenariovalidationv1.ValidateScenarioResponse {
-	return &scenariovalidationv1.ValidateScenarioResponse{
+	a := &commonv1.MaturityAssessment{
 		Scenario: scenario,
-		Status:   scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
-		Assessment: &commonv1.MaturityAssessment{
-			Scenario: scenario,
-			Provider: provider,
-			Phase:    phase,
-			Version:  version,
-			Local: &commonv1.LocalMaturityAssessment{
-				CurrentLevel: level,
-			},
+		Provider: provider,
+		Phase:    phase,
+		Version:  version,
+		Local: &commonv1.LocalMaturityAssessment{
+			CurrentLevel: level,
 		},
 	}
-}
-
-func validProviderJSON(scenario, provider, phase, version, level string) string {
-	return `{
-  "assessment": {
-    "scenario": "` + scenario + `",
-    "provider": "` + provider + `",
-    "phase": "` + phase + `",
-    "version": "` + version + `",
-    "local": {
-      "currentLevel": "` + level + `"
-    }
-  }
-}`
+	a.Presentation = assessment.BuildPhasePresentation(a)
+	return &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario:   scenario,
+		Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		Assessment: a,
+		Metrics:    &commonv1.ExecutionMetrics{},
+	}
 }

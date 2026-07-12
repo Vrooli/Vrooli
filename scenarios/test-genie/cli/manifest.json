@@ -417,6 +417,31 @@
           "architecture": {
             "primitive": "operational"
           }
+        },
+        {
+          "name": "artifacts",
+          "description": "List the typed, opaque artifact catalog for a run",
+          "flags": [
+            {"name": "scenario", "required": true, "description": "Scenario id"},
+            {"name": "kinds", "description": "Optional comma-separated artifact kinds"},
+            {"name": "phase", "description": "Optional producing phase"}
+          ],
+          "positionals": [{"name": "run_id", "required": true, "description": "Run id"}],
+          "binding": {"kind": "connect-rpc", "service": "RunsService", "method": "ListRunArtifacts"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "artifact",
+          "description": "Show typed metadata and opaque access path for one run artifact",
+          "flags": [{"name": "scenario", "required": true, "description": "Scenario id"}],
+          "positionals": [
+            {"name": "run_id", "required": true, "description": "Run id"},
+            {"name": "artifact_id", "required": true, "description": "Opaque artifact id"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "RunsService", "method": "GetRunArtifact"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
         }
       ]
     },
@@ -458,16 +483,6 @@
       "service": "RunsService",
       "method": "GetPhaseArtifact",
       "reason": "artifact download surface; retained in the local runs command until upload/download primitives cover binary payloads"
-    },
-    {
-      "service": "RunsService",
-      "method": "ListRunArtifacts",
-      "reason": "generic evidence catalog is a programmatic Connect surface consumed by downstream scenarios; interactive CLI browsing lands with the later artifact-workbench cutover"
-    },
-    {
-      "service": "RunsService",
-      "method": "GetRunArtifact",
-      "reason": "artifact metadata/detail is paired with the opaque binary proxy route and consumed programmatically by downstream evidence workbenches"
     },
     {
       "service": "RunsService",

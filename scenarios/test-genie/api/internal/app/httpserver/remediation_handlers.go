@@ -67,18 +67,29 @@ func (s *Server) handleCreateRemediationJob(w http.ResponseWriter, r *http.Reque
 		s.writeRemediationError(w, err)
 		return
 	}
-	attribution, err := s.remediationLauncher.Launch(r.Context(), job, request.RoleRef)
-	if err != nil {
-		_, _ = s.remediationService.Fail(context.Background(), job.ID, err.Error())
-		s.writeError(w, http.StatusBadGateway, "failed to launch remediation through agent-manager")
-		return
-	}
-	job, err = s.remediationService.MarkRunning(r.Context(), job.ID, attribution)
+	job, err = s.remediationService.PrepareLaunch(r.Context(), job.ID, request.RoleRef)
 	if err != nil {
 		s.writeRemediationError(w, err)
 		return
 	}
+	job, err = s.launchRemediation(r.Context(), job)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "failed to launch remediation through agent-manager")
+		return
+	}
 	s.writeJSON(w, http.StatusCreated, job)
+}
+
+// launchRemediation is replay-safe: PrepareLaunch persists the stable intent
+// first, and the adapter uses that key/tag to reconnect to an already-created
+// Agent Manager run after a crash or an interrupted HTTP response.
+func (s *Server) launchRemediation(ctx context.Context, job remediation.Job) (remediation.Job, error) {
+	attribution, err := s.remediationLauncher.Launch(ctx, job, job.Attribution.RoleRef)
+	if err != nil {
+		_, _ = s.remediationService.RecordLaunchFailure(context.Background(), job.ID, err.Error())
+		return remediation.Job{}, err
+	}
+	return s.remediationService.MarkRunning(ctx, job.ID, attribution)
 }
 
 func (s *Server) handleListRemediationJobs(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +145,59 @@ func (s *Server) handleCancelRemediationJob(w http.ResponseWriter, r *http.Reque
 	job, err = s.remediationService.Cancel(r.Context(), job.ID)
 	if err != nil {
 		s.writeRemediationError(w, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, job)
+}
+
+func (s *Server) handleRecoverRemediationJob(w http.ResponseWriter, r *http.Request) {
+	if s.remediationService == nil || s.remediationLauncher == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "remediation recovery is unavailable")
+		return
+	}
+	job, err := s.remediationService.Get(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		s.writeRemediationError(w, err)
+		return
+	}
+	if job.Scenario != mux.Vars(r)["name"] {
+		s.writeError(w, http.StatusNotFound, "remediation job not found")
+		return
+	}
+	if job.Status != remediation.JobStatusLaunchPending {
+		s.writeJSON(w, http.StatusOK, job)
+		return
+	}
+	job, err = s.launchRemediation(r.Context(), job)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "failed to recover remediation through agent-manager")
+		return
+	}
+	s.writeJSON(w, http.StatusOK, job)
+}
+
+func (s *Server) handleRetryRemediationJob(w http.ResponseWriter, r *http.Request) {
+	if s.remediationService == nil || s.remediationLauncher == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "remediation retry is unavailable")
+		return
+	}
+	job, err := s.remediationService.Get(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		s.writeRemediationError(w, err)
+		return
+	}
+	if job.Scenario != mux.Vars(r)["name"] {
+		s.writeError(w, http.StatusNotFound, "remediation job not found")
+		return
+	}
+	job, err = s.remediationService.RetryLaunch(r.Context(), job.ID)
+	if err != nil {
+		s.writeRemediationError(w, err)
+		return
+	}
+	job, err = s.launchRemediation(r.Context(), job)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "failed to retry remediation through agent-manager")
 		return
 	}
 	s.writeJSON(w, http.StatusOK, job)
@@ -239,7 +303,7 @@ func selectedPhaseNames(job remediation.Job) []string {
 func (s *Server) completeRemediationVerification(job remediation.Job, runID string) {
 	status, err := s.runManager.Wait(context.Background(), job.Scenario, runID)
 	if err != nil || status.Result == nil {
-		_, _ = s.remediationService.CompleteVerification(context.Background(), job.ID, remediation.Verification{RunID: runID}, remediation.ComparePlan(job.Source, job.SelectedFindingIDs, nil, false, nil), "verification execution did not produce findings")
+		_, _ = s.remediationService.CompleteVerification(context.Background(), job.ID, remediation.Verification{RunID: runID}, remediation.ComparePlan(job.Source, job.SelectedFindingIDs, nil, false, nil), remediation.CompareRequirements(job.Source, job.SelectedRequirementIDs, nil, false), "verification execution did not produce findings")
 		return
 	}
 	result := status.Result
@@ -250,7 +314,13 @@ func (s *Server) completeRemediationVerification(job remediation.Job, runID stri
 		plan.Degraded, plan.DegradedReasons = true, append(plan.DegradedReasons, "combined findings artifact unavailable: "+err.Error())
 	}
 	delta := remediation.ComparePlan(job.Source, job.SelectedFindingIDs, plan.Findings, !plan.Degraded, result.PlannedPhases)
-	_, _ = s.remediationService.CompleteVerification(context.Background(), job.ID, remediation.Verification{ExecutionID: result.ExecutionID.String(), RunID: result.RunID}, delta, strings.Join(plan.DegradedReasons, "; "))
+	requirementDelta := remediation.CompareRequirements(job.Source, job.SelectedRequirementIDs, nil, false)
+	if requirementPlan, requirementErr := s.remediationPlan(context.Background(), job.Scenario, result.ExecutionID.String()); requirementErr == nil {
+		requirementDelta = remediation.CompareRequirements(job.Source, job.SelectedRequirementIDs, requirementPlan.Requirements, !requirementPlan.Degraded)
+	} else {
+		plan.DegradedReasons = append(plan.DegradedReasons, "verification requirements evidence unavailable: "+requirementErr.Error())
+	}
+	_, _ = s.remediationService.CompleteVerification(context.Background(), job.ID, remediation.Verification{ExecutionID: result.ExecutionID.String(), RunID: result.RunID}, delta, requirementDelta, strings.Join(plan.DegradedReasons, "; "))
 }
 
 func (s *Server) remediationPlan(ctx context.Context, scenario, executionID string) (remediation.Plan, error) {

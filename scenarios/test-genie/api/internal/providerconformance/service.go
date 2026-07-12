@@ -174,7 +174,7 @@ func (s *Service) probeContract(ctx context.Context, report *Report, descriptor 
 	}
 	target := strings.TrimSpace(s.ProbeTarget)
 	if target == "" {
-		target = selfhealth.DefaultScanTarget
+		target = selfhealth.ProviderDefaultTarget(report.Scenario)
 	}
 	timeout := s.ProbeTimeout
 	if timeout <= 0 {

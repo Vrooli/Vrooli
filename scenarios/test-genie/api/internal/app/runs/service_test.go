@@ -457,6 +457,44 @@ func TestGetRunFindings(t *testing.T) {
 	}
 }
 
+func TestGetRunFindingsRetainsHistoricalMaturityStanding(t *testing.T) {
+	svc, root := newTestService(t)
+	scenarioDir := filepath.Join(root, "demo")
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "historical", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed})
+	if err := os.MkdirAll(sharedartifacts.RunDir(scenarioDir, "historical"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// This is the pre-PhasePresentation artifact shape. It is evidence that can
+	// be displayed as historical, but it must never be promoted to canonical v1.
+	findings := `{
+	  "scenario": "demo",
+	  "runId": "historical",
+	  "verdict": "pass",
+	  "phases": [{
+	    "name": "ui-health",
+	    "status": "passed",
+	    "findingSource": "ui",
+	    "maturityStanding": {"provider": "ui-health", "phase": "ui-health", "current_level": "L2", "next_level": "L3"}
+	  }]
+	}`
+	if err := os.WriteFile(sharedartifacts.RunFindingsArtifactPath(scenarioDir, "historical"), []byte(findings), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "historical"}))
+	if err != nil {
+		t.Fatalf("GetRunFindings: %v", err)
+	}
+	phase := resp.Msg.GetPhases()[0]
+	if phase.GetPhasePresentation() != nil {
+		t.Fatalf("historical standing must not be synthesized as canonical v1: %+v", phase.GetPhasePresentation())
+	}
+	standing := phase.GetMaturityStanding()
+	if standing == nil || standing.GetProvider() != "ui-health" || standing.GetCurrentLevel() != "L2" || standing.GetNextLevel() != "L3" {
+		t.Fatalf("historical maturity standing was dropped: %+v", standing)
+	}
+}
+
 // FindRun returns the newest completed run that matches every shape filter, and
 // found=false when none does. It is the reuse primitive git-control-tower
 // queries: only a clean, comprehensive+baseline run at the requested sha should

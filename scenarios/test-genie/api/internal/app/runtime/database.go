@@ -84,6 +84,7 @@ func applyDomainMigrations(db dbexec.Executor) error {
 		run  func(context.Context, dbexec.Executor) error
 	}{
 		{"execution", execution.Migrate},
+		{"remediation", remediation.Migrate},
 	}
 	for _, m := range migrations {
 		if err := m.run(context.Background(), db); err != nil {

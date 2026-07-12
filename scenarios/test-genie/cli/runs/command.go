@@ -129,18 +129,20 @@ func client(apiClient *cliutil.APIClient) (runs_v1connect.RunsServiceClient, err
 // commands remain in omitted manifest coverage until streaming primitives exist.
 func Register(manifest []byte, apiClient *cliutil.APIClient) (cliapp.SubcommandGroup, error) {
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, "runs", map[string]cliapp.PrimitiveHandler{
-		"RunsService.ListRuns":       cliapp.ProtoList(listRunsCall(apiClient), listRunsReport),
-		"RunsService.GetRun":         cliapp.ProtoList(getRunCall(apiClient), getRunReport),
-		"RunsService.DeleteRun":      cliapp.ProtoMutation(deleteRunCall(apiClient), deleteRunReport),
-		"RunsService.PinRun":         cliapp.ProtoMutation(pinRunCall(apiClient), pinRunReport),
-		"RunsService.UnpinRun":       cliapp.ProtoMutation(unpinRunCall(apiClient), unpinRunReport),
-		"RunsService.CompareRuns":    cliapp.ProtoListOutcome(compareRunsCall(apiClient), compareRunsReport, compareExitFromResponse),
-		"RunsService.CheckFreshness": cliapp.ProtoListOutcome(checkFreshnessCall(apiClient), checkFreshnessReport, freshnessExit),
-		"RunsService.GetRunFindings": cliapp.ProtoList(getRunFindingsCall(apiClient), getRunFindingsReport),
-		"RunsService.GetSelfHealth":  cliapp.ProtoOperational(selfHealthCall(apiClient), selfHealthReport),
-		"RunsService.GetFleetHealth": cliapp.ProtoOperational(fleetHealthCall(apiClient), fleetHealthReport),
-		"RunsService.AbortRun":       cliapp.ProtoMutation(abortRunCall(apiClient), abortRunReport),
-		"RunsService.GetRunStatus":   cliapp.ProtoOperational(runStatusCall(apiClient), runStatusReport),
+		"RunsService.ListRuns":         cliapp.ProtoList(listRunsCall(apiClient), listRunsReport),
+		"RunsService.GetRun":           cliapp.ProtoList(getRunCall(apiClient), getRunReport),
+		"RunsService.ListRunArtifacts": cliapp.ProtoList(listRunArtifactsCall(apiClient), listRunArtifactsReport),
+		"RunsService.GetRunArtifact":   cliapp.ProtoList(getRunArtifactCall(apiClient), getRunArtifactReport),
+		"RunsService.DeleteRun":        cliapp.ProtoMutation(deleteRunCall(apiClient), deleteRunReport),
+		"RunsService.PinRun":           cliapp.ProtoMutation(pinRunCall(apiClient), pinRunReport),
+		"RunsService.UnpinRun":         cliapp.ProtoMutation(unpinRunCall(apiClient), unpinRunReport),
+		"RunsService.CompareRuns":      cliapp.ProtoListOutcome(compareRunsCall(apiClient), compareRunsReport, compareExitFromResponse),
+		"RunsService.CheckFreshness":   cliapp.ProtoListOutcome(checkFreshnessCall(apiClient), checkFreshnessReport, freshnessExit),
+		"RunsService.GetRunFindings":   cliapp.ProtoList(getRunFindingsCall(apiClient), getRunFindingsReport),
+		"RunsService.GetSelfHealth":    cliapp.ProtoOperational(selfHealthCall(apiClient), selfHealthReport),
+		"RunsService.GetFleetHealth":   cliapp.ProtoOperational(fleetHealthCall(apiClient), fleetHealthReport),
+		"RunsService.AbortRun":         cliapp.ProtoMutation(abortRunCall(apiClient), abortRunReport),
+		"RunsService.GetRunStatus":     cliapp.ProtoOperational(runStatusCall(apiClient), runStatusReport),
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, err
@@ -181,6 +183,68 @@ func Register(manifest []byte, apiClient *cliutil.APIClient) (cliapp.SubcommandG
 		})),
 	)
 	return group, nil
+}
+
+func listRunArtifactsCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.ListRunArtifactsResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.ListRunArtifactsResponse, error) {
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		var kinds []string
+		for _, kind := range strings.Split(ctx.Flag("kinds"), ",") {
+			if kind = strings.TrimSpace(kind); kind != "" {
+				kinds = append(kinds, kind)
+			}
+		}
+		resp, err := cl.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{
+			Scenario: ctx.Flag("scenario"), RunId: ctx.Positional("run_id"), Kinds: kinds, ProducingPhase: ctx.Flag("phase"),
+		}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	}
+}
+
+func listRunArtifactsReport(_ cliapp.OperationContext, msg *runspb.ListRunArtifactsResponse) cliapp.ListReport {
+	summary := []string{fmt.Sprintf("Artifact catalog v%d: %d artifact(s)", msg.GetSchemaVersion(), len(msg.GetArtifacts()))}
+	if msg.GetLegacyDiscovered() || len(msg.GetDegradedReasons()) > 0 {
+		summary = append(summary, "Evidence degraded: "+strings.Join(msg.GetDegradedReasons(), "; "))
+	}
+	results := make([]string, 0, len(msg.GetArtifacts()))
+	for _, artifact := range msg.GetArtifacts() {
+		results = append(results, fmt.Sprintf("%s  kind=%s  phase=%s  access=%s", artifact.GetId(), artifact.GetKind(), artifact.GetProducingPhase(), artifact.GetAccessPath()))
+	}
+	if len(results) == 0 {
+		results = append(results, "No cataloged artifacts.")
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Artifacts", Results: results}
+}
+
+func getRunArtifactCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.GetRunArtifactResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.GetRunArtifactResponse, error) {
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.GetRunArtifact(context.Background(), connect.NewRequest(&runspb.GetRunArtifactRequest{
+			Scenario: ctx.Flag("scenario"), RunId: ctx.Positional("run_id"), ArtifactId: ctx.Positional("artifact_id"),
+		}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	}
+}
+
+func getRunArtifactReport(_ cliapp.OperationContext, msg *runspb.GetRunArtifactResponse) cliapp.ListReport {
+	a := msg.GetArtifact()
+	summary := []string{fmt.Sprintf("Artifact: %s", a.GetId()), fmt.Sprintf("Kind: %s", a.GetKind()), fmt.Sprintf("Access: %s", a.GetAccessPath())}
+	if msg.GetLegacyDiscovered() {
+		summary = append(summary, "Evidence degraded: discovered from a historical run without a persisted catalog.")
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Metadata", Results: []string{fmt.Sprintf("phase=%s provenance=%s", a.GetProducingPhase(), a.GetProvenance())}}
 }
 
 func listRunsCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.ListRunsResponse, error) {
@@ -243,6 +307,9 @@ func getRunReport(_ cliapp.OperationContext, msg *runspb.GetRunResponse) cliapp.
 	}
 	if r.GetCompletedAt() != "" {
 		summary = append(summary, fmt.Sprintf("Ended: %s", r.GetCompletedAt()))
+	}
+	if reasons := msg.GetDegradedReasons(); len(reasons) > 0 {
+		summary = append(summary, "Evidence degraded: "+strings.Join(reasons, "; "))
 	}
 	results := make([]string, 0, len(r.GetPhases())+len(r.GetPins()))
 	for _, p := range r.GetPhases() {

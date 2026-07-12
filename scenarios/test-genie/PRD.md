@@ -29,7 +29,7 @@
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-003 | Remediation Evidence UX | Surface requirement evidence, execution insights, and verified remediation deltas directly in the UI so operators can steer improvements without reading raw logs.
+- [ ] OT-P1-003 | Remediation Evidence UX | Surface requirement evidence, execution insights, and verified remediation deltas directly in the UI so operators can steer improvements without reading raw logs.
 
 ### 🟢 P2 – Future / expansion
 

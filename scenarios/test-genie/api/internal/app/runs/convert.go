@@ -3,6 +3,7 @@ package runs
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"test-genie/internal/orchestrator"
@@ -214,6 +215,14 @@ func loadRunProjection(idx *sharedruns.Index, runID string) (runProjection, erro
 	projection.record.Pins = append([]sharedruns.PinRecord(nil), rec.Pins...)
 	projection.result = &result
 	projection.schemaVersion = snapshot.SchemaVersion
+	// Catalog publication is a terminal evidence guarantee, not an incidental
+	// log warning. Preserve a failed publication as durable degraded state so a
+	// completed run cannot imply it has an opaque evidence catalog.
+	for _, warning := range result.Warnings {
+		if strings.HasPrefix(strings.TrimSpace(warning), "artifact catalog unavailable:") {
+			projection.degraded = append(projection.degraded, strings.TrimSpace(warning))
+		}
+	}
 	return projection, nil
 }
 

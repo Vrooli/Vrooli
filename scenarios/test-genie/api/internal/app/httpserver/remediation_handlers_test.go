@@ -22,6 +22,15 @@ func (remediationStub) List(context.Context, string, int) ([]remediation.Job, er
 func (remediationStub) Cancel(context.Context, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+func (remediationStub) PrepareLaunch(context.Context, string, string) (remediation.Job, error) {
+	return remediation.Job{}, nil
+}
+func (remediationStub) RetryLaunch(context.Context, string) (remediation.Job, error) {
+	return remediation.Job{}, nil
+}
+func (remediationStub) RecordLaunchFailure(context.Context, string, string) (remediation.Job, error) {
+	return remediation.Job{}, nil
+}
 func (remediationStub) MarkRunning(context.Context, string, remediation.Attribution) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
@@ -40,7 +49,7 @@ func (remediationStub) SetVerificationRun(context.Context, string, remediation.V
 func (remediationStub) ReleaseVerificationReservation(context.Context, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
-func (remediationStub) CompleteVerification(context.Context, string, remediation.Verification, remediation.FindingDelta, string) (remediation.Job, error) {
+func (remediationStub) CompleteVerification(context.Context, string, remediation.Verification, remediation.FindingDelta, remediation.RequirementDelta, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
 func (remediationStub) Fail(context.Context, string, string) (remediation.Job, error) {

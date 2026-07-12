@@ -181,6 +181,38 @@ func TestRemediateCommandSendsEvidenceSelectors(t *testing.T) {
 	}
 }
 
+func TestRemediateLifecycleCommandsUseDurableJobEndpoints(t *testing.T) {
+	requests := make([]string, 0, 3)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			fmt.Fprint(w, `{"status":"ok","service":"test-genie"}`)
+			return
+		}
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		switch r.URL.Path {
+		case "/api/v1/scenarios/demo/remediation/jobs":
+			fmt.Fprint(w, `{"items":[{"id":"job-1","scenario":"demo","status":"failed"}],"count":1}`)
+		case "/api/v1/scenarios/demo/remediation/jobs/job-1":
+			fmt.Fprint(w, `{"id":"job-1","scenario":"demo","status":"failed","selectedFindingIds":["afid:1"],"attempts":[{"kind":"launch","state":"failed"}]}`)
+		case "/api/v1/scenarios/demo/remediation/jobs/job-1/retry":
+			fmt.Fprint(w, `{"id":"job-1","scenario":"demo","status":"running"}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	t.Setenv("TEST_GENIE_API_BASE", server.URL)
+	app := newTestApp(t)
+	for _, args := range [][]string{{"remediate", "list", "demo"}, {"remediate", "show", "demo", "job-1"}, {"remediate", "retry", "demo", "job-1"}} {
+		if err := app.Run(args); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	if got, want := requests, []string{"GET /api/v1/scenarios/demo/remediation/jobs", "GET /api/v1/scenarios/demo/remediation/jobs/job-1", "POST /api/v1/scenarios/demo/remediation/jobs/job-1/retry"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("requests = %v, want %v", got, want)
+	}
+}
+
 func TestRunTestsCommandSendsType(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -254,7 +286,7 @@ func TestExecuteCommandHelpDoesNotCallAPI(t *testing.T) {
 func TestRemediateCommandHelpDoesNotCallAPI(t *testing.T) {
 	app := newTestApp(t)
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"remediate", "--help"}); err != nil {
+		if err := app.Run([]string{"remediate", "create", "--help"}); err != nil {
 			t.Fatalf("remediate help failed: %v", err)
 		}
 	})

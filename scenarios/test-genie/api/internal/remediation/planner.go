@@ -262,3 +262,42 @@ func ComparePlan(source Plan, selected []string, verified []Finding, verificatio
 	sort.Strings(delta.Skipped)
 	return delta
 }
+
+// CompareRequirements compares selected immutable requirement evidence with a
+// fresh requirement snapshot. Missing or unavailable evidence remains
+// unverifiable rather than silently resolving a requirement.
+func CompareRequirements(source Plan, selected []string, verified []RequirementEvidence, verificationAvailable bool) RequirementDelta {
+	selected = normalizedIDs(selected)
+	if !verificationAvailable {
+		return RequirementDelta{Unverifiable: selected}
+	}
+	current := make(map[string]RequirementEvidence, len(verified))
+	for _, requirement := range verified {
+		if requirement.ID != "" {
+			current[requirement.ID] = requirement
+		}
+	}
+	delta := RequirementDelta{}
+	for _, id := range selected {
+		requirement, ok := current[id]
+		if !ok {
+			delta.Unverifiable = append(delta.Unverifiable, id)
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(requirement.LiveStatus)) {
+		case "passed", "pass", "satisfied":
+			delta.Resolved = append(delta.Resolved, id)
+		case "skipped", "not_applicable", "not-applicable":
+			delta.Skipped = append(delta.Skipped, id)
+		case "", "unknown", "unavailable", "not_run", "not-run":
+			delta.Unverifiable = append(delta.Unverifiable, id)
+		default:
+			delta.Remaining = append(delta.Remaining, id)
+		}
+	}
+	sort.Strings(delta.Resolved)
+	sort.Strings(delta.Remaining)
+	sort.Strings(delta.Skipped)
+	sort.Strings(delta.Unverifiable)
+	return delta
+}

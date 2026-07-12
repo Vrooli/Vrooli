@@ -32,19 +32,23 @@ type ScanArgs struct {
 // ProviderReport is one provider's adoption scorecard. The snake_case JSON shape
 // is the stable CLI contract; it is mapped from the shared selfhealth core.
 type ProviderReport struct {
-	Provider      string `json:"provider"`
-	Phase         string `json:"phase"`
-	Reachable     bool   `json:"reachable"`
-	ContractValid bool   `json:"contract_valid"`
-	IdentityOK    bool   `json:"identity_ok"`
+	Provider       string   `json:"provider"`
+	Phase          string   `json:"phase"`
+	Classification string   `json:"classification"`
+	ReasonCodes    []string `json:"reason_codes,omitempty"`
+	Reachable      bool     `json:"reachable"`
+	ContractValid  bool     `json:"contract_valid"`
+	IdentityOK     bool     `json:"identity_ok"`
 	// SpecValid means the provider-owned Test Genie descriptor loads, its
 	// embedded maturity block validates, and descriptor/provider/phase identity
 	// is coherent. The JSON key remains `spec_valid` for CLI compatibility.
-	SpecValid      bool          `json:"spec_valid"`
-	MetricsAdopted bool          `json:"metrics_adopted"`
-	AdoptionScore  float64       `json:"adoption_score"`
-	Autofix        AutofixReport `json:"autofix"`
-	Violations     []string      `json:"violations,omitempty"`
+	SpecValid           bool          `json:"spec_valid"`
+	MetricsAdopted      bool          `json:"metrics_adopted"`
+	FixContractRequired bool          `json:"fix_contract_required"`
+	FixContractValid    bool          `json:"fix_contract_valid"`
+	AdoptionScore       float64       `json:"adoption_score"`
+	Autofix             AutofixReport `json:"autofix"`
+	Violations          []string      `json:"violations,omitempty"`
 }
 
 // AutofixReport is the per-provider autofix declaration rollup (advisory). The
@@ -102,7 +106,7 @@ func RunScan(args []string) error {
 
 	var offenders []string
 	for _, pr := range report.Providers {
-		if selfhealth.IsHardViolation(pr.SpecValid, pr.Reachable, pr.ContractValid, pr.IdentityOK, pr.MetricsAdopted) {
+		if hardViolation(pr) {
 			offenders = append(offenders, pr.Phase+"→"+pr.Provider)
 		}
 	}
@@ -162,14 +166,18 @@ func Scan(ctx context.Context, args ScanArgs) ScanReport {
 	out := ScanReport{Target: report.Target, Restarts: restarts}
 	for _, pr := range report.Providers {
 		out.Providers = append(out.Providers, ProviderReport{
-			Provider:       pr.Provider,
-			Phase:          pr.Phase,
-			Reachable:      pr.Reachable,
-			ContractValid:  pr.ContractValid,
-			IdentityOK:     pr.IdentityOK,
-			SpecValid:      pr.SpecValid,
-			MetricsAdopted: pr.MetricsAdopted,
-			AdoptionScore:  pr.AdoptionScore,
+			Provider:            pr.Provider,
+			Phase:               pr.Phase,
+			Classification:      string(pr.Classification),
+			ReasonCodes:         append([]string(nil), pr.ReasonCodes...),
+			Reachable:           pr.Reachable,
+			ContractValid:       pr.ContractValid,
+			IdentityOK:          pr.IdentityOK,
+			SpecValid:           pr.SpecValid,
+			MetricsAdopted:      pr.MetricsAdopted,
+			FixContractRequired: pr.FixContractRequired,
+			FixContractValid:    pr.FixContractValid,
+			AdoptionScore:       pr.AdoptionScore,
 			Autofix: AutofixReport{
 				Total:               pr.Autofix.Total,
 				FixableUniverse:     pr.Autofix.FixableUniverse,
@@ -219,9 +227,12 @@ func restartScanProviders(ctx context.Context, timeout time.Duration, subject st
 func printScanReport(report ScanReport) {
 	fmt.Printf("Provider contract scan (target=%s)\n", report.Target)
 	for _, pr := range report.Providers {
-		fmt.Printf("  %-14s → %-28s adoption=%.0f%% reach=%s contract=%s identity=%s spec=%s metrics=%s\n",
-			pr.Phase, pr.Provider, pr.AdoptionScore*100,
-			yesno(pr.Reachable), yesno(pr.ContractValid), yesno(pr.IdentityOK), yesno(pr.SpecValid), yesno(pr.MetricsAdopted))
+		fmt.Printf("  %-14s → %-28s state=%-11s adoption=%.0f%% reach=%s contract=%s identity=%s spec=%s metrics=%s fixes=%s\n",
+			pr.Phase, pr.Provider, pr.Classification, pr.AdoptionScore*100,
+			yesno(pr.Reachable), yesno(pr.ContractValid), yesno(pr.IdentityOK), yesno(pr.SpecValid), yesno(pr.MetricsAdopted), fixContractStatus(pr))
+		if len(pr.ReasonCodes) > 0 {
+			fmt.Printf("      reasons: %s\n", strings.Join(pr.ReasonCodes, ", "))
+		}
 		fmt.Printf("      autofix: implemented=%d pending=%d manual=%d declared=%d/%d complete=%s\n",
 			pr.Autofix.Implemented, pr.Autofix.Pending, pr.Autofix.Manual,
 			pr.Autofix.Declared, pr.Autofix.Total, yesno(pr.Autofix.DeclarationComplete))
@@ -229,6 +240,17 @@ func printScanReport(report ScanReport) {
 			fmt.Printf("      - %s\n", v)
 		}
 	}
+}
+
+func hardViolation(pr ProviderReport) bool {
+	return selfhealth.IsHardViolation(pr.SpecValid, pr.Reachable, pr.ContractValid, pr.IdentityOK, pr.MetricsAdopted) || (pr.FixContractRequired && !pr.FixContractValid)
+}
+
+func fixContractStatus(pr ProviderReport) string {
+	if !pr.FixContractRequired {
+		return "n/a"
+	}
+	return yesno(pr.FixContractValid)
 }
 
 func yesno(b bool) string {

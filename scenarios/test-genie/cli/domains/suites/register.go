@@ -3,7 +3,6 @@ package suites
 import (
 	"test-genie/cli/execute"
 	"test-genie/cli/internal/deps"
-	"test-genie/cli/remediate"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -13,17 +12,6 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
 		Title: "Suites",
 		Commands: []cliapp.Command{
-			cliapp.Command{
-				Name:        "remediate",
-				NeedsAPI:    true,
-				Description: "Create an evidence-bound remediation job",
-				Usage:       remediate.UsageLine,
-				HelpText:    remediate.HelpText(),
-				Args:        remediate.ArgsSchema,
-				Architecture: cliapp.CommandArchitecture{
-					Primitive: cliapp.PrimitiveAction,
-				},
-			}.WithPrimitive(remediate.Primitive(runtime.Remediate)),
 			// execute is a durable_run command: it owns a server-owned start ->
 			// follow/wait/reattach lifecycle (execute.RunDurable, built on the cli-core
 			// durable_run primitive), so human/--json/--jsonl share one run path and

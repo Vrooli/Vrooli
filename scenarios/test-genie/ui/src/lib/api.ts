@@ -108,14 +108,17 @@ export interface RemediationPlan {
 export interface RemediationJob {
   id: string;
   scenario: string;
-  status: "created" | "running" | "agent_completed" | "verification_running" | "verified" | "failed" | "cancelled" | "degraded";
+  status: "created" | "launch_pending" | "running" | "agent_completed" | "verification_running" | "verified" | "failed" | "cancelled" | "degraded";
   source: RemediationPlan;
+  sourceHash: string;
   selectedFindingIds: string[];
-	  selectedRequirementIds?: string[];
+  selectedRequirementIds?: string[];
+  selectionHash: string;
   additionalContext?: string;
   attribution?: { taskId?: string; runId?: string; roleRef?: string; resolvedProfile?: string; outputReference?: string };
-  verification?: { executionId?: string; runId?: string; completedAt?: string; degraded?: string; delta?: { resolved?: string[]; remaining?: string[]; new?: string[]; changedSeverity?: string[]; skipped?: string[]; unverifiable?: string[] } };
+  verification?: { executionId?: string; runId?: string; completedAt?: string; degraded?: string; delta?: { resolved?: string[]; remaining?: string[]; new?: string[]; changedSeverity?: string[]; skipped?: string[]; unverifiable?: string[] }; requirementDelta?: { resolved?: string[]; remaining?: string[]; skipped?: string[]; unverifiable?: string[] } };
   failure?: string;
+  attempts?: Array<{ id: string; kind: string; state: string; idempotencyKey: string; roleRef?: string; taskId?: string; runId?: string; detail?: string; createdAt: string }>;
 }
 
 export interface PhaseDescriptor {
@@ -209,6 +212,7 @@ export interface ScenarioSummary {
   totalExecutions: number;
   lastExecutionAt?: string;
   lastExecutionId?: string;
+  lastRunId?: string;
   lastExecutionPreset?: string;
   lastExecutionSuccess?: boolean;
   lastExecutionPhases?: PhaseExecutionResult[];
@@ -232,6 +236,30 @@ export async function fetchHealth(): Promise<ApiHealthResponse> {
 // the response message is the JSON body on 200 (camelCase proto-JSON). Fields
 // are omit-on-default server-side, so every field here is optional.
 const SELF_HEALTH_PROCEDURE = "/vrooli.test_genie.v1.runs.RunsService/GetSelfHealth";
+const LIST_RUN_ARTIFACTS_PROCEDURE = "/vrooli.test_genie.v1.runs.RunsService/ListRunArtifacts";
+
+export interface RunArtifactRef {
+  id: string;
+  kind: string;
+  mediaType?: string;
+  label?: string;
+  producingPhase?: string;
+  sizeBytes?: string | number;
+  createdAt?: string;
+  accessCapability?: string;
+  accessPath?: string;
+  metadata?: Record<string, string>;
+  relationships?: Array<{ type?: string; targetArtifactId?: string }>;
+  provenance?: string;
+}
+
+export interface RunArtifactCatalog {
+  schemaVersion?: number;
+  digest?: string;
+  artifacts: RunArtifactRef[];
+  legacyDiscovered?: boolean;
+  degradedReasons?: string[];
+}
 
 export interface CatalogPhase {
   name?: string;
@@ -363,6 +391,44 @@ function connectBaseUrl(): string {
   // API_BASE ends with /api/v1; the Connect handler is mounted at the origin
   // root, so strip the REST suffix to reach the procedure path.
   return API_BASE.replace(/\/api\/v1\/?$/, "");
+}
+
+// Access paths arrive from the typed artifact catalog and already include
+// /api/v1. Keep that server-owned capability intact while locating the origin.
+export function buildOpaqueArtifactUrl(accessPath: string): string {
+  return `${connectBaseUrl()}${accessPath}`;
+}
+
+// Lists typed catalog entries. Artifact bytes are only opened through each
+// server-provided opaque access path; no UI code derives storage locations.
+export async function fetchRunArtifacts(scenario: string, runId: string): Promise<RunArtifactCatalog> {
+  const url = `${connectBaseUrl()}${LIST_RUN_ARTIFACTS_PROCEDURE}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({ scenario, runId })
+  });
+  let payload: unknown;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+  if (!res.ok) {
+    const message = isRecord(payload) && typeof payload.message === "string"
+      ? payload.message
+      : `Artifact catalog request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+  if (!isRecord(payload)) return { artifacts: [] };
+  return {
+    schemaVersion: typeof payload.schemaVersion === "number" ? payload.schemaVersion : undefined,
+    digest: typeof payload.digest === "string" ? payload.digest : undefined,
+    artifacts: Array.isArray(payload.artifacts) ? payload.artifacts as RunArtifactRef[] : [],
+    legacyDiscovered: payload.legacyDiscovered === true,
+    degradedReasons: Array.isArray(payload.degradedReasons) ? payload.degradedReasons.filter((reason): reason is string => typeof reason === "string") : []
+  };
 }
 
 export async function getSelfHealth(options: GetSelfHealthOptions = {}): Promise<SelfHealth> {
@@ -510,6 +576,18 @@ export async function createRemediationJob(name: string, input: { sourceExecutio
 
 export async function cancelRemediationJob(name: string, id: string): Promise<RemediationJob> {
   const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}/remediation/jobs/${encodeURIComponent(id)}/cancel`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" } });
+  return parseResponse<RemediationJob>(res);
+}
+
+export async function recoverRemediationJob(name: string, id: string): Promise<RemediationJob> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}/remediation/jobs/${encodeURIComponent(id)}/recover`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" } });
+  return parseResponse<RemediationJob>(res);
+}
+
+export async function retryRemediationJob(name: string, id: string): Promise<RemediationJob> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}/remediation/jobs/${encodeURIComponent(id)}/retry`, { baseUrl: API_BASE });
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" } });
   return parseResponse<RemediationJob>(res);
 }

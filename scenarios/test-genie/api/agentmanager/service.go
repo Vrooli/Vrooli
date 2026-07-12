@@ -83,6 +83,13 @@ func (s *AgentService) GetRun(ctx context.Context, runID string) (*domainpb.Run,
 	return s.client.GetRun(ctx, runID)
 }
 
+func (s *AgentService) GetRunByTag(ctx context.Context, tag string) (*domainpb.Run, error) {
+	if !s.enabled {
+		return nil, fmt.Errorf("agent-manager not enabled")
+	}
+	return s.client.GetRunByTag(ctx, tag)
+}
+
 func (s *AgentService) StopRun(ctx context.Context, runID string) error {
 	if !s.enabled {
 		return fmt.Errorf("agent-manager not enabled")
@@ -98,9 +105,10 @@ type SpawnSingleResult struct {
 	Error  string
 }
 type RemediationSpawnRequest struct {
-	Task    *domainpb.Task
-	Tag     string
-	RoleRef string
+	Task           *domainpb.Task
+	Tag            string
+	RoleRef        string
+	IdempotencyKey string
 }
 
 // SpawnRemediation creates exactly one server-built evidence task. The only
@@ -117,13 +125,23 @@ func (s *AgentService) SpawnRemediation(ctx context.Context, req RemediationSpaw
 		return nil, fmt.Errorf("remediation role reference is required")
 	}
 	result := &SpawnSingleResult{Tag: req.Tag, Status: "pending"}
+	if existing, err := s.client.GetRunByTag(ctx, req.Tag); err != nil {
+		return result, fmt.Errorf("find remediation run by tag: %w", err)
+	} else if existing != nil {
+		result.TaskID, result.RunID, result.Status = existing.GetTaskId(), existing.GetId(), MapRunStatus(existing.GetStatus())
+		return result, nil
+	}
 	task, err := s.client.CreateTask(ctx, req.Task)
 	if err != nil {
 		result.Status, result.Error = "failed", fmt.Sprintf("create task: %v", err)
 		return result, err
 	}
 	result.TaskID = task.Id
-	run, err := s.client.CreateRun(ctx, &apipb.CreateRunRequest{TaskId: task.Id, ProfileRef: s.defaultProfileRef(), Tag: &req.Tag, Force: true, InlineConfig: &domainpb.RunConfigOverrides{RoleRef: &req.RoleRef}})
+	runRequest := &apipb.CreateRunRequest{TaskId: task.Id, ProfileRef: s.defaultProfileRef(), Tag: &req.Tag, Force: true, InlineConfig: &domainpb.RunConfigOverrides{RoleRef: &req.RoleRef}}
+	if strings.TrimSpace(req.IdempotencyKey) != "" {
+		runRequest.IdempotencyKey = &req.IdempotencyKey
+	}
+	run, err := s.client.CreateRun(ctx, runRequest)
 	if err != nil {
 		result.Status, result.Error = "failed", fmt.Sprintf("create run: %v", err)
 		return result, err

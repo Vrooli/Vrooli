@@ -281,15 +281,28 @@ func TestRunFailedStatusEmitsFindingAndFails(t *testing.T) {
 	}
 }
 
-func TestRunCarriesCanonicalPresentationUnchanged(t *testing.T) {
-	provider := testProvider(false)
-	providerPresentation := testCapabilityAssessment().GetPresentation()
+func TestUIHealthDirectAndDelegatedPresentationsMatch(t *testing.T) {
+	provider := Provider{
+		Phase:            "ui-health",
+		ProviderScenario: "ui-health",
+		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_UI,
+		Emoji:            "U",
+		Timeout:          time.Second,
+		IncludeExecution: true,
+	}
+	// This is the direct ScenarioValidationService response. The assertion below
+	// compares its provider-owned presentation with the object surfaced by Test
+	// Genie after delegation; transport must not derive or reshape it.
+	directAssessment := testCapabilityAssessment()
+	directAssessment.Provider = "ui-health"
+	directAssessment.Phase = "ui-health"
+	directAssessment.Presentation = assessmentpkg.BuildPhasePresentation(directAssessment)
+	providerPresentation := directAssessment.GetPresentation()
 	response := &scenariovalidationv1.ValidateScenarioResponse{
 		Scenario:   "demo",
 		Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
-		Assessment: testCapabilityAssessment(),
+		Assessment: directAssessment,
 	}
-	response.Assessment.Presentation = providerPresentation
 	prevResolve, prevClient := ResolveBaseURL, NewClient
 	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
 	NewClient = func(time.Duration, string) Client { return fakeClient{resp: response} }
@@ -300,7 +313,7 @@ func TestRunCarriesCanonicalPresentationUnchanged(t *testing.T) {
 		t.Fatalf("delegated run did not retain presentation: result=%+v", got)
 	}
 	if !proto.Equal(got.Presentation, providerPresentation) {
-		t.Fatalf("Test Genie changed provider presentation:\n got=%+v\nwant=%+v", got.Presentation, providerPresentation)
+		t.Fatalf("Test Genie changed ui-health's direct provider presentation:\n got=%+v\nwant=%+v", got.Presentation, providerPresentation)
 	}
 }
 

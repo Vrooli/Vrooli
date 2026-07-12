@@ -101,7 +101,13 @@ func printConformance(w io.Writer, sh *runspb.SelfHealth) {
 		return
 	}
 	adopted, hardViolations := 0, 0
+	states := map[string]int{}
 	for _, c := range conformance {
+		state := c.GetClassification()
+		if state == "" {
+			state = "unknown"
+		}
+		states[state]++
 		if c.GetMetricsAdopted() {
 			adopted++
 		}
@@ -109,15 +115,27 @@ func printConformance(w io.Writer, sh *runspb.SelfHealth) {
 			hardViolations++
 		}
 	}
-	fmt.Fprintf(w, "  Conformance (%s): %d providers, %d metrics-adopted, %d hard violation(s)\n",
-		freshness, len(conformance), adopted, hardViolations)
+	fmt.Fprintf(w, "  Conformance (%s): %d providers, %d compliant, %d unavailable, %d exempt, %d violation(s), %d metrics-adopted, %d hard violation(s)\n",
+		freshness, len(conformance), states["compliant"], states["unavailable"], states["exempt"], states["violation"], adopted, hardViolations)
 	for _, c := range conformance {
-		if conformanceHardViolation(c) {
-			fmt.Fprintf(w, "      ! %s→%s adoption=%.0f%% %s\n",
-				c.GetPhase(), c.GetProvider(), c.GetAdoptionScore()*100, strings.Join(c.GetViolations(), "; "))
+		if c.GetClassification() != "compliant" {
+			provider := c.GetProvider()
+			if provider == "" {
+				provider = "(native)"
+			}
+			fmt.Fprintf(w, "      %s %s→%s adoption=%.0f%% reasons=%s %s\n",
+				conformanceMarker(c), c.GetPhase(), provider, c.GetAdoptionScore()*100,
+				strings.Join(c.GetReasonCodes(), ","), strings.Join(c.GetViolations(), "; "))
 		}
 	}
 	printAutofixCoverage(w, conformance)
+}
+
+func conformanceMarker(c *runspb.ProviderConformance) string {
+	if conformanceHardViolation(c) {
+		return "!"
+	}
+	return "~"
 }
 
 // printAutofixCoverage renders the advisory autofix declaration lens: the
@@ -214,5 +232,5 @@ func printLedger(w io.Writer, ledger *runspb.ReliabilityLedger) {
 // selfhealth.IsHardViolation SSOT so the `health` CLI shares the API's exact
 // hard-violation rule (utils-unification — no mirrored copy).
 func conformanceHardViolation(c *runspb.ProviderConformance) bool {
-	return selfhealth.IsHardViolation(c.GetSpecValid(), c.GetReachable(), c.GetContractValid(), c.GetIdentityOk(), c.GetMetricsAdopted())
+	return selfhealth.IsHardViolation(c.GetSpecValid(), c.GetReachable(), c.GetContractValid(), c.GetIdentityOk(), c.GetMetricsAdopted()) || (c.GetFixContractRequired() && !c.GetFixContractValid())
 }

@@ -20,8 +20,8 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
-	"google.golang.org/protobuf/encoding/protojson"
 	catalog "test-genie/internal/orchestrator/phases"
+	"test-genie/internal/selfhealth"
 )
 
 const usage = "usage: provider-contract <check|scan> ...\n  check <phase|provider> <target-scenario> [--no-restart] [--json]\n  scan [<phase-or-provider>] [--json] [--target <fixture-scenario>] [--timeout <dur>] [--restart]"
@@ -43,19 +43,21 @@ type Args struct {
 }
 
 type Probe struct {
-	Phase       string   `json:"phase"`
-	Provider    string   `json:"provider"`
-	Invocation  []string `json:"invocation,omitempty"`
-	Restartable bool     `json:"restartable"`
+	Phase       string `json:"phase"`
+	Provider    string `json:"provider"`
+	Restartable bool   `json:"restartable"`
 }
 
 type Result struct {
-	Phase      string `json:"phase"`
-	Provider   string `json:"provider"`
-	Target     string `json:"target"`
-	Restarted  bool   `json:"restarted"`
-	Status     string `json:"status"`
-	Assessment struct {
+	Phase          string   `json:"phase"`
+	Provider       string   `json:"provider"`
+	Target         string   `json:"target"`
+	Restarted      bool     `json:"restarted"`
+	Status         string   `json:"status"`
+	Classification string   `json:"classification,omitempty"`
+	ReasonCodes    []string `json:"reasonCodes,omitempty"`
+	Violations     []string `json:"violations,omitempty"`
+	Assessment     struct {
 		Scenario                  string               `json:"scenario"`
 		Provider                  string               `json:"provider"`
 		Phase                     string               `json:"phase"`
@@ -65,6 +67,30 @@ type Result struct {
 		Capabilities              []CapabilityResult   `json:"capabilities,omitempty"`
 		HighestPriorityCapability *PriorityFocusResult `json:"highestPriorityCapability,omitempty"`
 	} `json:"assessment"`
+	Presentation *PresentationResult `json:"presentation,omitempty"`
+
+	// presentation retains the provider-owned proto so the human report can
+	// render it through assessment.PresentationView; the JSON projection above
+	// is the stable CLI summary.
+	presentation *commonv1.PhasePresentation
+}
+
+// PresentationResult is the JSON summary of the provider-owned canonical
+// phase presentation, proving in the check output what the provider returned.
+type PresentationResult struct {
+	ContractVersion      string   `json:"contractVersion"`
+	CurrentLevel         string   `json:"currentLevel,omitempty"`
+	CurrentLevelLabel    string   `json:"currentLevelLabel,omitempty"`
+	NextLevel            string   `json:"nextLevel,omitempty"`
+	CeilingLevel         string   `json:"ceilingLevel,omitempty"`
+	AtMaximum            bool     `json:"atMaximum,omitempty"`
+	Clean                bool     `json:"clean"`
+	NextAction           string   `json:"nextAction,omitempty"`
+	NextActionReason     string   `json:"nextActionReason,omitempty"`
+	FocusCapabilityID    string   `json:"focusCapabilityId,omitempty"`
+	NorthStar            string   `json:"northStar,omitempty"`
+	BlockingFindingCodes []string `json:"blockingFindingCodes,omitempty"`
+	DocumentationTopics  []string `json:"documentationTopics,omitempty"`
 }
 
 type CapabilityResult struct {
@@ -150,6 +176,11 @@ func Run(args []string) error {
 		}
 		fmt.Println()
 	}
+	view := assessment.PresentationView(result.presentation)
+	fmt.Printf("  Presentation: %s\n", view.Summary)
+	for _, line := range view.Lines {
+		fmt.Printf("    %s\n", line)
+	}
 	return nil
 }
 
@@ -183,6 +214,16 @@ func ParseArgs(args []string) (Args, error) {
 	return out, nil
 }
 
+// fixConformanceProbe is the PreviewFix/ApplyFix seam; tests stub it to avoid
+// live fix RPCs. The default is the exact transport the fleet scan uses.
+var fixConformanceProbe selfhealth.FixConformanceProbe = selfhealth.DefaultFixConformanceProbe
+
+// Check restarts the provider (unless --no-restart) and scores it through the
+// same selfhealth conformance core the fleet scan and the API self-health
+// endpoint use. Owning no validation logic of its own is the point: a check
+// verdict cannot drift from the run gate or the scan, so "check passed" means
+// the provider's response satisfies assessment.RequireProviderContract plus
+// the fleet adoption dimensions (descriptor spec, metrics, fix contract).
 func Check(ctx context.Context, args Args, probe Probe) (Result, error) {
 	var out Result
 	out.Phase = probe.Phase
@@ -197,22 +238,36 @@ func Check(ctx context.Context, args Args, probe Probe) (Result, error) {
 		}
 		out.Restarted = true
 	}
-	assessmentMsg, _, err := probeAssessment(ctx, args, probe)
-	if err != nil {
-		return out, err
+	conformance, resp := selfhealth.CheckProvider(ctx, cliValidationProbe, fixConformanceProbe, scanResolveRepoRoot(), args.Target, probe.Phase, probe.Provider, args.Timeout)
+	out.Classification = string(conformance.Classification)
+	out.ReasonCodes = append([]string(nil), conformance.ReasonCodes...)
+	out.Violations = append([]string(nil), conformance.Violations...)
+	if resp != nil {
+		fillAssessment(&out, resp.GetAssessment())
 	}
-	if err := assessment.RequireIdentity(probe.Provider, probe.Phase, assessmentMsg); err != nil {
-		return out, fmt.Errorf("provider maturity contract violation: %w", err)
+	if !conformance.Reachable {
+		return out, fmt.Errorf("probe provider %s: %s", probe.Provider, strings.Join(out.Violations, "; "))
+	}
+	if conformance.HasHardViolation() {
+		return out, fmt.Errorf("%s -> %s violates the provider contract [%s]: %s",
+			probe.Phase, probe.Provider, strings.Join(out.ReasonCodes, ", "), strings.Join(out.Violations, "; "))
 	}
 	out.Status = "ok"
-	out.Assessment.Scenario = assessmentMsg.GetScenario()
-	out.Assessment.Provider = assessmentMsg.GetProvider()
-	out.Assessment.Phase = assessmentMsg.GetPhase()
-	out.Assessment.Version = assessmentMsg.GetVersion()
-	out.Assessment.CurrentLevel = assessmentMsg.GetLocal().GetCurrentLevel()
-	out.Assessment.NextLevel = assessmentMsg.GetLocal().GetNextLevel()
-	out.Assessment.Capabilities = capabilityResults(assessmentMsg.GetCapabilities())
-	if focus := assessmentMsg.GetHighestPriorityCapability(); focus != nil && strings.TrimSpace(focus.GetCapabilityId()) != "" {
+	return out, nil
+}
+
+func fillAssessment(out *Result, a *commonv1.MaturityAssessment) {
+	if a == nil {
+		return
+	}
+	out.Assessment.Scenario = a.GetScenario()
+	out.Assessment.Provider = a.GetProvider()
+	out.Assessment.Phase = a.GetPhase()
+	out.Assessment.Version = a.GetVersion()
+	out.Assessment.CurrentLevel = a.GetLocal().GetCurrentLevel()
+	out.Assessment.NextLevel = a.GetLocal().GetNextLevel()
+	out.Assessment.Capabilities = capabilityResults(a.GetCapabilities())
+	if focus := a.GetHighestPriorityCapability(); focus != nil && strings.TrimSpace(focus.GetCapabilityId()) != "" {
 		out.Assessment.HighestPriorityCapability = &PriorityFocusResult{
 			CapabilityID:    focus.GetCapabilityId(),
 			CapabilityLabel: focus.GetCapabilityLabel(),
@@ -221,7 +276,50 @@ func Check(ctx context.Context, args Args, probe Probe) (Result, error) {
 			Reason:          focus.GetReason(),
 		}
 	}
-	return out, nil
+	p := a.GetPresentation()
+	if p == nil {
+		return
+	}
+	out.presentation = p
+	out.Presentation = &PresentationResult{
+		ContractVersion:      p.GetContractVersion(),
+		CurrentLevel:         p.GetCurrentLevel(),
+		CurrentLevelLabel:    p.GetCurrentLevelLabel(),
+		NextLevel:            p.GetNextLevel(),
+		CeilingLevel:         p.GetCeilingLevel(),
+		AtMaximum:            p.GetAtMaximum(),
+		Clean:                p.GetClean(),
+		NextAction:           p.GetNextAction(),
+		NextActionReason:     p.GetNextActionReason(),
+		FocusCapabilityID:    p.GetFocusCapabilityId(),
+		NorthStar:            p.GetNorthStar(),
+		BlockingFindingCodes: append([]string(nil), p.GetBlockingFindingCodes()...),
+		DocumentationTopics:  append([]string(nil), p.GetDocumentationTopics()...),
+	}
+}
+
+// cliValidationProbe adapts the CLI's provider URL seam to the shared
+// conformance probe signature.
+func cliValidationProbe(ctx context.Context, provider, target string, timeout time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
+	if timeout <= 0 {
+		timeout = 2 * time.Minute
+	}
+	baseURL, err := resolveProviderBaseURL(ctx, provider)
+	if err != nil {
+		return nil, fmt.Errorf("resolve provider %s URL: %w", provider, err)
+	}
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		return nil, fmt.Errorf("provider %s base URL is empty", provider)
+	}
+	runCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	client := scenariovalidationconnect.NewScenarioValidationServiceClient(&http.Client{Timeout: timeout}, baseURL)
+	resp, err := client.ValidateScenario(runCtx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: target}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
 }
 
 func capabilityResults(capabilities []*commonv1.CapabilityMaturityAssessment) []CapabilityResult {
@@ -247,74 +345,6 @@ func capabilityResults(capabilities []*commonv1.CapabilityMaturityAssessment) []
 	return out
 }
 
-func probeAssessment(ctx context.Context, args Args, probe Probe) (*commonv1.MaturityAssessment, string, error) {
-	invocation := append([]string(nil), probe.Invocation...)
-	for i, part := range invocation {
-		if part == "{{target}}" {
-			invocation[i] = args.Target
-		}
-	}
-	if len(invocation) > 0 {
-		raw, err := commandRunner(ctx, args.Timeout, "", invocation[0], invocation[1:]...)
-		source := strings.Join(invocation, " ")
-		if err != nil {
-			if len(bytes.TrimSpace(raw)) > 0 {
-				assessmentMsg, parseErr := parseAssessment(raw)
-				if parseErr != nil {
-					return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: %w", source, parseErr)
-				}
-				return assessmentMsg, source, nil
-			}
-			return nil, source, fmt.Errorf("run provider command `%s`: %w", source, err)
-		}
-		assessmentMsg, parseErr := parseAssessment(raw)
-		if parseErr != nil {
-			return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: %w", source, parseErr)
-		}
-		return assessmentMsg, source, nil
-	}
-	return runSharedRPCProbe(ctx, args, probe)
-}
-
-func runSharedRPCProbe(ctx context.Context, args Args, probe Probe) (*commonv1.MaturityAssessment, string, error) {
-	timeout := args.Timeout
-	if timeout <= 0 {
-		timeout = 2 * time.Minute
-	}
-	baseURL, err := resolveProviderBaseURL(ctx, probe.Provider)
-	if err != nil {
-		return nil, probe.Provider, fmt.Errorf("resolve provider %s URL: %w", probe.Provider, err)
-	}
-	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
-	if baseURL == "" {
-		return nil, probe.Provider, fmt.Errorf("provider %s base URL is empty", probe.Provider)
-	}
-	runCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	source := probe.Provider + " " + scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure
-	client := scenariovalidationconnect.NewScenarioValidationServiceClient(&http.Client{Timeout: timeout}, baseURL)
-	resp, err := client.ValidateScenario(runCtx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
-		Scenario: args.Target,
-	}))
-	if runCtx.Err() != nil {
-		return nil, source, runCtx.Err()
-	}
-	if err != nil {
-		return nil, source, fmt.Errorf("provider RPC probe `%s`: %w", source, err)
-	}
-	if resp.Msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
-		return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: validation status is required", source)
-	}
-	assessmentMsg := resp.Msg.GetAssessment()
-	if assessmentMsg == nil {
-		return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: assessment is required", source)
-	}
-	if err := assessment.ValidateAssessment(assessmentMsg); err != nil {
-		return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: %w", source, err)
-	}
-	return assessmentMsg, source, nil
-}
-
 func ResolveProbe(subject string) (Probe, error) {
 	key := catalog.NormalizeKey(subject)
 	for _, probe := range Probes() {
@@ -323,53 +353,6 @@ func ResolveProbe(subject string) (Probe, error) {
 		}
 	}
 	return Probe{}, fmt.Errorf("unknown provider-backed phase or provider %q", subject)
-}
-
-func parseAssessment(raw []byte) (*commonv1.MaturityAssessment, error) {
-	var payload json.RawMessage
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return nil, fmt.Errorf("parse provider JSON: %w", err)
-	}
-	assessmentJSON := findAssessmentJSON(payload)
-	if len(assessmentJSON) == 0 || bytes.Equal(assessmentJSON, []byte("null")) {
-		return nil, fmt.Errorf("assessment is required")
-	}
-	var msg commonv1.MaturityAssessment
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(assessmentJSON, &msg); err != nil {
-		return nil, fmt.Errorf("parse assessment: %w", err)
-	}
-	if err := assessment.ValidateAssessment(&msg); err != nil {
-		return nil, err
-	}
-	return &msg, nil
-}
-
-func findAssessmentJSON(raw json.RawMessage) json.RawMessage {
-	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
-		return nil
-	}
-	var obj map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &obj); err == nil {
-		if assessmentJSON, ok := obj["assessment"]; ok {
-			return assessmentJSON
-		}
-		for _, child := range obj {
-			if assessmentJSON := findAssessmentJSON(child); len(assessmentJSON) > 0 {
-				return assessmentJSON
-			}
-		}
-		return nil
-	}
-	var arr []json.RawMessage
-	if err := json.Unmarshal(raw, &arr); err != nil {
-		return nil
-	}
-	for _, child := range arr {
-		if assessmentJSON := findAssessmentJSON(child); len(assessmentJSON) > 0 {
-			return assessmentJSON
-		}
-	}
-	return nil
 }
 
 func runCommand(ctx context.Context, timeout time.Duration, dir string, name string, args ...string) ([]byte, error) {

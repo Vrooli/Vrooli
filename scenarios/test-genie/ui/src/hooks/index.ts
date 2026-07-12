@@ -7,3 +7,4 @@ export type { DocsManifest, DocSection } from "./useDocs";
 export { useRequirements, useRequirementsCoverage } from "./useRequirements";
 export type { RequirementsCoverage } from "./useRequirements";
 export { useRemediation } from "./useRemediation";
+export { useRunArtifacts } from "./useRunArtifacts";

@@ -9,6 +9,8 @@ const mockedUseRemediation = vi.mocked(useRemediation);
 const create = { mutate: vi.fn(), isPending: false };
 const cancel = { mutate: vi.fn(), isPending: false };
 const refresh = { mutate: vi.fn(), isPending: false };
+const recover = { mutate: vi.fn(), isPending: false };
+const retry = { mutate: vi.fn(), isPending: false };
 const verify = { mutate: vi.fn(), isPending: false };
 
 const plan = {
@@ -31,6 +33,8 @@ function renderPanel(overrides: Record<string, unknown> = {}) {
     create,
     cancel,
     refresh,
+    recover,
+    retry,
     verify,
     activeJob: undefined,
     ...overrides
@@ -72,5 +76,18 @@ describe("RemediationPanel", () => {
     renderPanel({ plan: { data: { ...plan, degraded: true, degradedReasons: ["descriptor snapshot unavailable"] }, isLoading: false, isError: false } });
     expect(screen.getByText("Evidence needs attention")).toBeInTheDocument();
     expect(screen.getByText("descriptor snapshot unavailable")).toBeInTheDocument();
+  });
+
+  it("offers replay-safe recovery for an interrupted launch", () => {
+    renderPanel({ activeJob: { id: "job-1", status: "launch_pending", selectedFindingIds: ["afid:blocker"], selectedRequirementIds: [], attempts: [{ kind: "launch", state: "prepared" }] } });
+    expect(screen.getByText(/Launch intent is durable/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Recover launch" }));
+    expect(recover.mutate).toHaveBeenCalledWith("job-1");
+  });
+
+  it("starts a distinct retry only for a terminal remediation job", () => {
+    renderPanel({ jobs: { data: [{ id: "job-old", status: "failed", selectedFindingIds: ["afid:blocker"], selectedRequirementIds: [] }] } });
+    fireEvent.click(screen.getByRole("button", { name: "Retry remediation" }));
+    expect(retry.mutate).toHaveBeenCalledWith("job-old");
   });
 });

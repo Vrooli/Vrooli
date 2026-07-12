@@ -52,6 +52,10 @@ func getRunFindingsReport(_ cliapp.OperationContext, msg *runspb.GetRunFindingsR
 	for _, p := range msg.GetPhases() {
 		st := p.GetPhasePresentation()
 		if st == nil {
+			if historical := p.GetMaturityStanding(); historical != nil {
+				standings++
+				results = append(results, fmt.Sprintf("%-16s presentation: historical maturity standing (not canonical v1)", p.GetName()))
+			}
 			continue
 		}
 		standings++

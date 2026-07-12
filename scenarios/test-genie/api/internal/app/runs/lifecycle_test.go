@@ -200,6 +200,40 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	}
 }
 
+func TestLifecycleRPC_PreservesArtifactCatalogFailureAsDegradedEvidence(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := root + "/demo"
+	idx := sharedruns.NewIndex(scenarioDir)
+	if err := idx.Append(sharedruns.RunRecord{RunID: "catalog-failed", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusInProgress}); err != nil {
+		t.Fatal(err)
+	}
+	result := &orchestrator.SuiteExecutionResult{RunID: "catalog-failed", ScenarioName: "demo", CompletedAt: time.Now().UTC(), Success: true, Verdict: "PASS", Warnings: []string{"artifact catalog unavailable: disk full"}}
+	if err := idx.Finalize("catalog-failed", result, func(r *sharedruns.RunRecord) error {
+		r.Status = sharedruns.StatusPassed
+		r.CompletedAt = result.CompletedAt
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(root, nil, nil, nil)
+	show, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: "demo", RunId: "catalog-failed"}))
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if got := show.Msg.GetDegradedReasons(); !containsString(got, "artifact catalog unavailable: disk full") {
+		t.Fatalf("GetRun catalog degradation = %v", got)
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestLifecycleRPC_LegacyTerminalReadIsExplicitlyDegraded(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
 	root := t.TempDir()
 	idx := sharedruns.NewIndex(root + "/demo")

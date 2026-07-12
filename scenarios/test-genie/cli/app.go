@@ -62,6 +62,7 @@ func NewApp() (*App, error) {
 			app.core = core
 			groups, err := domains.SubcommandGroups(manifestBytes, deps.Runtime{
 				APIClient: core.APIClient,
+				Remediate: remediate.NewClient(core.APIClient),
 			})
 			if err != nil {
 				panic(err)

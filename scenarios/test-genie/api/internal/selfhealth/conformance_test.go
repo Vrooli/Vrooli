@@ -69,6 +69,12 @@ func probeFn(resp *scenariovalidationv1.ValidateScenarioResponse, err error) Con
 	}
 }
 
+func fixProbeFn(preview, applied *scenariovalidationv1.FixResponse, err error) FixConformanceProbe {
+	return func(context.Context, string, string, string, []string, time.Duration) (*scenariovalidationv1.FixResponse, *scenariovalidationv1.FixResponse, error) {
+		return preview, applied, err
+	}
+}
+
 // writeSpecWithFindings writes a descriptor-embedded maturity spec carrying
 // explicit fixability declarations so the autofix-coverage lens has real data
 // to roll up.
@@ -189,6 +195,45 @@ func TestScanProviderFullAdoption(t *testing.T) {
 	if pr.HasHardViolation() {
 		t.Fatal("full adoption should have no hard violation")
 	}
+	if pr.Classification != ConformanceCompliant || len(pr.ReasonCodes) != 0 {
+		t.Fatalf("classification = %q reasons=%v, want compliant with no reasons", pr.Classification, pr.ReasonCodes)
+	}
+}
+
+func TestScanProviderValidatesImplementedFixContractInIsolation(t *testing.T) {
+	repo := t.TempDir()
+	writeSpecWithFindings(t, repo, "proto-health", "proto", map[string]assessment.FindingMapping{
+		"FIX": {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusImplemented},
+	})
+	preview := &scenariovalidationv1.FixResponse{
+		Scenario: "test-genie",
+		Candidates: []*scenariovalidationv1.FixCandidate{{
+			RuleId: "FIX", FilePath: "ui/fixture.txt", Before: "before", After: "after",
+		}},
+	}
+	applied := &scenariovalidationv1.FixResponse{
+		Scenario: "test-genie", Applied: true,
+		Candidates: []*scenariovalidationv1.FixCandidate{{
+			RuleId: "FIX", FilePath: "ui/fixture.txt", Before: "before", After: "after", Applied: true,
+		}},
+	}
+	pr := ScanProviderWithFixProbe(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), fixProbeFn(preview, applied, nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	if !pr.FixContractRequired || !pr.FixContractValid || pr.HasHardViolation() {
+		t.Fatalf("implemented fixture contract should be valid: %+v", pr)
+	}
+}
+
+func TestScanProviderRejectsUnsafeOrUntruthfulFixContract(t *testing.T) {
+	repo := t.TempDir()
+	writeSpecWithFindings(t, repo, "proto-health", "proto", map[string]assessment.FindingMapping{
+		"FIX": {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusImplemented},
+	})
+	preview := &scenariovalidationv1.FixResponse{Scenario: "test-genie", Candidates: []*scenariovalidationv1.FixCandidate{{RuleId: "FIX", FilePath: "../outside", After: "after"}}}
+	applied := &scenariovalidationv1.FixResponse{Scenario: "test-genie", Applied: true, Candidates: []*scenariovalidationv1.FixCandidate{{RuleId: "FIX", FilePath: "../outside", After: "after", Applied: true}}}
+	pr := ScanProviderWithFixProbe(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), fixProbeFn(preview, applied, nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	if pr.FixContractValid || !pr.HasHardViolation() || !containsViolation(pr.ReasonCodes, ReasonFixContractInvalid) {
+		t.Fatalf("unsafe fix contract must be hard violation: %+v", pr)
+	}
 }
 
 func TestScanProviderMetricsRequired(t *testing.T) {
@@ -283,6 +328,16 @@ func TestScanProviderUnreachableNotHard(t *testing.T) {
 	if len(pr.Violations) == 0 {
 		t.Fatal("unreachable should still be reported as a violation")
 	}
+	if pr.Classification != ConformanceUnavailable || !containsViolation(pr.ReasonCodes, ReasonProviderUnreachable) {
+		t.Fatalf("classification = %q reasons=%v, want unavailable/provider_unreachable", pr.Classification, pr.ReasonCodes)
+	}
+}
+
+func TestNativePhaseExemptionIsExplicit(t *testing.T) {
+	entry := nativePhaseExemption("future-native")
+	if entry.Classification != ConformanceExempt || !containsViolation(entry.ReasonCodes, ReasonNativePhase) {
+		t.Fatalf("native catalog phase must be explicit exemption: %+v", entry)
+	}
 }
 
 func TestScanProviderIdentityMismatch(t *testing.T) {
@@ -333,6 +388,15 @@ func TestConformanceScannerFiltersBySubject(t *testing.T) {
 	}
 	if got := report.Providers[0]; got.Phase != "branding" || got.Provider != "brand-manager" {
 		t.Fatalf("unexpected provider: %+v", got)
+	}
+}
+
+func TestProviderDefaultTargetUsesApplicabilityValidExperienceFixture(t *testing.T) {
+	if got := ProviderDefaultTarget("experience-manager"); got != "experience-manager" {
+		t.Fatalf("experience-manager target = %q", got)
+	}
+	if got := ProviderDefaultTarget("brand-manager"); got != DefaultScanTarget {
+		t.Fatalf("brand-manager target = %q, want default %q", got, DefaultScanTarget)
 	}
 }
 
