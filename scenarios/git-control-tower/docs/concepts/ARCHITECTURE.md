@@ -46,6 +46,17 @@ endpoints that don't require parsing raw CLI output.
 | Audit log | [CODE: api/audit_logger.go]                       | SQLite-persisted log of all mutating operations |
 | Auditor | [CODE: api/auditor_client.go]                       | Quality / scenario-review pipelines |
 
+## Embedded mobile shell
+
+The mobile workspace is an iframe-safe percentage-height shell. `html`, `body`,
+and `#root` form the height chain; `App` owns three structural rows: mobile
+header, one min-height-zero active-panel region, and mobile navigation. The
+navigation participates in that flex layout rather than overlaying the panel.
+Each panel owns its own scrolling. In particular, Changes stores and restores
+only `changes-scroll-region` after layout settles; its selection controls are
+part of that scrolling content, not sticky chrome. This prevents tab changes
+from moving the embedding document and keeps safe-area ownership explicit.
+
 ## Descriptor-aware review evidence
 
 The scenario review UI has exactly eight workflow tabs: Overview, Baselines,

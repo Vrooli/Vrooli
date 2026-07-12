@@ -1387,7 +1387,7 @@ function DiffViewerImpl({
           </>
         )}
 
-        <ScrollArea className="h-full" ref={scrollContainerRef}>
+        <ScrollArea className="flex-1 min-h-0" ref={scrollContainerRef}>
           {/* Loading State */}
           {(isLoading || isHighlighting) && (
             <div className="flex items-center justify-center py-12" data-testid="diff-loading">
@@ -1566,8 +1566,6 @@ function DiffViewerImpl({
             </pre>
           )}
 
-          {/* Mobile spacer to account for fixed action bar (not needed in fullscreen) */}
-          {isMobile && !isFullscreen && selectedFile && !isLoading && !isEditing && (!isHistoryMode || onDeletePath) && <div className="h-16" aria-hidden="true" />}
         </ScrollArea>
 
         {showMinimap && (
@@ -1628,7 +1626,7 @@ function DiffViewerImpl({
 
         {/* Mobile Action Bar - history mode: delete only (hidden in fullscreen) */}
         {isMobile && !isFullscreen && selectedFile && !isLoading && isHistoryMode && !isEditing && onDeletePath && (
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
+          <div className="flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -1646,7 +1644,7 @@ function DiffViewerImpl({
 
         {/* Mobile Action Bar - normal mode (hidden in fullscreen) */}
         {isMobile && !isFullscreen && selectedFile && !isLoading && !isHistoryMode && !isEditing && (
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
+          <div className="flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
             {confirmingDiscard ? (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-amber-400 flex-1">

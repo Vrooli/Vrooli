@@ -1,0 +1,106 @@
+{
+  "metadata": {
+    "name": "gct-mobile-embedded-regression",
+    "description": "Stateful evidence capture for GCT-MOBILE-001 through GCT-MOBILE-006. It records mobile chrome and Changes → Diff → Changes geometry without mutating repository state.",
+    "execution_mode": "observer",
+    "requirement": "GCT-MOBILE-001",
+    "version": "1"
+  },
+  "settings": {
+    "executionViewport": { "preset": "mobile", "width": 390, "height": 844 }
+  },
+  "nodes": [
+    {
+      "id": "open-workspace",
+      "type": "navigate",
+      "data": {
+        "label": "Open Git Control Tower mobile workspace",
+        "destinationType": "scenario",
+        "scenario": "git-control-tower",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000
+      }
+    },
+    {
+      "id": "assert-mobile-chrome",
+      "type": "assert",
+      "data": {
+        "label": "Mobile bottom navigation is reachable",
+        "selector": "[data-testid=mobile-nav]",
+        "assertMode": "visible",
+        "failureMessage": "GCT-MOBILE-006: mobile navigation is not visible in the initial viewport"
+      }
+    },
+    {
+      "id": "capture-initial-geometry",
+      "type": "evaluate",
+      "data": {
+        "label": "Capture root, header, nav, and Changes geometry",
+        "storeResult": "gct_initial_geometry",
+        "expression": "(() => { const pick = (id) => { const el = document.querySelector(`[data-testid=${id}]`); if (!el) return null; const r = el.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, height:r.height, scrollTop:el.scrollTop, scrollHeight:el.scrollHeight, clientHeight:el.clientHeight }; }; const scroll = document.querySelector('[data-testid=changes-scroll-region] [data-radix-scroll-area-viewport]') || document.querySelector('[data-testid=changes-scroll-region]'); const scrollRect = scroll?.getBoundingClientRect(); return { viewport:{width:innerWidth,height:innerHeight}, root:pick('git-control-tower'), header:pick('mobile-header'), nav:pick('mobile-nav'), changes:pick('file-list-panel'), changesScroll:scroll ? {top:scrollRect.top,bottom:scrollRect.bottom,scrollTop:scroll.scrollTop,scrollHeight:scroll.scrollHeight,clientHeight:scroll.clientHeight} : null }; })()"
+      }
+    },
+    {
+      "id": "scroll-changes",
+      "type": "evaluate",
+      "data": {
+        "label": "Scroll the owned Changes region before tab transition",
+        "storeResult": "gct_scrolled_changes",
+        "expression": "(() => { const el = document.querySelector('[data-testid=changes-scroll-region] [data-radix-scroll-area-viewport]') || document.querySelector('[data-testid=changes-scroll-region]'); if (!el) return {missing:true}; const target = Math.max(0, Math.min(el.scrollHeight - el.clientHeight, 240)); el.scrollTo({top:target}); return new Promise(resolve => requestAnimationFrame(() => resolve({scrollTop:el.scrollTop,scrollHeight:el.scrollHeight,clientHeight:el.clientHeight}))); })()"
+      }
+    },
+    {
+      "id": "capture-initial-screenshot",
+      "type": "screenshot",
+      "data": { "label": "Capture initial mobile Changes surface", "fullPage": false }
+    },
+    {
+      "id": "open-diff-tab",
+      "type": "click",
+      "data": { "label": "Open Diff panel", "selector": "[data-testid=mobile-nav-diff]" }
+    },
+    {
+      "id": "assert-diff-tab",
+      "type": "assert",
+      "data": {
+        "label": "Diff panel navigation completes",
+        "selector": "[data-testid=mobile-nav-diff]",
+        "assertMode": "attribute_equals",
+        "attributeName": "aria-current",
+        "expectedValue": "page",
+        "failureMessage": "GCT-MOBILE-003: Diff transition did not complete"
+      }
+    },
+    {
+      "id": "return-changes-tab",
+      "type": "click",
+      "data": { "label": "Return to Changes panel", "selector": "[data-testid=mobile-nav-changes]" }
+    },
+    {
+      "id": "capture-restored-geometry",
+      "type": "evaluate",
+      "data": {
+        "label": "Capture Changes geometry after tab restoration",
+        "storeResult": "gct_restored_geometry",
+        "expression": "(() => { const el = document.querySelector('[data-testid=file-list-panel]'); const nav = document.querySelector('[data-testid=mobile-nav]'); const scroll = document.querySelector('[data-testid=changes-scroll-region] [data-radix-scroll-area-viewport]') || document.querySelector('[data-testid=changes-scroll-region]'); if (!el || !nav || !scroll) return { missing:true }; const panel = el.getBoundingClientRect(); const bottomNav = nav.getBoundingClientRect(); return { changes:{top:panel.top,bottom:panel.bottom}, changesScroll:{scrollTop:scroll.scrollTop,scrollHeight:scroll.scrollHeight,clientHeight:scroll.clientHeight}, nav:{top:bottomNav.top,bottom:bottomNav.bottom}, viewport:{width:innerWidth,height:innerHeight} }; })()"
+      }
+    },
+    {
+      "id": "capture-restored-screenshot",
+      "type": "screenshot",
+      "data": { "label": "Capture Changes surface after return", "fullPage": false }
+    }
+  ],
+  "edges": [
+    { "id": "open-to-chrome", "source": "open-workspace", "target": "assert-mobile-chrome" },
+    { "id": "chrome-to-geometry", "source": "assert-mobile-chrome", "target": "capture-initial-geometry" },
+    { "id": "geometry-to-scroll", "source": "capture-initial-geometry", "target": "scroll-changes" },
+    { "id": "scroll-to-shot", "source": "scroll-changes", "target": "capture-initial-screenshot" },
+    { "id": "shot-to-diff", "source": "capture-initial-screenshot", "target": "open-diff-tab" },
+    { "id": "diff-to-assert", "source": "open-diff-tab", "target": "assert-diff-tab" },
+    { "id": "assert-to-return", "source": "assert-diff-tab", "target": "return-changes-tab" },
+    { "id": "return-to-geometry", "source": "return-changes-tab", "target": "capture-restored-geometry" },
+    { "id": "geometry-to-final-shot", "source": "capture-restored-geometry", "target": "capture-restored-screenshot" }
+  ]
+}

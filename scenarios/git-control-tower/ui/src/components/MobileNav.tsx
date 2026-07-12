@@ -30,7 +30,7 @@ export function MobileNav({
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-800 bg-slate-950/95 backdrop-blur-sm pb-safe"
+      className="z-40 flex-none border-t border-slate-800 bg-slate-950/95 backdrop-blur-sm pb-safe"
       data-testid="mobile-nav"
     >
       <div className="flex items-center justify-around h-16">

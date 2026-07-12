@@ -44,7 +44,8 @@ var defaultHandshakeSignals = []string{
 // workflow-definition map (proto-JSON node graph), reproducing test-genie
 // smoke's proven shape:
 //
-//  1. navigate to about:blank (the host shell);
+//  1. navigate to the scenario origin so the host shell and embedded child are
+//     same-origin (required for DOM/layout artifact capture);
 //  2. evaluate: install a postMessage listener + same-origin property poll,
 //     inject <iframe src=scenarioURL>, and set [data-smoke-bridge-ready] on the
 //     host DOM once the bridge child posts READY/HELLO (or a signal poll holds);
@@ -74,12 +75,13 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, timeout time.D
 			"description": "ui-health runtime/render: host-iframe embed + iframe-bridge handshake gate + frame screenshot",
 		},
 		"settings": map[string]any{
-			"viewport": map[string]any{"width": vw, "height": vh},
+			"viewport_width":  vw,
+			"viewport_height": vh,
 		},
 		"nodes": []any{
 			node(nodeNavigate, "Navigate host shell", map[string]any{
 				"type":     "ACTION_TYPE_NAVIGATE",
-				"navigate": map[string]any{"url": "about:blank", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD"},
+				"navigate": map[string]any{"url": scenarioURL, "wait_until": "NAVIGATE_WAIT_EVENT_LOAD"},
 			}),
 			node(nodeInject, "Embed scenario UI + arm handshake listener", map[string]any{
 				"type":     "ACTION_TYPE_EVALUATE",
@@ -97,8 +99,8 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, timeout time.D
 			node(nodeArtifacts, "Capture visual health artifacts", map[string]any{
 				"type": "ACTION_TYPE_EVALUATE",
 				"evaluate": map[string]any{
-					"expression":   artifactCaptureScript(),
-					"store_result": "visual_artifacts",
+					"expression":  artifactCaptureScript(),
+					"storeResult": "visual_artifacts",
 				},
 			}),
 			node(nodeScreens, "Screenshot embedded UI", map[string]any{
@@ -264,12 +266,22 @@ const artifactCaptureTemplate = `(() => {
     return text.length > 160 ? text.slice(0, 160) : text;
   }
 
+  function inScrollContainer(el) {
+    for (var parent = el.parentElement; parent; parent = parent.parentElement) {
+      var style = window.getComputedStyle(parent);
+      var scrollsY = /(auto|scroll|overlay)/.test(style.overflowY || '');
+      if (scrollsY && parent.scrollHeight > parent.clientHeight + 1) { return true; }
+    }
+    return false;
+  }
+
   function elementRecord(el) {
     var rect = el.getBoundingClientRect();
     var style = window.getComputedStyle(el);
     var tag = String(el.tagName || '').toLowerCase();
     var role = el.getAttribute('role') || '';
-    var tabIndex = Number(el.getAttribute('tabindex'));
+    var tabIndexRaw = el.getAttribute('tabindex');
+    var tabIndex = tabIndexRaw === null ? -1 : Number(tabIndexRaw);
     var interactive = /^(a|button|input|select|textarea|summary)$/.test(tag) ||
       /^(button|link|checkbox|combobox|menuitem|radio|searchbox|slider|switch|tab|textbox)$/.test(role) ||
       el.isContentEditable || tabIndex >= 0;
@@ -294,7 +306,8 @@ const artifactCaptureTemplate = `(() => {
       visibility: style.visibility,
       display: style.display,
       opacity: parseFloat(style.opacity || '1'),
-      ariaModal: el.getAttribute('aria-modal') === 'true'
+      ariaModal: el.getAttribute('aria-modal') === 'true',
+      inScrollContainer: inScrollContainer(el)
     };
   }
 

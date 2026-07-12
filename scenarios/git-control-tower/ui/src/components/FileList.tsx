@@ -440,8 +440,12 @@ function FileListImpl({
 
     const timeoutId = setTimeout(() => {
       const element = document.querySelector(`[data-file-path="${CSS.escape(scrollToFile)}"]`);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      const scroller = scrollAreaRef.current;
+      if (element instanceof HTMLElement && scroller) {
+        const target = element.getBoundingClientRect();
+        const container = scroller.getBoundingClientRect();
+        const nextTop = scroller.scrollTop + target.top - container.top - (scroller.clientHeight - target.height) / 2;
+        scroller.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
       }
       onScrollComplete?.();
     }, 100);
@@ -461,15 +465,17 @@ function FileListImpl({
     [scrollTopStore],
   );
 
-  // Restore the saved scroll position once on mount, after content lays out.
+  // Restore the saved scroll position after the panel content has had two
+  // layout frames to settle. The scroller is explicitly owned by Changes, so
+  // this never moves the embedding document or host iframe viewport.
   // Skipped when a scrollToFile target is pending so the scroll-into-view path
   // (above) wins instead of fighting the restore.
   useLayoutEffect(() => {
     if (!scrollTopStore || scrollToFile) return;
     const el = scrollAreaRef.current;
-    if (el && scrollTopStore.current > 0) {
-      el.scrollTop = scrollTopStore.current;
-    }
+    const restore = () => el?.scrollTo({ top: scrollTopStore.current, behavior: "auto" });
+    const firstFrame = requestAnimationFrame(() => requestAnimationFrame(restore));
+    return () => cancelAnimationFrame(firstFrame);
     // Mount-only: intentionally not re-running on scrollTopStore/scrollToFile changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -692,9 +698,15 @@ function FileListImpl({
 
         {!collapsed && (
           <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
+            <ScrollArea
+              className="h-full min-w-0 px-2 pt-2 select-none"
+              ref={scrollAreaRef}
+              onScroll={handleScroll}
+              data-testid="changes-scroll-region"
+            >
             {/* Mobile multi-select toolbar */}
             {isMobile && mobileSelectionMode && (selectedFiles?.length ?? 0) > 0 && (
-              <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700">
+              <div className="z-10 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700" data-testid="mobile-selection-toolbar">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -792,11 +804,6 @@ function FileListImpl({
                 )}
               </div>
             )}
-            <ScrollArea
-              className="h-full min-w-0 px-2 pt-2 select-none"
-              ref={scrollAreaRef}
-              onScroll={handleScroll}
-            >
               <div style={{ paddingBottom: 72 }}>
                 {fileViewMode === "tree" ? (
                   <ProjectTreeView

@@ -2602,8 +2602,10 @@ export default function App() {
 
     return (
       <div
-        className="h-full flex flex-col bg-slate-950 text-slate-50"
+        className="gct-mobile-shell text-slate-50"
         data-testid="git-control-tower"
+        data-mobile-shell="true"
+        role="application"
       >
         {/* Mobile Header */}
         <MobileHeader
@@ -2631,7 +2633,7 @@ export default function App() {
         />
 
         {/* Main Content - Single Panel at a time */}
-        <div className="flex-1 overflow-hidden pb-16">
+        <div className="gct-mobile-content" data-testid="gct-mobile-content">
           {renderMobilePanel(mobileActivePanel)}
         </div>
 
@@ -2791,6 +2793,7 @@ export default function App() {
     <div
       className="h-full flex flex-col bg-slate-950 text-slate-50"
       data-testid="git-control-tower"
+      role="application"
     >
       {/* Status Header */}
       <StatusHeader

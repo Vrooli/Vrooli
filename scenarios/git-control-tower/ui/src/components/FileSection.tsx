@@ -91,10 +91,10 @@ export function FileSection({
 
   return (
     <div className="mb-4" data-testid={`file-section-${category}`}>
-      <div className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-slate-800/50 transition-colors">
+      <div className={`flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-slate-800/50 transition-colors ${isMobile ? "min-h-11" : ""}`}>
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className={`flex min-w-0 flex-1 items-center gap-2 text-left ${isMobile ? "min-h-11" : ""}`}
           onClick={handleToggle}
           data-testid={`file-section-toggle-${category}`}
         >

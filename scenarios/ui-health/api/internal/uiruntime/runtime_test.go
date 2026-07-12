@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -72,6 +73,15 @@ func codes(finds []manifestvalidation.Finding) []string {
 	return out
 }
 
+func findingForCode(finds []manifestvalidation.Finding, code string) (manifestvalidation.Finding, bool) {
+	for _, finding := range finds {
+		if finding.Code == code {
+			return finding, true
+		}
+	}
+	return manifestvalidation.Finding{}, false
+}
+
 func TestCheckSkipsWhenUIUnavailable(t *testing.T) {
 	r := newRunner("", errors.New("port not allocated"), &fakeBAS{})
 	finds := r.Check(context.Background(), Input{Scenario: "demo"})
@@ -95,7 +105,10 @@ func TestCheckSkipsWhenBASUnavailable(t *testing.T) {
 }
 
 func TestCheckHandshakePasses(t *testing.T) {
-	bas := &fakeBAS{res: &runResult{loaded: true, handshakeSignaled: true, screenshotRef: "captured"}}
+	bas := &fakeBAS{run: func(_ context.Context, def map[string]any) (*runResult, error) {
+		width, height := viewportFromDef(def)
+		return completeRuntimeResult(t, width, height), nil
+	}}
 	r := newRunner("http://localhost:5173", nil, bas)
 	finds := r.Check(context.Background(), Input{Scenario: "demo"})
 	if len(finds) != 2 || finds[0].Code != "runtime_render_ok" || finds[1].Code != "runtime_render_ok" {
@@ -113,10 +126,11 @@ func TestCheckHandshakePasses(t *testing.T) {
 }
 
 func TestCheckRunsViewportProfilesConcurrently(t *testing.T) {
-	bas := &fakeBAS{run: func(ctx context.Context, _ map[string]any) (*runResult, error) {
+	bas := &fakeBAS{run: func(ctx context.Context, def map[string]any) (*runResult, error) {
 		select {
 		case <-time.After(50 * time.Millisecond):
-			return &runResult{loaded: true, handshakeSignaled: true}, nil
+			width, height := viewportFromDef(def)
+			return completeRuntimeResult(t, width, height), nil
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
@@ -131,13 +145,27 @@ func TestCheckRunsViewportProfilesConcurrently(t *testing.T) {
 	}
 }
 
+func TestCheckDoesNotClaimRuntimeRenderOKWithoutArtifactEvidence(t *testing.T) {
+	bas := &fakeBAS{res: &runResult{loaded: true, handshakeSignaled: true, screenshotRef: "captured"}}
+	r := newRunner("http://localhost:5173", nil, bas)
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	got := codes(finds)
+	if len(got) < 2 || got[0] != "runtime_evidence_incomplete" || got[1] != "runtime_render_ok" {
+		t.Fatalf("incomplete evidence must be explicit before the handshake result, got %v", got)
+	}
+	if !strings.Contains(finds[0].Message, "downloadable screenshot") || !strings.Contains(finds[0].Message, "DOM snapshot") {
+		t.Fatalf("incomplete evidence finding must name missing artifact channels, got %q", finds[0].Message)
+	}
+}
+
 func TestCheckRuntimeDeadlineSkipsAndKeepsPartialResults(t *testing.T) {
 	var once sync.Once
-	bas := &fakeBAS{run: func(ctx context.Context, _ map[string]any) (*runResult, error) {
+	bas := &fakeBAS{run: func(ctx context.Context, def map[string]any) (*runResult, error) {
 		var fast bool
 		once.Do(func() { fast = true })
 		if fast {
-			return &runResult{loaded: true, handshakeSignaled: true}, nil
+			width, height := viewportFromDef(def)
+			return completeRuntimeResult(t, width, height), nil
 		}
 		<-ctx.Done()
 		return nil, ctx.Err()
@@ -162,11 +190,15 @@ func TestCheckUsesVisualHealthForBlankScreenshot(t *testing.T) {
 	}}
 	r := newRunner("http://localhost:5173", nil, bas)
 	finds := r.Check(context.Background(), Input{Scenario: "demo"})
-	if len(finds) == 0 || finds[0].Code != "runtime_render_broken" {
-		t.Fatalf("want runtime_render_broken first, got %v", codes(finds))
+	broken, found := findingForCode(finds, "runtime_render_broken")
+	if !found {
+		t.Fatalf("want runtime_render_broken, got %v", codes(finds))
 	}
-	if finds[0].Severity != manifestvalidation.SeverityError {
-		t.Fatalf("blank screenshot must be an error, got %s", finds[0].Severity)
+	if _, found := findingForCode(finds, "runtime_evidence_incomplete"); !found {
+		t.Fatalf("missing screenshot/DOM/layout evidence must be explicit, got %v", codes(finds))
+	}
+	if broken.Severity != manifestvalidation.SeverityError {
+		t.Fatalf("blank screenshot must be an error, got %s", broken.Severity)
 	}
 }
 
@@ -179,10 +211,14 @@ func TestCheckSurfacesVisualHealthDOMFindings(t *testing.T) {
 	r := newRunner("http://localhost:5173", nil, bas)
 	finds := r.Check(context.Background(), Input{Scenario: "demo"})
 	got := codes(finds)
-	if len(got) < 2 || got[0] != "runtime_render_broken" || got[1] != "visual_dom_blank" {
+	if _, found := findingForCode(finds, "runtime_render_broken"); !found {
+		t.Fatalf("want runtime summary, got %v", got)
+	}
+	visual, found := findingForCode(finds, "visual_dom_blank")
+	if !found {
 		t.Fatalf("want runtime summary plus visual_dom_blank detail, got %v", got)
 	}
-	if finds[1].Suggestion == "" {
+	if visual.Suggestion == "" {
 		t.Fatal("visual detail finding must carry analyzer remediation")
 	}
 }
@@ -196,40 +232,46 @@ func TestCheckSurfacesVisualHealthLayoutFindings(t *testing.T) {
 		layoutJSON:        `{"document":{"scrollWidth":460,"scrollHeight":640},"elements":[]}`,
 	}}
 	r := newRunner("http://localhost:5173", nil, bas)
-	got := codes(r.Check(context.Background(), Input{Scenario: "demo"}))
-	if len(got) < 2 || got[0] != "runtime_render_broken" || got[1] != "visual_viewport_overflow" {
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	got := codes(finds)
+	if _, found := findingForCode(finds, "runtime_render_broken"); !found {
+		t.Fatalf("want runtime summary, got %v", got)
+	}
+	if _, found := findingForCode(finds, "visual_viewport_overflow"); !found {
 		t.Fatalf("want runtime summary plus visual_viewport_overflow detail, got %v", got)
 	}
 }
 
 func TestReadTimelineExtractsVisualArtifacts(t *testing.T) {
 	node := nodeArtifacts
-	tl := &bastimeline.ExecutionTimeline{Entries: []*bastimeline.TimelineEntry{{
-		NodeId: &node,
-		Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
-			"visual_artifacts": objectValue(map[string]*commonpb.JsonValue{
-				"domHtml": stringValue("<main>Ready</main>"),
-				"viewport": objectValue(map[string]*commonpb.JsonValue{
-					"width":  intValue(390),
-					"height": intValue(844),
-				}),
-				"layout": objectValue(map[string]*commonpb.JsonValue{
-					"document": objectValue(map[string]*commonpb.JsonValue{
-						"scrollWidth":  intValue(460),
-						"scrollHeight": intValue(844),
+	tl := &bastimeline.ExecutionTimeline{Entries: []*bastimeline.TimelineEntry{
+		{
+			NodeId: &node,
+			Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
+				"visual_artifacts": objectValue(map[string]*commonpb.JsonValue{
+					"domHtml": stringValue("<main>Ready</main>"),
+					"viewport": objectValue(map[string]*commonpb.JsonValue{
+						"width":  intValue(390),
+						"height": intValue(844),
+					}),
+					"layout": objectValue(map[string]*commonpb.JsonValue{
+						"document": objectValue(map[string]*commonpb.JsonValue{
+							"scrollWidth":  intValue(460),
+							"scrollHeight": intValue(844),
+						}),
+					}),
+					"network": listValue([]*commonpb.JsonValue{
+						objectValue(map[string]*commonpb.JsonValue{
+							"url":          stringValue("https://example.test/logo.png"),
+							"method":       stringValue("GET"),
+							"resourceType": stringValue("image"),
+							"status":       intValue(404),
+						}),
 					}),
 				}),
-				"network": listValue([]*commonpb.JsonValue{
-					objectValue(map[string]*commonpb.JsonValue{
-						"url":          stringValue("https://example.test/logo.png"),
-						"method":       stringValue("GET"),
-						"resourceType": stringValue("image"),
-						"status":       intValue(404),
-					}),
-				}),
-			}),
-		}},
-	}}}
+			}},
+		},
+	}}
 	res := readTimeline(tl)
 	if res.domHTML != "<main>Ready</main>" {
 		t.Fatalf("domHTML = %q", res.domHTML)
@@ -242,6 +284,48 @@ func TestReadTimelineExtractsVisualArtifacts(t *testing.T) {
 	}
 	if len(res.network) != 1 || res.network[0].Status == nil || *res.network[0].Status != 404 {
 		t.Fatalf("network = %+v, want one 404 image entry", res.network)
+	}
+}
+
+func TestNetworkEntriesIgnoreResourceTimingWithoutFailureStatus(t *testing.T) {
+	entries := networkEntriesFromAny([]any{map[string]any{
+		"url":    "https://example.test/app.js",
+		"status": float64(0),
+	}})
+	if len(entries) != 0 {
+		t.Fatalf("status-less ResourceTiming entries must not become network failures: %+v", entries)
+	}
+}
+
+func TestReadTimelineExtractsVisualArtifactsFromEvaluateResult(t *testing.T) {
+	node := nodeArtifacts
+	tl := &bastimeline.ExecutionTimeline{Entries: []*bastimeline.TimelineEntry{
+		{
+			NodeId: &node,
+			Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
+				"result": visualArtifactsValue(),
+			}},
+		},
+	}}
+	res := readTimeline(tl)
+	if res.domHTML != "<main>Ready</main>" || res.layoutJSON == "" || res.viewportWidth != 390 || res.viewportHeight != 844 {
+		t.Fatalf("evaluate result artifacts were not extracted: %+v", res)
+	}
+}
+
+func TestReadTimelineExtractsVisualArtifactsFromAggregatePreview(t *testing.T) {
+	node := nodeArtifacts
+	tl := &bastimeline.ExecutionTimeline{Entries: []*bastimeline.TimelineEntry{
+		{
+			NodeId: &node,
+			Aggregates: &bastimeline.TimelineEntryAggregates{ExtractedDataPreview: objectValue(map[string]*commonpb.JsonValue{
+				"result": visualArtifactsValue(),
+			})},
+		},
+	}}
+	res := readTimeline(tl)
+	if res.domHTML != "<main>Ready</main>" || res.layoutJSON == "" || res.viewportWidth != 390 || res.viewportHeight != 844 {
+		t.Fatalf("aggregate preview artifacts were not extracted: %+v", res)
 	}
 }
 
@@ -297,27 +381,32 @@ func TestCheckHandshakeFails(t *testing.T) {
 	bas := &fakeBAS{res: &runResult{loaded: true, handshakeSignaled: false, handshakeError: "timeout"}}
 	r := newRunner("http://localhost:5173", nil, bas)
 	finds := r.Check(context.Background(), Input{Scenario: "demo"})
-	if len(finds) == 0 || finds[0].Code != "runtime_handshake_failed" {
-		t.Fatalf("want runtime_handshake_failed first, got %v", codes(finds))
+	handshake, found := findingForCode(finds, "runtime_handshake_failed")
+	if !found {
+		t.Fatalf("want runtime_handshake_failed, got %v", codes(finds))
 	}
-	if finds[0].Severity != manifestvalidation.SeverityError {
-		t.Fatalf("handshake failure must be an error, got %s", finds[0].Severity)
+	if handshake.Severity != manifestvalidation.SeverityError {
+		t.Fatalf("handshake failure must be an error, got %s", handshake.Severity)
 	}
-	if finds[0].Suggestion == "" {
+	if handshake.Suggestion == "" {
 		t.Fatal("handshake failure must carry remediation")
 	}
 }
 
 func TestCheckConsoleErrorsSurfaceAsWarningAlongsidePass(t *testing.T) {
-	bas := &fakeBAS{res: &runResult{
-		loaded:            true,
-		handshakeSignaled: true,
-		console:           []evidence.ConsoleEntry{{Level: "error", Message: "boom"}},
+	bas := &fakeBAS{run: func(_ context.Context, definition map[string]any) (*runResult, error) {
+		width, height := viewportFromDef(definition)
+		res := completeRuntimeResult(t, width, height)
+		res.console = []evidence.ConsoleEntry{{Level: "error", Message: "boom"}}
+		return res, nil
 	}}
 	r := newRunner("http://localhost:5173", nil, bas)
-	got := codes(r.Check(context.Background(), Input{Scenario: "demo"}))
-	if len(got) != 4 || got[0] != "runtime_render_ok" || got[1] != "runtime_console_errors" ||
-		got[2] != "runtime_render_ok" || got[3] != "runtime_console_errors" {
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	got := codes(finds)
+	if _, found := findingForCode(finds, "runtime_evidence_incomplete"); found {
+		t.Fatalf("complete evidence must not be marked incomplete, got %v", got)
+	}
+	if len(got) != 4 || got[0] != "runtime_render_ok" || got[1] != "runtime_console_errors" || got[2] != "runtime_render_ok" || got[3] != "runtime_console_errors" {
 		t.Fatalf("want [runtime_render_ok runtime_console_errors], got %v", got)
 	}
 }
@@ -359,18 +448,57 @@ func solidPNG(t *testing.T, w, h int, c color.Color) []byte {
 	return buf.Bytes()
 }
 
+func patternedPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			if (x/8+y/8)%2 == 0 {
+				img.Set(x, y, color.RGBA{R: 12, G: 34, B: 56, A: 255})
+			} else {
+				img.Set(x, y, color.RGBA{R: 234, G: 179, B: 8, A: 255})
+			}
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode patterned PNG: %v", err)
+	}
+	return buf.Bytes()
+}
+
 func hasViewportDef(defs []map[string]any, width, height int) bool {
 	for _, def := range defs {
 		settings, ok := def["settings"].(map[string]any)
 		if !ok {
 			continue
 		}
-		viewport, ok := settings["viewport"].(map[string]any)
-		if ok && viewport["width"] == width && viewport["height"] == height {
+		if settings["viewport_width"] == width && settings["viewport_height"] == height {
 			return true
 		}
 	}
 	return false
+}
+
+func completeRuntimeResult(t *testing.T, width, height int) *runResult {
+	t.Helper()
+	return &runResult{
+		loaded:            true,
+		handshakeSignaled: true,
+		screenshotPNG:     patternedPNG(t, 80, 60),
+		screenshotRef:     "captured",
+		domHTML:           "<main>Ready</main>",
+		layoutJSON:        `{"document":{"scrollWidth":80,"scrollHeight":60},"elements":[]}`,
+		viewportWidth:     int32(width),
+		viewportHeight:    int32(height),
+	}
+}
+
+func viewportFromDef(def map[string]any) (int, int) {
+	settings, _ := def["settings"].(map[string]any)
+	width, _ := settings["viewport_width"].(int)
+	height, _ := settings["viewport_height"].(int)
+	return width, height
 }
 
 func stringValue(v string) *commonpb.JsonValue {
@@ -387,4 +515,20 @@ func objectValue(fields map[string]*commonpb.JsonValue) *commonpb.JsonValue {
 
 func listValue(values []*commonpb.JsonValue) *commonpb.JsonValue {
 	return &commonpb.JsonValue{Kind: &commonpb.JsonValue_ListValue{ListValue: &commonpb.JsonList{Values: values}}}
+}
+
+func visualArtifactsValue() *commonpb.JsonValue {
+	return objectValue(map[string]*commonpb.JsonValue{
+		"domHtml": stringValue("<main>Ready</main>"),
+		"viewport": objectValue(map[string]*commonpb.JsonValue{
+			"width":  intValue(390),
+			"height": intValue(844),
+		}),
+		"layout": objectValue(map[string]*commonpb.JsonValue{
+			"document": objectValue(map[string]*commonpb.JsonValue{
+				"scrollWidth":  intValue(390),
+				"scrollHeight": intValue(844),
+			}),
+		}),
+	})
 }

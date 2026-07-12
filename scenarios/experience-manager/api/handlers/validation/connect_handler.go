@@ -316,15 +316,14 @@ func protoAttestation(a attestation.Attestation) *contractv1.ManualAttestation {
 }
 
 func (h *connectHandler) sharedStatus(findings []spec.Finding) scenariovalidationv1.ValidationStatus {
-	if strings.EqualFold(strings.TrimSpace(h.deps.Env.Getenv("EXPERIENCE_ALIGNMENT_GATE")), "strict") {
-		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
-	}
-	// The shared provider remains advisory by default: native experience
-	// findings still render in the report, but Test Genie does not fail the
-	// phase unless EXPERIENCE_ALIGNMENT_GATE=strict opts into enforcement.
+	// Validation truth is independent from Test Genie's gate policy. Returning
+	// PASSED for a required error made the provider success-shaped and prevented
+	// downstream operators from seeing a failed experience contract. Consumers
+	// may classify this failure as advisory/non-gating, but they must not rewrite
+	// the provider's underlying truth.
 	for _, finding := range findings {
 		if finding.Severity == spec.SeverityError {
-			return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+			return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
 		}
 	}
 	return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED

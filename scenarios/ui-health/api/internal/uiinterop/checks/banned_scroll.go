@@ -1,23 +1,23 @@
 /*
 Rule: Banned Imperative Scroll
 ID: interop_banned_scroll
-Description: Flag direct imperative scrolling calls (element.scrollIntoView(...),
-  window.scrollTo(...)) in UI source. Inside the Vrooli host frame these fight
-  the spatial-navigation focus manager and can scroll the wrong (outer)
-  viewport. This is a report-only advisory — there is no safe automatic rewrite.
-Why: When the scenario UI runs embedded in the host iframe, imperative scroll
-  calls operate on the iframe's own scroll position and frequently conflict
-  with spatial navigation, which moves focus and brings elements into view via
-  the bridge. Surfacing these calls lets authors decide whether to route the
-  intent through spatial focus instead.
+Description: Flag cross-boundary imperative scrolling calls
+  (element.scrollIntoView(...), window.scrollTo(...)) in UI source. Inside the
+  Vrooli host frame these can scroll the wrong viewport or fight the
+  spatial-navigation focus manager. Scoped scroll-container scrollTo() is an
+  allowed remediation when that container owns the region's scrolling.
+Why: When the scenario UI runs embedded in the host iframe, global scrolling
+  can move the document rather than the intended region. A named local scroller
+  is structurally safe; it must not be reported as banned merely because it is
+  imperative.
 Category: interop
 Severity: low
 Slot: [D]
 SlotFile: ui/src
 TechStack: React
 Recommendation: Prefer moving focus (which spatial navigation scrolls into
-  view) over calling scrollIntoView()/window.scrollTo() directly; if a manual
-  scroll is genuinely required, confirm it targets the in-frame element.
+  view) over cross-boundary scrollIntoView()/window.scrollTo(). For restoration
+  or panel navigation, call scrollTo() only on the explicitly owned container.
 Standard: vrooli-ui-interop-v1
 
 GoodExample:
@@ -50,6 +50,18 @@ BadExample:
   <expected-violations>1</expected-violations>
   <expected-message>scrollIntoView</expected-message>
 </test-case>
+
+<test-case id="scoped-container-scroll-to" should-fail="false">
+  <description>A named panel scroller may restore its own position</description>
+  <input>
+    [ui/src/FileList.tsx]
+    export function FileList() {
+      const panel = { scrollTo: (_options: { top: number }) => undefined };
+      panel.scrollTo({ top: 40 });
+      return null;
+    }
+  </input>
+</test-case>
 */
 
 package checks
@@ -65,7 +77,7 @@ func init() {
 	uiinterop.Register("interop_banned_scroll", checkBannedScroll)
 }
 
-var bannedScrollMarkers = []string{".scrollIntoView(", "window.scrollTo(", ".scrollTo("}
+var bannedScrollMarkers = []string{".scrollIntoView(", "window.scrollTo("}
 
 func checkBannedScroll(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_banned_scroll"
@@ -95,10 +107,10 @@ func checkBannedScroll(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 				RuleID:         ruleID,
 				Severity:       "low",
 				Title:          "Imperative scroll call inside UI",
-				Description:    f.RelPath + " calls " + call + " imperative scrolling fights spatial navigation inside the host frame",
+				Description:    f.RelPath + " calls cross-boundary " + call + " scrolling inside the host frame",
 				FilePath:       f.RelPath,
 				Line:           lineOf(f.Content, marker),
-				Recommendation: "Prefer moving focus (spatial navigation scrolls it into view) over calling " + call + " directly",
+				Recommendation: "Prefer moving focus (spatial navigation scrolls it into view) over cross-boundary " + call + "; scoped container scrollTo() is allowed for owned regions",
 			})
 		}
 	}

@@ -310,6 +310,12 @@ func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
 			}
 		case nodeArtifacts:
 			r.applyVisualArtifacts(e.GetContext().GetExtractedData())
+			// The persisted execution writer keeps an extracted-data preview in
+			// aggregates even when the live context is compacted. Runtime evidence
+			// must consume that durable representation as well.
+			if e.GetAggregates().GetExtractedDataPreview() != nil {
+				r.applyVisualArtifactValue(e.GetAggregates().GetExtractedDataPreview())
+			}
 		}
 	}
 	if !handshakeSeen {
@@ -331,9 +337,29 @@ func (r *runResult) applyVisualArtifacts(values map[string]*commonpb.JsonValue) 
 	if r == nil || len(values) == 0 {
 		return
 	}
-	payload, ok := jsonValueToAny(values["visual_artifacts"]).(map[string]any)
+	// BAS returns an evaluate result under "result" in the node timeline. A
+	// storeResult key additionally makes it available to later workflow nodes,
+	// but does not rewrite the node's extracted-data envelope. Accept both forms
+	// so the artifact contract survives BAS versions that materialize either one.
+	raw := values["visual_artifacts"]
+	if raw == nil {
+		raw = values["result"]
+	}
+	r.applyVisualArtifactValue(raw)
+}
+
+func (r *runResult) applyVisualArtifactValue(raw *commonpb.JsonValue) {
+	if r == nil || raw == nil {
+		return
+	}
+	payload, ok := jsonValueToAny(raw).(map[string]any)
 	if !ok {
 		return
+	}
+	if nested, ok := payload["visual_artifacts"].(map[string]any); ok {
+		payload = nested
+	} else if nested, ok := payload["result"].(map[string]any); ok {
+		payload = nested
 	}
 	if dom, ok := payload["domHtml"].(string); ok {
 		r.domHTML = dom
@@ -394,15 +420,22 @@ func networkEntriesFromAny(values []any) []evidence.NetworkEntry {
 			continue
 		}
 		var status *int
-		if n := int(numberFromAny(m["status"])); n > 0 {
+		if n := int(numberFromAny(m["status"])); n >= 400 {
 			status = &n
+		}
+		errorText := stringFromAny(m["errorText"])
+		// ResourceTiming exposes successful resources but not HTTP response
+		// status. Do not turn those status=0 observations into failures; real
+		// failures arrive from BAS network telemetry with a 4xx/5xx or error text.
+		if status == nil && strings.TrimSpace(errorText) == "" {
+			continue
 		}
 		out = append(out, evidence.NetworkEntry{
 			URL:          stringFromAny(m["url"]),
 			Method:       stringFromAny(m["method"]),
 			ResourceType: stringFromAny(m["resourceType"]),
 			Status:       status,
-			ErrorText:    stringFromAny(m["errorText"]),
+			ErrorText:    errorText,
 		})
 	}
 	return out

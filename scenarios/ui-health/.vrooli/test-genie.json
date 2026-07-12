@@ -1115,25 +1115,59 @@
       },
       "runtime_skipped_ui_unavailable": {
         "capability_id": "runtime_render",
-        "local_level_impact": "L3",
+        "local_level_impact": "L0",
         "global_impact": "advisory",
         "dimension": "ui",
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
           "ux"
         ],
-        "clean_requirement": "advisory"
+        "clean_requirement": "required"
       },
       "runtime_skipped_bas_unavailable": {
         "capability_id": "runtime_render",
-        "local_level_impact": "L3",
+        "local_level_impact": "L0",
         "global_impact": "advisory",
         "dimension": "ui",
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
           "ux"
         ],
-        "clean_requirement": "advisory"
+        "clean_requirement": "required"
+      },
+      "runtime_not_evaluated_static_only": {
+        "capability_id": "runtime_render",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "runtime_not_evaluated_unconfigured": {
+        "capability_id": "runtime_render",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "runtime_evidence_incomplete": {
+        "capability_id": "runtime_render",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "ui-health",
+          "browser-automation-studio"
+        ],
+        "clean_requirement": "required"
       },
       "standard_i18n_locale_parity": {
         "capability_id": "project_standards",

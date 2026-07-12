@@ -6,8 +6,10 @@ import { renderWithQueryClient } from "../test-utils";
 import { FileList } from "./FileList";
 import type { FileListProps } from "./FileListTypes";
 
+const mobile = vi.hoisted(() => ({ enabled: false }));
+
 vi.mock("../hooks", () => ({
-  useIsMobile: () => false,
+  useIsMobile: () => mobile.enabled,
   useLongPress: () => ({}),
 }));
 
@@ -150,6 +152,48 @@ describe("FileList", () => {
     Object.defineProperty(scrollEl, "scrollTop", { configurable: true, value: 240 });
     fireEvent.scroll(scrollEl);
     expect(store.current).toBe(240);
+  });
+
+  it("restores the owned Changes scroller after the panel remounts", () => {
+    const store = { current: 240 } as React.MutableRefObject<number>;
+    const frames: FrameRequestCallback[] = [];
+    const originalRAF = window.requestAnimationFrame;
+    const originalCancelRAF = window.cancelAnimationFrame;
+    window.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    window.cancelAnimationFrame = vi.fn();
+
+    try {
+      const { container } = renderFileList({ scrollTopStore: store });
+      const scrollEl = container.querySelector("div.overflow-auto") as HTMLDivElement;
+      scrollEl.scrollTo = vi.fn();
+
+      frames.shift()?.(0);
+      frames.shift()?.(0);
+
+      expect(scrollEl.scrollTo).toHaveBeenCalledWith({ top: 240, behavior: "auto" });
+    } finally {
+      window.requestAnimationFrame = originalRAF;
+      window.cancelAnimationFrame = originalCancelRAF;
+    }
+  });
+
+  it("keeps the mobile selection toolbar in the owned Changes scroller", () => {
+    mobile.enabled = true;
+    try {
+      const { container } = renderFileList({
+        mobileSelectionMode: true,
+        selectedFiles: [{ path: "src/changed.ts", staged: false }],
+      });
+      const scrollRegion = screen.getByTestId("changes-scroll-region");
+      const toolbar = screen.getByTestId("mobile-selection-toolbar");
+      expect(scrollRegion).toContainElement(toolbar);
+      expect(container.querySelector("[data-testid=mobile-selection-toolbar].sticky")).toBeNull();
+    } finally {
+      mobile.enabled = false;
+    }
   });
 
   it("shows clean working tree copy when no files changed", () => {

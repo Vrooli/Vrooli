@@ -190,6 +190,19 @@ func TestAnalyzeReportsOffscreenInteractive(t *testing.T) {
 	assertFindingCodes(t, resp, "visual_offscreen_interactive")
 }
 
+func TestAnalyzeAllowsInteractiveControlsInsideOwnedScrollContainers(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "layout",
+		Viewport:   &visualpb.Viewport{Width: 360, Height: 640},
+		LayoutJson: `{"document":{"scrollWidth":360,"scrollHeight":640},"elements":[{"selector":"#later","tag":"button","inScrollContainer":true,"rect":{"x":20,"y":800,"width":80,"height":32}}]}`,
+	}}})
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_offscreen_interactive" {
+			t.Fatalf("owned scroll content must not be reported as unreachable: %+v", resp.GetFindings())
+		}
+	}
+}
+
 func TestAnalyzeReportsClippedText(t *testing.T) {
 	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
 		StepId:     "layout",

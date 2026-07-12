@@ -138,11 +138,31 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
 	execMetrics := collector.Stop()
-	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil, execMetrics)
+	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil, execMetrics, assessment.WithValidationStatus(h.sharedStatus(report.Findings)))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// sharedStatus reports provider truth independently from Test Genie's gate
+// policy. Runtime infrastructure/incomplete evidence is degraded rather than a
+// source failure, but it must never be rendered as a clean validation pass.
+func (h *connectHandler) sharedStatus(findings []manifestvalidation.Finding) scenariovalidationv1.ValidationStatus {
+	degraded := false
+	for _, finding := range findings {
+		if finding.Severity == manifestvalidation.SeverityError {
+			return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+		}
+		switch finding.Code {
+		case "runtime_evidence_incomplete", "runtime_not_evaluated_static_only", "runtime_not_evaluated_unconfigured", "runtime_skipped_ui_unavailable", "runtime_skipped_bas_unavailable":
+			degraded = true
+		}
+	}
+	if degraded {
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+	}
+	return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
 }
 
 func buildMaturityAssessment(rep manifestvalidation.Report, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {

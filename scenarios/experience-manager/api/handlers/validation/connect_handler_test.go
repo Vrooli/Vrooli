@@ -59,10 +59,10 @@ func TestSharedValidateScenarioHonorsExperienceGate(t *testing.T) { // [REQ:EXPE
 		Scenario: "demo",
 	}))
 	if err != nil {
-		t.Fatalf("ValidateScenario advisory: %v", err)
+		t.Fatalf("ValidateScenario: %v", err)
 	}
-	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
-		t.Fatalf("advisory status = %s, want PASSED", got)
+	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		t.Fatalf("required error status = %s, want FAILED", got)
 	}
 
 	t.Setenv("EXPERIENCE_ALIGNMENT_GATE", "strict")
@@ -70,10 +70,10 @@ func TestSharedValidateScenarioHonorsExperienceGate(t *testing.T) { // [REQ:EXPE
 		Scenario: "demo",
 	}))
 	if err != nil {
-		t.Fatalf("ValidateScenario strict: %v", err)
+		t.Fatalf("ValidateScenario with legacy gate env: %v", err)
 	}
 	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
-		t.Fatalf("strict status = %s, want FAILED", got)
+		t.Fatalf("legacy gate env must not rewrite validation truth; status = %s, want FAILED", got)
 	}
 }
 

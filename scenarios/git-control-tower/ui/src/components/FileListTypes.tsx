@@ -1,4 +1,4 @@
-import { createContext } from "react";
+import { createContext, useContext } from "react";
 import { Plus, Minus } from "lucide-react";
 import type { DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
 
@@ -203,6 +203,7 @@ export function LineStats({
   compact?: boolean;
   onClick?: (e: React.MouseEvent) => void;
 }) {
+  const isMobile = useContext(MobileContext);
   if (!hasLineStats(stats)) return null;
   const textSize = compact ? "text-[11px]" : "text-xs";
   const iconSize = compact ? "h-3 w-3" : "h-3.5 w-3.5";
@@ -222,7 +223,7 @@ export function LineStats({
     return (
       <button
         type="button"
-        className={`flex items-center gap-2 ${textSize} hover:underline decoration-slate-600 cursor-pointer`}
+        className={`flex items-center gap-2 ${textSize} hover:underline decoration-slate-600 cursor-pointer ${isMobile ? "min-h-11" : ""}`}
         onClick={(e) => {
           e.stopPropagation();
           onClick(e);
@@ -267,4 +268,3 @@ export function getStatusBadge(code: string | undefined, category: FileCategory)
 
   return { label: "M", style: statusStyleMap.M };
 }
-

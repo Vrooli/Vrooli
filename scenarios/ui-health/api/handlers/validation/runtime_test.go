@@ -55,7 +55,7 @@ func TestStaticOnlySkipsCodeFactsAndRuntime(t *testing.T) {
 	rt := &spyRuntime{}
 	h, desc := newGatingHandler(codefacts.Facts{HasUI: true, Framework: "react-vite"}, rt)
 
-	_, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario:         "demo",
 		IncludeExecution: false,
 	}))
@@ -67,6 +67,12 @@ func TestStaticOnlySkipsCodeFactsAndRuntime(t *testing.T) {
 	}
 	if rt.calls != 0 {
 		t.Fatalf("static-only must not run the runtime group, got %d call(s)", rt.calls)
+	}
+	if !hasAssessmentFinding(resp.Msg, "runtime_not_evaluated_static_only") {
+		t.Fatal("static-only validation must explicitly report that runtime render was not evaluated")
+	}
+	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED {
+		t.Fatalf("static-only status = %s, want DEGRADED", got)
 	}
 }
 
@@ -133,7 +139,7 @@ func TestExecutionSkipsRuntimeWhenNoUI(t *testing.T) {
 func TestExecutionWithoutRuntimeCheckerIsStatic(t *testing.T) {
 	h, desc := newGatingHandler(codefacts.Facts{HasUI: true}, nil)
 
-	_, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario:         "demo",
 		IncludeExecution: true,
 	}))
@@ -143,4 +149,19 @@ func TestExecutionWithoutRuntimeCheckerIsStatic(t *testing.T) {
 	if desc.calls != 0 {
 		t.Fatalf("with no runtime checker wired, Code Facts must not be consulted, got %d", desc.calls)
 	}
+	if !hasAssessmentFinding(resp.Msg, "runtime_not_evaluated_unconfigured") {
+		t.Fatal("an execution request without a runtime collector must explicitly report it as not evaluated")
+	}
+	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED {
+		t.Fatalf("unconfigured runtime status = %s, want DEGRADED", got)
+	}
+}
+
+func hasAssessmentFinding(resp *scenariovalidationv1.ValidateScenarioResponse, code string) bool {
+	for _, finding := range resp.GetAssessment().GetFindings() {
+		if finding.GetCode() == code {
+			return true
+		}
+	}
+	return false
 }

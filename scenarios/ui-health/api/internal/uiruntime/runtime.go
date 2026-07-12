@@ -169,8 +169,51 @@ func (r *Runner) checkProfile(ctx context.Context, url string, index int, profil
 	ev := res.evidenceFor(url)
 	visualFinds := applyVisualHealth(&ev, res.visualStep(url, profile.id))
 	finds := findingsFromEvidence(ev, profile.id)
+	if missing := missingEvidenceArtifacts(res, profile); len(missing) > 0 {
+		finds = append([]manifestvalidation.Finding{evidenceIncompleteFinding(url, profile.id, missing)}, finds...)
+	}
 	finds = append(finds, visualFinds...)
 	return profileResult{index: index, findings: finds}
+}
+
+// missingEvidenceArtifacts defines the evidence floor for a runtime render
+// claim. A successful handshake proves only that the iframe booted; it cannot
+// prove a rendered mobile or desktop surface was actually inspected.
+func missingEvidenceArtifacts(res *runResult, profile viewportProfile) []string {
+	if res == nil {
+		return []string{"runtime result"}
+	}
+	missing := make([]string, 0, 5)
+	if len(res.screenshotPNG) == 0 {
+		missing = append(missing, "downloadable screenshot")
+	}
+	if strings.TrimSpace(res.domHTML) == "" {
+		missing = append(missing, "DOM snapshot")
+	}
+	if strings.TrimSpace(res.layoutJSON) == "" {
+		missing = append(missing, "layout snapshot")
+	}
+	if res.viewportWidth != int32(profile.width) || res.viewportHeight != int32(profile.height) {
+		missing = append(missing, "viewport provenance")
+	}
+	if !res.handshakeSignaled {
+		missing = append(missing, "interaction/handshake evidence")
+	}
+	return missing
+}
+
+func evidenceIncompleteFinding(url, profileID string, missing []string) manifestvalidation.Finding {
+	profileSuffix := ""
+	if profileID != "" {
+		profileSuffix = " [" + profileID + "]"
+	}
+	return manifestvalidation.Finding{
+		Severity:   manifestvalidation.SeverityInfo,
+		Code:       "runtime_evidence_incomplete",
+		Location:   url,
+		Message:    fmt.Sprintf("runtime render evidence is incomplete%s: missing %s", profileSuffix, strings.Join(missing, ", ")),
+		Suggestion: "Repair the Browser Automation Studio artifact channel and rerun execution-enabled validation; incomplete runtime evidence is not a visual pass.",
+	}
 }
 
 func appendRuntimeSkip(findings []manifestvalidation.Finding, location string, err error) []manifestvalidation.Finding {

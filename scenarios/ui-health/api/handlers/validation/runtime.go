@@ -11,17 +11,31 @@ import (
 // runtimeFindings runs the runtime/render group when execution is requested and
 // applicable, returning any findings to fold into the single report.
 //
-// It is a no-op (nil findings) when:
-//   - staticOnly is set (the caller asked for static checks only — no BAS, no
-//     auto-start);
-//   - no runtime Checker is wired;
-//   - the scenario has no UI surface (nothing to render).
+// A skipped collector is never a runtime success. Static-only and unconfigured
+// execution paths therefore return an explicit not-evaluated observation. This
+// preserves the zero-BAS property of static validation while preventing maturity
+// from treating an absent runtime group as a clean render.
 //
 // Code Facts is consulted only on the execution path, so a `--static-only`
 // validation makes zero calls to Code Facts or BAS.
 func (h *connectHandler) runtimeFindings(ctx context.Context, scenario, scenarioDir string, staticOnly bool) []manifestvalidation.Finding {
-	if staticOnly || h.deps.Runtime == nil {
-		return nil
+	if staticOnly {
+		return []manifestvalidation.Finding{{
+			Severity:   manifestvalidation.SeverityInfo,
+			Code:       "runtime_not_evaluated_static_only",
+			Location:   scenarioDir,
+			Message:    "runtime render was not evaluated because this validation was requested in static-only mode",
+			Suggestion: "Run validation with execution enabled to collect desktop and mobile screenshot, DOM, layout, viewport, and interaction evidence.",
+		}}
+	}
+	if h.deps.Runtime == nil {
+		return []manifestvalidation.Finding{{
+			Severity:   manifestvalidation.SeverityInfo,
+			Code:       "runtime_not_evaluated_unconfigured",
+			Location:   scenarioDir,
+			Message:    "runtime render was not evaluated because no runtime evidence collector is configured",
+			Suggestion: "Configure Browser Automation Studio runtime collection before treating runtime render maturity as complete.",
+		}}
 	}
 	facts := h.describeFacts(ctx, scenario, scenarioDir)
 	if !facts.HasUI {

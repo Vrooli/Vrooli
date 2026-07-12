@@ -106,6 +106,33 @@
       "viewports": ["mobile"]
     },
     {
+      "id": "gct-mobile-001-viewport-fill",
+      "type": "viewport-fill",
+      "statement": "The embedded mobile workspace fills the captured viewport through the app shell rather than collapsing to content height.",
+      "tier": "machine",
+      "elements": ["workspace-root"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-mobile-002-006-chrome-pinned",
+      "type": "chrome-pinned",
+      "statement": "Mobile header and bottom navigation stay inside the viewport as structural chrome without overlapping the active panel.",
+      "tier": "machine",
+      "elements": ["mobile-header", "mobile-nav"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-mobile-006-safe-area-tap-targets",
+      "type": "safe-area-tap-targets",
+      "statement": "Mobile navigation controls remain tappable above device-edge safe-area zones.",
+      "tier": "machine",
+      "elements": ["mobile-nav", "mobile-changes-tab", "mobile-diff-tab", "mobile-commit-tab", "mobile-history-tab", "mobile-review-tab"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
       "id": "desktop-panels-resizable",
       "type": "custom",
       "statement": "Desktop support panels can be resized and rearranged without unmounting the active diff.",

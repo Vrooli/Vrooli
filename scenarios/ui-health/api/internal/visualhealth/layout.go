@@ -47,30 +47,31 @@ func (c chromeIntent) empty() bool {
 }
 
 type layoutElement struct {
-	Selector        string
-	Tag             string
-	Role            string
-	Text            string
-	Type            string
-	X               float64
-	Y               float64
-	Width           float64
-	Height          float64
-	ClientWidth     float64
-	ClientHeight    float64
-	ScrollWidth     float64
-	ScrollHeight    float64
-	FontSize        float64
-	Position        string
-	OverflowX       string
-	OverflowY       string
-	PointerEvents   string
-	Visibility      string
-	Display         string
-	Opacity         float64
-	AriaModal       bool
-	Interactive     bool
-	ContentEditable bool
+	Selector          string
+	Tag               string
+	Role              string
+	Text              string
+	Type              string
+	X                 float64
+	Y                 float64
+	Width             float64
+	Height            float64
+	ClientWidth       float64
+	ClientHeight      float64
+	ScrollWidth       float64
+	ScrollHeight      float64
+	FontSize          float64
+	Position          string
+	OverflowX         string
+	OverflowY         string
+	PointerEvents     string
+	Visibility        string
+	Display           string
+	Opacity           float64
+	AriaModal         bool
+	Interactive       bool
+	ContentEditable   bool
+	InScrollContainer bool
 }
 
 func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding, []*visualpb.VisualMetric) {
@@ -117,7 +118,7 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 		if !el.visible() {
 			continue
 		}
-		if el.isInteractive() && snap.hasViewport() && el.offscreen(snap) {
+		if el.isInteractive() && !el.InScrollContainer && snap.hasViewport() && el.offscreen(snap) {
 			findings = append(findings, &visualpb.VisualFinding{
 				Code:        "visual_offscreen_interactive",
 				Severity:    severityError,
@@ -262,30 +263,31 @@ func parseLayoutElement(m map[string]any) layoutElement {
 		rect = m
 	}
 	return layoutElement{
-		Selector:        firstString(m, "selector", "id", "path"),
-		Tag:             strings.ToLower(firstString(m, "tag", "tagName", "nodeName")),
-		Role:            strings.ToLower(firstString(m, "role")),
-		Text:            strings.TrimSpace(firstString(m, "text", "innerText", "label")),
-		Type:            strings.ToLower(firstString(m, "type")),
-		X:               firstNumber(rect, "x", "left"),
-		Y:               firstNumber(rect, "y", "top"),
-		Width:           firstNumber(rect, "width", "clientWidth"),
-		Height:          firstNumber(rect, "height", "clientHeight"),
-		ClientWidth:     firstNumber(m, "clientWidth"),
-		ClientHeight:    firstNumber(m, "clientHeight"),
-		ScrollWidth:     firstNumber(m, "scrollWidth"),
-		ScrollHeight:    firstNumber(m, "scrollHeight"),
-		FontSize:        firstNumber(m, "fontSize", "fontSizePx"),
-		Position:        strings.ToLower(firstString(m, "position")),
-		OverflowX:       strings.ToLower(firstString(m, "overflowX", "overflow")),
-		OverflowY:       strings.ToLower(firstString(m, "overflowY", "overflow")),
-		PointerEvents:   strings.ToLower(firstString(m, "pointerEvents")),
-		Visibility:      strings.ToLower(firstString(m, "visibility")),
-		Display:         strings.ToLower(firstString(m, "display")),
-		Opacity:         numberDefault(m, 1, "opacity"),
-		AriaModal:       boolValue(m, "ariaModal", "aria-modal"),
-		Interactive:     boolValue(m, "interactive", "focusable"),
-		ContentEditable: boolValue(m, "contentEditable", "isContentEditable"),
+		Selector:          firstString(m, "selector", "id", "path"),
+		Tag:               strings.ToLower(firstString(m, "tag", "tagName", "nodeName")),
+		Role:              strings.ToLower(firstString(m, "role")),
+		Text:              strings.TrimSpace(firstString(m, "text", "innerText", "label")),
+		Type:              strings.ToLower(firstString(m, "type")),
+		X:                 firstNumber(rect, "x", "left"),
+		Y:                 firstNumber(rect, "y", "top"),
+		Width:             firstNumber(rect, "width", "clientWidth"),
+		Height:            firstNumber(rect, "height", "clientHeight"),
+		ClientWidth:       firstNumber(m, "clientWidth"),
+		ClientHeight:      firstNumber(m, "clientHeight"),
+		ScrollWidth:       firstNumber(m, "scrollWidth"),
+		ScrollHeight:      firstNumber(m, "scrollHeight"),
+		FontSize:          firstNumber(m, "fontSize", "fontSizePx"),
+		Position:          strings.ToLower(firstString(m, "position")),
+		OverflowX:         strings.ToLower(firstString(m, "overflowX", "overflow")),
+		OverflowY:         strings.ToLower(firstString(m, "overflowY", "overflow")),
+		PointerEvents:     strings.ToLower(firstString(m, "pointerEvents")),
+		Visibility:        strings.ToLower(firstString(m, "visibility")),
+		Display:           strings.ToLower(firstString(m, "display")),
+		Opacity:           numberDefault(m, 1, "opacity"),
+		AriaModal:         boolValue(m, "ariaModal", "aria-modal"),
+		Interactive:       boolValue(m, "interactive", "focusable"),
+		ContentEditable:   boolValue(m, "contentEditable", "isContentEditable"),
+		InScrollContainer: boolValue(m, "inScrollContainer", "insideScrollContainer"),
 	}
 }
 
