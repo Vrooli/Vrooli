@@ -308,6 +308,32 @@ describe('BrowserManager', () => {
         args: ['--no-sandbox', '--disable-gpu'],
       });
     });
+
+    it('enables Chromium real fake-media capture only for an explicit fixture', async () => {
+      const fixtureConfig = {
+        browser: {
+          headless: false,
+          executablePath: undefined,
+          args: ['--headless=new'],
+          ignoreHTTPSErrors: false,
+          fakeMicrophoneFile: '/fixtures/speech.wav',
+        },
+      } as unknown as Config;
+      const fixtureManager = new BrowserManager(fixtureConfig);
+
+      await fixtureManager.getBrowser();
+
+      expect((chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls[0]?.[0]).toEqual({
+        headless: false,
+        executablePath: undefined,
+        args: [
+          '--headless=new',
+          '--use-fake-device-for-media-stream',
+          '--use-fake-ui-for-media-stream',
+          '--use-file-for-fake-audio-capture=/fixtures/speech.wav',
+        ],
+      });
+    });
   });
 
   describe('shutdown', () => {

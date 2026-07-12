@@ -67,6 +67,52 @@ func TestBind_JSONFile_PopulatesFlowDefinition(t *testing.T) {
 	}
 }
 
+func TestBind_JSONFile_NormalizesSchemaWorkflowDefinition(t *testing.T) {
+	flowJSON := []byte(`{
+        "metadata": {"execution_mode": "observer"},
+        "settings": {"executionViewport": {"width": 390, "height": 844}},
+        "nodes": [{"id":"open","type":"navigate","data":{"destinationType":"scenario","scenario":"git-control-tower","scenarioPath":"/","waitUntil":"networkidle"}},{"id":"visible","type":"assert","data":{"selector":"[data-testid=mobile-nav]","assertMode":"visible"}}],
+        "edges": []
+    }`)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "flow.json")
+	if err := os.WriteFile(path, flowJSON, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "flow-file", Bind: cliapp.FlagBind{Field: "flow_definition", Kind: "json_file"}},
+	}}
+	rc := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Schema: schema,
+		Flags:  map[string]string{"flow-file": path},
+	})
+
+	req := &apiv1.CreateWorkflowRequest{}
+	dyn := dynamicpb.NewMessage(req.ProtoReflect().Descriptor())
+	if err := hydrateFromContext(rc, req.ProtoReflect().Descriptor(), dyn); err != nil {
+		t.Fatalf("schema-shaped workflow file must decode: %v", err)
+	}
+
+	out, err := protojson.Marshal(dyn)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	for _, want := range []string{
+		`"executionMode":"EXECUTION_MODE_OBSERVER"`,
+		`"viewportWidth":390`,
+		`"viewportHeight":844`,
+		`"destinationType":"NAVIGATE_DESTINATION_TYPE_SCENARIO"`,
+		`"waitUntil":"NAVIGATE_WAIT_EVENT_NETWORKIDLE"`,
+		`"mode":"ASSERTION_MODE_VISIBLE"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("normalized workflow missing %s: %s", want, got)
+		}
+	}
+}
+
 func TestBind_JSONInline_PopulatesArguments(t *testing.T) {
 	// tools execute --args '{"k":"v"}' — both --args (inline) and
 	// --args-file (file) target the same proto field; protodispatch

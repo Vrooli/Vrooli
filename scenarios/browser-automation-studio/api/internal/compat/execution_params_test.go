@@ -121,8 +121,8 @@ func TestNormalizeNodeV1ToV2_NavigateNode(t *testing.T) {
 	if navigate["url"] != "http://example.com" {
 		t.Errorf("expected url 'http://example.com', got %v", navigate["url"])
 	}
-	if navigate["waitUntil"] != "networkidle" {
-		t.Errorf("expected waitUntil 'networkidle', got %v", navigate["waitUntil"])
+	if navigate["wait_until"] != "NAVIGATE_WAIT_EVENT_NETWORKIDLE" {
+		t.Errorf("expected normalized wait event, got %v", navigate["wait_until"])
 	}
 }
 
@@ -177,8 +177,8 @@ func TestNormalizeNodeV1ToV2_AssertNode(t *testing.T) {
 	if assertParams["selector"] != "[data-testid='dashboard']" {
 		t.Errorf("expected selector, got %v", assertParams["selector"])
 	}
-	if assertParams["assertMode"] != "exists" {
-		t.Errorf("expected assertMode 'exists', got %v", assertParams["assertMode"])
+	if assertParams["mode"] != "ASSERTION_MODE_EXISTS" {
+		t.Errorf("expected normalized assertion mode, got %v", assertParams["mode"])
 	}
 }
 

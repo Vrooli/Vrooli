@@ -120,6 +120,12 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 
 	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
+	if projectRoot == "" {
+		projectRoot, err = executionProjectRoot(ctx, s.repo, workflowID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve workflow project root: %w", err)
+		}
+	}
 	if err := validateSeedRequirements(workflowSummary.FlowDefinition, initialStore, initialParams, env); err != nil {
 		return nil, err
 	}
@@ -236,6 +242,34 @@ func (s *WorkflowService) resolveWorkflowForExecution(ctx context.Context, workf
 		return nil, fmt.Errorf("workflow %s not found", workflowID)
 	}
 	return getResp.Workflow, nil
+}
+
+// executionProjectCatalog is the narrow persistence seam needed to locate the
+// selector manifest root for a persisted workflow execution.
+type executionProjectCatalog interface {
+	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.WorkflowIndex, error)
+	GetProject(ctx context.Context, id uuid.UUID) (*database.ProjectIndex, error)
+}
+
+// executionProjectRoot returns the persisted workflow's project directory.
+// Explicit execution parameters still win; this is the safe default for
+// ordinary project-backed workflow runs, including CLI executions.
+func executionProjectRoot(ctx context.Context, catalog executionProjectCatalog, workflowID uuid.UUID) (string, error) {
+	index, err := catalog.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return "", err
+	}
+	if index == nil || index.ProjectID == nil {
+		return "", nil
+	}
+	project, err := catalog.GetProject(ctx, *index.ProjectID)
+	if err != nil {
+		return "", err
+	}
+	if project == nil {
+		return "", nil
+	}
+	return strings.TrimSpace(project.FolderPath), nil
 }
 
 // executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, start URL, session profile IDs, and execution defaults from ExecutionParameters.

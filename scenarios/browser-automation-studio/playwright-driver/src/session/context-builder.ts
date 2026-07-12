@@ -259,6 +259,18 @@ export async function buildContext(
   // Create context
   const context = await browser.newContext(contextOptions);
 
+  // A fixture is a driver-level test-only opt-in. Chromium still obtains a
+  // real getUserMedia stream; BrowserManager supplies its deterministic fake
+  // device only when BAS_FAKE_MICROPHONE_FILE is configured. The isolated
+  // qualification driver grants this permission to its sessions; normal BAS
+  // instances do neither.
+  if (config.browser.fakeMicrophoneFile) {
+    await context.grantPermissions(['microphone']);
+    logger.debug('Deterministic microphone permission granted', {
+      executionId: spec.execution_id,
+    });
+  }
+
   // Fix gray bar in video recording caused by window/viewport size mismatch.
   //
   // ROOT CAUSE (Playwright issue #36032): When launched with headless:false +

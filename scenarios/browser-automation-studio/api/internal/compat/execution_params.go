@@ -269,6 +269,7 @@ func normalizeNodeV1ToV2(node map[string]any) {
 	if len(params) > 0 {
 		action[paramsKey] = params
 	}
+	normalizeActionForProtoJSON(action)
 	if metadata != nil {
 		action["metadata"] = metadata
 	}
@@ -348,6 +349,80 @@ func normalizeParamsData(stepType string, data map[string]any) map[string]any {
 	delete(result, "label")
 
 	return result
+}
+
+// normalizeActionForProtoJSON preserves the concise workflow-schema vocabulary
+// while producing the enum and field forms protojson requires. This runs for
+// V1-shaped workflow files after their action wrapper is constructed, so every
+// file-loading entry point accepts the same authored form.
+func normalizeActionForProtoJSON(action map[string]any) {
+	if navigate, ok := action["navigate"].(map[string]any); ok {
+		if destination, ok := navigate["destinationType"].(string); ok {
+			navigate["destination_type"] = normalizeNavigateDestinationType(destination)
+			delete(navigate, "destinationType")
+		}
+		if waitUntil, ok := navigate["waitUntil"].(string); ok {
+			navigate["wait_until"] = normalizeNavigateWaitEvent(waitUntil)
+			delete(navigate, "waitUntil")
+		}
+	}
+	if assertion, ok := action["assert"].(map[string]any); ok {
+		if mode, ok := assertion["assertMode"].(string); ok {
+			assertion["mode"] = normalizeAssertionMode(mode)
+			delete(assertion, "assertMode")
+		}
+		if expected, ok := assertion["expectedValue"]; ok {
+			assertion["expected"] = typeconv.WrapJsonValue(expected)
+			delete(assertion, "expectedValue")
+		}
+	}
+}
+
+func normalizeNavigateDestinationType(value string) string {
+	switch strings.ToLower(value) {
+	case "url":
+		return "NAVIGATE_DESTINATION_TYPE_URL"
+	case "scenario":
+		return "NAVIGATE_DESTINATION_TYPE_SCENARIO"
+	default:
+		return "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED"
+	}
+}
+
+func normalizeNavigateWaitEvent(value string) string {
+	switch strings.ToLower(value) {
+	case "load":
+		return "NAVIGATE_WAIT_EVENT_LOAD"
+	case "domcontentloaded":
+		return "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED"
+	case "networkidle":
+		return "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+	case "commit":
+		return "NAVIGATE_WAIT_EVENT_COMMIT"
+	default:
+		return "NAVIGATE_WAIT_EVENT_UNSPECIFIED"
+	}
+}
+
+func normalizeAssertionMode(value string) string {
+	switch strings.ToLower(value) {
+	case "exists":
+		return "ASSERTION_MODE_EXISTS"
+	case "not_exists", "notexists":
+		return "ASSERTION_MODE_NOT_EXISTS"
+	case "visible":
+		return "ASSERTION_MODE_VISIBLE"
+	case "hidden":
+		return "ASSERTION_MODE_HIDDEN"
+	case "text_contains", "textcontains":
+		return "ASSERTION_MODE_TEXT_CONTAINS"
+	case "text_equals", "textequals":
+		return "ASSERTION_MODE_TEXT_EQUALS"
+	case "attribute_equals", "attributeequals":
+		return "ASSERTION_MODE_ATTRIBUTE_EQUALS"
+	default:
+		return "ASSERTION_MODE_UNSPECIFIED"
+	}
 }
 
 // normalizeViewportSettings handles the executionViewport camelCase → snake_case conversion.

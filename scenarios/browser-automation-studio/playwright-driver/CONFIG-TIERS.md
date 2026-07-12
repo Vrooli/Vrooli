@@ -137,6 +137,9 @@ HEADLESS=true
 BROWSER_EXECUTABLE_PATH=
 BROWSER_ARGS=
 IGNORE_HTTPS_ERRORS=false
+# Absolute WAV fixture. Opt-in only: launches Chromium with its real
+# fake-device/getUserMedia path for sessions labelled bas.media.fixture=microphone.
+BAS_FAKE_MICROPHONE_FILE=
 
 # Recording
 RECORDING_MAX_BUFFER_SIZE=10000

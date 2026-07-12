@@ -189,17 +189,30 @@ export class BrowserManager {
    * and standard playwright in the future. See src/playwright/ for details.
    */
   private async launchBrowserInternal(): Promise<Browser> {
+    const fakeMicrophoneFile = this.config.browser.fakeMicrophoneFile;
+    const args = [...this.config.browser.args];
+    if (fakeMicrophoneFile) {
+      // Chromium still performs its normal getUserMedia capture path. These
+      // flags only replace the physical device and permission prompt with a
+      // deterministic WAV-backed device for an explicitly configured test run.
+      args.push(
+        '--use-fake-device-for-media-stream',
+        '--use-fake-ui-for-media-stream',
+        `--use-file-for-fake-audio-capture=${fakeMicrophoneFile}`,
+      );
+    }
     logger.info('browser: launching', {
       headless: this.config.browser.headless,
       executablePath: this.config.browser.executablePath || 'auto',
       provider: playwrightProvider.name,
       capabilities: playwrightProvider.capabilities,
+      fakeMicrophone: Boolean(fakeMicrophoneFile),
     });
 
     const browser = await playwrightProvider.chromium.launch({
       headless: this.config.browser.headless,
       executablePath: this.config.browser.executablePath || undefined,
-      args: this.config.browser.args,
+      args,
     });
 
     logger.info('browser: launched', {

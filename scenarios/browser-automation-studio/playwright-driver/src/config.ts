@@ -114,6 +114,7 @@ export const CONFIG_TIER_METADATA: Record<string, ConfigOptionMetadata> = {
   HEADLESS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Use headless_shell binary (false = regular Chromium with --headless=new)', dataType: 'boolean', editable: false },
   BROWSER_EXECUTABLE_PATH: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Custom browser path', dataType: 'string', editable: false },
   BROWSER_ARGS: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Extra browser arguments (comma-separated)', dataType: 'string', editable: false },
+  BAS_FAKE_MICROPHONE_FILE: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Absolute WAV path for Chromium fake microphone capture during deterministic media qualification', dataType: 'string', editable: false },
   IGNORE_HTTPS_ERRORS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Ignore HTTPS certificate errors', dataType: 'boolean', editable: false },
   RECORDING_MAX_BUFFER_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 10000, description: 'Recording buffer size (actions)', dataType: 'integer', min: 100, max: 100000, editable: true },
   RECORDING_MIN_SELECTOR_CONFIDENCE: { tier: ConfigTier.INTERNAL, defaultValue: 0.3, description: 'Selector confidence threshold (0-1)', dataType: 'float', min: 0, max: 1, editable: true },
@@ -188,6 +189,11 @@ const ConfigSchema = z.object({
      */
     args: z.array(z.string()).default(['--headless=new']),
     ignoreHTTPSErrors: z.boolean().default(false),
+    /**
+     * Opt-in deterministic microphone source. BrowserManager converts this to
+     * Chromium's real fake-media flags; it is never enabled for normal runs.
+     */
+    fakeMicrophoneFile: z.string().min(1).optional(),
   }),
   session: z.object({
     maxConcurrent: z.number().min(1).max(100).default(10),
@@ -513,6 +519,7 @@ export function loadConfig(): Config {
           : []),
       ],
       ignoreHTTPSErrors: process.env.IGNORE_HTTPS_ERRORS === 'true',
+      fakeMicrophoneFile: process.env.BAS_FAKE_MICROPHONE_FILE?.trim() || undefined,
     },
     session: {
       maxConcurrent: parseEnvInt(process.env.MAX_SESSIONS, 10),

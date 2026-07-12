@@ -37,6 +37,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
 
+	bascompat "github.com/vrooli/browser-automation-studio/compat"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -267,6 +268,13 @@ func decodeJSONIntoField(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor
 	}
 	switch fd.Kind() {
 	case protoreflect.MessageKind:
+		if fd.Message().FullName() == "browser_automation_studio.v1.WorkflowDefinitionV2" {
+			var err error
+			body, err = bascompat.NormalizeWorkflowDefinitionV2Bytes(body)
+			if err != nil {
+				return fmt.Errorf("normalize workflow definition from %s: %w", source, err)
+			}
+		}
 		sub := dynamicpb.NewMessage(fd.Message())
 		if err := protojson.Unmarshal(body, sub); err != nil {
 			return fmt.Errorf("decode %s: %w", source, err)

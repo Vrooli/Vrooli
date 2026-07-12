@@ -8,10 +8,6 @@
   "phases": {
     "unit": {
       "timeout": "300s"
-    },
-    "integration": {
-      "timeout": "540s",
-      "browser_session_strategy": "clean"
     }
   },
   "structure": {

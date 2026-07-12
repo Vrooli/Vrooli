@@ -81,6 +81,7 @@ export function createMockContext(overrides?: Partial<BrowserContext>): jest.Moc
     close: jest.fn().mockResolvedValue(undefined),
     clearCookies: jest.fn().mockResolvedValue(undefined),
     clearPermissions: jest.fn().mockResolvedValue(undefined),
+    grantPermissions: jest.fn().mockResolvedValue(undefined),
     addCookies: jest.fn().mockResolvedValue(undefined),
     cookies: jest.fn().mockResolvedValue([]),
     storageState: jest.fn().mockResolvedValue({ cookies: [], origins: [] }),

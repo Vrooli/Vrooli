@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -1037,40 +1036,13 @@ func resolveNavigateURL(step *ExecutionStep) error {
 	return nil
 }
 
-type selectorManifestCacheEntry struct {
-	manifest map[string]interface{}
-	err      error
-}
-
-// selectorManifestCache stores selector manifests by root to allow multi-scenario execution.
-var (
-	selectorManifestCacheMu sync.Mutex
-	selectorManifestCache   = map[string]*selectorManifestCacheEntry{}
-)
-
 // loadSelectorManifest loads the selector manifest from ui/src/consts/selectors.manifest.json,
 // scoped by the provided manifestRoot (typically a scenario root or bas/ folder).
 func loadSelectorManifest(manifestRoot string) (map[string]interface{}, error) {
-	cacheKey := strings.TrimSpace(manifestRoot)
-	if cacheKey == "" {
-		cacheKey = "__default__"
-	}
-
-	selectorManifestCacheMu.Lock()
-	if entry, ok := selectorManifestCache[cacheKey]; ok {
-		selectorManifestCacheMu.Unlock()
-		return entry.manifest, entry.err
-	}
-	selectorManifestCacheMu.Unlock()
-
-	manifest, err := readSelectorManifest(manifestRoot)
-	entry := &selectorManifestCacheEntry{manifest: manifest, err: err}
-
-	selectorManifestCacheMu.Lock()
-	selectorManifestCache[cacheKey] = entry
-	selectorManifestCacheMu.Unlock()
-
-	return manifest, err
+	// Project files may be resynchronized while BAS stays running. Load the
+	// small manifest per compilation so a new canonical selector is usable in
+	// the next workflow without a server restart.
+	return readSelectorManifest(manifestRoot)
 }
 
 func readSelectorManifest(manifestRoot string) (map[string]interface{}, error) {

@@ -50,6 +50,8 @@ HEADLESS=true                         # Run headless
 MAX_SESSIONS=10                       # Max concurrent sessions
 LOG_LEVEL=info                        # debug | info | warn | error
 METRICS_ENABLED=true                  # Enable Prometheus metrics
+# Opt-in WAV source for deterministic real getUserMedia sessions
+BAS_FAKE_MICROPHONE_FILE=/absolute/path/to/reference.wav
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#configuration) for the full configuration reference.

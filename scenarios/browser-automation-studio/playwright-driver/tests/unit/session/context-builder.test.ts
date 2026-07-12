@@ -201,6 +201,15 @@ describe('ContextBuilder', () => {
       );
     });
 
+    it('grants microphone only in the explicit deterministic media driver', async () => {
+      const fixtureConfig = createTestConfig({
+        browser: { fakeMicrophoneFile: '/fixtures/reference.wav' },
+      });
+      const result = await buildContext(mockBrowser, sessionSpec, fixtureConfig);
+
+      expect(result.context.grantPermissions).toHaveBeenCalledWith(['microphone']);
+    });
+
     it('should apply ignoreHTTPSErrors from config', async () => {
       const configWithHTTPS = createTestConfig({
         browser: { headless: true, ignoreHTTPSErrors: true },
