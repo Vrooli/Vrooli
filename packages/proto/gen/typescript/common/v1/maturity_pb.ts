@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file common/v1/maturity.proto.
  */
 export const file_common_v1_maturity: GenFile = /*@__PURE__*/
-  fileDesc("Chhjb21tb24vdjEvbWF0dXJpdHkucHJvdG8SCWNvbW1vbi52MSK5AQoSTG9jYWxNYXR1cml0eUxldmVsEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFgoOZW50cnlfY3JpdGVyaWEYBCADKAkSFQoNZXhpdF9jcml0ZXJpYRgFIAMoCRIUCgxzdGF0dXNfbGFiZWwYBiABKAkSGgoSY2FwYWJpbGl0eV9zdW1tYXJ5GAcgASgJEhMKC25leHRfdW5sb2NrGAggASgJItcBCg9GaW5kaW5nTWF0dXJpdHkSEwoLbG9jYWxfbGV2ZWwYASABKAkSLgoNZ2xvYmFsX2ltcGFjdBgCIAEoDjIXLmNvbW1vbi52MS5HbG9iYWxJbXBhY3QSEQoJZGltZW5zaW9uGAMgASgJEh0KFXJlY29tbWVuZGVkX3NraWxsX2lkcxgEIAMoCRI2ChFjbGVhbl9yZXF1aXJlbWVudBgFIAEoDjIbLmNvbW1vbi52MS5DbGVhblJlcXVpcmVtZW50EhUKDWNhcGFiaWxpdHlfaWQYBiABKAki1gEKEUFzc2Vzc21lbnRGaW5kaW5nEgwKBGNvZGUYASABKAkSEAoIc2V2ZXJpdHkYAiABKAkSDQoFdGl0bGUYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRITCgtyZW1lZGlhdGlvbhgGIAEoCRIsCghtYXR1cml0eRgHIAEoCzIaLmNvbW1vbi52MS5GaW5kaW5nTWF0dXJpdHkSGQoRYXV0b2ZpeF9hdmFpbGFibGUYCCABKAgSEQoJZml4X2NsYXNzGAkgASgJIrkBChdMb2NhbE1hdHVyaXR5QXNzZXNzbWVudBIVCg1jdXJyZW50X2xldmVsGAEgASgJEhIKCm5leHRfbGV2ZWwYAiABKAkSLQoGbGV2ZWxzGAMgAygLMh0uY29tbW9uLnYxLkxvY2FsTWF0dXJpdHlMZXZlbBIeChZibG9ja2luZ19maW5kaW5nX2NvZGVzGAQgAygJEg0KBWNsZWFuGAUgASgIEhUKDXVua25vd25fY291bnQYBiABKAUiwAYKHENhcGFiaWxpdHlNYXR1cml0eUFzc2Vzc21lbnQSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFQoNY3VycmVudF9sZXZlbBgEIAEoCRISCgpuZXh0X2xldmVsGAUgASgJEi0KBmxldmVscxgGIAMoCzIdLmNvbW1vbi52MS5Mb2NhbE1hdHVyaXR5TGV2ZWwSFwoPY3VycmVudF9zdW1tYXJ5GAcgASgJEhMKC25leHRfdW5sb2NrGAggASgJEh4KFmJsb2NraW5nX2ZpbmRpbmdfY29kZXMYCSADKAkSDQoFY2xlYW4YCiABKAgSFQoNdW5rbm93bl9jb3VudBgLIAEoBRJmChlmaW5kaW5nc19ieV9nbG9iYWxfaW1wYWN0GAwgAygLMkMuY29tbW9uLnYxLkNhcGFiaWxpdHlNYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeUdsb2JhbEltcGFjdEVudHJ5El0KFGZpbmRpbmdzX2J5X3NldmVyaXR5GA0gAygLMj8uY29tbW9uLnYxLkNhcGFiaWxpdHlNYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeVNldmVyaXR5RW50cnkSbgodZmluZGluZ3NfYnlfY2xlYW5fcmVxdWlyZW1lbnQYDiADKAsyRy5jb21tb24udjEuQ2FwYWJpbGl0eU1hdHVyaXR5QXNzZXNzbWVudC5GaW5kaW5nc0J5Q2xlYW5SZXF1aXJlbWVudEVudHJ5EhUKDXByaW9yaXR5X3JhbmsYDyABKAUSFwoPcHJpb3JpdHlfcmVhc29uGBAgASgJGj0KG0ZpbmRpbmdzQnlHbG9iYWxJbXBhY3RFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBGjkKF0ZpbmRpbmdzQnlTZXZlcml0eUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaQQofRmluZGluZ3NCeUNsZWFuUmVxdWlyZW1lbnRFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBInsKDVByaW9yaXR5Rm9jdXMSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRIYChBjYXBhYmlsaXR5X2xhYmVsGAIgASgJEhUKDWN1cnJlbnRfbGV2ZWwYAyABKAkSEgoKbmV4dF9sZXZlbBgEIAEoCRIOCgZyZWFzb24YBSABKAki5AYKEk1hdHVyaXR5QXNzZXNzbWVudBIQCghzY2VuYXJpbxgBIAEoCRIQCghwcm92aWRlchgCIAEoCRINCgVwaGFzZRgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEjEKBWxvY2FsGAUgASgLMiIuY29tbW9uLnYxLkxvY2FsTWF0dXJpdHlBc3Nlc3NtZW50Ei4KCGZpbmRpbmdzGAYgAygLMhwuY29tbW9uLnYxLkFzc2Vzc21lbnRGaW5kaW5nElwKGWZpbmRpbmdzX2J5X2dsb2JhbF9pbXBhY3QYByADKAsyOS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50LkZpbmRpbmdzQnlHbG9iYWxJbXBhY3RFbnRyeRJTChRmaW5kaW5nc19ieV9zZXZlcml0eRgIIAMoCzI1LmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeVNldmVyaXR5RW50cnkSHQoVcmVjb21tZW5kZWRfc2tpbGxfaWRzGAkgAygJEmQKHWZpbmRpbmdzX2J5X2NsZWFuX3JlcXVpcmVtZW50GAogAygLMj0uY29tbW9uLnYxLk1hdHVyaXR5QXNzZXNzbWVudC5GaW5kaW5nc0J5Q2xlYW5SZXF1aXJlbWVudEVudHJ5EhkKEWF1dG9maXhhYmxlX2NvdW50GAsgASgFEhkKEWF1dG9maXhhYmxlX3RvdGFsGAwgASgFEj0KDGNhcGFiaWxpdGllcxgNIAMoCzInLmNvbW1vbi52MS5DYXBhYmlsaXR5TWF0dXJpdHlBc3Nlc3NtZW50Ej0KG2hpZ2hlc3RfcHJpb3JpdHlfY2FwYWJpbGl0eRgOIAEoCzIYLmNvbW1vbi52MS5Qcmlvcml0eUZvY3VzGj0KG0ZpbmRpbmdzQnlHbG9iYWxJbXBhY3RFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBGjkKF0ZpbmRpbmdzQnlTZXZlcml0eUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaQQofRmluZGluZ3NCeUNsZWFuUmVxdWlyZW1lbnRFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBKpMCCgxHbG9iYWxJbXBhY3QSHQoZR0xPQkFMX0lNUEFDVF9VTlNQRUNJRklFRBAAEiQKIEdMT0JBTF9JTVBBQ1RfRk9VTkRBVElPTl9CTE9DS0VSEAESIAocR0xPQkFMX0lNUEFDVF9TQUZFVFlfQkxPQ0tFUhACEiIKHkdMT0JBTF9JTVBBQ1RfRVZPTFZBQklMSVRZX0dBUBADEh8KG0dMT0JBTF9JTVBBQ1RfSEFSREVOSU5HX0dBUBAEEiAKHEdMT0JBTF9JTVBBQ1RfQ0FQQUJJTElUWV9HQVAQBRIaChZHTE9CQUxfSU1QQUNUX0FEVklTT1JZEAYSGQoVR0xPQkFMX0lNUEFDVF9VTktOT1dOEAcqmAEKEENsZWFuUmVxdWlyZW1lbnQSIQodQ0xFQU5fUkVRVUlSRU1FTlRfVU5TUEVDSUZJRUQQABIeChpDTEVBTl9SRVFVSVJFTUVOVF9SRVFVSVJFRBABEh4KGkNMRUFOX1JFUVVJUkVNRU5UX0FEVklTT1JZEAISIQodQ0xFQU5fUkVRVUlSRU1FTlRfVU5DSEVDS0FCTEUQA0JDWkFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbW1vbi92MTtjb21tb252MWIGcHJvdG8z");
+  fileDesc("Chhjb21tb24vdjEvbWF0dXJpdHkucHJvdG8SCWNvbW1vbi52MSK5AQoSTG9jYWxNYXR1cml0eUxldmVsEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFgoOZW50cnlfY3JpdGVyaWEYBCADKAkSFQoNZXhpdF9jcml0ZXJpYRgFIAMoCRIUCgxzdGF0dXNfbGFiZWwYBiABKAkSGgoSY2FwYWJpbGl0eV9zdW1tYXJ5GAcgASgJEhMKC25leHRfdW5sb2NrGAggASgJItcBCg9GaW5kaW5nTWF0dXJpdHkSEwoLbG9jYWxfbGV2ZWwYASABKAkSLgoNZ2xvYmFsX2ltcGFjdBgCIAEoDjIXLmNvbW1vbi52MS5HbG9iYWxJbXBhY3QSEQoJZGltZW5zaW9uGAMgASgJEh0KFXJlY29tbWVuZGVkX3NraWxsX2lkcxgEIAMoCRI2ChFjbGVhbl9yZXF1aXJlbWVudBgFIAEoDjIbLmNvbW1vbi52MS5DbGVhblJlcXVpcmVtZW50EhUKDWNhcGFiaWxpdHlfaWQYBiABKAki1gEKEUFzc2Vzc21lbnRGaW5kaW5nEgwKBGNvZGUYASABKAkSEAoIc2V2ZXJpdHkYAiABKAkSDQoFdGl0bGUYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRITCgtyZW1lZGlhdGlvbhgGIAEoCRIsCghtYXR1cml0eRgHIAEoCzIaLmNvbW1vbi52MS5GaW5kaW5nTWF0dXJpdHkSGQoRYXV0b2ZpeF9hdmFpbGFibGUYCCABKAgSEQoJZml4X2NsYXNzGAkgASgJIrkBChdMb2NhbE1hdHVyaXR5QXNzZXNzbWVudBIVCg1jdXJyZW50X2xldmVsGAEgASgJEhIKCm5leHRfbGV2ZWwYAiABKAkSLQoGbGV2ZWxzGAMgAygLMh0uY29tbW9uLnYxLkxvY2FsTWF0dXJpdHlMZXZlbBIeChZibG9ja2luZ19maW5kaW5nX2NvZGVzGAQgAygJEg0KBWNsZWFuGAUgASgIEhUKDXVua25vd25fY291bnQYBiABKAUiwAYKHENhcGFiaWxpdHlNYXR1cml0eUFzc2Vzc21lbnQSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFQoNY3VycmVudF9sZXZlbBgEIAEoCRISCgpuZXh0X2xldmVsGAUgASgJEi0KBmxldmVscxgGIAMoCzIdLmNvbW1vbi52MS5Mb2NhbE1hdHVyaXR5TGV2ZWwSFwoPY3VycmVudF9zdW1tYXJ5GAcgASgJEhMKC25leHRfdW5sb2NrGAggASgJEh4KFmJsb2NraW5nX2ZpbmRpbmdfY29kZXMYCSADKAkSDQoFY2xlYW4YCiABKAgSFQoNdW5rbm93bl9jb3VudBgLIAEoBRJmChlmaW5kaW5nc19ieV9nbG9iYWxfaW1wYWN0GAwgAygLMkMuY29tbW9uLnYxLkNhcGFiaWxpdHlNYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeUdsb2JhbEltcGFjdEVudHJ5El0KFGZpbmRpbmdzX2J5X3NldmVyaXR5GA0gAygLMj8uY29tbW9uLnYxLkNhcGFiaWxpdHlNYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeVNldmVyaXR5RW50cnkSbgodZmluZGluZ3NfYnlfY2xlYW5fcmVxdWlyZW1lbnQYDiADKAsyRy5jb21tb24udjEuQ2FwYWJpbGl0eU1hdHVyaXR5QXNzZXNzbWVudC5GaW5kaW5nc0J5Q2xlYW5SZXF1aXJlbWVudEVudHJ5EhUKDXByaW9yaXR5X3JhbmsYDyABKAUSFwoPcHJpb3JpdHlfcmVhc29uGBAgASgJGj0KG0ZpbmRpbmdzQnlHbG9iYWxJbXBhY3RFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBGjkKF0ZpbmRpbmdzQnlTZXZlcml0eUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaQQofRmluZGluZ3NCeUNsZWFuUmVxdWlyZW1lbnRFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBInsKDVByaW9yaXR5Rm9jdXMSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRIYChBjYXBhYmlsaXR5X2xhYmVsGAIgASgJEhUKDWN1cnJlbnRfbGV2ZWwYAyABKAkSEgoKbmV4dF9sZXZlbBgEIAEoCRIOCgZyZWFzb24YBSABKAkiwwEKGFBoYXNlUHJlc2VudGF0aW9uRmluZGluZxIMCgRjb2RlGAEgASgJEhAKCHNldmVyaXR5GAIgASgJEg0KBWNvdW50GAMgASgFEg0KBXRpdGxlGAQgASgJEg8KB21lc3NhZ2UYBSABKAkSEQoJbG9jYXRpb25zGAYgAygJEhMKC3JlbWVkaWF0aW9uGAcgASgJEjAKDmZpeF9hZmZvcmRhbmNlGAggASgOMhguY29tbW9uLnYxLkZpeEFmZm9yZGFuY2Ui2wIKG1BoYXNlQ2FwYWJpbGl0eVByZXNlbnRhdGlvbhIKCgJpZBgBIAEoCRINCgVsYWJlbBgCIAEoCRIVCg1jdXJyZW50X2xldmVsGAMgASgJEhsKE2N1cnJlbnRfbGV2ZWxfbGFiZWwYBCABKAkSEgoKbmV4dF9sZXZlbBgFIAEoCRIXCg9jdXJyZW50X3N1bW1hcnkYBiABKAkSEwoLbmV4dF91bmxvY2sYByABKAkSDQoFY2xlYW4YCCABKAgSFQoNdW5rbm93bl9jb3VudBgJIAEoBRIeChZibG9ja2luZ19maW5kaW5nX2NvZGVzGAogAygJEhUKDXByaW9yaXR5X3JhbmsYCyABKAUSFwoPcHJpb3JpdHlfcmVhc29uGAwgASgJEjUKCGZpbmRpbmdzGA0gAygLMiMuY29tbW9uLnYxLlBoYXNlUHJlc2VudGF0aW9uRmluZGluZyLlAwoRUGhhc2VQcmVzZW50YXRpb24SGAoQY29udHJhY3RfdmVyc2lvbhgBIAEoCRIQCghwcm92aWRlchgCIAEoCRINCgVwaGFzZRgDIAEoCRIVCg1jdXJyZW50X2xldmVsGAQgASgJEhsKE2N1cnJlbnRfbGV2ZWxfbGFiZWwYBSABKAkSEgoKbmV4dF9sZXZlbBgGIAEoCRIVCg1jZWlsaW5nX2xldmVsGAcgASgJEg0KBWNsZWFuGAggASgIEhUKDXVua25vd25fY291bnQYCSABKAUSHgoWYmxvY2tpbmdfZmluZGluZ19jb2RlcxgKIAMoCRITCgtuZXh0X2FjdGlvbhgLIAEoCRIaChJuZXh0X2FjdGlvbl9yZWFzb24YDCABKAkSGwoTZm9jdXNfY2FwYWJpbGl0eV9pZBgNIAEoCRIeChZmb2N1c19jYXBhYmlsaXR5X2xhYmVsGA4gASgJEhIKCm5vcnRoX3N0YXIYDyABKAkSEgoKYXRfbWF4aW11bRgQIAEoCBI8CgxjYXBhYmlsaXRpZXMYESADKAsyJi5jb21tb24udjEuUGhhc2VDYXBhYmlsaXR5UHJlc2VudGF0aW9uEhwKFGRvY3VtZW50YXRpb25fdG9waWNzGBIgAygJIpgHChJNYXR1cml0eUFzc2Vzc21lbnQSEAoIc2NlbmFyaW8YASABKAkSEAoIcHJvdmlkZXIYAiABKAkSDQoFcGhhc2UYAyABKAkSDwoHdmVyc2lvbhgEIAEoCRIxCgVsb2NhbBgFIAEoCzIiLmNvbW1vbi52MS5Mb2NhbE1hdHVyaXR5QXNzZXNzbWVudBIuCghmaW5kaW5ncxgGIAMoCzIcLmNvbW1vbi52MS5Bc3Nlc3NtZW50RmluZGluZxJcChlmaW5kaW5nc19ieV9nbG9iYWxfaW1wYWN0GAcgAygLMjkuY29tbW9uLnYxLk1hdHVyaXR5QXNzZXNzbWVudC5GaW5kaW5nc0J5R2xvYmFsSW1wYWN0RW50cnkSUwoUZmluZGluZ3NfYnlfc2V2ZXJpdHkYCCADKAsyNS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50LkZpbmRpbmdzQnlTZXZlcml0eUVudHJ5Eh0KFXJlY29tbWVuZGVkX3NraWxsX2lkcxgJIAMoCRJkCh1maW5kaW5nc19ieV9jbGVhbl9yZXF1aXJlbWVudBgKIAMoCzI9LmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeUNsZWFuUmVxdWlyZW1lbnRFbnRyeRIZChFhdXRvZml4YWJsZV9jb3VudBgLIAEoBRIZChFhdXRvZml4YWJsZV90b3RhbBgMIAEoBRI9CgxjYXBhYmlsaXRpZXMYDSADKAsyJy5jb21tb24udjEuQ2FwYWJpbGl0eU1hdHVyaXR5QXNzZXNzbWVudBI9ChtoaWdoZXN0X3ByaW9yaXR5X2NhcGFiaWxpdHkYDiABKAsyGC5jb21tb24udjEuUHJpb3JpdHlGb2N1cxIyCgxwcmVzZW50YXRpb24YDyABKAsyHC5jb21tb24udjEuUGhhc2VQcmVzZW50YXRpb24aPQobRmluZGluZ3NCeUdsb2JhbEltcGFjdEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaOQoXRmluZGluZ3NCeVNldmVyaXR5RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ARpBCh9GaW5kaW5nc0J5Q2xlYW5SZXF1aXJlbWVudEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEqkwIKDEdsb2JhbEltcGFjdBIdChlHTE9CQUxfSU1QQUNUX1VOU1BFQ0lGSUVEEAASJAogR0xPQkFMX0lNUEFDVF9GT1VOREFUSU9OX0JMT0NLRVIQARIgChxHTE9CQUxfSU1QQUNUX1NBRkVUWV9CTE9DS0VSEAISIgoeR0xPQkFMX0lNUEFDVF9FVk9MVkFCSUxJVFlfR0FQEAMSHwobR0xPQkFMX0lNUEFDVF9IQVJERU5JTkdfR0FQEAQSIAocR0xPQkFMX0lNUEFDVF9DQVBBQklMSVRZX0dBUBAFEhoKFkdMT0JBTF9JTVBBQ1RfQURWSVNPUlkQBhIZChVHTE9CQUxfSU1QQUNUX1VOS05PV04QByqYAQoQQ2xlYW5SZXF1aXJlbWVudBIhCh1DTEVBTl9SRVFVSVJFTUVOVF9VTlNQRUNJRklFRBAAEh4KGkNMRUFOX1JFUVVJUkVNRU5UX1JFUVVJUkVEEAESHgoaQ0xFQU5fUkVRVUlSRU1FTlRfQURWSVNPUlkQAhIhCh1DTEVBTl9SRVFVSVJFTUVOVF9VTkNIRUNLQUJMRRADKpMBCg1GaXhBZmZvcmRhbmNlEh4KGkZJWF9BRkZPUkRBTkNFX1VOU1BFQ0lGSUVEEAASIQodRklYX0FGRk9SREFOQ0VfREVURUNUSU9OX09OTFkQARIZChVGSVhfQUZGT1JEQU5DRV9NQU5VQUwQAhIkCiBGSVhfQUZGT1JEQU5DRV9QUkVWSUVXX0FWQUlMQUJMRRADQkNaQWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29tbW9uL3YxO2NvbW1vbnYxYgZwcm90bzM");
 
 /**
  * LocalMaturityLevel is one provider-local rung from `.vrooli/maturity.json`.
@@ -355,6 +355,248 @@ export const PriorityFocusSchema: GenMessage<PriorityFocus> = /*@__PURE__*/
   messageDesc(file_common_v1_maturity, 5);
 
 /**
+ * PhasePresentationFinding is the deterministic code rollup shown inside one
+ * capability. The full, ungrouped evidence remains in MaturityAssessment.findings.
+ *
+ * @generated from message common.v1.PhasePresentationFinding
+ */
+export type PhasePresentationFinding = Message<"common.v1.PhasePresentationFinding"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string severity = 2;
+   */
+  severity: string;
+
+  /**
+   * @generated from field: int32 count = 3;
+   */
+  count: number;
+
+  /**
+   * @generated from field: string title = 4;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string message = 5;
+   */
+  message: string;
+
+  /**
+   * @generated from field: repeated string locations = 6;
+   */
+  locations: string[];
+
+  /**
+   * @generated from field: string remediation = 7;
+   */
+  remediation: string;
+
+  /**
+   * @generated from field: common.v1.FixAffordance fix_affordance = 8;
+   */
+  fixAffordance: FixAffordance;
+};
+
+/**
+ * Describes the message common.v1.PhasePresentationFinding.
+ * Use `create(PhasePresentationFindingSchema)` to create a new message.
+ */
+export const PhasePresentationFindingSchema: GenMessage<PhasePresentationFinding> = /*@__PURE__*/
+  messageDesc(file_common_v1_maturity, 6);
+
+/**
+ * PhaseCapabilityPresentation is the canonical, ordered view of one maturity
+ * capability. It is a rendering projection, not a second semantic source.
+ *
+ * @generated from message common.v1.PhaseCapabilityPresentation
+ */
+export type PhaseCapabilityPresentation = Message<"common.v1.PhaseCapabilityPresentation"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string current_level = 3;
+   */
+  currentLevel: string;
+
+  /**
+   * @generated from field: string current_level_label = 4;
+   */
+  currentLevelLabel: string;
+
+  /**
+   * @generated from field: string next_level = 5;
+   */
+  nextLevel: string;
+
+  /**
+   * @generated from field: string current_summary = 6;
+   */
+  currentSummary: string;
+
+  /**
+   * @generated from field: string next_unlock = 7;
+   */
+  nextUnlock: string;
+
+  /**
+   * @generated from field: bool clean = 8;
+   */
+  clean: boolean;
+
+  /**
+   * @generated from field: int32 unknown_count = 9;
+   */
+  unknownCount: number;
+
+  /**
+   * @generated from field: repeated string blocking_finding_codes = 10;
+   */
+  blockingFindingCodes: string[];
+
+  /**
+   * @generated from field: int32 priority_rank = 11;
+   */
+  priorityRank: number;
+
+  /**
+   * @generated from field: string priority_reason = 12;
+   */
+  priorityReason: string;
+
+  /**
+   * @generated from field: repeated common.v1.PhasePresentationFinding findings = 13;
+   */
+  findings: PhasePresentationFinding[];
+};
+
+/**
+ * Describes the message common.v1.PhaseCapabilityPresentation.
+ * Use `create(PhaseCapabilityPresentationSchema)` to create a new message.
+ */
+export const PhaseCapabilityPresentationSchema: GenMessage<PhaseCapabilityPresentation> = /*@__PURE__*/
+  messageDesc(file_common_v1_maturity, 7);
+
+/**
+ * PhasePresentation is the provider-owned, portable phase story. Consumers
+ * render this object unchanged and retain MaturityAssessment.findings for full
+ * evidence. contract_version lets consumers explicitly classify historical or
+ * un-migrated responses instead of synthesizing a phase story.
+ *
+ * @generated from message common.v1.PhasePresentation
+ */
+export type PhasePresentation = Message<"common.v1.PhasePresentation"> & {
+  /**
+   * @generated from field: string contract_version = 1;
+   */
+  contractVersion: string;
+
+  /**
+   * @generated from field: string provider = 2;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string phase = 3;
+   */
+  phase: string;
+
+  /**
+   * @generated from field: string current_level = 4;
+   */
+  currentLevel: string;
+
+  /**
+   * @generated from field: string current_level_label = 5;
+   */
+  currentLevelLabel: string;
+
+  /**
+   * @generated from field: string next_level = 6;
+   */
+  nextLevel: string;
+
+  /**
+   * @generated from field: string ceiling_level = 7;
+   */
+  ceilingLevel: string;
+
+  /**
+   * @generated from field: bool clean = 8;
+   */
+  clean: boolean;
+
+  /**
+   * @generated from field: int32 unknown_count = 9;
+   */
+  unknownCount: number;
+
+  /**
+   * @generated from field: repeated string blocking_finding_codes = 10;
+   */
+  blockingFindingCodes: string[];
+
+  /**
+   * @generated from field: string next_action = 11;
+   */
+  nextAction: string;
+
+  /**
+   * @generated from field: string next_action_reason = 12;
+   */
+  nextActionReason: string;
+
+  /**
+   * @generated from field: string focus_capability_id = 13;
+   */
+  focusCapabilityId: string;
+
+  /**
+   * @generated from field: string focus_capability_label = 14;
+   */
+  focusCapabilityLabel: string;
+
+  /**
+   * @generated from field: string north_star = 15;
+   */
+  northStar: string;
+
+  /**
+   * @generated from field: bool at_maximum = 16;
+   */
+  atMaximum: boolean;
+
+  /**
+   * @generated from field: repeated common.v1.PhaseCapabilityPresentation capabilities = 17;
+   */
+  capabilities: PhaseCapabilityPresentation[];
+
+  /**
+   * @generated from field: repeated string documentation_topics = 18;
+   */
+  documentationTopics: string[];
+};
+
+/**
+ * Describes the message common.v1.PhasePresentation.
+ * Use `create(PhasePresentationSchema)` to create a new message.
+ */
+export const PhasePresentationSchema: GenMessage<PhasePresentation> = /*@__PURE__*/
+  messageDesc(file_common_v1_maturity, 8);
+
+/**
  * MaturityAssessment is the single structural object health providers emit.
  *
  * @generated from message common.v1.MaturityAssessment
@@ -433,6 +675,14 @@ export type MaturityAssessment = Message<"common.v1.MaturityAssessment"> & {
    * @generated from field: common.v1.PriorityFocus highest_priority_capability = 14;
    */
   highestPriorityCapability?: PriorityFocus | undefined;
+
+  /**
+   * Deterministic provider-owned presentation derived from this assessment.
+   * Version 1 is required for all newly built assessments.
+   *
+   * @generated from field: common.v1.PhasePresentation presentation = 15;
+   */
+  presentation?: PhasePresentation | undefined;
 };
 
 /**
@@ -440,7 +690,7 @@ export type MaturityAssessment = Message<"common.v1.MaturityAssessment"> & {
  * Use `create(MaturityAssessmentSchema)` to create a new message.
  */
 export const MaturityAssessmentSchema: GenMessage<MaturityAssessment> = /*@__PURE__*/
-  messageDesc(file_common_v1_maturity, 6);
+  messageDesc(file_common_v1_maturity, 9);
 
 /**
  * GlobalImpact is a stable semantic vocabulary for how one provider finding
@@ -531,4 +781,39 @@ export enum CleanRequirement {
  */
 export const CleanRequirementSchema: GenEnum<CleanRequirement> = /*@__PURE__*/
   enumDesc(file_common_v1_maturity, 1);
+
+/**
+ * FixAffordance describes the truthful remediation affordance for a finding
+ * rollup. PREVIEW_AVAILABLE means the provider reported a deterministic fixer;
+ * a caller must still invoke PreviewFix before advertising an apply operation.
+ *
+ * @generated from enum common.v1.FixAffordance
+ */
+export enum FixAffordance {
+  /**
+   * @generated from enum value: FIX_AFFORDANCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: FIX_AFFORDANCE_DETECTION_ONLY = 1;
+   */
+  DETECTION_ONLY = 1,
+
+  /**
+   * @generated from enum value: FIX_AFFORDANCE_MANUAL = 2;
+   */
+  MANUAL = 2,
+
+  /**
+   * @generated from enum value: FIX_AFFORDANCE_PREVIEW_AVAILABLE = 3;
+   */
+  PREVIEW_AVAILABLE = 3,
+}
+
+/**
+ * Describes the enum common.v1.FixAffordance.
+ */
+export const FixAffordanceSchema: GenEnum<FixAffordance> = /*@__PURE__*/
+  enumDesc(file_common_v1_maturity, 2);
 

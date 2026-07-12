@@ -122,6 +122,72 @@ message PriorityFocus {
   string reason = 5;
 }
 
+// FixAffordance describes the truthful remediation affordance for a finding
+// rollup. PREVIEW_AVAILABLE means the provider reported a deterministic fixer;
+// a caller must still invoke PreviewFix before advertising an apply operation.
+enum FixAffordance {
+  FIX_AFFORDANCE_UNSPECIFIED = 0;
+  FIX_AFFORDANCE_DETECTION_ONLY = 1;
+  FIX_AFFORDANCE_MANUAL = 2;
+  FIX_AFFORDANCE_PREVIEW_AVAILABLE = 3;
+}
+
+// PhasePresentationFinding is the deterministic code rollup shown inside one
+// capability. The full, ungrouped evidence remains in MaturityAssessment.findings.
+message PhasePresentationFinding {
+  string code = 1;
+  string severity = 2;
+  int32 count = 3;
+  string title = 4;
+  string message = 5;
+  repeated string locations = 6;
+  string remediation = 7;
+  FixAffordance fix_affordance = 8;
+}
+
+// PhaseCapabilityPresentation is the canonical, ordered view of one maturity
+// capability. It is a rendering projection, not a second semantic source.
+message PhaseCapabilityPresentation {
+  string id = 1;
+  string label = 2;
+  string current_level = 3;
+  string current_level_label = 4;
+  string next_level = 5;
+  string current_summary = 6;
+  string next_unlock = 7;
+  bool clean = 8;
+  int32 unknown_count = 9;
+  repeated string blocking_finding_codes = 10;
+  int32 priority_rank = 11;
+  string priority_reason = 12;
+  repeated PhasePresentationFinding findings = 13;
+}
+
+// PhasePresentation is the provider-owned, portable phase story. Consumers
+// render this object unchanged and retain MaturityAssessment.findings for full
+// evidence. contract_version lets consumers explicitly classify historical or
+// un-migrated responses instead of synthesizing a phase story.
+message PhasePresentation {
+  string contract_version = 1;
+  string provider = 2;
+  string phase = 3;
+  string current_level = 4;
+  string current_level_label = 5;
+  string next_level = 6;
+  string ceiling_level = 7;
+  bool clean = 8;
+  int32 unknown_count = 9;
+  repeated string blocking_finding_codes = 10;
+  string next_action = 11;
+  string next_action_reason = 12;
+  string focus_capability_id = 13;
+  string focus_capability_label = 14;
+  string north_star = 15;
+  bool at_maximum = 16;
+  repeated PhaseCapabilityPresentation capabilities = 17;
+  repeated string documentation_topics = 18;
+}
+
 // MaturityAssessment is the single structural object health providers emit.
 message MaturityAssessment {
   string scenario = 1;
@@ -140,4 +206,7 @@ message MaturityAssessment {
   int32 autofixable_total = 12;
   repeated CapabilityMaturityAssessment capabilities = 13;
   PriorityFocus highest_priority_capability = 14;
+  // Deterministic provider-owned presentation derived from this assessment.
+  // Version 1 is required for all newly built assessments.
+  PhasePresentation presentation = 15;
 }

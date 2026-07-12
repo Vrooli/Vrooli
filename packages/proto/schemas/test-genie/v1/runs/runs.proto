@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.test_genie.v1.runs;
 
+import "common/v1/maturity.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs;runs_v1";
 
 // =============================================================================
@@ -155,11 +157,11 @@ message RunEvent {
   bool success = 14;
   string verdict = 15;
   string error = 16;
-  // phase-completed maturity standing + findings summary. Present on
+  // phase-completed canonical presentation + findings summary. Present on
   // phase_completed / phase_failed events for phases whose provider declares a
   // maturity ladder, so a follower derives the standing from the same payload the
   // terminal RunInfo carries. Nil otherwise.
-  PhaseMaturityStanding maturity_standing = 17;
+  common.v1.PhasePresentation phase_presentation = 17;
   PhaseFindingsSummary findings_summary = 18;
 }
 
@@ -186,13 +188,13 @@ message RunLiveStatus {
   // active reports whether the snapshot came from the live registry (true) or
   // the durable index (false).
   bool active = 16;
-  // terminal_standings carries the provider-computed per-phase maturity
-  // standings once a terminal live snapshot has the run result in memory. This
+  // terminal_presentations carries the provider-computed per-phase canonical
+  // presentations once a terminal live snapshot has the run result in memory. This
   // lets the canonical agent path (`runs wait --json`) see the same Phase
   // Capability Contract standing that follow streams receive on phase terminal
   // events. Empty while in progress or when the server only has the durable
   // index record.
-  repeated PhaseMaturityStanding terminal_standings = 17;
+  repeated common.v1.PhasePresentation terminal_presentations = 17;
   repeated PhaseFindingsSummary terminal_findings_summaries = 18;
   // degraded_reasons is non-empty when a terminal status could not be backed
   // by the canonical snapshot (for example, a legacy, corrupt, or unsupported
@@ -319,56 +321,6 @@ message PhaseFindingsSummary {
   int32 total = 5;
 }
 
-// PhaseCapabilityStanding is one capability's standing within a phase, carried
-// for --json depth. The human scorecard renders only the phase-level summary
-// plus the single highest-priority next move.
-message PhaseCapabilityStanding {
-  string id = 1;
-  string label = 2;
-  string current_level = 3;
-  string current_level_label = 4;
-  string next_level = 5;
-  string current_summary = 6;
-  string next_unlock = 7;
-  bool clean = 8;
-  int32 blocking_finding_count = 9;
-  repeated string blocking_finding_codes = 10;
-  int32 priority_rank = 11;
-  string priority_reason = 12;
-}
-
-// PhaseMaturityStanding is the provider-computed maturity standing for one phase,
-// carried from the provider's MaturityAssessment into the run contract so the
-// human scorecard and --json output derive from a single server payload. Present
-// only for phases whose provider declares a maturity ladder (Phase Capability
-// Contract). Test Genie aggregates and renders it; it never recomputes a standing.
-message PhaseMaturityStanding {
-  string provider = 1;
-  string phase = 2;
-  // Phase-level (local) rung.
-  string current_level = 3;
-  string current_level_label = 4;
-  string next_level = 5;
-  // ceiling_level is the top rung id of the ladder (the maximum reachable rung).
-  string ceiling_level = 6;
-  bool clean = 7;
-  int32 unknown_count = 8;
-  repeated string blocking_finding_codes = 9;
-  // The single highest-unlock next move and why it is the priority focus.
-  string next_move = 10;
-  string next_move_reason = 11;
-  string priority_capability_id = 12;
-  string priority_capability_label = 13;
-  // north_star is the ladder top rung's aspiration statement (first-class North
-  // Star; see docs/concepts/phase-capability-contract.md).
-  string north_star = 14;
-  // at_maximum is true when the phase is at its ceiling rung with no debt, so the
-  // scorecard suppresses the next-move and doc-search lines.
-  bool at_maximum = 15;
-  // Per-capability standings for --json depth (empty for a single-ladder phase).
-  repeated PhaseCapabilityStanding capabilities = 16;
-}
-
 // PhaseInfo is a compact per-phase summary.
 message PhaseInfo {
   string name = 1;
@@ -378,10 +330,9 @@ message PhaseInfo {
   bool advisory = 5;
   bool artifact_backed = 6;
   bool non_comparable = 7;
-  // maturity_standing and findings_summary carry the provider-computed per-phase
-  // standing into the terminal run record. Nil when the phase's provider declares
-  // no maturity ladder (native phases, degraded providers).
-  PhaseMaturityStanding maturity_standing = 8;
+  // phase_presentation and findings_summary carry the provider-computed
+  // presentation into the terminal run record. Nil for native/degraded phases.
+  common.v1.PhasePresentation phase_presentation = 8;
   PhaseFindingsSummary findings_summary = 9;
 }
 
@@ -680,18 +631,18 @@ message GetRunFindingsRequest {
   string run_id = 2;
 }
 
-// RunFindingsPhase is one phase's Phase Capability Contract standing as persisted
+// RunFindingsPhase is one phase's Phase Capability Contract presentation as persisted
 // in the run's findings.json artifact.
 message RunFindingsPhase {
   string name = 1;
   string status = 2;
   string finding_source = 3;
-  PhaseMaturityStanding maturity_standing = 4;
+  common.v1.PhasePresentation phase_presentation = 4;
   PhaseFindingsSummary findings_summary = 5;
 }
 
-// GetRunFindingsResponse returns the per-phase maturity standing on demand, the
-// same standing carried in the run's phase-completed events — read back from the
+// GetRunFindingsResponse returns the per-phase presentation on demand, the
+// same presentation carried in the run's phase-completed events — read back from the
 // durable findings.json artifact so an agent can revisit where each capability
 // stands without re-running the suite.
 message GetRunFindingsResponse {

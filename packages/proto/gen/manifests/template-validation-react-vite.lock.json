@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "template-validation-react-vite",
+  "input_digest": "sha256:dc06a41d7342d3c379419d6d078b44603506dfc2175cf5096d35f71cbaaa8bb1",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/template-validation-react-vite/v1/notes/attachments.proto",
+    "schemas/template-validation-react-vite/v1/notes/notes.proto",
+    "schemas/template-validation-react-vite/v1/shared/errors.proto",
+    "schemas/template-validation-react-vite/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/template-validation-react-vite/v1/notes/attachments.pb.go": "sha256:ffbfcd0a1f2e4ab67689da82b49ac7f7d2afbf9a65489750a22fb9a0875c180c",
+    "gen/go/template-validation-react-vite/v1/notes/notes.pb.go": "sha256:5af3913558baaf9fe43cb6c5243c4ffdd9a8fdabce88ed1ad2d1ee90118539cb",
+    "gen/go/template-validation-react-vite/v1/notes/notes_v1connect/notes.connect.go": "sha256:43fe7deaf98f5583e323aac88600b299bd1052d6d24ebab1cc35b5699fd4df55",
+    "gen/go/template-validation-react-vite/v1/shared/errors.pb.go": "sha256:411a362b724185dec60126afc8bf88930f9ac4518e0efdb1f831e9f00bb32a9a",
+    "gen/go/template-validation-react-vite/v1/shared/health.pb.go": "sha256:7a5233470f9581584b6758076ebbf6d6e38d5488cf3e95165d1618526a3e6ba8",
+    "gen/python/template_validation_react_vite/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/template_validation_react_vite/v1/notes/attachments_pb2.py": "sha256:e0eef54028cc0a512fb2be88726bc86d84f20ea30f1fafee02afe81d9d85130d",
+    "gen/python/template_validation_react_vite/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/template_validation_react_vite/v1/notes/notes_pb2.py": "sha256:0c6b639fd8af3715f94ee772aff14018fcd9c909a949d295d18dc0690faf40e5",
+    "gen/python/template_validation_react_vite/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/template_validation_react_vite/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/template_validation_react_vite/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/template_validation_react_vite/v1/shared/errors_pb2.py": "sha256:df75e2762edad34b8cfc94c4f58ba9c4eae770b7fb21df4973d9938762394a70",
+    "gen/python/template_validation_react_vite/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/template_validation_react_vite/v1/shared/health_pb2.py": "sha256:1711faedb0c5557cc8c7c8572dfac4af8a68f1543d1f201dd546c418d5a9d53a",
+    "gen/python/template_validation_react_vite/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/template_validation_react_vite/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/template-validation-react-vite/v1/notes/attachments_pb.js": "sha256:5a58e4d1e13588577368dcad7b2c420b389c91f4e92174a484fcff8b5c35d5b6",
+    "gen/typescript/js/template-validation-react-vite/v1/notes/notes_pb.js": "sha256:184a6b62b60aeb6f3eaf62129f90cb8c140b3b84f6c77c341a6ad0541dcf35ea",
+    "gen/typescript/js/template-validation-react-vite/v1/shared/errors_pb.js": "sha256:2e7b8e4ec2fcff238c8048c065d1fda9a0a280cb64d15085e145988e4220fc78",
+    "gen/typescript/js/template-validation-react-vite/v1/shared/health_pb.js": "sha256:bbdbcd3202c08352e6f1c1817d38cb7aa50b350f6f14778516aa8cbe55faf55d",
+    "gen/typescript/template-validation-react-vite/v1/notes/attachments_pb.ts": "sha256:30fd6e56294e5660f730f97b2eccbdf78e7d836e53e42a29ce48a4a59f5a94ff",
+    "gen/typescript/template-validation-react-vite/v1/notes/notes_pb.ts": "sha256:3d0bd55bc95908dc9451a1b26cbc8fa8f1b2e67caeb03563acf4ba6687145f30",
+    "gen/typescript/template-validation-react-vite/v1/shared/errors_pb.ts": "sha256:51776a87bfbf78ba0347f452bc42e84f8c1c02b96d4939c8d11440b7a1f9d413",
+    "gen/typescript/template-validation-react-vite/v1/shared/health_pb.ts": "sha256:e018fb9959083fd1dcfb5e22d2b8cb0c4c316af9be83e2145217f52886e250c4"
+  }
+}

@@ -1,3 +1,4 @@
+from common.v1 import maturity_pb2 as _maturity_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -45,7 +46,7 @@ ARTIFACT_PROVENANCE_CATALOG: ArtifactProvenance
 ARTIFACT_PROVENANCE_LEGACY_DISCOVERY: ArtifactProvenance
 
 class RunEvent(_message.Message):
-    __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error", "maturity_standing", "findings_summary")
+    __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error", "phase_presentation", "findings_summary")
     EVENT_FIELD_NUMBER: _ClassVar[int]
     ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -62,7 +63,7 @@ class RunEvent(_message.Message):
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
-    MATURITY_STANDING_FIELD_NUMBER: _ClassVar[int]
+    PHASE_PRESENTATION_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     event: str
     elapsed_seconds: float
@@ -80,12 +81,12 @@ class RunEvent(_message.Message):
     success: bool
     verdict: str
     error: str
-    maturity_standing: PhaseMaturityStanding
+    phase_presentation: _maturity_pb2.PhasePresentation
     findings_summary: PhaseFindingsSummary
-    def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
+    def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
 
 class RunLiveStatus(_message.Message):
-    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries", "degraded_reasons")
+    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_presentations", "terminal_findings_summaries", "degraded_reasons")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -102,7 +103,7 @@ class RunLiveStatus(_message.Message):
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     ACTIVE_FIELD_NUMBER: _ClassVar[int]
-    TERMINAL_STANDINGS_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_PRESENTATIONS_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_FINDINGS_SUMMARIES_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
     run_id: str
@@ -121,10 +122,10 @@ class RunLiveStatus(_message.Message):
     success: bool
     error: str
     active: bool
-    terminal_standings: _containers.RepeatedCompositeFieldContainer[PhaseMaturityStanding]
+    terminal_presentations: _containers.RepeatedCompositeFieldContainer[_maturity_pb2.PhasePresentation]
     terminal_findings_summaries: _containers.RepeatedCompositeFieldContainer[PhaseFindingsSummary]
     degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_presentations: _Optional[_Iterable[_Union[_maturity_pb2.PhasePresentation, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class StartRunRequest(_message.Message):
     __slots__ = ("scenario", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile")
@@ -276,72 +277,8 @@ class PhaseFindingsSummary(_message.Message):
     total: int
     def __init__(self, blockers: _Optional[int] = ..., errors: _Optional[int] = ..., warnings: _Optional[int] = ..., infos: _Optional[int] = ..., total: _Optional[int] = ...) -> None: ...
 
-class PhaseCapabilityStanding(_message.Message):
-    __slots__ = ("id", "label", "current_level", "current_level_label", "next_level", "current_summary", "next_unlock", "clean", "blocking_finding_count", "blocking_finding_codes", "priority_rank", "priority_reason")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    LABEL_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_LEVEL_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_LEVEL_LABEL_FIELD_NUMBER: _ClassVar[int]
-    NEXT_LEVEL_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
-    NEXT_UNLOCK_FIELD_NUMBER: _ClassVar[int]
-    CLEAN_FIELD_NUMBER: _ClassVar[int]
-    BLOCKING_FINDING_COUNT_FIELD_NUMBER: _ClassVar[int]
-    BLOCKING_FINDING_CODES_FIELD_NUMBER: _ClassVar[int]
-    PRIORITY_RANK_FIELD_NUMBER: _ClassVar[int]
-    PRIORITY_REASON_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    label: str
-    current_level: str
-    current_level_label: str
-    next_level: str
-    current_summary: str
-    next_unlock: str
-    clean: bool
-    blocking_finding_count: int
-    blocking_finding_codes: _containers.RepeatedScalarFieldContainer[str]
-    priority_rank: int
-    priority_reason: str
-    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., current_level: _Optional[str] = ..., current_level_label: _Optional[str] = ..., next_level: _Optional[str] = ..., current_summary: _Optional[str] = ..., next_unlock: _Optional[str] = ..., clean: _Optional[bool] = ..., blocking_finding_count: _Optional[int] = ..., blocking_finding_codes: _Optional[_Iterable[str]] = ..., priority_rank: _Optional[int] = ..., priority_reason: _Optional[str] = ...) -> None: ...
-
-class PhaseMaturityStanding(_message.Message):
-    __slots__ = ("provider", "phase", "current_level", "current_level_label", "next_level", "ceiling_level", "clean", "unknown_count", "blocking_finding_codes", "next_move", "next_move_reason", "priority_capability_id", "priority_capability_label", "north_star", "at_maximum", "capabilities")
-    PROVIDER_FIELD_NUMBER: _ClassVar[int]
-    PHASE_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_LEVEL_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_LEVEL_LABEL_FIELD_NUMBER: _ClassVar[int]
-    NEXT_LEVEL_FIELD_NUMBER: _ClassVar[int]
-    CEILING_LEVEL_FIELD_NUMBER: _ClassVar[int]
-    CLEAN_FIELD_NUMBER: _ClassVar[int]
-    UNKNOWN_COUNT_FIELD_NUMBER: _ClassVar[int]
-    BLOCKING_FINDING_CODES_FIELD_NUMBER: _ClassVar[int]
-    NEXT_MOVE_FIELD_NUMBER: _ClassVar[int]
-    NEXT_MOVE_REASON_FIELD_NUMBER: _ClassVar[int]
-    PRIORITY_CAPABILITY_ID_FIELD_NUMBER: _ClassVar[int]
-    PRIORITY_CAPABILITY_LABEL_FIELD_NUMBER: _ClassVar[int]
-    NORTH_STAR_FIELD_NUMBER: _ClassVar[int]
-    AT_MAXIMUM_FIELD_NUMBER: _ClassVar[int]
-    CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
-    provider: str
-    phase: str
-    current_level: str
-    current_level_label: str
-    next_level: str
-    ceiling_level: str
-    clean: bool
-    unknown_count: int
-    blocking_finding_codes: _containers.RepeatedScalarFieldContainer[str]
-    next_move: str
-    next_move_reason: str
-    priority_capability_id: str
-    priority_capability_label: str
-    north_star: str
-    at_maximum: bool
-    capabilities: _containers.RepeatedCompositeFieldContainer[PhaseCapabilityStanding]
-    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., current_level: _Optional[str] = ..., current_level_label: _Optional[str] = ..., next_level: _Optional[str] = ..., ceiling_level: _Optional[str] = ..., clean: _Optional[bool] = ..., unknown_count: _Optional[int] = ..., blocking_finding_codes: _Optional[_Iterable[str]] = ..., next_move: _Optional[str] = ..., next_move_reason: _Optional[str] = ..., priority_capability_id: _Optional[str] = ..., priority_capability_label: _Optional[str] = ..., north_star: _Optional[str] = ..., at_maximum: _Optional[bool] = ..., capabilities: _Optional[_Iterable[_Union[PhaseCapabilityStanding, _Mapping]]] = ...) -> None: ...
-
 class PhaseInfo(_message.Message):
-    __slots__ = ("name", "status", "duration_seconds", "comparable", "advisory", "artifact_backed", "non_comparable", "maturity_standing", "findings_summary")
+    __slots__ = ("name", "status", "duration_seconds", "comparable", "advisory", "artifact_backed", "non_comparable", "phase_presentation", "findings_summary")
     NAME_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_SECONDS_FIELD_NUMBER: _ClassVar[int]
@@ -349,7 +286,7 @@ class PhaseInfo(_message.Message):
     ADVISORY_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_BACKED_FIELD_NUMBER: _ClassVar[int]
     NON_COMPARABLE_FIELD_NUMBER: _ClassVar[int]
-    MATURITY_STANDING_FIELD_NUMBER: _ClassVar[int]
+    PHASE_PRESENTATION_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     name: str
     status: str
@@ -358,9 +295,9 @@ class PhaseInfo(_message.Message):
     advisory: bool
     artifact_backed: bool
     non_comparable: bool
-    maturity_standing: PhaseMaturityStanding
+    phase_presentation: _maturity_pb2.PhasePresentation
     findings_summary: PhaseFindingsSummary
-    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., comparable: _Optional[bool] = ..., advisory: _Optional[bool] = ..., artifact_backed: _Optional[bool] = ..., non_comparable: _Optional[bool] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., comparable: _Optional[bool] = ..., advisory: _Optional[bool] = ..., artifact_backed: _Optional[bool] = ..., non_comparable: _Optional[bool] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
 
 class PhaseDescriptorPolicy(_message.Message):
     __slots__ = ("selection", "provider_readiness", "provider_lifecycle", "freshness", "result_gating", "unavailable")
@@ -781,18 +718,18 @@ class GetRunFindingsRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class RunFindingsPhase(_message.Message):
-    __slots__ = ("name", "status", "finding_source", "maturity_standing", "findings_summary")
+    __slots__ = ("name", "status", "finding_source", "phase_presentation", "findings_summary")
     NAME_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FINDING_SOURCE_FIELD_NUMBER: _ClassVar[int]
-    MATURITY_STANDING_FIELD_NUMBER: _ClassVar[int]
+    PHASE_PRESENTATION_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     name: str
     status: str
     finding_source: str
-    maturity_standing: PhaseMaturityStanding
+    phase_presentation: _maturity_pb2.PhasePresentation
     findings_summary: PhaseFindingsSummary
-    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., finding_source: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., finding_source: _Optional[str] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
 
 class GetRunFindingsResponse(_message.Message):
     __slots__ = ("scenario", "run_id", "verdict", "completed_at", "phases")

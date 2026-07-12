@@ -43,6 +43,16 @@ message EvalReport {
   repeated ReportWarning warnings = 5;
   NormalizationPolicy normalization_policy = 6;
   string latency_honesty = 7;
+  repeated PromotionVerdict promotion_verdicts = 8;
+}
+
+// PromotionVerdict is a provider-scoped trust-floor result. A non-stable
+// verdict names missing qualification categories instead of inferring
+// readiness from a short experiment.
+message PromotionVerdict {
+  string engine_id = 1;
+  bool stable = 2;
+  repeated string reasons = 3;
 }
 
 message StrategyReport {
@@ -72,6 +82,12 @@ message StrategyReport {
   int32 commit_count = 24;
   int32 speaker_rejection_count = 25;
   ScalingAnalysis scaling = 26;
+  // Provider-neutral execution identity. These are evidence facts, not UI
+  // labels: a report must name the actual engine and replay lane it ran.
+  string engine_id = 27;
+  string policy_profile = 28;
+  string replay_lane = 29;
+  string fault_profile = 30;
 }
 
 message ClipReport {
