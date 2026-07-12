@@ -32,6 +32,9 @@ type ScenarioMetadata struct {
 type ScenarioCLI interface {
 	// LookupPort retrieves the port number for a named port of a scenario.
 	LookupPort(ctx context.Context, scenarioName, portName string) (int, error)
+	// LookupPortAtPath retrieves a port for a scenario whose runtime was
+	// launched from an explicit physical scenario directory.
+	LookupPortAtPath(ctx context.Context, scenarioName, portName, path string) (int, error)
 
 	// ListScenarios returns metadata for all known scenarios.
 	ListScenarios(ctx context.Context) ([]ScenarioMetadata, error)
@@ -56,6 +59,17 @@ func (c *DefaultScenarioCLI) LookupPort(ctx context.Context, scenarioName, portN
 		resolver = discovery.NewResolver(discovery.ResolverConfig{})
 	}
 	return resolver.ResolveScenarioPort(ctx, scenarioName, portName)
+}
+
+func (c *DefaultScenarioCLI) LookupPortAtPath(ctx context.Context, scenarioName, portName, path string) (int, error) {
+	resp, err := cliClient.ScenarioPortAtPath(ctx, scenarioName, portName, path)
+	if err != nil {
+		return 0, err
+	}
+	if !resp.GetSuccess() || resp.GetPort() <= 0 {
+		return 0, fmt.Errorf("%s", strings.TrimSpace(resp.GetError()))
+	}
+	return int(resp.GetPort()), nil
 }
 
 // ListScenarios returns all scenarios via the typed CLI client, mapping the
@@ -133,6 +147,10 @@ func (m *MockScenarioCLI) LookupPort(_ context.Context, scenarioName, portName s
 	return 0, fmt.Errorf("port %s not found for scenario %s", portName, scenarioName)
 }
 
+func (m *MockScenarioCLI) LookupPortAtPath(ctx context.Context, scenarioName, portName, _ string) (int, error) {
+	return m.LookupPort(ctx, scenarioName, portName)
+}
+
 // ListScenarios returns the configured scenarios or error.
 func (m *MockScenarioCLI) ListScenarios(_ context.Context) ([]ScenarioMetadata, error) {
 	if err, ok := m.Errors["ListScenarios"]; ok && err != nil {
@@ -173,6 +191,20 @@ const (
 )
 
 func ResolvePort(ctx context.Context, scenarioName string, portNames ...string) (*PortInfo, error) {
+	return resolvePort(ctx, scenarioName, "", portNames...)
+}
+
+// ResolvePortAtPath resolves a port for a runtime associated with a physical
+// scenario directory. It is intended for generated scenarios that are not
+// part of the repository catalog.
+func ResolvePortAtPath(ctx context.Context, scenarioName, path string, portNames ...string) (*PortInfo, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, fmt.Errorf("scenario path is required")
+	}
+	return resolvePort(ctx, scenarioName, path, portNames...)
+}
+
+func resolvePort(ctx context.Context, scenarioName, path string, portNames ...string) (*PortInfo, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -190,7 +222,15 @@ func ResolvePort(ctx context.Context, scenarioName string, portNames ...string) 
 
 	for {
 		for _, name := range candidateNames {
-			port, err := scenarioCLI.LookupPort(ctx, trimmedScenario, name)
+			var (
+				port int
+				err  error
+			)
+			if strings.TrimSpace(path) != "" {
+				port, err = scenarioCLI.LookupPortAtPath(ctx, trimmedScenario, name, path)
+			} else {
+				port, err = scenarioCLI.LookupPort(ctx, trimmedScenario, name)
+			}
 			if err == nil && port > 0 {
 				return &PortInfo{Name: name, Port: port}, nil
 			}
@@ -263,6 +303,25 @@ func ResolveURL(ctx context.Context, scenarioName, path string, portNames ...str
 		return "", nil, err
 	}
 
+	return resolvedURL, portInfo, nil
+}
+
+// ResolveURLAtPath resolves a URL using the runtime registered for scenarioRoot;
+// path remains the HTTP route within that scenario, preserving ResolveURL's
+// existing route-path contract.
+func ResolveURLAtPath(ctx context.Context, scenarioName, scenarioRoot, path string, portNames ...string) (string, *PortInfo, error) {
+	trimmedScenario := strings.TrimSpace(scenarioName)
+	if trimmedScenario == "" {
+		return "", nil, fmt.Errorf("scenario name is required")
+	}
+	portInfo, err := ResolvePortAtPath(ctx, trimmedScenario, scenarioRoot, portNames...)
+	if err != nil {
+		return "", nil, err
+	}
+	resolvedURL, err := BuildURL(portInfo.Port, path)
+	if err != nil {
+		return "", nil, err
+	}
 	return resolvedURL, portInfo, nil
 }
 

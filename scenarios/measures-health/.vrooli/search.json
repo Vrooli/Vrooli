@@ -44,7 +44,8 @@
       "performance": {
         "p95_ms": 1500,
         "degraded_rate_max": 0.05,
-        "telemetry_required": true
+        "telemetry_required": true,
+        "minimum_samples": 8
       },
       "tuning": {
         "engine": "dense",
@@ -58,7 +59,7 @@
       },
       "tests": {
         "name": "measures-health measures — primary golden corpus",
-        "description": "Reviewed starter corpus for the central measures provider. Positive cases exercise analytical measure matching; the negative proves junk rejection without executing a measure.",
+        "description": "Reviewed corpus for the central measures provider. It exercises both stable fleet-validation measures through count and coverage phrasings, while preserving a candidate for the unsupported adoption-rate intent rather than pretending that measure exists.",
         "coverage": {
           "required_tag_groups": [
             {
@@ -99,6 +100,38 @@
             "expect_within_top_k": 5
           },
           {
+            "id": "failed-measures-weekly-count",
+            "query": "number of failed measure validations this week",
+            "tags": ["strong", "count", "reviewed-live"],
+            "expect_ids": ["validation_run.failed"],
+            "expect_within_top_k": 5,
+            "note": "Live verified on 2026-07-12 against validation_run.failed."
+          },
+          {
+            "id": "failed-measures-weekly-summary",
+            "query": "weekly failed measures validation count",
+            "tags": ["weak-real", "count", "reviewed-live"],
+            "expect_ids": ["validation_run.failed"],
+            "expect_within_top_k": 5,
+            "note": "Live verified on 2026-07-12 against validation_run.failed."
+          },
+          {
+            "id": "fleet-validation-coverage",
+            "query": "fleet measure validation coverage",
+            "tags": ["strong", "coverage", "reviewed-live"],
+            "expect_ids": ["validation_run.coverage"],
+            "expect_within_top_k": 5,
+            "note": "Live verified on 2026-07-12 against validation_run.coverage."
+          },
+          {
+            "id": "scenario-measure-coverage",
+            "query": "which scenarios have measures coverage",
+            "tags": ["hard", "coverage", "reviewed-live"],
+            "expect_ids": ["validation_run.coverage"],
+            "expect_within_top_k": 5,
+            "note": "Live verified on 2026-07-12 against validation_run.coverage."
+          },
+          {
             "id": "adoption-rate",
             "query": "measure adoption rate by scenario",
             "tags": [
@@ -120,6 +153,14 @@
             ],
             "expect_no_strong_hit": true,
             "expect_max_score": 0.3
+          },
+          {
+            "id": "junk-non-analytical",
+            "query": "florbnax qwop zxcv interface wallpaper",
+            "tags": ["gibberish", "reviewed-live"],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3,
+            "note": "Non-analytical junk keeps the live provider's routing floor measurable."
           }
         ]
       }

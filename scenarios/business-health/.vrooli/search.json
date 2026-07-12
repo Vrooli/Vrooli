@@ -10,6 +10,7 @@
       "description": "Fleet-wide intent corpus: every scenario's PRD purpose, operational targets, and requirements, semantically searchable. Routes: 'which scenario provides capability X / where should I build Y' (answer-space cell #34) and 'what is scenario Y supposed to deliver / why does it exist' (cell #22 — POINTER-ONLY: results are anchors into PRD.md/requirements files, never synthesized rationale). Supersedes the product-manager-agent.requirements capability-gap stub.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "business-health",

@@ -70,6 +70,15 @@
     "statusLabel": "Status:",
     "serviceLabel": "Service:",
     "timestampLabel": "Timestamp:"
+    ,"providerMaturity": "Provider maturity"
+    ,"providerLoading": "Loading the provider maturity summary…"
+    ,"providerUnavailable": "The shared provider maturity summary is unavailable. Branding domain reports remain available."
+    ,"providerHistorical": "The provider returned an historical or unsupported presentation contract ({{version}}); no maturity summary was reconstructed."
+    ,"providerContract": "Provider-supplied presentation contract {{version}}"
+    ,"providerNorthStar": "North star:"
+    ,"providerNextAction": "Next action:"
+    ,"providerCapabilities": "Provider capability maturity"
+    ,"providerDocumentation": "Documentation: {{topics}}"
   },
   "notifications": {
     "summary": "{{count}} notifications",

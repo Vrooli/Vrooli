@@ -105,6 +105,28 @@ export interface FindingsFixResult {
   validation?: ValidateScenarioResponse;
 }
 
+// SharedPhasePresentation contains only the canonical display fields consumed
+// by this UI. It mirrors common.v1.PhasePresentation exactly and performs no
+// ordering, grouping, or maturity derivation in the UI.
+export interface SharedPhasePresentation {
+  contractVersion: string;
+  provider: string;
+  phase: string;
+  currentLevel: string;
+  currentLevelLabel: string;
+  nextAction: string;
+  northStar: string;
+  documentationTopics: string[];
+  capabilities: Array<{
+    id: string;
+    label: string;
+    currentLevel: string;
+    currentLevelLabel: string;
+    nextLevel: string;
+    nextUnlock: string;
+  }>;
+}
+
 export interface EvidenceQuery {
   scenario: string;
   page: string;
@@ -172,6 +194,18 @@ export async function recaptureScenario(scenario: string) {
 export async function fetchFindings(scenario: string): Promise<ExperienceFinding[]> {
   const response = await contractClient.validateScenario({ scenario, includeExecution: true });
   return response.report?.findings ?? [];
+}
+
+// fetchProviderValidation intentionally exposes the shared provider response
+// alongside the richer native experience report. Consumers render the supplied
+// PhasePresentation rather than deriving a competing maturity view.
+export async function fetchProviderValidation(scenario: string) {
+  return scenarioValidationClient.validateScenario({ scenario });
+}
+
+export function sharedPresentationFromResponse(response: unknown): SharedPhasePresentation | undefined {
+  const presentation = (response as { assessment?: { presentation?: SharedPhasePresentation } } | undefined)?.assessment?.presentation;
+  return presentation;
 }
 
 export async function previewFindingsFixes(scenario: string): Promise<FixResponse> {

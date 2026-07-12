@@ -7,7 +7,9 @@ import type { FixResponse } from "@vrooli/proto-types/scenario-validation/v1/val
 import {
   applyFindingsFixes,
   fetchFindings,
+  fetchProviderValidation,
   previewFindingsFixes,
+  sharedPresentationFromResponse,
 } from "../api/experience";
 import { PageFrame } from "../components/PageFrame";
 import { Button } from "../components/ui/button";
@@ -15,6 +17,7 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { fixPreviewText, uniqueRuleIDs } from "./experiencePageUtils";
+import { ProviderPresentationCard } from "./ProviderPresentationCard";
 
 export function FindingsPage() {
   const { t } = useTranslation();
@@ -35,6 +38,11 @@ export function FindingsPage() {
     staleTime: 60_000,
   });
   const rows = findings ?? [];
+  const providerValidation = useQuery({
+    queryKey: ["experience-provider-presentation", scenario],
+    queryFn: () => fetchProviderValidation(scenario),
+    staleTime: 60_000,
+  });
   const previewFixes = async () => {
     setIsFixing(true);
     setFixError("");
@@ -66,6 +74,11 @@ export function FindingsPage() {
       title={t(strings.experience.findings.title)}
       description={t(strings.experience.findings.description)}
     >
+      <ProviderPresentationCard
+        presentation={sharedPresentationFromResponse(providerValidation.data)}
+        loading={providerValidation.isLoading}
+        unavailable={providerValidation.isError}
+      />
       <ul
         data-testid={selectors.experience.findings.findingsList}
         aria-label={t(strings.experience.findings.listLabel)}

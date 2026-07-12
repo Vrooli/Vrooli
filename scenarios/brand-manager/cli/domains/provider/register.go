@@ -1,4 +1,5 @@
-// Package provider exposes the shared ScenarioValidationService CLI surface.
+// Package provider exposes Brand Manager's shared ScenarioValidationService
+// contract directly for operators and Test Genie troubleshooting.
 package provider
 
 import (
@@ -28,16 +29,12 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 }
 
 type handlers struct {
-	core   *cliapp.ScenarioApp
 	client scenariovalidationconnect.ScenarioValidationServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{
-		core:   core,
-		client: scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL),
-	}
+	return &handlers{client: scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL)}
 }
 
 func (h *handlers) validate(ctx cliapp.RunContext) error {
@@ -46,14 +43,14 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 		Path:     ctx.Flag("path"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("validate provider scenario", err, nil)
+		return cliapp.WrapAPIError("validate branding provider scenario", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no provider validation response")
 	}
 	summary, results := presentationReport(resp.Msg.GetAssessment().GetPresentation())
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%s: %s", resp.Msg.Scenario, resp.Msg.Status.String()), summary},
+		Summary:        []string{fmt.Sprintf("%s: %s", resp.Msg.GetScenario(), resp.Msg.GetStatus()), summary},
 		ResultsHeading: "Provider maturity",
 		Results:        results,
 	})

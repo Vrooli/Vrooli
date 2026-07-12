@@ -52,6 +52,7 @@ func TestRunScenarioExecutesObserverCaseAndWritesArtifacts(t *testing.T) {
 	require.Equal(t, 1, report.Summary.Passed)
 	require.Equal(t, 1, client.validateCalls)
 	require.Equal(t, 1, client.executeCalls)
+	require.Equal(t, filepath.Join(root, "bas"), client.lastRequest.Parameters.ProjectRoot)
 	require.Len(t, report.Runs, 1)
 	run := report.Runs[0]
 	require.True(t, run.Success)
@@ -59,6 +60,30 @@ func TestRunScenarioExecutesObserverCaseAndWritesArtifacts(t *testing.T) {
 	require.NotEmpty(t, run.Artifact.Latest)
 	require.FileExists(t, filepath.Join(root, run.Artifact.Latest))
 	require.FileExists(t, filepath.Join(root, run.Artifact.Timeline))
+}
+
+func TestRunScenarioAbsolutizesRelativeTargetProjectRoot(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	relTarget, err := filepath.Rel(cwd, root)
+	require.NoError(t, err)
+	require.False(t, filepath.IsAbs(relTarget), "relTarget should be relative for this test to be meaningful")
+
+	client := &fakeBASClient{
+		result: &ExecuteResult{ExecutionID: "exec-1", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED},
+	}
+	service := NewService(client)
+
+	_, err = service.RunScenario(context.Background(), "sample", relTarget, Options{
+		IncludeExecution: true,
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, 1, client.executeCalls)
+	got := client.lastRequest.Parameters.ProjectRoot
+	require.True(t, filepath.IsAbs(got), "ProjectRoot must be absolute, got %q", got)
+	require.Equal(t, filepath.Join(root, "bas"), got)
 }
 
 func TestRunScenarioRefusesMutatingCaseBeforeBASWithoutIsolationProof(t *testing.T) {
@@ -209,6 +234,7 @@ type fakeBASClient struct {
 	validate      *ValidationResult
 	result        *ExecuteResult
 	timeline      *bastimeline.ExecutionTimeline
+	lastRequest   ExecuteRequest
 }
 
 func (f *fakeBASClient) ValidateResolved(context.Context, map[string]any) (*ValidationResult, error) {
@@ -219,8 +245,9 @@ func (f *fakeBASClient) ValidateResolved(context.Context, map[string]any) (*Vali
 	return &ValidationResult{Valid: true}, nil
 }
 
-func (f *fakeBASClient) ExecuteAdhoc(context.Context, ExecuteRequest) (*ExecuteResult, error) {
+func (f *fakeBASClient) ExecuteAdhoc(_ context.Context, req ExecuteRequest) (*ExecuteResult, error) {
 	f.executeCalls++
+	f.lastRequest = req
 	if f.result != nil {
 		return f.result, nil
 	}

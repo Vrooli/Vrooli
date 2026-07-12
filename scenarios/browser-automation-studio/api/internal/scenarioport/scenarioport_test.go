@@ -11,6 +11,7 @@ type recordingScenarioCLI struct {
 	ports    map[string]map[string]int
 	errors   map[string]error
 	attempts []lookupAttempt
+	paths    []string
 }
 
 type lookupAttempt struct {
@@ -29,6 +30,11 @@ func (c *recordingScenarioCLI) LookupPort(_ context.Context, scenarioName, portN
 		}
 	}
 	return 0, errors.New("port not found")
+}
+
+func (c *recordingScenarioCLI) LookupPortAtPath(ctx context.Context, scenarioName, portName, path string) (int, error) {
+	c.paths = append(c.paths, path)
+	return c.LookupPort(ctx, scenarioName, portName)
 }
 
 func (c *recordingScenarioCLI) ListScenarios(_ context.Context) ([]ScenarioMetadata, error) {
@@ -52,6 +58,10 @@ func (c *retryScenarioCLI) LookupPort(_ context.Context, scenarioName, portName 
 		return 0, errors.New("unexpected lookup")
 	}
 	return 36233, nil
+}
+
+func (c *retryScenarioCLI) LookupPortAtPath(ctx context.Context, scenarioName, portName, _ string) (int, error) {
+	return c.LookupPort(ctx, scenarioName, portName)
 }
 
 func (c *retryScenarioCLI) ListScenarios(_ context.Context) ([]ScenarioMetadata, error) {
@@ -125,6 +135,26 @@ func TestResolvePortFallsBackThroughScenarioCLI(t *testing.T) {
 		{scenario: "app-monitor", port: "API_PORT"},
 	}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected lookup attempts: got %+v want %+v", got, want)
+	}
+}
+
+func TestResolveURLAtPathUsesPhysicalScenarioDirectory(t *testing.T) {
+	cli := &recordingScenarioCLI{ports: map[string]map[string]int{"generated": {"API_PORT": 6123}}}
+	restore := SetScenarioCLIForTests(cli)
+	defer restore()
+
+	resolved, info, err := ResolveURLAtPath(context.Background(), "generated", "/tmp/workspace/scenarios/generated", "/notes")
+	if err != nil {
+		t.Fatalf("ResolveURLAtPath: %v", err)
+	}
+	if got, want := resolved, "http://localhost:6123/notes"; got != want {
+		t.Fatalf("URL = %q, want %q", got, want)
+	}
+	if info == nil || info.Name != "API_PORT" {
+		t.Fatalf("port info = %#v", info)
+	}
+	if got, want := cli.paths, []string{"/tmp/workspace/scenarios/generated", "/tmp/workspace/scenarios/generated"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("path lookups = %#v, want %#v", got, want)
 	}
 }
 

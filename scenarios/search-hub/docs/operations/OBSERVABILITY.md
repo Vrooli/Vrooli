@@ -67,6 +67,7 @@ The optional `performance` block tightens the default or opts into telemetry:
 | `p95_ms` | p95 query-latency budget (overrides the class default) | `SEARCH_PERF_BUDGET_BREACH` (advisory) — latest run p95 exceeds the budget |
 | `degraded_rate_max` | max fraction of real queries returning no result | `SEARCH_PERF_DEGRADED` (advisory) — latest run's empty-result rate exceeds it |
 | `telemetry_required` | require measurable latency evidence to exist | `SEARCH_PERF_BUDGET_UNPROVEN` (**required**) — no run latency to measure |
+| `minimum_samples` | smallest eval-run sample that may substantiate the provider SLO | `SEARCH_PERF_SAMPLES_UNPROVEN` (**required**) — latest run contains too few cases |
 
 Latency and degradation are read from the **latest eval run's** aggregate
 (`latency_p95_ms`, per-case empty results). Because an eval run is a small, noisy

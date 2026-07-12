@@ -122,6 +122,9 @@ func TestApplyCreatesDirsAndIsIdempotent(t *testing.T) {
 	if got := len(resp2.GetCandidates()); got != 0 {
 		t.Fatalf("second apply candidates=%d, want 0 (idempotent)", got)
 	}
+	if resp2.GetApplied() {
+		t.Fatal("second apply must report a no-op when no candidates remain")
+	}
 }
 
 func TestCanFixScopedToSpecificFinding(t *testing.T) {

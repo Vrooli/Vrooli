@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -92,6 +93,33 @@ func TestCompileWorkflowSequential(t *testing.T) {
 
 	if got := plan.Steps[0].OutgoingEdges; len(got) != 1 || got[0].TargetNode != "node-2" {
 		t.Fatalf("unexpected outgoing edges: %+v", got)
+	}
+}
+
+func TestCompileWorkflowWithScenarioRootResolvesGeneratedScenarioPort(t *testing.T) {
+	cli := scenarioport.NewMockScenarioCLI()
+	cli.Ports["generated"] = map[string]int{"API_PORT": 6123}
+	restore := scenarioport.SetScenarioCLIForTests(cli)
+	defer restore()
+
+	route := "/notes"
+	workflow := makeTestWorkflow(uuid.New(), "generated-flow", []*basworkflows.WorkflowNodeV2{{
+		Id: "navigate",
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+				Scenario:     ptr("generated"),
+				ScenarioPath: &route,
+			}},
+		},
+	}}, nil)
+
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{ScenarioRoot: "/tmp/workspace/scenarios/generated"})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions: %v", err)
+	}
+	if got, want := plan.Steps[0].Params["url"], "http://localhost:6123/notes"; got != want {
+		t.Fatalf("resolved URL = %#v, want %q", got, want)
 	}
 }
 

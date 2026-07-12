@@ -1,4 +1,5 @@
 {
+  "id": ".",
   "name": "Search Hub",
   "short_name": "search-hub",
   "description": "Federated AI search router over all registered project (and external) knowledge corpora.",

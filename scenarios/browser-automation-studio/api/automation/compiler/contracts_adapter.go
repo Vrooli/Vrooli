@@ -5,6 +5,7 @@ package compiler
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -50,6 +51,9 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 	var opts *CompileOptions
 	if projectRoot != "" {
 		opts = &CompileOptions{SelectorManifestRoot: projectRoot}
+		if filepath.Base(filepath.Clean(projectRoot)) == "bas" {
+			opts.ScenarioRoot = filepath.Dir(filepath.Clean(projectRoot))
+		}
 	}
 
 	plan, err := CompileWorkflowWithOptions(workflow, opts)

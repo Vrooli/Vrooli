@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { HealthCard } from "../features/health/HealthCard";
+import { ProviderMaturityCard } from "../features/health/ProviderMaturityCard";
 import { useTranslation } from "../i18n";
 
 /**
@@ -22,6 +23,7 @@ export function DashboardPage() {
       <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
       <div className="grid gap-4 md:grid-cols-3">
         <HealthCard />
+        <ProviderMaturityCard />
         <div className="rounded-panel border border-app-border bg-app-surface p-4">
           <p className="text-xs uppercase text-app-muted-foreground">
             {t(strings.pages.dashboard.statPlaceholderLabel)}

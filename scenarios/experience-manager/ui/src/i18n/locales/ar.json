@@ -138,7 +138,16 @@
       "fixPreviewLabel": "معاينة الإصلاح",
       "previewEmpty": "عاين الإصلاحات الحتمية قبل تطبيقها.",
       "previewError": "فشلت معاينة الإصلاح.",
-      "applyError": "فشل تطبيق الإصلاح."
+      "applyError": "فشل تطبيق الإصلاح.",
+      "providerMaturity": "نضج المزوّد",
+      "providerLoading": "جارٍ تحميل ملخص نضج المزوّد…",
+      "providerUnavailable": "ملخص النضج المشترك للمزوّد غير متاح. يظل تقرير التجربة الأصلي متاحًا.",
+      "providerHistorical": "أعاد المزوّد عقد عرض تاريخيًا أو غير مدعوم ({{version}})؛ لم يُنشأ ملخص نضج بديل.",
+      "providerContract": "عقد العرض المقدم من المزوّد {{version}}",
+      "providerNorthStar": "الهدف الأسمى:",
+      "providerNextAction": "الإجراء التالي:",
+      "providerCapabilities": "نضج قدرات المزوّد",
+      "providerDocumentation": "التوثيق: {{topics}}"
     }
   },
   "errors": {

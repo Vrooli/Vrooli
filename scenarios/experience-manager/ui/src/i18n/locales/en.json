@@ -138,7 +138,16 @@
       "fixPreviewLabel": "Fix preview",
       "previewEmpty": "Preview deterministic fixes before applying them.",
       "previewError": "Fix preview failed.",
-      "applyError": "Fix apply failed."
+      "applyError": "Fix apply failed.",
+      "providerMaturity": "Provider maturity",
+      "providerLoading": "Loading the provider maturity summary…",
+      "providerUnavailable": "The shared provider maturity summary is unavailable. The native experience report remains available.",
+      "providerHistorical": "The provider returned an historical or unsupported presentation contract ({{version}}); no maturity summary was reconstructed.",
+      "providerContract": "Provider-supplied presentation contract {{version}}",
+      "providerNorthStar": "North star:",
+      "providerNextAction": "Next action:",
+      "providerCapabilities": "Provider capability maturity",
+      "providerDocumentation": "Documentation: {{topics}}"
     }
   },
   "errors": {

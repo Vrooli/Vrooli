@@ -26,6 +26,18 @@ func (f fakeSurfaceDiscoverer) Discover(context.Context, string, string, string,
 	return f.inventory, nil
 }
 
+type recordingSurfaceDiscoverer struct {
+	fakeSurfaceDiscoverer
+	scenarioDir string
+	repoRoot    string
+}
+
+func (f *recordingSurfaceDiscoverer) Discover(ctx context.Context, scenario, scenarioDir, repoRoot string, useCache bool) (surfaceInventory, error) {
+	f.scenarioDir = scenarioDir
+	f.repoRoot = repoRoot
+	return f.fakeSurfaceDiscoverer.Discover(ctx, scenario, scenarioDir, repoRoot, useCache)
+}
+
 type fakeCommandRunner struct {
 	calls []string
 }
@@ -569,6 +581,28 @@ func TestReadinessRoutesByDiscoveredSurfaceLanguage(t *testing.T) {
 	}
 	if workerTouched {
 		t.Fatalf("worker surface should use package-file checks, not command runner calls: %v", runner.calls)
+	}
+}
+
+func TestReadinessUsesPhysicalWorkspaceRootForExplicitScenarioPath(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	scenarioDir := filepath.Join(workspaceRoot, "scenarios", "generated")
+	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"dependencies":{}}`)
+	discoverer := &recordingSurfaceDiscoverer{}
+	handler := &connectHandler{
+		scenariosDir:      func() string { return "/repo/scenarios" },
+		surfaceDiscoverer: discoverer,
+		commandLookup:     func(name string) (string, error) { return "/usr/bin/" + name, nil },
+		commandRunner:     &fakeCommandRunner{},
+	}
+
+	handler.evaluateReadiness(withScenarioPath(context.Background(), scenarioDir), "generated", true)
+
+	if discoverer.scenarioDir != scenarioDir {
+		t.Fatalf("scenario dir = %q, want %q", discoverer.scenarioDir, scenarioDir)
+	}
+	if discoverer.repoRoot != workspaceRoot {
+		t.Fatalf("repo root = %q, want physical workspace root %q", discoverer.repoRoot, workspaceRoot)
 	}
 }
 

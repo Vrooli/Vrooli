@@ -43,6 +43,9 @@ func TestSharedValidateScenarioUsesParserReport(t *testing.T) { // [REQ:EXPERIEN
 	if err := assessment.ValidatePhasePresentation(resp.Msg.GetAssessment()); err != nil {
 		t.Fatalf("direct response must carry canonical phase presentation: %v", err)
 	}
+	if resp.Msg.GetMetrics() == nil {
+		t.Fatal("direct response must carry execution metrics")
+	}
 }
 
 func TestSharedValidateScenarioHonorsExperienceGate(t *testing.T) { // [REQ:EXPERIEN-P0-002]

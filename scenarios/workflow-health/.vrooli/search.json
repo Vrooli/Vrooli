@@ -10,6 +10,7 @@
       "description": "Scenario-owned BAS workflow assets exposed by workflow-health: runnable flows, validation cases, and reusable fragments with safety metadata, requirement links, selectors, routes, and guardrails. Route here to find workflow journeys, workflow tests, or workflow fragments before hand-rolling browser automation.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "workflow-health",
@@ -39,8 +40,8 @@
         "name": "workflow-health workflows - primary golden corpus",
         "description": "Starter rank-centric corpus for the workflow-health workflow provider. The provider is deterministic and scans the workflow-health BAS catalog through WorkflowSearchService.",
         "cases": [
-          {
-            "id": "performance-flow",
+      {
+        "id": "performance-flow",
             "query": "find a performance workflow flow",
             "tags": [
               "strong",
@@ -49,8 +50,14 @@
             "expect_ids": [
               "workflow-health:bas/flows/perf-example-scroll.json"
             ],
-            "expect_within_top_k": 3
-          },
+        "expect_within_top_k": 3
+      },
+      {"id":"performance-capture-scroll","query":"capture a performance trace while scrolling an application shell","tags":["strong","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"performance-journey-template","query":"template for an assertion-free browser performance journey","tags":["weak-real","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"scroll-trace-workflow","query":"workflow to trace scroll responsiveness without functional assertions","tags":["hard","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"observer-perf-flow","query":"safe observer flow for profiling a user interface","tags":["weak","workflow.flow","observer","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"lighthouse-interaction-flow","query":"browser interaction flow to use before performance analysis","tags":["strong","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"nonfunctional-scroll-flow","query":"nonfunctional scroll workflow for a performance audit","tags":["weak-real","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
           {
             "id": "junk-gibberish",
             "query": "florbnax qwop zxcv workflow nonsense",
@@ -94,6 +101,7 @@
       "description": "Scenario-owned BAS validation cases indexed by workflow-health. Route here to find workflow evidence that proves scenario behavior or requirement coverage.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "workflow-health",
@@ -138,8 +146,8 @@
           ]
         },
         "cases": [
-          {
-            "id": "routed-database-case",
+      {
+        "id": "routed-database-case",
             "query": "test case for routed database pool isolation",
             "tags": [
               "strong",
@@ -148,8 +156,14 @@
             "expect_ids": [
               "workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"
             ],
-            "expect_within_top_k": 3
-          },
+        "expect_within_top_k": 3
+      },
+      {"id":"operator-overview-smoke","query":"browser smoke test for the workflow health overview","tags":["strong","workflow.test","operator","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"workflow-title-test","query":"validate the Workflow Health page title renders","tags":["weak-real","workflow.test","operator","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"observer-ui-validation","query":"non-mutating BAS validation of a workflow operator user interface","tags":["hard","workflow.test","observer","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"workflow-overview-visible","query":"check that a workflow overview surface becomes visible","tags":["weak","workflow.test","operator","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"safe-workflow-smoke","query":"safe playbook to inspect workflow health without changing data","tags":["strong","workflow.test","observer","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"scenario-navigation-test","query":"test that navigating to workflow health loads its operator surface","tags":["weak-real","workflow.test","operator","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
           {
             "id": "junk-gibberish",
             "query": "florbnax qwop zxcv workflow test nonsense",
@@ -170,6 +184,7 @@
       "description": "Scenario-owned BAS action fragments indexed by workflow-health. Route here to find reusable browser automation fragments and dependency building blocks, not top-level autonomous workflows.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "workflow-health",
@@ -221,8 +236,8 @@
             ],
             "expect_within_top_k": 3
           },
-          {
-            "id": "scroll-ancestor-fragment",
+      {
+        "id": "scroll-ancestor-fragment",
             "query": "reusable fragment to scroll nearest ancestor",
             "tags": [
               "weak-real",
@@ -231,8 +246,13 @@
             "expect_ids": [
               "workflow-health:bas/actions/perf-scroll-ancestor.json"
             ],
-            "expect_within_top_k": 3
-          },
+        "expect_within_top_k": 3
+      },
+      {"id":"scrollable-parent-helper","query":"reusable helper to scroll a list parent element","tags":["strong","workflow.fragment","scroll","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-scroll-ancestor.json"],"expect_within_top_k":3},
+      {"id":"virtual-list-scroll-helper","query":"action fragment for scrolling a virtualized list container","tags":["weak-real","workflow.fragment","scroll","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-scroll-ancestor.json"],"expect_within_top_k":3},
+      {"id":"resize-drag-helper","query":"reusable browser action to drag a resize divider","tags":["strong","workflow.fragment","drag","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-drag-horizontal.json"],"expect_within_top_k":3},
+      {"id":"pointer-move-fragment","query":"stepped pointer movement action for testing horizontal drag","tags":["weak","workflow.fragment","drag","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-drag-horizontal.json"],"expect_within_top_k":3},
+      {"id":"scroll-performance-action","query":"compose an action to scroll nearest overflow ancestor during a performance capture","tags":["hard","workflow.fragment","scroll","performance","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-scroll-ancestor.json"],"expect_within_top_k":3},
           {
             "id": "fragment-junk-gibberish",
             "query": "florbnax qwop zxcv workflow fragment nonsense",

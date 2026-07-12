@@ -64,6 +64,9 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	if err != nil {
 		return Report{}, err
 	}
+	if scenarioPath := ScenarioPathFrom(ctx); scenarioPath != "" {
+		protosurface.ApplyTransportFactsAtScenarioPath(&surface, scenarioPath)
+	}
 	fleetIndex := s.fleetReachability()
 
 	// analyze is the hot stage; its children separate CPU-bound static surface

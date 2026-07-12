@@ -69,6 +69,15 @@
     "statusLabel": "ステータス:",
     "serviceLabel": "サービス:",
     "timestampLabel": "タイムスタンプ:"
+    ,"providerMaturity": "プロバイダー成熟度"
+    ,"providerLoading": "プロバイダー成熟度の要約を読み込んでいます…"
+    ,"providerUnavailable": "共有プロバイダー成熟度の要約を利用できません。ブランディングのドメイン報告は引き続き利用できます。"
+    ,"providerHistorical": "プロバイダーが履歴上または未対応の表示契約（{{version}}）を返しました。成熟度の要約は再構築されませんでした。"
+    ,"providerContract": "プロバイダー提供の表示契約 {{version}}"
+    ,"providerNorthStar": "ノーススター:"
+    ,"providerNextAction": "次のアクション:"
+    ,"providerCapabilities": "プロバイダー能力の成熟度"
+    ,"providerDocumentation": "ドキュメント: {{topics}}"
   },
   "notifications": {
     "summary": "{{count}} 件の通知"

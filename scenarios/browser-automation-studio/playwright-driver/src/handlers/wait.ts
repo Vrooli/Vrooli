@@ -84,7 +84,7 @@ export class WaitHandler extends BaseHandler {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      const driverError = normalizeError(error);
+      const driverError = normalizeError(error, { selector: params?.selector });
 
       return {
         success: false,

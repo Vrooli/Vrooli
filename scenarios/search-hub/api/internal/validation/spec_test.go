@@ -65,6 +65,9 @@ func TestSearchHubMaturitySpecDefinesProductionReadinessRung(t *testing.T) {
 			t.Fatalf("%s local level impact = %q, want L3 production blocker", code, mapping.LocalLevelImpact)
 		}
 	}
+	if got := spec.Findings[CodePerfSamplesUnproven].CleanRequirement; got != string(assessment.CleanRequirementRequired) {
+		t.Fatalf("%s clean requirement = %q, want required", CodePerfSamplesUnproven, got)
+	}
 }
 
 func TestSearchHubMaturityFindingMappingsAreCapabilityScoped(t *testing.T) {

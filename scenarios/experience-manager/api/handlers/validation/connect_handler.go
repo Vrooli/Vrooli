@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/metrics"
 
 	localassessment "experience-manager/internal/assessment"
 	"experience-manager/internal/attestation"
@@ -158,6 +159,7 @@ func (h *connectHandler) scaffoldCases(req *contractv1.ScaffoldCasesRequest) (*c
 // validate is the single shared pipeline wrapper for the native and delegated
 // service mounts.
 func (h *connectHandler) validate(ctx context.Context, scenario, path string) (spec.Report, *commonv1.MaturityAssessment, *commonv1.ExecutionMetrics, error) {
+	collector := metrics.Start()
 	if h.deps.Engine == nil {
 		return spec.Report{}, nil, nil, connect.NewError(connect.CodeInternal, fmt.Errorf("experience validation engine is not configured"))
 	}
@@ -177,7 +179,7 @@ func (h *connectHandler) validate(ctx context.Context, scenario, path string) (s
 	if err != nil {
 		return report, nil, nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
-	return report, assessment, nil, nil
+	return report, assessment, collector.Stop(), nil
 }
 
 // ValidateScenario implements the shared ScenarioValidationService mount.

@@ -63,6 +63,22 @@ afterEach(() => {
 });
 
 describe("EvalsPanel", () => {
+  it("renders loading while the suite catalog is pending", () => {
+    vi.mocked(evalsApi.listSuites).mockReturnValue(new Promise(() => {}));
+
+    renderWithProviders(<EvalsPanel />);
+
+    expect(screen.getByTestId(selectors.evals.loading)).toBeInTheDocument();
+  });
+
+  it("renders an error when the suite catalog cannot load", async () => {
+    vi.mocked(evalsApi.listSuites).mockRejectedValue(new Error("catalog unavailable"));
+
+    renderWithProviders(<EvalsPanel />);
+
+    expect(await screen.findByTestId(selectors.evals.error)).toBeInTheDocument();
+  });
+
   it("lists suites, selects the first, and shows its run history with a trend", async () => {
     vi.mocked(evalsApi.listSuites).mockResolvedValue([suite()]);
     vi.mocked(evalsApi.listRuns).mockResolvedValue([
@@ -133,5 +149,54 @@ describe("EvalsPanel", () => {
       expect(screen.getByTestId(selectors.evals.compareResult)).toBeInTheDocument();
     });
     expect(vi.mocked(evalsApi.compareRuns)).toHaveBeenCalledWith("run-1", "run-2");
+  });
+
+  it("shows the no-runs state for a registered suite", async () => {
+    vi.mocked(evalsApi.listSuites).mockResolvedValue([suite()]);
+    vi.mocked(evalsApi.listRuns).mockResolvedValue([]);
+
+    renderWithProviders(<EvalsPanel />);
+
+    expect(await screen.findByTestId(selectors.evals.noRuns)).toBeInTheDocument();
+  });
+
+  it("renders an untagged run without an optional configuration snapshot", async () => {
+    vi.mocked(evalsApi.listSuites).mockResolvedValue([suite()]);
+    vi.mocked(evalsApi.listRuns).mockResolvedValue([
+      create(EvalRunSchema, {
+        runId: "run-untagged",
+        suiteId: SUITE_ID,
+        createdAt: "2026-06-04T12:00:00Z",
+        aggregate: { cases: 0, met: 0 },
+      }),
+    ]);
+
+    renderWithProviders(<EvalsPanel />);
+
+    expect(await screen.findByTestId(selectors.evals.runRow({ runId: "run-untagged" }))).toBeInTheDocument();
+    expect(screen.getByLabelText("evals.untagged")).toBeInTheDocument();
+  });
+
+  it("keeps the two newest selections when comparing three runs", async () => {
+    vi.mocked(evalsApi.listSuites).mockResolvedValue([suite()]);
+    vi.mocked(evalsApi.listRuns).mockResolvedValue([
+      run("run-3", "newest", 0.82, 0.05),
+      run("run-2", "middle", 0.8, 0.1),
+      run("run-1", "oldest", 0.7, 0.2),
+    ]);
+    vi.mocked(evalsApi.compareRuns).mockResolvedValue(create(CompareRunsResponseSchema, {}));
+    const user = userEvent.setup();
+
+    renderWithProviders(<EvalsPanel />);
+    await screen.findByTestId(selectors.evals.runHistory);
+
+    await user.click(screen.getByTestId(selectors.evals.runSelect({ runId: "run-1" })));
+    await user.click(screen.getByTestId(selectors.evals.runSelect({ runId: "run-2" })));
+    await user.click(screen.getByTestId(selectors.evals.runSelect({ runId: "run-3" })));
+    await user.click(screen.getByTestId(selectors.evals.compareButton));
+
+    await waitFor(() => {
+      expect(vi.mocked(evalsApi.compareRuns)).toHaveBeenCalledWith("run-2", "run-3");
+    });
   });
 });

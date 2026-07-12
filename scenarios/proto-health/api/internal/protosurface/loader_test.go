@@ -96,6 +96,32 @@ func TestDescriptorLoaderListScenarios(t *testing.T) {
 	require.Equal(t, sorted, scenarios)
 }
 
+func TestApplyTransportFactsAtScenarioPathUsesPhysicalWorkspace(t *testing.T) {
+	scenarioPath := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "endpoints.json"), []byte(`{
+  "endpoints": [{
+    "id": "notes-list",
+    "path": "/example.v1.notes.NotesService/ListNotes",
+    "method": "POST",
+    "category": "notes"
+  }]
+}`), 0o644))
+	surface := Surface{
+		Scenario: "example",
+		Services: []Service{{
+			FilePath: "example/v1/notes/notes.proto",
+			FullName: "example.v1.notes.NotesService",
+			RPCs:     []RPC{{Name: "ListNotes"}},
+		}},
+	}
+
+	ApplyTransportFactsAtScenarioPath(&surface, scenarioPath)
+
+	require.Equal(t, TransportWorldConnect, surface.TransportWorld)
+	require.Equal(t, TransportKindConnect, surface.Services[0].RPCs[0].Transport)
+}
+
 func findRepoRoot(t *testing.T) string {
 	t.Helper()
 	dir, err := os.Getwd()

@@ -45,6 +45,9 @@ type CompileOptions struct {
 	// SelectorManifestRoot sets the root directory used to resolve selectors.manifest.json.
 	// When empty, the compiler falls back to resolving from the current scenario root.
 	SelectorManifestRoot string
+	// ScenarioRoot identifies the physical root for the scenario under test.
+	// It is used only when a navigate destination names that same scenario.
+	ScenarioRoot string
 }
 
 // EdgeRef references an outgoing connection from a node.
@@ -514,12 +517,17 @@ type planner struct {
 	outgoing             map[string][]rawEdge
 	incomingCount        map[string]int
 	selectorManifestRoot string
+	scenarioRoot         string
 }
 
 func newPlanner(def flowDefinition, opts *CompileOptions) *planner {
 	manifestRoot := ""
 	if opts != nil {
 		manifestRoot = strings.TrimSpace(opts.SelectorManifestRoot)
+	}
+	scenarioRoot := ""
+	if opts != nil {
+		scenarioRoot = strings.TrimSpace(opts.ScenarioRoot)
 	}
 
 	p := &planner{
@@ -529,6 +537,7 @@ func newPlanner(def flowDefinition, opts *CompileOptions) *planner {
 		outgoing:             make(map[string][]rawEdge),
 		incomingCount:        make(map[string]int),
 		selectorManifestRoot: manifestRoot,
+		scenarioRoot:         scenarioRoot,
 	}
 
 	for idx, node := range def.Nodes {
@@ -784,7 +793,7 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 		// Resolve navigate node URLs from destinationType: "scenario" format
 		if stepType == StepNavigate {
 			logrus.WithField("node_id", nodeID).Debug("buildSteps: resolving navigate URL")
-			if err := resolveNavigateURL(&step); err != nil {
+			if err := resolveNavigateURL(&step, p.scenarioRoot); err != nil {
 				return nil, fmt.Errorf("failed to resolve navigate URL for node %s: %w", nodeID, err)
 			}
 			logrus.WithField("node_id", nodeID).Debug("buildSteps: navigate URL resolved")
@@ -983,7 +992,7 @@ func edgeCondition(edge rawEdge) string {
 
 // resolveNavigateURL resolves destination URLs for navigate nodes with destinationType: "scenario"
 // or when a scenario field is present (for backwards compatibility with legacy workflows).
-func resolveNavigateURL(step *ExecutionStep) error {
+func resolveNavigateURL(step *ExecutionStep, scenarioRoot string) error {
 	if step == nil || step.Type != StepNavigate || step.Params == nil {
 		return nil
 	}
@@ -1025,7 +1034,15 @@ func resolveNavigateURL(step *ExecutionStep) error {
 	// Resolve URL via scenarioport package with a timeout to prevent hanging
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	resolvedURL, _, err := scenarioport.ResolveURL(ctx, scenarioName, scenarioPath)
+	var (
+		resolvedURL string
+		err         error
+	)
+	if strings.TrimSpace(scenarioRoot) != "" && filepath.Base(filepath.Clean(scenarioRoot)) == scenarioName {
+		resolvedURL, _, err = scenarioport.ResolveURLAtPath(ctx, scenarioName, scenarioRoot, scenarioPath)
+	} else {
+		resolvedURL, _, err = scenarioport.ResolveURL(ctx, scenarioName, scenarioPath)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to resolve URL for scenario %s: %w", scenarioName, err)
 	}
@@ -1038,14 +1055,16 @@ func resolveNavigateURL(step *ExecutionStep) error {
 
 // loadSelectorManifest loads the selector manifest from ui/src/consts/selectors.manifest.json,
 // scoped by the provided manifestRoot (typically a scenario root or bas/ folder).
-func loadSelectorManifest(manifestRoot string) (map[string]interface{}, error) {
+// It returns the parsed manifest and the path it was read from so callers can
+// surface which manifest actually served a resolution.
+func loadSelectorManifest(manifestRoot string) (map[string]interface{}, string, error) {
 	// Project files may be resynchronized while BAS stays running. Load the
 	// small manifest per compilation so a new canonical selector is usable in
 	// the next workflow without a server restart.
 	return readSelectorManifest(manifestRoot)
 }
 
-func readSelectorManifest(manifestRoot string) (map[string]interface{}, error) {
+func readSelectorManifest(manifestRoot string) (map[string]interface{}, string, error) {
 	logrus.WithField("manifest_root", manifestRoot).Debug("loadSelectorManifest: called")
 	scenarioDir := paths.ResolveScenarioDir(nil)
 	logrus.WithField("scenario_dir", scenarioDir).Debug("loadSelectorManifest: resolved scenario dir")
@@ -1096,18 +1115,21 @@ func readSelectorManifest(manifestRoot string) (map[string]interface{}, error) {
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to read selector manifest (tried: %v): %w", manifestPaths, err)
+		return nil, "", fmt.Errorf("failed to read selector manifest (tried: %v): %w", manifestPaths, err)
 	}
 
-	logrus.WithField("manifest_path", manifestPath).Debug("loadSelectorManifest: manifest found")
+	logrus.WithFields(logrus.Fields{
+		"manifest_path": manifestPath,
+		"manifest_root": manifestRoot,
+	}).Info("loadSelectorManifest: manifest found")
 
 	// Parse JSON
 	var manifest map[string]interface{}
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("failed to parse selector manifest: %w", err)
+		return nil, "", fmt.Errorf("failed to parse selector manifest %s: %w", manifestPath, err)
 	}
 
-	return manifest, nil
+	return manifest, manifestPath, nil
 }
 
 // resolveSelectors resolves @selector/ references in step parameters to actual CSS selectors
@@ -1151,7 +1173,7 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 	}
 
 	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: has @selector/ refs, loading manifest")
-	manifest, err := loadSelectorManifest(manifestRoot)
+	manifest, manifestPath, err := loadSelectorManifest(manifestRoot)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"node_id":       step.NodeID,
@@ -1171,7 +1193,10 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 				cleanedRef = cleanedRef[:idx]
 			}
 
-			resolvedRef := resolveSelectorTokens(cleanedRef, manifest, manifestRoot)
+			resolvedRef, err := resolveSelectorTokens(cleanedRef, manifest, manifestRoot, manifestPath)
+			if err != nil {
+				return fmt.Errorf("param %s: %w", paramName, err)
+			}
 			if resolvedRef != cleanedRef {
 				step.Params[paramName] = resolvedRef
 			} else if cleanedRef != selectorRef {
@@ -1187,7 +1212,11 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
 				cleanedRef = cleanedRef[:idx]
 			}
-			if resolved := resolveSelectorTokens(cleanedRef, manifest, manifestRoot); resolved != cleanedRef {
+			resolved, err := resolveSelectorTokens(cleanedRef, manifest, manifestRoot, manifestPath)
+			if err != nil {
+				return fmt.Errorf("param resilience.successSelector: %w", err)
+			}
+			if resolved != cleanedRef {
 				resilience["successSelector"] = resolved
 			} else if cleanedRef != successSelector {
 				resilience["successSelector"] = cleanedRef
@@ -1198,7 +1227,11 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
 				cleanedRef = cleanedRef[:idx]
 			}
-			if resolved := resolveSelectorTokens(cleanedRef, manifest, manifestRoot); resolved != cleanedRef {
+			resolved, err := resolveSelectorTokens(cleanedRef, manifest, manifestRoot, manifestPath)
+			if err != nil {
+				return fmt.Errorf("param resilience.failureSelector: %w", err)
+			}
+			if resolved != cleanedRef {
 				resilience["failureSelector"] = resolved
 			} else if cleanedRef != failureSelector {
 				resilience["failureSelector"] = cleanedRef
@@ -1256,13 +1289,15 @@ func resolveSelectorReference(selectorRef string, manifest map[string]interface{
 }
 
 // resolveSelectorTokens replaces any @selector/ references embedded in a selector string.
-func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, manifestRoot string) string {
+// An unresolved reference is a hard error: forwarding the literal token would only
+// surface later as an opaque runtime selector failure inside the browser driver.
+func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, manifestRoot, manifestPath string) (string, error) {
 	resolved := selectorRef
 	searchStart := 0
 	for {
 		idx := strings.Index(resolved[searchStart:], "@selector/")
 		if idx == -1 {
-			return resolved
+			return resolved, nil
 		}
 		idx += searchStart // Adjust to absolute position
 		end := idx + len("@selector/")
@@ -1276,7 +1311,6 @@ func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, 
 		token := resolved[idx:end]
 		replacement := resolveSelectorReference(token, manifest)
 		if replacement == "" {
-			// Selector not found - skip past this token to avoid infinite loop
 			selectorCount := 0
 			if selectors, ok := manifest["selectors"].(map[string]interface{}); ok {
 				selectorCount = len(selectors)
@@ -1284,10 +1318,14 @@ func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, 
 			logrus.WithFields(logrus.Fields{
 				"token":          token,
 				"manifest_root":  manifestRoot,
+				"manifest_path":  manifestPath,
 				"selector_count": selectorCount,
 			}).Warn("resolveSelectorTokens: unresolved @selector/ reference")
-			searchStart = end
-			continue
+			return "", fmt.Errorf(
+				"unresolved selector reference %q: not present in manifest %s (%d selectors, manifest root %q); "+
+					"check that the selector key exists in the target scenario's ui/src/consts/selectors.manifest.json "+
+					"and that execution parameter project_root is an absolute path to that scenario",
+				token, manifestPath, selectorCount, manifestRoot)
 		}
 		resolved = resolved[:idx] + replacement + resolved[end:]
 		// Adjust search position to account for replacement length difference

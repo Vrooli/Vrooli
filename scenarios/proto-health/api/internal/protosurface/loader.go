@@ -347,7 +347,31 @@ func (l *DescriptorLoader) applyTransportFacts(s *Surface) {
 	if l.repoRoot == "" {
 		return
 	}
-	facts, err := endpointFacts(filepath.Join(l.repoRoot, "scenarios", s.Scenario, ".vrooli", "endpoints.json"))
+	applyTransportFacts(s, filepath.Join(l.repoRoot, "scenarios", s.Scenario, ".vrooli", "endpoints.json"))
+}
+
+// ApplyTransportFactsAtScenarioPath refreshes transport evidence from a
+// physical scenario directory. This keeps a generated deep-validation
+// workspace authoritative even when its scenario name is absent from the
+// provider's repository tree.
+func ApplyTransportFactsAtScenarioPath(s *Surface, scenarioPath string) {
+	if s == nil || strings.TrimSpace(scenarioPath) == "" {
+		return
+	}
+	for i := range s.Services {
+		for j := range s.Services[i].RPCs {
+			s.Services[i].RPCs[j].Transport = TransportKindUnspecified
+		}
+	}
+	s.RESTExceptions = nil
+	s.RESTExceptionPayloads = nil
+	s.RESTExceptionRefs = nil
+	s.TransportWorld = TransportWorldNone
+	applyTransportFacts(s, filepath.Join(scenarioPath, ".vrooli", "endpoints.json"))
+}
+
+func applyTransportFacts(s *Surface, endpointsPath string) {
+	facts, err := endpointFacts(endpointsPath)
 	if err != nil {
 		return
 	}

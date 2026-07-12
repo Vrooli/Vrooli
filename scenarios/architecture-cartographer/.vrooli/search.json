@@ -10,6 +10,7 @@
       "description": "Scenario domains across the whole fleet, searchable by what each domain DOES — its responsibility and purpose — not by Vrooli jargon. Route here for: what domains/subsystems a scenario has and what each owns; how a feature works inside a scenario; which part owns a responsibility. e.g. 'how does authoring work in plan-manager', 'what are the domains of search-hub', 'which domain owns plan validation'.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "architecture-cartographer",

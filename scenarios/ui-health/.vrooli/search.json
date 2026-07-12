@@ -10,6 +10,7 @@
       "description": "UI surfaces across every scenario — components, pages, features, and hooks — searchable by what each surface is or does (for example \"settings page\", \"date picker component\", \"health dashboard overview\"). Route here to find an existing UI building block to reuse rather than rebuild.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "ui-health",
@@ -65,8 +66,8 @@
         }
       },
       "tests": {
-        "name": "ui-health surfaces — starter baseline",
-        "description": "STARTER rank-centric baseline for the ui-health surfaces corpus: a few intent->surface queries plus a junk-rejection negative. Positives assert the expected deterministic surface ids within the top results (the dense ScoreThreshold of 0.55 already trims noise); the gibberish negative feeds the junk-rejection constraint, never the recall objective.",
+        "name": "ui-health surfaces — reviewed production corpus",
+        "description": "Rank-centric reviewed corpus for reusable UI surfaces. Cases span configuration, search evaluation, audit, theme, dashboard, and shared feedback components; every added expected path was verified by a live provider query on 2026-07-12.",
         "cases": [
           {
             "id": "settings-surface",
@@ -105,11 +106,46 @@
             "expect_within_top_k": 5
           },
           {
+            "id": "evals-surface",
+            "query": "search quality evaluation page",
+            "tags": ["strong", "evals", "reviewed-live"],
+            "expect_ids": ["ui/src/pages/EvalsPage.tsx"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "audit-surface",
+            "query": "audit a scenario interface",
+            "tags": ["weak-real", "audit", "reviewed-live"],
+            "expect_ids": ["ui/src/pages/AuditPage.tsx"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "theme-surface",
+            "query": "choose light dark theme",
+            "tags": ["hard", "theme", "reviewed-live"],
+            "expect_ids": ["ui/src/theme/ThemeProvider.tsx"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "progress-surface",
+            "query": "reusable progress indicator component",
+            "tags": ["weak", "component", "reviewed-live"],
+            "expect_ids": ["ui/src/components/ui/ProgressBar.tsx"],
+            "expect_within_top_k": 5
+          },
+          {
             "id": "gibberish-1",
             "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
             "tags": [
               "gibberish"
             ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.6
+          },
+          {
+            "id": "gibberish-2",
+            "query": "florbnax qwop zxcv visual nonsense",
+            "tags": ["gibberish", "reviewed-live"],
             "expect_no_strong_hit": true,
             "expect_max_score": 0.6
           }
@@ -122,9 +158,13 @@
               "tags": [
                 "settings",
                 "search",
-                "dashboard"
+                "dashboard",
+                "evals",
+                "audit",
+                "theme",
+                "component"
               ],
-              "min_reviewed_positive": 3
+              "min_reviewed_positive": 7
             }
           ]
         }

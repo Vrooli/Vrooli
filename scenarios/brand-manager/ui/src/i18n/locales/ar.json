@@ -70,6 +70,15 @@
     "statusLabel": "الحالة:",
     "serviceLabel": "الخدمة:",
     "timestampLabel": "الطابع الزمني:"
+    ,"providerMaturity": "نضج المزوّد"
+    ,"providerLoading": "جارٍ تحميل ملخص نضج المزوّد…"
+    ,"providerUnavailable": "ملخص النضج المشترك للمزوّد غير متاح. تظل تقارير نطاق العلامة التجارية متاحة."
+    ,"providerHistorical": "أعاد المزوّد عقد عرض تاريخيًا أو غير مدعوم ({{version}})؛ لم يُنشأ ملخص نضج بديل."
+    ,"providerContract": "عقد العرض المقدم من المزوّد {{version}}"
+    ,"providerNorthStar": "الهدف الأسمى:"
+    ,"providerNextAction": "الإجراء التالي:"
+    ,"providerCapabilities": "نضج قدرات المزوّد"
+    ,"providerDocumentation": "التوثيق: {{topics}}"
   },
   "notifications": {
     "summary": "{{count}} إشعارات",

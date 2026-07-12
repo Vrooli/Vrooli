@@ -77,6 +77,27 @@ func TestFixRPCPreviewAndApply(t *testing.T) {
 	}
 }
 
+func TestApplyFixWithoutCandidatesDoesNotClaimAWrite(t *testing.T) {
+	repoRoot := t.TempDir()
+	root := filepath.Join(repoRoot, "scenarios", "demo")
+	writeFile(t, root, ".vrooli/service.json", `{"service":{"name":"demo","displayName":"Demo","description":"Demo scenario."}}`)
+	// This already has the only requested deterministic artifact, so ApplyFix
+	// returns no candidates and must not describe the operation as a write.
+	writeFile(t, root, "ui/src/design-tokens.css", `:root { --brand-primary: #000; }`)
+
+	handler := &Handler{repoRoot: repoRoot}
+	resp, err := handler.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
+		Scenario: "demo",
+		RuleIds:  []string{"has-color-system"},
+	}))
+	if err != nil {
+		t.Fatalf("ApplyFix returned error: %v", err)
+	}
+	if resp.Msg.GetApplied() || len(resp.Msg.GetCandidates()) != 0 {
+		t.Fatalf("empty apply = %+v, want applied=false with no candidates", resp.Msg)
+	}
+}
+
 func writeMaturitySpec(t *testing.T, repoRoot string) {
 	t.Helper()
 	spec := assessment.Spec{

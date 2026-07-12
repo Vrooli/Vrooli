@@ -545,6 +545,20 @@
         "fix_class": "manual",
         "reason": "Production readiness requires measured performance to satisfy the provider's declared p95 budget."
       },
+      "SEARCH_PERF_SAMPLES_UNPROVEN": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "performance",
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "A p95 or degradation rate derived from fewer cases than the provider declared is not production evidence."
+      },
       "SEARCH_PERF_DEGRADED": {
         "capability_id": "search_operability",
         "local_level_impact": "L3",

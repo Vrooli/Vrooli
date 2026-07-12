@@ -50,7 +50,8 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation validator is not wired"))
 	}
 	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
-	report, err := h.deps.Validator.ValidateScenario(internal.WithMetrics(ctx, collector), req.Msg.GetScenario())
+	validationCtx := internal.WithScenarioPath(internal.WithMetrics(ctx, collector), req.Msg.GetPath())
+	report, err := h.deps.Validator.ValidateScenario(validationCtx, req.Msg.GetScenario())
 	if err != nil {
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

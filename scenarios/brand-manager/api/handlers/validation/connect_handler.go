@@ -134,8 +134,11 @@ func (h *Handler) fix(req *scenariovalidationv1.FixRequest, apply bool) (*connec
 		})
 	}
 	return connect.NewResponse(&scenariovalidationv1.FixResponse{
-		Scenario:   scenario,
-		Applied:    apply,
+		Scenario: scenario,
+		// A successful ApplyFix call is not itself evidence of a write. The shared
+		// contract reserves applied=true for responses that carry at least one
+		// candidate actually written to disk.
+		Applied:    apply && len(out) > 0,
 		Candidates: out,
 		Messages:   messages,
 	}), nil

@@ -188,6 +188,11 @@
         "telemetry_required": {
           "type": "boolean",
           "description": "When true, certification requires latency evidence to exist: SEARCH_PERF_BUDGET_UNPROVEN (required) fails the provider if no run latency can be measured."
+        },
+        "minimum_samples": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum evaluated cases required before latency and degradation evidence can substantiate this provider's declared SLO. 0/omitted leaves the threshold unset; production-tier providers should explicitly declare a class-appropriate value (normally 8 for local providers and 1 for external smoke-only providers)."
         }
       }
     },

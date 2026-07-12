@@ -928,6 +928,45 @@
           }
         }
       ]
+    },
+    {
+      "name": "provider",
+      "description": "Shared ScenarioValidationService provider surface",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate a scenario through Brand Manager's delegated ScenarioValidationService contract.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to validate instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Render the raw shared validation response as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "measures": {

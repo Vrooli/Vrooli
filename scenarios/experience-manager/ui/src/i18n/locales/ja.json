@@ -138,7 +138,16 @@
       "fixPreviewLabel": "修正プレビュー",
       "previewEmpty": "適用前に決定的な修正をプレビューします。",
       "previewError": "修正プレビューに失敗しました。",
-      "applyError": "修正の適用に失敗しました。"
+      "applyError": "修正の適用に失敗しました。",
+      "providerMaturity": "プロバイダー成熟度",
+      "providerLoading": "プロバイダー成熟度の要約を読み込んでいます…",
+      "providerUnavailable": "共有プロバイダー成熟度の要約を利用できません。ネイティブのエクスペリエンス報告は引き続き利用できます。",
+      "providerHistorical": "プロバイダーが履歴上または未対応の表示契約（{{version}}）を返しました。成熟度の要約は再構築されませんでした。",
+      "providerContract": "プロバイダー提供の表示契約 {{version}}",
+      "providerNorthStar": "ノーススター:",
+      "providerNextAction": "次のアクション:",
+      "providerCapabilities": "プロバイダー能力の成熟度",
+      "providerDocumentation": "ドキュメント: {{topics}}"
     }
   },
   "errors": {

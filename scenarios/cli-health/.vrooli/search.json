@@ -10,6 +10,7 @@
       "description": "Vrooli CLI commands across every scenario CLI, searchable by what each command does (for example \"restart a scenario\", \"view logs\", \"run tests\"). Route here to discover which CLI command performs an operation.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "cli-health",

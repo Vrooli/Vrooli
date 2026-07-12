@@ -884,6 +884,16 @@ func validatePerformanceBudget(report *Report, providerPath, class string, extra
 			Remediation: "Run the eval suite so Search Hub records p95 latency, or clear telemetry_required if this provider cannot be measured.",
 		})
 	}
+	if minimumSamples := perf.MinimumSamples; minimumSamples > 0 && len(lastRun.GetResults()) < minimumSamples {
+		report.add(Finding{
+			Code:        CodePerfSamplesUnproven,
+			Severity:    SeverityError,
+			Title:       "Search provider performance sample is too small",
+			Message:     fmt.Sprintf("latest run evaluated %d case(s), below the declared minimum sample of %d for %s.", len(lastRun.GetResults()), minimumSamples, class),
+			Location:    providerPath + ".performance.minimum_samples",
+			Remediation: "Expand the reviewed, provider-owned corpus and run it again so latency and degradation evidence represent the declared SLO.",
+		})
+	}
 	if extras.Performance != nil && extras.Performance.DegradedRateMax > 0 {
 		if rate, ok := degradedRate(suite, lastRun); ok && rate > extras.Performance.DegradedRateMax {
 			report.add(Finding{

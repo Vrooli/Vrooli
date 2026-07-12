@@ -29,6 +29,7 @@ const (
 	CodeTuningBudgetInvalid     = "SEARCH_TUNING_BUDGET_INVALID"
 	CodePerfBudgetBreach        = "SEARCH_PERF_BUDGET_BREACH"
 	CodePerfBudgetUnproven      = "SEARCH_PERF_BUDGET_UNPROVEN"
+	CodePerfSamplesUnproven     = "SEARCH_PERF_SAMPLES_UNPROVEN"
 	CodePerfDegraded            = "SEARCH_PERF_DEGRADED"
 )
 

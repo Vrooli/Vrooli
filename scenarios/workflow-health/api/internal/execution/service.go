@@ -59,9 +59,16 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	if s.Client == nil && !opts.DryRun {
 		return report, fmt.Errorf("BAS client is required when execution is enabled")
 	}
-	writer := artifacts.NewWriter(static.TargetPath, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().Unix())))
+	// Resolve the target to an absolute path before it feeds workflow reads or
+	// the BAS ProjectRoot; BAS resolves ProjectRoot against its own CWD, so a
+	// relative value there loads the wrong selector manifest.
+	targetDir, err := filepath.Abs(static.TargetPath)
+	if err != nil {
+		return Report{}, fmt.Errorf("resolve target path %q: %w", static.TargetPath, err)
+	}
+	writer := artifacts.NewWriter(targetDir, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().Unix())))
 	for _, asset := range selected {
-		run := s.runAsset(ctx, writer, asset, static.TargetPath, opts)
+		run := s.runAsset(ctx, writer, asset, targetDir, opts)
 		report.Runs = append(report.Runs, run)
 		switch {
 		case run.Refused:

@@ -850,6 +850,34 @@ func TestValidateScenarioLatencyBudgetBreachIsAdvisory(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioMinimumPerformanceSampleIsRequired(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", providerConfigWith(`"performance":{"minimum_samples":3},`,
+		`{"description":"c","cases":[{"id":"p1","query":"q1","expect_ids":["a"]},{"id":"neg","query":"junk","expect_no_strong_hit":true,"expect_max_score":0.2}]}`))
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	service := New(root)
+	service.Now = func() time.Time { return now }
+	suite := &evalv1.EvalSuite{SuiteId: "demo.docs.primary", ProviderId: "demo.docs", State: "active", Cases: []*evalv1.EvalCase{
+		{CaseId: "p1", Query: "q1", ExpectIds: []string{"a"}, ExpectWithinTopK: 3},
+		{CaseId: "neg", Query: "junk", ExpectNoStrongHit: true, ExpectMaxScore: 0.2},
+	}}
+	run := &evalv1.EvalRun{RunId: "run-small", SuiteId: "demo.docs.primary", CreatedAt: now.Add(-time.Hour).UTC().Format(time.RFC3339Nano), Results: []*evalv1.CaseResult{
+		{CaseId: "p1", Outcome: "met", Top: []*evalv1.ScoredHit{{Id: "a", Score: 0.9}}},
+		{CaseId: "neg", Outcome: "met"},
+	}}
+	service.EvalStore = fakeEvalStore{suites: map[string]*evalv1.EvalSuite{"demo.docs.primary": suite}, runs: map[string][]*evalv1.EvalRun{"demo.docs.primary": {run}}}
+	service.EvalValidator = fakeEvalValidator{rollup: &evalv1.CorpusValidationRollup{Positives: 1, Live: 1}}
+
+	report, err := service.ValidateScenarioWithOptions(context.Background(), "demo", "", Options{IncludeEvals: true, EvalFreshnessWindow: 24 * time.Hour})
+	if err != nil {
+		t.Fatalf("ValidateScenarioWithOptions: %v", err)
+	}
+	requireFinding(t, report, CodePerfSamplesUnproven)
+	if report.Summary.Status() != "failed" {
+		t.Fatalf("status = %s, want failed", report.Summary.Status())
+	}
+}
+
 func TestValidateScenarioExternalSmokeEvidenceDoesNotRequirePositiveLabels(t *testing.T) {
 	root := t.TempDir()
 	writeSearchConfig(t, root, "demo", `{

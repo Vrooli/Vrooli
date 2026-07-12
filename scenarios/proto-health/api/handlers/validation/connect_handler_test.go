@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"testing"
 
@@ -15,9 +16,13 @@ import (
 
 type fakeValidator struct {
 	report internal.Report
+	path   string
 }
 
-func (f fakeValidator) ValidateScenario(context.Context, string) (internal.Report, error) {
+func (f fakeValidator) ValidateScenario(ctx context.Context, scenario string) (internal.Report, error) {
+	if f.path != "" && internal.ScenarioPathFrom(ctx) != f.path {
+		return internal.Report{}, fmt.Errorf("scenario path = %q, want %q", internal.ScenarioPathFrom(ctx), f.path)
+	}
 	return f.report, nil
 }
 
@@ -52,6 +57,20 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 	require.Equal(t, runtime.GOOS, m.GetEnvironment().GetOs())
 	require.Equal(t, runtime.GOARCH, m.GetEnvironment().GetArch())
 	require.Equal(t, int32(runtime.NumCPU()), m.GetEnvironment().GetNumCpu())
+}
+
+func TestValidateScenarioForwardsExplicitScenarioPath(t *testing.T) {
+	const path = "/tmp/template-workspace/scenarios/demo"
+	handler := NewConnectHandler(Deps{
+		Validator:    fakeValidator{report: internal.Report{Scenario: "demo", Passed: true}, path: path},
+		MaturitySpec: protoHealthSpec(t),
+	})
+
+	_, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario: "demo",
+		Path:     path,
+	}))
+	require.NoError(t, err)
 }
 
 func TestBuildMaturityAssessmentMapsProtoFindings(t *testing.T) {

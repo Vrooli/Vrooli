@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   compareStudioVariants: vi.fn(),
   fetchEvidence: vi.fn(),
   fetchFindings: vi.fn(),
+  fetchProviderValidation: vi.fn().mockResolvedValue({
+    assessment: { presentation: { contractVersion: "v1", capabilities: [] } },
+  }),
   fetchFleet: vi.fn(),
   fetchScenarioSpec: vi.fn(),
   previewFindingsFixes: vi.fn(),
@@ -31,6 +34,7 @@ vi.mock("../api/experience", async () => {
     compareStudioVariants: mocks.compareStudioVariants,
     fetchEvidence: mocks.fetchEvidence,
     fetchFindings: mocks.fetchFindings,
+    fetchProviderValidation: mocks.fetchProviderValidation,
     fetchFleet: mocks.fetchFleet,
     fetchScenarioSpec: mocks.fetchScenarioSpec,
     previewFindingsFixes: mocks.previewFindingsFixes,
