@@ -11,11 +11,13 @@ import (
 
 	"test-genie/internal/shared"
 
+	assessmentpkg "github.com/vrooli/maturity-go/assessment"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit"
 	cartosharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -107,6 +109,7 @@ func testAssessment(severity string) *commonv1.MaturityAssessment {
 			},
 		}}
 	}
+	a.Presentation = assessmentpkg.BuildPhasePresentation(a)
 	return a
 }
 
@@ -152,6 +155,7 @@ func testCapabilityAssessment() *commonv1.MaturityAssessment {
 	}
 	a.Findings[0].Maturity.CapabilityId = "pwa_native_readiness"
 	a.Findings[0].Maturity.LocalLevel = "L1"
+	a.Presentation = assessmentpkg.BuildPhasePresentation(a)
 	return a
 }
 
@@ -208,6 +212,7 @@ func testArchitectureResponseWithTypeAndClass(t *testing.T, findingType, severit
 	arch := testAssessment(severity)
 	arch.Provider = "architecture-cartographer"
 	arch.Phase = "architecture"
+	arch.Presentation = assessmentpkg.BuildPhasePresentation(arch)
 	return &scenariovalidationv1.ValidateScenarioResponse{
 		Scenario:     "demo",
 		Status:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED,
@@ -276,6 +281,50 @@ func TestRunFailedStatusEmitsFindingAndFails(t *testing.T) {
 	}
 }
 
+func TestRunCarriesCanonicalPresentationUnchanged(t *testing.T) {
+	provider := testProvider(false)
+	providerPresentation := testCapabilityAssessment().GetPresentation()
+	response := &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario:   "demo",
+		Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		Assessment: testCapabilityAssessment(),
+	}
+	response.Assessment.Presentation = providerPresentation
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client { return fakeClient{resp: response} }
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	got := Run(context.Background(), provider, "demo", "")
+	if got.Error != nil || got.Presentation == nil {
+		t.Fatalf("delegated run did not retain presentation: result=%+v", got)
+	}
+	if !proto.Equal(got.Presentation, providerPresentation) {
+		t.Fatalf("Test Genie changed provider presentation:\n got=%+v\nwant=%+v", got.Presentation, providerPresentation)
+	}
+}
+
+func TestRunDegradedStatusStaysVisibleWithoutBeingRewrittenAsPassed(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client {
+		return fakeClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+			Scenario:   "demo",
+			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED,
+			Assessment: testAssessment("SEVERITY_INFO"),
+		}}
+	}
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	got := Run(context.Background(), testProvider(false), "demo", "")
+	if !got.Success {
+		t.Fatalf("degraded provider truth may be non-gating, got %v", got.Error)
+	}
+	if got.Summary.Status != "degraded" {
+		t.Fatalf("summary status = %q, want degraded rather than passed", got.Summary.Status)
+	}
+}
+
 func TestRunSummarizesCapabilityMaturity(t *testing.T) {
 	prevResolve, prevClient := ResolveBaseURL, NewClient
 	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
@@ -323,6 +372,7 @@ func TestRunOmitsCleanCapabilitySpam(t *testing.T) {
 	assessment.Capabilities[1].Clean = true
 	assessment.Capabilities[1].BlockingFindingCodes = nil
 	assessment.HighestPriorityCapability = nil
+	assessment.Presentation = assessmentpkg.BuildPhasePresentation(assessment)
 
 	prevResolve, prevClient := ResolveBaseURL, NewClient
 	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
@@ -437,6 +487,26 @@ func TestRunMissingAssessmentIsMaturityContract(t *testing.T) {
 	got := Run(context.Background(), testProvider(false), "demo", "")
 	if got.FailureClass != shared.FailureClassMaturityContract {
 		t.Fatalf("FailureClass = %q, want maturity_contract", got.FailureClass)
+	}
+}
+
+func TestRunMissingPresentationIsMaturityContract(t *testing.T) {
+	assessment := testAssessment("SEVERITY_WARNING")
+	assessment.Presentation = nil
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client {
+		return fakeClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+			Scenario:   "demo",
+			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+			Assessment: assessment,
+		}}
+	}
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	got := Run(context.Background(), testProvider(false), "demo", "")
+	if got.FailureClass != shared.FailureClassMaturityContract || got.Error == nil || !strings.Contains(got.Error.Error(), "presentation") {
+		t.Fatalf("missing presentation must fail as a maturity contract: %+v", got)
 	}
 }
 

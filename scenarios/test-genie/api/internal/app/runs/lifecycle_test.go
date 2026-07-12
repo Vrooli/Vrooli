@@ -14,7 +14,9 @@ import (
 	"test-genie/internal/runmanager"
 	sharedruns "test-genie/internal/shared/runs"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"google.golang.org/protobuf/proto"
 )
 
 // rpcFakeExecutor drives a controllable run for the lifecycle RPC tests.
@@ -33,6 +35,44 @@ func newRPCFake(scenarioDir string) *rpcFakeExecutor {
 		release:     make(chan struct{}),
 		started:     make(chan struct{}),
 		result:      &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS", CompletedAt: time.Now().UTC()},
+	}
+}
+
+func TestHistoricalStandingWireDataDoesNotDecodeAsPresentation(t *testing.T) {
+	legacy := &runspb.RunEvent{MaturityStanding: &runspb.PhaseMaturityStanding{
+		Provider:     "structure-health",
+		Phase:        "structure",
+		CurrentLevel: "L1",
+	}}
+	wire, err := proto.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("marshal historical event: %v", err)
+	}
+	decoded := &runspb.RunEvent{}
+	if err := proto.Unmarshal(wire, decoded); err != nil {
+		t.Fatalf("unmarshal historical event: %v", err)
+	}
+	if decoded.GetPhasePresentation() != nil {
+		t.Fatalf("historical standing must not decode as a presentation: %+v", decoded.GetPhasePresentation())
+	}
+	if decoded.GetMaturityStanding().GetProvider() != "structure-health" {
+		t.Fatalf("historical standing was not retained: %+v", decoded.GetMaturityStanding())
+	}
+}
+
+func TestCanonicalPresentationUsesItsOwnWireField(t *testing.T) {
+	presentation := &commonv1.PhasePresentation{ContractVersion: "v1", Provider: "ui-health", Phase: "ui-health", CurrentLevel: "L2"}
+	current := &runspb.RunEvent{PhasePresentation: presentation}
+	wire, err := proto.Marshal(current)
+	if err != nil {
+		t.Fatalf("marshal current event: %v", err)
+	}
+	decoded := &runspb.RunEvent{}
+	if err := proto.Unmarshal(wire, decoded); err != nil {
+		t.Fatalf("unmarshal current event: %v", err)
+	}
+	if !proto.Equal(decoded.GetPhasePresentation(), presentation) || decoded.GetMaturityStanding() != nil {
+		t.Fatalf("canonical presentation wire contract drifted: %+v", decoded)
 	}
 }
 
@@ -65,13 +105,13 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	fake := newRPCFake(root + "/demo")
 	fake.result.Phases = []phases.ExecutionResult{{
 		Name: "architecture", Status: "passed", DurationSeconds: 7,
-		MaturityStanding: &runspb.PhaseMaturityStanding{
+		PhasePresentation: &commonv1.PhasePresentation{
 			Provider:             "architecture-health",
 			Phase:                "architecture",
 			CurrentLevel:         "L2",
 			NextLevel:            "L3",
 			BlockingFindingCodes: []string{"arch.primitive_unverified"},
-			NextMove:             "Prove each command primitive.",
+			NextAction:           "Prove each command primitive.",
 		},
 		FindingsSummary: &runspb.PhaseFindingsSummary{Errors: 1, Total: 1},
 	}}
@@ -147,7 +187,7 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 		showPhase.GetDurationSeconds() != terminalRun.GetPhases()[0].GetDurationSeconds() {
 		t.Fatalf("wait/show terminal mismatch: wait=%+v show=%+v", terminalRun, show.Msg.GetRun())
 	}
-	standings := wr2.Msg.GetStatus().GetTerminalStandings()
+	standings := wr2.Msg.GetStatus().GetTerminalPresentations()
 	if len(standings) != 1 {
 		t.Fatalf("terminal standings = %d, want 1", len(standings))
 	}

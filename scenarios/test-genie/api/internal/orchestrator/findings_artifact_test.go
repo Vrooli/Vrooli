@@ -7,6 +7,7 @@ import (
 	"time"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
@@ -100,14 +101,14 @@ func TestFindingsArtifactCarriesStandingAndStaysIngestible(t *testing.T) {
 			Findings: []*architecturev1.ArchitectureFinding{
 				{Scenario: "cli-health", Source: architecturev1.FindingSource_FINDING_SOURCE_CLI, Code: "arch.primitive_unverified", Locations: []string{"cli/manifest.json"}},
 			},
-			MaturityStanding: &runspb.PhaseMaturityStanding{
+			PhasePresentation: &commonv1.PhasePresentation{
 				Provider:             "cli-health",
 				Phase:                "contracts",
 				CurrentLevel:         "L3",
 				NextLevel:            "L4",
 				CeilingLevel:         "L4",
 				NorthStar:            "Verified renderer-separated primitives.",
-				NextMove:             "Prove each declared primitive with cli-core evidence.",
+				NextAction:           "Prove each declared primitive with cli-core evidence.",
 				BlockingFindingCodes: []string{"arch.primitive_unverified"},
 			},
 			FindingsSummary: &runspb.PhaseFindingsSummary{Warnings: 1, Total: 1},
@@ -128,7 +129,7 @@ func TestFindingsArtifactCarriesStandingAndStaysIngestible(t *testing.T) {
 	if err := json.Unmarshal(raw, &art); err != nil {
 		t.Fatalf("unmarshal full: %v", err)
 	}
-	st := art.Phases[0].MaturityStanding
+	st := art.Phases[0].PhasePresentation
 	if st == nil {
 		t.Fatal("maturity standing dropped from findings.json")
 	}

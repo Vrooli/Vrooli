@@ -130,6 +130,7 @@ type EvalReport struct {
 	Warnings            []*ReportWarning       `protobuf:"bytes,5,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	NormalizationPolicy *NormalizationPolicy   `protobuf:"bytes,6,opt,name=normalization_policy,json=normalizationPolicy,proto3" json:"normalization_policy,omitempty"`
 	LatencyHonesty      string                 `protobuf:"bytes,7,opt,name=latency_honesty,json=latencyHonesty,proto3" json:"latency_honesty,omitempty"`
+	PromotionVerdicts   []*PromotionVerdict    `protobuf:"bytes,8,rep,name=promotion_verdicts,json=promotionVerdicts,proto3" json:"promotion_verdicts,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -213,6 +214,76 @@ func (x *EvalReport) GetLatencyHonesty() string {
 	return ""
 }
 
+func (x *EvalReport) GetPromotionVerdicts() []*PromotionVerdict {
+	if x != nil {
+		return x.PromotionVerdicts
+	}
+	return nil
+}
+
+// PromotionVerdict is a provider-scoped trust-floor result. A non-stable
+// verdict names missing qualification categories instead of inferring
+// readiness from a short experiment.
+type PromotionVerdict struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EngineId      string                 `protobuf:"bytes,1,opt,name=engine_id,json=engineId,proto3" json:"engine_id,omitempty"`
+	Stable        bool                   `protobuf:"varint,2,opt,name=stable,proto3" json:"stable,omitempty"`
+	Reasons       []string               `protobuf:"bytes,3,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromotionVerdict) Reset() {
+	*x = PromotionVerdict{}
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromotionVerdict) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromotionVerdict) ProtoMessage() {}
+
+func (x *PromotionVerdict) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromotionVerdict.ProtoReflect.Descriptor instead.
+func (*PromotionVerdict) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PromotionVerdict) GetEngineId() string {
+	if x != nil {
+		return x.EngineId
+	}
+	return ""
+}
+
+func (x *PromotionVerdict) GetStable() bool {
+	if x != nil {
+		return x.Stable
+	}
+	return false
+}
+
+func (x *PromotionVerdict) GetReasons() []string {
+	if x != nil {
+		return x.Reasons
+	}
+	return nil
+}
+
 type StrategyReport struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
 	Strategy                 string                 `protobuf:"bytes,1,opt,name=strategy,proto3" json:"strategy,omitempty"`
@@ -241,13 +312,19 @@ type StrategyReport struct {
 	CommitCount              int32                  `protobuf:"varint,24,opt,name=commit_count,json=commitCount,proto3" json:"commit_count,omitempty"`
 	SpeakerRejectionCount    int32                  `protobuf:"varint,25,opt,name=speaker_rejection_count,json=speakerRejectionCount,proto3" json:"speaker_rejection_count,omitempty"`
 	Scaling                  *ScalingAnalysis       `protobuf:"bytes,26,opt,name=scaling,proto3" json:"scaling,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Provider-neutral execution identity. These are evidence facts, not UI
+	// labels: a report must name the actual engine and replay lane it ran.
+	EngineId      string `protobuf:"bytes,27,opt,name=engine_id,json=engineId,proto3" json:"engine_id,omitempty"`
+	PolicyProfile string `protobuf:"bytes,28,opt,name=policy_profile,json=policyProfile,proto3" json:"policy_profile,omitempty"`
+	ReplayLane    string `protobuf:"bytes,29,opt,name=replay_lane,json=replayLane,proto3" json:"replay_lane,omitempty"`
+	FaultProfile  string `protobuf:"bytes,30,opt,name=fault_profile,json=faultProfile,proto3" json:"fault_profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StrategyReport) Reset() {
 	*x = StrategyReport{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[2]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -259,7 +336,7 @@ func (x *StrategyReport) String() string {
 func (*StrategyReport) ProtoMessage() {}
 
 func (x *StrategyReport) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[2]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -272,7 +349,7 @@ func (x *StrategyReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyReport.ProtoReflect.Descriptor instead.
 func (*StrategyReport) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{2}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *StrategyReport) GetStrategy() string {
@@ -457,6 +534,34 @@ func (x *StrategyReport) GetScaling() *ScalingAnalysis {
 	return nil
 }
 
+func (x *StrategyReport) GetEngineId() string {
+	if x != nil {
+		return x.EngineId
+	}
+	return ""
+}
+
+func (x *StrategyReport) GetPolicyProfile() string {
+	if x != nil {
+		return x.PolicyProfile
+	}
+	return ""
+}
+
+func (x *StrategyReport) GetReplayLane() string {
+	if x != nil {
+		return x.ReplayLane
+	}
+	return ""
+}
+
+func (x *StrategyReport) GetFaultProfile() string {
+	if x != nil {
+		return x.FaultProfile
+	}
+	return ""
+}
+
 type ClipReport struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
 	ClipId                   string                 `protobuf:"bytes,1,opt,name=clip_id,json=clipId,proto3" json:"clip_id,omitempty"`
@@ -491,7 +596,7 @@ type ClipReport struct {
 
 func (x *ClipReport) Reset() {
 	*x = ClipReport{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[3]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -503,7 +608,7 @@ func (x *ClipReport) String() string {
 func (*ClipReport) ProtoMessage() {}
 
 func (x *ClipReport) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[3]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -516,7 +621,7 @@ func (x *ClipReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClipReport.ProtoReflect.Descriptor instead.
 func (*ClipReport) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{3}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ClipReport) GetClipId() string {
@@ -715,7 +820,7 @@ type EvalReportSummary struct {
 
 func (x *EvalReportSummary) Reset() {
 	*x = EvalReportSummary{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[4]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -727,7 +832,7 @@ func (x *EvalReportSummary) String() string {
 func (*EvalReportSummary) ProtoMessage() {}
 
 func (x *EvalReportSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[4]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -740,7 +845,7 @@ func (x *EvalReportSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvalReportSummary.ProtoReflect.Descriptor instead.
 func (*EvalReportSummary) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{4}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *EvalReportSummary) GetWinnerStrategy() string {
@@ -796,7 +901,7 @@ type ReportWarning struct {
 
 func (x *ReportWarning) Reset() {
 	*x = ReportWarning{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[5]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -808,7 +913,7 @@ func (x *ReportWarning) String() string {
 func (*ReportWarning) ProtoMessage() {}
 
 func (x *ReportWarning) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[5]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -821,7 +926,7 @@ func (x *ReportWarning) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportWarning.ProtoReflect.Descriptor instead.
 func (*ReportWarning) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{5}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReportWarning) GetCode() string {
@@ -855,7 +960,7 @@ type NormalizationPolicy struct {
 
 func (x *NormalizationPolicy) Reset() {
 	*x = NormalizationPolicy{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[6]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -867,7 +972,7 @@ func (x *NormalizationPolicy) String() string {
 func (*NormalizationPolicy) ProtoMessage() {}
 
 func (x *NormalizationPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[6]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -880,7 +985,7 @@ func (x *NormalizationPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NormalizationPolicy.ProtoReflect.Descriptor instead.
 func (*NormalizationPolicy) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{6}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *NormalizationPolicy) GetWerPolicy() string {
@@ -910,7 +1015,7 @@ type EditOperation struct {
 
 func (x *EditOperation) Reset() {
 	*x = EditOperation{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[7]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -922,7 +1027,7 @@ func (x *EditOperation) String() string {
 func (*EditOperation) ProtoMessage() {}
 
 func (x *EditOperation) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[7]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -935,7 +1040,7 @@ func (x *EditOperation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditOperation.ProtoReflect.Descriptor instead.
 func (*EditOperation) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{7}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *EditOperation) GetKind() string {
@@ -984,7 +1089,7 @@ type CommitState struct {
 
 func (x *CommitState) Reset() {
 	*x = CommitState{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[8]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -996,7 +1101,7 @@ func (x *CommitState) String() string {
 func (*CommitState) ProtoMessage() {}
 
 func (x *CommitState) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[8]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1009,7 +1114,7 @@ func (x *CommitState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitState.ProtoReflect.Descriptor instead.
 func (*CommitState) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{8}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CommitState) GetText() string {
@@ -1044,7 +1149,7 @@ type RetractionEvent struct {
 
 func (x *RetractionEvent) Reset() {
 	*x = RetractionEvent{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[9]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1056,7 +1161,7 @@ func (x *RetractionEvent) String() string {
 func (*RetractionEvent) ProtoMessage() {}
 
 func (x *RetractionEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[9]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1069,7 +1174,7 @@ func (x *RetractionEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetractionEvent.ProtoReflect.Descriptor instead.
 func (*RetractionEvent) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{9}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RetractionEvent) GetPreviousText() string {
@@ -1108,7 +1213,7 @@ type SafetyGateReport struct {
 
 func (x *SafetyGateReport) Reset() {
 	*x = SafetyGateReport{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[10]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1120,7 +1225,7 @@ func (x *SafetyGateReport) String() string {
 func (*SafetyGateReport) ProtoMessage() {}
 
 func (x *SafetyGateReport) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[10]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1133,7 +1238,7 @@ func (x *SafetyGateReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SafetyGateReport.ProtoReflect.Descriptor instead.
 func (*SafetyGateReport) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{10}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SafetyGateReport) GetPassed() bool {
@@ -1198,7 +1303,7 @@ type StageAttribution struct {
 
 func (x *StageAttribution) Reset() {
 	*x = StageAttribution{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[11]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1210,7 +1315,7 @@ func (x *StageAttribution) String() string {
 func (*StageAttribution) ProtoMessage() {}
 
 func (x *StageAttribution) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[11]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1223,7 +1328,7 @@ func (x *StageAttribution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StageAttribution.ProtoReflect.Descriptor instead.
 func (*StageAttribution) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{11}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *StageAttribution) GetIngressLostWords() int32 {
@@ -1277,7 +1382,7 @@ type LengthBucketCurve struct {
 
 func (x *LengthBucketCurve) Reset() {
 	*x = LengthBucketCurve{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[12]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1289,7 +1394,7 @@ func (x *LengthBucketCurve) String() string {
 func (*LengthBucketCurve) ProtoMessage() {}
 
 func (x *LengthBucketCurve) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[12]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1302,7 +1407,7 @@ func (x *LengthBucketCurve) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LengthBucketCurve.ProtoReflect.Descriptor instead.
 func (*LengthBucketCurve) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{12}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *LengthBucketCurve) GetBucket() string {
@@ -1384,7 +1489,7 @@ type ScalingPoint struct {
 
 func (x *ScalingPoint) Reset() {
 	*x = ScalingPoint{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[13]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1396,7 +1501,7 @@ func (x *ScalingPoint) String() string {
 func (*ScalingPoint) ProtoMessage() {}
 
 func (x *ScalingPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[13]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1409,7 +1514,7 @@ func (x *ScalingPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScalingPoint.ProtoReflect.Descriptor instead.
 func (*ScalingPoint) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{13}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ScalingPoint) GetClipId() string {
@@ -1535,7 +1640,7 @@ type ScalingModelFit struct {
 
 func (x *ScalingModelFit) Reset() {
 	*x = ScalingModelFit{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[14]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1547,7 +1652,7 @@ func (x *ScalingModelFit) String() string {
 func (*ScalingModelFit) ProtoMessage() {}
 
 func (x *ScalingModelFit) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[14]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1560,7 +1665,7 @@ func (x *ScalingModelFit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScalingModelFit.ProtoReflect.Descriptor instead.
 func (*ScalingModelFit) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{14}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ScalingModelFit) GetMetric() string {
@@ -1650,7 +1755,7 @@ type ScalingAnalysis struct {
 
 func (x *ScalingAnalysis) Reset() {
 	*x = ScalingAnalysis{}
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[15]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1662,7 +1767,7 @@ func (x *ScalingAnalysis) String() string {
 func (*ScalingAnalysis) ProtoMessage() {}
 
 func (x *ScalingAnalysis) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[15]
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1675,7 +1780,7 @@ func (x *ScalingAnalysis) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScalingAnalysis.ProtoReflect.Descriptor instead.
 func (*ScalingAnalysis) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{15}
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ScalingAnalysis) GetPoints() []*ScalingPoint {
@@ -1753,7 +1858,7 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\x11overlap_window_ms\x18\x04 \x01(\x05R\x0foverlapWindowMs\x12.\n" +
 	"\x13overlap_commit_runs\x18\x05 \x01(\x05R\x11overlapCommitRuns\x12$\n" +
 	"\x0evad_silence_ms\x18\x06 \x01(\x05R\fvadSilenceMs\x121\n" +
-	"\x15overlap_max_window_ms\x18\a \x01(\x05R\x12overlapMaxWindowMs\"\xce\x03\n" +
+	"\x15overlap_max_window_ms\x18\a \x01(\x05R\x12overlapMaxWindowMs\"\xab\x04\n" +
 	"\n" +
 	"EvalReport\x12M\n" +
 	"\fper_strategy\x18\x01 \x03(\v2*.vrooli.audio_tools.v1.eval.StrategyReportR\vperStrategy\x12)\n" +
@@ -1762,7 +1867,13 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\asummary\x18\x04 \x01(\v2-.vrooli.audio_tools.v1.eval.EvalReportSummaryR\asummary\x12E\n" +
 	"\bwarnings\x18\x05 \x03(\v2).vrooli.audio_tools.v1.eval.ReportWarningR\bwarnings\x12b\n" +
 	"\x14normalization_policy\x18\x06 \x01(\v2/.vrooli.audio_tools.v1.eval.NormalizationPolicyR\x13normalizationPolicy\x12'\n" +
-	"\x0flatency_honesty\x18\a \x01(\tR\x0elatencyHonesty\"\xde\t\n" +
+	"\x0flatency_honesty\x18\a \x01(\tR\x0elatencyHonesty\x12[\n" +
+	"\x12promotion_verdicts\x18\b \x03(\v2,.vrooli.audio_tools.v1.eval.PromotionVerdictR\x11promotionVerdicts\"a\n" +
+	"\x10PromotionVerdict\x12\x1b\n" +
+	"\tengine_id\x18\x01 \x01(\tR\bengineId\x12\x16\n" +
+	"\x06stable\x18\x02 \x01(\bR\x06stable\x12\x18\n" +
+	"\areasons\x18\x03 \x03(\tR\areasons\"\xe8\n" +
+	"\n" +
 	"\x0eStrategyReport\x12\x1a\n" +
 	"\bstrategy\x18\x01 \x01(\tR\bstrategy\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x10\n" +
@@ -1792,7 +1903,12 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\rlength_curves\x18\x17 \x03(\v2-.vrooli.audio_tools.v1.eval.LengthBucketCurveR\flengthCurves\x12!\n" +
 	"\fcommit_count\x18\x18 \x01(\x05R\vcommitCount\x126\n" +
 	"\x17speaker_rejection_count\x18\x19 \x01(\x05R\x15speakerRejectionCount\x12E\n" +
-	"\ascaling\x18\x1a \x01(\v2+.vrooli.audio_tools.v1.eval.ScalingAnalysisR\ascaling\"\xf5\b\n" +
+	"\ascaling\x18\x1a \x01(\v2+.vrooli.audio_tools.v1.eval.ScalingAnalysisR\ascaling\x12\x1b\n" +
+	"\tengine_id\x18\x1b \x01(\tR\bengineId\x12%\n" +
+	"\x0epolicy_profile\x18\x1c \x01(\tR\rpolicyProfile\x12\x1f\n" +
+	"\vreplay_lane\x18\x1d \x01(\tR\n" +
+	"replayLane\x12#\n" +
+	"\rfault_profile\x18\x1e \x01(\tR\ffaultProfile\"\xf5\b\n" +
 	"\n" +
 	"ClipReport\x12\x17\n" +
 	"\aclip_id\x18\x01 \x01(\tR\x06clipId\x12\x1c\n" +
@@ -1939,50 +2055,52 @@ func file_audio_tools_v1_eval_eval_proto_rawDescGZIP() []byte {
 	return file_audio_tools_v1_eval_eval_proto_rawDescData
 }
 
-var file_audio_tools_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_audio_tools_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_audio_tools_v1_eval_eval_proto_goTypes = []any{
 	(*EvalStrategy)(nil),        // 0: vrooli.audio_tools.v1.eval.EvalStrategy
 	(*EvalReport)(nil),          // 1: vrooli.audio_tools.v1.eval.EvalReport
-	(*StrategyReport)(nil),      // 2: vrooli.audio_tools.v1.eval.StrategyReport
-	(*ClipReport)(nil),          // 3: vrooli.audio_tools.v1.eval.ClipReport
-	(*EvalReportSummary)(nil),   // 4: vrooli.audio_tools.v1.eval.EvalReportSummary
-	(*ReportWarning)(nil),       // 5: vrooli.audio_tools.v1.eval.ReportWarning
-	(*NormalizationPolicy)(nil), // 6: vrooli.audio_tools.v1.eval.NormalizationPolicy
-	(*EditOperation)(nil),       // 7: vrooli.audio_tools.v1.eval.EditOperation
-	(*CommitState)(nil),         // 8: vrooli.audio_tools.v1.eval.CommitState
-	(*RetractionEvent)(nil),     // 9: vrooli.audio_tools.v1.eval.RetractionEvent
-	(*SafetyGateReport)(nil),    // 10: vrooli.audio_tools.v1.eval.SafetyGateReport
-	(*StageAttribution)(nil),    // 11: vrooli.audio_tools.v1.eval.StageAttribution
-	(*LengthBucketCurve)(nil),   // 12: vrooli.audio_tools.v1.eval.LengthBucketCurve
-	(*ScalingPoint)(nil),        // 13: vrooli.audio_tools.v1.eval.ScalingPoint
-	(*ScalingModelFit)(nil),     // 14: vrooli.audio_tools.v1.eval.ScalingModelFit
-	(*ScalingAnalysis)(nil),     // 15: vrooli.audio_tools.v1.eval.ScalingAnalysis
+	(*PromotionVerdict)(nil),    // 2: vrooli.audio_tools.v1.eval.PromotionVerdict
+	(*StrategyReport)(nil),      // 3: vrooli.audio_tools.v1.eval.StrategyReport
+	(*ClipReport)(nil),          // 4: vrooli.audio_tools.v1.eval.ClipReport
+	(*EvalReportSummary)(nil),   // 5: vrooli.audio_tools.v1.eval.EvalReportSummary
+	(*ReportWarning)(nil),       // 6: vrooli.audio_tools.v1.eval.ReportWarning
+	(*NormalizationPolicy)(nil), // 7: vrooli.audio_tools.v1.eval.NormalizationPolicy
+	(*EditOperation)(nil),       // 8: vrooli.audio_tools.v1.eval.EditOperation
+	(*CommitState)(nil),         // 9: vrooli.audio_tools.v1.eval.CommitState
+	(*RetractionEvent)(nil),     // 10: vrooli.audio_tools.v1.eval.RetractionEvent
+	(*SafetyGateReport)(nil),    // 11: vrooli.audio_tools.v1.eval.SafetyGateReport
+	(*StageAttribution)(nil),    // 12: vrooli.audio_tools.v1.eval.StageAttribution
+	(*LengthBucketCurve)(nil),   // 13: vrooli.audio_tools.v1.eval.LengthBucketCurve
+	(*ScalingPoint)(nil),        // 14: vrooli.audio_tools.v1.eval.ScalingPoint
+	(*ScalingModelFit)(nil),     // 15: vrooli.audio_tools.v1.eval.ScalingModelFit
+	(*ScalingAnalysis)(nil),     // 16: vrooli.audio_tools.v1.eval.ScalingAnalysis
 }
 var file_audio_tools_v1_eval_eval_proto_depIdxs = []int32{
-	2,  // 0: vrooli.audio_tools.v1.eval.EvalReport.per_strategy:type_name -> vrooli.audio_tools.v1.eval.StrategyReport
-	4,  // 1: vrooli.audio_tools.v1.eval.EvalReport.summary:type_name -> vrooli.audio_tools.v1.eval.EvalReportSummary
-	5,  // 2: vrooli.audio_tools.v1.eval.EvalReport.warnings:type_name -> vrooli.audio_tools.v1.eval.ReportWarning
-	6,  // 3: vrooli.audio_tools.v1.eval.EvalReport.normalization_policy:type_name -> vrooli.audio_tools.v1.eval.NormalizationPolicy
-	3,  // 4: vrooli.audio_tools.v1.eval.StrategyReport.per_clip:type_name -> vrooli.audio_tools.v1.eval.ClipReport
-	5,  // 5: vrooli.audio_tools.v1.eval.StrategyReport.warnings:type_name -> vrooli.audio_tools.v1.eval.ReportWarning
-	10, // 6: vrooli.audio_tools.v1.eval.StrategyReport.safety:type_name -> vrooli.audio_tools.v1.eval.SafetyGateReport
-	11, // 7: vrooli.audio_tools.v1.eval.StrategyReport.stage_attribution:type_name -> vrooli.audio_tools.v1.eval.StageAttribution
-	12, // 8: vrooli.audio_tools.v1.eval.StrategyReport.length_curves:type_name -> vrooli.audio_tools.v1.eval.LengthBucketCurve
-	15, // 9: vrooli.audio_tools.v1.eval.StrategyReport.scaling:type_name -> vrooli.audio_tools.v1.eval.ScalingAnalysis
-	7,  // 10: vrooli.audio_tools.v1.eval.ClipReport.edit_operations:type_name -> vrooli.audio_tools.v1.eval.EditOperation
-	8,  // 11: vrooli.audio_tools.v1.eval.ClipReport.commit_timeline:type_name -> vrooli.audio_tools.v1.eval.CommitState
-	10, // 12: vrooli.audio_tools.v1.eval.ClipReport.safety:type_name -> vrooli.audio_tools.v1.eval.SafetyGateReport
-	9,  // 13: vrooli.audio_tools.v1.eval.SafetyGateReport.retraction_events:type_name -> vrooli.audio_tools.v1.eval.RetractionEvent
-	13, // 14: vrooli.audio_tools.v1.eval.ScalingAnalysis.points:type_name -> vrooli.audio_tools.v1.eval.ScalingPoint
-	5,  // 15: vrooli.audio_tools.v1.eval.ScalingAnalysis.warnings:type_name -> vrooli.audio_tools.v1.eval.ReportWarning
-	14, // 16: vrooli.audio_tools.v1.eval.ScalingAnalysis.latency_fit:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
-	14, // 17: vrooli.audio_tools.v1.eval.ScalingAnalysis.compute_fit:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
-	14, // 18: vrooli.audio_tools.v1.eval.ScalingAnalysis.metric_fits:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	3,  // 0: vrooli.audio_tools.v1.eval.EvalReport.per_strategy:type_name -> vrooli.audio_tools.v1.eval.StrategyReport
+	5,  // 1: vrooli.audio_tools.v1.eval.EvalReport.summary:type_name -> vrooli.audio_tools.v1.eval.EvalReportSummary
+	6,  // 2: vrooli.audio_tools.v1.eval.EvalReport.warnings:type_name -> vrooli.audio_tools.v1.eval.ReportWarning
+	7,  // 3: vrooli.audio_tools.v1.eval.EvalReport.normalization_policy:type_name -> vrooli.audio_tools.v1.eval.NormalizationPolicy
+	2,  // 4: vrooli.audio_tools.v1.eval.EvalReport.promotion_verdicts:type_name -> vrooli.audio_tools.v1.eval.PromotionVerdict
+	4,  // 5: vrooli.audio_tools.v1.eval.StrategyReport.per_clip:type_name -> vrooli.audio_tools.v1.eval.ClipReport
+	6,  // 6: vrooli.audio_tools.v1.eval.StrategyReport.warnings:type_name -> vrooli.audio_tools.v1.eval.ReportWarning
+	11, // 7: vrooli.audio_tools.v1.eval.StrategyReport.safety:type_name -> vrooli.audio_tools.v1.eval.SafetyGateReport
+	12, // 8: vrooli.audio_tools.v1.eval.StrategyReport.stage_attribution:type_name -> vrooli.audio_tools.v1.eval.StageAttribution
+	13, // 9: vrooli.audio_tools.v1.eval.StrategyReport.length_curves:type_name -> vrooli.audio_tools.v1.eval.LengthBucketCurve
+	16, // 10: vrooli.audio_tools.v1.eval.StrategyReport.scaling:type_name -> vrooli.audio_tools.v1.eval.ScalingAnalysis
+	8,  // 11: vrooli.audio_tools.v1.eval.ClipReport.edit_operations:type_name -> vrooli.audio_tools.v1.eval.EditOperation
+	9,  // 12: vrooli.audio_tools.v1.eval.ClipReport.commit_timeline:type_name -> vrooli.audio_tools.v1.eval.CommitState
+	11, // 13: vrooli.audio_tools.v1.eval.ClipReport.safety:type_name -> vrooli.audio_tools.v1.eval.SafetyGateReport
+	10, // 14: vrooli.audio_tools.v1.eval.SafetyGateReport.retraction_events:type_name -> vrooli.audio_tools.v1.eval.RetractionEvent
+	14, // 15: vrooli.audio_tools.v1.eval.ScalingAnalysis.points:type_name -> vrooli.audio_tools.v1.eval.ScalingPoint
+	6,  // 16: vrooli.audio_tools.v1.eval.ScalingAnalysis.warnings:type_name -> vrooli.audio_tools.v1.eval.ReportWarning
+	15, // 17: vrooli.audio_tools.v1.eval.ScalingAnalysis.latency_fit:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
+	15, // 18: vrooli.audio_tools.v1.eval.ScalingAnalysis.compute_fit:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
+	15, // 19: vrooli.audio_tools.v1.eval.ScalingAnalysis.metric_fits:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_eval_eval_proto_init() }
@@ -1996,7 +2114,7 @@ func file_audio_tools_v1_eval_eval_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_eval_eval_proto_rawDesc), len(file_audio_tools_v1_eval_eval_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

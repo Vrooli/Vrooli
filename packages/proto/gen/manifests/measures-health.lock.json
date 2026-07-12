@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "measures-health",
-  "input_digest": "sha256:51d50459292d0d2494a389cd8bc09cfde3db98e23689a4a25b7f7c7dd5021f13",
+  "input_digest": "sha256:1cce42251504f993fe724adc3abf1fb810b3f68984ab227bc87dbd6f30664023",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/measures-health/v1/domain/validation_run.proto",

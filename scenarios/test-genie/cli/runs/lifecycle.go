@@ -170,6 +170,11 @@ func suppressHeartbeatsFor(w io.Writer, forceKeep bool) bool {
 // follow`); on a non-TTY (piped) stdout it suppresses heartbeat keep-alives so a
 // backgrounded wait is not re-woken on every beat.
 func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
+	// The public usage documents flags after the run handle. flag.FlagSet stops
+	// parsing at the first positional argument, so normalize the two supported
+	// wait flags before parsing. Without this, `runs wait demo R --json` silently
+	// took the human streaming path instead of emitting its machine snapshot.
+	args = normalizeWaitFlags(args)
 	fs := flag.NewFlagSet("runs wait", flag.ContinueOnError)
 	fs.SetOutput(w)
 	timeout := fs.Int("timeout", 0, "Max seconds to block (0 = until the run is terminal)")
@@ -233,7 +238,7 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
 	}
 	clearWaitAttempt(scenario, runID)
-	printTerminalStandingView(w, scenario, runID, terminal, phases)
+	printTerminalStandingView(cl, w, scenario, runID, terminal, phases)
 	return terminalExit(runID, terminal, streamErr)
 }
 
@@ -288,8 +293,34 @@ func runFollow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return err
 	}
 	terminal, phases, streamErr := streamRunEvents(context.Background(), cl, w, scenario, runID, suppressHeartbeatsFor(w, *heartbeats))
-	printTerminalStandingView(w, scenario, runID, terminal, phases)
+	printTerminalStandingView(cl, w, scenario, runID, terminal, phases)
 	return terminalExit(runID, terminal, streamErr)
+}
+
+// normalizeWaitFlags supports the documented trailing-flag spelling while
+// preserving FlagSet's normal validation of each recognized flag. It is kept
+// deliberately narrow: unknown arguments remain positional and are rejected by
+// twoPositional rather than being silently reinterpreted.
+func normalizeWaitFlags(args []string) []string {
+	flags := make([]string, 0, 3)
+	positionals := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		switch arg := args[i]; {
+		case arg == "--json":
+			flags = append(flags, arg)
+		case arg == "--timeout":
+			flags = append(flags, arg)
+			if i+1 < len(args) {
+				i++
+				flags = append(flags, args[i])
+			}
+		case strings.HasPrefix(arg, "--timeout="):
+			flags = append(flags, arg)
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	return append(flags, positionals...)
 }
 
 // streamRunEvents follows a run, rendering each event with printFollowEvent, and
@@ -320,9 +351,26 @@ func streamRunEvents(ctx context.Context, cl runs_v1connect.RunsServiceClient, w
 	return terminal, phases, stream.Err()
 }
 
-func printTerminalStandingView(w io.Writer, scenario, runID string, terminal *runspb.RunEvent, phases []execTypes.Phase) {
+func printTerminalStandingView(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string, terminal *runspb.RunEvent, phases []execTypes.Phase) {
 	if terminal == nil {
 		return
+	}
+	// FollowRun is an event stream, not a durable report. A late subscriber to
+	// an already-completed run can legitimately receive only run_completed;
+	// rendering that event alone used to fabricate a 0/0/0 result. Rehydrate
+	// from WaitRun's canonical terminal snapshot before printing the summary so
+	// human wait/follow agree with JSON wait and `runs show`.
+	if snapshot, err := cl.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{
+		Scenario: scenario,
+		RunId:    runID,
+	})); err == nil && !snapshot.Msg.GetTimedOut() && snapshot.Msg.GetTerminalRun() != nil && len(snapshot.Msg.GetDegradedReasons()) == 0 {
+		view := cliexec.BuildRunStandingViewFromWaitResponse(context.Background(), snapshot.Msg, report.RunScoreCLI)
+		if len(view.Phases) > 0 || len(phases) == 0 {
+			pr := report.New(w, view.Scenario, "", nil, nil, false, nil, nil)
+			pr.SetStreamedObservations(true)
+			pr.PrintResultsView(view)
+			return
+		}
 	}
 	resp := cliexec.Response{
 		Success:     terminal.GetSuccess(),
@@ -340,12 +388,12 @@ func printTerminalStandingView(w io.Writer, scenario, runID string, terminal *ru
 
 func phaseFromRunEvent(ev *runspb.RunEvent) execTypes.Phase {
 	return execTypes.Phase{
-		Name:             ev.GetPhase(),
-		Status:           ev.GetStatus(),
-		DurationSeconds:  float64(ev.GetDurationSeconds()),
-		Error:            ev.GetError(),
-		MaturityStanding: cliexec.StandingFromProto(ev.GetMaturityStanding()),
-		FindingsSummary:  cliexec.FindingsSummaryFromProto(ev.GetFindingsSummary()),
+		Name:              ev.GetPhase(),
+		Status:            ev.GetStatus(),
+		DurationSeconds:   float64(ev.GetDurationSeconds()),
+		Error:             ev.GetError(),
+		PhasePresentation: ev.GetPhasePresentation(),
+		FindingsSummary:   cliexec.FindingsSummaryFromProto(ev.GetFindingsSummary()),
 	}
 }
 
@@ -494,17 +542,17 @@ func printFollowEvent(w io.Writer, ev *runspb.RunEvent) {
 }
 
 func printFollowStanding(w io.Writer, ev *runspb.RunEvent) {
-	standing := cliexec.StandingFromProto(ev.GetMaturityStanding())
-	if standing == nil {
+	presentation := ev.GetPhasePresentation()
+	if presentation == nil {
 		return
 	}
 	pr := report.New(w, ev.GetScenario(), "", nil, nil, false, nil, nil)
 	pr.PrintPhaseStanding(execTypes.Phase{
-		Name:             ev.GetPhase(),
-		Status:           ev.GetStatus(),
-		DurationSeconds:  float64(ev.GetDurationSeconds()),
-		Error:            ev.GetError(),
-		MaturityStanding: standing,
-		FindingsSummary:  cliexec.FindingsSummaryFromProto(ev.GetFindingsSummary()),
+		Name:              ev.GetPhase(),
+		Status:            ev.GetStatus(),
+		DurationSeconds:   float64(ev.GetDurationSeconds()),
+		Error:             ev.GetError(),
+		PhasePresentation: presentation,
+		FindingsSummary:   cliexec.FindingsSummaryFromProto(ev.GetFindingsSummary()),
 	})
 }

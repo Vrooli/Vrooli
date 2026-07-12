@@ -13,90 +13,11 @@ import (
 	"test-genie/cli/execute/report"
 	execTypes "test-genie/cli/internal/execute"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 var levelNumberRE = regexp.MustCompile(`\d+`)
-
-// StandingFromProto maps the server's per-phase maturity standing into the CLI
-// projection. It is the single mapping both the human scorecard and the --json
-// output derive from, so the two output modes can never diverge (parity). Returns
-// nil when the phase carries no standing (native phases / providers with no
-// ladder). Doc-search topics are attached separately (see docSearchTopics).
-func StandingFromProto(st *runspb.PhaseMaturityStanding) *execTypes.MaturityStanding {
-	if st == nil {
-		return nil
-	}
-	out := &execTypes.MaturityStanding{
-		Provider:                st.GetProvider(),
-		Phase:                   st.GetPhase(),
-		CurrentLevel:            st.GetCurrentLevel(),
-		CurrentLevelLabel:       st.GetCurrentLevelLabel(),
-		NextLevel:               st.GetNextLevel(),
-		CeilingLevel:            st.GetCeilingLevel(),
-		Clean:                   st.GetClean(),
-		UnknownCount:            st.GetUnknownCount(),
-		BlockingFindingCodes:    st.GetBlockingFindingCodes(),
-		NextMove:                st.GetNextMove(),
-		NextMoveReason:          st.GetNextMoveReason(),
-		PriorityCapabilityID:    st.GetPriorityCapabilityId(),
-		PriorityCapabilityLabel: st.GetPriorityCapabilityLabel(),
-		NorthStar:               st.GetNorthStar(),
-		AtMaximum:               st.GetAtMaximum(),
-	}
-	for _, c := range st.GetCapabilities() {
-		if c == nil {
-			continue
-		}
-		out.Capabilities = append(out.Capabilities, execTypes.CapabilityStanding{
-			ID:                   c.GetId(),
-			Label:                c.GetLabel(),
-			CurrentLevel:         c.GetCurrentLevel(),
-			CurrentLevelLabel:    c.GetCurrentLevelLabel(),
-			NextLevel:            c.GetNextLevel(),
-			CurrentSummary:       c.GetCurrentSummary(),
-			NextUnlock:           c.GetNextUnlock(),
-			Clean:                c.GetClean(),
-			BlockingFindingCount: c.GetBlockingFindingCount(),
-			BlockingFindingCodes: c.GetBlockingFindingCodes(),
-			PriorityRank:         c.GetPriorityRank(),
-			PriorityReason:       c.GetPriorityReason(),
-		})
-	}
-	out.DocSearchTopics = docSearchTopics(out)
-	return out
-}
-
-// docSearchTopics derives runnable search-hub query strings that resolve to the
-// phase's structured remediation doc (Phase Capability Contract skeleton). The
-// printer renders each as `search-hub query "<topic>" --type doc`. Suppressed at
-// maximum maturity, where there is nothing to remediate.
-func docSearchTopics(st *execTypes.MaturityStanding) []string {
-	if st == nil || st.AtMaximum {
-		return nil
-	}
-	phase := strings.TrimSpace(st.Phase)
-	if phase == "" {
-		return nil
-	}
-	// The general topic resolves to the "The rungs and their gates" / next-move
-	// section; per-code topics resolve to "What each finding means" / "The
-	// canonical fix" for the top blocking codes.
-	topics := []string{phase + " maturity next move"}
-	seen := map[string]bool{}
-	for _, code := range st.BlockingFindingCodes {
-		code = strings.TrimSpace(code)
-		if code == "" || seen[code] {
-			continue
-		}
-		seen[code] = true
-		topics = append(topics, phase+" "+code+" canonical fix")
-		if len(topics) >= 3 {
-			break
-		}
-	}
-	return topics
-}
 
 func FindingsSummaryFromProto(fs *runspb.PhaseFindingsSummary) *execTypes.FindingsSummary {
 	if fs == nil {
@@ -190,34 +111,45 @@ func phasesFromTerminalRun(run *runspb.RunInfo) []Phase {
 		if phase == nil {
 			continue
 		}
+		state := ""
+		if phase.GetPhasePresentation() == nil && phase.GetMaturityStanding() != nil {
+			state = "legacy_maturity_standing"
+		}
 		phases = append(phases, Phase{
-			Name:             phase.GetName(),
-			Status:           phase.GetStatus(),
-			DurationSeconds:  phase.GetDurationSeconds(),
-			MaturityStanding: StandingFromProto(phase.GetMaturityStanding()),
-			FindingsSummary:  FindingsSummaryFromProto(phase.GetFindingsSummary()),
+			Name:              phase.GetName(),
+			Status:            phase.GetStatus(),
+			DurationSeconds:   phase.GetDurationSeconds(),
+			PhasePresentation: phase.GetPhasePresentation(),
+			PresentationState: state,
+			FindingsSummary:   FindingsSummaryFromProto(phase.GetFindingsSummary()),
 		})
 	}
 	return phases
 }
 
 func phasesFromLiveStatus(st *runspb.RunLiveStatus) []Phase {
-	standings := st.GetTerminalStandings()
+	presentations := st.GetTerminalPresentations()
 	findings := st.GetTerminalFindingsSummaries()
-	phases := make([]Phase, 0, len(standings))
-	for i, standing := range standings {
-		if standing == nil {
+	phases := make([]Phase, 0, len(presentations)+len(st.GetTerminalStandings()))
+	for i, presentation := range presentations {
+		if presentation == nil {
 			continue
 		}
 		phase := Phase{
-			Name:             firstNonEmpty(standing.GetPhase(), st.GetActivePhase()),
-			Status:           st.GetStatus(),
-			MaturityStanding: StandingFromProto(standing),
+			Name:              firstNonEmpty(presentation.GetPhase(), st.GetActivePhase()),
+			Status:            st.GetStatus(),
+			PhasePresentation: presentation,
 		}
 		if i < len(findings) {
 			phase.FindingsSummary = FindingsSummaryFromProto(findings[i])
 		}
 		phases = append(phases, phase)
+	}
+	for _, standing := range st.GetTerminalStandings() {
+		if standing == nil {
+			continue
+		}
+		phases = append(phases, Phase{Name: firstNonEmpty(standing.GetPhase(), st.GetActivePhase()), Status: st.GetStatus(), PresentationState: "legacy_maturity_standing"})
 	}
 	return phases
 }
@@ -255,16 +187,16 @@ func statusFromResponse(resp Response) string {
 func TopPriorityFromPhases(phases []Phase) *execTypes.RunTopPriority {
 	var candidates []priorityCandidate
 	for _, phase := range phases {
-		st := phase.MaturityStanding
-		if st == nil || st.AtMaximum || strings.TrimSpace(st.NextMove) == "" {
+		st := phase.PhasePresentation
+		if st == nil || st.GetAtMaximum() || strings.TrimSpace(st.GetNextAction()) == "" {
 			continue
 		}
 		candidates = append(candidates, priorityCandidate{
 			phase:        phase.Name,
 			standing:     st,
-			level:        levelNumber(st.CurrentLevel),
+			level:        levelNumber(st.GetCurrentLevel()),
 			priorityRank: capabilityPriorityRank(st),
-			findingCount: len(st.BlockingFindingCodes),
+			findingCount: len(st.GetBlockingFindingCodes()),
 		})
 	}
 	if len(candidates) == 0 {
@@ -286,22 +218,22 @@ func TopPriorityFromPhases(phases []Phase) *execTypes.RunTopPriority {
 	best := candidates[0]
 	st := best.standing
 	topic := ""
-	if len(st.DocSearchTopics) > 0 {
-		topic = st.DocSearchTopics[0]
+	if len(st.GetDocumentationTopics()) > 0 {
+		topic = st.GetDocumentationTopics()[0]
 	}
-	phase := firstNonEmpty(st.Phase, best.phase)
+	phase := firstNonEmpty(st.GetPhase(), best.phase)
 	return &execTypes.RunTopPriority{
 		Phase:                   phase,
-		Provider:                st.Provider,
-		CurrentLevel:            st.CurrentLevel,
-		CurrentLevelLabel:       st.CurrentLevelLabel,
-		NextLevel:               st.NextLevel,
-		NextMove:                st.NextMove,
-		NextMoveReason:          st.NextMoveReason,
-		PriorityCapabilityID:    st.PriorityCapabilityID,
-		PriorityCapabilityLabel: st.PriorityCapabilityLabel,
+		Provider:                st.GetProvider(),
+		CurrentLevel:            st.GetCurrentLevel(),
+		CurrentLevelLabel:       st.GetCurrentLevelLabel(),
+		NextLevel:               st.GetNextLevel(),
+		NextMove:                st.GetNextAction(),
+		NextMoveReason:          st.GetNextActionReason(),
+		PriorityCapabilityID:    st.GetFocusCapabilityId(),
+		PriorityCapabilityLabel: st.GetFocusCapabilityLabel(),
 		DocSearchTopic:          topic,
-		BlockingFindingCodes:    st.BlockingFindingCodes,
+		BlockingFindingCodes:    st.GetBlockingFindingCodes(),
 	}
 }
 
@@ -326,11 +258,11 @@ func levelNumber(level string) int {
 	return n
 }
 
-func capabilityPriorityRank(st *execTypes.MaturityStanding) int {
+func capabilityPriorityRank(st *commonv1.PhasePresentation) int {
 	best := int(^uint(0) >> 1)
-	for _, cap := range st.Capabilities {
-		if cap.PriorityRank > 0 && int(cap.PriorityRank) < best {
-			best = int(cap.PriorityRank)
+	for _, cap := range st.GetCapabilities() {
+		if cap.GetPriorityRank() > 0 && int(cap.GetPriorityRank()) < best {
+			best = int(cap.GetPriorityRank())
 		}
 	}
 	return best
@@ -347,7 +279,7 @@ func firstNonEmpty(vals ...string) string {
 
 type priorityCandidate struct {
 	phase        string
-	standing     *execTypes.MaturityStanding
+	standing     *commonv1.PhasePresentation
 	level        int
 	priorityRank int
 	findingCount int

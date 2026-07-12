@@ -79,7 +79,7 @@ export interface RemediationPhase {
   runnabilityVerdict?: string;
   runnabilityReason?: string;
   remediation?: string;
-  maturityStanding?: string;
+  phasePresentation?: string;
   resultGating?: string;
 }
 

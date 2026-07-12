@@ -8,7 +8,7 @@ This phase declares a [Phase Capability Contract](../../concepts/phase-capabilit
 
 ## North Star
 
-A phase provider is **fully conformant** on both capabilities: its `.vrooli/test-genie.json` descriptor is contract-clean (`provider_descriptor` L3 — identity, embedded maturity, policy safety, no stale maturity file, and skeleton operator docs all pass) and its live `ScenarioValidationService` honors the shared contract with correct identity, execution metrics, and fix-class declarations (`provider_contract` L2). At maximum maturity every declared phase resolves a well-formed contract that Test Genie can register and govern without per-phase glue — the descriptor is a trustworthy source of truth for the whole catalog.
+A phase provider is **fully conformant** on both capabilities: its `.vrooli/test-genie.json` descriptor is contract-clean (`provider_descriptor` L3 — identity, embedded maturity, policy safety, no stale maturity file, and skeleton operator docs all pass) and its live `ScenarioValidationService` honors the shared contract with correct identity, execution metrics, fix-class declarations, and a canonical `MaturityAssessment.presentation` (`provider_contract` L2). At maximum maturity every declared phase resolves a well-formed contract that Test Genie can register and govern without per-phase glue — the descriptor is a trustworthy source of truth for the whole catalog.
 
 ## The rungs and their gates
 
@@ -41,7 +41,7 @@ Each finding caps the capability it names at the rung below its impact. Contract
 - **Descriptor-structure findings** (`PROVIDER_DESCRIPTOR_MISSING/INVALID`, `PROVIDER_IDENTITY_MISMATCH`, `PROVIDER_MATURITY_INVALID`) → author or repair `.vrooli/test-genie.json` so it parses, matches the schema version, stamps the owning scenario's identity, and carries a well-formed embedded `maturity` block.
 - **Hygiene findings** (`PROVIDER_STALE_MATURITY_FILE`, `PROVIDER_POLICY_UNSAFE`) → delete the retired `.vrooli/maturity.json` once the descriptor block is the source of truth, and choose a non-contradictory policy combination.
 - **Contract-doc findings** (`PROVIDER_DOCS_MISSING`, `PROVIDER_DOCS_SKELETON_INCOMPLETE`, `PROVIDER_NORTH_STAR_MISSING`, `PROVIDER_LADDER_INCOMPLETE`, `PROVIDER_RUNG_UNGATED`) → declare `docs.path`, fill the five required skeleton headings, give the ladder's top rung a North Star aspiration, give every non-top rung a `next_unlock`, and map each transition to a real required/error finding on the destination rung.
-- **Live-contract findings** (`PROVIDER_CONTRACT_INVALID`, `PROVIDER_CONTRACT_IDENTITY_MISMATCH`, `PROVIDER_METRICS_MISSING`, `PROVIDER_AUTOFIX_DECLARATION_INCOMPLETE`) → fix provider-side response construction so assessments are contract-valid, identity-stamped, metrics-bearing, and every finding declares a `fix_class`. `PROVIDER_UNREACHABLE` is environmental — start the provider. Auto-fix scope is scaffold-only: Test Genie may seed the descriptor/doc skeleton and warn about missing fix metadata, but it does not invent provider-specific maturity mappings or rewrite target behavior.
+- **Live-contract findings** (`PROVIDER_CONTRACT_INVALID`, `PROVIDER_CONTRACT_IDENTITY_MISMATCH`, `PROVIDER_METRICS_MISSING`, `PROVIDER_AUTOFIX_DECLARATION_INCOMPLETE`) → fix provider-side response construction so assessments are contract-valid, identity-stamped, metrics-bearing, and carry the exact v1 `presentation` projection; every finding declares a `fix_class`. `PROVIDER_UNREACHABLE` is environmental — start the provider. Auto-fix scope is scaffold-only: Test Genie may seed the descriptor/doc skeleton and warn about missing fix metadata, but it does not invent provider-specific maturity mappings or rewrite target behavior.
 
 ## How to verify
 
@@ -75,7 +75,7 @@ Test Genie owns the provider-conformance judgment. The rules are shared with the
 - required operator docs path declaration through `docs.path`; path resolution remains advisory (`PROVIDER_DOCS_MISSING`)
 - rung-gate coverage for declared ladders; missing blockers remain advisory while catalog descriptors are remediated (`PROVIDER_RUNG_UNGATED`)
 - autofix declaration coverage: every maturity finding carries an explicit `fix_class` (`PROVIDER_AUTOFIX_DECLARATION_INCOMPLETE`, warning-level but maturity-required)
-- live provider contract: reachability (advisory), contract-valid responses, assessment identity, and execution metrics (`PROVIDER_UNREACHABLE`, `PROVIDER_CONTRACT_INVALID`, `PROVIDER_CONTRACT_IDENTITY_MISMATCH`, `PROVIDER_METRICS_MISSING`)
+- live provider contract: reachability (advisory), contract-valid responses, assessment identity, execution metrics, and the canonical v1 presentation (`PROVIDER_UNREACHABLE`, `PROVIDER_CONTRACT_INVALID`, `PROVIDER_CONTRACT_IDENTITY_MISMATCH`, `PROVIDER_METRICS_MISSING`)
 
 ## Self-Recursion Guard
 

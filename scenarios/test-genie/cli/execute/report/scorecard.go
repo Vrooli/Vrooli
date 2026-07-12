@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	execTypes "test-genie/cli/internal/execute"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // maxScorecardGaps bounds how many blocking codes the concise inline scorecard
@@ -18,29 +20,32 @@ const maxScorecardGaps = 2
 // suppressed. No-op for phases with no standing (native / degraded), which keep
 // their plain status row.
 func (p *Printer) PrintPhaseStanding(phase execTypes.Phase) {
-	st := phase.MaturityStanding
+	st := phase.PhasePresentation
 	if st == nil {
+		if phase.PresentationState == "legacy_maturity_standing" {
+			fmt.Fprintln(p.w, "     presentation: historical maturity standing (not canonical v1)")
+		}
 		return
 	}
 	fmt.Fprintf(p.w, "     %s %s\n", p.color.Bold("standing:"), scorecardRung(st))
-	if ns := strings.TrimSpace(st.NorthStar); ns != "" {
+	if ns := strings.TrimSpace(st.GetNorthStar()); ns != "" {
 		fmt.Fprintf(p.w, "     North Star: %s\n", ns)
 	}
-	if st.AtMaximum {
+	if st.GetAtMaximum() {
 		return
 	}
-	if gaps := topGaps(st.BlockingFindingCodes, maxScorecardGaps); gaps != "" {
+	if gaps := topGaps(st.GetBlockingFindingCodes(), maxScorecardGaps); gaps != "" {
 		fmt.Fprintf(p.w, "     gaps: %s\n", gaps)
 	}
-	if move := strings.TrimSpace(st.NextMove); move != "" {
+	if move := strings.TrimSpace(st.GetNextAction()); move != "" {
 		line := "     next: " + move
-		if capLabel := strings.TrimSpace(st.PriorityCapabilityLabel); capLabel != "" {
+		if capLabel := strings.TrimSpace(st.GetFocusCapabilityLabel()); capLabel != "" {
 			line += "  [→ " + capLabel + "]"
 		}
 		fmt.Fprintln(p.w, line)
 	}
-	if len(st.DocSearchTopics) > 0 {
-		fmt.Fprintf(p.w, "     docs: search-hub query %q --type doc\n", st.DocSearchTopics[0])
+	if len(st.GetDocumentationTopics()) > 0 {
+		fmt.Fprintf(p.w, "     docs: search-hub query %q --type doc\n", st.GetDocumentationTopics()[0])
 	}
 }
 
@@ -48,7 +53,7 @@ func (p *Printer) printTopPriority(priority *execTypes.RunTopPriority) {
 	if priority == nil {
 		return
 	}
-	fmt.Fprintln(p.w, p.color.Bold("TOP PRIORITY:"))
+	fmt.Fprintln(p.w, p.color.Bold("RUN TOP PRIORITY:"))
 	line := fmt.Sprintf("  • %s: %s", priority.Phase, priority.NextMove)
 	if capLabel := strings.TrimSpace(priority.PriorityCapabilityLabel); capLabel != "" {
 		line += "  [→ " + capLabel + "]"
@@ -62,20 +67,20 @@ func (p *Printer) printTopPriority(priority *execTypes.RunTopPriority) {
 
 // scorecardRung renders the "current → next (ceiling X)" rung line, collapsing to
 // a single rung at maximum maturity.
-func scorecardRung(st *execTypes.MaturityStanding) string {
-	cur := firstNonEmpty(st.CurrentLevel, "?")
-	if label := strings.TrimSpace(st.CurrentLevelLabel); label != "" {
+func scorecardRung(st *commonv1.PhasePresentation) string {
+	cur := firstNonEmpty(st.GetCurrentLevel(), "?")
+	if label := strings.TrimSpace(st.GetCurrentLevelLabel()); label != "" {
 		cur = fmt.Sprintf("%s %s", cur, label)
 	}
-	if st.AtMaximum {
+	if st.GetAtMaximum() {
 		return cur + " · maximum maturity"
 	}
-	next := strings.TrimSpace(st.NextLevel)
+	next := strings.TrimSpace(st.GetNextLevel())
 	if next == "" {
 		return cur
 	}
 	line := fmt.Sprintf("%s → %s", cur, next)
-	if ceil := strings.TrimSpace(st.CeilingLevel); ceil != "" && ceil != next {
+	if ceil := strings.TrimSpace(st.GetCeilingLevel()); ceil != "" && ceil != next {
 		line += fmt.Sprintf(" (ceiling %s)", ceil)
 	}
 	return line

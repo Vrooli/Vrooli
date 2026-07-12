@@ -3,15 +3,17 @@ package execute
 
 import (
 	"encoding/json"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Request represents an execution request.
 type Request struct {
-	ScenarioName   string   `json:"scenarioName"`
-	Preset         string   `json:"preset,omitempty"`
-	Phases         []string `json:"phases,omitempty"`
-	Skip           []string `json:"skip,omitempty"`
-	FailFast       bool     `json:"failFast"`
+	ScenarioName string   `json:"scenarioName"`
+	Preset       string   `json:"preset,omitempty"`
+	Phases       []string `json:"phases,omitempty"`
+	Skip         []string `json:"skip,omitempty"`
+	FailFast     bool     `json:"failFast"`
 
 	// DiagnosticsPreset ("none"|"light"|"full") overrides the playbooks
 	// diagnostics config for this run (richer BAS artifact capture).
@@ -349,55 +351,16 @@ type Phase struct {
 	RunnabilityVerdict string          `json:"runnabilityVerdict"`
 	RunnabilityReason  string          `json:"runnabilityReason"`
 	Observations       ObservationList `json:"observations"`
-	// MaturityStanding is the per-phase Phase Capability Contract standing. Both
-	// the human scorecard and the --json output derive from this single mapping of
-	// the server's RunEvent.maturity_standing, so the two modes never diverge. Nil
-	// for native phases / providers that declare no ladder.
-	MaturityStanding *MaturityStanding `json:"maturityStanding,omitempty"`
+	// PhasePresentation is the provider-owned canonical phase presentation. Both
+	// human and JSON output render this exact object; nil is explicit degraded or
+	// native evidence, never an invented maturity claim.
+	PhasePresentation *commonv1.PhasePresentation `json:"phasePresentation,omitempty"`
+	// PresentationState makes absent canonical presentation explicit. It is
+	// "legacy_maturity_standing" only when an historical run carries the retired
+	// run-wire object; consumers must not treat that object as v1 presentation.
+	PresentationState string `json:"presentationState,omitempty"`
 	// FindingsSummary is the per-severity finding tally for the phase.
 	FindingsSummary *FindingsSummary `json:"findingsSummary,omitempty"`
-}
-
-// MaturityStanding is the CLI projection of the server's per-phase maturity
-// standing. The concise human scorecard reads the phase-level fields plus the
-// single next move; --json additionally exposes the per-capability depth.
-type MaturityStanding struct {
-	Provider                string   `json:"provider,omitempty"`
-	Phase                   string   `json:"phase,omitempty"`
-	CurrentLevel            string   `json:"currentLevel,omitempty"`
-	CurrentLevelLabel       string   `json:"currentLevelLabel,omitempty"`
-	NextLevel               string   `json:"nextLevel,omitempty"`
-	CeilingLevel            string   `json:"ceilingLevel,omitempty"`
-	Clean                   bool     `json:"clean"`
-	UnknownCount            int32    `json:"unknownCount,omitempty"`
-	BlockingFindingCodes    []string `json:"blockingFindingCodes,omitempty"`
-	NextMove                string   `json:"nextMove,omitempty"`
-	NextMoveReason          string   `json:"nextMoveReason,omitempty"`
-	PriorityCapabilityID    string   `json:"priorityCapabilityId,omitempty"`
-	PriorityCapabilityLabel string   `json:"priorityCapabilityLabel,omitempty"`
-	NorthStar               string   `json:"northStar,omitempty"`
-	AtMaximum               bool     `json:"atMaximum,omitempty"`
-	// DocSearchTopics are runnable search-hub queries that resolve to the phase's
-	// structured remediation doc (Phase Capability Contract skeleton). Derived
-	// CLI-side from the phase identity and blocking codes.
-	DocSearchTopics []string             `json:"docSearchTopics,omitempty"`
-	Capabilities    []CapabilityStanding `json:"capabilities,omitempty"`
-}
-
-// CapabilityStanding is one capability's standing within a phase (--json depth).
-type CapabilityStanding struct {
-	ID                   string   `json:"id"`
-	Label                string   `json:"label,omitempty"`
-	CurrentLevel         string   `json:"currentLevel,omitempty"`
-	CurrentLevelLabel    string   `json:"currentLevelLabel,omitempty"`
-	NextLevel            string   `json:"nextLevel,omitempty"`
-	CurrentSummary       string   `json:"currentSummary,omitempty"`
-	NextUnlock           string   `json:"nextUnlock,omitempty"`
-	Clean                bool     `json:"clean"`
-	BlockingFindingCount int32    `json:"blockingFindingCount,omitempty"`
-	BlockingFindingCodes []string `json:"blockingFindingCodes,omitempty"`
-	PriorityRank         int32    `json:"priorityRank,omitempty"`
-	PriorityReason       string   `json:"priorityReason,omitempty"`
 }
 
 // FindingsSummary is the per-severity finding tally for a phase.

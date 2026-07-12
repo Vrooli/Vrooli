@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "experience-manager",
-  "input_digest": "sha256:934a48204531aaf95e3fd15ffc5cc9a4feef1621edce5f7347255bd66be8bb45",
+  "input_digest": "sha256:24116acad141ea11df9193996f2da7ac32795339f7af7d802d92f81f9c4a94d6",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/experience-manager/v1/contract/contract.proto",

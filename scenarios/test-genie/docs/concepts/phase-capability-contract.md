@@ -64,6 +64,50 @@ Parts 1, 2, and 4 are *declared* in the descriptor and its docs; part 3 is
 **contract-conformant** when all four parts are present and well-formed, as
 validated by the provider-conformance self-phase.
 
+## Portable phase presentation
+
+`common.v1.MaturityAssessment.presentation` is the portable, provider-owned
+rendering contract. Its current `contract_version` is `v1`. The assessment and
+its ungrouped `findings` remain the semantic and evidence sources; presentation
+is a deterministic projection, never an alternative assessment.
+
+The v1 rules are deliberately narrow:
+
+- Capability groups are keyed by `capability_id`, ordered by positive
+  `priority_rank` and then capability id. Each group preserves the computed
+  current/next rung, priority reason, and blocking codes.
+- Findings are grouped only by capability and code. A group is ordered by code,
+  reports a count and sorted locations, and retains representative title,
+  message, remediation, severity, and fix affordance. Raw findings remain
+  available for complete evidence.
+- The phase focus, next action, North Star, ceiling, and documentation topics
+  come directly from the computed assessment. Consumers must not regroup,
+  reorder, or invent a next action or documentation route.
+- `PREVIEW_AVAILABLE` means the provider has reported deterministic-fixer
+  availability; it is an invitation to call `PreviewFix`, not permission to
+  claim an apply result. Manual and detection-only states remain explicit.
+
+Test Genie stores and forwards the exact presentation object in run events,
+terminal records, live status, findings artifacts, and CLI JSON. It may add
+run-level status, timing, position, history, and a clearly-labelled cross-phase
+top priority, but it does not add phase semantics. A missing, unsupported, or
+non-canonical presentation is a maturity-contract failure for a delegated
+provider. Native or degraded phases remain nil/degraded evidence rather than a
+synthetic passing presentation. Historical runs retain whatever was persisted;
+they are not backfilled from the current provider catalog.
+
+The retired `PhaseMaturityStanding` wire fields remain decode-only at their
+original protobuf numbers for historical run/event bytes. New writers never
+set them. A reader exposes such data as `legacy_maturity_standing`, with no
+v1 presentation attached; this prevents a field-number reinterpretation from
+inventing a malformed canonical story for an older run.
+
+The Phase Presentation v1 audit rejected a capability-prerequisite schema
+extension. Existing ladder gates, blocking codes, current/next levels, and
+unknown evidence already express the only verified dependency states. A generic
+prerequisite graph would add unsupported semantics and risk hiding findings, so
+v1 retains all evidence and introduces no suppression behavior.
+
 ## The North Star requirement
 
 The ladder's **top level must carry an aspiration statement** — the North Star.

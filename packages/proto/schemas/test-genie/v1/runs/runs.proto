@@ -157,12 +157,13 @@ message RunEvent {
   bool success = 14;
   string verdict = 15;
   string error = 16;
-  // phase-completed canonical presentation + findings summary. Present on
-  // phase_completed / phase_failed events for phases whose provider declares a
-  // maturity ladder, so a follower derives the standing from the same payload the
-  // terminal RunInfo carries. Nil otherwise.
-  common.v1.PhasePresentation phase_presentation = 17;
+  // Historical v1 standing. New writers leave this unset; it remains so older
+  // event bytes decode as explicitly legacy evidence rather than as a v1
+  // presentation with shifted fields.
+  PhaseMaturityStanding maturity_standing = 17;
   PhaseFindingsSummary findings_summary = 18;
+  // Provider-owned canonical presentation for new events.
+  common.v1.PhasePresentation phase_presentation = 19;
 }
 
 // RunLiveStatus is a point-in-time snapshot of a run.
@@ -194,13 +195,16 @@ message RunLiveStatus {
   // Capability Contract standing that follow streams receive on phase terminal
   // events. Empty while in progress or when the server only has the durable
   // index record.
-  repeated common.v1.PhasePresentation terminal_presentations = 17;
+  // Historical v1 standings, retained only to safely decode old live snapshots.
+  repeated PhaseMaturityStanding terminal_standings = 17;
   repeated PhaseFindingsSummary terminal_findings_summaries = 18;
   // degraded_reasons is non-empty when a terminal status could not be backed
   // by the canonical snapshot (for example, a legacy, corrupt, or unsupported
   // snapshot). Consumers must render this as UNKNOWN/degraded evidence rather
   // than treating absent phase data as a zero-phase success.
   repeated string degraded_reasons = 19;
+  // Canonical presentations for new terminal live snapshots.
+  repeated common.v1.PhasePresentation terminal_presentations = 20;
 }
 
 message StartRunRequest {
@@ -321,6 +325,43 @@ message PhaseFindingsSummary {
   int32 total = 5;
 }
 
+// PhaseCapabilityStanding and PhaseMaturityStanding are the retired run-wire
+// projection. They are retained solely to decode historical run data; all new
+// writers and consumers use common.v1.PhasePresentation.
+message PhaseCapabilityStanding {
+  string id = 1;
+  string label = 2;
+  string current_level = 3;
+  string current_level_label = 4;
+  string next_level = 5;
+  string current_summary = 6;
+  string next_unlock = 7;
+  bool clean = 8;
+  int32 blocking_finding_count = 9;
+  repeated string blocking_finding_codes = 10;
+  int32 priority_rank = 11;
+  string priority_reason = 12;
+}
+
+message PhaseMaturityStanding {
+  string provider = 1;
+  string phase = 2;
+  string current_level = 3;
+  string current_level_label = 4;
+  string next_level = 5;
+  string ceiling_level = 6;
+  bool clean = 7;
+  int32 unknown_count = 8;
+  repeated string blocking_finding_codes = 9;
+  string next_move = 10;
+  string next_move_reason = 11;
+  string priority_capability_id = 12;
+  string priority_capability_label = 13;
+  string north_star = 14;
+  bool at_maximum = 15;
+  repeated PhaseCapabilityStanding capabilities = 16;
+}
+
 // PhaseInfo is a compact per-phase summary.
 message PhaseInfo {
   string name = 1;
@@ -330,10 +371,11 @@ message PhaseInfo {
   bool advisory = 5;
   bool artifact_backed = 6;
   bool non_comparable = 7;
-  // phase_presentation and findings_summary carry the provider-computed
-  // presentation into the terminal run record. Nil for native/degraded phases.
-  common.v1.PhasePresentation phase_presentation = 8;
+  // Historical v1 standing, retained solely to decode pre-presentation runs.
+  PhaseMaturityStanding maturity_standing = 8;
   PhaseFindingsSummary findings_summary = 9;
+  // Provider-owned canonical presentation for new terminal records.
+  common.v1.PhasePresentation phase_presentation = 10;
 }
 
 // PhaseDescriptorPolicy is the descriptor-owned execution policy captured for
@@ -637,8 +679,11 @@ message RunFindingsPhase {
   string name = 1;
   string status = 2;
   string finding_source = 3;
-  common.v1.PhasePresentation phase_presentation = 4;
+  // Historical v1 standing, retained solely to decode old findings artifacts.
+  PhaseMaturityStanding maturity_standing = 4;
   PhaseFindingsSummary findings_summary = 5;
+  // Provider-owned canonical presentation for new findings artifacts.
+  common.v1.PhasePresentation phase_presentation = 6;
 }
 
 // GetRunFindingsResponse returns the per-phase presentation on demand, the

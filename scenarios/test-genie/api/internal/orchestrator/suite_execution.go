@@ -40,6 +40,7 @@ import (
 	"github.com/vrooli/freshness-go/treedigest"
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
@@ -279,12 +280,12 @@ type ExecutionEvent struct {
 	Status          string `json:"status,omitempty"`
 	DurationSeconds int    `json:"durationSeconds,omitempty"`
 	Error           string `json:"error,omitempty"`
-	// MaturityStanding and FindingsSummary carry the provider-computed per-phase
+	// PhasePresentation and FindingsSummary carry the provider-computed per-phase
 	// standing (Phase Capability Contract) on phase_end events, so a follower
 	// derives the standing from the same payload the terminal result carries. nil
 	// for native phases / providers with no ladder.
-	MaturityStanding *runspb.PhaseMaturityStanding `json:"-"`
-	FindingsSummary  *runspb.PhaseFindingsSummary  `json:"-"`
+	PhasePresentation *commonv1.PhasePresentation  `json:"-"`
+	FindingsSummary   *runspb.PhaseFindingsSummary `json:"-"`
 
 	// For observation events
 	Message string `json:"message,omitempty"`
@@ -921,14 +922,14 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 		// Emit phase end event
 		if emit != nil {
 			emit(ExecutionEvent{
-				Type:             EventPhaseEnd,
-				Timestamp:        time.Now(),
-				Phase:            phase.Name.String(),
-				Status:           phaseResult.Status,
-				DurationSeconds:  phaseResult.DurationSeconds,
-				Error:            phaseResult.Error,
-				MaturityStanding: phaseResult.MaturityStanding,
-				FindingsSummary:  phaseResult.FindingsSummary,
+				Type:              EventPhaseEnd,
+				Timestamp:         time.Now(),
+				Phase:             phase.Name.String(),
+				Status:            phaseResult.Status,
+				DurationSeconds:   phaseResult.DurationSeconds,
+				Error:             phaseResult.Error,
+				PhasePresentation: phaseResult.PhasePresentation,
+				FindingsSummary:   phaseResult.FindingsSummary,
 			})
 		}
 
@@ -1293,18 +1294,18 @@ func (o *SuiteOrchestrator) completePhaseRun(
 	}
 
 	result := PhaseExecutionResult{
-		Name:             run.definition.Name.String(),
-		Status:           status,
-		DurationSeconds:  duration,
-		LogPath:          displayLogPath,
-		Error:            errMsg,
-		Classification:   classification,
-		Remediation:      remediation,
-		Observations:     report.Observations,
-		Findings:         report.Findings,
-		Metrics:          report.Metrics,
-		MaturityStanding: report.MaturityStanding,
-		FindingsSummary:  report.FindingsSummary,
+		Name:              run.definition.Name.String(),
+		Status:            status,
+		DurationSeconds:   duration,
+		LogPath:           displayLogPath,
+		Error:             errMsg,
+		Classification:    classification,
+		Remediation:       remediation,
+		Observations:      report.Observations,
+		Findings:          report.Findings,
+		Metrics:           report.Metrics,
+		PhasePresentation: report.PhasePresentation,
+		FindingsSummary:   report.FindingsSummary,
 	}
 	// Stamp the phase's finding-source token (empty for phases that emit no
 	// findings) so a downstream campaign reaudit can derive which sources
@@ -1386,12 +1387,12 @@ type findingsArtifactPhase struct {
 	Status        string                                `json:"status"`
 	FindingSource string                                `json:"findingSource,omitempty"`
 	Findings      []*architecturev1.ArchitectureFinding `json:"findings"`
-	// MaturityStanding + FindingsSummary carry the per-phase standing (Phase
+	// PhasePresentation + FindingsSummary carry the per-phase standing (Phase
 	// Capability Contract) so `test-genie runs findings <run-id>` renders the same
 	// standing on demand. Additive and omitempty — architecture-cartographer's
 	// --from-audit ingest reads only phases[].findings, so this does not affect it.
-	MaturityStanding *runspb.PhaseMaturityStanding `json:"maturityStanding,omitempty"`
-	FindingsSummary  *runspb.PhaseFindingsSummary  `json:"findingsSummary,omitempty"`
+	PhasePresentation *commonv1.PhasePresentation  `json:"phasePresentation,omitempty"`
+	FindingsSummary   *runspb.PhaseFindingsSummary `json:"findingsSummary,omitempty"`
 }
 
 // writeFindingsArtifact persists the combined per-run findings document under
@@ -1408,12 +1409,12 @@ func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, 
 	}
 	for _, res := range results {
 		artifact.Phases = append(artifact.Phases, findingsArtifactPhase{
-			Name:             res.Name,
-			Status:           res.Status,
-			FindingSource:    res.FindingSource,
-			Findings:         res.Findings,
-			MaturityStanding: res.MaturityStanding,
-			FindingsSummary:  res.FindingsSummary,
+			Name:              res.Name,
+			Status:            res.Status,
+			FindingSource:     res.FindingSource,
+			Findings:          res.Findings,
+			PhasePresentation: res.PhasePresentation,
+			FindingsSummary:   res.FindingsSummary,
 		})
 	}
 	writer := sharedartifacts.NewBaseWriter(scenarioDir, filepath.Base(scenarioDir), runID)
@@ -1442,16 +1443,16 @@ func updateLatestPointer(latestDir, linkName, target string) error {
 }
 
 type phaseResultView struct {
-	Name             string
-	Status           string
-	DurationSeconds  int
-	LogPath          string
-	LogAbs           string
-	Observations     []phases.Observation
-	FindingSource    string
-	Findings         []*architecturev1.ArchitectureFinding
-	MaturityStanding *runspb.PhaseMaturityStanding
-	FindingsSummary  *runspb.PhaseFindingsSummary
+	Name              string
+	Status            string
+	DurationSeconds   int
+	LogPath           string
+	LogAbs            string
+	Observations      []phases.Observation
+	FindingSource     string
+	Findings          []*architecturev1.ArchitectureFinding
+	PhasePresentation *commonv1.PhasePresentation
+	FindingsSummary   *runspb.PhaseFindingsSummary
 }
 
 func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []phaseResultView {
@@ -1466,16 +1467,16 @@ func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []p
 		}
 		name := phases.Name(result.Name)
 		views = append(views, phaseResultView{
-			Name:             result.Name,
-			Status:           result.Status,
-			DurationSeconds:  result.DurationSeconds,
-			LogPath:          result.LogPath,
-			LogAbs:           phaseLogPath(runLogDir, name),
-			Observations:     result.Observations,
-			FindingSource:    result.FindingSource,
-			Findings:         findings,
-			MaturityStanding: result.MaturityStanding,
-			FindingsSummary:  result.FindingsSummary,
+			Name:              result.Name,
+			Status:            result.Status,
+			DurationSeconds:   result.DurationSeconds,
+			LogPath:           result.LogPath,
+			LogAbs:            phaseLogPath(runLogDir, name),
+			Observations:      result.Observations,
+			FindingSource:     result.FindingSource,
+			Findings:          findings,
+			PhasePresentation: result.PhasePresentation,
+			FindingsSummary:   result.FindingsSummary,
 		})
 	}
 	return views

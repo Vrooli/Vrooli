@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "scenario": "git-control-tower",
-  "input_digest": "sha256:d626e3a284dc88238df863e60b4d3f9414c6c7d8fd78f52917c8597912cc66e5",
+  "input_digest": "sha256:3bebfaea57859fccb447a13f4458398090665ea37a8b4495092e24788b0694f6",
   "input_files": [
+    "schemas/common/v1/maturity.proto",
     "schemas/git-control-tower/v1/baselines/baselines.proto",
     "schemas/git-control-tower/v1/evidence/evidence.proto",
     "schemas/git-control-tower/v1/repo/repo.proto",

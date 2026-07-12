@@ -44,16 +44,18 @@ func writeSpec(t *testing.T, repoRoot, provider, phase string) {
 }
 
 func validProbeResponse(provider, phase string, withMetrics bool) *scenariovalidationv1.ValidateScenarioResponse {
-	resp := &scenariovalidationv1.ValidateScenarioResponse{
+	phaseAssessment := &commonv1.MaturityAssessment{
 		Scenario: "test-genie",
-		Status:   scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
-		Assessment: &commonv1.MaturityAssessment{
-			Scenario: "test-genie",
-			Provider: provider,
-			Phase:    phase,
-			Version:  "1",
-			Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L1"},
-		},
+		Provider: provider,
+		Phase:    phase,
+		Version:  "1",
+		Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L1"},
+	}
+	phaseAssessment.Presentation = assessment.BuildPhasePresentation(phaseAssessment)
+	resp := &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario:   "test-genie",
+		Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		Assessment: phaseAssessment,
 	}
 	if withMetrics {
 		resp.Metrics = &commonv1.ExecutionMetrics{WallClockMs: 1840}

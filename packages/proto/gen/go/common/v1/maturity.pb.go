@@ -143,6 +143,61 @@ func (CleanRequirement) EnumDescriptor() ([]byte, []int) {
 	return file_common_v1_maturity_proto_rawDescGZIP(), []int{1}
 }
 
+// FixAffordance describes the truthful remediation affordance for a finding
+// rollup. PREVIEW_AVAILABLE means the provider reported a deterministic fixer;
+// a caller must still invoke PreviewFix before advertising an apply operation.
+type FixAffordance int32
+
+const (
+	FixAffordance_FIX_AFFORDANCE_UNSPECIFIED       FixAffordance = 0
+	FixAffordance_FIX_AFFORDANCE_DETECTION_ONLY    FixAffordance = 1
+	FixAffordance_FIX_AFFORDANCE_MANUAL            FixAffordance = 2
+	FixAffordance_FIX_AFFORDANCE_PREVIEW_AVAILABLE FixAffordance = 3
+)
+
+// Enum value maps for FixAffordance.
+var (
+	FixAffordance_name = map[int32]string{
+		0: "FIX_AFFORDANCE_UNSPECIFIED",
+		1: "FIX_AFFORDANCE_DETECTION_ONLY",
+		2: "FIX_AFFORDANCE_MANUAL",
+		3: "FIX_AFFORDANCE_PREVIEW_AVAILABLE",
+	}
+	FixAffordance_value = map[string]int32{
+		"FIX_AFFORDANCE_UNSPECIFIED":       0,
+		"FIX_AFFORDANCE_DETECTION_ONLY":    1,
+		"FIX_AFFORDANCE_MANUAL":            2,
+		"FIX_AFFORDANCE_PREVIEW_AVAILABLE": 3,
+	}
+)
+
+func (x FixAffordance) Enum() *FixAffordance {
+	p := new(FixAffordance)
+	*p = x
+	return p
+}
+
+func (x FixAffordance) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FixAffordance) Descriptor() protoreflect.EnumDescriptor {
+	return file_common_v1_maturity_proto_enumTypes[2].Descriptor()
+}
+
+func (FixAffordance) Type() protoreflect.EnumType {
+	return &file_common_v1_maturity_proto_enumTypes[2]
+}
+
+func (x FixAffordance) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FixAffordance.Descriptor instead.
+func (FixAffordance) EnumDescriptor() ([]byte, []int) {
+	return file_common_v1_maturity_proto_rawDescGZIP(), []int{2}
+}
+
 // LocalMaturityLevel is one provider-local rung from `.vrooli/maturity.json`.
 type LocalMaturityLevel struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
@@ -770,6 +825,434 @@ func (x *PriorityFocus) GetReason() string {
 	return ""
 }
 
+// PhasePresentationFinding is the deterministic code rollup shown inside one
+// capability. The full, ungrouped evidence remains in MaturityAssessment.findings.
+type PhasePresentationFinding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Severity      string                 `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"`
+	Count         int32                  `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
+	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Message       string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	Locations     []string               `protobuf:"bytes,6,rep,name=locations,proto3" json:"locations,omitempty"`
+	Remediation   string                 `protobuf:"bytes,7,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	FixAffordance FixAffordance          `protobuf:"varint,8,opt,name=fix_affordance,json=fixAffordance,proto3,enum=common.v1.FixAffordance" json:"fix_affordance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PhasePresentationFinding) Reset() {
+	*x = PhasePresentationFinding{}
+	mi := &file_common_v1_maturity_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PhasePresentationFinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PhasePresentationFinding) ProtoMessage() {}
+
+func (x *PhasePresentationFinding) ProtoReflect() protoreflect.Message {
+	mi := &file_common_v1_maturity_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PhasePresentationFinding.ProtoReflect.Descriptor instead.
+func (*PhasePresentationFinding) Descriptor() ([]byte, []int) {
+	return file_common_v1_maturity_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PhasePresentationFinding) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *PhasePresentationFinding) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *PhasePresentationFinding) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *PhasePresentationFinding) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *PhasePresentationFinding) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *PhasePresentationFinding) GetLocations() []string {
+	if x != nil {
+		return x.Locations
+	}
+	return nil
+}
+
+func (x *PhasePresentationFinding) GetRemediation() string {
+	if x != nil {
+		return x.Remediation
+	}
+	return ""
+}
+
+func (x *PhasePresentationFinding) GetFixAffordance() FixAffordance {
+	if x != nil {
+		return x.FixAffordance
+	}
+	return FixAffordance_FIX_AFFORDANCE_UNSPECIFIED
+}
+
+// PhaseCapabilityPresentation is the canonical, ordered view of one maturity
+// capability. It is a rendering projection, not a second semantic source.
+type PhaseCapabilityPresentation struct {
+	state                protoimpl.MessageState      `protogen:"open.v1"`
+	Id                   string                      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Label                string                      `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	CurrentLevel         string                      `protobuf:"bytes,3,opt,name=current_level,json=currentLevel,proto3" json:"current_level,omitempty"`
+	CurrentLevelLabel    string                      `protobuf:"bytes,4,opt,name=current_level_label,json=currentLevelLabel,proto3" json:"current_level_label,omitempty"`
+	NextLevel            string                      `protobuf:"bytes,5,opt,name=next_level,json=nextLevel,proto3" json:"next_level,omitempty"`
+	CurrentSummary       string                      `protobuf:"bytes,6,opt,name=current_summary,json=currentSummary,proto3" json:"current_summary,omitempty"`
+	NextUnlock           string                      `protobuf:"bytes,7,opt,name=next_unlock,json=nextUnlock,proto3" json:"next_unlock,omitempty"`
+	Clean                bool                        `protobuf:"varint,8,opt,name=clean,proto3" json:"clean,omitempty"`
+	UnknownCount         int32                       `protobuf:"varint,9,opt,name=unknown_count,json=unknownCount,proto3" json:"unknown_count,omitempty"`
+	BlockingFindingCodes []string                    `protobuf:"bytes,10,rep,name=blocking_finding_codes,json=blockingFindingCodes,proto3" json:"blocking_finding_codes,omitempty"`
+	PriorityRank         int32                       `protobuf:"varint,11,opt,name=priority_rank,json=priorityRank,proto3" json:"priority_rank,omitempty"`
+	PriorityReason       string                      `protobuf:"bytes,12,opt,name=priority_reason,json=priorityReason,proto3" json:"priority_reason,omitempty"`
+	Findings             []*PhasePresentationFinding `protobuf:"bytes,13,rep,name=findings,proto3" json:"findings,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *PhaseCapabilityPresentation) Reset() {
+	*x = PhaseCapabilityPresentation{}
+	mi := &file_common_v1_maturity_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PhaseCapabilityPresentation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PhaseCapabilityPresentation) ProtoMessage() {}
+
+func (x *PhaseCapabilityPresentation) ProtoReflect() protoreflect.Message {
+	mi := &file_common_v1_maturity_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PhaseCapabilityPresentation.ProtoReflect.Descriptor instead.
+func (*PhaseCapabilityPresentation) Descriptor() ([]byte, []int) {
+	return file_common_v1_maturity_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PhaseCapabilityPresentation) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PhaseCapabilityPresentation) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *PhaseCapabilityPresentation) GetCurrentLevel() string {
+	if x != nil {
+		return x.CurrentLevel
+	}
+	return ""
+}
+
+func (x *PhaseCapabilityPresentation) GetCurrentLevelLabel() string {
+	if x != nil {
+		return x.CurrentLevelLabel
+	}
+	return ""
+}
+
+func (x *PhaseCapabilityPresentation) GetNextLevel() string {
+	if x != nil {
+		return x.NextLevel
+	}
+	return ""
+}
+
+func (x *PhaseCapabilityPresentation) GetCurrentSummary() string {
+	if x != nil {
+		return x.CurrentSummary
+	}
+	return ""
+}
+
+func (x *PhaseCapabilityPresentation) GetNextUnlock() string {
+	if x != nil {
+		return x.NextUnlock
+	}
+	return ""
+}
+
+func (x *PhaseCapabilityPresentation) GetClean() bool {
+	if x != nil {
+		return x.Clean
+	}
+	return false
+}
+
+func (x *PhaseCapabilityPresentation) GetUnknownCount() int32 {
+	if x != nil {
+		return x.UnknownCount
+	}
+	return 0
+}
+
+func (x *PhaseCapabilityPresentation) GetBlockingFindingCodes() []string {
+	if x != nil {
+		return x.BlockingFindingCodes
+	}
+	return nil
+}
+
+func (x *PhaseCapabilityPresentation) GetPriorityRank() int32 {
+	if x != nil {
+		return x.PriorityRank
+	}
+	return 0
+}
+
+func (x *PhaseCapabilityPresentation) GetPriorityReason() string {
+	if x != nil {
+		return x.PriorityReason
+	}
+	return ""
+}
+
+func (x *PhaseCapabilityPresentation) GetFindings() []*PhasePresentationFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+// PhasePresentation is the provider-owned, portable phase story. Consumers
+// render this object unchanged and retain MaturityAssessment.findings for full
+// evidence. contract_version lets consumers explicitly classify historical or
+// un-migrated responses instead of synthesizing a phase story.
+type PhasePresentation struct {
+	state                protoimpl.MessageState         `protogen:"open.v1"`
+	ContractVersion      string                         `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	Provider             string                         `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	Phase                string                         `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	CurrentLevel         string                         `protobuf:"bytes,4,opt,name=current_level,json=currentLevel,proto3" json:"current_level,omitempty"`
+	CurrentLevelLabel    string                         `protobuf:"bytes,5,opt,name=current_level_label,json=currentLevelLabel,proto3" json:"current_level_label,omitempty"`
+	NextLevel            string                         `protobuf:"bytes,6,opt,name=next_level,json=nextLevel,proto3" json:"next_level,omitempty"`
+	CeilingLevel         string                         `protobuf:"bytes,7,opt,name=ceiling_level,json=ceilingLevel,proto3" json:"ceiling_level,omitempty"`
+	Clean                bool                           `protobuf:"varint,8,opt,name=clean,proto3" json:"clean,omitempty"`
+	UnknownCount         int32                          `protobuf:"varint,9,opt,name=unknown_count,json=unknownCount,proto3" json:"unknown_count,omitempty"`
+	BlockingFindingCodes []string                       `protobuf:"bytes,10,rep,name=blocking_finding_codes,json=blockingFindingCodes,proto3" json:"blocking_finding_codes,omitempty"`
+	NextAction           string                         `protobuf:"bytes,11,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	NextActionReason     string                         `protobuf:"bytes,12,opt,name=next_action_reason,json=nextActionReason,proto3" json:"next_action_reason,omitempty"`
+	FocusCapabilityId    string                         `protobuf:"bytes,13,opt,name=focus_capability_id,json=focusCapabilityId,proto3" json:"focus_capability_id,omitempty"`
+	FocusCapabilityLabel string                         `protobuf:"bytes,14,opt,name=focus_capability_label,json=focusCapabilityLabel,proto3" json:"focus_capability_label,omitempty"`
+	NorthStar            string                         `protobuf:"bytes,15,opt,name=north_star,json=northStar,proto3" json:"north_star,omitempty"`
+	AtMaximum            bool                           `protobuf:"varint,16,opt,name=at_maximum,json=atMaximum,proto3" json:"at_maximum,omitempty"`
+	Capabilities         []*PhaseCapabilityPresentation `protobuf:"bytes,17,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	DocumentationTopics  []string                       `protobuf:"bytes,18,rep,name=documentation_topics,json=documentationTopics,proto3" json:"documentation_topics,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *PhasePresentation) Reset() {
+	*x = PhasePresentation{}
+	mi := &file_common_v1_maturity_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PhasePresentation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PhasePresentation) ProtoMessage() {}
+
+func (x *PhasePresentation) ProtoReflect() protoreflect.Message {
+	mi := &file_common_v1_maturity_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PhasePresentation.ProtoReflect.Descriptor instead.
+func (*PhasePresentation) Descriptor() ([]byte, []int) {
+	return file_common_v1_maturity_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *PhasePresentation) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetCurrentLevel() string {
+	if x != nil {
+		return x.CurrentLevel
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetCurrentLevelLabel() string {
+	if x != nil {
+		return x.CurrentLevelLabel
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetNextLevel() string {
+	if x != nil {
+		return x.NextLevel
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetCeilingLevel() string {
+	if x != nil {
+		return x.CeilingLevel
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetClean() bool {
+	if x != nil {
+		return x.Clean
+	}
+	return false
+}
+
+func (x *PhasePresentation) GetUnknownCount() int32 {
+	if x != nil {
+		return x.UnknownCount
+	}
+	return 0
+}
+
+func (x *PhasePresentation) GetBlockingFindingCodes() []string {
+	if x != nil {
+		return x.BlockingFindingCodes
+	}
+	return nil
+}
+
+func (x *PhasePresentation) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetNextActionReason() string {
+	if x != nil {
+		return x.NextActionReason
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetFocusCapabilityId() string {
+	if x != nil {
+		return x.FocusCapabilityId
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetFocusCapabilityLabel() string {
+	if x != nil {
+		return x.FocusCapabilityLabel
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetNorthStar() string {
+	if x != nil {
+		return x.NorthStar
+	}
+	return ""
+}
+
+func (x *PhasePresentation) GetAtMaximum() bool {
+	if x != nil {
+		return x.AtMaximum
+	}
+	return false
+}
+
+func (x *PhasePresentation) GetCapabilities() []*PhaseCapabilityPresentation {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+func (x *PhasePresentation) GetDocumentationTopics() []string {
+	if x != nil {
+		return x.DocumentationTopics
+	}
+	return nil
+}
+
 // MaturityAssessment is the single structural object health providers emit.
 type MaturityAssessment struct {
 	state                      protoimpl.MessageState   `protogen:"open.v1"`
@@ -789,13 +1272,16 @@ type MaturityAssessment struct {
 	AutofixableTotal          int32                           `protobuf:"varint,12,opt,name=autofixable_total,json=autofixableTotal,proto3" json:"autofixable_total,omitempty"`
 	Capabilities              []*CapabilityMaturityAssessment `protobuf:"bytes,13,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
 	HighestPriorityCapability *PriorityFocus                  `protobuf:"bytes,14,opt,name=highest_priority_capability,json=highestPriorityCapability,proto3" json:"highest_priority_capability,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Deterministic provider-owned presentation derived from this assessment.
+	// Version 1 is required for all newly built assessments.
+	Presentation  *PhasePresentation `protobuf:"bytes,15,opt,name=presentation,proto3" json:"presentation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MaturityAssessment) Reset() {
 	*x = MaturityAssessment{}
-	mi := &file_common_v1_maturity_proto_msgTypes[6]
+	mi := &file_common_v1_maturity_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -807,7 +1293,7 @@ func (x *MaturityAssessment) String() string {
 func (*MaturityAssessment) ProtoMessage() {}
 
 func (x *MaturityAssessment) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_maturity_proto_msgTypes[6]
+	mi := &file_common_v1_maturity_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -820,7 +1306,7 @@ func (x *MaturityAssessment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaturityAssessment.ProtoReflect.Descriptor instead.
 func (*MaturityAssessment) Descriptor() ([]byte, []int) {
-	return file_common_v1_maturity_proto_rawDescGZIP(), []int{6}
+	return file_common_v1_maturity_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MaturityAssessment) GetScenario() string {
@@ -921,6 +1407,13 @@ func (x *MaturityAssessment) GetHighestPriorityCapability() *PriorityFocus {
 	return nil
 }
 
+func (x *MaturityAssessment) GetPresentation() *PhasePresentation {
+	if x != nil {
+		return x.Presentation
+	}
+	return nil
+}
+
 var File_common_v1_maturity_proto protoreflect.FileDescriptor
 
 const file_common_v1_maturity_proto_rawDesc = "" +
@@ -997,7 +1490,57 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\rcurrent_level\x18\x03 \x01(\tR\fcurrentLevel\x12\x1d\n" +
 	"\n" +
 	"next_level\x18\x04 \x01(\tR\tnextLevel\x12\x16\n" +
-	"\x06reason\x18\x05 \x01(\tR\x06reason\"\xe8\b\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\x91\x02\n" +
+	"\x18PhasePresentationFinding\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
+	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x14\n" +
+	"\x05count\x18\x03 \x01(\x05R\x05count\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\x12\x1c\n" +
+	"\tlocations\x18\x06 \x03(\tR\tlocations\x12 \n" +
+	"\vremediation\x18\a \x01(\tR\vremediation\x12?\n" +
+	"\x0efix_affordance\x18\b \x01(\x0e2\x18.common.v1.FixAffordanceR\rfixAffordance\"\x81\x04\n" +
+	"\x1bPhaseCapabilityPresentation\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12#\n" +
+	"\rcurrent_level\x18\x03 \x01(\tR\fcurrentLevel\x12.\n" +
+	"\x13current_level_label\x18\x04 \x01(\tR\x11currentLevelLabel\x12\x1d\n" +
+	"\n" +
+	"next_level\x18\x05 \x01(\tR\tnextLevel\x12'\n" +
+	"\x0fcurrent_summary\x18\x06 \x01(\tR\x0ecurrentSummary\x12\x1f\n" +
+	"\vnext_unlock\x18\a \x01(\tR\n" +
+	"nextUnlock\x12\x14\n" +
+	"\x05clean\x18\b \x01(\bR\x05clean\x12#\n" +
+	"\runknown_count\x18\t \x01(\x05R\funknownCount\x124\n" +
+	"\x16blocking_finding_codes\x18\n" +
+	" \x03(\tR\x14blockingFindingCodes\x12#\n" +
+	"\rpriority_rank\x18\v \x01(\x05R\fpriorityRank\x12'\n" +
+	"\x0fpriority_reason\x18\f \x01(\tR\x0epriorityReason\x12?\n" +
+	"\bfindings\x18\r \x03(\v2#.common.v1.PhasePresentationFindingR\bfindings\"\xec\x05\n" +
+	"\x11PhasePresentation\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12\x1a\n" +
+	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x14\n" +
+	"\x05phase\x18\x03 \x01(\tR\x05phase\x12#\n" +
+	"\rcurrent_level\x18\x04 \x01(\tR\fcurrentLevel\x12.\n" +
+	"\x13current_level_label\x18\x05 \x01(\tR\x11currentLevelLabel\x12\x1d\n" +
+	"\n" +
+	"next_level\x18\x06 \x01(\tR\tnextLevel\x12#\n" +
+	"\rceiling_level\x18\a \x01(\tR\fceilingLevel\x12\x14\n" +
+	"\x05clean\x18\b \x01(\bR\x05clean\x12#\n" +
+	"\runknown_count\x18\t \x01(\x05R\funknownCount\x124\n" +
+	"\x16blocking_finding_codes\x18\n" +
+	" \x03(\tR\x14blockingFindingCodes\x12\x1f\n" +
+	"\vnext_action\x18\v \x01(\tR\n" +
+	"nextAction\x12,\n" +
+	"\x12next_action_reason\x18\f \x01(\tR\x10nextActionReason\x12.\n" +
+	"\x13focus_capability_id\x18\r \x01(\tR\x11focusCapabilityId\x124\n" +
+	"\x16focus_capability_label\x18\x0e \x01(\tR\x14focusCapabilityLabel\x12\x1d\n" +
+	"\n" +
+	"north_star\x18\x0f \x01(\tR\tnorthStar\x12\x1d\n" +
+	"\n" +
+	"at_maximum\x18\x10 \x01(\bR\tatMaximum\x12J\n" +
+	"\fcapabilities\x18\x11 \x03(\v2&.common.v1.PhaseCapabilityPresentationR\fcapabilities\x121\n" +
+	"\x14documentation_topics\x18\x12 \x03(\tR\x13documentationTopics\"\xaa\t\n" +
 	"\x12MaturityAssessment\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x14\n" +
@@ -1013,7 +1556,8 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\x11autofixable_count\x18\v \x01(\x05R\x10autofixableCount\x12+\n" +
 	"\x11autofixable_total\x18\f \x01(\x05R\x10autofixableTotal\x12K\n" +
 	"\fcapabilities\x18\r \x03(\v2'.common.v1.CapabilityMaturityAssessmentR\fcapabilities\x12X\n" +
-	"\x1bhighest_priority_capability\x18\x0e \x01(\v2\x18.common.v1.PriorityFocusR\x19highestPriorityCapability\x1aI\n" +
+	"\x1bhighest_priority_capability\x18\x0e \x01(\v2\x18.common.v1.PriorityFocusR\x19highestPriorityCapability\x12@\n" +
+	"\fpresentation\x18\x0f \x01(\v2\x1c.common.v1.PhasePresentationR\fpresentation\x1aI\n" +
 	"\x1bFindingsByGlobalImpactEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aE\n" +
@@ -1036,7 +1580,12 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\x1dCLEAN_REQUIREMENT_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aCLEAN_REQUIREMENT_REQUIRED\x10\x01\x12\x1e\n" +
 	"\x1aCLEAN_REQUIREMENT_ADVISORY\x10\x02\x12!\n" +
-	"\x1dCLEAN_REQUIREMENT_UNCHECKABLE\x10\x03BCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
+	"\x1dCLEAN_REQUIREMENT_UNCHECKABLE\x10\x03*\x93\x01\n" +
+	"\rFixAffordance\x12\x1e\n" +
+	"\x1aFIX_AFFORDANCE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dFIX_AFFORDANCE_DETECTION_ONLY\x10\x01\x12\x19\n" +
+	"\x15FIX_AFFORDANCE_MANUAL\x10\x02\x12$\n" +
+	" FIX_AFFORDANCE_PREVIEW_AVAILABLE\x10\x03BCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
 
 var (
 	file_common_v1_maturity_proto_rawDescOnce sync.Once
@@ -1050,46 +1599,54 @@ func file_common_v1_maturity_proto_rawDescGZIP() []byte {
 	return file_common_v1_maturity_proto_rawDescData
 }
 
-var file_common_v1_maturity_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_common_v1_maturity_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_common_v1_maturity_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_common_v1_maturity_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_common_v1_maturity_proto_goTypes = []any{
 	(GlobalImpact)(0),                    // 0: common.v1.GlobalImpact
 	(CleanRequirement)(0),                // 1: common.v1.CleanRequirement
-	(*LocalMaturityLevel)(nil),           // 2: common.v1.LocalMaturityLevel
-	(*FindingMaturity)(nil),              // 3: common.v1.FindingMaturity
-	(*AssessmentFinding)(nil),            // 4: common.v1.AssessmentFinding
-	(*LocalMaturityAssessment)(nil),      // 5: common.v1.LocalMaturityAssessment
-	(*CapabilityMaturityAssessment)(nil), // 6: common.v1.CapabilityMaturityAssessment
-	(*PriorityFocus)(nil),                // 7: common.v1.PriorityFocus
-	(*MaturityAssessment)(nil),           // 8: common.v1.MaturityAssessment
-	nil,                                  // 9: common.v1.CapabilityMaturityAssessment.FindingsByGlobalImpactEntry
-	nil,                                  // 10: common.v1.CapabilityMaturityAssessment.FindingsBySeverityEntry
-	nil,                                  // 11: common.v1.CapabilityMaturityAssessment.FindingsByCleanRequirementEntry
-	nil,                                  // 12: common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
-	nil,                                  // 13: common.v1.MaturityAssessment.FindingsBySeverityEntry
-	nil,                                  // 14: common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
+	(FixAffordance)(0),                   // 2: common.v1.FixAffordance
+	(*LocalMaturityLevel)(nil),           // 3: common.v1.LocalMaturityLevel
+	(*FindingMaturity)(nil),              // 4: common.v1.FindingMaturity
+	(*AssessmentFinding)(nil),            // 5: common.v1.AssessmentFinding
+	(*LocalMaturityAssessment)(nil),      // 6: common.v1.LocalMaturityAssessment
+	(*CapabilityMaturityAssessment)(nil), // 7: common.v1.CapabilityMaturityAssessment
+	(*PriorityFocus)(nil),                // 8: common.v1.PriorityFocus
+	(*PhasePresentationFinding)(nil),     // 9: common.v1.PhasePresentationFinding
+	(*PhaseCapabilityPresentation)(nil),  // 10: common.v1.PhaseCapabilityPresentation
+	(*PhasePresentation)(nil),            // 11: common.v1.PhasePresentation
+	(*MaturityAssessment)(nil),           // 12: common.v1.MaturityAssessment
+	nil,                                  // 13: common.v1.CapabilityMaturityAssessment.FindingsByGlobalImpactEntry
+	nil,                                  // 14: common.v1.CapabilityMaturityAssessment.FindingsBySeverityEntry
+	nil,                                  // 15: common.v1.CapabilityMaturityAssessment.FindingsByCleanRequirementEntry
+	nil,                                  // 16: common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
+	nil,                                  // 17: common.v1.MaturityAssessment.FindingsBySeverityEntry
+	nil,                                  // 18: common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
 }
 var file_common_v1_maturity_proto_depIdxs = []int32{
 	0,  // 0: common.v1.FindingMaturity.global_impact:type_name -> common.v1.GlobalImpact
 	1,  // 1: common.v1.FindingMaturity.clean_requirement:type_name -> common.v1.CleanRequirement
-	3,  // 2: common.v1.AssessmentFinding.maturity:type_name -> common.v1.FindingMaturity
-	2,  // 3: common.v1.LocalMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
-	2,  // 4: common.v1.CapabilityMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
-	9,  // 5: common.v1.CapabilityMaturityAssessment.findings_by_global_impact:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByGlobalImpactEntry
-	10, // 6: common.v1.CapabilityMaturityAssessment.findings_by_severity:type_name -> common.v1.CapabilityMaturityAssessment.FindingsBySeverityEntry
-	11, // 7: common.v1.CapabilityMaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByCleanRequirementEntry
-	5,  // 8: common.v1.MaturityAssessment.local:type_name -> common.v1.LocalMaturityAssessment
-	4,  // 9: common.v1.MaturityAssessment.findings:type_name -> common.v1.AssessmentFinding
-	12, // 10: common.v1.MaturityAssessment.findings_by_global_impact:type_name -> common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
-	13, // 11: common.v1.MaturityAssessment.findings_by_severity:type_name -> common.v1.MaturityAssessment.FindingsBySeverityEntry
-	14, // 12: common.v1.MaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
-	6,  // 13: common.v1.MaturityAssessment.capabilities:type_name -> common.v1.CapabilityMaturityAssessment
-	7,  // 14: common.v1.MaturityAssessment.highest_priority_capability:type_name -> common.v1.PriorityFocus
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	4,  // 2: common.v1.AssessmentFinding.maturity:type_name -> common.v1.FindingMaturity
+	3,  // 3: common.v1.LocalMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
+	3,  // 4: common.v1.CapabilityMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
+	13, // 5: common.v1.CapabilityMaturityAssessment.findings_by_global_impact:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByGlobalImpactEntry
+	14, // 6: common.v1.CapabilityMaturityAssessment.findings_by_severity:type_name -> common.v1.CapabilityMaturityAssessment.FindingsBySeverityEntry
+	15, // 7: common.v1.CapabilityMaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByCleanRequirementEntry
+	2,  // 8: common.v1.PhasePresentationFinding.fix_affordance:type_name -> common.v1.FixAffordance
+	9,  // 9: common.v1.PhaseCapabilityPresentation.findings:type_name -> common.v1.PhasePresentationFinding
+	10, // 10: common.v1.PhasePresentation.capabilities:type_name -> common.v1.PhaseCapabilityPresentation
+	6,  // 11: common.v1.MaturityAssessment.local:type_name -> common.v1.LocalMaturityAssessment
+	5,  // 12: common.v1.MaturityAssessment.findings:type_name -> common.v1.AssessmentFinding
+	16, // 13: common.v1.MaturityAssessment.findings_by_global_impact:type_name -> common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
+	17, // 14: common.v1.MaturityAssessment.findings_by_severity:type_name -> common.v1.MaturityAssessment.FindingsBySeverityEntry
+	18, // 15: common.v1.MaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
+	7,  // 16: common.v1.MaturityAssessment.capabilities:type_name -> common.v1.CapabilityMaturityAssessment
+	8,  // 17: common.v1.MaturityAssessment.highest_priority_capability:type_name -> common.v1.PriorityFocus
+	11, // 18: common.v1.MaturityAssessment.presentation:type_name -> common.v1.PhasePresentation
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_common_v1_maturity_proto_init() }
@@ -1102,8 +1659,8 @@ func file_common_v1_maturity_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_maturity_proto_rawDesc), len(file_common_v1_maturity_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   13,
+			NumEnums:      3,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -120,7 +120,6 @@ func New(cfg Config, opts ...Option) *Runner {
 	if r.visualHealth == nil {
 		r.visualHealth = defaultVisualHealthAnalyzer{}
 	}
-
 	return r
 }
 
@@ -543,7 +542,6 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry) Result {
 	// Wait for completion with optional progress reporting
 	execErr := r.basClient.WaitForCompletionWithProgress(ctx, executionID, progressCallback)
 	outcome.Duration = time.Since(start)
-
 	// Collect artifacts (both on success and failure for debugging)
 	artifactResult, parsed, parseErr := r.collectWorkflowArtifacts(ctx, entry, executionID, outcome, execErr)
 

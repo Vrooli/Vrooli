@@ -40,7 +40,7 @@ type Phase struct {
 	RunnabilityVerdict string         `json:"runnabilityVerdict,omitempty"`
 	RunnabilityReason  string         `json:"runnabilityReason,omitempty"`
 	Remediation        string         `json:"remediation,omitempty"`
-	MaturityStanding   string         `json:"maturityStanding,omitempty"`
+	PhasePresentation  string         `json:"phasePresentation,omitempty"`
 	ResultGating       string         `json:"resultGating,omitempty"`
 	FindingsSummary    FindingSummary `json:"findingsSummary,omitempty"`
 }

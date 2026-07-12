@@ -126,10 +126,10 @@ not failed by this phase; their absence is fleet-sweep debt for
 
 ## Gating
 
-`EXPERIENCE_ALIGNMENT_GATE=strict` makes error-severity experience findings
-fail the shared provider response. The default rollout mode keeps findings
-visible and maturity-scored without failing suites while the experience axis is
-adopted fleet-wide.
+Experience Manager always reports ERROR-severity findings as failed validation
+truth. Test Genie may independently mark that failure advisory or non-gating
+for a rollout, but it must retain the failed/degraded provider state and its
+remediation; no environment variable may rewrite an ERROR into `PASSED`.
 
 ## Degradation
 

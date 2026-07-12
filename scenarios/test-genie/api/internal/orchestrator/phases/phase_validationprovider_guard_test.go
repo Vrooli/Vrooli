@@ -20,7 +20,7 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 	}
 }
 
-func TestEveryCatalogPhaseCanProduceMaturityStanding(t *testing.T) {
+func TestEveryCatalogPhaseCanProducePhasePresentation(t *testing.T) {
 	expected := descriptorExpectations(t)
 	catalog := NewDefaultCatalog(DefaultTimeout)
 	for _, spec := range catalog.All() {

@@ -417,7 +417,7 @@ func TestGetRunFindings(t *testing.T) {
 	  "verdict": "pass",
 	  "phases": [
 	    {"name": "contracts", "status": "passed", "findingSource": "cli",
-	     "maturityStanding": {"provider": "cli-health", "phase": "contracts", "current_level": "L3", "next_level": "L4", "ceiling_level": "L4", "north_star": "Verified primitives.", "next_move": "Prove the primitive.", "blocking_finding_codes": ["arch.primitive_unverified"]},
+	     "phasePresentation": {"contract_version": "v1", "provider": "cli-health", "phase": "contracts", "current_level": "L3", "next_level": "L4", "ceiling_level": "L4", "north_star": "Verified primitives.", "next_action": "Prove the primitive.", "blocking_finding_codes": ["arch.primitive_unverified"]},
 	     "findingsSummary": {"warnings": 1, "total": 1}}
 	  ]
 	}`
@@ -432,11 +432,11 @@ func TestGetRunFindings(t *testing.T) {
 	if len(resp.Msg.GetPhases()) != 1 {
 		t.Fatalf("want 1 phase, got %d", len(resp.Msg.GetPhases()))
 	}
-	st := resp.Msg.GetPhases()[0].GetMaturityStanding()
+	st := resp.Msg.GetPhases()[0].GetPhasePresentation()
 	if st == nil || st.GetCurrentLevel() != "L3" || st.GetNextLevel() != "L4" || st.GetNorthStar() != "Verified primitives." {
 		t.Fatalf("standing not read back from findings.json: %+v", st)
 	}
-	if st.GetNextMove() != "Prove the primitive." || len(st.GetBlockingFindingCodes()) != 1 {
+	if st.GetNextAction() != "Prove the primitive." || len(st.GetBlockingFindingCodes()) != 1 {
 		t.Fatalf("standing detail missing: %+v", st)
 	}
 

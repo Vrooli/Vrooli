@@ -19,6 +19,7 @@ import (
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
@@ -171,9 +172,9 @@ type LiveStatus struct {
 	Active bool
 	// Result is the full terminal result when known (live terminal snapshot).
 	Result *orchestrator.SuiteExecutionResult
-	// TerminalStandings is populated from Result.Phases on terminal live
+	// TerminalPresentations is populated from Result.Phases on terminal live
 	// snapshots, preserving the provider-computed standing for agent wait paths.
-	TerminalStandings         []*runspb.PhaseMaturityStanding
+	TerminalPresentations     []*commonv1.PhasePresentation
 	TerminalFindingsSummaries []*runspb.PhaseFindingsSummary
 	// TerminalRecord is the canonical compact projection stored inside the
 	// terminal snapshot. It is populated only when that snapshot validated.
@@ -589,7 +590,7 @@ func (m *Manager) onOrchestratorEvent(ar *activeRun, ev orchestrator.ExecutionEv
 		if ev.Status != "passed" && ev.Status != "skipped" {
 			kind = EventPhaseFailed
 		}
-		ar.bc.publish(Event{Kind: kind, ElapsedSeconds: elapsed, Phase: ev.Phase, Status: ev.Status, DurationSeconds: ev.DurationSeconds, Error: ev.Error, MaturityStanding: ev.MaturityStanding, FindingsSummary: ev.FindingsSummary})
+		ar.bc.publish(Event{Kind: kind, ElapsedSeconds: elapsed, Phase: ev.Phase, Status: ev.Status, DurationSeconds: ev.DurationSeconds, Error: ev.Error, PhasePresentation: ev.PhasePresentation, FindingsSummary: ev.FindingsSummary})
 	case orchestrator.EventObservation, orchestrator.EventProgress:
 		if strings.TrimSpace(ev.Message) == "" {
 			return
@@ -1072,7 +1073,7 @@ func (m *Manager) snapshot(ar *activeRun) LiveStatus {
 		ls.Verdict = ar.result.Verdict
 		ls.Success = ar.result.Success && !terminalAborted(ar.status)
 		if terminal {
-			ls.TerminalStandings, ls.TerminalFindingsSummaries = terminalMaturity(ar.result)
+			ls.TerminalPresentations, ls.TerminalFindingsSummaries = terminalMaturity(ar.result)
 		}
 	}
 	if ar.err != nil {
@@ -1081,15 +1082,15 @@ func (m *Manager) snapshot(ar *activeRun) LiveStatus {
 	return ls
 }
 
-func terminalMaturity(result *orchestrator.SuiteExecutionResult) ([]*runspb.PhaseMaturityStanding, []*runspb.PhaseFindingsSummary) {
+func terminalMaturity(result *orchestrator.SuiteExecutionResult) ([]*commonv1.PhasePresentation, []*runspb.PhaseFindingsSummary) {
 	if result == nil {
 		return nil, nil
 	}
-	standings := make([]*runspb.PhaseMaturityStanding, 0, len(result.Phases))
+	standings := make([]*commonv1.PhasePresentation, 0, len(result.Phases))
 	summaries := make([]*runspb.PhaseFindingsSummary, 0, len(result.Phases))
 	for _, phase := range result.Phases {
-		if phase.MaturityStanding != nil {
-			standings = append(standings, phase.MaturityStanding)
+		if phase.PhasePresentation != nil {
+			standings = append(standings, phase.PhasePresentation)
 		}
 		if phase.FindingsSummary != nil {
 			summaries = append(summaries, phase.FindingsSummary)
@@ -1162,7 +1163,7 @@ func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {
 	ls.TerminalSnapshotSchemaVersion = snapshot.SchemaVersion
 	ls.Verdict = result.Verdict
 	ls.Success = result.Success && rec.Status == sharedruns.StatusPassed
-	ls.TerminalStandings, ls.TerminalFindingsSummaries = terminalMaturity(&result)
+	ls.TerminalPresentations, ls.TerminalFindingsSummaries = terminalMaturity(&result)
 	return ls, nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
@@ -49,7 +50,7 @@ func getRunFindingsReport(_ cliapp.OperationContext, msg *runspb.GetRunFindingsR
 	seenHint := map[string]bool{}
 	standings := 0
 	for _, p := range msg.GetPhases() {
-		st := p.GetMaturityStanding()
+		st := p.GetPhasePresentation()
 		if st == nil {
 			continue
 		}
@@ -71,7 +72,7 @@ func getRunFindingsReport(_ cliapp.OperationContext, msg *runspb.GetRunFindingsR
 
 // phaseStandingLines renders one phase's concise standing block. It suppresses
 // the next-move line at maximum maturity.
-func phaseStandingLines(phase string, st *runspb.PhaseMaturityStanding) []string {
+func phaseStandingLines(phase string, st *commonv1.PhasePresentation) []string {
 	lines := []string{fmt.Sprintf("%-16s %s", phase, rungLine(st))}
 	if ns := strings.TrimSpace(st.GetNorthStar()); ns != "" {
 		lines = append(lines, "  North Star: "+ns)
@@ -80,12 +81,12 @@ func phaseStandingLines(phase string, st *runspb.PhaseMaturityStanding) []string
 		lines = append(lines, "  Maximum maturity reached.")
 		return lines
 	}
-	if move := strings.TrimSpace(st.GetNextMove()); move != "" {
+	if move := strings.TrimSpace(st.GetNextAction()); move != "" {
 		line := "  Next: " + move
-		if reason := strings.TrimSpace(st.GetNextMoveReason()); reason != "" {
+		if reason := strings.TrimSpace(st.GetNextActionReason()); reason != "" {
 			line += "  (" + reason + ")"
 		}
-		if capLabel := strings.TrimSpace(st.GetPriorityCapabilityLabel()); capLabel != "" {
+		if capLabel := strings.TrimSpace(st.GetFocusCapabilityLabel()); capLabel != "" {
 			line += "  [→ " + capLabel + "]"
 		}
 		lines = append(lines, line)
@@ -96,7 +97,7 @@ func phaseStandingLines(phase string, st *runspb.PhaseMaturityStanding) []string
 	return lines
 }
 
-func rungLine(st *runspb.PhaseMaturityStanding) string {
+func rungLine(st *commonv1.PhasePresentation) string {
 	cur := firstNonEmptyStr(st.GetCurrentLevel(), "?")
 	if st.GetAtMaximum() {
 		return cur + " (ceiling)"
@@ -112,27 +113,12 @@ func rungLine(st *runspb.PhaseMaturityStanding) string {
 	return line
 }
 
-// findingsDocTopics mirrors the execute-side derivation so `runs findings` emits
-// the same runnable doc-search topics that resolve to the structured remediation
-// doc (Phase Capability Contract skeleton).
-func findingsDocTopics(phase string, st *runspb.PhaseMaturityStanding) []string {
+// findingsDocTopics reads the provider-owned documentation topics verbatim.
+func findingsDocTopics(phase string, st *commonv1.PhasePresentation) []string {
 	if st.GetAtMaximum() || strings.TrimSpace(phase) == "" {
 		return nil
 	}
-	topics := []string{phase + " maturity next move"}
-	seen := map[string]bool{}
-	for _, code := range st.GetBlockingFindingCodes() {
-		code = strings.TrimSpace(code)
-		if code == "" || seen[code] {
-			continue
-		}
-		seen[code] = true
-		topics = append(topics, phase+" "+code+" canonical fix")
-		if len(topics) >= 3 {
-			break
-		}
-	}
-	return topics
+	return append([]string(nil), st.GetDocumentationTopics()...)
 }
 
 func firstNonEmptyStr(vals ...string) string {

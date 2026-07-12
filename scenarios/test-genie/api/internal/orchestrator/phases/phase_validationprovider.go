@@ -180,7 +180,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 	var summary validationprovider.Summary
 	var findings []*architecturev1.ArchitectureFinding
 	var execMetrics *commonv1.ExecutionMetrics
-	var standing *runspb.PhaseMaturityStanding
+	var presentation *commonv1.PhasePresentation
 	var findingsSummary *runspb.PhaseFindingsSummary
 	report := RunPhase(ctx, logWriter, provider.Phase,
 		func() (*validationprovider.Result, error) {
@@ -188,7 +188,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 			if result != nil {
 				findings = result.Findings
 				execMetrics = result.Metrics
-				standing = result.Standing
+				presentation = result.Presentation
 				findingsSummary = result.FindingsSummary
 			}
 			return result, nil
@@ -218,7 +218,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 
 	report.Findings = findings
 	report.Metrics = execMetrics
-	report.MaturityStanding = standing
+	report.PhasePresentation = presentation
 	report.FindingsSummary = findingsSummary
 	if provider.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
 		report.FindingSource = findingid.SourceToken(provider.FindingSource)

@@ -34,7 +34,7 @@ Every phase declares a **[Phase Capability Contract](../concepts/phase-capabilit
 | 20 | [Branding](branding/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. |
 | 21 | [Search](search/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates search-enabled scenarios through Search Hub's search maturity contract. |
 | 22 | [Provider Conformance](provider-conformance/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. |
-| 23 | [Agent Conformance](agent-conformance/README.md) | 45s | `default_when_applicable` | `required_when_applicable` | `advisory` | No | validation-provider | Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles. |
+| 23 | [Agent Conformance](agent-conformance/README.md) | 45s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles. |
 | 24 | [Templates](templates/README.md) | 90s | `comprehensive_when_applicable` | `required_when_applicable` | `advisory` | Yes | validation-provider | Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager. |
 
 ## Static Phases

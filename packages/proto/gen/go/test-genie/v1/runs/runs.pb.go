@@ -7,6 +7,7 @@
 package runs_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -207,14 +208,15 @@ type RunEvent struct {
 	Success bool   `protobuf:"varint,14,opt,name=success,proto3" json:"success,omitempty"`
 	Verdict string `protobuf:"bytes,15,opt,name=verdict,proto3" json:"verdict,omitempty"`
 	Error   string `protobuf:"bytes,16,opt,name=error,proto3" json:"error,omitempty"`
-	// phase-completed maturity standing + findings summary. Present on
-	// phase_completed / phase_failed events for phases whose provider declares a
-	// maturity ladder, so a follower derives the standing from the same payload the
-	// terminal RunInfo carries. Nil otherwise.
+	// Historical v1 standing. New writers leave this unset; it remains so older
+	// event bytes decode as explicitly legacy evidence rather than as a v1
+	// presentation with shifted fields.
 	MaturityStanding *PhaseMaturityStanding `protobuf:"bytes,17,opt,name=maturity_standing,json=maturityStanding,proto3" json:"maturity_standing,omitempty"`
 	FindingsSummary  *PhaseFindingsSummary  `protobuf:"bytes,18,opt,name=findings_summary,json=findingsSummary,proto3" json:"findings_summary,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Provider-owned canonical presentation for new events.
+	PhasePresentation *v1.PhasePresentation `protobuf:"bytes,19,opt,name=phase_presentation,json=phasePresentation,proto3" json:"phase_presentation,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RunEvent) Reset() {
@@ -373,6 +375,13 @@ func (x *RunEvent) GetFindingsSummary() *PhaseFindingsSummary {
 	return nil
 }
 
+func (x *RunEvent) GetPhasePresentation() *v1.PhasePresentation {
+	if x != nil {
+		return x.PhasePresentation
+	}
+	return nil
+}
+
 // RunLiveStatus is a point-in-time snapshot of a run.
 type RunLiveStatus struct {
 	state                     protoimpl.MessageState `protogen:"open.v1"`
@@ -397,12 +406,13 @@ type RunLiveStatus struct {
 	// active reports whether the snapshot came from the live registry (true) or
 	// the durable index (false).
 	Active bool `protobuf:"varint,16,opt,name=active,proto3" json:"active,omitempty"`
-	// terminal_standings carries the provider-computed per-phase maturity
-	// standings once a terminal live snapshot has the run result in memory. This
+	// terminal_presentations carries the provider-computed per-phase canonical
+	// presentations once a terminal live snapshot has the run result in memory. This
 	// lets the canonical agent path (`runs wait --json`) see the same Phase
 	// Capability Contract standing that follow streams receive on phase terminal
 	// events. Empty while in progress or when the server only has the durable
 	// index record.
+	// Historical v1 standings, retained only to safely decode old live snapshots.
 	TerminalStandings         []*PhaseMaturityStanding `protobuf:"bytes,17,rep,name=terminal_standings,json=terminalStandings,proto3" json:"terminal_standings,omitempty"`
 	TerminalFindingsSummaries []*PhaseFindingsSummary  `protobuf:"bytes,18,rep,name=terminal_findings_summaries,json=terminalFindingsSummaries,proto3" json:"terminal_findings_summaries,omitempty"`
 	// degraded_reasons is non-empty when a terminal status could not be backed
@@ -410,8 +420,10 @@ type RunLiveStatus struct {
 	// snapshot). Consumers must render this as UNKNOWN/degraded evidence rather
 	// than treating absent phase data as a zero-phase success.
 	DegradedReasons []string `protobuf:"bytes,19,rep,name=degraded_reasons,json=degradedReasons,proto3" json:"degraded_reasons,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Canonical presentations for new terminal live snapshots.
+	TerminalPresentations []*v1.PhasePresentation `protobuf:"bytes,20,rep,name=terminal_presentations,json=terminalPresentations,proto3" json:"terminal_presentations,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *RunLiveStatus) Reset() {
@@ -573,6 +585,13 @@ func (x *RunLiveStatus) GetTerminalFindingsSummaries() []*PhaseFindingsSummary {
 func (x *RunLiveStatus) GetDegradedReasons() []string {
 	if x != nil {
 		return x.DegradedReasons
+	}
+	return nil
+}
+
+func (x *RunLiveStatus) GetTerminalPresentations() []*v1.PhasePresentation {
+	if x != nil {
+		return x.TerminalPresentations
 	}
 	return nil
 }
@@ -1444,9 +1463,9 @@ func (x *PhaseFindingsSummary) GetTotal() int32 {
 	return 0
 }
 
-// PhaseCapabilityStanding is one capability's standing within a phase, carried
-// for --json depth. The human scorecard renders only the phase-level summary
-// plus the single highest-priority next move.
+// PhaseCapabilityStanding and PhaseMaturityStanding are the retired run-wire
+// projection. They are retained solely to decode historical run data; all new
+// writers and consumers use common.v1.PhasePresentation.
 type PhaseCapabilityStanding struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1579,39 +1598,26 @@ func (x *PhaseCapabilityStanding) GetPriorityReason() string {
 	return ""
 }
 
-// PhaseMaturityStanding is the provider-computed maturity standing for one phase,
-// carried from the provider's MaturityAssessment into the run contract so the
-// human scorecard and --json output derive from a single server payload. Present
-// only for phases whose provider declares a maturity ladder (Phase Capability
-// Contract). Test Genie aggregates and renders it; it never recomputes a standing.
 type PhaseMaturityStanding struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Provider string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
-	Phase    string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
-	// Phase-level (local) rung.
-	CurrentLevel      string `protobuf:"bytes,3,opt,name=current_level,json=currentLevel,proto3" json:"current_level,omitempty"`
-	CurrentLevelLabel string `protobuf:"bytes,4,opt,name=current_level_label,json=currentLevelLabel,proto3" json:"current_level_label,omitempty"`
-	NextLevel         string `protobuf:"bytes,5,opt,name=next_level,json=nextLevel,proto3" json:"next_level,omitempty"`
-	// ceiling_level is the top rung id of the ladder (the maximum reachable rung).
-	CeilingLevel         string   `protobuf:"bytes,6,opt,name=ceiling_level,json=ceilingLevel,proto3" json:"ceiling_level,omitempty"`
-	Clean                bool     `protobuf:"varint,7,opt,name=clean,proto3" json:"clean,omitempty"`
-	UnknownCount         int32    `protobuf:"varint,8,opt,name=unknown_count,json=unknownCount,proto3" json:"unknown_count,omitempty"`
-	BlockingFindingCodes []string `protobuf:"bytes,9,rep,name=blocking_finding_codes,json=blockingFindingCodes,proto3" json:"blocking_finding_codes,omitempty"`
-	// The single highest-unlock next move and why it is the priority focus.
-	NextMove                string `protobuf:"bytes,10,opt,name=next_move,json=nextMove,proto3" json:"next_move,omitempty"`
-	NextMoveReason          string `protobuf:"bytes,11,opt,name=next_move_reason,json=nextMoveReason,proto3" json:"next_move_reason,omitempty"`
-	PriorityCapabilityId    string `protobuf:"bytes,12,opt,name=priority_capability_id,json=priorityCapabilityId,proto3" json:"priority_capability_id,omitempty"`
-	PriorityCapabilityLabel string `protobuf:"bytes,13,opt,name=priority_capability_label,json=priorityCapabilityLabel,proto3" json:"priority_capability_label,omitempty"`
-	// north_star is the ladder top rung's aspiration statement (first-class North
-	// Star; see docs/concepts/phase-capability-contract.md).
-	NorthStar string `protobuf:"bytes,14,opt,name=north_star,json=northStar,proto3" json:"north_star,omitempty"`
-	// at_maximum is true when the phase is at its ceiling rung with no debt, so the
-	// scorecard suppresses the next-move and doc-search lines.
-	AtMaximum bool `protobuf:"varint,15,opt,name=at_maximum,json=atMaximum,proto3" json:"at_maximum,omitempty"`
-	// Per-capability standings for --json depth (empty for a single-ladder phase).
-	Capabilities  []*PhaseCapabilityStanding `protobuf:"bytes,16,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState     `protogen:"open.v1"`
+	Provider                string                     `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Phase                   string                     `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
+	CurrentLevel            string                     `protobuf:"bytes,3,opt,name=current_level,json=currentLevel,proto3" json:"current_level,omitempty"`
+	CurrentLevelLabel       string                     `protobuf:"bytes,4,opt,name=current_level_label,json=currentLevelLabel,proto3" json:"current_level_label,omitempty"`
+	NextLevel               string                     `protobuf:"bytes,5,opt,name=next_level,json=nextLevel,proto3" json:"next_level,omitempty"`
+	CeilingLevel            string                     `protobuf:"bytes,6,opt,name=ceiling_level,json=ceilingLevel,proto3" json:"ceiling_level,omitempty"`
+	Clean                   bool                       `protobuf:"varint,7,opt,name=clean,proto3" json:"clean,omitempty"`
+	UnknownCount            int32                      `protobuf:"varint,8,opt,name=unknown_count,json=unknownCount,proto3" json:"unknown_count,omitempty"`
+	BlockingFindingCodes    []string                   `protobuf:"bytes,9,rep,name=blocking_finding_codes,json=blockingFindingCodes,proto3" json:"blocking_finding_codes,omitempty"`
+	NextMove                string                     `protobuf:"bytes,10,opt,name=next_move,json=nextMove,proto3" json:"next_move,omitempty"`
+	NextMoveReason          string                     `protobuf:"bytes,11,opt,name=next_move_reason,json=nextMoveReason,proto3" json:"next_move_reason,omitempty"`
+	PriorityCapabilityId    string                     `protobuf:"bytes,12,opt,name=priority_capability_id,json=priorityCapabilityId,proto3" json:"priority_capability_id,omitempty"`
+	PriorityCapabilityLabel string                     `protobuf:"bytes,13,opt,name=priority_capability_label,json=priorityCapabilityLabel,proto3" json:"priority_capability_label,omitempty"`
+	NorthStar               string                     `protobuf:"bytes,14,opt,name=north_star,json=northStar,proto3" json:"north_star,omitempty"`
+	AtMaximum               bool                       `protobuf:"varint,15,opt,name=at_maximum,json=atMaximum,proto3" json:"at_maximum,omitempty"`
+	Capabilities            []*PhaseCapabilityStanding `protobuf:"bytes,16,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *PhaseMaturityStanding) Reset() {
@@ -1766,13 +1772,13 @@ type PhaseInfo struct {
 	Advisory        bool                   `protobuf:"varint,5,opt,name=advisory,proto3" json:"advisory,omitempty"`
 	ArtifactBacked  bool                   `protobuf:"varint,6,opt,name=artifact_backed,json=artifactBacked,proto3" json:"artifact_backed,omitempty"`
 	NonComparable   bool                   `protobuf:"varint,7,opt,name=non_comparable,json=nonComparable,proto3" json:"non_comparable,omitempty"`
-	// maturity_standing and findings_summary carry the provider-computed per-phase
-	// standing into the terminal run record. Nil when the phase's provider declares
-	// no maturity ladder (native phases, degraded providers).
+	// Historical v1 standing, retained solely to decode pre-presentation runs.
 	MaturityStanding *PhaseMaturityStanding `protobuf:"bytes,8,opt,name=maturity_standing,json=maturityStanding,proto3" json:"maturity_standing,omitempty"`
 	FindingsSummary  *PhaseFindingsSummary  `protobuf:"bytes,9,opt,name=findings_summary,json=findingsSummary,proto3" json:"findings_summary,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Provider-owned canonical presentation for new terminal records.
+	PhasePresentation *v1.PhasePresentation `protobuf:"bytes,10,opt,name=phase_presentation,json=phasePresentation,proto3" json:"phase_presentation,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PhaseInfo) Reset() {
@@ -1864,6 +1870,13 @@ func (x *PhaseInfo) GetMaturityStanding() *PhaseMaturityStanding {
 func (x *PhaseInfo) GetFindingsSummary() *PhaseFindingsSummary {
 	if x != nil {
 		return x.FindingsSummary
+	}
+	return nil
+}
+
+func (x *PhaseInfo) GetPhasePresentation() *v1.PhasePresentation {
+	if x != nil {
+		return x.PhasePresentation
 	}
 	return nil
 }
@@ -4143,17 +4156,20 @@ func (x *GetRunFindingsRequest) GetRunId() string {
 	return ""
 }
 
-// RunFindingsPhase is one phase's Phase Capability Contract standing as persisted
+// RunFindingsPhase is one phase's Phase Capability Contract presentation as persisted
 // in the run's findings.json artifact.
 type RunFindingsPhase struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Status           string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	FindingSource    string                 `protobuf:"bytes,3,opt,name=finding_source,json=findingSource,proto3" json:"finding_source,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	FindingSource string                 `protobuf:"bytes,3,opt,name=finding_source,json=findingSource,proto3" json:"finding_source,omitempty"`
+	// Historical v1 standing, retained solely to decode old findings artifacts.
 	MaturityStanding *PhaseMaturityStanding `protobuf:"bytes,4,opt,name=maturity_standing,json=maturityStanding,proto3" json:"maturity_standing,omitempty"`
 	FindingsSummary  *PhaseFindingsSummary  `protobuf:"bytes,5,opt,name=findings_summary,json=findingsSummary,proto3" json:"findings_summary,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Provider-owned canonical presentation for new findings artifacts.
+	PhasePresentation *v1.PhasePresentation `protobuf:"bytes,6,opt,name=phase_presentation,json=phasePresentation,proto3" json:"phase_presentation,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RunFindingsPhase) Reset() {
@@ -4221,8 +4237,15 @@ func (x *RunFindingsPhase) GetFindingsSummary() *PhaseFindingsSummary {
 	return nil
 }
 
-// GetRunFindingsResponse returns the per-phase maturity standing on demand, the
-// same standing carried in the run's phase-completed events — read back from the
+func (x *RunFindingsPhase) GetPhasePresentation() *v1.PhasePresentation {
+	if x != nil {
+		return x.PhasePresentation
+	}
+	return nil
+}
+
+// GetRunFindingsResponse returns the per-phase presentation on demand, the
+// same presentation carried in the run's phase-completed events — read back from the
 // durable findings.json artifact so an agent can revisit where each capability
 // stands without re-running the suite.
 type GetRunFindingsResponse struct {
@@ -6795,7 +6818,7 @@ var File_test_genie_v1_runs_runs_proto protoreflect.FileDescriptor
 
 const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x1dtest-genie/v1/runs/runs.proto\x12\x19vrooli.test_genie.v1.runs\"\x96\x05\n" +
+	"\x1dtest-genie/v1/runs/runs.proto\x12\x19vrooli.test_genie.v1.runs\x1a\x18common/v1/maturity.proto\"\xe3\x05\n" +
 	"\bRunEvent\x12\x14\n" +
 	"\x05event\x18\x01 \x01(\tR\x05event\x12'\n" +
 	"\x0felapsed_seconds\x18\x02 \x01(\x01R\x0eelapsedSeconds\x12\x15\n" +
@@ -6817,7 +6840,8 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\averdict\x18\x0f \x01(\tR\averdict\x12\x14\n" +
 	"\x05error\x18\x10 \x01(\tR\x05error\x12]\n" +
 	"\x11maturity_standing\x18\x11 \x01(\v20.vrooli.test_genie.v1.runs.PhaseMaturityStandingR\x10maturityStanding\x12Z\n" +
-	"\x10findings_summary\x18\x12 \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\"\xc0\x06\n" +
+	"\x10findings_summary\x18\x12 \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\x12K\n" +
+	"\x12phase_presentation\x18\x13 \x01(\v2\x1c.common.v1.PhasePresentationR\x11phasePresentation\"\x95\a\n" +
 	"\rRunLiveStatus\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x16\n" +
@@ -6841,7 +6865,8 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x06active\x18\x10 \x01(\bR\x06active\x12_\n" +
 	"\x12terminal_standings\x18\x11 \x03(\v20.vrooli.test_genie.v1.runs.PhaseMaturityStandingR\x11terminalStandings\x12o\n" +
 	"\x1bterminal_findings_summaries\x18\x12 \x03(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x19terminalFindingsSummaries\x12)\n" +
-	"\x10degraded_reasons\x18\x13 \x03(\tR\x0fdegradedReasons\"\xe3\x03\n" +
+	"\x10degraded_reasons\x18\x13 \x03(\tR\x0fdegradedReasons\x12S\n" +
+	"\x16terminal_presentations\x18\x14 \x03(\v2\x1c.common.v1.PhasePresentationR\x15terminalPresentations\"\xe3\x03\n" +
 	"\x0fStartRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06preset\x18\x02 \x01(\tR\x06preset\x12\x16\n" +
@@ -6943,7 +6968,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"north_star\x18\x0e \x01(\tR\tnorthStar\x12\x1d\n" +
 	"\n" +
 	"at_maximum\x18\x0f \x01(\bR\tatMaximum\x12V\n" +
-	"\fcapabilities\x18\x10 \x03(\v22.vrooli.test_genie.v1.runs.PhaseCapabilityStandingR\fcapabilities\"\xa9\x03\n" +
+	"\fcapabilities\x18\x10 \x03(\v22.vrooli.test_genie.v1.runs.PhaseCapabilityStandingR\fcapabilities\"\xf6\x03\n" +
 	"\tPhaseInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12)\n" +
@@ -6955,7 +6980,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x0fartifact_backed\x18\x06 \x01(\bR\x0eartifactBacked\x12%\n" +
 	"\x0enon_comparable\x18\a \x01(\bR\rnonComparable\x12]\n" +
 	"\x11maturity_standing\x18\b \x01(\v20.vrooli.test_genie.v1.runs.PhaseMaturityStandingR\x10maturityStanding\x12Z\n" +
-	"\x10findings_summary\x18\t \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\"\xf8\x01\n" +
+	"\x10findings_summary\x18\t \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\x12K\n" +
+	"\x12phase_presentation\x18\n" +
+	" \x01(\v2\x1c.common.v1.PhasePresentationR\x11phasePresentation\"\xf8\x01\n" +
 	"\x15PhaseDescriptorPolicy\x12\x1c\n" +
 	"\tselection\x18\x01 \x01(\tR\tselection\x12-\n" +
 	"\x12provider_readiness\x18\x02 \x01(\tR\x11providerReadiness\x12-\n" +
@@ -7155,13 +7182,14 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x11legacy_discovered\x18\x02 \x01(\bR\x10legacyDiscovered\"J\n" +
 	"\x15GetRunFindingsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xa0\x02\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xed\x02\n" +
 	"\x10RunFindingsPhase\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12%\n" +
 	"\x0efinding_source\x18\x03 \x01(\tR\rfindingSource\x12]\n" +
 	"\x11maturity_standing\x18\x04 \x01(\v20.vrooli.test_genie.v1.runs.PhaseMaturityStandingR\x10maturityStanding\x12Z\n" +
-	"\x10findings_summary\x18\x05 \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\"\xcd\x01\n" +
+	"\x10findings_summary\x18\x05 \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\x12K\n" +
+	"\x12phase_presentation\x18\x06 \x01(\v2\x1c.common.v1.PhasePresentationR\x11phasePresentation\"\xcd\x01\n" +
 	"\x16GetRunFindingsResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x18\n" +
@@ -7520,118 +7548,123 @@ var file_test_genie_v1_runs_runs_proto_goTypes = []any{
 	(*ProviderReliability)(nil),        // 85: vrooli.test_genie.v1.runs.ProviderReliability
 	nil,                                // 86: vrooli.test_genie.v1.runs.ArtifactComparison.MetadataEntry
 	nil,                                // 87: vrooli.test_genie.v1.runs.ArtifactRef.MetadataEntry
+	(*v1.PhasePresentation)(nil),       // 88: common.v1.PhasePresentation
 }
 var file_test_genie_v1_runs_runs_proto_depIdxs = []int32{
 	18, // 0: vrooli.test_genie.v1.runs.RunEvent.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
 	16, // 1: vrooli.test_genie.v1.runs.RunEvent.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	18, // 2: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_standings:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
-	16, // 3: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_findings_summaries:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	4,  // 4: vrooli.test_genie.v1.runs.WaitRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
-	24, // 5: vrooli.test_genie.v1.runs.WaitRunResponse.terminal_run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	4,  // 6: vrooli.test_genie.v1.runs.AbortRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
-	17, // 7: vrooli.test_genie.v1.runs.PhaseMaturityStanding.capabilities:type_name -> vrooli.test_genie.v1.runs.PhaseCapabilityStanding
-	18, // 8: vrooli.test_genie.v1.runs.PhaseInfo.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
-	16, // 9: vrooli.test_genie.v1.runs.PhaseInfo.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	20, // 10: vrooli.test_genie.v1.runs.RunPhaseDescriptor.policy:type_name -> vrooli.test_genie.v1.runs.PhaseDescriptorPolicy
-	21, // 11: vrooli.test_genie.v1.runs.RunPhaseDescriptor.applicability:type_name -> vrooli.test_genie.v1.runs.PhaseApplicabilityDecision
-	22, // 12: vrooli.test_genie.v1.runs.RunDescriptorSnapshot.phases:type_name -> vrooli.test_genie.v1.runs.RunPhaseDescriptor
-	19, // 13: vrooli.test_genie.v1.runs.RunInfo.phases:type_name -> vrooli.test_genie.v1.runs.PhaseInfo
-	14, // 14: vrooli.test_genie.v1.runs.RunInfo.diagnostics:type_name -> vrooli.test_genie.v1.runs.DiagnosticsInfo
-	15, // 15: vrooli.test_genie.v1.runs.RunInfo.pins:type_name -> vrooli.test_genie.v1.runs.PinInfo
-	23, // 16: vrooli.test_genie.v1.runs.RunInfo.descriptor_snapshot:type_name -> vrooli.test_genie.v1.runs.RunDescriptorSnapshot
-	24, // 17: vrooli.test_genie.v1.runs.ListRunsResponse.runs:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	24, // 18: vrooli.test_genie.v1.runs.GetRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	24, // 19: vrooli.test_genie.v1.runs.PinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	24, // 20: vrooli.test_genie.v1.runs.UnpinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	0,  // 21: vrooli.test_genie.v1.runs.PhaseComparisonReason.code:type_name -> vrooli.test_genie.v1.runs.PhaseComparisonReasonCode
-	22, // 22: vrooli.test_genie.v1.runs.PhaseDiff.descriptor_a:type_name -> vrooli.test_genie.v1.runs.RunPhaseDescriptor
-	22, // 23: vrooli.test_genie.v1.runs.PhaseDiff.descriptor_b:type_name -> vrooli.test_genie.v1.runs.RunPhaseDescriptor
-	36, // 24: vrooli.test_genie.v1.runs.PhaseDiff.reasons:type_name -> vrooli.test_genie.v1.runs.PhaseComparisonReason
-	37, // 25: vrooli.test_genie.v1.runs.CompareRunsResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
-	24, // 26: vrooli.test_genie.v1.runs.FindRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	86, // 27: vrooli.test_genie.v1.runs.ArtifactComparison.metadata:type_name -> vrooli.test_genie.v1.runs.ArtifactComparison.MetadataEntry
-	1,  // 28: vrooli.test_genie.v1.runs.ArtifactRef.access_capability:type_name -> vrooli.test_genie.v1.runs.ArtifactAccessCapability
-	87, // 29: vrooli.test_genie.v1.runs.ArtifactRef.metadata:type_name -> vrooli.test_genie.v1.runs.ArtifactRef.MetadataEntry
-	43, // 30: vrooli.test_genie.v1.runs.ArtifactRef.relationships:type_name -> vrooli.test_genie.v1.runs.ArtifactRelationship
-	44, // 31: vrooli.test_genie.v1.runs.ArtifactRef.comparison:type_name -> vrooli.test_genie.v1.runs.ArtifactComparison
-	2,  // 32: vrooli.test_genie.v1.runs.ArtifactRef.provenance:type_name -> vrooli.test_genie.v1.runs.ArtifactProvenance
-	45, // 33: vrooli.test_genie.v1.runs.ListRunArtifactsResponse.artifacts:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
-	45, // 34: vrooli.test_genie.v1.runs.GetRunArtifactResponse.artifact:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
-	18, // 35: vrooli.test_genie.v1.runs.RunFindingsPhase.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
-	16, // 36: vrooli.test_genie.v1.runs.RunFindingsPhase.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	51, // 37: vrooli.test_genie.v1.runs.GetRunFindingsResponse.phases:type_name -> vrooli.test_genie.v1.runs.RunFindingsPhase
-	53, // 38: vrooli.test_genie.v1.runs.ListRunVideosResponse.videos:type_name -> vrooli.test_genie.v1.runs.RunVideo
-	56, // 39: vrooli.test_genie.v1.runs.ListRunVisualsResponse.visuals:type_name -> vrooli.test_genie.v1.runs.RunVisual
-	60, // 40: vrooli.test_genie.v1.runs.CompareRunVisualsResponse.deltas:type_name -> vrooli.test_genie.v1.runs.VisualDelta
-	63, // 41: vrooli.test_genie.v1.runs.CheckFreshnessResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseFreshness
-	72, // 42: vrooli.test_genie.v1.runs.GetSelfHealthResponse.self_health:type_name -> vrooli.test_genie.v1.runs.SelfHealth
-	69, // 43: vrooli.test_genie.v1.runs.GetFleetHealthResponse.fleet_health:type_name -> vrooli.test_genie.v1.runs.FleetHealth
-	70, // 44: vrooli.test_genie.v1.runs.FleetHealth.scenarios:type_name -> vrooli.test_genie.v1.runs.FleetScenarioHealth
-	71, // 45: vrooli.test_genie.v1.runs.FleetHealth.top_finding_sources:type_name -> vrooli.test_genie.v1.runs.FleetFindingSource
-	75, // 46: vrooli.test_genie.v1.runs.SelfHealth.catalog:type_name -> vrooli.test_genie.v1.runs.CatalogSummary
-	77, // 47: vrooli.test_genie.v1.runs.SelfHealth.conformance:type_name -> vrooli.test_genie.v1.runs.ProviderConformance
-	79, // 48: vrooli.test_genie.v1.runs.SelfHealth.ledger:type_name -> vrooli.test_genie.v1.runs.ReliabilityLedger
-	73, // 49: vrooli.test_genie.v1.runs.SelfHealth.trend_series:type_name -> vrooli.test_genie.v1.runs.SelfHealthTrendPoint
-	76, // 50: vrooli.test_genie.v1.runs.CatalogSummary.phases:type_name -> vrooli.test_genie.v1.runs.CatalogPhase
-	78, // 51: vrooli.test_genie.v1.runs.ProviderConformance.autofix:type_name -> vrooli.test_genie.v1.runs.AutofixCoverage
-	80, // 52: vrooli.test_genie.v1.runs.ReliabilityLedger.run_outcomes:type_name -> vrooli.test_genie.v1.runs.RunOutcomeCount
-	84, // 53: vrooli.test_genie.v1.runs.ReliabilityLedger.phases:type_name -> vrooli.test_genie.v1.runs.PhaseReliability
-	85, // 54: vrooli.test_genie.v1.runs.ReliabilityLedger.providers:type_name -> vrooli.test_genie.v1.runs.ProviderReliability
-	74, // 55: vrooli.test_genie.v1.runs.ReliabilityLedger.trend:type_name -> vrooli.test_genie.v1.runs.TrendDelta
-	81, // 56: vrooli.test_genie.v1.runs.PhaseReliability.skip_reasons:type_name -> vrooli.test_genie.v1.runs.LabeledCount
-	81, // 57: vrooli.test_genie.v1.runs.PhaseReliability.classifications:type_name -> vrooli.test_genie.v1.runs.LabeledCount
-	82, // 58: vrooli.test_genie.v1.runs.PhaseReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
-	83, // 59: vrooli.test_genie.v1.runs.PhaseReliability.worst_scenarios:type_name -> vrooli.test_genie.v1.runs.ScenarioFailureRate
-	82, // 60: vrooli.test_genie.v1.runs.ProviderReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
-	25, // 61: vrooli.test_genie.v1.runs.RunsService.ListRuns:input_type -> vrooli.test_genie.v1.runs.ListRunsRequest
-	27, // 62: vrooli.test_genie.v1.runs.RunsService.GetRun:input_type -> vrooli.test_genie.v1.runs.GetRunRequest
-	29, // 63: vrooli.test_genie.v1.runs.RunsService.DeleteRun:input_type -> vrooli.test_genie.v1.runs.DeleteRunRequest
-	31, // 64: vrooli.test_genie.v1.runs.RunsService.PinRun:input_type -> vrooli.test_genie.v1.runs.PinRunRequest
-	33, // 65: vrooli.test_genie.v1.runs.RunsService.UnpinRun:input_type -> vrooli.test_genie.v1.runs.UnpinRunRequest
-	35, // 66: vrooli.test_genie.v1.runs.RunsService.CompareRuns:input_type -> vrooli.test_genie.v1.runs.CompareRunsRequest
-	41, // 67: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:input_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
-	46, // 68: vrooli.test_genie.v1.runs.RunsService.ListRunArtifacts:input_type -> vrooli.test_genie.v1.runs.ListRunArtifactsRequest
-	48, // 69: vrooli.test_genie.v1.runs.RunsService.GetRunArtifact:input_type -> vrooli.test_genie.v1.runs.GetRunArtifactRequest
-	50, // 70: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:input_type -> vrooli.test_genie.v1.runs.GetRunFindingsRequest
-	54, // 71: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:input_type -> vrooli.test_genie.v1.runs.ListRunVideosRequest
-	57, // 72: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:input_type -> vrooli.test_genie.v1.runs.ListRunVisualsRequest
-	59, // 73: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:input_type -> vrooli.test_genie.v1.runs.CompareRunVisualsRequest
-	39, // 74: vrooli.test_genie.v1.runs.RunsService.FindRun:input_type -> vrooli.test_genie.v1.runs.FindRunRequest
-	62, // 75: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:input_type -> vrooli.test_genie.v1.runs.CheckFreshnessRequest
-	65, // 76: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:input_type -> vrooli.test_genie.v1.runs.GetSelfHealthRequest
-	67, // 77: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:input_type -> vrooli.test_genie.v1.runs.GetFleetHealthRequest
-	5,  // 78: vrooli.test_genie.v1.runs.RunsService.StartRun:input_type -> vrooli.test_genie.v1.runs.StartRunRequest
-	8,  // 79: vrooli.test_genie.v1.runs.RunsService.FollowRun:input_type -> vrooli.test_genie.v1.runs.FollowRunRequest
-	9,  // 80: vrooli.test_genie.v1.runs.RunsService.WaitRun:input_type -> vrooli.test_genie.v1.runs.WaitRunRequest
-	11, // 81: vrooli.test_genie.v1.runs.RunsService.AbortRun:input_type -> vrooli.test_genie.v1.runs.AbortRunRequest
-	13, // 82: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:input_type -> vrooli.test_genie.v1.runs.GetRunStatusRequest
-	26, // 83: vrooli.test_genie.v1.runs.RunsService.ListRuns:output_type -> vrooli.test_genie.v1.runs.ListRunsResponse
-	28, // 84: vrooli.test_genie.v1.runs.RunsService.GetRun:output_type -> vrooli.test_genie.v1.runs.GetRunResponse
-	30, // 85: vrooli.test_genie.v1.runs.RunsService.DeleteRun:output_type -> vrooli.test_genie.v1.runs.DeleteRunResponse
-	32, // 86: vrooli.test_genie.v1.runs.RunsService.PinRun:output_type -> vrooli.test_genie.v1.runs.PinRunResponse
-	34, // 87: vrooli.test_genie.v1.runs.RunsService.UnpinRun:output_type -> vrooli.test_genie.v1.runs.UnpinRunResponse
-	38, // 88: vrooli.test_genie.v1.runs.RunsService.CompareRuns:output_type -> vrooli.test_genie.v1.runs.CompareRunsResponse
-	42, // 89: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:output_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
-	47, // 90: vrooli.test_genie.v1.runs.RunsService.ListRunArtifacts:output_type -> vrooli.test_genie.v1.runs.ListRunArtifactsResponse
-	49, // 91: vrooli.test_genie.v1.runs.RunsService.GetRunArtifact:output_type -> vrooli.test_genie.v1.runs.GetRunArtifactResponse
-	52, // 92: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:output_type -> vrooli.test_genie.v1.runs.GetRunFindingsResponse
-	55, // 93: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:output_type -> vrooli.test_genie.v1.runs.ListRunVideosResponse
-	58, // 94: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:output_type -> vrooli.test_genie.v1.runs.ListRunVisualsResponse
-	61, // 95: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:output_type -> vrooli.test_genie.v1.runs.CompareRunVisualsResponse
-	40, // 96: vrooli.test_genie.v1.runs.RunsService.FindRun:output_type -> vrooli.test_genie.v1.runs.FindRunResponse
-	64, // 97: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:output_type -> vrooli.test_genie.v1.runs.CheckFreshnessResponse
-	66, // 98: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:output_type -> vrooli.test_genie.v1.runs.GetSelfHealthResponse
-	68, // 99: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:output_type -> vrooli.test_genie.v1.runs.GetFleetHealthResponse
-	6,  // 100: vrooli.test_genie.v1.runs.RunsService.StartRun:output_type -> vrooli.test_genie.v1.runs.StartRunResponse
-	3,  // 101: vrooli.test_genie.v1.runs.RunsService.FollowRun:output_type -> vrooli.test_genie.v1.runs.RunEvent
-	10, // 102: vrooli.test_genie.v1.runs.RunsService.WaitRun:output_type -> vrooli.test_genie.v1.runs.WaitRunResponse
-	12, // 103: vrooli.test_genie.v1.runs.RunsService.AbortRun:output_type -> vrooli.test_genie.v1.runs.AbortRunResponse
-	4,  // 104: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:output_type -> vrooli.test_genie.v1.runs.RunLiveStatus
-	83, // [83:105] is the sub-list for method output_type
-	61, // [61:83] is the sub-list for method input_type
-	61, // [61:61] is the sub-list for extension type_name
-	61, // [61:61] is the sub-list for extension extendee
-	0,  // [0:61] is the sub-list for field type_name
+	88, // 2: vrooli.test_genie.v1.runs.RunEvent.phase_presentation:type_name -> common.v1.PhasePresentation
+	18, // 3: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_standings:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
+	16, // 4: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_findings_summaries:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
+	88, // 5: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_presentations:type_name -> common.v1.PhasePresentation
+	4,  // 6: vrooli.test_genie.v1.runs.WaitRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
+	24, // 7: vrooli.test_genie.v1.runs.WaitRunResponse.terminal_run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	4,  // 8: vrooli.test_genie.v1.runs.AbortRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
+	17, // 9: vrooli.test_genie.v1.runs.PhaseMaturityStanding.capabilities:type_name -> vrooli.test_genie.v1.runs.PhaseCapabilityStanding
+	18, // 10: vrooli.test_genie.v1.runs.PhaseInfo.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
+	16, // 11: vrooli.test_genie.v1.runs.PhaseInfo.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
+	88, // 12: vrooli.test_genie.v1.runs.PhaseInfo.phase_presentation:type_name -> common.v1.PhasePresentation
+	20, // 13: vrooli.test_genie.v1.runs.RunPhaseDescriptor.policy:type_name -> vrooli.test_genie.v1.runs.PhaseDescriptorPolicy
+	21, // 14: vrooli.test_genie.v1.runs.RunPhaseDescriptor.applicability:type_name -> vrooli.test_genie.v1.runs.PhaseApplicabilityDecision
+	22, // 15: vrooli.test_genie.v1.runs.RunDescriptorSnapshot.phases:type_name -> vrooli.test_genie.v1.runs.RunPhaseDescriptor
+	19, // 16: vrooli.test_genie.v1.runs.RunInfo.phases:type_name -> vrooli.test_genie.v1.runs.PhaseInfo
+	14, // 17: vrooli.test_genie.v1.runs.RunInfo.diagnostics:type_name -> vrooli.test_genie.v1.runs.DiagnosticsInfo
+	15, // 18: vrooli.test_genie.v1.runs.RunInfo.pins:type_name -> vrooli.test_genie.v1.runs.PinInfo
+	23, // 19: vrooli.test_genie.v1.runs.RunInfo.descriptor_snapshot:type_name -> vrooli.test_genie.v1.runs.RunDescriptorSnapshot
+	24, // 20: vrooli.test_genie.v1.runs.ListRunsResponse.runs:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	24, // 21: vrooli.test_genie.v1.runs.GetRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	24, // 22: vrooli.test_genie.v1.runs.PinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	24, // 23: vrooli.test_genie.v1.runs.UnpinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	0,  // 24: vrooli.test_genie.v1.runs.PhaseComparisonReason.code:type_name -> vrooli.test_genie.v1.runs.PhaseComparisonReasonCode
+	22, // 25: vrooli.test_genie.v1.runs.PhaseDiff.descriptor_a:type_name -> vrooli.test_genie.v1.runs.RunPhaseDescriptor
+	22, // 26: vrooli.test_genie.v1.runs.PhaseDiff.descriptor_b:type_name -> vrooli.test_genie.v1.runs.RunPhaseDescriptor
+	36, // 27: vrooli.test_genie.v1.runs.PhaseDiff.reasons:type_name -> vrooli.test_genie.v1.runs.PhaseComparisonReason
+	37, // 28: vrooli.test_genie.v1.runs.CompareRunsResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
+	24, // 29: vrooli.test_genie.v1.runs.FindRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	86, // 30: vrooli.test_genie.v1.runs.ArtifactComparison.metadata:type_name -> vrooli.test_genie.v1.runs.ArtifactComparison.MetadataEntry
+	1,  // 31: vrooli.test_genie.v1.runs.ArtifactRef.access_capability:type_name -> vrooli.test_genie.v1.runs.ArtifactAccessCapability
+	87, // 32: vrooli.test_genie.v1.runs.ArtifactRef.metadata:type_name -> vrooli.test_genie.v1.runs.ArtifactRef.MetadataEntry
+	43, // 33: vrooli.test_genie.v1.runs.ArtifactRef.relationships:type_name -> vrooli.test_genie.v1.runs.ArtifactRelationship
+	44, // 34: vrooli.test_genie.v1.runs.ArtifactRef.comparison:type_name -> vrooli.test_genie.v1.runs.ArtifactComparison
+	2,  // 35: vrooli.test_genie.v1.runs.ArtifactRef.provenance:type_name -> vrooli.test_genie.v1.runs.ArtifactProvenance
+	45, // 36: vrooli.test_genie.v1.runs.ListRunArtifactsResponse.artifacts:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
+	45, // 37: vrooli.test_genie.v1.runs.GetRunArtifactResponse.artifact:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
+	18, // 38: vrooli.test_genie.v1.runs.RunFindingsPhase.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
+	16, // 39: vrooli.test_genie.v1.runs.RunFindingsPhase.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
+	88, // 40: vrooli.test_genie.v1.runs.RunFindingsPhase.phase_presentation:type_name -> common.v1.PhasePresentation
+	51, // 41: vrooli.test_genie.v1.runs.GetRunFindingsResponse.phases:type_name -> vrooli.test_genie.v1.runs.RunFindingsPhase
+	53, // 42: vrooli.test_genie.v1.runs.ListRunVideosResponse.videos:type_name -> vrooli.test_genie.v1.runs.RunVideo
+	56, // 43: vrooli.test_genie.v1.runs.ListRunVisualsResponse.visuals:type_name -> vrooli.test_genie.v1.runs.RunVisual
+	60, // 44: vrooli.test_genie.v1.runs.CompareRunVisualsResponse.deltas:type_name -> vrooli.test_genie.v1.runs.VisualDelta
+	63, // 45: vrooli.test_genie.v1.runs.CheckFreshnessResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseFreshness
+	72, // 46: vrooli.test_genie.v1.runs.GetSelfHealthResponse.self_health:type_name -> vrooli.test_genie.v1.runs.SelfHealth
+	69, // 47: vrooli.test_genie.v1.runs.GetFleetHealthResponse.fleet_health:type_name -> vrooli.test_genie.v1.runs.FleetHealth
+	70, // 48: vrooli.test_genie.v1.runs.FleetHealth.scenarios:type_name -> vrooli.test_genie.v1.runs.FleetScenarioHealth
+	71, // 49: vrooli.test_genie.v1.runs.FleetHealth.top_finding_sources:type_name -> vrooli.test_genie.v1.runs.FleetFindingSource
+	75, // 50: vrooli.test_genie.v1.runs.SelfHealth.catalog:type_name -> vrooli.test_genie.v1.runs.CatalogSummary
+	77, // 51: vrooli.test_genie.v1.runs.SelfHealth.conformance:type_name -> vrooli.test_genie.v1.runs.ProviderConformance
+	79, // 52: vrooli.test_genie.v1.runs.SelfHealth.ledger:type_name -> vrooli.test_genie.v1.runs.ReliabilityLedger
+	73, // 53: vrooli.test_genie.v1.runs.SelfHealth.trend_series:type_name -> vrooli.test_genie.v1.runs.SelfHealthTrendPoint
+	76, // 54: vrooli.test_genie.v1.runs.CatalogSummary.phases:type_name -> vrooli.test_genie.v1.runs.CatalogPhase
+	78, // 55: vrooli.test_genie.v1.runs.ProviderConformance.autofix:type_name -> vrooli.test_genie.v1.runs.AutofixCoverage
+	80, // 56: vrooli.test_genie.v1.runs.ReliabilityLedger.run_outcomes:type_name -> vrooli.test_genie.v1.runs.RunOutcomeCount
+	84, // 57: vrooli.test_genie.v1.runs.ReliabilityLedger.phases:type_name -> vrooli.test_genie.v1.runs.PhaseReliability
+	85, // 58: vrooli.test_genie.v1.runs.ReliabilityLedger.providers:type_name -> vrooli.test_genie.v1.runs.ProviderReliability
+	74, // 59: vrooli.test_genie.v1.runs.ReliabilityLedger.trend:type_name -> vrooli.test_genie.v1.runs.TrendDelta
+	81, // 60: vrooli.test_genie.v1.runs.PhaseReliability.skip_reasons:type_name -> vrooli.test_genie.v1.runs.LabeledCount
+	81, // 61: vrooli.test_genie.v1.runs.PhaseReliability.classifications:type_name -> vrooli.test_genie.v1.runs.LabeledCount
+	82, // 62: vrooli.test_genie.v1.runs.PhaseReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
+	83, // 63: vrooli.test_genie.v1.runs.PhaseReliability.worst_scenarios:type_name -> vrooli.test_genie.v1.runs.ScenarioFailureRate
+	82, // 64: vrooli.test_genie.v1.runs.ProviderReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
+	25, // 65: vrooli.test_genie.v1.runs.RunsService.ListRuns:input_type -> vrooli.test_genie.v1.runs.ListRunsRequest
+	27, // 66: vrooli.test_genie.v1.runs.RunsService.GetRun:input_type -> vrooli.test_genie.v1.runs.GetRunRequest
+	29, // 67: vrooli.test_genie.v1.runs.RunsService.DeleteRun:input_type -> vrooli.test_genie.v1.runs.DeleteRunRequest
+	31, // 68: vrooli.test_genie.v1.runs.RunsService.PinRun:input_type -> vrooli.test_genie.v1.runs.PinRunRequest
+	33, // 69: vrooli.test_genie.v1.runs.RunsService.UnpinRun:input_type -> vrooli.test_genie.v1.runs.UnpinRunRequest
+	35, // 70: vrooli.test_genie.v1.runs.RunsService.CompareRuns:input_type -> vrooli.test_genie.v1.runs.CompareRunsRequest
+	41, // 71: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:input_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
+	46, // 72: vrooli.test_genie.v1.runs.RunsService.ListRunArtifacts:input_type -> vrooli.test_genie.v1.runs.ListRunArtifactsRequest
+	48, // 73: vrooli.test_genie.v1.runs.RunsService.GetRunArtifact:input_type -> vrooli.test_genie.v1.runs.GetRunArtifactRequest
+	50, // 74: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:input_type -> vrooli.test_genie.v1.runs.GetRunFindingsRequest
+	54, // 75: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:input_type -> vrooli.test_genie.v1.runs.ListRunVideosRequest
+	57, // 76: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:input_type -> vrooli.test_genie.v1.runs.ListRunVisualsRequest
+	59, // 77: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:input_type -> vrooli.test_genie.v1.runs.CompareRunVisualsRequest
+	39, // 78: vrooli.test_genie.v1.runs.RunsService.FindRun:input_type -> vrooli.test_genie.v1.runs.FindRunRequest
+	62, // 79: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:input_type -> vrooli.test_genie.v1.runs.CheckFreshnessRequest
+	65, // 80: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:input_type -> vrooli.test_genie.v1.runs.GetSelfHealthRequest
+	67, // 81: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:input_type -> vrooli.test_genie.v1.runs.GetFleetHealthRequest
+	5,  // 82: vrooli.test_genie.v1.runs.RunsService.StartRun:input_type -> vrooli.test_genie.v1.runs.StartRunRequest
+	8,  // 83: vrooli.test_genie.v1.runs.RunsService.FollowRun:input_type -> vrooli.test_genie.v1.runs.FollowRunRequest
+	9,  // 84: vrooli.test_genie.v1.runs.RunsService.WaitRun:input_type -> vrooli.test_genie.v1.runs.WaitRunRequest
+	11, // 85: vrooli.test_genie.v1.runs.RunsService.AbortRun:input_type -> vrooli.test_genie.v1.runs.AbortRunRequest
+	13, // 86: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:input_type -> vrooli.test_genie.v1.runs.GetRunStatusRequest
+	26, // 87: vrooli.test_genie.v1.runs.RunsService.ListRuns:output_type -> vrooli.test_genie.v1.runs.ListRunsResponse
+	28, // 88: vrooli.test_genie.v1.runs.RunsService.GetRun:output_type -> vrooli.test_genie.v1.runs.GetRunResponse
+	30, // 89: vrooli.test_genie.v1.runs.RunsService.DeleteRun:output_type -> vrooli.test_genie.v1.runs.DeleteRunResponse
+	32, // 90: vrooli.test_genie.v1.runs.RunsService.PinRun:output_type -> vrooli.test_genie.v1.runs.PinRunResponse
+	34, // 91: vrooli.test_genie.v1.runs.RunsService.UnpinRun:output_type -> vrooli.test_genie.v1.runs.UnpinRunResponse
+	38, // 92: vrooli.test_genie.v1.runs.RunsService.CompareRuns:output_type -> vrooli.test_genie.v1.runs.CompareRunsResponse
+	42, // 93: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:output_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
+	47, // 94: vrooli.test_genie.v1.runs.RunsService.ListRunArtifacts:output_type -> vrooli.test_genie.v1.runs.ListRunArtifactsResponse
+	49, // 95: vrooli.test_genie.v1.runs.RunsService.GetRunArtifact:output_type -> vrooli.test_genie.v1.runs.GetRunArtifactResponse
+	52, // 96: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:output_type -> vrooli.test_genie.v1.runs.GetRunFindingsResponse
+	55, // 97: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:output_type -> vrooli.test_genie.v1.runs.ListRunVideosResponse
+	58, // 98: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:output_type -> vrooli.test_genie.v1.runs.ListRunVisualsResponse
+	61, // 99: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:output_type -> vrooli.test_genie.v1.runs.CompareRunVisualsResponse
+	40, // 100: vrooli.test_genie.v1.runs.RunsService.FindRun:output_type -> vrooli.test_genie.v1.runs.FindRunResponse
+	64, // 101: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:output_type -> vrooli.test_genie.v1.runs.CheckFreshnessResponse
+	66, // 102: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:output_type -> vrooli.test_genie.v1.runs.GetSelfHealthResponse
+	68, // 103: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:output_type -> vrooli.test_genie.v1.runs.GetFleetHealthResponse
+	6,  // 104: vrooli.test_genie.v1.runs.RunsService.StartRun:output_type -> vrooli.test_genie.v1.runs.StartRunResponse
+	3,  // 105: vrooli.test_genie.v1.runs.RunsService.FollowRun:output_type -> vrooli.test_genie.v1.runs.RunEvent
+	10, // 106: vrooli.test_genie.v1.runs.RunsService.WaitRun:output_type -> vrooli.test_genie.v1.runs.WaitRunResponse
+	12, // 107: vrooli.test_genie.v1.runs.RunsService.AbortRun:output_type -> vrooli.test_genie.v1.runs.AbortRunResponse
+	4,  // 108: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:output_type -> vrooli.test_genie.v1.runs.RunLiveStatus
+	87, // [87:109] is the sub-list for method output_type
+	65, // [65:87] is the sub-list for method input_type
+	65, // [65:65] is the sub-list for extension type_name
+	65, // [65:65] is the sub-list for extension extendee
+	0,  // [0:65] is the sub-list for field type_name
 }
 
 func init() { file_test_genie_v1_runs_runs_proto_init() }

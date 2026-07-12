@@ -27,6 +27,7 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 
 	"github.com/vrooli/api-core/discovery"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
 	visualconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth/visualhealth_v1connect"
@@ -491,11 +492,11 @@ type findingsArtifactDoc struct {
 	Verdict     string `json:"verdict"`
 	CompletedAt string `json:"completedAt"`
 	Phases      []struct {
-		Name             string                        `json:"name"`
-		Status           string                        `json:"status"`
-		FindingSource    string                        `json:"findingSource"`
-		MaturityStanding *runspb.PhaseMaturityStanding `json:"maturityStanding"`
-		FindingsSummary  *runspb.PhaseFindingsSummary  `json:"findingsSummary"`
+		Name              string                       `json:"name"`
+		Status            string                       `json:"status"`
+		FindingSource     string                       `json:"findingSource"`
+		PhasePresentation *commonv1.PhasePresentation  `json:"phasePresentation"`
+		FindingsSummary   *runspb.PhaseFindingsSummary `json:"findingsSummary"`
 	} `json:"phases"`
 }
 
@@ -528,11 +529,11 @@ func (s *Service) GetRunFindings(ctx context.Context, req *connect.Request[runsp
 	phases := make([]*runspb.RunFindingsPhase, 0, len(doc.Phases))
 	for _, p := range doc.Phases {
 		phases = append(phases, &runspb.RunFindingsPhase{
-			Name:             p.Name,
-			Status:           p.Status,
-			FindingSource:    p.FindingSource,
-			MaturityStanding: p.MaturityStanding,
-			FindingsSummary:  p.FindingsSummary,
+			Name:              p.Name,
+			Status:            p.Status,
+			FindingSource:     p.FindingSource,
+			PhasePresentation: p.PhasePresentation,
+			FindingsSummary:   p.FindingsSummary,
 		})
 	}
 	return connect.NewResponse(&runspb.GetRunFindingsResponse{

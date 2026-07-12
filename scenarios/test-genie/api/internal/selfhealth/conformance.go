@@ -237,6 +237,9 @@ func ScanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target,
 
 	a := resp.GetAssessment()
 	contractErr := assessment.ValidateAssessment(a)
+	if contractErr == nil {
+		contractErr = assessment.ValidatePhasePresentation(a)
+	}
 	if resp.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
 		contractErr = errors.New("validation status is unspecified")
 	}

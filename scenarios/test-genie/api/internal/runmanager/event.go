@@ -10,6 +10,7 @@ package runmanager
 import (
 	"test-genie/internal/orchestrator"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
@@ -62,8 +63,8 @@ type Event struct {
 	// Contract). Present on phase_completed/phase_failed events for phases whose
 	// provider declares a maturity ladder. Not serialized into the canonical line
 	// stream; transports that carry the rich shape read them directly.
-	MaturityStanding *runspb.PhaseMaturityStanding `json:"-"`
-	FindingsSummary  *runspb.PhaseFindingsSummary  `json:"-"`
+	PhasePresentation *commonv1.PhasePresentation  `json:"-"`
+	FindingsSummary   *runspb.PhaseFindingsSummary `json:"-"`
 
 	// Result is the full terminal result on run_completed (nil otherwise). It is
 	// not serialized into the canonical line stream; transports that need the

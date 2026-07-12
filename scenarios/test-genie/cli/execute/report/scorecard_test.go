@@ -6,20 +6,22 @@ import (
 	"testing"
 
 	execTypes "test-genie/cli/internal/execute"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
-func nonMaxStanding() *execTypes.MaturityStanding {
-	return &execTypes.MaturityStanding{
-		Phase:                   "contracts",
-		CurrentLevel:            "L2",
-		CurrentLevelLabel:       "Ready",
-		NextLevel:               "L3",
-		CeilingLevel:            "L4",
-		NorthStar:               "Verified renderer-separated primitives.",
-		NextMove:                "Prove each declared primitive with cli-core evidence.",
-		PriorityCapabilityLabel: "Command Architecture",
-		BlockingFindingCodes:    []string{"arch.primitive_unverified"},
-		DocSearchTopics:         []string{"contracts arch.primitive_unverified canonical fix"},
+func nonMaxStanding() *commonv1.PhasePresentation {
+	return &commonv1.PhasePresentation{
+		Phase:                "contracts",
+		CurrentLevel:         "L2",
+		CurrentLevelLabel:    "Ready",
+		NextLevel:            "L3",
+		CeilingLevel:         "L4",
+		NorthStar:            "Verified renderer-separated primitives.",
+		NextAction:           "Prove each declared primitive with cli-core evidence.",
+		FocusCapabilityLabel: "Command Architecture",
+		BlockingFindingCodes: []string{"arch.primitive_unverified"},
+		DocumentationTopics:  []string{"contracts arch.primitive_unverified canonical fix"},
 	}
 }
 
@@ -32,7 +34,7 @@ func renderStanding(t *testing.T, phase execTypes.Phase) string {
 }
 
 func TestScorecardShowsRungGapsNextMoveAndDocQuery(t *testing.T) {
-	out := renderStanding(t, execTypes.Phase{Name: "contracts", Status: "passed", MaturityStanding: nonMaxStanding()})
+	out := renderStanding(t, execTypes.Phase{Name: "contracts", Status: "passed", PhasePresentation: nonMaxStanding()})
 
 	for _, want := range []string{
 		"standing:",
@@ -50,7 +52,7 @@ func TestScorecardShowsRungGapsNextMoveAndDocQuery(t *testing.T) {
 }
 
 func TestScorecardIsConcise(t *testing.T) {
-	out := renderStanding(t, execTypes.Phase{Name: "contracts", Status: "passed", MaturityStanding: nonMaxStanding()})
+	out := renderStanding(t, execTypes.Phase{Name: "contracts", Status: "passed", PhasePresentation: nonMaxStanding()})
 	// The scorecard block (indented "     " lines) stays within a tight budget:
 	// standing / North Star / gaps / next / docs = 5 lines.
 	count := 0
@@ -69,8 +71,8 @@ func TestScorecardSuppressedAtMaximum(t *testing.T) {
 	st.AtMaximum = true
 	st.NextLevel = ""
 	st.BlockingFindingCodes = nil
-	st.DocSearchTopics = nil
-	out := renderStanding(t, execTypes.Phase{Name: "contracts", Status: "passed", MaturityStanding: st})
+	st.DocumentationTopics = nil
+	out := renderStanding(t, execTypes.Phase{Name: "contracts", Status: "passed", PhasePresentation: st})
 
 	if !strings.Contains(out, "maximum maturity") {
 		t.Errorf("expected a maximum-maturity marker\n%s", out)

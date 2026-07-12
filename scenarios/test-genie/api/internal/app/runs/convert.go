@@ -63,7 +63,7 @@ func toTerminalRunInfo(r sharedruns.RunRecord, result *orchestrator.SuiteExecuti
 			NonComparable:   p.NonComparable,
 		}
 		if phase, ok := resultPhases[p.Name]; ok {
-			info.MaturityStanding = phase.MaturityStanding
+			info.PhasePresentation = phase.PhasePresentation
 			info.FindingsSummary = phase.FindingsSummary
 		}
 		phases = append(phases, info)

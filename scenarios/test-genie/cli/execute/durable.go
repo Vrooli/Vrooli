@@ -448,12 +448,12 @@ func renderLiveEvent(w io.Writer, ev *runspb.RunEvent, phasesAcc *[]Phase) {
 
 func phaseFromEvent(ev *runspb.RunEvent) Phase {
 	return Phase{
-		Name:             ev.GetPhase(),
-		Status:           ev.GetStatus(),
-		DurationSeconds:  float64(ev.GetDurationSeconds()),
-		Error:            ev.GetError(),
-		MaturityStanding: StandingFromProto(ev.GetMaturityStanding()),
-		FindingsSummary:  FindingsSummaryFromProto(ev.GetFindingsSummary()),
+		Name:              ev.GetPhase(),
+		Status:            ev.GetStatus(),
+		DurationSeconds:   float64(ev.GetDurationSeconds()),
+		Error:             ev.GetError(),
+		PhasePresentation: ev.GetPhasePresentation(),
+		FindingsSummary:   FindingsSummaryFromProto(ev.GetFindingsSummary()),
 	}
 }
 

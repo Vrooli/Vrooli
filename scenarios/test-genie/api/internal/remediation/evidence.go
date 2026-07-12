@@ -41,8 +41,8 @@ func EvidenceFromExecution(executionID string, result *orchestrator.SuiteExecuti
 		}
 		p := Phase{Name: phase.Name, Status: phase.Status, RunnabilityVerdict: phase.RunnabilityVerdict, RunnabilityReason: phase.RunnabilityReason,
 			Remediation: phase.Remediation, ResultGating: descriptor.Policy.ResultGating, DisplayName: descriptor.DisplayName, Provider: descriptor.Provider, DocsPath: descriptor.DocsPath}
-		if phase.MaturityStanding != nil {
-			p.MaturityStanding = phase.MaturityStanding.GetCurrentLevel()
+		if phase.PhasePresentation != nil {
+			p.PhasePresentation = phase.PhasePresentation.GetCurrentLevel()
 		}
 		if summary := phase.FindingsSummary; summary != nil {
 			p.FindingsSummary = FindingSummary{Total: int(summary.GetTotal()), Blockers: int(summary.GetBlockers()), Errors: int(summary.GetErrors()), Warnings: int(summary.GetWarnings()), Infos: int(summary.GetInfos())}

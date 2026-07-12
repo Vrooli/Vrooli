@@ -16,6 +16,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
@@ -113,19 +114,51 @@ func TestRunWaitHumanFailureExitCode(t *testing.T) {
 	}
 }
 
+// A completed run's event replay may contain only run_completed. The human
+// renderer must hydrate the durable terminal record instead of claiming the
+// suite had no phases.
+func TestRunWaitHumanHydratesCanonicalTerminalPhasesAfterEventOnlyReplay(t *testing.T) {
+	withStreamServer(t, &streamServer{
+		events:     []*runspb.RunEvent{{Event: "run_completed", RunId: "R", Scenario: "demo", Success: false, Verdict: "FAIL"}},
+		waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed", Verdict: "FAIL"},
+		terminalRun: &runspb.RunInfo{
+			RunId: "R", Scenario: "demo", Status: "failed",
+			Phases: []*runspb.PhaseInfo{
+				{Name: "unit", Status: "passed", DurationSeconds: 2},
+				{Name: "workflow", Status: "failed", DurationSeconds: 9},
+			},
+		},
+		snapshotVersion: 1,
+	})
+	var buf bytes.Buffer
+	err := runWait(nil, []string{"demo", "R"}, &buf)
+	var ee *exitErr
+	if !errors.As(err, &ee) || ee.ExitCode() != exitRegression {
+		t.Fatalf("expected failed terminal exit, got %v", err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "Results: 0 passed • 0 failed • Duration: 0s") || strings.Contains(out, "(no phases recorded)") {
+		t.Fatalf("event-only replay must use canonical terminal phases, got: %q", out)
+	}
+	if !strings.Contains(out, "unit") || !strings.Contains(out, "workflow") || !strings.Contains(out, "Duration: 11s") {
+		t.Fatalf("canonical terminal report missing phases/duration, got: %q", out)
+	}
+}
+
 // TestRunWaitJSONSnapshot proves `--json` stays a single quiet snapshot (no
 // streamed phase lines), preserving the scripted contract.
 func TestRunWaitJSONSnapshot(t *testing.T) {
 	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{
 		RunId:  "R",
 		Status: "passed",
-		TerminalStandings: []*runspb.PhaseMaturityStanding{{
+		TerminalPresentations: []*commonv1.PhasePresentation{{
 			Provider:             "architecture-health",
 			Phase:                "architecture",
 			CurrentLevel:         "L2",
 			NextLevel:            "L3",
 			BlockingFindingCodes: []string{"arch.primitive_unverified"},
-			NextMove:             "Prove each command primitive.",
+			NextAction:           "Prove each command primitive.",
+			DocumentationTopics:  []string{"architecture maturity next move"},
 		}},
 	}})
 	var buf bytes.Buffer
@@ -139,14 +172,28 @@ func TestRunWaitJSONSnapshot(t *testing.T) {
 	if !strings.Contains(out, "\"status\"") {
 		t.Fatalf("--json must emit a structured snapshot, got: %q", out)
 	}
-	if !strings.Contains(out, "\"maturityStanding\"") {
-		t.Fatalf("--json wait must surface terminal maturity standings in the curated phases, got: %q", out)
+	if !strings.Contains(out, "\"phasePresentation\"") {
+		t.Fatalf("--json wait must surface the terminal phase presentation in the curated phases, got: %q", out)
 	}
 	if !strings.Contains(out, "arch.primitive_unverified") {
 		t.Fatalf("--json wait standing must include blocking finding codes, got: %q", out)
 	}
 	if !strings.Contains(out, "\"topPriority\"") || !strings.Contains(out, "architecture maturity next move") {
 		t.Fatalf("--json wait must surface the cross-phase top priority, got: %q", out)
+	}
+}
+
+func TestRunWaitAcceptsTrailingJSONFlag(t *testing.T) {
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "passed"}})
+	var buf bytes.Buffer
+	if err := runWait(nil, []string{"demo", "R", "--json"}, &buf); err != nil {
+		t.Fatalf("trailing --json wait: %v", err)
+	}
+	if !json.Valid(bytes.TrimSpace(buf.Bytes())) {
+		t.Fatalf("trailing --json must emit a machine snapshot, got: %q", buf.String())
+	}
+	if strings.Contains(buf.String(), "TEST SUITE COMPLETE") {
+		t.Fatalf("trailing --json must not enter the human streaming path, got: %q", buf.String())
 	}
 }
 
@@ -364,17 +411,18 @@ func TestRunFollowRendersStandingAndFindingsBreadcrumb(t *testing.T) {
 			Phase:           "architecture",
 			Status:          "passed",
 			DurationSeconds: 2,
-			MaturityStanding: &runspb.PhaseMaturityStanding{
-				Provider:                "architecture-health",
-				Phase:                   "architecture",
-				CurrentLevel:            "L2",
-				CurrentLevelLabel:       "Ready",
-				NextLevel:               "L3",
-				CeilingLevel:            "L4",
-				BlockingFindingCodes:    []string{"arch.primitive_unverified"},
-				NextMove:                "Prove each command primitive.",
-				PriorityCapabilityLabel: "Command Architecture",
-				NorthStar:               "Renderer-separated primitives are verified.",
+			PhasePresentation: &commonv1.PhasePresentation{
+				Provider:             "architecture-health",
+				Phase:                "architecture",
+				CurrentLevel:         "L2",
+				CurrentLevelLabel:    "Ready",
+				NextLevel:            "L3",
+				CeilingLevel:         "L4",
+				BlockingFindingCodes: []string{"arch.primitive_unverified"},
+				NextAction:           "Prove each command primitive.",
+				FocusCapabilityLabel: "Command Architecture",
+				NorthStar:            "Renderer-separated primitives are verified.",
+				DocumentationTopics:  []string{"architecture maturity next move"},
 			},
 		},
 		{Event: "run_completed", RunId: "R", Scenario: "demo", Success: true, Verdict: "PASS"},

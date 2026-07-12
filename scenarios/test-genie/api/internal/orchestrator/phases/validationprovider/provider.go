@@ -126,10 +126,9 @@ type Result struct {
 	// resources, host environment), present only when the provider has adopted
 	// the metrics contract. nil for un-migrated providers.
 	Metrics *commonv1.ExecutionMetrics
-	// Standing is the compact per-phase maturity standing projected from the
-	// provider's MaturityAssessment (Phase Capability Contract). nil when the
-	// provider declares no phase-level ladder.
-	Standing *runspb.PhaseMaturityStanding
+	// Presentation is the provider-owned canonical phase presentation. Test
+	// Genie transports it unchanged; it does not reconstruct phase semantics.
+	Presentation *commonv1.PhasePresentation
 	// FindingsSummary is the per-severity tally for this phase (non-nil whenever
 	// an assessment was returned; all-zero for a clean phase).
 	FindingsSummary *runspb.PhaseFindingsSummary
@@ -206,7 +205,7 @@ func translate(provider Provider, fallbackScenario string, resp *scenariovalidat
 		},
 		Findings:        findings,
 		Metrics:         resp.GetMetrics(),
-		Standing:        buildStanding(provider, resp.GetAssessment()),
+		Presentation:    resp.GetAssessment().GetPresentation(),
 		FindingsSummary: buildFindingsSummary(summary),
 	}
 	switch resp.GetStatus() {
@@ -730,7 +729,20 @@ func requireAssessment(provider Provider, a *commonv1.MaturityAssessment) error 
 	if err := assessment.RequireIdentity(provider.ProviderScenario, provider.Phase, a); err != nil {
 		return fmt.Errorf("%s response violates maturity assessment contract: %w", provider.ProviderScenario, err)
 	}
+	if err := assessment.ValidatePhasePresentation(a); err != nil {
+		return fmt.Errorf("%s response violates phase presentation contract: %w", provider.ProviderScenario, err)
+	}
 	return nil
+}
+
+func buildFindingsSummary(s Summary) *runspb.PhaseFindingsSummary {
+	return &runspb.PhaseFindingsSummary{
+		Blockers: int32(s.Blockers),
+		Errors:   int32(s.Errors),
+		Warnings: int32(s.Warnings),
+		Infos:    int32(s.Infos),
+		Total:    int32(s.Blockers + s.Errors + s.Warnings + s.Infos),
+	}
 }
 
 func maturityRemediation(provider Provider, scenario string) string {
