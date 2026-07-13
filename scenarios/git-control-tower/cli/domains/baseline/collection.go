@@ -24,29 +24,74 @@ func (v *stringListFlag) Set(value string) error {
 
 func runCollection(core *cliapp.ScenarioApp, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("collection requires capture, show, diff, or delete")
+		return fmt.Errorf("collection requires capture, show, extend, diff, or delete")
 	}
 	switch args[0] {
 	case "capture":
 		return runCollectionCapture(core, args[1:])
 	case "show":
 		return runCollectionShow(core, args[1:])
+	case "extend":
+		return runCollectionExtend(core, args[1:])
 	case "diff":
 		return runCollectionDiff(core, args[1:])
 	case "delete":
 		return runCollectionDelete(core, args[1:])
 	default:
-		return fmt.Errorf("unknown collection command %q (use capture, show, diff, or delete)", args[0])
+		return fmt.Errorf("unknown collection command %q (use capture, show, extend, diff, or delete)", args[0])
 	}
 }
 
 func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
+	if len(args) > 0 && args[0] == "status" {
+		return runCollectionDiffStatus(core, args[1:])
+	}
 	fs := newFlagSet("baseline collection diff")
 	name, branch, asJSON := collectionFlags(fs)
 	operationID := fs.String("operation-id", "", "Durable idempotency key for this collection diff (required)")
 	wait := fs.Bool("wait", false, "Block server-side until started collection diff children reach terminal checkpoints")
-	var scenarios stringListFlag
-	fs.Var(&scenarios, "scenario", "Member scenario to diff; repeat to narrow selection (default: all)")
+	var members, scenarios stringListFlag
+	fs.Var(&members, "member", "Captured collection member to diff; repeat to narrow selection (default: all)")
+	fs.Var(&scenarios, "scenario", "Deprecated alias for --member")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*name) == "" || strings.TrimSpace(*operationID) == "" {
+		return fmt.Errorf("--name and --operation-id are required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
+	defer cancel()
+	selection := append([]string(nil), members...)
+	selection = append(selection, scenarios...)
+	resp, err := clientFactory(core).StartCollectionDiff(ctx, connect.NewRequest(&baselinesv1.StartCollectionDiffRequest{Name: *name, Branch: *branch, Scenarios: selection, OperationId: *operationID}))
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		if !*wait {
+			return printJSON(resp.Msg)
+		}
+		// Preserve the old convenience flag without maintaining a separate wait
+		// lifecycle. The status endpoint is the durable producer authority.
+		return runCollectionDiffStatus(core, []string{"--name", *name, "--branch", *branch, "--operation-id", *operationID, "--wait", "--json"})
+	}
+	fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
+	for _, member := range resp.Msg.GetMembers() {
+		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
+	}
+	fmt.Printf("  wait once: git-control-tower baseline collection diff status --name %s --branch %s --operation-id %s --wait\n", *name, *branch, resp.Msg.GetOperationId())
+	fmt.Println("  Ctrl-C detaches; rerun that exact status command to recover. Do not poll.")
+	if *wait {
+		return runCollectionDiffStatus(core, []string{"--name", *name, "--branch", *branch, "--operation-id", *operationID, "--wait"})
+	}
+	return nil
+}
+
+func runCollectionDiffStatus(core *cliapp.ScenarioApp, args []string) error {
+	fs := newFlagSet("baseline collection diff status")
+	name, branch, asJSON := collectionFlags(fs)
+	operationID := fs.String("operation-id", "", "Durable collection diff operation id (required)")
+	wait := fs.Bool("wait", false, "Wait once for this durable producer operation; Ctrl-C detaches")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -59,23 +104,9 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	resp, err := clientFactory(core).StartCollectionDiff(ctx, connect.NewRequest(&baselinesv1.StartCollectionDiffRequest{Name: *name, Branch: *branch, Scenarios: []string(scenarios), OperationId: *operationID}))
+	resp, err := clientFactory(core).GetCollectionDiff(ctx, connect.NewRequest(&baselinesv1.GetCollectionDiffRequest{Name: *name, Branch: *branch, OperationId: *operationID, Wait: *wait}))
 	if err != nil {
 		return err
-	}
-	if *wait {
-		settled, err := clientFactory(core).GetCollectionDiff(ctx, connect.NewRequest(&baselinesv1.GetCollectionDiffRequest{Name: *name, Branch: *branch, OperationId: *operationID, Wait: true}))
-		if err != nil {
-			return err
-		}
-		if *asJSON {
-			return printJSON(settled.Msg)
-		}
-		fmt.Printf("Collection diff %q (%s): %s\n", *name, settled.Msg.GetOperationId(), settled.Msg.GetClassification())
-		for _, member := range settled.Msg.GetMembers() {
-			fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
-		}
-		return nil
 	}
 	if *asJSON {
 		return printJSON(resp.Msg)
@@ -83,6 +114,9 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 	fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
 	for _, member := range resp.Msg.GetMembers() {
 		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
+	}
+	if resp.Msg.GetClassification() == "not-ready" {
+		fmt.Printf("  still running; reattach once: git-control-tower baseline collection diff status --name %s --branch %s --operation-id %s --wait\n", *name, *branch, *operationID)
 	}
 	return nil
 }
@@ -97,8 +131,9 @@ func collectionFlags(fs *flag.FlagSet) (name, branch *string, json *bool) {
 func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 	fs := newFlagSet("baseline collection capture")
 	name, branch, asJSON := collectionFlags(fs)
-	var members stringListFlag
+	var members, paths stringListFlag
 	fs.Var(&members, "member", "Required member as scenario[:baseline-name]; repeat for every scenario")
+	fs.Var(&paths, "path", "Safe repo-relative source-evidence glob; repeat (informational only)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -115,7 +150,7 @@ func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
 	defer cancel()
-	resp, err := clientFactory(core).StartCollectionCapture(ctx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: *name, Branch: *branch, Targets: targets, CreatedBy: "agent"}))
+	resp, err := clientFactory(core).StartCollectionCapture(ctx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: *name, Branch: *branch, Targets: targets, PathSelections: paths, CreatedBy: "agent"}))
 	if err != nil {
 		return err
 	}
@@ -123,6 +158,8 @@ func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 		return printJSON(resp.Msg)
 	}
 	printCollection(resp.Msg.GetCollection(), resp.Msg.GetResumed())
+	fmt.Printf("  wait once: git-control-tower baseline collection show --name %s --branch %s --wait\n", *name, *branch)
+	fmt.Println("  Ctrl-C detaches; rerun that exact command to recover. Do not poll.")
 	return nil
 }
 
@@ -165,6 +202,43 @@ func runCollectionShow(core *cliapp.ScenarioApp, args []string) error {
 		return printJSON(resp.Msg)
 	}
 	printCollection(resp.Msg.GetCollection(), false)
+	if !resp.Msg.GetCollection().GetCoverage().GetComplete() {
+		fmt.Printf("  reattach once: git-control-tower baseline collection show --name %s --branch %s --wait\n", *name, *branch)
+	}
+	return nil
+}
+
+func runCollectionExtend(core *cliapp.ScenarioApp, args []string) error {
+	fs := newFlagSet("baseline collection extend")
+	name, branch, asJSON := collectionFlags(fs)
+	var members stringListFlag
+	fs.Var(&members, "member", "New pre-edit member as scenario[:baseline-name]; repeat as needed")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*name) == "" || len(members) == 0 {
+		return fmt.Errorf("--name and at least one --member are required")
+	}
+	targets := make([]*baselinesv1.CollectionTarget, 0, len(members))
+	for _, raw := range members {
+		target, err := parseCollectionMember(raw, *name)
+		if err != nil {
+			return err
+		}
+		targets = append(targets, target)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
+	defer cancel()
+	resp, err := clientFactory(core).ExtendCollection(ctx, connect.NewRequest(&baselinesv1.ExtendCollectionRequest{Name: *name, Branch: *branch, Targets: targets, CreatedBy: "agent"}))
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return printJSON(resp.Msg)
+	}
+	fmt.Printf("Extended collection %q with: %s\n", *name, strings.Join(resp.Msg.GetAddedScenarios(), ", "))
+	printCollection(resp.Msg.GetCollection(), resp.Msg.GetResumed())
+	fmt.Printf("  wait once: git-control-tower baseline collection show --name %s --branch %s --wait\n", *name, *branch)
 	return nil
 }
 

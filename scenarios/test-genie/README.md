@@ -95,7 +95,7 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
   -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
 
-# Preview selected phases, estimate, and timeout budget
+# Preview selected phases, conservative timing guidance, and timeout budget
 curl -X POST "http://localhost:${API_PORT}/api/v1/executions/plan" \
   -H "Content-Type: application/json" \
   -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'

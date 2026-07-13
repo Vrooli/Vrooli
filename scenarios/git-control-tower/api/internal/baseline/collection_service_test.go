@@ -133,3 +133,26 @@ func TestCollectionDiffOperationIsDurableAndSelectionIdempotent(t *testing.T) {
 		t.Fatalf("idempotent operation = %#v err=%v", resumed, err)
 	}
 }
+
+func TestExtendCollectionIsAppendOnlyAndStartsOnlyNewMembers(t *testing.T) {
+	svc, exec := collectionService(t)
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pending := range started.Pending {
+		if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, pending); err != nil {
+			t.Fatal(err)
+		}
+	}
+	extended, err := svc.ExtendCollection(context.Background(), ExtendCollectionRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "git-control-tower", BaselineName: "before", Required: true}}})
+	if err != nil {
+		t.Fatalf("extend: %v", err)
+	}
+	if exec.calls != 2 || len(extended.Pending) != 1 || len(extended.Collection.Members) != 2 {
+		t.Fatalf("extension = %#v calls=%d", extended, exec.calls)
+	}
+	if _, err := svc.ExtendCollection(context.Background(), ExtendCollectionRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "replacement", Required: true}}}); err == nil {
+		t.Fatal("existing member mutation unexpectedly accepted")
+	}
+}

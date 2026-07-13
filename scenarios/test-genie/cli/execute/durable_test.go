@@ -54,6 +54,15 @@ func TestRecommendedWaitCommandIncludesBufferedTimeout(t *testing.T) {
 	}
 }
 
+func TestComprehensiveWaitCeilingIsIndependentOfETA(t *testing.T) {
+	if got := recommendedWaitSecondsForRequest(110, true, Request{ScenarioName: "demo", Preset: "comprehensive"}); got != comprehensiveWaitSeconds {
+		t.Fatalf("comprehensive wait = %d, want %d", got, comprehensiveWaitSeconds)
+	}
+	if got := recommendedWaitSecondsForRequest(110, true, Request{ScenarioName: "demo", Preset: "quick"}); got == comprehensiveWaitSeconds {
+		t.Fatalf("quick wait unexpectedly used comprehensive ceiling")
+	}
+}
+
 func TestAgentWaitBlockIsProviderAgnosticAndActionable(t *testing.T) {
 	var buf strings.Builder
 	printAgentWaitBlock(&buf, "demo", "R1", 600, true, 1050)

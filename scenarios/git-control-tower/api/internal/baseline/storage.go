@@ -1117,6 +1117,62 @@ func (s *Storage) UpdateCollectionMember(repoID int64, branch, name, scenario st
 	return out, nil
 }
 
+// AppendCollectionMembers is the sole mutation path for collection membership.
+// It is deliberately append-only so historical before-state coverage cannot be
+// narrowed or silently rewritten after implementation begins.
+func (s *Storage) AppendCollectionMembers(repoID int64, branch, name string, targets []CollectionTarget, now time.Time) (CollectionManifest, error) {
+	dir, err := s.collectionDir(repoID, branch)
+	if err != nil {
+		return CollectionManifest{}, err
+	}
+	if len(targets) == 0 {
+		return CollectionManifest{}, fmt.Errorf("collection extension requires targets")
+	}
+	var out CollectionManifest
+	err = s.withLock(dir, name, func() error {
+		data, err := os.ReadFile(s.collectionPath(dir, name))
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("read collection: %w", err)
+		}
+		if err := json.Unmarshal(data, &out); err != nil {
+			return fmt.Errorf("decode collection: %w", err)
+		}
+		out = out.Normalized()
+		existing := make(map[string]struct{}, len(out.Members))
+		for _, member := range out.Members {
+			existing[member.Scenario] = struct{}{}
+		}
+		added := make(map[string]struct{}, len(targets))
+		for _, target := range targets {
+			scenario, baseline := strings.TrimSpace(target.Scenario), strings.TrimSpace(target.BaselineName)
+			if scenario == "" || baseline == "" {
+				return fmt.Errorf("collection extension member scenario and baseline name are required")
+			}
+			if _, found := existing[scenario]; found {
+				return fmt.Errorf("collection %q already contains scenario %q; member replacement is forbidden", name, scenario)
+			}
+			if _, duplicate := added[scenario]; duplicate {
+				return fmt.Errorf("collection extension contains duplicate scenario %q", scenario)
+			}
+			added[scenario] = struct{}{}
+			out.Members = append(out.Members, CollectionMember{Scenario: scenario, BaselineName: baseline, Required: target.Required, Status: CollectionMemberPending, UpdatedAt: now.UTC()})
+		}
+		out.UpdatedAt = now.UTC()
+		out = out.Normalized()
+		if err := out.Validate(); err != nil {
+			return err
+		}
+		return writeJSONAtomic(s.collectionPath(dir, name), out)
+	})
+	if err != nil {
+		return CollectionManifest{}, err
+	}
+	return out, nil
+}
+
 // List returns manifests for a scenario. An empty branch lists across every
 // branch; a non-empty branch restricts to that branch. Results are sorted
 // newest-first by CreatedAt.

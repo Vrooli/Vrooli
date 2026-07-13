@@ -53,6 +53,9 @@ INSERT INTO suite_executions (
 	requested_phases,
 	requested_skip_phases,
 	planned_phases,
+	phase_set_digest,
+	descriptor_snapshot_digest,
+	configuration_fingerprint,
 	fail_fast,
 	success,
 	terminal_outcome,
@@ -60,7 +63,7 @@ INSERT INTO suite_executions (
 	started_at,
 	completed_at
 ) VALUES (
-	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`
 
 	// terminal_outcome is the run-level classification. A caller that did not
@@ -82,6 +85,9 @@ INSERT INTO suite_executions (
 		requestedPhases,
 		requestedSkipPhases,
 		plannedPhases,
+		nullIfEmpty(record.PhaseSetDigest),
+		nullIfEmpty(record.DescriptorSnapshotDigest),
+		nullIfEmpty(record.ConfigurationFingerprint),
 		boolToInt(record.FailFast),
 		boolToInt(record.Success),
 		outcome.String(),
@@ -110,6 +116,9 @@ SELECT
 	requested_phases,
 	requested_skip_phases,
 	planned_phases,
+	phase_set_digest,
+	descriptor_snapshot_digest,
+	configuration_fingerprint,
 	fail_fast,
 	success,
 	terminal_outcome,
@@ -156,6 +165,9 @@ SELECT
 	requested_phases,
 	requested_skip_phases,
 	planned_phases,
+	phase_set_digest,
+	descriptor_snapshot_digest,
+	configuration_fingerprint,
 	fail_fast,
 	success,
 	terminal_outcome,
@@ -262,6 +274,60 @@ LIMIT ?
 	return samples, nil
 }
 
+// ListPlanSamples returns same-scenario terminal runs with their immutable
+// comparability key. The plan preview uses these rows before flattened phase
+// samples: exact full-run evidence captures orchestration/startup cost that a
+// sum of phase medians cannot see.
+func (r *SuiteExecutionRepository) ListPlanSamples(ctx context.Context, scenario string, since time.Time, limit int) ([]PlanDurationSample, error) {
+	if limit <= 0 {
+		limit = 2000
+	}
+	const q = `
+SELECT scenario_name, phase_set_digest, descriptor_snapshot_digest,
+       configuration_fingerprint, COALESCE(terminal_outcome, ''),
+       started_at, completed_at
+FROM suite_executions
+WHERE scenario_name = ? AND completed_at >= ?
+ORDER BY completed_at DESC
+LIMIT ?`
+	rows, err := r.db.QueryContext(ctx, q, strings.TrimSpace(scenario), sqliteutil.FormatTimestamp(since), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var samples []PlanDurationSample
+	for rows.Next() {
+		var sample PlanDurationSample
+		var startedAt, completedAt any
+		var phaseSetDigest, descriptorSnapshotDigest, configurationFingerprint sql.NullString
+		if err := rows.Scan(&sample.ScenarioName, &phaseSetDigest, &descriptorSnapshotDigest,
+			&configurationFingerprint, &sample.TerminalOutcome, &startedAt, &completedAt); err != nil {
+			return nil, err
+		}
+		if phaseSetDigest.Valid {
+			sample.PhaseSetDigest = phaseSetDigest.String
+		}
+		if descriptorSnapshotDigest.Valid {
+			sample.DescriptorSnapshotDigest = descriptorSnapshotDigest.String
+		}
+		if configurationFingerprint.Valid {
+			sample.ConfigurationFingerprint = configurationFingerprint.String
+		}
+		var err error
+		sample.StartedAt, err = sqliteutil.ParseTimestamp(startedAt)
+		if err != nil {
+			return nil, err
+		}
+		sample.CompletedAt, err = sqliteutil.ParseTimestamp(completedAt)
+		if err != nil {
+			return nil, err
+		}
+		sample.DurationSeconds = maxInt(0, int(sample.CompletedAt.Sub(sample.StartedAt).Round(time.Second).Seconds()))
+		samples = append(samples, sample)
+	}
+	return samples, rows.Err()
+}
+
 type rowScanner interface {
 	Scan(dest ...interface{}) error
 }
@@ -275,6 +341,9 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	var requestedPhases any
 	var requestedSkipPhases any
 	var plannedPhases any
+	var phaseSetDigest sql.NullString
+	var descriptorSnapshotDigest sql.NullString
+	var configurationFingerprint sql.NullString
 	var failFast int
 	var success int
 	var terminalOutcome sql.NullString
@@ -291,6 +360,9 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 		&requestedPhases,
 		&requestedSkipPhases,
 		&plannedPhases,
+		&phaseSetDigest,
+		&descriptorSnapshotDigest,
+		&configurationFingerprint,
 		&failFast,
 		&success,
 		&terminalOutcome,
@@ -328,6 +400,15 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	if err != nil {
 		return record, err
 	}
+	if phaseSetDigest.Valid {
+		record.PhaseSetDigest = phaseSetDigest.String
+	}
+	if descriptorSnapshotDigest.Valid {
+		record.DescriptorSnapshotDigest = descriptorSnapshotDigest.String
+	}
+	if configurationFingerprint.Valid {
+		record.ConfigurationFingerprint = configurationFingerprint.String
+	}
 	record.FailFast = failFast == 1
 	record.Success = success == 1
 	if terminalOutcome.Valid {
@@ -360,4 +441,11 @@ func boolToInt(value bool) int {
 		return 1
 	}
 	return 0
+}
+
+func maxInt(left, right int) int {
+	if left > right {
+		return left
+	}
+	return right
 }

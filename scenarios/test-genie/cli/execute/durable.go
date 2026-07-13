@@ -144,7 +144,7 @@ func (sr *startedRun) renderHuman() error {
 	}
 
 	// The banner is human/stderr guidance.
-	printRunBanner(os.Stderr, sr.req.ScenarioName, sr.runID, sr.eta, sr.etaKnown)
+	printRunBanner(os.Stderr, sr.req.ScenarioName, sr.runID, sr.eta, sr.etaKnown, recommendedWaitSecondsForRequest(sr.eta, sr.etaKnown, sr.req))
 
 	// Auto-background a known-long run — or a run whose ETA is unknown (which
 	// could be long) — unless the caller forced --wait. A known-short run follows
@@ -472,12 +472,11 @@ func buildResponse(terminal *runspb.RunEvent, phasesAcc []Phase) Response {
 	return resp
 }
 
-func printRunBanner(w io.Writer, scenario, runID string, eta int, etaKnown bool) {
+func printRunBanner(w io.Writer, scenario, runID string, eta int, etaKnown bool, waitSeconds int) {
 	etaStr := "unknown"
 	if etaKnown {
 		etaStr = humanDuration(eta)
 	}
-	waitSeconds := recommendedWaitSeconds(eta, etaKnown)
 	fmt.Fprintf(w, "▶ run %s started (estimated %s)\n", runID, etaStr)
 	fmt.Fprintf(w, "  The test-genie server owns this run — if your shell or tool times out, the run keeps going.\n")
 	printAgentWaitBlock(w, scenario, runID, eta, etaKnown, waitSeconds)

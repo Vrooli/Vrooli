@@ -18,16 +18,19 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 	now := time.Now().UTC()
 	execID := uuid.New()
 	record := &SuiteExecutionRecord{
-		ID:                  execID,
-		RunID:               "20260711-000000-evidence",
-		ScenarioName:        "demo",
-		PresetUsed:          "quick",
-		RequestedPreset:     "quick",
-		RequestedPhases:     []string{"structure", "unit"},
-		RequestedSkipPhases: []string{"performance"},
-		PlannedPhases:       []string{"structure", "unit"},
-		FailFast:            true,
-		Success:             true,
+		ID:                       execID,
+		RunID:                    "20260711-000000-evidence",
+		ScenarioName:             "demo",
+		PresetUsed:               "quick",
+		RequestedPreset:          "quick",
+		RequestedPhases:          []string{"structure", "unit"},
+		RequestedSkipPhases:      []string{"performance"},
+		PlannedPhases:            []string{"structure", "unit"},
+		PhaseSetDigest:           "phase-set:demo",
+		DescriptorSnapshotDigest: "ds:demo",
+		ConfigurationFingerprint: "execution-config:demo",
+		FailFast:                 true,
+		Success:                  true,
 		Phases: []phases.ExecutionResult{
 			{Name: "structure", Status: "passed", DurationSeconds: 1},
 		},
@@ -54,6 +57,45 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 	}
 	if stored.TerminalOutcome != TerminalOutcomePassed {
 		t.Fatalf("expected terminal_outcome derived as passed, got %q", stored.TerminalOutcome)
+	}
+	if stored.PhaseSetDigest != record.PhaseSetDigest || stored.DescriptorSnapshotDigest != record.DescriptorSnapshotDigest || stored.ConfigurationFingerprint != record.ConfigurationFingerprint {
+		t.Fatalf("expected comparability metadata to round-trip: %#v", stored)
+	}
+}
+
+func TestSuiteExecutionRepositoryListPlanSamplesPreservesComparabilityKey(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	now := time.Now().UTC()
+	record := &SuiteExecutionRecord{ID: uuid.New(), ScenarioName: "demo", Success: false, TerminalOutcome: TerminalOutcomeTimeout,
+		PhaseSetDigest: "phase-set:demo", DescriptorSnapshotDigest: "ds:demo", ConfigurationFingerprint: "execution-config:demo",
+		Phases: []phases.ExecutionResult{}, StartedAt: now.Add(-7 * time.Minute), CompletedAt: now}
+	if err := repo.Create(context.Background(), record); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	samples, err := repo.ListPlanSamples(context.Background(), "demo", now.Add(-time.Hour), 10)
+	if err != nil {
+		t.Fatalf("list plan samples: %v", err)
+	}
+	if len(samples) != 1 || samples[0].DurationSeconds != 420 || samples[0].TerminalOutcome != TerminalOutcomeTimeout.String() {
+		t.Fatalf("unexpected plan sample: %#v", samples)
+	}
+}
+
+func TestSuiteExecutionRepositoryListPlanSamplesAcceptsLegacyNullComparabilityMetadata(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	now := time.Now().UTC()
+	if _, err := db.Exec(`INSERT INTO suite_executions (id, scenario_name, success, phases, started_at, completed_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		uuid.NewString(), "demo", 1, `[]`, sqliteutil.FormatTimestamp(now.Add(-time.Minute)), sqliteutil.FormatTimestamp(now)); err != nil {
+		t.Fatalf("seed legacy row: %v", err)
+	}
+	samples, err := repo.ListPlanSamples(context.Background(), "demo", now.Add(-time.Hour), 10)
+	if err != nil {
+		t.Fatalf("legacy rows must remain readable: %v", err)
+	}
+	if len(samples) != 1 || samples[0].PhaseSetDigest != "" || samples[0].DurationSeconds != 60 {
+		t.Fatalf("unexpected legacy sample: %#v", samples)
 	}
 }
 

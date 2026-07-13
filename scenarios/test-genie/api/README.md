@@ -304,6 +304,11 @@ go test -cover ./...             # With coverage
 Execution planning is a first-class API surface:
 
 - `POST /api/v1/executions/plan` resolves the actual phase list for a request before execution.
-- Runtime estimates are based on recent per-phase history, not timeout budgets.
+- The planner first prefers recent, exact same-scenario full runs with the
+  selected phase-set digest and descriptor/configuration fingerprint. It falls
+  back to conservative P90 per-phase evidence plus explicit orchestration
+  overhead only when no comparable full run exists.
 - Timeout budgets still come from phase configuration and are returned alongside the estimate.
-- Execution history persists requested preset/phases/skip, actual planned phases, and fail-fast so future estimates can distinguish full plans from partial runs.
+- Execution history persists requested preset/phases/skip, actual planned phases,
+  immutable comparability fingerprints, and fail-fast so a changed suite is
+  never silently compared to an older shape.

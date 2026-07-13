@@ -28,6 +28,7 @@ const (
 	waitTimeoutBufferPercent     = 75
 	minRecommendedWaitSeconds    = 120
 	unknownETAWaitSeconds        = 900
+	comprehensiveWaitSeconds     = 3600
 )
 
 // autoBackgroundThreshold resolves the auto-background ETA threshold.
@@ -97,6 +98,18 @@ func recommendedWaitSeconds(eta int, etaKnown bool) int {
 		return minRecommendedWaitSeconds
 	}
 	return withBuffer
+}
+
+// recommendedWaitSecondsForRequest keeps the durable wait ceiling independent
+// of an advisory ETA for comprehensive suites. A forecast can be stale or
+// under-calibrated; a one-hour native wait still yields a terminal result or a
+// producer-owned timeout/recovery instruction instead of teaching agents to
+// give up after a short estimate.
+func recommendedWaitSecondsForRequest(eta int, etaKnown bool, req Request) int {
+	if len(req.Phases) == 0 && (strings.TrimSpace(req.Preset) == "" || strings.EqualFold(strings.TrimSpace(req.Preset), "comprehensive")) {
+		return comprehensiveWaitSeconds
+	}
+	return recommendedWaitSeconds(eta, etaKnown)
 }
 
 func reattachCommandWithTimeout(scenario, runID string, seconds int) string {

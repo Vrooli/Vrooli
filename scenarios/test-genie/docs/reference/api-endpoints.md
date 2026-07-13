@@ -220,7 +220,7 @@ location.
 **Estimate Source Values:**
 | Value | Meaning |
 |-------|---------|
-| `scenario_history` | Derived from recent runs of the same scenario and phase |
+| `scenario_history` | Exact same-scenario full-run history, or conservative same-scenario phase history when the summary says `additive_phase_history` |
 | `blended_history` | Weighted blend of scenario history and global phase history |
 | `global_history` | Derived from recent runs of the phase across all scenarios |
 | `timeout_fallback` | No useful runtime history was available; uses the timeout budget |
@@ -233,7 +233,13 @@ location.
 | `low` | Weak or no history; treat as rough guidance |
 
 **Notes:**
-- Estimates are phase-level medians from recent history, not timeout budgets.
+- A summary with `estimateMode: "comparable_full_run"` is a P90 exact-shape
+  full-run estimate and already includes startup/orchestration. A summary with
+  `estimateMode: "additive_phase_history"` is a lower-confidence P90 phase sum
+  plus `orchestrationOverheadSeconds`; it is not comparable-run evidence.
+- Failed and timed-out elapsed runs remain timing evidence, and stale samples
+  are conservatively penalized. Descriptor/configuration or phase-set changes
+  intentionally invalidate comparable-run confidence.
 - `timeoutSeconds` always reflects the configured runtime budget after scenario overrides are applied.
 - The planner uses the same scenario-aware phase selection logic as actual execution.
 

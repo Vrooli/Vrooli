@@ -62,17 +62,27 @@ required member is ready; partial coverage is never a clean behavioral result.
 ```text
 git-control-tower baseline collection capture --name N --member scenario[:baseline] ...
 git-control-tower baseline collection show --name N --wait
-git-control-tower baseline collection diff --name N --operation-id phase-1 [--scenario S ...] --wait
+git-control-tower baseline collection extend --name N --member newly-affected-scenario
+git-control-tower baseline collection diff --name N --operation-id phase-1 [--member S ...]
+git-control-tower baseline collection diff status --name N --operation-id phase-1 --wait
 git-control-tower baseline collection delete --name N
 ```
 
+Collection capture and diff are fast durable starts. Each normal CLI response
+prints its exact producer-owned `show --wait` or `diff status --wait` command;
+run that command once, and after an interruption rerun the same command rather
+than polling. The server owns the durable child handles and terminal result.
 Collection diff starts persist a caller-supplied operation identity before any
 child run starts. Reusing the same identity with the same selected members
-reattaches to that operation; changing the selection is rejected. `--wait`
-performs one server-owned attachment to the durable child handles and returns
-the aggregate precedence (`regression`, `not-ready`, `not-comparable`, or
-`clean`) with member provenance: baseline name, Test Genie run, capture Git
-SHA, and current status.
+reattaches to that operation; changing the selection is rejected. `--member`
+is the canonical repeatable selector (`--scenario` remains an alias), and no
+selector means every collection member—the required final DoD scope.
+
+Collection membership is append-only. Before editing a newly discovered
+scenario, use `collection extend` to capture its before-state and then use the
+printed collection wait command. Existing members cannot be removed, replaced,
+or re-anchored. An already edited scenario cannot obtain a trustworthy before
+baseline and must follow an explicit degraded/repair workflow instead.
 
 Collections may carry a separately captured path snapshot. Path snapshots use
 safe repo-relative glob selections, reject traversal and sensitive locations

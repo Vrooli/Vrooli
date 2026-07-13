@@ -24,12 +24,17 @@ func (s *stubPlanBuilder) PreviewExecution(req orchestrator.SuiteExecutionReques
 }
 
 type stubPhaseSampleReader struct {
-	samples []PhaseDurationSample
-	err     error
+	samples     []PhaseDurationSample
+	planSamples []PlanDurationSample
+	err         error
 }
 
 func (s *stubPhaseSampleReader) ListPhaseSamples(ctx context.Context, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error) {
 	return s.samples, s.err
+}
+
+func (s *stubPhaseSampleReader) ListPlanSamples(ctx context.Context, scenario string, since time.Time, limit int) ([]PlanDurationSample, error) {
+	return s.planSamples, s.err
 }
 
 func TestExecutionPlanServicePreviewUsesScenarioHistoryFirst(t *testing.T) {
@@ -59,8 +64,11 @@ func TestExecutionPlanServicePreviewUsesScenarioHistoryFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preview failed: %v", err)
 	}
-	if preview.Summary.EstimatedDurationSeconds != 31 {
-		t.Fatalf("expected scenario p75 estimate 31, got %d", preview.Summary.EstimatedDurationSeconds)
+	if preview.Phases[0].EstimatedDurationSeconds != 32 {
+		t.Fatalf("expected scenario P90 phase estimate 32, got %d", preview.Phases[0].EstimatedDurationSeconds)
+	}
+	if preview.Summary.EstimatedDurationSeconds != 152 {
+		t.Fatalf("expected additive phase estimate plus overhead 152, got %d", preview.Summary.EstimatedDurationSeconds)
 	}
 	if got := preview.Phases[0].EstimateSource; got != EstimateSourceScenarioHistory {
 		t.Fatalf("expected scenario history source, got %s", got)
@@ -138,6 +146,54 @@ func TestExecutionPlanServicePreviewFallsBackToGlobalHistory(t *testing.T) {
 	}
 }
 
+func TestExecutionPlanServicePreviewPrefersExactComparableFullRun(t *testing.T) {
+	now := time.Now().UTC()
+	svc := NewExecutionPlanService(
+		&stubPlanBuilder{preview: &orchestrator.ExecutionPlanPreview{
+			ScenarioName: "demo", PhaseSetDigest: "phase-set:current", DescriptorSnapshotDigest: "ds:current", ConfigurationFingerprint: "execution-config:current",
+			Phases: []orchestrator.PlannedPhase{{Name: "structure", TimeoutSeconds: 60}, {Name: "unit", TimeoutSeconds: 600}},
+		}},
+		&stubPhaseSampleReader{planSamples: []PlanDurationSample{
+			{ScenarioName: "demo", PhaseSetDigest: "phase-set:old", DescriptorSnapshotDigest: "ds:current", ConfigurationFingerprint: "execution-config:current", DurationSeconds: 12, CompletedAt: now},
+			{ScenarioName: "demo", PhaseSetDigest: "phase-set:current", DescriptorSnapshotDigest: "ds:old", ConfigurationFingerprint: "execution-config:current", DurationSeconds: 12, CompletedAt: now},
+			{ScenarioName: "demo", PhaseSetDigest: "phase-set:current", DescriptorSnapshotDigest: "ds:current", ConfigurationFingerprint: "execution-config:current", TerminalOutcome: "passed", DurationSeconds: 300, CompletedAt: now},
+			// A timeout is retained as slow/censored full-run evidence rather than discarded.
+			{ScenarioName: "demo", PhaseSetDigest: "phase-set:current", DescriptorSnapshotDigest: "ds:current", ConfigurationFingerprint: "execution-config:current", TerminalOutcome: "timeout", DurationSeconds: 420, CompletedAt: now},
+		}},
+	)
+
+	preview, err := svc.Preview(context.Background(), orchestrator.SuiteExecutionRequest{ScenarioName: "demo"})
+	if err != nil {
+		t.Fatalf("preview failed: %v", err)
+	}
+	if preview.Summary.EstimateMode != "comparable_full_run" {
+		t.Fatalf("estimate mode = %q, want comparable_full_run", preview.Summary.EstimateMode)
+	}
+	if preview.Summary.EstimateSampleSize != 2 || preview.Summary.EstimatedDurationSeconds != 420 {
+		t.Fatalf("exact P90 full-run estimate = %#v, want 420 from two comparable samples", preview.Summary)
+	}
+	if preview.Summary.OrchestrationOverheadSeconds != 0 {
+		t.Fatalf("exact full-run estimate must not add synthetic overhead: %#v", preview.Summary)
+	}
+}
+
+func TestExecutionPlanServicePreviewMismatchedComparableHistoryFallsBackAdditive(t *testing.T) {
+	svc := NewExecutionPlanService(
+		&stubPlanBuilder{preview: &orchestrator.ExecutionPlanPreview{
+			ScenarioName: "demo", PhaseSetDigest: "phase-set:current", DescriptorSnapshotDigest: "ds:current", ConfigurationFingerprint: "execution-config:current",
+			Phases: []orchestrator.PlannedPhase{{Name: "unit", TimeoutSeconds: 100}},
+		}},
+		&stubPhaseSampleReader{planSamples: []PlanDurationSample{{ScenarioName: "demo", PhaseSetDigest: "phase-set:current", DescriptorSnapshotDigest: "ds:changed", ConfigurationFingerprint: "execution-config:current", DurationSeconds: 2, CompletedAt: time.Now().UTC()}}},
+	)
+	preview, err := svc.Preview(context.Background(), orchestrator.SuiteExecutionRequest{ScenarioName: "demo"})
+	if err != nil {
+		t.Fatalf("preview failed: %v", err)
+	}
+	if preview.Summary.EstimateMode != "additive_phase_history" || preview.Summary.OrchestrationOverheadSeconds != 120 {
+		t.Fatalf("descriptor mismatch must fail closed into additive estimate: %#v", preview.Summary)
+	}
+}
+
 func TestExecutionPlanServicePreviewMarksUnknownHistoryExplicitly(t *testing.T) {
 	svc := NewExecutionPlanService(
 		&stubPlanBuilder{
@@ -164,12 +220,12 @@ func TestExecutionPlanServicePreviewMarksUnknownHistoryExplicitly(t *testing.T) 
 	if !preview.Phases[0].EstimateUnknown {
 		t.Fatalf("expected unknown estimate flag")
 	}
-	if preview.Summary.TimeoutSeconds != 900 || preview.Summary.EstimatedDurationSeconds != 900 {
+	if preview.Summary.TimeoutSeconds != 900 || preview.Summary.EstimatedDurationSeconds != 1020 {
 		t.Fatalf("unexpected summary: %#v", preview.Summary)
 	}
 }
 
-func TestExecutionPlanServicePreviewIgnoresUnusableDurationSamples(t *testing.T) {
+func TestExecutionPlanServicePreviewRetainsFailedDurationAsSlowEvidence(t *testing.T) {
 	svc := NewExecutionPlanService(
 		&stubPlanBuilder{
 			preview: &orchestrator.ExecutionPlanPreview{
@@ -198,7 +254,7 @@ func TestExecutionPlanServicePreviewIgnoresUnusableDurationSamples(t *testing.T)
 	if estimate.EstimateSource != EstimateSourceScenarioHistory {
 		t.Fatalf("estimate source = %s, want scenario history", estimate.EstimateSource)
 	}
-	if estimate.EstimateSampleSize != 1 || estimate.EstimatedDurationSeconds != 20 {
+	if estimate.EstimateSampleSize != 2 || estimate.EstimatedDurationSeconds != 20 {
 		t.Fatalf("unexpected filtered estimate: %#v", estimate)
 	}
 }
@@ -282,8 +338,8 @@ func TestExecutionPlanServicePreviewPlansQuickFromComprehensiveCandidates(t *tes
 	if preview.Summary.BudgetSeconds != quickProfile.BudgetSeconds {
 		t.Fatalf("budget = %d, want %d", preview.Summary.BudgetSeconds, quickProfile.BudgetSeconds)
 	}
-	if preview.Summary.EstimatedDurationSeconds != 70 {
-		t.Fatalf("estimated total = %d, want 70", preview.Summary.EstimatedDurationSeconds)
+	if preview.Summary.EstimatedDurationSeconds != 190 {
+		t.Fatalf("estimated total = %d, want 190", preview.Summary.EstimatedDurationSeconds)
 	}
 }
 

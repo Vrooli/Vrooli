@@ -68,19 +68,22 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 	}
 
 	record := &SuiteExecutionRecord{
-		ID:                  uuid.New(),
-		RunID:               result.RunID,
-		ScenarioName:        result.ScenarioName,
-		PresetUsed:          result.PresetUsed,
-		RequestedPreset:     result.RequestedPreset,
-		RequestedPhases:     append([]string(nil), result.RequestedPhases...),
-		RequestedSkipPhases: append([]string(nil), result.RequestedSkipPhases...),
-		PlannedPhases:       append([]string(nil), result.PlannedPhases...),
-		FailFast:            result.FailFast,
-		Success:             result.Success,
-		Phases:              append([]phases.ExecutionResult(nil), result.Phases...),
-		StartedAt:           result.StartedAt,
-		CompletedAt:         result.CompletedAt,
+		ID:                       uuid.New(),
+		RunID:                    result.RunID,
+		ScenarioName:             result.ScenarioName,
+		PresetUsed:               result.PresetUsed,
+		RequestedPreset:          result.RequestedPreset,
+		RequestedPhases:          append([]string(nil), result.RequestedPhases...),
+		RequestedSkipPhases:      append([]string(nil), result.RequestedSkipPhases...),
+		PlannedPhases:            append([]string(nil), result.PlannedPhases...),
+		PhaseSetDigest:           result.PhaseSetDigest,
+		DescriptorSnapshotDigest: result.DescriptorSnapshotDigest,
+		ConfigurationFingerprint: result.ConfigurationFingerprint,
+		FailFast:                 result.FailFast,
+		Success:                  result.Success,
+		Phases:                   append([]phases.ExecutionResult(nil), result.Phases...),
+		StartedAt:                result.StartedAt,
+		CompletedAt:              result.CompletedAt,
 	}
 
 	if err := s.executions.Create(ctx, record); err != nil {

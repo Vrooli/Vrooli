@@ -18,7 +18,7 @@ import (
 // data-preserving substrate aligned with storage-steer's deferred
 // MigrationProvider direction (PRAGMA introspect → ALTER ADD COLUMN → backfill).
 func Migrate(ctx context.Context, db dbexec.Executor) error {
-	for _, column := range []string{"terminal_outcome", "run_id"} {
+	for _, column := range []string{"terminal_outcome", "run_id", "phase_set_digest", "descriptor_snapshot_digest", "configuration_fingerprint"} {
 		hasColumn, err := columnExists(ctx, db, "suite_executions", column)
 		if err != nil {
 			return fmt.Errorf("introspect suite_executions: %w", err)

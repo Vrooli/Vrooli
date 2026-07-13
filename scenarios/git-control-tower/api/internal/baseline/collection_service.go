@@ -59,6 +59,25 @@ type StartCollectionCaptureResult struct {
 	Resumed    bool
 }
 
+// ExtendCollectionRequest only permits append-only expansion. A new member's
+// immutable before-state must be captured before that scenario is edited.
+type ExtendCollectionRequest struct {
+	RepoID    int64
+	RepoDir   string
+	Branch    string
+	Name      string
+	Targets   []CollectionTarget
+	CreatedBy string
+	Reason    string
+}
+
+type ExtendCollectionResult struct {
+	Collection     CollectionManifest
+	Pending        []PendingCollectionCapture
+	AddedScenarios []string
+	Resumed        bool
+}
+
 // StartCollectionDiffRequest starts durable child diffs for an explicit subset
 // of a captured collection. Empty Scenarios means all members. Callers must
 // pass their policy explicitly; GCT validates membership but never infers a
@@ -169,6 +188,62 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 		pending = append(pending, PendingCollectionCapture{CollectionName: req.Name, Branch: branch, Scenario: member.Scenario, Pending: started})
 	}
 	return StartCollectionCaptureResult{Collection: collection, Pending: pending, Resumed: resumed}, nil
+}
+
+// ExtendCollection adds only previously unknown scenarios to an existing
+// collection. It never alters existing member identity, status, or source
+// evidence; callers must use an explicit degraded/repair path if a scenario
+// was already changed before its baseline could be captured.
+func (s *Service) ExtendCollection(ctx context.Context, req ExtendCollectionRequest) (ExtendCollectionResult, error) {
+	if strings.TrimSpace(req.Name) == "" || len(req.Targets) == 0 {
+		return ExtendCollectionResult{}, fmt.Errorf("collection name and at least one new target are required")
+	}
+	branch := strings.TrimSpace(req.Branch)
+	if branch == "" {
+		state, err := s.captureGit(ctx, req.RepoDir)
+		if err != nil {
+			return ExtendCollectionResult{}, fmt.Errorf("read git state: %w", err)
+		}
+		branch = ResolveStorageBranch(state)
+	}
+	collection, err := s.storage.AppendCollectionMembers(req.RepoID, branch, req.Name, req.Targets, s.now().UTC())
+	if err != nil {
+		return ExtendCollectionResult{}, err
+	}
+	result := ExtendCollectionResult{Collection: collection}
+	for _, target := range req.Targets {
+		result.AddedScenarios = append(result.AddedScenarios, strings.TrimSpace(target.Scenario))
+	}
+	for _, member := range collection.Members {
+		added := false
+		for _, scenario := range result.AddedScenarios {
+			if member.Scenario == scenario {
+				added = true
+				break
+			}
+		}
+		if !added || member.Status != CollectionMemberPending || member.RunID != "" {
+			continue
+		}
+		started, startErr := s.StartCapture(ctx, CreateRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Scenario: member.Scenario, Name: member.BaselineName, Branch: branch, CreatedBy: req.CreatedBy, Reason: req.Reason})
+		if startErr != nil {
+			collection, err = s.storage.UpdateCollectionMember(req.RepoID, branch, req.Name, member.Scenario, func(m *CollectionMember) error {
+				m.Status, m.Error, m.UpdatedAt = CollectionMemberFailed, startErr.Error(), s.now().UTC()
+				return nil
+			})
+			if err != nil {
+				return ExtendCollectionResult{}, err
+			}
+			continue
+		}
+		collection, err = s.storage.UpdateCollectionMember(req.RepoID, branch, req.Name, member.Scenario, func(m *CollectionMember) error { m.RunID, m.UpdatedAt = started.Run.RunID, s.now().UTC(); return nil })
+		if err != nil {
+			return ExtendCollectionResult{}, err
+		}
+		result.Pending = append(result.Pending, PendingCollectionCapture{CollectionName: req.Name, Branch: branch, Scenario: member.Scenario, Pending: started})
+	}
+	result.Collection = collection
+	return result, nil
 }
 
 func newCollectionManifest(req StartCollectionCaptureRequest, branch string, now time.Time) CollectionManifest {

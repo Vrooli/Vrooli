@@ -4,6 +4,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 
 	"test-genie/internal/orchestrator/phasepolicy"
 )
@@ -51,6 +52,7 @@ type Sample struct {
 	PhaseName       string
 	Status          string
 	DurationSeconds int
+	CompletedAt     time.Time
 }
 
 type Estimate struct {
@@ -78,7 +80,9 @@ type Plan struct {
 }
 
 const (
-	historyPercentile         = 0.75
+	// P90 avoids steering agents toward optimistic waits. The durable wait
+	// ceiling remains independent from this advisory estimate.
+	historyPercentile         = 0.90
 	primaryScenarioSamples    = 5
 	maxScenarioSamplesPerKey  = 20
 	maxGlobalSamplesPerKey    = 50
@@ -96,6 +100,15 @@ type Estimator struct {
 	globalBuckets   map[string][]int
 }
 
+// RunSample is a terminal full-run duration. It stays separate from phase
+// history because startup and serial orchestration costs cannot be recovered by
+// summing independent per-phase observations.
+type RunSample struct {
+	DurationSeconds int
+	TerminalOutcome string
+	CompletedAt     time.Time
+}
+
 func NewEstimator(scenarioName string, samples []Sample) Estimator {
 	scenarioBuckets := make(map[string][]int)
 	globalBuckets := make(map[string][]int)
@@ -104,7 +117,7 @@ func NewEstimator(scenarioName string, samples []Sample) Estimator {
 		if key == "" {
 			continue
 		}
-		duration := clampNonNegative(sample.DurationSeconds)
+		duration := ageAdjustedDuration(sample.DurationSeconds, sample.CompletedAt)
 		if duration == 0 || !sampleCounts(sample) {
 			continue
 		}
@@ -120,6 +133,27 @@ func NewEstimator(scenarioName string, samples []Sample) Estimator {
 		scenarioName:    scenarioName,
 		scenarioBuckets: scenarioBuckets,
 		globalBuckets:   globalBuckets,
+	}
+}
+
+// EstimateComparableRun returns a conservative P90 from exact full-run
+// history. Failed and timed-out runs remain elapsed/censored slow evidence;
+// only zero-duration records are unusable.
+func EstimateComparableRun(samples []RunSample) Estimate {
+	durations := make([]int, 0, len(samples))
+	for _, sample := range samples {
+		if duration := ageAdjustedDuration(sample.DurationSeconds, sample.CompletedAt); duration > 0 {
+			durations = append(durations, duration)
+		}
+	}
+	if len(durations) == 0 {
+		return Estimate{Source: EstimateSourceUnknown, Confidence: EstimateConfidenceLow, Unknown: true}
+	}
+	return Estimate{
+		DurationSeconds: percentileSeconds(durations, historyPercentile),
+		Source:          EstimateSourceScenarioHistory,
+		Confidence:      confidenceFor(EstimateSourceScenarioHistory, len(durations), 0),
+		SampleSize:      len(durations),
 	}
 }
 
@@ -263,11 +297,30 @@ func isRequired(policy phasepolicy.Policy) bool {
 
 func sampleCounts(sample Sample) bool {
 	switch normalize(sample.Status) {
-	case phasepolicy.StatusPassed, "success", "succeeded":
+	case phasepolicy.StatusPassed, "success", "succeeded", "failed", "failure", "timeout", "timed_out", "errored", "aborted":
 		return true
 	default:
 		return false
 	}
+}
+
+// ageAdjustedDuration retains sparse old history but raises its contribution by
+// up to 25% over the 30–90 day window. This prevents stale fast samples from
+// dominating estimates without silently discarding all historical evidence.
+func ageAdjustedDuration(seconds int, completedAt time.Time) int {
+	duration := clampNonNegative(seconds)
+	if duration == 0 || completedAt.IsZero() {
+		return duration
+	}
+	age := time.Since(completedAt)
+	if age <= 30*24*time.Hour {
+		return duration
+	}
+	if age > 90*24*time.Hour {
+		age = 90 * 24 * time.Hour
+	}
+	penalty := 1 + 0.25*float64(age-30*24*time.Hour)/float64(60*24*time.Hour)
+	return int(math.Ceil(float64(duration) * penalty))
 }
 
 func confidenceFor(source EstimateSource, scenarioCount, globalCount int) EstimateConfidence {

@@ -40,11 +40,18 @@ type PlannedPhase struct {
 
 // ExecutionPlanPreview captures the actual selected phase plan for a request.
 type ExecutionPlanPreview struct {
-	ScenarioName        string         `json:"scenarioName"`
-	PresetUsed          string         `json:"presetUsed,omitempty"`
-	Phases              []PlannedPhase `json:"phases"`
-	NotApplicablePhases []PlannedPhase `json:"notApplicablePhases,omitempty"`
-	Warnings            []string       `json:"warnings,omitempty"`
+	ScenarioName string `json:"scenarioName"`
+	PresetUsed   string `json:"presetUsed,omitempty"`
+	// PhaseSetDigest and DescriptorSnapshotDigest identify the exact selected
+	// phase shape and provider/descriptor contract used for this preview. They
+	// let the timing planner fail closed instead of treating a changed suite as
+	// comparable to an older run.
+	PhaseSetDigest           string         `json:"phaseSetDigest,omitempty"`
+	DescriptorSnapshotDigest string         `json:"descriptorSnapshotDigest,omitempty"`
+	ConfigurationFingerprint string         `json:"configurationFingerprint,omitempty"`
+	Phases                   []PlannedPhase `json:"phases"`
+	NotApplicablePhases      []PlannedPhase `json:"notApplicablePhases,omitempty"`
+	Warnings                 []string       `json:"warnings,omitempty"`
 }
 
 type executionPlanContext struct {
@@ -102,6 +109,14 @@ func (o *SuiteOrchestrator) PreviewExecution(req SuiteExecutionRequest) (*Execut
 		Warnings:     buildPlanWarnings(ctx.plan),
 		Phases:       make([]PlannedPhase, 0, len(ctx.plan.Selected)),
 	}
+	descriptorSnapshot, err := buildRunDescriptorSnapshot(ctx.plan)
+	if err != nil {
+		return nil, err
+	}
+	selected := phaseDefinitionNames(ctx.plan.Selected)
+	preview.PhaseSetDigest = phases.PhaseSetDigest(selected)
+	preview.DescriptorSnapshotDigest = descriptorSnapshot.Digest
+	preview.ConfigurationFingerprint = ExecutionConfigurationFingerprint(req, descriptorSnapshot.Digest)
 
 	for _, def := range ctx.plan.Selected {
 		preview.Phases = append(preview.Phases, o.plannedPhasePreview(def, ctx.plan, "selected"))

@@ -2,6 +2,8 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -199,18 +201,21 @@ type SuiteExecutionResult struct {
 	// backward compatibility and is true for both PASS and PARTIAL (only FAIL is
 	// a non-zero exit), so a self-test that skips an unrunnable phase is honestly
 	// reported without failing CI.
-	Verdict             string                      `json:"verdict,omitempty"`
-	PresetUsed          string                      `json:"preset,omitempty"`
-	RequestedPreset     string                      `json:"requestedPreset,omitempty"`
-	RequestedPhases     []string                    `json:"requestedPhases,omitempty"`
-	RequestedSkipPhases []string                    `json:"requestedSkipPhases,omitempty"`
-	PlannedPhases       []string                    `json:"plannedPhases,omitempty"`
-	FailFast            bool                        `json:"failFast"`
-	Phases              []PhaseExecutionResult      `json:"phases"`
-	PhaseSummary        PhaseSummary                `json:"phaseSummary"`
-	ProviderReadiness   []providerreadiness.Outcome `json:"providerReadiness,omitempty"`
-	Warnings            []string                    `json:"warnings,omitempty"`
-	WarningSummary      WarningSummary              `json:"warningSummary"`
+	Verdict                  string                      `json:"verdict,omitempty"`
+	PresetUsed               string                      `json:"preset,omitempty"`
+	RequestedPreset          string                      `json:"requestedPreset,omitempty"`
+	RequestedPhases          []string                    `json:"requestedPhases,omitempty"`
+	RequestedSkipPhases      []string                    `json:"requestedSkipPhases,omitempty"`
+	PlannedPhases            []string                    `json:"plannedPhases,omitempty"`
+	PhaseSetDigest           string                      `json:"phaseSetDigest,omitempty"`
+	DescriptorSnapshotDigest string                      `json:"descriptorSnapshotDigest,omitempty"`
+	ConfigurationFingerprint string                      `json:"configurationFingerprint,omitempty"`
+	FailFast                 bool                        `json:"failFast"`
+	Phases                   []PhaseExecutionResult      `json:"phases"`
+	PhaseSummary             PhaseSummary                `json:"phaseSummary"`
+	ProviderReadiness        []providerreadiness.Outcome `json:"providerReadiness,omitempty"`
+	Warnings                 []string                    `json:"warnings,omitempty"`
+	WarningSummary           WarningSummary              `json:"warningSummary"`
 	// CampaignNudge is present only when the audit finding load exceeded the
 	// single-pass threshold, steering the agent to open a tracked
 	// improvement campaign. Nil otherwise.
@@ -684,19 +689,40 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		runID:     runID,
 		runLogDir: runLogDir,
 		result: &SuiteExecutionResult{
-			RunID:               runID,
-			ArtifactDir:         sharedartifacts.RunDir(planCtx.env.ScenarioDir, runID),
-			ScenarioName:        scenario,
-			StartedAt:           time.Now().UTC(),
-			PresetUsed:          planCtx.plan.PresetUsed,
-			RequestedPreset:     phases.NormalizeKey(req.Preset),
-			RequestedPhases:     normalizePhaseList(req.Phases),
-			RequestedSkipPhases: normalizePhaseList(req.Skip),
-			PlannedPhases:       plannedPhases,
-			FailFast:            req.FailFast,
-			Warnings:            buildPlanWarnings(planCtx.plan),
+			RunID:                    runID,
+			ArtifactDir:              sharedartifacts.RunDir(planCtx.env.ScenarioDir, runID),
+			ScenarioName:             scenario,
+			StartedAt:                time.Now().UTC(),
+			PresetUsed:               planCtx.plan.PresetUsed,
+			RequestedPreset:          phases.NormalizeKey(req.Preset),
+			RequestedPhases:          normalizePhaseList(req.Phases),
+			RequestedSkipPhases:      normalizePhaseList(req.Skip),
+			PlannedPhases:            plannedPhases,
+			PhaseSetDigest:           phases.PhaseSetDigest(plannedPhases),
+			DescriptorSnapshotDigest: descriptorSnapshot.Digest,
+			ConfigurationFingerprint: ExecutionConfigurationFingerprint(req, descriptorSnapshot.Digest),
+			FailFast:                 req.FailFast,
+			Warnings:                 buildPlanWarnings(planCtx.plan),
 		},
 	}, nil
+}
+
+// ExecutionConfigurationFingerprint captures the execution knobs that can
+// materially change runtime without folding in volatile URLs or timestamps.
+// The descriptor digest separately covers providers, policies, and descriptor
+// revisions. Together with the selected phase-set digest these are the exact
+// comparability key for full-run timing history.
+func ExecutionConfigurationFingerprint(req SuiteExecutionRequest, descriptorDigest string) string {
+	payload := strings.Join([]string{
+		"v1",
+		strings.TrimSpace(req.Preset),
+		strings.TrimSpace(req.CaptureProfile),
+		strings.TrimSpace(req.DiagnosticsPreset),
+		fmt.Sprintf("fail-fast=%t", req.FailFast),
+		strings.TrimSpace(descriptorDigest),
+	}, "\n")
+	sum := sha256.Sum256([]byte(payload))
+	return "execution-config:" + hex.EncodeToString(sum[:])
 }
 
 func (o *SuiteOrchestrator) finalizeExecution(

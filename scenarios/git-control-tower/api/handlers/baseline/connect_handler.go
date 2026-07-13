@@ -419,7 +419,7 @@ func (s *Server) StartCollectionCapture(ctx context.Context, req *connect.Reques
 		targets = append(targets, bl.CollectionTarget{Scenario: target.GetScenario(), BaselineName: target.GetBaselineName(), Required: target.GetRequired()})
 	}
 	started, err := s.svc.StartCollectionCapture(ctx, bl.StartCollectionCaptureRequest{
-		RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
+		RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, PathSelections: m.GetPathSelections(), CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
 	})
 	if err != nil {
 		return nil, s.wrap("StartCollectionCapture", err)
@@ -428,6 +428,28 @@ func (s *Server) StartCollectionCapture(ctx context.Context, req *connect.Reques
 		s.finalizeCollectionCapture(ctx, rid, pending)
 	}
 	return connect.NewResponse(&baselinesv1.StartCollectionCaptureResponse{Collection: collectionToProto(started.Collection), Resumed: started.Resumed}), nil
+}
+
+// ExtendCollection appends newly discovered, pre-edit scenarios to an existing
+// immutable collection. Existing members can never be changed through this RPC.
+func (s *Server) ExtendCollection(ctx context.Context, req *connect.Request[baselinesv1.ExtendCollectionRequest]) (*connect.Response[baselinesv1.ExtendCollectionResponse], error) {
+	m := req.Msg
+	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("ExtendCollection", err)
+	}
+	targets := make([]bl.CollectionTarget, 0, len(m.GetTargets()))
+	for _, target := range m.GetTargets() {
+		targets = append(targets, bl.CollectionTarget{Scenario: target.GetScenario(), BaselineName: target.GetBaselineName(), Required: target.GetRequired()})
+	}
+	started, err := s.svc.ExtendCollection(ctx, bl.ExtendCollectionRequest{RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason()})
+	if err != nil {
+		return nil, s.wrap("ExtendCollection", err)
+	}
+	for _, pending := range started.Pending {
+		s.finalizeCollectionCapture(ctx, rid, pending)
+	}
+	return connect.NewResponse(&baselinesv1.ExtendCollectionResponse{Collection: collectionToProto(started.Collection), AddedScenarios: started.AddedScenarios, Resumed: started.Resumed}), nil
 }
 
 func (s *Server) finalizeCollectionCapture(ctx context.Context, repoID int64, pending bl.PendingCollectionCapture) {

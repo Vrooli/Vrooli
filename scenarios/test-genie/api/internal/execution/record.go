@@ -11,16 +11,19 @@ import (
 
 // SuiteExecutionRecord captures a persisted execution outcome.
 type SuiteExecutionRecord struct {
-	ID                  uuid.UUID
-	RunID               string
-	ScenarioName        string
-	PresetUsed          string
-	RequestedPreset     string
-	RequestedPhases     []string
-	RequestedSkipPhases []string
-	PlannedPhases       []string
-	FailFast            bool
-	Success             bool
+	ID                       uuid.UUID
+	RunID                    string
+	ScenarioName             string
+	PresetUsed               string
+	RequestedPreset          string
+	RequestedPhases          []string
+	RequestedSkipPhases      []string
+	PlannedPhases            []string
+	PhaseSetDigest           string
+	DescriptorSnapshotDigest string
+	ConfigurationFingerprint string
+	FailFast                 bool
+	Success                  bool
 	// TerminalOutcome classifies the run-level result (passed | failed |
 	// errored | aborted | timeout). It is the reliability ledger's denominator
 	// vocabulary; catastrophic runs (no result produced) persist a row carrying
@@ -46,6 +49,7 @@ func (r SuiteExecutionRecord) ToExecutionResult() *orchestrator.SuiteExecutionRe
 		RequestedPhases:     append([]string(nil), r.RequestedPhases...),
 		RequestedSkipPhases: append([]string(nil), r.RequestedSkipPhases...),
 		PlannedPhases:       append([]string(nil), r.PlannedPhases...),
+		PhaseSetDigest:      r.PhaseSetDigest,
 		FailFast:            r.FailFast,
 	}
 	if len(r.Phases) > 0 {

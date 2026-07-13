@@ -13,6 +13,10 @@ import (
 const (
 	planHistoryWindow = 90 * 24 * time.Hour
 	maxHistoryRows    = 2000
+	// Comprehensive provider startup, dependency readiness, persistence, and
+	// terminal projection routinely exceed a minute. Keep two minutes explicit
+	// until exact comparable full-run evidence is available.
+	additiveOrchestrationOverheadSeconds = 120
 )
 
 // ExecutionPlanner exposes scenario-aware plan previews for API/UI/CLI surfaces.
@@ -26,6 +30,7 @@ type executionPlanBuilder interface {
 
 type phaseSampleReader interface {
 	ListPhaseSamples(ctx context.Context, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error)
+	ListPlanSamples(ctx context.Context, scenario string, since time.Time, limit int) ([]PlanDurationSample, error)
 }
 
 // ExecutionPlanService builds scenario-aware phase plans enriched with historical estimates.
@@ -107,7 +112,7 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 			preview.OmittedPhases = append(preview.OmittedPhases, previewPhase)
 		}
 		appendNotApplicablePhases(preview, basePlan.NotApplicablePhases)
-		return preview, nil
+		return s.applyRunLevelEstimate(ctx, req, basePlan, preview, since)
 	}
 
 	for _, phase := range basePlan.Phases {
@@ -118,8 +123,55 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 		addSelectedPhaseSummary(&preview.Summary, previewPhase)
 	}
 	appendNotApplicablePhases(preview, basePlan.NotApplicablePhases)
+	return s.applyRunLevelEstimate(ctx, req, basePlan, preview, since)
+}
 
+// applyRunLevelEstimate first looks for an exact, same-scenario full-run key.
+// It deliberately refuses legacy or mismatched descriptor/config rows: a phase
+// set digest existed to make this comparison fail closed, not merely to appear
+// in the durable run index. When no exact history exists, phase estimates remain
+// useful but are truthfully labeled additive and include fixed overhead.
+func (s *ExecutionPlanService) applyRunLevelEstimate(ctx context.Context, req orchestrator.SuiteExecutionRequest, base *orchestrator.ExecutionPlanPreview, preview *ExecutionPlanPreview, since time.Time) (*ExecutionPlanPreview, error) {
+	if preview == nil || base == nil {
+		return preview, nil
+	}
+	planSamples, err := s.samples.ListPlanSamples(ctx, base.ScenarioName, since, maxHistoryRows)
+	if err != nil {
+		return nil, err
+	}
+	comparable := comparableRunSamples(planSamples, base.PhaseSetDigest, base.DescriptorSnapshotDigest, base.ConfigurationFingerprint)
+	if len(comparable) > 0 {
+		estimate := profileplanner.EstimateComparableRun(comparable)
+		preview.Summary.EstimatedDurationSeconds = estimate.DurationSeconds
+		preview.Summary.EstimateSource = estimate.Source
+		preview.Summary.EstimateConfidence = estimate.Confidence
+		preview.Summary.EstimateSampleSize = estimate.SampleSize
+		preview.Summary.EstimateMode = "comparable_full_run"
+		return preview, nil
+	}
+	// A custom phase selection and a preset use the same fallback: selected
+	// phases are real, but their historical total is absent or non-comparable.
+	_ = req
+	preview.Summary.EstimatedDurationSeconds += additiveOrchestrationOverheadSeconds
+	preview.Summary.OrchestrationOverheadSeconds = additiveOrchestrationOverheadSeconds
+	preview.Summary.EstimateSource = EstimateSourceBlendedHistory
+	preview.Summary.EstimateConfidence = EstimateConfidenceLow
+	preview.Summary.EstimateMode = "additive_phase_history"
 	return preview, nil
+}
+
+func comparableRunSamples(samples []PlanDurationSample, phaseSetDigest, descriptorDigest, configurationFingerprint string) []profileplanner.RunSample {
+	if phaseSetDigest == "" || descriptorDigest == "" || configurationFingerprint == "" {
+		return nil
+	}
+	out := make([]profileplanner.RunSample, 0, len(samples))
+	for _, sample := range samples {
+		if sample.PhaseSetDigest != phaseSetDigest || sample.DescriptorSnapshotDigest != descriptorDigest || sample.ConfigurationFingerprint != configurationFingerprint {
+			continue
+		}
+		out = append(out, profileplanner.RunSample{DurationSeconds: sample.DurationSeconds, TerminalOutcome: sample.TerminalOutcome, CompletedAt: sample.CompletedAt})
+	}
+	return out
 }
 
 func (s *ExecutionPlanService) previewBasePlan(req orchestrator.SuiteExecutionRequest) (*orchestrator.ExecutionPlanPreview, error) {
@@ -167,6 +219,7 @@ func plannerSamples(samples []PhaseDurationSample) []profileplanner.Sample {
 			PhaseName:       sample.PhaseName,
 			Status:          sample.Status,
 			DurationSeconds: sample.DurationSeconds,
+			CompletedAt:     sample.CompletedAt,
 		})
 	}
 	return out

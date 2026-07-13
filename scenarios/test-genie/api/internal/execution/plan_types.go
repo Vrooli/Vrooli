@@ -61,11 +61,16 @@ type PlannedPhase struct {
 
 // ExecutionPlanSummary captures total timing guidance for a plan.
 type ExecutionPlanSummary struct {
-	PhaseCount               int `json:"phaseCount"`
-	EstimatedDurationSeconds int `json:"estimatedDurationSeconds"`
-	TimeoutSeconds           int `json:"timeoutSeconds"`
-	BudgetSeconds            int `json:"budgetSeconds,omitempty"`
-	UnknownEstimateCount     int `json:"unknownEstimateCount,omitempty"`
+	PhaseCount                   int                `json:"phaseCount"`
+	EstimatedDurationSeconds     int                `json:"estimatedDurationSeconds"`
+	TimeoutSeconds               int                `json:"timeoutSeconds"`
+	BudgetSeconds                int                `json:"budgetSeconds,omitempty"`
+	UnknownEstimateCount         int                `json:"unknownEstimateCount,omitempty"`
+	EstimateSource               EstimateSource     `json:"estimateSource,omitempty"`
+	EstimateConfidence           EstimateConfidence `json:"estimateConfidence,omitempty"`
+	EstimateSampleSize           int                `json:"estimateSampleSize,omitempty"`
+	EstimateMode                 string             `json:"estimateMode,omitempty"`
+	OrchestrationOverheadSeconds int                `json:"orchestrationOverheadSeconds,omitempty"`
 }
 
 type ProfilePlan struct {
@@ -93,4 +98,17 @@ type PhaseDurationSample struct {
 	Status          string
 	DurationSeconds int
 	CompletedAt     time.Time
+}
+
+// PlanDurationSample is a terminal full-run observation. Legacy rows with an
+// empty comparability key deliberately cannot be treated as exact matches.
+type PlanDurationSample struct {
+	ScenarioName             string
+	PhaseSetDigest           string
+	DescriptorSnapshotDigest string
+	ConfigurationFingerprint string
+	TerminalOutcome          string
+	DurationSeconds          int
+	StartedAt                time.Time
+	CompletedAt              time.Time
 }

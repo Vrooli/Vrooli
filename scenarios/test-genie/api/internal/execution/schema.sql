@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS suite_executions (
     requested_phases TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(requested_phases)),
     requested_skip_phases TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(requested_skip_phases)),
     planned_phases TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(planned_phases)),
+	-- Comparability key for full-run timing history. Legacy rows intentionally
+	-- remain NULL and therefore participate only in the degraded additive path.
+	phase_set_digest TEXT,
+	descriptor_snapshot_digest TEXT,
+	configuration_fingerprint TEXT,
     fail_fast INTEGER NOT NULL DEFAULT 0 CHECK (fail_fast IN (0, 1)),
     success INTEGER NOT NULL CHECK (success IN (0, 1)),
     -- terminal_outcome classifies the run-level result: passed | failed |
