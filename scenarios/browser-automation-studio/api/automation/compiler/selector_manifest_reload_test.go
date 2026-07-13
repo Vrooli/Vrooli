@@ -31,16 +31,19 @@ func TestLoadSelectorManifestReloadsProjectChanges(t *testing.T) {
 	}
 
 	writeManifest("[data-testid=\"old-status\"]")
-	first, err := loadSelectorManifest(root)
+	first, firstPath, err := loadSelectorManifest(root)
 	if err != nil {
 		t.Fatalf("first loadSelectorManifest() error = %v", err)
+	}
+	if firstPath != path {
+		t.Fatalf("first loadSelectorManifest() path = %q, want %q", firstPath, path)
 	}
 	if got := first["selectors"].(map[string]interface{})["dictationStudio.streamStatus"].(map[string]interface{})["selector"]; got != "[data-testid=\"old-status\"]" {
 		t.Fatalf("first selector = %v", got)
 	}
 
 	writeManifest("[data-testid=\"new-status\"]")
-	second, err := loadSelectorManifest(root)
+	second, _, err := loadSelectorManifest(root)
 	if err != nil {
 		t.Fatalf("second loadSelectorManifest() error = %v", err)
 	}

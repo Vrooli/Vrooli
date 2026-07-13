@@ -97,6 +97,9 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	store, params, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
+	if err := validateProjectRoot(projectRoot); err != nil {
+		return nil, err
+	}
 	if err := validateSeedRequirements(req.FlowDefinition, store, params, env); err != nil {
 		return nil, err
 	}

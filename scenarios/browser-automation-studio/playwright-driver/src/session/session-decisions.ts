@@ -113,12 +113,34 @@ export function findByExecutionId(
 }
 
 /**
+ * Check if a session is safe to hand to a DIFFERENT execution via label pooling.
+ *
+ * DECISION: Only idle sessions are poolable
+ * Label-based reuse rebinds the session to a new execution (spec overwrite,
+ * phase forced to 'ready'). Doing that to a session that is initializing,
+ * executing, recording, resetting, or closing hijacks it out from under its
+ * current owner: the owner's in-flight instruction gets its navigation
+ * aborted (net::ERR_ABORTED) and subsequent instructions race into
+ * SESSION_BUSY. Idempotent retries of the SAME execution are handled by the
+ * execution_id match, which has its own stuck-phase recovery.
+ *
+ * @param session - Session to check
+ * @returns true if the session may be pooled across executions
+ */
+export function isSafeForLabelReuse(session: SessionState): boolean {
+  return session.phase === 'ready';
+}
+
+/**
  * Find a reusable session by labels.
  * Used when reuse_mode is 'reuse' or 'clean'.
+ * Sessions that are busy with another execution are skipped (see
+ * isSafeForLabelReuse); if every matching session is busy, the caller
+ * creates a fresh session instead.
  *
  * @param sessions - All active sessions
  * @param labels - Labels to match
- * @returns The first matching session or null
+ * @returns The first idle matching session or null
  */
 export function findByLabels(
   sessions: Iterable<SessionState>,
@@ -129,7 +151,7 @@ export function findByLabels(
   }
 
   for (const session of sessions) {
-    if (matchesByLabels(session, labels)) {
+    if (matchesByLabels(session, labels) && isSafeForLabelReuse(session)) {
       return session;
     }
   }

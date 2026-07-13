@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -66,5 +67,25 @@ func TestExecutionProjectRootPropagatesLookupFailure(t *testing.T) {
 	_, err := executionProjectRoot(context.Background(), executionProjectCatalogStub{err: want}, uuid.New())
 	if !errors.Is(err, want) {
 		t.Fatalf("executionProjectRoot() error = %v, want %v", err, want)
+	}
+}
+
+func TestValidateProjectRootRejectsRelativePaths(t *testing.T) {
+	t.Parallel()
+
+	if err := validateProjectRoot(""); err != nil {
+		t.Fatalf("validateProjectRoot(\"\") error = %v, want nil", err)
+	}
+	if err := validateProjectRoot("/workspace/scenarios/audio-tools/bas"); err != nil {
+		t.Fatalf("validateProjectRoot(absolute) error = %v, want nil", err)
+	}
+	// A relative root resolves against the server's working directory, not the
+	// caller's, and silently selects the wrong selector manifest.
+	err := validateProjectRoot("../../../scenarios/audio-tools/bas")
+	if err == nil {
+		t.Fatal("validateProjectRoot(relative) error = nil, want rejection")
+	}
+	if got := err.Error(); !strings.Contains(got, "absolute") {
+		t.Fatalf("validateProjectRoot(relative) error = %q, want mention of absolute-path requirement", got)
 	}
 }

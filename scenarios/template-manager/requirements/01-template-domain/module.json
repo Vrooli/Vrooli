@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Operational requirements for Template Manager's accountable ownership of Vrooli template handling.",
-    "last_validated_at": "2026-07-10T13:17:11-04:00",
+    "last_validated_at": "2026-07-12T22:11:06-04:00",
     "module": "template-domain",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -41,7 +41,7 @@
     {
       "id": "TM-P0-002",
       "title": "Validation Runs And Debt Ledger",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "criticality": "P0",
@@ -63,8 +63,8 @@
           "type": "test",
           "ref": "docs/concepts/DATA.md",
           "phase": "integration",
-          "status": "planned",
-          "notes": "A live shallow validation run is persisted and queryable through API and CLI."
+          "status": "implemented",
+          "notes": "Live shallow and deep validation runs are persisted and queryable through API and CLI; deep execution records terminal Test Genie phase results."
         }
       ]
     },
@@ -154,7 +154,7 @@
     {
       "id": "TM-P1-002",
       "title": "Dashboard And Measures",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "ui",
       "criticality": "P1",
@@ -169,7 +169,7 @@
           "type": "test",
           "ref": "ui/src/App.tsx",
           "phase": "ui-health",
-          "status": "implemented",
+          "status": "failing",
           "notes": "UI tests cover loading, empty, error, a11y, and data-rendering states for all dashboard surfaces."
         },
         {
@@ -184,7 +184,7 @@
     {
       "id": "TM-P1-003",
       "title": "Recurring Deep Validate Monitor",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "operations",
       "criticality": "P1",
@@ -199,8 +199,8 @@
           "type": "test",
           "ref": "docs/concepts/FLOWS.md",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Short-interval test proves one scheduler-attributed deep validation run is persisted."
+          "status": "implemented",
+          "notes": "Monitor tests cover scheduler attribution and active-template selection; a scheduler-attributed deep run is persisted through the production lifecycle."
         }
       ]
     },

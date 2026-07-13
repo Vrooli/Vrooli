@@ -236,7 +236,10 @@ func (s *Service) templateIDs(ctx context.Context) ([]string, error) {
 	}
 	out := make([]string, 0, len(records))
 	for _, record := range records {
-		if record.Status != "retired" && strings.TrimSpace(record.ID) != "" {
+		// Quarantined templates are intentionally excluded from scheduled
+		// validation. Their known failures must not turn the active-template
+		// monitor red; a manual validation is still available for diagnosis.
+		if record.Status == "active" && strings.TrimSpace(record.ID) != "" {
 			out = append(out, record.ID)
 		}
 	}

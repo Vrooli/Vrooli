@@ -59,6 +59,9 @@ type Spec struct {
 	// Execution-specific fields
 	BaseURL      string                // Base URL for relative navigation
 	Capabilities CapabilityRequirement // HAR, video, tracing needs
+	// Absolute WAV path served as a deterministic fake microphone.
+	// The driver launches a dedicated browser instance per distinct value.
+	FakeMicrophoneWav string
 
 	// Labels for debugging/filtering
 	Labels map[string]string

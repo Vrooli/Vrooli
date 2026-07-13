@@ -131,6 +131,13 @@ func CompileWorkflowWithOptions(workflow *basapi.WorkflowSummary, opts *CompileO
 	if width, height := extractViewportFromSettings(raw.Settings); width > 0 && height > 0 {
 		metadata["executionViewport"] = map[string]any{"width": width, "height": height}
 	}
+	fakeMicrophoneWav, err := resolveFakeMediaMicrophone(raw.Settings, opts)
+	if err != nil {
+		return nil, err
+	}
+	if fakeMicrophoneWav != "" {
+		metadata["fakeMediaMicrophoneWav"] = fakeMicrophoneWav
+	}
 	if selector, timeout := extractEntryFromSettings(raw.Settings); selector != "" || timeout > 0 {
 		if selector != "" {
 			metadata["entrySelector"] = selector
@@ -432,6 +439,64 @@ func toPositiveInt(value any) int {
 		}
 	}
 	return 0
+}
+
+// resolveFakeMediaMicrophone extracts settings.fake_media.microphone_wav and
+// resolves it to an absolute WAV path. Relative paths resolve against the
+// execution's project root (and, mirroring the selector-manifest contract,
+// its parent when the root is a scenario's bas/ folder) and must stay within
+// that root so committed workflows can only reference repo fixtures.
+func resolveFakeMediaMicrophone(settings map[string]any, opts *CompileOptions) (string, error) {
+	if settings == nil {
+		return "", nil
+	}
+	fm, ok := settings["fake_media"].(map[string]any)
+	if !ok {
+		fm, ok = settings["fakeMedia"].(map[string]any)
+	}
+	if !ok {
+		return "", nil
+	}
+	wav, _ := fm["microphone_wav"].(string)
+	if strings.TrimSpace(wav) == "" {
+		wav, _ = fm["microphoneWav"].(string)
+	}
+	wav = strings.TrimSpace(wav)
+	if wav == "" {
+		return "", nil
+	}
+
+	if filepath.IsAbs(wav) {
+		if _, err := os.Stat(wav); err != nil {
+			return "", fmt.Errorf("fake_media.microphone_wav %q not readable: %w", wav, err)
+		}
+		return filepath.Clean(wav), nil
+	}
+
+	projectRoot := ""
+	if opts != nil {
+		projectRoot = strings.TrimSpace(opts.SelectorManifestRoot)
+	}
+	if projectRoot == "" {
+		return "", fmt.Errorf("fake_media.microphone_wav %q is relative but no project_root was provided to resolve it against", wav)
+	}
+
+	roots := []string{filepath.Clean(projectRoot)}
+	if filepath.Base(roots[0]) == "bas" {
+		roots = append(roots, filepath.Dir(roots[0]))
+	}
+	tried := make([]string, 0, len(roots))
+	for _, root := range roots {
+		candidate := filepath.Clean(filepath.Join(root, wav))
+		if !strings.HasPrefix(candidate, root+string(filepath.Separator)) {
+			return "", fmt.Errorf("fake_media.microphone_wav %q escapes project root %q", wav, root)
+		}
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+		tried = append(tried, candidate)
+	}
+	return "", fmt.Errorf("fake_media.microphone_wav %q not found under project root (tried: %v)", wav, tried)
 }
 
 func extractViewportFromSettings(settings map[string]any) (int, int) {

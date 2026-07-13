@@ -52,6 +52,15 @@ export interface SessionSpec {
     accuracy?: number;
   };
   permissions?: string[];
+  /**
+   * Deterministic fake media devices for this session.
+   * Chromium serves fake capture devices process-wide, so the driver pools a
+   * dedicated browser instance per distinct microphone WAV path.
+   */
+  fake_media?: {
+    /** Absolute WAV path used as the fake microphone capture source. */
+    microphone_wav?: string;
+  };
   storage_state?: {
     cookies: Array<{
       name: string;
@@ -384,6 +393,10 @@ export interface StartSessionRequest {
    * Optional: Browser profile for anti-detection and human-like behavior.
    */
   browser_profile?: BrowserProfile;
+  /**
+   * Optional: Deterministic fake media devices (see SessionSpec.fake_media).
+   */
+  fake_media?: SessionSpec['fake_media'];
 }
 
 /**

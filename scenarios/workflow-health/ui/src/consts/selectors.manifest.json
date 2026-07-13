@@ -1,0 +1,262 @@
+{
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "workflow.overview": {
+      "testId": "workflow-overview",
+      "selector": "[data-testid=\"workflow-overview\"]"
+    },
+    "workflow.inventory": {
+      "testId": "workflow-inventory",
+      "selector": "[data-testid=\"workflow-inventory\"]"
+    },
+    "workflow.search": {
+      "testId": "workflow-search",
+      "selector": "[data-testid=\"workflow-search\"]"
+    },
+    "workflow.runs": {
+      "testId": "workflow-runs",
+      "selector": "[data-testid=\"workflow-runs\"]"
+    },
+    "workflow.findings": {
+      "testId": "workflow-findings",
+      "selector": "[data-testid=\"workflow-findings\"]"
+    },
+    "workflow.fixes": {
+      "testId": "workflow-fixes",
+      "selector": "[data-testid=\"workflow-fixes\"]"
+    },
+    "workflow.scenarioSelect": {
+      "testId": "workflow-scenario-select",
+      "selector": "[data-testid=\"workflow-scenario-select\"]"
+    },
+    "workflow.assetTable": {
+      "testId": "workflow-asset-table",
+      "selector": "[data-testid=\"workflow-asset-table\"]"
+    },
+    "workflow.searchInput": {
+      "testId": "workflow-search-input",
+      "selector": "[data-testid=\"workflow-search-input\"]"
+    },
+    "workflow.searchTypeFilter": {
+      "testId": "workflow-search-type-filter",
+      "selector": "[data-testid=\"workflow-search-type-filter\"]"
+    },
+    "workflow.runTimeline": {
+      "testId": "workflow-run-timeline",
+      "selector": "[data-testid=\"workflow-run-timeline\"]"
+    },
+    "workflow.fixPreview": {
+      "testId": "workflow-fix-preview",
+      "selector": "[data-testid=\"workflow-fix-preview\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.overview": {
+      "testId": "page-overview",
+      "selector": "[data-testid=\"page-overview\"]"
+    },
+    "pages.inventory": {
+      "testId": "page-inventory",
+      "selector": "[data-testid=\"page-inventory\"]"
+    },
+    "pages.search": {
+      "testId": "page-search",
+      "selector": "[data-testid=\"page-search\"]"
+    },
+    "pages.runs": {
+      "testId": "page-runs",
+      "selector": "[data-testid=\"page-runs\"]"
+    },
+    "pages.findings": {
+      "testId": "page-findings",
+      "selector": "[data-testid=\"page-findings\"]"
+    },
+    "pages.fixes": {
+      "testId": "page-fixes",
+      "selector": "[data-testid=\"page-fixes\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "overview",
+            "inventory",
+            "search",
+            "runs",
+            "findings",
+            "fixes",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "overview",
+            "inventory",
+            "search",
+            "runs",
+            "findings",
+            "fixes",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  }
+}

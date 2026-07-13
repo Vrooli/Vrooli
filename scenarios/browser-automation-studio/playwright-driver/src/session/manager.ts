@@ -281,7 +281,15 @@ export class SessionManager {
       viewport: spec.viewport,
     });
 
-    const browser = await this.browserManager.getBrowser();
+    const fakeMicrophoneWav = spec.fake_media?.microphone_wav?.trim();
+    if (fakeMicrophoneWav) {
+      // Fake capture devices only serve pages that were granted microphone
+      // access; grant it at the context level so getUserMedia never prompts.
+      const permissions = new Set(spec.permissions ?? []);
+      permissions.add('microphone');
+      spec = { ...spec, permissions: [...permissions] };
+    }
+    const browser = await this.browserManager.getBrowser(fakeMicrophoneWav);
 
     // Build context (includes actualViewport with source attribution)
     const {

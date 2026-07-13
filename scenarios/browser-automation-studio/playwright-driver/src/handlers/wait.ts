@@ -21,9 +21,11 @@ export class WaitHandler extends BaseHandler {
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
+    // Extract typed params from action up front so the error path can preserve
+    // the known selector even if validation below fails.
+    const typedParams = instruction.action ? getWaitParams(instruction.action) : undefined;
+
     try {
-      // Extract typed params from action
-      const typedParams = instruction.action ? getWaitParams(instruction.action) : undefined;
       const params = this.requireTypedParams(typedParams, 'wait', instruction.nodeId);
 
       if (params.selector) {
@@ -84,7 +86,7 @@ export class WaitHandler extends BaseHandler {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      const driverError = normalizeError(error, { selector: params?.selector });
+      const driverError = normalizeError(error, { selector: typedParams?.selector });
 
       return {
         success: false,

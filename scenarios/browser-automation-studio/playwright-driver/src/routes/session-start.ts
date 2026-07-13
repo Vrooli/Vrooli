@@ -107,6 +107,7 @@ export async function handleSessionStart(
       artifact_paths: request.artifact_paths,
       storage_state: request.storage_state,
       browser_profile: request.browser_profile,
+      fake_media: request.fake_media,
     };
 
     // Start session - returns session info including whether it was reused and actual viewport

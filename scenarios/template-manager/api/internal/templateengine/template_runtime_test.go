@@ -594,6 +594,16 @@ func TestRunTemplateValidateDeepParsesTestGenieJSONOnNonzeroExit(t *testing.T) {
 	}
 }
 
+func TestParseTestGenieJSONResultUsesTerminalResultAfterRunHandle(t *testing.T) {
+	result := parseTestGenieJSONResult("react-vite", []byte(`
+{"event":"run_started","run_id":"run-1","scenario":"template-validation-react-vite-deep"}
+{"success":true,"phaseSummary":{"total":20,"passed":20,"failed":0}}
+`))
+	if result.Issue != nil || result.Success == nil || !*result.Success {
+		t.Fatalf("terminal Test Genie result must win over an early run handle: %#v", result)
+	}
+}
+
 func TestRunTemplateValidateDeepReportsTestGenieStartupErrorDetails(t *testing.T) {
 	repoRoot := t.TempDir()
 	seedRepoContract(t, repoRoot)

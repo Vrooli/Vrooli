@@ -146,7 +146,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     extractData: (message): Record<string, unknown> => ({
       selector: extractSelectorFromMessage(message),
     }),
-    createError: (message, data, context) => {
+    createError: (message, data, context): SelectorNotFoundError => {
       const selector = context?.selector ?? (data.selector as string | undefined) ?? 'unknown';
       return new SelectorNotFoundError(selector, undefined, message);
     },

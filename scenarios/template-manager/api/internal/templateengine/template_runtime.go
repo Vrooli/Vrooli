@@ -620,9 +620,13 @@ func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGeni
 		WarningSummary TemplateValidationWarningSummary `json:"warningSummary"`
 	}
 
-	data := bytes.TrimSpace(output)
+	data, extractErr := terminalTestGenieJSON(output)
 	if len(data) == 0 {
 		issue := newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationProtocolPath, "test-genie deep validation produced no JSON output")
+		return parsedTestGenieResult{Issue: &issue}
+	}
+	if extractErr != nil {
+		issue := newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationProtocolPath, fmt.Sprintf("test-genie deep validation returned invalid JSON: %v", extractErr))
 		return parsedTestGenieResult{Issue: &issue}
 	}
 	var response testGenieResponse
@@ -678,6 +682,40 @@ func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGeni
 	issue := newTestGenieDeepValidationIssue(templateName, testGenieDeepValidationPhaseResultsPath, "test-genie deep validation failed: "+truncateForIssue(summary, 2000))
 	result.Issue = &issue
 	return result
+}
+
+// terminalTestGenieJSON tolerates the durable-run handle emitted before a
+// terminal result. The Test Genie --json contract keeps that handle on stderr,
+// but accepting it here protects persisted template evidence when a wrapper
+// merges streams. Only an object carrying success is a terminal result; an
+// event-only handle never becomes a fabricated validation outcome.
+func terminalTestGenieJSON(output []byte) ([]byte, error) {
+	decoder := json.NewDecoder(bytes.NewReader(output))
+	var last, terminal json.RawMessage
+	for {
+		var value json.RawMessage
+		err := decoder.Decode(&value)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		last = append(last[:0], value...)
+		var envelope struct {
+			Success *bool `json:"success"`
+		}
+		if err := json.Unmarshal(value, &envelope); err != nil {
+			return nil, err
+		}
+		if envelope.Success != nil {
+			terminal = append(terminal[:0], value...)
+		}
+	}
+	if len(terminal) > 0 {
+		return terminal, nil
+	}
+	return last, nil
 }
 
 func mergeTemplateValidationWarningSummaries(left, right TemplateValidationWarningSummary) TemplateValidationWarningSummary {

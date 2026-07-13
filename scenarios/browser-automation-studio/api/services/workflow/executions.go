@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -120,6 +121,9 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 
 	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
+	if err := validateProjectRoot(projectRoot); err != nil {
+		return nil, err
+	}
 	if projectRoot == "" {
 		projectRoot, err = executionProjectRoot(ctx, s.repo, workflowID)
 		if err != nil {
@@ -270,6 +274,16 @@ func executionProjectRoot(ctx context.Context, catalog executionProjectCatalog, 
 		return "", nil
 	}
 	return strings.TrimSpace(project.FolderPath), nil
+}
+
+// validateProjectRoot rejects relative project_root values. A relative path
+// would be resolved against the BAS server's working directory rather than the
+// caller's, silently selecting the wrong selector manifest and scenario root.
+func validateProjectRoot(projectRoot string) error {
+	if projectRoot != "" && !filepath.IsAbs(projectRoot) {
+		return fmt.Errorf("execution parameter project_root must be an absolute path, got %q (relative paths resolve against the BAS server working directory, not the caller's)", projectRoot)
+	}
+	return nil
 }
 
 // executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, start URL, session profile IDs, and execution defaults from ExecutionParameters.

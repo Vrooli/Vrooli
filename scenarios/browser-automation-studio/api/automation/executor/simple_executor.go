@@ -204,17 +204,22 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 
 	viewportWidth, viewportHeight := extractViewport(req.Plan.Metadata)
 	frameStreamingConfig := extractFrameStreamingConfig(req.Plan.Metadata, req.Plan.ExecutionID)
+	fakeMicrophoneWav := extractFakeMicrophoneWav(req.Plan.Metadata)
 	spec := engine.SessionSpec{
 		ExecutionID:    req.Plan.ExecutionID,
 		WorkflowID:     req.Plan.WorkflowID,
 		ReuseMode:      reuseMode,
 		ViewportWidth:  viewportWidth,
 		ViewportHeight: viewportHeight,
-		Labels:         map[string]string{},
-		Capabilities:   requirements,
-		FrameStreaming: frameStreamingConfig,
-		BrowserProfile: req.BrowserProfile,
-		StorageState:   req.StorageState,
+		// The fake_microphone label partitions session pooling: a session
+		// bound to a fake-media browser must never be reused by an execution
+		// that expects real devices, and vice versa.
+		Labels:            map[string]string{"fake_microphone": fakeMicrophoneWav},
+		Capabilities:      requirements,
+		FrameStreaming:    frameStreamingConfig,
+		BrowserProfile:    req.BrowserProfile,
+		StorageState:      req.StorageState,
+		FakeMicrophoneWav: fakeMicrophoneWav,
 	}
 
 	var session engine.EngineSession
@@ -1478,6 +1483,15 @@ func extractViewport(metadata map[string]any) (int, int) {
 		"height": height,
 	}).Info("extractViewport: extracted viewport dimensions")
 	return width, height
+}
+
+// extractFakeMicrophoneWav extracts the compiler-resolved fake microphone WAV
+// path from plan metadata. Empty when the workflow does not request fake media.
+func extractFakeMicrophoneWav(metadata map[string]any) string {
+	if v, ok := metadata["fakeMediaMicrophoneWav"].(string); ok {
+		return strings.TrimSpace(v)
+	}
+	return ""
 }
 
 // extractFrameStreamingConfig extracts frame streaming configuration from plan metadata.

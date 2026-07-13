@@ -36,7 +36,7 @@ naming, ports, health checks, and logs.
 | API unhealthy | `/health`, SQLite path, API logs | Run `make setup`, verify writable data dir | Check `INTEGRATIONS.md` for dependency expectations. |
 | UI blank or stale | UI port, browser console, `ui/dist` freshness | `make setup` then `make restart` | Add troubleshooting entry if recurring. |
 | CLI talks to old API | `template-manager status`, configured API base | Reinstall via `make setup` | Update CLI reference if command changed. |
-| Deep-validate monitor failing | `template-manager monitor status --json`, API logs, latest `template-manager runs list --template react-vite --json` | Set a longer `TEMPLATE_MANAGER_MONITOR_INTERVAL`, restart through `make restart`, then inspect the scheduler-attributed run | Record recurring failures in `../internal/PROBLEMS.md` and open debt entries when failures are template defects. |
+| Deep-validate monitor failing | `template-manager monitor status --json`, API logs, latest `template-manager runs list --template react-vite --json` | Repair the failing active template, then restart through `make restart`; use `TEMPLATE_MANAGER_MONITOR_RUN_ON_START=true` only when an immediate scheduler run is required | The monitor validates active scenario templates only; quarantined and retired templates remain available for manual diagnosis without making the active-monitor result red. Record recurring active-template failures in `../internal/PROBLEMS.md`. |
 
 ## Backup / Restore
 

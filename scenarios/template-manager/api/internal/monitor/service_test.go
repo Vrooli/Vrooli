@@ -78,9 +78,28 @@ func TestRunDueSkipsWhenAlreadyRunning(t *testing.T) {
 	}
 }
 
+func TestTemplateIDsExcludesQuarantinedTemplates(t *testing.T) {
+	repo := newFakeRepo()
+	repo.templates = []catalog.TemplateRecord{
+		{ID: "react-vite", Kind: catalog.KindScenario, Status: "active"},
+		{ID: "landing-page-react-vite", Kind: catalog.KindScenario, Status: "quarantined"},
+		{ID: "legacy-template", Kind: catalog.KindScenario, Status: "retired"},
+	}
+	service := NewService(repo, &fakeValidator{}, Config{Enabled: true, Interval: time.Minute}, nil)
+
+	ids, err := service.templateIDs(context.Background())
+	if err != nil {
+		t.Fatalf("templateIDs: %v", err)
+	}
+	if len(ids) != 1 || ids[0] != "react-vite" {
+		t.Fatalf("template IDs = %v, want [react-vite]", ids)
+	}
+}
+
 type fakeRepo struct {
-	mu     sync.Mutex
-	status catalog.MonitorStatus
+	mu        sync.Mutex
+	status    catalog.MonitorStatus
+	templates []catalog.TemplateRecord
 }
 
 func newFakeRepo() *fakeRepo {
@@ -92,6 +111,7 @@ func newFakeRepo() *fakeRepo {
 			LastStatus:      "scheduled",
 			NextRunAt:       time.Date(2026, 7, 9, 12, 1, 0, 0, time.UTC),
 		},
+		templates: []catalog.TemplateRecord{{ID: "react-vite", Kind: catalog.KindScenario, Status: "active"}},
 	}
 }
 
@@ -109,7 +129,7 @@ func (r *fakeRepo) SaveMonitorStatus(_ context.Context, status catalog.MonitorSt
 }
 
 func (r *fakeRepo) ListTemplates(context.Context, catalog.TemplateKind) ([]catalog.TemplateRecord, error) {
-	return []catalog.TemplateRecord{{ID: "react-vite", Kind: catalog.KindScenario, Status: "active"}}, nil
+	return r.templates, nil
 }
 
 func (r *fakeRepo) DeepValidateGreenStreak(context.Context, string) (int64, error) {

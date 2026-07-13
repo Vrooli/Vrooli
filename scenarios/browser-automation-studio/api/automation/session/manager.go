@@ -233,6 +233,9 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 		if paths := m.buildArtifactPaths(spec, req.RequiredCapabilities); paths != nil {
 			req.ArtifactPaths = paths
 		}
+		if spec.FakeMicrophoneWav != "" {
+			req.FakeMedia = &driver.FakeMediaConfig{MicrophoneWav: spec.FakeMicrophoneWav}
+		}
 	}
 
 	return req

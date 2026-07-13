@@ -41,6 +41,9 @@ type SessionSpec struct {
 	FrameStreaming *FrameStreamingConfig                     // Optional: enables live frame streaming during execution.
 	BrowserProfile *sessionprofilepersistence.BrowserProfile // Optional: anti-detection and human-like behavior settings.
 	StorageState   json.RawMessage                           // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
+	// FakeMicrophoneWav is an absolute WAV path served as a deterministic fake
+	// microphone. Requires a dedicated browser instance (Chromium launch flag).
+	FakeMicrophoneWav string
 }
 
 // AutomationEngine exposes engine capabilities and produces engine sessions.

@@ -112,6 +112,17 @@ type CreateSessionRequest struct {
 
 	// Browser profile for anti-detection and human-like behavior
 	BrowserProfile *sessionprofilepersistence.BrowserProfile `json:"browser_profile,omitempty"`
+
+	// Execution mode - deterministic fake media devices
+	FakeMedia *FakeMediaConfig `json:"fake_media,omitempty"`
+}
+
+// FakeMediaConfig requests deterministic fake capture devices for a session.
+// Chromium serves fake media process-wide, so the driver pools a dedicated
+// browser instance per distinct microphone WAV.
+type FakeMediaConfig struct {
+	// Absolute WAV path used as the fake microphone capture source.
+	MicrophoneWav string `json:"microphone_wav,omitempty"`
 }
 
 // CreateSessionRequestFromUUID creates a session request using uuid.UUID types.
