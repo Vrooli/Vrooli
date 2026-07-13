@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"plan-manager/internal/clock"
@@ -128,6 +127,9 @@ SELECT payload_json FROM validation_operations WHERE status <> ? ORDER BY queued
 )
 
 func (r *sqliteResultStore) CreateOperation(ctx context.Context, op ValidationOperation) (ValidationOperation, bool, error) {
+	if err := validateStoredOperation(op); err != nil {
+		return ValidationOperation{}, false, err
+	}
 	payload, err := json.Marshal(op)
 	if err != nil {
 		return ValidationOperation{}, false, fmt.Errorf("marshal validation operation %q: %w", op.ID, err)
@@ -167,6 +169,9 @@ func (r *sqliteResultStore) activeOperation(ctx context.Context, planID, phaseID
 }
 
 func (r *sqliteResultStore) SaveOperation(ctx context.Context, op ValidationOperation) error {
+	if err := validateStoredOperation(op); err != nil {
+		return err
+	}
 	payload, err := json.Marshal(op)
 	if err != nil {
 		return fmt.Errorf("marshal validation operation %q: %w", op.ID, err)
@@ -200,34 +205,25 @@ func scanOperation(row *sql.Row) (ValidationOperation, bool, error) {
 	if err := json.Unmarshal([]byte(payload), &op); err != nil {
 		return ValidationOperation{}, false, fmt.Errorf("decode validation operation: %w", err)
 	}
-	op = migrateOperationForRead(op)
+	if err := validateStoredOperation(op); err != nil {
+		return ValidationOperation{}, false, fmt.Errorf("read validation operation: %w", err)
+	}
 	return op, true, nil
 }
 
-// migrateOperationForRead preserves legacy command-only JSON rows without
-// mutating user data during a read. New writes persist schema V2 typed checks;
-// callers that checkpoint a migrated operation naturally compact it to V2.
-func migrateOperationForRead(op ValidationOperation) ValidationOperation {
-	if op.SchemaVersion >= CurrentOperationSchemaVersion {
-		return op
+// validateStoredOperation keeps persisted validation operations forward-only.
+// Local data is upgraded by a one-shot, stopped-service migration; reads never
+// perform an implicit compatibility transform.
+func validateStoredOperation(op ValidationOperation) error {
+	if op.SchemaVersion != CurrentOperationSchemaVersion {
+		return fmt.Errorf("validation operation %q uses storage schema v%d; expected v%d (run the documented one-shot storage migration before starting plan-manager)", op.ID, op.SchemaVersion, CurrentOperationSchemaVersion)
 	}
-	for i := range op.Children {
-		child := &op.Children[i]
+	for _, child := range op.Children {
 		if child.Check.SemanticKey == "" {
-			child.Check = parseKnownValidationCheck(child.Command)
-			if child.Check.SemanticKey == "" {
-				child.Check = ValidationCheck{Kind: ValidationCheckCustom, SemanticKey: "legacy:" + strings.TrimSpace(child.Command), Command: child.Command, Oracle: child.Oracle}
-			}
-		}
-		if child.Command == "" {
-			child.Command = child.Check.Command
-		}
-		if !child.Oracle {
-			child.Oracle = child.Check.Oracle
+			return fmt.Errorf("validation operation %q child %q is missing its typed check identity (run the documented one-shot storage migration before starting plan-manager)", op.ID, child.ID)
 		}
 	}
-	op.SchemaVersion = CurrentOperationSchemaVersion
-	return op
+	return nil
 }
 
 func (r *sqliteResultStore) ListNonTerminalOperations(ctx context.Context) ([]ValidationOperation, error) {
@@ -246,7 +242,10 @@ func (r *sqliteResultStore) ListNonTerminalOperations(ctx context.Context) ([]Va
 		if err := json.Unmarshal([]byte(payload), &op); err != nil {
 			return nil, fmt.Errorf("decode pending validation operation: %w", err)
 		}
-		out = append(out, migrateOperationForRead(op))
+		if err := validateStoredOperation(op); err != nil {
+			return nil, fmt.Errorf("read pending validation operation: %w", err)
+		}
+		out = append(out, op)
 	}
 	return out, rows.Err()
 }

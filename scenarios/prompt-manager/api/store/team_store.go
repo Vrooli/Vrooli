@@ -894,11 +894,11 @@ func (s *FileTeamStore) runtimeSharedDir(team *Team) string {
 // RuntimeData shared/ root. Operator file ops use it to route a request to
 // the correct class root.
 var runtimeSharedBasenames = map[string]struct{}{
-	"tasks.json":                {},
-	"decisions.jsonl":           {},
-	"handoff-history.jsonl":     {},
-	"heartbeat-attempts.jsonl":  {},
-	"knowledge.jsonl":           {},
+	"tasks.json":               {},
+	"decisions.jsonl":          {},
+	"handoff-history.jsonl":    {},
+	"heartbeat-attempts.jsonl": {},
+	"knowledge.jsonl":          {},
 }
 
 // isRuntimeSharedRel reports whether the given (cleaned) relative path under
@@ -1448,6 +1448,105 @@ func (s *FileTeamStore) DeleteKnowledge(_ context.Context, teamID, knowledgeID s
 		return fmt.Errorf("knowledge entry not found: %s", knowledgeID)
 	}
 	return s.writeAllKnowledge(path, filtered)
+}
+
+// SaveBugDraft persists a private repairable intake draft. Drafts have their
+// own runtime file and are intentionally never returned by GetKnowledge.
+func (s *FileTeamStore) SaveBugDraft(_ context.Context, teamID string, draft BugDraft) error {
+	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "bug-drafts.jsonl")
+	drafts, err := s.readBugDrafts(path)
+	if err != nil {
+		return err
+	}
+	replaced := false
+	for i := range drafts {
+		if drafts[i].ID == draft.ID {
+			drafts[i] = draft
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		drafts = append(drafts, draft)
+	}
+	return s.writeBugDrafts(path, drafts)
+}
+
+// GetBugDraft returns one private draft. It is intentionally a direct-id read;
+// there is no broad draft listing in the normal knowledge/inbox surface.
+func (s *FileTeamStore) GetBugDraft(_ context.Context, teamID, id string) (BugDraft, error) {
+	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "bug-drafts.jsonl")
+	drafts, err := s.readBugDrafts(path)
+	if err != nil {
+		return BugDraft{}, err
+	}
+	for _, draft := range drafts {
+		if draft.ID == id {
+			return draft, nil
+		}
+	}
+	return BugDraft{}, fmt.Errorf("bug draft not found: %s", id)
+}
+
+// DeleteBugDraft removes a draft only after its corresponding bug-inbox entry
+// has been durably appended.
+func (s *FileTeamStore) DeleteBugDraft(_ context.Context, teamID, id string) error {
+	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "bug-drafts.jsonl")
+	drafts, err := s.readBugDrafts(path)
+	if err != nil {
+		return err
+	}
+	filtered := drafts[:0]
+	found := false
+	for _, draft := range drafts {
+		if draft.ID == id {
+			found = true
+			continue
+		}
+		filtered = append(filtered, draft)
+	}
+	if !found {
+		return fmt.Errorf("bug draft not found: %s", id)
+	}
+	return s.writeBugDrafts(path, filtered)
+}
+
+func (s *FileTeamStore) readBugDrafts(path string) ([]BugDraft, error) {
+	if !FileExists(path) {
+		return []BugDraft{}, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading bug drafts: %w", err)
+	}
+	drafts := make([]BugDraft, 0)
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var draft BugDraft
+		if err := json.Unmarshal([]byte(line), &draft); err != nil {
+			return nil, fmt.Errorf("decoding bug draft: %w", err)
+		}
+		drafts = append(drafts, draft)
+	}
+	return drafts, nil
+}
+
+func (s *FileTeamStore) writeBugDrafts(path string, drafts []BugDraft) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("creating bug draft directory: %w", err)
+	}
+	var out strings.Builder
+	for _, draft := range drafts {
+		data, err := json.Marshal(draft)
+		if err != nil {
+			return fmt.Errorf("marshaling bug draft: %w", err)
+		}
+		out.Write(data)
+		out.WriteByte('\n')
+	}
+	return os.WriteFile(path, []byte(out.String()), 0o600)
 }
 
 // --- Retention / Prune ---

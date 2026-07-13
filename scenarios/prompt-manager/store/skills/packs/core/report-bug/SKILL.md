@@ -54,60 +54,35 @@ Severity rule: severity is **the reporter's claim**. The investigator may overru
 
 1. **Validate inputs against the taxonomy.** Read `docs/scenario-qa/taxonomies/bug-report/README.md`. Confirm `signal_type` is one of the six values. Confirm severity is one of the three values. Confirm `repro`, `expected`, `actual` are populated (or that you've added the appropriate honesty flag).
 
-2. **Generate a kebab-case slug** that summarizes the bug in 3–6 words. Examples: `landing-page-builds-fail-on-empty-config`, `seam-discovery-misses-test-files`, `swarm-manager-cli-rejects-valid-uuid`.
-
-3. **Construct the topic.** `topic:bug-inbox/<signal-type>/<slug>`.
-
-4. **Format the front-matter.** Match the `bug-report` schema in the taxonomy exactly:
-
-   ```yaml
-   severity: <blocker|major|minor>
-   reporter: <your-agent-id>
-   reporter_team: <your-team-id>
-   observed_at: <today's date in YYYY-MM-DD>
-   context:
-     scenario: <scenario-id-or-null>
-     skill: <skill-id-or-null>
-     member: <member-id-or-null>
-     command: <command-or-null>
-   repro:
-     - <step 1>
-     - <step 2>
-   expected: <one-line>
-   actual: <one-line>
-   description: |
-     <free-form notes>
-   honesty_flags: [<flags>]
-   ```
-
-5. **Format the body.** Free-form, but include:
-   - **What you were trying to do** (one paragraph).
-   - **What happened** (one paragraph; specifics like error texts, stack traces, command output go here).
-   - **Why this looks like a bug** (one paragraph; cite the contradicting doc/spec/schema if applicable).
-
-6. **Invoke the knowledge writer.** From the command line (or whatever invocation surface your runtime exposes):
+2. **Capture once through the typed writer.** It constructs the topic,
+   front-matter, writer attribution, and immutable inbox entry only when the
+   taxonomy is complete:
 
    ```bash
-   prompt-manager team knowledge-add scenario-qa \
-     --topic="bug-inbox/<signal-type>/<slug>" \
-     --caller-note="filed via report-bug skill" \
-     --content="$(cat <<'EOF'
-   ---
-   <front-matter from step 4>
-   ---
-
-   <body from step 5>
-   EOF
-   )"
+   prompt-manager team bug-capture scenario-qa \
+     --title '<short observation>' --signal-type <type> --severity <severity> \
+     --repro '<step 1,step 2>' --expected '<expected>' --actual '<actual>' \
+     --description '<useful details>'
    ```
 
-7. **Confirm the write.** Capture the `knw-...` id returned by the CLI. Include it in your heartbeat output ("Filed bug-inbox/<topic> as <id>") so the operator and the investigator can trace.
+   A complete submission publishes in this one command. An incomplete or
+   invalid submission is instead saved as a private `draft`, with its missing
+   fields, invalid values, and exact `bug-repair` command. Do not retype the
+   report or make up a taxonomy value; repair the returned draft.
+
+3. **Confirm the disposition.** Capture the published `knw-...` id, or retain
+   the draft id until its repair publishes. Drafts are not bug reports and do
+   not appear under `bug-inbox/*`.
 
 ---
 
 ### **4. Output expectations**
 
-The skill produces exactly one knowledge entry on the scenario-qa team. The entry's topic is `topic:bug-inbox/<signal-type>/<slug>`; its front-matter conforms to the `bug-report` schema; its body provides enough context for the investigator to start without your context.
+The skill produces one of two explicit outcomes: a published knowledge entry on
+the scenario-qa team whose topic is `topic:bug-inbox/<signal-type>/<slug>`, or
+a private repairable draft. The published entry's front-matter conforms to the
+`bug-report` schema; its body provides enough context for the investigator to
+start without your context.
 
 You **must not**:
 

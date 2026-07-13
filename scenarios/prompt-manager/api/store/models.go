@@ -879,3 +879,26 @@ type KnowledgeEntry struct {
 	// or carry a malformed payload.
 	Attribution AttributionInfo `json:"attribution"`
 }
+
+// BugDraft is a private, repairable Scenario QA intake submission. It is kept
+// outside knowledge.jsonl deliberately: only published reports are bug-inbox
+// entries and therefore visible to the investigator or knowledge search.
+type BugDraft struct {
+	ID          string            `json:"id"`
+	CreatedAt   string            `json:"created_at"`
+	UpdatedAt   string            `json:"updated_at"`
+	Raw         map[string]any    `json:"raw"`
+	Accepted    map[string]string `json:"accepted"`
+	Needs       []string          `json:"needs"`
+	Invalid     []FieldDiagnostic `json:"invalid"`
+	Warnings    []string          `json:"warnings"`
+	Attribution AttributionInfo   `json:"attribution"`
+}
+
+// FieldDiagnostic explains one rejected capture field without discarding its
+// supplied value. It is shared by API and CLI recovery output.
+type FieldDiagnostic struct {
+	Field   string `json:"field"`
+	Value   string `json:"value,omitempty"`
+	Message string `json:"message"`
+}

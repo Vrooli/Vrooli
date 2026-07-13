@@ -746,6 +746,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdKnowledgeUpdate(ctx, subArgs)
 	case "knowledge-delete":
 		return cmdKnowledgeDelete(ctx, subArgs)
+	case "bug-capture":
+		return cmdBugCapture(ctx, subArgs)
+	case "bug-repair":
+		return cmdBugRepair(ctx, subArgs)
 	case "retention":
 		return cmdRetention(ctx, subArgs)
 	case "prune":
@@ -830,6 +834,8 @@ Knowledge Log Commands:
   knowledge-list <team-id>              List knowledge entries
   knowledge-update <team-id> <id>       Update a knowledge entry
   knowledge-delete <team-id> <id>       Delete a knowledge entry
+  bug-capture <team-id>                 Capture a Scenario QA bug (publishes or saves a private draft)
+  bug-repair <team-id> <draft-id>       Repair a private bug draft; publishes when complete
 
 Retention Commands:
   retention <team-id>                         Show effective retention config
@@ -4565,6 +4571,129 @@ func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 
 	fmt.Printf("Added knowledge %s [%s]: %s\n", resp.ID, resp.Topic, truncate(resp.Content, 80))
 	return nil
+}
+
+// bugCaptureRequest mirrors heartbeat.BugCaptureRequest. Keeping the CLI's
+// shape local avoids importing API packages while preserving the typed wire
+// contract at the HTTP boundary.
+type bugCaptureRequest struct {
+	Title          string            `json:"title"`
+	SignalType     string            `json:"signal_type"`
+	Severity       string            `json:"severity"`
+	Repro          []string          `json:"repro"`
+	Expected       string            `json:"expected"`
+	Actual         string            `json:"actual"`
+	Description    string            `json:"description"`
+	Context        map[string]string `json:"context,omitempty"`
+	HonestyFlags   []string          `json:"honesty_flags"`
+	IdempotencyKey string            `json:"idempotency_key"`
+}
+
+type bugCaptureResponse struct {
+	Disposition string               `json:"disposition"`
+	DraftID     string               `json:"draft_id,omitempty"`
+	Knowledge   *KnowledgeEntry      `json:"knowledge,omitempty"`
+	Accepted    map[string]string    `json:"accepted"`
+	Needs       []string             `json:"needs"`
+	Invalid     []bugFieldDiagnostic `json:"invalid"`
+	Warnings    []string             `json:"warnings"`
+	NextAction  []string             `json:"next_action"`
+}
+
+type bugFieldDiagnostic struct {
+	Field   string `json:"field"`
+	Value   string `json:"value,omitempty"`
+	Message string `json:"message"`
+}
+
+func cmdBugCapture(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("bug-capture", flag.ContinueOnError)
+	flags := defineBugCaptureFlags(fs)
+	jsonOut := fs.Bool("json", false, "Output the structured capture result as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team bug-capture scenario-qa --title=... --signal-type=... --severity=... --repro=... --expected=... --actual=... --description=...")
+	}
+	return runBugCapture(ctx, false, fmt.Sprintf("/teams/%s/bugs/capture", fs.Arg(0)), flags.request(), *jsonOut)
+}
+
+func cmdBugRepair(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("bug-repair", flag.ContinueOnError)
+	flags := defineBugCaptureFlags(fs)
+	jsonOut := fs.Bool("json", false, "Output the structured capture result as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team bug-repair scenario-qa <draft-id> [--signal-type=... --severity=... --expected=... --actual=...]")
+	}
+	return runBugCapture(ctx, true, fmt.Sprintf("/teams/%s/bugs/%s/capture", fs.Arg(0), fs.Arg(1)), flags.request(), *jsonOut)
+}
+
+type bugCaptureFlags struct{ title, signalType, severity, repro, expected, actual, description, scenario, skill, member, command, honestyFlags, idempotencyKey *string }
+
+func defineBugCaptureFlags(fs *flag.FlagSet) bugCaptureFlags {
+	return bugCaptureFlags{title: fs.String("title", "", "Short report title"), signalType: fs.String("signal-type", "", "code-defect|regression|prompt-confusion|data-shape-mismatch|unexpected-error|unknown"), severity: fs.String("severity", "", "blocker|major|minor"), repro: fs.String("repro", "", "Comma-separated reproduction steps"), expected: fs.String("expected", "", "Expected behavior"), actual: fs.String("actual", "", "Observed behavior"), description: fs.String("description", "", "Free-form report details"), scenario: fs.String("scenario", "", "Affected scenario (optional)"), skill: fs.String("skill", "", "Affected skill (optional)"), member: fs.String("member", "", "Affected member (optional)"), command: fs.String("command", "", "Affected command (optional)"), honestyFlags: fs.String("honesty-flags", "", "Comma-separated taxonomy honesty flags"), idempotencyKey: fs.String("idempotency-key", "", "Optional retry-safe capture key")}
+}
+
+func (f bugCaptureFlags) request() bugCaptureRequest {
+	return bugCaptureRequest{Title: *f.title, SignalType: *f.signalType, Severity: *f.severity, Repro: csvValues(*f.repro), Expected: *f.expected, Actual: *f.actual, Description: *f.description, Context: compactContext(*f.scenario, *f.skill, *f.member, *f.command), HonestyFlags: csvValues(*f.honestyFlags), IdempotencyKey: *f.idempotencyKey}
+}
+
+func runBugCapture(ctx appctx.Context, repair bool, path string, req bugCaptureRequest, jsonOut bool) error {
+	var resp bugCaptureResponse
+	var err error
+	if repair {
+		err = ctx.Put(path, req, &resp)
+	} else {
+		err = ctx.Post(path, req, &resp)
+	}
+	if err != nil {
+		return fmt.Errorf("bug capture failed: %w", err)
+	}
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+	if resp.Disposition == "published" && resp.Knowledge != nil {
+		fmt.Printf("Published Scenario QA bug %s [%s].\n", resp.Knowledge.ID, resp.Knowledge.Topic)
+		return nil
+	}
+	fmt.Printf("Draft saved privately: %s (not published to bug-inbox).\n", resp.DraftID)
+	if len(resp.Needs) > 0 {
+		fmt.Printf("Needs: %s\n", strings.Join(resp.Needs, ", "))
+	}
+	for _, invalid := range resp.Invalid {
+		fmt.Printf("Invalid %s: %s\n", invalid.Field, invalid.Message)
+	}
+	if len(resp.NextAction) > 0 {
+		fmt.Printf("Repair: %s\n", strings.Join(resp.NextAction, " "))
+	}
+	return nil
+}
+
+func csvValues(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+func compactContext(scenario, skill, member, command string) map[string]string {
+	context := map[string]string{}
+	for key, value := range map[string]string{"scenario": scenario, "skill": skill, "member": member, "command": command} {
+		if strings.TrimSpace(value) != "" {
+			context[key] = value
+		}
+	}
+	return context
 }
 
 func cmdKnowledgeList(ctx appctx.Context, args []string) error {

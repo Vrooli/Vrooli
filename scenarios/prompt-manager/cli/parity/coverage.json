@@ -206,5 +206,7 @@
   "POST /teams/{id}/knowledge": {"status": "covered", "cli": "team knowledge-add <id>"},
   "GET /teams/{id}/knowledge": {"status": "covered", "cli": "team knowledge-list <id>"},
   "PATCH,PUT /teams/{id}/knowledge/{knowledgeId}": {"status": "covered", "cli": "team knowledge-update"},
-  "DELETE /teams/{id}/knowledge/{knowledgeId}": {"status": "covered", "cli": "team knowledge-delete"}
+  "DELETE /teams/{id}/knowledge/{knowledgeId}": {"status": "covered", "cli": "team knowledge-delete"},
+  "POST /teams/{id}/bugs/capture": {"status": "covered", "cli": "team bug-capture <team-id>"},
+  "PATCH,PUT /teams/{id}/bugs/{draftId}/capture": {"status": "covered", "cli": "team bug-repair <team-id> <draft-id>"}
 }

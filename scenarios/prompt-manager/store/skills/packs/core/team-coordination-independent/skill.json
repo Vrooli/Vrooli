@@ -2,7 +2,7 @@
   "kind": "skill",
   "schemaVersion": 1,
   "id": "team-coordination-independent",
-  "name": "Coordination Guidance (Independent) BAS-1783747998635",
+  "name": "Coordination Guidance (Independent) BAS-1783955804724",
   "description": "Supplemental guidance for independent specialist teams with no default coordinator",
   "modes": [
     "agent"
@@ -14,7 +14,7 @@
   ],
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 123,
+  "revision": 127,
   "createdAt": "",
-  "updatedAt": "2026-07-11T05:33:20Z"
+  "updatedAt": "2026-07-13T15:16:46Z"
 }

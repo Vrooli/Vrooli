@@ -783,6 +783,10 @@ func main() {
 	v1.HandleFunc("/teams/{id}/knowledge", heartbeatHandlers.GetKnowledge).Methods("GET")
 	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.UpdateKnowledgeHandler).Methods("PATCH", "PUT")
 	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.DeleteKnowledgeHandler).Methods("DELETE")
+	// Typed Scenario QA bug intake. Drafts are kept private to the writer
+	// boundary; only validated published reports enter bug-inbox knowledge.
+	v1.HandleFunc("/teams/{id}/bugs/capture", heartbeatHandlers.CaptureBug).Methods("POST")
+	v1.HandleFunc("/teams/{id}/bugs/{draftId}/capture", heartbeatHandlers.RepairBugCapture).Methods("PATCH", "PUT")
 
 	// Retention / prune routes
 	v1.HandleFunc("/teams/{id}/retention", heartbeatHandlers.GetRetention).Methods("GET")

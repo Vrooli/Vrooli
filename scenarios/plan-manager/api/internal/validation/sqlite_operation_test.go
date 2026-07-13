@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +21,21 @@ func newOperationStore(t *testing.T) *sqliteResultStore {
 	return NewSQLiteResultStore(db, mocks.NewFakeClock(time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)))
 }
 
+func v2Operation(op ValidationOperation) ValidationOperation {
+	op.SchemaVersion = CurrentOperationSchemaVersion
+	for i := range op.Children {
+		if op.Children[i].Check.SemanticKey == "" {
+			op.Children[i].Check = ValidationCheck{
+				Kind:        ValidationCheckCustom,
+				SemanticKey: "test:" + op.Children[i].ID,
+				Command:     op.Children[i].Command,
+				Oracle:      op.Children[i].Oracle,
+			}
+		}
+	}
+	return op
+}
+
 func TestSQLiteOperationStoreConcurrentIdempotency(t *testing.T) { // [REQ:PM-VALID-004]
 	store := newOperationStore(t)
 	const count = 16
@@ -30,10 +46,10 @@ func TestSQLiteOperationStoreConcurrentIdempotency(t *testing.T) { // [REQ:PM-VA
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			op, wasCreated, err := store.CreateOperation(context.Background(), ValidationOperation{
+			op, wasCreated, err := store.CreateOperation(context.Background(), v2Operation(ValidationOperation{
 				ID: "candidate-" + time.Duration(i).String(), PlanID: "plan-1", PhaseID: "phase-1",
 				IdempotencyKey: "same", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:00Z",
-			})
+			}))
 			require.NoError(t, err)
 			ids <- op.ID
 			created <- wasCreated
@@ -60,10 +76,10 @@ func TestSQLiteOperationStoreConcurrentIdempotency(t *testing.T) { // [REQ:PM-VA
 
 func TestSQLiteOperationStoreCoalescesUnkeyedActiveStarts(t *testing.T) { // [REQ:PM-VALID-004]
 	store := newOperationStore(t)
-	first, created, err := store.CreateOperation(context.Background(), ValidationOperation{ID: "first", PlanID: "plan-1", PhaseID: "phase-1", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:00Z"})
+	first, created, err := store.CreateOperation(context.Background(), v2Operation(ValidationOperation{ID: "first", PlanID: "plan-1", PhaseID: "phase-1", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:00Z"}))
 	require.NoError(t, err)
 	require.True(t, created)
-	second, created, err := store.CreateOperation(context.Background(), ValidationOperation{ID: "second", PlanID: "plan-1", PhaseID: "phase-1", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:01Z"})
+	second, created, err := store.CreateOperation(context.Background(), v2Operation(ValidationOperation{ID: "second", PlanID: "plan-1", PhaseID: "phase-1", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:01Z"}))
 	require.NoError(t, err)
 	require.False(t, created)
 	require.Equal(t, first.ID, second.ID)
@@ -79,7 +95,7 @@ func TestSQLiteOperationStoreRoundTripsPartialChildCheckpoint(t *testing.T) { //
 			{ID: "op-1:2", Command: "informational", Status: ChildRunning, Attempt: 1},
 		},
 	}
-	_, created, err := store.CreateOperation(context.Background(), op)
+	_, created, err := store.CreateOperation(context.Background(), v2Operation(op))
 	require.NoError(t, err)
 	require.True(t, created)
 	got, found, err := store.GetOperation(context.Background(), op.ID)
@@ -115,15 +131,14 @@ func TestSQLiteTerminalResultStableIDIsReplaySafe(t *testing.T) { // [REQ:PM-VAL
 	require.Empty(t, got.Detail)
 }
 
-func TestSQLiteOperationReadMigratesLegacyCommandChild(t *testing.T) { // [REQ:PM-VALID-004]
+func TestSQLiteOperationReadRejectsLegacyCommandChild(t *testing.T) { // [REQ:PM-VALID-004]
 	store := newOperationStore(t)
 	op := ValidationOperation{ID: "legacy", PlanID: "plan-1", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:00Z", Children: []ValidationChild{{ID: "legacy:1", Command: "git-control-tower baseline diff --scenario foo --name impl --wait", Oracle: true, Status: ChildQueued}}}
-	_, created, err := store.CreateOperation(context.Background(), op)
+	payload, err := json.Marshal(op)
 	require.NoError(t, err)
-	require.True(t, created)
-	got, found, err := store.GetOperation(context.Background(), op.ID)
+	_, err = store.db.ExecContext(context.Background(), insertOperationSQL, op.ID, op.PlanID, op.PhaseID, op.IdempotencyKey, string(op.Status), op.QueuedAt, op.QueuedAt, string(payload))
 	require.NoError(t, err)
-	require.True(t, found)
-	require.Equal(t, CurrentOperationSchemaVersion, got.SchemaVersion)
-	require.Equal(t, "scenario-diff:foo:impl", got.Children[0].Check.SemanticKey)
+	_, found, err := store.GetOperation(context.Background(), op.ID)
+	require.False(t, found)
+	require.ErrorContains(t, err, "uses storage schema v0")
 }

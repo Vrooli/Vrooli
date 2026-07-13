@@ -281,6 +281,34 @@ type KnowledgeListResponse struct {
 	Entries []store.KnowledgeEntry `json:"entries"`
 }
 
+// BugCaptureRequest is the typed Scenario QA reporter surface. It mirrors the
+// bug-report taxonomy rather than asking callers to manufacture YAML.
+type BugCaptureRequest struct {
+	Title          string            `json:"title"`
+	SignalType     string            `json:"signal_type"`
+	Severity       string            `json:"severity"`
+	Repro          []string          `json:"repro"`
+	Expected       string            `json:"expected"`
+	Actual         string            `json:"actual"`
+	Description    string            `json:"description"`
+	Context        map[string]string `json:"context"`
+	HonestyFlags   []string          `json:"honesty_flags"`
+	IdempotencyKey string            `json:"idempotency_key"`
+}
+
+// BugCaptureResponse always reports whether the input became a published
+// inbox entry or a private draft, plus the exact repair argv for agents.
+type BugCaptureResponse struct {
+	Disposition string                  `json:"disposition"`
+	DraftID     string                  `json:"draft_id,omitempty"`
+	Knowledge   *store.KnowledgeEntry   `json:"knowledge,omitempty"`
+	Accepted    map[string]string       `json:"accepted"`
+	Needs       []string                `json:"needs"`
+	Invalid     []store.FieldDiagnostic `json:"invalid"`
+	Warnings    []string                `json:"warnings"`
+	NextAction  []string                `json:"next_action,omitempty"`
+}
+
 // DecisionListResponse is the API response for listing decisions.
 type DecisionListResponse struct {
 	TeamID  string                `json:"teamId"`
