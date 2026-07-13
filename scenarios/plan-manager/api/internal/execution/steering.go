@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"strconv"
 	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
@@ -68,6 +69,9 @@ func stepForContext(executionID, planID string, ctx PhaseContext, complete bool)
 				},
 			},
 		}
+	}
+	if ctx.BaselineSet.Name != "" && !ctx.BaselineSet.Complete() {
+		return baselineRequiredStep(ctx.BaselineSet)
 	}
 	phaseID := ctx.ResumePhaseID
 	if ctx.HasCurrent && ctx.CurrentPhase.ID != "" {
@@ -139,6 +143,19 @@ func stepForContext(executionID, planID string, ctx PhaseContext, complete bool)
 	return step
 }
 
+func baselineRequiredStep(state BaselineSetState) GuidedStep {
+	return GuidedStep{
+		StepKind: "baseline_required", Title: "Baseline Required",
+		Summary:      "Git Control Tower must capture the immutable before-state before normal phase work can begin.",
+		Instructions: []string{"Run the producer-owned capture command. Use Git Control Tower's own printed one-shot wait/recovery command; do not wait through Plan Manager. Then synchronize the durable collection result here."},
+		NextActions: []NextAction{
+			{ID: "baseline-capture", Kind: NextActionRecommended, Label: "Start baseline capture", Reason: state.Detail, Argv: state.CaptureArgv},
+			{ID: "baseline-wait", Kind: NextActionRecovery, Label: "Wait for baseline in Git Control Tower", Reason: "Only Git Control Tower owns wait, timeout, recovery, and parking semantics.", Argv: state.WaitArgv},
+			{ID: "baseline-sync", Kind: NextActionRecovery, Label: "Synchronize baseline evidence", Reason: "Read durable GCT state after the producer reaches a terminal result.", Argv: state.SyncArgv},
+		},
+	}
+}
+
 func phasePrimaryAction(executionID, planID, phaseID string, ctx PhaseContext) NextAction {
 	if ctx.CurrentPhase.Status == "todo" || ctx.CurrentPhase.Status == "" {
 		return NextAction{
@@ -171,31 +188,42 @@ func phasePrimaryAction(executionID, planID, phaseID string, ctx PhaseContext) N
 		}
 	}
 	return NextAction{
-		ID:     "run-validation",
+		ID:     "start-validation-ticket",
 		Kind:   NextActionRecommended,
-		Label:  "Run phase validation",
-		Reason: "A recent passing validation result is required before marking the phase done.",
-		Argv:   []string{"validate", "run", planID, "--phase", phaseID},
+		Label:  "Create phase validation ticket",
+		Reason: "Create the producer-owned validation ticket, run its rendered Git Control Tower action and native wait, then synchronize terminal evidence before marking the phase done.",
+		Argv:   validationTicketArgv(executionID, planID, phaseID, ctx.ScopeGeneration, ctx.ValidationMembers),
 		BlockedBy: []string{
 			validationBlockerReason(ctx.LastValidation, ctx.HasValidation, ctx.Staleness),
 		},
 	}
 }
 
+func validationTicketArgv(executionID, planID, phaseID string, generation int, members []string) []string {
+	argv := []string{"validate", "start", planID, "--phase", phaseID, "--execution", executionID}
+	if generation > 0 {
+		argv = append(argv, "--scope-generation", strconv.Itoa(generation))
+	}
+	if len(members) > 0 {
+		argv = append(argv, "--members", strings.Join(members, ","))
+	}
+	return argv
+}
+
 func stepForTransition(e Execution) GuidedStep {
 	if e.Complete {
 		return GuidedStep{
-			StepKind:     "transition_complete",
-			Title:        "Transition Complete",
-			Summary:      "All phases are terminal after this transition.",
-			Instructions: []string{"Complete the execution and inspect the canonical handoff."},
+			StepKind:     "final_dod_required",
+			Title:        "Final Definition of Done Required",
+			Summary:      "All phases are terminal, but normal completion requires a fresh full-inventory producer validation.",
+			Instructions: []string{"Create the final validation ticket without member selectors, run its producer-owned action and native wait, synchronize it, then complete the execution."},
 			NextActions: []NextAction{
 				{
-					ID:     "complete-execution",
+					ID:     "start-final-dod-ticket",
 					Kind:   NextActionRecommended,
-					Label:  "Complete execution",
-					Reason: "The transition left no current phase.",
-					Argv:   []string{"exec", "complete", e.ID},
+					Label:  "Create final full-inventory validation ticket",
+					Reason: "A phase subset cannot certify plan completion.",
+					Argv:   []string{"validate", "start", e.PlanID, "--execution", e.ID},
 				},
 			},
 		}

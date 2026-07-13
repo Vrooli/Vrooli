@@ -117,10 +117,17 @@ UPDATE validation_operations SET status = ?, updated_at = ?, payload_json = ? WH
 	getOperationSQL      = `SELECT payload_json FROM validation_operations WHERE id = ?`
 	getOperationByKeySQL = `
 SELECT payload_json FROM validation_operations
-WHERE plan_id = ? AND phase_id = ? AND idempotency_key = ? LIMIT 1`
+WHERE plan_id = ? AND phase_id = ?
+  AND COALESCE(json_extract(payload_json, '$.ExecutionID'), '') = ?
+  AND COALESCE(CAST(json_extract(payload_json, '$.ScopeGeneration') AS INTEGER), 0) = ?
+  AND idempotency_key = ?
+LIMIT 1`
 	getActiveOperationSQL = `
 SELECT payload_json FROM validation_operations
-WHERE plan_id = ? AND phase_id = ? AND status <> ?
+WHERE plan_id = ? AND phase_id = ?
+  AND COALESCE(json_extract(payload_json, '$.ExecutionID'), '') = ?
+  AND COALESCE(CAST(json_extract(payload_json, '$.ScopeGeneration') AS INTEGER), 0) = ?
+  AND status <> ? AND idempotency_key = ''
 ORDER BY queued_at, id LIMIT 1`
 	listNonTerminalOperationsSQL = `
 SELECT payload_json FROM validation_operations WHERE status <> ? ORDER BY queued_at, id`
@@ -148,12 +155,12 @@ func (r *sqliteResultStore) CreateOperation(ctx context.Context, op ValidationOp
 	if rows == 1 {
 		return op, true, nil
 	}
-	stored, found, err := r.activeOperation(ctx, op.PlanID, op.PhaseID)
-	if err != nil {
-		return ValidationOperation{}, false, err
-	}
-	if !found && op.IdempotencyKey != "" {
-		stored, found, err = r.operationByKey(ctx, op.PlanID, op.PhaseID, op.IdempotencyKey)
+	var stored ValidationOperation
+	var found bool
+	if op.IdempotencyKey != "" {
+		stored, found, err = r.operationByKey(ctx, op.PlanID, op.PhaseID, op.ExecutionID, op.ScopeGeneration, op.IdempotencyKey)
+	} else {
+		stored, found, err = r.activeOperation(ctx, op.PlanID, op.PhaseID, op.ExecutionID, op.ScopeGeneration)
 	}
 	if err != nil {
 		return ValidationOperation{}, false, err
@@ -164,8 +171,8 @@ func (r *sqliteResultStore) CreateOperation(ctx context.Context, op ValidationOp
 	return stored, false, nil
 }
 
-func (r *sqliteResultStore) activeOperation(ctx context.Context, planID, phaseID string) (ValidationOperation, bool, error) {
-	return scanOperation(r.db.QueryRowContext(ctx, getActiveOperationSQL, planID, phaseID, string(OperationTerminal)))
+func (r *sqliteResultStore) activeOperation(ctx context.Context, planID, phaseID, executionID string, scopeGeneration int) (ValidationOperation, bool, error) {
+	return scanOperation(r.db.QueryRowContext(ctx, getActiveOperationSQL, planID, phaseID, executionID, scopeGeneration, string(OperationTerminal)))
 }
 
 func (r *sqliteResultStore) SaveOperation(ctx context.Context, op ValidationOperation) error {
@@ -190,8 +197,8 @@ func (r *sqliteResultStore) GetOperation(ctx context.Context, id string) (Valida
 	return scanOperation(r.db.QueryRowContext(ctx, getOperationSQL, id))
 }
 
-func (r *sqliteResultStore) operationByKey(ctx context.Context, planID, phaseID, key string) (ValidationOperation, bool, error) {
-	return scanOperation(r.db.QueryRowContext(ctx, getOperationByKeySQL, planID, phaseID, key))
+func (r *sqliteResultStore) operationByKey(ctx context.Context, planID, phaseID, executionID string, scopeGeneration int, key string) (ValidationOperation, bool, error) {
+	return scanOperation(r.db.QueryRowContext(ctx, getOperationByKeySQL, planID, phaseID, executionID, scopeGeneration, key))
 }
 
 func scanOperation(row *sql.Row) (ValidationOperation, bool, error) {

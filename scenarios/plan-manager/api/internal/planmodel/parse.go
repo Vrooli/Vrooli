@@ -52,7 +52,7 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	p.DefinitionOfDone = firstNonEmpty(sections["definition of done"], sections["definition-of-done"])
 	p.ChangeBoundary = ParseChangeBoundaryBlock(firstNonEmpty(sections["change boundary"], sections["acceptance boundary"]))
 	p.RegressionAnchor = ParseRegressionAnchorBlock(sections["regression anchor"])
-	p.BaselineSet = ParseBaselineSetBlock(sections["baseline set"])
+	p.BaselineSet = ParseBaselineSetBlock(firstNonEmpty(sections["regression checks"], sections["baseline set"]))
 	// A compact baseline-set projection supersedes the command-wall anchor for
 	// new plans. Recreate only the minimum typed anchor intent needed by older
 	// quality/validation consumers while keeping the set as the display and
@@ -104,9 +104,10 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	return p, nil
 }
 
-// ParseBaselineSetBlock recovers the compact declarative projection emitted by
-// renderBaselineSet. Commands are intentionally not accepted: operation details
-// belong to the GCT collection record, never a markdown mirror.
+// ParseBaselineSetBlock recovers the baseline intent from current concise
+// regression-check prose or the legacy declarative projection. The capture
+// command is used only to retain the durable intent when a rendered plan is
+// re-imported; GCT still owns operation details and execution state.
 func ParseBaselineSetBlock(block string) BaselineSetIntent {
 	if strings.TrimSpace(block) == "" {
 		return BaselineSetIntent{}
@@ -131,6 +132,9 @@ func ParseBaselineSetBlock(block string) BaselineSetIntent {
 		}
 	}
 	if out.Name == "" && len(out.ScenarioTargets) == 0 && len(out.RepoPaths) == 0 {
+		out = parseBaselineCollectionCapture(block)
+	}
+	if out.Name == "" && len(out.ScenarioTargets) == 0 && len(out.RepoPaths) == 0 {
 		return BaselineSetIntent{}
 	}
 	if out.CapturePolicy == "" {
@@ -138,6 +142,32 @@ func ParseBaselineSetBlock(block string) BaselineSetIntent {
 	}
 	out.Compatibility = BaselineSetCompatibilityCurrent
 	return out
+}
+
+func parseBaselineCollectionCapture(block string) BaselineSetIntent {
+	const prefix = "git-control-tower baseline collection capture"
+	for _, line := range strings.Split(block, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		fields := strings.Fields(line)
+		var out BaselineSetIntent
+		for i := 0; i+1 < len(fields); i++ {
+			switch fields[i] {
+			case "--name":
+				out.Name = fields[i+1]
+			case "--member":
+				out.ScenarioTargets = append(out.ScenarioTargets, fields[i+1])
+			case "--path":
+				out.RepoPaths = append(out.RepoPaths, fields[i+1])
+			}
+		}
+		if out.Name != "" || len(out.ScenarioTargets) > 0 || len(out.RepoPaths) > 0 {
+			return out
+		}
+	}
+	return BaselineSetIntent{}
 }
 
 func backtickValues(value string) []string {

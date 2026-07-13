@@ -65,11 +65,11 @@ type LogLedger interface {
 // never on the per-poll status/next path: capturing the "before" is only valid
 // immediately before edits begin, and shelling git-control-tower on every poll
 // would defeat the cheap-context goal.
-type InputFreshener interface {
+type BaselineSynchronizer interface {
 	// FreshenInputs captures the baseline snapshot from the plan's anchor intent
 	// and recomputes reference staleness. It reports the outcome; it never mutates
 	// the authored plan/references (staleness is reported, not written back).
-	FreshenInputs(ctx context.Context, planID string) (FreshenResult, error)
+	SyncBaseline(ctx context.Context, planID string) (FreshenResult, error)
 }
 
 // FreshenResult reports the outcome of the execution-start freshen step.

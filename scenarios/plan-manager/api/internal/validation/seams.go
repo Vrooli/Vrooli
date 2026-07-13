@@ -46,7 +46,9 @@ type ResultStore interface {
 }
 
 // OperationStore is the durable checkpoint ledger for validation operations.
-// CreateOperation atomically deduplicates by (plan, phase, idempotency key).
+// CreateOperation atomically deduplicates an explicit key by (plan, phase,
+// execution, scope generation, key); unkeyed active starts coalesce only in
+// that same execution-local scope.
 type OperationStore interface {
 	CreateOperation(ctx context.Context, op ValidationOperation) (stored ValidationOperation, created bool, err error)
 	SaveOperation(ctx context.Context, op ValidationOperation) error
@@ -54,11 +56,10 @@ type OperationStore interface {
 	ListNonTerminalOperations(ctx context.Context) ([]ValidationOperation, error)
 }
 
-// CommandRunner is the exec seam for running baseline/check commands (the live
-// dispatch path to git-control-tower / the diff oracle). Production wires
-// execRunner (LookPath-guarded, timeout-bounded); tests inject a fake. A nil
-// runner means "no live dispatch" — RunValidation yields an honest UNKNOWN
-// verdict rather than fabricating a pass.
+// CommandRunner is retained only for short local staleness inspection and
+// legacy read-only compatibility paths. It MUST NOT start, wait for, or recover
+// a producer baseline/test operation; Git Control Tower and Test Genie own
+// those long-running contracts.
 type CommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
 
 // BaselineCollectionClient is Plan Manager's typed seam to Git Control Tower.
@@ -68,7 +69,16 @@ type CommandRunner func(ctx context.Context, name string, args ...string) ([]byt
 type BaselineCollectionClient interface {
 	StartCollectionCapture(ctx context.Context, req BaselineCollectionCaptureRequest) (BaselineCollectionCaptureResult, error)
 	StartCollectionDiff(ctx context.Context, req BaselineCollectionDiffRequest) (BaselineCollectionDiffResult, error)
+	GetCollection(ctx context.Context, name, branch string) (BaselineCollectionCaptureResult, error)
+	GetCollectionDiff(ctx context.Context, name, branch, operationID string) (BaselineCollectionDiffResult, error)
 	DiffPathEvidence(ctx context.Context, req BaselinePathDiffRequest) (BaselinePathDiffResult, error)
+}
+
+// TestRunClient reads a durable Test Genie run snapshot. It deliberately has no
+// wait method: Test Genie remains the only owner of its native wait, timeout,
+// recovery, and Agent Manager parking contract.
+type TestRunClient interface {
+	GetRun(ctx context.Context, scenario, runID string) (TestRunEvidence, error)
 }
 
 type BaselineCollectionCaptureRequest struct {

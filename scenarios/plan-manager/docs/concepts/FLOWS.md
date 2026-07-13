@@ -146,9 +146,10 @@ preview render and the persisted render agree (see
    `plan-manager log note-add <execution> --phase <phase> --title "Phase
    feedback reviewed: none" ...`. This keeps small agents from silently skipping
    feedback capture while avoiding fake findings.
-4. `check` runs the phase's computed baseline/validation set and returns results +
-   staleness; phase status advances by typed transition or by inference once
-   acceptance + validation pass.
+4. The runner creates a producer ticket, displays its exact upstream start/wait
+   commands, and later synchronizes typed terminal evidence. It never runs or
+   waits for Git Control Tower/Test Genie itself. Phase status can advance only
+   after the current execution and scope generation have synchronized PASS.
 5. Resume point and full/partial completion are computed from the phase-status set.
 
 ### Completion / handoff
@@ -163,7 +164,10 @@ preview render and the persisted render agree (see
    `LogLedger` seam.
 3. Findings are filed as **candidate / unvalidated** for operator triage /
    `log promote`; idempotency keys and attribution-keyed dedup avoid double-filing.
-4. The agent's prose final message is **not** captured here — that is the
+4. Before normal completion, the runner requires a selector-free final ticket,
+   producer-native wait, and synchronized clean full-inventory result. A partial
+   handoff remains explicitly incomplete and resumable.
+5. The agent's prose final message is **not** captured here — that is the
    orchestration layer's job (see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
 
 ## State Machines

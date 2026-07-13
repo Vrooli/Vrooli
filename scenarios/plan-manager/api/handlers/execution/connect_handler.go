@@ -89,6 +89,30 @@ func (h *connectHandler) ContinueExecution(ctx context.Context, req *connect.Req
 	}), nil
 }
 
+func (h *connectHandler) SyncBaseline(ctx context.Context, req *connect.Request[executionv1.SyncBaselineRequest]) (*connect.Response[executionv1.SyncBaselineResponse], error) {
+	e, pctx, step, err := h.deps.Service.SyncBaseline(ctx, req.Msg.GetExecutionId())
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.SyncBaselineResponse{Execution: executionToProto(e), Context: phaseContextToProto(pctx), Step: guidedStepToProto(step)}), nil
+}
+
+func (h *connectHandler) AmendScope(ctx context.Context, req *connect.Request[executionv1.AmendScopeRequest]) (*connect.Response[executionv1.AmendScopeResponse], error) {
+	e, pctx, step, err := h.deps.Service.AmendScope(ctx, req.Msg.GetExecutionId(), internalexecution.ScopeAmendmentRequest{PhaseID: req.Msg.GetPhaseId(), Members: req.Msg.GetMember(), Author: req.Msg.GetAuthor(), Reason: req.Msg.GetReason()})
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.AmendScopeResponse{Execution: executionToProto(e), Context: phaseContextToProto(pctx), Step: guidedStepToProto(step)}), nil
+}
+
+func (h *connectHandler) AdoptBaseline(ctx context.Context, req *connect.Request[executionv1.AdoptBaselineRequest]) (*connect.Response[executionv1.AdoptBaselineResponse], error) {
+	e, pctx, step, err := h.deps.Service.AdoptBaseline(ctx, req.Msg.GetExecutionId(), internalexecution.BaselineAdoptionRequest{Mode: internalexecution.BaselineAdoptionMode(req.Msg.GetMode()), Name: req.Msg.GetName(), Members: req.Msg.GetMember(), RepoPaths: req.Msg.GetPath(), Reason: req.Msg.GetReason()})
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.AdoptBaselineResponse{Execution: executionToProto(e), Context: phaseContextToProto(pctx), Step: guidedStepToProto(step)}), nil
+}
+
 func (h *connectHandler) GetNext(ctx context.Context, req *connect.Request[executionv1.GetNextRequest]) (*connect.Response[executionv1.GetNextResponse], error) {
 	pctx, complete, step, err := h.deps.Service.GetNext(ctx, req.Msg.GetExecutionId())
 	if err != nil {
@@ -130,6 +154,14 @@ func (h *connectHandler) Complete(ctx context.Context, req *connect.Request[exec
 		Nudges:  nudgesToProto(nudges),
 		Step:    guidedStepToProto(step),
 	}), nil
+}
+
+func (h *connectHandler) PartialHandoff(ctx context.Context, req *connect.Request[executionv1.PartialHandoffRequest]) (*connect.Response[executionv1.PartialHandoffResponse], error) {
+	handoff, nudges, step, err := h.deps.Service.PartialHandoff(ctx, req.Msg.GetExecutionId(), internalexecution.CompletionInputs{Tokens: req.Msg.GetTokens(), Iterations: req.Msg.GetIterations()})
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.PartialHandoffResponse{Handoff: handoffToProto(handoff), Nudges: nudgesToProto(nudges), Step: guidedStepToProto(step)}), nil
 }
 
 func (h *connectHandler) GetHandoff(ctx context.Context, req *connect.Request[executionv1.GetHandoffRequest]) (*connect.Response[executionv1.GetHandoffResponse], error) {

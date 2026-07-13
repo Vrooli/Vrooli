@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,12 +29,16 @@ type Service interface {
 	Start(ctx context.Context, planID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error)
 	GetContext(ctx context.Context, executionID, phaseID string) (Execution, PhaseContext, GuidedStep, error)
+	SyncBaseline(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error)
+	AmendScope(ctx context.Context, executionID string, req ScopeAmendmentRequest) (Execution, PhaseContext, GuidedStep, error)
+	AdoptBaseline(ctx context.Context, executionID string, req BaselineAdoptionRequest) (Execution, PhaseContext, GuidedStep, error)
 	Resume(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	ContinueExecution(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error)
 	TransitionPhase(ctx context.Context, executionID, phaseID string, inputs PhaseTransitionInputs) (Execution, planmodel.Plan, GuidedStep, error)
 
 	Complete(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, GuidedStep, error)
+	PartialHandoff(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, GuidedStep, error)
 	GetHandoff(ctx context.Context, executionID string) (Handoff, GuidedStep, error)
 
 	GetVelocity(ctx context.Context, planID string) ([]VelocityPoint, GuidedStep, error)
@@ -45,7 +50,7 @@ type service struct {
 	validator Validator
 	log       LogLedger
 	velocity  VelocitySink
-	freshener InputFreshener
+	baseline  BaselineSynchronizer
 	clock     clock.Clock
 }
 
@@ -61,7 +66,7 @@ type Deps struct {
 	Validator Validator
 	Log       LogLedger
 	Velocity  VelocitySink
-	Freshener InputFreshener
+	Baseline  BaselineSynchronizer
 	Clock     clock.Clock
 }
 
@@ -81,7 +86,7 @@ func NewService(d Deps) Service {
 		validator: d.Validator,
 		log:       d.Log,
 		velocity:  sink,
-		freshener: d.Freshener,
+		baseline:  d.Baseline,
 		clock:     clk,
 	}
 }
@@ -125,7 +130,7 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	s.freshenInputs(ctx, &e, plan)
+	s.ensureBaselineTicket(ctx, &e, plan)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, mode)
 	s.applyFreshenContext(&pctx, e)
 	return e, pctx, stepForStarted(e), nil
@@ -153,7 +158,7 @@ func (s *service) resumeExecutionWithPlan(ctx context.Context, e Execution, plan
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	s.freshenInputs(ctx, &e, plan)
+	s.ensureBaselineTicket(ctx, &e, plan)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeResume)
 	s.applyFreshenContext(&pctx, e)
 	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
@@ -274,8 +279,13 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	if to == "" {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, ErrInvalidExecution{Reason: "target phase status is required"}
 	}
+	if to == planmodel.PhaseStatusActive || to == planmodel.PhaseStatusDone {
+		if err := requireBaselineReady(e.BaselineSet); err != nil {
+			return Execution{}, planmodel.Plan{}, GuidedStep{}, err
+		}
+	}
 	if to == planmodel.PhaseStatusDone {
-		if err := s.requireValidationForDone(ctx, plan, target.ID, inputs.ValidationOverrideReason); err != nil {
+		if err := s.requireValidationForDone(ctx, e, plan, target.ID, inputs.ValidationOverrideReason); err != nil {
 			return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 		}
 		if err := s.requireFeedbackForDone(ctx, e.ID, target.ID, inputs.FeedbackOverrideReason); err != nil {
@@ -308,6 +318,20 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 	plan, err := s.plans.GetPlan(ctx, e.PlanID)
 	if err != nil {
 		return Handoff{}, nil, GuidedStep{}, err
+	}
+	if computeCompleteness(plan.Phases) != CompletenessFull {
+		return Handoff{}, nil, GuidedStep{}, ErrInvalidExecution{Reason: "normal completion requires every phase done; use partial-handoff for an honest incomplete handoff"}
+	}
+	if e.DegradedReason != "" {
+		return Handoff{}, nil, GuidedStep{}, ErrInvalidExecution{Reason: "normal completion is disabled: " + e.DegradedReason}
+	}
+	if e.BaselineSet.Name != "" {
+		if err := requireBaselineReady(e.BaselineSet); err != nil {
+			return Handoff{}, nil, GuidedStep{}, err
+		}
+		if err := s.requireFinalValidation(ctx, e, plan); err != nil {
+			return Handoff{}, nil, GuidedStep{}, err
+		}
 	}
 	logSummary, logEntries := s.logLedger(ctx, e.ID)
 
@@ -369,6 +393,41 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 
 	nudges := s.completionNudges(plan, logSummary)
 	return handoff, nudges, stepForComplete(e.ID, nudges), nil
+}
+
+// PartialHandoff persists a truthful checkpoint without changing the execution
+// to complete. It is intentionally separate from Complete so automation cannot
+// turn missing full-inventory evidence into a normal completion.
+func (s *service) PartialHandoff(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, GuidedStep, error) {
+	e, err := s.getExecution(ctx, executionID)
+	if err != nil {
+		return Handoff{}, nil, GuidedStep{}, err
+	}
+	plan, err := s.plans.GetPlan(ctx, e.PlanID)
+	if err != nil {
+		return Handoff{}, nil, GuidedStep{}, err
+	}
+	logSummary, logEntries := s.logLedger(ctx, e.ID)
+	lastVal, hasVal, staleness := s.lastValidation(ctx, plan, e.CurrentPhaseID)
+	now := s.now()
+	handoff := Handoff{ID: uuid.NewString(), ExecutionID: e.ID, PlanID: plan.ID, Completeness: CompletenessPartial,
+		ResumePhaseID: resumePhaseID(plan.Phases), LogSummary: logSummary, LogEntries: logEntries, LastValidation: lastVal,
+		HasValidation: hasVal, Staleness: staleness, AssembledAt: now, ChangeBoundary: plan.ChangeBoundary}
+	point := VelocityPoint{ID: uuid.NewString(), PlanID: plan.ID, RunID: e.RunID, WallTimeSeconds: s.wallTime(e.StartedAt, now), Tokens: inputs.Tokens, Iterations: inputs.Iterations, Completeness: CompletenessPartial, RecordedAt: now}
+	e.Complete, e.UpdatedAt = false, now
+	if err := s.repo.WithTx(ctx, func(repo Repository) error {
+		if err := repo.SaveHandoff(ctx, handoff); err != nil {
+			return err
+		}
+		if err := repo.SaveVelocity(ctx, point); err != nil {
+			return err
+		}
+		return repo.SaveExecution(ctx, e)
+	}); err != nil {
+		return Handoff{}, nil, GuidedStep{}, err
+	}
+	_ = s.velocity.Emit(ctx, point)
+	return handoff, s.completionNudges(plan, logSummary), stepForHandoff(e.ID), nil
 }
 
 func (s *service) GetHandoff(ctx context.Context, executionID string) (Handoff, GuidedStep, error) {
@@ -447,35 +506,228 @@ func summarizeQualityFailures(report planmodel.QualityReport) string {
 // transient git-control-tower outage is retryable but a captured baseline is not
 // re-captured. It NEVER blocks phase work: a nil seam or an error is recorded as a
 // degraded freshen status and surfaced, not returned.
-func (s *service) freshenInputs(ctx context.Context, e *Execution, plan planmodel.Plan) {
-	if e.FreshenStatus == FreshenStatusCaptured {
-		return // already captured; never re-run (the "before" is pinned)
+// ensureBaselineTicket records policy and exact producer argv only. Starting an
+// execution must never start or wait for a producer operation behind the agent's
+// back: Git Control Tower owns both parts of that lifecycle.
+func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan planmodel.Plan) {
+	if e.BaselineSet.Name != "" || strings.TrimSpace(plan.BaselineSet.Name) == "" {
+		return
 	}
-	if s.freshener == nil {
-		return // not configured; skip silently (no fabricated capture)
+	name := strings.TrimSpace(plan.BaselineSet.Name)
+	capture := []string{"git-control-tower", "baseline", "collection", "capture", "--name", name}
+	for _, scenario := range plan.BaselineSet.ScenarioTargets {
+		capture = append(capture, "--member", scenario)
 	}
-	now := s.now()
-	res, err := s.freshener.FreshenInputs(ctx, plan.ID)
-	e.InputsFreshenedAt = now
-	if err != nil {
-		e.FreshenStatus = FreshenStatusDegraded
-		e.FreshenDetail = err.Error()
-	} else if res.BaselineCaptured {
-		e.FreshenStatus = FreshenStatusCaptured
-		e.FreshenDetail = strings.TrimSpace(strings.Join(nonEmpty(res.Detail, res.StalenessSummary), "; "))
-	} else {
-		e.FreshenStatus = FreshenStatusDegraded
-		e.FreshenDetail = strings.TrimSpace(strings.Join(nonEmpty(res.Detail, res.StalenessSummary), "; "))
+	for _, path := range plan.BaselineSet.RepoPaths {
+		capture = append(capture, "--path", path)
 	}
-	if res.BaselineSet.Name != "" {
-		state := res.BaselineSet
-		state.CapturedAt = now
-		state.Detail = e.FreshenDetail
-		e.BaselineSet = state
+	e.BaselineSet = BaselineSetState{
+		Version: BaselineSetStateSchemaVersion, Name: name,
+		ScenarioTargets: append([]string(nil), plan.BaselineSet.ScenarioTargets...),
+		RepoPaths:       append([]string(nil), plan.BaselineSet.RepoPaths...),
+		Status:          BaselineSetStatusRequired,
+		Detail:          "baseline capture has not been started; run the producer-owned capture action, use GCT's printed wait command, then synchronize this ticket",
+		CaptureArgv:     capture,
+		WaitArgv:        []string{"git-control-tower", "baseline", "collection", "show", "--name", name, "--wait", "--json"},
+		SyncArgv:        []string{"plan-manager", "exec", "baseline-sync", e.ID},
 	}
-	// Best-effort persist of the freshen marker — a write failure must not block
-	// the start/resume the agent asked for (the freshen retries next resume).
+	e.FreshenStatus, e.FreshenDetail, e.UpdatedAt = "baseline_required", e.BaselineSet.Detail, s.now()
 	_ = s.repo.SaveExecution(ctx, *e)
+}
+
+// SyncBaseline is a one-shot nonblocking typed read of GCT's durable collection
+// state. It deliberately offers no wait option or local retry loop.
+func (s *service) SyncBaseline(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error) {
+	e, err := s.getExecution(ctx, executionID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	plan, err := s.plans.GetPlan(ctx, e.PlanID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	if e.BaselineSet.Name == "" {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "execution has no baseline collection ticket; repair or adopt the legacy execution before normal completion"}
+	}
+	e.BaselineSet.LastSyncedAt = s.now()
+	if s.baseline == nil {
+		e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusDegraded, "Git Control Tower baseline synchronization is unavailable"
+	} else if result, syncErr := s.baseline.SyncBaseline(ctx, plan.ID); syncErr != nil {
+		e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusDegraded, "baseline sync failed: "+syncErr.Error()
+	} else {
+		state := result.BaselineSet
+		state.CaptureArgv, state.WaitArgv, state.SyncArgv = e.BaselineSet.CaptureArgv, e.BaselineSet.WaitArgv, e.BaselineSet.SyncArgv
+		state.LastSyncedAt = e.BaselineSet.LastSyncedAt
+		if state.CapturedAt == "" && state.Complete() {
+			state.CapturedAt = e.BaselineSet.LastSyncedAt
+		}
+		e.BaselineSet = state
+		e.FreshenStatus, e.FreshenDetail = "baseline_synced", state.Detail
+	}
+	e.UpdatedAt = s.now()
+	if err := s.repo.SaveExecution(ctx, e); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
+	s.applyFreshenContext(&pctx, e)
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+}
+
+// AmendScope appends an execution-local scope decision. It only accepts members
+// already present in the synchronized immutable collection; callers must use
+// GCT collection extend + its native wait + baseline-sync before naming a new
+// member here. Any amendment invalidates the phase's prior evidence generation.
+func (s *service) AmendScope(ctx context.Context, executionID string, req ScopeAmendmentRequest) (Execution, PhaseContext, GuidedStep, error) {
+	e, err := s.getExecution(ctx, executionID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	plan, err := s.plans.GetPlan(ctx, e.PlanID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	phaseID := strings.TrimSpace(req.PhaseID)
+	if _, ok := findPhase(plan.Phases, phaseID); !ok {
+		return Execution{}, PhaseContext{}, GuidedStep{}, planmodel.ErrPhaseNotFound{PlanID: plan.ID, PhaseID: phaseID}
+	}
+	if strings.TrimSpace(req.Reason) == "" {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "scope amendment reason is required"}
+	}
+	available := make(map[string]struct{}, len(e.BaselineSet.Members))
+	for _, member := range e.BaselineSet.Members {
+		if member.Scenario != "" {
+			available[member.Scenario] = struct{}{}
+		}
+	}
+	if len(available) == 0 || !e.BaselineSet.Complete() {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "scope amendment requires a synchronized complete baseline collection"}
+	}
+	oldMinimum := effectivePhaseMinimum(e, plan, phaseID)
+	newMinimum := append([]string(nil), oldMinimum...)
+	seen := make(map[string]struct{}, len(newMinimum))
+	for _, member := range newMinimum {
+		seen[member] = struct{}{}
+	}
+	for _, member := range req.Members {
+		member = strings.TrimSpace(member)
+		if member == "" {
+			continue
+		}
+		if _, ok := available[member]; !ok {
+			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "scenario " + member + " is not in the captured baseline inventory; extend in Git Control Tower, use its native wait, and baseline-sync before amending scope"}
+		}
+		if _, ok := seen[member]; !ok {
+			newMinimum, seen[member] = append(newMinimum, member), struct{}{}
+		}
+	}
+	if len(newMinimum) == len(oldMinimum) {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "scope amendment adds no captured validation members"}
+	}
+	if e.PhaseValidationGenerations == nil {
+		e.PhaseValidationGenerations = map[string]int{}
+	}
+	e.PhaseValidationGenerations[phaseID]++
+	now := s.now()
+	e.ScopeAmendments = append(e.ScopeAmendments, ScopeAmendment{ID: uuid.NewString(), PhaseID: phaseID, Author: strings.TrimSpace(req.Author), Reason: strings.TrimSpace(req.Reason), OldMinimum: oldMinimum, NewMinimum: newMinimum, InvalidatedAt: now, CreatedAt: now})
+	e.UpdatedAt = now
+	if err := s.repo.SaveExecution(ctx, e); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
+	s.applyFreshenContext(&pctx, e)
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+}
+
+// AdoptBaseline makes legacy handling explicit. It cannot infer whether edits
+// already happened: callers either create a fresh producer ticket before more
+// work or record a degraded reason that blocks normal completion.
+func (s *service) AdoptBaseline(ctx context.Context, executionID string, req BaselineAdoptionRequest) (Execution, PhaseContext, GuidedStep, error) {
+	e, err := s.getExecution(ctx, executionID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	plan, err := s.plans.GetPlan(ctx, e.PlanID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	if e.BaselineSet.Name != "" {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "execution already has a baseline ticket; use baseline-sync or record a partial handoff"}
+	}
+	if strings.TrimSpace(req.Reason) == "" {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "legacy adoption reason is required"}
+	}
+	switch req.Mode {
+	case BaselineAdoptionDegraded:
+		e.DegradedReason, e.UpdatedAt = "legacy execution degraded: "+strings.TrimSpace(req.Reason), s.now()
+	case BaselineAdoptionRecapture:
+		name := strings.TrimSpace(req.Name)
+		if name == "" {
+			name = strings.TrimSpace(plan.Slug) + "-baseline"
+		}
+		members := uniqueStrings(req.Members)
+		if name == "-baseline" || len(members) == 0 {
+			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "recapture adoption requires collection name and at least one member"}
+		}
+		e.BaselineSet = baselineTicket(e.ID, name, members, uniqueStrings(req.RepoPaths), "legacy adoption recapture: "+strings.TrimSpace(req.Reason))
+		e.FreshenStatus, e.FreshenDetail, e.UpdatedAt = "baseline_required", e.BaselineSet.Detail, s.now()
+	default:
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "baseline adoption mode must be recapture or degraded"}
+	}
+	if err := s.repo.SaveExecution(ctx, e); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
+	s.applyFreshenContext(&pctx, e)
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+}
+
+func baselineTicket(executionID, name string, scenarios, paths []string, detail string) BaselineSetState {
+	capture := []string{"git-control-tower", "baseline", "collection", "capture", "--name", name}
+	for _, scenario := range scenarios {
+		capture = append(capture, "--member", scenario)
+	}
+	for _, path := range paths {
+		capture = append(capture, "--path", path)
+	}
+	return BaselineSetState{Version: BaselineSetStateSchemaVersion, Name: name, ScenarioTargets: scenarios, RepoPaths: paths, Status: BaselineSetStatusRequired, Detail: detail, CaptureArgv: capture, WaitArgv: []string{"git-control-tower", "baseline", "collection", "show", "--name", name, "--wait", "--json"}, SyncArgv: []string{"plan-manager", "exec", "baseline-sync", executionID}}
+}
+
+func phaseMinimum(plan planmodel.Plan, phaseID string) []string {
+	phase, ok := findPhase(plan.Phases, phaseID)
+	if !ok {
+		return nil
+	}
+	boundary := plan.ChangeBoundary
+	if !phase.ChangeBoundary.IsZero() {
+		boundary = phase.ChangeBoundary
+	}
+	return uniqueStrings(boundary.AffectedScenarios())
+}
+
+func uniqueStrings(values []string) []string {
+	seen, out := map[string]struct{}{}, make([]string, 0, len(values))
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			if _, ok := seen[value]; !ok {
+				seen[value] = struct{}{}
+				out = append(out, value)
+			}
+		}
+	}
+	return out
+}
+
+func requireBaselineReady(state BaselineSetState) error {
+	if state.Name == "" {
+		// Historical executions are readable until the explicit adoption/degraded
+		// workflow lands. New executions always carry a ticket and therefore take
+		// the strict branch below.
+		return nil
+	}
+	if state.Complete() {
+		return nil
+	}
+	return ErrInvalidExecution{Reason: "baseline collection " + state.Name + " is " + string(state.Status) + "; run its producer action/wait and plan-manager exec baseline-sync before normal phase work"}
 }
 
 // applyFreshenContext surfaces the recorded freshen status into the phase context
@@ -485,6 +737,8 @@ func (s *service) applyFreshenContext(pctx *PhaseContext, e Execution) {
 	pctx.FreshenStatus = e.FreshenStatus
 	pctx.FreshenDetail = e.FreshenDetail
 	pctx.BaselineSet = e.BaselineSet
+	pctx.ScopeGeneration = e.PhaseValidationGenerations[pctx.CurrentPhase.ID]
+	pctx.ValidationMembers = amendedPhaseMembers(e, pctx.CurrentPhase.ID)
 }
 
 // nonEmpty returns the non-blank values among its args, preserving order.
@@ -754,15 +1008,93 @@ func (s *service) lastValidation(ctx context.Context, plan planmodel.Plan, phase
 	return res, true, staleness
 }
 
-func (s *service) requireValidationForDone(ctx context.Context, plan planmodel.Plan, phaseID, overrideReason string) error {
+func (s *service) requireValidationForDone(ctx context.Context, e Execution, plan planmodel.Plan, phaseID, overrideReason string) error {
 	res, hasVal, staleness := s.lastValidation(ctx, plan, phaseID)
-	if validationIsRecentPass(res, hasVal, staleness) {
+	// Legacy executions remain readable and can finish their already-authored
+	// phase workflow. New collection-ticketed executions require provenance.
+	valid := validationIsRecentPass(res, hasVal, staleness)
+	if e.BaselineSet.Name != "" {
+		valid = validationIsRecentPassForExecution(res, hasVal, staleness, e.ID, e.PhaseValidationGenerations[phaseID], false)
+		valid = valid && containsMembers(res.SelectedMembers, effectivePhaseMinimum(e, plan, phaseID))
+	}
+	if valid {
 		return nil
 	}
 	if strings.TrimSpace(overrideReason) != "" {
 		return nil
 	}
 	return ErrValidationRequired{PhaseID: phaseID, Reason: validationBlockerReason(res, hasVal, staleness)}
+}
+
+// effectivePhaseMinimum is the actual execution-owned selector for a phase.
+// Plan policy supplies the initial minimum; each append-only amendment replaces
+// it with a previously audited superset. This is intentionally calculated from
+// the execution record, never inferred from a ticket supplied by the caller.
+func effectivePhaseMinimum(e Execution, plan planmodel.Plan, phaseID string) []string {
+	minimum := normalizedMembers(phaseMinimum(plan, phaseID))
+	for _, amendment := range e.ScopeAmendments {
+		if amendment.PhaseID == phaseID && len(amendment.NewMinimum) > 0 {
+			minimum = normalizedMembers(amendment.NewMinimum)
+		}
+	}
+	return minimum
+}
+
+// amendedPhaseMembers returns the last audited selector only when it differs
+// from authored policy. An empty result lets ticket creation retain its normal
+// plan-derived default scope.
+func amendedPhaseMembers(e Execution, phaseID string) []string {
+	for i := len(e.ScopeAmendments) - 1; i >= 0; i-- {
+		if e.ScopeAmendments[i].PhaseID == phaseID {
+			return normalizedMembers(e.ScopeAmendments[i].NewMinimum)
+		}
+	}
+	return nil
+}
+
+func normalizedMembers(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; !exists {
+			seen[value] = struct{}{}
+			out = append(out, value)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func containsMembers(selected, required []string) bool {
+	set := make(map[string]struct{}, len(selected))
+	for _, member := range selected {
+		set[member] = struct{}{}
+	}
+	for _, member := range required {
+		if _, exists := set[member]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *service) requireFinalValidation(ctx context.Context, e Execution, plan planmodel.Plan) error {
+	res, hasVal, staleness := s.lastValidation(ctx, plan, "")
+	if validationIsRecentPassForExecution(res, hasVal, staleness, e.ID, e.PhaseValidationGenerations[""], true) {
+		return nil
+	}
+	return ErrInvalidExecution{Reason: "full collection Definition-of-Done validation is required before completion: " + validationBlockerReason(res, hasVal, staleness)}
+}
+
+func validationIsRecentPassForExecution(res ValidationResult, hasVal bool, staleness planmodel.StalenessTier, executionID string, generation int, requireFullInventory bool) bool {
+	if !validationIsRecentPass(res, hasVal, staleness) || res.ExecutionID != executionID || res.ScopeGeneration != generation {
+		return false
+	}
+	return !requireFullInventory || res.FullInventory
 }
 
 func validationIsRecentPass(res ValidationResult, hasVal bool, staleness planmodel.StalenessTier) bool {

@@ -66,6 +66,21 @@ func (f *fakeExecutionService) ContinueExecution(_ context.Context, planOrExecut
 	return f.execution, f.pctx, f.step, f.err
 }
 
+func (f *fakeExecutionService) SyncBaseline(_ context.Context, executionID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
+	f.gotExecutionID = executionID
+	return f.execution, f.pctx, f.step, f.err
+}
+
+func (f *fakeExecutionService) AmendScope(_ context.Context, executionID string, _ internalexecution.ScopeAmendmentRequest) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
+	f.gotExecutionID = executionID
+	return f.execution, f.pctx, f.step, f.err
+}
+
+func (f *fakeExecutionService) AdoptBaseline(_ context.Context, executionID string, _ internalexecution.BaselineAdoptionRequest) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
+	f.gotExecutionID = executionID
+	return f.execution, f.pctx, f.step, f.err
+}
+
 func (f *fakeExecutionService) GetNext(_ context.Context, executionID string) (internalexecution.PhaseContext, bool, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
 	return f.pctx, f.complete, f.step, f.err
@@ -77,6 +92,11 @@ func (f *fakeExecutionService) TransitionPhase(_ context.Context, executionID, p
 }
 
 func (f *fakeExecutionService) Complete(_ context.Context, executionID string, inputs internalexecution.CompletionInputs) (internalexecution.Handoff, []internalexecution.CompletionNudge, internalexecution.GuidedStep, error) {
+	f.gotExecutionID, f.gotInputs = executionID, inputs
+	return f.handoff, f.nudges, f.step, f.err
+}
+
+func (f *fakeExecutionService) PartialHandoff(_ context.Context, executionID string, inputs internalexecution.CompletionInputs) (internalexecution.Handoff, []internalexecution.CompletionNudge, internalexecution.GuidedStep, error) {
 	f.gotExecutionID, f.gotInputs = executionID, inputs
 	return f.handoff, f.nudges, f.step, f.err
 }

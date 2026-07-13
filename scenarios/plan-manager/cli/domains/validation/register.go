@@ -26,6 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ValidationService.GetValidationOperation":    h.show,
 		"ValidationService.WaitValidationOperation":   h.wait,
 		"ValidationService.ResumeValidationOperation": h.resume,
+		"ValidationService.SyncValidation":            h.sync,
 		"ValidationService.RunValidation":             h.run,
 		"ValidationService.VerifyDefinitionOfDone":    h.verifyDoD,
 	})

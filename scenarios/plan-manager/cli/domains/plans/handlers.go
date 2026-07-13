@@ -598,6 +598,10 @@ func parseReferenceKind(raw string) sharedv1.ReferenceKind {
 }
 
 func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
+	validationScope, err := validationScopeFromFlag(ctx.Flag("validation-scope"))
+	if err != nil {
+		return err
+	}
 	resp, err := h.client.AddPhase(context.Background(), connect.NewRequest(&plansv1.AddPhaseRequest{
 		PlanId:    ctx.Positional("plan"),
 		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
@@ -614,6 +618,7 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 			RelevantContext: parsePhaseContext(ctx.Flag("context")),
 			Reminders:       splitCSV(ctx.Flag("reminders")),
 			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
+			ValidationScope: validationScope,
 		},
 	}))
 	if err != nil {
@@ -623,6 +628,13 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) phaseUpdate(ctx cliapp.RunContext) error {
+	validationScope, err := validationScopeFromFlag(ctx.Flag("validation-scope"))
+	if err != nil {
+		return err
+	}
+	if validationScope != nil && phaseUpdateOnlyChangesValidationScope(ctx) {
+		return h.phaseValidationScope(ctx)
+	}
 	resp, err := h.client.UpdatePhase(context.Background(), connect.NewRequest(&plansv1.UpdatePhaseRequest{
 		PlanId:    ctx.Positional("plan"),
 		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
@@ -641,12 +653,99 @@ func (h *handlers) phaseUpdate(ctx cliapp.RunContext) error {
 			RelevantContext: parsePhaseContext(ctx.Flag("context")),
 			Reminders:       splitCSV(ctx.Flag("reminders")),
 			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
+			ValidationScope: validationScope,
 		},
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("update phase", err, nil)
 	}
 	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Updated phase on")
+}
+
+func phaseUpdateOnlyChangesValidationScope(ctx cliapp.RunContext) bool {
+	for _, name := range []string{
+		"title", "intent", "affected-areas", "steps", "expected-outputs", "validation",
+		"acceptance", "risks-hazards", "handoff-notes", "status", "context", "reminders", "baseline-scope",
+	} {
+		if strings.TrimSpace(ctx.Flag(name)) != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// phaseValidationScope is the safe repair lane for an existing persisted phase.
+// UpdatePhase is intentionally a full replacement API, so this command reads
+// the canonical phase first, changes only its validation declaration, and sends
+// the complete object back. It lets older imported plans become execution-grade
+// without losing references or authored context.
+func (h *handlers) phaseValidationScope(ctx cliapp.RunContext) error {
+	scope, err := validationScopeFromFlag(ctx.Flag("validation-scope"))
+	if err != nil {
+		return err
+	}
+	if scope == nil {
+		return fmt.Errorf("--validation-scope is required")
+	}
+	planID := ctx.Positional("plan")
+	phaseID := ctx.Positional("phase")
+	current, err := h.client.GetPlan(context.Background(), connect.NewRequest(&plansv1.GetPlanRequest{Id: planID, Workspace: workspaceScopeFromFlag(ctx.Flag("workspace"))}))
+	if err != nil {
+		return cliapp.WrapAPIError("get plan before validation-scope repair", err, nil)
+	}
+	if current.Msg == nil || current.Msg.Plan == nil {
+		return fmt.Errorf("server returned no plan for validation-scope repair")
+	}
+	var phase *sharedv1.Phase
+	for _, candidate := range current.Msg.Plan.GetPhases() {
+		if candidate.GetId() == phaseID {
+			phase = candidate
+			break
+		}
+	}
+	if phase == nil {
+		return fmt.Errorf("phase %q not found on plan %q", phaseID, planID)
+	}
+	phase.ValidationScope = scope
+	resp, err := h.client.UpdatePhase(context.Background(), connect.NewRequest(&plansv1.UpdatePhaseRequest{PlanId: planID, Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")), Phase: phase}))
+	if err != nil {
+		return cliapp.WrapAPIError("repair phase validation scope", err, nil)
+	}
+	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Repaired validation scope on")
+}
+
+// validationScopeFromFlag exposes the phase validation declaration on the
+// persisted-plan CLI. Without it, a rendered/imported multi-scenario plan can
+// become execution-ineligible after the quality rule is introduced, with no
+// supported repair path. A narrow scope uses `|` so shell-safe comma-separated
+// list flags remain unambiguous.
+func validationScopeFromFlag(raw string) (*sharedv1.ValidationScope, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	lower := strings.ToLower(raw)
+	if strings.HasPrefix(lower, "full_plan:") {
+		rationale := strings.TrimSpace(raw[len("full_plan:"):])
+		if rationale == "" {
+			return nil, fmt.Errorf("validation scope full_plan requires a rationale")
+		}
+		return &sharedv1.ValidationScope{Mode: sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_FULL_PLAN, Rationale: rationale}, nil
+	}
+	if strings.HasPrefix(lower, "narrow:") {
+		paths := strings.Split(strings.TrimSpace(raw[len("narrow:"):]), "|")
+		allow := make([]string, 0, len(paths))
+		for _, path := range paths {
+			if path = strings.TrimSpace(path); path != "" {
+				allow = append(allow, path)
+			}
+		}
+		if len(allow) == 0 {
+			return nil, fmt.Errorf("validation scope narrow requires one or more acceptance-allow paths")
+		}
+		return &sharedv1.ValidationScope{Mode: sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_NARROW, Boundary: &sharedv1.ChangeBoundary{AcceptanceAllow: allow}}, nil
+	}
+	return nil, fmt.Errorf("validation scope must be full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>")
 }
 
 func (h *handlers) templateList(ctx cliapp.RunContext) error {

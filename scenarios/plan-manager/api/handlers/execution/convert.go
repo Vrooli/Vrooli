@@ -21,15 +21,25 @@ func orderToInt32(n int) int32 {
 
 func executionToProto(e internalexecution.Execution) *executionv1.Execution {
 	return &executionv1.Execution{
-		Id:             e.ID,
-		PlanId:         e.PlanID,
-		RunId:          e.RunID,
-		CurrentPhaseId: e.CurrentPhaseID,
-		Complete:       e.Complete,
-		StartedAt:      e.StartedAt,
-		UpdatedAt:      e.UpdatedAt,
-		BaselineSet:    baselineSetToProto(e.BaselineSet),
+		Id:              e.ID,
+		PlanId:          e.PlanID,
+		RunId:           e.RunID,
+		CurrentPhaseId:  e.CurrentPhaseID,
+		Complete:        e.Complete,
+		StartedAt:       e.StartedAt,
+		UpdatedAt:       e.UpdatedAt,
+		BaselineSet:     baselineSetToProto(e.BaselineSet),
+		ScopeAmendments: scopeAmendmentsToProto(e.ScopeAmendments),
+		DegradedReason:  e.DegradedReason,
 	}
+}
+
+func scopeAmendmentsToProto(items []internalexecution.ScopeAmendment) []*executionv1.ScopeAmendment {
+	out := make([]*executionv1.ScopeAmendment, 0, len(items))
+	for _, item := range items {
+		out = append(out, &executionv1.ScopeAmendment{Id: item.ID, PhaseId: item.PhaseID, Author: item.Author, Reason: item.Reason, OldMinimum: append([]string(nil), item.OldMinimum...), NewMinimum: append([]string(nil), item.NewMinimum...), InvalidatedAt: item.InvalidatedAt, CreatedAt: item.CreatedAt, InvalidatedTicketIds: append([]string(nil), item.InvalidatedTicketIDs...)})
+	}
+	return out
 }
 
 func phaseContextToProto(c internalexecution.PhaseContext) *executionv1.PhaseContext {
@@ -45,6 +55,7 @@ func phaseContextToProto(c internalexecution.PhaseContext) *executionv1.PhaseCon
 		FreshenDetail:   c.FreshenDetail,
 		ChangeBoundary:  planproto.ChangeBoundaryToProto(c.ChangeBoundary),
 		BaselineSet:     baselineSetToProto(c.BaselineSet),
+		ScopeGeneration: int32(c.ScopeGeneration),
 	}
 	if c.HasCurrent {
 		out.CurrentPhase = phaseToProto(c.CurrentPhase)
@@ -71,6 +82,7 @@ func baselineSetToProto(state internalexecution.BaselineSetState) *executionv1.B
 		CapturedAt: state.CapturedAt, Status: string(state.Status), Required: int32(state.Required), Ready: int32(state.Ready),
 		Pending: int32(state.Pending), Failed: int32(state.Failed), Skipped: int32(state.Skipped), Stale: int32(state.Stale), Detail: state.Detail,
 		Members: baselineSetMembersToProto(state.Members), PathSnapshots: baselineSetPathSnapshotsToProto(state.PathSnapshots),
+		CaptureArgv: append([]string(nil), state.CaptureArgv...), WaitArgv: append([]string(nil), state.WaitArgv...), SyncArgv: append([]string(nil), state.SyncArgv...), LastSyncedAt: state.LastSyncedAt,
 	}
 }
 
@@ -167,14 +179,20 @@ func velocitiesToProto(vs []internalexecution.VelocityPoint) []*sharedv1.Velocit
 
 func validationResultToProto(r internalexecution.ValidationResult) *sharedv1.ValidationResult {
 	return &sharedv1.ValidationResult{
-		Id:          r.ID,
-		PlanId:      r.PlanID,
-		PhaseId:     r.PhaseID,
-		Verdict:     verdictToProto(r.Verdict),
-		Staleness:   stalenessToProto(r.Staleness),
-		CommandsRun: r.CommandsRun,
-		Detail:      r.Detail,
-		RanAt:       r.RanAt,
+		Id:              r.ID,
+		PlanId:          r.PlanID,
+		PhaseId:         r.PhaseID,
+		Verdict:         verdictToProto(r.Verdict),
+		Staleness:       stalenessToProto(r.Staleness),
+		CommandsRun:     r.CommandsRun,
+		Detail:          r.Detail,
+		RanAt:           r.RanAt,
+		ExecutionId:     r.ExecutionID,
+		OperationId:     r.OperationID,
+		ScopeGeneration: int32(r.ScopeGeneration),
+		FullInventory:   r.FullInventory,
+		RequiredMembers: append([]string(nil), r.RequiredMembers...),
+		SelectedMembers: append([]string(nil), r.SelectedMembers...),
 	}
 }
 

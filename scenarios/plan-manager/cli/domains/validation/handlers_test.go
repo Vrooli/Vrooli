@@ -2,7 +2,6 @@ package validation
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"sync"
 	"testing"
@@ -216,19 +215,19 @@ func TestValidationRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "wait maps operation with blocking wait", cmd: "wait", argv: []string{"op-2"},
+			name: "wait is a legacy inspection alias", cmd: "wait", argv: []string{"op-2"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*validationv1.GetValidationOperationRequest)
 				require.Equal(t, "op-2", m.GetOperationId())
-				require.True(t, m.GetWait())
+				require.False(t, m.GetWait())
 			},
 		},
 		{
-			name: "resume maps operation with blocking wait", cmd: "resume", argv: []string{"op-3"},
+			name: "resume is a legacy inspection alias", cmd: "resume", argv: []string{"op-3"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*validationv1.GetValidationOperationRequest)
 				require.Equal(t, "op-3", m.GetOperationId())
-				require.True(t, m.GetWait())
+				require.False(t, m.GetWait())
 			},
 		},
 		{
@@ -316,7 +315,7 @@ func TestValidationOutputRendering(t *testing.T) {
 		require.Contains(t, out, "all green")
 	})
 
-	t.Run("start renders durable id and wait command", func(t *testing.T) {
+	t.Run("start renders durable id and producer-sync guidance", func(t *testing.T) {
 		rec := &validationRecorder{resp: &validationv1.StartValidationResponse{
 			Operation:    &validationv1.ValidationOperation{Id: "op-123", Status: validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_QUEUED, ScopeFingerprint: "sha256:scope", QueueReason: "awaiting scheduler claim"},
 			Deduplicated: true,
@@ -328,7 +327,7 @@ func TestValidationOutputRendering(t *testing.T) {
 		require.Contains(t, out, "no child work was duplicated")
 		require.Contains(t, out, "Scope fingerprint: sha256:scope.")
 		require.Contains(t, out, "Queue reason: awaiting scheduler claim.")
-		require.Contains(t, out, "plan-manager validate wait op-123")
+		require.Contains(t, out, "plan-manager validate sync op-123")
 	})
 
 	t.Run("wait renders terminal durable result", func(t *testing.T) {
@@ -342,21 +341,6 @@ func TestValidationOutputRendering(t *testing.T) {
 		require.Contains(t, out, "Status: terminal")
 		require.Contains(t, out, "Verdict: pass")
 		require.Contains(t, out, "oracle clean")
-	})
-
-	t.Run("wait reconnects once with inspect after unexpected EOF", func(t *testing.T) {
-		rec := &validationRecorder{
-			waitErr: connect.NewError(connect.CodeUnavailable, io.ErrUnexpectedEOF),
-			resp: &validationv1.GetValidationOperationResponse{Operation: &validationv1.ValidationOperation{
-				Id: "op-recovered", Status: validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_RUNNING,
-			}},
-		}
-		app, groups := newValidationFixture(t, rec)
-		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "wait"), app, "op-recovered")
-		require.Error(t, err, "a recovered non-terminal inspection must not become success")
-		require.Contains(t, out, "recovery read by durable operation id")
-		require.Equal(t, 1, rec.waitCalls)
-		require.False(t, rec.lastRequest().(*validationv1.GetValidationOperationRequest).GetWait())
 	})
 
 	t.Run("verify-dod renders met verdict", func(t *testing.T) {
@@ -425,13 +409,6 @@ func TestResolutionLabel(t *testing.T) {
 	require.Equal(t, "future", resolutionLabel(sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_FUTURE))
 	require.Equal(t, "missing", resolutionLabel(sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_MISSING))
 	require.Equal(t, "unspecified", resolutionLabel(sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNSPECIFIED))
-}
-
-func TestUnexpectedEOFDetection(t *testing.T) {
-	require.True(t, isUnexpectedEOF(io.ErrUnexpectedEOF))
-	require.True(t, isUnexpectedEOF(connect.NewError(connect.CodeUnavailable, io.ErrUnexpectedEOF)))
-	require.False(t, isUnexpectedEOF(connect.NewError(connect.CodeUnavailable, errBoom())))
-	require.True(t, isAttachmentEnd(connect.NewError(connect.CodeDeadlineExceeded, context.DeadlineExceeded)))
 }
 
 func TestFormatReference(t *testing.T) {

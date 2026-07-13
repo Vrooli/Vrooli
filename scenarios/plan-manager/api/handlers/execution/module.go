@@ -72,11 +72,10 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Validator: validatorAdapter{svc: validationSvc},
 		Log:       logLedgerAdapter{svc: logSvc},
 		Velocity:  internalexecution.DefaultVelocitySink(), // stub; no MoM wire (v1)
-		// The execution-start freshen step delegates baseline capture + staleness
-		// recompute to the SAME validation Service (which owns git-control-tower);
-		// execution never imports git-control-tower directly.
-		Freshener: inputFreshenerAdapter{svc: validationSvc},
-		Clock:     clk,
+		// GCT state is read only through this sync seam. The execution service
+		// persists and renders producer tickets, but never starts or waits for GCT.
+		Baseline: baselineSynchronizerAdapter{svc: validationSvc},
+		Clock:    clk,
 	})
 
 	connectPath, connectHandler := executionconnect.NewExecutionServiceHandler(NewConnectHandler(Deps{
@@ -143,14 +142,20 @@ func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID st
 		return internalexecution.ValidationResult{}, false, err
 	}
 	return internalexecution.ValidationResult{
-		ID:          res.ID,
-		PlanID:      res.PlanID,
-		PhaseID:     res.PhaseID,
-		Verdict:     string(res.Verdict),
-		Staleness:   res.Staleness,
-		CommandsRun: res.CommandsRun,
-		Detail:      res.Detail,
-		RanAt:       res.RanAt,
+		ID:              res.ID,
+		PlanID:          res.PlanID,
+		PhaseID:         res.PhaseID,
+		Verdict:         string(res.Verdict),
+		Staleness:       res.Staleness,
+		CommandsRun:     res.CommandsRun,
+		Detail:          res.Detail,
+		RanAt:           res.RanAt,
+		ExecutionID:     res.ExecutionID,
+		OperationID:     res.OperationID,
+		ScopeGeneration: res.ScopeGeneration,
+		FullInventory:   res.FullInventory,
+		RequiredMembers: append([]string(nil), res.RequiredMembers...),
+		SelectedMembers: append([]string(nil), res.SelectedMembers...),
 	}, true, nil
 }
 
@@ -161,10 +166,10 @@ func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID st
 // so execution never imports git-control-tower directly. Degradation is honest:
 // an incomplete anchor or an absent git-control-tower yields BaselineCaptured=false
 // with a Detail, never a fabricated capture.
-type inputFreshenerAdapter struct{ svc internalvalidation.Service }
+type baselineSynchronizerAdapter struct{ svc internalvalidation.Service }
 
-func (a inputFreshenerAdapter) FreshenInputs(ctx context.Context, planID string) (internalexecution.FreshenResult, error) {
-	capture, err := a.svc.CaptureBaseline(ctx, planID)
+func (a baselineSynchronizerAdapter) SyncBaseline(ctx context.Context, planID string) (internalexecution.FreshenResult, error) {
+	capture, err := a.svc.SyncBaseline(ctx, planID)
 	if err != nil {
 		return internalexecution.FreshenResult{}, err
 	}
@@ -275,9 +280,13 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("execution_get_context", executionconnect.ExecutionServiceGetContextProcedure, "Get setup context", "Returns setup context for the current or requested phase without advancing the runner."),
 	endpoint("execution_resume", executionconnect.ExecutionServiceResumeProcedure, "Resume execution", "Resolves an existing execution or creates one for a plan and returns setup context without advancing."),
 	endpoint("execution_continue", executionconnect.ExecutionServiceContinueExecutionProcedure, "Continue execution", "Resumes or starts an execution and returns the single recommended next runner action without advancing."),
+	endpoint("execution_sync_baseline", executionconnect.ExecutionServiceSyncBaselineProcedure, "Synchronize baseline evidence", "Reads the producer-owned GCT collection once and persists typed coverage without starting or waiting for capture."),
+	endpoint("execution_amend_scope", executionconnect.ExecutionServiceAmendScopeProcedure, "Amend validation scope", "Records an auditable expansion within the captured baseline inventory and invalidates prior phase evidence."),
+	endpoint("execution_adopt_baseline", executionconnect.ExecutionServiceAdoptBaselineProcedure, "Adopt legacy baseline", "Creates a producer ticket or an explicit degraded legacy state without starting or waiting for capture."),
 	endpoint("execution_get_next", executionconnect.ExecutionServiceGetNextProcedure, "Advance to next phase", "Advances the runner's pointer to the next actionable phase and returns its injected context."),
 	endpoint("execution_transition_phase", executionconnect.ExecutionServiceTransitionPhaseProcedure, "Transition phase status", "Performs a typed phase-status transition; plan status is recomputed from the phase-status set."),
 	endpoint("execution_complete", executionconnect.ExecutionServiceCompleteProcedure, "Complete the run", "Runs the thin guided completion process, assembles the canonical handoff, and captures a velocity point (OT-P1-001/002)."),
+	endpoint("execution_partial_handoff", executionconnect.ExecutionServicePartialHandoffProcedure, "Create partial handoff", "Persists an honest resumable handoff without marking the execution normally complete."),
 	endpoint("execution_get_handoff", executionconnect.ExecutionServiceGetHandoffProcedure, "Get the handoff", "Returns the assembled canonical handoff for an execution."),
 	endpoint("execution_get_velocity", executionconnect.ExecutionServiceGetVelocityProcedure, "Get velocity series", "Returns the per-plan velocity series (LOCAL ONLY)."),
 }

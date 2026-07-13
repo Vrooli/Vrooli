@@ -849,6 +849,10 @@
           "description": "Explicit baseline/validation commands for this phase, comma-separated"
         },
         {
+          "name": "validation-scope",
+          "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+        },
+        {
           "name": "workspace",
           "description": "Workspace root (defaults to the current repository)"
         }
@@ -935,6 +939,10 @@
           "description": "Explicit baseline/validation commands for this phase, comma-separated"
         },
         {
+          "name": "validation-scope",
+          "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+        },
+        {
           "name": "workspace",
           "description": "Workspace root (defaults to the current repository)"
         }
@@ -951,6 +959,20 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "validation-scope",
+          "description": "Safely repair one persisted phase's validation scope without replacing its other fields",
+          "positionals": [
+            {"name": "plan", "required": true, "description": "Plan id or slug"},
+            {"name": "phase", "required": true, "description": "Phase id"}
+          ],
+          "flags": [
+            {"name": "validation-scope", "required": true, "description": "full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"},
+            {"name": "workspace", "description": "Workspace root (defaults to the current repository)"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "UpdatePhase"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
         }
       ]
     },
@@ -1119,6 +1141,22 @@
             {
               "name": "idempotency-key",
               "description": "Scoped retry key; duplicates return the original operation"
+            },
+            {
+              "name": "execution",
+              "description": "Execution id that owns this evidence"
+            },
+            {
+              "name": "members",
+              "description": "Comma-separated selected captured members; must include the phase minimum"
+            },
+            {
+              "name": "test-runs",
+              "description": "Comma-separated Test Genie evidence handles as scenario:run-id"
+            },
+            {
+              "name": "scope-generation",
+              "description": "Current execution phase scope generation (from execution status)"
             }
           ],
           "binding": {
@@ -1159,7 +1197,7 @@
         },
         {
           "name": "wait",
-          "description": "Block once for a durable validation operation",
+          "description": "Legacy inspection alias; wait through the producer command rendered by the ticket",
           "positionals": [
             {
               "name": "operation",
@@ -1182,7 +1220,7 @@
         },
         {
           "name": "resume",
-          "description": "Resume and wait once on a queued/running validation after restart",
+          "description": "Legacy inspection alias; recover through the producer command rendered by the ticket",
           "positionals": [
             {
               "name": "operation",
@@ -1204,8 +1242,31 @@
           }
         },
         {
+          "name": "sync",
+          "description": "Synchronize producer-owned validation evidence without waiting",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Validation operation id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "SyncValidation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "run",
-          "description": "Compatibility blocking validation; prefer start then wait",
+          "description": "Legacy guidance; create a producer-owned ticket with validate start instead",
           "positionals": [
             {
               "name": "plan",
@@ -1234,7 +1295,7 @@
         },
         {
           "name": "verify-dod",
-          "description": "Verify the Definition of Done against the regression anchor",
+          "description": "Legacy guidance; use the execution runner's selector-free final validation ticket instead",
           "positionals": [
             {
               "name": "plan",
@@ -2150,6 +2211,56 @@
           }
         },
         {
+          "name": "baseline-sync",
+          "description": "Synchronize producer-owned baseline collection evidence without waiting",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "SyncBaseline"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "scope-amend",
+          "description": "Record an auditable phase validation scope expansion within the captured baseline inventory",
+          "positionals": [{"name": "execution", "required": true, "description": "Execution id"}],
+          "flags": [
+            {"name": "phase", "description": "Phase id", "required": true},
+            {"name": "members", "description": "Comma-separated additional captured scenario members", "required": true},
+            {"name": "reason", "description": "Why implementation scope expanded", "required": true},
+            {"name": "author", "description": "Actor recording the amendment"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ExecutionService", "method": "AmendScope"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "baseline-adopt",
+          "description": "Explicitly recapture or degrade a legacy execution baseline; never starts or waits for GCT",
+          "positionals": [{"name": "execution", "required": true, "description": "Execution id"}],
+          "flags": [
+            {"name": "mode", "description": "recapture or degraded", "required": true},
+            {"name": "name", "description": "Collection name for recapture"},
+            {"name": "members", "description": "Comma-separated members for recapture"},
+            {"name": "paths", "description": "Comma-separated informational source paths"},
+            {"name": "reason", "description": "Honest adoption/degradation reason", "required": true}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ExecutionService", "method": "AdoptBaseline"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
           "name": "next",
           "description": "Advance to the next actionable phase and return its context",
           "positionals": [
@@ -2247,6 +2358,17 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "partial-handoff",
+          "description": "Persist an honest resumable handoff without marking the execution complete",
+          "positionals": [{"name": "execution", "required": true, "description": "Execution id"}],
+          "flags": [
+            {"name": "tokens", "description": "Tokens consumed (velocity)"},
+            {"name": "iterations", "description": "Iteration count (velocity)"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ExecutionService", "method": "PartialHandoff"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
         },
         {
           "name": "handoff",

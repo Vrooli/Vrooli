@@ -78,6 +78,7 @@ const (
 	ValidationCheckPathSnapshotDiff ValidationCheckKind = "path_snapshot_diff"
 	ValidationCheckRepoDiff         ValidationCheckKind = "repo_diff"
 	ValidationCheckCustom           ValidationCheckKind = "custom_command"
+	ValidationCheckTestGenieRun     ValidationCheckKind = "test_genie_run"
 )
 
 // ValidationCheck is a typed validation work item. SemanticKey is independent
@@ -87,6 +88,7 @@ type ValidationCheck struct {
 	Kind        ValidationCheckKind
 	SemanticKey string
 	Scenario    string
+	RunID       string
 	Baseline    string
 	Paths       []string
 	Scenarios   []string
@@ -120,7 +122,41 @@ type ValidationOperation struct {
 	// A changed plan gets a fresh validation only after the active operation ends.
 	ScopeFingerprint string
 	// QueueReason is durable operator guidance while the operation is not terminal.
-	QueueReason string
+	QueueReason      string
+	ProducerWaitArgv []string
+	SyncArgv         []string
+	LastSyncedAt     string
+	// ExecutionID and ScopeGeneration bind evidence to the guided execution that
+	// requested it. They prevent another execution's clean result from satisfying
+	// this execution after scope changed.
+	ExecutionID     string
+	ScopeGeneration int
+	RequiredMembers []string
+	SelectedMembers []string
+	FullInventory   bool
+	TestRuns        []TestRunEvidence
+}
+
+// TestRunEvidence is a typed reference to a Test Genie run. Plan Manager never
+// waits for it: the agent uses Test Genie's native wait and sync reads its
+// durable terminal snapshot through a dedicated adapter.
+type TestRunEvidence struct {
+	Scenario    string
+	RunID       string
+	Status      string
+	Fingerprint string
+	TerminalAt  string
+	Detail      string
+}
+
+type ValidationTicketRequest struct {
+	PlanID          string
+	PhaseID         string
+	IdempotencyKey  string
+	ExecutionID     string
+	ScopeGeneration int
+	SelectedMembers []string
+	TestRuns        []TestRunEvidence
 }
 
 const CurrentOperationSchemaVersion = 2
@@ -151,6 +187,16 @@ type Result struct {
 	CommandFindings []CommandFinding
 	Detail          string
 	RanAt           string
+	ExecutionID     string
+	OperationID     string
+	ScopeGeneration int
+	FullInventory   bool
+	// RequiredMembers and SelectedMembers preserve the compiled producer scope
+	// with the terminal evidence. Execution gates use this receipt to prove that
+	// an amended phase was actually diffed at its amended scope, rather than
+	// merely receiving a pass for the plan's original minimum.
+	RequiredMembers []string
+	SelectedMembers []string
 }
 
 // ReferenceReport is the resolved-reference view returned by ResolveReferences /

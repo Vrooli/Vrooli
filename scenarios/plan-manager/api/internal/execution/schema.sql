@@ -46,6 +46,17 @@ CREATE TABLE IF NOT EXISTS execution_baseline_sets (
   updated_at   TEXT NOT NULL
 );
 
+-- execution_scope_states — execution-local validation-scope policy. Scope
+-- amendments and their generations are append-only audit evidence, separate
+-- from the authored plan and from the immutable baseline checkpoint. A later
+-- resume must never silently lose an amended selector or let an earlier pass
+-- satisfy the new generation.
+CREATE TABLE IF NOT EXISTS execution_scope_states (
+  execution_id TEXT PRIMARY KEY,
+  document     TEXT NOT NULL DEFAULT '{}',
+  updated_at   TEXT NOT NULL
+);
+
 -- Decisions and candidate findings are NOT stored here — they are typed entries
 -- in the log domain's log_entries table (internal/planlog). The handoff snapshots
 -- a compact log summary read from that domain.

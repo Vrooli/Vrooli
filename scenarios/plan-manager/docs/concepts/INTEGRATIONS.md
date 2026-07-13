@@ -16,7 +16,7 @@ re-implementing it, and every dependency is soft and degrades gracefully.
 | runtime-home `plans` entry | Resource | Durable rendered markdown mirrors for file-addressable operator workflows | Soft repairable |
 | `search-hub` | Scenario | Reference **discovery** at authoring — the Answer projection; hits routed by locator shape into reviewable `[CODE:]/[DOC:]/[REQ:]` candidates | Soft |
 | `code-facts` | Scenario | Resolve `[CODE:]`/`[REQ:]` references at **validation** where its current surface can provide evidence | Soft |
-| `git-control-tower` | Scenario | Regression anchor baseline snapshot (captured at **execution start**) + diff (validation/DoD) | Soft |
+| `git-control-tower` | Scenario | Producer-owned collection capture, wait, extension, and diff; Plan Manager reads typed state | Soft |
 | `cli-health` | Scenario | Validate authored `cli:` command references in plans without executing them | Soft |
 | git / freshness engine | Platform | Per-reference drift is git-sourced today; freshness engine remains scenario-artifact scoped | Soft |
 | `test-genie` / `scenario-validation` | Scenario | Validation results consumed (not owned) | Soft |
@@ -77,14 +77,11 @@ failing the flow:
   surface can express the locator. If down: references remain recorded; validation
   falls back to filesystem resolution for CODE/DOC refs and marks unresolved gaps
   honestly.
-- **git-control-tower** — captures the regression-anchor baseline snapshot at
-  **execution start** (relocated from authoring: a plan is durable across the
-  authoring→execution gap, so the "before" is only true immediately before edits
-  begin) and diffs it for validation/DoD. Authoring records typed anchor **intent**
-  only and never shells git-control-tower. The capture is delegated to the
-  validation domain through execution's `InputFreshener` seam, runs once per start,
-  and degrades honestly (recorded + surfaced, non-blocking, retried on resume); DoD
-  verification reports anchor-unavailable when the diff cannot run.
+- **git-control-tower** — owns collection capture/diff operation lifecycle at
+  execution start and validation/DoD. Authoring records intent only; the runner
+  renders exact GCT start commands, GCT owns native wait/recovery/Agent Manager
+  parking, and Plan Manager performs a single typed `baseline-sync` or
+  `validate sync` read. An incomplete collection is a visible gate, never a pass.
 - **cli-health** — validates authored `cli:` marked references in plan/phase
   text. If down: command validation reports UNKNOWN and never fabricates a pass.
   Plan Manager owns plan policy and authoring feedback; CLI Health owns command
@@ -95,8 +92,9 @@ failing the flow:
   and `git diff --numstat <anchor> -- <ref>` for LIGHTLY_STALE refinement when an
   anchor SHA is available. If that refinement is unavailable: present references
   remain FRESH and missing references are still DEFINITELY_STALE.
-- **test-genie / scenario-validation** — validation results consumed for plan
-  health. plan-manager never re-implements project-level validation; it reads.
+- **test-genie / scenario-validation** — Test Genie owns its native run waits;
+  Plan Manager records supplied run identities and synchronizes terminal typed
+  snapshots without parsing output or re-implementing project validation.
 - **prompt-manager / search-hub / cli-health** — relevant-context candidate
   discovery for authoring and setup guidance. Prompt Manager owns the curated
   skill/action discovery contract; Search Hub contributes broad recall candidates

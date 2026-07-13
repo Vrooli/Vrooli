@@ -38,16 +38,38 @@ CREATE TABLE IF NOT EXISTS validation_operations (
   payload_json     TEXT NOT NULL
 );
 
+-- V1 indexes scoped every active ticket to a plan/phase. That incorrectly
+-- collapsed a new execution or scope generation (and even a distinct explicit
+-- request key) onto stale evidence. The JSON document is versioned durable
+-- state, so expression indexes let us evolve this ownership boundary without
+-- rewriting historical operation rows or adding a fragile table migration.
+DROP INDEX IF EXISTS idx_validation_operations_idempotency;
+DROP INDEX IF EXISTS idx_validation_operations_one_active_scope;
+
+-- An explicit key identifies one logical producer request within the guided
+-- execution and its scope generation. Replaying that request is safe; a
+-- distinct key intentionally creates fresh evidence.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_validation_operations_idempotency
-ON validation_operations(plan_id, phase_id, idempotency_key)
+ON validation_operations(
+  plan_id,
+  phase_id,
+  COALESCE(json_extract(payload_json, '$.ExecutionID'), ''),
+  COALESCE(CAST(json_extract(payload_json, '$.ScopeGeneration') AS INTEGER), 0),
+  idempotency_key
+)
 WHERE idempotency_key <> '';
 
--- The caller key is only a retry alias. The durable safety boundary is one
--- active graph per plan/phase, including unkeyed starts. Terminal history is
--- intentionally unconstrained so a later validation can be created.
+-- Unkeyed starts have no caller-provided logical identity, so only they
+-- coalesce while non-terminal. Keyed starts are already protected by the
+-- replay index above and must be free to request fresh producer evidence.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_validation_operations_one_active_scope
-ON validation_operations(plan_id, phase_id)
-WHERE status <> 'terminal';
+ON validation_operations(
+  plan_id,
+  phase_id,
+  COALESCE(json_extract(payload_json, '$.ExecutionID'), ''),
+  COALESCE(CAST(json_extract(payload_json, '$.ScopeGeneration') AS INTEGER), 0)
+)
+WHERE status <> 'terminal' AND idempotency_key = '';
 
 CREATE INDEX IF NOT EXISTS idx_validation_operations_recovery
 ON validation_operations(status, updated_at);

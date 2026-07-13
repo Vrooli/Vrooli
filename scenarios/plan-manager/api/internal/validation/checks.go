@@ -68,6 +68,13 @@ func compileValidationChecks(p planmodel.Plan, refs []planmodel.Reference, bound
 		checks = append(checks, ValidationCheck{Kind: ValidationCheckRepoDiff, SemanticKey: "repo-diff:" + strings.Join(paths, ","), Paths: paths, Command: cmd})
 	}
 	for _, command := range p.RegressionAnchor.Commands {
+		// A collection-backed execution has one authoritative behavioral oracle:
+		// its durable collection diff. Legacy per-scenario snapshot/diff commands
+		// in a rendered regression anchor are retained for historical readability,
+		// never reintroduced as hidden worker children or competing evidence.
+		if strings.TrimSpace(p.BaselineSet.Name) != "" && legacyCollectionSupersededCommand(command) {
+			continue
+		}
 		check := parseKnownValidationCheck(command)
 		if check.SemanticKey == "" {
 			check = ValidationCheck{Kind: ValidationCheckCustom, SemanticKey: "custom:" + strings.TrimSpace(command), Command: command, Oracle: isOracleCommand(command)}
@@ -75,6 +82,14 @@ func compileValidationChecks(p planmodel.Plan, refs []planmodel.Reference, bound
 		checks = append(checks, check)
 	}
 	return deduplicateChecks(checks)
+}
+
+func legacyCollectionSupersededCommand(command string) bool {
+	fields := strings.Fields(strings.TrimSpace(command))
+	if len(fields) < 3 || fields[0] != "git-control-tower" || fields[1] != "baseline" {
+		return false
+	}
+	return fields[2] == "diff" || (fields[2] == "snapshot" && len(fields) >= 4 && fields[3] == "status")
 }
 
 func intersectScenarioTargets(scope, inventory []string) []string {

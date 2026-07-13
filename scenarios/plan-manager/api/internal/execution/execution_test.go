@@ -55,6 +55,17 @@ type fakeValidator struct {
 	err       error
 }
 
+// mutableValidator lets a test attach the generated execution ID to a
+// producer-synchronized result after the execution has started.
+type mutableValidator struct {
+	result    execution.ValidationResult
+	hasResult bool
+}
+
+func (f *mutableValidator) LastValidation(_ context.Context, _, _ string) (execution.ValidationResult, bool, error) {
+	return f.result, f.hasResult, nil
+}
+
 func (f fakeValidator) LastValidation(_ context.Context, _, _ string) (execution.ValidationResult, bool, error) {
 	if f.err != nil {
 		return execution.ValidationResult{}, false, f.err
@@ -92,7 +103,7 @@ func (f *fakeLog) SummarizePhase(context.Context, string, string) (planmodel.Log
 	return f.phaseSummary, f.phaseEntries, f.err
 }
 
-// fakeFreshener is the InputFreshener seam — the execution-start baseline
+// fakeFreshener is the BaselineSynchronizer seam — producer state is read only
 // capture + staleness recompute. The test dials its result/error and counts how
 // many times it is invoked to prove the once-per-start guard and the cheap-poll
 // invariant (status/next never freshen).
@@ -102,7 +113,7 @@ type fakeFreshener struct {
 	calls  int
 }
 
-func (f *fakeFreshener) FreshenInputs(_ context.Context, _ string) (execution.FreshenResult, error) {
+func (f *fakeFreshener) SyncBaseline(_ context.Context, _ string) (execution.FreshenResult, error) {
 	f.calls++
 	return f.result, f.err
 }
@@ -142,7 +153,7 @@ func newHarnessWithLog(t *testing.T, plan internalplans.Plan, validator executio
 	return harness{svc: svc, store: store, sink: sink, log: lg, clock: clk}
 }
 
-func newHarnessWithFreshener(t *testing.T, plan internalplans.Plan, freshener execution.InputFreshener) harness {
+func newHarnessWithFreshener(t *testing.T, plan internalplans.Plan, freshener execution.BaselineSynchronizer) harness {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
@@ -153,12 +164,26 @@ func newHarnessWithFreshener(t *testing.T, plan internalplans.Plan, freshener ex
 	store := &fakePlanStore{plan: plan}
 	sink := &recordingSink{}
 	svc := execution.NewService(execution.Deps{
-		Repo:      execution.NewSQLiteRepository(d, clk),
-		Plans:     store,
-		Velocity:  sink,
-		Freshener: freshener,
-		Clock:     clk,
+		Repo:     execution.NewSQLiteRepository(d, clk),
+		Plans:    store,
+		Velocity: sink,
+		Baseline: freshener,
+		Clock:    clk,
 	})
+	return harness{svc: svc, store: store, sink: sink, log: &fakeLog{}, clock: clk}
+}
+
+func newHarnessWithFreshenerAndValidator(t *testing.T, plan internalplans.Plan, freshener execution.BaselineSynchronizer, validator execution.Validator) harness {
+	t.Helper()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(execution.Schema),
+	))
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	store := &fakePlanStore{plan: plan}
+	sink := &recordingSink{}
+	svc := execution.NewService(execution.Deps{Repo: execution.NewSQLiteRepository(d, clk), Plans: store, Validator: validator, Log: &fakeLog{}, Velocity: sink, Baseline: freshener, Clock: clk})
 	return harness{svc: svc, store: store, sink: sink, log: &fakeLog{}, clock: clk}
 }
 
@@ -321,8 +346,8 @@ func TestContinueExecutionRecommendsValidationForActiveUnvalidatedPhase(t *testi
 	require.Equal(t, "ph-1", e.CurrentPhaseID)
 	require.Equal(t, internalplans.PhaseStatusActive, pctx.CurrentPhase.Status)
 	require.Len(t, step.NextActions, 1, "continue returns exactly one recommended action")
-	require.Equal(t, "run-validation", step.NextActions[0].ID)
-	require.Equal(t, []string{"validate", "run", "plan-1", "--phase", "ph-1"}, step.NextActions[0].Argv)
+	require.Equal(t, "start-validation-ticket", step.NextActions[0].ID)
+	require.Equal(t, []string{"validate", "start", "plan-1", "--phase", "ph-1", "--execution", e.ID}, step.NextActions[0].Argv)
 	require.Contains(t, step.NextActions[0].BlockedBy[0], "no stored validation result")
 }
 
@@ -523,7 +548,7 @@ func TestContinueExecutionDegradesValidatorErrorToUnknownGuidance(t *testing.T) 
 	require.False(t, pctx.HasValidation, "validator errors degrade to absent validation, never a false pass")
 	require.Equal(t, internalplans.StalenessUnknown, pctx.Staleness)
 	require.Len(t, step.NextActions, 1, "continue still returns one recovery action")
-	require.Equal(t, "run-validation", step.NextActions[0].ID)
+	require.Equal(t, "start-validation-ticket", step.NextActions[0].ID)
 	require.Contains(t, step.NextActions[0].BlockedBy[0], "no stored validation result")
 }
 
@@ -758,7 +783,7 @@ func TestCompleteNudgesUnsatisfiedWhenStatePartial(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil) // no findings, phases still todo
 	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
-	_, nudges, _, err := h.svc.Complete(context.Background(), e.ID, execution.CompletionInputs{})
+	_, nudges, _, err := h.svc.PartialHandoff(context.Background(), e.ID, execution.CompletionInputs{})
 	require.NoError(t, err)
 	byKind := map[string]bool{}
 	for _, n := range nudges {
@@ -820,17 +845,15 @@ func TestFreshenRunsOnceOnStartNotOnPoll(t *testing.T) {
 
 	e, pctx, _, err := h.svc.Start(ctx, "plan-1", "run-1")
 	require.NoError(t, err)
-	require.Equal(t, 1, fr.calls, "freshen runs once on start")
-	require.True(t, pctx.InputsFreshened)
-	require.Equal(t, execution.FreshenStatusCaptured, pctx.FreshenStatus)
-	require.Contains(t, pctx.FreshenDetail, "plan-1-baseline")
+	require.Equal(t, 0, fr.calls, "start must not contact a producer")
+	require.False(t, pctx.InputsFreshened)
 
 	// The per-poll context server must NOT freshen again.
 	_, _, _, err = h.svc.GetStatus(ctx, e.ID)
 	require.NoError(t, err)
 	_, _, _, err = h.svc.GetNext(ctx, e.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1, fr.calls, "status/next must never trigger a freshen")
+	require.Equal(t, 0, fr.calls, "status/next must never contact a producer")
 }
 
 // TestFreshenCapturedNotReRunOnResume proves a successful capture is terminal:
@@ -842,14 +865,16 @@ func TestFreshenCapturedNotReRunOnResume(t *testing.T) {
 
 	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-1")
 	require.NoError(t, err)
-	require.Equal(t, 1, fr.calls)
+	require.Equal(t, 0, fr.calls)
 
 	_, _, _, err = h.svc.Resume(ctx, e.ID, "", "")
 	require.NoError(t, err)
-	require.Equal(t, 1, fr.calls, "a captured baseline is pinned; resume must not re-capture")
+	require.Equal(t, 0, fr.calls, "resume must not start or synchronize a producer")
 }
 
 func TestFreshenPersistsBaselineSetCheckpointAcrossStatusReads(t *testing.T) {
+	plan := threePhasePlan()
+	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"git-control-tower", "plan-manager"}, RepoPaths: []string{"scenarios/plan-manager/**"}}
 	fr := &fakeFreshener{result: execution.FreshenResult{
 		BaselineCaptured: true,
 		BaselineName:     "before",
@@ -860,8 +885,14 @@ func TestFreshenPersistsBaselineSetCheckpointAcrossStatusReads(t *testing.T) {
 			PathSnapshots: []execution.BaselineSetPathSnapshot{{Name: "paths-before", Branch: "agi", CreatedAt: "2026-07-13T00:00:00Z"}},
 		},
 	}}
-	h := newHarnessWithFreshener(t, threePhasePlan(), fr)
+	h := newHarnessWithFreshener(t, plan, fr)
 	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+	require.Equal(t, execution.BaselineSetStatusRequired, e.BaselineSet.Status)
+	_, _, _, err = h.svc.SyncBaseline(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, fr.calls)
+	e, _, _, err = h.svc.GetStatus(context.Background(), e.ID)
 	require.NoError(t, err)
 	require.True(t, e.BaselineSet.Complete())
 	require.Equal(t, []string{"git-control-tower", "plan-manager"}, e.BaselineSet.ScenarioTargets)
@@ -874,23 +905,69 @@ func TestFreshenPersistsBaselineSetCheckpointAcrossStatusReads(t *testing.T) {
 	require.Equal(t, "paths-before", loaded.BaselineSet.PathSnapshots[0].Name)
 }
 
+func TestScopeAmendmentRequiresAndRendersTheAmendedProducerSelection(t *testing.T) {
+	plan := threePhasePlan()
+	plan.Phases[0].ChangeBoundary = internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/foo/**"}}
+	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar", "baz"}}
+	validator := &mutableValidator{}
+	fr := &fakeFreshener{result: execution.FreshenResult{BaselineCaptured: true, BaselineName: "before", BaselineSet: execution.BaselineSetState{
+		Version: 1, Name: "before", ScenarioTargets: []string{"foo", "bar", "baz"}, Status: execution.BaselineSetStatusComplete, Required: 3, Ready: 3,
+		Members: []execution.BaselineSetMember{{Scenario: "foo", Status: "ready"}, {Scenario: "bar", Status: "ready"}, {Scenario: "baz", Status: "ready"}},
+	}}}
+	h := newHarnessWithFreshenerAndValidator(t, plan, fr, validator)
+	ctx := context.Background()
+
+	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-1")
+	require.NoError(t, err)
+	_, _, _, err = h.svc.SyncBaseline(ctx, e.ID)
+	require.NoError(t, err)
+	_, pctx, _, err := h.svc.AmendScope(ctx, e.ID, execution.ScopeAmendmentRequest{PhaseID: "ph-1", Members: []string{"bar"}, Author: "agent", Reason: "shared adapter changed"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"bar", "foo"}, pctx.ValidationMembers)
+	_, pctx, _, err = h.svc.AmendScope(ctx, e.ID, execution.ScopeAmendmentRequest{PhaseID: "ph-1", Members: []string{"baz"}, Author: "agent", Reason: "producer integration changed"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"bar", "baz", "foo"}, pctx.ValidationMembers, "a second amendment preserves the first audited expansion")
+
+	_, _, _, err = h.svc.TransitionPhase(ctx, e.ID, "ph-1", execution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusActive})
+	require.NoError(t, err)
+	_, pctx, step, err := h.svc.GetStatus(ctx, e.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, pctx.ScopeGeneration)
+	require.Equal(t, []string{"validate", "start", "plan-1", "--phase", "ph-1", "--execution", e.ID, "--scope-generation", "2", "--members", "bar,baz,foo"}, step.NextActions[0].Argv)
+
+	validator.hasResult = true
+	validator.result = execution.ValidationResult{Verdict: "pass", Staleness: internalplans.StalenessFresh, ExecutionID: e.ID, ScopeGeneration: 2, SelectedMembers: []string{"foo"}}
+	_, _, _, err = h.svc.TransitionPhase(ctx, e.ID, "ph-1", execution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusDone, FeedbackOverrideReason: "focus test"})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "validation")
+
+	validator.result.SelectedMembers = []string{"foo", "bar", "baz"}
+	_, updated, _, err := h.svc.TransitionPhase(ctx, e.ID, "ph-1", execution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusDone, FeedbackOverrideReason: "focus test"})
+	require.NoError(t, err)
+	require.Equal(t, internalplans.PhaseStatusDone, updated.Phases[0].Status)
+}
+
 // TestFreshenDegradationIsNonBlocking proves a freshener error is recorded as a
 // degraded status, surfaced in the phase context, and never blocks the start.
 func TestFreshenDegradationIsNonBlocking(t *testing.T) {
+	plan := threePhasePlan()
+	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"plan-manager"}}
 	fr := &fakeFreshener{err: errors.New("git-control-tower unavailable")}
-	h := newHarnessWithFreshener(t, threePhasePlan(), fr)
+	h := newHarnessWithFreshener(t, plan, fr)
 	ctx := context.Background()
 
 	e, pctx, _, err := h.svc.Start(ctx, "plan-1", "run-1")
-	require.NoError(t, err, "a degraded freshen must never block phase work")
-	require.True(t, pctx.HasCurrent, "phase work proceeds despite a degraded freshen")
-	require.Equal(t, execution.FreshenStatusDegraded, pctx.FreshenStatus)
-	require.Contains(t, pctx.FreshenDetail, "git-control-tower unavailable")
+	require.NoError(t, err, "ticket creation is nonblocking")
+	require.Equal(t, execution.BaselineSetStatusRequired, pctx.BaselineSet.Status)
+	_, pctx, _, err = h.svc.SyncBaseline(ctx, e.ID)
+	require.NoError(t, err)
+	require.Equal(t, execution.BaselineSetStatusDegraded, pctx.BaselineSet.Status)
+	require.Contains(t, pctx.BaselineSet.Detail, "git-control-tower unavailable")
 
 	// A degraded freshen is re-attempted on the next resume (agent can retry).
 	_, _, _, err = h.svc.Resume(ctx, e.ID, "", "")
 	require.NoError(t, err)
-	require.Equal(t, 2, fr.calls, "a degraded freshen is retried on resume")
+	require.Equal(t, 1, fr.calls, "resume does not hide a retry")
 }
 
 // TestFreshenReportsStalenessSummary proves the staleness recompute is surfaced
@@ -906,7 +983,7 @@ func TestFreshenReportsStalenessSummary(t *testing.T) {
 
 	_, pctx, _, err := h.svc.Start(ctx, "plan-1", "run-1")
 	require.NoError(t, err)
-	require.Contains(t, pctx.FreshenDetail, "staleness: 2 reference(s)")
+	require.Empty(t, pctx.FreshenDetail, "start does not perform a hidden baseline/staleness refresh")
 	// The authored plan references are untouched by the freshen (report-only).
 	require.Empty(t, h.store.plan.References)
 }

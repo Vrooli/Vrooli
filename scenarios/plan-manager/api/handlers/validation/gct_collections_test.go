@@ -66,7 +66,7 @@ func collectionFixture(name string, ready, pending int32, complete bool) *baseli
 	}
 }
 
-func TestGCTCollectionClientWaitsOnceForPendingCapture(t *testing.T) {
+func TestGCTCollectionClientReturnsPendingCaptureWithoutWaiting(t *testing.T) {
 	stub := &gctCollectionStub{pending: true}
 	path, handler := baselinesconnect.NewBaselinesServiceHandler(stub)
 	mux := http.NewServeMux()
@@ -76,8 +76,8 @@ func TestGCTCollectionClientWaitsOnceForPendingCapture(t *testing.T) {
 	client := gctCollectionClient{resolver: fixedGCTResolver{url: server.URL}, http: server.Client()}
 	result, err := client.StartCollectionCapture(context.Background(), internalvalidation.BaselineCollectionCaptureRequest{Name: "before", Scenarios: []string{"git-control-tower", "plan-manager"}})
 	require.NoError(t, err)
-	require.True(t, result.Complete())
-	require.Equal(t, 1, stub.waits)
+	require.False(t, result.Complete())
+	require.Equal(t, 0, stub.waits)
 	require.Equal(t, "agi", result.Branch)
 	require.Equal(t, "run-gct", result.Members[0].RunID)
 	require.Equal(t, "paths-before", result.PathSnapshots[0].Name)

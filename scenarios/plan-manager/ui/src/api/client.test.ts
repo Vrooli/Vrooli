@@ -323,6 +323,14 @@ describe("Connect API wrapper helpers", () => {
       sourceCommand: "",
       idempotencyKey: "",
       runId: "",
+      signalType: "",
+      reportSeverity: "",
+      repro: [],
+      expected: "",
+      actual: "",
+      description: "",
+      context: {},
+      honestyFlags: [],
     });
     expect(client.listEntries).toHaveBeenCalledWith({
       planOrExecution: "",
@@ -359,14 +367,11 @@ describe("Connect API wrapper helpers", () => {
 
   it("threads ValidationService requests and unwraps responses", async () => {
     const reference = { id: "ref-1" };
-    const result = { id: "validation-1" };
     const scope = { commands: ["go test ./..."] };
     const client = {
       resolveReferences: vi.fn().mockResolvedValue({ references: [reference], degraded: true }),
       computeStaleness: vi.fn().mockResolvedValue({ overall: 1, references: [reference], degraded: false }),
       deriveBaselineScope: vi.fn().mockResolvedValue(scope),
-      runValidation: vi.fn().mockResolvedValue({ result }),
-      verifyDefinitionOfDone: vi.fn().mockResolvedValue({ result, dodMet: true }),
     };
     createClientMock.mockReturnValue(client);
 
@@ -375,18 +380,13 @@ describe("Connect API wrapper helpers", () => {
     await expect(validation.resolveReferences("plan-1", "phase-1")).resolves.toEqual({ references: [reference], degraded: true });
     await expect(validation.computeStaleness("plan-1", "phase-1")).resolves.toEqual({ overall: 1, references: [reference], degraded: false });
     await expect(validation.deriveBaselineScope("plan-1", "phase-1")).resolves.toBe(scope);
-    await expect(validation.runValidation("plan-1", "phase-1")).resolves.toBe(result);
-    await expect(validation.verifyDefinitionOfDone("plan-1")).resolves.toEqual({ result, dodMet: true });
     await expect(validation.resolveReferences("plan-1")).resolves.toEqual({ references: [reference], degraded: true });
     await expect(validation.computeStaleness("plan-1")).resolves.toEqual({ overall: 1, references: [reference], degraded: false });
     await expect(validation.deriveBaselineScope("plan-1")).resolves.toBe(scope);
-    await expect(validation.runValidation("plan-1")).resolves.toBe(result);
 
     expect(client.resolveReferences).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "phase-1" });
     expect(client.resolveReferences).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "" });
     expect(client.computeStaleness).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "" });
     expect(client.deriveBaselineScope).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "" });
-    expect(client.runValidation).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "" });
-    expect(client.verifyDefinitionOfDone).toHaveBeenCalledWith({ planId: "plan-1" });
   });
 });

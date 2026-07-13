@@ -64,7 +64,7 @@ func (r *plansRecorder) GetPlan(_ context.Context, req *connect.Request[plansv1.
 	if m, ok := r.resp.(*plansv1.GetPlanResponse); ok && m != nil {
 		return connect.NewResponse(m), nil
 	}
-	return connect.NewResponse(&plansv1.GetPlanResponse{Plan: &sharedv1.Plan{Id: req.Msg.GetId()}}), nil
+	return connect.NewResponse(&plansv1.GetPlanResponse{Plan: &sharedv1.Plan{Id: req.Msg.GetId(), Phases: []*sharedv1.Phase{{Id: "phase-1"}}}}), nil
 }
 
 func (r *plansRecorder) CreatePlan(_ context.Context, req *connect.Request[plansv1.CreatePlanRequest]) (*connect.Response[plansv1.CreatePlanResponse], error) {
@@ -579,6 +579,15 @@ func TestPlansRequestMapping(t *testing.T) {
 				require.Equal(t, "phase-1", ph.GetId())
 				require.Equal(t, []string{"Only step"}, ph.GetSteps())
 				require.Equal(t, "go test ./...", ph.GetValidation())
+			},
+		},
+		{
+			name: "phase update maps full-plan validation scope", group: "phase", cmd: "update",
+			argv: []string{"plan-p", "phase-1", "--validation-scope", "full_plan:cross-scenario contract changed"},
+			assert: func(t *testing.T, req proto.Message) {
+				scope := req.(*plansv1.UpdatePhaseRequest).GetPhase().GetValidationScope()
+				require.Equal(t, sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_FULL_PLAN, scope.GetMode())
+				require.Equal(t, "cross-scenario contract changed", scope.GetRationale())
 			},
 		},
 		{

@@ -283,15 +283,15 @@ validation lane:
 ```text
 plan-manager validate start <plan> [--phase P] [--idempotency-key K]
 plan-manager validate show <operation-id>
-plan-manager validate wait <operation-id>
-plan-manager validate resume <operation-id>
+plan-manager validate sync <operation-id>
 ```
 
-`start` returns before child baselines finish. `wait` is one blocking attachment;
-`resume` is the restart/interruption re-entry point. On unexpected EOF,
-cancellation, or transport deadline the CLI performs exactly one non-blocking
-recovery read by operation ID and never starts duplicate work. `validate run
-<plan>` remains a blocking compatibility wrapper.
+`start` never starts or waits for a producer. It returns the exact Git Control
+Tower/Test Genie start and native wait argv for a durable ticket. Run those
+producer commands, let the producer handle timeout/recovery/parking, and then
+run `sync` once to commit typed terminal evidence. `wait`, `resume`, `run`, and
+`verify-dod` are legacy guidance routes only; they do not wait for or execute
+producer work.
 
 ## `phase` — direct phases on a persisted plan
 
@@ -299,8 +299,14 @@ recovery read by operation ID and never starts duplicate work. `validate run
 directly (not only via the authoring wizard): `--affected-areas`, `--steps`,
 `--expected-outputs`, `--validation`, `--risks-hazards`, `--handoff-notes`, in
 addition to `--title`, `--intent`, `--acceptance`, `--context`, `--reminders`,
-`--baseline-scope`, and (on `update`) `--status`. `phase update` is
+`--baseline-scope`, `--validation-scope` (either
+`full_plan:<rationale>` or `narrow:<allow-glob>|<allow-glob>`), and (on
+`update`) `--status`. `phase update` is
 **full-replace**: the caller owns all fields it sends.
+
+For an existing plan that only needs execution-grade validation metadata, use
+`plan-manager phase validation-scope <plan> <phase> --validation-scope ...`.
+It reads and preserves the complete persisted phase before applying the scope.
 
 `plans update` preserves a plan's `import_provenance` and
 `preserved_legacy_sections` when the caller omits them, so a routine

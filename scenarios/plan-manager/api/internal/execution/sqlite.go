@@ -79,6 +79,15 @@ type handoffDocument struct {
 	ChangeBoundary  planmodel.ChangeBoundary `json:"change_boundary"`
 }
 
+// executionScopeDocument intentionally owns only execution-local policy. It
+// round-trips alongside the execution row so schema evolution is additive for
+// existing SQLite databases.
+type executionScopeDocument struct {
+	PhaseValidationGenerations map[string]int   `json:"phase_validation_generations"`
+	ScopeAmendments            []ScopeAmendment `json:"scope_amendments"`
+	DegradedReason             string           `json:"degraded_reason"`
+}
+
 const (
 	upsertExecutionSQL = `
 INSERT INTO executions (id, plan_id, run_id, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail)
@@ -107,6 +116,13 @@ VALUES (?, ?, ?)
 ON CONFLICT(execution_id) DO UPDATE SET document=excluded.document, updated_at=excluded.updated_at`
 
 	getBaselineSetSQL = `SELECT document FROM execution_baseline_sets WHERE execution_id = ? LIMIT 1`
+
+	upsertScopeStateSQL = `
+INSERT INTO execution_scope_states (execution_id, document, updated_at)
+VALUES (?, ?, ?)
+ON CONFLICT(execution_id) DO UPDATE SET document=excluded.document, updated_at=excluded.updated_at`
+
+	getScopeStateSQL = `SELECT document FROM execution_scope_states WHERE execution_id = ? LIMIT 1`
 
 	upsertHandoffSQL = `
 INSERT INTO handoffs (id, execution_id, plan_id, completeness, resume_phase_id, document, assembled_at)
@@ -155,6 +171,17 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 			return fmt.Errorf("upsert execution baseline set %q: %w", e.ID, err)
 		}
 	}
+	scopeRaw, err := json.Marshal(executionScopeDocument{
+		PhaseValidationGenerations: e.PhaseValidationGenerations,
+		ScopeAmendments:            e.ScopeAmendments,
+		DegradedReason:             e.DegradedReason,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal execution scope state %q: %w", e.ID, err)
+	}
+	if _, err := r.db.ExecContext(ctx, upsertScopeStateSQL, e.ID, string(scopeRaw), updated); err != nil {
+		return fmt.Errorf("upsert execution scope state %q: %w", e.ID, err)
+	}
 	return nil
 }
 
@@ -175,6 +202,9 @@ func (r *sqliteRepository) GetExecution(ctx context.Context, id string) (Executi
 	}
 	e.Complete = complete != 0
 	if err := r.loadBaselineSet(ctx, &e); err != nil {
+		return Execution{}, false, err
+	}
+	if err := r.loadScopeState(ctx, &e); err != nil {
 		return Execution{}, false, err
 	}
 	return e, true, nil
@@ -199,6 +229,9 @@ func (r *sqliteRepository) LatestExecutionForPlan(ctx context.Context, planID st
 	if err := r.loadBaselineSet(ctx, &e); err != nil {
 		return Execution{}, false, err
 	}
+	if err := r.loadScopeState(ctx, &e); err != nil {
+		return Execution{}, false, err
+	}
 	return e, true, nil
 }
 
@@ -214,6 +247,25 @@ func (r *sqliteRepository) loadBaselineSet(ctx context.Context, e *Execution) er
 	if err := json.Unmarshal([]byte(raw), &e.BaselineSet); err != nil {
 		return fmt.Errorf("unmarshal execution baseline set %q: %w", e.ID, err)
 	}
+	return nil
+}
+
+func (r *sqliteRepository) loadScopeState(ctx context.Context, e *Execution) error {
+	var raw string
+	err := r.db.QueryRowContext(ctx, getScopeStateSQL, e.ID).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil // legacy execution: scope defaults to the authored plan
+	}
+	if err != nil {
+		return fmt.Errorf("get execution scope state %q: %w", e.ID, err)
+	}
+	var state executionScopeDocument
+	if err := json.Unmarshal([]byte(raw), &state); err != nil {
+		return fmt.Errorf("unmarshal execution scope state %q: %w", e.ID, err)
+	}
+	e.PhaseValidationGenerations = state.PhaseValidationGenerations
+	e.ScopeAmendments = state.ScopeAmendments
+	e.DegradedReason = state.DegradedReason
 	return nil
 }
 

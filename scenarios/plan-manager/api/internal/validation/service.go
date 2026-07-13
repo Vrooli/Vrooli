@@ -3,17 +3,14 @@ package validation
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
-	"plan-manager/internal/readiness"
 
 	"github.com/google/uuid"
 )
@@ -23,16 +20,10 @@ type Service interface {
 	ResolveReferences(ctx context.Context, planID, phaseID string) (ReferenceReport, error)
 	ComputeStaleness(ctx context.Context, planID, phaseID string) (ReferenceReport, error)
 	DeriveBaselineScope(ctx context.Context, planID, phaseID string) (BaselineScope, error)
-	// CaptureBaseline captures the regression-anchor's baseline snapshot for a plan
-	// from its typed anchor intent (scenario + baseline name), shelling
-	// git-control-tower through the command-runner seam, then validates the
-	// finalized snapshot status before calling it captured. This is the
-	// execution-start "capture the before when before is true" action; it degrades
-	// honestly (Captured=false + Detail) when the anchor intent is incomplete,
-	// git-control-tower is unavailable, or the finalized manifest lacks its V2
-	// run anchor — never a fabricated capture.
-	CaptureBaseline(ctx context.Context, planID string) (BaselineCapture, error)
+	SyncBaseline(ctx context.Context, planID string) (BaselineCapture, error)
 	StartValidation(ctx context.Context, planID, phaseID, idempotencyKey string) (ValidationOperation, bool, error)
+	StartValidationTicket(ctx context.Context, req ValidationTicketRequest) (ValidationOperation, bool, error)
+	SyncValidation(ctx context.Context, operationID string) (ValidationOperation, error)
 	GetValidationOperation(ctx context.Context, operationID string, wait bool) (ValidationOperation, error)
 	RecoverPending(ctx context.Context) error
 	RunValidation(ctx context.Context, planID, phaseID string) (Result, error)
@@ -49,14 +40,11 @@ type service struct {
 	staleness   StalenessComputer
 	runner      CommandRunner
 	collections BaselineCollectionClient
+	testRuns    TestRunClient
 	inventories BaselineInventorySource
 	results     ResultStore
 	operations  OperationStore
 	clock       clock.Clock
-	commands    CommandReferenceValidator
-	opMu        sync.Mutex
-	active      map[string]chan struct{}
-	workers     chan struct{}
 }
 
 // Deps wires the validation Service. plans is required; resolver/staleness/runner/
@@ -69,11 +57,14 @@ type Deps struct {
 	Staleness   StalenessComputer
 	Runner      CommandRunner
 	Collections BaselineCollectionClient
+	TestRuns    TestRunClient
 	Inventories BaselineInventorySource
 	Results     ResultStore
 	Operations  OperationStore
 	Clock       clock.Clock
-	Commands    CommandReferenceValidator
+	// Commands remains accepted while older module wiring is migrated. It is not
+	// used by producer-owned tickets and cannot dispatch validation work.
+	Commands CommandReferenceValidator
 }
 
 // NewService constructs the validation Service.
@@ -88,13 +79,11 @@ func NewService(d Deps) Service {
 		staleness:   d.Staleness,
 		runner:      d.Runner,
 		collections: d.Collections,
+		testRuns:    d.TestRuns,
 		inventories: d.Inventories,
 		results:     d.Results,
 		operations:  d.Operations,
 		clock:       clk,
-		commands:    d.Commands,
-		active:      make(map[string]chan struct{}),
-		workers:     make(chan struct{}, maxValidationConcurrency),
 	}
 }
 
@@ -286,163 +275,44 @@ func (s *service) DeriveBaselineScope(ctx context.Context, planID, phaseID strin
 	return deriveScope(p, refs, boundary), nil
 }
 
-func (s *service) CaptureBaseline(ctx context.Context, planID string) (BaselineCapture, error) {
+// SyncBaseline reads an already-started collection exactly once. The caller is
+// responsible for running the GCT capture and native wait actions first.
+func (s *service) SyncBaseline(ctx context.Context, planID string) (BaselineCapture, error) {
 	p, err := s.plans.GetPlan(ctx, planID)
 	if err != nil {
 		return BaselineCapture{}, err
 	}
-	anchor := p.RegressionAnchor
-	if baselineSet := p.BaselineSet; strings.TrimSpace(baselineSet.Name) != "" {
-		return s.captureBaselineSet(ctx, p, baselineSet)
-	}
-	scenario := strings.TrimSpace(anchor.Scenario)
-	name := strings.TrimSpace(anchor.BaselineName)
-	// An unconfirmed authoring placeholder (e.g. "<scenario>") is not a real
-	// target — degrade honestly so the agent confirms the anchor intent.
-	if scenario == "" || strings.ContainsAny(scenario, "<>") {
-		return BaselineCapture{BaselineName: name, Detail: "regression-anchor scenario is unset or still a placeholder; confirm the anchor intent before execution"}, nil
-	}
-	if name == "" {
-		name = scenario + "-baseline"
-	}
-	if s.runner == nil {
-		return BaselineCapture{Scenario: scenario, BaselineName: name, Detail: "no command runner configured (git-control-tower unavailable)"}, nil
-	}
-	reason := "execution-start baseline for plan " + planIdentifier(p)
-	if _, err := s.runner(ctx, "git-control-tower", "baseline", "snapshot", "--scenario", scenario, "--name", name, "--reason", reason); err != nil {
-		return BaselineCapture{Scenario: scenario, BaselineName: name, Detail: "baseline snapshot failed: " + err.Error()}, nil
-	}
-	health := s.validateCapturedBaseline(ctx, scenario, name)
-	if !health.usable {
-		return BaselineCapture{
-			Scenario:        scenario,
-			BaselineName:    name,
-			RunID:           health.runID,
-			SchemaVersion:   health.schemaVersion,
-			DegradedReasons: health.degradedReasons,
-			Detail:          health.detail,
-		}, nil
-	}
-	return BaselineCapture{
-		Captured:      true,
-		Scenario:      scenario,
-		BaselineName:  name,
-		RunID:         health.runID,
-		SchemaVersion: health.schemaVersion,
-		Detail:        fmt.Sprintf("captured baseline %s for %s anchored to Test Genie run %s", name, scenario, health.runID),
-	}, nil
-}
-
-// captureBaselineSet is the new-plan path. A full GCT collection capture is
-// requested once at execution start; incomplete coverage is explicitly
-// degraded, never converted into a successful single-scenario snapshot.
-func (s *service) captureBaselineSet(ctx context.Context, _ planmodel.Plan, baselineSet planmodel.BaselineSetIntent) (BaselineCapture, error) {
+	baselineSet := p.BaselineSet
 	base := BaselineCapture{BaselineName: baselineSet.Name, ScenarioTargets: append([]string(nil), baselineSet.ScenarioTargets...), RepoPaths: append([]string(nil), baselineSet.RepoPaths...)}
+	if strings.TrimSpace(baselineSet.Name) == "" {
+		base.Detail = "legacy plan has no collection baseline ticket"
+		return base, nil
+	}
 	if s.collections == nil {
 		base.Detail = "git-control-tower collection client unavailable"
 		return base, nil
 	}
-	if len(baselineSet.ScenarioTargets) == 0 {
-		base.Detail = "baseline set has no behavioral scenario targets; source paths are informational only"
-		return base, nil
-	}
-	result, err := s.collections.StartCollectionCapture(ctx, BaselineCollectionCaptureRequest{
-		Name: baselineSet.Name, Scenarios: append([]string(nil), baselineSet.ScenarioTargets...), RepoPaths: append([]string(nil), baselineSet.RepoPaths...),
-	})
+	result, err := s.collections.GetCollection(ctx, baselineSet.Name, "")
 	if err != nil {
-		base.Detail = "baseline collection capture failed: " + err.Error()
-		return base, nil
+		return BaselineCapture{}, err
 	}
-	base.Required, base.Ready, base.Pending, base.Failed, base.Skipped, base.Stale = result.Required, result.Ready, result.Pending, result.Failed, result.Skipped, result.Stale
-	base.CollectionBranch = result.Branch
-	base.Members = append([]BaselineCollectionMember(nil), result.Members...)
-	base.PathSnapshots = append([]BaselinePathSnapshot(nil), result.PathSnapshots...)
+	base.CollectionBranch, base.Required, base.Ready, base.Pending, base.Failed, base.Skipped, base.Stale = result.Branch, result.Required, result.Ready, result.Pending, result.Failed, result.Skipped, result.Stale
+	base.Members, base.PathSnapshots = append([]BaselineCollectionMember(nil), result.Members...), append([]BaselinePathSnapshot(nil), result.PathSnapshots...)
+	// GCT is authoritative for append-only extension membership. Persist the
+	// returned inventory rather than the authored plan's original target list.
+	base.ScenarioTargets = base.ScenarioTargets[:0]
+	for _, member := range result.Members {
+		if member.Scenario != "" {
+			base.ScenarioTargets = append(base.ScenarioTargets, member.Scenario)
+		}
+	}
+	base.ScenarioTargets = uniqueSortedStrings(base.ScenarioTargets)
 	if !result.Complete() {
-		base.Detail = fmt.Sprintf("baseline collection %s coverage incomplete: required=%d ready=%d pending=%d failed=%d skipped=%d stale=%d", result.Name, result.Required, result.Ready, result.Pending, result.Failed, result.Skipped, result.Stale)
+		base.Detail = fmt.Sprintf("baseline collection %s coverage incomplete: required=%d ready=%d pending=%d failed=%d skipped=%d stale=%d", baselineSet.Name, result.Required, result.Ready, result.Pending, result.Failed, result.Skipped, result.Stale)
 		return base, nil
 	}
-	base.Captured = true
-	base.Detail = fmt.Sprintf("captured complete baseline collection %s for %d required scenario(s); source paths remain informational", result.Name, result.Required)
+	base.Captured, base.Detail = true, fmt.Sprintf("baseline collection %s synchronized with complete behavioral coverage", baselineSet.Name)
 	return base, nil
-}
-
-type baselineCaptureHealth struct {
-	usable          bool
-	runID           string
-	schemaVersion   int
-	degradedReasons []string
-	detail          string
-}
-
-func (s *service) validateCapturedBaseline(ctx context.Context, scenario, name string) baselineCaptureHealth {
-	out, err := s.runner(ctx, "git-control-tower", "baseline", "snapshot", "status", "--scenario", scenario, "--name", name, "--wait", "--json")
-	if err != nil {
-		return baselineCaptureHealth{
-			detail: fmt.Sprintf("baseline snapshot started but finalization failed: %v; operation can be resumed by baseline name/run id and %q is not yet a usable oracle", err, name),
-		}
-	}
-	health, parseErr := parseBaselineStatusHealth(out)
-	if parseErr != nil {
-		return baselineCaptureHealth{
-			detail: fmt.Sprintf("baseline snapshot completed but its V2 run anchor was unreadable: %v; treat %q as unusable", parseErr, name),
-		}
-	}
-	return health
-}
-
-func parseBaselineStatusHealth(out []byte) (baselineCaptureHealth, error) {
-	if len(strings.TrimSpace(string(out))) == 0 {
-		return baselineCaptureHealth{}, errors.New("empty baseline status output")
-	}
-	var root map[string]json.RawMessage
-	if err := json.Unmarshal(out, &root); err != nil {
-		return baselineCaptureHealth{}, fmt.Errorf("decode snapshot status JSON: %w", err)
-	}
-	status := jsonString(root, "status")
-	if status != "" && status != "ready" {
-		detail := jsonString(root, "error")
-		if detail == "" {
-			detail = status
-		}
-		return baselineCaptureHealth{}, fmt.Errorf("snapshot status %s", detail)
-	}
-	var manifest map[string]json.RawMessage
-	if raw := root["baseline"]; len(raw) > 0 {
-		_ = json.Unmarshal(raw, &manifest)
-	}
-	if len(manifest) == 0 {
-		return baselineCaptureHealth{}, errors.New("ready snapshot has no baseline manifest")
-	}
-	schemaVersion := jsonInt(manifest, "schemaVersion", "schema_version")
-	var run map[string]json.RawMessage
-	if raw := manifest["run"]; len(raw) > 0 {
-		_ = json.Unmarshal(raw, &run)
-	}
-	runID := jsonString(run, "runId", "run_id")
-	if schemaVersion != 2 || runID == "" {
-		return baselineCaptureHealth{runID: runID, schemaVersion: schemaVersion}, fmt.Errorf("expected schema V2 with one non-empty run anchor (schema=%d run=%q)", schemaVersion, runID)
-	}
-	return baselineCaptureHealth{usable: true, runID: runID, schemaVersion: schemaVersion}, nil
-}
-
-func jsonString(values map[string]json.RawMessage, keys ...string) string {
-	for _, key := range keys {
-		var value string
-		if raw := values[key]; len(raw) > 0 && json.Unmarshal(raw, &value) == nil {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
-}
-
-func jsonInt(values map[string]json.RawMessage, keys ...string) int {
-	for _, key := range keys {
-		var value int
-		if raw := values[key]; len(raw) > 0 && json.Unmarshal(raw, &value) == nil {
-			return value
-		}
-	}
-	return 0
 }
 
 // planIdentifier prefers the human slug for log/reason text, falling back to id.
@@ -464,12 +334,35 @@ const (
 // dispatched. A repeated scoped idempotency key returns the original operation
 // and never creates a second child set.
 func (s *service) StartValidation(ctx context.Context, planID, phaseID, idempotencyKey string) (ValidationOperation, bool, error) {
+	return s.StartValidationTicket(ctx, ValidationTicketRequest{PlanID: planID, PhaseID: phaseID, IdempotencyKey: idempotencyKey})
+}
+
+// StartValidationTicket persists producer actions only. The optional execution
+// binding and explicit member selection are checked against the immutable
+// captured inventory; no producer work starts and no upstream wait occurs.
+func (s *service) StartValidationTicket(ctx context.Context, request ValidationTicketRequest) (ValidationOperation, bool, error) {
+	planID, phaseID, idempotencyKey := request.PlanID, request.PhaseID, request.IdempotencyKey
 	if s.operations == nil {
 		return ValidationOperation{}, false, errors.New("durable validation operation store is unavailable")
 	}
 	p, err := s.plans.GetPlan(ctx, planID)
 	if err != nil {
 		return ValidationOperation{}, false, err
+	}
+	// Older rendered plans have no authored collection baseline. When the caller
+	// binds validation to an execution that adopted a completed collection, that
+	// immutable execution checkpoint is authoritative for this ticket. This
+	// preserves the historical plan text while preventing a legacy ticket from
+	// falling back to direct per-scenario commands.
+	if strings.TrimSpace(request.ExecutionID) != "" && strings.TrimSpace(p.BaselineSet.Name) == "" && s.inventories != nil {
+		if inventory, ok, inventoryErr := s.inventories.LatestBaselineInventory(ctx, p.ID); inventoryErr != nil {
+			return ValidationOperation{}, false, fmt.Errorf("load execution baseline inventory: %w", inventoryErr)
+		} else if ok && inventory.Complete && strings.TrimSpace(inventory.Name) != "" && len(inventory.ScenarioTargets) > 0 {
+			p.BaselineSet = planmodel.BaselineSetIntent{
+				Name:            inventory.Name,
+				ScenarioTargets: uniqueSortedStrings(inventory.ScenarioTargets),
+			}
+		}
 	}
 	refs, err := s.scopedReferences(p, phaseID)
 	if err != nil {
@@ -489,43 +382,125 @@ func (s *service) StartValidation(ctx context.Context, planID, phaseID, idempote
 		}
 	}
 	checks := compileValidationChecks(validationPlan, refs, boundary)
+	requiredMembers := collectionMembers(checks)
+	selectedMembers := uniqueSortedStrings(request.SelectedMembers)
+	if len(selectedMembers) == 0 {
+		selectedMembers = append([]string(nil), requiredMembers...)
+	}
+	if phaseID == "" {
+		// The final DoD is intentionally selector-free and always covers all
+		// captured members. A caller cannot narrow it through ticket input.
+		requiredMembers = uniqueSortedStrings(validationPlan.BaselineSet.ScenarioTargets)
+		selectedMembers = append([]string(nil), requiredMembers...)
+		for i := range checks {
+			if checks[i].Kind == ValidationCheckCollectionDiff {
+				checks[i].Scenarios = nil
+				checks[i].SemanticKey = "collection-diff:" + checks[i].Baseline + ":all"
+			}
+		}
+	} else if len(requiredMembers) > 0 && !containsAll(selectedMembers, requiredMembers) {
+		return ValidationOperation{}, false, fmt.Errorf("selected validation members must include required minimum: %s", strings.Join(requiredMembers, ", "))
+	} else if len(selectedMembers) > 0 {
+		for i := range checks {
+			if checks[i].Kind == ValidationCheckCollectionDiff {
+				checks[i].Scenarios = append([]string(nil), selectedMembers...)
+				checks[i].SemanticKey = "collection-diff:" + checks[i].Baseline + ":" + strings.Join(selectedMembers, ",")
+			}
+		}
+	}
+	if len(selectedMembers) > 0 && len(validationPlan.BaselineSet.ScenarioTargets) > 0 && !containsAll(validationPlan.BaselineSet.ScenarioTargets, selectedMembers) {
+		return ValidationOperation{}, false, fmt.Errorf("selected validation members are outside captured baseline inventory")
+	}
+	for _, run := range request.TestRuns {
+		if strings.TrimSpace(run.Scenario) == "" || strings.TrimSpace(run.RunID) == "" {
+			return ValidationOperation{}, false, errors.New("test-genie evidence requires scenario and run id")
+		}
+		checks = append(checks, ValidationCheck{Kind: ValidationCheckTestGenieRun, Scenario: strings.TrimSpace(run.Scenario), RunID: strings.TrimSpace(run.RunID), Oracle: true, SemanticKey: "test-genie:" + strings.TrimSpace(run.Scenario) + ":" + strings.TrimSpace(run.RunID), Command: "test-genie runs status " + strings.TrimSpace(run.Scenario) + " " + strings.TrimSpace(run.RunID)})
+	}
 	checks = replaceRepoDiffWithCapturedPathEvidence(checks, sourceEvidencePaths(validationPlan, boundary), inventory, hasInventory)
 	staleReport, _ := s.ComputeStaleness(ctx, planID, phaseID)
 	now := s.now()
 	op := ValidationOperation{
-		SchemaVersion:              CurrentOperationSchemaVersion,
-		ID:                         uuid.NewString(),
-		PlanID:                     p.ID,
-		PhaseID:                    phaseID,
-		IdempotencyKey:             strings.TrimSpace(idempotencyKey),
-		Status:                     OperationQueued,
-		QueuedAt:                   now,
-		QueueBudgetSeconds:         int(defaultQueueBudget.Seconds()),
-		ExecutionBudgetSeconds:     int(defaultExecutionBudget.Seconds()),
-		TransportWaitBudgetSeconds: int(defaultTransportWaitBudget.Seconds()),
-		RecommendedWaitSeconds:     int((defaultQueueBudget + commandExecutionTimeout).Seconds()),
+		SchemaVersion:  CurrentOperationSchemaVersion,
+		ID:             uuid.NewString(),
+		PlanID:         p.ID,
+		PhaseID:        phaseID,
+		IdempotencyKey: strings.TrimSpace(idempotencyKey),
+		Status:         OperationQueued,
+		QueuedAt:       now,
+		// These legacy transport-budget fields deliberately remain zero. Git
+		// Control Tower and Test Genie own their own waiting, recovery, and
+		// parking policy; Plan Manager only stores producer tickets and syncs
+		// their durable terminal evidence.
+		QueueBudgetSeconds:         0,
+		ExecutionBudgetSeconds:     0,
+		TransportWaitBudgetSeconds: 0,
+		RecommendedWaitSeconds:     0,
 		ScopeFingerprint:           scopeFingerprint(validationPlan, phaseID, checks),
+		ExecutionID:                strings.TrimSpace(request.ExecutionID),
+		ScopeGeneration:            request.ScopeGeneration,
+		RequiredMembers:            requiredMembers,
+		SelectedMembers:            selectedMembers,
+		FullInventory:              phaseID == "",
+		TestRuns:                   append([]TestRunEvidence(nil), request.TestRuns...),
 		QueueReason:                "awaiting scheduler claim",
 		Result: &Result{
 			ID: "", PlanID: p.ID, PhaseID: phaseID, Staleness: staleReport.Overall,
-			CommandsRun: checkCommands(checks),
+			CommandsRun: checkCommands(checks), RequiredMembers: append([]string(nil), requiredMembers...),
+			SelectedMembers: append([]string(nil), selectedMembers...),
 		},
 	}
 	op.Result.ID = op.ID + ":result"
 	for i, check := range checks {
+		childID := fmt.Sprintf("%s:%d", op.ID, i+1)
+		command := check.Command
+		if check.Kind == ValidationCheckCollectionDiff {
+			command = collectionDiffStartCommand(check, childID)
+			op.ProducerWaitArgv = []string{"git-control-tower", "baseline", "collection", "diff", "status", "--name", check.Baseline, "--operation-id", childID, "--wait", "--json"}
+		}
 		op.Children = append(op.Children, ValidationChild{
-			ID: fmt.Sprintf("%s:%d", op.ID, i+1), Check: check, Command: check.Command,
+			ID: childID, Check: check, Command: command,
 			Oracle: check.Oracle, Status: ChildQueued, QueuedAt: now,
 		})
 	}
+	op.SyncArgv = []string{"plan-manager", "validate", "sync", op.ID}
+	op.QueueReason = "run the producer action, use its native wait/recovery command, then synchronize durable evidence"
 	stored, created, err := s.operations.CreateOperation(ctx, op)
 	if err != nil {
 		return ValidationOperation{}, false, err
 	}
-	if !stored.Terminal() {
-		s.launchValidation(context.WithoutCancel(ctx), stored.ID)
-	}
 	return stored, !created, nil
+}
+
+func collectionDiffStartCommand(check ValidationCheck, operationID string) string {
+	args := []string{"git-control-tower", "baseline", "collection", "diff", "--name", check.Baseline, "--operation-id", operationID}
+	for _, member := range check.Scenarios {
+		args = append(args, "--member", member)
+	}
+	return strings.Join(args, " ")
+}
+
+func collectionMembers(checks []ValidationCheck) []string {
+	var members []string
+	for _, check := range checks {
+		if check.Kind == ValidationCheckCollectionDiff {
+			members = append(members, check.Scenarios...)
+		}
+	}
+	return uniqueSortedStrings(members)
+}
+
+func containsAll(selected, required []string) bool {
+	set := make(map[string]struct{}, len(selected))
+	for _, member := range selected {
+		set[member] = struct{}{}
+	}
+	for _, member := range required {
+		if _, ok := set[member]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // planWithCapturedBaselineInventory freezes validation to the target inventory
@@ -603,9 +578,8 @@ func checkCommands(checks []ValidationCheck) []string {
 	return commands
 }
 
-// GetValidationOperation inspects or waits once on a durable operation. A
-// transport deadline only ends this attachment; the returned operation remains
-// non-terminal and server-owned work continues.
+// GetValidationOperation is a cheap inspection only. Legacy wait routes remain
+// readable for migration but never create a second lifecycle owner.
 func (s *service) GetValidationOperation(ctx context.Context, operationID string, wait bool) (ValidationOperation, error) {
 	op, found, err := s.operations.GetOperation(ctx, strings.TrimSpace(operationID))
 	if err != nil {
@@ -614,36 +588,124 @@ func (s *service) GetValidationOperation(ctx context.Context, operationID string
 	if !found {
 		return ValidationOperation{}, ErrOperationNotFound{ID: operationID}
 	}
-	if op.Terminal() || !wait {
-		if !op.Terminal() {
-			s.launchValidation(context.WithoutCancel(ctx), op.ID)
-		}
-		return op, nil
+	_ = wait
+	return op, nil
+}
+
+// SyncValidation reads durable Git Control Tower state once and commits only
+// terminal producer truth. Starting, waiting, recovery and parking remain GCT
+// responsibilities exposed by the ticket's argv values.
+func (s *service) SyncValidation(ctx context.Context, operationID string) (ValidationOperation, error) {
+	if s.operations == nil {
+		return ValidationOperation{}, errors.New("durable validation operation store is unavailable")
 	}
-	done := s.launchValidation(context.WithoutCancel(ctx), op.ID)
-	attachmentEnded := false
-	select {
-	case <-done:
-	case <-ctx.Done():
-		// Detach without canceling the server-owned execution. A durable reread
-		// below is intentionally followed by a typed non-success outcome unless
-		// terminal truth won the race.
-		attachmentEnded = true
-	}
-	op, found, err = s.operations.GetOperation(context.WithoutCancel(ctx), op.ID)
+	op, found, err := s.operations.GetOperation(ctx, strings.TrimSpace(operationID))
 	if err != nil {
 		return ValidationOperation{}, err
 	}
 	if !found {
 		return ValidationOperation{}, ErrOperationNotFound{ID: operationID}
 	}
-	if !op.Terminal() && attachmentEnded {
-		return op, ErrAttachmentEnded{OperationID: op.ID, Cause: ctx.Err()}
+	if op.Terminal() {
+		return op, nil
 	}
-	if !op.Terminal() {
-		return op, fmt.Errorf("validation dispatcher ended before durable terminal checkpoint for %s", op.ID)
+	op.LastSyncedAt = s.now()
+	for i := range op.Children {
+		child := &op.Children[i]
+		if child.Status == ChildTerminal {
+			continue
+		}
+		if child.Check.Kind == ValidationCheckTestGenieRun {
+			if s.testRuns == nil {
+				op.QueueReason = "Test Genie evidence synchronization is unavailable"
+				continue
+			}
+			run, readErr := s.testRuns.GetRun(ctx, child.Check.Scenario, child.Check.RunID)
+			if readErr != nil {
+				op.QueueReason = "test-genie run has not reached readable durable state: " + readErr.Error()
+				continue
+			}
+			if !testRunTerminal(run.Status) {
+				op.QueueReason = "test-genie run remains " + run.Status
+				continue
+			}
+			child.Status, child.TerminalAt, child.ExternalID, child.Detail = ChildTerminal, s.now(), run.RunID, run.Detail
+			if testRunPassed(run.Status) {
+				child.Verdict = VerdictPass
+			} else {
+				child.Verdict = VerdictFail
+			}
+			for j := range op.TestRuns {
+				if op.TestRuns[j].Scenario == run.Scenario && op.TestRuns[j].RunID == run.RunID {
+					op.TestRuns[j] = run
+				}
+			}
+			continue
+		}
+		if child.Check.Kind != ValidationCheckCollectionDiff {
+			child.Status, child.TerminalAt, child.Verdict = ChildTerminal, s.now(), VerdictUnknown
+			child.Detail = "no typed producer synchronization is available for this validation check"
+			continue
+		}
+		if s.collections == nil {
+			op.QueueReason = "Git Control Tower validation synchronization is unavailable"
+			continue
+		}
+		result, readErr := s.collections.GetCollectionDiff(ctx, child.Check.Baseline, child.Check.Branch, child.ID)
+		if readErr != nil {
+			op.QueueReason = "producer diff has not reached readable durable state: " + readErr.Error()
+			continue
+		}
+		if result.Classification != "clean" && result.Classification != "regression" {
+			op.QueueReason = "producer diff remains " + result.Classification
+			continue
+		}
+		child.Status, child.TerminalAt, child.ExternalID, child.Detail = ChildTerminal, s.now(), result.OperationID, result.Detail
+		if result.Classification == "clean" {
+			child.Verdict = VerdictPass
+		} else {
+			child.Verdict = VerdictFail
+		}
+	}
+	allTerminal := len(op.Children) > 0
+	for _, child := range op.Children {
+		if child.Status != ChildTerminal {
+			allTerminal = false
+			break
+		}
+	}
+	if allTerminal {
+		result := Result{ID: op.ID + ":result", PlanID: op.PlanID, PhaseID: op.PhaseID, Verdict: verdictFromChildren(op.Children), RanAt: s.now(), ExecutionID: op.ExecutionID, OperationID: op.ID, ScopeGeneration: op.ScopeGeneration, FullInventory: op.FullInventory, RequiredMembers: append([]string(nil), op.RequiredMembers...), SelectedMembers: append([]string(nil), op.SelectedMembers...)}
+		if op.Result != nil {
+			result.Staleness, result.CommandsRun = op.Result.Staleness, append([]string(nil), op.Result.CommandsRun...)
+		}
+		for _, child := range op.Children {
+			result.Detail = joinDetails(result.Detail, child.Detail)
+		}
+		if s.results != nil {
+			if err := s.results.SaveResult(ctx, result); err != nil {
+				return ValidationOperation{}, err
+			}
+			op.ResultRef = result.ID
+		}
+		op.Result, op.Status, op.TerminalAt, op.QueueReason = &result, OperationTerminal, s.now(), ""
+	}
+	if err := s.operations.SaveOperation(ctx, op); err != nil {
+		return ValidationOperation{}, err
 	}
 	return op, nil
+}
+
+func testRunTerminal(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "passed", "failed", "cancelled", "canceled", "stopped", "complete", "completed":
+		return true
+	}
+	return false
+}
+
+func testRunPassed(status string) bool {
+	return strings.EqualFold(strings.TrimSpace(status), "passed") || strings.EqualFold(strings.TrimSpace(status), "complete") || strings.EqualFold(strings.TrimSpace(status), "completed")
 }
 
 // RecoverPending reattaches every queued/running record after process restart.
@@ -671,261 +733,10 @@ func (s *service) RecoverPending(ctx context.Context) error {
 				return err
 			}
 		}
-		s.launchValidation(context.WithoutCancel(ctx), op.ID)
+		// Producer-owned tickets are resumed by their printed GCT/Test Genie
+		// commands, then reconciled with SyncValidation. Never restart work here.
 	}
 	return nil
-}
-
-func (s *service) launchValidation(ctx context.Context, operationID string) <-chan struct{} {
-	s.opMu.Lock()
-	if done, ok := s.active[operationID]; ok {
-		s.opMu.Unlock()
-		return done
-	}
-	done := make(chan struct{})
-	s.active[operationID] = done
-	s.opMu.Unlock()
-	go func() {
-		defer func() {
-			s.opMu.Lock()
-			delete(s.active, operationID)
-			close(done)
-			s.opMu.Unlock()
-		}()
-		s.executeValidationOperation(ctx, operationID)
-	}()
-	return done
-}
-
-func (s *service) executeValidationOperation(ctx context.Context, operationID string) {
-	op, found, err := s.operations.GetOperation(ctx, operationID)
-	if err != nil || !found || op.Terminal() {
-		return
-	}
-	// An operation owns at most one running child. This is an intentional
-	// per-operation share: it ensures a large operation cannot occupy every
-	// global worker while other queued operations are waiting. Crucially, this
-	// loop creates no goroutine for queued children; only this operation runner
-	// exists until a child has actually claimed a global worker.
-	for _, child := range op.Children {
-		if child.Status == ChildTerminal {
-			continue
-		}
-		select {
-		case s.workers <- struct{}{}:
-		case <-ctx.Done():
-			return
-		}
-		if !s.markOperationClaimed(operationID) {
-			<-s.workers
-			return
-		}
-		executionBudget := time.Duration(op.ExecutionBudgetSeconds) * time.Second
-		if executionBudget <= 0 {
-			executionBudget = defaultExecutionBudget
-		}
-		// The execution clock begins at the durable claim boundary. Queue
-		// residence cannot consume either this operation budget or the child
-		// dispatch timeout.
-		execCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), executionBudget)
-		s.runValidationChild(execCtx, operationID, child.ID)
-		cancel()
-		<-s.workers
-	}
-
-	op, found, err = s.operations.GetOperation(context.WithoutCancel(ctx), operationID)
-	if err != nil || !found {
-		return
-	}
-	// A failed child checkpoint must never be papered over by a terminal parent.
-	// Leave the operation resumable so a later attachment or restart can replay
-	// only the children whose terminal truth was not durably recorded.
-	for _, child := range op.Children {
-		if child.Status != ChildTerminal {
-			return
-		}
-	}
-	resultID := op.ID + ":result"
-	if op.Result != nil && op.Result.ID != "" {
-		resultID = op.Result.ID
-	}
-	result := Result{
-		ID: resultID, PlanID: op.PlanID, PhaseID: op.PhaseID,
-		Verdict: verdictFromChildren(op.Children), RanAt: s.now(),
-	}
-	if op.Result != nil {
-		result.Staleness = op.Result.Staleness
-		result.CommandsRun = append([]string(nil), op.Result.CommandsRun...)
-	}
-	for _, child := range op.Children {
-		result.Detail = joinDetails(result.Detail, child.Detail)
-	}
-	if p, perr := s.plans.GetPlan(context.WithoutCancel(ctx), op.PlanID); perr == nil {
-		readinessResult := readiness.Evaluate(context.WithoutCancel(ctx), p, readiness.Options{
-			PhaseID: op.PhaseID, Mode: readiness.PreflightMode(),
-			CommandValidator: s.readinessCommandValidator(), ReferenceResolver: s.resolver,
-		})
-		result.CommandFindings = append(result.CommandFindings, commandFindingsFromReadiness(readinessResult.Findings)...)
-		result.Verdict = combineValidationVerdicts(result.Verdict, verdictFromReadiness(readinessResult.Verdict))
-		result.Detail = joinDetails(result.Detail, readinessResult.Detail)
-	} else {
-		result.Verdict = VerdictUnknown
-		result.Detail = joinDetails(result.Detail, "validation readiness unavailable: "+perr.Error())
-	}
-
-	persistCtx := context.Background()
-	resultPersisted := false
-	if s.results != nil {
-		if err := s.results.SaveResult(persistCtx, result); err != nil {
-			op.Error = &OperationError{Code: "result_persistence_failed", Detail: err.Error()}
-			result.Verdict = VerdictUnknown
-		} else {
-			resultPersisted = true
-			if committed, found, err := s.results.GetResult(persistCtx, result.ID); err == nil && found {
-				// A crash replay cannot replace the first committed terminal truth.
-				result = committed
-			}
-		}
-	}
-	if !resultPersisted && s.results != nil {
-		// Result persistence is the terminal commit boundary. Keep the operation
-		// non-terminal and recoverable rather than publishing success-shaped state.
-		op.Error = &OperationError{Code: "result_persistence_failed", Detail: result.Detail}
-		_ = s.operations.SaveOperation(persistCtx, op)
-		return
-	}
-	op.Status = OperationTerminal
-	op.TerminalAt = s.now()
-	op.Result = &result
-	if resultPersisted {
-		op.ResultRef = result.ID
-	}
-	_ = s.operations.SaveOperation(persistCtx, op)
-}
-
-func (s *service) markOperationClaimed(operationID string) bool {
-	s.opMu.Lock()
-	defer s.opMu.Unlock()
-	op, found, err := s.operations.GetOperation(context.Background(), operationID)
-	if err != nil || !found || op.Terminal() {
-		return false
-	}
-	if op.StartedAt == "" {
-		op.StartedAt = s.now()
-		op.Attempt++
-	}
-	op.Status = OperationRunning
-	op.QueueReason = ""
-	return s.operations.SaveOperation(context.Background(), op) == nil
-}
-
-func (s *service) expireValidationChild(operationID, childID string, cause error) {
-	s.updateChild(operationID, childID, func(child *ValidationChild) {
-		child.Status = ChildTerminal
-		child.TerminalAt = s.now()
-		child.Verdict = VerdictUnknown
-		child.Detail = fmt.Sprintf("unknown %s: execution budget ended before dispatch", child.Command)
-		child.Error = &OperationError{Code: "execution_timeout", Detail: cause.Error()}
-	})
-}
-
-func (s *service) runValidationChild(ctx context.Context, operationID, childID string) {
-	child, ok := s.updateChild(operationID, childID, func(child *ValidationChild) {
-		child.Status = ChildRunning
-		child.Attempt++
-		if child.StartedAt == "" {
-			child.StartedAt = s.now()
-		}
-	})
-	if !ok {
-		return
-	}
-	var output []byte
-	var runErr error
-	classified := commandRunResult{}
-	if child.Check.Kind == ValidationCheckCollectionDiff {
-		classified, runErr = s.runCollectionDiff(ctx, child)
-	} else if child.Check.Kind == ValidationCheckPathSnapshotDiff {
-		classified, runErr = s.runPathSnapshotDiff(ctx, child)
-	} else {
-		name, args := splitCommand(child.Command)
-		if name == "" {
-			runErr = errors.New("empty command")
-		} else if s.runner == nil {
-			runErr = fmt.Errorf("command %q: %w", name, ErrToolNotFound)
-		} else {
-			output, runErr = s.runner(ctx, name, args...)
-		}
-		classified = classifyCommandRun(child.Command, child.Oracle, runErr)
-	}
-	s.updateChild(operationID, childID, func(child *ValidationChild) {
-		child.Status = ChildTerminal
-		child.TerminalAt = s.now()
-		child.Verdict = classified.verdict
-		child.Detail = classified.detail
-		child.ExternalID = externalRunID(output)
-		child.Error = operationErrorFor(runErr)
-	})
-}
-
-func (s *service) runCollectionDiff(ctx context.Context, child ValidationChild) (commandRunResult, error) {
-	if s.collections == nil {
-		err := errors.New("git-control-tower collection client unavailable")
-		return commandRunResult{oracle: true, verdict: VerdictUnknown, detail: err.Error()}, err
-	}
-	result, err := s.collections.StartCollectionDiff(ctx, BaselineCollectionDiffRequest{Name: child.Check.Baseline, OperationID: child.ID, Scenarios: append([]string(nil), child.Check.Scenarios...)})
-	if err != nil {
-		return commandRunResult{oracle: true, verdict: VerdictUnknown, detail: "collection diff unavailable: " + err.Error()}, err
-	}
-	classified := commandRunResult{oracle: true, detail: strings.TrimSpace(result.Detail)}
-	switch result.Classification {
-	case "clean":
-		classified.verdict = VerdictPass
-	case "regression":
-		classified.verdict = VerdictFail
-	default:
-		classified.verdict = VerdictUnknown
-		if classified.detail == "" {
-			classified.detail = "collection diff " + result.Classification
-		}
-	}
-	return classified, nil
-}
-
-func (s *service) runPathSnapshotDiff(ctx context.Context, child ValidationChild) (commandRunResult, error) {
-	if s.collections == nil {
-		err := errors.New("git-control-tower collection client unavailable")
-		return commandRunResult{oracle: false, verdict: VerdictUnknown, detail: err.Error()}, err
-	}
-	result, err := s.collections.DiffPathEvidence(ctx, BaselinePathDiffRequest{BeforeName: child.Check.Baseline, Branch: child.Check.Branch, Paths: append([]string(nil), child.Check.Paths...), OperationID: child.ID})
-	if err != nil {
-		return commandRunResult{oracle: false, verdict: VerdictUnknown, detail: "source evidence unavailable: " + err.Error()}, err
-	}
-	detail := strings.TrimSpace(result.Detail)
-	if detail == "" {
-		detail = fmt.Sprintf("informational source evidence: %d path delta(s), after snapshot %s", result.Deltas, result.AfterName)
-	}
-	return commandRunResult{oracle: false, verdict: VerdictPass, detail: detail}, nil
-}
-
-func (s *service) updateChild(operationID, childID string, mutate func(*ValidationChild)) (ValidationChild, bool) {
-	s.opMu.Lock()
-	defer s.opMu.Unlock()
-	op, found, err := s.operations.GetOperation(context.Background(), operationID)
-	if err != nil || !found || op.Terminal() {
-		return ValidationChild{}, false
-	}
-	for i := range op.Children {
-		if op.Children[i].ID != childID {
-			continue
-		}
-		mutate(&op.Children[i])
-		if err := s.operations.SaveOperation(context.Background(), op); err != nil {
-			return ValidationChild{}, false
-		}
-		return op.Children[i], true
-	}
-	return ValidationChild{}, false
 }
 
 func verdictFromChildren(children []ValidationChild) Verdict {
@@ -950,189 +761,10 @@ func verdictFromChildren(children []ValidationChild) Verdict {
 	return VerdictPass
 }
 
-func operationErrorFor(err error) *OperationError {
-	if err == nil {
-		return nil
-	}
-	code := "command_failed"
-	switch {
-	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
-		code = "execution_timeout"
-	case errors.Is(err, ErrToolNotFound):
-		code = "tool_unavailable"
-	default:
-		var exitErr CommandExitError
-		if errors.As(err, &exitErr) && exitErr.Code == 2 {
-			code = "not_comparable"
-		}
-	}
-	return &OperationError{Code: code, Detail: err.Error()}
-}
-
-func externalRunID(output []byte) string {
-	var value any
-	if len(output) == 0 || json.Unmarshal(output, &value) != nil {
-		return ""
-	}
-	return findRunID(value)
-}
-
-func findRunID(value any) string {
-	switch typed := value.(type) {
-	case map[string]any:
-		for _, key := range []string{"runId", "run_id"} {
-			if id, ok := typed[key].(string); ok && strings.TrimSpace(id) != "" {
-				return strings.TrimSpace(id)
-			}
-		}
-		for _, nested := range typed {
-			if id := findRunID(nested); id != "" {
-				return id
-			}
-		}
-	case []any:
-		for _, nested := range typed {
-			if id := findRunID(nested); id != "" {
-				return id
-			}
-		}
-	}
-	return ""
-}
-
 func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Result, error) {
-	if s.operations != nil {
-		op, _, err := s.StartValidation(ctx, planID, phaseID, "")
-		if err != nil {
-			return Result{}, err
-		}
-		op, err = s.GetValidationOperation(ctx, op.ID, true)
-		if err != nil {
-			return Result{}, err
-		}
-		if op.Result == nil || !op.Terminal() {
-			return Result{}, fmt.Errorf("validation operation %s remains %s; reattach by operation id", op.ID, op.Status)
-		}
-		return *op.Result, nil
-	}
-	p, err := s.plans.GetPlan(ctx, planID)
-	if err != nil {
-		return Result{}, err
-	}
-	refs, err := s.scopedReferences(p, phaseID)
-	if err != nil {
-		return Result{}, err
-	}
-	scope := deriveScope(p, refs, effectiveBoundary(p, phaseID))
-	staleReport, _ := s.ComputeStaleness(ctx, planID, phaseID)
-	res := Result{
-		ID:          uuid.NewString(),
-		PlanID:      p.ID, // canonical id so the execution context server reads the same key
-		PhaseID:     phaseID,
-		CommandsRun: scope.Commands,
-		Staleness:   staleReport.Overall,
-		RanAt:       s.now(),
-	}
-	res.Verdict, res.Detail = s.runCommands(ctx, scope.Commands)
-	readinessResult := readiness.Evaluate(ctx, p, readiness.Options{
-		PhaseID:           phaseID,
-		Mode:              readiness.PreflightMode(),
-		CommandValidator:  s.readinessCommandValidator(),
-		ReferenceResolver: s.resolver,
-	})
-	res.CommandFindings = append(res.CommandFindings, commandFindingsFromReadiness(readinessResult.Findings)...)
-	res.Verdict = combineValidationVerdicts(res.Verdict, verdictFromReadiness(readinessResult.Verdict))
-	res.Detail = joinDetails(res.Detail, readinessResult.Detail)
-	// Persist for the cheap-read context path (status/next). Best-effort: a cache
-	// write failure must not fail the live validation the agent asked for.
-	if s.results != nil {
-		_ = s.results.SaveResult(ctx, res)
-	}
-	return res, nil
-}
-
-func (s *service) readinessCommandValidator() readiness.CommandValidator {
-	if s.commands == nil {
-		return nil
-	}
-	return commandValidatorAdapter{s.commands}
-}
-
-type commandValidatorAdapter struct {
-	validator CommandReferenceValidator
-}
-
-func (a commandValidatorAdapter) ValidateCommandReference(ctx context.Context, req readiness.CommandRequest) (readiness.CommandResult, error) {
-	if a.validator == nil {
-		return readiness.CommandResult{}, fmt.Errorf("CLI Health command validator unavailable")
-	}
-	result, err := a.validator.ValidateCommandReference(ctx, CommandReferenceRequest{
-		CommandText: req.CommandText,
-		Qualifiers:  append([]string(nil), req.Qualifiers...),
-	})
-	if err != nil {
-		return readiness.CommandResult{}, err
-	}
-	issues := make([]readiness.CommandIssue, 0, len(result.Issues))
-	for _, issue := range result.Issues {
-		issues = append(issues, readiness.CommandIssue{Code: issue.Code, Message: issue.Message})
-	}
-	return readiness.CommandResult{
-		Verdict:         result.Verdict,
-		ValidationLevel: result.ValidationLevel,
-		Issues:          issues,
-		Suggestions:     append([]string(nil), result.Suggestions...),
-		Guidance:        append([]string(nil), result.Guidance...),
-	}, nil
-}
-
-func commandFindingsFromReadiness(findings []readiness.Finding) []CommandFinding {
-	out := make([]CommandFinding, 0, len(findings))
-	for _, finding := range findings {
-		out = append(out, CommandFinding{
-			CommandText: finding.CommandText,
-			Verdict:     string(verdictForReadinessFinding(finding)),
-			Level:       finding.Level,
-			Message:     finding.Message,
-			Location:    finding.Location,
-			IssueCodes:  append([]string(nil), finding.IssueCodes...),
-			Suggestions: append([]string(nil), finding.Suggestions...),
-			Guidance:    append([]string(nil), finding.Guidance...),
-		})
-	}
-	return out
-}
-
-func verdictForReadinessFinding(finding readiness.Finding) Verdict {
-	switch finding.Severity {
-	case readiness.SeverityFail:
-		return VerdictFail
-	case readiness.SeverityWarning, readiness.SeverityUnknown:
-		return VerdictUnknown
-	default:
-		return VerdictPass
-	}
-}
-
-func verdictFromReadiness(verdict readiness.Verdict) Verdict {
-	switch verdict {
-	case readiness.VerdictFail:
-		return VerdictFail
-	case readiness.VerdictPass:
-		return VerdictPass
-	default:
-		return VerdictUnknown
-	}
-}
-
-func combineValidationVerdicts(a, b Verdict) Verdict {
-	if a == VerdictFail || b == VerdictFail {
-		return VerdictFail
-	}
-	if a == VerdictUnknown || b == VerdictUnknown || a == VerdictUnspecified || b == VerdictUnspecified {
-		return VerdictUnknown
-	}
-	return VerdictPass
+	_ = ctx
+	_ = phaseID
+	return Result{}, ErrProducerTicketRequired{PlanID: planID}
 }
 
 func joinDetails(parts ...string) string {
@@ -1161,161 +793,14 @@ func (s *service) LastValidation(ctx context.Context, planID, phaseID string) (R
 }
 
 func (s *service) VerifyDefinitionOfDone(ctx context.Context, planID string) (Result, bool, error) {
-	p, err := s.plans.GetPlan(ctx, planID)
-	if err != nil {
-		return Result{}, false, err
-	}
-	if strings.TrimSpace(p.BaselineSet.Name) != "" {
-		return s.verifyBaselineSetDefinitionOfDone(ctx, p)
-	}
-	commands := p.RegressionAnchor.Commands
-	if len(commands) == 0 && !p.RegressionAnchor.Unavailable {
-		// Wizard-authored plans carry the anchor as captured prose with no explicit
-		// commands. Derive the oracle command set from the plan's connected code so
-		// DoD verifies against a real diff oracle instead of always degrading to
-		// UNKNOWN (the authoring→DoD gap).
-		commands = deriveScope(p, p.References, p.ChangeBoundary).Commands
-	}
-	res := Result{PlanID: planID, CommandsRun: commands, RanAt: s.now()}
-	if p.RegressionAnchor.Unavailable || len(commands) == 0 {
-		res.Verdict = VerdictUnknown
-		res.Detail = "regression anchor unavailable; DoD cannot be verified against an oracle"
-		return res, false, nil
-	}
-	res.Verdict, res.Detail = s.runCommands(ctx, commands)
-	return res, res.Verdict == VerdictPass, nil
+	_ = ctx
+	return Result{}, false, ErrProducerTicketRequired{PlanID: planID}
 }
 
-// verifyBaselineSetDefinitionOfDone always evaluates the complete captured
-// inventory through the durable typed collection-diff operation. It never
-// replays a rendered CLI string and cannot call incomplete coverage clean.
-func (s *service) verifyBaselineSetDefinitionOfDone(ctx context.Context, p planmodel.Plan) (Result, bool, error) {
-	if s.inventories == nil {
-		return Result{PlanID: p.ID, Verdict: VerdictUnknown, Detail: "execution baseline-set checkpoint unavailable; DoD cannot verify complete coverage", RanAt: s.now()}, false, nil
-	}
-	inventory, ok, err := s.inventories.LatestBaselineInventory(ctx, p.ID)
-	if err != nil {
-		return Result{}, false, fmt.Errorf("load baseline-set checkpoint for DoD: %w", err)
-	}
-	if !ok || inventory.Name != p.BaselineSet.Name || !inventory.Complete {
-		return Result{PlanID: p.ID, Verdict: VerdictUnknown, Detail: "baseline-set coverage is incomplete or missing; DoD cannot be clean", RanAt: s.now()}, false, nil
-	}
-	op, _, err := s.StartValidation(ctx, p.ID, "", "dod:"+uuid.NewString())
-	if err != nil {
-		return Result{}, false, err
-	}
-	op, err = s.GetValidationOperation(ctx, op.ID, true)
-	if err != nil {
-		return Result{}, false, err
-	}
-	if op.Result == nil {
-		return Result{PlanID: p.ID, Verdict: VerdictUnknown, Detail: "baseline-set validation completed without a result", RanAt: s.now()}, false, nil
-	}
-	return *op.Result, op.Result.Verdict == VerdictPass, nil
-}
-
-// isOracleCommand reports whether a derived command has trustworthy pass/fail
-// exit semantics. Only a git-control-tower baseline diff is an oracle (exit 0
-// safe, 1 regression, 2 not-comparable). A bare `git diff`/`git diff --stat`
-// exits 0 essentially always, so it is INFORMATIONAL — run for its output and
-// surfaced to the agent, but it never determines the verdict (treating it as an
-// oracle is how "validation passed" used to mean only "git ran").
+// isOracleCommand classifies legacy rendered commands during parsing only. New
+// tickets use typed producer evidence and never execute this command text.
 func isOracleCommand(cmd string) bool {
 	return strings.HasPrefix(strings.TrimSpace(cmd), "git-control-tower baseline diff ")
-}
-
-// runCommands runs the derived command set and computes a verdict from the
-// ORACLE commands only. A tool that is not installed yields UNKNOWN for that
-// command (not FAIL — absence of git-control-tower must not look like a
-// regression); a baseline diff exit 2 ("not comparable") is UNKNOWN; any other
-// non-zero oracle exit is FAIL. PASS requires at least one oracle to have run
-// cleanly with no oracle failing or going unknown. With no oracle command at all
-// (e.g. only an informational repo-level diff), the verdict is UNKNOWN — honest,
-// never a fabricated pass.
-func (s *service) runCommands(ctx context.Context, commands []string) (Verdict, string) {
-	if len(commands) == 0 {
-		return VerdictUnknown, "no baseline commands derived"
-	}
-	if s.runner == nil {
-		return VerdictUnknown, "no command runner configured (git-control-tower unavailable)"
-	}
-	var (
-		details       []string
-		oraclePassed  int
-		oracleFailed  bool
-		oracleUnknown bool
-	)
-	for _, cmd := range commands {
-		result, ok := s.runOneCommand(ctx, cmd)
-		if !ok {
-			continue
-		}
-		details = append(details, result.detail)
-		if !result.oracle {
-			continue
-		}
-		switch result.verdict {
-		case VerdictPass:
-			oraclePassed++
-		case VerdictFail:
-			oracleFailed = true
-		default:
-			oracleUnknown = true
-		}
-	}
-	detail := strings.Join(details, "\n")
-	switch {
-	case oracleFailed:
-		return VerdictFail, detail
-	case oracleUnknown:
-		return VerdictUnknown, detail
-	case oraclePassed > 0:
-		return VerdictPass, detail
-	default:
-		return VerdictUnknown, detail
-	}
-}
-
-type commandRunResult struct {
-	oracle  bool
-	verdict Verdict
-	detail  string
-}
-
-func (s *service) runOneCommand(ctx context.Context, cmd string) (commandRunResult, bool) {
-	name, args := splitCommand(cmd)
-	if name == "" {
-		return commandRunResult{}, false
-	}
-	oracle := isOracleCommand(cmd)
-	_, err := s.runner(ctx, name, args...)
-	return classifyCommandRun(cmd, oracle, err), true
-}
-
-func classifyCommandRun(cmd string, oracle bool, err error) commandRunResult {
-	result := commandRunResult{oracle: oracle, verdict: VerdictPass, detail: fmt.Sprintf("ok %s", cmd)}
-	if err == nil {
-		return result
-	}
-	if errors.Is(err, ErrToolNotFound) {
-		result.verdict = VerdictUnknown
-		result.detail = fmt.Sprintf("unknown %s: tool not found", cmd)
-		return result
-	}
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		result.verdict = VerdictUnknown
-		result.detail = fmt.Sprintf("unknown %s: execution attachment ended (%v)", cmd, err)
-		return result
-	}
-	var exitErr CommandExitError
-	if errors.As(err, &exitErr) && exitErr.Code == 2 {
-		result.verdict = VerdictUnknown
-		result.detail = fmt.Sprintf("unknown %s: not comparable (exit 2)", cmd)
-		return result
-	}
-	result.verdict = VerdictFail
-	result.detail = fmt.Sprintf("FAIL %s: %v", cmd, err)
-	return result
 }
 
 func (s *service) now() string {

@@ -81,6 +81,9 @@ func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID st
 		ID: res.ID, PlanID: res.PlanID, PhaseID: res.PhaseID,
 		Verdict: string(res.Verdict), Staleness: res.Staleness,
 		CommandsRun: res.CommandsRun, Detail: res.Detail, RanAt: res.RanAt,
+		ExecutionID: res.ExecutionID, OperationID: res.OperationID,
+		ScopeGeneration: res.ScopeGeneration, FullInventory: res.FullInventory,
+		RequiredMembers: res.RequiredMembers, SelectedMembers: res.SelectedMembers,
 	}, true, nil
 }
 
@@ -291,8 +294,8 @@ func executionReadyPhase(phase internalplans.Phase) internalplans.Phase {
 
 // TestValidationResultPersistsForCheapContextRead pins the context-server fix:
 // status/next must NOT shell a live validation run on every poll. They inject the
-// LAST STORED result — so before any explicit RunValidation there is no validation
-// in context, and after one the stored result is read back cheaply.
+// LAST STORED result — so a status poll never starts, waits for, or synchronizes
+// validation work by itself.
 func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	ctx := context.Background()
 	_, plansSvc, validationSvc, _, executionSvc, _ := newStack(t)
@@ -300,7 +303,7 @@ func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	plan, err := plansSvc.Create(ctx, executionReadyPlan("Cheap context", []internalplans.Phase{{
 		Title:      "Phase one",
 		Steps:      []string{"Run explicit validation once."},
-		Validation: "plan-manager validate run <plan> --phase <phase>",
+		Validation: "plan-manager validate start <plan> --phase <phase>, use the rendered producer wait, then plan-manager validate sync <operation>",
 		Acceptance: "done",
 		Reminders:  []string{"NO_CONTEXT: validation persistence fixture does not require setup context."},
 	}}))
@@ -316,22 +319,20 @@ func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	exec, _, _, err := executionSvc.Start(ctx, plan.ID, "run-cheap")
 	require.NoError(t, err)
 
-	// Before any explicit validation run: NO validation in the injected context.
+	// Before any explicit ticket/sync: NO validation in the injected context.
 	// status answered the poll without triggering a live baseline.
 	_, before, _, err := executionSvc.GetStatus(ctx, exec.ID)
 	require.NoError(t, err)
 	require.False(t, before.HasValidation, "status must not trigger a live validation run")
 
-	// The agent runs validation explicitly; the result is persisted for cheap reads.
-	res, err := validationSvc.RunValidation(ctx, plan.ID, phaseID)
-	require.NoError(t, err)
-	require.Equal(t, internalvalidation.VerdictUnknown, res.Verdict)
+	// The retired worker route must not create hidden evidence.
+	_, err = validationSvc.RunValidation(ctx, plan.ID, phaseID)
+	require.ErrorAs(t, err, new(internalvalidation.ErrProducerTicketRequired))
 
-	// Now status reads the STORED result (a cheap store read, no subprocess).
+	// Status remains a cheap read with no fabricated stored result.
 	_, after, _, err := executionSvc.GetStatus(ctx, exec.ID)
 	require.NoError(t, err)
-	require.True(t, after.HasValidation, "status injects the last STORED validation result")
-	require.Equal(t, "unknown", after.LastValidation.Verdict)
+	require.False(t, after.HasValidation, "status cannot fabricate producer evidence")
 }
 
 func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
@@ -590,7 +591,7 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 
 	exec, pctx, execStep, err = executionSvc.ContinueExecution(ctx, exec.ID, "", "")
 	require.NoError(t, err)
-	require.Equal(t, "run-validation", execStep.NextActions[0].ID, "continue must not recommend done without fresh passing validation")
+	require.Equal(t, "start-validation-ticket", execStep.NextActions[0].ID, "continue must not recommend done without fresh synchronized producer evidence")
 	require.NotEmpty(t, execStep.NextActions[0].BlockedBy)
 
 	_, _, _, err = logSvc.AddNote(ctx, internalplanlog.AddInputs{
@@ -606,7 +607,7 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 		ValidationOverrideReason: "small-agent integration fixture validates degraded guidance separately",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "complete-execution", execStep.NextActions[0].ID)
+	require.Equal(t, "start-final-dod-ticket", execStep.NextActions[0].ID)
 
 	handoff, _, execStep, err := executionSvc.Complete(ctx, exec.ID, internalexecution.CompletionInputs{Tokens: 321, Iterations: 2})
 	require.NoError(t, err)

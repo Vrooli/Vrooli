@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 import {
   computeStaleness,
   deriveBaselineScope,
   resolveReferences,
-  runValidation,
-  verifyDefinitionOfDone,
   type StalenessReport,
 } from "../../api/validation";
 import { PlanSelect } from "../../components/PlanSelect";
@@ -17,13 +15,11 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { type StringKey } from "../../consts/stringKey";
 import { errorMessage } from "../../lib/errorMessage";
-import { stalenessDescriptor, verdictDescriptor } from "../../lib/planStatus";
+import { stalenessDescriptor } from "../../lib/planStatus";
 import { useTranslation } from "../../i18n";
 import {
   ReferenceResolution,
-  type CommandValidationFinding,
   type Reference,
-  type ValidationResult,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import type { DeriveBaselineScopeResponse } from "@vrooli/proto-types/plan-manager/v1/validation/validation_pb";
 
@@ -57,67 +53,6 @@ function CodeList({ items }: { items: readonly string[] }) {
   );
 }
 
-function FindingList({
-  items,
-  className = "list-disc space-y-1 pl-4",
-}: {
-  items: readonly string[];
-  className?: string;
-}) {
-  if (items.length === 0) {
-    return null;
-  }
-  return (
-    <ul className={className}>
-      {items.map((item, i) => (
-        <li key={`${item}-${i}`} className="break-words">
-          {item}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function CommandFindingCard({ finding }: { finding: CommandValidationFinding }) {
-  const { t } = useTranslation();
-  const meta = [finding.verdict, finding.validationLevel, finding.location].filter(Boolean);
-  return (
-    <li className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
-      <div className="flex flex-col gap-1">
-        <code className="break-words text-xs text-app-foreground">{finding.commandText}</code>
-        {meta.length > 0 ? (
-          <p className="text-xs text-app-muted-foreground">{meta.join(" · ")}</p>
-        ) : null}
-        {finding.message ? <p className="text-app-foreground">{finding.message}</p> : null}
-      </div>
-      {finding.issueCodes.length > 0 ? (
-        <div className="mt-2">
-          <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
-            {t(strings.pages.validation.commandIssuesLabel)}
-          </p>
-          <FindingList items={finding.issueCodes} className="flex flex-wrap gap-1 text-xs text-app-danger" />
-        </div>
-      ) : null}
-      {finding.suggestions.length > 0 ? (
-        <div className="mt-2">
-          <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
-            {t(strings.pages.validation.commandSuggestionsLabel)}
-          </p>
-          <FindingList items={finding.suggestions} />
-        </div>
-      ) : null}
-      {finding.guidance.length > 0 ? (
-        <div className="mt-2">
-          <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
-            {t(strings.pages.validation.commandGuidanceLabel)}
-          </p>
-          <FindingList items={finding.guidance} />
-        </div>
-      ) : null}
-    </li>
-  );
-}
-
 /**
  * ValidationBoard — per-plan validation tooling. Each action resolves a
  * dependency-backed view and renders its result honestly: degraded (a composed
@@ -130,8 +65,6 @@ export function ValidationBoard() {
   const [references, setReferences] = useState<{ refs: Reference[]; degraded: boolean } | null>(null);
   const [staleness, setStaleness] = useState<StalenessReport | null>(null);
   const [baseline, setBaseline] = useState<DeriveBaselineScopeResponse | null>(null);
-  const [result, setResult] = useState<ValidationResult | null>(null);
-  const [dod, setDod] = useState<{ result: ValidationResult | undefined; met: boolean } | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
@@ -301,117 +234,12 @@ export function ValidationBoard() {
           )}
         </SectionPanel>
 
-        <SectionPanel
-          title={t(strings.pages.validation.runHeading)}
-          headingId="validation-run-heading"
-          actions={
-            <Button
-              type="button"
-              size="sm"
-              data-testid={selectors.validation.runButton}
-              disabled={disabled}
-              onClick={() =>
-                run(async () => {
-                  setResult((await runValidation(planId)) ?? null);
-                })
-              }
-            >
-              {t(strings.pages.validation.runValidation)}
-            </Button>
-          }
-        >
-          {result ? (
-            <dl data-testid={selectors.validation.result} className="flex flex-col gap-2 text-sm">
-              <div className="flex items-center gap-2">
-                <dt className="text-app-muted-foreground">{t(strings.pages.validation.verdictLabel)}</dt>
-                <dd>
-                  <StatusBadge descriptor={verdictDescriptor(result.verdict)} />
-                </dd>
-              </div>
-              {result.commandsRun.length > 0 ? (
-                <div>
-                  <dt className="text-xs uppercase tracking-wide text-app-muted-foreground">
-                    {t(strings.pages.validation.commandsRunLabel)}
-                  </dt>
-                  <dd>
-                    <CodeList items={result.commandsRun} />
-                  </dd>
-                </div>
-              ) : null}
-              {result.commandFindings.length > 0 ? (
-                <div data-testid={selectors.validation.commandFindings}>
-                  <dt className="text-xs uppercase tracking-wide text-app-muted-foreground">
-                    {t(strings.pages.validation.commandFindingsLabel)}
-                  </dt>
-                  <dd>
-                    <ul className="flex flex-col gap-2">
-                      {result.commandFindings.map((finding, i) => (
-                        <CommandFindingCard key={`${finding.commandText}-${finding.location}-${i}`} finding={finding} />
-                      ))}
-                    </ul>
-                  </dd>
-                </div>
-              ) : null}
-              {result.detail ? (
-                <div>
-                  <dt className="text-xs uppercase tracking-wide text-app-muted-foreground">
-                    {t(strings.pages.validation.detailLabel)}
-                  </dt>
-                  <dd className="whitespace-pre-wrap text-app-foreground">{result.detail}</dd>
-                </div>
-              ) : null}
-            </dl>
-          ) : (
-            <p className="text-sm text-app-muted-foreground">{t(strings.common.empty)}</p>
-          )}
-        </SectionPanel>
       </div>
 
-      <SectionPanel
-        title={t(strings.pages.validation.dodHeading)}
-        headingId="validation-dod-heading"
-        actions={
-          <Button
-            type="button"
-            size="sm"
-            data-testid={selectors.validation.dodButton}
-            disabled={disabled}
-            onClick={() =>
-              run(async () => {
-                const res = await verifyDefinitionOfDone(planId);
-                setDod({ result: res.result, met: res.dodMet });
-              })
-            }
-          >
-            {t(strings.pages.validation.verifyDod)}
-          </Button>
-        }
-      >
-        {dod ? (
-          <div data-testid={selectors.validation.dod} className="flex flex-col gap-2">
-            <p
-              className={[
-                "flex items-center gap-2 text-sm font-medium",
-                dod.met ? "text-app-success" : "text-app-danger",
-              ].join(" ")}
-            >
-              {dod.met ? (
-                <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-              ) : (
-                <XCircle aria-hidden="true" className="h-4 w-4" />
-              )}
-              {dod.met ? t(strings.pages.validation.dodMet) : t(strings.pages.validation.dodNotMet)}
-            </p>
-            {dod.result ? (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-app-muted-foreground">{t(strings.pages.validation.verdictLabel)}</span>
-                <StatusBadge descriptor={verdictDescriptor(dod.result.verdict)} />
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <p className="text-sm text-app-muted-foreground">{t(strings.common.empty)}</p>
-        )}
+      <SectionPanel title={t(strings.pages.validation.producerOwnedHeading)} headingId="validation-producer-owned-heading">
+        <p className="text-sm text-app-muted-foreground">
+          {t(strings.pages.validation.producerOwnedDescription)}
+        </p>
       </SectionPanel>
     </div>
   );

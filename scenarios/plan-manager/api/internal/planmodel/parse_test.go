@@ -137,6 +137,29 @@ func TestParsePlanMarkdownExtractsDeclarativeBaselineSet(t *testing.T) {
 	}
 }
 
+func TestParsePlanMarkdownExtractsBaselineSetFromRegressionChecks(t *testing.T) {
+	t.Parallel()
+
+	plan, err := ParsePlanMarkdown("# Regression checks\n\n" +
+		"## Verification\n\n### Regression checks\n\n" +
+		"A baseline records current behavior before this plan changes it.\n\n" +
+		"```bash\n" +
+		"git-control-tower baseline collection capture --name all-targets --member git-control-tower --member plan-manager --path packages/proto/**\n" +
+		"```\n")
+	if err != nil {
+		t.Fatalf("ParsePlanMarkdown() error = %v", err)
+	}
+	if got, want := plan.BaselineSet.Name, "all-targets"; got != want {
+		t.Fatalf("BaselineSet.Name = %q, want %q", got, want)
+	}
+	if got, want := strings.Join(plan.BaselineSet.ScenarioTargets, ","), "git-control-tower,plan-manager"; got != want {
+		t.Fatalf("BaselineSet.ScenarioTargets = %q, want %q", got, want)
+	}
+	if got, want := strings.Join(plan.BaselineSet.RepoPaths, ","), "packages/proto/**"; got != want {
+		t.Fatalf("BaselineSet.RepoPaths = %q, want %q", got, want)
+	}
+}
+
 func TestParseRegressionAnchorBlockMarksUnstructuredLegacyProse(t *testing.T) {
 	t.Parallel()
 

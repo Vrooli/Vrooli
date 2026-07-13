@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
@@ -28,11 +27,10 @@ type gctScenarioURLResolver interface {
 type gctCollectionClient struct {
 	resolver gctScenarioURLResolver
 	http     connect.HTTPClient
-	timeout  time.Duration
 }
 
 func newGCTCollectionClient() internalvalidation.BaselineCollectionClient {
-	return gctCollectionClient{resolver: discovery.NewResolver(discovery.ResolverConfig{}), http: http.DefaultClient, timeout: 2 * time.Minute}
+	return gctCollectionClient{resolver: discovery.NewResolver(discovery.ResolverConfig{}), http: http.DefaultClient}
 }
 
 func (c gctCollectionClient) StartCollectionCapture(ctx context.Context, req internalvalidation.BaselineCollectionCaptureRequest) (internalvalidation.BaselineCollectionCaptureResult, error) {
@@ -42,12 +40,7 @@ func (c gctCollectionClient) StartCollectionCapture(ctx context.Context, req int
 	if c.http == nil {
 		c.http = http.DefaultClient
 	}
-	if c.timeout <= 0 {
-		c.timeout = 2 * time.Minute
-	}
-	callCtx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-	baseURL, err := c.resolver.ResolveScenarioURLDefault(callCtx, gitControlTowerScenarioID)
+	baseURL, err := c.resolver.ResolveScenarioURLDefault(ctx, gitControlTowerScenarioID)
 	if err != nil {
 		return internalvalidation.BaselineCollectionCaptureResult{}, fmt.Errorf("resolve git-control-tower URL: %w", err)
 	}
@@ -56,21 +49,11 @@ func (c gctCollectionClient) StartCollectionCapture(ctx context.Context, req int
 		targets = append(targets, &baselinesv1.CollectionTarget{Scenario: scenario, BaselineName: req.Name, Required: true})
 	}
 	client := baselinesconnect.NewBaselinesServiceClient(c.http, baseURL)
-	resp, err := client.StartCollectionCapture(callCtx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: req.Name, Targets: targets, PathSelections: req.RepoPaths, CreatedBy: "plan-manager", Reason: "execution-start baseline set"}))
+	resp, err := client.StartCollectionCapture(ctx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: req.Name, Targets: targets, PathSelections: req.RepoPaths, CreatedBy: "plan-manager", Reason: "execution-start baseline set"}))
 	if err != nil {
 		return internalvalidation.BaselineCollectionCaptureResult{}, fmt.Errorf("start git-control-tower collection: %w", err)
 	}
-	result := collectionResult(resp.Msg.GetCollection())
-	if result.Complete() {
-		return result, nil
-	}
-	// Start returns quickly; one server-owned wait resolves persisted member
-	// intents without Plan Manager polling or manufacturing child commands.
-	settled, err := client.GetCollection(callCtx, connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: req.Name, Wait: true}))
-	if err != nil {
-		return internalvalidation.BaselineCollectionCaptureResult{}, fmt.Errorf("wait for git-control-tower collection: %w", err)
-	}
-	return collectionResult(settled.Msg.GetCollection()), nil
+	return collectionResult(resp.Msg.GetCollection()), nil
 }
 
 func collectionResult(collection *baselinesv1.BaselineCollection) internalvalidation.BaselineCollectionCaptureResult {
@@ -88,6 +71,25 @@ func collectionResult(collection *baselinesv1.BaselineCollection) internalvalida
 	return result
 }
 
+func (c gctCollectionClient) GetCollection(ctx context.Context, name, branch string) (internalvalidation.BaselineCollectionCaptureResult, error) {
+	if c.resolver == nil {
+		return internalvalidation.BaselineCollectionCaptureResult{}, fmt.Errorf("git-control-tower discovery unavailable")
+	}
+	if c.http == nil {
+		c.http = http.DefaultClient
+	}
+	baseURL, err := c.resolver.ResolveScenarioURLDefault(ctx, gitControlTowerScenarioID)
+	if err != nil {
+		return internalvalidation.BaselineCollectionCaptureResult{}, fmt.Errorf("resolve git-control-tower URL: %w", err)
+	}
+	client := baselinesconnect.NewBaselinesServiceClient(c.http, baseURL)
+	resp, err := client.GetCollection(ctx, connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: name, Branch: branch, Wait: false}))
+	if err != nil {
+		return internalvalidation.BaselineCollectionCaptureResult{}, fmt.Errorf("get git-control-tower collection: %w", err)
+	}
+	return collectionResult(resp.Msg.GetCollection()), nil
+}
+
 func (c gctCollectionClient) StartCollectionDiff(ctx context.Context, req internalvalidation.BaselineCollectionDiffRequest) (internalvalidation.BaselineCollectionDiffResult, error) {
 	if c.resolver == nil {
 		return internalvalidation.BaselineCollectionDiffResult{}, fmt.Errorf("git-control-tower discovery unavailable")
@@ -95,24 +97,35 @@ func (c gctCollectionClient) StartCollectionDiff(ctx context.Context, req intern
 	if c.http == nil {
 		c.http = http.DefaultClient
 	}
-	if c.timeout <= 0 {
-		c.timeout = 2 * time.Minute
-	}
-	callCtx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-	baseURL, err := c.resolver.ResolveScenarioURLDefault(callCtx, gitControlTowerScenarioID)
+	baseURL, err := c.resolver.ResolveScenarioURLDefault(ctx, gitControlTowerScenarioID)
 	if err != nil {
 		return internalvalidation.BaselineCollectionDiffResult{}, fmt.Errorf("resolve git-control-tower URL: %w", err)
 	}
 	client := baselinesconnect.NewBaselinesServiceClient(c.http, baseURL)
-	if _, err := client.StartCollectionDiff(callCtx, connect.NewRequest(&baselinesv1.StartCollectionDiffRequest{Name: req.Name, OperationId: req.OperationID, Scenarios: req.Scenarios})); err != nil {
+	started, err := client.StartCollectionDiff(ctx, connect.NewRequest(&baselinesv1.StartCollectionDiffRequest{Name: req.Name, OperationId: req.OperationID, Scenarios: req.Scenarios}))
+	if err != nil {
 		return internalvalidation.BaselineCollectionDiffResult{}, fmt.Errorf("start git-control-tower collection diff: %w", err)
 	}
-	settled, err := client.GetCollectionDiff(callCtx, connect.NewRequest(&baselinesv1.GetCollectionDiffRequest{Name: req.Name, OperationId: req.OperationID, Wait: true}))
-	if err != nil {
-		return internalvalidation.BaselineCollectionDiffResult{}, fmt.Errorf("wait for git-control-tower collection diff: %w", err)
+	return internalvalidation.BaselineCollectionDiffResult{OperationID: started.Msg.GetOperationId(), Classification: started.Msg.GetClassification(), Detail: collectionDiffDetail(started.Msg.GetMembers())}, nil
+}
+
+func (c gctCollectionClient) GetCollectionDiff(ctx context.Context, name, branch, operationID string) (internalvalidation.BaselineCollectionDiffResult, error) {
+	if c.resolver == nil {
+		return internalvalidation.BaselineCollectionDiffResult{}, fmt.Errorf("git-control-tower discovery unavailable")
 	}
-	return internalvalidation.BaselineCollectionDiffResult{OperationID: settled.Msg.GetOperationId(), Classification: settled.Msg.GetClassification(), Detail: collectionDiffDetail(settled.Msg.GetMembers())}, nil
+	if c.http == nil {
+		c.http = http.DefaultClient
+	}
+	baseURL, err := c.resolver.ResolveScenarioURLDefault(ctx, gitControlTowerScenarioID)
+	if err != nil {
+		return internalvalidation.BaselineCollectionDiffResult{}, fmt.Errorf("resolve git-control-tower URL: %w", err)
+	}
+	client := baselinesconnect.NewBaselinesServiceClient(c.http, baseURL)
+	resp, err := client.GetCollectionDiff(ctx, connect.NewRequest(&baselinesv1.GetCollectionDiffRequest{Name: name, Branch: branch, OperationId: operationID, Wait: false}))
+	if err != nil {
+		return internalvalidation.BaselineCollectionDiffResult{}, fmt.Errorf("get git-control-tower collection diff: %w", err)
+	}
+	return internalvalidation.BaselineCollectionDiffResult{OperationID: resp.Msg.GetOperationId(), Classification: resp.Msg.GetClassification(), Detail: collectionDiffDetail(resp.Msg.GetMembers())}, nil
 }
 
 func (c gctCollectionClient) DiffPathEvidence(ctx context.Context, req internalvalidation.BaselinePathDiffRequest) (internalvalidation.BaselinePathDiffResult, error) {
@@ -122,17 +135,12 @@ func (c gctCollectionClient) DiffPathEvidence(ctx context.Context, req internalv
 	if c.http == nil {
 		c.http = http.DefaultClient
 	}
-	if c.timeout <= 0 {
-		c.timeout = 2 * time.Minute
-	}
-	callCtx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-	baseURL, err := c.resolver.ResolveScenarioURLDefault(callCtx, gitControlTowerScenarioID)
+	baseURL, err := c.resolver.ResolveScenarioURLDefault(ctx, gitControlTowerScenarioID)
 	if err != nil {
 		return internalvalidation.BaselinePathDiffResult{}, fmt.Errorf("resolve git-control-tower URL: %w", err)
 	}
 	client := baselinesconnect.NewBaselinesServiceClient(c.http, baseURL)
-	before, err := client.GetPathSnapshot(callCtx, connect.NewRequest(&baselinesv1.GetPathSnapshotRequest{Name: req.BeforeName, Branch: req.Branch}))
+	before, err := client.GetPathSnapshot(ctx, connect.NewRequest(&baselinesv1.GetPathSnapshotRequest{Name: req.BeforeName, Branch: req.Branch}))
 	if err != nil {
 		return internalvalidation.BaselinePathDiffResult{}, fmt.Errorf("get source evidence snapshot: %w", err)
 	}
@@ -140,10 +148,10 @@ func (c gctCollectionClient) DiffPathEvidence(ctx context.Context, req internalv
 		return internalvalidation.BaselinePathDiffResult{}, fmt.Errorf("source evidence snapshot %q has no selections", req.BeforeName)
 	}
 	afterName := pathEvidenceAfterName(req.BeforeName, req.OperationID)
-	if _, err := client.CapturePathSnapshot(callCtx, connect.NewRequest(&baselinesv1.CapturePathSnapshotRequest{Name: afterName, Branch: req.Branch, Selections: before.Msg.GetSnapshot().GetSelections()})); err != nil {
+	if _, err := client.CapturePathSnapshot(ctx, connect.NewRequest(&baselinesv1.CapturePathSnapshotRequest{Name: afterName, Branch: req.Branch, Selections: before.Msg.GetSnapshot().GetSelections()})); err != nil {
 		return internalvalidation.BaselinePathDiffResult{}, fmt.Errorf("capture current source evidence: %w", err)
 	}
-	diff, err := client.DiffPathSnapshots(callCtx, connect.NewRequest(&baselinesv1.DiffPathSnapshotsRequest{BeforeName: req.BeforeName, AfterName: afterName, Branch: req.Branch, Selections: req.Paths}))
+	diff, err := client.DiffPathSnapshots(ctx, connect.NewRequest(&baselinesv1.DiffPathSnapshotsRequest{BeforeName: req.BeforeName, AfterName: afterName, Branch: req.Branch, Selections: req.Paths}))
 	if err != nil {
 		return internalvalidation.BaselinePathDiffResult{}, fmt.Errorf("diff source evidence: %w", err)
 	}

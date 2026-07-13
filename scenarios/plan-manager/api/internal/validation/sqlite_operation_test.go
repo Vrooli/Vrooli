@@ -85,6 +85,52 @@ func TestSQLiteOperationStoreCoalescesUnkeyedActiveStarts(t *testing.T) { // [RE
 	require.Equal(t, first.ID, second.ID)
 }
 
+func TestSQLiteOperationStoreKeepsExplicitRequestsDistinct(t *testing.T) { // [REQ:PM-VALID-004]
+	store := newOperationStore(t)
+	first, created, err := store.CreateOperation(context.Background(), v2Operation(ValidationOperation{
+		ID: "first", PlanID: "plan-1", PhaseID: "phase-1", ExecutionID: "execution-1", ScopeGeneration: 3,
+		IdempotencyKey: "before-code-change", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:00Z",
+	}))
+	require.NoError(t, err)
+	require.True(t, created)
+
+	second, created, err := store.CreateOperation(context.Background(), v2Operation(ValidationOperation{
+		ID: "second", PlanID: "plan-1", PhaseID: "phase-1", ExecutionID: "execution-1", ScopeGeneration: 3,
+		IdempotencyKey: "after-code-change", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:01Z",
+	}))
+	require.NoError(t, err)
+	require.True(t, created)
+	require.NotEqual(t, first.ID, second.ID, "a distinct explicit request must create fresh evidence")
+
+	replay, created, err := store.CreateOperation(context.Background(), v2Operation(ValidationOperation{
+		ID: "replay", PlanID: "plan-1", PhaseID: "phase-1", ExecutionID: "execution-1", ScopeGeneration: 3,
+		IdempotencyKey: "after-code-change", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:02Z",
+	}))
+	require.NoError(t, err)
+	require.False(t, created)
+	require.Equal(t, second.ID, replay.ID)
+}
+
+func TestSQLiteOperationStoreScopesRetriesToExecutionGeneration(t *testing.T) { // [REQ:PM-VALID-004]
+	store := newOperationStore(t)
+	first, created, err := store.CreateOperation(context.Background(), v2Operation(ValidationOperation{
+		ID: "first", PlanID: "plan-1", PhaseID: "phase-1", ExecutionID: "execution-1", ScopeGeneration: 1,
+		IdempotencyKey: "phase-validation", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:00Z",
+	}))
+	require.NoError(t, err)
+	require.True(t, created)
+
+	for _, candidate := range []ValidationOperation{
+		{ID: "next-generation", PlanID: "plan-1", PhaseID: "phase-1", ExecutionID: "execution-1", ScopeGeneration: 2, IdempotencyKey: "phase-validation", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:01Z"},
+		{ID: "other-execution", PlanID: "plan-1", PhaseID: "phase-1", ExecutionID: "execution-2", ScopeGeneration: 1, IdempotencyKey: "phase-validation", Status: OperationQueued, QueuedAt: "2026-07-10T12:00:02Z"},
+	} {
+		got, candidateCreated, candidateErr := store.CreateOperation(context.Background(), v2Operation(candidate))
+		require.NoError(t, candidateErr)
+		require.True(t, candidateCreated)
+		require.NotEqual(t, first.ID, got.ID)
+	}
+}
+
 func TestSQLiteOperationStoreRoundTripsPartialChildCheckpoint(t *testing.T) { // [REQ:PM-VALID-004]
 	store := newOperationStore(t)
 	op := ValidationOperation{

@@ -2,11 +2,9 @@ package validation
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
+	"strconv"
 	"strings"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -17,18 +15,13 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-const (
-	validationTransportWaitBudget = 15 * time.Minute
-	validationRecoveryBudget      = 30 * time.Second
-)
-
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client validationconnect.ValidationServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, validationTransportWaitBudget+time.Minute)
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
 		client: validationconnect.NewValidationServiceClient(httpClient, baseURL),
@@ -36,8 +29,12 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) start(ctx cliapp.RunContext) error {
+	generation, err := parseScopeGeneration(ctx.Flag("scope-generation"))
+	if err != nil {
+		return cliapp.WrapAPIError("start validation", err, nil)
+	}
 	resp, err := h.client.StartValidation(context.Background(), connect.NewRequest(&validationv1.StartValidationRequest{
-		PlanId: ctx.Positional("plan"), PhaseId: ctx.Flag("phase"), IdempotencyKey: ctx.Flag("idempotency-key"),
+		PlanId: ctx.Positional("plan"), PhaseId: ctx.Flag("phase"), IdempotencyKey: ctx.Flag("idempotency-key"), ExecutionId: ctx.Flag("execution"), ScopeGeneration: generation, Member: commaValues(ctx.Flag("members")), TestRuns: testRunEvidence(ctx.Flag("test-runs")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("start validation", err, nil)
@@ -53,20 +50,80 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	if resp.Msg.GetDeduplicated() {
 		changes = append(changes, "Idempotency key matched the existing operation; no child work was duplicated.")
 	}
+	for _, child := range op.GetChildren() {
+		if child.GetCommand() != "" {
+			changes = append(changes, "Producer action: "+child.GetCommand())
+		}
+	}
+	if len(op.GetProducerWaitArgv()) > 0 {
+		changes = append(changes, "Producer wait: "+strings.Join(op.GetProducerWaitArgv(), " "))
+	}
+	syncCommand := "plan-manager validate sync " + op.GetId()
+	if len(op.GetSyncArgv()) > 0 {
+		syncCommand = strings.Join(op.GetSyncArgv(), " ")
+	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Validation operation: %s", op.GetId())},
 		Changes:     changes,
-		NextCommand: []string{fmt.Sprintf("plan-manager validate wait %s", op.GetId())},
+		NextCommand: []string{"Run the exact producer action above, use Git Control Tower's printed native wait, then " + syncCommand + "."},
 	})
 }
 
-func (h *handlers) show(ctx cliapp.RunContext) error   { return h.operation(ctx, "show", false) }
-func (h *handlers) wait(ctx cliapp.RunContext) error   { return h.operation(ctx, "wait", true) }
-func (h *handlers) resume(ctx cliapp.RunContext) error { return h.operation(ctx, "resume", true) }
+func parseScopeGeneration(raw string) (int32, error) {
+	if strings.TrimSpace(raw) == "" {
+		return 0, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil || value < 0 {
+		return 0, fmt.Errorf("--scope-generation must be a non-negative integer")
+	}
+	return int32(value), nil
+}
 
-func (h *handlers) operation(ctx cliapp.RunContext, command string, wait bool) error {
+func commaValues(raw string) []string {
+	var values []string
+	for _, value := range strings.Split(raw, ",") {
+		if value = strings.TrimSpace(value); value != "" {
+			values = append(values, value)
+		}
+	}
+	return values
+}
+
+func testRunEvidence(raw string) []*validationv1.TestRunEvidence {
+	var runs []*validationv1.TestRunEvidence
+	for _, value := range commaValues(raw) {
+		parts := strings.SplitN(value, ":", 2)
+		if len(parts) == 2 && strings.TrimSpace(parts[0]) != "" && strings.TrimSpace(parts[1]) != "" {
+			runs = append(runs, &validationv1.TestRunEvidence{Scenario: strings.TrimSpace(parts[0]), RunId: strings.TrimSpace(parts[1])})
+		}
+	}
+	return runs
+}
+
+func (h *handlers) sync(ctx cliapp.RunContext) error {
+	resp, err := h.client.SyncValidation(context.Background(), connect.NewRequest(&validationv1.SyncValidationRequest{OperationId: ctx.Positional("operation")}))
+	if err != nil {
+		return cliapp.WrapAPIError("synchronize validation", err, nil)
+	}
+	op := resp.Msg.GetOperation()
+	changes := []string{fmt.Sprintf("Status: %s.", operationStatusLabel(op.GetStatus()))}
+	if op.GetQueueReason() != "" {
+		changes = append(changes, op.GetQueueReason())
+	}
+	if op.GetResult() != nil {
+		changes = append(changes, fmt.Sprintf("Verdict: %s.", verdictLabel(op.GetResult().GetVerdict())))
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Validation operation: %s", op.GetId())}, Changes: changes, NextCommand: op.GetProducerWaitArgv()})
+}
+
+func (h *handlers) show(ctx cliapp.RunContext) error   { return h.operation(ctx, "show") }
+func (h *handlers) wait(ctx cliapp.RunContext) error   { return h.operation(ctx, "wait") }
+func (h *handlers) resume(ctx cliapp.RunContext) error { return h.operation(ctx, "resume") }
+
+func (h *handlers) operation(ctx cliapp.RunContext, command string) error {
 	operationID := ctx.Positional("operation")
-	resp, recovered, err := h.getOperation(operationID, command, wait)
+	resp, err := h.client.GetValidationOperation(context.Background(), connect.NewRequest(&validationv1.GetValidationOperationRequest{OperationId: operationID}))
 	if err != nil {
 		return cliapp.WrapAPIError(command+" validation", err, nil)
 	}
@@ -80,9 +137,6 @@ func (h *handlers) operation(ctx cliapp.RunContext, command string, wait bool) e
 	if op.GetQueueReason() != "" {
 		changes = append(changes, fmt.Sprintf("Queue reason: %s.", op.GetQueueReason()))
 	}
-	if recovered {
-		changes = append(changes, "The blocking attachment ended unexpectedly; this is the one recovery read by durable operation id.")
-	}
 	if result := op.GetResult(); result != nil && op.GetStatus() == validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_TERMINAL {
 		changes = append(changes, fmt.Sprintf("Verdict: %s (staleness %s).", verdictLabel(result.GetVerdict()), stalenessLabel(result.GetStaleness())))
 		if result.GetDetail() != "" {
@@ -91,57 +145,14 @@ func (h *handlers) operation(ctx cliapp.RunContext, command string, wait bool) e
 	}
 	hints := []string{}
 	if op.GetStatus() != validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_TERMINAL {
-		hints = append(hints, fmt.Sprintf("`plan-manager validate resume %s` — reattach after interruption or server restart", op.GetId()))
+		hints = append(hints, "Run the ticket's Git Control Tower/Test Genie producer wait command, then `plan-manager validate sync "+op.GetId()+"`.")
 	}
 	if err := cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: []string{fmt.Sprintf("Validation operation: %s", op.GetId())}, Changes: changes, NextCommand: hints,
 	}); err != nil {
 		return err
 	}
-	if recovered && op.GetStatus() != validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_TERMINAL {
-		return fmt.Errorf("validation wait detached before terminal truth; inspect or resume operation %s", op.GetId())
-	}
 	return nil
-}
-
-func (h *handlers) getOperation(operationID, command string, wait bool) (*connect.Response[validationv1.GetValidationOperationResponse], bool, error) {
-	timeout := validationRecoveryBudget
-	if wait {
-		timeout = validationTransportWaitBudget
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	req := connect.NewRequest(&validationv1.GetValidationOperationRequest{OperationId: operationID, Wait: wait})
-	var resp *connect.Response[validationv1.GetValidationOperationResponse]
-	var err error
-	switch command {
-	case "wait":
-		resp, err = h.client.WaitValidationOperation(ctx, req)
-	case "resume":
-		resp, err = h.client.ResumeValidationOperation(ctx, req)
-	default:
-		resp, err = h.client.GetValidationOperation(ctx, req)
-	}
-	if err == nil || !wait || !isAttachmentEnd(err) {
-		return resp, false, err
-	}
-	// Exactly one reconnect by durable id. This is an inspect read, never a
-	// duplicate StartValidation call and never a polling loop.
-	recoveryCtx, recoveryCancel := context.WithTimeout(context.Background(), validationRecoveryBudget)
-	defer recoveryCancel()
-	resp, err = h.client.GetValidationOperation(recoveryCtx, connect.NewRequest(&validationv1.GetValidationOperationRequest{
-		OperationId: operationID, Wait: false,
-	}))
-	return resp, true, err
-}
-
-func isUnexpectedEOF(err error) bool {
-	return errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) || strings.Contains(strings.ToLower(err.Error()), "unexpected eof")
-}
-
-func isAttachmentEnd(err error) bool {
-	code := connect.CodeOf(err)
-	return isUnexpectedEOF(err) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || code == connect.CodeDeadlineExceeded || code == connect.CodeCanceled
 }
 
 func operationStatusLabel(status validationv1.ValidationOperationStatus) string {

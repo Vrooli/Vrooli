@@ -94,24 +94,23 @@ without issuing a second lookup. CLI mirror: `plan-manager plans render`.
 
 ## ValidationService durable operations
 
-Plan validation is a server-owned operation. `StartValidation` persists an
-operation, its complete child oracle set, and an optional scoped idempotency key
-before bounded concurrent dispatch. The remaining methods inspect or reattach
-to that durable identity; transport lifetime never determines the verdict.
+Plan validation is a producer-owned ticket. `StartValidation` persists typed
+scope and exact producer argv, while Git Control Tower/Test Genie own start,
+wait, recovery, timeout, and parking. `SyncValidation` performs one nonblocking
+typed read and atomically records terminal evidence; Plan Manager never
+dispatches a baseline/test worker.
 
 | RPC | Purpose | CLI mirror |
 | --- | --- | --- |
-| `StartValidation` | Persist queued operation/children and return the stable operation ID. Repeating the same `(plan, phase, idempotency_key)` returns the original operation. | `plan-manager validate start` |
+| `StartValidation` | Persist a ticket and return the stable operation ID plus producer argv. A replay key is scoped to plan, phase, execution, and scope generation; a distinct key requests fresh evidence. | `plan-manager validate start` |
 | `GetValidationOperation` | Read current checkpoints and terminal result without waiting. | `plan-manager validate show` |
-| `WaitValidationOperation` | Block once for the existing operation; timeout/cancel only detaches. | `plan-manager validate wait` |
-| `ResumeValidationOperation` | Resume unfinished queued/running children after restart and block once. Terminal children are not replayed. | `plan-manager validate resume` |
-| `RunValidation` | Compatibility blocking wrapper over the durable lifecycle. | `plan-manager validate run` |
+| `SyncValidation` | Read producer-owned durable state once and record comparable terminal evidence. | `plan-manager validate sync` |
+| `WaitValidationOperation`, `ResumeValidationOperation`, `RunValidation`, `VerifyDefinitionOfDone` | Legacy guidance only; no hidden wait or dispatch. | legacy routes |
 
-Queue residence, operation execution, individual child execution, and transport
-attachment have independent budgets. Every required oracle must be terminal and
-comparable for PASS; missing, unavailable, timed-out, or not-comparable evidence
-remains UNKNOWN/degraded. Unexpected EOF permits one non-blocking inspection by
-operation ID and never a duplicate start.
+Every required oracle must be terminal and comparable for PASS; missing,
+unavailable, timed-out, or not-comparable evidence remains UNKNOWN/degraded.
+Producer interruption is recovered through the producer's durable operation id,
+never a Plan Manager retry loop.
 
 ---
 

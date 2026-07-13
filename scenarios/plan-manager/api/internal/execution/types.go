@@ -63,6 +63,13 @@ type Execution struct {
 	// phase validation never derive a different before-state from edited plan
 	// prose. Legacy single-scenario anchors leave it zero-valued.
 	BaselineSet BaselineSetState
+	// PhaseValidationGenerations advances whenever execution-local scope changes.
+	// A validation result is usable only when it was synchronized for this
+	// execution and the current generation, so a prior ticket cannot certify
+	// newly discovered work.
+	PhaseValidationGenerations map[string]int
+	ScopeAmendments            []ScopeAmendment
+	DegradedReason             string
 }
 
 type BaselineSetStatus string
@@ -73,6 +80,7 @@ type BaselineSetStatus string
 const BaselineSetStateSchemaVersion = 2
 
 const (
+	BaselineSetStatusRequired BaselineSetStatus = "required"
 	BaselineSetStatusComplete BaselineSetStatus = "complete"
 	BaselineSetStatusPartial  BaselineSetStatus = "partial"
 	BaselineSetStatusDegraded BaselineSetStatus = "degraded"
@@ -98,6 +106,52 @@ type BaselineSetState struct {
 	Members          []BaselineSetMember
 	PathSnapshots    []BaselineSetPathSnapshot
 	Detail           string
+	CaptureArgv      []string
+	WaitArgv         []string
+	SyncArgv         []string
+	LastSyncedAt     string
+}
+
+// ScopeAmendment is an append-only explanation of a phase's real validation
+// scope. It never changes historical before-state membership: newly affected
+// scenarios must first be extended and captured by Git Control Tower.
+type ScopeAmendment struct {
+	ID                   string
+	PhaseID              string
+	Author               string
+	Reason               string
+	OldMinimum           []string
+	NewMinimum           []string
+	InvalidatedAt        string
+	CreatedAt            string
+	InvalidatedTicketIDs []string
+}
+
+// ScopeAmendmentRequest is the execution-owned, auditable control surface for
+// broadening a phase validation selection within the captured inventory.
+type ScopeAmendmentRequest struct {
+	PhaseID string
+	Members []string
+	Author  string
+	Reason  string
+}
+
+// BaselineAdoptionMode makes legacy execution repair explicit. Recapture only
+// creates a new producer ticket; it never starts or waits for GCT. Degraded
+// preserves readable history but permanently disallows normal completion.
+type BaselineAdoptionMode string
+
+const (
+	BaselineAdoptionRecapture BaselineAdoptionMode = "recapture"
+	BaselineAdoptionDegraded  BaselineAdoptionMode = "degraded"
+)
+
+type BaselineAdoptionRequest struct {
+	Mode      BaselineAdoptionMode
+	Name      string
+	Members   []string
+	RepoPaths []string
+	Reason    string
 }
 
 // BaselineSetMember preserves the GCT member/run checkpoint used for recovery
@@ -184,14 +238,20 @@ type VelocityPoint struct {
 // surfaced into PhaseContext and the handoff. Mirrors the shared proto message;
 // execution receives it from the Validator seam and never recomputes it.
 type ValidationResult struct {
-	ID          string
-	PlanID      string
-	PhaseID     string
-	Verdict     string
-	Staleness   planmodel.StalenessTier
-	CommandsRun []string
-	Detail      string
-	RanAt       string
+	ID              string
+	PlanID          string
+	PhaseID         string
+	Verdict         string
+	Staleness       planmodel.StalenessTier
+	CommandsRun     []string
+	Detail          string
+	RanAt           string
+	ExecutionID     string
+	OperationID     string
+	ScopeGeneration int
+	FullInventory   bool
+	RequiredMembers []string
+	SelectedMembers []string
 }
 
 // PhaseContext is the just-in-time context assembled for a phase — everything an
@@ -219,6 +279,11 @@ type PhaseContext struct {
 	FreshenStatus   string
 	FreshenDetail   string
 	BaselineSet     BaselineSetState
+	ScopeGeneration int
+	// ValidationMembers is non-empty only when an execution-local scope
+	// amendment broadened this phase. It is rendered into the next ticket so the
+	// agent does not have to reconstruct the amended selector from history.
+	ValidationMembers []string
 	// ChangeBoundary is the plan's (or current phase's narrowing) blast-radius
 	// contract: the allowed/denied paths a fresh or resumed agent must respect,
 	// surfaced without reading the full plan markdown.

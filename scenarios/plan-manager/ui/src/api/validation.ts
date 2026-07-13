@@ -5,7 +5,6 @@ import {
 } from "@vrooli/proto-types/plan-manager/v1/validation/validation_pb";
 import {
   type Reference,
-  type ValidationResult,
   type StalenessTier,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
@@ -42,19 +41,4 @@ export async function deriveBaselineScope(
   phaseId = "",
 ): Promise<DeriveBaselineScopeResponse> {
   return validationClient.deriveBaselineScope({ planId, phaseId });
-}
-
-export async function runValidation(
-  planId: string,
-  phaseId = "",
-): Promise<ValidationResult | undefined> {
-  const resp = await validationClient.runValidation({ planId, phaseId });
-  return resp.result;
-}
-
-export async function verifyDefinitionOfDone(
-  planId: string,
-): Promise<{ result: ValidationResult | undefined; dodMet: boolean }> {
-  const resp = await validationClient.verifyDefinitionOfDone({ planId });
-  return { result: resp.result, dodMet: resp.dodMet };
 }

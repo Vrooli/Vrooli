@@ -14,6 +14,8 @@ import {
   GuidedStepSchema,
   HandoffSchema,
   LogEntrySchema,
+  LogEntryType,
+  LogSyncStatus,
   LogSummarySchema,
   PhaseSchema,
   PhaseStatus,
@@ -36,6 +38,7 @@ import { PlanSchema } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb"
 const startExecution = vi.fn();
 const getStatus = vi.fn();
 const getContext = vi.fn();
+const resumeExecution = vi.fn();
 const transitionPhase = vi.fn();
 const completeExecution = vi.fn();
 const addDecision = vi.fn();
@@ -43,12 +46,15 @@ const addFinding = vi.fn();
 const addBug = vi.fn();
 const addRecord = vi.fn();
 const addNote = vi.fn();
+const listEntries = vi.fn();
+const syncEntry = vi.fn();
 const listPlans = vi.fn();
 
 vi.mock("../../api/execution", () => ({
   startExecution: (...a: unknown[]) => startExecution(...a),
   getStatus: (...a: unknown[]) => getStatus(...a),
   getContext: (...a: unknown[]) => getContext(...a),
+  resumeExecution: (...a: unknown[]) => resumeExecution(...a),
   transitionPhase: (...a: unknown[]) => transitionPhase(...a),
   completeExecution: (...a: unknown[]) => completeExecution(...a),
   getNext: vi.fn(),
@@ -61,6 +67,8 @@ vi.mock("../../api/log", () => ({
   addBug: (...a: unknown[]) => addBug(...a),
   addRecord: (...a: unknown[]) => addRecord(...a),
   addNote: (...a: unknown[]) => addNote(...a),
+  listEntries: (...a: unknown[]) => listEntries(...a),
+  syncEntry: (...a: unknown[]) => syncEntry(...a),
 }));
 vi.mock("../../api/plans", () => ({
   listPlans: (...a: unknown[]) => listPlans(...a),
@@ -159,6 +167,7 @@ const startAndLand = async () => {
 describe("ExecutionRunner", () => {
   beforeEach(async () => {
     await setLocale("en");
+    listEntries.mockResolvedValue({ entries: [], summary: undefined, step: undefined });
   });
   afterEach(() => {
     cleanup();
@@ -178,6 +187,31 @@ describe("ExecutionRunner", () => {
     );
     // The execution-start freshen status is surfaced (captured baseline + staleness).
     expect(screen.getByTestId(selectors.execution.freshenStatus)).toHaveTextContent("captured");
+  });
+
+  it("resumes a durable execution by ID and hydrates its persisted log ledger", async () => {
+    const user = userEvent.setup();
+    const resumed = create(ExecutionSchema, { id: "exec-resume-1", planId: "plan-1", currentPhaseId: "p1" });
+    const persistedNote = create(LogEntrySchema, {
+      id: "note-resume-1",
+      type: LogEntryType.NOTE,
+      title: "durable reload note",
+    });
+    listPlans.mockResolvedValue([]);
+    resumeExecution.mockResolvedValue({ execution: resumed, context, step });
+    listEntries.mockResolvedValue({ entries: [persistedNote], summary: undefined, step: undefined });
+
+    renderWithProviders(<ExecutionRunner />);
+    await user.type(screen.getByTestId(selectors.execution.resumeExecutionIdInput), "exec-resume-1");
+    await user.click(screen.getByTestId(selectors.execution.resumeButton));
+
+    await screen.findByTestId(selectors.execution.context);
+    await waitFor(() => {
+      expect(resumeExecution).toHaveBeenCalledWith("exec-resume-1");
+      expect(listEntries).toHaveBeenCalledWith({ planOrExecution: "exec-resume-1" });
+      expect(screen.getByText(/durable reload note/)).toBeInTheDocument();
+    });
+    expect(startExecution).not.toHaveBeenCalled();
   });
 
   it("renders start errors without leaving the start gate", async () => {
@@ -284,23 +318,23 @@ describe("ExecutionRunner", () => {
 
     await user.type(screen.getByTestId(selectors.execution.bugTitle), "confirmed defect");
     await user.type(screen.getByTestId(selectors.execution.bugDetail), "breaks done gate");
-    await user.type(screen.getByLabelText("Bug signal type"), "regression");
-    await user.type(screen.getByLabelText("Bug report severity"), "major");
-    await user.type(screen.getByLabelText("Affected scenario"), "plan-manager");
-    await user.type(screen.getByLabelText("Bug reproduction steps"), "start, open plan");
-    await user.type(screen.getByLabelText("Bug expected behavior"), "fresh data");
-    await user.type(screen.getByLabelText("Bug actual behavior"), "stale data");
-    await user.type(screen.getByLabelText("Bug taxonomy description"), "details");
+    await user.type(screen.getByLabelText(/Bug signal type/), "regression");
+    await user.type(screen.getByLabelText(/Bug report severity/), "major");
+    await user.type(screen.getByLabelText(/Affected scenario/), "plan-manager");
+    await user.type(screen.getByLabelText(/Bug reproduction steps/), "start, open plan");
+    await user.type(screen.getByLabelText(/Bug expected behavior/), "fresh data");
+    await user.type(screen.getByLabelText(/Bug actual behavior/), "stale data");
+    await user.type(screen.getByLabelText(/Bug taxonomy description/), "details");
     await user.click(screen.getByTestId(selectors.execution.recordBugButton));
 
     await user.type(screen.getByTestId(selectors.execution.recordTitle), "checkpoint pattern");
     await user.type(screen.getByTestId(selectors.execution.recordDetail), "phase-close review");
-    await user.type(screen.getByLabelText("Record kind"), "execute");
-    await user.type(screen.getByLabelText("Record scenario"), "plan-manager");
-    await user.type(screen.getByLabelText("Record outcome"), "shipped");
-    await user.type(screen.getByLabelText("Record trigger"), "close phase");
-    await user.type(screen.getByLabelText("Record approach"), "use checkpoint");
-    await user.type(screen.getByLabelText("Record evidence"), "go test");
+    await user.type(screen.getByLabelText(/Record kind/), "execute");
+    await user.type(screen.getByLabelText(/Record scenario/), "plan-manager");
+    await user.type(screen.getByLabelText(/Record outcome/), "shipped");
+    await user.type(screen.getByLabelText(/Record trigger/), "close phase");
+    await user.type(screen.getByLabelText(/Record approach/), "use checkpoint");
+    await user.type(screen.getByLabelText(/Record evidence/), "go test");
     await user.click(screen.getByTestId(selectors.execution.recordRecordButton));
 
     await user.type(screen.getByTestId(selectors.execution.noteTitle), "operator note");
@@ -323,6 +357,64 @@ describe("ExecutionRunner", () => {
         detail: "No decisions, findings, bugs, records, or reusable notes to capture for this phase.",
       });
       expect(getStatus).toHaveBeenCalled();
+    });
+  });
+
+  it("hydrates persisted entries on start and renders the complete downstream capture disposition", async () => {
+    const persistedBug = create(LogEntrySchema, {
+      id: "persisted-bug",
+      type: LogEntryType.BUG_REPORT,
+      title: "persisted draft",
+      detail: "survives reload",
+      syncStatus: LogSyncStatus.FAILED,
+      capture: {
+        state: "draft",
+        draftId: "bug-draft-42",
+        needs: ["actual"],
+        invalid: [{ field: "severity", value: "urgent", message: "choose a taxonomy severity" }],
+        warnings: ["reproduction is incomplete"],
+        nextAction: ["prompt-manager", "team", "bug-repair", "scenario-qa", "bug-draft-42"],
+      },
+      downstream: {
+        system: "scenario-qa",
+        kind: "bug_report",
+        reference: "bug-draft-42",
+        detail: "downstream unavailable",
+        syncedAt: "2026-06-28T12:00:00Z",
+      },
+      sourceCommand: "plan-manager log bug",
+      attributionRunId: "agent-run-9",
+      evidence: ["test output #42"],
+    });
+    const persistedRecord = create(LogEntrySchema, {
+      id: "persisted-record",
+      type: LogEntryType.RECORD,
+      title: "published learning",
+      syncStatus: LogSyncStatus.SYNCED,
+      capture: { state: "published", warnings: ["normalized title"] },
+      downstream: { system: "swarm-manager", kind: "record", reference: "record-7" },
+    });
+    listEntries.mockResolvedValue({ entries: [persistedBug, persistedRecord], summary: undefined, step: undefined });
+    const user = await startAndLand();
+
+    await waitFor(() => {
+      expect(listEntries).toHaveBeenCalledWith({ planOrExecution: "exec-1" });
+      expect(screen.getByTestId(selectors.execution.logEntry({ id: "persisted-bug" }))).toBeInTheDocument();
+    });
+    expect(screen.getByText(/private draft bug-draft-42/i)).toBeInTheDocument();
+    expect(screen.getByText(/Needs: actual/i)).toBeInTheDocument();
+    expect(screen.getByText(/Invalid severity: choose a taxonomy severity/i)).toBeInTheDocument();
+    expect(screen.getByText(/Warning: reproduction is incomplete/i)).toBeInTheDocument();
+    expect(screen.getByText(/Provenance: scenario-qa \/ bug_report/i)).toBeInTheDocument();
+    expect(screen.getByText(/Captured by: plan-manager log bug/i)).toBeInTheDocument();
+    expect(screen.getByText(/Evidence: test output #42/i)).toBeInTheDocument();
+    expect(screen.getByText(/Disposition: accepted and published/i)).toBeInTheDocument();
+
+    syncEntry.mockResolvedValue({ entry: create(LogEntrySchema, { ...persistedBug, syncStatus: LogSyncStatus.SYNCED }), step });
+    await user.click(screen.getByTestId(selectors.execution.retrySync({ id: "persisted-bug" })));
+    await waitFor(() => {
+      expect(syncEntry).toHaveBeenCalledWith("persisted-bug");
+      expect(getStatus).toHaveBeenCalledWith("exec-1");
     });
   });
 

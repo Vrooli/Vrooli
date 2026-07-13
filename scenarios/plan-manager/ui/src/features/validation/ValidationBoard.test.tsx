@@ -1,7 +1,6 @@
 /**
- * ValidationBoard tests — reference resolution (with degraded note), run +
- * verdict, DoD verify, and axe-clean structure. api/validation + api/plans
- * are mocked.
+ * ValidationBoard tests — reference resolution, staleness, derived scope, and
+ * producer-owned guidance. api/validation + api/plans are mocked.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
@@ -12,27 +11,20 @@ import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 import {
-  CommandValidationFindingSchema,
   PlanSchema,
   ReferenceSchema,
   StalenessTier,
-  ValidationResultSchema,
-  ValidationVerdict,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 const resolveReferences = vi.fn();
 const computeStaleness = vi.fn();
 const deriveBaselineScope = vi.fn();
-const runValidation = vi.fn();
-const verifyDefinitionOfDone = vi.fn();
 const listPlans = vi.fn();
 
 vi.mock("../../api/validation", () => ({
   resolveReferences: (...a: unknown[]) => resolveReferences(...a),
   computeStaleness: (...a: unknown[]) => computeStaleness(...a),
   deriveBaselineScope: (...a: unknown[]) => deriveBaselineScope(...a),
-  runValidation: (...a: unknown[]) => runValidation(...a),
-  verifyDefinitionOfDone: (...a: unknown[]) => verifyDefinitionOfDone(...a),
 }));
 vi.mock("../../api/plans", () => ({
   listPlans: (...a: unknown[]) => listPlans(...a),
@@ -139,79 +131,10 @@ describe("ValidationBoard", () => {
     expect(screen.getByTestId(selectors.validation.baseline).textContent).toContain("No baseline");
   });
 
-  it("[REQ:PM-VALID-002] runs validation and renders the verdict", async () => {
-    const user = await pickPlan();
-    runValidation.mockResolvedValue(
-      create(ValidationResultSchema, {
-        id: "v1",
-        verdict: ValidationVerdict.PASS,
-        commandsRun: ["go test ./..."],
-        detail: "all good",
-      }),
-    );
-    await user.click(screen.getByTestId(selectors.validation.runButton));
-    await waitFor(() => {
-      expect(screen.getByTestId(selectors.validation.result)).toBeInTheDocument();
-    });
-    expect(screen.getByTestId(selectors.validation.result).textContent).toContain("go test");
-    expect(screen.getByTestId(selectors.validation.result).textContent).toContain("all good");
-  });
-
-  it("renders CLI Health command validation findings from run validation", async () => {
-    const user = await pickPlan();
-    runValidation.mockResolvedValue(
-      create(ValidationResultSchema, {
-        id: "v1",
-        verdict: ValidationVerdict.FAIL,
-        commandFindings: [
-          create(CommandValidationFindingSchema, {
-            commandText: "knowledge-observatory docs healt cli-health",
-            verdict: "invalid",
-            validationLevel: "owner_identified",
-            message: "unknown_command: command path was not found",
-            location: "phase.phase-1.acceptance",
-            issueCodes: ["unknown_command"],
-            suggestions: ["knowledge-observatory docs health"],
-            guidance: ["Fix the command to a current catalog command."],
-          }),
-        ],
-      }),
-    );
-
-    await user.click(screen.getByTestId(selectors.validation.runButton));
-
-    await waitFor(() => {
-      expect(screen.getByTestId(selectors.validation.commandFindings)).toBeInTheDocument();
-    });
-    const text = screen.getByTestId(selectors.validation.commandFindings).textContent;
-    expect(text).toContain("knowledge-observatory docs healt cli-health");
-    expect(text).toContain("unknown_command");
-    expect(text).toContain("knowledge-observatory docs health");
-    expect(text).toContain("Fix the command");
-  });
-
-  it("verifies the definition of done", async () => {
-    const user = await pickPlan();
-    verifyDefinitionOfDone.mockResolvedValue({
-      result: create(ValidationResultSchema, { id: "v1", verdict: ValidationVerdict.PASS }),
-      dodMet: true,
-    });
-    await user.click(screen.getByTestId(selectors.validation.dodButton));
-    await waitFor(() => {
-      expect(screen.getByTestId(selectors.validation.dod)).toBeInTheDocument();
-    });
-  });
-
-  it("shows definition-of-done failure without a result", async () => {
-    const user = await pickPlan();
-    verifyDefinitionOfDone.mockResolvedValue({ result: undefined, dodMet: false });
-
-    await user.click(screen.getByTestId(selectors.validation.dodButton));
-
-    await waitFor(() => {
-      expect(screen.getByTestId(selectors.validation.dod)).toBeInTheDocument();
-    });
-    expect(screen.getByTestId(selectors.validation.dod).textContent).toContain("not met");
+  it("explains that execution tickets, producer waits, and sync own validation", async () => {
+    await pickPlan();
+    expect(screen.getByText("Producer-owned validation")).toBeInTheDocument();
+    expect(screen.getByText(/Git Control Tower and Test Genie own the long-running producer wait/)).toBeInTheDocument();
   });
 
   it("renders action errors and clears busy state", async () => {

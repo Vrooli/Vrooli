@@ -394,6 +394,9 @@ const literalSelectors = {
     planSelect: "execution-plan-select",
     runIdInput: "execution-run-id-input",
     startButton: "execution-start-button",
+    resumeForm: "execution-resume-form",
+    resumeExecutionIdInput: "execution-resume-execution-id-input",
+    resumeButton: "execution-resume-button",
     guidedStep: "execution-guided-step",
     context: "execution-context",
     contextButton: "execution-context-button",
@@ -524,6 +527,18 @@ const dynamicSelectorDefinitions = {
       description: "Authoring section row by section key",
       testIdPattern: "authoring-section-${key}",
       params: { key: { type: "string" } },
+    }),
+  },
+  execution: {
+    logEntry: defineDynamicSelector({
+      description: "Execution log entry by durable ledger id",
+      testIdPattern: "execution-log-entry-${id}",
+      params: { id: { type: "string" } },
+    }),
+    retrySync: defineDynamicSelector({
+      description: "Retry downstream sync for a durable ledger entry",
+      testIdPattern: "execution-retry-sync-${id}",
+      params: { id: { type: "string" } },
     }),
   },
   triage: {

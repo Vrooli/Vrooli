@@ -98,11 +98,12 @@ home store. As built:
   attribution dedup.
 - `validation_results` (owned by `validation`) — immutable/stable-id terminal
   results read cheaply by execution when deciding whether a phase can complete.
-- `validation_operations` (owned by `validation`) — the durable queued/running/
-  terminal operation envelope. Its JSON payload checkpoints every oracle and
-  informational child, attempts, external run IDs, typed errors, independent
-  budgets, and the terminal result reference. A partial unique index on
-  `(plan_id, phase_id, idempotency_key)` prevents duplicate child dispatch.
+- `validation_operations` (owned by `validation`) — durable producer-ticket
+  envelopes and synchronized terminal evidence. The JSON payload holds producer
+  argv, execution id, scope generation, required/selected members, Test Genie
+  evidence, and terminal result reference. SQLite scopes an explicit replay key
+  to `(plan, phase, execution, scope generation)`; only unkeyed active starts
+  coalesce in that same scope.
 
 Exact columns live alongside the domain code (`api/internal/<domain>/schema.sql`);
 this map is the ownership contract.
@@ -110,9 +111,9 @@ this map is the ownership contract.
 ## Migrations And Compatibility
 
 - Schema is created idempotently from the embedded `schema.sql` per domain on boot.
-- Non-terminal validation operations are recovered on boot. Terminal children
-  are not replayed; a running child whose final checkpoint was interrupted may
-  be reattached/reissued only through its downstream durable/idempotent command.
+- Non-terminal validation tickets remain readable on boot. Plan Manager never
+  replays children; the agent recovers through Git Control Tower/Test Genie and
+  later synchronizes typed state.
 - Because the store is shared with legacy markdown plan data, the first
   migration concern is **adopting / coexisting with** the existing `~/.vrooli/plans`
   file store: plan-manager reads the existing plans and writes the structured

@@ -45,14 +45,15 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Staleness:   internalvalidation.NewExistenceStaleness(internalvalidation.NewFileResolver(root)),
 		Runner:      internalvalidation.DefaultRunner(),
 		Collections: newGCTCollectionClient(),
+		TestRuns:    newTestGenieRunClient(),
 		Inventories: executionInventoryAdapter{repo: executionRepo},
 		Results:     store,
 		Operations:  store,
 		Clock:       clk,
 		Commands:    newCLIHealthCommandValidator(),
 	})
-	// Recovery is idempotent: persisted queued/running operations resume from
-	// their child checkpoints and terminal children are never re-dispatched.
+	// Recovery only preserves tickets for producer-side reattachment and sync.
+	// It never resumes or dispatches validation work.
 	if err := svc.RecoverPending(context.Background()); err != nil && logger != nil {
 		logger.Printf("validation operation recovery: %v", err)
 	}
@@ -142,12 +143,13 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("validation_resolve_references", validationconnect.ValidationServiceResolveReferencesProcedure, "Resolve code references", "Resolves a plan/phase's [CODE:]/[REQ:] references against code-facts (OT-P0-004). Degrades to unresolved when code-facts is down."),
 	endpoint("validation_compute_staleness", validationconnect.ValidationServiceComputeStalenessProcedure, "Compute staleness tiers", "Computes staleness tiers for a plan/phase's references (OT-P0-004)."),
 	endpoint("validation_derive_baseline_scope", validationconnect.ValidationServiceDeriveBaselineScopeProcedure, "Derive baseline scope", "Derives the exact baseline/validation command set across all affected locations (OT-P0-005)."),
-	endpoint("validation_start", validationconnect.ValidationServiceStartValidationProcedure, "Start durable validation", "Persists a validation operation and child set before dispatch; scoped idempotency retries return the original operation."),
-	endpoint("validation_operation", validationconnect.ValidationServiceGetValidationOperationProcedure, "Inspect or wait for validation", "Reads a durable validation operation or performs one server-side blocking wait without polling."),
-	endpoint("validation_wait", validationconnect.ValidationServiceWaitValidationOperationProcedure, "Wait for validation", "Performs one server-side blocking wait by durable operation id."),
-	endpoint("validation_resume", validationconnect.ValidationServiceResumeValidationOperationProcedure, "Resume validation", "Reconciles queued/running child checkpoints after interruption or restart and waits once."),
-	endpoint("validation_run", validationconnect.ValidationServiceRunValidationProcedure, "Run validation", "Compatibility blocking validation over the durable operation substrate."),
-	endpoint("validation_verify_dod", validationconnect.ValidationServiceVerifyDefinitionOfDoneProcedure, "Verify Definition of Done", "Verifies a plan's DoD against the regression anchor as an oracle (OT-P0-005)."),
+	endpoint("validation_start", validationconnect.ValidationServiceStartValidationProcedure, "Create validation ticket", "Persists producer-owned validation actions; scoped idempotency retries return the original operation."),
+	endpoint("validation_operation", validationconnect.ValidationServiceGetValidationOperationProcedure, "Inspect validation ticket", "Reads a durable validation ticket without starting or waiting for producer work."),
+	endpoint("validation_wait", validationconnect.ValidationServiceWaitValidationOperationProcedure, "Legacy validation inspection", "Compatibility inspection route; use the producer wait command rendered by the ticket."),
+	endpoint("validation_resume", validationconnect.ValidationServiceResumeValidationOperationProcedure, "Legacy validation inspection", "Compatibility inspection route; producer recovery remains owned by Git Control Tower or Test Genie."),
+	endpoint("validation_sync", validationconnect.ValidationServiceSyncValidationProcedure, "Synchronize validation evidence", "Reads producer-owned durable evidence once and atomically records terminal validation truth."),
+	endpoint("validation_run", validationconnect.ValidationServiceRunValidationProcedure, "Legacy validation guidance", "Returns the producer-ticket migration route; never dispatches or waits for validation work."),
+	endpoint("validation_verify_dod", validationconnect.ValidationServiceVerifyDefinitionOfDoneProcedure, "Legacy DoD guidance", "Returns the selector-free producer-ticket migration route; never dispatches or waits for validation work."),
 }
 
 func endpoint(id, path, summary, description string) module.EndpointDescriptor {

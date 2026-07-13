@@ -64,7 +64,11 @@ func (h *connectHandler) DeriveBaselineScope(ctx context.Context, req *connect.R
 }
 
 func (h *connectHandler) StartValidation(ctx context.Context, req *connect.Request[validationv1.StartValidationRequest]) (*connect.Response[validationv1.StartValidationResponse], error) {
-	op, deduplicated, err := h.deps.Service.StartValidation(ctx, req.Msg.GetPlanId(), req.Msg.GetPhaseId(), req.Msg.GetIdempotencyKey())
+	testRuns := make([]internalvalidation.TestRunEvidence, 0, len(req.Msg.GetTestRuns()))
+	for _, run := range req.Msg.GetTestRuns() {
+		testRuns = append(testRuns, internalvalidation.TestRunEvidence{Scenario: run.GetScenario(), RunID: run.GetRunId()})
+	}
+	op, deduplicated, err := h.deps.Service.StartValidationTicket(ctx, internalvalidation.ValidationTicketRequest{PlanID: req.Msg.GetPlanId(), PhaseID: req.Msg.GetPhaseId(), IdempotencyKey: req.Msg.GetIdempotencyKey(), ExecutionID: req.Msg.GetExecutionId(), ScopeGeneration: int(req.Msg.GetScopeGeneration()), SelectedMembers: req.Msg.GetMember(), TestRuns: testRuns})
 	if err != nil {
 		return nil, internalvalidation.ToConnectError(err)
 	}
@@ -89,6 +93,14 @@ func (h *connectHandler) WaitValidationOperation(ctx context.Context, req *conne
 func (h *connectHandler) ResumeValidationOperation(ctx context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
 	req.Msg.Wait = true
 	return h.GetValidationOperation(ctx, req)
+}
+
+func (h *connectHandler) SyncValidation(ctx context.Context, req *connect.Request[validationv1.SyncValidationRequest]) (*connect.Response[validationv1.SyncValidationResponse], error) {
+	op, err := h.deps.Service.SyncValidation(ctx, req.Msg.GetOperationId())
+	if err != nil {
+		return nil, internalvalidation.ToConnectError(err)
+	}
+	return connect.NewResponse(&validationv1.SyncValidationResponse{Operation: operationToProto(op)}), nil
 }
 
 func (h *connectHandler) RunValidation(ctx context.Context, req *connect.Request[validationv1.RunValidationRequest]) (*connect.Response[validationv1.RunValidationResponse], error) {

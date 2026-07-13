@@ -5,10 +5,11 @@ import {
   completeExecution,
   getContext,
   getStatus,
+  resumeExecution,
   startExecution,
   transitionPhase,
 } from "../../api/execution";
-import { addBug, addDecision, addFinding, addNote, addRecord } from "../../api/log";
+import { addBug, addDecision, addFinding, addNote, addRecord, listEntries, syncEntry } from "../../api/log";
 import { PlanSelect } from "../../components/PlanSelect";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
@@ -25,6 +26,8 @@ import { contextCommand, contextKindLabel, repeatLabel } from "../../lib/relevan
 import { useTranslation } from "../../i18n";
 import {
   Completeness,
+  LogEntryType,
+  LogSyncStatus,
   PhaseStatus,
   type Handoff,
   type LogEntry,
@@ -82,15 +85,88 @@ function commaSeparated(value: string): string[] {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
 
-function CaptureState({ entry }: { entry: LogEntry }) {
-  const capture = entry.capture;
-  if (!capture?.state) return null;
+function logEntriesByType(entries: readonly LogEntry[]): Pick<RunnerState, "decisions" | "findings" | "bugs" | "records" | "notes"> {
+  const grouped: Pick<RunnerState, "decisions" | "findings" | "bugs" | "records" | "notes"> = {
+    decisions: [],
+    findings: [],
+    bugs: [],
+    records: [],
+    notes: [],
+  };
+  for (const entry of entries) {
+    switch (entry.type) {
+      case LogEntryType.DECISION:
+        grouped.decisions.push(entry);
+        break;
+      case LogEntryType.FINDING:
+        grouped.findings.push(entry);
+        break;
+      case LogEntryType.BUG_REPORT:
+        grouped.bugs.push(entry);
+        break;
+      case LogEntryType.RECORD:
+        grouped.records.push(entry);
+        break;
+      case LogEntryType.NOTE:
+        grouped.notes.push(entry);
+        break;
+    }
+  }
+  return grouped;
+}
+
+function syncLabel(status: LogSyncStatus): StringKey {
+  switch (status) {
+    case LogSyncStatus.SYNCED:
+      return strings.pages.execution.captureForwarded;
+    case LogSyncStatus.PENDING:
+      return strings.pages.execution.captureForwardingPending;
+    case LogSyncStatus.FAILED:
+      return strings.pages.execution.captureForwardingFailed;
+    case LogSyncStatus.LOCAL:
+      return strings.pages.execution.captureLocal;
+    default:
+      return strings.pages.execution.captureForwardingUnknown;
+  }
+}
+
+function CaptureState({ entry, onRetry }: { entry: LogEntry; onRetry?: (entry: LogEntry) => void }) {
+  const { t } = useTranslation();
+  // DownstreamRef carries the same producer response for older persisted rows;
+  // prefer the first-class field but retain that compatibility during reload.
+  const capture = entry.capture ?? entry.downstream?.capture;
+  const downstream = entry.downstream;
+  const retryable = entry.syncStatus === LogSyncStatus.PENDING || entry.syncStatus === LogSyncStatus.FAILED;
+  if (!capture?.state && !downstream && !retryable) return null;
   return (
-    <div className="mt-2 rounded-control border border-app-border bg-app-surface px-2 py-1 text-xs text-app-foreground">
-      <p>Capture: {capture.state}{capture.draftId ? ` — private draft ${capture.draftId}` : ""}</p>
-      {capture.needs.length > 0 ? <p>Needs: {capture.needs.join(", ")}</p> : null}
-      {capture.invalid.map((invalid) => <p key={`${invalid.field}-${invalid.value}`}>Invalid {invalid.field}: {invalid.message}</p>)}
-      {capture.nextAction.length > 0 ? <code className="block break-all font-mono">Repair: {capture.nextAction.join(" ")}</code> : null}
+    <div className="mt-2 flex flex-col gap-1 rounded-control border border-app-border bg-app-surface px-2 py-1 text-xs text-app-foreground">
+      {capture?.state ? (
+        <p>
+          {t(strings.pages.execution.captureDisposition)}: {capture.state === "published" ? t(strings.pages.execution.captureAcceptedPublished) : capture.state}
+          {capture.draftId ? ` — ${t(strings.pages.execution.capturePrivateDraft, { draftId: capture.draftId })}` : ""}
+        </p>
+      ) : null}
+      <p>{t(strings.pages.execution.captureForwarding)}: {t(syncLabel(entry.syncStatus))}</p>
+      {capture?.needs.length ? <p>{t(strings.pages.execution.captureNeeds)}: {capture.needs.join(", ")}</p> : null}
+      {capture?.invalid.map((invalid) => <p key={`${invalid.field}-${invalid.value}`}>{t(strings.pages.execution.captureInvalid)} {invalid.field}: {invalid.message}</p>)}
+      {capture?.warnings.map((warning, index) => <p key={`${warning}-${index}`}>{t(strings.pages.execution.captureWarning)}: {warning}</p>)}
+      {capture?.nextAction.length ? <code className="block break-all font-mono">{t(strings.pages.execution.captureRepair)}: {capture.nextAction.join(" ")}</code> : null}
+      {downstream ? (
+        <div className="border-t border-app-border pt-1">
+          <p>{t(strings.pages.execution.captureProvenance)}: {downstream.system || t(strings.pages.execution.captureDownstream)}{downstream.kind ? ` / ${downstream.kind}` : ""}</p>
+          {downstream.reference ? <p className="break-all">{t(strings.pages.execution.captureReference)}: {downstream.reference}</p> : null}
+          {downstream.detail ? <p>{t(strings.pages.execution.captureSyncDetail)}: {downstream.detail}</p> : null}
+          {downstream.syncedAt ? <p>{t(strings.pages.execution.captureSynced)}: {downstream.syncedAt}</p> : null}
+        </div>
+      ) : null}
+      {entry.sourceCommand ? <code className="block break-all font-mono">{t(strings.pages.execution.captureCapturedBy)}: {entry.sourceCommand}</code> : null}
+      {entry.attributionRunId ? <p>{t(strings.pages.execution.captureRun)}: {entry.attributionRunId}</p> : null}
+      {entry.evidence.length ? <p className="break-words">{t(strings.pages.execution.captureEvidence)}: {entry.evidence.join(", ")}</p> : null}
+      {retryable && onRetry ? (
+        <Button type="button" size="sm" variant="outline" data-testid={selectors.execution.retrySync({ id: entry.id })} className="mt-1 w-fit" onClick={() => onRetry(entry)}>
+          {t(strings.pages.execution.captureRetrySync)}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -180,6 +256,7 @@ export function ExecutionRunner() {
   const { t } = useTranslation();
   const [planId, setPlanId] = useState("");
   const [runId, setRunId] = useState("");
+  const [resumeExecutionId, setResumeExecutionId] = useState("");
   const [state, setState] = useState<RunnerState>({
     decisions: [],
     findings: [],
@@ -218,22 +295,7 @@ export function ExecutionRunner() {
 
   const execution = state.execution;
   const context = state.context;
-	// The generated workspace package is refreshed on install. Keep the running
-	// UI compatible with an already-installed older package while the Connect
-	// wire contract adds this optional field.
-	const baselineSet = context as (PhaseContext & {
-		baselineSet?: {
-			name: string;
-			status: string;
-			required: number;
-			ready: number;
-			pending: number;
-			failed: number;
-			repoPaths: string[];
-			members?: Array<{ scenario: string; status: string; runId: string; gitSha?: string; required: boolean }>;
-			pathSnapshots?: Array<{ name: string; branch: string }>;
-		};
-	}) | undefined;
+  const baselineSet = context;
   const currentPhaseId = context?.currentPhase?.id ?? execution?.currentPhaseId ?? "";
 
   const run = (fn: () => Promise<void>) => {
@@ -255,6 +317,52 @@ export function ExecutionRunner() {
     setState((prev) => ({ ...prev, execution: res.execution, context: res.context, step: res.step }));
   };
 
+  const hydrateLogEntries = async (executionId: string) => {
+    const res = await listEntries({ planOrExecution: executionId });
+    setState((prev) => ({
+      ...prev,
+      ...logEntriesByType(res.entries),
+      step: res.step ?? prev.step,
+    }));
+  };
+
+  const replaceLogEntry = (entry: LogEntry) => {
+    const grouped = logEntriesByType([entry]);
+    const replace = (entries: LogEntry[]) => entries.map((current) => current.id === entry.id ? entry : current);
+    setState((prev) => ({
+      ...prev,
+      decisions: grouped.decisions.length ? replace(prev.decisions) : prev.decisions,
+      findings: grouped.findings.length ? replace(prev.findings) : prev.findings,
+      bugs: grouped.bugs.length ? replace(prev.bugs) : prev.bugs,
+      records: grouped.records.length ? replace(prev.records) : prev.records,
+      notes: grouped.notes.length ? replace(prev.notes) : prev.notes,
+    }));
+  };
+
+  const loadExecution = async (
+    execution: Execution,
+    context: PhaseContext | undefined,
+    step: GuidedStep | undefined,
+  ) => {
+    setState({
+      execution,
+      context,
+      decisions: [],
+      findings: [],
+      bugs: [],
+      records: [],
+      notes: [],
+      nudges: [],
+      step,
+    });
+    if (!context) {
+      await refreshStatus(execution.id);
+    }
+    // The execution service owns resumability. Rehydrate its durable ledger
+    // after every start/resume instead of treating browser state as canonical.
+    await hydrateLogEntries(execution.id);
+  };
+
   const handleStart = (e: React.FormEvent) => {
     e.preventDefault();
     if (planId.length === 0) return;
@@ -262,20 +370,19 @@ export function ExecutionRunner() {
       const res = await startExecution(planId, runId.trim());
       const exec = res.execution;
       if (exec) {
-        setState({
-          execution: exec,
-          context: res.context,
-          decisions: [],
-          findings: [],
-          bugs: [],
-          records: [],
-          notes: [],
-          nudges: [],
-          step: res.step,
-        });
-        if (!res.context) {
-          await refreshStatus(exec.id);
-        }
+        await loadExecution(exec, res.context, res.step);
+      }
+    });
+  };
+
+  const handleResume = (e: React.FormEvent) => {
+    e.preventDefault();
+    const executionId = resumeExecutionId.trim();
+    if (!executionId) return;
+    run(async () => {
+      const res = await resumeExecution(executionId);
+      if (res.execution) {
+        await loadExecution(res.execution, res.context, res.step);
       }
     });
   };
@@ -290,6 +397,7 @@ export function ExecutionRunner() {
         context: res.context,
         step: res.step,
       }));
+      await hydrateLogEntries(execution.id);
     });
   };
 
@@ -428,6 +536,19 @@ export function ExecutionRunner() {
     });
   };
 
+  const handleRetrySync = (entry: LogEntry) => {
+    if (!execution) return;
+    run(async () => {
+      const res = await syncEntry(entry.id);
+      if (res.entry) {
+        replaceLogEntry(res.entry);
+      }
+      setState((prev) => ({ ...prev, step: res.step ?? prev.step }));
+      await refreshStatus(execution.id);
+      await hydrateLogEntries(execution.id);
+    });
+  };
+
   const handleComplete = () => {
     if (!execution) return;
     run(async () => {
@@ -473,6 +594,32 @@ export function ExecutionRunner() {
             {t(strings.pages.execution.start)}
           </Button>
         </form>
+        <form
+          data-testid={selectors.execution.resumeForm}
+          onSubmit={handleResume}
+          className="mt-4 flex flex-col gap-3 border-t border-app-border pt-4 sm:flex-row sm:items-end"
+        >
+          <label className="flex-1 text-sm">
+            <span className="text-xs font-medium text-app-muted-foreground">
+              {t(strings.pages.execution.resumeExecutionIdLabel)}
+            </span>
+            <Input
+              data-testid={selectors.execution.resumeExecutionIdInput}
+              value={resumeExecutionId}
+              onChange={(e) => setResumeExecutionId(e.target.value)}
+            />
+          </label>
+          <Button
+            type="submit"
+            data-testid={selectors.execution.resumeButton}
+            disabled={busy || resumeExecutionId.trim().length === 0}
+            className="shrink-0"
+          >
+            <Play aria-hidden="true" className="me-2 h-4 w-4" />
+            {t(strings.pages.execution.resume)}
+          </Button>
+        </form>
+        <p className="mt-2 text-xs text-app-muted-foreground">{t(strings.pages.execution.resumeHelp)}</p>
         {error ? (
           <p role="alert" className="text-sm text-app-danger">
             {errorMessage(error, t)}
@@ -661,6 +808,18 @@ export function ExecutionRunner() {
 					  <span className="text-xs text-app-muted-foreground">
 						{baselineSet.baselineSet.pathSnapshots.map((snapshot) => `${snapshot.name}${snapshot.branch ? ` (${snapshot.branch})` : ""}`).join(", ")}
 					  </span>
+					</MetaRow>
+				  ) : null}
+				  {execution?.scopeAmendments.length ? (
+					<MetaRow term={t(strings.pages.execution.scopeAmendmentsHeading)}>
+					  <span data-testid="execution-scope-amendments" className="text-xs text-app-muted-foreground">
+						{execution.scopeAmendments.map((amendment) => `${amendment.phaseId}: ${amendment.oldMinimum.join(", ")} → ${amendment.newMinimum.join(", ")} (${amendment.reason})`).join(" · ")}
+					  </span>
+					</MetaRow>
+				  ) : null}
+				  {execution?.degradedReason ? (
+					<MetaRow term={t(strings.pages.execution.executionStateHeading)}>
+					  <span className="text-xs text-app-warning">{execution.degradedReason}</span>
 					</MetaRow>
 				  ) : null}
 				</>
@@ -874,10 +1033,10 @@ export function ExecutionRunner() {
           ) : (
             <ul className="flex flex-col gap-2">
               {state.bugs.map((bug) => (
-                <li key={bug.id} className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
+                <li key={bug.id} data-testid={selectors.execution.logEntry({ id: bug.id })} className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
                   <p className="font-medium text-app-foreground">{bug.title}</p>
                   {bug.detail ? <p className="text-app-muted-foreground">{bug.detail}</p> : null}
-                  <CaptureState entry={bug} />
+                  <CaptureState entry={bug} onRetry={handleRetrySync} />
                 </li>
               ))}
             </ul>
@@ -924,10 +1083,10 @@ export function ExecutionRunner() {
           ) : (
             <ul className="flex flex-col gap-2">
               {state.records.map((record) => (
-                <li key={record.id} className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
+                <li key={record.id} data-testid={selectors.execution.logEntry({ id: record.id })} className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
                   <p className="font-medium text-app-foreground">{record.title}</p>
                   {record.detail ? <p className="text-app-muted-foreground">{record.detail}</p> : null}
-                  <CaptureState entry={record} />
+                  <CaptureState entry={record} onRetry={handleRetrySync} />
                 </li>
               ))}
             </ul>

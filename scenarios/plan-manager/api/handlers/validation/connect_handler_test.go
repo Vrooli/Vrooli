@@ -57,6 +57,16 @@ func (f *fakeValidationService) StartValidation(_ context.Context, planID, phase
 	return f.operation, f.deduplicated, f.err
 }
 
+func (f *fakeValidationService) StartValidationTicket(_ context.Context, req internalvalidation.ValidationTicketRequest) (internalvalidation.ValidationOperation, bool, error) {
+	f.gotPlanID, f.gotPhaseID = req.PlanID, req.PhaseID
+	return f.operation, f.deduplicated, f.err
+}
+
+func (f *fakeValidationService) SyncValidation(_ context.Context, operationID string) (internalvalidation.ValidationOperation, error) {
+	f.operation.ID = operationID
+	return f.operation, f.err
+}
+
 func (f *fakeValidationService) GetValidationOperation(_ context.Context, operationID string, _ bool) (internalvalidation.ValidationOperation, error) {
 	f.operation.ID = operationID
 	return f.operation, f.err
@@ -64,7 +74,7 @@ func (f *fakeValidationService) GetValidationOperation(_ context.Context, operat
 
 func (f *fakeValidationService) RecoverPending(context.Context) error { return f.err }
 
-func (f *fakeValidationService) CaptureBaseline(_ context.Context, planID string) (internalvalidation.BaselineCapture, error) {
+func (f *fakeValidationService) SyncBaseline(_ context.Context, planID string) (internalvalidation.BaselineCapture, error) {
 	f.gotPlanID = planID
 	return internalvalidation.BaselineCapture{}, f.err
 }

@@ -19,6 +19,15 @@ type ErrPhaseNotFound struct {
 // ErrOperationNotFound is returned when a durable validation id is unknown.
 type ErrOperationNotFound struct{ ID string }
 
+// ErrProducerTicketRequired makes the former worker-owned routes honest: a
+// validation ticket only projects producer commands, and Git Control Tower or
+// Test Genie owns the long-running work and native wait.
+type ErrProducerTicketRequired struct{ PlanID string }
+
+func (e ErrProducerTicketRequired) Error() string {
+	return fmt.Sprintf("plan %q requires a producer-owned validation ticket: use validate start, the rendered producer wait command, then validate sync", e.PlanID)
+}
+
 func (e ErrOperationNotFound) Error() string {
 	return fmt.Sprintf("validation operation %q not found", e.ID)
 }
@@ -53,6 +62,10 @@ func ToConnectError(err error) error {
 	var operationNotFound ErrOperationNotFound
 	if errors.As(err, &operationNotFound) {
 		return connect.NewError(connect.CodeNotFound, operationNotFound)
+	}
+	var producerTicketRequired ErrProducerTicketRequired
+	if errors.As(err, &producerTicketRequired) {
+		return connect.NewError(connect.CodeFailedPrecondition, producerTicketRequired)
 	}
 	var attachmentEnded ErrAttachmentEnded
 	if errors.As(err, &attachmentEnded) {

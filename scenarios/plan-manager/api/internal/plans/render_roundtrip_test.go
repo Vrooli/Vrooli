@@ -108,11 +108,20 @@ func TestRenderBaselineSetIsDeclarativeAndRoundTrips(t *testing.T) {
 	}
 
 	markdown := plans.RenderMarkdown(p)
-	if !strings.Contains(markdown, "### Baseline Set") || !strings.Contains(markdown, "Source evidence is informational") {
-		t.Fatalf("baseline set render missing declarative coverage:\n%s", markdown)
+	if !strings.Contains(markdown, "### Regression checks") || !strings.Contains(markdown, "A baseline records current behavior") {
+		t.Fatalf("baseline set render missing concise regression guidance:\n%s", markdown)
 	}
 	if strings.Contains(markdown, "baseline snapshot status --scenario git-control-tower") {
 		t.Fatalf("baseline set render must not reintroduce per-scenario command wall:\n%s", markdown)
+	}
+	if !strings.Contains(markdown, "git-control-tower baseline collection capture --name complete-before-state --member git-control-tower --member plan-manager") || !strings.Contains(markdown, "plan-manager exec baseline-sync <execution-id>") {
+		t.Fatalf("baseline set render missing safe Markdown-only producer protocol:\n%s", markdown)
+	}
+	if !strings.Contains(markdown, "Before finishing a phase") || !strings.Contains(markdown, "Before completing the plan") {
+		t.Fatalf("baseline set render missing phase and completion guidance:\n%s", markdown)
+	}
+	if !strings.Contains(markdown, "--path packages/proto/**\n```\n\nUse the wait command printed by Git Control Tower") {
+		t.Fatalf("baseline set capture fence must close before the recovery guidance:\n%s", markdown)
 	}
 	parsed, err := planmodel.ParsePlanMarkdown(markdown)
 	if err != nil {

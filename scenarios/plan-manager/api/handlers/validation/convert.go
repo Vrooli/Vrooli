@@ -15,14 +15,20 @@ import (
 
 func resultToProto(r internalvalidation.Result) *sharedv1.ValidationResult {
 	out := &sharedv1.ValidationResult{
-		Id:          r.ID,
-		PlanId:      r.PlanID,
-		PhaseId:     r.PhaseID,
-		Verdict:     verdictToProto(r.Verdict),
-		Staleness:   stalenessToProto(r.Staleness),
-		CommandsRun: r.CommandsRun,
-		Detail:      r.Detail,
-		RanAt:       r.RanAt,
+		Id:              r.ID,
+		PlanId:          r.PlanID,
+		PhaseId:         r.PhaseID,
+		Verdict:         verdictToProto(r.Verdict),
+		Staleness:       stalenessToProto(r.Staleness),
+		CommandsRun:     r.CommandsRun,
+		Detail:          r.Detail,
+		RanAt:           r.RanAt,
+		ExecutionId:     r.ExecutionID,
+		OperationId:     r.OperationID,
+		ScopeGeneration: int32(r.ScopeGeneration),
+		FullInventory:   r.FullInventory,
+		RequiredMembers: append([]string(nil), r.RequiredMembers...),
+		SelectedMembers: append([]string(nil), r.SelectedMembers...),
 	}
 	for _, finding := range r.CommandFindings {
 		out.CommandFindings = append(out.CommandFindings, &sharedv1.CommandValidationFinding{
@@ -52,6 +58,17 @@ func operationToProto(op internalvalidation.ValidationOperation) *validationv1.V
 		RecommendedWaitSeconds:     int32(op.RecommendedWaitSeconds),
 		ScopeFingerprint:           op.ScopeFingerprint,
 		QueueReason:                op.QueueReason,
+		ProducerWaitArgv:           append([]string(nil), op.ProducerWaitArgv...),
+		SyncArgv:                   append([]string(nil), op.SyncArgv...),
+		LastSyncedAt:               op.LastSyncedAt,
+		ExecutionId:                op.ExecutionID,
+		ScopeGeneration:            int32(op.ScopeGeneration),
+		RequiredMembers:            append([]string(nil), op.RequiredMembers...),
+		SelectedMembers:            append([]string(nil), op.SelectedMembers...),
+		FullInventory:              op.FullInventory,
+	}
+	for _, run := range op.TestRuns {
+		out.TestRuns = append(out.TestRuns, &validationv1.TestRunEvidence{Scenario: run.Scenario, RunId: run.RunID, Status: run.Status, Fingerprint: run.Fingerprint, TerminalAt: run.TerminalAt, Detail: run.Detail})
 	}
 	if op.Terminal() && op.Result != nil {
 		out.Result = resultToProto(*op.Result)

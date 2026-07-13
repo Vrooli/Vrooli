@@ -125,7 +125,7 @@ func renderVerificationCluster(b *strings.Builder, p Plan) {
 		b.WriteString("\n")
 	}
 	if baselineSetPresent(p.BaselineSet) {
-		b.WriteString("### Baseline Set\n\n")
+		b.WriteString("### Regression checks\n\n")
 		b.WriteString(renderBaselineSet(p.BaselineSet))
 		b.WriteString("\n")
 	}
@@ -953,28 +953,28 @@ func baselineSetPresent(intent BaselineSetIntent) bool {
 	return strings.TrimSpace(intent.Name) != "" || len(intent.ScenarioTargets) > 0 || len(intent.RepoPaths) > 0
 }
 
-// renderBaselineSet is intentionally declarative. Operational child commands
-// are server-owned GCT collection operations; rendering them here would recreate
-// the command wall this model replaces and invite callers to sequence children
-// themselves.
+// renderBaselineSet supplies the concise Markdown-only fallback. Runtime
+// execution still gets durable ticket ids and exact validation commands from the
+// runner; this projection explains the lifecycle without reproducing them.
 func renderBaselineSet(intent BaselineSetIntent) string {
 	var b strings.Builder
-	if intent.Name != "" {
-		fmt.Fprintf(&b, "- Name: `%s`\n", intent.Name)
-	}
-	if intent.CapturePolicy != "" {
-		fmt.Fprintf(&b, "- Capture policy: %s\n", intent.CapturePolicy)
-	}
-	if len(intent.ScenarioTargets) > 0 {
-		fmt.Fprintf(&b, "- Behavioral scenario coverage: %s\n", backtickJoin(intent.ScenarioTargets))
+	b.WriteString("A baseline records current behavior before this plan changes it, so validation can identify regressions.\n")
+	if intent.Name != "" && len(intent.ScenarioTargets) > 0 {
+		args := []string{"git-control-tower", "baseline", "collection", "capture", "--name", intent.Name}
+		for _, scenario := range intent.ScenarioTargets {
+			args = append(args, "--member", scenario)
+		}
+		for _, path := range intent.RepoPaths {
+			args = append(args, "--path", path)
+		}
+		b.WriteString("\n**Before editing**, capture the baseline:\n\n```bash\n")
+		b.WriteString(strings.Join(args, " "))
+		b.WriteString("\n```\n\nUse the wait command printed by Git Control Tower, then run `plan-manager exec baseline-sync <execution-id>`.\n")
 	} else {
-		b.WriteString("- Behavioral scenario coverage: none (operator-only or repository-path plan)\n")
+		b.WriteString("\n**Before editing**, follow the baseline action from `plan-manager exec continue …`.\n")
 	}
-	if len(intent.RepoPaths) > 0 {
-		fmt.Fprintf(&b, "- Source changes for review (informational): %s\n", backtickJoin(intent.RepoPaths))
-	}
-	b.WriteString("- Coverage gate: every required behavioral member must be ready before a phase or final result can be clean.\n")
-	b.WriteString("- Source evidence is informational and never substitutes for a Test Genie regression verdict.\n")
+	b.WriteString("\n**Before finishing a phase**, follow the validation action from `plan-manager exec continue …`. It checks the scenarios affected by that phase; resolve regressions before marking the phase complete.\n")
+	b.WriteString("\n**Before completing the plan**, follow the runner's final validation action. It checks the full baseline collection; resolve regressions before `plan-manager exec complete`.\n")
 	return b.String()
 }
 

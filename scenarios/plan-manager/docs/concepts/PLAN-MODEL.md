@@ -518,10 +518,13 @@ quality failures block finalize before persistence. External dependency outages
 degrade honestly instead of becoming passes, so an operator can distinguish "the
 plan is thin" from "the resolver is unavailable."
 
-Persisted validation uses `validate start` followed by exactly one `wait` (or
-`resume` after service restart). The operation record and every child checkpoint
-survive client disconnects. `validate show` is read-only, and `validate run` is a
-compatibility wrapper rather than the preferred lifecycle.
+Persisted validation is **producer-owned**. `validate start` records a durable
+Plan Manager ticket and exact producer argv; the agent starts and waits through
+Git Control Tower or Test Genie using that producer's native contract, then runs
+`validate sync <operation-id>` for one nonblocking typed reconciliation. Plan
+Manager never waits for or recreates producer work. `validate show` only reads a
+ticket. The former `validate run` and `verify-dod` routes return migration
+guidance rather than executing a hidden worker.
 
 - **Regression anchor** — **boundary-native** typed **intent** at authoring, fresh
   **snapshot** at execution start. New plans author the `change_boundary`
@@ -537,10 +540,12 @@ compatibility wrapper rather than the preferred lifecycle.
     non-scenario allow globs — **informational only**, never a pass/fail oracle
     until a path-baseline substrate exists.
 
-  The actual "before" snapshot is captured fresh when execution *starts* (a plan
-  is often authored days before it runs): execution's one-time **freshen inputs**
-  step delegates the `git-control-tower baseline` capture to the validation
-  domain. The legacy `scenario_baseline` / `head_sha_allowlist` strategies remain
+  The actual "before" collection is captured fresh when execution *starts* (a
+  plan is often authored days before it runs), but never behind the agent's
+  back: the runner renders one `baseline collection capture --name … --member …`
+  command, Git Control Tower prints the native one-shot wait/recovery command,
+  and `exec baseline-sync <execution-id>` records its typed state. The legacy
+  `scenario_baseline` / `head_sha_allowlist` strategies remain
   **import/read-only** for pre-cutover plans; unstructured legacy prose is
   preserved as legacy/degraded and cannot silently become a false validation
   oracle.
@@ -551,8 +556,9 @@ compatibility wrapper rather than the preferred lifecycle.
   - `fresh` — no relevant change.
   - `lightly_stale` — small diffs in referenced code.
   - `definitely_stale` — referenced locations moved or were deleted.
-- **Definition of Done** — verified against the regression anchor as an oracle
-  (baseline diff exit 0), not a narrated claim.
+- **Definition of Done** — requires a fresh synchronized, selector-free final
+  collection diff for the complete captured inventory; a phase subset can never
+  certify completion.
 
 ## Handoff (Structured Layer Only)
 

@@ -122,6 +122,34 @@ func (h *handlers) continueExecution(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) syncBaseline(ctx cliapp.RunContext) error {
+	resp, err := h.client.SyncBaseline(context.Background(), connect.NewRequest(&executionv1.SyncBaselineRequest{ExecutionId: ctx.Positional("execution")}))
+	if err != nil {
+		return cliapp.WrapAPIError("synchronize baseline", err, nil)
+	}
+	state := resp.Msg.GetExecution().GetBaselineSet()
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Baseline %s synchronized as %s.", state.GetName(), state.GetStatus())},
+		ResultsHeading: "Next action", Results: formatStep(resp.Msg.GetStep()), RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) amendScope(ctx cliapp.RunContext) error {
+	resp, err := h.client.AmendScope(context.Background(), connect.NewRequest(&executionv1.AmendScopeRequest{ExecutionId: ctx.Positional("execution"), PhaseId: ctx.Flag("phase"), Member: commaSeparated(ctx.Flag("members")), Author: ctx.Flag("author"), Reason: ctx.Flag("reason")}))
+	if err != nil {
+		return cliapp.WrapAPIError("amend scope", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Recorded scope amendment and invalidated prior phase evidence."}, Changes: formatStep(resp.Msg.GetStep()), NextCommand: formatRecommendedActions(resp.Msg.GetStep())})
+}
+
+func (h *handlers) adoptBaseline(ctx cliapp.RunContext) error {
+	resp, err := h.client.AdoptBaseline(context.Background(), connect.NewRequest(&executionv1.AdoptBaselineRequest{ExecutionId: ctx.Positional("execution"), Mode: ctx.Flag("mode"), Name: ctx.Flag("name"), Member: commaSeparated(ctx.Flag("members")), Path: commaSeparated(ctx.Flag("paths")), Reason: ctx.Flag("reason")}))
+	if err != nil {
+		return cliapp.WrapAPIError("adopt baseline", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Recorded explicit legacy baseline adoption state."}, Changes: formatStep(resp.Msg.GetStep()), NextCommand: formatRecommendedActions(resp.Msg.GetStep())})
+}
+
 func (h *handlers) next(ctx cliapp.RunContext) error {
 	resp, err := h.client.GetNext(context.Background(), connect.NewRequest(&executionv1.GetNextRequest{
 		ExecutionId: ctx.Positional("execution"),
@@ -202,6 +230,32 @@ func (h *handlers) complete(ctx cliapp.RunContext) error {
 		Results:        append(results, formatStep(resp.Msg.GetStep())...),
 		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
 	})
+}
+
+func (h *handlers) partialHandoff(ctx cliapp.RunContext) error {
+	tokens, err := parseInt64Flag(ctx.Flag("tokens"))
+	if err != nil {
+		return cliapp.WrapAPIError("partial handoff", err, nil)
+	}
+	iterations, err := parseInt32Flag(ctx.Flag("iterations"))
+	if err != nil {
+		return cliapp.WrapAPIError("partial handoff", err, nil)
+	}
+	resp, err := h.client.PartialHandoff(context.Background(), connect.NewRequest(&executionv1.PartialHandoffRequest{ExecutionId: ctx.Positional("execution"), Tokens: tokens, Iterations: iterations}))
+	if err != nil {
+		return cliapp.WrapAPIError("partial handoff", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Recorded partial handoff for execution %s; it remains incomplete.", resp.Msg.GetHandoff().GetExecutionId())}, Changes: formatStep(resp.Msg.GetStep()), NextCommand: formatRecommendedActions(resp.Msg.GetStep())})
+}
+
+func commaSeparated(raw string) []string {
+	var values []string
+	for _, value := range strings.Split(raw, ",") {
+		if value = strings.TrimSpace(value); value != "" {
+			values = append(values, value)
+		}
+	}
+	return values
 }
 
 func (h *handlers) handoff(ctx cliapp.RunContext) error {
