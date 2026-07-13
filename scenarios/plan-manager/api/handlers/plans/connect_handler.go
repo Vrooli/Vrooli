@@ -2,8 +2,11 @@ package plans
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"time"
 
+	"plan-manager/internal/audit"
 	"plan-manager/internal/planproto"
 	internalplans "plan-manager/internal/plans"
 
@@ -16,6 +19,17 @@ import (
 type Deps struct {
 	Service internalplans.Service
 	Logger  *log.Logger
+	Audit   *audit.Store
+}
+
+func (h *connectHandler) recordFact(ctx context.Context, action string, plan internalplans.Plan) {
+	if h.deps.Audit == nil {
+		return
+	}
+	eventID := plan.ID + ":" + action + ":" + plan.UpdatedAt
+	if err := h.deps.Audit.RecordVerifiedFact(ctx, action, plan.ID, plan.ContentHash, eventID, parseAuditTime(plan.UpdatedAt)); err != nil {
+		h.deps.Logger.Printf("plan audit fact not recorded after committed mutation: %v", err)
+	}
 }
 
 type connectHandler struct {
@@ -64,6 +78,7 @@ func (h *connectHandler) CreatePlan(ctx context.Context, req *connect.Request[pl
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.created", p)
 	return connect.NewResponse(&plansv1.CreatePlanResponse{Plan: planToProto(p)}), nil
 }
 
@@ -76,6 +91,7 @@ func (h *connectHandler) UpdatePlan(ctx context.Context, req *connect.Request[pl
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.updated", p)
 	return connect.NewResponse(&plansv1.UpdatePlanResponse{Plan: planToProto(p)}), nil
 }
 
@@ -84,6 +100,7 @@ func (h *connectHandler) ArchivePlan(ctx context.Context, req *connect.Request[p
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.archived", p)
 	return connect.NewResponse(&plansv1.ArchivePlanResponse{Plan: planToProto(p)}), nil
 }
 
@@ -111,6 +128,7 @@ func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[plan
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.phase_added", p)
 	return connect.NewResponse(&plansv1.AddPhaseResponse{Plan: planToProto(p)}), nil
 }
 
@@ -123,6 +141,7 @@ func (h *connectHandler) UpdatePhase(ctx context.Context, req *connect.Request[p
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.phase_updated", p)
 	return connect.NewResponse(&plansv1.UpdatePhaseResponse{Plan: planToProto(p)}), nil
 }
 
@@ -144,6 +163,7 @@ func (h *connectHandler) UpdateRelevantContext(ctx context.Context, req *connect
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.relevant_context_updated", p)
 	return connect.NewResponse(&plansv1.UpdateRelevantContextResponse{Plan: planToProto(p)}), nil
 }
 
@@ -152,6 +172,7 @@ func (h *connectHandler) RemoveRelevantContext(ctx context.Context, req *connect
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.relevant_context_removed", p)
 	return connect.NewResponse(&plansv1.RemoveRelevantContextResponse{Plan: planToProto(p)}), nil
 }
 
@@ -173,6 +194,7 @@ func (h *connectHandler) UpdateReference(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.reference_updated", p)
 	return connect.NewResponse(&plansv1.UpdateReferenceResponse{Plan: planToProto(p)}), nil
 }
 
@@ -181,6 +203,7 @@ func (h *connectHandler) RemoveReference(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.reference_removed", p)
 	return connect.NewResponse(&plansv1.RemoveReferenceResponse{Plan: planToProto(p)}), nil
 }
 
@@ -201,6 +224,7 @@ func (h *connectHandler) LinkSupersession(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.supersession_linked", p)
 	return connect.NewResponse(&plansv1.LinkSupersessionResponse{Plan: planToProto(p)}), nil
 }
 
@@ -209,6 +233,7 @@ func (h *connectHandler) LinkDependency(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.dependency_linked", p)
 	return connect.NewResponse(&plansv1.LinkDependencyResponse{Plan: planToProto(p)}), nil
 }
 
@@ -217,6 +242,7 @@ func (h *connectHandler) ImportPlan(ctx context.Context, req *connect.Request[pl
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.imported", p)
 	return connect.NewResponse(&plansv1.ImportPlanResponse{Plan: planToProto(p)}), nil
 }
 
@@ -225,6 +251,7 @@ func (h *connectHandler) MigratePlan(ctx context.Context, req *connect.Request[p
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.migrated", p)
 	return connect.NewResponse(&plansv1.MigratePlanResponse{Plan: planToProto(p)}), nil
 }
 
@@ -258,5 +285,29 @@ func (h *connectHandler) CreateFromTemplate(ctx context.Context, req *connect.Re
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
+	h.recordFact(ctx, "plan.created_from_template", p)
 	return connect.NewResponse(&plansv1.CreateFromTemplateResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) ListAuditFacts(ctx context.Context, req *connect.Request[plansv1.ListAuditFactsRequest]) (*connect.Response[plansv1.ListAuditFactsResponse], error) {
+	if h.deps.Audit == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("plan audit store is unavailable"))
+	}
+	facts, err := h.deps.Audit.ListByRun(ctx, req.Msg.GetRunId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &plansv1.ListAuditFactsResponse{Facts: make([]*plansv1.PlanAuditFact, 0, len(facts))}
+	for _, fact := range facts {
+		response.Facts = append(response.Facts, &plansv1.PlanAuditFact{
+			EventId:       fact.EventID,
+			RunId:         fact.RunID,
+			TaskId:        fact.TaskID,
+			Action:        fact.Action,
+			PlanId:        fact.PlanID,
+			ContentDigest: fact.ContentDigest,
+			OccurredAt:    fact.OccurredAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	return connect.NewResponse(response), nil
 }

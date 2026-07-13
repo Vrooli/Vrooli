@@ -19,6 +19,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/provenance"
 )
 
 // Deps holds the cross-cutting interfaces the Server depends on
@@ -30,8 +31,9 @@ import (
 // pingers) live inside each module's constructor — Deps is intentionally
 // limited to what the middleware stack reads.
 type Deps struct {
-	Clock  clock.Clock
-	Logger *log.Logger
+	Clock    clock.Clock
+	Logger   *log.Logger
+	Verifier provenance.Verifier
 }
 
 // Server is the wired HTTP application: cross-cutting deps + router
@@ -61,6 +63,10 @@ func New(d Deps, modules ...module.Module) *Server {
 	s := &Server{deps: d, router: mux.NewRouter()}
 	s.router.Use(middleware.NewSecurityHeadersMiddleware())
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
+	if d.Verifier == nil {
+		d.Verifier = provenance.CLIUtilVerifier{}
+	}
+	s.router.Use(provenance.Middleware(d.Verifier))
 	for _, m := range modules {
 		m.Mount(s.router)
 	}

@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"plan-manager/internal/clock"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // TestServer_MountsEachModule pins the contract the server owns:
@@ -87,6 +90,36 @@ func TestServer_NewRequiresClock(t *testing.T) {
 	require.PanicsWithValue(t, "server.New requires Deps.Clock", func() {
 		server.New(server.Deps{Logger: log.New(io.Discard, "", 0)})
 	})
+}
+
+func TestServerInjectsVerifiedAgentProvenance(t *testing.T) {
+	var got provenance.Provenance
+	srv := server.New(server.Deps{
+		Clock:  clock.System{},
+		Logger: log.New(io.Discard, "", 0),
+		Verifier: provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+			return &cliutil.VerifyResult{Valid: token == "verified", Claims: &cliutil.VerifiedClaims{RunID: "run-1", TaskID: "task-1", ProfileKey: "codex"}}, nil
+		}),
+	}, module.Module{
+		Name: "provenance",
+		Mount: func(r *mux.Router) {
+			r.HandleFunc("/provenance", func(w http.ResponseWriter, r *http.Request) {
+				got = provenance.FromContext(r.Context())
+				w.WriteHeader(http.StatusNoContent)
+			}).Methods(http.MethodPost)
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/provenance", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "verified")
+	req.Header.Set(cliutil.HeaderInvocationScenario, "plan-manager")
+	req.Header.Set(cliutil.HeaderInvocationCommand, "plans create")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusNoContent, rec.Code)
+	require.True(t, got.IsVerifiedAgent())
+	require.Equal(t, "plans create", got.Invocation.Command)
 }
 
 func newTestDeps() server.Deps {

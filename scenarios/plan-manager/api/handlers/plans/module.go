@@ -6,6 +6,7 @@ package plans
 import (
 	"log"
 
+	"plan-manager/internal/audit"
 	"plan-manager/internal/clock"
 	"plan-manager/internal/module"
 	internalplans "plan-manager/internal/plans"
@@ -33,6 +34,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	connectPath, connectHandler := plansconnect.NewPlansServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
+		Audit:   audit.NewStore(db),
 	}))
 	return module.Module{
 		Name: "plans",
@@ -45,7 +47,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 
 // Schema re-exports internalplans.Schema so the modules registry collects
 // endpoints and schema from one symbol per handler package.
-func Schema() string { return internalplans.Schema() }
+func Schema() string { return internalplans.Schema() + "\n" + audit.Schema() }
 
 // Endpoints is the machine-readable description of the plans module's public
 // surface. Each Connect-RPC method path references a generated *Procedure
@@ -74,6 +76,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("plans_reconcile", plansconnect.PlansServiceReconcilePlansProcedure, "Reconcile plans", "Repairs rendered mirrors and non-destructively canonicalizes misplaced markdown plan sources."),
 	endpoint("plans_list_templates", plansconnect.PlansServiceListTemplatesProcedure, "List plan templates", "Returns the per-surface plan templates (CLI/proto/UI)."),
 	endpoint("plans_create_from_template", plansconnect.PlansServiceCreateFromTemplateProcedure, "Create from template", "Pre-scaffolds a plan from a template."),
+	endpoint("plans_list_audit_facts", plansconnect.PlansServiceListAuditFactsProcedure, "List verified plan audit facts", "Returns Plan Manager-authoritative facts for one Agent Manager run."),
 }
 
 // endpoint is a small constructor that keeps the Endpoints slice readable. All
