@@ -147,12 +147,15 @@ function CycleWarning({ cycles }: { cycles: string[] }) {
         onClose={() => setOpen(false)}
         triggerRef={triggerRef}
         placement="bottom-start"
+        mobileSheet
+        mobileTitle="Dependency cycles"
         className="w-80 p-3 text-xs text-slate-200"
         testId="plan-cycle-popover"
       >
-        <div className="space-y-3">
+        <div className="space-y-3 text-xs text-slate-200">
           <div>
-            <h3 className="text-sm font-semibold text-rose-200">Dependency cycles</h3>
+            {/* The sheet header already carries the title on mobile. */}
+            <h3 className="hidden text-sm font-semibold text-rose-200 md:block">Dependency cycles</h3>
             <p className="mt-1 text-slate-400">
               These items depend on each other, so the planner cannot produce a clean execution order.
             </p>
@@ -257,11 +260,14 @@ function EtaStrip({ eta, goal }: { eta: PlanBoardMetaData["eta"]; goal: string }
         onClose={() => setOpen(false)}
         triggerRef={triggerRef}
         placement="bottom-start"
+        mobileSheet
+        mobileTitle="How the ETA is computed"
         className="w-72 p-3 text-xs text-slate-200"
         testId="plan-eta-popover"
       >
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-100">How the ETA is computed</h3>
+        <div className="space-y-3 text-xs text-slate-200">
+          {/* The sheet header already carries the title on mobile. */}
+          <h3 className="hidden text-sm font-semibold text-slate-100 md:block">How the ETA is computed</h3>
           <EtaExplainerContent
             band={{
               p50Label: eta.p50Label,

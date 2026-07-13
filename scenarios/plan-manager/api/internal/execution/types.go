@@ -109,7 +109,11 @@ type BaselineSetState struct {
 	CaptureArgv      []string
 	WaitArgv         []string
 	SyncArgv         []string
-	LastSyncedAt     string
+	// LegacyAdoptionRequired is set only for an explicitly marked historical
+	// plan. It blocks normal work until the operator chooses an honest recapture
+	// or degraded partial-handoff path.
+	LegacyAdoptionRequired bool
+	LastSyncedAt           string
 }
 
 // ScopeAmendment is an append-only explanation of a phase's real validation

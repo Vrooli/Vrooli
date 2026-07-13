@@ -9,6 +9,8 @@ import { useRef, useState, useLayoutEffect, type ReactNode, type RefObject } fro
 import { createPortal } from 'react-dom'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
+import { useIsMobile } from '../../hooks/useMediaQuery'
+import { BottomSheet } from './bottom-sheet'
 
 type PopoverPlacement = 'bottom-start' | 'bottom-end' | 'top-start' | 'top-end'
 
@@ -33,6 +35,13 @@ export interface PopoverProps {
   className?: string
   /** Delay click-outside listener (prevents instant close from triggering right-click) */
   delayClickOutside?: boolean
+  /**
+   * Render as a full-width BottomSheet on mobile instead of an anchored card.
+   * Opt-in: coordinate-positioned context menus and tooltips must stay anchored.
+   */
+  mobileSheet?: boolean
+  /** Sheet header title when mobileSheet is active (omit if the content self-titles) */
+  mobileTitle?: string
   /** data-testid value */
   testId?: string
 }
@@ -51,8 +60,12 @@ export function Popover({
   children,
   className,
   delayClickOutside = false,
+  mobileSheet = false,
+  mobileTitle,
   testId,
 }: PopoverProps) {
+  const isMobile = useIsMobile()
+  const asSheet = mobileSheet && isMobile
   const menuRef = useRef<HTMLDivElement>(null)
   // Measure-then-reveal: the anchored node is measured while hidden, then its
   // final position is written and it is revealed — all inside a pre-paint
@@ -60,15 +73,16 @@ export function Popover({
   // before flying into place.
   const [positioned, setPositioned] = useState(false)
 
+  // In sheet mode BottomSheet (via Dialog) owns Esc/click-outside/scroll lock.
   useModalBehavior({
-    isOpen,
+    isOpen: isOpen && !asSheet,
     onClose,
     ref: menuRef,
     delayClickOutside,
   })
 
   useLayoutEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || asSheet) {
       // Re-hide so a reopened menu is measured again before it reveals.
       setPositioned(false)
       return
@@ -104,9 +118,17 @@ export function Popover({
 
     // Reveal in the same pre-paint commit that wrote the position.
     setPositioned(true)
-  }, [isOpen, offset, placement, triggerRef, x, y])
+  }, [asSheet, isOpen, offset, placement, triggerRef, x, y])
 
   if (!isOpen) return null
+
+  if (asSheet) {
+    return (
+      <BottomSheet isOpen={isOpen} onClose={onClose} title={mobileTitle} data-testid={testId}>
+        {children}
+      </BottomSheet>
+    )
+  }
 
   const hasPosition = x !== undefined && y !== undefined
   const hasTrigger = Boolean(triggerRef?.current)

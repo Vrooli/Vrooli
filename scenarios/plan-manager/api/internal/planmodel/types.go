@@ -298,6 +298,78 @@ func BaselineSetFromBoundary(boundary ChangeBoundary, name string) BaselineSetIn
 	}
 }
 
+// IsLegacy reports whether this plan explicitly uses the historical baseline
+// adoption path. A zero-value intent is deliberately not legacy: treating an
+// omitted intent as legacy would let newly created plans bypass collection
+// capture.
+func (i BaselineSetIntent) IsLegacy() bool {
+	return strings.TrimSpace(i.Compatibility) == BaselineSetCompatibilityLegacy
+}
+
+// IsCurrent reports whether this is a current collection-baseline intent.
+func (i BaselineSetIntent) IsCurrent() bool {
+	return strings.TrimSpace(i.Compatibility) == BaselineSetCompatibilityCurrent
+}
+
+// IsLegacyBaselinePlan identifies the two explicit historical compatibility
+// forms. A missing intent is never legacy merely because it is absent.
+func IsLegacyBaselinePlan(p Plan) bool {
+	if p.BaselineSet.IsCurrent() {
+		return false
+	}
+	if p.BaselineSet.IsLegacy() {
+		return true
+	}
+	switch strings.TrimSpace(p.RegressionAnchor.Strategy) {
+	case AnchorStrategyScenarioBaseline, AnchorStrategyHeadShaAllowlist, AnchorStrategyLegacyProse:
+		return true
+	default:
+		return false
+	}
+}
+
+// EnsureCurrentBaselineSet derives the collection policy for every current
+// change-boundary plan, regardless of whether it came from guided authoring,
+// a direct API write, or the CLI. Call it only after the slug is stable.
+func EnsureCurrentBaselineSet(p *Plan) {
+	if p == nil || p.BaselineSet.IsLegacy() || strings.TrimSpace(p.RegressionAnchor.Strategy) != AnchorStrategyChangeBoundary {
+		return
+	}
+	name := strings.TrimSpace(p.RegressionAnchor.BaselineName)
+	if name == "" && strings.TrimSpace(p.Slug) != "" {
+		name = strings.TrimSpace(p.Slug) + "-baseline"
+		p.RegressionAnchor.BaselineName = name
+	}
+	p.BaselineSet = BaselineSetFromBoundary(p.ChangeBoundary, name)
+}
+
+// CurrentBaselineSetValid proves the stored intent is exactly the deterministic
+// policy derived from the plan's anchor and change boundary. It prevents stale
+// or hand-widened collection membership from becoming execution evidence.
+func CurrentBaselineSetValid(p Plan) bool {
+	if !p.BaselineSet.IsCurrent() || strings.TrimSpace(p.RegressionAnchor.Strategy) != AnchorStrategyChangeBoundary {
+		return false
+	}
+	expected := BaselineSetFromBoundary(p.ChangeBoundary, p.RegressionAnchor.BaselineName)
+	return p.BaselineSet.Name == expected.Name &&
+		p.BaselineSet.CapturePolicy == expected.CapturePolicy &&
+		containsAllStrings(p.BaselineSet.ScenarioTargets, expected.ScenarioTargets) &&
+		containsAllStrings(p.BaselineSet.RepoPaths, expected.RepoPaths)
+}
+
+func containsAllStrings(have, required []string) bool {
+	set := make(map[string]struct{}, len(have))
+	for _, value := range have {
+		set[value] = struct{}{}
+	}
+	for _, value := range required {
+		if _, ok := set[value]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // Regression-anchor strategy identifiers.
 const (
 	// AnchorStrategyChangeBoundary is the boundary-native anchor strategy used by

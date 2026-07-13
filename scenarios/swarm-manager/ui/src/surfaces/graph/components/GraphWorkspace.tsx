@@ -12,7 +12,7 @@
  * - Bottom-right: node/edge count summary (rendered inside GraphCanvas)
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { defaultQueryOptions } from "../../../lib";
@@ -52,6 +52,7 @@ export function GraphWorkspace() {
   const queryClient = useQueryClient();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const helpButtonRef = useRef<HTMLButtonElement | null>(null);
   const [launcherError, setLauncherError] = useState<string | null>(null);
   const [launcherStatus, setLauncherStatus] = useState<string | null>(null);
   const [createFromPlanOpen, setCreateFromPlanOpen] = useState(false);
@@ -60,6 +61,12 @@ export function GraphWorkspace() {
 
   // --- Graph state sync (URL ↔ store) ---
   const { urlLens, handleLensChange, handleReturnToAtlas, handleDeselectNode } = useGraphStateSync();
+
+  // The guide is lens-specific, so close it when the surface changes rather
+  // than silently carrying an open flag across lenses.
+  useEffect(() => {
+    setShowHelpPanel(false);
+  }, [urlLens]);
 
   const createSession = useAgentSessionStore((s) => s.createSession);
   const isCreatingSession = useAgentSessionStore((s) => s.isMutating);
@@ -146,6 +153,7 @@ export function GraphWorkspace() {
         onToggleSettings={() => setShowSettingsDrawer((prev) => !prev)}
         onToggleHelp={() => setShowHelpPanel((prev) => !prev)}
         onLensChange={handleLensChange}
+        helpButtonRef={helpButtonRef}
       />
 
       {/* Active surface fills the remaining height; floating panels anchor
@@ -168,12 +176,19 @@ export function GraphWorkspace() {
         {/* Floating panels */}
 
         <NodeInspectorPanel />
+        {/* Stats has no guide (the header hides its help button there). */}
         {urlLens === "plan" ? (
-          <PlanHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
-        ) : urlLens === "stats" ? (
-          <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
-        ) : (
-          <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
+          <PlanHelpPanel
+            isOpen={showHelpPanel}
+            onClose={() => setShowHelpPanel(false)}
+            triggerRef={helpButtonRef}
+          />
+        ) : urlLens === "stats" ? null : (
+          <GraphHelpPanel
+            isOpen={showHelpPanel}
+            onClose={() => setShowHelpPanel(false)}
+            triggerRef={helpButtonRef}
+          />
         )}
 
         <GraphActionLauncher

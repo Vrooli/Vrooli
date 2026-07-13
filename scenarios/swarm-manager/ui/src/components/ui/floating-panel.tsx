@@ -8,15 +8,16 @@
  * - Escape to close (via useModalBehavior)
  * - Viewport clamping on window resize
  * - Full header bar as drag handle (desktop)
- * - Mobile bottom tray mode (undraggable, slides up from bottom)
+ * - Mobile: renders the shared BottomSheet (modal, backdrop, scroll lock)
  */
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { GripVertical, X, Minus } from 'lucide-react'
+import { GripVertical, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
 import { useIsMobile } from '../../hooks/useMediaQuery'
 import { useSpatialNavContext } from '../../hooks/SpatialNavContext'
+import { BottomSheet } from './bottom-sheet'
 
 interface Position {
   x: number
@@ -51,9 +52,10 @@ export function FloatingPanel({
   const titleId = useId()
   const isMobile = useIsMobile()
 
-  // Escape to close (no scroll lock, no click-outside for non-modal panels)
+  // Escape to close (no scroll lock, no click-outside for non-modal panels).
+  // On mobile the shared BottomSheet (via Dialog) owns all dismiss behavior.
   useModalBehavior({
-    isOpen,
+    isOpen: isOpen && !isMobile,
     onClose,
     ref: panelRef,
     disableCloseOnOutsideClick: true,
@@ -64,10 +66,10 @@ export function FloatingPanel({
   useEffect(() => {
     const ctrl = spatialNavRef?.current;
     const el = panelRef.current;
-    if (!isOpen || !ctrl || !el) return;
+    if (!isOpen || isMobile || !ctrl || !el) return;
     ctrl.pushScope(el);
     return () => { ctrl.popScope(); };
-  }, [isOpen, spatialNavRef]);
+  }, [isMobile, isOpen, spatialNavRef]);
 
   const clampPosition = useCallback((next: Position): Position => {
     const panelWidth = panelRef.current?.offsetWidth ?? 560
@@ -129,43 +131,12 @@ export function FloatingPanel({
 
   if (!isOpen) return null
 
-  // Mobile: bottom tray mode
+  // Mobile: shared bottom sheet (backdrop, scroll lock, portal, aria-modal).
   if (isMobile) {
     return (
-      <div
-        ref={panelRef}
-        className={cn(
-          'fixed inset-x-0 bottom-0 z-40',
-          'bg-slate-900/95 border-t border-white/10 rounded-t-2xl shadow-2xl backdrop-blur-sm',
-          'animate-in slide-in-from-bottom duration-200',
-          className,
-        )}
-        role="dialog"
-        aria-modal="false"
-        aria-labelledby={titleId}
-        data-testid={testId}
-      >
-        {/* Drag handle indicator (visual only) */}
-        <div className="flex justify-center pt-2 pb-1">
-          <Minus className="h-5 w-8 text-slate-500" />
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1 border-b border-white/10">
-          <h2 id={titleId} className="flex-1 text-sm font-semibold text-slate-100">
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-            aria-label="Close panel"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="p-4 max-h-[85vh] overflow-y-auto">
-          {children}
-        </div>
-      </div>
+      <BottomSheet isOpen={isOpen} onClose={onClose} title={title} data-testid={testId}>
+        {children}
+      </BottomSheet>
     )
   }
 

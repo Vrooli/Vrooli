@@ -51,6 +51,20 @@ func TestAssessPlanQualityAcceptsExplicitNoContextAndNoCodeReasons(t *testing.T)
 	require.Empty(t, report.Findings)
 }
 
+func TestAssessPlanQualityRequiresCurrentCollectionBaseline(t *testing.T) {
+	plan := executionGradePlan()
+	plan.BaselineSet = BaselineSetIntent{}
+
+	report := AssessPlanQuality(plan, "")
+
+	require.False(t, report.ExecutionReady())
+	requireQualityCode(t, report, "plan_missing_baseline_set")
+
+	plan.BaselineSet = BaselineSetIntent{Compatibility: BaselineSetCompatibilityLegacy}
+	report = AssessPlanQuality(plan, "")
+	require.True(t, report.ExecutionReady(), "legacy is an explicit adoption path, not an omitted-baseline bypass")
+}
+
 func TestAssessPlanQualityFailsIncompletePhase(t *testing.T) {
 	plan := executionGradePlan()
 	plan.Phases[0] = Phase{ID: "phase-1", Order: 1, Title: "Thin"}
@@ -97,8 +111,10 @@ func executionGradePlan() Plan {
 			AcceptanceAllow: []string{"scenarios/plan-manager/**"},
 		},
 		RegressionAnchor: RegressionAnchor{
-			Strategy: AnchorStrategyChangeBoundary,
+			Strategy:     AnchorStrategyChangeBoundary,
+			BaselineName: "plan-1-baseline",
 		},
+		BaselineSet: BaselineSetFromBoundary(ChangeBoundary{AcceptanceAllow: []string{"scenarios/plan-manager/**"}}, "plan-1-baseline"),
 		RelevantContext: []RelevantContextItem{{
 			ID:           "ctx-global",
 			Kind:         RelevantContextNote,

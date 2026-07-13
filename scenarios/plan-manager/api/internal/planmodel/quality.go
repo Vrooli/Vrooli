@@ -126,6 +126,16 @@ func assessPlanStructureQuality(p Plan) []QualityFinding {
 	if !anchorExecutionGrade(p.RegressionAnchor) {
 		findings = append(findings, qualityFailure("plan.regression_anchor", "plan_missing_regression_anchor", "plan has no execution-grade regression anchor intent"))
 	}
+	baselineNotApplicable := strings.TrimSpace(p.ChangeBoundary.OperatorOnlyReason) != "" && len(p.ChangeBoundary.AffectedScenarios()) == 0
+	if !IsLegacyBaselinePlan(p) && !baselineNotApplicable {
+		if !p.BaselineSet.IsCurrent() {
+			findings = append(findings, qualityFailure("plan.baseline_set", "plan_missing_baseline_set", "new plans require a producer-owned baseline collection intent; explicitly mark historical plans legacy before adoption"))
+		} else if !CurrentBaselineSetValid(p) {
+			findings = append(findings, qualityFailure("plan.baseline_set", "plan_invalid_baseline_set", "baseline collection intent must match the current change-boundary anchor and affected scenario inventory"))
+		} else if len(p.BaselineSet.ScenarioTargets) == 0 {
+			findings = append(findings, qualityFailure("plan.baseline_set", "plan_baseline_set_no_scenarios", "baseline collection requires at least one affected scenario; operator-only plans need an explicit non-execution workflow"))
+		}
+	}
 	if !HasPlanReferenceOrNoCodeReason(p) {
 		findings = append(findings, qualityFailure("plan.references", "plan_missing_references", "plan has no connected references and no NO_CODE_REFS/operator-only reason"))
 	}

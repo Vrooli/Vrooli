@@ -124,6 +124,12 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown, title, slug 
 			WorkspaceRoot:  strings.TrimSpace(workspace.Root),
 		}
 	}
+	// Imports preserve historical provenance rather than silently claiming a
+	// fresh before-state. A current declarative collection survives import; every
+	// other import must take the explicit execution-time adoption path.
+	if !parsed.BaselineSet.IsCurrent() {
+		parsed.BaselineSet = BaselineSetIntent{Compatibility: planmodel.BaselineSetCompatibilityLegacy}
+	}
 	stampCanonicalWorkspace(&parsed, workspace)
 	return s.Create(ctx, parsed)
 }

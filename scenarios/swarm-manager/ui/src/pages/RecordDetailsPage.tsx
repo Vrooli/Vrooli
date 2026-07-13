@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { recordsService } from "../services/records-service";
 import { RecordNarrativeEditor } from "../components/records/RecordNarrativeEditor";
+import { RecordCaptureForm } from "../components/records/RecordCaptureForm";
 import { SupersedeChainView } from "../components/records/SupersedeChainView";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { ErrorState } from "../components/ui/error-state";
@@ -38,6 +39,19 @@ export function RecordDetailsPage() {
     [recordId, queryClient],
   );
 
+  const handleRepair = useCallback(
+    async (input: Parameters<typeof recordsService.repairCapture>[1]) => {
+      if (!recordId) throw new Error("Record id is required");
+      const result = await recordsService.repairCapture(recordId, input);
+      await queryClient.invalidateQueries({ queryKey: ["record", recordId] });
+      if (result.disposition === "published") {
+        await queryClient.invalidateQueries({ queryKey: ["records", "list"] });
+      }
+      return result;
+    },
+    [recordId, queryClient],
+  );
+
   if (isLoading) return <PageLoadingState label="Loading record…" />;
   if (error)
     return (
@@ -55,6 +69,9 @@ export function RecordDetailsPage() {
         <h1 className="text-xl font-semibold text-slate-100">Record {record.id}</h1>
         {record.stub ? (
           <span className="rounded bg-amber-900/60 px-2 py-1 text-xs text-amber-200">stub</span>
+        ) : null}
+        {record.draft ? (
+          <span className="rounded bg-amber-900/60 px-2 py-1 text-xs text-amber-200">private draft</span>
         ) : null}
       </header>
 
@@ -127,7 +144,12 @@ export function RecordDetailsPage() {
         ) : null}
       </dl>
 
-      {record.stub ? (
+      {record.draft ? (
+        <section>
+          <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">Repair draft</h2>
+          <RecordCaptureForm record={record} onSubmit={handleRepair} />
+        </section>
+      ) : record.stub ? (
         <section>
           <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">Fill narrative</h2>
           <RecordNarrativeEditor record={record} onSubmit={handleFill} />

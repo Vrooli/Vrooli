@@ -64,6 +64,7 @@ func planFromProtoChecked(p *sharedv1.Plan) (internalplans.Plan, error) {
 		NonGoals:                p.GetNonGoals(),
 		References:              referencesFromProto(p.GetReferences()),
 		RegressionAnchor:        anchorFromProto(p.GetRegressionAnchor()),
+		BaselineSet:             planproto.BaselineSetFromProto(p.GetBaselineSet()),
 		DefinitionOfDone:        p.GetDefinitionOfDone(),
 		Phases:                  phases,
 		Supersedes:              p.GetSupersedes(),

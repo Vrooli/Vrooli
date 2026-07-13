@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	planmodel "plan-manager/internal/planmodel"
 	"plan-manager/internal/plans"
 	"plan-manager/internal/testutil/db"
 	"plan-manager/internal/testutil/mocks"
@@ -1093,6 +1094,21 @@ func TestServiceCreateComputesIdentityFields(t *testing.T) {
 	// Empty title rejected.
 	_, err = svc.Create(ctx, plans.Plan{})
 	require.Error(t, err)
+}
+
+func TestServiceCreateDerivesCollectionBaselineForDirectCurrentPlan(t *testing.T) {
+	svc, _ := newService(t)
+	plan := samplePlan()
+	plan.RegressionAnchor = plans.RegressionAnchor{Strategy: plans.AnchorStrategyChangeBoundary}
+	plan.ChangeBoundary = plans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/plan-manager/**", "packages/proto/**"}}
+
+	created, err := svc.Create(context.Background(), plan)
+	require.NoError(t, err)
+	require.Equal(t, created.Slug+"-baseline", created.RegressionAnchor.BaselineName)
+	require.Equal(t, planmodel.BaselineSetCompatibilityCurrent, created.BaselineSet.Compatibility)
+	require.Equal(t, []string{"plan-manager"}, created.BaselineSet.ScenarioTargets)
+	require.Equal(t, []string{"packages/proto/**"}, created.BaselineSet.RepoPaths)
+	require.True(t, planmodel.CurrentBaselineSetValid(created))
 }
 
 func TestContentHashStableAndSensitive(t *testing.T) {

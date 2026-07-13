@@ -114,6 +114,7 @@ func (s *service) Create(ctx context.Context, p Plan) (Plan, error) {
 		return Plan{}, err
 	}
 	p.Slug = slug
+	planmodel.EnsureCurrentBaselineSet(&p)
 	now := s.now()
 	p.CreatedAt = now
 	p.UpdatedAt = now
@@ -169,6 +170,7 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	if strings.TrimSpace(p.Title) == "" {
 		p.Title = existing.Title
 	}
+	planmodel.EnsureCurrentBaselineSet(&p)
 	p.Phases = normalizePhases(reconcilePhaseIDs(existing.Phases, p.Phases))
 	if existing.Status == PlanStatusArchived {
 		p.Status = PlanStatusArchived

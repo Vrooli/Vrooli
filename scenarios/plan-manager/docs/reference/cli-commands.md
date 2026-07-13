@@ -124,6 +124,13 @@ the execution service: it requires the last stored phase validation to be
 offline completion. Prefer `exec continue` so the API recommends validation
 before the done transition.
 
+For a historical plan that cannot honestly claim a fresh before-state, mark the
+plan explicitly before execution with `plan-manager plans update <plan>
+--baseline-mode legacy`. The runner then requires `exec baseline-adopt` to choose
+an honest recapture or degraded partial-handoff path. New/current plans instead
+derive their collection from a `change_boundary` anchor; use `--baseline-mode
+current --anchor-strategy change_boundary` when repairing one.
+
 ## `author` — the guided composer wizard
 
 `author status <session>` is an alias of `author preview`. Global flags

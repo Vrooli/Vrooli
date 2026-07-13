@@ -8,7 +8,7 @@
  */
 
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { selectors } from "../../../consts/selectors";
@@ -83,15 +83,16 @@ describe("WorkspaceHeader", () => {
     expect(screen.getByTestId("lens-plan-badge")).toHaveTextContent("2");
   });
 
-  it("labels the help button for the active surface", () => {
+  it("labels the help button for the active surface and omits it on stats", () => {
     renderHeader({ lens: "plan" });
     expect(screen.getByRole("button", { name: "Plan guide" })).toBeInTheDocument();
 
     renderHeader({ lens: "topology" });
     expect(screen.getByRole("button", { name: "Graph guide" })).toBeInTheDocument();
 
-    renderHeader({ lens: "stats" });
-    expect(screen.getByRole("button", { name: "Stats guide" })).toBeInTheDocument();
+    // Stats has no guide, so no help affordance there.
+    const statsRender = renderHeader({ lens: "stats" });
+    expect(within(statsRender.container).queryByTestId("help-button")).toBeNull();
   });
 
   it("shows graph-only controls only on the graph canvas", () => {

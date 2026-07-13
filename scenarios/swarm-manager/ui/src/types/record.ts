@@ -37,13 +37,58 @@ export interface RecordItem {
   trigger: string;
   approach: string;
   ruledOut: string[];
+  evidence?: string;
   commit?: string;
   filesChanged: string[];
   outcome: RecordOutcome;
   stub: boolean;
+  /** Private recovery state from progressive `records capture`. */
+  draft?: boolean;
+  capture?: RecordCaptureMetadata;
   createdAt: string;
   createdBy?: string;
   narrativeAt?: string;
+}
+
+export interface RecordCaptureInvalidField {
+  field: string;
+  value: string;
+  message: string;
+}
+
+export interface RecordCaptureMetadata {
+  raw?: Record<string, string>;
+  accepted?: Record<string, string>;
+  needs?: string[];
+  invalid?: RecordCaptureInvalidField[];
+  warnings?: string[];
+}
+
+/**
+ * Permissive progressive-intake payload. The capture endpoint deliberately
+ * accepts incomplete values and reports what needs repair instead of failing
+ * the whole submission.
+ */
+export interface RecordCaptureInput {
+  kind: string;
+  scenario: string;
+  trigger: string;
+  approach: string;
+  evidence?: string;
+  ruledOut: string[];
+  outcome: string;
+  createdBy?: string;
+  idempotencyKey?: string;
+}
+
+export interface RecordCaptureResult {
+  disposition: "published" | "draft";
+  record: RecordItem;
+  accepted: Record<string, string>;
+  needs: string[];
+  invalid: RecordCaptureInvalidField[];
+  warnings: string[];
+  nextAction: string[];
 }
 
 export interface RecordSearchHit {

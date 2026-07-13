@@ -91,6 +91,8 @@ export function GoalPicker({
         isOpen={open}
         onClose={() => setOpen(false)}
         triggerRef={triggerRef}
+        mobileSheet
+        mobileTitle="Scope to goal"
         className="w-72 rounded-lg border-slate-700/80 bg-slate-900/95 p-1 shadow-xl backdrop-blur"
         testId="plan-goal-picker-menu"
       >

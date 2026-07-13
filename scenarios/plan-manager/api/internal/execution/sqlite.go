@@ -162,7 +162,7 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 	); err != nil {
 		return fmt.Errorf("upsert execution %q: %w", e.ID, err)
 	}
-	if e.BaselineSet.Name != "" {
+	if e.BaselineSet.Name != "" || e.BaselineSet.LegacyAdoptionRequired {
 		raw, err := json.Marshal(e.BaselineSet)
 		if err != nil {
 			return fmt.Errorf("marshal execution baseline set %q: %w", e.ID, err)

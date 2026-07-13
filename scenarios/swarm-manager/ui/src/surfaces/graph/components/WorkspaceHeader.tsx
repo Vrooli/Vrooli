@@ -12,14 +12,16 @@
  *
  * The help button opens the guide for the active surface — the Plan Guide on
  * the board, the Graph Guide on the canvas — via the same lens-aware handler
- * wired up in GraphWorkspace. Graph controls only make sense over the canvas,
- * so that button is omitted on the Plan board.
+ * wired up in GraphWorkspace. Stats has no guide, so the button is omitted
+ * there. Graph controls only make sense over the canvas, so that button is
+ * omitted on the Plan board.
  *
  * Running-agent visibility lives on the Plan lens tab as a bot-count badge
  * (fed from `useOperationsStore`); the Plan board itself is the surface that
  * shows the running agents.
  */
 
+import type { MutableRefObject } from "react";
 import { HelpCircle, Menu, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { LensNav } from "./LensNav";
@@ -42,6 +44,8 @@ export interface WorkspaceHeaderProps {
   onToggleSettings: () => void;
   onToggleHelp: () => void;
   onLensChange: (lens: AppGraphLens) => void;
+  /** Anchor for the lens-aware help popover */
+  helpButtonRef?: MutableRefObject<HTMLButtonElement | null>;
 }
 
 /**
@@ -59,11 +63,14 @@ export function WorkspaceHeader({
   onToggleSettings,
   onToggleHelp,
   onLensChange,
+  helpButtonRef,
 }: WorkspaceHeaderProps) {
   const activeSurface: AppGraphLens = lens === "plan" ? "plan" : lens === "stats" ? "stats" : "graph";
   const isGraphSurface = activeSurface === "graph";
   const isPlanSurface = activeSurface === "plan";
-  const helpLabel = activeSurface === "plan" ? "Plan guide" : activeSurface === "stats" ? "Stats guide" : "Graph guide";
+  // Stats has no guide, so no help affordance there.
+  const showHelp = activeSurface !== "stats";
+  const helpLabel = isPlanSurface ? "Plan guide" : "Graph guide";
   // Nav controls and graph controls are canvas-only affordances; Plan and
   // Stats have nothing to pan or configure, so neither appears there.
   const showNavRow = showNavControls && isGraphSurface;
@@ -144,16 +151,19 @@ export function WorkspaceHeader({
               <Settings className="h-4 w-4" />
             </button>
           )}
-          <button
-            type="button"
-            onClick={onToggleHelp}
-            className={ICON_BUTTON_CLASS}
-            aria-label={helpLabel}
-            title={helpLabel}
-            data-testid="help-button"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
+          {showHelp && (
+            <button
+              ref={helpButtonRef}
+              type="button"
+              onClick={onToggleHelp}
+              className={ICON_BUTTON_CLASS}
+              aria-label={helpLabel}
+              title={helpLabel}
+              data-testid="help-button"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 

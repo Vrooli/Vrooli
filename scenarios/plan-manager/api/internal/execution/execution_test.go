@@ -204,7 +204,9 @@ func threePhasePlan() internalplans.Plan {
 			AcceptanceAllow: []string{"scenarios/plan-manager/**"},
 		},
 		RegressionAnchor: internalplans.RegressionAnchor{
-			Strategy: internalplans.AnchorStrategyChangeBoundary,
+			Strategy:     internalplans.AnchorStrategyScenarioBaseline,
+			Scenario:     "plan-manager",
+			BaselineName: "plan-1-baseline",
 		},
 		RelevantContext: []internalplans.RelevantContextItem{{
 			ID:           "ctx-global",
@@ -305,6 +307,19 @@ func TestStartRejectsPlanThatNeedsRepair(t *testing.T) {
 	require.ErrorAs(t, err, &execution.ErrInvalidExecution{})
 	require.Contains(t, err.Error(), "plan is not execution-grade")
 	require.Contains(t, err.Error(), "plan_missing_phases")
+}
+
+func TestExplicitLegacyPlanRequiresBaselineAdoption(t *testing.T) {
+	plan := threePhasePlan()
+	plan.BaselineSet = internalplans.BaselineSetIntent{Compatibility: "legacy_anchor"}
+	h := newHarness(t, plan, nil)
+
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+	_, _, step, err := h.svc.GetStatus(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.Equal(t, "baseline_adoption_required", step.StepKind)
+	require.Equal(t, []string{"exec", "baseline-adopt", e.ID, "--mode", "recapture", "--name", "<collection-name>", "--members", "<scenario,...>", "--reason", "<why this is a trustworthy before-state>"}, step.NextActions[0].Argv)
 }
 
 func TestResumePointDerivationEarliestNonDone(t *testing.T) {

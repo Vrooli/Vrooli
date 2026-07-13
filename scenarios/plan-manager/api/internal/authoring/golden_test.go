@@ -73,7 +73,7 @@ func TestGoldenAuthoringWizardHardening(t *testing.T) {
 	require.Empty(t, violations, "a correct CODE/DOC mix passes")
 
 	_, violations, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor,
-		"Strategy: scenario-baseline\nScenario baseline: plan-manager\nBaseline name: plan-manager-logging-polish-baseline\nHEAD sha: abc123\nAllowlist: scenarios/plan-manager/**")
+		"Strategy: change_boundary\nBaseline name: plan-manager-logging-polish-baseline\nHEAD sha: abc123")
 	require.NoError(t, err)
 	require.Empty(t, violations)
 

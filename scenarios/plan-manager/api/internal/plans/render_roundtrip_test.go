@@ -99,6 +99,7 @@ func TestRenderParseRenderIdempotent(t *testing.T) {
 func TestRenderBaselineSetIsDeclarativeAndRoundTrips(t *testing.T) {
 	t.Parallel()
 	p := comprehensivePlan()
+	p.RegressionAnchor = planmodel.RegressionAnchor{Strategy: planmodel.AnchorStrategyChangeBoundary, BaselineName: "complete-before-state"}
 	p.BaselineSet = planmodel.BaselineSetIntent{
 		Name:            "complete-before-state",
 		ScenarioTargets: []string{"git-control-tower", "plan-manager"},

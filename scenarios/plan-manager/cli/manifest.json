@@ -198,6 +198,10 @@
               "description": "Reason this plan has no editable repo path boundary"
             },
             {
+              "name": "baseline-mode",
+              "description": "legacy requires explicit execution-time baseline adoption; current derives a collection from a change-boundary anchor"
+            },
+            {
               "name": "anchor-strategy",
               "description": "Regression anchor strategy, e.g. change_boundary"
             },

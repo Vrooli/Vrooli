@@ -1,5 +1,7 @@
 /**
- * PlanHelpPanel - FloatingPanel explaining the Plan board's visual language.
+ * PlanHelpPanel - guide explaining the Plan board's visual language, rendered
+ * in the shared HelpPanel shell (popover anchored to the header's help button
+ * on desktop, bottom sheet on mobile).
  *
  * The board-side counterpart to GraphHelpPanel: same shell and placement, but
  * it documents what the board actually shows — the four columns, card status
@@ -8,14 +10,16 @@
  * Sections: columns, status dots, badges, ETA, how you act.
  */
 
-import { useEffect, useRef } from "react";
-import { Clock, HelpCircle, MousePointerClick, X } from "lucide-react";
+import type { RefObject } from "react";
+import { Clock, MousePointerClick } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { useSpatialNavContext } from "../../../hooks/SpatialNavContext";
+import { HelpPanel } from "../../../components/ui/help-panel";
 
 interface PlanHelpPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Header help button the desktop popover anchors to */
+  triggerRef?: RefObject<HTMLElement | null>;
 }
 
 const COLUMNS: { name: string; blurb: string }[] = [
@@ -40,43 +44,16 @@ const OUTCOMES: { glyph: string; label: string; className: string }[] = [
   { glyph: "⚠", label: "needs follow-up", className: "text-amber-400" },
 ];
 
-export function PlanHelpPanel({ isOpen, onClose }: PlanHelpPanelProps) {
-  // Push a spatial nav modal scope so D-pad navigation is trapped inside.
-  const spatialNavRef = useSpatialNavContext();
-  const panelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const ctrl = spatialNavRef?.current;
-    const el = panelRef.current;
-    if (!isOpen || !ctrl || !el) return;
-    ctrl.pushScope(el);
-    return () => { ctrl.popScope(); };
-  }, [isOpen, spatialNavRef]);
-
-  if (!isOpen) return null;
-
+export function PlanHelpPanel({ isOpen, onClose, triggerRef }: PlanHelpPanelProps) {
   return (
-    <div
-      ref={panelRef}
-      className="absolute right-14 top-14 z-40 max-h-[70vh] w-80 overflow-y-auto rounded-lg border border-slate-700/60 bg-slate-900/95 shadow-xl backdrop-blur-sm"
-      data-testid="plan-help-panel"
+    <HelpPanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Plan Guide"
+      triggerRef={triggerRef}
+      testId="plan-help-panel"
     >
-      {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700/60 bg-slate-900/95 px-3 py-2">
-        <div className="flex items-center gap-2">
-          <HelpCircle className="h-4 w-4 text-slate-400" />
-          <span className="text-sm font-semibold text-slate-100">Plan Guide</span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          aria-label="Close help"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="space-y-4 p-3">
+      <div className="space-y-4">
         {/* Columns */}
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Columns</h3>
@@ -178,6 +155,6 @@ export function PlanHelpPanel({ isOpen, onClose }: PlanHelpPanelProps) {
           </div>
         </section>
       </div>
-    </div>
+    </HelpPanel>
   );
 }

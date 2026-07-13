@@ -576,6 +576,7 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 		Scenario:     "plan-manager",
 		BaselineName: "impl",
 	}
+	finalized.BaselineSet = internalplans.BaselineSetIntent{}
 	var updateErr error
 	finalized, updateErr = plansSvc.Update(ctx, finalized)
 	require.NoError(t, updateErr)

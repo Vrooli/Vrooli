@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { recordsService } from "../services/records-service";
 import { RecordsList } from "../components/records/RecordsList";
 import { RecordSearchBox } from "../components/records/RecordSearchBox";
+import { RecordCaptureForm } from "../components/records/RecordCaptureForm";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { ErrorState } from "../components/ui/error-state";
 import type { RecordKind } from "../types";
@@ -20,6 +21,14 @@ export function RecordsPage() {
     queryKey: ["records", "list", { includeStubs }],
     queryFn: () => recordsService.list({ includeStubs, limit: 200 }),
   });
+
+  const capture = async (input: Parameters<typeof recordsService.capture>[0]) => {
+    const result = await recordsService.capture(input);
+    // Published records become visible in the regular private-draft-excluding
+    // list immediately. Drafts remain intentionally absent from that list.
+    if (result.disposition === "published") await refetch();
+    return result;
+  };
 
   if (isLoading) return <PageLoadingState label="Loading records…" />;
   if (error)
@@ -39,6 +48,13 @@ export function RecordsPage() {
           Narrative artifacts of completed work — the recursive-learning loop's write side.
         </p>
       </header>
+
+      <section>
+        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">Capture work</h2>
+        <div className="rounded border border-slate-700 bg-slate-900/40 p-4">
+          <RecordCaptureForm onSubmit={capture} />
+        </div>
+      </section>
 
       <section>
         <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">Search</h2>

@@ -104,7 +104,7 @@ func (s *service) Start(ctx context.Context, planID, runID string) (Execution, P
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	if err := requireExecutionGradePlan(plan); err != nil {
+	if err := requireExecutionGradePlan(plan, false); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	return s.startAtPhase(ctx, plan, "", runID, contextModeStart)
@@ -141,7 +141,7 @@ func (s *service) resumeExecution(ctx context.Context, e Execution, phaseID stri
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	if err := requireExecutionGradePlan(plan); err != nil {
+	if err := requireExecutionGradePlan(plan, hasExplicitBaselineRecovery(e)); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	return s.resumeExecutionWithPlan(ctx, e, plan, phaseID)
@@ -210,13 +210,16 @@ func (s *service) Resume(ctx context.Context, planOrExecution, phaseID, runID st
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	if err := requireExecutionGradePlan(plan); err != nil {
-		return Execution{}, PhaseContext{}, GuidedStep{}, err
-	}
 	if e, ok, err := s.repo.LatestExecutionForPlan(ctx, plan.ID); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	} else if ok {
+		if err := requireExecutionGradePlan(plan, hasExplicitBaselineRecovery(e)); err != nil {
+			return Execution{}, PhaseContext{}, GuidedStep{}, err
+		}
 		return s.resumeExecutionWithPlan(ctx, e, plan, phaseID)
+	}
+	if err := requireExecutionGradePlan(plan, false); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	// No prior execution exists for this plan: resume/continue is creating a NEW
 	// run, so this is a first start — emit once-per-execution setup context exactly
@@ -464,12 +467,31 @@ func (s *service) GetVelocity(ctx context.Context, planID string) ([]VelocityPoi
 
 // --- helpers ---
 
-func requireExecutionGradePlan(plan planmodel.Plan) error {
+func requireExecutionGradePlan(plan planmodel.Plan, allowRecoveredLegacy bool) error {
 	report := planmodel.AssessPlanQuality(plan, "")
+	if allowRecoveredLegacy && onlyBaselineSetFailures(report) {
+		return nil
+	}
 	if report.ExecutionReady() {
 		return nil
 	}
 	return ErrInvalidExecution{Reason: "plan is not execution-grade; repair before starting execution: " + summarizeQualityFailures(report)}
+}
+
+func hasExplicitBaselineRecovery(e Execution) bool {
+	return e.BaselineSet.Name != "" || e.BaselineSet.LegacyAdoptionRequired || e.DegradedReason != ""
+}
+
+func onlyBaselineSetFailures(report planmodel.QualityReport) bool {
+	for _, finding := range report.Findings {
+		if finding.Severity != planmodel.QualitySeverityFail {
+			continue
+		}
+		if finding.Code != "plan_missing_baseline_set" && finding.Code != "plan_invalid_baseline_set" && finding.Code != "plan_baseline_set_no_scenarios" {
+			return false
+		}
+	}
+	return true
 }
 
 func summarizeQualityFailures(report planmodel.QualityReport) string {
@@ -510,7 +532,19 @@ func summarizeQualityFailures(report planmodel.QualityReport) string {
 // execution must never start or wait for a producer operation behind the agent's
 // back: Git Control Tower owns both parts of that lifecycle.
 func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan planmodel.Plan) {
-	if e.BaselineSet.Name != "" || strings.TrimSpace(plan.BaselineSet.Name) == "" {
+	if e.BaselineSet.Name != "" || e.BaselineSet.LegacyAdoptionRequired {
+		return
+	}
+	if plan.BaselineSet.IsLegacy() {
+		e.BaselineSet = BaselineSetState{
+			Version: BaselineSetStateSchemaVersion, Status: BaselineSetStatusRequired, LegacyAdoptionRequired: true,
+			Detail: "historical plan requires explicit baseline adoption before normal phase work; recapture only when the current worktree is a trustworthy before-state, otherwise record a degraded partial-handoff path",
+		}
+		e.FreshenStatus, e.FreshenDetail, e.UpdatedAt = "baseline_adoption_required", e.BaselineSet.Detail, s.now()
+		_ = s.repo.SaveExecution(ctx, *e)
+		return
+	}
+	if strings.TrimSpace(plan.BaselineSet.Name) == "" {
 		return
 	}
 	name := strings.TrimSpace(plan.BaselineSet.Name)
@@ -650,7 +684,7 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	if e.BaselineSet.Name != "" {
+	if e.BaselineSet.Name != "" && !e.BaselineSet.LegacyAdoptionRequired {
 		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "execution already has a baseline ticket; use baseline-sync or record a partial handoff"}
 	}
 	if strings.TrimSpace(req.Reason) == "" {
@@ -659,6 +693,7 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 	switch req.Mode {
 	case BaselineAdoptionDegraded:
 		e.DegradedReason, e.UpdatedAt = "legacy execution degraded: "+strings.TrimSpace(req.Reason), s.now()
+		e.BaselineSet = BaselineSetState{Version: BaselineSetStateSchemaVersion, Status: BaselineSetStatusDegraded, Detail: e.DegradedReason}
 	case BaselineAdoptionRecapture:
 		name := strings.TrimSpace(req.Name)
 		if name == "" {
@@ -718,6 +753,9 @@ func uniqueStrings(values []string) []string {
 }
 
 func requireBaselineReady(state BaselineSetState) error {
+	if state.LegacyAdoptionRequired {
+		return ErrInvalidExecution{Reason: "historical plan requires plan-manager exec baseline-adopt before normal phase work"}
+	}
 	if state.Name == "" {
 		// Historical executions are readable until the explicit adoption/degraded
 		// workflow lands. New executions always carry a ticket and therefore take

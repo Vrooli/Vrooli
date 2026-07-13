@@ -285,6 +285,18 @@ func TestUpdatePlanForwardsAuthoredFields(t *testing.T) {
 	require.Equal(t, "Updated", svc.gotUpdate.Title)
 }
 
+func TestUpdatePlanForwardsBaselineSet(t *testing.T) {
+	svc := &fakePlansService{plan: internalplans.Plan{ID: "p1"}}
+	h := newPlansHandler(svc)
+	baseline := &sharedv1.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"plan-manager"}, CapturePolicy: "execution_start", Compatibility: "baseline_set"}
+
+	_, err := h.UpdatePlan(context.Background(), connect.NewRequest(&plansv1.UpdatePlanRequest{Plan: &sharedv1.Plan{Id: "p1", BaselineSet: baseline}}))
+	require.NoError(t, err)
+	require.Equal(t, "before", svc.gotUpdate.BaselineSet.Name)
+	require.Equal(t, []string{"plan-manager"}, svc.gotUpdate.BaselineSet.ScenarioTargets)
+	require.Equal(t, "baseline_set", svc.gotUpdate.BaselineSet.Compatibility)
+}
+
 func TestMigratePlanSuccess(t *testing.T) {
 	svc := &fakePlansService{plan: internalplans.Plan{ID: "p1"}}
 	h := newPlansHandler(svc)

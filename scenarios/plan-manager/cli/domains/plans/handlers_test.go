@@ -371,6 +371,34 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
+			name: "update marks historical plans for explicit baseline adoption", group: "plans", cmd: "update",
+			resp: &plansv1.GetPlanResponse{Plan: &sharedv1.Plan{
+				Id:               "plan-legacy",
+				Title:            "Historical plan",
+				RegressionAnchor: &sharedv1.RegressionAnchor{Strategy: "scenario_baseline"},
+			}},
+			argv: []string{"plan-legacy", "--baseline-mode", "legacy"},
+			assert: func(t *testing.T, req proto.Message) {
+				p := req.(*plansv1.UpdatePlanRequest).GetPlan()
+				require.Equal(t, "legacy_anchor", p.GetBaselineSet().GetCompatibility())
+			},
+		},
+		{
+			name: "update clears stale legacy intent when repairing a current baseline", group: "plans", cmd: "update",
+			resp: &plansv1.GetPlanResponse{Plan: &sharedv1.Plan{
+				Id:               "plan-current",
+				Title:            "Current plan",
+				BaselineSet:      &sharedv1.BaselineSetIntent{Compatibility: "legacy_anchor"},
+				RegressionAnchor: &sharedv1.RegressionAnchor{Strategy: "scenario_baseline"},
+			}},
+			argv: []string{"plan-current", "--baseline-mode", "current", "--anchor-strategy", "change_boundary"},
+			assert: func(t *testing.T, req proto.Message) {
+				p := req.(*plansv1.UpdatePlanRequest).GetPlan()
+				require.Nil(t, p.GetBaselineSet(), "the API service derives the current collection intent")
+				require.Equal(t, "change_boundary", p.GetRegressionAnchor().GetStrategy())
+			},
+		},
+		{
 			name: "archive passes id and workspace", group: "plans", cmd: "archive",
 			argv: []string{"plan-9", "--workspace", "/workspace"},
 			assert: func(t *testing.T, req proto.Message) {

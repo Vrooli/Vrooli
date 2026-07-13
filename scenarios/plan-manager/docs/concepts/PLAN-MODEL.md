@@ -119,12 +119,21 @@ unmapped prose as legacy provenance.
 
 ### Baseline sets
 
-New implementation plans may carry an optional `baseline_set` intent derived
-from their Change Boundary: a stable collection name, explicit behavioral
-scenario targets, selected repository paths, execution-start capture policy,
-and compatibility state. Plan Manager owns this intent and its phase policy;
-Git Control Tower owns the underlying collection, Test Genie anchors, and
-source-evidence mechanics.
+Every new execution-grade implementation plan carries a `baseline_set` intent
+derived from its Change Boundary: a stable collection name, explicit behavioral
+scenario targets, selected repository paths, and execution-start capture policy.
+Plan Manager derives and preserves it for guided authoring and direct plan
+writes alike; an omitted or stale current intent blocks execution rather than
+falling back to per-scenario manifests. Plan Manager owns this intent and its
+phase policy; Git Control Tower owns the underlying collection, Test Genie
+anchors, and source-evidence mechanics.
+
+Historical plans are the only exception. Import marks a non-collection plan as
+`legacy_anchor`; execution then requires the explicit `exec baseline-adopt`
+recapture-or-degraded decision before normal phase work. A zero-value baseline
+intent is never treated as legacy, so new plans cannot silently bypass capture.
+True operator-only plans with no affected scenario are also non-behavioral: they
+must declare `OPERATOR_ONLY` and are not routed through a GCT collection.
 
 At execution start, Plan Manager persists an immutable baseline-set checkpoint
 on the execution: resolved scenario/path inventory, capture timestamp, required

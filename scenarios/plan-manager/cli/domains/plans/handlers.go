@@ -134,6 +134,17 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 		ensureChangeBoundary(plan).AcceptanceDeny = values
 	}
 	applyStringFlag(ctx, "operator-only", func(v string) { ensureChangeBoundary(plan).OperatorOnlyReason = v })
+	if mode := strings.ToLower(strings.TrimSpace(ctx.Flag("baseline-mode"))); mode != "" {
+		switch mode {
+		case "legacy":
+			plan.BaselineSet = &sharedv1.BaselineSetIntent{Compatibility: "legacy_anchor"}
+		case "current":
+			// The service derives the current intent from a change-boundary anchor.
+			plan.BaselineSet = nil
+		default:
+			return fmt.Errorf("--baseline-mode must be legacy or current")
+		}
+	}
 	applyStringFlag(ctx, "anchor-strategy", func(v string) { ensureRegressionAnchor(plan).Strategy = v })
 	applyStringFlag(ctx, "anchor-scenario", func(v string) { ensureRegressionAnchor(plan).Scenario = v })
 	applyStringFlag(ctx, "anchor-baseline", func(v string) { ensureRegressionAnchor(plan).BaselineName = v })

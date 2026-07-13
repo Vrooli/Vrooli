@@ -160,6 +160,11 @@ func TestGuidedArgvAreValidManifestCommands(t *testing.T) {
 			Required:     true,
 		},
 	}
+	// This narrow command-manifest fixture is intentionally historical: the
+	// collection workflow has dedicated execution coverage, while this loop
+	// exercises phase/log command vocabulary without starting a producer run.
+	plan.RegressionAnchor = internalplans.RegressionAnchor{Strategy: internalplans.AnchorStrategyScenarioBaseline, Scenario: "plan-manager", BaselineName: "argv-exec-baseline"}
+	plan.BaselineSet = internalplans.BaselineSetIntent{}
 	plan, err = plansSvc.Update(ctx, plan)
 	require.NoError(t, err)
 
