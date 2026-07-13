@@ -613,6 +613,30 @@ func RunModeFromProto(m pb.RunMode) domain.RunMode {
 	}
 }
 
+// ExecutionModeToProto converts domain ExecutionMode to proto ExecutionMode.
+// The empty domain value normalizes to codec-pipe.
+func ExecutionModeToProto(m domain.ExecutionMode) pb.ExecutionMode {
+	switch m.Normalized() {
+	case domain.ExecutionModeInteractive:
+		return pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE
+	default:
+		return pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE
+	}
+}
+
+// ExecutionModeFromProto converts proto ExecutionMode to domain ExecutionMode.
+// UNSPECIFIED maps to the empty domain value (treated as codec-pipe).
+func ExecutionModeFromProto(m pb.ExecutionMode) domain.ExecutionMode {
+	switch m {
+	case pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE:
+		return domain.ExecutionModeCodecPipe
+	case pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE:
+		return domain.ExecutionModeInteractive
+	default:
+		return ""
+	}
+}
+
 // =============================================================================
 // APPROVAL STATE
 // =============================================================================

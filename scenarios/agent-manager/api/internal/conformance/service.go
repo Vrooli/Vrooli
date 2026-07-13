@@ -200,10 +200,6 @@ func (r *Report) add(code, title, location, remediation string) {
 	r.Findings = append(r.Findings, Finding{Code: code, Title: title, Location: location, Message: title, Remediation: remediation, Severity: "SEVERITY_ERROR"})
 }
 
-func (r *Report) addAdvisory(code, title, location, remediation string) {
-	r.Findings = append(r.Findings, Finding{Code: code, Title: title, Location: location, Message: title, Remediation: remediation, Severity: "SEVERITY_WARNING"})
-}
-
 func reportOrphanProfiles(report *Report, root string, declared ...map[string]bool) {
 	declaredSources := map[string]bool{}
 	if len(declared) > 0 {

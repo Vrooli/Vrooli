@@ -63,6 +63,26 @@ func newClaudeRunner(t *testing.T) runner.Runner {
 	return runnercore.NewRunner(codec, runner.NewHostLauncher(), nil)
 }
 
+// newCodexRunner returns a generic core Runner driving the Codex codec.
+func newCodexRunner(t *testing.T) runner.Runner {
+	t.Helper()
+	codec, err := codecs.NewCodex()
+	if err != nil {
+		t.Fatalf("failed to create codex codec: %v", err)
+	}
+	return runnercore.NewRunner(codec, runner.NewHostLauncher(), nil)
+}
+
+// newOpenCodeRunner returns a generic core Runner driving the OpenCode codec.
+func newOpenCodeRunner(t *testing.T) runner.Runner {
+	t.Helper()
+	codec, err := codecs.NewOpenCode()
+	if err != nil {
+		t.Fatalf("failed to create opencode codec: %v", err)
+	}
+	return runnercore.NewRunner(codec, runner.NewHostLauncher(), nil)
+}
+
 // TestIntegration_ClaudeCode_FileWrite verifies Claude Code can create
 // files and produces proper events.
 func TestIntegration_ClaudeCode_FileWrite(t *testing.T) {
@@ -111,10 +131,7 @@ func TestIntegration_ClaudeCode_FileWrite(t *testing.T) {
 // TestIntegration_Codex_FileWrite verifies the Codex runner can create
 // files and produces proper events.
 func TestIntegration_Codex_FileWrite(t *testing.T) {
-	r, err := runner.NewCodexRunner()
-	if err != nil {
-		t.Fatalf("failed to create runner: %v", err)
-	}
+	r := newCodexRunner(t)
 
 	available, msg := r.IsAvailable(context.Background())
 	if !available {
@@ -159,10 +176,7 @@ func TestIntegration_Codex_FileWrite(t *testing.T) {
 // TestIntegration_OpenCode_FileWrite verifies the OpenCode runner can
 // create files and produces proper events.
 func TestIntegration_OpenCode_FileWrite(t *testing.T) {
-	r, err := runner.NewOpenCodeRunner()
-	if err != nil {
-		t.Fatalf("failed to create runner: %v", err)
-	}
+	r := newOpenCodeRunner(t)
 
 	available, msg := r.IsAvailable(context.Background())
 	if !available {
@@ -249,10 +263,7 @@ func TestIntegration_ClaudeCode_SandboxDiff(t *testing.T) {
 
 // TestIntegration_Codex_SandboxDiff verifies sandbox diff capture with Codex.
 func TestIntegration_Codex_SandboxDiff(t *testing.T) {
-	r, err := runner.NewCodexRunner()
-	if err != nil {
-		t.Fatalf("failed to create runner: %v", err)
-	}
+	r := newCodexRunner(t)
 
 	available, msg := r.IsAvailable(context.Background())
 	if !available {
@@ -296,10 +307,7 @@ func TestIntegration_Codex_SandboxDiff(t *testing.T) {
 // TestIntegration_OpenCode_SandboxDiff verifies sandbox diff capture
 // with OpenCode.
 func TestIntegration_OpenCode_SandboxDiff(t *testing.T) {
-	r, err := runner.NewOpenCodeRunner()
-	if err != nil {
-		t.Fatalf("failed to create runner: %v", err)
-	}
+	r := newOpenCodeRunner(t)
 
 	available, msg := r.IsAvailable(context.Background())
 	if !available {

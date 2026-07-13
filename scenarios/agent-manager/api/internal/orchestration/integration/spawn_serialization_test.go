@@ -99,6 +99,7 @@ func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 		orchestration.WithSpawnDispatcher(dispatcher),
 	)
 

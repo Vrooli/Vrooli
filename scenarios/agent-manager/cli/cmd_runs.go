@@ -120,6 +120,7 @@ Examples:
   agent-manager run list
   agent-manager run list --status running
   agent-manager run create --task-id abc123 --profile-id def456
+  agent-manager run create --task-id abc123 --profile-id def456 --run-mode in_place --execution-mode interactive
   agent-manager run delete abc123 --force
   agent-manager run continue abc123 --message "Also update tests"
   agent-manager run recover abc123
@@ -177,8 +178,8 @@ func (a *App) runList(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", "ID", "STATUS", "PHASE", "PROG", "UPDATED")
-	fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", strings.Repeat("-", 36), strings.Repeat("-", 12), strings.Repeat("-", 18), strings.Repeat("-", 4), strings.Repeat("-", 20))
+	fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-20s\n", "ID", "STATUS", "PHASE", "EXEC", "PROG", "UPDATED")
+	fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-20s\n", strings.Repeat("-", 36), strings.Repeat("-", 12), strings.Repeat("-", 18), strings.Repeat("-", 11), strings.Repeat("-", 4), strings.Repeat("-", 20))
 	for _, r := range runs {
 		phase := formatEnumValue(r.Phase, "RUN_PHASE_", "_")
 		if len(phase) > 18 {
@@ -190,7 +191,11 @@ func (a *App) runList(args []string) error {
 		}
 		progress := fmt.Sprintf("%d%%", r.ProgressPercent)
 		status := formatEnumValue(r.Status, "RUN_STATUS_", "_")
-		fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", r.Id, status, phase, progress, updated)
+		exec := formatEnumValue(r.ExecutionMode, "EXECUTION_MODE_", "_")
+		if exec == "" || exec == "unspecified" {
+			exec = "codec_pipe"
+		}
+		fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-20s\n", r.Id, status, phase, exec, progress, updated)
 	}
 
 	return nil
@@ -241,6 +246,13 @@ func (a *App) runGet(args []string) error {
 	fmt.Printf("Phase:           %s\n", formatEnumValue(run.Phase, "RUN_PHASE_", "_"))
 	fmt.Printf("Progress:        %d%%\n", run.ProgressPercent)
 	fmt.Printf("Run Mode:        %s\n", formatEnumValue(run.RunMode, "RUN_MODE_", "_"))
+	fmt.Printf("Execution Mode:  %s\n", formatEnumValue(run.ExecutionMode, "EXECUTION_MODE_", "_"))
+	if run.WebConsoleSessionId != "" {
+		fmt.Printf("Live Session:    %s\n", run.WebConsoleSessionId)
+		if run.WebConsoleSessionUrl != "" {
+			fmt.Printf("Live Session URL: %s\n", run.WebConsoleSessionUrl)
+		}
+	}
 	if run.SandboxId != nil && run.GetSandboxId() != "" {
 		fmt.Printf("Sandbox ID:      %s\n", run.GetSandboxId())
 	}
@@ -298,6 +310,7 @@ func (a *App) runCreate(args []string) error {
 	profileID := fs.String("profile-id", "", "Agent profile ID (required)")
 	prompt := fs.String("prompt", "", "Optional override prompt")
 	runMode := fs.String("run-mode", "", "Run mode (sandboxed or in_place)")
+	executionMode := fs.String("execution-mode", "", "Execution mode (codec_pipe or interactive); interactive launches the real CLI in a live web-console session and is rejected for protected/sandboxed runs")
 	forceInPlace := fs.Bool("force-in-place", false, "Force in-place execution")
 	idempotencyKey := fs.String("idempotency-key", "", "Idempotency key for safe retries")
 	existingSandboxID := fs.String("existing-sandbox-id", "", "Reuse an existing sandbox ID (sandboxed runs only)")
@@ -342,6 +355,13 @@ func (a *App) runCreate(args []string) error {
 		mode := domainpb.RunMode_RUN_MODE_IN_PLACE
 		req.RunMode = &mode
 	}
+	if *executionMode != "" {
+		mode := parseExecutionMode(*executionMode)
+		if mode == domainpb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+			return fmt.Errorf("invalid execution mode: %s (want codec_pipe or interactive)", *executionMode)
+		}
+		req.ExecutionMode = &mode
+	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err
 	} else {
@@ -358,7 +378,7 @@ func (a *App) runCreate(args []string) error {
 
 	body, run, err := a.services.Runs.Create(req)
 	if err != nil {
-		return err
+		return apiError(body, err)
 	}
 
 	if *jsonOutput || run == nil {
@@ -369,6 +389,13 @@ func (a *App) runCreate(args []string) error {
 	fmt.Printf("Created run: %s\n", run.Id)
 	fmt.Printf("Status: %s\n", formatEnumValue(run.Status, "RUN_STATUS_", "_"))
 	fmt.Printf("Phase: %s\n", formatEnumValue(run.Phase, "RUN_PHASE_", "_"))
+	fmt.Printf("Execution Mode: %s\n", formatEnumValue(run.ExecutionMode, "EXECUTION_MODE_", "_"))
+	if run.WebConsoleSessionId != "" {
+		fmt.Printf("Live Session: %s\n", run.WebConsoleSessionId)
+		if run.WebConsoleSessionUrl != "" {
+			fmt.Printf("Live Session URL: %s\n", run.WebConsoleSessionUrl)
+		}
+	}
 	return nil
 }
 

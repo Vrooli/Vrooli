@@ -405,6 +405,19 @@ type TranscriptParserFactory interface {
 	NewTranscriptParser() TranscriptParser
 }
 
+// AgentLaunchInfo exposes the per-agent facts the interactive execution
+// substrate needs to build a launch command for the real interactive CLI: the
+// per-run tag env key (so the reconciler can attribute the process from
+// /proc) and the resolved binary path. core.Runner satisfies this by
+// delegating to its codec, mirroring how it satisfies [TranscriptParser].
+// Callers resolve it via Registry.Get(runnerType) + a type assertion, the same
+// pattern transcript recovery uses.
+type AgentLaunchInfo interface {
+	Type() domain.RunnerType
+	TagEnvKey() string
+	BinaryPath() string
+}
+
 // -----------------------------------------------------------------------------
 // FlagValidator - Validates runner-specific flags against allowlists
 // -----------------------------------------------------------------------------

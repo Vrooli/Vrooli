@@ -47,7 +47,7 @@ import type {
   RunEvent,
   Task,
 } from "../types";
-import { ApprovalState, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
+import { ApprovalState, ExecutionMode, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
 
 import { MarkdownRenderer } from "./markdown";
 import { ModelCostComparison } from "./ModelCostComparison";
@@ -1009,6 +1009,24 @@ function runModeLabel(mode: RunMode): string {
   }
 }
 
+// executionModeLabel renders the CLI-driving substrate. UNSPECIFIED normalizes
+// to codec_pipe (the default), matching the server's Normalized() contract.
+function executionModeLabel(mode: ExecutionMode): string {
+  switch (mode) {
+    case ExecutionMode.INTERACTIVE:
+      return "interactive";
+    case ExecutionMode.CODEC_PIPE:
+    default:
+      return "codec_pipe";
+  }
+}
+
+// isInteractiveRun reports whether a run uses the interactive web-console
+// substrate (drives the live-session link and the run-list badge).
+function isInteractiveRun(mode: ExecutionMode): boolean {
+  return mode === ExecutionMode.INTERACTIVE;
+}
+
 function runPhaseLabel(phase: RunPhase): string {
   switch (phase) {
     case RunPhase.QUEUED:
@@ -1290,6 +1308,10 @@ function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals
             {runModeLabel(run.runMode)}
           </div>
           <div>
+            <span className="text-muted-foreground">Execution: </span>
+            {executionModeLabel(run.executionMode)}
+          </div>
+          <div>
             <span className="text-muted-foreground">Phase: </span>
             {runPhaseLabel(run.phase).replace("_", " ")}
           </div>
@@ -1369,6 +1391,31 @@ function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals
           </div>
         </div>
       </div>
+
+      {/* Live web-console session — interactive runs only */}
+      {isInteractiveRun(run.executionMode) && (
+        <div className="flex flex-wrap items-center gap-3 rounded border border-border bg-muted/40 px-3 py-2 text-sm">
+          <span className="font-medium">Live session</span>
+          {run.webConsoleSessionUrl ? (
+            <a
+              href={run.webConsoleSessionUrl}
+              target="_blank"
+              rel="noreferrer"
+              data-testid="open-live-session"
+              className="inline-flex items-center gap-1 rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+            >
+              Open live terminal
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          ) : run.webConsoleSessionId ? (
+            <span className="text-muted-foreground text-xs">
+              Session <code className="bg-muted px-1 py-0.5 rounded">{run.webConsoleSessionId}</code> — open web-console and find it in the Programmatic tab.
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-xs">Session starting…</span>
+          )}
+        </div>
+      )}
 
       {/* Highlights */}
       <div className="grid grid-cols-3 gap-2 text-sm">

@@ -411,6 +411,15 @@ type codexTranscriptParser struct {
 }
 
 func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	// On-disk interactive rollout dialect: every line wraps as
+	// {"type":"event_msg"|"response_item"|"session_meta"|"turn_context",
+	// "payload":{…}}, foreign to the flat `exec --json` decoder. Detect and
+	// handle it before the stdout path (design §3). A non-rollout line falls
+	// through to the exec-json decoder below, so pipe-mode replay is unchanged.
+	if res, ok := p.parseRolloutLine(runID, line); ok {
+		return res
+	}
+
 	streamEvent, ok := decodeCodexStreamEvent(line)
 	if !ok {
 		return runner.TranscriptParseResult{}
@@ -439,6 +448,145 @@ func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string
 		}
 	}
 	return result
+}
+
+// =============================================================================
+// On-disk rollout dialect (interactive runs)
+// =============================================================================
+
+// codexRolloutLine is the outer envelope of a codex on-disk rollout record
+// ($CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl). Every line is one of a
+// small set of wrapper types carrying a typed payload.
+type codexRolloutLine struct {
+	Type    string              `json:"type"`
+	Payload codexRolloutPayload `json:"payload"`
+}
+
+// codexRolloutPayload is the union of the payload fields this codec maps.
+// Unused fields for a given payload type stay zero.
+type codexRolloutPayload struct {
+	Type string `json:"type"`
+	// session_meta
+	ID string `json:"id"`
+	// agent_message / user_message
+	Message string `json:"message"`
+	// function_call / custom_tool_call
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"` // function_call: JSON-encoded args
+	Input     string `json:"input"`     // custom_tool_call: raw tool input
+	CallID    string `json:"call_id"`
+	// function_call_output / custom_tool_call_output
+	Output string `json:"output"`
+	// turn_aborted
+	Reason string `json:"reason"`
+}
+
+// rolloutWrapperTypes are the outer `type` values that mark a line as the
+// on-disk rollout dialect rather than the flat exec-json stdout dialect.
+var rolloutWrapperTypes = map[string]bool{
+	"event_msg":     true,
+	"response_item": true,
+	"session_meta":  true,
+	"turn_context":  true,
+}
+
+// parseRolloutLine maps one on-disk rollout record to the same domain events
+// the exec-json decoder emits. ok=false means the line is not a rollout record
+// (blank, non-JSON, or a flat exec-json line) and the caller should fall back
+// to the stdout decoder. The mapping mirrors parseCodexEvents:
+//   - event_msg.agent_message           → assistant MessageEvent
+//   - event_msg.user_message            → suppressed (orchestrator owns the prompt)
+//   - response_item.function_call       → ToolCallEvent
+//   - response_item.custom_tool_call    → ToolCallEvent
+//   - response_item.*_output            → ToolResultEvent
+//   - event_msg.task_complete/turn_completed → terminal success
+//   - event_msg.turn_aborted            → terminal (not success)
+//   - event_msg.error                   → error event + terminal failure
+//   - session_meta.id                   → SessionID (thread id)
+func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (runner.TranscriptParseResult, bool) {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || trimmed[0] != '{' {
+		return runner.TranscriptParseResult{}, false
+	}
+	var rl codexRolloutLine
+	if err := json.Unmarshal([]byte(trimmed), &rl); err != nil {
+		return runner.TranscriptParseResult{}, false
+	}
+	if !rolloutWrapperTypes[rl.Type] {
+		return runner.TranscriptParseResult{}, false
+	}
+
+	var result runner.TranscriptParseResult
+	pl := rl.Payload
+
+	switch rl.Type {
+	case "session_meta":
+		if pl.ID != "" {
+			p.state.threadID = pl.ID
+			result.SessionID = pl.ID
+		}
+		return result, true
+
+	case "turn_context":
+		return result, true
+
+	case "response_item":
+		result.Events = parseCodexRolloutItem(runID, pl)
+		return result, true
+
+	case "event_msg":
+		switch pl.Type {
+		case "agent_message":
+			if text := runner.StripANSI(strings.TrimSpace(pl.Message)); text != "" {
+				result.Events = []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", text)}
+			}
+		case "user_message":
+			// Suppressed: the orchestrator already records the user prompt,
+			// mirroring the claude/codex handling of echoed user turns.
+		case "task_complete", "turn_completed":
+			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0}
+		case "turn_aborted":
+			msg := "turn aborted"
+			if pl.Reason != "" {
+				msg = "turn aborted: " + pl.Reason
+			}
+			result.Terminal = &runner.TranscriptTerminal{Success: false, ExitCode: 1, ErrorMessage: msg}
+		case "error":
+			if msg := runner.StripANSI(strings.TrimSpace(pl.Message)); msg != "" {
+				result.Events = []*domain.RunEvent{domain.NewErrorEvent(runID, "execution_error", msg, false)}
+				result.Terminal = &runner.TranscriptTerminal{Success: false, ExitCode: 1, ErrorMessage: msg}
+			}
+		}
+		return result, true
+	}
+	return result, true
+}
+
+// parseCodexRolloutItem maps a response_item payload to tool events. Both the
+// generic function_call/output and MCP-style custom_tool_call/output shapes
+// carry a call_id, a name (on the call side), and a string output.
+func parseCodexRolloutItem(runID uuid.UUID, pl codexRolloutPayload) []*domain.RunEvent {
+	switch pl.Type {
+	case "function_call":
+		var input map[string]interface{}
+		if pl.Arguments != "" {
+			_ = json.Unmarshal([]byte(pl.Arguments), &input)
+		}
+		return []*domain.RunEvent{domain.NewToolCallEvent(runID, pl.Name, pl.CallID, input)}
+	case "custom_tool_call":
+		input := map[string]interface{}{}
+		if pl.Input != "" {
+			input["input"] = pl.Input
+		}
+		return []*domain.RunEvent{domain.NewToolCallEvent(runID, pl.Name, pl.CallID, input)}
+	case "function_call_output", "custom_tool_call_output":
+		return []*domain.RunEvent{domain.NewToolResultEvent(
+			runID, "", pl.CallID, runner.StripANSI(pl.Output), nil,
+		)}
+	}
+	// message / reasoning and other response items carry no distinct
+	// domain event here (assistant text arrives via event_msg.agent_message).
+	return nil
 }
 
 // =============================================================================

@@ -105,6 +105,32 @@ A concrete execution attempt linking a Task to an AgentProfile within a sandbox.
 ### RunEvent
 Append-only event stream capturing all agent activity (logs, messages, tool calls).
 
+### Execution mode
+Every run executes in one of two modes, orthogonal to sandboxed/in-place run mode:
+
+- **`codec_pipe`** (default) — agent-manager launches the agent CLI as its own
+  child process in `--print`/`exec --json` mode and decodes the stdout stream
+  through the runner codec. This is the mode used for all headless and protected
+  runs.
+- **`interactive`** — agent-manager creates a [web-console](../web-console)
+  (tmux) session and launches the *real* interactive agent CLI inside it, then
+  observes the run by tailing the agent-owned on-disk transcript with the same
+  codec transcript parsers. A human can watch and type into the very same
+  session while the run proceeds; the run-detail UI deep-links to it. Supported
+  for **claude, codex, grok** (opencode is descoped — it has no tailable
+  transcript file). Completion is a transcript **terminal marker** plus a
+  turn-boundary idle-debounce (interactive CLIs stay alive between turns), not
+  process exit. Follow-up turns (**Continue**) are typed into the live session;
+  **Stop** interrupts and tears the session down. Interactive mode is rejected
+  for **protected** runs — see [docs/PROTECTED_MODE_RUNNERS.md](docs/PROTECTED_MODE_RUNNERS.md).
+
+  Opt in per run with `--execution-mode interactive` on `run create`. The full
+  architecture (plug-in seam, per-agent transcript contract, launch/seed flow,
+  recovery) is documented in
+  [docs/interactive-runner-design.md](docs/interactive-runner-design.md); the
+  restart-recovery story it shares with codec-pipe runs is in
+  [docs/runner-transcript-recovery.md](docs/runner-transcript-recovery.md).
+
 ## API Endpoints
 
 | Method | Path | Description |
@@ -137,6 +163,7 @@ agent-manager task list
 
 # Run management
 agent-manager run create --task <id> --profile <id>
+agent-manager run create --task <id> --profile <id> --execution-mode interactive  # run inside a live web-console session
 agent-manager run logs <id>
 agent-manager run diff <id>
 agent-manager run approve <id>
@@ -181,6 +208,8 @@ Note: Claude Code often uses one turn for tool use and another for tool results.
 ## Documentation
 
 - [PRD.md](./PRD.md) - Product requirements and operational targets
+- [docs/interactive-runner-design.md](./docs/interactive-runner-design.md) - Interactive execution mode: seam, per-agent transcript contract, launch/recovery
+- [docs/runner-transcript-recovery.md](./docs/runner-transcript-recovery.md) - Durable transcript + restart recovery (codec-pipe and interactive)
 - [docs/RESEARCH.md](./docs/RESEARCH.md) - Research and architecture decisions
 - [docs/internal/PROBLEMS.md](./docs/internal/PROBLEMS.md) - Known issues and deferred ideas
 - [docs/internal/PROGRESS.md](./docs/internal/PROGRESS.md) - Development progress log

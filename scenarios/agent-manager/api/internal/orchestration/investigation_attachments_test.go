@@ -52,6 +52,7 @@ func TestCreateInvestigationRun_WithAttachmentIDs(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 		orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithAttachmentStorage(mockStorage),
 	)
@@ -174,6 +175,7 @@ func TestCreateInvestigationRun_SkipsBlankAttachmentIDs(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 		orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 	)
 
@@ -271,6 +273,7 @@ func TestCreateInvestigationApplyRun_WithAttachmentIDs(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 		orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 	)
 

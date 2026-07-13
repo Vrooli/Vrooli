@@ -88,6 +88,7 @@ func newResumeTestOrchestrator(t *testing.T) (orchestration.Service, *database.R
 		orchestration.WithRunners(registry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 		orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithAttachmentStorage(mockStorage),
 	)

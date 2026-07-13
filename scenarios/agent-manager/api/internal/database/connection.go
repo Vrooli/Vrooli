@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	_ "embed"
 	"fmt"
 	"os"
@@ -153,8 +154,14 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 	return nil
 }
 
-// initSchema applies the current declarative schema. Data evolution is a
-// deliberate, one-shot operator action; startup never mutates legacy data.
+// initSchema applies the current declarative schema, then runs the additive
+// column migrations for tables that gained columns after their CREATE TABLE
+// statement was first shipped. The declarative schema uses CREATE TABLE IF NOT
+// EXISTS, so it does not add columns to a table that already exists; the
+// migration step covers that case. Both steps are idempotent: a fresh database
+// gets every column from the schema and the migration is a no-op; an existing
+// database keeps its data and only gains the missing columns. Data values are
+// never rewritten — this honours the SQLite migrate-never-recreate rule.
 func (db *DB) initSchema() error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultSchemaTimeout)
 	defer cancel()
@@ -164,8 +171,78 @@ func (db *DB) initSchema() error {
 		}
 		return &domain.DatabaseError{Operation: "schema_init", EntityType: "Schema", Cause: err}
 	}
+	if err := db.migrateRunColumns(ctx); err != nil {
+		if db.log != nil {
+			db.log.WithError(err).Error("Failed to apply additive runs-table migrations")
+		}
+		return err
+	}
 	if db.log != nil {
 		db.log.Info("Database schema initialized successfully")
 	}
 	return nil
+}
+
+// columnMigration is one additive column: apply ddl only when column is absent.
+type columnMigration struct {
+	column string
+	ddl    string
+}
+
+// runColumnMigrations lists columns added to the runs table after its original
+// CREATE TABLE shipped. Each is applied only when missing, so re-running is
+// safe and existing rows are untouched (the new columns take their DEFAULT).
+var runColumnMigrations = []columnMigration{
+	{column: "execution_mode", ddl: "ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe'"},
+	{column: "web_console_session_id", ddl: "ALTER TABLE runs ADD COLUMN web_console_session_id TEXT DEFAULT ''"},
+}
+
+// migrateRunColumns adds any missing additive columns to the runs table.
+func (db *DB) migrateRunColumns(ctx context.Context) error {
+	existing, err := db.tableColumns(ctx, "runs")
+	if err != nil {
+		return err
+	}
+	for _, m := range runColumnMigrations {
+		if _, ok := existing[m.column]; ok {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, m.ddl); err != nil {
+			return &domain.DatabaseError{Operation: "schema_migrate", EntityType: "Schema", Cause: err}
+		}
+		if db.log != nil {
+			db.log.WithField("column", m.column).Info("Applied additive runs-table migration")
+		}
+	}
+	return nil
+}
+
+// tableColumns returns the set of column names on a table via PRAGMA
+// table_info. The table name is a trusted internal constant, never user input.
+func (db *DB) tableColumns(ctx context.Context, table string) (map[string]struct{}, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return nil, &domain.DatabaseError{Operation: "schema_introspect", EntityType: "Schema", Cause: err}
+	}
+	defer rows.Close()
+
+	cols := make(map[string]struct{})
+	for rows.Next() {
+		var (
+			cid       int
+			name      string
+			ctype     string
+			notNull   int
+			dfltValue sql.NullString
+			pk        int
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notNull, &dfltValue, &pk); err != nil {
+			return nil, &domain.DatabaseError{Operation: "schema_introspect", EntityType: "Schema", Cause: err}
+		}
+		cols[name] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, &domain.DatabaseError{Operation: "schema_introspect", EntityType: "Schema", Cause: err}
+	}
+	return cols, nil
 }

@@ -156,6 +156,15 @@ func (r *Runner) NewTranscriptParser() runner.TranscriptParser {
 	return r.codec.NewTranscriptParser()
 }
 
+// TagEnvKey satisfies [runner.AgentLaunchInfo], exposing the codec's per-run
+// tag env key so the interactive substrate can prepend "<key>=<tag>" to the
+// launch command it hands web-console (the reconciler reads it from /proc).
+func (r *Runner) TagEnvKey() string { return r.codec.TagEnvKey() }
+
+// BinaryPath satisfies [runner.AgentLaunchInfo], exposing the codec's resolved
+// CLI binary path for the interactive launch command.
+func (r *Runner) BinaryPath() string { return r.codec.BinaryPath() }
+
 // Stop attempts a graceful shutdown of a running agent. SIGTERM is sent
 // to the process group with a bounded grace period before SIGKILL
 // escalation; ctx cancellation is honoured as immediate kill.

@@ -9,7 +9,10 @@ import (
 	"github.com/google/uuid"
 )
 
-var _ adapterrunner.TranscriptParser = (*TranscriptReplayRunner)(nil)
+var (
+	_ adapterrunner.TranscriptParser        = (*TranscriptReplayRunner)(nil)
+	_ adapterrunner.TranscriptParserFactory = (*TranscriptReplayRunner)(nil)
+)
 
 // TranscriptReplayRunner is a runner.MockRunner with a compact transcript
 // grammar for recovery tests:
@@ -24,6 +27,12 @@ type TranscriptReplayRunner struct {
 
 func NewTranscriptReplayRunner(rt domain.RunnerType) *TranscriptReplayRunner {
 	return &TranscriptReplayRunner{MockRunner: adapterrunner.NewMockRunner(rt)}
+}
+
+// NewTranscriptParser returns a fresh parser for one logical transcript. The
+// replay grammar is stateless, so the same value serves every consumption.
+func (r *TranscriptReplayRunner) NewTranscriptParser() adapterrunner.TranscriptParser {
+	return r
 }
 
 func (r *TranscriptReplayRunner) ParseTranscriptLine(runID uuid.UUID, line string) adapterrunner.TranscriptParseResult {

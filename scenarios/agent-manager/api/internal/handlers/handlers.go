@@ -1390,6 +1390,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		mode := protoconv.RunModeFromProto(*protoReq.RunMode)
 		req.RunMode = &mode
 	}
+	if protoReq.ExecutionMode != nil {
+		req.ExecutionMode = protoconv.ExecutionModeFromProto(protoReq.GetExecutionMode())
+	}
 	if protoReq.IdempotencyKey != nil {
 		req.IdempotencyKey = protoReq.GetIdempotencyKey()
 	}
@@ -1558,20 +1561,6 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeProtoJSON(w, http.StatusCreated, h.newCreateRunResponse(run))
-}
-
-// parseOptionalRunnerType validates an optional runner-type override from an HTTP request.
-// Empty string returns (nil, nil) meaning "no override".
-func parseOptionalRunnerType(raw string) (*domain.RunnerType, error) {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return nil, nil
-	}
-	rt := domain.RunnerType(trimmed)
-	if !rt.IsValid() {
-		return nil, fmt.Errorf("unknown runner type %q", trimmed)
-	}
-	return &rt, nil
 }
 
 // optionalTrimmedString returns nil for an omitted override.

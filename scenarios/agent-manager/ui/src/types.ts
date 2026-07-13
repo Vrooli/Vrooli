@@ -1,4 +1,4 @@
-import { RunMode } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+import { RunMode, ExecutionMode } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
 // Re-export proto type for reading Task objects from API
 export type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/domain/task_pb";
@@ -23,6 +23,7 @@ export {
   RunFinalizationStatus,
   ApprovalState,
   RunMode,
+  ExecutionMode,
   RunPhase,
   RunEventType,
   RecoveryAction,
@@ -118,6 +119,10 @@ export interface RunFormData {
   extraFlags?: Record<string, string[]>;
   prompt?: string;
   runMode?: RunMode;
+  /** Execution substrate. Interactive launches the real CLI in a live
+   *  web-console session and is rejected for protected/sandboxed runs. Empty
+   *  preserves the server default (codec-pipe). */
+  executionMode?: ExecutionMode;
   idempotencyKey?: string;
   /** Conversation linkage per Decision D7 of the auditability contract.
    *  Spawn surfaces SHOULD populate at least one explicitly. */

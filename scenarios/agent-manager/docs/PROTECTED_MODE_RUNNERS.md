@@ -76,6 +76,23 @@
 >     `HostLauncher`, `SandboxLauncher`, and the `/processes`
 >     git-allowlist enforcement.
 
+## Interactive execution mode is rejected for protected runs
+
+Everything below describes the **codec-pipe** execution path, where agent-manager
+owns the agent child process and can route it through the `runner.Launcher` seam
+into workspace-sandbox bwrap isolation. The **interactive** execution mode
+(`ExecutionMode == interactive`, see
+[interactive-runner-design.md](interactive-runner-design.md)) launches the real
+agent CLI inside a web-console tmux session on the host — there is no
+agent-manager-owned process tree to place inside a protected sandbox, so its
+guarantees cannot hold. Interactive mode is therefore **rejected at run
+validation** for any sandboxed run (`RunMode == RunModeSandboxed`, which covers
+both the protected and tracking sandbox modes), with a clear error; such runs
+stay on the codec-pipe / sandbox-launcher path documented here. Interactive mode
+requires an in-place run (`RunMode == RunModeInPlace`, i.e. sandbox off). The
+gate lives in `internal/domain/validation.go` and is pinned by
+`internal/domain/interactive_gate_test.go`.
+
 ## What "protected mode" means today (every runner, every path)
 
 | Layer | Effect when `SandboxConfig.Mode == Protected` |

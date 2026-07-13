@@ -79,6 +79,7 @@ func TestOrchestrator_ConsecutiveRuns(t *testing.T) {
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 	)
 
 	// Create a profile
@@ -241,6 +242,7 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 	)
 
 	// Create profile and task

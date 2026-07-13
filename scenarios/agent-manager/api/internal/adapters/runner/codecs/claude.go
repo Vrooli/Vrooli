@@ -227,14 +227,20 @@ func (c *Claude) NewState() State { return &claudeState{} }
 // ClaudeStreamEvent represents a single event from Claude Code's
 // stream-json output.
 type ClaudeStreamEvent struct {
-	Type         string              `json:"type"`
-	Subtype      string              `json:"subtype,omitempty"`
-	Message      *ClaudeMessage      `json:"message,omitempty"`
-	Usage        *ClaudeUsage        `json:"usage,omitempty"`
-	ToolUse      *ClaudeToolUse      `json:"tool_use,omitempty"`
-	Result       json.RawMessage     `json:"result,omitempty"`
-	Error        *ClaudeError        `json:"error,omitempty"`
-	SessionID    string              `json:"session_id,omitempty"`
+	Type      string          `json:"type"`
+	Subtype   string          `json:"subtype,omitempty"`
+	Message   *ClaudeMessage  `json:"message,omitempty"`
+	Usage     *ClaudeUsage    `json:"usage,omitempty"`
+	ToolUse   *ClaudeToolUse  `json:"tool_use,omitempty"`
+	Result    json.RawMessage `json:"result,omitempty"`
+	Error     *ClaudeError    `json:"error,omitempty"`
+	SessionID string          `json:"session_id,omitempty"`
+	// SessionIDAlt is the camelCase session id claude writes to its
+	// on-disk interactive transcript (~/.claude/projects/.../<id>.jsonl).
+	// The stdout stream-json dialect uses snake_case session_id; the
+	// on-disk dialect uses sessionId. Capturing both lets the transcript
+	// parser recover the session id from an interactive run (design §3).
+	SessionIDAlt string              `json:"sessionId,omitempty"`
 	IsError      bool                `json:"is_error,omitempty"`
 	DurationMs   int                 `json:"duration_ms,omitempty"`
 	DurationAPI  int                 `json:"duration_api_ms,omitempty"`
@@ -258,6 +264,13 @@ type ClaudeStreamEvent struct {
 type ClaudeMessage struct {
 	Role    string          `json:"role"`
 	Content json.RawMessage `json:"content"`
+	// StopReason is present on assistant messages in the on-disk
+	// interactive transcript ("end_turn" marks a cleanly finished turn,
+	// "tool_use" marks mid-work). The on-disk dialect has no `result`
+	// line, so the transcript parser synthesizes the terminal marker from
+	// end_turn (design §3 / R2). The stdout stream dialect carries the
+	// same field but the transcript parser only acts on it in on-disk mode.
+	StopReason string `json:"stop_reason,omitempty"`
 }
 
 // ClaudeContentItem is one element in a content array.
@@ -524,6 +537,13 @@ func (c *Claude) NewTranscriptParser() runner.TranscriptParser {
 
 type claudeTranscriptParser struct {
 	state *claudeState
+	// onDisk latches once a camelCase `sessionId` field is seen, marking
+	// this replay as claude's on-disk interactive transcript rather than
+	// the --print stdout stream. In on-disk mode the parser synthesizes
+	// the terminal marker from assistant stop_reason=end_turn (there is no
+	// `result` line on disk, design §3 / R2). The stdout dialect never
+	// carries sessionId, so this never trips during pipe-mode replay.
+	onDisk bool
 }
 
 func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
@@ -536,6 +556,19 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 	var streamEvent ClaudeStreamEvent
 	if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &streamEvent); err == nil {
 		result.SessionID = streamEvent.SessionID
+		if streamEvent.SessionIDAlt != "" {
+			result.SessionID = streamEvent.SessionIDAlt
+			p.onDisk = true
+		}
+		// On-disk interactive dialect: no `result` line ever arrives, so
+		// the terminal marker is the final assistant turn whose
+		// stop_reason is end_turn. stop_reason=tool_use means the turn is
+		// mid-work and is NOT terminal. Phase 4 layers an idle debounce on
+		// top of this marker (interactive sessions stay open awaiting input).
+		if p.onDisk && strings.EqualFold(streamEvent.Type, "assistant") &&
+			streamEvent.Message != nil && streamEvent.Message.StopReason == "end_turn" {
+			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0}
+		}
 		if strings.EqualFold(streamEvent.Type, "result") {
 			terminal := &runner.TranscriptTerminal{
 				Success:  !streamEvent.IsError,
@@ -598,8 +631,12 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 		return nil, nil
 	}
 
-	if streamEvent.SessionID != "" && state.sessionID == "" {
-		state.sessionID = streamEvent.SessionID
+	if state.sessionID == "" {
+		if streamEvent.SessionID != "" {
+			state.sessionID = streamEvent.SessionID
+		} else if streamEvent.SessionIDAlt != "" {
+			state.sessionID = streamEvent.SessionIDAlt
+		}
 	}
 
 	switch streamEvent.Type {
@@ -769,6 +806,16 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 		return nil, nil
 
 	case "init", "start", "ping", "heartbeat":
+		return nil, nil
+
+	// Interactive-only record types written to claude's on-disk session
+	// transcript (never present in the --print stdout stream). They carry
+	// UI/session metadata, not agent output, so they are dropped silently
+	// rather than logged as "unhandled" debug noise (design §3). Listing
+	// them here is safe for the stdout path — those runs never emit them.
+	case "mode", "permission-mode", "ai-title", "last-prompt",
+		"attachment", "file-history-snapshot", "queue-operation",
+		"frame-link", "summary":
 		return nil, nil
 
 	case "":

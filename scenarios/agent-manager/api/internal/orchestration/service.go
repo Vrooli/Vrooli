@@ -27,10 +27,12 @@ import (
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
+	"agent-manager/internal/orchestration/interactive"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
@@ -249,6 +251,14 @@ type CreateRunRequest struct {
 	Prompt       string          `json:"prompt,omitempty"` // Optional override prompt
 	RunMode      *domain.RunMode `json:"runMode,omitempty"`
 	ForceInPlace bool            `json:"forceInPlace,omitempty"`
+
+	// ExecutionMode selects the CLI-driving substrate (codec-pipe vs
+	// interactive web-console session). Empty defaults to codec-pipe. This is
+	// the internal domain-level seam; the public proto/API surface that lets a
+	// caller request interactive mode is added in Phase 6, which sets this field.
+	// Interactive mode is gated to non-protected (in-place) runs at creation —
+	// see domain.ValidateInteractiveRunMode.
+	ExecutionMode domain.ExecutionMode `json:"executionMode,omitempty"`
 
 	// Force bypasses slot/capacity limits (use for manual user-initiated runs)
 	// When true, the run starts even if MaxConcurrentRuns is exceeded.
@@ -574,6 +584,27 @@ type Orchestrator struct {
 	// them) — wired post-construction via SetAwaitRegistry to break the
 	// registry↔orchestrator construction cycle (mirrors SetReconciler).
 	awaitRegistry *AwaitRegistry
+
+	// interactiveSessions is the web-console session controller that drives
+	// interactive runs (ExecutionMode=interactive): agent-manager launches the
+	// real interactive CLI in a web-console tmux session and tails its
+	// agent-owned transcript. Nil when interactive mode is not wired — an
+	// interactive run then fails cleanly at execute time rather than hanging.
+	interactiveSessions webconsole.SessionController
+
+	// webConsoleUIBase is the resolved web-console UI base URL (browser-facing
+	// origin), captured once at wiring time. Used to build the run-detail deep
+	// link (Run.WebConsoleSessionURL) for interactive runs. Empty when the UI
+	// base could not be resolved — the deep link is then omitted and clients
+	// fall back to the session id.
+	webConsoleUIBase string
+
+	// interactiveDrivers tracks the live interactive coordinators agent-manager
+	// owns (the initial Execute turn and any Continue-driven follow-up turn) so
+	// StopRun can cancel the coordinator deterministically and wait for it to
+	// exit before finalizing — see stopInteractiveRun. Always non-nil (set in
+	// New).
+	interactiveDrivers *interactiveDriverRegistry
 }
 
 // OrchestratorConfig holds service configuration.
@@ -768,6 +799,24 @@ func WithSpawnDispatcher(d *spawn.Dispatcher) Option {
 	}
 }
 
+// WithInteractiveSessions wires the web-console session controller that drives
+// interactive-mode runs. Without it, a run created with
+// ExecutionMode=interactive fails cleanly at execute time.
+func WithInteractiveSessions(sessions webconsole.SessionController) Option {
+	return func(o *Orchestrator) {
+		o.interactiveSessions = sessions
+	}
+}
+
+// WithWebConsoleUIBase sets the resolved web-console UI base URL used to build
+// the run-detail deep link for interactive runs. Empty disables the deep link
+// (clients fall back to the session id).
+func WithWebConsoleUIBase(base string) Option {
+	return func(o *Orchestrator) {
+		o.webConsoleUIBase = base
+	}
+}
+
 // SetReconciler sets the reconciler reference for hot-reload propagation.
 // This is called after construction because the reconciler depends on the orchestrator.
 func (o *Orchestrator) SetReconciler(r *Reconciler) {
@@ -805,10 +854,11 @@ func New(
 	opts ...Option,
 ) *Orchestrator {
 	o := &Orchestrator{
-		profiles: profiles,
-		tasks:    tasks,
-		runs:     runs,
-		config:   DefaultConfig(),
+		profiles:           profiles,
+		tasks:              tasks,
+		runs:               runs,
+		config:             DefaultConfig(),
+		interactiveDrivers: newInteractiveDriverRegistry(),
 	}
 
 	for _, opt := range opts {
@@ -1230,6 +1280,15 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		runMode = domain.RunModeInPlace
 	}
 
+	// Policy gate (locked decision 5): interactive execution mode is only
+	// available for non-protected (in-place) runs. Reject at creation time with
+	// an actionable error before the run is persisted or dispatched. The
+	// executeInteractiveRun path re-checks this as a backstop.
+	if err := domain.ValidateInteractiveRunMode(req.ExecutionMode, runMode); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+
 	// Enforce the policy-declared minimum sandbox mode. The policy layer
 	// expresses sandbox requirements as a minimum SandboxMode rather
 	// than a bool so a higher-strictness policy can require Protected
@@ -1320,6 +1379,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		SourceRunIDs:             req.SourceRunIDs,
 		SourceInvestigationRunID: req.SourceInvestigationRunID,
 		RunMode:                  runMode,
+		ExecutionMode:            req.ExecutionMode,
 		Status:                   domain.RunStatusPending,
 		Phase:                    domain.RunPhaseQueued,
 		ProgressPercent:          0,
@@ -2139,6 +2199,14 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		return domain.NewStateError("Run", string(run.Status), "stop", reason)
 	}
 
+	// Interactive runs have no local process to signal — the CLI lives in a
+	// web-console tmux session. Stop them via the interrupt-then-delete
+	// escalation ladder and finalize deterministically (Cancelled), instead of
+	// the pgid/terminator path below.
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		return o.stopInteractiveRun(ctx, run)
+	}
+
 	// A parked run has no live process to terminate — stopping it cancels the
 	// await (clears the handle) and moves the run to cancelled. The waiter that
 	// owns the handle observes the terminal status and deregisters (Phase 3).
@@ -2229,6 +2297,13 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 
 	if allowed, reason := domain.CanContinueRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "continue", reason)
+	}
+
+	// Interactive runs continue by typing the follow-up into the still-live
+	// web-console session (never a process respawn) and reattaching a tailer to
+	// drive the new turn to completion — see continueInteractiveRun.
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		return o.continueInteractiveRun(ctx, run, req.Message, req.AttachmentIDs)
 	}
 
 	return o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested")
@@ -2779,6 +2854,15 @@ func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *doma
 // reaches RunStatusRunning so the next queued run can begin its
 // codex-bootstrap window.
 func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, systemPrompt string, existingSandboxWorkDir string, attachments []runner.Attachment, customEnv map[string]string, started spawn.StartedFn) {
+	// Interactive runs take the parallel execution path: agent-manager launches
+	// the real interactive CLI in a web-console session and tails its transcript
+	// to completion, instead of owning a codec stdout pipe. Selected by the run's
+	// ExecutionMode (design §1).
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		o.executeInteractiveRun(ctx, run, task, interactiveInitialPrompt(systemPrompt, prompt), started)
+		return
+	}
+
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -2830,6 +2914,128 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.WithOnRunning(started)
 	executor.Execute(ctx)
+}
+
+// interactiveInitialPrompt reconstructs the single-channel prompt to type into
+// an interactive CLI. The codec-pipe path splits a task into a system prompt
+// (instructions) and a user message (context + question); an interactive CLI
+// launched raw has no separate system channel, so both halves are recombined
+// into one prompt. When there is no system prompt (the common no-attachment
+// case) the user message already carries the full task.
+func interactiveInitialPrompt(systemPrompt, userMessage string) string {
+	systemPrompt = strings.TrimSpace(systemPrompt)
+	userMessage = strings.TrimSpace(userMessage)
+	switch {
+	case systemPrompt == "":
+		return userMessage
+	case userMessage == "":
+		return systemPrompt
+	default:
+		return systemPrompt + "\n\n" + userMessage
+	}
+}
+
+// executeInteractiveRun drives an interactive run to completion via the
+// interactive.Coordinator: it launches the real interactive CLI in a web-console
+// session, tails the agent-owned transcript, and finalizes the run on the
+// terminal marker (design §1). It is the parallel path to the codec-pipe
+// RunExecutor and leaves the Continue/Stop seam (Substrate.Stop, SendText) for
+// Phase 5.
+func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Run, task *domain.Task, initialPrompt string, started spawn.StartedFn) {
+	// The spawn slot must be released even if we fail before reaching Running.
+	releaseOnce := sync.Once{}
+	release := func() {
+		if started != nil {
+			releaseOnce.Do(started)
+		}
+	}
+	defer release()
+
+	if o.interactiveSessions == nil {
+		o.failInteractiveRun(ctx, run, "interactive execution mode is not configured (no web-console session controller wired)")
+		return
+	}
+	if run.ResolvedConfig == nil {
+		o.failInteractiveRun(ctx, run, "interactive run has no resolved config")
+		return
+	}
+	if !interactive.SupportsInteractive(run.ResolvedConfig.RunnerType) {
+		o.failInteractiveRun(ctx, run, fmt.Sprintf("runner %q is not supported in interactive mode", run.ResolvedConfig.RunnerType))
+		return
+	}
+	// Policy-gate backstop (locked decision 5): interactive mode is never allowed
+	// for protected (sandboxed) runs. CreateRun rejects this at validation time;
+	// this defends the execution path against any run that reached here mislabeled.
+	if err := domain.ValidateInteractiveRunMode(run.ExecutionMode, run.RunMode); err != nil {
+		o.failInteractiveRun(ctx, run, err.Error())
+		return
+	}
+
+	workDir, err := phases.UseInPlaceWorkspace(task)
+	if err != nil {
+		o.failInteractiveRun(ctx, run, fmt.Sprintf("resolve interactive working directory: %v", err))
+		return
+	}
+
+	coord := interactive.NewCoordinator(interactive.CoordinatorDeps{
+		Substrate:   interactive.NewSubstrate(o.interactiveSessions, interactive.RegistryLaunchInfo(o.runners)),
+		Tailer:      interactive.NewTailer(interactive.RegistryParser(o.runners)),
+		Sessions:    o.interactiveSessions,
+		Runs:        o.runs,
+		Broadcaster: o.broadcaster,
+		NewSink:     o.interactiveEventSink,
+	})
+
+	// Register the live coordinator so StopRun can cancel it deterministically and
+	// wait for it to exit before finalizing (no late tail Update can resurrect a
+	// stopped run). The context is cancellable via the registry; unregister +
+	// signal done when Execute returns.
+	runCtx, driver := o.interactiveDrivers.register(ctx, run.ID)
+	defer o.interactiveDrivers.finish(run.ID, driver)
+
+	if err := coord.Execute(runCtx, run, interactive.LaunchParams{
+		RunID:        run.ID,
+		RunnerType:   run.ResolvedConfig.RunnerType,
+		Tag:          run.GetTag(),
+		WorkingDir:   workDir,
+		RunDir:       runstate.RunDir("", run.ID),
+		DisplayLabel: run.GetTag(),
+		Prompt:       initialPrompt,
+	}, release); err != nil {
+		obs.Component("interactive").Warn("interactive run finalize failed",
+			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
+}
+
+// interactiveEventSink builds the per-run event sink interactive tail events are
+// emitted into, mirroring the codec-pipe executor's sink selection.
+func (o *Orchestrator) interactiveEventSink(runID uuid.UUID) runner.EventSink {
+	switch {
+	case o.events != nil && o.broadcaster != nil:
+		return &broadcastingEventSink{store: o.events, runID: runID, broadcaster: o.broadcaster}
+	case o.events != nil:
+		return &eventStoreAdapter{store: o.events, runID: runID}
+	default:
+		return &noOpEventSink{}
+	}
+}
+
+// failInteractiveRun marks an interactive run failed with an explicit reason
+// (used for pre-launch misconfiguration/validation failures).
+func (o *Orchestrator) failInteractiveRun(ctx context.Context, run *domain.Run, reason string) {
+	now := time.Now()
+	run.Status = domain.RunStatusFailed
+	run.Phase = domain.RunPhaseCompleted
+	run.ErrorMsg = reason
+	run.EndedAt = &now
+	run.UpdatedAt = now
+	if err := o.runs.Update(ctx, run); err != nil {
+		obs.Component("interactive").Warn("failed to persist interactive run failure",
+			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
+	if o.broadcaster != nil {
+		o.broadcaster.BroadcastRunStatus(run)
+	}
 }
 
 // executorLevers folds the runtime OrchestrationSettings store (when wired)

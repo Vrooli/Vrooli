@@ -163,6 +163,7 @@ func TestSandboxCwdContract_ProtectedRoutesThroughSandbox(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 		orchestration.WithSandbox(provider),
 	)
 
@@ -299,6 +300,7 @@ func TestSandboxCwdContract_OffRunsInPlace(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 		orchestration.WithSandbox(provider),
 	)
 

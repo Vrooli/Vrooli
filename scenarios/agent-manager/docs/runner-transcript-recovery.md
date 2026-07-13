@@ -44,6 +44,37 @@ For each `running` run it:
 
 The stale-run reconciler path uses the same drain step before deciding to kill or fail a run.
 
+## Interactive runs
+
+Interactive runs (`ExecutionMode == interactive`, see
+[interactive-runner-design.md](interactive-runner-design.md)) reuse the same
+durable-transcript machinery — a cursor over the agent-owned on-disk transcript,
+drained through the codec transcript parser — but their **liveness signal is the
+web-console session, not a local pid**. The CLI runs inside a web-console tmux
+session, so there is no `runner_pid` for the reconciler to scan.
+
+On startup `RecoverInFlightRuns` / `handleStaleRun` route interactive runs to
+`recoverInteractiveRun`, which:
+
+1. drains the transcript from the persisted cursor (the identical drain step);
+2. if a **failure terminal** was already written, finalizes the run Failed;
+3. otherwise calls `SessionsService.GetSession` on the stored
+   `web_console_session_id`:
+   - **gone** → finalize (Complete if a success terminal was already seen, else
+     Failed with `web-console session <id> no longer exists; interactive run
+     cannot be recovered`);
+   - **alive** → reattach the tailer from the cursor (no duplicate events) and
+     let its turn-boundary idle-debounce drive true completion.
+
+`handleStaleRun` returns early for interactive runs, so the pgid / MaxRecoveryAge
+kill path never fires against a session-hosted CLI. A session that vanishes
+mid-tail is caught by a background `GetSession` watcher that cancels the tail.
+When the reconciler has no web-console client wired, interactive recovery is a
+logged idempotent no-op — it never falsely completes or fails a run. Known
+limitation: a codex rollout that **rotated** across the restart is not re-followed
+(the run dir is not persisted); the pinned rollout path still tails correctly
+within a session.
+
 ## Manual recovery
 
 Operators can run:

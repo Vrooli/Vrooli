@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -10,6 +12,7 @@ import (
 	"agent-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -121,19 +124,6 @@ func formatDuration(duration *durationpb.Duration) string {
 	return duration.AsDuration().String()
 }
 
-func parseRunnerType(value string) domainpb.RunnerType {
-	switch strings.ToLower(value) {
-	case "claude-code":
-		return domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE
-	case "codex":
-		return domainpb.RunnerType_RUNNER_TYPE_CODEX
-	case "opencode":
-		return domainpb.RunnerType_RUNNER_TYPE_OPENCODE
-	default:
-		return domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED
-	}
-}
-
 func parseRunMode(value string) domainpb.RunMode {
 	switch strings.ToLower(value) {
 	case "sandboxed":
@@ -142,6 +132,55 @@ func parseRunMode(value string) domainpb.RunMode {
 		return domainpb.RunMode_RUN_MODE_IN_PLACE
 	default:
 		return domainpb.RunMode_RUN_MODE_UNSPECIFIED
+	}
+}
+
+// apiError enriches a failed API call's error with the human-readable message
+// (and recovery hint) the agent-manager API returns in the JSON error body.
+// The shared cliutil client parses the legacy `error` key, but agent-manager's
+// proto error envelope carries the message under `message` (+ a hint under
+// details.fields.hint), so a validation rejection would otherwise surface only
+// as "api error (400): HTTP 400". The full body is preserved on the typed
+// cliutil.APIError (RawResponse); when it has no usable message the original
+// transport error is returned unchanged. The optional body argument (returned
+// by service wrappers) is used as a fallback source.
+func apiError(body []byte, err error) error {
+	if err == nil {
+		return nil
+	}
+	raw := body
+	var apiErr *cliutil.APIError
+	if errors.As(err, &apiErr) && len(apiErr.RawResponse) > 0 {
+		raw = apiErr.RawResponse
+	}
+	var parsed struct {
+		Message string `json:"message"`
+		Details struct {
+			Fields struct {
+				Hint struct {
+					StringValue string `json:"string_value"`
+				} `json:"hint"`
+			} `json:"fields"`
+		} `json:"details"`
+	}
+	if jsonErr := json.Unmarshal(raw, &parsed); jsonErr == nil && strings.TrimSpace(parsed.Message) != "" {
+		msg := strings.TrimSpace(parsed.Message)
+		if hint := strings.TrimSpace(parsed.Details.Fields.Hint.StringValue); hint != "" && !strings.Contains(msg, hint) {
+			msg = msg + "\nhint: " + hint
+		}
+		return errors.New(msg)
+	}
+	return err
+}
+
+func parseExecutionMode(value string) domainpb.ExecutionMode {
+	switch strings.ToLower(value) {
+	case "codec_pipe", "codec-pipe":
+		return domainpb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE
+	case "interactive":
+		return domainpb.ExecutionMode_EXECUTION_MODE_INTERACTIVE
+	default:
+		return domainpb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED
 	}
 }
 

@@ -714,6 +714,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
         agentProfileId: run.agentProfileId,
         tag: run.tag,
         runMode: run.runMode,
+        executionMode: run.executionMode,
         inlineConfig,
         idempotencyKey: run.idempotencyKey,
         prompt: run.prompt,

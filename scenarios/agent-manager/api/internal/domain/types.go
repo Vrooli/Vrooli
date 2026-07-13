@@ -583,6 +583,23 @@ type Run struct {
 	RunMode       RunMode        `json:"runMode" db:"run_mode"`
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
 
+	// ExecutionMode selects the CLI-driving substrate for this run
+	// (codec-pipe vs interactive web-console session). Empty is treated as
+	// ExecutionModeCodecPipe; see [ExecutionMode]. Orthogonal to RunMode.
+	ExecutionMode ExecutionMode `json:"executionMode,omitempty" db:"execution_mode"`
+
+	// WebConsoleSessionID is the id of the web-console session hosting the
+	// interactive agent CLI, set only for ExecutionModeInteractive runs. It
+	// backs the run-detail deep link to the live session and routes the
+	// interactive Continue/Stop terminal input + session teardown.
+	WebConsoleSessionID string `json:"webConsoleSessionId,omitempty" db:"web_console_session_id"`
+
+	// WebConsoleSessionURL is the resolved deep link to the live web-console
+	// session (computed at read time from WebConsoleSessionID + the web-console
+	// UI base, not persisted). Empty for non-interactive runs and when the
+	// web-console UI base cannot be resolved server-side.
+	WebConsoleSessionURL string `json:"webConsoleSessionUrl,omitempty"`
+
 	// Execution state
 	Status    RunStatus  `json:"status" db:"status"`
 	StartedAt *time.Time `json:"startedAt,omitempty" db:"started_at"`
@@ -792,6 +809,44 @@ const (
 	RunModeSandboxed RunMode = "sandboxed"
 	RunModeInPlace   RunMode = "in_place"
 )
+
+// ExecutionMode indicates how agent-manager drives the agent CLI for a run.
+// It is orthogonal to [RunMode] (sandbox isolation): a run picks an execution
+// substrate independently of whether it is sandboxed.
+//
+//   - ExecutionModeCodecPipe (default): agent-manager owns the CLI process and
+//     reads events off its stdout pipe via the codec decoders. This is the
+//     historical path and the only path for protected (sandboxed) runs.
+//   - ExecutionModeInteractive: agent-manager launches the real interactive
+//     agent CLI inside a web-console (persistent/tmux) session and reads events
+//     by tailing the agent-owned on-disk transcript. Allowed only for
+//     non-protected (in-place) runs.
+type ExecutionMode string
+
+const (
+	ExecutionModeCodecPipe   ExecutionMode = "codec_pipe"
+	ExecutionModeInteractive ExecutionMode = "interactive"
+)
+
+// Normalized returns the mode with the empty value defaulted to
+// ExecutionModeCodecPipe, so rows written before the column existed (and
+// callers that leave the field unset) behave as codec-pipe runs.
+func (m ExecutionMode) Normalized() ExecutionMode {
+	if m == "" {
+		return ExecutionModeCodecPipe
+	}
+	return m
+}
+
+// IsValid reports whether the mode is one of the known execution modes.
+func (m ExecutionMode) IsValid() bool {
+	switch m {
+	case ExecutionModeCodecPipe, ExecutionModeInteractive:
+		return true
+	default:
+		return false
+	}
+}
 
 // RunStatus represents the current state of a run.
 type RunStatus string

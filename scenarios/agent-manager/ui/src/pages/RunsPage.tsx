@@ -39,7 +39,7 @@ import type {
   RunEvent,
   Task,
 } from "../types";
-import { ApprovalState, RunStatus } from "../types";
+import { ApprovalState, ExecutionMode, RunStatus } from "../types";
 import type { UseRunEventStoreReturn } from "../hooks/useRunEventStore";
 import { ApplyInvestigationModal } from "../components/ApplyInvestigationModal";
 import { InvestigateModal } from "../components/InvestigateModal";
@@ -211,7 +211,17 @@ const RunListRow = memo(function RunListRow({
         </div>
       }
     >
-      <ListItemTitle>{taskTitle}</ListItemTitle>
+      <ListItemTitle>
+        {taskTitle}
+        {run.executionMode === ExecutionMode.INTERACTIVE && (
+          <span
+            data-testid="interactive-badge"
+            className="ms-2 inline-flex items-center rounded bg-primary/15 px-1.5 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-primary"
+          >
+            interactive
+          </span>
+        )}
+      </ListItemTitle>
       <ListItemSubtitle>
         {profileName} | {formatStandardRelativeTime(run.createdAt)}
       </ListItemSubtitle>

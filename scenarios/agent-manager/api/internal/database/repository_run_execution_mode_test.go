@@ -1,0 +1,191 @@
+package database
+
+import (
+	"context"
+	"testing"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
+
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
+)
+
+// TestRunExecutionModeRoundTrip verifies the interactive substrate's durable
+// run-state additions (execution_mode + web_console_session_id) persist and
+// read back through Create/Get/Update/List.
+func TestRunExecutionModeRoundTrip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Interactive parent task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:                  uuid.New(),
+		TaskID:              task.ID,
+		Tag:                 "interactive-run",
+		RunMode:             domain.RunModeInPlace,
+		ExecutionMode:       domain.ExecutionModeInteractive,
+		WebConsoleSessionID: "session-abc-123",
+		TranscriptPath:      "/home/u/.claude/projects/-x/sess.jsonl",
+		Status:              domain.RunStatusRunning,
+		Phase:               domain.RunPhaseExecuting,
+		ApprovalState:       domain.ApprovalStateNone,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || got == nil {
+		t.Fatalf("get run: %v (got=%v)", err, got)
+	}
+	if got.ExecutionMode != domain.ExecutionModeInteractive {
+		t.Errorf("execution mode: got %q, want interactive", got.ExecutionMode)
+	}
+	if got.WebConsoleSessionID != "session-abc-123" {
+		t.Errorf("web console session id: got %q", got.WebConsoleSessionID)
+	}
+	if got.TranscriptPath != run.TranscriptPath {
+		t.Errorf("transcript path: got %q", got.TranscriptPath)
+	}
+
+	// List surfaces the mode + session id (pruned column set).
+	runs, err := repos.Runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 10}})
+	if err != nil {
+		t.Fatalf("list runs: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("list: got %d runs, want 1", len(runs))
+	}
+	if runs[0].ExecutionMode != domain.ExecutionModeInteractive {
+		t.Errorf("list execution mode: got %q, want interactive", runs[0].ExecutionMode)
+	}
+	if runs[0].WebConsoleSessionID != "session-abc-123" {
+		t.Errorf("list web console session id: got %q", runs[0].WebConsoleSessionID)
+	}
+
+	// Update flips it back to codec_pipe and clears the session id.
+	got.ExecutionMode = domain.ExecutionModeCodecPipe
+	got.WebConsoleSessionID = ""
+	if err := repos.Runs.Update(ctx, got); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+	after, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || after == nil {
+		t.Fatalf("get after update: %v", err)
+	}
+	if after.ExecutionMode != domain.ExecutionModeCodecPipe {
+		t.Errorf("after update execution mode: got %q, want codec_pipe", after.ExecutionMode)
+	}
+	if after.WebConsoleSessionID != "" {
+		t.Errorf("after update session id: got %q, want empty", after.WebConsoleSessionID)
+	}
+}
+
+// TestRunExecutionModeDefaultsToCodecPipe verifies a run created without an
+// explicit ExecutionMode reads back as codec_pipe (the default), so existing
+// callers are unaffected.
+func TestRunExecutionModeDefaultsToCodecPipe(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{ID: uuid.New(), Title: "t", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		Tag:           "default-mode-run",
+		RunMode:       domain.RunModeSandboxed,
+		Status:        domain.RunStatusPending,
+		Phase:         domain.RunPhaseQueued,
+		ApprovalState: domain.ApprovalStateNone,
+		// ExecutionMode left empty on purpose.
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || got == nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if got.ExecutionMode != domain.ExecutionModeCodecPipe {
+		t.Errorf("default execution mode: got %q, want codec_pipe", got.ExecutionMode)
+	}
+}
+
+// TestMigrateRunColumnsAddsMissingColumns builds a runs table WITHOUT the
+// interactive columns, seeds a row, then runs the additive migration and
+// asserts the columns appear with their defaults while the existing row's data
+// is preserved (migrate-never-recreate).
+func TestMigrateRunColumnsAddsMissingColumns(t *testing.T) {
+	ctx := context.Background()
+	sqlDB, err := sqlx.Connect("sqlite", "file:"+t.TempDir()+"/legacy.db?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	defer sqlDB.Close()
+
+	// Minimal legacy runs table missing the interactive columns.
+	if _, err := sqlDB.ExecContext(ctx, `CREATE TABLE runs (
+		id TEXT PRIMARY KEY,
+		tag TEXT,
+		run_mode TEXT DEFAULT 'sandboxed'
+	)`); err != nil {
+		t.Fatalf("create legacy table: %v", err)
+	}
+	if _, err := sqlDB.ExecContext(ctx, `INSERT INTO runs (id, tag, run_mode) VALUES ('r1', 'legacy-tag', 'in_place')`); err != nil {
+		t.Fatalf("seed row: %v", err)
+	}
+
+	db := &DB{DB: sqlDB, log: logrus.New()}
+	db.log.SetLevel(logrus.PanicLevel)
+
+	// First migration adds the columns.
+	if err := db.migrateRunColumns(ctx); err != nil {
+		t.Fatalf("migrate (first pass): %v", err)
+	}
+	// Second migration is a no-op (idempotent) — must not error.
+	if err := db.migrateRunColumns(ctx); err != nil {
+		t.Fatalf("migrate (second pass): %v", err)
+	}
+
+	cols, err := db.tableColumns(ctx, "runs")
+	if err != nil {
+		t.Fatalf("table columns: %v", err)
+	}
+	for _, want := range []string{"execution_mode", "web_console_session_id"} {
+		if _, ok := cols[want]; !ok {
+			t.Errorf("expected column %q after migration", want)
+		}
+	}
+
+	// Existing row preserved; new column took its default.
+	var tag, execMode string
+	if err := sqlDB.QueryRowContext(ctx, `SELECT tag, execution_mode FROM runs WHERE id = 'r1'`).Scan(&tag, &execMode); err != nil {
+		t.Fatalf("read migrated row: %v", err)
+	}
+	if tag != "legacy-tag" {
+		t.Errorf("preserved tag: got %q, want legacy-tag", tag)
+	}
+	if execMode != "codec_pipe" {
+		t.Errorf("default execution_mode: got %q, want codec_pipe", execMode)
+	}
+}

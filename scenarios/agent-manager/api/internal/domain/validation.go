@@ -382,6 +382,12 @@ func (r *Run) Validate() error {
 			"valid modes: sandboxed, in_place")
 	}
 
+	// Interactive execution mode is only available for non-protected (in-place)
+	// runs. See ValidateInteractiveRunMode.
+	if err := ValidateInteractiveRunMode(r.ExecutionMode, r.RunMode); err != nil {
+		return err
+	}
+
 	// Status must be valid if set
 	if r.Status != "" && !r.Status.IsValid() {
 		return NewValidationError("status", "invalid status value")
@@ -402,6 +408,30 @@ func (r *Run) Validate() error {
 		return NewValidationError("approvalState", "invalid approval state value")
 	}
 
+	return nil
+}
+
+// ValidateInteractiveRunMode enforces the interactive-runner policy gate
+// (locked decision 5 / design §5): interactive execution mode is permitted only
+// for non-protected runs. "Protected" is RunModeSandboxed — a sandboxed run is
+// isolated behind the sandbox launcher and never drives a real web-console CLI
+// session, so interactive mode there is a contradiction. Interactive mode
+// requires an in-place run (RunModeInPlace, i.e. sandbox mode off).
+//
+// codec-pipe runs (the default) are unaffected regardless of run mode.
+func ValidateInteractiveRunMode(execMode ExecutionMode, runMode RunMode) error {
+	if execMode.Normalized() != ExecutionModeInteractive {
+		return nil
+	}
+	if runMode == RunModeSandboxed {
+		return NewValidationErrorWithHint(
+			"executionMode",
+			"interactive execution mode is not available for protected (sandboxed) runs",
+			"interactive mode launches the real CLI in a live web-console session and "+
+				"requires an in-place run — set sandbox mode to off (or run in_place). "+
+				"Protected runs use the sandboxed codec-pipe launcher instead.",
+		)
+	}
 	return nil
 }
 

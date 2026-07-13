@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/adapters/runner/codecs"
 	runnercore "agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/conformance"
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
@@ -476,6 +477,29 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	workspaceSandboxEnsurer := orchestration.NewCommandWorkspaceSandboxEnsurer(sandboxProvider, levers.Sandbox)
 
 	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
+	// Interactive-runner substrate: resolve the web-console API base and build
+	// the read-only Connect client that drives interactive runs (launch the
+	// real CLI in a web-console tmux session, tail its transcript). When
+	// web-console is unresolvable the controller stays nil and interactive runs
+	// fail cleanly at execute time. The UI base (browser-facing origin) is
+	// resolved separately for the run-detail deep link.
+	var interactiveSessions webconsole.SessionController
+	if wcBase := webconsole.ResolveBaseURL(); wcBase != "" {
+		interactiveSessions = webconsole.NewClient(wcBase, nil)
+		log.Printf("interactive-runner: web-console session controller wired (base=%s)", wcBase)
+	} else {
+		log.Printf("interactive-runner: web-console API base unresolved; interactive runs disabled")
+	}
+	webConsoleUIBase := webconsole.ResolveUIBaseURL()
+
+	orchOpts := []orchestration.Option{}
+	if interactiveSessions != nil {
+		orchOpts = append(orchOpts,
+			orchestration.WithInteractiveSessions(interactiveSessions),
+			orchestration.WithWebConsoleUIBase(webConsoleUIBase),
+		)
+	}
+
 	orch := orchestration.New(
 		profileRepo,
 		taskRepo,
@@ -501,6 +525,9 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithIdentitySecret(identitySecret),
 		orchestration.WithSpawnDispatcher(spawnDispatcher),
 	)
+	for _, opt := range orchOpts {
+		opt(orch)
+	}
 
 	// Build reconciler config from orchestration settings (or defaults).
 	reconcilerCfg := orchestration.DefaultReconcilerConfig()
@@ -518,13 +545,19 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	}
 
 	// Create reconciler for orphan detection and stale run recovery (Phase 2)
-	reconciler := orchestration.NewReconciler(
-		runRepo,
-		runnerRegistry,
+	reconcilerOpts := []orchestration.ReconcilerOption{
 		orchestration.WithReconcilerConfig(reconcilerCfg),
 		orchestration.WithReconcilerEvents(eventStore),
 		orchestration.WithReconcilerBroadcaster(wsHub),
 		orchestration.WithReconcilerSandbox(sandboxProvider),
+	}
+	if interactiveSessions != nil {
+		reconcilerOpts = append(reconcilerOpts, orchestration.WithReconcilerInteractive(interactiveSessions))
+	}
+	reconciler := orchestration.NewReconciler(
+		runRepo,
+		runnerRegistry,
+		reconcilerOpts...,
 	)
 
 	// Wire reconciler back to orchestrator for hot-reload propagation.

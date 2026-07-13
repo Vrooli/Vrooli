@@ -29,6 +29,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/adapters/webconsole"
 	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
@@ -88,6 +89,23 @@ type Reconciler struct {
 	events  event.Store
 	runners runner.Registry
 	sandbox sandbox.Provider
+
+	// sessions is the web-console session controller used to verify interactive
+	// runs' liveness (GetSession) during recovery — interactive CLIs live in
+	// web-console tmux, not a local tagged child, so the pgid scan does not apply
+	// to them. Nil when interactive recovery is not wired (recovery then no-ops
+	// for interactive runs rather than falsely completing or failing them).
+	sessions webconsole.SessionController
+
+	// interactiveDebounce overrides the interactive coordinator's turn-boundary
+	// idle window during reattach (0 uses the coordinator default). Kept as a
+	// field so tests can shrink it without a live clock.
+	interactiveDebounce time.Duration
+
+	// interactiveSessionPoll overrides the reattached tailer's mid-tail
+	// session-liveness cadence (0 uses the coordinator default). Field so tests
+	// can detect a vanished session quickly.
+	interactiveSessionPoll time.Duration
 
 	config ReconcilerConfig
 
@@ -184,6 +202,16 @@ func WithReconcilerSandbox(s sandbox.Provider) ReconcilerOption {
 func WithReconcilerLevers(l cfgpkg.Levers) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.levers = l
+	}
+}
+
+// WithReconcilerInteractive wires the web-console session controller the
+// reconciler uses to recover interactive runs (ExecutionMode=interactive): it
+// verifies the session with GetSession and reattaches the transcript tailer.
+// Without it, interactive runs are left untouched by recovery.
+func WithReconcilerInteractive(sessions webconsole.SessionController) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.sessions = sessions
 	}
 }
 
@@ -502,6 +530,14 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 		if run.Status == domain.RunStatusComplete || run.Status == domain.RunStatusFailed || run.Status == domain.RunStatusCancelled {
 			return
 		}
+	}
+
+	// Interactive runs live in a web-console tmux pane, not a local tagged child.
+	// recoverRun already verified the session (GetSession) and reattached the
+	// tailer or finalized the run, so the pgid scan / MaxRecoveryAge kill below
+	// must not run — it would falsely fail a healthy interactive run.
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		return
 	}
 
 	// First, check if the process is actually still running

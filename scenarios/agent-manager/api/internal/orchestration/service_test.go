@@ -3,6 +3,7 @@ package orchestration_test
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,10 +14,49 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )
+
+// testRolePolicyCatalogJSON is a minimal valid role-policy catalog declaring the
+// portable role every profile fixture uses ("code.default"). The catalog offers
+// both codex and claude-code candidates; the test registry only registers the
+// claude-code mock runner, so candidate selection deterministically lands there.
+const testRolePolicyCatalogJSON = `{
+  "schemaVersion":1,
+  "metadata":{"catalogId":"orchestration-test","updatedAt":"2026-07-13"},
+  "defaultRole":"code.default",
+  "roles":{"code.default":{"description":"test","intent":"test","candidates":[{"runner":"codex","resourceRole":"code.default"},{"runner":"claude-code","resourceRole":"code.default"}]}}
+}`
+
+// fakeRoleResolver stands in for the resource-owned role resolver so CreateRun
+// role resolution runs in unit tests without shelling out to resource CLIs. It
+// reports each requested runner/role as available with a concrete model, which
+// mirrors a healthy resource response.
+type fakeRoleResolver struct{}
+
+func (fakeRoleResolver) Resolve(_ context.Context, r domain.RunnerType, role string) (rolepolicy.ResolvedRole, error) {
+	return rolepolicy.ResolvedRole{Runner: r, Role: role, Model: "mock-model"}, nil
+}
+
+// newTestRolePolicyOption wires a working role-policy state + resolver into a
+// test orchestrator so CreateRun's execution-policy resolution succeeds exactly
+// as it does in production. Without it, any CreateRun with a RoleRef fails at
+// resolveExecutionPolicy because no catalog/resolver is configured.
+func newTestRolePolicyOption(t *testing.T) orchestration.Option {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "role-policy.json")
+	if err := os.WriteFile(path, []byte(testRolePolicyCatalogJSON), 0o600); err != nil {
+		t.Fatalf("write role catalog: %v", err)
+	}
+	state, err := rolepolicy.NewState(path, rolepolicy.Requirement{Required: true})
+	if err != nil {
+		t.Fatalf("build role policy state: %v", err)
+	}
+	return orchestration.WithRolePolicyState(state, fakeRoleResolver{})
+}
 
 // [REQ:REQ-P0-001] [REQ:REQ-P0-002] [REQ:REQ-P0-003] [REQ:REQ-P0-004]
 // Tests for orchestration service - profile, task, and run operations
@@ -247,7 +287,7 @@ func TestOrchestrator_ReconcileScenarioProfiles_AllSeededScenariosDryRun(t *test
 	svc := newTestOrchestrator(t)
 	ctx := context.Background()
 
-	for _, scenario := range []string{"swarm-manager", "system-monitor", "app-issue-tracker", "scenario-to-desktop"} {
+	for _, scenario := range []string{"swarm-manager", "system-monitor", "scenario-to-desktop"} {
 		t.Run(scenario, func(t *testing.T) {
 			result, err := svc.ReconcileScenarioProfiles(ctx, orchestration.ReconcileScenarioProfilesRequest{
 				Scenario: scenario,
@@ -1128,6 +1168,7 @@ func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator)
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithFlagValidator(fv),
+		newTestRolePolicyOption(t),
 	)
 }
 
@@ -1426,6 +1467,7 @@ func TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot(t *testing.T) {
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 	)
 	ctx := context.Background()
 

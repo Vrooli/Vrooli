@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS runs (
     tag TEXT,
     sandbox_id TEXT,
     run_mode TEXT DEFAULT 'sandboxed',
+    execution_mode TEXT DEFAULT 'codec_pipe',
+    web_console_session_id TEXT DEFAULT '',
     status TEXT DEFAULT 'pending',
     started_at TEXT,
     ended_at TEXT,

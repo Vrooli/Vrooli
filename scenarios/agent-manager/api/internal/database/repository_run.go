@@ -35,6 +35,8 @@ type runRow struct {
 	Tag                      string                `db:"tag"`
 	SandboxID                NullableUUID          `db:"sandbox_id"`
 	RunMode                  string                `db:"run_mode"`
+	ExecutionMode            sql.NullString        `db:"execution_mode"`
+	WebConsoleSessionID      sql.NullString        `db:"web_console_session_id"`
 	Status                   string                `db:"status"`
 	StartedAt                NullableTime          `db:"started_at"`
 	EndedAt                  NullableTime          `db:"ended_at"`
@@ -103,6 +105,8 @@ func (row *runRow) toDomain() *domain.Run {
 		Tag:                      row.Tag,
 		SandboxID:                row.SandboxID.ToPtr(),
 		RunMode:                  domain.RunMode(row.RunMode),
+		ExecutionMode:            domain.ExecutionMode(row.ExecutionMode.String).Normalized(),
+		WebConsoleSessionID:      row.WebConsoleSessionID.String,
 		Status:                   domain.RunStatus(row.Status),
 		StartedAt:                row.StartedAt.ToPtr(),
 		EndedAt:                  row.EndedAt.ToPtr(),
@@ -177,6 +181,8 @@ func runFromDomain(r *domain.Run) *runRow {
 		Tag:                      r.Tag,
 		SandboxID:                NewNullableUUID(r.SandboxID),
 		RunMode:                  string(r.RunMode),
+		ExecutionMode:            sql.NullString{String: string(r.ExecutionMode.Normalized()), Valid: true},
+		WebConsoleSessionID:      sql.NullString{String: r.WebConsoleSessionID, Valid: r.WebConsoleSessionID != ""},
 		Status:                   string(r.Status),
 		StartedAt:                NewNullableTime(r.StartedAt),
 		EndedAt:                  NewNullableTime(r.EndedAt),
@@ -328,7 +334,8 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 	return string(data)
 }
 
-const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
+const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
+	execution_mode, web_console_session_id, status,
 	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
 	finalization_status, finalization_error, finalized_at,
@@ -348,7 +355,8 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 // approved_by, approved_at.
 // NOTE: last_heartbeat MUST be included — the reconciler depends on it
 // to detect stale runs. Without it, every run appears stale after creation.
-const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode, status,
+const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode,
+	execution_mode, web_console_session_id, status,
 	started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
 	changed_files, total_size_bytes, session_id,
@@ -365,6 +373,8 @@ type listRunLiteRow struct {
 	AgentProfileID           NullableUUID   `db:"agent_profile_id"`
 	Tag                      string         `db:"tag"`
 	RunMode                  string         `db:"run_mode"`
+	ExecutionMode            sql.NullString `db:"execution_mode"`
+	WebConsoleSessionID      sql.NullString `db:"web_console_session_id"`
 	Status                   string         `db:"status"`
 	StartedAt                NullableTime   `db:"started_at"`
 	EndedAt                  NullableTime   `db:"ended_at"`
@@ -407,6 +417,8 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		AgentProfileID:           row.AgentProfileID.ToPtr(),
 		Tag:                      row.Tag,
 		RunMode:                  domain.RunMode(row.RunMode),
+		ExecutionMode:            domain.ExecutionMode(row.ExecutionMode.String).Normalized(),
+		WebConsoleSessionID:      row.WebConsoleSessionID.String,
 		Status:                   domain.RunStatus(row.Status),
 		StartedAt:                row.StartedAt.ToPtr(),
 		EndedAt:                  row.EndedAt.ToPtr(),
@@ -454,7 +466,8 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	run.UpdatedAt = now
 
 	row := runFromDomain(run)
-	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
+	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
+			execution_mode, web_console_session_id, status,
 			started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
 			finalization_status, finalization_error, finalized_at,
@@ -466,7 +479,8 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model,
 			created_at, updated_at)
-			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
+			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode,
+			:execution_mode, :web_console_session_id, :status,
 			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
 			:finalization_status, :finalization_error, :finalized_at,
@@ -587,7 +601,8 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 	row := runFromDomain(run)
 
 	query := `UPDATE runs SET task_id = :task_id, agent_profile_id = :agent_profile_id,
-			tag = :tag, sandbox_id = :sandbox_id, run_mode = :run_mode, status = :status,
+			tag = :tag, sandbox_id = :sandbox_id, run_mode = :run_mode,
+			execution_mode = :execution_mode, web_console_session_id = :web_console_session_id, status = :status,
 		started_at = :started_at, ended_at = :ended_at, phase = :phase,
 		last_checkpoint_id = :last_checkpoint_id, last_heartbeat = :last_heartbeat,
 		progress_percent = :progress_percent, idempotency_key = :idempotency_key,

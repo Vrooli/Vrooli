@@ -72,6 +72,13 @@ func (r *Reconciler) RecoverRun(ctx context.Context, runID uuid.UUID) (*RecoverR
 }
 
 func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail bool) (*RecoverResult, error) {
+	// Interactive runs use a parallel recovery path: liveness is the web-console
+	// session (GetSession), not a local process, and completion is driven by the
+	// reattached transcript tailer's turn-boundary debounce, not a bare drain.
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		return r.recoverInteractiveRun(ctx, run, allowTail)
+	}
+
 	parser, transcriptPath, state, err := r.recoveryParser(run)
 	if err != nil {
 		return nil, err

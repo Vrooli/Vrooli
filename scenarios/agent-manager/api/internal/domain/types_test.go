@@ -233,7 +233,6 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 	t.Run("applies all fields from profile", func(t *testing.T) {
 		cfg := &RunConfig{}
 		profile := &AgentProfile{
-
 			MaxTurns:             100,
 			Timeout:              time.Hour,
 			AllowedTools:         []string{"Read", "Write"},
@@ -280,7 +279,6 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 		// profile pointer carries no signal and must not clobber it.
 		cfg := DefaultRunConfig()
 		profile := &AgentProfile{
-
 			MaxTurns: 100, RoleRef:
 			// SandboxConfig deliberately left nil.
 			"code.default",

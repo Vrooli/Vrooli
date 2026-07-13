@@ -327,6 +327,15 @@ type grokTranscriptParser struct {
 }
 
 func (p *grokTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	// On-disk interactive dialect: grok writes its session transcript
+	// ($GROK_HOME/sessions/<cwd>/<session>/updates.jsonl) as ACP JSON-RPC
+	// session/update notifications, foreign to the flat streaming-json
+	// stdout decoder (design §3). Detect and handle it before the stdout
+	// path; a non-ACP line falls through so pipe-mode replay is unchanged.
+	if res, ok := p.parseACPLine(runID, line); ok {
+		return res
+	}
+
 	events := p.codec.decode(p.state, runID, line)
 	result := runner.TranscriptParseResult{
 		Events:    events,
@@ -346,6 +355,138 @@ func (p *grokTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string)
 		}
 	}
 	return result
+}
+
+// =============================================================================
+// On-disk ACP dialect (interactive runs)
+// =============================================================================
+
+// grokACPLine is one ACP JSON-RPC notification from grok's on-disk
+// updates.jsonl. The turn-completion marker arrives under the vendor-namespaced
+// method "_x.ai/session/update"; ordinary updates use "session/update" — both
+// are matched by the "session/update" suffix.
+type grokACPLine struct {
+	Method string        `json:"method"`
+	Params grokACPParams `json:"params"`
+}
+
+type grokACPParams struct {
+	SessionID string        `json:"sessionId"`
+	Update    grokACPUpdate `json:"update"`
+}
+
+// grokACPUpdate is the union of the ACP session/update variants this codec
+// maps. Unused fields for a given sessionUpdate stay zero.
+type grokACPUpdate struct {
+	SessionUpdate string            `json:"sessionUpdate"`
+	Content       json.RawMessage   `json:"content"` // object (message chunk) or array (tool update)
+	StopReason    string            `json:"stop_reason"`
+	ToolCallID    string            `json:"toolCallId"`
+	Title         string            `json:"title"`
+	Status        string            `json:"status"`
+	RawInput      json.RawMessage   `json:"rawInput"`
+	RawOutput     *grokACPRawOutput `json:"rawOutput"`
+}
+
+type grokACPRawOutput struct {
+	OutputForPrompt string `json:"output_for_prompt"`
+}
+
+// parseACPLine maps one on-disk ACP notification to domain events. ok=false
+// means the line is not an ACP notification (blank, non-JSON, or a flat
+// streaming-json stdout line) and the caller should fall back to the stdout
+// decoder. Unlike grok's headless stdout (which surfaces no tool events), the
+// on-disk ACP stream carries tool_call / tool_call_update records, so
+// interactive runs recover richer tool events than pipe runs. Assistant text
+// chunks are accumulated and flushed as one message on turn_completed, matching
+// the pipe codec's flush-on-end behavior.
+func (p *grokTranscriptParser) parseACPLine(runID uuid.UUID, line string) (runner.TranscriptParseResult, bool) {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || trimmed[0] != '{' {
+		return runner.TranscriptParseResult{}, false
+	}
+	var al grokACPLine
+	if err := json.Unmarshal([]byte(trimmed), &al); err != nil {
+		return runner.TranscriptParseResult{}, false
+	}
+	if !strings.HasSuffix(al.Method, "session/update") {
+		return runner.TranscriptParseResult{}, false
+	}
+
+	if al.Params.SessionID != "" && p.state.sessionID == "" {
+		p.state.sessionID = al.Params.SessionID
+	}
+	result := runner.TranscriptParseResult{SessionID: p.state.sessionID}
+
+	u := al.Params.Update
+	switch u.SessionUpdate {
+	case "agent_message_chunk":
+		if text := grokACPContentText(u.Content); text != "" {
+			p.state.textBuffer.WriteString(text)
+		}
+	case "agent_thought_chunk", "user_message_chunk":
+		// reasoning / echoed user prompt — intentionally not emitted.
+	case "tool_call":
+		var input map[string]interface{}
+		if len(u.RawInput) > 0 {
+			_ = json.Unmarshal(u.RawInput, &input)
+		}
+		result.Events = []*domain.RunEvent{domain.NewToolCallEvent(runID, u.Title, u.ToolCallID, input)}
+	case "tool_call_update":
+		// Only the terminal states emit a result; in_progress/detail
+		// updates would flood the stream with duplicates.
+		if u.Status == "completed" || u.Status == "failed" {
+			output := ""
+			if u.RawOutput != nil {
+				output = u.RawOutput.OutputForPrompt
+			}
+			if output == "" {
+				output = grokACPContentText(u.Content)
+			}
+			var err error
+			if u.Status == "failed" {
+				err = errors.New("tool call failed")
+			}
+			result.Events = []*domain.RunEvent{domain.NewToolResultEvent(
+				runID, "", u.ToolCallID, runner.StripANSI(output), err,
+			)}
+		}
+	case "turn_completed":
+		result.Events = flushGrokMessage(runID, p.state)
+		result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0}
+	}
+	return result, true
+}
+
+// grokACPContentText extracts the assistant text from an ACP content field,
+// which is either the message-chunk object {"type":"text","text":"…"} or the
+// tool-update array [{"type":"content","content":{"type":"text","text":"…"}}].
+func grokACPContentText(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	// message-chunk object form
+	var obj struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(raw, &obj); err == nil && obj.Text != "" {
+		return obj.Text
+	}
+	// tool-update array form
+	var arr []struct {
+		Content struct {
+			Text string `json:"text"`
+		} `json:"content"`
+	}
+	if err := json.Unmarshal(raw, &arr); err == nil {
+		var b strings.Builder
+		for _, it := range arr {
+			b.WriteString(it.Content.Text)
+		}
+		return b.String()
+	}
+	return ""
 }
 
 // =============================================================================

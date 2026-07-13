@@ -61,6 +61,75 @@ func TestRunnerTypeFromProto(t *testing.T) {
 	}
 }
 
+func TestExecutionModeToProto(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    domain.ExecutionMode
+		expected pb.ExecutionMode
+	}{
+		{"codec_pipe", domain.ExecutionModeCodecPipe, pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE},
+		{"interactive", domain.ExecutionModeInteractive, pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE},
+		{"empty normalizes to codec_pipe", domain.ExecutionMode(""), pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExecutionModeToProto(tt.input); got != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestExecutionModeFromProto(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    pb.ExecutionMode
+		expected domain.ExecutionMode
+	}{
+		{"codec_pipe", pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE, domain.ExecutionModeCodecPipe},
+		{"interactive", pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE, domain.ExecutionModeInteractive},
+		{"unspecified maps to empty", pb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED, domain.ExecutionMode("")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExecutionModeFromProto(tt.input); got != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
+
+// TestRunToProtoInteractiveFields verifies the interactive execution-mode
+// surface (execution_mode, web_console_session_id, computed web_console_session_url)
+// round-trips through the Run converters.
+func TestRunToProtoInteractiveFields(t *testing.T) {
+	r := &domain.Run{
+		ID:                   uuid.New(),
+		TaskID:               uuid.New(),
+		ExecutionMode:        domain.ExecutionModeInteractive,
+		WebConsoleSessionID:  "sess-123",
+		WebConsoleSessionURL: "http://localhost:21233/?session=sess-123",
+	}
+	pbRun := RunToProto(r)
+	if pbRun.ExecutionMode != pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE {
+		t.Errorf("execution_mode: expected INTERACTIVE, got %v", pbRun.ExecutionMode)
+	}
+	if pbRun.WebConsoleSessionId != "sess-123" {
+		t.Errorf("web_console_session_id: expected sess-123, got %q", pbRun.WebConsoleSessionId)
+	}
+	if pbRun.WebConsoleSessionUrl != "http://localhost:21233/?session=sess-123" {
+		t.Errorf("web_console_session_url: unexpected %q", pbRun.WebConsoleSessionUrl)
+	}
+
+	back := RunFromProto(pbRun)
+	if back.ExecutionMode != domain.ExecutionModeInteractive {
+		t.Errorf("round-trip execution_mode: expected interactive, got %q", back.ExecutionMode)
+	}
+	if back.WebConsoleSessionID != "sess-123" {
+		t.Errorf("round-trip session id: got %q", back.WebConsoleSessionID)
+	}
+}
+
 func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
 	original := &domain.RunConfig{
 		RunnerType: domain.RunnerTypeCodex,

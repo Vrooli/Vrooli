@@ -186,6 +186,7 @@ func runClosedDiffScenario(t *testing.T, archive *sandbox.DiffResult) (orchestra
 		orchestration.WithRunners(registry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
 		orchestration.WithSandbox(provider),
 	)
 

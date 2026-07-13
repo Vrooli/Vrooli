@@ -40,7 +40,7 @@ import type {
   Task,
   TaskFormData,
 } from "../types";
-import { RunMode, SandboxMode } from "../types";
+import { ExecutionMode, RunMode, SandboxMode } from "../types";
 
 interface QuickRunDialogProps {
   open: boolean;
@@ -63,6 +63,7 @@ interface AgentConfigData {
   maxTurns: number | string;
   timeoutMinutes: number | string;
   runMode: RunMode;
+  executionMode: ExecutionMode;
   skipPermissionPrompt: boolean;
   networkAccess: "none" | "localhost" | "full";
   features?: {
@@ -143,6 +144,7 @@ export function QuickRunDialog({
     maxTurns: DEFAULT_MAX_TURNS,
     timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
     runMode: RunMode.SANDBOXED,
+    executionMode: ExecutionMode.CODEC_PIPE,
     skipPermissionPrompt: true,
     networkAccess: "localhost",
     features: { enableBrowser: false },
@@ -150,6 +152,14 @@ export function QuickRunDialog({
   });
   const [existingSandboxId, setExistingSandboxId, clearSandboxStorage] = usePersistedFormState("quick-run-sandbox", "");
 
+  // Interactive execution is gated to non-protected (in-place) runs server-side
+  // (domain.ValidateInteractiveRunMode). Surface the conflict inline so the
+  // operator fixes it before submitting rather than only seeing the server
+  // rejection. Only the custom-config path exposes an explicit run mode here.
+  const interactiveProtectedConflict =
+    agentConfig.mode === "custom" &&
+    agentConfig.executionMode === ExecutionMode.INTERACTIVE &&
+    agentConfig.runMode !== RunMode.IN_PLACE;
 
   const getSelectedProfile = (): AgentProfile | undefined => {
     return profiles.find((p) => p.id === agentConfig.profileId);
@@ -183,6 +193,7 @@ export function QuickRunDialog({
       maxTurns: DEFAULT_MAX_TURNS,
       timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
       runMode: RunMode.SANDBOXED,
+      executionMode: ExecutionMode.CODEC_PIPE,
       skipPermissionPrompt: true,
       networkAccess: "localhost",
       features: { enableBrowser: false },
@@ -254,6 +265,10 @@ export function QuickRunDialog({
   }, [taskData.title, taskData.description]);
 
   const handleStartRun = useCallback(async () => {
+    if (interactiveProtectedConflict) {
+      setError("Interactive execution is not available for sandboxed (protected) runs. Switch Run Mode to In-place, or use Codec-pipe.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -292,6 +307,9 @@ export function QuickRunDialog({
         runRequest.maxTurns = typeof agentConfig.maxTurns === "number" ? agentConfig.maxTurns : DEFAULT_MAX_TURNS;
         runRequest.timeoutMinutes = typeof agentConfig.timeoutMinutes === "number" ? agentConfig.timeoutMinutes : DEFAULT_TIMEOUT_MINUTES;
         runRequest.runMode = agentConfig.runMode;
+        if (agentConfig.executionMode === ExecutionMode.INTERACTIVE) {
+          runRequest.executionMode = ExecutionMode.INTERACTIVE;
+        }
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
         runRequest.networkAccess = agentConfig.networkAccess;
         if (agentConfig.features?.enableBrowser) {
@@ -632,6 +650,29 @@ export function QuickRunDialog({
                     <option value={RunMode.SANDBOXED}>Sandboxed — normal audit path (recommended)</option>
                     <option value={RunMode.IN_PLACE}>In-place — operator escape hatch (bypasses provenance + review queue)</option>
                   </select>
+                  </div>
+
+                  <div className="space-y-2">
+                  <Label htmlFor="executionMode">Execution Mode *</Label>
+                  <select
+                    id="executionMode"
+                    value={String(agentConfig.executionMode)}
+                    onChange={(e) =>
+                      setAgentConfig({
+                        ...agentConfig,
+                        executionMode: Number(e.target.value) as ExecutionMode,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value={ExecutionMode.CODEC_PIPE}>Codec-pipe — agent-manager owns the CLI process (default)</option>
+                    <option value={ExecutionMode.INTERACTIVE}>Interactive — real CLI in a live web-console session (in-place runs only)</option>
+                  </select>
+                  {interactiveProtectedConflict && (
+                    <p className="text-xs text-destructive" data-testid="interactive-protected-warning">
+                      Interactive execution is not available for sandboxed (protected) runs. Switch Run Mode to In-place, or use Codec-pipe.
+                    </p>
+                  )}
                   </div>
 
                   <label className="flex items-center gap-2 cursor-pointer">

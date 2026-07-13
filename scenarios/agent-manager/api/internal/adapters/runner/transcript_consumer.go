@@ -72,6 +72,18 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 				if !args.Live {
 					return cursor, terminal, nil
 				}
+				// A non-empty EOF fragment is a half-written line whose
+				// terminating newline has not been flushed yet. Rewind to
+				// the last complete-line boundary and rebuild the reader so
+				// the fragment is re-read once completed, rather than
+				// consumed-and-lost (bufio advances past it) and later
+				// emitted as a corrupt partial JSON line.
+				if len(line) > 0 {
+					if _, serr := file.Seek(cursor, io.SeekStart); serr != nil {
+						return cursor, terminal, serr
+					}
+					reader.Reset(file)
+				}
 				time.Sleep(poll)
 				continue
 			}
