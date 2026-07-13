@@ -15,7 +15,7 @@ import type {
   PendingQuestion,
   PendingQuestionsItem,
 } from "../types";
-import { getAttentionReasons, type AttentionReason, type FeedbackItem, type MaturityItem } from "./feed";
+import { getAttentionReasons, type AttentionReason, type FeedbackItem, type MaturityItem } from "./attention";
 import { getItemActions, type ActionContext, type PrimaryCta } from "./backlog-queue-utils";
 
 import { filterSnoozed, snoozeKeyForBacklog, snoozeKeyForCapture, snoozeKeyForExecution } from "./snooze-utils";

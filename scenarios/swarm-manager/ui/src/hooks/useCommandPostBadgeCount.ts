@@ -13,7 +13,7 @@ import { useCaptureStore } from "../stores/capture-store";
 import { useSnoozedKeys } from "../stores/snooze-store";
 import { groupActionItems, computeBadgeCount } from "../lib/command-post-utils";
 import { backlogService } from "../services";
-import type { FeedbackItem, MaturityItem } from "../lib/feed";
+import type { FeedbackItem, MaturityItem } from "../lib/attention";
 
 export function useCommandPostBadgeCount(): number {
   const backlogItems = useBacklogStore((s) => s.items);

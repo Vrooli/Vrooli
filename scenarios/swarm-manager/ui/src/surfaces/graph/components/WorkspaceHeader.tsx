@@ -8,21 +8,19 @@
  * treatment — a 40px (`h-10`) row, the same hairline divider, and ghost icon
  * buttons — so the two headers read as one system. Layout:
  *   Left  — sidebar toggle (when collapsed) + Plan/Graph/Stats lens nav
- *   Right — graph controls (canvas only), help (lens-aware), and the
- *           Operations trigger
+ *   Right — graph controls (canvas only) and help (lens-aware)
  *
  * The help button opens the guide for the active surface — the Plan Guide on
  * the board, the Graph Guide on the canvas — via the same lens-aware handler
  * wired up in GraphWorkspace. Graph controls only make sense over the canvas,
  * so that button is omitted on the Plan board.
  *
- * The agents button is the always-visible Operations Center trigger; it reads
- * its count from `useOperationsStore`, so the header does not need activity /
- * stop-run plumbing piped down from `GraphWorkspace`.
+ * Running-agent visibility lives on the Plan lens tab as a bot-count badge
+ * (fed from `useOperationsStore`); the Plan board itself is the surface that
+ * shows the running agents.
  */
 
 import { HelpCircle, Menu, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
-import { OpsTriggerButton } from "../../../components/operations/OpsTriggerButton";
 import { cn } from "../../../lib/utils";
 import { LensNav } from "./LensNav";
 import { GraphNavControls } from "./GraphNavControls";
@@ -106,7 +104,7 @@ export function WorkspaceHeader({
           <LensNav activeLens={lens} onLensChange={onLensChange} badges={{ plan: activeAgentCount }} />
         </div>
 
-        {/* Right: graph controls (canvas only) + help + agents trigger */}
+        {/* Right: graph controls (canvas only) + help */}
         <div className="ml-auto flex items-center gap-1">
           {isPlanSurface && (
             <>
@@ -156,15 +154,6 @@ export function WorkspaceHeader({
           >
             <HelpCircle className="h-4 w-4" />
           </button>
-          {/* Operations Center trigger — the compact sidebar-header pill so it
-              reads as a peer of the ghost buttons. On mobile (sidebar collapsed
-              behind the menu) it is the operator's primary entry point, so it is
-              always shown; on desktop it hides while the sidebar is open because
-              the sidebar header already exposes the same pill. */}
-          <OpsTriggerButton
-            variant="compact"
-            className={sidebarCollapsed ? "" : "md:hidden"}
-          />
         </div>
       </div>
 

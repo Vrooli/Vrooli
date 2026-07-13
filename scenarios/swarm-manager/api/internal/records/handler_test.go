@@ -96,3 +96,28 @@ func TestCreateRejectsProseOutcomeWithGuidance(t *testing.T) {
 		t.Errorf("prose-outcome error should point at --evidence: %s", rec.Body.String())
 	}
 }
+
+func TestCaptureDraftThenRepairPublishes(t *testing.T) {
+	router := newTestRouter(t, nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/records/capture", strings.NewReader(`{"kind":"feature","scenario":"x","trigger":"t"}`))
+	req.Header.Set("Content-Type", "application/json")
+	first := httptest.NewRecorder()
+	router.ServeHTTP(first, req)
+	if first.Code != http.StatusCreated || !strings.Contains(first.Body.String(), `"disposition":"draft"`) {
+		t.Fatalf("capture = %d %s", first.Code, first.Body.String())
+	}
+	var draft CaptureResult
+	if err := json.Unmarshal(first.Body.Bytes(), &draft); err != nil {
+		t.Fatal(err)
+	}
+	if draft.Record.ID == "" || !strings.Contains(strings.Join(draft.NextAction, " "), draft.Record.ID) {
+		t.Fatalf("missing durable repair command: %+v", draft)
+	}
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/records/"+draft.Record.ID+"/capture", strings.NewReader(`{"outcome":"done"}`))
+	req.Header.Set("Content-Type", "application/json")
+	second := httptest.NewRecorder()
+	router.ServeHTTP(second, req)
+	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"disposition":"published"`) {
+		t.Fatalf("repair = %d %s", second.Code, second.Body.String())
+	}
+}

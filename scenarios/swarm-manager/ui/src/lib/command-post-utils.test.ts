@@ -14,7 +14,7 @@ import type {
   ExecutionRecord,
   PendingQuestionsItem,
 } from "../types";
-import type { FeedbackItem, MaturityItem } from "./feed";
+import type { FeedbackItem, MaturityItem } from "./attention";
 
 // ---------------------------------------------------------------------------
 // Helpers

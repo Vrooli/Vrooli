@@ -112,11 +112,6 @@ const ETA_CONFIDENCE_TONE: Record<string, string> = {
   low: "text-slate-400",
 };
 
-/**
- * EtaStrip — the board's p50/p80 completion band, divided by execute-lane
- * capacity and honest about its basis (a sample count vs "priors only"). Hidden
- * when there is nothing left to estimate.
- */
 function CycleWarning({ cycles }: { cycles: string[] }) {
   const navigate = useNavigate();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -138,10 +133,14 @@ function CycleWarning({ cycles }: { cycles: string[] }) {
         onClick={() => setOpen((prev) => !prev)}
         className="inline-flex items-center gap-1 rounded bg-rose-500/15 px-2 py-0.5 text-xs text-rose-300 transition-colors hover:bg-rose-500/25 hover:text-rose-200"
         aria-expanded={open}
+        aria-label={`${cycles.length} dependency ${cycles.length === 1 ? "cycle" : "cycles"}`}
+        title={`${cycles.length} dependency ${cycles.length === 1 ? "cycle" : "cycles"}`}
         data-testid="plan-cycle-warning"
       >
         <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-        {cycles.length} dependency {cycles.length === 1 ? "cycle" : "cycles"}
+        {/* Terse on purpose — "dependency" is implied and the popover carries
+            the full explanation; the row must fit one line on mobile. */}
+        {cycles.length} {cycles.length === 1 ? "cycle" : "cycles"}
       </button>
       <Popover
         isOpen={open}
@@ -210,6 +209,22 @@ function cycleEntityToNodeId(entity: string): string {
   return parts.length === 2 ? `backlog-item/${trimmed}` : trimmed;
 }
 
+/**
+ * Merge the p50/p80 labels into one compact range ("~5 days" + "~10 days" →
+ * "~5–10 days"). Falls back to the verbose pair when the units differ.
+ */
+function compactEtaLabel(p50Label: string, p80Label: string): string {
+  const parse = (label: string) => /^(~?)([\d.]+)\s+(.+)$/.exec(label.trim());
+  const p50 = parse(p50Label);
+  const p80 = parse(p80Label);
+  if (p50 && p80 && p50[3] === p80[3]) {
+    return p50[2] === p80[2]
+      ? `${p50[1]}${p50[2]} ${p50[3]}`
+      : `${p50[1]}${p50[2]}–${p80[2]} ${p50[3]}`;
+  }
+  return `${p50Label} – ${p80Label}`;
+}
+
 function EtaStrip({ eta, goal }: { eta: PlanBoardMetaData["eta"]; goal: string }) {
   const navigate = useNavigate();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -219,28 +234,22 @@ function EtaStrip({ eta, goal }: { eta: PlanBoardMetaData["eta"]; goal: string }
   const tone = ETA_CONFIDENCE_TONE[eta.confidence] ?? "text-slate-400";
   return (
     <>
+      {/* Closed state stays deliberately terse — clock icon + merged range.
+          Basis ("27 samples" / "priors only") and confidence live in the
+          popover, where the full estimator context is legible. */}
       <button
         ref={triggerRef}
         type="button"
         className="flex items-center gap-1.5 rounded bg-slate-800/60 px-2 py-0.5 text-xs transition-colors hover:bg-slate-800"
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
+        aria-label={`ETA ${eta.p50Label} to ${eta.p80Label} (${eta.basisLabel})`}
+        title={`ETA ${eta.p50Label} – ${eta.p80Label} · ${eta.basisLabel}`}
         data-testid="plan-eta-strip"
       >
-        <Clock className="h-3.5 w-3.5 text-slate-500" aria-hidden />
-        <span className="text-slate-400">ETA</span>
-        <span className="font-medium text-slate-200" data-testid="plan-eta-p50">
-          {eta.p50Label}
-        </span>
-        <span className="text-slate-600">-</span>
-        <span className="font-medium text-slate-200" data-testid="plan-eta-p80">
-          {eta.p80Label}
-        </span>
-        <span
-          className={cn("uppercase tracking-wider", tone)}
-          data-testid="plan-eta-basis"
-        >
-          {eta.basisLabel}
+        <Clock className={cn("h-3.5 w-3.5", tone)} aria-hidden />
+        <span className="font-medium text-slate-200" data-testid="plan-eta-label">
+          {compactEtaLabel(eta.p50Label, eta.p80Label)}
         </span>
       </button>
       <Popover
@@ -353,8 +362,12 @@ export function PlanBoard() {
         <GoalPicker goal={urlState.goal} onSelect={urlState.setGoal} />
         <CycleWarning cycles={cycles} />
         {hiddenSnoozed > 0 && (
-          <span className="text-xs text-slate-600" data-testid="plan-snoozed-hidden-count">
-            {hiddenSnoozed} snoozed hidden
+          <span
+            className="text-xs text-slate-600"
+            title={`${hiddenSnoozed} snoozed ${hiddenSnoozed === 1 ? "item is" : "items are"} hidden`}
+            data-testid="plan-snoozed-hidden-count"
+          >
+            {hiddenSnoozed} snoozed
           </span>
         )}
         <EtaStrip eta={board.meta.eta} goal={urlState.goal} />

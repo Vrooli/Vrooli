@@ -17,7 +17,7 @@ import {
 } from "../lib";
 import type { ItemActions, ResolvedDependencyActivity } from "../lib/backlog-queue-utils";
 import { computeDependencyRelations } from "../lib/backlog-queue-utils";
-import type { FeedbackItem, MaturityItem } from "../lib/feed";
+import type { FeedbackItem, MaturityItem } from "../lib/attention";
 import { isAgentActivityBlocking } from "../lib/agent-activity-utils";
 import type {
   ArchiveRequirementRecord,

@@ -5,7 +5,7 @@
  * separate tab.
  */
 
-import { BarChart3, Columns3, Network, type LucideIcon } from "lucide-react";
+import { BarChart3, Bot, Columns3, Network, type LucideIcon } from "lucide-react";
 import { CompactTabBar, type CompactTabItem } from "../../../components/ui/compact-tab-bar";
 import type { AppGraphLens } from "../../../app/routes/route-paths";
 import type { GraphLens } from "../stores/graph-data-store";
@@ -37,11 +37,14 @@ export function LensNav({ activeLens, onLensChange, badges = {} }: LensNavProps)
       label: lens.label,
       icon: lens.icon,
       badge: badge > 0 ? (
+        // Bot icon marks this as a running-agent count, not a generic
+        // notification tally.
         <span
-          className="ml-0.5 rounded-full bg-slate-700/70 px-1.5 py-0.5 text-[11px] leading-none text-slate-300 data-[active=true]:bg-cyan-500/20 data-[active=true]:text-cyan-100"
+          className="ml-0.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[11px] leading-none text-emerald-300 data-[active=true]:bg-emerald-500/25 data-[active=true]:text-emerald-200"
           data-active={activeSurface === lens.id}
           data-testid={`lens-${lens.id}-badge`}
         >
+          <Bot className="h-3 w-3" aria-hidden />
           {badge}
         </span>
       ) : null,
@@ -55,6 +58,7 @@ export function LensNav({ activeLens, onLensChange, badges = {} }: LensNavProps)
       onValueChange={onLensChange}
       aria-label="Workspace view"
       className="gap-1"
+      hideLabelsOnMobile
       tabTestIdPrefix="lens"
       data-testid="lens-nav"
     />

@@ -20,7 +20,9 @@ type Store interface {
 	Create(r Record) error
 	Get(id string) (Record, error)
 	List(filter ListFilter) ([]Record, error)
+	FindByCaptureKey(key string) (Record, bool, error)
 	UpdateNarrative(id string, narrative Narrative, now time.Time) (Record, error)
+	UpdateDraft(id string, record Record) (Record, error)
 	SetSupersededBy(id, successorID string) (Record, error)
 }
 
@@ -71,6 +73,10 @@ func (s *FileStore) kindDir(scenario string, kind RecordKind) string {
 
 func (s *FileStore) recordPath(scenario string, kind RecordKind, id string) string {
 	return filepath.Join(s.kindDir(scenario, kind), id+".json")
+}
+
+func (s *FileStore) draftPath(id string) string {
+	return filepath.Join(s.recordsDir(), ".drafts", id+".json")
 }
 
 // findPath scans the records directory for a record by id (without
@@ -130,19 +136,27 @@ func (s *FileStore) Create(r Record) error {
 	if !validID(r.ID) {
 		return fmt.Errorf("invalid record id %q", r.ID)
 	}
-	if r.Scenario == "" {
+	if r.Scenario == "" && !r.Draft {
 		return fmt.Errorf("record scenario is required")
 	}
-	if _, err := ParseKind(string(r.Kind)); err != nil {
-		return err
+	if !r.Draft {
+		if _, err := ParseKind(string(r.Kind)); err != nil {
+			return err
+		}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	dir := s.kindDir(r.Scenario, r.Kind)
+	if r.Draft {
+		dir = filepath.Dir(s.draftPath(r.ID))
+	}
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create records dir: %w", err)
 	}
 	path := s.recordPath(r.Scenario, r.Kind, r.ID)
+	if r.Draft {
+		path = s.draftPath(r.ID)
+	}
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("record %s already exists", r.ID)
 	}
@@ -196,7 +210,46 @@ func (s *FileStore) List(filter ListFilter) ([]Record, error) {
 	return out, nil
 }
 
+// FindByCaptureKey returns an adaptive capture regardless of whether it is
+// still private or has since been published. It is intentionally not exposed
+// through the normal list/search projection.
+func (s *FileStore) FindByCaptureKey(key string) (Record, bool, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return Record{}, false, nil
+	}
+	var found Record
+	foundMatch := false
+	err := filepath.WalkDir(s.recordsDir(), func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			if os.IsNotExist(walkErr) {
+				return nil
+			}
+			return walkErr
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".json") {
+			return nil
+		}
+		r, err := readRecord(path)
+		if err != nil {
+			return nil
+		}
+		if r.CaptureKey == key {
+			found, foundMatch = r, true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if err != nil && !os.IsNotExist(err) {
+		return Record{}, false, err
+	}
+	return found, foundMatch, nil
+}
+
 func (f ListFilter) matches(r Record) bool {
+	if r.Draft {
+		return false
+	}
 	if f.Scenario != "" && r.Scenario != f.Scenario {
 		return false
 	}
@@ -210,6 +263,41 @@ func (f ListFilter) matches(r Record) bool {
 		return false
 	}
 	return true
+}
+
+// UpdateDraft moves a successfully repaired capture from its private directory
+// into the normal published hierarchy. The replacement keeps the draft ID.
+func (s *FileStore) UpdateDraft(id string, r Record) (Record, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	oldPath, err := s.findPath(id)
+	if err != nil {
+		return Record{}, err
+	}
+	old, err := readRecord(oldPath)
+	if err != nil {
+		return Record{}, err
+	}
+	if !old.Draft {
+		return Record{}, ErrStubLocked
+	}
+	if r.Draft {
+		if err := writeRecord(oldPath, &r); err != nil {
+			return Record{}, err
+		}
+		return r, nil
+	}
+	if err := os.MkdirAll(s.kindDir(r.Scenario, r.Kind), 0o750); err != nil {
+		return Record{}, err
+	}
+	newPath := s.recordPath(r.Scenario, r.Kind, id)
+	if err := writeRecord(newPath, &r); err != nil {
+		return Record{}, err
+	}
+	if err := os.Remove(oldPath); err != nil {
+		return Record{}, err
+	}
+	return r, nil
 }
 
 func (s *FileStore) UpdateNarrative(id string, n Narrative, now time.Time) (Record, error) {

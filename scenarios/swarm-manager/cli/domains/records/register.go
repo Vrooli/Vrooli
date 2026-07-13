@@ -51,6 +51,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommandHelp("create",
 				"Create a record (--kind K --scenario X --trigger '...' [--approach '...'] [--evidence '...'] [--ruled-out '...']... [--commit SHA] [--files PATH]... [--backlog-ref kind/name] [--supersedes ID] [--outcome shipped|partial|abandoned|duplicate]) [--json]",
 				recordsCreateHelpText, deps.RecordsCreate),
+			support.APICommand("capture", "Capture a record; complete input publishes, incomplete input saves a private repairable draft [--json]", deps.RecordsCapture),
 			support.APICommand("edit", "Fill a stub record's narrative (--id ID --trigger '...' --approach '...' [--evidence '...'] [--ruled-out '...']... [--commit SHA] [--files PATH]... [--outcome shipped|partial|abandoned|duplicate]) [--json]", deps.RecordsEdit),
 			support.APICommand("search", "Semantic search over records ('<query>' [--kind K] [--scenario X] [--limit N]) [--json]", deps.RecordsSearch),
 			support.APICommand("supersede", "Mark a record superseded by a successor (--id ID --by SUCCESSOR-ID [--reason '...']) [--json]", deps.RecordsSupersede),

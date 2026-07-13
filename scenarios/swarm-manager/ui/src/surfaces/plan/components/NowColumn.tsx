@@ -6,8 +6,9 @@
  * handled by OpsBulkActions mounted at the board level.
  */
 
-import { useMemo, useState } from "react";
-import { Bot, ChevronDown, ChevronUp, HelpCircle, ListChecks, Plus, RefreshCw } from "lucide-react";
+import { useMemo } from "react";
+import { Bot, HelpCircle, ListChecks, Plus, RefreshCw } from "lucide-react";
+import { CollapsibleSection } from "../../../components/ui/collapsible-section";
 import { ActivityRow } from "../../../components/operations/ActivityRow";
 import { LaneBar } from "../../../components/operations/LaneBar";
 import { groupByInitiative, laneLabel, orderLanes } from "../../../components/operations/utils";
@@ -33,7 +34,6 @@ function bucketByLane(activities: ActivityRowType[]): Array<{ lane: string; rows
 }
 
 export function NowColumn() {
-  const [lanesOpen, setLanesOpen] = useState(true);
   const { spawn, isSpawning, error: spawnError } = useSpawnSwarmAgent();
   const view = useOperationsStore((s) => s.view);
   const isRefreshing = useOperationsStore((s) => s.isRefreshing);
@@ -103,23 +103,16 @@ export function NowColumn() {
         }
         testId="plan-column-now-header"
       />
-      <div className="border-b border-slate-800/60">
-        <div className="flex items-center justify-between px-3 pt-2">
-          <button
-            type="button"
-            onClick={() => setLanesOpen((prev) => !prev)}
-            className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-slate-400 transition-colors hover:text-slate-200"
-            aria-expanded={lanesOpen}
-            aria-label={`${lanesOpen ? "Collapse" : "Expand"} lane utilization`}
-            data-testid="plan-now-lanes-toggle"
-          >
-            <span>Lanes</span>
-            {lanesOpen ? (
-              <ChevronUp className="h-3 w-3" aria-hidden />
-            ) : (
-              <ChevronDown className="h-3 w-3" aria-hidden />
-            )}
-          </button>
+      <CollapsibleSection
+        storageKey="plan-now-lanes"
+        defaultOpen
+        className="border-b border-slate-800/60"
+        headerClassName="px-3 pt-2"
+        toggleClassName="text-xs uppercase tracking-wide"
+        contentClassName="space-y-1.5 px-3 pb-3 pt-2"
+        toggleTestId="plan-now-lanes-toggle"
+        label="Lanes"
+        headerRight={
           <Tooltip content="Each lane runs agents up to its own concurrency limit. Bars show active / capacity for the investigate, execute, review, and reconcile lanes, plus any queued overflow.">
             <button
               type="button"
@@ -130,15 +123,12 @@ export function NowColumn() {
               <HelpCircle className="h-3.5 w-3.5" aria-hidden />
             </button>
           </Tooltip>
-        </div>
-        {lanesOpen && (
-          <div className="space-y-1.5 px-3 pb-3 pt-2">
-            {lanes.map((lane) => (
-              <LaneBar key={lane.lane} status={lane} />
-            ))}
-          </div>
-        )}
-      </div>
+        }
+      >
+        {lanes.map((lane) => (
+          <LaneBar key={lane.lane} status={lane} />
+        ))}
+      </CollapsibleSection>
       <div className="flex-1 space-y-3 overflow-y-auto p-2">
         {isIdle ? (
           <div

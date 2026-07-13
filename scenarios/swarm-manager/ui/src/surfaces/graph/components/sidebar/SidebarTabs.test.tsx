@@ -97,7 +97,7 @@ function renderTabs() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <SidebarTabs activeTab="activity" onTabChange={noop} />
+      <SidebarTabs activeTab="goals" onTabChange={noop} />
     </QueryClientProvider>,
   );
 }
@@ -183,7 +183,7 @@ describe("SidebarTabs", () => {
 
     renderTabs();
 
-    expect(within(screen.getByTestId("sidebar-tab-activity")).queryByText(/\d+/)).toBeNull();
+    expect(within(screen.getByTestId("sidebar-tab-goals")).queryByText(/\d+/)).toBeNull();
     expect(within(screen.getByTestId("sidebar-tab-operatingModes")).queryByText(/\d+/)).toBeNull();
     expect(within(screen.getByTestId("sidebar-tab-sessions")).queryByText(/\d+/)).toBeNull();
   });

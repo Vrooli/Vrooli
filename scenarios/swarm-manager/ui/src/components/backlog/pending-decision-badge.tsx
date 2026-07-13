@@ -5,7 +5,7 @@
  */
 
 import { memo } from "react";
-import type { AttentionReason } from "../../lib/feed";
+import type { AttentionReason } from "../../lib/attention";
 
 interface PendingDecisionBadgeProps {
   reasons: AttentionReason[];

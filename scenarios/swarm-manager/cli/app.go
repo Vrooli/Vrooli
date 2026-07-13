@@ -198,6 +198,7 @@ func (a *App) dependencies() support.Dependencies {
 		RecordsList:                     a.cmdRecordsList,
 		RecordsGet:                      a.cmdRecordsGet,
 		RecordsCreate:                   a.cmdRecordsCreate,
+		RecordsCapture:                  a.cmdRecordsCapture,
 		RecordsEdit:                     a.cmdRecordsEdit,
 		RecordsSearch:                   a.cmdRecordsSearch,
 		RecordsSupersede:                a.cmdRecordsSupersede,

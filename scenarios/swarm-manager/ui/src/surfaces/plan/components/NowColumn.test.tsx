@@ -57,6 +57,8 @@ async function loadView(activities: ActivityRow[]) {
 describe("NowColumn", () => {
   beforeEach(() => {
     useOperationsStore.getState().reset();
+    // The lanes disclosure persists per-key; clear so each test starts from defaults.
+    window.localStorage.clear();
   });
 
   afterEach(() => {

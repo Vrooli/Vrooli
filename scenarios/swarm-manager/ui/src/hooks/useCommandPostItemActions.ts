@@ -12,9 +12,9 @@ import { useAgentActivitiesStore, useBacklogStore } from "../stores";
 import { backlogService } from "../services";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import { getAttentionReasons } from "../lib/feed";
+import { getAttentionReasons } from "../lib/attention";
 import { buildReadinessData } from "../lib/maturity";
-import type { AttentionReason, FeedbackItem, MaturityItem } from "../lib/feed";
+import type { AttentionReason, FeedbackItem, MaturityItem } from "../lib/attention";
 import type { ReadinessIndicatorData } from "../lib/maturity";
 import type { StepperCompletionResult } from "../components/backlog/inline-question-stepper";
 import type { BacklogItem, BacklogKind, BacklogStatus, PendingQuestion } from "../types";
@@ -46,7 +46,7 @@ export interface ItemCallbacks {
 /**
  * Stable per-item callbacks. Identity is preserved across renders for items
  * whose `kind/name` and `blockingMap` entry haven't changed, so consumers
- * (BacklogRow / FeedItem) can pass them as memoized props without breaking
+ * (e.g. BacklogRow) can pass them as memoized props without breaking
  * `React.memo` on the card.
  */
 export interface StableItemCallbacks {

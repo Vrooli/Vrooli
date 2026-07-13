@@ -2,10 +2,10 @@
  * FilterBar - Collapsible per-tab filter and sort controls.
  */
 
-import { useState } from "react";
 import type { Dispatch } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, X } from "lucide-react";
+import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { cn } from "../../../../lib/utils";
+import { CollapsibleSection } from "../../../../components/ui/collapsible-section";
 import type { SidebarAction } from "./useSidebarState";
 import type { BacklogFilters, CaptureFilters, ExecutionFilters, InitiativeFilters, SessionFilters, SidebarTab, SortConfig, SortDirection, SortField } from "./types";
 import { DEFAULT_SORT } from "./types";
@@ -303,7 +303,6 @@ function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captur
   const sortChanged = sort.field !== defaultSort.field || sort.direction !== defaultSort.direction;
 
   switch (tab) {
-    case "activity": return sortChanged;
     case "backlog": return backlog.statuses.length > 0 || backlog.kinds.length > 0 || backlog.priorityMin !== null || backlog.priorityMax !== null || backlog.showArchived || sortChanged;
     case "captures": return captures.statuses.length > 0 || sortChanged;
     case "initiatives": return initiatives.statuses.length > 0 || initiatives.showArchived || sortChanged;
@@ -315,26 +314,24 @@ function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captur
 }
 
 export function FilterBar({ activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sessionFilters, sort, dispatch }: FilterBarProps) {
-  const [expanded, setExpanded] = useState(false);
-
-  if (activeTab === "activity") return null;
-
   const hasActive = hasActiveFiltersForTab(activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sessionFilters, sort);
 
   return (
-    <div className="border-b border-slate-200/20">
-      <div className="flex items-center justify-between px-3 py-1.5">
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-slate-200"
-          data-testid="filter-bar-toggle"
-        >
-          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+    <CollapsibleSection
+      storageKey="sidebar-filters"
+      className="border-b border-slate-200/20"
+      headerClassName="px-3 py-1.5"
+      contentClassName="space-y-2.5 px-3 pb-2.5"
+      toggleTestId="filter-bar-toggle"
+      contentTestId="filter-bar-content"
+      label={
+        <>
           Filters & Sort
           {hasActive && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-cyan-400" />}
-        </button>
-        {hasActive && (
+        </>
+      }
+      headerRight={
+        hasActive ? (
           <button
             type="button"
             onClick={() => dispatch({ type: "CLEAR_FILTERS", tab: activeTab })}
@@ -343,21 +340,18 @@ export function FilterBar({ activeTab, backlogFilters, captureFilters, initiativ
             <X className="h-3 w-3" />
             Clear
           </button>
-        )}
+        ) : undefined
+      }
+    >
+      <div>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Sort by</p>
+        <SortControls sort={sort} tab={activeTab} dispatch={dispatch} />
       </div>
-      {expanded && (
-        <div className="space-y-2.5 px-3 pb-2.5" data-testid="filter-bar-content">
-          <div>
-            <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Sort by</p>
-            <SortControls sort={sort} tab={activeTab} dispatch={dispatch} />
-          </div>
-          {activeTab === "backlog" && <BacklogFilterChips filters={backlogFilters} dispatch={dispatch} />}
-          {activeTab === "captures" && <CaptureFilterChips filters={captureFilters} dispatch={dispatch} />}
-          {activeTab === "initiatives" && <InitiativeFilterChips filters={initiativeFilters} dispatch={dispatch} />}
-          {activeTab === "executions" && <ExecutionFilterChips filters={executionFilters} dispatch={dispatch} />}
-          {activeTab === "sessions" && <SessionFilterChips filters={sessionFilters} dispatch={dispatch} />}
-        </div>
-      )}
-    </div>
+      {activeTab === "backlog" && <BacklogFilterChips filters={backlogFilters} dispatch={dispatch} />}
+      {activeTab === "captures" && <CaptureFilterChips filters={captureFilters} dispatch={dispatch} />}
+      {activeTab === "initiatives" && <InitiativeFilterChips filters={initiativeFilters} dispatch={dispatch} />}
+      {activeTab === "executions" && <ExecutionFilterChips filters={executionFilters} dispatch={dispatch} />}
+      {activeTab === "sessions" && <SessionFilterChips filters={sessionFilters} dispatch={dispatch} />}
+    </CollapsibleSection>
   );
 }

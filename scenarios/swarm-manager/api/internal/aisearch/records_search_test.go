@@ -67,8 +67,22 @@ func (s *inMemoryRecordStore) List(_ records.ListFilter) ([]records.Record, erro
 	return out, nil
 }
 
+func (s *inMemoryRecordStore) FindByCaptureKey(key string) (records.Record, bool, error) {
+	for _, r := range s.items {
+		if r.CaptureKey == key {
+			return r, true, nil
+		}
+	}
+	return records.Record{}, false, nil
+}
+
 func (s *inMemoryRecordStore) UpdateNarrative(id string, _ records.Narrative, _ time.Time) (records.Record, error) {
 	return records.Record{}, errors.New("not implemented")
+}
+
+func (s *inMemoryRecordStore) UpdateDraft(id string, r records.Record) (records.Record, error) {
+	s.items[id] = r
+	return r, nil
 }
 
 func (s *inMemoryRecordStore) SetSupersededBy(id, _ string) (records.Record, error) {

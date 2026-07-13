@@ -5,7 +5,7 @@
  * Presentation-layer code should import these rather than defining their own.
  */
 
-import { Activity, Bot, Bug, Circle, CheckCircle, AlertCircle, Clock, Cpu, Layers, Lightbulb, MessageSquare, Package, Rocket, Search, Target, Trophy, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { Activity, Bot, Bug, Circle, CheckCircle, AlertCircle, Cpu, Layers, Lightbulb, MessageSquare, Package, Rocket, Search, Target, Trophy, Wrench, Zap, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
 import type { BacklogKind, BacklogStatus } from "./backlog";
 import type { CaptureStatus } from "./capture";
@@ -167,7 +167,6 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 };
 
 export type SidebarEntityType =
-  | "activity"
   | "backlog"
   | "captures"
   | "initiatives"
@@ -178,11 +177,10 @@ export type SidebarEntityType =
 
 /**
  * Icons for sidebar tabs. Entity-backed tabs derive from ENTITY_TYPE_ICONS so
- * a tab and its entity can never drift apart; the remaining tabs (activity feed,
- * operating modes, sessions) have no entity-type equivalent and carry their own.
+ * a tab and its entity can never drift apart; the remaining tabs (operating
+ * modes, sessions) have no entity-type equivalent and carry their own.
  */
 export const SIDEBAR_TAB_ICONS: Record<SidebarEntityType, LucideIcon> = {
-  activity: Clock,
   backlog: ENTITY_TYPE_ICONS.backlog,
   captures: ENTITY_TYPE_ICONS.capture,
   initiatives: ENTITY_TYPE_ICONS.initiative,

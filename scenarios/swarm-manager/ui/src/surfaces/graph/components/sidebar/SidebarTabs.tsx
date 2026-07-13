@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CompactTabBar, type CompactTabItem } from "../../../../components/ui/compact-tab-bar";
 import { groupActionItems } from "../../../../lib/command-post-utils";
-import type { FeedbackItem, MaturityItem } from "../../../../lib/feed";
+import type { FeedbackItem, MaturityItem } from "../../../../lib/attention";
 import { backlogService } from "../../../../services";
 import { useAgentSessionStore, useBacklogStore, useCaptureStore, useExecutionStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";

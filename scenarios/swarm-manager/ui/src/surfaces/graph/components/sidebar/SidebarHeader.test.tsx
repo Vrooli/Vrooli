@@ -2,15 +2,15 @@
  * Tests for SidebarHeader.
  *
  * Verifies home, settings, and collapse handlers fire, and pins that the
- * Operations Center trigger pill renders and links to /plan.
+ * home button carries the running-agent badge (no standalone agents pill).
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { SidebarHeader } from "./SidebarHeader";
-import { selectors } from "../../../../consts/selectors";
+import { useOperationsStore } from "../../../../stores/operations-store";
 
 // Mock useCommandPostBadgeCount to avoid QueryClientProvider dependency.
 vi.mock("../../../../hooks/useCommandPostBadgeCount", () => ({
@@ -31,6 +31,10 @@ function renderHeader(overrides?: Partial<React.ComponentProps<typeof SidebarHea
 }
 
 describe("SidebarHeader", () => {
+  beforeEach(() => {
+    useOperationsStore.getState().reset();
+  });
+
   it("renders home button and app title", () => {
     renderHeader();
 
@@ -68,24 +72,28 @@ describe("SidebarHeader", () => {
     expect(onCollapse).toHaveBeenCalledOnce();
   });
 
-  it("renders the Operations Center trigger pill (compact variant)", () => {
+  it("badges the home button with the active agent count", () => {
+    useOperationsStore.setState({
+      view: {
+        lanes: [],
+        queue: { depth: 0, maxDepth: 50 },
+        activities: [{ runId: "run-1" }, { runId: "run-2" }],
+        recentlyFinished: [],
+        generatedAt: "2026-07-07T00:00:00Z",
+        windowSeconds: 10800,
+      } as never,
+    });
+
     renderHeader();
 
-    const trigger = screen.getByTestId(selectors.layout.opsTriggerButton);
-    expect(trigger).toBeInTheDocument();
-    expect(trigger.getAttribute("data-variant")).toBe("compact");
-    expect(trigger.getAttribute("href")).toBe("/plan");
+    expect(screen.getByTestId("sidebar-home-agent-badge")).toHaveTextContent("2");
   });
 
-  it("can hide the Operations trigger on desktop when LensNav carries the count", () => {
-    renderHeader({ hideOpsTriggerOnDesktop: true });
-
-    expect(screen.getByTestId(selectors.layout.opsTriggerButton).className).toContain("md:hidden");
-  });
-
-  it("does not render the legacy agents dropdown", () => {
+  it("hides the home badge and renders no agents pill when idle", () => {
     renderHeader();
 
+    expect(screen.queryByTestId("sidebar-home-agent-badge")).toBeNull();
+    expect(screen.queryByTestId("layout-ops-trigger-button")).toBeNull();
     expect(screen.queryByTestId("agents-badge")).toBeNull();
     expect(screen.queryByTestId("agents-dropdown")).toBeNull();
   });

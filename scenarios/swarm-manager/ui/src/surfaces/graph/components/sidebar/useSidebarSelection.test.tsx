@@ -15,7 +15,7 @@ describe("useSidebarSelection", () => {
 
     expect(result.current.selectionMode).toBe(true);
 
-    rerender({ tab: "activity" as const });
+    rerender({ tab: "goals" as const });
 
     expect(result.current.selectionMode).toBe(false);
     expect(result.current.selectedCount).toBe(0);

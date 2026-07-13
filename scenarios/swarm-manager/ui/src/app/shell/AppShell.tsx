@@ -6,7 +6,6 @@ import { Sidebar } from "../../surfaces/graph/components/Sidebar";
 import { CapturePanel } from "../../surfaces/graph/components/CapturePanel";
 import { SettingsDrawer } from "../../surfaces/graph/components/SettingsDrawer";
 import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
-import { buildFeed } from "../../lib/feed";
 import { defaultQueryOptions } from "../../lib";
 import { settingsService } from "../../services";
 import { useAgentActivitiesStore, useAgentSessionStore, useBacklogStore, useCaptureStore, useExecutionStore } from "../../stores";
@@ -20,7 +19,6 @@ import { useIsMobile } from "../../hooks/useMediaQuery";
 import { BacklogItemsProvider } from "../../components/backlog/backlog-items-context";
 import { AppShellContext } from "./AppShellContext";
 import { detailPathFromNodeId, graphPath } from "../routes/route-paths";
-import type { FeedbackItem, MaturityItem } from "../../lib/feed";
 
 export function AppShell() {
   const navigate = useNavigate();
@@ -33,7 +31,6 @@ export function AppShell() {
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const backlogItems = useBacklogStore((s) => s.items);
   const fetchCaptures = useCaptureStore((s) => s.fetchCaptures);
-  const captures = useCaptureStore((s) => s.captures);
   const fetchExecutions = useExecutionStore((s) => s.fetchExecutions);
   const fetchSessions = useAgentSessionStore((s) => s.fetchSessions);
   const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
@@ -97,12 +94,6 @@ export function AppShell() {
     immediate: true,
   });
 
-  const feed = useMemo(() => {
-    const feedbackItems: FeedbackItem[] = [];
-    const maturityItems: MaturityItem[] = [];
-    return buildFeed(captures, backlogItems, feedbackItems, maturityItems);
-  }, [captures, backlogItems]);
-
   const closeSidebarOnMobile = useCallback(() => {
     if (isMobile) setSidebarCollapsed(true);
   }, [isMobile, setSidebarCollapsed]);
@@ -161,7 +152,6 @@ export function AppShell() {
           <div ref={shellRef} className="flex h-screen min-w-0 bg-slate-950 text-slate-50">
             <Profiler id="Sidebar" onRender={onProfilerRender}>
               <Sidebar
-                feed={feed}
                 onItemClick={handleSidebarItemClick}
                 onSettingsOpen={handleOpenSettings}
                 onGoHome={handleGoHome}

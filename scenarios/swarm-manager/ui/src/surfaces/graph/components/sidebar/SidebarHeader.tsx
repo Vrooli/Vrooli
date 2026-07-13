@@ -1,23 +1,22 @@
 /**
  * SidebarHeader — Top bar for the graph sidebar.
  *
- * Shows the app title, a home button (returns to graph view), the
- * always-visible Operations Center trigger pill, a settings gear, and a
- * collapse/close button. The trigger reads its count from
- * `useOperationsStore`, so the sidebar header does not need activity-list
- * or stop-run plumbing.
+ * Shows the app title, a home button (returns to graph view), a settings
+ * gear, and a collapse/close button. The home button carries a bot-count
+ * badge (from `useOperationsStore`) when agents are running — the Plan board
+ * behind it is where running agents are shown, so the badge doubles as the
+ * "something is running" indicator without a dedicated agents chip.
  */
 
-import { Home, Inbox, PanelLeft, Settings, X } from "lucide-react";
-import { OpsTriggerButton } from "../../../../components/operations/OpsTriggerButton";
+import { Bot, Home, Inbox, PanelLeft, Settings, X } from "lucide-react";
 import { useCommandPostBadgeCount } from "../../../../hooks/useCommandPostBadgeCount";
+import { selectActiveCount, useOperationsStore } from "../../../../stores/operations-store";
 
 export interface SidebarHeaderProps {
   onSettingsOpen: () => void;
   onCollapse: () => void;
   onGoHome: () => void;
   onOpenCommandPost?: () => void;
-  hideOpsTriggerOnDesktop?: boolean;
 }
 
 export function SidebarHeader({
@@ -25,9 +24,9 @@ export function SidebarHeader({
   onCollapse,
   onGoHome,
   onOpenCommandPost,
-  hideOpsTriggerOnDesktop = false,
 }: SidebarHeaderProps) {
   const commandPostBadgeCount = useCommandPostBadgeCount();
+  const activeAgentCount = useOperationsStore(selectActiveCount);
 
   return (
     <div className="flex h-10 shrink-0 items-center justify-between border-b border-slate-200/20 px-3">
@@ -36,16 +35,29 @@ export function SidebarHeader({
         <button
           type="button"
           onClick={onGoHome}
-          className="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
-          aria-label="Go to graph view"
+          className="relative rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+          aria-label={
+            activeAgentCount > 0
+              ? `Go to graph view (${activeAgentCount} ${activeAgentCount === 1 ? "agent" : "agents"} running)`
+              : "Go to graph view"
+          }
           data-testid="sidebar-home"
         >
           <Home className="h-4 w-4" />
+          {activeAgentCount > 0 && (
+            <span
+              className="absolute -right-1.5 -top-1 inline-flex items-center gap-0.5 rounded-full bg-emerald-500/20 px-1 py-px text-[10px] font-semibold leading-none text-emerald-300"
+              data-testid="sidebar-home-agent-badge"
+            >
+              <Bot className="h-2.5 w-2.5" aria-hidden />
+              {activeAgentCount}
+            </span>
+          )}
         </button>
         <span className="text-sm font-semibold text-slate-200">Swarm Manager</span>
       </div>
 
-      {/* Right: decisions inbox (mobile) + agents chip + Settings + Collapse/Close */}
+      {/* Right: decisions inbox (mobile) + Settings + Collapse/Close */}
       <div className="flex items-center gap-1">
         {onOpenCommandPost && (
           <button
@@ -63,10 +75,6 @@ export function SidebarHeader({
             )}
           </button>
         )}
-        <OpsTriggerButton
-          variant="compact"
-          className={hideOpsTriggerOnDesktop ? "md:hidden" : undefined}
-        />
         <button
           type="button"
           onClick={onSettingsOpen}

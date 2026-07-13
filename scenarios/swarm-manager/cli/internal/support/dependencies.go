@@ -121,6 +121,7 @@ type Dependencies struct {
 	RecordsList           CommandFunc
 	RecordsGet            CommandFunc
 	RecordsCreate         CommandFunc
+	RecordsCapture        CommandFunc
 	RecordsEdit           CommandFunc
 	RecordsSearch         CommandFunc
 	RecordsSupersede      CommandFunc

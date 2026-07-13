@@ -17,6 +17,7 @@ import (
 // REST surface (see PROBLEMS.md for the proto-conversion deferral):
 //
 //	POST   /api/v1/records
+//	POST   /api/v1/records/capture
 //	GET    /api/v1/records
 //	GET    /api/v1/records/{id}
 //	PATCH  /api/v1/records/{id}/narrative
@@ -82,27 +83,60 @@ func (h *Handler) SetScenarioChecker(check ScenarioChecker) {
 // RegisterRoutes wires REST endpoints on the given router.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/records", h.create).Methods("POST")
+	r.HandleFunc("/api/v1/records/capture", h.capture).Methods("POST")
 	r.HandleFunc("/api/v1/records", h.list).Methods("GET")
 	r.HandleFunc("/api/v1/records/search", h.search_).Methods("POST")
 	r.HandleFunc("/api/v1/records/{id}", h.get).Methods("GET")
 	r.HandleFunc("/api/v1/records/{id}/narrative", h.patchNarrative).Methods("PATCH")
+	r.HandleFunc("/api/v1/records/{id}/capture", h.patchCapture).Methods("PATCH")
 	r.HandleFunc("/api/v1/records/{id}/supersede", h.supersede).Methods("POST")
 }
 
+// capture accepts incomplete values and always responds with an explicit
+// published|draft disposition. Strict POST /records remains fail-fast.
+func (h *Handler) capture(w http.ResponseWriter, r *http.Request) {
+	var req createRequest
+	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
+		apierr.MapError(w, "[records] capture", apierr.BadRequest("invalid body: %s", err))
+		return
+	}
+	result, err := h.svc.Capture(r.Context(), CaptureInput{Kind: req.Kind, Scenario: req.Scenario, Trigger: req.Trigger, Approach: req.Approach, Evidence: req.Evidence, Outcome: req.Outcome, RuledOut: req.RuledOut, CreatedBy: req.CreatedBy, IdempotencyKey: req.IdempotencyKey})
+	if err != nil {
+		mapServiceErr(w, "[records] capture", err)
+		return
+	}
+	_ = httputil.JSONWithStatus(w, http.StatusCreated, result)
+}
+
+func (h *Handler) patchCapture(w http.ResponseWriter, r *http.Request) {
+	var req createRequest
+	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
+		apierr.MapError(w, "[records] capture repair", apierr.BadRequest("invalid body: %s", err))
+		return
+	}
+	result, err := h.svc.RepairCapture(r.Context(), mux.Vars(r)["id"], CaptureInput{Kind: req.Kind, Scenario: req.Scenario, Trigger: req.Trigger, Approach: req.Approach, Evidence: req.Evidence, Outcome: req.Outcome, RuledOut: req.RuledOut, CreatedBy: req.CreatedBy, IdempotencyKey: req.IdempotencyKey})
+	if err != nil {
+		mapServiceErr(w, "[records] capture repair", err)
+		return
+	}
+	_ = httputil.JSON(w, result)
+}
+
 type createRequest struct {
-	Kind         string   `json:"kind"`
-	Scenario     string   `json:"scenario"`
-	BacklogRef   string   `json:"backlog_ref"`
-	InitiativeID string   `json:"initiative_id"`
-	Supersedes   string   `json:"supersedes"`
-	Trigger      string   `json:"trigger"`
-	Approach     string   `json:"approach"`
-	RuledOut     []string `json:"ruled_out"`
-	Evidence     string   `json:"evidence"`
-	Commit       string   `json:"commit"`
-	FilesChanged []string `json:"files_changed"`
-	Outcome      string   `json:"outcome"`
-	CreatedBy    string   `json:"created_by"`
+	Kind           string   `json:"kind"`
+	Scenario       string   `json:"scenario"`
+	BacklogRef     string   `json:"backlog_ref"`
+	InitiativeID   string   `json:"initiative_id"`
+	Supersedes     string   `json:"supersedes"`
+	Trigger        string   `json:"trigger"`
+	Approach       string   `json:"approach"`
+	RuledOut       []string `json:"ruled_out"`
+	Evidence       string   `json:"evidence"`
+	Commit         string   `json:"commit"`
+	FilesChanged   []string `json:"files_changed"`
+	Outcome        string   `json:"outcome"`
+	CreatedBy      string   `json:"created_by"`
+	IdempotencyKey string   `json:"idempotency_key"`
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {

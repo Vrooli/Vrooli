@@ -237,10 +237,10 @@ describe("PlanBoard", () => {
 
     await screen.findByTestId(selectors.plan.board);
     const strip = screen.getByTestId("plan-eta-strip");
-    expect(strip).toHaveTextContent("~5 days");
-    expect(strip).toHaveTextContent("~10 days");
-    expect(strip).not.toHaveAttribute("title");
-    expect(screen.getByTestId("plan-eta-basis")).toHaveTextContent("27 samples");
+    // Closed state is a compact merged range; basis stays in the popover.
+    expect(screen.getByTestId("plan-eta-label")).toHaveTextContent("~5–10 days");
+    expect(strip).not.toHaveTextContent("27 samples");
+    expect(strip).toHaveAttribute("title", "ETA ~5 days – ~10 days · 27 samples");
   });
 
   it("opens the ETA details popover", async () => {
@@ -475,8 +475,10 @@ describe("PlanBoard", () => {
     renderWithProviders(<PlanBoard />);
 
     const warning = await screen.findByTestId(selectors.plan.cycleWarning);
-    expect(warning).toHaveTextContent("1 dependency cycle");
-    expect(warning).not.toHaveAttribute("title");
+    // Visible label is terse ("1 cycle"); the full wording lives in title/aria.
+    expect(warning).toHaveTextContent("1 cycle");
+    expect(warning).not.toHaveTextContent("dependency");
+    expect(warning).toHaveAttribute("title", "1 dependency cycle");
   });
 
   it("opens dependency-cycle details with graph actions", async () => {

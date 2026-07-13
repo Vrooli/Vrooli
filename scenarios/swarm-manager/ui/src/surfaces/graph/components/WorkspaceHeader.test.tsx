@@ -2,8 +2,9 @@
  * Tests for WorkspaceHeader — the unified top bar shared by the Plan board
  * and the Graph canvas.
  *
- * Pins: the Operations trigger pill (HUD variant → /plan), the sidebar toggle
- * only when collapsed, the lens nav, and the lens-aware help affordance.
+ * Pins: no standalone agents trigger (the Plan lens badge carries the count),
+ * the sidebar toggle only when collapsed, the lens nav, and the lens-aware
+ * help affordance.
  */
 
 import { beforeEach, describe, it, expect, vi } from "vitest";
@@ -37,34 +38,12 @@ describe("WorkspaceHeader", () => {
     usePlanDataStore.setState({ ...createPlanDataInitialState() });
   });
 
-  it("renders the Operations Center trigger pill (compact variant) linking to /plan", () => {
+  it("does not render a standalone agents trigger or the legacy dropdown", () => {
     renderHeader();
 
-    const trigger = screen.getByTestId(selectors.layout.opsTriggerButton);
-    expect(trigger).toBeInTheDocument();
-    expect(trigger.getAttribute("data-variant")).toBe("compact");
-    expect(trigger.getAttribute("href")).toBe("/plan");
-  });
-
-  it("does not render the legacy agents dropdown", () => {
-    renderHeader();
-
+    expect(screen.queryByTestId("layout-ops-trigger-button")).toBeNull();
     expect(screen.queryByTestId("graph-agents-toggle")).toBeNull();
     expect(screen.queryByTestId("graph-agents-dropdown")).toBeNull();
-  });
-
-  it("hides the trigger on desktop when the sidebar is open (mobile-only fallback)", () => {
-    renderHeader({ sidebarCollapsed: false });
-
-    const trigger = screen.getByTestId(selectors.layout.opsTriggerButton);
-    expect(trigger.className).toContain("md:hidden");
-  });
-
-  it("always shows the trigger on every breakpoint when the sidebar is collapsed", () => {
-    renderHeader({ sidebarCollapsed: true });
-
-    const trigger = screen.getByTestId(selectors.layout.opsTriggerButton);
-    expect(trigger.className).not.toContain("md:hidden");
   });
 
   it("renders the sidebar-toggle button only when the sidebar is collapsed", () => {

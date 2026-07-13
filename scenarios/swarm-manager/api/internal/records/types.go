@@ -284,9 +284,39 @@ type Record struct {
 	FilesChanged []string   `json:"files_changed,omitempty"`
 	Outcome      Outcome    `json:"outcome"`
 	Stub         bool       `json:"stub"`
-	CreatedAt    time.Time  `json:"created_at"`
-	CreatedBy    string     `json:"created_by,omitempty"`
-	NarrativeAt  time.Time  `json:"narrative_at,omitempty"`
+	// Draft captures are private recovery state, never learning artifacts.
+	Draft       bool             `json:"draft,omitempty"`
+	CaptureKey  string           `json:"capture_key,omitempty"`
+	Capture     *CaptureMetadata `json:"capture,omitempty"`
+	CreatedAt   time.Time        `json:"created_at"`
+	CreatedBy   string           `json:"created_by,omitempty"`
+	NarrativeAt time.Time        `json:"narrative_at,omitempty"`
+}
+
+type CaptureMetadata struct {
+	Raw      map[string]string `json:"raw,omitempty"`
+	Accepted map[string]string `json:"accepted,omitempty"`
+	Needs    []string          `json:"needs,omitempty"`
+	Invalid  []InvalidField    `json:"invalid,omitempty"`
+	Warnings []string          `json:"warnings,omitempty"`
+}
+
+type InvalidField struct {
+	Field   string `json:"field"`
+	Value   string `json:"value"`
+	Message string `json:"message"`
+}
+
+// CaptureResult makes publication state explicit even when saving a private
+// draft is transport-successful.
+type CaptureResult struct {
+	Disposition string            `json:"disposition"`
+	Record      Record            `json:"record"`
+	Accepted    map[string]string `json:"accepted,omitempty"`
+	Needs       []string          `json:"needs,omitempty"`
+	Invalid     []InvalidField    `json:"invalid,omitempty"`
+	Warnings    []string          `json:"warnings,omitempty"`
+	NextAction  []string          `json:"next_action,omitempty"`
 }
 
 // ErrStubLocked is returned when an attempt is made to fill or edit a

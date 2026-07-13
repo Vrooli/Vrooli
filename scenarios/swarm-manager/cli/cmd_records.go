@@ -40,6 +40,66 @@ type RecordEnvelope struct {
 	Warnings []string `json:"warnings,omitempty"`
 }
 
+type RecordCaptureResponse struct {
+	Disposition string   `json:"disposition"`
+	Record      Record   `json:"record"`
+	Needs       []string `json:"needs"`
+	Invalid     []struct {
+		Field   string `json:"field"`
+		Message string `json:"message"`
+	} `json:"invalid"`
+	Warnings   []string `json:"warnings"`
+	NextAction []string `json:"next_action"`
+}
+
+func (a *App) cmdRecordsCapture(args []string) error {
+	fs := flag.NewFlagSet("records capture", flag.ContinueOnError)
+	kind := fs.String("kind", "", "Record kind (or documented alias)")
+	scenario := fs.String("scenario", "", "Target scenario slug")
+	trigger := fs.String("trigger", "", "One-line goal or symptom")
+	approach := fs.String("approach", "", "What was built or learned")
+	evidence := fs.String("evidence", "", "Validation evidence")
+	outcome := fs.String("outcome", "", "Outcome category")
+	createdBy := fs.String("created-by", "", "Author identifier")
+	idempotencyKey := fs.String("idempotency-key", "", "Optional retry-safe capture key")
+	var ruledOut stringSlice
+	fs.Var(&ruledOut, "ruled-out", "Rejected hypothesis (repeatable)")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return recordsFlagError(fs, err)
+	}
+	payload, err := json.Marshal(map[string]any{"kind": *kind, "scenario": *scenario, "trigger": *trigger, "approach": *approach, "evidence": *evidence, "outcome": *outcome, "created_by": *createdBy, "idempotency_key": *idempotencyKey, "ruled_out": []string(ruledOut)})
+	if err != nil {
+		return err
+	}
+	body, err := a.core.Request("POST", "/records/capture", nil, json.RawMessage(payload))
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	resp, err := decodeResponse[RecordCaptureResponse](body)
+	if err != nil {
+		return err
+	}
+	printSection("Result")
+	fmt.Printf("  %s: %s\n", strings.ToUpper(resp.Disposition), resp.Record.ID)
+	if resp.Disposition == "draft" {
+		fmt.Println("  NOT PUBLISHED — private draft saved.")
+		if len(resp.Needs) > 0 {
+			fmt.Printf("  Needs: %s\n", strings.Join(resp.Needs, ", "))
+		}
+		for _, v := range resp.Invalid {
+			fmt.Printf("  Invalid %s: %s\n", v.Field, v.Message)
+		}
+		if len(resp.NextAction) > 0 {
+			printCommandListSection("Repair", []string{strings.Join(resp.NextAction, " ")})
+		}
+	}
+	return nil
+}
+
 // ListRecordsResponse wraps GET /records.
 type ListRecordsResponse struct {
 	Records []Record `json:"records"`
@@ -331,7 +391,8 @@ func (a *App) cmdRecordsCreate(args []string) error {
 
 func (a *App) cmdRecordsEdit(args []string) error {
 	fs := flag.NewFlagSet("records edit", flag.ContinueOnError)
-	idFlag := fs.String("id", "", "Record ID (must be a stub) [required]")
+	idFlag := fs.String("id", "", "Record ID (stub or private draft) [required]")
+	repairFlag := fs.Bool("repair", false, "Repair a private adaptive-capture draft instead of filling a backlog stub")
 	triggerFlag := fs.String("trigger", "", "One-line symptom/goal/smell")
 	approachFlag := fs.String("approach", "", "What was understood / built")
 	var ruledOut stringSlice
@@ -346,7 +407,7 @@ func (a *App) cmdRecordsEdit(args []string) error {
 		return recordsFlagError(fs, err)
 	}
 	if err := requireFlag("id", *idFlag); err != nil {
-		return fmt.Errorf("usage: records edit --id ID --trigger '...' --approach '...' [--ruled-out '...']... [--evidence '...'] [--commit SHA] [--files PATH]... [--outcome %s]\n\n%s", recordsOutcomes, err)
+		return fmt.Errorf("usage: records edit [--repair] --id ID --trigger '...' --approach '...' [--ruled-out '...']... [--evidence '...'] [--commit SHA] [--files PATH]... [--outcome %s]\n\n%s", recordsOutcomes, err)
 	}
 	if outcomeLooksLikeProse(*outcomeFlag) {
 		return fmt.Errorf("--outcome is a category (%s), not a summary — your validation story belongs in --evidence", recordsOutcomes)
@@ -366,11 +427,34 @@ func (a *App) cmdRecordsEdit(args []string) error {
 		return fmt.Errorf("encode payload: %w", err)
 	}
 
-	body, err := a.core.Request("PATCH", "/records/"+id+"/narrative", nil, json.RawMessage(payload))
+	path := "/records/" + id + "/narrative"
+	if *repairFlag {
+		path = "/records/" + id + "/capture"
+	}
+	body, err := a.core.Request("PATCH", path, nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}
 	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	if *repairFlag {
+		resp, err := decodeResponse[RecordCaptureResponse](body)
+		if err != nil {
+			return err
+		}
+		if resp.Disposition == "draft" {
+			fmt.Printf("Private draft remains unpublished: %s\n", resp.Record.ID)
+			if len(resp.Needs) > 0 {
+				fmt.Printf("Needs: %s\n", strings.Join(resp.Needs, ", "))
+			}
+			if len(resp.NextAction) > 0 {
+				fmt.Printf("Repair: %s\n", strings.Join(resp.NextAction, " "))
+			}
+			return nil
+		}
+		printSection("Result")
+		fmt.Printf("  Published repaired record: %s\n", resp.Record.ID)
 		return nil
 	}
 	resp, err := decodeResponse[RecordEnvelope](body)

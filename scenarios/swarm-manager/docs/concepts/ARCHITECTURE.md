@@ -340,7 +340,7 @@ The skill intentionally supports long pre-creation planning so workshop auto-spa
 ## Priority Ranking
 
 Backlog items are sorted using a three-tier system applied consistently across
-the sidebar, command post, and unified feed:
+the sidebar and command post:
 
 1. **Dependency depth** (primary) — computed via `computeDepthMap()` in
    `dependency-sort.ts`. Items whose dependencies are incomplete sort below
@@ -363,11 +363,12 @@ the sidebar, command post, and unified feed:
 3. **Recency** (final tiebreaker) — most recently updated items sort first
    within the same effective priority.
 
-### Feed-specific boosting
+### Attention signals
 
-The unified feed (`feed.ts`) applies an additional -2 attention boost to items
-with pending decisions, ready plans, or completed research. This composes
-additively with the unblocking boost.
+`attention.ts` computes why an item needs user attention (pending decisions,
+ready plans, completed research). These reasons power the sidebar tab badges
+and backlog card badges. (The Activity-tab unified feed that once consumed
+them was retired 2026-07-13.)
 
 ### Key invariants
 

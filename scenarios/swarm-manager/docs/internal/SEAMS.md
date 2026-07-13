@@ -394,7 +394,7 @@ This package is imported by `internal/backlog/` (batch create validation, batch 
 
 Both graph computations are O(V+E) with memoization. They share the same `SORT_RESOLVED_STATUSES` set and `archivedAt` check to determine which items count as resolved.
 
-Consumed by `backlog-sort.ts` (sidebar/command post sorting) and `feed.ts` (unified feed). All consumers compute the unblocking map once per sort call and close over it in a compareFn — the map is never recomputed per comparison.
+Consumed by `backlog-sort.ts` (sidebar/command post sorting). All consumers compute the unblocking map once per sort call and close over it in a compareFn — the map is never recomputed per comparison.
 
 **Testing at the seam**: Pure-function unit tests in `dependency-sort.test.ts` covering chains, diamonds, cycles, completed/archived exclusion, dangling refs, and cross-kind dependencies. Integration tests in `backlog-sort.test.ts` verify that unblocking boost composes correctly with depth ordering.
 
@@ -2318,17 +2318,16 @@ The `/operations?view=by-phase` board ([CODE: ui/src/components/operations/views
 
 **Testing at the seam**: `views/ByPhaseView.test.tsx` pins canonical-lane order, per-lane row placement, lane-count headers, the empty-column placeholder, the silent-drop rule for missing / non-canonical lanes, and the lane-chip suppression invariant. `OpsBody.test.tsx` pins the toggle's gate (`enableByPhaseView`), aria state, and the disabled-fallback path. `OperationsCenterPage.test.tsx` extends to cover the URL ↔ view-mode round trip (toggle adds `view=by-phase`, URL hydrates the store on mount, toggling back clears the key).
 
-### Operations Center trigger button (added 2026-05-02, P8; retargeted 2026-07-02 — the agents chip now links to `/plan`)
+### Running-agent visibility (P8 trigger button retired 2026-07-13 — badges replace the standalone pill)
 
-`OpsTriggerButton` ([CODE: ui/src/components/operations/OpsTriggerButton.tsx]) is the single, always-visible entry point to `/operations`. It replaces the conditional `<AgentsDropdown>` popover at both call sites — the sidebar header ([CODE: ui/src/surfaces/graph/components/sidebar/SidebarHeader.tsx]) and the graph HUD ([CODE: ui/src/surfaces/graph/components/GraphWorkspaceHUD.tsx]). Two visual variants (`compact` for the sidebar pill, `hud` for the bordered HUD button) share the same `data-testid` (`selectors.layout.opsTriggerButton`) so workflow tooling can locate the trigger regardless of layout context.
+`OpsTriggerButton` is deleted. Now that the Plan board is the surface that shows running agents, the standalone "N agents" pill was redundant chrome; running-agent visibility lives on two badges instead:
 
-**Count source is the operations-store, not the legacy agent-activities-store.** The trigger reads `selectActiveCount` from `useOperationsStore` ([CODE: ui/src/stores/operations-store.ts]) and renders "N agents" with plural-correct labelling. AppShell ([CODE: ui/src/app/shell/AppShell.tsx]) mounts a global 8s poll for `useOperationsStore.refresh` so the count stays fresh wherever the trigger renders; the Operations Center page itself layers a faster 4s poll on top, and the store's internal serialization makes the dual-poll a no-op while the page is open. The trigger button never drives its own polling.
+- the Plan lens tab in `LensNav` ([CODE: ui/src/surfaces/graph/components/LensNav.tsx]) carries a bot-icon count badge (`lens-plan-badge`), fed by `WorkspaceHeader`;
+- the sidebar home button ([CODE: ui/src/surfaces/graph/components/sidebar/SidebarHeader.tsx]) carries the same bot-icon count badge (`sidebar-home-agent-badge`) so the count survives sidebar-only contexts.
 
-**Always-shown contract.** The trigger renders even when no agents are active — the label reads "0 agents" rather than collapsing. Hiding the trigger on idle defeats its purpose as the canonical "where do I go to see what's running?" surface. The HUD variant additionally takes a `className` so the consumer can apply the legacy "show on mobile, hide on desktop when sidebar is open" responsive rule via Tailwind utilities (`md:hidden`); the compact variant has no equivalent because the sidebar header is always visible while the sidebar is open.
+**Count source is the operations-store.** Both badges read `selectActiveCount` from `useOperationsStore` ([CODE: ui/src/stores/operations-store.ts]). AppShell ([CODE: ui/src/app/shell/AppShell.tsx]) mounts a global 8s poll for `useOperationsStore.refresh` so the count stays fresh wherever the badges render. Unlike the retired pill, the badges collapse at zero — the Plan tab and home button themselves are the always-visible navigation surfaces.
 
-**Greenfield cut.** `AgentsDropdown.tsx` is no longer imported anywhere in the UI tree (`rg "from .*AgentsDropdown"` returns 0 hits) but the file remains on disk until P7b. The `useAgentActivitiesStore` reference was dropped from `SidebarHeader` and `GraphWorkspace` since they fed only the dropdown; the store remains, used by backlog detail surfaces and the Command Post item-actions hook. `Sidebar` and `AppShell` no longer thread `onViewActivity` / `onViewBacklog` through to the header — those navigation handlers existed only to feed the dropdown's "View Activity" / "View Backlog" buttons, which now live on the Operations Center page itself.
-
-**Testing at the seam**: `components/operations/OpsTriggerButton.test.tsx` pins the always-shown rule, plural-correct labelling, idle/active styling, link target, both variants under the same selector, and live store reactivity. `surfaces/graph/components/sidebar/SidebarHeader.test.tsx` and `surfaces/graph/components/GraphWorkspaceHUD.test.tsx` pin that the trigger replaces the legacy dropdown in each layout context and assert the responsive-visibility rule on the HUD variant.
+**Testing at the seam**: `surfaces/graph/components/WorkspaceHeader.test.tsx` pins that no standalone trigger renders and that the Plan lens badge carries the count; `surfaces/graph/components/sidebar/SidebarHeader.test.tsx` pins the home-button badge (count shown when active, hidden at zero).
 
 ### Operations bulk-stop (added 2026-05-02, P7b)
 

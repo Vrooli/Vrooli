@@ -19,11 +19,10 @@ import type {
 // Tab Definitions
 // ============================================================================
 
-export const SIDEBAR_TABS = ["activity", "backlog", "captures", "initiatives", "goals", "operatingModes", "executions", "sessions"] as const;
+export const SIDEBAR_TABS = ["backlog", "captures", "initiatives", "goals", "operatingModes", "executions", "sessions"] as const;
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
 export const TAB_LABELS: Record<SidebarTab, string> = {
-  activity: "Activity",
   backlog: "Backlog",
   captures: "Captures",
   initiatives: "Initiatives",
@@ -46,7 +45,6 @@ export interface SortConfig {
 }
 
 export const DEFAULT_SORT: Record<SidebarTab, SortConfig> = {
-  activity: { field: "priority", direction: "asc" },
   backlog: { field: "priority", direction: "asc" },
   captures: { field: "recency", direction: "desc" },
   initiatives: { field: "alphabetical", direction: "asc" },
@@ -91,7 +89,6 @@ export interface SessionFilters {
 }
 
 export interface TabFilters {
-  activity: Record<string, never>;
   backlog: BacklogFilters;
   captures: CaptureFilters;
   initiatives: InitiativeFilters;
@@ -102,7 +99,6 @@ export interface TabFilters {
 }
 
 export const DEFAULT_FILTERS: TabFilters = {
-  activity: {},
   backlog: { statuses: [], kinds: [], priorityMin: null, priorityMax: null, showArchived: false },
   captures: { statuses: [] },
   initiatives: { statuses: [], showArchived: false },

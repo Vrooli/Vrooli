@@ -99,7 +99,6 @@ describe("sidebar create affordances", () => {
 
     renderWithProviders(
       <Sidebar
-        feed={[]}
         onItemClick={vi.fn()}
         onSettingsOpen={vi.fn()}
         onGoHome={vi.fn()}

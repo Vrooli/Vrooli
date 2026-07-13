@@ -102,6 +102,155 @@ type CreateInput struct {
 	CreatedBy    string
 }
 
+// CaptureInput keeps the intake edge permissive. It is converted to canonical
+// enums only when that conversion is unambiguous; otherwise it becomes a
+// private draft with exact diagnostics.
+type CaptureInput struct {
+	Kind, Scenario, Trigger, Approach, Evidence, Outcome, CreatedBy, IdempotencyKey string
+	RuledOut                                                                        []string
+}
+
+func (s *Service) Capture(ctx context.Context, in CaptureInput) (CaptureResult, error) {
+	if existing, found, err := s.store.FindByCaptureKey(in.IdempotencyKey); err != nil {
+		return CaptureResult{}, err
+	} else if found {
+		return captureResultFor(existing), nil
+	}
+	r, complete, result := s.assessCapture(in, "")
+	if !complete {
+		r.ID = "rec-" + idgen.Generate()
+		r.Draft = true
+		r.CreatedAt = s.now()
+		if err := s.store.Create(r); err != nil {
+			return CaptureResult{}, err
+		}
+		result.Record = r
+		result.NextAction = repairCommand(r.ID)
+		return result, nil
+	}
+	if err := s.store.Create(r); err != nil {
+		return CaptureResult{}, err
+	}
+	_ = s.indexer.IndexRecord(ctx, r)
+	s.events.EmitRecordCreated(r.ID, string(r.Kind), r.Scenario, r.BacklogRef, false)
+	result.Record = r
+	result.Disposition = "published"
+	return result, nil
+}
+
+// RepairCapture publishes the existing draft ID exactly once when the merged
+// values are valid. An incomplete repair remains the same private draft.
+func (s *Service) RepairCapture(ctx context.Context, id string, in CaptureInput) (CaptureResult, error) {
+	old, err := s.store.Get(id)
+	if err != nil {
+		return CaptureResult{}, err
+	}
+	if !old.Draft {
+		return CaptureResult{}, ErrStubLocked
+	}
+	if old.Capture != nil {
+		in.Kind = firstNonBlank(in.Kind, old.Capture.Raw["kind"])
+		in.Scenario = firstNonBlank(in.Scenario, old.Capture.Raw["scenario"])
+		in.Trigger = firstNonBlank(in.Trigger, old.Capture.Raw["trigger"])
+		in.Approach = firstNonBlank(in.Approach, old.Capture.Raw["approach"])
+		in.Evidence = firstNonBlank(in.Evidence, old.Capture.Raw["evidence"])
+		in.Outcome = firstNonBlank(in.Outcome, old.Capture.Raw["outcome"])
+	}
+	in.IdempotencyKey = firstNonBlank(in.IdempotencyKey, old.CaptureKey)
+	r, complete, result := s.assessCapture(in, id)
+	if !complete {
+		r.ID = id
+		r.Draft = true
+		r.CreatedAt = old.CreatedAt
+		if err := s.replaceDraft(id, r); err != nil {
+			return CaptureResult{}, err
+		}
+		result.Record = r
+		result.NextAction = repairCommand(id)
+		return result, nil
+	}
+	if _, err := s.store.UpdateDraft(id, r); err != nil {
+		return CaptureResult{}, err
+	}
+	_ = s.indexer.IndexRecord(ctx, r)
+	s.events.EmitRecordCreated(r.ID, string(r.Kind), r.Scenario, r.BacklogRef, false)
+	result.Record = r
+	result.Disposition = "published"
+	return result, nil
+}
+
+func (s *Service) replaceDraft(id string, r Record) error {
+	// A draft-to-draft repair is represented by replacing its JSON payload in
+	// place through a private temporary published move is deliberately avoided.
+	_, err := s.store.UpdateDraft(id, r)
+	return err
+}
+
+func (s *Service) assessCapture(in CaptureInput, id string) (Record, bool, CaptureResult) {
+	raw := map[string]string{"kind": strings.TrimSpace(in.Kind), "scenario": strings.TrimSpace(in.Scenario), "trigger": strings.TrimSpace(in.Trigger), "approach": strings.TrimSpace(in.Approach), "evidence": strings.TrimSpace(in.Evidence), "outcome": strings.TrimSpace(in.Outcome), "idempotency_key": strings.TrimSpace(in.IdempotencyKey)}
+	accepted, needs, invalid := map[string]string{}, []string{}, []InvalidField{}
+	kind, e := ParseKind(in.Kind)
+	if raw["kind"] == "" {
+		needs = append(needs, "kind")
+	} else if e != nil {
+		invalid = append(invalid, InvalidField{Field: "kind", Value: in.Kind, Message: e.Error()})
+	} else {
+		accepted["kind"] = string(kind)
+	}
+	outcome, e := ParseOutcome(in.Outcome)
+	if raw["outcome"] == "" {
+		needs = append(needs, "outcome")
+	} else if e != nil {
+		invalid = append(invalid, InvalidField{Field: "outcome", Value: in.Outcome, Message: e.Error()})
+	} else {
+		accepted["outcome"] = string(outcome)
+	}
+	if raw["scenario"] == "" {
+		needs = append(needs, "scenario")
+	} else {
+		accepted["scenario"] = raw["scenario"]
+	}
+	if raw["trigger"] == "" && raw["approach"] == "" && len(trimAll(in.RuledOut)) == 0 {
+		needs = append(needs, "trigger_or_approach_or_ruled_out")
+	}
+	r := Record{ID: id, Kind: kind, Scenario: raw["scenario"], Trigger: raw["trigger"], Approach: raw["approach"], Evidence: raw["evidence"], Outcome: outcome, RuledOut: trimAll(in.RuledOut), CreatedBy: strings.TrimSpace(in.CreatedBy), CaptureKey: raw["idempotency_key"], NarrativeAt: s.now()}
+	result := CaptureResult{Disposition: "draft", Accepted: accepted, Needs: needs, Invalid: invalid, Warnings: []string{"Draft saved privately; it is not searchable or published."}}
+	if len(needs) > 0 || len(invalid) > 0 {
+		r.Capture = &CaptureMetadata{Raw: raw, Accepted: accepted, Needs: needs, Invalid: invalid}
+		return r, false, result
+	}
+	r.ID = firstNonBlank(id, "rec-"+idgen.Generate())
+	r.CreatedAt = s.now()
+	return r, true, result
+}
+
+func captureResultFor(r Record) CaptureResult {
+	result := CaptureResult{Record: r}
+	if r.Draft {
+		result.Disposition = "draft"
+		if r.Capture != nil {
+			result.Accepted = r.Capture.Accepted
+			result.Needs = r.Capture.Needs
+			result.Invalid = r.Capture.Invalid
+			result.Warnings = r.Capture.Warnings
+		}
+		result.NextAction = repairCommand(r.ID)
+		return result
+	}
+	result.Disposition = "published"
+	return result
+}
+
+func repairCommand(id string) []string {
+	return []string{"swarm-manager", "records", "edit", "--repair", "--id", id, "--trigger", "<trigger>", "--approach", "<approach>", "--outcome", "<outcome>"}
+}
+func firstNonBlank(a, b string) string {
+	if strings.TrimSpace(a) != "" {
+		return strings.TrimSpace(a)
+	}
+	return b
+}
+
 // Create writes a full (non-stub) record. Required: Kind, Scenario, Outcome,
 // and at least one of Trigger / Approach / RuledOut.
 func (s *Service) Create(ctx context.Context, in CreateInput) (Record, error) {

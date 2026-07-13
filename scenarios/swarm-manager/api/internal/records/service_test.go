@@ -133,3 +133,49 @@ func TestServiceCreateLinksSupersedes(t *testing.T) {
 		t.Errorf("expected one superseded event, got %d", len(events.superseded))
 	}
 }
+
+func TestCaptureDraftIsPrivateAndRepairPublishesSameID(t *testing.T) {
+	svc, _, events := newTestService(t)
+	draft, err := svc.Capture(context.Background(), CaptureInput{Kind: "feature", Scenario: "x", Trigger: "goal"})
+	if err != nil || draft.Disposition != "draft" || !draft.Record.Draft {
+		t.Fatalf("Capture draft = %+v, %v", draft, err)
+	}
+	if got, _ := svc.List(ListFilter{}); len(got) != 0 {
+		t.Fatalf("draft leaked into list: %+v", got)
+	}
+	if len(events.created) != 0 {
+		t.Fatalf("draft emitted publication event: %v", events.created)
+	}
+	published, err := svc.RepairCapture(context.Background(), draft.Record.ID, CaptureInput{Outcome: "done"})
+	if err != nil || published.Disposition != "published" {
+		t.Fatalf("RepairCapture = %+v, %v", published, err)
+	}
+	if published.Record.ID != draft.Record.ID || published.Record.Kind != KindExecute || published.Record.Outcome != OutcomeShipped {
+		t.Fatalf("repair did not preserve ID/canonical enums: %+v", published.Record)
+	}
+	if got, _ := svc.List(ListFilter{}); len(got) != 1 || got[0].Draft {
+		t.Fatalf("published record unavailable: %+v", got)
+	}
+	if len(events.created) != 1 {
+		t.Fatalf("want one publication event, got %v", events.created)
+	}
+}
+
+func TestCaptureRetryReturnsExistingPublishedRecord(t *testing.T) {
+	svc, _, events := newTestService(t)
+	in := CaptureInput{Kind: "fix", Scenario: "x", Trigger: "goal", Outcome: "shipped", IdempotencyKey: "capture-1"}
+	first, err := svc.Capture(context.Background(), in)
+	if err != nil || first.Disposition != "published" {
+		t.Fatalf("first Capture = %+v, %v", first, err)
+	}
+	second, err := svc.Capture(context.Background(), in)
+	if err != nil || second.Record.ID != first.Record.ID || second.Disposition != "published" {
+		t.Fatalf("retry Capture = %+v, %v", second, err)
+	}
+	if got, _ := svc.List(ListFilter{}); len(got) != 1 {
+		t.Fatalf("retry created %d records, want one", len(got))
+	}
+	if len(events.created) != 1 {
+		t.Fatalf("retry emitted %d publication events, want one", len(events.created))
+	}
+}

@@ -26,7 +26,6 @@ import { SidebarTabs } from "./SidebarTabs";
 import { SearchModeToggle } from "./SearchModeToggle";
 import { AISearchResults } from "./AISearchResults";
 import { FilterBar } from "./FilterBar";
-import { ActivityTab } from "./ActivityTab";
 import { BacklogTab } from "./BacklogTab";
 import { CapturesTab } from "./CapturesTab";
 import { InitiativesTab } from "./InitiativesTab";
@@ -34,11 +33,9 @@ import { GoalsTab } from "./GoalsTab";
 import { OperatingModesTab } from "./OperatingModesTab";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { SessionsTab } from "./SessionsTab";
-import type { FeedItem } from "../../../../lib/feed";
 import { useSidebarSelection } from "./useSidebarSelection";
 
 interface SidebarProps {
-  feed: FeedItem[];
   onItemClick: (nodeId: string) => void;
   onSettingsOpen: () => void;
   onGoHome: () => void;
@@ -53,7 +50,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  feed,
   onItemClick,
   onSettingsOpen,
   onGoHome,
@@ -152,7 +148,6 @@ export function Sidebar({
           onCollapse={toggleSidebar}
           onGoHome={onGoHome}
           onOpenCommandPost={onOpenCommandPost}
-          hideOpsTriggerOnDesktop
         />
 
         {/* Search */}
@@ -271,14 +266,6 @@ export function Sidebar({
             <AISearchResults query={debouncedSearch} onItemClick={onItemClick} />
           ) : (
             <>
-              {activeTab === "activity" && (
-                <ActivityTab
-                  feed={feed}
-                  searchQuery={debouncedSearch}
-                  onItemClick={onItemClick}
-                  onClearSearch={clearSearch}
-                />
-              )}
               {activeTab === "backlog" && (
                 <BacklogTab
                   searchQuery={debouncedSearch}

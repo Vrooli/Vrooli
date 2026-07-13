@@ -19,6 +19,11 @@ interface CompactTabBarProps<TValue extends string> {
   className?: string;
   tabTestIdPrefix?: string;
   "data-testid"?: string;
+  /**
+   * Collapse tabs to icon-only below the `sm` breakpoint. Only applies to
+   * items that have an icon — a label with no icon always stays visible.
+   */
+  hideLabelsOnMobile?: boolean;
 }
 
 export function CompactTabBar<TValue extends string>({
@@ -29,6 +34,7 @@ export function CompactTabBar<TValue extends string>({
   className,
   tabTestIdPrefix,
   "data-testid": testId,
+  hideLabelsOnMobile = false,
 }: CompactTabBarProps<TValue>) {
   return (
     <Tabs value={activeValue} onValueChange={(value) => onValueChange(value as TValue)} data-testid={testId}>
@@ -48,7 +54,8 @@ export function CompactTabBar<TValue extends string>({
           >
             <span className="inline-flex items-center gap-1.5">
               {Icon ? <Icon aria-hidden="true" className="h-3.5 w-3.5" /> : null}
-              <span>{item.label}</span>
+              {/* sr-only (not hidden) below sm so screen readers keep the tab name */}
+              <span className={cn(hideLabelsOnMobile && Icon && "sr-only sm:not-sr-only")}>{item.label}</span>
             </span>
             {typeof item.count === "number" && (
               <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-800 px-1 text-[10px] font-semibold text-slate-300">

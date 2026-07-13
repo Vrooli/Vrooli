@@ -54,11 +54,6 @@ export const literalSelectors = {
     desktopTabs: "desktop-tabs",
     mobileNav: "mobile-nav",
     agentsToggle: "layout-agents-toggle",
-    // Always-shown bot icon + "N agents" pill that navigates to
-    // /operations. Two visual variants (compact, hud) share the same
-    // selector so workflow tooling can assert "the trigger is on screen"
-    // regardless of layout context.
-    opsTriggerButton: "layout-ops-trigger-button",
   },
   // Error state selectors (shared across pages)
   error: {
@@ -692,8 +687,8 @@ export const literalSelectors = {
   },
   // Live-activity primitives shared with the Plan board's Now column
   // (ActivityRow, LaneBar, OpsBulkActions). The standalone Operations
-  // Center page is retired; the agents chip lives under
-  // `layout.opsTriggerButton` and targets /plan.
+  // Center page is retired; running-agent visibility lives on the Plan
+  // lens tab badge (`lens-plan-badge`) and the sidebar home badge.
   operationsCenter: {
     laneBar: "operations-center-lane-bar",
     activityRow: "operations-center-activity-row",

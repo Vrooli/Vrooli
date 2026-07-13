@@ -37,7 +37,7 @@ export interface SidebarState {
   sorts: Record<SidebarTab, SortConfig>;
 }
 
-export function createInitialState(tab: SidebarTab = "activity"): SidebarState {
+export function createInitialState(tab: SidebarTab = "backlog"): SidebarState {
   return {
     activeTab: tab,
     searchQuery: "",
@@ -88,7 +88,6 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
       searchQuery: typeof parsed.searchQuery === "string" ? parsed.searchQuery : fallback.searchQuery,
       searchMode: isSearchMode(parsed.searchMode) ? parsed.searchMode : fallback.searchMode,
       filters: {
-        activity: {},
         backlog: {
           statuses: restoreArray(filters.backlog?.statuses),
           kinds: restoreArray(filters.backlog?.kinds),
@@ -118,7 +117,6 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
         },
       },
       sorts: {
-        activity: restoreSort(sorts.activity, DEFAULT_SORT.activity),
         backlog: restoreSort(sorts.backlog, DEFAULT_SORT.backlog),
         captures: restoreSort(sorts.captures, DEFAULT_SORT.captures),
         initiatives: restoreSort(sorts.initiatives, DEFAULT_SORT.initiatives),

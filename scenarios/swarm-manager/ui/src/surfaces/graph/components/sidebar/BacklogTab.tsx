@@ -33,7 +33,7 @@ import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemA
 import type { StableItemCallbacks } from "../../../../hooks/useCommandPostItemActions";
 import type { BacklogItem, ItemBlockingInfo, PendingQuestion } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
-import type { AttentionReason } from "../../../../lib/feed";
+import type { AttentionReason } from "../../../../lib/attention";
 import type { ReadinessIndicatorData } from "../../../../lib/maturity";
 import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
 import { backlogDetailPath } from "../../../../app/routes/route-paths";

@@ -17,7 +17,7 @@ import { BACKLOG_KIND_ICONS, BACKLOG_STATUS_COLORS, formatBacklogStatus } from "
 import type { BacklogItem, BacklogStatus, PendingQuestion } from "../../types";
 import { StatusChipPopover } from "./status-chip-popover";
 import type { ItemActions } from "../../lib/backlog-queue-utils";
-import type { AttentionReason } from "../../lib/feed";
+import type { AttentionReason } from "../../lib/attention";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
 import type { StepperCompletionResult } from "./inline-question-stepper";
 import { InlineQuestionStepper } from "./inline-question-stepper";

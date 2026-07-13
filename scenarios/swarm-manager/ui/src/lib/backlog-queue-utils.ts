@@ -16,8 +16,8 @@ import type {
   BacklogStatus,
   ItemBlockingInfo,
 } from "../types";
-import type { AttentionReason, FeedbackItem, MaturityItem } from "./feed";
-import { getAttentionReasons } from "./feed";
+import type { AttentionReason, FeedbackItem, MaturityItem } from "./attention";
+import { getAttentionReasons } from "./attention";
 
 // ---------------------------------------------------------------------------
 // Status constants

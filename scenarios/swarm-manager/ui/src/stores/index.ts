@@ -19,6 +19,5 @@ export {
   agentSessionStoreInitialState,
 } from "./agent-session-store";
 export { useInitiativeStore, initiativeStoreInitialState } from "./initiative-store";
-export { useRecentlyViewedStore, type RecentlyViewedItem } from "./recently-viewed-store";
 export { useBacklogDetailUIStore } from "./backlog-detail-ui-store";
 export type { LoadStatus } from "./store-utils";
