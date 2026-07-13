@@ -709,6 +709,14 @@ message CreateRunRequest {
   optional string conversation_id = 12;
   // @format uuid
   optional string parent_run_id = 13;
+
+  // Substrate to drive the agent CLI (codec-pipe vs interactive web-console
+  // session). Omitted defaults to codec-pipe. Interactive mode is rejected for
+  // protected (sandboxed) runs at run-validation time with a clear error.
+  optional ExecutionMode execution_mode = 14 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // DeleteRunRequest identifies a run to delete.

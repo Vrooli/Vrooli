@@ -114,6 +114,14 @@ message AddBugRequest {
   string source_command = 7;
   string idempotency_key = 8;
   string run_id = 9;
+  string signal_type = 10;
+  string report_severity = 11;
+  repeated string repro = 12;
+  string expected = 13;
+  string actual = 14;
+  string description = 15;
+  map<string, string> context = 16;
+  repeated string honesty_flags = 17;
 }
 
 // AddRecordRequest captures a reusable record (forwarded downstream).
@@ -126,6 +134,13 @@ message AddRecordRequest {
   string source_command = 6;
   string idempotency_key = 7;
   string run_id = 8;
+  string kind = 9;
+  string scenario = 10;
+  string trigger = 11;
+  string approach = 12;
+  string record_evidence = 13;
+  string outcome = 14;
+  string created_by = 15;
 }
 
 // AddNoteRequest records a lightweight note.

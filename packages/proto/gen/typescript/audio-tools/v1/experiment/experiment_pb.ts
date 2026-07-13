@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file audio-tools/v1/experiment/experiment.proto.
  */
 export const file_audio_tools_v1_experiment_experiment: GenFile = /*@__PURE__*/
-  fileDesc("CiphdWRpby10b29scy92MS9leHBlcmltZW50L2V4cGVyaW1lbnQucHJvdG8SIHZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50Io8GChBFeHBlcmltZW50UmVjaXBlEhAKCGNsaXBfaWRzGAEgAygJEjwKCnN0cmF0ZWdpZXMYAiADKAsyKC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5FdmFsU3RyYXRlZ3kSGAoQcmVhbHRpbWVfcmVwZWF0cxgDIAEoBRIQCghjaHVua19tcxgEIAEoBRIMCgRzZWVkGAUgASgDEkMKCWxvbmdfZm9ybRgGIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkxvbmdGb3JtUmVjaXBlEhkKEXJlYWxpemVkX2NsaXBfaWRzGAcgAygJEhoKEnJlYWxpemVkX3JlZmVyZW5jZRgIIAEoCRIcChRyZWFsaXplZF9kdXJhdGlvbl9tcxgJIAEoAxJKCgxhdWdtZW50YXRpb24YCiABKAsyNC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5BdWdtZW50YXRpb25SZWNpcGUSYQogcmVhbGl6ZWRfYXVnbWVudGF0aW9uX2NvbmRpdGlvbnMYCyADKAsyNy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5BdWdtZW50YXRpb25Db25kaXRpb24SSgoHc3BlYWtlchgMIAEoCzI5LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LlNwZWFrZXJFeHBlcmltZW50UmVjaXBlElcKG3JlYWxpemVkX3NwZWFrZXJfY29uZGl0aW9ucxgNIAMoCzIyLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LlNwZWFrZXJDb25kaXRpb24SJAocZHJvcHBlZF9zcGFuX3RocmVzaG9sZF93b3JkcxgOIAEoBRIcChRsYXRlbmN5X3RhaWxfc2Vjb25kcxgPIAEoBRI/CgVjZWxscxgQIAMoCzIwLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV2YWx1YXRpb25DZWxsIuABCg5FdmFsdWF0aW9uQ2VsbBIRCgllbmdpbmVfaWQYASABKAkSEAoIc3RyYXRlZ3kYAiABKAkSFgoOcG9saWN5X3Byb2ZpbGUYAyABKAkSQQoLcmVwbGF5X2xhbmUYBCABKA4yLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5SZXBsYXlMYW5lEhUKDWZhdWx0X3Byb2ZpbGUYBSABKAkSEgoKd2FybV9zdGFydBgGIAEoCBIUCgxyZXBlYXRfY291bnQYByABKAUSDQoFbGFiZWwYCCABKAkiiQEKDkxvbmdGb3JtUmVjaXBlEg8KB2VuYWJsZWQYASABKAgSHwoXdGFyZ2V0X2R1cmF0aW9uX3NlY29uZHMYAiABKAUSDgoGZ2FwX21zGAMgASgFEhQKDHRhZ19jb250YWlucxgEIAEoCRIfChdzd2VlcF9kdXJhdGlvbnNfc2Vjb25kcxgFIAMoBSJuChJBdWdtZW50YXRpb25SZWNpcGUSEwoLbm9pc2VfdHlwZXMYASADKAkSDgoGc25yX2RiGAIgAygBEhsKE2NvbXBldGluZ192b2ljZV9pZHMYAyADKAkSFgoOY29tcGV0aW5nX3RleHQYBCABKAkicAoVQXVnbWVudGF0aW9uQ29uZGl0aW9uEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSDgoGc291cmNlGAMgASgJEg4KBnNucl9kYhgEIAEoARIPCgdza2lwcGVkGAUgASgIEgwKBG5vdGUYBiABKAkihQIKF1NwZWFrZXJFeHBlcmltZW50UmVjaXBlEhkKEXRhcmdldF9wcm9maWxlX2lkGAEgASgJEhoKEmV4dHJhY3Rpb25fZW5hYmxlZBgCIAEoCBIcChR2ZXJpZmljYXRpb25fZW5hYmxlZBgDIAEoCBJBChF2ZXJpZmljYXRpb25fbW9kZRgEIAEoDjImLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlck1vZGUSEQoJdGhyZXNob2xkGAUgASgBEiUKHWZhbGxiYWNrX3dpdGhvdXRfdmVyaWZpY2F0aW9uGAYgASgIEhgKEGFibGF0aW9uX2VuYWJsZWQYByABKAgiugEKEFNwZWFrZXJDb25kaXRpb24SCgoCaWQYASABKAkSGgoSZXh0cmFjdGlvbl9lbmFibGVkGAIgASgIEhwKFHZlcmlmaWNhdGlvbl9lbmFibGVkGAMgASgIEkEKEXZlcmlmaWNhdGlvbl9tb2RlGAQgASgOMiYudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TcGVha2VyTW9kZRIPCgdza2lwcGVkGAUgASgIEgwKBG5vdGUYBiABKAki+AIKCkV4cGVyaW1lbnQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRJCCgZzdGF0dXMYAyABKA4yMi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50U3RhdHVzEkIKBnJlY2lwZRgEIAEoCzIyLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRSZWNpcGUSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWVycm9yGAggASgJEhIKCnJlc3VsdF9yZWYYCSABKAkSFAoMbWFjaGluZV9qc29uGAogASgJIqUCCg1FeHBlcmltZW50UnVuEgoKAmlkGAEgASgJEhUKDWV4cGVyaW1lbnRfaWQYAiABKAkSEAoIc3RyYXRlZ3kYAyABKAkSFgoOY29uZGl0aW9uX2pzb24YBCABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJZW5naW5lX2lkGAcgASgJEhYKDnBvbGljeV9wcm9maWxlGAggASgJEkEKC3JlcGxheV9sYW5lGAkgASgOMiwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuUmVwbGF5TGFuZRIVCg1mYXVsdF9wcm9maWxlGAogASgJSgQIBRAGUgxtZXRyaWNzX2pzb24itwEKD0V4cGVyaW1lbnRFdmVudBIVCg1leHBlcmltZW50X2lkGAEgASgJEkIKBnN0YXR1cxgCIAEoDjIyLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRTdGF0dXMSEAoIcHJvZ3Jlc3MYAyABKAUSDwoHbWVzc2FnZRgEIAEoCRImCgJhdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAilgEKFlN0YXJ0RXhwZXJpbWVudFJlcXVlc3QSDAoEbmFtZRgBIAEoCRJCCgZyZWNpcGUYAiABKAsyMi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50UmVjaXBlEhkKEWVzdGltYXRlZF9zZWNvbmRzGAMgASgFEg8KB2RyeV9ydW4YBCABKAgihwEKF1N0YXJ0RXhwZXJpbWVudFJlc3BvbnNlEkAKCmV4cGVyaW1lbnQYASABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50EhkKEWVzdGltYXRlZF9zZWNvbmRzGAIgASgFEg8KB2RyeV9ydW4YAyABKAgiIgoUR2V0RXhwZXJpbWVudFJlcXVlc3QSCgoCaWQYASABKAkimAEKFUdldEV4cGVyaW1lbnRSZXNwb25zZRJACgpleHBlcmltZW50GAEgASgLMiwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuRXhwZXJpbWVudBI9CgRydW5zGAIgAygLMi8udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuRXhwZXJpbWVudFJ1biIjChVXYWl0RXhwZXJpbWVudFJlcXVlc3QSCgoCaWQYASABKAkimQEKFldhaXRFeHBlcmltZW50UmVzcG9uc2USQAoKZXhwZXJpbWVudBgBIAEoCzIsLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnQSPQoEcnVucxgCIAMoCzIvLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRSdW4iewoWTGlzdEV4cGVyaW1lbnRzUmVxdWVzdBJCCgZzdGF0dXMYASABKA4yMi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50U3RhdHVzEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJcChdMaXN0RXhwZXJpbWVudHNSZXNwb25zZRJBCgtleHBlcmltZW50cxgBIAMoCzIsLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnQiJQoXQ2FuY2VsRXhwZXJpbWVudFJlcXVlc3QSCgoCaWQYASABKAkiXAoYQ2FuY2VsRXhwZXJpbWVudFJlc3BvbnNlEkAKCmV4cGVyaW1lbnQYASABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50IiUKF0RlbGV0ZUV4cGVyaW1lbnRSZXF1ZXN0EgoKAmlkGAEgASgJIj4KGERlbGV0ZUV4cGVyaW1lbnRSZXNwb25zZRIKCgJpZBgBIAEoCRIWCg5kZWxldGVkX3JlcG9ydBgCIAEoCCIrCh1TdHJlYW1FeHBlcmltZW50RXZlbnRzUmVxdWVzdBIKCgJpZBgBIAEoCSIoChpHZXRFeHBlcmltZW50UmVwb3J0UmVxdWVzdBIKCgJpZBgBIAEoCSLWAQobR2V0RXhwZXJpbWVudFJlcG9ydFJlc3BvbnNlEkAKCmV4cGVyaW1lbnQYASABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50EjYKBnJlcG9ydBgCIAEoCzImLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLkV2YWxSZXBvcnQSPQoEcnVucxgDIAMoCzIvLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRSdW4iKAoZQ29tcGFyZUV4cGVyaW1lbnRzUmVxdWVzdBILCgNpZHMYASADKAkizQEKEkNvbXBhcmVkRXhwZXJpbWVudBJACgpleHBlcmltZW50GAEgASgLMiwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuRXhwZXJpbWVudBI2CgZyZXBvcnQYAiABKAsyJi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5FdmFsUmVwb3J0Ej0KBHJ1bnMYAyADKAsyLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50UnVuImcKGkNvbXBhcmVFeHBlcmltZW50c1Jlc3BvbnNlEkkKC2V4cGVyaW1lbnRzGAEgAygLMjQudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuQ29tcGFyZWRFeHBlcmltZW50KtEBChBFeHBlcmltZW50U3RhdHVzEiEKHUVYUEVSSU1FTlRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYRVhQRVJJTUVOVF9TVEFUVVNfUVVFVUVEEAESHQoZRVhQRVJJTUVOVF9TVEFUVVNfUlVOTklORxACEh8KG0VYUEVSSU1FTlRfU1RBVFVTX1NVQ0NFRURFRBADEhwKGEVYUEVSSU1FTlRfU1RBVFVTX0ZBSUxFRBAEEh4KGkVYUEVSSU1FTlRfU1RBVFVTX0NBTkNFTEVEEAUqgAEKClJlcGxheUxhbmUSGwoXUkVQTEFZX0xBTkVfVU5TUEVDSUZJRUQQABIdChlSRVBMQVlfTEFORV9ERVRFUk1JTklTVElDEAESGAoUUkVQTEFZX0xBTkVfUkVBTFRJTUUQAhIcChhSRVBMQVlfTEFORV9QUk9EVUNUX1BBVEgQAzL+CQoRRXhwZXJpbWVudFNlcnZpY2UShgEKD1N0YXJ0RXhwZXJpbWVudBI4LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LlN0YXJ0RXhwZXJpbWVudFJlcXVlc3QaOS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5TdGFydEV4cGVyaW1lbnRSZXNwb25zZRKAAQoNR2V0RXhwZXJpbWVudBI2LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkdldEV4cGVyaW1lbnRSZXF1ZXN0GjcudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuR2V0RXhwZXJpbWVudFJlc3BvbnNlEoMBCg5XYWl0RXhwZXJpbWVudBI3LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LldhaXRFeHBlcmltZW50UmVxdWVzdBo4LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LldhaXRFeHBlcmltZW50UmVzcG9uc2UShgEKD0xpc3RFeHBlcmltZW50cxI4LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50Lkxpc3RFeHBlcmltZW50c1JlcXVlc3QaOS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5MaXN0RXhwZXJpbWVudHNSZXNwb25zZRKJAQoQQ2FuY2VsRXhwZXJpbWVudBI5LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkNhbmNlbEV4cGVyaW1lbnRSZXF1ZXN0GjoudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuQ2FuY2VsRXhwZXJpbWVudFJlc3BvbnNlEokBChBEZWxldGVFeHBlcmltZW50EjkudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuRGVsZXRlRXhwZXJpbWVudFJlcXVlc3QaOi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5EZWxldGVFeHBlcmltZW50UmVzcG9uc2USjgEKFlN0cmVhbUV4cGVyaW1lbnRFdmVudHMSPy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5TdHJlYW1FeHBlcmltZW50RXZlbnRzUmVxdWVzdBoxLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRFdmVudDABEpIBChNHZXRFeHBlcmltZW50UmVwb3J0EjwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuR2V0RXhwZXJpbWVudFJlcG9ydFJlcXVlc3QaPS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5HZXRFeHBlcmltZW50UmVwb3J0UmVzcG9uc2USjwEKEkNvbXBhcmVFeHBlcmltZW50cxI7LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkNvbXBhcmVFeHBlcmltZW50c1JlcXVlc3QaPC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5Db21wYXJlRXhwZXJpbWVudHNSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL2V4cGVyaW1lbnQ7ZXhwZXJpbWVudF92MWIGcHJvdG8z", [file_audio_tools_v1_eval_eval, file_audio_tools_v1_stt_stt, file_google_protobuf_timestamp]);
+  fileDesc("CiphdWRpby10b29scy92MS9leHBlcmltZW50L2V4cGVyaW1lbnQucHJvdG8SIHZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50Io8GChBFeHBlcmltZW50UmVjaXBlEhAKCGNsaXBfaWRzGAEgAygJEjwKCnN0cmF0ZWdpZXMYAiADKAsyKC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5FdmFsU3RyYXRlZ3kSGAoQcmVhbHRpbWVfcmVwZWF0cxgDIAEoBRIQCghjaHVua19tcxgEIAEoBRIMCgRzZWVkGAUgASgDEkMKCWxvbmdfZm9ybRgGIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkxvbmdGb3JtUmVjaXBlEhkKEXJlYWxpemVkX2NsaXBfaWRzGAcgAygJEhoKEnJlYWxpemVkX3JlZmVyZW5jZRgIIAEoCRIcChRyZWFsaXplZF9kdXJhdGlvbl9tcxgJIAEoAxJKCgxhdWdtZW50YXRpb24YCiABKAsyNC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5BdWdtZW50YXRpb25SZWNpcGUSYQogcmVhbGl6ZWRfYXVnbWVudGF0aW9uX2NvbmRpdGlvbnMYCyADKAsyNy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5BdWdtZW50YXRpb25Db25kaXRpb24SSgoHc3BlYWtlchgMIAEoCzI5LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LlNwZWFrZXJFeHBlcmltZW50UmVjaXBlElcKG3JlYWxpemVkX3NwZWFrZXJfY29uZGl0aW9ucxgNIAMoCzIyLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LlNwZWFrZXJDb25kaXRpb24SJAocZHJvcHBlZF9zcGFuX3RocmVzaG9sZF93b3JkcxgOIAEoBRIcChRsYXRlbmN5X3RhaWxfc2Vjb25kcxgPIAEoBRI/CgVjZWxscxgQIAMoCzIwLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV2YWx1YXRpb25DZWxsIuABCg5FdmFsdWF0aW9uQ2VsbBIRCgllbmdpbmVfaWQYASABKAkSEAoIc3RyYXRlZ3kYAiABKAkSFgoOcG9saWN5X3Byb2ZpbGUYAyABKAkSQQoLcmVwbGF5X2xhbmUYBCABKA4yLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5SZXBsYXlMYW5lEhUKDWZhdWx0X3Byb2ZpbGUYBSABKAkSEgoKd2FybV9zdGFydBgGIAEoCBIUCgxyZXBlYXRfY291bnQYByABKAUSDQoFbGFiZWwYCCABKAkiiQEKDkxvbmdGb3JtUmVjaXBlEg8KB2VuYWJsZWQYASABKAgSHwoXdGFyZ2V0X2R1cmF0aW9uX3NlY29uZHMYAiABKAUSDgoGZ2FwX21zGAMgASgFEhQKDHRhZ19jb250YWlucxgEIAEoCRIfChdzd2VlcF9kdXJhdGlvbnNfc2Vjb25kcxgFIAMoBSJuChJBdWdtZW50YXRpb25SZWNpcGUSEwoLbm9pc2VfdHlwZXMYASADKAkSDgoGc25yX2RiGAIgAygBEhsKE2NvbXBldGluZ192b2ljZV9pZHMYAyADKAkSFgoOY29tcGV0aW5nX3RleHQYBCABKAkicAoVQXVnbWVudGF0aW9uQ29uZGl0aW9uEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSDgoGc291cmNlGAMgASgJEg4KBnNucl9kYhgEIAEoARIPCgdza2lwcGVkGAUgASgIEgwKBG5vdGUYBiABKAkihQIKF1NwZWFrZXJFeHBlcmltZW50UmVjaXBlEhkKEXRhcmdldF9wcm9maWxlX2lkGAEgASgJEhoKEmV4dHJhY3Rpb25fZW5hYmxlZBgCIAEoCBIcChR2ZXJpZmljYXRpb25fZW5hYmxlZBgDIAEoCBJBChF2ZXJpZmljYXRpb25fbW9kZRgEIAEoDjImLnZyb29saS5hdWRpb190b29scy52MS5zdHQuU3BlYWtlck1vZGUSEQoJdGhyZXNob2xkGAUgASgBEiUKHWZhbGxiYWNrX3dpdGhvdXRfdmVyaWZpY2F0aW9uGAYgASgIEhgKEGFibGF0aW9uX2VuYWJsZWQYByABKAgiugEKEFNwZWFrZXJDb25kaXRpb24SCgoCaWQYASABKAkSGgoSZXh0cmFjdGlvbl9lbmFibGVkGAIgASgIEhwKFHZlcmlmaWNhdGlvbl9lbmFibGVkGAMgASgIEkEKEXZlcmlmaWNhdGlvbl9tb2RlGAQgASgOMiYudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN0dC5TcGVha2VyTW9kZRIPCgdza2lwcGVkGAUgASgIEgwKBG5vdGUYBiABKAki+AIKCkV4cGVyaW1lbnQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRJCCgZzdGF0dXMYAyABKA4yMi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50U3RhdHVzEkIKBnJlY2lwZRgEIAEoCzIyLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRSZWNpcGUSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWVycm9yGAggASgJEhIKCnJlc3VsdF9yZWYYCSABKAkSFAoMbWFjaGluZV9qc29uGAogASgJIqUCCg1FeHBlcmltZW50UnVuEgoKAmlkGAEgASgJEhUKDWV4cGVyaW1lbnRfaWQYAiABKAkSEAoIc3RyYXRlZ3kYAyABKAkSFgoOY29uZGl0aW9uX2pzb24YBCABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJZW5naW5lX2lkGAcgASgJEhYKDnBvbGljeV9wcm9maWxlGAggASgJEkEKC3JlcGxheV9sYW5lGAkgASgOMiwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuUmVwbGF5TGFuZRIVCg1mYXVsdF9wcm9maWxlGAogASgJSgQIBRAGUgxtZXRyaWNzX2pzb24itwEKD0V4cGVyaW1lbnRFdmVudBIVCg1leHBlcmltZW50X2lkGAEgASgJEkIKBnN0YXR1cxgCIAEoDjIyLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRTdGF0dXMSEAoIcHJvZ3Jlc3MYAyABKAUSDwoHbWVzc2FnZRgEIAEoCRImCgJhdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAi0AIKFVF1YWxpZmljYXRpb25FdmlkZW5jZRIKCgJpZBgBIAEoCRIRCgllbmdpbmVfaWQYAiABKAkSEAoIc3RyYXRlZ3kYAyABKAkSFgoOcG9saWN5X3Byb2ZpbGUYBCABKAkSSQoEa2luZBgFIAEoDjI7LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LlF1YWxpZmljYXRpb25FdmlkZW5jZUtpbmQSFQoNZmF1bHRfcHJvZmlsZRgGIAEoCRIOCgZwYXNzZWQYByABKAgSFAoMYXJ0aWZhY3RfcmVmGAggASgJEg0KBW5vdGVzGAkgASgJEhQKDG1hY2hpbmVfanNvbhgKIAEoCRIvCgtvYnNlcnZlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIbW9kZWxfaWQYDCABKAkilgEKFlN0YXJ0RXhwZXJpbWVudFJlcXVlc3QSDAoEbmFtZRgBIAEoCRJCCgZyZWNpcGUYAiABKAsyMi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50UmVjaXBlEhkKEWVzdGltYXRlZF9zZWNvbmRzGAMgASgFEg8KB2RyeV9ydW4YBCABKAgihwEKF1N0YXJ0RXhwZXJpbWVudFJlc3BvbnNlEkAKCmV4cGVyaW1lbnQYASABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50EhkKEWVzdGltYXRlZF9zZWNvbmRzGAIgASgFEg8KB2RyeV9ydW4YAyABKAgiIgoUR2V0RXhwZXJpbWVudFJlcXVlc3QSCgoCaWQYASABKAkimAEKFUdldEV4cGVyaW1lbnRSZXNwb25zZRJACgpleHBlcmltZW50GAEgASgLMiwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuRXhwZXJpbWVudBI9CgRydW5zGAIgAygLMi8udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuRXhwZXJpbWVudFJ1biIjChVXYWl0RXhwZXJpbWVudFJlcXVlc3QSCgoCaWQYASABKAkimQEKFldhaXRFeHBlcmltZW50UmVzcG9uc2USQAoKZXhwZXJpbWVudBgBIAEoCzIsLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnQSPQoEcnVucxgCIAMoCzIvLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRSdW4iewoWTGlzdEV4cGVyaW1lbnRzUmVxdWVzdBJCCgZzdGF0dXMYASABKA4yMi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50U3RhdHVzEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJcChdMaXN0RXhwZXJpbWVudHNSZXNwb25zZRJBCgtleHBlcmltZW50cxgBIAMoCzIsLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnQiJQoXQ2FuY2VsRXhwZXJpbWVudFJlcXVlc3QSCgoCaWQYASABKAkiXAoYQ2FuY2VsRXhwZXJpbWVudFJlc3BvbnNlEkAKCmV4cGVyaW1lbnQYASABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50IiUKF0RlbGV0ZUV4cGVyaW1lbnRSZXF1ZXN0EgoKAmlkGAEgASgJIj4KGERlbGV0ZUV4cGVyaW1lbnRSZXNwb25zZRIKCgJpZBgBIAEoCRIWCg5kZWxldGVkX3JlcG9ydBgCIAEoCCIrCh1TdHJlYW1FeHBlcmltZW50RXZlbnRzUmVxdWVzdBIKCgJpZBgBIAEoCSIoChpHZXRFeHBlcmltZW50UmVwb3J0UmVxdWVzdBIKCgJpZBgBIAEoCSLWAQobR2V0RXhwZXJpbWVudFJlcG9ydFJlc3BvbnNlEkAKCmV4cGVyaW1lbnQYASABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50EjYKBnJlcG9ydBgCIAEoCzImLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLkV2YWxSZXBvcnQSPQoEcnVucxgDIAMoCzIvLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRSdW4iKAoZQ29tcGFyZUV4cGVyaW1lbnRzUmVxdWVzdBILCgNpZHMYASADKAkizQEKEkNvbXBhcmVkRXhwZXJpbWVudBJACgpleHBlcmltZW50GAEgASgLMiwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuRXhwZXJpbWVudBI2CgZyZXBvcnQYAiABKAsyJi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5FdmFsUmVwb3J0Ej0KBHJ1bnMYAyADKAsyLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5FeHBlcmltZW50UnVuImcKGkNvbXBhcmVFeHBlcmltZW50c1Jlc3BvbnNlEkkKC2V4cGVyaW1lbnRzGAEgAygLMjQudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuQ29tcGFyZWRFeHBlcmltZW50Im8KIlJlY29yZFF1YWxpZmljYXRpb25FdmlkZW5jZVJlcXVlc3QSSQoIZXZpZGVuY2UYASABKAsyNy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5RdWFsaWZpY2F0aW9uRXZpZGVuY2UicAojUmVjb3JkUXVhbGlmaWNhdGlvbkV2aWRlbmNlUmVzcG9uc2USSQoIZXZpZGVuY2UYASABKAsyNy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5RdWFsaWZpY2F0aW9uRXZpZGVuY2UicQogTGlzdFF1YWxpZmljYXRpb25FdmlkZW5jZVJlcXVlc3QSEQoJZW5naW5lX2lkGAEgASgJEhAKCHN0cmF0ZWd5GAIgASgJEhYKDnBvbGljeV9wcm9maWxlGAMgASgJEhAKCG1vZGVsX2lkGAQgASgJIm4KIUxpc3RRdWFsaWZpY2F0aW9uRXZpZGVuY2VSZXNwb25zZRJJCghldmlkZW5jZRgBIAMoCzI3LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LlF1YWxpZmljYXRpb25FdmlkZW5jZSrRAQoQRXhwZXJpbWVudFN0YXR1cxIhCh1FWFBFUklNRU5UX1NUQVRVU19VTlNQRUNJRklFRBAAEhwKGEVYUEVSSU1FTlRfU1RBVFVTX1FVRVVFRBABEh0KGUVYUEVSSU1FTlRfU1RBVFVTX1JVTk5JTkcQAhIfChtFWFBFUklNRU5UX1NUQVRVU19TVUNDRUVERUQQAxIcChhFWFBFUklNRU5UX1NUQVRVU19GQUlMRUQQBBIeChpFWFBFUklNRU5UX1NUQVRVU19DQU5DRUxFRBAFKoABCgpSZXBsYXlMYW5lEhsKF1JFUExBWV9MQU5FX1VOU1BFQ0lGSUVEEAASHQoZUkVQTEFZX0xBTkVfREVURVJNSU5JU1RJQxABEhgKFFJFUExBWV9MQU5FX1JFQUxUSU1FEAISHAoYUkVQTEFZX0xBTkVfUFJPRFVDVF9QQVRIEAMqtAIKGVF1YWxpZmljYXRpb25FdmlkZW5jZUtpbmQSKwonUVVBTElGSUNBVElPTl9FVklERU5DRV9LSU5EX1VOU1BFQ0lGSUVEEAASMwovUVVBTElGSUNBVElPTl9FVklERU5DRV9LSU5EX0lOVEVSVkFMX0FDQ09VTlRJTkcQARIwCixRVUFMSUZJQ0FUSU9OX0VWSURFTkNFX0tJTkRfQk9VTkRFRF9SRUNPVkVSWRACEiUKIVFVQUxJRklDQVRJT05fRVZJREVOQ0VfS0lORF9GQVVMVBADEjQKMFFVQUxJRklDQVRJT05fRVZJREVOQ0VfS0lORF9CUk9XU0VSX1BST0RVQ1RfUEFUSBAEEiYKIlFVQUxJRklDQVRJT05fRVZJREVOQ0VfS0lORF9ERVZJQ0UQBTLSDAoRRXhwZXJpbWVudFNlcnZpY2UShgEKD1N0YXJ0RXhwZXJpbWVudBI4LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LlN0YXJ0RXhwZXJpbWVudFJlcXVlc3QaOS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5TdGFydEV4cGVyaW1lbnRSZXNwb25zZRKAAQoNR2V0RXhwZXJpbWVudBI2LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkdldEV4cGVyaW1lbnRSZXF1ZXN0GjcudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuR2V0RXhwZXJpbWVudFJlc3BvbnNlEoMBCg5XYWl0RXhwZXJpbWVudBI3LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LldhaXRFeHBlcmltZW50UmVxdWVzdBo4LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LldhaXRFeHBlcmltZW50UmVzcG9uc2UShgEKD0xpc3RFeHBlcmltZW50cxI4LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50Lkxpc3RFeHBlcmltZW50c1JlcXVlc3QaOS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5MaXN0RXhwZXJpbWVudHNSZXNwb25zZRKJAQoQQ2FuY2VsRXhwZXJpbWVudBI5LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkNhbmNlbEV4cGVyaW1lbnRSZXF1ZXN0GjoudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuQ2FuY2VsRXhwZXJpbWVudFJlc3BvbnNlEokBChBEZWxldGVFeHBlcmltZW50EjkudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuRGVsZXRlRXhwZXJpbWVudFJlcXVlc3QaOi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5EZWxldGVFeHBlcmltZW50UmVzcG9uc2USjgEKFlN0cmVhbUV4cGVyaW1lbnRFdmVudHMSPy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5TdHJlYW1FeHBlcmltZW50RXZlbnRzUmVxdWVzdBoxLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkV4cGVyaW1lbnRFdmVudDABEpIBChNHZXRFeHBlcmltZW50UmVwb3J0EjwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuR2V0RXhwZXJpbWVudFJlcG9ydFJlcXVlc3QaPS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5HZXRFeHBlcmltZW50UmVwb3J0UmVzcG9uc2USjwEKEkNvbXBhcmVFeHBlcmltZW50cxI7LnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LkNvbXBhcmVFeHBlcmltZW50c1JlcXVlc3QaPC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5Db21wYXJlRXhwZXJpbWVudHNSZXNwb25zZRKqAQobUmVjb3JkUXVhbGlmaWNhdGlvbkV2aWRlbmNlEkQudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuUmVjb3JkUXVhbGlmaWNhdGlvbkV2aWRlbmNlUmVxdWVzdBpFLnZyb29saS5hdWRpb190b29scy52MS5leHBlcmltZW50LlJlY29yZFF1YWxpZmljYXRpb25FdmlkZW5jZVJlc3BvbnNlEqQBChlMaXN0UXVhbGlmaWNhdGlvbkV2aWRlbmNlEkIudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV4cGVyaW1lbnQuTGlzdFF1YWxpZmljYXRpb25FdmlkZW5jZVJlcXVlc3QaQy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXhwZXJpbWVudC5MaXN0UXVhbGlmaWNhdGlvbkV2aWRlbmNlUmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9leHBlcmltZW50O2V4cGVyaW1lbnRfdjFiBnByb3RvMw", [file_audio_tools_v1_eval_eval, file_audio_tools_v1_stt_stt, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.ExperimentRecipe
@@ -536,6 +536,81 @@ export const ExperimentEventSchema: GenMessage<ExperimentEvent> = /*@__PURE__*/
   messageDesc(file_audio_tools_v1_experiment_experiment, 9);
 
 /**
+ * @generated from message vrooli.audio_tools.v1.experiment.QualificationEvidence
+ */
+export type QualificationEvidence = Message<"vrooli.audio_tools.v1.experiment.QualificationEvidence"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string engine_id = 2;
+   */
+  engineId: string;
+
+  /**
+   * @generated from field: string strategy = 3;
+   */
+  strategy: string;
+
+  /**
+   * @generated from field: string policy_profile = 4;
+   */
+  policyProfile: string;
+
+  /**
+   * @generated from field: vrooli.audio_tools.v1.experiment.QualificationEvidenceKind kind = 5;
+   */
+  kind: QualificationEvidenceKind;
+
+  /**
+   * @generated from field: string fault_profile = 6;
+   */
+  faultProfile: string;
+
+  /**
+   * @generated from field: bool passed = 7;
+   */
+  passed: boolean;
+
+  /**
+   * @generated from field: string artifact_ref = 8;
+   */
+  artifactRef: string;
+
+  /**
+   * @generated from field: string notes = 9;
+   */
+  notes: string;
+
+  /**
+   * @generated from field: string machine_json = 10;
+   */
+  machineJson: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 11;
+   */
+  observedAt?: Timestamp | undefined;
+
+  /**
+   * Exact engine model qualified by the artifact. Required for promotion so a
+   * same-host model upgrade cannot inherit evidence from the prior model.
+   *
+   * @generated from field: string model_id = 12;
+   */
+  modelId: string;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.experiment.QualificationEvidence.
+ * Use `create(QualificationEvidenceSchema)` to create a new message.
+ */
+export const QualificationEvidenceSchema: GenMessage<QualificationEvidence> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_experiment_experiment, 10);
+
+/**
  * @generated from message vrooli.audio_tools.v1.experiment.StartExperimentRequest
  */
 export type StartExperimentRequest = Message<"vrooli.audio_tools.v1.experiment.StartExperimentRequest"> & {
@@ -570,7 +645,7 @@ export type StartExperimentRequest = Message<"vrooli.audio_tools.v1.experiment.S
  * Use `create(StartExperimentRequestSchema)` to create a new message.
  */
 export const StartExperimentRequestSchema: GenMessage<StartExperimentRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 10);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 11);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.StartExperimentResponse
@@ -600,7 +675,7 @@ export type StartExperimentResponse = Message<"vrooli.audio_tools.v1.experiment.
  * Use `create(StartExperimentResponseSchema)` to create a new message.
  */
 export const StartExperimentResponseSchema: GenMessage<StartExperimentResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 11);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 12);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.GetExperimentRequest
@@ -617,7 +692,7 @@ export type GetExperimentRequest = Message<"vrooli.audio_tools.v1.experiment.Get
  * Use `create(GetExperimentRequestSchema)` to create a new message.
  */
 export const GetExperimentRequestSchema: GenMessage<GetExperimentRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 12);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 13);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.GetExperimentResponse
@@ -639,7 +714,7 @@ export type GetExperimentResponse = Message<"vrooli.audio_tools.v1.experiment.Ge
  * Use `create(GetExperimentResponseSchema)` to create a new message.
  */
 export const GetExperimentResponseSchema: GenMessage<GetExperimentResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 13);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 14);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.WaitExperimentRequest
@@ -656,7 +731,7 @@ export type WaitExperimentRequest = Message<"vrooli.audio_tools.v1.experiment.Wa
  * Use `create(WaitExperimentRequestSchema)` to create a new message.
  */
 export const WaitExperimentRequestSchema: GenMessage<WaitExperimentRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 14);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 15);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.WaitExperimentResponse
@@ -678,7 +753,7 @@ export type WaitExperimentResponse = Message<"vrooli.audio_tools.v1.experiment.W
  * Use `create(WaitExperimentResponseSchema)` to create a new message.
  */
 export const WaitExperimentResponseSchema: GenMessage<WaitExperimentResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 15);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 16);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.ListExperimentsRequest
@@ -705,7 +780,7 @@ export type ListExperimentsRequest = Message<"vrooli.audio_tools.v1.experiment.L
  * Use `create(ListExperimentsRequestSchema)` to create a new message.
  */
 export const ListExperimentsRequestSchema: GenMessage<ListExperimentsRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 16);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 17);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.ListExperimentsResponse
@@ -722,7 +797,7 @@ export type ListExperimentsResponse = Message<"vrooli.audio_tools.v1.experiment.
  * Use `create(ListExperimentsResponseSchema)` to create a new message.
  */
 export const ListExperimentsResponseSchema: GenMessage<ListExperimentsResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 17);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 18);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.CancelExperimentRequest
@@ -739,7 +814,7 @@ export type CancelExperimentRequest = Message<"vrooli.audio_tools.v1.experiment.
  * Use `create(CancelExperimentRequestSchema)` to create a new message.
  */
 export const CancelExperimentRequestSchema: GenMessage<CancelExperimentRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 18);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 19);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.CancelExperimentResponse
@@ -756,7 +831,7 @@ export type CancelExperimentResponse = Message<"vrooli.audio_tools.v1.experiment
  * Use `create(CancelExperimentResponseSchema)` to create a new message.
  */
 export const CancelExperimentResponseSchema: GenMessage<CancelExperimentResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 19);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 20);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.DeleteExperimentRequest
@@ -773,7 +848,7 @@ export type DeleteExperimentRequest = Message<"vrooli.audio_tools.v1.experiment.
  * Use `create(DeleteExperimentRequestSchema)` to create a new message.
  */
 export const DeleteExperimentRequestSchema: GenMessage<DeleteExperimentRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 20);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 21);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.DeleteExperimentResponse
@@ -795,7 +870,7 @@ export type DeleteExperimentResponse = Message<"vrooli.audio_tools.v1.experiment
  * Use `create(DeleteExperimentResponseSchema)` to create a new message.
  */
 export const DeleteExperimentResponseSchema: GenMessage<DeleteExperimentResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 21);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 22);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.StreamExperimentEventsRequest
@@ -812,7 +887,7 @@ export type StreamExperimentEventsRequest = Message<"vrooli.audio_tools.v1.exper
  * Use `create(StreamExperimentEventsRequestSchema)` to create a new message.
  */
 export const StreamExperimentEventsRequestSchema: GenMessage<StreamExperimentEventsRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 22);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 23);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.GetExperimentReportRequest
@@ -829,7 +904,7 @@ export type GetExperimentReportRequest = Message<"vrooli.audio_tools.v1.experime
  * Use `create(GetExperimentReportRequestSchema)` to create a new message.
  */
 export const GetExperimentReportRequestSchema: GenMessage<GetExperimentReportRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 23);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 24);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.GetExperimentReportResponse
@@ -856,7 +931,7 @@ export type GetExperimentReportResponse = Message<"vrooli.audio_tools.v1.experim
  * Use `create(GetExperimentReportResponseSchema)` to create a new message.
  */
 export const GetExperimentReportResponseSchema: GenMessage<GetExperimentReportResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 24);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 25);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.CompareExperimentsRequest
@@ -873,7 +948,7 @@ export type CompareExperimentsRequest = Message<"vrooli.audio_tools.v1.experimen
  * Use `create(CompareExperimentsRequestSchema)` to create a new message.
  */
 export const CompareExperimentsRequestSchema: GenMessage<CompareExperimentsRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 25);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 26);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.ComparedExperiment
@@ -900,7 +975,7 @@ export type ComparedExperiment = Message<"vrooli.audio_tools.v1.experiment.Compa
  * Use `create(ComparedExperimentSchema)` to create a new message.
  */
 export const ComparedExperimentSchema: GenMessage<ComparedExperiment> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 26);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 27);
 
 /**
  * @generated from message vrooli.audio_tools.v1.experiment.CompareExperimentsResponse
@@ -917,7 +992,90 @@ export type CompareExperimentsResponse = Message<"vrooli.audio_tools.v1.experime
  * Use `create(CompareExperimentsResponseSchema)` to create a new message.
  */
 export const CompareExperimentsResponseSchema: GenMessage<CompareExperimentsResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_experiment_experiment, 27);
+  messageDesc(file_audio_tools_v1_experiment_experiment, 28);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.experiment.RecordQualificationEvidenceRequest
+ */
+export type RecordQualificationEvidenceRequest = Message<"vrooli.audio_tools.v1.experiment.RecordQualificationEvidenceRequest"> & {
+  /**
+   * @generated from field: vrooli.audio_tools.v1.experiment.QualificationEvidence evidence = 1;
+   */
+  evidence?: QualificationEvidence | undefined;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.experiment.RecordQualificationEvidenceRequest.
+ * Use `create(RecordQualificationEvidenceRequestSchema)` to create a new message.
+ */
+export const RecordQualificationEvidenceRequestSchema: GenMessage<RecordQualificationEvidenceRequest> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_experiment_experiment, 29);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.experiment.RecordQualificationEvidenceResponse
+ */
+export type RecordQualificationEvidenceResponse = Message<"vrooli.audio_tools.v1.experiment.RecordQualificationEvidenceResponse"> & {
+  /**
+   * @generated from field: vrooli.audio_tools.v1.experiment.QualificationEvidence evidence = 1;
+   */
+  evidence?: QualificationEvidence | undefined;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.experiment.RecordQualificationEvidenceResponse.
+ * Use `create(RecordQualificationEvidenceResponseSchema)` to create a new message.
+ */
+export const RecordQualificationEvidenceResponseSchema: GenMessage<RecordQualificationEvidenceResponse> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_experiment_experiment, 30);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.experiment.ListQualificationEvidenceRequest
+ */
+export type ListQualificationEvidenceRequest = Message<"vrooli.audio_tools.v1.experiment.ListQualificationEvidenceRequest"> & {
+  /**
+   * @generated from field: string engine_id = 1;
+   */
+  engineId: string;
+
+  /**
+   * @generated from field: string strategy = 2;
+   */
+  strategy: string;
+
+  /**
+   * @generated from field: string policy_profile = 3;
+   */
+  policyProfile: string;
+
+  /**
+   * @generated from field: string model_id = 4;
+   */
+  modelId: string;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.experiment.ListQualificationEvidenceRequest.
+ * Use `create(ListQualificationEvidenceRequestSchema)` to create a new message.
+ */
+export const ListQualificationEvidenceRequestSchema: GenMessage<ListQualificationEvidenceRequest> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_experiment_experiment, 31);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.experiment.ListQualificationEvidenceResponse
+ */
+export type ListQualificationEvidenceResponse = Message<"vrooli.audio_tools.v1.experiment.ListQualificationEvidenceResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.audio_tools.v1.experiment.QualificationEvidence evidence = 1;
+   */
+  evidence: QualificationEvidence[];
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.experiment.ListQualificationEvidenceResponse.
+ * Use `create(ListQualificationEvidenceResponseSchema)` to create a new message.
+ */
+export const ListQualificationEvidenceResponseSchema: GenMessage<ListQualificationEvidenceResponse> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_experiment_experiment, 32);
 
 /**
  * @generated from enum vrooli.audio_tools.v1.experiment.ExperimentStatus
@@ -990,6 +1148,53 @@ export enum ReplayLane {
  */
 export const ReplayLaneSchema: GenEnum<ReplayLane> = /*@__PURE__*/
   enumDesc(file_audio_tools_v1_experiment_experiment, 1);
+
+/**
+ * QualificationEvidence is the metadata-only, provider-cell-scoped proof for
+ * gates that cannot be inferred from an eval replay: faults, recovery,
+ * browser product paths, and physical-device validation. artifact_ref names a
+ * durable BAS execution, report, or manually attested artifact; it never
+ * contains transcript or audio payload.
+ *
+ * @generated from enum vrooli.audio_tools.v1.experiment.QualificationEvidenceKind
+ */
+export enum QualificationEvidenceKind {
+  /**
+   * @generated from enum value: QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: QUALIFICATION_EVIDENCE_KIND_INTERVAL_ACCOUNTING = 1;
+   */
+  INTERVAL_ACCOUNTING = 1,
+
+  /**
+   * @generated from enum value: QUALIFICATION_EVIDENCE_KIND_BOUNDED_RECOVERY = 2;
+   */
+  BOUNDED_RECOVERY = 2,
+
+  /**
+   * @generated from enum value: QUALIFICATION_EVIDENCE_KIND_FAULT = 3;
+   */
+  FAULT = 3,
+
+  /**
+   * @generated from enum value: QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH = 4;
+   */
+  BROWSER_PRODUCT_PATH = 4,
+
+  /**
+   * @generated from enum value: QUALIFICATION_EVIDENCE_KIND_DEVICE = 5;
+   */
+  DEVICE = 5,
+}
+
+/**
+ * Describes the enum vrooli.audio_tools.v1.experiment.QualificationEvidenceKind.
+ */
+export const QualificationEvidenceKindSchema: GenEnum<QualificationEvidenceKind> = /*@__PURE__*/
+  enumDesc(file_audio_tools_v1_experiment_experiment, 2);
 
 /**
  * @generated from service vrooli.audio_tools.v1.experiment.ExperimentService
@@ -1066,6 +1271,22 @@ export const ExperimentService: GenService<{
     methodKind: "unary";
     input: typeof CompareExperimentsRequestSchema;
     output: typeof CompareExperimentsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.audio_tools.v1.experiment.ExperimentService.RecordQualificationEvidence
+   */
+  recordQualificationEvidence: {
+    methodKind: "unary";
+    input: typeof RecordQualificationEvidenceRequestSchema;
+    output: typeof RecordQualificationEvidenceResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.audio_tools.v1.experiment.ExperimentService.ListQualificationEvidence
+   */
+  listQualificationEvidence: {
+    methodKind: "unary";
+    input: typeof ListQualificationEvidenceRequestSchema;
+    output: typeof ListQualificationEvidenceResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_audio_tools_v1_experiment_experiment, 0);

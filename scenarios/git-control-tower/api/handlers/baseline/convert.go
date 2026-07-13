@@ -61,6 +61,69 @@ func manifestToProto(m bl.BaselineManifest) *baselinesv1.BaselineManifest {
 	return out
 }
 
+func collectionToProto(collection bl.CollectionManifest) *baselinesv1.BaselineCollection {
+	coverage := collection.Coverage()
+	out := &baselinesv1.BaselineCollection{
+		Name:          collection.Name,
+		Branch:        collection.Branch,
+		CreatedAt:     rfc3339(collection.CreatedAt),
+		UpdatedAt:     rfc3339(collection.UpdatedAt),
+		SchemaVersion: int32(collection.SchemaVersion),
+		Coverage: &baselinesv1.CollectionCoverage{
+			Required: int32(coverage.Required), Ready: int32(coverage.Ready), Pending: int32(coverage.Pending),
+			Failed: int32(coverage.Failed), Skipped: int32(coverage.Skipped), Stale: int32(coverage.Stale), Complete: coverage.Complete(),
+		},
+	}
+	for _, member := range collection.Members {
+		out.Members = append(out.Members, &baselinesv1.CollectionMember{
+			Scenario: member.Scenario, BaselineName: member.BaselineName, Required: member.Required,
+			Status: string(member.Status), RunId: member.RunID, GitSha: member.GitSHA, Error: member.Error, UpdatedAt: rfc3339(member.UpdatedAt),
+		})
+	}
+	for _, name := range collection.PathSnapshots {
+		out.PathSnapshots = append(out.PathSnapshots, &baselinesv1.PathSnapshotReference{Name: name, Branch: collection.Branch})
+	}
+	return out
+}
+
+func pathEntryToProto(entry bl.PathEntry) *baselinesv1.PathEntry {
+	return &baselinesv1.PathEntry{
+		Path: entry.Path, Mode: uint32(entry.Mode), Type: entry.Type, Size: entry.Size,
+		Digest: entry.Digest, State: string(entry.State), Detail: entry.Detail,
+	}
+}
+
+func pathSnapshotToProto(snapshot bl.PathSnapshot) *baselinesv1.PathSnapshot {
+	out := &baselinesv1.PathSnapshot{
+		Name: snapshot.Name, Branch: snapshot.Branch, CreatedAt: rfc3339(snapshot.CreatedAt),
+		ExpiresAt:     rfc3339(snapshot.ExpiresAt),
+		SchemaVersion: int32(snapshot.SchemaVersion), Selections: append([]string(nil), snapshot.Selections...),
+		Classification: "informational-source-evidence",
+	}
+	for _, entry := range snapshot.Entries {
+		out.Entries = append(out.Entries, pathEntryToProto(entry))
+	}
+	return out
+}
+
+func sourceDeltaToProto(delta bl.SourceDelta) *baselinesv1.SourceDelta {
+	out := &baselinesv1.SourceDelta{Path: delta.Path, Status: delta.Status}
+	if delta.Before != nil {
+		out.Before = pathEntryToProto(*delta.Before)
+	}
+	if delta.After != nil {
+		out.After = pathEntryToProto(*delta.After)
+	}
+	return out
+}
+
+func collectionDiffMemberToProto(member bl.CollectionDiffMember) *baselinesv1.CollectionDiffMember {
+	return &baselinesv1.CollectionDiffMember{
+		Scenario: member.Scenario, Required: member.Required, Status: member.Status,
+		RunId: member.RunID, Verdict: string(member.Verdict), Detail: member.Detail,
+	}
+}
+
 // diffResultToProto renders a computed diff into the wire DiffResult message.
 func diffResultToProto(res bl.DiffResult) *baselinesv1.DiffResult {
 	out := &baselinesv1.DiffResult{

@@ -449,3 +449,33 @@ class CreateFromTemplateResponse(_message.Message):
     PLAN_FIELD_NUMBER: _ClassVar[int]
     plan: _model_pb2.Plan
     def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+
+class ListAuditFactsRequest(_message.Message):
+    __slots__ = ("run_id",)
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class PlanAuditFact(_message.Message):
+    __slots__ = ("event_id", "run_id", "task_id", "action", "plan_id", "content_digest", "occurred_at")
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
+    event_id: str
+    run_id: str
+    task_id: str
+    action: str
+    plan_id: str
+    content_digest: str
+    occurred_at: str
+    def __init__(self, event_id: _Optional[str] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., action: _Optional[str] = ..., plan_id: _Optional[str] = ..., content_digest: _Optional[str] = ..., occurred_at: _Optional[str] = ...) -> None: ...
+
+class ListAuditFactsResponse(_message.Message):
+    __slots__ = ("facts",)
+    FACTS_FIELD_NUMBER: _ClassVar[int]
+    facts: _containers.RepeatedCompositeFieldContainer[PlanAuditFact]
+    def __init__(self, facts: _Optional[_Iterable[_Union[PlanAuditFact, _Mapping]]] = ...) -> None: ...

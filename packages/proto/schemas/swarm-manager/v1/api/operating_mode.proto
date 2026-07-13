@@ -712,6 +712,25 @@ message OperatingModeExecutionSnapshot {
   // caller values remain server-side and are not copied onto public surfaces.
   google.protobuf.Struct compiled_input_contract = 16;
   google.protobuf.Struct input_retention_metadata = 17;
+  // Canonical owner-linked evidence. Producer facts remain authoritative at
+  // their source; this is the execution's verification projection.
+  repeated OperatingModeEvidenceRecord evidence = 18;
+}
+
+message OperatingModeEvidenceRecord {
+  string source_system = 1;
+  string source_event_id = 2;
+  string run_id = 3;
+  string subject_kind = 4;
+  string subject_id = 5;
+  string action = 6;
+  string confidence = 7;
+  string verification = 8;
+  string content_digest = 9;
+  map<string, string> metadata = 10;
+  string observed_at = 11;
+  string linked_at = 12;
+  int32 round = 13;
 }
 
 // OperatingModeWorkspace is the initiative-scoped mode workspace projection.
@@ -822,13 +841,23 @@ message OperatingModePhaseResult {
   OperatingModeBacklogSyncPlan backlog_sync = 8;
 }
 
-// OperatingModeSimulationInputs is the fixture context a simulated phase saw.
+// OperatingModeSimulationTarget is the declared target fixture a simulated
+// phase saw. Context holds target-kind-specific data without making every
+// target look like an initiative.
+message OperatingModeSimulationTarget {
+  string kind = 1;
+  string id = 2;
+  string title = 3;
+  string description = 4;
+  google.protobuf.Struct context = 5;
+}
+
+// OperatingModeSimulationInputs is the target-neutral fixture context a
+// simulated phase saw.
 message OperatingModeSimulationInputs {
-  OperatingModeInitiativeSnapshot initiative = 1;
-  repeated OperatingModeRoundItem items = 2;
-  repeated OperatingModeArtifactSnapshot artifacts = 3;
-  repeated OperatingModeRoundEnvelope prior_rounds = 4;
-  repeated string acceptance_criteria = 5;
+  OperatingModeSimulationTarget target = 1;
+  repeated OperatingModeArtifactSnapshot artifacts = 2;
+  repeated OperatingModeRoundEnvelope prior_rounds = 3;
 }
 
 // OperatingModeSimulationTransition describes the guarded edge a simulated round
@@ -872,7 +901,7 @@ message OperatingModeSimulationResponse {
   string label = 2;
   repeated OperatingModeSimulationPreset presets = 3;
   string active_preset = 4;
-  OperatingModeInitiativeSnapshot initiative = 5;
+  OperatingModeSimulationTarget target = 5;
   repeated OperatingModeSimulationStep trace = 6;
 }
 

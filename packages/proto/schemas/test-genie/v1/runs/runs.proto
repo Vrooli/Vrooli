@@ -940,6 +940,20 @@ message ProviderConformance {
   // autofix is the spec-derived autofix declaration rollup (Stage 1, advisory).
   // It never enters adoption_score or the hard-violation set.
   AutofixCoverage autofix = 10;
+  // classification is the mutually exclusive fleet posture: compliant,
+  // unavailable (advisory live infrastructure), exempt (intentionally native),
+  // or violation (deterministic descriptor/response contract failure).
+  string classification = 11;
+  // reason_codes are stable machine-readable details for classification. Human
+  // diagnostics remain in violations; consumers must not infer state by parsing
+  // those strings.
+  repeated string reason_codes = 12;
+  // True when the descriptor declares at least one implemented deterministic
+  // fixer that must satisfy the sandboxed PreviewFix/ApplyFix contract.
+  bool fix_contract_required = 13;
+  // True only after the provider's PreviewFix/ApplyFix responses agree and all
+  // candidate paths stay inside the isolated conformance fixture.
+  bool fix_contract_valid = 14;
 }
 
 // AutofixCoverage is the per-provider autofix declaration rollup derived from a

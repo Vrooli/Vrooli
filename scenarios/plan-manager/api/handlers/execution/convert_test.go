@@ -22,6 +22,7 @@ func TestExecutionToProto(t *testing.T) {
 		Complete:       true,
 		StartedAt:      "t0",
 		UpdatedAt:      "t1",
+		BaselineSet:    internalexecution.BaselineSetState{Version: 1, Name: "before", Status: internalexecution.BaselineSetStatusComplete, Required: 2, Ready: 2, CollectionBranch: "agi", Members: []internalexecution.BaselineSetMember{{Scenario: "git-control-tower", RunID: "run-gct", GitSHA: "abc123"}}, PathSnapshots: []internalexecution.BaselineSetPathSnapshot{{Name: "paths-before", Branch: "agi"}}},
 	})
 	require.Equal(t, "e1", got.GetId())
 	require.Equal(t, "p1", got.GetPlanId())
@@ -30,6 +31,12 @@ func TestExecutionToProto(t *testing.T) {
 	require.True(t, got.GetComplete())
 	require.Equal(t, "t0", got.GetStartedAt())
 	require.Equal(t, "t1", got.GetUpdatedAt())
+	require.Equal(t, "before", got.GetBaselineSet().GetName())
+	require.Equal(t, "complete", got.GetBaselineSet().GetStatus())
+	require.Equal(t, "agi", got.GetBaselineSet().GetCollectionBranch())
+	require.Equal(t, "run-gct", got.GetBaselineSet().GetMembers()[0].GetRunId())
+	require.Equal(t, "abc123", got.GetBaselineSet().GetMembers()[0].GetGitSha())
+	require.Equal(t, "paths-before", got.GetBaselineSet().GetPathSnapshots()[0].GetName())
 }
 
 func TestPhaseContextToProtoIncludesPresentParts(t *testing.T) {
@@ -45,6 +52,7 @@ func TestPhaseContextToProtoIncludesPresentParts(t *testing.T) {
 		Staleness:       internalplans.StalenessFresh,
 		ResumePhaseID:   "ph-1",
 		Completeness:    internalexecution.CompletenessPartial,
+		BaselineSet:     internalexecution.BaselineSetState{Version: 1, Name: "before", Status: internalexecution.BaselineSetStatusPartial, Required: 2, Ready: 1, Pending: 1},
 		FeedbackCheckpoint: internalexecution.PhaseFeedbackCheckpoint{
 			PhaseID:          "ph-1",
 			Reviewed:         true,
@@ -70,6 +78,8 @@ func TestPhaseContextToProtoIncludesPresentParts(t *testing.T) {
 	require.True(t, got.GetFeedbackCheckpoint().GetSatisfied())
 	require.Equal(t, int32(1), got.GetFeedbackCheckpoint().GetDecisions())
 	require.Equal(t, internalexecution.NoFeedbackCheckpointTitle, got.GetFeedbackCheckpoint().GetNoFeedbackTitle())
+	require.Equal(t, "before", got.GetBaselineSet().GetName())
+	require.Equal(t, int32(1), got.GetBaselineSet().GetPending())
 }
 
 func TestPhaseContextToProtoOmitsAbsentParts(t *testing.T) {

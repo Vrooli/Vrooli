@@ -77,6 +77,7 @@ type planDocument struct {
 	References       []Reference           `json:"references"`
 	ChangeBoundary   ChangeBoundary        `json:"change_boundary"`
 	RegressionAnchor RegressionAnchor      `json:"regression_anchor"`
+	BaselineSet      BaselineSetIntent     `json:"baseline_set,omitempty"`
 	Phases           []Phase               `json:"phases"`
 	Supersedes       []string              `json:"supersedes"`
 	SupersededBy     []string              `json:"superseded_by"`
@@ -147,6 +148,7 @@ func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
 		References:       p.References,
 		ChangeBoundary:   p.ChangeBoundary,
 		RegressionAnchor: p.RegressionAnchor,
+		BaselineSet:      p.BaselineSet,
 		Phases:           p.Phases,
 		Supersedes:       p.Supersedes,
 		SupersededBy:     p.SupersededBy,
@@ -296,6 +298,7 @@ func scanPlan(s rowScanner) (Plan, error) {
 	p.References = doc.References
 	p.ChangeBoundary = doc.ChangeBoundary
 	p.RegressionAnchor = doc.RegressionAnchor
+	p.BaselineSet = doc.BaselineSet
 	p.Phases = doc.Phases
 	p.Supersedes = doc.Supersedes
 	p.SupersededBy = doc.SupersededBy

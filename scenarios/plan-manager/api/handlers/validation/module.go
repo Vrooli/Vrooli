@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"plan-manager/internal/clock"
+	internalexecution "plan-manager/internal/execution"
 	"plan-manager/internal/module"
 	internalplans "plan-manager/internal/plans"
 	internalvalidation "plan-manager/internal/validation"
@@ -37,15 +38,18 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	root := repoRoot()
 	resolver := newCodeFactsReferenceResolver(root)
 	store := internalvalidation.NewSQLiteResultStore(db, clk)
+	executionRepo := internalexecution.NewSQLiteRepository(db, clk)
 	svc := internalvalidation.NewService(internalvalidation.Deps{
-		Plans:      planAdapter{svc: plansSvc},
-		Resolver:   resolver,
-		Staleness:  internalvalidation.NewExistenceStaleness(internalvalidation.NewFileResolver(root)),
-		Runner:     internalvalidation.DefaultRunner(),
-		Results:    store,
-		Operations: store,
-		Clock:      clk,
-		Commands:   newCLIHealthCommandValidator(),
+		Plans:       planAdapter{svc: plansSvc},
+		Resolver:    resolver,
+		Staleness:   internalvalidation.NewExistenceStaleness(internalvalidation.NewFileResolver(root)),
+		Runner:      internalvalidation.DefaultRunner(),
+		Collections: newGCTCollectionClient(),
+		Inventories: executionInventoryAdapter{repo: executionRepo},
+		Results:     store,
+		Operations:  store,
+		Clock:       clk,
+		Commands:    newCLIHealthCommandValidator(),
 	})
 	// Recovery is idempotent: persisted queued/running operations resume from
 	// their child checkpoints and terminal children are never re-dispatched.
@@ -78,6 +82,32 @@ type planAdapter struct{ svc internalplans.Service }
 
 func (a planAdapter) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
 	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
+}
+
+// executionInventoryAdapter crosses only a narrow read seam: execution owns
+// the immutable capture checkpoint, while validation owns comparison mechanics.
+type executionInventoryAdapter struct{ repo internalexecution.Repository }
+
+func (a executionInventoryAdapter) LatestBaselineInventory(ctx context.Context, planID string) (internalvalidation.BaselineInventory, bool, error) {
+	execution, ok, err := a.repo.LatestExecutionForPlan(ctx, planID)
+	if err != nil || !ok || execution.BaselineSet.Name == "" {
+		return internalvalidation.BaselineInventory{}, false, err
+	}
+	return internalvalidation.BaselineInventory{
+		Name:            execution.BaselineSet.Name,
+		Branch:          execution.BaselineSet.CollectionBranch,
+		ScenarioTargets: append([]string(nil), execution.BaselineSet.ScenarioTargets...),
+		PathSnapshots:   baselinePathSnapshots(execution.BaselineSet.PathSnapshots),
+		Complete:        execution.BaselineSet.Complete(),
+	}, true, nil
+}
+
+func baselinePathSnapshots(snapshots []internalexecution.BaselineSetPathSnapshot) []internalvalidation.BaselinePathSnapshot {
+	out := make([]internalvalidation.BaselinePathSnapshot, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		out = append(out, internalvalidation.BaselinePathSnapshot{Name: snapshot.Name, Branch: snapshot.Branch, CreatedAt: snapshot.CreatedAt})
+	}
+	return out
 }
 
 // repoRoot resolves the repository root so filesystem reference resolution

@@ -27,6 +27,15 @@ class ReplayLane(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REPLAY_LANE_DETERMINISTIC: _ClassVar[ReplayLane]
     REPLAY_LANE_REALTIME: _ClassVar[ReplayLane]
     REPLAY_LANE_PRODUCT_PATH: _ClassVar[ReplayLane]
+
+class QualificationEvidenceKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED: _ClassVar[QualificationEvidenceKind]
+    QUALIFICATION_EVIDENCE_KIND_INTERVAL_ACCOUNTING: _ClassVar[QualificationEvidenceKind]
+    QUALIFICATION_EVIDENCE_KIND_BOUNDED_RECOVERY: _ClassVar[QualificationEvidenceKind]
+    QUALIFICATION_EVIDENCE_KIND_FAULT: _ClassVar[QualificationEvidenceKind]
+    QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH: _ClassVar[QualificationEvidenceKind]
+    QUALIFICATION_EVIDENCE_KIND_DEVICE: _ClassVar[QualificationEvidenceKind]
 EXPERIMENT_STATUS_UNSPECIFIED: ExperimentStatus
 EXPERIMENT_STATUS_QUEUED: ExperimentStatus
 EXPERIMENT_STATUS_RUNNING: ExperimentStatus
@@ -37,6 +46,12 @@ REPLAY_LANE_UNSPECIFIED: ReplayLane
 REPLAY_LANE_DETERMINISTIC: ReplayLane
 REPLAY_LANE_REALTIME: ReplayLane
 REPLAY_LANE_PRODUCT_PATH: ReplayLane
+QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED: QualificationEvidenceKind
+QUALIFICATION_EVIDENCE_KIND_INTERVAL_ACCOUNTING: QualificationEvidenceKind
+QUALIFICATION_EVIDENCE_KIND_BOUNDED_RECOVERY: QualificationEvidenceKind
+QUALIFICATION_EVIDENCE_KIND_FAULT: QualificationEvidenceKind
+QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH: QualificationEvidenceKind
+QUALIFICATION_EVIDENCE_KIND_DEVICE: QualificationEvidenceKind
 
 class ExperimentRecipe(_message.Message):
     __slots__ = ("clip_ids", "strategies", "realtime_repeats", "chunk_ms", "seed", "long_form", "realized_clip_ids", "realized_reference", "realized_duration_ms", "augmentation", "realized_augmentation_conditions", "speaker", "realized_speaker_conditions", "dropped_span_threshold_words", "latency_tail_seconds", "cells")
@@ -230,6 +245,34 @@ class ExperimentEvent(_message.Message):
     at: _timestamp_pb2.Timestamp
     def __init__(self, experiment_id: _Optional[str] = ..., status: _Optional[_Union[ExperimentStatus, str]] = ..., progress: _Optional[int] = ..., message: _Optional[str] = ..., at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
+class QualificationEvidence(_message.Message):
+    __slots__ = ("id", "engine_id", "strategy", "policy_profile", "kind", "fault_profile", "passed", "artifact_ref", "notes", "machine_json", "observed_at", "model_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    ENGINE_ID_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    POLICY_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    FAULT_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_REF_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_JSON_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    engine_id: str
+    strategy: str
+    policy_profile: str
+    kind: QualificationEvidenceKind
+    fault_profile: str
+    passed: bool
+    artifact_ref: str
+    notes: str
+    machine_json: str
+    observed_at: _timestamp_pb2.Timestamp
+    model_id: str
+    def __init__(self, id: _Optional[str] = ..., engine_id: _Optional[str] = ..., strategy: _Optional[str] = ..., policy_profile: _Optional[str] = ..., kind: _Optional[_Union[QualificationEvidenceKind, str]] = ..., fault_profile: _Optional[str] = ..., passed: _Optional[bool] = ..., artifact_ref: _Optional[str] = ..., notes: _Optional[str] = ..., machine_json: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., model_id: _Optional[str] = ...) -> None: ...
+
 class StartExperimentRequest(_message.Message):
     __slots__ = ("name", "recipe", "estimated_seconds", "dry_run")
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -365,3 +408,33 @@ class CompareExperimentsResponse(_message.Message):
     EXPERIMENTS_FIELD_NUMBER: _ClassVar[int]
     experiments: _containers.RepeatedCompositeFieldContainer[ComparedExperiment]
     def __init__(self, experiments: _Optional[_Iterable[_Union[ComparedExperiment, _Mapping]]] = ...) -> None: ...
+
+class RecordQualificationEvidenceRequest(_message.Message):
+    __slots__ = ("evidence",)
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    evidence: QualificationEvidence
+    def __init__(self, evidence: _Optional[_Union[QualificationEvidence, _Mapping]] = ...) -> None: ...
+
+class RecordQualificationEvidenceResponse(_message.Message):
+    __slots__ = ("evidence",)
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    evidence: QualificationEvidence
+    def __init__(self, evidence: _Optional[_Union[QualificationEvidence, _Mapping]] = ...) -> None: ...
+
+class ListQualificationEvidenceRequest(_message.Message):
+    __slots__ = ("engine_id", "strategy", "policy_profile", "model_id")
+    ENGINE_ID_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    POLICY_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    engine_id: str
+    strategy: str
+    policy_profile: str
+    model_id: str
+    def __init__(self, engine_id: _Optional[str] = ..., strategy: _Optional[str] = ..., policy_profile: _Optional[str] = ..., model_id: _Optional[str] = ...) -> None: ...
+
+class ListQualificationEvidenceResponse(_message.Message):
+    __slots__ = ("evidence",)
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    evidence: _containers.RepeatedCompositeFieldContainer[QualificationEvidence]
+    def __init__(self, evidence: _Optional[_Iterable[_Union[QualificationEvidence, _Mapping]]] = ...) -> None: ...

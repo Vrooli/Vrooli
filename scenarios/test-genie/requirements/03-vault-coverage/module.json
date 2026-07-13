@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Expose execution evidence, requirement evidence, and remediation state in the React operator experience.",
-    "last_validated_at": "2026-07-12T12:43:46-04:00",
+    "last_validated_at": "2026-07-12T15:32:19-04:00",
     "module_name": "Remediation Evidence Experience",
     "prd_ref": "OT-P1-003",
     "priority": "P1"
@@ -10,7 +10,7 @@
     {
       "id": "TESTGENIE-REMEDIATION-UX-P1",
       "title": "Remediation evidence UX",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
       "description": "Deliver UI workflows that inspect execution findings, select remediation evidence, distinguish provisional agent completion from verified reruns, and review deltas.",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "ui/src/components/remediation/RemediationPanel.test.tsx",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Covers evidence selection, provisional agent completion, verification action, and degraded evidence copy"
         }
       ]

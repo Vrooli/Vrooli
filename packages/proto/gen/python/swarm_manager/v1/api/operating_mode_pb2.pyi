@@ -758,7 +758,7 @@ class OperatingModeExecutionMigration(_message.Message):
     def __init__(self, source_layout: _Optional[str] = ..., migrated_at: _Optional[str] = ..., round_count: _Optional[int] = ...) -> None: ...
 
 class OperatingModeExecutionSnapshot(_message.Message):
-    __slots__ = ("execution_id", "scope_kind", "scope_id", "mode", "status", "created_at", "updated_at", "completed_at", "schema_version", "definition_digest", "definition_bundle", "input_contract_digest", "input_snapshot_digest", "reachable_prompt_sources", "migration", "compiled_input_contract", "input_retention_metadata")
+    __slots__ = ("execution_id", "scope_kind", "scope_id", "mode", "status", "created_at", "updated_at", "completed_at", "schema_version", "definition_digest", "definition_bundle", "input_contract_digest", "input_snapshot_digest", "reachable_prompt_sources", "migration", "compiled_input_contract", "input_retention_metadata", "evidence")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     SCOPE_KIND_FIELD_NUMBER: _ClassVar[int]
     SCOPE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -776,6 +776,7 @@ class OperatingModeExecutionSnapshot(_message.Message):
     MIGRATION_FIELD_NUMBER: _ClassVar[int]
     COMPILED_INPUT_CONTRACT_FIELD_NUMBER: _ClassVar[int]
     INPUT_RETENTION_METADATA_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     scope_kind: str
     scope_id: str
@@ -793,7 +794,45 @@ class OperatingModeExecutionSnapshot(_message.Message):
     migration: OperatingModeExecutionMigration
     compiled_input_contract: _struct_pb2.Struct
     input_retention_metadata: _struct_pb2.Struct
-    def __init__(self, execution_id: _Optional[str] = ..., scope_kind: _Optional[str] = ..., scope_id: _Optional[str] = ..., mode: _Optional[str] = ..., status: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., schema_version: _Optional[str] = ..., definition_digest: _Optional[str] = ..., definition_bundle: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., input_contract_digest: _Optional[str] = ..., input_snapshot_digest: _Optional[str] = ..., reachable_prompt_sources: _Optional[_Iterable[_Union[OperatingModePinnedPromptSource, _Mapping]]] = ..., migration: _Optional[_Union[OperatingModeExecutionMigration, _Mapping]] = ..., compiled_input_contract: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., input_retention_metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    evidence: _containers.RepeatedCompositeFieldContainer[OperatingModeEvidenceRecord]
+    def __init__(self, execution_id: _Optional[str] = ..., scope_kind: _Optional[str] = ..., scope_id: _Optional[str] = ..., mode: _Optional[str] = ..., status: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., schema_version: _Optional[str] = ..., definition_digest: _Optional[str] = ..., definition_bundle: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., input_contract_digest: _Optional[str] = ..., input_snapshot_digest: _Optional[str] = ..., reachable_prompt_sources: _Optional[_Iterable[_Union[OperatingModePinnedPromptSource, _Mapping]]] = ..., migration: _Optional[_Union[OperatingModeExecutionMigration, _Mapping]] = ..., compiled_input_contract: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., input_retention_metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence: _Optional[_Iterable[_Union[OperatingModeEvidenceRecord, _Mapping]]] = ...) -> None: ...
+
+class OperatingModeEvidenceRecord(_message.Message):
+    __slots__ = ("source_system", "source_event_id", "run_id", "subject_kind", "subject_id", "action", "confidence", "verification", "content_digest", "metadata", "observed_at", "linked_at", "round")
+    class MetadataEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    SOURCE_SYSTEM_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_KIND_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    VERIFICATION_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    LINKED_AT_FIELD_NUMBER: _ClassVar[int]
+    ROUND_FIELD_NUMBER: _ClassVar[int]
+    source_system: str
+    source_event_id: str
+    run_id: str
+    subject_kind: str
+    subject_id: str
+    action: str
+    confidence: str
+    verification: str
+    content_digest: str
+    metadata: _containers.ScalarMap[str, str]
+    observed_at: str
+    linked_at: str
+    round: int
+    def __init__(self, source_system: _Optional[str] = ..., source_event_id: _Optional[str] = ..., run_id: _Optional[str] = ..., subject_kind: _Optional[str] = ..., subject_id: _Optional[str] = ..., action: _Optional[str] = ..., confidence: _Optional[str] = ..., verification: _Optional[str] = ..., content_digest: _Optional[str] = ..., metadata: _Optional[_Mapping[str, str]] = ..., observed_at: _Optional[str] = ..., linked_at: _Optional[str] = ..., round: _Optional[int] = ...) -> None: ...
 
 class OperatingModeWorkspace(_message.Message):
     __slots__ = ("initiative_name", "mode", "definition", "lock", "artifacts", "rounds", "executions")
@@ -937,19 +976,29 @@ class OperatingModePhaseResult(_message.Message):
     backlog_sync: OperatingModeBacklogSyncPlan
     def __init__(self, artifacts: _Optional[_Iterable[_Union[OperatingModeArtifactResult, _Mapping]]] = ..., handoff: _Optional[_Union[OperatingModeHandoff, _Mapping]] = ..., handoffs: _Optional[_Iterable[_Union[OperatingModeHandoff, _Mapping]]] = ..., readiness: _Optional[_Union[OperatingModeReadinessReport, _Mapping]] = ..., progress: _Optional[_Union[OperatingModeProgressState, _Mapping]] = ..., verdict: _Optional[str] = ..., replan_needed: _Optional[bool] = ..., backlog_sync: _Optional[_Union[OperatingModeBacklogSyncPlan, _Mapping]] = ...) -> None: ...
 
+class OperatingModeSimulationTarget(_message.Message):
+    __slots__ = ("kind", "id", "title", "description", "context")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    id: str
+    title: str
+    description: str
+    context: _struct_pb2.Struct
+    def __init__(self, kind: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., context: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+
 class OperatingModeSimulationInputs(_message.Message):
-    __slots__ = ("initiative", "items", "artifacts", "prior_rounds", "acceptance_criteria")
-    INITIATIVE_FIELD_NUMBER: _ClassVar[int]
-    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("target", "artifacts", "prior_rounds")
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     PRIOR_ROUNDS_FIELD_NUMBER: _ClassVar[int]
-    ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
-    initiative: OperatingModeInitiativeSnapshot
-    items: _containers.RepeatedCompositeFieldContainer[OperatingModeRoundItem]
+    target: OperatingModeSimulationTarget
     artifacts: _containers.RepeatedCompositeFieldContainer[OperatingModeArtifactSnapshot]
     prior_rounds: _containers.RepeatedCompositeFieldContainer[OperatingModeRoundEnvelope]
-    acceptance_criteria: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, initiative: _Optional[_Union[OperatingModeInitiativeSnapshot, _Mapping]] = ..., items: _Optional[_Iterable[_Union[OperatingModeRoundItem, _Mapping]]] = ..., artifacts: _Optional[_Iterable[_Union[OperatingModeArtifactSnapshot, _Mapping]]] = ..., prior_rounds: _Optional[_Iterable[_Union[OperatingModeRoundEnvelope, _Mapping]]] = ..., acceptance_criteria: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, target: _Optional[_Union[OperatingModeSimulationTarget, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[OperatingModeArtifactSnapshot, _Mapping]]] = ..., prior_rounds: _Optional[_Iterable[_Union[OperatingModeRoundEnvelope, _Mapping]]] = ...) -> None: ...
 
 class OperatingModeSimulationTransition(_message.Message):
     __slots__ = ("to", "condition_kind", "label", "field", "value")
@@ -1014,20 +1063,20 @@ class OperatingModeSimulationPreset(_message.Message):
     def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., branch: _Optional[str] = ..., scenario: _Optional[str] = ...) -> None: ...
 
 class OperatingModeSimulationResponse(_message.Message):
-    __slots__ = ("mode", "label", "presets", "active_preset", "initiative", "trace")
+    __slots__ = ("mode", "label", "presets", "active_preset", "target", "trace")
     MODE_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     PRESETS_FIELD_NUMBER: _ClassVar[int]
     ACTIVE_PRESET_FIELD_NUMBER: _ClassVar[int]
-    INITIATIVE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     TRACE_FIELD_NUMBER: _ClassVar[int]
     mode: str
     label: str
     presets: _containers.RepeatedCompositeFieldContainer[OperatingModeSimulationPreset]
     active_preset: str
-    initiative: OperatingModeInitiativeSnapshot
+    target: OperatingModeSimulationTarget
     trace: _containers.RepeatedCompositeFieldContainer[OperatingModeSimulationStep]
-    def __init__(self, mode: _Optional[str] = ..., label: _Optional[str] = ..., presets: _Optional[_Iterable[_Union[OperatingModeSimulationPreset, _Mapping]]] = ..., active_preset: _Optional[str] = ..., initiative: _Optional[_Union[OperatingModeInitiativeSnapshot, _Mapping]] = ..., trace: _Optional[_Iterable[_Union[OperatingModeSimulationStep, _Mapping]]] = ...) -> None: ...
+    def __init__(self, mode: _Optional[str] = ..., label: _Optional[str] = ..., presets: _Optional[_Iterable[_Union[OperatingModeSimulationPreset, _Mapping]]] = ..., active_preset: _Optional[str] = ..., target: _Optional[_Union[OperatingModeSimulationTarget, _Mapping]] = ..., trace: _Optional[_Iterable[_Union[OperatingModeSimulationStep, _Mapping]]] = ...) -> None: ...
 
 class OperatingModeRenderPromptResponse(_message.Message):
     __slots__ = ("mode", "preset", "step_index", "phase", "skill_id", "profile_key", "variables", "prompt", "degraded", "degraded_reason")

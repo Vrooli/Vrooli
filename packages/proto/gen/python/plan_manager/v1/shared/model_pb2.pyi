@@ -460,22 +460,109 @@ class RegressionAnchor(_message.Message):
     unavailable: bool
     def __init__(self, strategy: _Optional[str] = ..., scenario: _Optional[str] = ..., baseline_name: _Optional[str] = ..., head_sha: _Optional[str] = ..., allowlist_paths: _Optional[_Iterable[str]] = ..., commands: _Optional[_Iterable[str]] = ..., captured_at: _Optional[str] = ..., unavailable: _Optional[bool] = ...) -> None: ...
 
+class BaselineSetIntent(_message.Message):
+    __slots__ = ("name", "scenario_targets", "repo_paths", "capture_policy", "compatibility")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_TARGETS_FIELD_NUMBER: _ClassVar[int]
+    REPO_PATHS_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_POLICY_FIELD_NUMBER: _ClassVar[int]
+    COMPATIBILITY_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    scenario_targets: _containers.RepeatedScalarFieldContainer[str]
+    repo_paths: _containers.RepeatedScalarFieldContainer[str]
+    capture_policy: str
+    compatibility: str
+    def __init__(self, name: _Optional[str] = ..., scenario_targets: _Optional[_Iterable[str]] = ..., repo_paths: _Optional[_Iterable[str]] = ..., capture_policy: _Optional[str] = ..., compatibility: _Optional[str] = ...) -> None: ...
+
 class DownstreamRef(_message.Message):
-    __slots__ = ("system", "kind", "reference", "detail", "synced_at")
+    __slots__ = ("system", "kind", "reference", "detail", "synced_at", "capture")
     SYSTEM_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     REFERENCE_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
     SYNCED_AT_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_FIELD_NUMBER: _ClassVar[int]
     system: str
     kind: str
     reference: str
     detail: str
     synced_at: str
-    def __init__(self, system: _Optional[str] = ..., kind: _Optional[str] = ..., reference: _Optional[str] = ..., detail: _Optional[str] = ..., synced_at: _Optional[str] = ...) -> None: ...
+    capture: CaptureDisposition
+    def __init__(self, system: _Optional[str] = ..., kind: _Optional[str] = ..., reference: _Optional[str] = ..., detail: _Optional[str] = ..., synced_at: _Optional[str] = ..., capture: _Optional[_Union[CaptureDisposition, _Mapping]] = ...) -> None: ...
+
+class CaptureDiagnostic(_message.Message):
+    __slots__ = ("field", "value", "message")
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    value: str
+    message: str
+    def __init__(self, field: _Optional[str] = ..., value: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class CaptureDisposition(_message.Message):
+    __slots__ = ("state", "draft_id", "needs", "invalid", "warnings", "next_action")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    NEEDS_FIELD_NUMBER: _ClassVar[int]
+    INVALID_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    state: str
+    draft_id: str
+    needs: _containers.RepeatedScalarFieldContainer[str]
+    invalid: _containers.RepeatedCompositeFieldContainer[CaptureDiagnostic]
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    next_action: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, state: _Optional[str] = ..., draft_id: _Optional[str] = ..., needs: _Optional[_Iterable[str]] = ..., invalid: _Optional[_Iterable[_Union[CaptureDiagnostic, _Mapping]]] = ..., warnings: _Optional[_Iterable[str]] = ..., next_action: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class BugReportPayload(_message.Message):
+    __slots__ = ("signal_type", "severity", "repro", "expected", "actual", "description", "context", "honesty_flags")
+    class ContextEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    SIGNAL_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    REPRO_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    HONESTY_FLAGS_FIELD_NUMBER: _ClassVar[int]
+    signal_type: str
+    severity: str
+    repro: _containers.RepeatedScalarFieldContainer[str]
+    expected: str
+    actual: str
+    description: str
+    context: _containers.ScalarMap[str, str]
+    honesty_flags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, signal_type: _Optional[str] = ..., severity: _Optional[str] = ..., repro: _Optional[_Iterable[str]] = ..., expected: _Optional[str] = ..., actual: _Optional[str] = ..., description: _Optional[str] = ..., context: _Optional[_Mapping[str, str]] = ..., honesty_flags: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class RecordPayload(_message.Message):
+    __slots__ = ("kind", "scenario", "trigger", "approach", "evidence", "outcome", "created_by")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_FIELD_NUMBER: _ClassVar[int]
+    APPROACH_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    scenario: str
+    trigger: str
+    approach: str
+    evidence: str
+    outcome: str
+    created_by: str
+    def __init__(self, kind: _Optional[str] = ..., scenario: _Optional[str] = ..., trigger: _Optional[str] = ..., approach: _Optional[str] = ..., evidence: _Optional[str] = ..., outcome: _Optional[str] = ..., created_by: _Optional[str] = ...) -> None: ...
 
 class LogEntry(_message.Message):
-    __slots__ = ("id", "type", "plan_id", "execution_id", "phase_id", "title", "detail", "severity", "triage", "sync_status", "downstream", "source_command", "evidence", "attribution_run_id", "idempotency_key", "supersedes_id", "promoted_from_id", "created_at", "updated_at")
+    __slots__ = ("id", "type", "plan_id", "execution_id", "phase_id", "title", "detail", "severity", "triage", "sync_status", "downstream", "source_command", "evidence", "attribution_run_id", "idempotency_key", "supersedes_id", "promoted_from_id", "created_at", "updated_at", "bug", "record", "capture")
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -495,6 +582,9 @@ class LogEntry(_message.Message):
     PROMOTED_FROM_ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    BUG_FIELD_NUMBER: _ClassVar[int]
+    RECORD_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_FIELD_NUMBER: _ClassVar[int]
     id: str
     type: LogEntryType
     plan_id: str
@@ -514,7 +604,10 @@ class LogEntry(_message.Message):
     promoted_from_id: str
     created_at: str
     updated_at: str
-    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[LogEntryType, str]] = ..., plan_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., severity: _Optional[_Union[LogSeverity, str]] = ..., triage: _Optional[_Union[FindingTriage, str]] = ..., sync_status: _Optional[_Union[LogSyncStatus, str]] = ..., downstream: _Optional[_Union[DownstreamRef, _Mapping]] = ..., source_command: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ..., attribution_run_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., supersedes_id: _Optional[str] = ..., promoted_from_id: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+    bug: BugReportPayload
+    record: RecordPayload
+    capture: CaptureDisposition
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[LogEntryType, str]] = ..., plan_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., severity: _Optional[_Union[LogSeverity, str]] = ..., triage: _Optional[_Union[FindingTriage, str]] = ..., sync_status: _Optional[_Union[LogSyncStatus, str]] = ..., downstream: _Optional[_Union[DownstreamRef, _Mapping]] = ..., source_command: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ..., attribution_run_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., supersedes_id: _Optional[str] = ..., promoted_from_id: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., bug: _Optional[_Union[BugReportPayload, _Mapping]] = ..., record: _Optional[_Union[RecordPayload, _Mapping]] = ..., capture: _Optional[_Union[CaptureDisposition, _Mapping]] = ...) -> None: ...
 
 class LogSummaryItem(_message.Message):
     __slots__ = ("id", "type", "title", "sync_status", "triage", "phase_id")
@@ -659,7 +752,7 @@ class PlanAssumption(_message.Message):
     def __init__(self, statement: _Optional[str] = ..., mitigation: _Optional[str] = ...) -> None: ...
 
 class Plan(_message.Message):
-    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context", "problem_statement", "target_outcome", "assumptions", "technical_approach", "validation_strategy", "final_validation_commands", "risks_hazards", "prohibited_approaches", "work_posture", "work_posture_source", "work_posture_detail", "import_provenance", "preserved_legacy_sections", "change_boundary", "mirror", "workspace_id", "workspace_root", "decisions", "assumption_risks")
+    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context", "problem_statement", "target_outcome", "assumptions", "technical_approach", "validation_strategy", "final_validation_commands", "risks_hazards", "prohibited_approaches", "work_posture", "work_posture_source", "work_posture_detail", "import_provenance", "preserved_legacy_sections", "change_boundary", "mirror", "workspace_id", "workspace_root", "decisions", "assumption_risks", "baseline_set")
     ID_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -697,6 +790,7 @@ class Plan(_message.Message):
     WORKSPACE_ROOT_FIELD_NUMBER: _ClassVar[int]
     DECISIONS_FIELD_NUMBER: _ClassVar[int]
     ASSUMPTION_RISKS_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_SET_FIELD_NUMBER: _ClassVar[int]
     id: str
     slug: str
     title: str
@@ -734,7 +828,8 @@ class Plan(_message.Message):
     workspace_root: str
     decisions: _containers.RepeatedCompositeFieldContainer[PlanDecision]
     assumption_risks: _containers.RepeatedCompositeFieldContainer[PlanAssumption]
-    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., problem_statement: _Optional[str] = ..., target_outcome: _Optional[str] = ..., assumptions: _Optional[str] = ..., technical_approach: _Optional[str] = ..., validation_strategy: _Optional[str] = ..., final_validation_commands: _Optional[_Iterable[str]] = ..., risks_hazards: _Optional[str] = ..., prohibited_approaches: _Optional[str] = ..., work_posture: _Optional[_Union[WorkPosture, str]] = ..., work_posture_source: _Optional[_Union[WorkPostureSource, str]] = ..., work_posture_detail: _Optional[str] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., preserved_legacy_sections: _Optional[_Iterable[_Union[LegacySection, _Mapping]]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., mirror: _Optional[_Union[RenderedPlanMirror, _Mapping]] = ..., workspace_id: _Optional[str] = ..., workspace_root: _Optional[str] = ..., decisions: _Optional[_Iterable[_Union[PlanDecision, _Mapping]]] = ..., assumption_risks: _Optional[_Iterable[_Union[PlanAssumption, _Mapping]]] = ...) -> None: ...
+    baseline_set: BaselineSetIntent
+    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., problem_statement: _Optional[str] = ..., target_outcome: _Optional[str] = ..., assumptions: _Optional[str] = ..., technical_approach: _Optional[str] = ..., validation_strategy: _Optional[str] = ..., final_validation_commands: _Optional[_Iterable[str]] = ..., risks_hazards: _Optional[str] = ..., prohibited_approaches: _Optional[str] = ..., work_posture: _Optional[_Union[WorkPosture, str]] = ..., work_posture_source: _Optional[_Union[WorkPostureSource, str]] = ..., work_posture_detail: _Optional[str] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., preserved_legacy_sections: _Optional[_Iterable[_Union[LegacySection, _Mapping]]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., mirror: _Optional[_Union[RenderedPlanMirror, _Mapping]] = ..., workspace_id: _Optional[str] = ..., workspace_root: _Optional[str] = ..., decisions: _Optional[_Iterable[_Union[PlanDecision, _Mapping]]] = ..., assumption_risks: _Optional[_Iterable[_Union[PlanAssumption, _Mapping]]] = ..., baseline_set: _Optional[_Union[BaselineSetIntent, _Mapping]] = ...) -> None: ...
 
 class PlanEdge(_message.Message):
     __slots__ = ("from_plan_id", "to_plan_id", "kind")

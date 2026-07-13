@@ -80,6 +80,53 @@ type DownstreamRef struct {
 	Reference string // downstream id/url once synced
 	Detail    string // last sync detail or error
 	SyncedAt  string // RFC3339; empty until first successful sync
+	Capture   CaptureDisposition
+}
+
+// CaptureDisposition is the downstream owning writer's outcome. A draft is a
+// durable but private artifact that needs repair; it is not a failed sync and
+// must never be represented as a published downstream reference.
+type CaptureDisposition struct {
+	State      string
+	DraftID    string
+	Needs      []string
+	Invalid    []CaptureDiagnostic
+	Warnings   []string
+	NextAction []string
+}
+
+// CaptureDiagnostic names one invalid supplied field and its recovery hint.
+type CaptureDiagnostic struct {
+	Field   string
+	Value   string
+	Message string
+}
+
+// BugReportPayload is the complete Scenario QA reporter taxonomy carried by a
+// Plan Manager log entry. Plan Manager transports it losslessly; it does not
+// select signal types or invent expected/repro/actual facts.
+type BugReportPayload struct {
+	SignalType   string
+	Severity     string
+	Repro        []string
+	Expected     string
+	Actual       string
+	Description  string
+	Context      map[string]string
+	HonestyFlags []string
+}
+
+// RecordPayload is the complete Swarm Manager capture classification. Keeping
+// it separate from the ledger title/detail prevents the adapter from silently
+// hard-coding scenario, kind, or outcome.
+type RecordPayload struct {
+	Kind      string
+	Scenario  string
+	Trigger   string
+	Approach  string
+	Evidence  string
+	Outcome   string
+	CreatedBy string
 }
 
 // LogEntry is one typed execution-log ledger entry — the unified record for
@@ -98,6 +145,10 @@ type LogEntry struct {
 	Triage     FindingTriage
 	SyncStatus LogSyncStatus
 	Downstream DownstreamRef
+	// Bug and Record are meaningful only for their matching entry type.
+	Bug     BugReportPayload
+	Record  RecordPayload
+	Capture CaptureDisposition
 	// SourceCommand is the plan-manager CLI command path that produced the entry
 	// (audit trail of which guided step created it).
 	SourceCommand string

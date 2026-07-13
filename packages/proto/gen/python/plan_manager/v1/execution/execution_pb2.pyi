@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Execution(_message.Message):
-    __slots__ = ("id", "plan_id", "run_id", "current_phase_id", "complete", "started_at", "updated_at")
+    __slots__ = ("id", "plan_id", "run_id", "current_phase_id", "complete", "started_at", "updated_at", "baseline_set")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -16,6 +16,7 @@ class Execution(_message.Message):
     COMPLETE_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_SET_FIELD_NUMBER: _ClassVar[int]
     id: str
     plan_id: str
     run_id: str
@@ -23,10 +24,75 @@ class Execution(_message.Message):
     complete: bool
     started_at: str
     updated_at: str
-    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+    baseline_set: BaselineSetState
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., baseline_set: _Optional[_Union[BaselineSetState, _Mapping]] = ...) -> None: ...
+
+class BaselineSetState(_message.Message):
+    __slots__ = ("version", "name", "scenario_targets", "repo_paths", "captured_at", "status", "required", "ready", "pending", "failed", "skipped", "stale", "detail", "collection_branch", "members", "path_snapshots")
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_TARGETS_FIELD_NUMBER: _ClassVar[int]
+    REPO_PATHS_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    PENDING_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    STALE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_BRANCH_FIELD_NUMBER: _ClassVar[int]
+    MEMBERS_FIELD_NUMBER: _ClassVar[int]
+    PATH_SNAPSHOTS_FIELD_NUMBER: _ClassVar[int]
+    version: int
+    name: str
+    scenario_targets: _containers.RepeatedScalarFieldContainer[str]
+    repo_paths: _containers.RepeatedScalarFieldContainer[str]
+    captured_at: str
+    status: str
+    required: int
+    ready: int
+    pending: int
+    failed: int
+    skipped: int
+    stale: int
+    detail: str
+    collection_branch: str
+    members: _containers.RepeatedCompositeFieldContainer[BaselineSetMember]
+    path_snapshots: _containers.RepeatedCompositeFieldContainer[BaselineSetPathSnapshot]
+    def __init__(self, version: _Optional[int] = ..., name: _Optional[str] = ..., scenario_targets: _Optional[_Iterable[str]] = ..., repo_paths: _Optional[_Iterable[str]] = ..., captured_at: _Optional[str] = ..., status: _Optional[str] = ..., required: _Optional[int] = ..., ready: _Optional[int] = ..., pending: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., stale: _Optional[int] = ..., detail: _Optional[str] = ..., collection_branch: _Optional[str] = ..., members: _Optional[_Iterable[_Union[BaselineSetMember, _Mapping]]] = ..., path_snapshots: _Optional[_Iterable[_Union[BaselineSetPathSnapshot, _Mapping]]] = ...) -> None: ...
+
+class BaselineSetMember(_message.Message):
+    __slots__ = ("scenario", "baseline_name", "required", "status", "run_id", "error", "git_sha")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_NAME_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    GIT_SHA_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    baseline_name: str
+    required: bool
+    status: str
+    run_id: str
+    error: str
+    git_sha: str
+    def __init__(self, scenario: _Optional[str] = ..., baseline_name: _Optional[str] = ..., required: _Optional[bool] = ..., status: _Optional[str] = ..., run_id: _Optional[str] = ..., error: _Optional[str] = ..., git_sha: _Optional[str] = ...) -> None: ...
+
+class BaselineSetPathSnapshot(_message.Message):
+    __slots__ = ("name", "branch", "created_at")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    created_at: str
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
 
 class PhaseContext(_message.Message):
-    __slots__ = ("current_phase", "next_phase", "required_reading", "reminders", "last_validation", "staleness", "resume_phase_id", "completeness", "relevant_context", "log_summary", "inputs_freshened", "freshen_status", "freshen_detail", "change_boundary", "feedback_checkpoint")
+    __slots__ = ("current_phase", "next_phase", "required_reading", "reminders", "last_validation", "staleness", "resume_phase_id", "completeness", "relevant_context", "log_summary", "inputs_freshened", "freshen_status", "freshen_detail", "change_boundary", "feedback_checkpoint", "baseline_set")
     CURRENT_PHASE_FIELD_NUMBER: _ClassVar[int]
     NEXT_PHASE_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_READING_FIELD_NUMBER: _ClassVar[int]
@@ -42,6 +108,7 @@ class PhaseContext(_message.Message):
     FRESHEN_DETAIL_FIELD_NUMBER: _ClassVar[int]
     CHANGE_BOUNDARY_FIELD_NUMBER: _ClassVar[int]
     FEEDBACK_CHECKPOINT_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_SET_FIELD_NUMBER: _ClassVar[int]
     current_phase: _model_pb2.Phase
     next_phase: _model_pb2.Phase
     required_reading: _containers.RepeatedScalarFieldContainer[str]
@@ -57,7 +124,8 @@ class PhaseContext(_message.Message):
     freshen_detail: str
     change_boundary: _model_pb2.ChangeBoundary
     feedback_checkpoint: PhaseFeedbackCheckpoint
-    def __init__(self, current_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., next_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., last_validation: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[_model_pb2.StalenessTier, str]] = ..., resume_phase_id: _Optional[str] = ..., completeness: _Optional[_Union[_model_pb2.Completeness, str]] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., log_summary: _Optional[_Union[_model_pb2.LogSummary, _Mapping]] = ..., inputs_freshened: _Optional[bool] = ..., freshen_status: _Optional[str] = ..., freshen_detail: _Optional[str] = ..., change_boundary: _Optional[_Union[_model_pb2.ChangeBoundary, _Mapping]] = ..., feedback_checkpoint: _Optional[_Union[PhaseFeedbackCheckpoint, _Mapping]] = ...) -> None: ...
+    baseline_set: BaselineSetState
+    def __init__(self, current_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., next_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., last_validation: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[_model_pb2.StalenessTier, str]] = ..., resume_phase_id: _Optional[str] = ..., completeness: _Optional[_Union[_model_pb2.Completeness, str]] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., log_summary: _Optional[_Union[_model_pb2.LogSummary, _Mapping]] = ..., inputs_freshened: _Optional[bool] = ..., freshen_status: _Optional[str] = ..., freshen_detail: _Optional[str] = ..., change_boundary: _Optional[_Union[_model_pb2.ChangeBoundary, _Mapping]] = ..., feedback_checkpoint: _Optional[_Union[PhaseFeedbackCheckpoint, _Mapping]] = ..., baseline_set: _Optional[_Union[BaselineSetState, _Mapping]] = ...) -> None: ...
 
 class PhaseFeedbackCheckpoint(_message.Message):
     __slots__ = ("phase_id", "reviewed", "satisfied", "summary", "decisions", "findings", "bug_reports", "records", "notes", "pending_sync", "failed_sync", "no_feedback_title", "no_feedback_detail")

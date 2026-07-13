@@ -206,6 +206,40 @@ func printSnapshotStatus(resp *baselinesv1.GetSnapshotStatusResponse) {
 	}
 }
 
+func printCollection(collection *baselinesv1.BaselineCollection, resumed bool) {
+	if collection == nil {
+		fmt.Println("Collection: unavailable")
+		return
+	}
+	prefix := "Started"
+	if resumed {
+		prefix = "Resumed"
+	}
+	coverage := collection.GetCoverage()
+	fmt.Printf("%s collection %q", prefix, collection.GetName())
+	if collection.GetBranch() != "" {
+		fmt.Printf(" branch=%s", collection.GetBranch())
+	}
+	fmt.Printf(" — required %d, ready %d, pending %d, failed %d, skipped %d, stale %d\n", coverage.GetRequired(), coverage.GetReady(), coverage.GetPending(), coverage.GetFailed(), coverage.GetSkipped(), coverage.GetStale())
+	for _, member := range collection.GetMembers() {
+		required := "optional"
+		if member.GetRequired() {
+			required = "required"
+		}
+		fmt.Printf("  %-24s %-8s %-14s baseline=%s", member.GetScenario(), required, member.GetStatus(), member.GetBaselineName())
+		if member.GetRunId() != "" {
+			fmt.Printf(" run=%s", member.GetRunId())
+		}
+		fmt.Println()
+		if member.GetError() != "" {
+			fmt.Printf("    detail: %s\n", member.GetError())
+		}
+	}
+	if !coverage.GetComplete() {
+		fmt.Println("  Coverage is not complete: a collection diff cannot be clean until every required member is ready.")
+	}
+}
+
 func printSnapshotStatusDiagnostics(w io.Writer, resp *baselinesv1.GetSnapshotStatusResponse) {
 	if resp == nil {
 		return

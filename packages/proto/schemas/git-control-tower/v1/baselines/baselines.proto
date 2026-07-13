@@ -25,6 +25,19 @@ service BaselinesService {
   rpc StartDiff(StartDiffRequest) returns (StartDiffResponse);
   rpc GetDiffResult(GetDiffResultRequest) returns (GetDiffResultResponse);
   rpc DeleteBaseline(DeleteBaselineRequest) returns (DeleteBaselineResponse);
+  // Collections aggregate existing per-scenario immutable anchors. They do not
+  // create a multi-scenario Test Genie run or alter comparison semantics.
+  rpc StartCollectionCapture(StartCollectionCaptureRequest) returns (StartCollectionCaptureResponse);
+  rpc GetCollection(GetCollectionRequest) returns (GetCollectionResponse);
+  rpc StartCollectionDiff(StartCollectionDiffRequest) returns (StartCollectionDiffResponse);
+  rpc GetCollectionDiff(GetCollectionDiffRequest) returns (GetCollectionDiffResponse);
+  rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionResponse);
+  // Path snapshots are separately classified source evidence. They never
+  // participate in Test Genie regression verdicts.
+  rpc CapturePathSnapshot(CapturePathSnapshotRequest) returns (CapturePathSnapshotResponse);
+  rpc GetPathSnapshot(GetPathSnapshotRequest) returns (GetPathSnapshotResponse);
+  rpc DiffPathSnapshots(DiffPathSnapshotsRequest) returns (DiffPathSnapshotsResponse);
+  rpc DeletePathSnapshot(DeletePathSnapshotRequest) returns (DeletePathSnapshotResponse);
 }
 
 message GitState {
@@ -226,3 +239,202 @@ message DeleteBaselineRequest {
 }
 
 message DeleteBaselineResponse { bool deleted = 1; }
+
+message CollectionTarget {
+  string scenario = 1;
+  string baseline_name = 2;
+  bool required = 3;
+}
+
+message CollectionMember {
+  string scenario = 1;
+  string baseline_name = 2;
+  bool required = 3;
+  // pending | ready | failed | skipped | stale
+  string status = 4;
+  string run_id = 5;
+  string error = 6;
+  string updated_at = 7;
+  string git_sha = 8;
+}
+
+message CollectionCoverage {
+  int32 required = 1;
+  int32 ready = 2;
+  int32 pending = 3;
+  int32 failed = 4;
+  int32 skipped = 5;
+  int32 stale = 6;
+  bool complete = 7;
+}
+
+message BaselineCollection {
+  string name = 1;
+  string branch = 2;
+  string created_at = 3;
+  string updated_at = 4;
+  int32 schema_version = 5;
+  repeated CollectionMember members = 6;
+  CollectionCoverage coverage = 7;
+	// Informational source-evidence snapshots attached at collection capture.
+  repeated PathSnapshotReference path_snapshots = 8;
+}
+
+message StartCollectionCaptureRequest {
+  string name = 1;
+  string branch = 2;
+  repeated CollectionTarget targets = 3;
+  string created_by = 4;
+  string reason = 5;
+  int64 repo_id = 6;
+	// Safe repo-relative globs. Empty means no source evidence requested.
+  repeated string path_selections = 7;
+}
+
+message StartCollectionCaptureResponse {
+  BaselineCollection collection = 1;
+  bool resumed = 2;
+}
+
+message GetCollectionRequest {
+  string name = 1;
+  string branch = 2;
+  int64 repo_id = 3;
+  // When true, reattach server-side to durable pending member runs before
+  // returning the current aggregate coverage.
+  bool wait = 4;
+}
+
+message GetCollectionResponse { BaselineCollection collection = 1; }
+
+message CollectionDiffMember {
+  string scenario = 1;
+  bool required = 2;
+  // pending | ready | failed | skipped | stale | not-comparable
+  string status = 3;
+  string run_id = 4;
+  string verdict = 5;
+  string detail = 6;
+}
+
+// Starts only explicitly selected members; an empty selection means every
+// collection member. The resulting child run IDs are durable diff handles.
+message StartCollectionDiffRequest {
+  string name = 1;
+  string branch = 2;
+  repeated string scenarios = 3;
+  int64 repo_id = 4;
+	// Required caller-supplied idempotency key for the durable aggregate.
+  string operation_id = 5;
+}
+
+message StartCollectionDiffResponse {
+  BaselineCollection collection = 1;
+  repeated CollectionDiffMember members = 2;
+  string classification = 3;
+	string operation_id = 4;
+}
+
+message GetCollectionDiffRequest {
+  string name = 1;
+  string branch = 2;
+  string operation_id = 3;
+  int64 repo_id = 4;
+  bool wait = 5;
+}
+
+message GetCollectionDiffResponse {
+  BaselineCollection collection = 1;
+  repeated CollectionDiffMember members = 2;
+  string classification = 3;
+  string operation_id = 4;
+}
+
+message DeleteCollectionRequest {
+  string name = 1;
+  string branch = 2;
+  int64 repo_id = 3;
+}
+
+message DeleteCollectionResponse { bool deleted = 1; }
+
+message PathSnapshotReference {
+  string name = 1;
+  string branch = 2;
+  string created_at = 3;
+}
+
+message PathEntry {
+  string path = 1;
+  uint32 mode = 2;
+  string type = 3;
+  int64 size = 4;
+  string digest = 5;
+  // present | excluded | unreadable. Omitted bytes are never returned.
+  string state = 6;
+  string detail = 7;
+}
+
+message PathSnapshot {
+  string name = 1;
+  string branch = 2;
+  string created_at = 3;
+  int32 schema_version = 4;
+  repeated string selections = 5;
+  repeated PathEntry entries = 6;
+  string classification = 7;
+  // RFC3339 UTC expiry for bounded retained source evidence.
+  string expires_at = 8;
+}
+
+message SourceDelta {
+  string path = 1;
+  // added | deleted | renamed | modified | unchanged | excluded | unreadable
+  string status = 2;
+  PathEntry before = 3;
+  PathEntry after = 4;
+}
+
+message CapturePathSnapshotRequest {
+  string name = 1;
+  string branch = 2;
+  repeated string selections = 3;
+  int64 repo_id = 4;
+  // Optional bounded retention period. Zero selects the seven-day default.
+  int64 retention_seconds = 5;
+}
+
+message CapturePathSnapshotResponse {
+  PathSnapshot snapshot = 1;
+  bool resumed = 2;
+}
+
+message GetPathSnapshotRequest {
+  string name = 1;
+  string branch = 2;
+  int64 repo_id = 3;
+}
+
+message GetPathSnapshotResponse { PathSnapshot snapshot = 1; }
+
+message DiffPathSnapshotsRequest {
+  string before_name = 1;
+  string after_name = 2;
+  string branch = 3;
+  int64 repo_id = 4;
+  // Optional safe glob filter for a phase-scoped informational review.
+  repeated string selections = 5;
+}
+
+message DiffPathSnapshotsResponse {
+  string classification = 1;
+  repeated SourceDelta deltas = 2;
+}
+
+message DeletePathSnapshotRequest {
+  string name = 1;
+  string branch = 2;
+  int64 repo_id = 3;
+}
+
+message DeletePathSnapshotResponse { bool deleted = 1; }

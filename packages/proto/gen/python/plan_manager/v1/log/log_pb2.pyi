@@ -60,7 +60,14 @@ class AddFindingRequest(_message.Message):
     def __init__(self, plan_or_execution: _Optional[str] = ..., phase_id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., severity: _Optional[_Union[_model_pb2.LogSeverity, str]] = ..., evidence: _Optional[_Iterable[str]] = ..., source_command: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class AddBugRequest(_message.Message):
-    __slots__ = ("plan_or_execution", "phase_id", "title", "detail", "severity", "evidence", "source_command", "idempotency_key", "run_id")
+    __slots__ = ("plan_or_execution", "phase_id", "title", "detail", "severity", "evidence", "source_command", "idempotency_key", "run_id", "signal_type", "report_severity", "repro", "expected", "actual", "description", "context", "honesty_flags")
+    class ContextEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     PLAN_OR_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -70,6 +77,14 @@ class AddBugRequest(_message.Message):
     SOURCE_COMMAND_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SIGNAL_TYPE_FIELD_NUMBER: _ClassVar[int]
+    REPORT_SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    REPRO_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    HONESTY_FLAGS_FIELD_NUMBER: _ClassVar[int]
     plan_or_execution: str
     phase_id: str
     title: str
@@ -79,10 +94,18 @@ class AddBugRequest(_message.Message):
     source_command: str
     idempotency_key: str
     run_id: str
-    def __init__(self, plan_or_execution: _Optional[str] = ..., phase_id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., severity: _Optional[_Union[_model_pb2.LogSeverity, str]] = ..., evidence: _Optional[_Iterable[str]] = ..., source_command: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+    signal_type: str
+    report_severity: str
+    repro: _containers.RepeatedScalarFieldContainer[str]
+    expected: str
+    actual: str
+    description: str
+    context: _containers.ScalarMap[str, str]
+    honesty_flags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, plan_or_execution: _Optional[str] = ..., phase_id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., severity: _Optional[_Union[_model_pb2.LogSeverity, str]] = ..., evidence: _Optional[_Iterable[str]] = ..., source_command: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., run_id: _Optional[str] = ..., signal_type: _Optional[str] = ..., report_severity: _Optional[str] = ..., repro: _Optional[_Iterable[str]] = ..., expected: _Optional[str] = ..., actual: _Optional[str] = ..., description: _Optional[str] = ..., context: _Optional[_Mapping[str, str]] = ..., honesty_flags: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class AddRecordRequest(_message.Message):
-    __slots__ = ("plan_or_execution", "phase_id", "title", "detail", "evidence", "source_command", "idempotency_key", "run_id")
+    __slots__ = ("plan_or_execution", "phase_id", "title", "detail", "evidence", "source_command", "idempotency_key", "run_id", "kind", "scenario", "trigger", "approach", "record_evidence", "outcome", "created_by")
     PLAN_OR_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -91,6 +114,13 @@ class AddRecordRequest(_message.Message):
     SOURCE_COMMAND_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_FIELD_NUMBER: _ClassVar[int]
+    APPROACH_FIELD_NUMBER: _ClassVar[int]
+    RECORD_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_FIELD_NUMBER: _ClassVar[int]
     plan_or_execution: str
     phase_id: str
     title: str
@@ -99,7 +129,14 @@ class AddRecordRequest(_message.Message):
     source_command: str
     idempotency_key: str
     run_id: str
-    def __init__(self, plan_or_execution: _Optional[str] = ..., phase_id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ..., source_command: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+    kind: str
+    scenario: str
+    trigger: str
+    approach: str
+    record_evidence: str
+    outcome: str
+    created_by: str
+    def __init__(self, plan_or_execution: _Optional[str] = ..., phase_id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ..., source_command: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., run_id: _Optional[str] = ..., kind: _Optional[str] = ..., scenario: _Optional[str] = ..., trigger: _Optional[str] = ..., approach: _Optional[str] = ..., record_evidence: _Optional[str] = ..., outcome: _Optional[str] = ..., created_by: _Optional[str] = ...) -> None: ...
 
 class AddNoteRequest(_message.Message):
     __slots__ = ("plan_or_execution", "phase_id", "title", "detail", "evidence", "source_command", "idempotency_key", "run_id")

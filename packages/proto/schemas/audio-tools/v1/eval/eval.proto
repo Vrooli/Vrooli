@@ -46,13 +46,18 @@ message EvalReport {
   repeated PromotionVerdict promotion_verdicts = 8;
 }
 
-// PromotionVerdict is a provider-scoped trust-floor result. A non-stable
+// PromotionVerdict is a provider-cell-scoped trust-floor result. A non-stable
 // verdict names missing qualification categories instead of inferring
-// readiness from a short experiment.
+// readiness from a short experiment or merging incompatible strategies.
 message PromotionVerdict {
   string engine_id = 1;
   bool stable = 2;
   repeated string reasons = 3;
+  string strategy = 4;
+  string policy_profile = 5;
+  // Exact provider model identity. Promotion evidence never crosses a model
+  // upgrade merely because it ran on the same engine and host.
+  string model_id = 6;
 }
 
 message StrategyReport {
@@ -88,6 +93,9 @@ message StrategyReport {
   string policy_profile = 28;
   string replay_lane = 29;
   string fault_profile = 30;
+  // Actual provider model used for this row, retained so qualification is
+  // invalidated by a model change instead of inheriting stale evidence.
+  string model_id = 31;
 }
 
 message ClipReport {

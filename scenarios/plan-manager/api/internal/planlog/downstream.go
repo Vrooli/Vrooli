@@ -20,13 +20,16 @@ import (
 )
 
 const (
-	scenarioQASystem     = "scenario-qa"
-	swarmManagerSystem   = "swarm-manager"
-	promptManagerSystem  = "prompt-manager"
-	promptManagerTeamAPI = "/api/v1/teams/%s/knowledge"
-	swarmRecordsAPI      = "/api/v1/records"
+	scenarioQASystem           = "scenario-qa"
+	swarmManagerSystem         = "swarm-manager"
+	promptManagerSystem        = "prompt-manager"
+	promptManagerTeamAPI       = "/api/v1/teams/%s/knowledge"
+	promptManagerBugCaptureAPI = "/api/v1/teams/%s/bugs/capture"
+	swarmRecordsAPI            = "/api/v1/records"
 
 	bugWriterSkillID = "report-bug"
+	// Retained only for the legacy lookup helper until its callers are removed.
+	// New capture forwarding never uses these classifications.
 	recordScenario   = "plan-manager"
 	recordKind       = "execute"
 	recordOutcome    = "shipped"
@@ -71,23 +74,18 @@ type scenarioQABugReporter struct {
 }
 
 func (r *scenarioQABugReporter) FileBug(ctx context.Context, entry Entry) (DownstreamRef, error) {
-	topic := bugTopic(entry)
-	ref := DownstreamRef{System: scenarioQASystem, Kind: "bug_report", Detail: "topic:" + topic}
+	ref := DownstreamRef{System: scenarioQASystem, Kind: "bug_report"}
 	baseURL, err := r.resolve(ctx, promptManagerSystem)
 	if err != nil {
 		return ref, ErrDownstreamUnavailable{System: scenarioQASystem, Reason: err.Error()}
 	}
-	if existing, ok, err := r.lookup(ctx, baseURL, topic); err != nil {
-		return ref, err
-	} else if ok {
-		ref.Reference = existing
-		return ref, nil
-	}
-	id, err := r.create(ctx, baseURL, topic, bugContent(entry))
+	result, err := r.capture(ctx, baseURL, entry)
 	if err != nil {
 		return ref, err
 	}
-	ref.Reference = id
+	ref.Reference = firstNonEmpty(result.Knowledge.ID, result.DraftID)
+	ref.Capture = planmodel.CaptureDisposition{State: result.Disposition, DraftID: result.DraftID, Needs: result.Needs, Invalid: result.Invalid, Warnings: result.Warnings, NextAction: result.NextAction}
+	ref.Detail = "scenario-qa disposition: " + result.Disposition
 	return ref, nil
 }
 
@@ -131,43 +129,38 @@ func (r *scenarioQABugReporter) lookup(ctx context.Context, baseURL, topic strin
 	return "", false, nil
 }
 
-func (r *scenarioQABugReporter) create(ctx context.Context, baseURL, topic, content string) (string, error) {
-	payload := knowledgeAddRequest{
-		Topic:      topic,
-		Content:    content,
-		CallerNote: "filed by plan-manager log downstream forwarding",
-		Source:     "plan-manager",
-	}
+func (r *scenarioQABugReporter) capture(ctx context.Context, baseURL string, entry Entry) (bugCaptureResponse, error) {
+	payload := bugCaptureRequest{Title: entry.Title, SignalType: entry.Bug.SignalType, Severity: entry.Bug.Severity, Repro: entry.Bug.Repro, Expected: entry.Bug.Expected, Actual: entry.Bug.Actual, Description: entry.Bug.Description, Context: entry.Bug.Context, HonestyFlags: entry.Bug.HonestyFlags, IdempotencyKey: entry.ID}
 	var body bytes.Buffer
 	if err := json.NewEncoder(&body).Encode(payload); err != nil {
-		return "", err
+		return bugCaptureResponse{}, err
 	}
-	endpoint := baseURL + fmt.Sprintf(promptManagerTeamAPI, scenarioQASystem)
+	endpoint := baseURL + fmt.Sprintf(promptManagerBugCaptureAPI, scenarioQASystem)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &body)
 	if err != nil {
-		return "", err
+		return bugCaptureResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Vrooli-Attribution", bugAttributionHeader())
 	resp, err := r.doer.Do(req)
 	if err != nil {
-		return "", ErrDownstreamUnavailable{System: scenarioQASystem, Reason: err.Error()}
+		return bugCaptureResponse{}, ErrDownstreamUnavailable{System: scenarioQASystem, Reason: err.Error()}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 500 {
-		return "", ErrDownstreamUnavailable{System: scenarioQASystem, Reason: statusDetail(resp)}
+		return bugCaptureResponse{}, ErrDownstreamUnavailable{System: scenarioQASystem, Reason: statusDetail(resp)}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("scenario-qa bug create rejected: %s", statusDetail(resp))
+		return bugCaptureResponse{}, fmt.Errorf("scenario-qa bug capture rejected: %s", statusDetail(resp))
 	}
-	var out knowledgeEntryResponse
+	var out bugCaptureResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", fmt.Errorf("decode scenario-qa bug create: %w", err)
+		return bugCaptureResponse{}, fmt.Errorf("decode scenario-qa bug capture: %w", err)
 	}
-	if strings.TrimSpace(out.ID) == "" {
-		return "", fmt.Errorf("scenario-qa bug create returned no knowledge id")
+	if out.Disposition != "published" && out.Disposition != "draft" {
+		return bugCaptureResponse{}, fmt.Errorf("scenario-qa bug capture returned unknown disposition %q", out.Disposition)
 	}
-	return out.ID, nil
+	return out, nil
 }
 
 type swarmRecordWriter struct {
@@ -176,23 +169,18 @@ type swarmRecordWriter struct {
 }
 
 func (w *swarmRecordWriter) WriteRecord(ctx context.Context, entry Entry) (DownstreamRef, error) {
-	marker := planlogMarker(entry.ID)
-	ref := DownstreamRef{System: swarmManagerSystem, Kind: "record", Detail: marker}
+	ref := DownstreamRef{System: swarmManagerSystem, Kind: "record"}
 	baseURL, err := w.resolve(ctx)
 	if err != nil {
 		return ref, ErrDownstreamUnavailable{System: swarmManagerSystem, Reason: err.Error()}
 	}
-	if existing, ok, err := w.lookup(ctx, baseURL, marker); err != nil {
-		return ref, err
-	} else if ok {
-		ref.Reference = existing
-		return ref, nil
-	}
-	id, err := w.create(ctx, baseURL, entry, marker)
+	result, err := w.capture(ctx, baseURL, entry)
 	if err != nil {
 		return ref, err
 	}
-	ref.Reference = id
+	ref.Reference = result.Record.ID
+	ref.Capture = planmodel.CaptureDisposition{State: result.Disposition, DraftID: result.DraftID, Needs: result.Needs, Invalid: result.Invalid, Warnings: result.Warnings, NextAction: result.NextAction}
+	ref.Detail = "swarm-manager disposition: " + result.Disposition
 	return ref, nil
 }
 
@@ -236,44 +224,36 @@ func (w *swarmRecordWriter) lookup(ctx context.Context, baseURL, marker string) 
 	return "", false, nil
 }
 
-func (w *swarmRecordWriter) create(ctx context.Context, baseURL string, entry Entry, marker string) (string, error) {
-	payload := recordCreateRequest{
-		Kind:      recordKind,
-		Scenario:  recordScenario,
-		Trigger:   firstNonEmpty(marker+" "+entry.Title, marker),
-		Approach:  recordApproach(entry),
-		Evidence:  recordEvidence(entry),
-		Outcome:   recordOutcome,
-		CreatedBy: "plan-manager",
-	}
+func (w *swarmRecordWriter) capture(ctx context.Context, baseURL string, entry Entry) (recordCaptureResponse, error) {
+	payload := recordCaptureRequest{Kind: entry.Record.Kind, Scenario: entry.Record.Scenario, Trigger: entry.Record.Trigger, Approach: entry.Record.Approach, Evidence: entry.Record.Evidence, Outcome: entry.Record.Outcome, CreatedBy: entry.Record.CreatedBy, IdempotencyKey: entry.ID}
 	var body bytes.Buffer
 	if err := json.NewEncoder(&body).Encode(payload); err != nil {
-		return "", err
+		return recordCaptureResponse{}, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+swarmRecordsAPI, &body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+swarmRecordsAPI+"/capture", &body)
 	if err != nil {
-		return "", err
+		return recordCaptureResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := w.doer.Do(req)
 	if err != nil {
-		return "", ErrDownstreamUnavailable{System: swarmManagerSystem, Reason: err.Error()}
+		return recordCaptureResponse{}, ErrDownstreamUnavailable{System: swarmManagerSystem, Reason: err.Error()}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 500 {
-		return "", ErrDownstreamUnavailable{System: swarmManagerSystem, Reason: statusDetail(resp)}
+		return recordCaptureResponse{}, ErrDownstreamUnavailable{System: swarmManagerSystem, Reason: statusDetail(resp)}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("swarm-manager record create rejected: %s", statusDetail(resp))
+		return recordCaptureResponse{}, fmt.Errorf("swarm-manager record capture rejected: %s", statusDetail(resp))
 	}
-	var out recordEnvelope
+	var out recordCaptureResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", fmt.Errorf("decode swarm-manager record create: %w", err)
+		return recordCaptureResponse{}, fmt.Errorf("decode swarm-manager record capture: %w", err)
 	}
-	if strings.TrimSpace(out.Record.ID) == "" {
-		return "", fmt.Errorf("swarm-manager record create returned no record id")
+	if out.Disposition != "published" && out.Disposition != "draft" {
+		return recordCaptureResponse{}, fmt.Errorf("swarm-manager record capture returned unknown disposition %q", out.Disposition)
 	}
-	return out.Record.ID, nil
+	return out, nil
 }
 
 type knowledgeAddRequest struct {
@@ -292,6 +272,29 @@ type knowledgeEntryResponse struct {
 	Topic string `json:"topic"`
 }
 
+type bugCaptureRequest struct {
+	Title          string            `json:"title"`
+	SignalType     string            `json:"signal_type"`
+	Severity       string            `json:"severity"`
+	Repro          []string          `json:"repro"`
+	Expected       string            `json:"expected"`
+	Actual         string            `json:"actual"`
+	Description    string            `json:"description"`
+	Context        map[string]string `json:"context"`
+	HonestyFlags   []string          `json:"honesty_flags"`
+	IdempotencyKey string            `json:"idempotency_key"`
+}
+
+type bugCaptureResponse struct {
+	Disposition string                        `json:"disposition"`
+	DraftID     string                        `json:"draft_id"`
+	Knowledge   knowledgeEntryResponse        `json:"knowledge"`
+	Needs       []string                      `json:"needs"`
+	Invalid     []planmodel.CaptureDiagnostic `json:"invalid"`
+	Warnings    []string                      `json:"warnings"`
+	NextAction  []string                      `json:"next_action"`
+}
+
 type recordCreateRequest struct {
 	Kind      string `json:"kind"`
 	Scenario  string `json:"scenario"`
@@ -300,6 +303,27 @@ type recordCreateRequest struct {
 	Evidence  string `json:"evidence"`
 	Outcome   string `json:"outcome"`
 	CreatedBy string `json:"created_by"`
+}
+
+type recordCaptureRequest struct {
+	Kind           string `json:"kind"`
+	Scenario       string `json:"scenario"`
+	Trigger        string `json:"trigger"`
+	Approach       string `json:"approach"`
+	Evidence       string `json:"evidence"`
+	Outcome        string `json:"outcome"`
+	CreatedBy      string `json:"created_by"`
+	IdempotencyKey string `json:"idempotency_key"`
+}
+
+type recordCaptureResponse struct {
+	Disposition string                        `json:"disposition"`
+	DraftID     string                        `json:"draft_id"`
+	Record      recordResponse                `json:"record"`
+	Needs       []string                      `json:"needs"`
+	Invalid     []planmodel.CaptureDiagnostic `json:"invalid"`
+	Warnings    []string                      `json:"warnings"`
+	NextAction  []string                      `json:"next_action"`
 }
 
 type recordListResponse struct {

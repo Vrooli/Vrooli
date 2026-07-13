@@ -44,17 +44,19 @@ type Service interface {
 }
 
 type service struct {
-	plans      PlanSource
-	resolver   ReferenceResolver
-	staleness  StalenessComputer
-	runner     CommandRunner
-	results    ResultStore
-	operations OperationStore
-	clock      clock.Clock
-	commands   CommandReferenceValidator
-	opMu       sync.Mutex
-	active     map[string]chan struct{}
-	workers    chan struct{}
+	plans       PlanSource
+	resolver    ReferenceResolver
+	staleness   StalenessComputer
+	runner      CommandRunner
+	collections BaselineCollectionClient
+	inventories BaselineInventorySource
+	results     ResultStore
+	operations  OperationStore
+	clock       clock.Clock
+	commands    CommandReferenceValidator
+	opMu        sync.Mutex
+	active      map[string]chan struct{}
+	workers     chan struct{}
 }
 
 // Deps wires the validation Service. plans is required; resolver/staleness/runner/
@@ -62,14 +64,16 @@ type service struct {
 // false positive). A nil Results store means RunValidation still returns its live
 // result but caches nothing — LastValidation then reports "no result yet".
 type Deps struct {
-	Plans      PlanSource
-	Resolver   ReferenceResolver
-	Staleness  StalenessComputer
-	Runner     CommandRunner
-	Results    ResultStore
-	Operations OperationStore
-	Clock      clock.Clock
-	Commands   CommandReferenceValidator
+	Plans       PlanSource
+	Resolver    ReferenceResolver
+	Staleness   StalenessComputer
+	Runner      CommandRunner
+	Collections BaselineCollectionClient
+	Inventories BaselineInventorySource
+	Results     ResultStore
+	Operations  OperationStore
+	Clock       clock.Clock
+	Commands    CommandReferenceValidator
 }
 
 // NewService constructs the validation Service.
@@ -79,16 +83,18 @@ func NewService(d Deps) Service {
 		clk = clock.System{}
 	}
 	return &service{
-		plans:      d.Plans,
-		resolver:   d.Resolver,
-		staleness:  d.Staleness,
-		runner:     d.Runner,
-		results:    d.Results,
-		operations: d.Operations,
-		clock:      clk,
-		commands:   d.Commands,
-		active:     make(map[string]chan struct{}),
-		workers:    make(chan struct{}, maxValidationConcurrency),
+		plans:       d.Plans,
+		resolver:    d.Resolver,
+		staleness:   d.Staleness,
+		runner:      d.Runner,
+		collections: d.Collections,
+		inventories: d.Inventories,
+		results:     d.Results,
+		operations:  d.Operations,
+		clock:       clk,
+		commands:    d.Commands,
+		active:      make(map[string]chan struct{}),
+		workers:     make(chan struct{}, maxValidationConcurrency),
 	}
 }
 
@@ -273,7 +279,11 @@ func (s *service) DeriveBaselineScope(ctx context.Context, planID, phaseID strin
 	if err != nil {
 		return BaselineScope{}, err
 	}
-	return deriveScope(p, refs, effectiveBoundary(p, phaseID)), nil
+	boundary := effectiveBoundary(p, phaseID)
+	if phaseID == "" && strings.TrimSpace(p.BaselineSet.Name) != "" {
+		boundary = fullBaselineSetBoundary(boundary, p.BaselineSet.ScenarioTargets)
+	}
+	return deriveScope(p, refs, boundary), nil
 }
 
 func (s *service) CaptureBaseline(ctx context.Context, planID string) (BaselineCapture, error) {
@@ -282,6 +292,9 @@ func (s *service) CaptureBaseline(ctx context.Context, planID string) (BaselineC
 		return BaselineCapture{}, err
 	}
 	anchor := p.RegressionAnchor
+	if baselineSet := p.BaselineSet; strings.TrimSpace(baselineSet.Name) != "" {
+		return s.captureBaselineSet(ctx, p, baselineSet)
+	}
 	scenario := strings.TrimSpace(anchor.Scenario)
 	name := strings.TrimSpace(anchor.BaselineName)
 	// An unconfirmed authoring placeholder (e.g. "<scenario>") is not a real
@@ -318,6 +331,39 @@ func (s *service) CaptureBaseline(ctx context.Context, planID string) (BaselineC
 		SchemaVersion: health.schemaVersion,
 		Detail:        fmt.Sprintf("captured baseline %s for %s anchored to Test Genie run %s", name, scenario, health.runID),
 	}, nil
+}
+
+// captureBaselineSet is the new-plan path. A full GCT collection capture is
+// requested once at execution start; incomplete coverage is explicitly
+// degraded, never converted into a successful single-scenario snapshot.
+func (s *service) captureBaselineSet(ctx context.Context, _ planmodel.Plan, baselineSet planmodel.BaselineSetIntent) (BaselineCapture, error) {
+	base := BaselineCapture{BaselineName: baselineSet.Name, ScenarioTargets: append([]string(nil), baselineSet.ScenarioTargets...), RepoPaths: append([]string(nil), baselineSet.RepoPaths...)}
+	if s.collections == nil {
+		base.Detail = "git-control-tower collection client unavailable"
+		return base, nil
+	}
+	if len(baselineSet.ScenarioTargets) == 0 {
+		base.Detail = "baseline set has no behavioral scenario targets; source paths are informational only"
+		return base, nil
+	}
+	result, err := s.collections.StartCollectionCapture(ctx, BaselineCollectionCaptureRequest{
+		Name: baselineSet.Name, Scenarios: append([]string(nil), baselineSet.ScenarioTargets...), RepoPaths: append([]string(nil), baselineSet.RepoPaths...),
+	})
+	if err != nil {
+		base.Detail = "baseline collection capture failed: " + err.Error()
+		return base, nil
+	}
+	base.Required, base.Ready, base.Pending, base.Failed, base.Skipped, base.Stale = result.Required, result.Ready, result.Pending, result.Failed, result.Skipped, result.Stale
+	base.CollectionBranch = result.Branch
+	base.Members = append([]BaselineCollectionMember(nil), result.Members...)
+	base.PathSnapshots = append([]BaselinePathSnapshot(nil), result.PathSnapshots...)
+	if !result.Complete() {
+		base.Detail = fmt.Sprintf("baseline collection %s coverage incomplete: required=%d ready=%d pending=%d failed=%d skipped=%d stale=%d", result.Name, result.Required, result.Ready, result.Pending, result.Failed, result.Skipped, result.Stale)
+		return base, nil
+	}
+	base.Captured = true
+	base.Detail = fmt.Sprintf("captured complete baseline collection %s for %d required scenario(s); source paths remain informational", result.Name, result.Required)
+	return base, nil
 }
 
 type baselineCaptureHealth struct {
@@ -429,7 +475,21 @@ func (s *service) StartValidation(ctx context.Context, planID, phaseID, idempote
 	if err != nil {
 		return ValidationOperation{}, false, err
 	}
-	checks := compileValidationChecks(p, refs, effectiveBoundary(p, phaseID))
+	validationPlan, inventory, hasInventory, err := s.planWithCapturedBaselineInventory(ctx, p)
+	if err != nil {
+		return ValidationOperation{}, false, err
+	}
+	boundary := effectiveBoundary(validationPlan, phaseID)
+	if phaseID == "" && strings.TrimSpace(validationPlan.BaselineSet.Name) != "" {
+		boundary = fullBaselineSetBoundary(boundary, validationPlan.BaselineSet.ScenarioTargets)
+	}
+	if strings.TrimSpace(validationPlan.BaselineSet.Name) != "" {
+		if outside := scenariosOutsideBaselineInventory(boundary, refs, validationPlan.BaselineSet.ScenarioTargets); len(outside) > 0 {
+			return ValidationOperation{}, false, fmt.Errorf("validation scope requests scenario(s) outside captured baseline inventory: %s", strings.Join(outside, ", "))
+		}
+	}
+	checks := compileValidationChecks(validationPlan, refs, boundary)
+	checks = replaceRepoDiffWithCapturedPathEvidence(checks, sourceEvidencePaths(validationPlan, boundary), inventory, hasInventory)
 	staleReport, _ := s.ComputeStaleness(ctx, planID, phaseID)
 	now := s.now()
 	op := ValidationOperation{
@@ -444,7 +504,7 @@ func (s *service) StartValidation(ctx context.Context, planID, phaseID, idempote
 		ExecutionBudgetSeconds:     int(defaultExecutionBudget.Seconds()),
 		TransportWaitBudgetSeconds: int(defaultTransportWaitBudget.Seconds()),
 		RecommendedWaitSeconds:     int((defaultQueueBudget + commandExecutionTimeout).Seconds()),
-		ScopeFingerprint:           scopeFingerprint(p, phaseID, checks),
+		ScopeFingerprint:           scopeFingerprint(validationPlan, phaseID, checks),
 		QueueReason:                "awaiting scheduler claim",
 		Result: &Result{
 			ID: "", PlanID: p.ID, PhaseID: phaseID, Staleness: staleReport.Overall,
@@ -466,6 +526,64 @@ func (s *service) StartValidation(ctx context.Context, planID, phaseID, idempote
 		s.launchValidation(context.WithoutCancel(ctx), stored.ID)
 	}
 	return stored, !created, nil
+}
+
+// planWithCapturedBaselineInventory freezes validation to the target inventory
+// that was actually captured at execution start. It deliberately preserves the
+// plan's name/policy and phase boundary; only the mutable target inventory is
+// substituted. No checkpoint means validation is occurring before execution
+// starts, so authored intent remains the correct source.
+func (s *service) planWithCapturedBaselineInventory(ctx context.Context, p planmodel.Plan) (planmodel.Plan, BaselineInventory, bool, error) {
+	if s.inventories == nil || strings.TrimSpace(p.BaselineSet.Name) == "" {
+		return p, BaselineInventory{}, false, nil
+	}
+	inventory, ok, err := s.inventories.LatestBaselineInventory(ctx, p.ID)
+	if err != nil {
+		return planmodel.Plan{}, BaselineInventory{}, false, fmt.Errorf("load captured baseline inventory: %w", err)
+	}
+	if !ok || strings.TrimSpace(inventory.Name) != strings.TrimSpace(p.BaselineSet.Name) || len(inventory.ScenarioTargets) == 0 {
+		return p, BaselineInventory{}, false, nil
+	}
+	p.BaselineSet.ScenarioTargets = uniqueSortedStrings(inventory.ScenarioTargets)
+	return p, inventory, true, nil
+}
+
+// sourceEvidencePaths mirrors the repo-diff selection compiled for validation.
+// A HEAD-SHA allowlist is part of the captured source boundary too, even when a
+// phase has no additional repo paths of its own.
+func sourceEvidencePaths(p planmodel.Plan, boundary planmodel.ChangeBoundary) []string {
+	paths := append([]string(nil), boundary.RepoPaths()...)
+	if p.RegressionAnchor.Strategy == planmodel.AnchorStrategyHeadShaAllowlist {
+		paths = append(paths, p.RegressionAnchor.AllowlistPaths...)
+	}
+	return uniqueSortedStrings(paths)
+}
+
+// replaceRepoDiffWithCapturedPathEvidence swaps only the legacy informational
+// command for a typed GCT path-delta child once the execution checkpoint has a
+// concrete source snapshot reference. Before capture, the legacy report remains
+// honest rather than guessing a snapshot identity.
+func replaceRepoDiffWithCapturedPathEvidence(checks []ValidationCheck, paths []string, inventory BaselineInventory, hasInventory bool) []ValidationCheck {
+	if !hasInventory || len(paths) == 0 || len(inventory.PathSnapshots) == 0 {
+		return checks
+	}
+	out := make([]ValidationCheck, 0, len(checks)+len(inventory.PathSnapshots))
+	for _, check := range checks {
+		if check.Kind != ValidationCheckRepoDiff {
+			out = append(out, check)
+		}
+	}
+	for _, snapshot := range inventory.PathSnapshots {
+		if strings.TrimSpace(snapshot.Name) == "" {
+			continue
+		}
+		branch := snapshot.Branch
+		if branch == "" {
+			branch = inventory.Branch
+		}
+		out = append(out, ValidationCheck{Kind: ValidationCheckPathSnapshotDiff, Baseline: snapshot.Name, Branch: branch, Paths: append([]string(nil), paths...), SemanticKey: "path-snapshot-diff:" + snapshot.Name + ":" + strings.Join(paths, ","), Command: "git-control-tower baseline path diff --before " + snapshot.Name + " --after <captured-after> --path " + strings.Join(paths, " ")})
+	}
+	return deduplicateChecks(out)
 }
 
 func scopeFingerprint(p planmodel.Plan, phaseID string, checks []ValidationCheck) string {
@@ -722,17 +840,24 @@ func (s *service) runValidationChild(ctx context.Context, operationID, childID s
 	if !ok {
 		return
 	}
-	name, args := splitCommand(child.Command)
 	var output []byte
 	var runErr error
-	if name == "" {
-		runErr = errors.New("empty command")
-	} else if s.runner == nil {
-		runErr = fmt.Errorf("command %q: %w", name, ErrToolNotFound)
+	classified := commandRunResult{}
+	if child.Check.Kind == ValidationCheckCollectionDiff {
+		classified, runErr = s.runCollectionDiff(ctx, child)
+	} else if child.Check.Kind == ValidationCheckPathSnapshotDiff {
+		classified, runErr = s.runPathSnapshotDiff(ctx, child)
 	} else {
-		output, runErr = s.runner(ctx, name, args...)
+		name, args := splitCommand(child.Command)
+		if name == "" {
+			runErr = errors.New("empty command")
+		} else if s.runner == nil {
+			runErr = fmt.Errorf("command %q: %w", name, ErrToolNotFound)
+		} else {
+			output, runErr = s.runner(ctx, name, args...)
+		}
+		classified = classifyCommandRun(child.Command, child.Oracle, runErr)
 	}
-	classified := classifyCommandRun(child.Command, child.Oracle, runErr)
 	s.updateChild(operationID, childID, func(child *ValidationChild) {
 		child.Status = ChildTerminal
 		child.TerminalAt = s.now()
@@ -741,6 +866,46 @@ func (s *service) runValidationChild(ctx context.Context, operationID, childID s
 		child.ExternalID = externalRunID(output)
 		child.Error = operationErrorFor(runErr)
 	})
+}
+
+func (s *service) runCollectionDiff(ctx context.Context, child ValidationChild) (commandRunResult, error) {
+	if s.collections == nil {
+		err := errors.New("git-control-tower collection client unavailable")
+		return commandRunResult{oracle: true, verdict: VerdictUnknown, detail: err.Error()}, err
+	}
+	result, err := s.collections.StartCollectionDiff(ctx, BaselineCollectionDiffRequest{Name: child.Check.Baseline, OperationID: child.ID, Scenarios: append([]string(nil), child.Check.Scenarios...)})
+	if err != nil {
+		return commandRunResult{oracle: true, verdict: VerdictUnknown, detail: "collection diff unavailable: " + err.Error()}, err
+	}
+	classified := commandRunResult{oracle: true, detail: strings.TrimSpace(result.Detail)}
+	switch result.Classification {
+	case "clean":
+		classified.verdict = VerdictPass
+	case "regression":
+		classified.verdict = VerdictFail
+	default:
+		classified.verdict = VerdictUnknown
+		if classified.detail == "" {
+			classified.detail = "collection diff " + result.Classification
+		}
+	}
+	return classified, nil
+}
+
+func (s *service) runPathSnapshotDiff(ctx context.Context, child ValidationChild) (commandRunResult, error) {
+	if s.collections == nil {
+		err := errors.New("git-control-tower collection client unavailable")
+		return commandRunResult{oracle: false, verdict: VerdictUnknown, detail: err.Error()}, err
+	}
+	result, err := s.collections.DiffPathEvidence(ctx, BaselinePathDiffRequest{BeforeName: child.Check.Baseline, Branch: child.Check.Branch, Paths: append([]string(nil), child.Check.Paths...), OperationID: child.ID})
+	if err != nil {
+		return commandRunResult{oracle: false, verdict: VerdictUnknown, detail: "source evidence unavailable: " + err.Error()}, err
+	}
+	detail := strings.TrimSpace(result.Detail)
+	if detail == "" {
+		detail = fmt.Sprintf("informational source evidence: %d path delta(s), after snapshot %s", result.Deltas, result.AfterName)
+	}
+	return commandRunResult{oracle: false, verdict: VerdictPass, detail: detail}, nil
 }
 
 func (s *service) updateChild(operationID, childID string, mutate func(*ValidationChild)) (ValidationChild, bool) {
@@ -1000,6 +1165,9 @@ func (s *service) VerifyDefinitionOfDone(ctx context.Context, planID string) (Re
 	if err != nil {
 		return Result{}, false, err
 	}
+	if strings.TrimSpace(p.BaselineSet.Name) != "" {
+		return s.verifyBaselineSetDefinitionOfDone(ctx, p)
+	}
 	commands := p.RegressionAnchor.Commands
 	if len(commands) == 0 && !p.RegressionAnchor.Unavailable {
 		// Wizard-authored plans carry the anchor as captured prose with no explicit
@@ -1016,6 +1184,34 @@ func (s *service) VerifyDefinitionOfDone(ctx context.Context, planID string) (Re
 	}
 	res.Verdict, res.Detail = s.runCommands(ctx, commands)
 	return res, res.Verdict == VerdictPass, nil
+}
+
+// verifyBaselineSetDefinitionOfDone always evaluates the complete captured
+// inventory through the durable typed collection-diff operation. It never
+// replays a rendered CLI string and cannot call incomplete coverage clean.
+func (s *service) verifyBaselineSetDefinitionOfDone(ctx context.Context, p planmodel.Plan) (Result, bool, error) {
+	if s.inventories == nil {
+		return Result{PlanID: p.ID, Verdict: VerdictUnknown, Detail: "execution baseline-set checkpoint unavailable; DoD cannot verify complete coverage", RanAt: s.now()}, false, nil
+	}
+	inventory, ok, err := s.inventories.LatestBaselineInventory(ctx, p.ID)
+	if err != nil {
+		return Result{}, false, fmt.Errorf("load baseline-set checkpoint for DoD: %w", err)
+	}
+	if !ok || inventory.Name != p.BaselineSet.Name || !inventory.Complete {
+		return Result{PlanID: p.ID, Verdict: VerdictUnknown, Detail: "baseline-set coverage is incomplete or missing; DoD cannot be clean", RanAt: s.now()}, false, nil
+	}
+	op, _, err := s.StartValidation(ctx, p.ID, "", "dod:"+uuid.NewString())
+	if err != nil {
+		return Result{}, false, err
+	}
+	op, err = s.GetValidationOperation(ctx, op.ID, true)
+	if err != nil {
+		return Result{}, false, err
+	}
+	if op.Result == nil {
+		return Result{PlanID: p.ID, Verdict: VerdictUnknown, Detail: "baseline-set validation completed without a result", RanAt: s.now()}, false, nil
+	}
+	return *op.Result, op.Result.Verdict == VerdictPass, nil
 }
 
 // isOracleCommand reports whether a derived command has trustworthy pass/fail
@@ -1185,6 +1381,41 @@ func effectiveBoundary(p planmodel.Plan, phaseID string) planmodel.ChangeBoundar
 		}
 	}
 	return p.ChangeBoundary
+}
+
+// fullBaselineSetBoundary is used only for plan-level/final validation. A phase
+// may narrow its own scope, but an empty phase ID is the final certification and
+// must exercise every scenario captured in the immutable collection inventory.
+func fullBaselineSetBoundary(boundary planmodel.ChangeBoundary, scenarios []string) planmodel.ChangeBoundary {
+	for _, scenario := range uniqueSortedStrings(scenarios) {
+		boundary.AcceptanceAllow = append(boundary.AcceptanceAllow, "scenarios/"+scenario+"/**")
+	}
+	return boundary.Normalized()
+}
+
+func scenariosOutsideBaselineInventory(boundary planmodel.ChangeBoundary, refs []planmodel.Reference, inventory []string) []string {
+	allowed := make(map[string]struct{}, len(inventory))
+	for _, scenario := range inventory {
+		if scenario = strings.TrimSpace(scenario); scenario != "" {
+			allowed[scenario] = struct{}{}
+		}
+	}
+	requested := make([]string, 0)
+	requested = append(requested, boundary.AffectedScenarios()...)
+	for _, ref := range refs {
+		if ref.Kind == planmodel.ReferenceCode && !ref.Future {
+			if scenario := scenarioFromTarget(ref.Target); scenario != "" {
+				requested = append(requested, scenario)
+			}
+		}
+	}
+	outside := make([]string, 0)
+	for _, scenario := range uniqueSortedStrings(requested) {
+		if _, ok := allowed[scenario]; !ok {
+			outside = append(outside, scenario)
+		}
+	}
+	return outside
 }
 
 func scenarioFromTarget(target string) string {

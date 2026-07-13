@@ -45,17 +45,23 @@ class EvalReport(_message.Message):
     def __init__(self, per_strategy: _Optional[_Iterable[_Union[StrategyReport, _Mapping]]] = ..., quality_measured: _Optional[bool] = ..., latency_measured: _Optional[bool] = ..., summary: _Optional[_Union[EvalReportSummary, _Mapping]] = ..., warnings: _Optional[_Iterable[_Union[ReportWarning, _Mapping]]] = ..., normalization_policy: _Optional[_Union[NormalizationPolicy, _Mapping]] = ..., latency_honesty: _Optional[str] = ..., promotion_verdicts: _Optional[_Iterable[_Union[PromotionVerdict, _Mapping]]] = ...) -> None: ...
 
 class PromotionVerdict(_message.Message):
-    __slots__ = ("engine_id", "stable", "reasons")
+    __slots__ = ("engine_id", "stable", "reasons", "strategy", "policy_profile", "model_id")
     ENGINE_ID_FIELD_NUMBER: _ClassVar[int]
     STABLE_FIELD_NUMBER: _ClassVar[int]
     REASONS_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    POLICY_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     engine_id: str
     stable: bool
     reasons: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, engine_id: _Optional[str] = ..., stable: _Optional[bool] = ..., reasons: _Optional[_Iterable[str]] = ...) -> None: ...
+    strategy: str
+    policy_profile: str
+    model_id: str
+    def __init__(self, engine_id: _Optional[str] = ..., stable: _Optional[bool] = ..., reasons: _Optional[_Iterable[str]] = ..., strategy: _Optional[str] = ..., policy_profile: _Optional[str] = ..., model_id: _Optional[str] = ...) -> None: ...
 
 class StrategyReport(_message.Message):
-    __slots__ = ("strategy", "label", "wer", "substitutions", "insertions", "deletions", "ref_words", "whisper_calls", "whisper_audio_seconds", "rtf", "finalization_latency_p50_ms", "finalization_latency_p95_ms", "partial_revisions", "per_clip", "wer_delta_vs_winner", "p95_delta_ms_vs_winner", "call_multiplier_vs_winner", "verdict", "reasons", "warnings", "safety", "stage_attribution", "length_curves", "commit_count", "speaker_rejection_count", "scaling", "engine_id", "policy_profile", "replay_lane", "fault_profile")
+    __slots__ = ("strategy", "label", "wer", "substitutions", "insertions", "deletions", "ref_words", "whisper_calls", "whisper_audio_seconds", "rtf", "finalization_latency_p50_ms", "finalization_latency_p95_ms", "partial_revisions", "per_clip", "wer_delta_vs_winner", "p95_delta_ms_vs_winner", "call_multiplier_vs_winner", "verdict", "reasons", "warnings", "safety", "stage_attribution", "length_curves", "commit_count", "speaker_rejection_count", "scaling", "engine_id", "policy_profile", "replay_lane", "fault_profile", "model_id")
     STRATEGY_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     WER_FIELD_NUMBER: _ClassVar[int]
@@ -86,6 +92,7 @@ class StrategyReport(_message.Message):
     POLICY_PROFILE_FIELD_NUMBER: _ClassVar[int]
     REPLAY_LANE_FIELD_NUMBER: _ClassVar[int]
     FAULT_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     strategy: str
     label: str
     wer: float
@@ -116,7 +123,8 @@ class StrategyReport(_message.Message):
     policy_profile: str
     replay_lane: str
     fault_profile: str
-    def __init__(self, strategy: _Optional[str] = ..., label: _Optional[str] = ..., wer: _Optional[float] = ..., substitutions: _Optional[int] = ..., insertions: _Optional[int] = ..., deletions: _Optional[int] = ..., ref_words: _Optional[int] = ..., whisper_calls: _Optional[int] = ..., whisper_audio_seconds: _Optional[float] = ..., rtf: _Optional[float] = ..., finalization_latency_p50_ms: _Optional[float] = ..., finalization_latency_p95_ms: _Optional[float] = ..., partial_revisions: _Optional[int] = ..., per_clip: _Optional[_Iterable[_Union[ClipReport, _Mapping]]] = ..., wer_delta_vs_winner: _Optional[float] = ..., p95_delta_ms_vs_winner: _Optional[float] = ..., call_multiplier_vs_winner: _Optional[float] = ..., verdict: _Optional[str] = ..., reasons: _Optional[_Iterable[str]] = ..., warnings: _Optional[_Iterable[_Union[ReportWarning, _Mapping]]] = ..., safety: _Optional[_Union[SafetyGateReport, _Mapping]] = ..., stage_attribution: _Optional[_Union[StageAttribution, _Mapping]] = ..., length_curves: _Optional[_Iterable[_Union[LengthBucketCurve, _Mapping]]] = ..., commit_count: _Optional[int] = ..., speaker_rejection_count: _Optional[int] = ..., scaling: _Optional[_Union[ScalingAnalysis, _Mapping]] = ..., engine_id: _Optional[str] = ..., policy_profile: _Optional[str] = ..., replay_lane: _Optional[str] = ..., fault_profile: _Optional[str] = ...) -> None: ...
+    model_id: str
+    def __init__(self, strategy: _Optional[str] = ..., label: _Optional[str] = ..., wer: _Optional[float] = ..., substitutions: _Optional[int] = ..., insertions: _Optional[int] = ..., deletions: _Optional[int] = ..., ref_words: _Optional[int] = ..., whisper_calls: _Optional[int] = ..., whisper_audio_seconds: _Optional[float] = ..., rtf: _Optional[float] = ..., finalization_latency_p50_ms: _Optional[float] = ..., finalization_latency_p95_ms: _Optional[float] = ..., partial_revisions: _Optional[int] = ..., per_clip: _Optional[_Iterable[_Union[ClipReport, _Mapping]]] = ..., wer_delta_vs_winner: _Optional[float] = ..., p95_delta_ms_vs_winner: _Optional[float] = ..., call_multiplier_vs_winner: _Optional[float] = ..., verdict: _Optional[str] = ..., reasons: _Optional[_Iterable[str]] = ..., warnings: _Optional[_Iterable[_Union[ReportWarning, _Mapping]]] = ..., safety: _Optional[_Union[SafetyGateReport, _Mapping]] = ..., stage_attribution: _Optional[_Union[StageAttribution, _Mapping]] = ..., length_curves: _Optional[_Iterable[_Union[LengthBucketCurve, _Mapping]]] = ..., commit_count: _Optional[int] = ..., speaker_rejection_count: _Optional[int] = ..., scaling: _Optional[_Union[ScalingAnalysis, _Mapping]] = ..., engine_id: _Optional[str] = ..., policy_profile: _Optional[str] = ..., replay_lane: _Optional[str] = ..., fault_profile: _Optional[str] = ..., model_id: _Optional[str] = ...) -> None: ...
 
 class ClipReport(_message.Message):
     __slots__ = ("clip_id", "reference", "hypothesis", "wer", "whisper_calls", "whisper_audio_seconds", "rtf", "segment_count", "partial_revisions", "finalization_latency_p50_ms", "finalization_latency_p95_ms", "error", "substitutions", "insertions", "deletions", "ref_words", "hyp_words", "normalized_reference", "normalized_hypothesis", "edit_operations", "commit_timeline", "time_to_first_commit_ms", "commit_count", "speaker_rejection_count", "audio_duration_ms", "safety")

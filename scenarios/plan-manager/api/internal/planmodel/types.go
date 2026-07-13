@@ -3,6 +3,8 @@
 // dependencies.
 package planmodel
 
+import "strings"
+
 // PlanStatus is the lifecycle state of a plan. COMPUTED from the phase-status
 // set plus lifecycle actions; never free-text edited.
 type PlanStatus string
@@ -252,6 +254,50 @@ type RegressionAnchor struct {
 	Unavailable    bool
 }
 
+// BaselineSetIntent is the plan-time, immutable request for one comprehensive
+// before-state.  It deliberately records policy rather than shell commands:
+// Git Control Tower owns the collection mechanics while Plan Manager owns which
+// members and source paths a plan needs.  Targets are resolved from the change
+// boundary when a plan is finalized, then persisted here so execution never has
+// to scrape rendered markdown or infer policy from a later worktree.
+type BaselineSetIntent struct {
+	// Name is the stable collection/baseline identity used for every selected
+	// scenario. It is intentionally shared with the existing anchor name so a
+	// legacy per-scenario baseline can be translated without a second name.
+	Name string
+	// ScenarioTargets is the sorted, deduplicated inventory derived from the
+	// plan change boundary at finalization time.
+	ScenarioTargets []string
+	// RepoPaths is the sorted, deduplicated set of non-scenario boundary globs
+	// for informational source snapshots. They never become behavioral oracles.
+	RepoPaths []string
+	// CapturePolicy is currently execution_start. Keeping it explicit makes a
+	// later policy evolution additive and auditably distinct from legacy plans.
+	CapturePolicy string
+	// Compatibility is baseline_set for newly authored plans and legacy_anchor
+	// for imported/pre-cutover anchor records.
+	Compatibility string
+}
+
+const (
+	BaselineCapturePolicyExecutionStart = "execution_start"
+	BaselineSetCompatibilityCurrent     = "baseline_set"
+	BaselineSetCompatibilityLegacy      = "legacy_anchor"
+)
+
+// BaselineSetFromBoundary derives the persisted plan intent from the one
+// authoritative blast-radius contract. It is deterministic so repairing an old
+// plan cannot silently expand its coverage.
+func BaselineSetFromBoundary(boundary ChangeBoundary, name string) BaselineSetIntent {
+	return BaselineSetIntent{
+		Name:            strings.TrimSpace(name),
+		ScenarioTargets: boundary.AffectedScenarios(),
+		RepoPaths:       boundary.RepoPaths(),
+		CapturePolicy:   BaselineCapturePolicyExecutionStart,
+		Compatibility:   BaselineSetCompatibilityCurrent,
+	}
+}
+
 // Regression-anchor strategy identifiers.
 const (
 	// AnchorStrategyChangeBoundary is the boundary-native anchor strategy used by
@@ -334,6 +380,10 @@ type Plan struct {
 	// regression-anchor intent, validation scope, and execution reminders.
 	ChangeBoundary   ChangeBoundary
 	RegressionAnchor RegressionAnchor
+	// BaselineSet is the execution-facing collection intent for new plans. It
+	// is optional so imported and pre-cutover plans retain their legacy anchor
+	// behavior unchanged.
+	BaselineSet      BaselineSetIntent
 	DefinitionOfDone string
 	Phases           []Phase
 	Supersedes       []string

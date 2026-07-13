@@ -52,6 +52,17 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	p.DefinitionOfDone = firstNonEmpty(sections["definition of done"], sections["definition-of-done"])
 	p.ChangeBoundary = ParseChangeBoundaryBlock(firstNonEmpty(sections["change boundary"], sections["acceptance boundary"]))
 	p.RegressionAnchor = ParseRegressionAnchorBlock(sections["regression anchor"])
+	p.BaselineSet = ParseBaselineSetBlock(sections["baseline set"])
+	// A compact baseline-set projection supersedes the command-wall anchor for
+	// new plans. Recreate only the minimum typed anchor intent needed by older
+	// quality/validation consumers while keeping the set as the display and
+	// execution policy source of truth.
+	if p.RegressionAnchor.Strategy == "" && p.BaselineSet.Name != "" {
+		p.RegressionAnchor = RegressionAnchor{
+			Strategy:     AnchorStrategyChangeBoundary,
+			BaselineName: p.BaselineSet.Name,
+		}
+	}
 	// Import upgrade: a legacy plan with no Change Boundary section but a scenario/
 	// allowlist anchor gets a boundary DERIVED from that anchor, so imported plans
 	// join the boundary model without losing their original blast radius.
@@ -91,6 +102,53 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 		return Plan{}, err
 	}
 	return p, nil
+}
+
+// ParseBaselineSetBlock recovers the compact declarative projection emitted by
+// renderBaselineSet. Commands are intentionally not accepted: operation details
+// belong to the GCT collection record, never a markdown mirror.
+func ParseBaselineSetBlock(block string) BaselineSetIntent {
+	if strings.TrimSpace(block) == "" {
+		return BaselineSetIntent{}
+	}
+	var out BaselineSetIntent
+	for _, line := range strings.Split(block, "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- "))
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		value = strings.TrimSpace(value)
+		switch strings.ToLower(strings.TrimSpace(key)) {
+		case "name":
+			out.Name = trimMarkdownValue(value)
+		case "capture policy":
+			out.CapturePolicy = trimMarkdownValue(value)
+		case "behavioral scenario coverage":
+			out.ScenarioTargets = backtickValues(value)
+		case "source changes for review (informational)":
+			out.RepoPaths = backtickValues(value)
+		}
+	}
+	if out.Name == "" && len(out.ScenarioTargets) == 0 && len(out.RepoPaths) == 0 {
+		return BaselineSetIntent{}
+	}
+	if out.CapturePolicy == "" {
+		out.CapturePolicy = BaselineCapturePolicyExecutionStart
+	}
+	out.Compatibility = BaselineSetCompatibilityCurrent
+	return out
+}
+
+func backtickValues(value string) []string {
+	values := backtickValueRe.FindAllStringSubmatch(value, -1)
+	out := make([]string, 0, len(values))
+	for _, match := range values {
+		if len(match) == 2 && strings.TrimSpace(match[1]) != "" {
+			out = append(out, strings.TrimSpace(match[1]))
+		}
+	}
+	return out
 }
 
 // ParseChangeBoundaryBlock recovers a ChangeBoundary from the rendered

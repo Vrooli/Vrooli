@@ -46,6 +46,9 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 	if anchor := strings.TrimSpace(contentOf(sess.Sections, SectionRegressionAnchor)); anchor != "" {
 		p.RegressionAnchor = planmodel.ParseRegressionAnchorBlock(anchor)
 	}
+	if p.RegressionAnchor.Strategy == planmodel.AnchorStrategyChangeBoundary {
+		p.BaselineSet = planmodel.BaselineSetFromBoundary(p.ChangeBoundary, p.RegressionAnchor.BaselineName)
+	}
 	return p, nil
 }
 

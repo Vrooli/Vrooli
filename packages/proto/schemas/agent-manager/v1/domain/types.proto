@@ -405,6 +405,30 @@ enum RunMode {
 }
 
 // =============================================================================
+// EXECUTION MODE
+// =============================================================================
+
+// ExecutionMode selects the substrate agent-manager uses to drive the agent
+// CLI for a run. It is orthogonal to RunMode (sandbox isolation): a run picks
+// an execution substrate independently of whether it is sandboxed.
+//
+// @usage CreateRunRequest.execution_mode, Run.execution_mode
+enum ExecutionMode {
+  // Default/unspecified. Treated as EXECUTION_MODE_CODEC_PIPE.
+  EXECUTION_MODE_UNSPECIFIED = 0;
+
+  // agent-manager owns the CLI process and reads events off its stdout pipe
+  // via the codec decoders. The historical path and the only path for
+  // protected (sandboxed) runs.
+  EXECUTION_MODE_CODEC_PIPE = 1;
+
+  // agent-manager launches the real interactive agent CLI inside a web-console
+  // (persistent/tmux) session and reads events by tailing the agent-owned
+  // on-disk transcript. Allowed only for non-protected (in-place) runs.
+  EXECUTION_MODE_INTERACTIVE = 2;
+}
+
+// =============================================================================
 // APPROVAL STATE
 // =============================================================================
 

@@ -28,6 +28,7 @@ func executionToProto(e internalexecution.Execution) *executionv1.Execution {
 		Complete:       e.Complete,
 		StartedAt:      e.StartedAt,
 		UpdatedAt:      e.UpdatedAt,
+		BaselineSet:    baselineSetToProto(e.BaselineSet),
 	}
 }
 
@@ -43,6 +44,7 @@ func phaseContextToProto(c internalexecution.PhaseContext) *executionv1.PhaseCon
 		FreshenStatus:   c.FreshenStatus,
 		FreshenDetail:   c.FreshenDetail,
 		ChangeBoundary:  planproto.ChangeBoundaryToProto(c.ChangeBoundary),
+		BaselineSet:     baselineSetToProto(c.BaselineSet),
 	}
 	if c.HasCurrent {
 		out.CurrentPhase = phaseToProto(c.CurrentPhase)
@@ -55,6 +57,36 @@ func phaseContextToProto(c internalexecution.PhaseContext) *executionv1.PhaseCon
 	}
 	out.LogSummary = planproto.LogSummaryToProto(c.LogSummary)
 	out.FeedbackCheckpoint = feedbackCheckpointToProto(c.FeedbackCheckpoint)
+	return out
+}
+
+func baselineSetToProto(state internalexecution.BaselineSetState) *executionv1.BaselineSetState {
+	if state.Name == "" {
+		return nil
+	}
+	return &executionv1.BaselineSetState{
+		Version: int32(state.Version), Name: state.Name,
+		CollectionBranch: state.CollectionBranch,
+		ScenarioTargets:  append([]string(nil), state.ScenarioTargets...), RepoPaths: append([]string(nil), state.RepoPaths...),
+		CapturedAt: state.CapturedAt, Status: string(state.Status), Required: int32(state.Required), Ready: int32(state.Ready),
+		Pending: int32(state.Pending), Failed: int32(state.Failed), Skipped: int32(state.Skipped), Stale: int32(state.Stale), Detail: state.Detail,
+		Members: baselineSetMembersToProto(state.Members), PathSnapshots: baselineSetPathSnapshotsToProto(state.PathSnapshots),
+	}
+}
+
+func baselineSetMembersToProto(members []internalexecution.BaselineSetMember) []*executionv1.BaselineSetMember {
+	out := make([]*executionv1.BaselineSetMember, 0, len(members))
+	for _, member := range members {
+		out = append(out, &executionv1.BaselineSetMember{Scenario: member.Scenario, BaselineName: member.BaselineName, Required: member.Required, Status: member.Status, RunId: member.RunID, GitSha: member.GitSHA, Error: member.Error})
+	}
+	return out
+}
+
+func baselineSetPathSnapshotsToProto(snapshots []internalexecution.BaselineSetPathSnapshot) []*executionv1.BaselineSetPathSnapshot {
+	out := make([]*executionv1.BaselineSetPathSnapshot, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		out = append(out, &executionv1.BaselineSetPathSnapshot{Name: snapshot.Name, Branch: snapshot.Branch, CreatedAt: snapshot.CreatedAt})
+	}
 	return out
 }
 

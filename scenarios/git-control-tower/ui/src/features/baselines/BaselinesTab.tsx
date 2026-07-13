@@ -8,6 +8,7 @@ import { useBaselines, useDeleteBaseline, useDefaultBaseline } from "../../lib/h
 import { BaselineRow } from "./BaselineRow";
 import { BaselineCompareView } from "./BaselineCompareView";
 import { SetBaselineModal } from "./SetBaselineModal";
+import { BaselineCollectionsPanel } from "./BaselineCollectionsPanel";
 import type { BaselineManifest } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 import type { AgentContextItem } from "../../lib/api";
 
@@ -108,6 +109,7 @@ export function BaselinesTab({ scenarioSlug, repoId, agentManagerAvailable, onAt
         onClose={() => setIsSetOpen(false)}
         onCreated={() => baselinesQuery.refetch()}
       />
+      <BaselineCollectionsPanel repoId={repoId} />
     </div>
   );
 }

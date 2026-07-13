@@ -360,3 +360,335 @@ class DeleteBaselineResponse(_message.Message):
     DELETED_FIELD_NUMBER: _ClassVar[int]
     deleted: bool
     def __init__(self, deleted: _Optional[bool] = ...) -> None: ...
+
+class CollectionTarget(_message.Message):
+    __slots__ = ("scenario", "baseline_name", "required")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_NAME_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    baseline_name: str
+    required: bool
+    def __init__(self, scenario: _Optional[str] = ..., baseline_name: _Optional[str] = ..., required: _Optional[bool] = ...) -> None: ...
+
+class CollectionMember(_message.Message):
+    __slots__ = ("scenario", "baseline_name", "required", "status", "run_id", "error", "updated_at", "git_sha")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_NAME_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    GIT_SHA_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    baseline_name: str
+    required: bool
+    status: str
+    run_id: str
+    error: str
+    updated_at: str
+    git_sha: str
+    def __init__(self, scenario: _Optional[str] = ..., baseline_name: _Optional[str] = ..., required: _Optional[bool] = ..., status: _Optional[str] = ..., run_id: _Optional[str] = ..., error: _Optional[str] = ..., updated_at: _Optional[str] = ..., git_sha: _Optional[str] = ...) -> None: ...
+
+class CollectionCoverage(_message.Message):
+    __slots__ = ("required", "ready", "pending", "failed", "skipped", "stale", "complete")
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    PENDING_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    STALE_FIELD_NUMBER: _ClassVar[int]
+    COMPLETE_FIELD_NUMBER: _ClassVar[int]
+    required: int
+    ready: int
+    pending: int
+    failed: int
+    skipped: int
+    stale: int
+    complete: bool
+    def __init__(self, required: _Optional[int] = ..., ready: _Optional[int] = ..., pending: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., stale: _Optional[int] = ..., complete: _Optional[bool] = ...) -> None: ...
+
+class BaselineCollection(_message.Message):
+    __slots__ = ("name", "branch", "created_at", "updated_at", "schema_version", "members", "coverage", "path_snapshots")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    MEMBERS_FIELD_NUMBER: _ClassVar[int]
+    COVERAGE_FIELD_NUMBER: _ClassVar[int]
+    PATH_SNAPSHOTS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    created_at: str
+    updated_at: str
+    schema_version: int
+    members: _containers.RepeatedCompositeFieldContainer[CollectionMember]
+    coverage: CollectionCoverage
+    path_snapshots: _containers.RepeatedCompositeFieldContainer[PathSnapshotReference]
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., schema_version: _Optional[int] = ..., members: _Optional[_Iterable[_Union[CollectionMember, _Mapping]]] = ..., coverage: _Optional[_Union[CollectionCoverage, _Mapping]] = ..., path_snapshots: _Optional[_Iterable[_Union[PathSnapshotReference, _Mapping]]] = ...) -> None: ...
+
+class StartCollectionCaptureRequest(_message.Message):
+    __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id", "path_selections")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    TARGETS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_SELECTIONS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    targets: _containers.RepeatedCompositeFieldContainer[CollectionTarget]
+    created_by: str
+    reason: str
+    repo_id: int
+    path_selections: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[CollectionTarget, _Mapping]]] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ..., path_selections: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class StartCollectionCaptureResponse(_message.Message):
+    __slots__ = ("collection", "resumed")
+    COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    RESUMED_FIELD_NUMBER: _ClassVar[int]
+    collection: BaselineCollection
+    resumed: bool
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., resumed: _Optional[bool] = ...) -> None: ...
+
+class GetCollectionRequest(_message.Message):
+    __slots__ = ("name", "branch", "repo_id", "wait")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    repo_id: int
+    wait: bool
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ...) -> None: ...
+
+class GetCollectionResponse(_message.Message):
+    __slots__ = ("collection",)
+    COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    collection: BaselineCollection
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ...) -> None: ...
+
+class CollectionDiffMember(_message.Message):
+    __slots__ = ("scenario", "required", "status", "run_id", "verdict", "detail")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    required: bool
+    status: str
+    run_id: str
+    verdict: str
+    detail: str
+    def __init__(self, scenario: _Optional[str] = ..., required: _Optional[bool] = ..., status: _Optional[str] = ..., run_id: _Optional[str] = ..., verdict: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+
+class StartCollectionDiffRequest(_message.Message):
+    __slots__ = ("name", "branch", "scenarios", "repo_id", "operation_id")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    scenarios: _containers.RepeatedScalarFieldContainer[str]
+    repo_id: int
+    operation_id: str
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., scenarios: _Optional[_Iterable[str]] = ..., repo_id: _Optional[int] = ..., operation_id: _Optional[str] = ...) -> None: ...
+
+class StartCollectionDiffResponse(_message.Message):
+    __slots__ = ("collection", "members", "classification", "operation_id")
+    COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    MEMBERS_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    collection: BaselineCollection
+    members: _containers.RepeatedCompositeFieldContainer[CollectionDiffMember]
+    classification: str
+    operation_id: str
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ...) -> None: ...
+
+class GetCollectionDiffRequest(_message.Message):
+    __slots__ = ("name", "branch", "operation_id", "repo_id", "wait")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    operation_id: str
+    repo_id: int
+    wait: bool
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., operation_id: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ...) -> None: ...
+
+class GetCollectionDiffResponse(_message.Message):
+    __slots__ = ("collection", "members", "classification", "operation_id")
+    COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    MEMBERS_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    collection: BaselineCollection
+    members: _containers.RepeatedCompositeFieldContainer[CollectionDiffMember]
+    classification: str
+    operation_id: str
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ...) -> None: ...
+
+class DeleteCollectionRequest(_message.Message):
+    __slots__ = ("name", "branch", "repo_id")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    repo_id: int
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
+
+class DeleteCollectionResponse(_message.Message):
+    __slots__ = ("deleted",)
+    DELETED_FIELD_NUMBER: _ClassVar[int]
+    deleted: bool
+    def __init__(self, deleted: _Optional[bool] = ...) -> None: ...
+
+class PathSnapshotReference(_message.Message):
+    __slots__ = ("name", "branch", "created_at")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    created_at: str
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+
+class PathEntry(_message.Message):
+    __slots__ = ("path", "mode", "type", "size", "digest", "state", "detail")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    SIZE_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    mode: int
+    type: str
+    size: int
+    digest: str
+    state: str
+    detail: str
+    def __init__(self, path: _Optional[str] = ..., mode: _Optional[int] = ..., type: _Optional[str] = ..., size: _Optional[int] = ..., digest: _Optional[str] = ..., state: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+
+class PathSnapshot(_message.Message):
+    __slots__ = ("name", "branch", "created_at", "schema_version", "selections", "entries", "classification", "expires_at")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SELECTIONS_FIELD_NUMBER: _ClassVar[int]
+    ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    created_at: str
+    schema_version: int
+    selections: _containers.RepeatedScalarFieldContainer[str]
+    entries: _containers.RepeatedCompositeFieldContainer[PathEntry]
+    classification: str
+    expires_at: str
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., schema_version: _Optional[int] = ..., selections: _Optional[_Iterable[str]] = ..., entries: _Optional[_Iterable[_Union[PathEntry, _Mapping]]] = ..., classification: _Optional[str] = ..., expires_at: _Optional[str] = ...) -> None: ...
+
+class SourceDelta(_message.Message):
+    __slots__ = ("path", "status", "before", "after")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    BEFORE_FIELD_NUMBER: _ClassVar[int]
+    AFTER_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    status: str
+    before: PathEntry
+    after: PathEntry
+    def __init__(self, path: _Optional[str] = ..., status: _Optional[str] = ..., before: _Optional[_Union[PathEntry, _Mapping]] = ..., after: _Optional[_Union[PathEntry, _Mapping]] = ...) -> None: ...
+
+class CapturePathSnapshotRequest(_message.Message):
+    __slots__ = ("name", "branch", "selections", "repo_id", "retention_seconds")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    SELECTIONS_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    RETENTION_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    selections: _containers.RepeatedScalarFieldContainer[str]
+    repo_id: int
+    retention_seconds: int
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., selections: _Optional[_Iterable[str]] = ..., repo_id: _Optional[int] = ..., retention_seconds: _Optional[int] = ...) -> None: ...
+
+class CapturePathSnapshotResponse(_message.Message):
+    __slots__ = ("snapshot", "resumed")
+    SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    RESUMED_FIELD_NUMBER: _ClassVar[int]
+    snapshot: PathSnapshot
+    resumed: bool
+    def __init__(self, snapshot: _Optional[_Union[PathSnapshot, _Mapping]] = ..., resumed: _Optional[bool] = ...) -> None: ...
+
+class GetPathSnapshotRequest(_message.Message):
+    __slots__ = ("name", "branch", "repo_id")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    repo_id: int
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
+
+class GetPathSnapshotResponse(_message.Message):
+    __slots__ = ("snapshot",)
+    SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    snapshot: PathSnapshot
+    def __init__(self, snapshot: _Optional[_Union[PathSnapshot, _Mapping]] = ...) -> None: ...
+
+class DiffPathSnapshotsRequest(_message.Message):
+    __slots__ = ("before_name", "after_name", "branch", "repo_id", "selections")
+    BEFORE_NAME_FIELD_NUMBER: _ClassVar[int]
+    AFTER_NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    SELECTIONS_FIELD_NUMBER: _ClassVar[int]
+    before_name: str
+    after_name: str
+    branch: str
+    repo_id: int
+    selections: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, before_name: _Optional[str] = ..., after_name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ..., selections: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class DiffPathSnapshotsResponse(_message.Message):
+    __slots__ = ("classification", "deltas")
+    CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    DELTAS_FIELD_NUMBER: _ClassVar[int]
+    classification: str
+    deltas: _containers.RepeatedCompositeFieldContainer[SourceDelta]
+    def __init__(self, classification: _Optional[str] = ..., deltas: _Optional[_Iterable[_Union[SourceDelta, _Mapping]]] = ...) -> None: ...
+
+class DeletePathSnapshotRequest(_message.Message):
+    __slots__ = ("name", "branch", "repo_id")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    repo_id: int
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
+
+class DeletePathSnapshotResponse(_message.Message):
+    __slots__ = ("deleted",)
+    DELETED_FIELD_NUMBER: _ClassVar[int]
+    deleted: bool
+    def __init__(self, deleted: _Optional[bool] = ...) -> None: ...

@@ -313,6 +313,14 @@ type AddBugRequest struct {
 	SourceCommand   string                 `protobuf:"bytes,7,opt,name=source_command,json=sourceCommand,proto3" json:"source_command,omitempty"`
 	IdempotencyKey  string                 `protobuf:"bytes,8,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	RunId           string                 `protobuf:"bytes,9,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	SignalType      string                 `protobuf:"bytes,10,opt,name=signal_type,json=signalType,proto3" json:"signal_type,omitempty"`
+	ReportSeverity  string                 `protobuf:"bytes,11,opt,name=report_severity,json=reportSeverity,proto3" json:"report_severity,omitempty"`
+	Repro           []string               `protobuf:"bytes,12,rep,name=repro,proto3" json:"repro,omitempty"`
+	Expected        string                 `protobuf:"bytes,13,opt,name=expected,proto3" json:"expected,omitempty"`
+	Actual          string                 `protobuf:"bytes,14,opt,name=actual,proto3" json:"actual,omitempty"`
+	Description     string                 `protobuf:"bytes,15,opt,name=description,proto3" json:"description,omitempty"`
+	Context         map[string]string      `protobuf:"bytes,16,rep,name=context,proto3" json:"context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	HonestyFlags    []string               `protobuf:"bytes,17,rep,name=honesty_flags,json=honestyFlags,proto3" json:"honesty_flags,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -410,6 +418,62 @@ func (x *AddBugRequest) GetRunId() string {
 	return ""
 }
 
+func (x *AddBugRequest) GetSignalType() string {
+	if x != nil {
+		return x.SignalType
+	}
+	return ""
+}
+
+func (x *AddBugRequest) GetReportSeverity() string {
+	if x != nil {
+		return x.ReportSeverity
+	}
+	return ""
+}
+
+func (x *AddBugRequest) GetRepro() []string {
+	if x != nil {
+		return x.Repro
+	}
+	return nil
+}
+
+func (x *AddBugRequest) GetExpected() string {
+	if x != nil {
+		return x.Expected
+	}
+	return ""
+}
+
+func (x *AddBugRequest) GetActual() string {
+	if x != nil {
+		return x.Actual
+	}
+	return ""
+}
+
+func (x *AddBugRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AddBugRequest) GetContext() map[string]string {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *AddBugRequest) GetHonestyFlags() []string {
+	if x != nil {
+		return x.HonestyFlags
+	}
+	return nil
+}
+
 // AddRecordRequest captures a reusable record (forwarded downstream).
 type AddRecordRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -421,6 +485,13 @@ type AddRecordRequest struct {
 	SourceCommand   string                 `protobuf:"bytes,6,opt,name=source_command,json=sourceCommand,proto3" json:"source_command,omitempty"`
 	IdempotencyKey  string                 `protobuf:"bytes,7,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	RunId           string                 `protobuf:"bytes,8,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Kind            string                 `protobuf:"bytes,9,opt,name=kind,proto3" json:"kind,omitempty"`
+	Scenario        string                 `protobuf:"bytes,10,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Trigger         string                 `protobuf:"bytes,11,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	Approach        string                 `protobuf:"bytes,12,opt,name=approach,proto3" json:"approach,omitempty"`
+	RecordEvidence  string                 `protobuf:"bytes,13,opt,name=record_evidence,json=recordEvidence,proto3" json:"record_evidence,omitempty"`
+	Outcome         string                 `protobuf:"bytes,14,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	CreatedBy       string                 `protobuf:"bytes,15,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -507,6 +578,55 @@ func (x *AddRecordRequest) GetIdempotencyKey() string {
 func (x *AddRecordRequest) GetRunId() string {
 	if x != nil {
 		return x.RunId
+	}
+	return ""
+}
+
+func (x *AddRecordRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AddRecordRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *AddRecordRequest) GetTrigger() string {
+	if x != nil {
+		return x.Trigger
+	}
+	return ""
+}
+
+func (x *AddRecordRequest) GetApproach() string {
+	if x != nil {
+		return x.Approach
+	}
+	return ""
+}
+
+func (x *AddRecordRequest) GetRecordEvidence() string {
+	if x != nil {
+		return x.RecordEvidence
+	}
+	return ""
+}
+
+func (x *AddRecordRequest) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *AddRecordRequest) GetCreatedBy() string {
+	if x != nil {
+		return x.CreatedBy
 	}
 	return ""
 }
@@ -1201,7 +1321,7 @@ const file_plan_manager_v1_log_log_proto_rawDesc = "" +
 	"\bevidence\x18\x06 \x03(\tR\bevidence\x12%\n" +
 	"\x0esource_command\x18\a \x01(\tR\rsourceCommand\x12'\n" +
 	"\x0fidempotency_key\x18\b \x01(\tR\x0eidempotencyKey\x12\x15\n" +
-	"\x06run_id\x18\t \x01(\tR\x05runId\"\xcf\x02\n" +
+	"\x06run_id\x18\t \x01(\tR\x05runId\"\xb8\x05\n" +
 	"\rAddBugRequest\x12*\n" +
 	"\x11plan_or_execution\x18\x01 \x01(\tR\x0fplanOrExecution\x12\x19\n" +
 	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12\x14\n" +
@@ -1211,7 +1331,20 @@ const file_plan_manager_v1_log_log_proto_rawDesc = "" +
 	"\bevidence\x18\x06 \x03(\tR\bevidence\x12%\n" +
 	"\x0esource_command\x18\a \x01(\tR\rsourceCommand\x12'\n" +
 	"\x0fidempotency_key\x18\b \x01(\tR\x0eidempotencyKey\x12\x15\n" +
-	"\x06run_id\x18\t \x01(\tR\x05runId\"\x8a\x02\n" +
+	"\x06run_id\x18\t \x01(\tR\x05runId\x12\x1f\n" +
+	"\vsignal_type\x18\n" +
+	" \x01(\tR\n" +
+	"signalType\x12'\n" +
+	"\x0freport_severity\x18\v \x01(\tR\x0ereportSeverity\x12\x14\n" +
+	"\x05repro\x18\f \x03(\tR\x05repro\x12\x1a\n" +
+	"\bexpected\x18\r \x01(\tR\bexpected\x12\x16\n" +
+	"\x06actual\x18\x0e \x01(\tR\x06actual\x12 \n" +
+	"\vdescription\x18\x0f \x01(\tR\vdescription\x12P\n" +
+	"\acontext\x18\x10 \x03(\v26.vrooli.plan_manager.v1.log.AddBugRequest.ContextEntryR\acontext\x12#\n" +
+	"\rhonesty_flags\x18\x11 \x03(\tR\fhonestyFlags\x1a:\n" +
+	"\fContextEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd2\x03\n" +
 	"\x10AddRecordRequest\x12*\n" +
 	"\x11plan_or_execution\x18\x01 \x01(\tR\x0fplanOrExecution\x12\x19\n" +
 	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12\x14\n" +
@@ -1220,7 +1353,16 @@ const file_plan_manager_v1_log_log_proto_rawDesc = "" +
 	"\bevidence\x18\x05 \x03(\tR\bevidence\x12%\n" +
 	"\x0esource_command\x18\x06 \x01(\tR\rsourceCommand\x12'\n" +
 	"\x0fidempotency_key\x18\a \x01(\tR\x0eidempotencyKey\x12\x15\n" +
-	"\x06run_id\x18\b \x01(\tR\x05runId\"\x88\x02\n" +
+	"\x06run_id\x18\b \x01(\tR\x05runId\x12\x12\n" +
+	"\x04kind\x18\t \x01(\tR\x04kind\x12\x1a\n" +
+	"\bscenario\x18\n" +
+	" \x01(\tR\bscenario\x12\x18\n" +
+	"\atrigger\x18\v \x01(\tR\atrigger\x12\x1a\n" +
+	"\bapproach\x18\f \x01(\tR\bapproach\x12'\n" +
+	"\x0frecord_evidence\x18\r \x01(\tR\x0erecordEvidence\x12\x18\n" +
+	"\aoutcome\x18\x0e \x01(\tR\aoutcome\x12\x1d\n" +
+	"\n" +
+	"created_by\x18\x0f \x01(\tR\tcreatedBy\"\x88\x02\n" +
 	"\x0eAddNoteRequest\x12*\n" +
 	"\x11plan_or_execution\x18\x01 \x01(\tR\x0fplanOrExecution\x12\x19\n" +
 	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12\x14\n" +
@@ -1295,7 +1437,7 @@ func file_plan_manager_v1_log_log_proto_rawDescGZIP() []byte {
 	return file_plan_manager_v1_log_log_proto_rawDescData
 }
 
-var file_plan_manager_v1_log_log_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_plan_manager_v1_log_log_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_plan_manager_v1_log_log_proto_goTypes = []any{
 	(*AddEntryResponse)(nil),     // 0: vrooli.plan_manager.v1.log.AddEntryResponse
 	(*AddDecisionRequest)(nil),   // 1: vrooli.plan_manager.v1.log.AddDecisionRequest
@@ -1312,61 +1454,63 @@ var file_plan_manager_v1_log_log_proto_goTypes = []any{
 	(*PromoteEntryRequest)(nil),  // 12: vrooli.plan_manager.v1.log.PromoteEntryRequest
 	(*PromoteEntryResponse)(nil), // 13: vrooli.plan_manager.v1.log.PromoteEntryResponse
 	(*SyncEntryRequest)(nil),     // 14: vrooli.plan_manager.v1.log.SyncEntryRequest
-	(*shared.LogEntry)(nil),      // 15: vrooli.plan_manager.v1.shared.LogEntry
-	(*shared.GuidedStep)(nil),    // 16: vrooli.plan_manager.v1.shared.GuidedStep
-	(shared.LogSeverity)(0),      // 17: vrooli.plan_manager.v1.shared.LogSeverity
-	(shared.LogEntryType)(0),     // 18: vrooli.plan_manager.v1.shared.LogEntryType
-	(shared.FindingTriage)(0),    // 19: vrooli.plan_manager.v1.shared.FindingTriage
-	(shared.LogSyncStatus)(0),    // 20: vrooli.plan_manager.v1.shared.LogSyncStatus
-	(*shared.LogSummary)(nil),    // 21: vrooli.plan_manager.v1.shared.LogSummary
+	nil,                          // 15: vrooli.plan_manager.v1.log.AddBugRequest.ContextEntry
+	(*shared.LogEntry)(nil),      // 16: vrooli.plan_manager.v1.shared.LogEntry
+	(*shared.GuidedStep)(nil),    // 17: vrooli.plan_manager.v1.shared.GuidedStep
+	(shared.LogSeverity)(0),      // 18: vrooli.plan_manager.v1.shared.LogSeverity
+	(shared.LogEntryType)(0),     // 19: vrooli.plan_manager.v1.shared.LogEntryType
+	(shared.FindingTriage)(0),    // 20: vrooli.plan_manager.v1.shared.FindingTriage
+	(shared.LogSyncStatus)(0),    // 21: vrooli.plan_manager.v1.shared.LogSyncStatus
+	(*shared.LogSummary)(nil),    // 22: vrooli.plan_manager.v1.shared.LogSummary
 }
 var file_plan_manager_v1_log_log_proto_depIdxs = []int32{
-	15, // 0: vrooli.plan_manager.v1.log.AddEntryResponse.entry:type_name -> vrooli.plan_manager.v1.shared.LogEntry
-	16, // 1: vrooli.plan_manager.v1.log.AddEntryResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	17, // 2: vrooli.plan_manager.v1.log.AddFindingRequest.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
-	17, // 3: vrooli.plan_manager.v1.log.AddBugRequest.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
-	18, // 4: vrooli.plan_manager.v1.log.ListEntriesRequest.type:type_name -> vrooli.plan_manager.v1.shared.LogEntryType
-	19, // 5: vrooli.plan_manager.v1.log.ListEntriesRequest.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
-	20, // 6: vrooli.plan_manager.v1.log.ListEntriesRequest.sync_status:type_name -> vrooli.plan_manager.v1.shared.LogSyncStatus
-	15, // 7: vrooli.plan_manager.v1.log.ListEntriesResponse.entries:type_name -> vrooli.plan_manager.v1.shared.LogEntry
-	21, // 8: vrooli.plan_manager.v1.log.ListEntriesResponse.summary:type_name -> vrooli.plan_manager.v1.shared.LogSummary
-	16, // 9: vrooli.plan_manager.v1.log.ListEntriesResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	15, // 10: vrooli.plan_manager.v1.log.GetEntryResponse.entry:type_name -> vrooli.plan_manager.v1.shared.LogEntry
-	16, // 11: vrooli.plan_manager.v1.log.GetEntryResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	17, // 12: vrooli.plan_manager.v1.log.UpdateEntryRequest.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
-	19, // 13: vrooli.plan_manager.v1.log.UpdateEntryRequest.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
-	18, // 14: vrooli.plan_manager.v1.log.PromoteEntryRequest.to_type:type_name -> vrooli.plan_manager.v1.shared.LogEntryType
-	17, // 15: vrooli.plan_manager.v1.log.PromoteEntryRequest.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
-	15, // 16: vrooli.plan_manager.v1.log.PromoteEntryResponse.entry:type_name -> vrooli.plan_manager.v1.shared.LogEntry
-	15, // 17: vrooli.plan_manager.v1.log.PromoteEntryResponse.source:type_name -> vrooli.plan_manager.v1.shared.LogEntry
-	16, // 18: vrooli.plan_manager.v1.log.PromoteEntryResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	1,  // 19: vrooli.plan_manager.v1.log.LogService.AddDecision:input_type -> vrooli.plan_manager.v1.log.AddDecisionRequest
-	2,  // 20: vrooli.plan_manager.v1.log.LogService.AddFinding:input_type -> vrooli.plan_manager.v1.log.AddFindingRequest
-	3,  // 21: vrooli.plan_manager.v1.log.LogService.AddBug:input_type -> vrooli.plan_manager.v1.log.AddBugRequest
-	4,  // 22: vrooli.plan_manager.v1.log.LogService.AddRecord:input_type -> vrooli.plan_manager.v1.log.AddRecordRequest
-	5,  // 23: vrooli.plan_manager.v1.log.LogService.AddNote:input_type -> vrooli.plan_manager.v1.log.AddNoteRequest
-	6,  // 24: vrooli.plan_manager.v1.log.LogService.ListEntries:input_type -> vrooli.plan_manager.v1.log.ListEntriesRequest
-	8,  // 25: vrooli.plan_manager.v1.log.LogService.GetEntry:input_type -> vrooli.plan_manager.v1.log.GetEntryRequest
-	10, // 26: vrooli.plan_manager.v1.log.LogService.UpdateEntry:input_type -> vrooli.plan_manager.v1.log.UpdateEntryRequest
-	11, // 27: vrooli.plan_manager.v1.log.LogService.ReassignEntry:input_type -> vrooli.plan_manager.v1.log.ReassignEntryRequest
-	12, // 28: vrooli.plan_manager.v1.log.LogService.PromoteEntry:input_type -> vrooli.plan_manager.v1.log.PromoteEntryRequest
-	14, // 29: vrooli.plan_manager.v1.log.LogService.SyncEntry:input_type -> vrooli.plan_manager.v1.log.SyncEntryRequest
-	0,  // 30: vrooli.plan_manager.v1.log.LogService.AddDecision:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
-	0,  // 31: vrooli.plan_manager.v1.log.LogService.AddFinding:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
-	0,  // 32: vrooli.plan_manager.v1.log.LogService.AddBug:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
-	0,  // 33: vrooli.plan_manager.v1.log.LogService.AddRecord:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
-	0,  // 34: vrooli.plan_manager.v1.log.LogService.AddNote:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
-	7,  // 35: vrooli.plan_manager.v1.log.LogService.ListEntries:output_type -> vrooli.plan_manager.v1.log.ListEntriesResponse
-	9,  // 36: vrooli.plan_manager.v1.log.LogService.GetEntry:output_type -> vrooli.plan_manager.v1.log.GetEntryResponse
-	9,  // 37: vrooli.plan_manager.v1.log.LogService.UpdateEntry:output_type -> vrooli.plan_manager.v1.log.GetEntryResponse
-	9,  // 38: vrooli.plan_manager.v1.log.LogService.ReassignEntry:output_type -> vrooli.plan_manager.v1.log.GetEntryResponse
-	13, // 39: vrooli.plan_manager.v1.log.LogService.PromoteEntry:output_type -> vrooli.plan_manager.v1.log.PromoteEntryResponse
-	9,  // 40: vrooli.plan_manager.v1.log.LogService.SyncEntry:output_type -> vrooli.plan_manager.v1.log.GetEntryResponse
-	30, // [30:41] is the sub-list for method output_type
-	19, // [19:30] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	16, // 0: vrooli.plan_manager.v1.log.AddEntryResponse.entry:type_name -> vrooli.plan_manager.v1.shared.LogEntry
+	17, // 1: vrooli.plan_manager.v1.log.AddEntryResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	18, // 2: vrooli.plan_manager.v1.log.AddFindingRequest.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
+	18, // 3: vrooli.plan_manager.v1.log.AddBugRequest.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
+	15, // 4: vrooli.plan_manager.v1.log.AddBugRequest.context:type_name -> vrooli.plan_manager.v1.log.AddBugRequest.ContextEntry
+	19, // 5: vrooli.plan_manager.v1.log.ListEntriesRequest.type:type_name -> vrooli.plan_manager.v1.shared.LogEntryType
+	20, // 6: vrooli.plan_manager.v1.log.ListEntriesRequest.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
+	21, // 7: vrooli.plan_manager.v1.log.ListEntriesRequest.sync_status:type_name -> vrooli.plan_manager.v1.shared.LogSyncStatus
+	16, // 8: vrooli.plan_manager.v1.log.ListEntriesResponse.entries:type_name -> vrooli.plan_manager.v1.shared.LogEntry
+	22, // 9: vrooli.plan_manager.v1.log.ListEntriesResponse.summary:type_name -> vrooli.plan_manager.v1.shared.LogSummary
+	17, // 10: vrooli.plan_manager.v1.log.ListEntriesResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	16, // 11: vrooli.plan_manager.v1.log.GetEntryResponse.entry:type_name -> vrooli.plan_manager.v1.shared.LogEntry
+	17, // 12: vrooli.plan_manager.v1.log.GetEntryResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	18, // 13: vrooli.plan_manager.v1.log.UpdateEntryRequest.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
+	20, // 14: vrooli.plan_manager.v1.log.UpdateEntryRequest.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
+	19, // 15: vrooli.plan_manager.v1.log.PromoteEntryRequest.to_type:type_name -> vrooli.plan_manager.v1.shared.LogEntryType
+	18, // 16: vrooli.plan_manager.v1.log.PromoteEntryRequest.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
+	16, // 17: vrooli.plan_manager.v1.log.PromoteEntryResponse.entry:type_name -> vrooli.plan_manager.v1.shared.LogEntry
+	16, // 18: vrooli.plan_manager.v1.log.PromoteEntryResponse.source:type_name -> vrooli.plan_manager.v1.shared.LogEntry
+	17, // 19: vrooli.plan_manager.v1.log.PromoteEntryResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 20: vrooli.plan_manager.v1.log.LogService.AddDecision:input_type -> vrooli.plan_manager.v1.log.AddDecisionRequest
+	2,  // 21: vrooli.plan_manager.v1.log.LogService.AddFinding:input_type -> vrooli.plan_manager.v1.log.AddFindingRequest
+	3,  // 22: vrooli.plan_manager.v1.log.LogService.AddBug:input_type -> vrooli.plan_manager.v1.log.AddBugRequest
+	4,  // 23: vrooli.plan_manager.v1.log.LogService.AddRecord:input_type -> vrooli.plan_manager.v1.log.AddRecordRequest
+	5,  // 24: vrooli.plan_manager.v1.log.LogService.AddNote:input_type -> vrooli.plan_manager.v1.log.AddNoteRequest
+	6,  // 25: vrooli.plan_manager.v1.log.LogService.ListEntries:input_type -> vrooli.plan_manager.v1.log.ListEntriesRequest
+	8,  // 26: vrooli.plan_manager.v1.log.LogService.GetEntry:input_type -> vrooli.plan_manager.v1.log.GetEntryRequest
+	10, // 27: vrooli.plan_manager.v1.log.LogService.UpdateEntry:input_type -> vrooli.plan_manager.v1.log.UpdateEntryRequest
+	11, // 28: vrooli.plan_manager.v1.log.LogService.ReassignEntry:input_type -> vrooli.plan_manager.v1.log.ReassignEntryRequest
+	12, // 29: vrooli.plan_manager.v1.log.LogService.PromoteEntry:input_type -> vrooli.plan_manager.v1.log.PromoteEntryRequest
+	14, // 30: vrooli.plan_manager.v1.log.LogService.SyncEntry:input_type -> vrooli.plan_manager.v1.log.SyncEntryRequest
+	0,  // 31: vrooli.plan_manager.v1.log.LogService.AddDecision:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
+	0,  // 32: vrooli.plan_manager.v1.log.LogService.AddFinding:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
+	0,  // 33: vrooli.plan_manager.v1.log.LogService.AddBug:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
+	0,  // 34: vrooli.plan_manager.v1.log.LogService.AddRecord:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
+	0,  // 35: vrooli.plan_manager.v1.log.LogService.AddNote:output_type -> vrooli.plan_manager.v1.log.AddEntryResponse
+	7,  // 36: vrooli.plan_manager.v1.log.LogService.ListEntries:output_type -> vrooli.plan_manager.v1.log.ListEntriesResponse
+	9,  // 37: vrooli.plan_manager.v1.log.LogService.GetEntry:output_type -> vrooli.plan_manager.v1.log.GetEntryResponse
+	9,  // 38: vrooli.plan_manager.v1.log.LogService.UpdateEntry:output_type -> vrooli.plan_manager.v1.log.GetEntryResponse
+	9,  // 39: vrooli.plan_manager.v1.log.LogService.ReassignEntry:output_type -> vrooli.plan_manager.v1.log.GetEntryResponse
+	13, // 40: vrooli.plan_manager.v1.log.LogService.PromoteEntry:output_type -> vrooli.plan_manager.v1.log.PromoteEntryResponse
+	9,  // 41: vrooli.plan_manager.v1.log.LogService.SyncEntry:output_type -> vrooli.plan_manager.v1.log.GetEntryResponse
+	31, // [31:42] is the sub-list for method output_type
+	20, // [20:31] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_log_log_proto_init() }
@@ -1380,7 +1524,7 @@ func file_plan_manager_v1_log_log_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plan_manager_v1_log_log_proto_rawDesc), len(file_plan_manager_v1_log_log_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

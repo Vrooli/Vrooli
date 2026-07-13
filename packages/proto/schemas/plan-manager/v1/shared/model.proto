@@ -371,6 +371,20 @@ message RegressionAnchor {
   bool unavailable = 8;
 }
 
+// BaselineSetIntent is the compact, plan-owned policy for a complete before
+// state. GCT owns collection execution and source-snapshot storage; Plan
+// Manager owns this immutable selection and phase policy. Source paths are
+// explicitly informational and must never be interpreted as behavioral passes.
+message BaselineSetIntent {
+  string name = 1;
+  repeated string scenario_targets = 2;
+  repeated string repo_paths = 3;
+  // "execution_start" for the current contract.
+  string capture_policy = 4;
+  // "baseline_set" for current plans; "legacy_anchor" preserves imports.
+  string compatibility = 5;
+}
+
 // =============================================================================
 // EXECUTION-LOG LEDGER — the typed plan-log vocabulary
 // =============================================================================
@@ -425,6 +439,46 @@ message DownstreamRef {
   string reference = 3; // downstream id/url once synced
   string detail = 4; // last sync detail or error
   string synced_at = 5; // RFC3339; empty until first successful sync
+  CaptureDisposition capture = 6;
+}
+
+message CaptureDiagnostic {
+  string field = 1;
+  string value = 2;
+  string message = 3;
+}
+
+// CaptureDisposition is supplied by the owning downstream writer. DRAFT means
+// it retained the report privately and returned an exact repair action; it is
+// not a failed published sync.
+message CaptureDisposition {
+  string state = 1; // published | draft
+  string draft_id = 2;
+  repeated string needs = 3;
+  repeated CaptureDiagnostic invalid = 4;
+  repeated string warnings = 5;
+  repeated string next_action = 6;
+}
+
+message BugReportPayload {
+  string signal_type = 1;
+  string severity = 2;
+  repeated string repro = 3;
+  string expected = 4;
+  string actual = 5;
+  string description = 6;
+  map<string, string> context = 7;
+  repeated string honesty_flags = 8;
+}
+
+message RecordPayload {
+  string kind = 1;
+  string scenario = 2;
+  string trigger = 3;
+  string approach = 4;
+  string evidence = 5;
+  string outcome = 6;
+  string created_by = 7;
 }
 
 // LogEntry is one typed execution-log ledger entry — the unified record for
@@ -457,6 +511,9 @@ message LogEntry {
   string promoted_from_id = 17;
   string created_at = 18;
   string updated_at = 19;
+  BugReportPayload bug = 20;
+  RecordPayload record = 21;
+  CaptureDisposition capture = 22;
 }
 
 // LogSummaryItem is one compact line in a LogSummary.
@@ -631,6 +688,8 @@ message Plan {
   // AUTHORED optional structured assumptions with mitigations, rendered as the
   // Assumptions & Risks table (contract decision D3).
   repeated PlanAssumption assumption_risks = 37;
+  // Optional for migration: pre-cutover plans retain regression_anchor only.
+  BaselineSetIntent baseline_set = 38;
 }
 
 // PlanEdge is one supersession/dependency edge between two plans (the plan

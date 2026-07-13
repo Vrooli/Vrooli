@@ -84,6 +84,10 @@ service PlansService {
   rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
   // CreateFromTemplate pre-scaffolds a plan from a template.
   rpc CreateFromTemplate(CreateFromTemplateRequest) returns (CreateFromTemplateResponse);
+  // ListAuditFacts exposes Plan Manager's authoritative, run-scoped mutation
+  // facts for evidence reconciliation. It is read-only and does not transfer
+  // ownership of plans or Agent Manager identity to another scenario.
+  rpc ListAuditFacts(ListAuditFactsRequest) returns (ListAuditFactsResponse);
 }
 
 message ListPlansRequest {
@@ -369,4 +373,22 @@ message CreateFromTemplateRequest {
 
 message CreateFromTemplateResponse {
   shared.Plan plan = 1;
+}
+
+message ListAuditFactsRequest {
+  string run_id = 1;
+}
+
+message PlanAuditFact {
+  string event_id = 1;
+  string run_id = 2;
+  string task_id = 3;
+  string action = 4;
+  string plan_id = 5;
+  string content_digest = 6;
+  string occurred_at = 7;
+}
+
+message ListAuditFactsResponse {
+  repeated PlanAuditFact facts = 1;
 }

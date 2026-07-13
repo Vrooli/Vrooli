@@ -26,15 +26,17 @@ import (
 // Domain type aliases onto the shared planmodel kernel so the service signatures
 // read in the log domain's vocabulary.
 type (
-	Entry         = planmodel.LogEntry
-	EntryType     = planmodel.LogEntryType
-	SyncStatus    = planmodel.LogSyncStatus
-	Severity      = planmodel.LogSeverity
-	Triage        = planmodel.FindingTriage
-	DownstreamRef = planmodel.DownstreamRef
-	Summary       = planmodel.LogSummary
-	SummaryItem   = planmodel.LogSummaryItem
-	Filter        = planmodel.LogFilter
+	Entry            = planmodel.LogEntry
+	EntryType        = planmodel.LogEntryType
+	SyncStatus       = planmodel.LogSyncStatus
+	Severity         = planmodel.LogSeverity
+	Triage           = planmodel.FindingTriage
+	DownstreamRef    = planmodel.DownstreamRef
+	BugReportPayload = planmodel.BugReportPayload
+	RecordPayload    = planmodel.RecordPayload
+	Summary          = planmodel.LogSummary
+	SummaryItem      = planmodel.LogSummaryItem
+	Filter           = planmodel.LogFilter
 )
 
 // AddInputs are the common fields for creating any typed ledger entry. Type and
@@ -49,6 +51,8 @@ type AddInputs struct {
 	SourceCommand   string
 	IdempotencyKey  string
 	RunID           string
+	Bug             planmodel.BugReportPayload
+	Record          planmodel.RecordPayload
 }
 
 // UpdateInputs are the mutable fields UpdateEntry can change. Empty string /

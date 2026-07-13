@@ -78,6 +78,7 @@ type InputFreshener interface {
 type FreshenResult struct {
 	BaselineCaptured bool
 	BaselineName     string
+	BaselineSet      BaselineSetState
 	// StalenessSummary is a short human roll-up of the recomputed reference
 	// staleness (reported only — authored references are never mutated).
 	StalenessSummary string

@@ -41,9 +41,9 @@ const (
 	upsertEntrySQL = `
 INSERT INTO log_entries (
   id, type, plan_id, execution_id, phase_id, title, detail, severity, triage,
-  sync_status, downstream, source_command, evidence, attribution_run_id,
+  sync_status, downstream, bug_payload, record_payload, capture, source_command, evidence, attribution_run_id,
   idempotency_key, supersedes_id, promoted_from_id, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   type=excluded.type,
   plan_id=excluded.plan_id,
@@ -55,6 +55,9 @@ ON CONFLICT(id) DO UPDATE SET
   triage=excluded.triage,
   sync_status=excluded.sync_status,
   downstream=excluded.downstream,
+  bug_payload=excluded.bug_payload,
+  record_payload=excluded.record_payload,
+  capture=excluded.capture,
   source_command=excluded.source_command,
   evidence=excluded.evidence,
   attribution_run_id=excluded.attribution_run_id,
@@ -65,7 +68,7 @@ ON CONFLICT(id) DO UPDATE SET
 
 	entryColumns = `
 SELECT id, type, plan_id, execution_id, phase_id, title, detail, severity, triage,
-       sync_status, downstream, source_command, evidence, attribution_run_id,
+       sync_status, downstream, bug_payload, record_payload, capture, source_command, evidence, attribution_run_id,
        idempotency_key, supersedes_id, promoted_from_id, created_at, updated_at
 FROM log_entries`
 
@@ -87,13 +90,25 @@ func (r *sqliteRepository) SaveEntry(ctx context.Context, e Entry) error {
 	if err != nil {
 		return fmt.Errorf("marshal downstream ref %q: %w", e.ID, err)
 	}
+	bug, err := json.Marshal(e.Bug)
+	if err != nil {
+		return fmt.Errorf("marshal bug payload %q: %w", e.ID, err)
+	}
+	record, err := json.Marshal(e.Record)
+	if err != nil {
+		return fmt.Errorf("marshal record payload %q: %w", e.ID, err)
+	}
+	capture, err := json.Marshal(e.Capture)
+	if err != nil {
+		return fmt.Errorf("marshal capture disposition %q: %w", e.ID, err)
+	}
 	evidence, err := json.Marshal(nonNilStrings(e.Evidence))
 	if err != nil {
 		return fmt.Errorf("marshal evidence %q: %w", e.ID, err)
 	}
 	if _, err := r.db.ExecContext(ctx, upsertEntrySQL,
 		e.ID, string(e.Type), e.PlanID, e.ExecutionID, e.PhaseID, e.Title, e.Detail,
-		string(e.Severity), string(e.Triage), string(e.SyncStatus), string(downstream),
+		string(e.Severity), string(e.Triage), string(e.SyncStatus), string(downstream), string(bug), string(record), string(capture),
 		e.SourceCommand, string(evidence), e.AttributionRunID, e.IdempotencyKey,
 		e.SupersedesID, e.PromotedFromID, created, updated,
 	); err != nil {
@@ -198,11 +213,14 @@ func scanEntry(s rowScanner) (Entry, error) {
 		triage     string
 		syncStatus string
 		downstream string
+		bug        string
+		record     string
+		capture    string
 		evidence   string
 	)
 	if err := s.Scan(
 		&e.ID, &typ, &e.PlanID, &e.ExecutionID, &e.PhaseID, &e.Title, &e.Detail,
-		&severity, &triage, &syncStatus, &downstream, &e.SourceCommand, &evidence,
+		&severity, &triage, &syncStatus, &downstream, &bug, &record, &capture, &e.SourceCommand, &evidence,
 		&e.AttributionRunID, &e.IdempotencyKey, &e.SupersedesID, &e.PromotedFromID,
 		&e.CreatedAt, &e.UpdatedAt,
 	); err != nil {
@@ -215,6 +233,21 @@ func scanEntry(s rowScanner) (Entry, error) {
 	if downstream != "" && downstream != "null" {
 		if err := json.Unmarshal([]byte(downstream), &e.Downstream); err != nil {
 			return Entry{}, fmt.Errorf("unmarshal downstream ref %q: %w", e.ID, err)
+		}
+	}
+	if bug != "" && bug != "null" {
+		if err := json.Unmarshal([]byte(bug), &e.Bug); err != nil {
+			return Entry{}, fmt.Errorf("unmarshal bug payload %q: %w", e.ID, err)
+		}
+	}
+	if record != "" && record != "null" {
+		if err := json.Unmarshal([]byte(record), &e.Record); err != nil {
+			return Entry{}, fmt.Errorf("unmarshal record payload %q: %w", e.ID, err)
+		}
+	}
+	if capture != "" && capture != "null" {
+		if err := json.Unmarshal([]byte(capture), &e.Capture); err != nil {
+			return Entry{}, fmt.Errorf("unmarshal capture disposition %q: %w", e.ID, err)
 		}
 	}
 	if evidence != "" && evidence != "null" {

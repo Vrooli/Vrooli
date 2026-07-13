@@ -21,6 +21,66 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// SessionOrigin records who opened a session, so the UI can separate
+// human-opened tabs from sessions launched by agents or remote clients.
+//
+// Create normalizes SESSION_ORIGIN_UNSPECIFIED to SESSION_ORIGIN_PROGRAMMATIC:
+// every first-party UI client sets SESSION_ORIGIN_UI explicitly, so an
+// origin-less create can only have come from a programmatic caller. Rows that
+// predate this field are backfilled to SESSION_ORIGIN_UI (the historical
+// sessions were all opened from the web UI).
+type SessionOrigin int32
+
+const (
+	SessionOrigin_SESSION_ORIGIN_UNSPECIFIED  SessionOrigin = 0
+	SessionOrigin_SESSION_ORIGIN_UI           SessionOrigin = 1
+	SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC SessionOrigin = 2
+	SessionOrigin_SESSION_ORIGIN_REMOTE       SessionOrigin = 3
+)
+
+// Enum value maps for SessionOrigin.
+var (
+	SessionOrigin_name = map[int32]string{
+		0: "SESSION_ORIGIN_UNSPECIFIED",
+		1: "SESSION_ORIGIN_UI",
+		2: "SESSION_ORIGIN_PROGRAMMATIC",
+		3: "SESSION_ORIGIN_REMOTE",
+	}
+	SessionOrigin_value = map[string]int32{
+		"SESSION_ORIGIN_UNSPECIFIED":  0,
+		"SESSION_ORIGIN_UI":           1,
+		"SESSION_ORIGIN_PROGRAMMATIC": 2,
+		"SESSION_ORIGIN_REMOTE":       3,
+	}
+)
+
+func (x SessionOrigin) Enum() *SessionOrigin {
+	p := new(SessionOrigin)
+	*p = x
+	return p
+}
+
+func (x SessionOrigin) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SessionOrigin) Descriptor() protoreflect.EnumDescriptor {
+	return file_web_console_v1_sessions_sessions_proto_enumTypes[0].Descriptor()
+}
+
+func (SessionOrigin) Type() protoreflect.EnumType {
+	return &file_web_console_v1_sessions_sessions_proto_enumTypes[0]
+}
+
+func (x SessionOrigin) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SessionOrigin.Descriptor instead.
+func (SessionOrigin) EnumDescriptor() ([]byte, []int) {
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{0}
+}
+
 // ExpirationPolicy controls when a session ends. mode is one of
 // "never" | "preset" | "custom"; duration is Go-style "1h30m" only when
 // mode is "custom".
@@ -89,6 +149,9 @@ type Session struct {
 	Policy          *ExpirationPolicy      `protobuf:"bytes,8,opt,name=policy,proto3" json:"policy,omitempty"`
 	Busy            bool                   `protobuf:"varint,9,opt,name=busy,proto3" json:"busy,omitempty"`
 	Recovered       bool                   `protobuf:"varint,10,opt,name=recovered,proto3" json:"recovered,omitempty"`
+	Origin          SessionOrigin          `protobuf:"varint,11,opt,name=origin,proto3,enum=vrooli.web_console.v1.sessions.SessionOrigin" json:"origin,omitempty"`
+	Owner           string                 `protobuf:"bytes,12,opt,name=owner,proto3" json:"owner,omitempty"`                                   // free-form provenance tag, e.g. "agent-manager"
+	DisplayLabel    string                 `protobuf:"bytes,13,opt,name=display_label,json=displayLabel,proto3" json:"display_label,omitempty"` // human-facing label for the sidebar
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -191,6 +254,27 @@ func (x *Session) GetRecovered() bool {
 		return x.Recovered
 	}
 	return false
+}
+
+func (x *Session) GetOrigin() SessionOrigin {
+	if x != nil {
+		return x.Origin
+	}
+	return SessionOrigin_SESSION_ORIGIN_UNSPECIFIED
+}
+
+func (x *Session) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *Session) GetDisplayLabel() string {
+	if x != nil {
+		return x.DisplayLabel
+	}
+	return ""
 }
 
 // RecoverableSession describes an awaiting_recovery row.
@@ -360,8 +444,15 @@ type CreateRequest struct {
 	HasPolicy     bool                   `protobuf:"varint,6,opt,name=has_policy,json=hasPolicy,proto3" json:"has_policy,omitempty"`
 	LaunchCommand string                 `protobuf:"bytes,7,opt,name=launch_command,json=launchCommand,proto3" json:"launch_command,omitempty"`
 	AgentType     string                 `protobuf:"bytes,8,opt,name=agent_type,json=agentType,proto3" json:"agent_type,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Origin        SessionOrigin          `protobuf:"varint,9,opt,name=origin,proto3,enum=vrooli.web_console.v1.sessions.SessionOrigin" json:"origin,omitempty"`
+	Owner         string                 `protobuf:"bytes,10,opt,name=owner,proto3" json:"owner,omitempty"`                                   // free-form provenance tag, e.g. "agent-manager"
+	DisplayLabel  string                 `protobuf:"bytes,11,opt,name=display_label,json=displayLabel,proto3" json:"display_label,omitempty"` // human-facing label for the sidebar
+	// execute_launch_command asks the server to paste launch_command into the
+	// fresh session's stdin after create. Consumed by the server-side launch
+	// path; the store does not persist this intent.
+	ExecuteLaunchCommand bool `protobuf:"varint,12,opt,name=execute_launch_command,json=executeLaunchCommand,proto3" json:"execute_launch_command,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *CreateRequest) Reset() {
@@ -448,6 +539,34 @@ func (x *CreateRequest) GetAgentType() string {
 		return x.AgentType
 	}
 	return ""
+}
+
+func (x *CreateRequest) GetOrigin() SessionOrigin {
+	if x != nil {
+		return x.Origin
+	}
+	return SessionOrigin_SESSION_ORIGIN_UNSPECIFIED
+}
+
+func (x *CreateRequest) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *CreateRequest) GetDisplayLabel() string {
+	if x != nil {
+		return x.DisplayLabel
+	}
+	return ""
+}
+
+func (x *CreateRequest) GetExecuteLaunchCommand() bool {
+	if x != nil {
+		return x.ExecuteLaunchCommand
+	}
+	return false
 }
 
 type CreateResponse struct {
@@ -1409,7 +1528,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"&web-console/v1/sessions/sessions.proto\x12\x1evrooli.web_console.v1.sessions\"B\n" +
 	"\x10ExpirationPolicy\x12\x12\n" +
 	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
-	"\bduration\x18\x02 \x01(\tR\bduration\"\xb7\x02\n" +
+	"\bduration\x18\x02 \x01(\tR\bduration\"\xb9\x03\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05shell\x18\x02 \x01(\tR\x05shell\x12\x1d\n" +
@@ -1422,7 +1541,10 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x06policy\x18\b \x01(\v20.vrooli.web_console.v1.sessions.ExpirationPolicyR\x06policy\x12\x12\n" +
 	"\x04busy\x18\t \x01(\bR\x04busy\x12\x1c\n" +
 	"\trecovered\x18\n" +
-	" \x01(\bR\trecovered\"\xec\x03\n" +
+	" \x01(\bR\trecovered\x12E\n" +
+	"\x06origin\x18\v \x01(\x0e2-.vrooli.web_console.v1.sessions.SessionOriginR\x06origin\x12\x14\n" +
+	"\x05owner\x18\f \x01(\tR\x05owner\x12#\n" +
+	"\rdisplay_label\x18\r \x01(\tR\fdisplayLabel\"\xec\x03\n" +
 	"\x12RecoverableSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\abackend\x18\x02 \x01(\tR\abackend\x12\x14\n" +
@@ -1442,7 +1564,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x03cwd\x18\f \x01(\tR\x03cwd\x12*\n" +
 	"\x11last_rollout_path\x18\r \x01(\tR\x0flastRolloutPath\x12 \n" +
 	"\vrecoverable\x18\x0e \x01(\bR\vrecoverable\x124\n" +
-	"\x16not_recoverable_reason\x18\x0f \x01(\tR\x14notRecoverableReason\"\x96\x02\n" +
+	"\x16not_recoverable_reason\x18\x0f \x01(\tR\x14notRecoverableReason\"\xce\x03\n" +
 	"\rCreateRequest\x12\x14\n" +
 	"\x05shell\x18\x01 \x01(\tR\x05shell\x12\x12\n" +
 	"\x04cols\x18\x02 \x01(\x05R\x04cols\x12\x12\n" +
@@ -1453,7 +1575,12 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"has_policy\x18\x06 \x01(\bR\thasPolicy\x12%\n" +
 	"\x0elaunch_command\x18\a \x01(\tR\rlaunchCommand\x12\x1d\n" +
 	"\n" +
-	"agent_type\x18\b \x01(\tR\tagentType\"S\n" +
+	"agent_type\x18\b \x01(\tR\tagentType\x12E\n" +
+	"\x06origin\x18\t \x01(\x0e2-.vrooli.web_console.v1.sessions.SessionOriginR\x06origin\x12\x14\n" +
+	"\x05owner\x18\n" +
+	" \x01(\tR\x05owner\x12#\n" +
+	"\rdisplay_label\x18\v \x01(\tR\fdisplayLabel\x124\n" +
+	"\x16execute_launch_command\x18\f \x01(\bR\x14executeLaunchCommand\"S\n" +
 	"\x0eCreateResponse\x12A\n" +
 	"\asession\x18\x01 \x01(\v2'.vrooli.web_console.v1.sessions.SessionR\asession\"\r\n" +
 	"\vListRequest\"\x9f\x01\n" +
@@ -1512,7 +1639,12 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12H\n" +
 	"\x06policy\x18\x02 \x01(\v20.vrooli.web_console.v1.sessions.ExpirationPolicyR\x06policy\"Z\n" +
 	"\x14UpdatePolicyResponse\x12B\n" +
-	"\x06policy\x18\x01 \x01(\v2*.vrooli.web_console.v1.sessions.PolicyViewR\x06policy2\x92\b\n" +
+	"\x06policy\x18\x01 \x01(\v2*.vrooli.web_console.v1.sessions.PolicyViewR\x06policy*\x82\x01\n" +
+	"\rSessionOrigin\x12\x1e\n" +
+	"\x1aSESSION_ORIGIN_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11SESSION_ORIGIN_UI\x10\x01\x12\x1f\n" +
+	"\x1bSESSION_ORIGIN_PROGRAMMATIC\x10\x02\x12\x19\n" +
+	"\x15SESSION_ORIGIN_REMOTE\x10\x032\x92\b\n" +
 	"\x0fSessionsService\x12g\n" +
 	"\x06Create\x12-.vrooli.web_console.v1.sessions.CreateRequest\x1a..vrooli.web_console.v1.sessions.CreateResponse\x12a\n" +
 	"\x04List\x12+.vrooli.web_console.v1.sessions.ListRequest\x1a,.vrooli.web_console.v1.sessions.ListResponse\x12^\n" +
@@ -1536,67 +1668,71 @@ func file_web_console_v1_sessions_sessions_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_sessions_sessions_proto_rawDescData
 }
 
+var file_web_console_v1_sessions_sessions_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_web_console_v1_sessions_sessions_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_web_console_v1_sessions_sessions_proto_goTypes = []any{
-	(*ExpirationPolicy)(nil),           // 0: vrooli.web_console.v1.sessions.ExpirationPolicy
-	(*Session)(nil),                    // 1: vrooli.web_console.v1.sessions.Session
-	(*RecoverableSession)(nil),         // 2: vrooli.web_console.v1.sessions.RecoverableSession
-	(*CreateRequest)(nil),              // 3: vrooli.web_console.v1.sessions.CreateRequest
-	(*CreateResponse)(nil),             // 4: vrooli.web_console.v1.sessions.CreateResponse
-	(*ListRequest)(nil),                // 5: vrooli.web_console.v1.sessions.ListRequest
-	(*ListResponse)(nil),               // 6: vrooli.web_console.v1.sessions.ListResponse
-	(*RecoveryStatus)(nil),             // 7: vrooli.web_console.v1.sessions.RecoveryStatus
-	(*GetRequest)(nil),                 // 8: vrooli.web_console.v1.sessions.GetRequest
-	(*GetResponse)(nil),                // 9: vrooli.web_console.v1.sessions.GetResponse
-	(*DeleteRequest)(nil),              // 10: vrooli.web_console.v1.sessions.DeleteRequest
-	(*DeleteResponse)(nil),             // 11: vrooli.web_console.v1.sessions.DeleteResponse
-	(*ListRecoverableRequest)(nil),     // 12: vrooli.web_console.v1.sessions.ListRecoverableRequest
-	(*ListRecoverableResponse)(nil),    // 13: vrooli.web_console.v1.sessions.ListRecoverableResponse
-	(*DismissRecoverableRequest)(nil),  // 14: vrooli.web_console.v1.sessions.DismissRecoverableRequest
-	(*DismissRecoverableResponse)(nil), // 15: vrooli.web_console.v1.sessions.DismissRecoverableResponse
-	(*RecoverRequest)(nil),             // 16: vrooli.web_console.v1.sessions.RecoverRequest
-	(*RecoverResponse)(nil),            // 17: vrooli.web_console.v1.sessions.RecoverResponse
-	(*GetPolicyRequest)(nil),           // 18: vrooli.web_console.v1.sessions.GetPolicyRequest
-	(*PolicyView)(nil),                 // 19: vrooli.web_console.v1.sessions.PolicyView
-	(*GetPolicyResponse)(nil),          // 20: vrooli.web_console.v1.sessions.GetPolicyResponse
-	(*UpdatePolicyRequest)(nil),        // 21: vrooli.web_console.v1.sessions.UpdatePolicyRequest
-	(*UpdatePolicyResponse)(nil),       // 22: vrooli.web_console.v1.sessions.UpdatePolicyResponse
+	(SessionOrigin)(0),                 // 0: vrooli.web_console.v1.sessions.SessionOrigin
+	(*ExpirationPolicy)(nil),           // 1: vrooli.web_console.v1.sessions.ExpirationPolicy
+	(*Session)(nil),                    // 2: vrooli.web_console.v1.sessions.Session
+	(*RecoverableSession)(nil),         // 3: vrooli.web_console.v1.sessions.RecoverableSession
+	(*CreateRequest)(nil),              // 4: vrooli.web_console.v1.sessions.CreateRequest
+	(*CreateResponse)(nil),             // 5: vrooli.web_console.v1.sessions.CreateResponse
+	(*ListRequest)(nil),                // 6: vrooli.web_console.v1.sessions.ListRequest
+	(*ListResponse)(nil),               // 7: vrooli.web_console.v1.sessions.ListResponse
+	(*RecoveryStatus)(nil),             // 8: vrooli.web_console.v1.sessions.RecoveryStatus
+	(*GetRequest)(nil),                 // 9: vrooli.web_console.v1.sessions.GetRequest
+	(*GetResponse)(nil),                // 10: vrooli.web_console.v1.sessions.GetResponse
+	(*DeleteRequest)(nil),              // 11: vrooli.web_console.v1.sessions.DeleteRequest
+	(*DeleteResponse)(nil),             // 12: vrooli.web_console.v1.sessions.DeleteResponse
+	(*ListRecoverableRequest)(nil),     // 13: vrooli.web_console.v1.sessions.ListRecoverableRequest
+	(*ListRecoverableResponse)(nil),    // 14: vrooli.web_console.v1.sessions.ListRecoverableResponse
+	(*DismissRecoverableRequest)(nil),  // 15: vrooli.web_console.v1.sessions.DismissRecoverableRequest
+	(*DismissRecoverableResponse)(nil), // 16: vrooli.web_console.v1.sessions.DismissRecoverableResponse
+	(*RecoverRequest)(nil),             // 17: vrooli.web_console.v1.sessions.RecoverRequest
+	(*RecoverResponse)(nil),            // 18: vrooli.web_console.v1.sessions.RecoverResponse
+	(*GetPolicyRequest)(nil),           // 19: vrooli.web_console.v1.sessions.GetPolicyRequest
+	(*PolicyView)(nil),                 // 20: vrooli.web_console.v1.sessions.PolicyView
+	(*GetPolicyResponse)(nil),          // 21: vrooli.web_console.v1.sessions.GetPolicyResponse
+	(*UpdatePolicyRequest)(nil),        // 22: vrooli.web_console.v1.sessions.UpdatePolicyRequest
+	(*UpdatePolicyResponse)(nil),       // 23: vrooli.web_console.v1.sessions.UpdatePolicyResponse
 }
 var file_web_console_v1_sessions_sessions_proto_depIdxs = []int32{
-	0,  // 0: vrooli.web_console.v1.sessions.Session.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
-	0,  // 1: vrooli.web_console.v1.sessions.CreateRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
-	1,  // 2: vrooli.web_console.v1.sessions.CreateResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
-	1,  // 3: vrooli.web_console.v1.sessions.ListResponse.sessions:type_name -> vrooli.web_console.v1.sessions.Session
-	7,  // 4: vrooli.web_console.v1.sessions.ListResponse.recovery:type_name -> vrooli.web_console.v1.sessions.RecoveryStatus
-	1,  // 5: vrooli.web_console.v1.sessions.GetResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
-	2,  // 6: vrooli.web_console.v1.sessions.ListRecoverableResponse.sessions:type_name -> vrooli.web_console.v1.sessions.RecoverableSession
-	0,  // 7: vrooli.web_console.v1.sessions.PolicyView.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
-	19, // 8: vrooli.web_console.v1.sessions.GetPolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
-	0,  // 9: vrooli.web_console.v1.sessions.UpdatePolicyRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
-	19, // 10: vrooli.web_console.v1.sessions.UpdatePolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
-	3,  // 11: vrooli.web_console.v1.sessions.SessionsService.Create:input_type -> vrooli.web_console.v1.sessions.CreateRequest
-	5,  // 12: vrooli.web_console.v1.sessions.SessionsService.List:input_type -> vrooli.web_console.v1.sessions.ListRequest
-	8,  // 13: vrooli.web_console.v1.sessions.SessionsService.Get:input_type -> vrooli.web_console.v1.sessions.GetRequest
-	10, // 14: vrooli.web_console.v1.sessions.SessionsService.Delete:input_type -> vrooli.web_console.v1.sessions.DeleteRequest
-	12, // 15: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:input_type -> vrooli.web_console.v1.sessions.ListRecoverableRequest
-	14, // 16: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:input_type -> vrooli.web_console.v1.sessions.DismissRecoverableRequest
-	16, // 17: vrooli.web_console.v1.sessions.SessionsService.Recover:input_type -> vrooli.web_console.v1.sessions.RecoverRequest
-	18, // 18: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:input_type -> vrooli.web_console.v1.sessions.GetPolicyRequest
-	21, // 19: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:input_type -> vrooli.web_console.v1.sessions.UpdatePolicyRequest
-	4,  // 20: vrooli.web_console.v1.sessions.SessionsService.Create:output_type -> vrooli.web_console.v1.sessions.CreateResponse
-	6,  // 21: vrooli.web_console.v1.sessions.SessionsService.List:output_type -> vrooli.web_console.v1.sessions.ListResponse
-	9,  // 22: vrooli.web_console.v1.sessions.SessionsService.Get:output_type -> vrooli.web_console.v1.sessions.GetResponse
-	11, // 23: vrooli.web_console.v1.sessions.SessionsService.Delete:output_type -> vrooli.web_console.v1.sessions.DeleteResponse
-	13, // 24: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:output_type -> vrooli.web_console.v1.sessions.ListRecoverableResponse
-	15, // 25: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:output_type -> vrooli.web_console.v1.sessions.DismissRecoverableResponse
-	17, // 26: vrooli.web_console.v1.sessions.SessionsService.Recover:output_type -> vrooli.web_console.v1.sessions.RecoverResponse
-	20, // 27: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:output_type -> vrooli.web_console.v1.sessions.GetPolicyResponse
-	22, // 28: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:output_type -> vrooli.web_console.v1.sessions.UpdatePolicyResponse
-	20, // [20:29] is the sub-list for method output_type
-	11, // [11:20] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	1,  // 0: vrooli.web_console.v1.sessions.Session.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	0,  // 1: vrooli.web_console.v1.sessions.Session.origin:type_name -> vrooli.web_console.v1.sessions.SessionOrigin
+	1,  // 2: vrooli.web_console.v1.sessions.CreateRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	0,  // 3: vrooli.web_console.v1.sessions.CreateRequest.origin:type_name -> vrooli.web_console.v1.sessions.SessionOrigin
+	2,  // 4: vrooli.web_console.v1.sessions.CreateResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
+	2,  // 5: vrooli.web_console.v1.sessions.ListResponse.sessions:type_name -> vrooli.web_console.v1.sessions.Session
+	8,  // 6: vrooli.web_console.v1.sessions.ListResponse.recovery:type_name -> vrooli.web_console.v1.sessions.RecoveryStatus
+	2,  // 7: vrooli.web_console.v1.sessions.GetResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
+	3,  // 8: vrooli.web_console.v1.sessions.ListRecoverableResponse.sessions:type_name -> vrooli.web_console.v1.sessions.RecoverableSession
+	1,  // 9: vrooli.web_console.v1.sessions.PolicyView.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	20, // 10: vrooli.web_console.v1.sessions.GetPolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
+	1,  // 11: vrooli.web_console.v1.sessions.UpdatePolicyRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	20, // 12: vrooli.web_console.v1.sessions.UpdatePolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
+	4,  // 13: vrooli.web_console.v1.sessions.SessionsService.Create:input_type -> vrooli.web_console.v1.sessions.CreateRequest
+	6,  // 14: vrooli.web_console.v1.sessions.SessionsService.List:input_type -> vrooli.web_console.v1.sessions.ListRequest
+	9,  // 15: vrooli.web_console.v1.sessions.SessionsService.Get:input_type -> vrooli.web_console.v1.sessions.GetRequest
+	11, // 16: vrooli.web_console.v1.sessions.SessionsService.Delete:input_type -> vrooli.web_console.v1.sessions.DeleteRequest
+	13, // 17: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:input_type -> vrooli.web_console.v1.sessions.ListRecoverableRequest
+	15, // 18: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:input_type -> vrooli.web_console.v1.sessions.DismissRecoverableRequest
+	17, // 19: vrooli.web_console.v1.sessions.SessionsService.Recover:input_type -> vrooli.web_console.v1.sessions.RecoverRequest
+	19, // 20: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:input_type -> vrooli.web_console.v1.sessions.GetPolicyRequest
+	22, // 21: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:input_type -> vrooli.web_console.v1.sessions.UpdatePolicyRequest
+	5,  // 22: vrooli.web_console.v1.sessions.SessionsService.Create:output_type -> vrooli.web_console.v1.sessions.CreateResponse
+	7,  // 23: vrooli.web_console.v1.sessions.SessionsService.List:output_type -> vrooli.web_console.v1.sessions.ListResponse
+	10, // 24: vrooli.web_console.v1.sessions.SessionsService.Get:output_type -> vrooli.web_console.v1.sessions.GetResponse
+	12, // 25: vrooli.web_console.v1.sessions.SessionsService.Delete:output_type -> vrooli.web_console.v1.sessions.DeleteResponse
+	14, // 26: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:output_type -> vrooli.web_console.v1.sessions.ListRecoverableResponse
+	16, // 27: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:output_type -> vrooli.web_console.v1.sessions.DismissRecoverableResponse
+	18, // 28: vrooli.web_console.v1.sessions.SessionsService.Recover:output_type -> vrooli.web_console.v1.sessions.RecoverResponse
+	21, // 29: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:output_type -> vrooli.web_console.v1.sessions.GetPolicyResponse
+	23, // 30: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:output_type -> vrooli.web_console.v1.sessions.UpdatePolicyResponse
+	22, // [22:31] is the sub-list for method output_type
+	13, // [13:22] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_sessions_sessions_proto_init() }
@@ -1609,13 +1745,14 @@ func file_web_console_v1_sessions_sessions_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_sessions_sessions_proto_rawDesc), len(file_web_console_v1_sessions_sessions_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_web_console_v1_sessions_sessions_proto_goTypes,
 		DependencyIndexes: file_web_console_v1_sessions_sessions_proto_depIdxs,
+		EnumInfos:         file_web_console_v1_sessions_sessions_proto_enumTypes,
 		MessageInfos:      file_web_console_v1_sessions_sessions_proto_msgTypes,
 	}.Build()
 	File_web_console_v1_sessions_sessions_proto = out.File

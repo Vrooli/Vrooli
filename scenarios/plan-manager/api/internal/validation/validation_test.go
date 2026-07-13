@@ -31,6 +31,16 @@ func (f fakePlans) GetPlan(_ context.Context, _ string) (internalplans.Plan, err
 	return f.plan, f.err
 }
 
+type fakeBaselineInventory struct {
+	inventory validation.BaselineInventory
+	ok        bool
+	err       error
+}
+
+func (f fakeBaselineInventory) LatestBaselineInventory(context.Context, string) (validation.BaselineInventory, bool, error) {
+	return f.inventory, f.ok, f.err
+}
+
 type fakeResolver struct {
 	resolution internalplans.ReferenceResolution
 	err        error
@@ -48,6 +58,35 @@ type fakeStaleness struct {
 	tier   internalplans.StalenessTier
 	factor float64
 	err    error
+}
+
+type fakeCollectionClient struct {
+	result     validation.BaselineCollectionCaptureResult
+	err        error
+	called     validation.BaselineCollectionCaptureRequest
+	calls      int
+	diffResult validation.BaselineCollectionDiffResult
+	diffErr    error
+	diffCalled validation.BaselineCollectionDiffRequest
+	pathResult validation.BaselinePathDiffResult
+	pathErr    error
+	pathCalled validation.BaselinePathDiffRequest
+}
+
+func (f *fakeCollectionClient) StartCollectionDiff(_ context.Context, req validation.BaselineCollectionDiffRequest) (validation.BaselineCollectionDiffResult, error) {
+	f.diffCalled = req
+	return f.diffResult, f.diffErr
+}
+
+func (f *fakeCollectionClient) StartCollectionCapture(_ context.Context, req validation.BaselineCollectionCaptureRequest) (validation.BaselineCollectionCaptureResult, error) {
+	f.calls++
+	f.called = req
+	return f.result, f.err
+}
+
+func (f *fakeCollectionClient) DiffPathEvidence(_ context.Context, req validation.BaselinePathDiffRequest) (validation.BaselinePathDiffResult, error) {
+	f.pathCalled = req
+	return f.pathResult, f.pathErr
 }
 
 func (f fakeStaleness) Compute(_ context.Context, _ internalplans.Reference) (internalplans.StalenessTier, float64, error) {
@@ -650,6 +689,108 @@ func TestDurableValidationConcurrentIdempotencyRunsOneChildSet(t *testing.T) { /
 	callsMu.Unlock()
 }
 
+func TestBaselineSetFinalValidationUsesTypedFullCollectionDiff(t *testing.T) {
+	store := newFakeDurableStore()
+	plan := durableValidationPlan()
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}, RepoPaths: []string{"packages/proto/**"}}
+	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean", Detail: "foo:ready:clean"}}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
+		Runner: func(context.Context, string, ...string) ([]byte, error) {
+			return nil, errors.New("legacy runner must not dispatch collection diff")
+		},
+	})
+	op, _, err := svc.StartValidation(context.Background(), "p1", "", "typed-collection")
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	op, err = svc.GetValidationOperation(ctx, op.ID, true)
+	require.NoError(t, err)
+	require.True(t, op.Terminal())
+	require.Equal(t, validation.VerdictPass, op.Result.Verdict)
+	require.Len(t, op.Children, 1)
+	require.Equal(t, validation.ValidationCheckCollectionDiff, op.Children[0].Check.Kind)
+	require.Equal(t, []string{"bar", "foo"}, collections.diffCalled.Scenarios)
+	require.Equal(t, op.Children[0].ID, collections.diffCalled.OperationID)
+}
+
+func TestBaselineSetPhaseValidationUsesOnlyExplicitNarrowScope(t *testing.T) {
+	store := newFakeDurableStore()
+	plan := durableValidationPlan()
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
+	plan.Phases = []planmodel.Phase{{ID: "phase-foo", ValidationScope: planmodel.ValidationScope{Mode: planmodel.ValidationScopeNarrow, Boundary: planmodel.ChangeBoundary{AcceptanceAllow: []string{"scenarios/foo/**"}}}}}
+	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean"}}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", Branch: "agi", ScenarioTargets: []string{"foo"}, PathSnapshots: []validation.BaselinePathSnapshot{{Name: "paths-before", Branch: "agi"}}}, ok: true},
+	})
+	op, _, err := svc.StartValidation(context.Background(), "p1", "phase-foo", "narrow-collection")
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err = svc.GetValidationOperation(ctx, op.ID, true)
+	require.NoError(t, err)
+	require.Equal(t, []string{"foo"}, collections.diffCalled.Scenarios)
+}
+
+func TestBaselineSetPhaseValidationRejectsScenarioOutsideCapturedInventory(t *testing.T) {
+	plan := durableValidationPlan()
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo"}}
+	plan.Phases = []planmodel.Phase{{ID: "phase-bar", ValidationScope: planmodel.ValidationScope{Mode: planmodel.ValidationScopeNarrow, Boundary: planmodel.ChangeBoundary{AcceptanceAllow: []string{"scenarios/bar/**"}}}}}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}, Operations: newFakeDurableStore()})
+	_, _, err := svc.StartValidation(context.Background(), "p1", "phase-bar", "out-of-inventory")
+	require.ErrorContains(t, err, "outside captured baseline inventory: bar")
+}
+
+func TestBaselineSetValidationRunsTypedScopedPathEvidenceSeparatelyFromOracle(t *testing.T) {
+	store := newFakeDurableStore()
+	plan := durableValidationPlan()
+	plan.ChangeBoundary = planmodel.ChangeBoundary{AcceptanceAllow: []string{"packages/proto/**"}}
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo"}, RepoPaths: []string{"packages/proto/**"}}
+	collections := &fakeCollectionClient{pathResult: validation.BaselinePathDiffResult{AfterName: "before-after-1", Deltas: 2, Detail: "informational source evidence: 2 scoped path delta(s)"}}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", Branch: "agi", ScenarioTargets: []string{"foo"}, PathSnapshots: []validation.BaselinePathSnapshot{{Name: "paths-before", Branch: "agi"}}}, ok: true},
+	})
+	op, _, err := svc.StartValidation(context.Background(), "p1", "", "path-evidence")
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	op, err = svc.GetValidationOperation(ctx, op.ID, true)
+	require.NoError(t, err)
+	require.Len(t, op.Children, 2)
+	var sourceChild validation.ValidationChild
+	for _, child := range op.Children {
+		if child.Check.Kind == validation.ValidationCheckPathSnapshotDiff {
+			sourceChild = child
+		}
+	}
+	require.Equal(t, validation.ValidationCheckPathSnapshotDiff, sourceChild.Check.Kind)
+	require.Equal(t, "paths-before", collections.pathCalled.BeforeName)
+	require.Equal(t, "agi", collections.pathCalled.Branch)
+	require.Equal(t, []string{"packages/proto/**"}, collections.pathCalled.Paths)
+	require.False(t, sourceChild.Oracle)
+	require.Equal(t, validation.VerdictUnknown, op.Result.Verdict, "source evidence never creates a behavioral pass")
+}
+
+func TestBaselineSetValidationPrefersCapturedExecutionInventory(t *testing.T) {
+	store := newFakeDurableStore()
+	plan := durableValidationPlan()
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
+	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean"}}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo"}}, ok: true},
+	})
+	op, _, err := svc.StartValidation(context.Background(), "p1", "", "captured-inventory")
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err = svc.GetValidationOperation(ctx, op.ID, true)
+	require.NoError(t, err)
+	require.Equal(t, []string{"foo"}, collections.diffCalled.Scenarios)
+}
+
 func TestDurableValidationConcurrentUnkeyedStartsCoalesce(t *testing.T) { // [REQ:PM-VALID-004]
 	store := newFakeDurableStore()
 	release := make(chan struct{})
@@ -906,6 +1047,29 @@ func TestCaptureBaselineShellsGCTFromAnchorIntent(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, cap3.Captured)
 	require.Contains(t, cap3.Detail, "git-control-tower unavailable")
+}
+
+func TestCaptureBaselineUsesTypedCollectionForBaselineSet(t *testing.T) {
+	plan := planWith(nil, nil)
+	plan.BaselineSet = planmodel.BaselineSetIntent{
+		Name: "before-all", ScenarioTargets: []string{"git-control-tower", "plan-manager"}, RepoPaths: []string{"packages/proto/**"},
+		CapturePolicy: planmodel.BaselineCapturePolicyExecutionStart, Compatibility: planmodel.BaselineSetCompatibilityCurrent,
+	}
+	client := &fakeCollectionClient{result: validation.BaselineCollectionCaptureResult{Name: "before-all", Required: 2, Ready: 2}}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}, Collections: client})
+	capture, err := svc.CaptureBaseline(context.Background(), "p1")
+	require.NoError(t, err)
+	require.True(t, capture.Captured)
+	require.Equal(t, "before-all", capture.BaselineName)
+	require.Equal(t, 1, client.calls)
+	require.Equal(t, []string{"git-control-tower", "plan-manager"}, client.called.Scenarios)
+	require.Equal(t, []string{"packages/proto/**"}, client.called.RepoPaths)
+
+	client.result = validation.BaselineCollectionCaptureResult{Name: "before-all", Required: 2, Ready: 1, Pending: 1}
+	capture, err = svc.CaptureBaseline(context.Background(), "p1")
+	require.NoError(t, err)
+	require.False(t, capture.Captured)
+	require.Contains(t, capture.Detail, "coverage incomplete")
 }
 
 func TestCaptureBaselineRejectsLegacySurfaceManifestWithoutV2RunAnchor(t *testing.T) {
@@ -1291,6 +1455,32 @@ func TestVerifyDefinitionOfDone(t *testing.T) {
 	noAnchor := internalplans.Plan{ID: "p1", Slug: "p1", RegressionAnchor: internalplans.RegressionAnchor{Unavailable: true}}
 	degraded := validation.NewService(validation.Deps{Plans: fakePlans{plan: noAnchor}})
 	res, ok, err = degraded.VerifyDefinitionOfDone(context.Background(), "p1")
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Equal(t, validation.VerdictUnknown, res.Verdict)
+}
+
+func TestBaselineSetDefinitionOfDoneRequiresCheckpointAndUsesTypedFullCollectionDiff(t *testing.T) {
+	plan := durableValidationPlan()
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
+	store := newFakeDurableStore()
+	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean", Detail: "foo:ready:clean, bar:ready:clean"}}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo", "bar"}, Complete: true}, ok: true},
+		Runner:      func(context.Context, string, ...string) ([]byte, error) { return nil, nil },
+	})
+	res, ok, err := svc.VerifyDefinitionOfDone(context.Background(), "p1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, validation.VerdictPass, res.Verdict)
+	require.Equal(t, []string{"bar", "foo"}, collections.diffCalled.Scenarios)
+
+	incomplete := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo", "bar"}}, ok: true},
+	})
+	res, ok, err = incomplete.VerifyDefinitionOfDone(context.Background(), "p1")
 	require.NoError(t, err)
 	require.False(t, ok)
 	require.Equal(t, validation.VerdictUnknown, res.Verdict)

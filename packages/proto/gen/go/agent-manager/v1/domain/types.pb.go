@@ -789,6 +789,67 @@ func (RunMode) EnumDescriptor() ([]byte, []int) {
 	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{10}
 }
 
+// ExecutionMode selects the substrate agent-manager uses to drive the agent
+// CLI for a run. It is orthogonal to RunMode (sandbox isolation): a run picks
+// an execution substrate independently of whether it is sandboxed.
+//
+// @usage CreateRunRequest.execution_mode, Run.execution_mode
+type ExecutionMode int32
+
+const (
+	// Default/unspecified. Treated as EXECUTION_MODE_CODEC_PIPE.
+	ExecutionMode_EXECUTION_MODE_UNSPECIFIED ExecutionMode = 0
+	// agent-manager owns the CLI process and reads events off its stdout pipe
+	// via the codec decoders. The historical path and the only path for
+	// protected (sandboxed) runs.
+	ExecutionMode_EXECUTION_MODE_CODEC_PIPE ExecutionMode = 1
+	// agent-manager launches the real interactive agent CLI inside a web-console
+	// (persistent/tmux) session and reads events by tailing the agent-owned
+	// on-disk transcript. Allowed only for non-protected (in-place) runs.
+	ExecutionMode_EXECUTION_MODE_INTERACTIVE ExecutionMode = 2
+)
+
+// Enum value maps for ExecutionMode.
+var (
+	ExecutionMode_name = map[int32]string{
+		0: "EXECUTION_MODE_UNSPECIFIED",
+		1: "EXECUTION_MODE_CODEC_PIPE",
+		2: "EXECUTION_MODE_INTERACTIVE",
+	}
+	ExecutionMode_value = map[string]int32{
+		"EXECUTION_MODE_UNSPECIFIED": 0,
+		"EXECUTION_MODE_CODEC_PIPE":  1,
+		"EXECUTION_MODE_INTERACTIVE": 2,
+	}
+)
+
+func (x ExecutionMode) Enum() *ExecutionMode {
+	p := new(ExecutionMode)
+	*p = x
+	return p
+}
+
+func (x ExecutionMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ExecutionMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_agent_manager_v1_domain_types_proto_enumTypes[11].Descriptor()
+}
+
+func (ExecutionMode) Type() protoreflect.EnumType {
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[11]
+}
+
+func (x ExecutionMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ExecutionMode.Descriptor instead.
+func (ExecutionMode) EnumDescriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{11}
+}
+
 // ApprovalState represents the approval workflow state for a run.
 //
 // Runs in sandboxed mode require approval before changes are applied.
@@ -843,11 +904,11 @@ func (x ApprovalState) String() string {
 }
 
 func (ApprovalState) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[11].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[12].Descriptor()
 }
 
 func (ApprovalState) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[11]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[12]
 }
 
 func (x ApprovalState) Number() protoreflect.EnumNumber {
@@ -856,7 +917,7 @@ func (x ApprovalState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ApprovalState.Descriptor instead.
 func (ApprovalState) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{11}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{12}
 }
 
 // RunEventType categorizes events in the run's event stream.
@@ -939,11 +1000,11 @@ func (x RunEventType) String() string {
 }
 
 func (RunEventType) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[12].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[13].Descriptor()
 }
 
 func (RunEventType) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[12]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[13]
 }
 
 func (x RunEventType) Number() protoreflect.EnumNumber {
@@ -952,7 +1013,7 @@ func (x RunEventType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunEventType.Descriptor instead.
 func (RunEventType) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{12}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{13}
 }
 
 // RecoveryAction indicates the recommended action after an error.
@@ -1012,11 +1073,11 @@ func (x RecoveryAction) String() string {
 }
 
 func (RecoveryAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[13].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[14].Descriptor()
 }
 
 func (RecoveryAction) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[13]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[14]
 }
 
 func (x RecoveryAction) Number() protoreflect.EnumNumber {
@@ -1025,7 +1086,7 @@ func (x RecoveryAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RecoveryAction.Descriptor instead.
 func (RecoveryAction) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{13}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{14}
 }
 
 // IdempotencyStatus indicates the state of an idempotent operation.
@@ -1073,11 +1134,11 @@ func (x IdempotencyStatus) String() string {
 }
 
 func (IdempotencyStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[14].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[15].Descriptor()
 }
 
 func (IdempotencyStatus) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[14]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[15]
 }
 
 func (x IdempotencyStatus) Number() protoreflect.EnumNumber {
@@ -1086,7 +1147,7 @@ func (x IdempotencyStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use IdempotencyStatus.Descriptor instead.
 func (IdempotencyStatus) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{14}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{15}
 }
 
 // RunOutcome classifies how a run completed.
@@ -1150,11 +1211,11 @@ func (x RunOutcome) String() string {
 }
 
 func (RunOutcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[15].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[16].Descriptor()
 }
 
 func (RunOutcome) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[15]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[16]
 }
 
 func (x RunOutcome) Number() protoreflect.EnumNumber {
@@ -1163,7 +1224,7 @@ func (x RunOutcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunOutcome.Descriptor instead.
 func (RunOutcome) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{15}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{16}
 }
 
 // StaleRunAction indicates what action to take for a stale run.
@@ -1215,11 +1276,11 @@ func (x StaleRunAction) String() string {
 }
 
 func (StaleRunAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[16].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[17].Descriptor()
 }
 
 func (StaleRunAction) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[16]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[17]
 }
 
 func (x StaleRunAction) Number() protoreflect.EnumNumber {
@@ -1228,7 +1289,7 @@ func (x StaleRunAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StaleRunAction.Descriptor instead.
 func (StaleRunAction) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{16}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{17}
 }
 
 // SandboxFileCriteria defines allow/deny matchers for acceptance.
@@ -1774,7 +1835,11 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\aRunMode\x12\x18\n" +
 	"\x14RUN_MODE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12RUN_MODE_SANDBOXED\x10\x01\x12\x15\n" +
-	"\x11RUN_MODE_IN_PLACE\x10\x02*\xc5\x01\n" +
+	"\x11RUN_MODE_IN_PLACE\x10\x02*n\n" +
+	"\rExecutionMode\x12\x1e\n" +
+	"\x1aEXECUTION_MODE_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19EXECUTION_MODE_CODEC_PIPE\x10\x01\x12\x1e\n" +
+	"\x1aEXECUTION_MODE_INTERACTIVE\x10\x02*\xc5\x01\n" +
 	"\rApprovalState\x12\x1e\n" +
 	"\x1aAPPROVAL_STATE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13APPROVAL_STATE_NONE\x10\x01\x12\x1a\n" +
@@ -1838,7 +1903,7 @@ func file_agent_manager_v1_domain_types_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_domain_types_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_types_proto_enumTypes = make([]protoimpl.EnumInfo, 17)
+var file_agent_manager_v1_domain_types_proto_enumTypes = make([]protoimpl.EnumInfo, 18)
 var file_agent_manager_v1_domain_types_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_agent_manager_v1_domain_types_proto_goTypes = []any{
 	(RunnerType)(0),                 // 0: agent_manager.v1.RunnerType
@@ -1852,31 +1917,32 @@ var file_agent_manager_v1_domain_types_proto_goTypes = []any{
 	(RunFinalizationStatus)(0),      // 8: agent_manager.v1.RunFinalizationStatus
 	(RunPhase)(0),                   // 9: agent_manager.v1.RunPhase
 	(RunMode)(0),                    // 10: agent_manager.v1.RunMode
-	(ApprovalState)(0),              // 11: agent_manager.v1.ApprovalState
-	(RunEventType)(0),               // 12: agent_manager.v1.RunEventType
-	(RecoveryAction)(0),             // 13: agent_manager.v1.RecoveryAction
-	(IdempotencyStatus)(0),          // 14: agent_manager.v1.IdempotencyStatus
-	(RunOutcome)(0),                 // 15: agent_manager.v1.RunOutcome
-	(StaleRunAction)(0),             // 16: agent_manager.v1.StaleRunAction
-	(*SandboxFileCriteria)(nil),     // 17: agent_manager.v1.SandboxFileCriteria
-	(*SandboxAcceptanceConfig)(nil), // 18: agent_manager.v1.SandboxAcceptanceConfig
-	(*SandboxLifecycleConfig)(nil),  // 19: agent_manager.v1.SandboxLifecycleConfig
-	(*SandboxConfig)(nil),           // 20: agent_manager.v1.SandboxConfig
-	(*FeatureFlags)(nil),            // 21: agent_manager.v1.FeatureFlags
-	(*ExtraFlagList)(nil),           // 22: agent_manager.v1.ExtraFlagList
-	(*durationpb.Duration)(nil),     // 23: google.protobuf.Duration
+	(ExecutionMode)(0),              // 11: agent_manager.v1.ExecutionMode
+	(ApprovalState)(0),              // 12: agent_manager.v1.ApprovalState
+	(RunEventType)(0),               // 13: agent_manager.v1.RunEventType
+	(RecoveryAction)(0),             // 14: agent_manager.v1.RecoveryAction
+	(IdempotencyStatus)(0),          // 15: agent_manager.v1.IdempotencyStatus
+	(RunOutcome)(0),                 // 16: agent_manager.v1.RunOutcome
+	(StaleRunAction)(0),             // 17: agent_manager.v1.StaleRunAction
+	(*SandboxFileCriteria)(nil),     // 18: agent_manager.v1.SandboxFileCriteria
+	(*SandboxAcceptanceConfig)(nil), // 19: agent_manager.v1.SandboxAcceptanceConfig
+	(*SandboxLifecycleConfig)(nil),  // 20: agent_manager.v1.SandboxLifecycleConfig
+	(*SandboxConfig)(nil),           // 21: agent_manager.v1.SandboxConfig
+	(*FeatureFlags)(nil),            // 22: agent_manager.v1.FeatureFlags
+	(*ExtraFlagList)(nil),           // 23: agent_manager.v1.ExtraFlagList
+	(*durationpb.Duration)(nil),     // 24: google.protobuf.Duration
 }
 var file_agent_manager_v1_domain_types_proto_depIdxs = []int32{
 	4,  // 0: agent_manager.v1.SandboxAcceptanceConfig.mode:type_name -> agent_manager.v1.SandboxAcceptanceMode
-	17, // 1: agent_manager.v1.SandboxAcceptanceConfig.allow:type_name -> agent_manager.v1.SandboxFileCriteria
-	17, // 2: agent_manager.v1.SandboxAcceptanceConfig.deny:type_name -> agent_manager.v1.SandboxFileCriteria
+	18, // 1: agent_manager.v1.SandboxAcceptanceConfig.allow:type_name -> agent_manager.v1.SandboxFileCriteria
+	18, // 2: agent_manager.v1.SandboxAcceptanceConfig.deny:type_name -> agent_manager.v1.SandboxFileCriteria
 	3,  // 3: agent_manager.v1.SandboxLifecycleConfig.stop_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
 	3,  // 4: agent_manager.v1.SandboxLifecycleConfig.delete_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
-	23, // 5: agent_manager.v1.SandboxLifecycleConfig.ttl:type_name -> google.protobuf.Duration
-	23, // 6: agent_manager.v1.SandboxLifecycleConfig.idle_timeout:type_name -> google.protobuf.Duration
+	24, // 5: agent_manager.v1.SandboxLifecycleConfig.ttl:type_name -> google.protobuf.Duration
+	24, // 6: agent_manager.v1.SandboxLifecycleConfig.idle_timeout:type_name -> google.protobuf.Duration
 	3,  // 7: agent_manager.v1.SandboxLifecycleConfig.checkpoint_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
-	19, // 8: agent_manager.v1.SandboxConfig.lifecycle:type_name -> agent_manager.v1.SandboxLifecycleConfig
-	18, // 9: agent_manager.v1.SandboxConfig.acceptance:type_name -> agent_manager.v1.SandboxAcceptanceConfig
+	20, // 8: agent_manager.v1.SandboxConfig.lifecycle:type_name -> agent_manager.v1.SandboxLifecycleConfig
+	19, // 9: agent_manager.v1.SandboxConfig.acceptance:type_name -> agent_manager.v1.SandboxAcceptanceConfig
 	5,  // 10: agent_manager.v1.SandboxConfig.mode:type_name -> agent_manager.v1.SandboxMode
 	2,  // 11: agent_manager.v1.SandboxConfig.network_mode:type_name -> agent_manager.v1.NetworkAccess
 	12, // [12:12] is the sub-list for method output_type
@@ -1897,7 +1963,7 @@ func file_agent_manager_v1_domain_types_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_types_proto_rawDesc), len(file_agent_manager_v1_domain_types_proto_rawDesc)),
-			NumEnums:      17,
+			NumEnums:      18,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,

@@ -53,6 +53,21 @@ service SessionsService {
 // Shared types
 // -----------------------------------------------------------------------------
 
+// SessionOrigin records who opened a session, so the UI can separate
+// human-opened tabs from sessions launched by agents or remote clients.
+//
+// Create normalizes SESSION_ORIGIN_UNSPECIFIED to SESSION_ORIGIN_PROGRAMMATIC:
+// every first-party UI client sets SESSION_ORIGIN_UI explicitly, so an
+// origin-less create can only have come from a programmatic caller. Rows that
+// predate this field are backfilled to SESSION_ORIGIN_UI (the historical
+// sessions were all opened from the web UI).
+enum SessionOrigin {
+  SESSION_ORIGIN_UNSPECIFIED = 0;
+  SESSION_ORIGIN_UI = 1;
+  SESSION_ORIGIN_PROGRAMMATIC = 2;
+  SESSION_ORIGIN_REMOTE = 3;
+}
+
 // ExpirationPolicy controls when a session ends. mode is one of
 // "never" | "preset" | "custom"; duration is Go-style "1h30m" only when
 // mode is "custom".
@@ -73,6 +88,9 @@ message Session {
   ExpirationPolicy policy = 8;
   bool busy = 9;
   bool recovered = 10;
+  SessionOrigin origin = 11;
+  string owner = 12;         // free-form provenance tag, e.g. "agent-manager"
+  string display_label = 13; // human-facing label for the sidebar
 }
 
 // RecoverableSession describes an awaiting_recovery row.
@@ -107,6 +125,13 @@ message CreateRequest {
   bool has_policy = 6;
   string launch_command = 7;
   string agent_type = 8;
+  SessionOrigin origin = 9;
+  string owner = 10;         // free-form provenance tag, e.g. "agent-manager"
+  string display_label = 11; // human-facing label for the sidebar
+  // execute_launch_command asks the server to paste launch_command into the
+  // fresh session's stdin after create. Consumed by the server-side launch
+  // path; the store does not persist this intent.
+  bool execute_launch_command = 12;
 }
 
 message CreateResponse {

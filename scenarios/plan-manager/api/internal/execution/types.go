@@ -58,6 +58,70 @@ type Execution struct {
 	InputsFreshenedAt string
 	FreshenStatus     string
 	FreshenDetail     string
+	// BaselineSet is the execution-owned checkpoint for a new-plan baseline
+	// collection. It snapshots the resolved policy at capture time so resume and
+	// phase validation never derive a different before-state from edited plan
+	// prose. Legacy single-scenario anchors leave it zero-valued.
+	BaselineSet BaselineSetState
+}
+
+type BaselineSetStatus string
+
+// BaselineSetStateSchemaVersion advances when the durable checkpoint gains new
+// recovery/provenance fields. Existing JSON rows remain readable because every
+// addition is optional and legacy rows simply have no member/path detail.
+const BaselineSetStateSchemaVersion = 2
+
+const (
+	BaselineSetStatusComplete BaselineSetStatus = "complete"
+	BaselineSetStatusPartial  BaselineSetStatus = "partial"
+	BaselineSetStatusDegraded BaselineSetStatus = "degraded"
+)
+
+// BaselineSetState is durable execution evidence, not authored plan policy.
+// Path evidence remains separately informational; Required/Ready coverage is
+// only the behavioral GCT collection gate.
+type BaselineSetState struct {
+	Version          int
+	Name             string
+	CollectionBranch string
+	ScenarioTargets  []string
+	RepoPaths        []string
+	CapturedAt       string
+	Status           BaselineSetStatus
+	Required         int
+	Ready            int
+	Pending          int
+	Failed           int
+	Skipped          int
+	Stale            int
+	Members          []BaselineSetMember
+	PathSnapshots    []BaselineSetPathSnapshot
+	Detail           string
+}
+
+// BaselineSetMember preserves the GCT member/run checkpoint used for recovery
+// and drill-down. Its status is capture state, not a behavioral diff verdict.
+type BaselineSetMember struct {
+	Scenario     string
+	BaselineName string
+	Required     bool
+	Status       string
+	RunID        string
+	GitSHA       string
+	Error        string
+}
+
+// BaselineSetPathSnapshot preserves only safe source-evidence metadata. Bytes
+// remain private to GCT and are never copied into Plan Manager state.
+type BaselineSetPathSnapshot struct {
+	Name      string
+	Branch    string
+	CreatedAt string
+}
+
+func (s BaselineSetState) Complete() bool {
+	return s.Status == BaselineSetStatusComplete && s.Required > 0 && s.Ready == s.Required
 }
 
 // Freshen status values recorded on an Execution after the execution-start
@@ -154,6 +218,7 @@ type PhaseContext struct {
 	InputsFreshened bool
 	FreshenStatus   string
 	FreshenDetail   string
+	BaselineSet     BaselineSetState
 	// ChangeBoundary is the plan's (or current phase's narrowing) blast-radius
 	// contract: the allowed/denied paths a fresh or resumed agent must respect,
 	// surfaced without reading the full plan markdown.

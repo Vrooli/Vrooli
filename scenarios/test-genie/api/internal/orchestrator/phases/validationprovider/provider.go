@@ -198,10 +198,20 @@ func translate(provider Provider, fallbackScenario string, resp *scenariovalidat
 	}
 	summary := summarize(scenario, resp.GetStatus(), resp.GetAssessment())
 	findings := assessment.AssessmentToArchitectureFindings(scenario, resp.GetAssessment(), provider.FindingSource)
+	observations := observations(provider, resp.GetAssessment())
+	if resp.GetAssessment().GetPresentation() == nil {
+		// Presentation is a provider-owned rendering projection. Older providers
+		// can still supply a structurally valid assessment whose findings must be
+		// evaluated; retain that evidence without inventing a presentation and
+		// make the outstanding provider migration explicit in the run output.
+		observations = append(observations, shared.NewWarningObservation(
+			"presentation compatibility mode: provider returned no canonical phase presentation; assessment findings remain authoritative",
+		))
+	}
 	out := &Result{
 		RunResult: shared.RunResult[Summary]{
 			Summary:      summary,
-			Observations: observations(provider, resp.GetAssessment()),
+			Observations: observations,
 		},
 		Findings:        findings,
 		Metrics:         resp.GetMetrics(),
@@ -726,8 +736,16 @@ func failure(provider Provider, scenario string, class shared.FailureClass, err 
 }
 
 func requireAssessment(provider Provider, a *commonv1.MaturityAssessment) error {
-	if err := assessment.RequireProviderContract(provider.ProviderScenario, provider.Phase, a); err != nil {
+	if err := assessment.RequireIdentity(provider.ProviderScenario, provider.Phase, a); err != nil {
 		return fmt.Errorf("%s response violates the provider maturity contract: %w", provider.ProviderScenario, err)
+	}
+	if err := assessment.ValidateAssessment(a); err != nil {
+		return fmt.Errorf("%s response violates the provider maturity contract: %w", provider.ProviderScenario, err)
+	}
+	if a.GetPresentation() != nil {
+		if err := assessment.ValidatePhasePresentation(a); err != nil {
+			return fmt.Errorf("%s response violates the phase presentation contract: %w", provider.ProviderScenario, err)
+		}
 	}
 	return nil
 }

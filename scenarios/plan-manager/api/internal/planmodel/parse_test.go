@@ -110,6 +110,33 @@ func TestParsePlanMarkdownExtractsTypedRegressionAnchor(t *testing.T) {
 	}
 }
 
+func TestParsePlanMarkdownExtractsDeclarativeBaselineSet(t *testing.T) {
+	t.Parallel()
+
+	plan, err := ParsePlanMarkdown("# Baseline set\n\n" +
+		"## Verification\n\n### Baseline Set\n\n" +
+		"- Name: `all-targets`\n" +
+		"- Capture policy: execution_start\n" +
+		"- Behavioral scenario coverage: `git-control-tower`, `plan-manager`\n" +
+		"- Source changes for review (informational): `packages/proto/**`\n" +
+		"- Coverage gate: every required behavioral member must be ready before a phase or final result can be clean.\n")
+	if err != nil {
+		t.Fatalf("ParsePlanMarkdown() error = %v", err)
+	}
+	if got, want := plan.BaselineSet.Name, "all-targets"; got != want {
+		t.Fatalf("BaselineSet.Name = %q, want %q", got, want)
+	}
+	if got, want := strings.Join(plan.BaselineSet.ScenarioTargets, ","), "git-control-tower,plan-manager"; got != want {
+		t.Fatalf("BaselineSet.ScenarioTargets = %q, want %q", got, want)
+	}
+	if got, want := strings.Join(plan.BaselineSet.RepoPaths, ","), "packages/proto/**"; got != want {
+		t.Fatalf("BaselineSet.RepoPaths = %q, want %q", got, want)
+	}
+	if got, want := plan.BaselineSet.Compatibility, BaselineSetCompatibilityCurrent; got != want {
+		t.Fatalf("BaselineSet.Compatibility = %q, want %q", got, want)
+	}
+}
+
 func TestParseRegressionAnchorBlockMarksUnstructuredLegacyProse(t *testing.T) {
 	t.Parallel()
 

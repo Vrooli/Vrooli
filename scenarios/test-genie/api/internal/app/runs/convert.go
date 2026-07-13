@@ -336,11 +336,26 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 			diff.Verdict = verdictClean
 		}
 
-		worst = worsen(worst, diff.Verdict)
+		// A phase that is not applicable in BOTH runs is a matched, expected
+		// state carrying no regression signal (conditional phases simply don't
+		// apply to this scenario). Its per-phase diff stays visible with
+		// INAPPLICABLE reasons, but it must not worsen the run-level verdict —
+		// otherwise any scenario with a conditional phase can never compare
+		// better than not-comparable. Asymmetric applicability still worsens:
+		// the tested surface genuinely changed between the runs.
+		if !(descriptorInapplicable(descriptorA) && descriptorInapplicable(descriptorB)) {
+			worst = worsen(worst, diff.Verdict)
+		}
 		out = append(out, diff)
 	}
 
 	return &runspb.CompareRunsResponse{Phases: out, Verdict: worst}
+}
+
+// descriptorInapplicable reports whether a captured phase descriptor recorded
+// the phase as not applicable for its run.
+func descriptorInapplicable(d *sharedruns.PhaseDescriptorSnapshot) bool {
+	return d != nil && d.Applicability.Status == "not_applicable"
 }
 
 func descriptorSnapshotMap(snapshot *sharedruns.DescriptorSnapshot) map[string]*sharedruns.PhaseDescriptorSnapshot {
@@ -385,10 +400,10 @@ func phaseComparisonReasons(
 	if hasDescriptorA && !hasDescriptorB {
 		add(runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_RETIRED_PHASE, "phase exists only in the baseline run catalog", true)
 	}
-	if descriptorA != nil && descriptorA.Applicability.Status == "not_applicable" {
+	if descriptorInapplicable(descriptorA) {
 		add(runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_INAPPLICABLE, "phase was not applicable in the baseline run", true)
 	}
-	if descriptorB != nil && descriptorB.Applicability.Status == "not_applicable" {
+	if descriptorInapplicable(descriptorB) {
 		add(runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_INAPPLICABLE, "phase is not applicable in the current run", true)
 	}
 	if okA {

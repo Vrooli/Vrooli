@@ -140,6 +140,11 @@ type PlanAssumption = planmodel.PlanAssumption
 // by the authoring wizard (delegating to git-control-tower).
 type RegressionAnchor = planmodel.RegressionAnchor
 
+// BaselineSetIntent is the new-plan collection request consumed by execution.
+// It is separate from RegressionAnchor so legacy plans preserve their existing
+// single-anchor projection.
+type BaselineSetIntent = planmodel.BaselineSetIntent
+
 const (
 	AnchorStrategyChangeBoundary   = planmodel.AnchorStrategyChangeBoundary
 	AnchorStrategyScenarioBaseline = planmodel.AnchorStrategyScenarioBaseline

@@ -27,6 +27,11 @@ func compileValidationChecks(p planmodel.Plan, refs []planmodel.Reference, bound
 			repoLevel = true
 		}
 	}
+	paths := append([]string(nil), boundary.RepoPaths()...)
+	if p.RegressionAnchor.Strategy == planmodel.AnchorStrategyHeadShaAllowlist {
+		paths = append(paths, p.RegressionAnchor.AllowlistPaths...)
+	}
+	paths = uniqueSortedStrings(paths)
 	baseline := strings.TrimSpace(p.RegressionAnchor.BaselineName)
 	var names []string
 	for name := range scenarios {
@@ -34,7 +39,16 @@ func compileValidationChecks(p planmodel.Plan, refs []planmodel.Reference, bound
 	}
 	sort.Strings(names)
 	checks := make([]ValidationCheck, 0, len(names)+1)
-	if baseline != "" && !strings.ContainsAny(baseline, " \t\r\n") {
+	if baselineSet := p.BaselineSet; strings.TrimSpace(baselineSet.Name) != "" {
+		selected := intersectScenarioTargets(names, baselineSet.ScenarioTargets)
+		if len(selected) > 0 {
+			checks = append(checks, ValidationCheck{
+				Kind: ValidationCheckCollectionDiff, Baseline: baselineSet.Name, Scenarios: selected,
+				SemanticKey: "collection-diff:" + baselineSet.Name + ":" + strings.Join(selected, ","),
+				Command:     "git-control-tower baseline collection diff --name " + baselineSet.Name + " --scenario " + strings.Join(selected, ","), Oracle: true,
+			})
+		}
+	} else if baseline != "" && !strings.ContainsAny(baseline, " \t\r\n") {
 		for _, name := range names {
 			checks = append(checks, ValidationCheck{
 				Kind: ValidationCheckScenarioDiff, Scenario: name, Baseline: baseline,
@@ -43,11 +57,6 @@ func compileValidationChecks(p planmodel.Plan, refs []planmodel.Reference, bound
 			})
 		}
 	}
-	paths := append([]string(nil), boundary.RepoPaths()...)
-	if p.RegressionAnchor.Strategy == planmodel.AnchorStrategyHeadShaAllowlist {
-		paths = append(paths, p.RegressionAnchor.AllowlistPaths...)
-	}
-	paths = uniqueSortedStrings(paths)
 	if len(paths) > 0 || repoLevel {
 		cmd := "git diff --stat"
 		if sha := strings.TrimSpace(p.RegressionAnchor.HeadSha); sha != "" && !planmodel.ContainsUnresolvedPlaceholder(sha) && strings.ToLower(sha) != "captured at execution start" {
@@ -66,6 +75,22 @@ func compileValidationChecks(p planmodel.Plan, refs []planmodel.Reference, bound
 		checks = append(checks, check)
 	}
 	return deduplicateChecks(checks)
+}
+
+func intersectScenarioTargets(scope, inventory []string) []string {
+	allowed := make(map[string]struct{}, len(inventory))
+	for _, scenario := range inventory {
+		if scenario = strings.TrimSpace(scenario); scenario != "" {
+			allowed[scenario] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(scope))
+	for _, scenario := range scope {
+		if _, ok := allowed[scenario]; ok {
+			out = append(out, scenario)
+		}
+	}
+	return uniqueSortedStrings(out)
 }
 
 func uniqueSortedStrings(values []string) []string {

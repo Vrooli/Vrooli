@@ -96,6 +96,36 @@ func TestRenderParseRenderIdempotent(t *testing.T) {
 	}
 }
 
+func TestRenderBaselineSetIsDeclarativeAndRoundTrips(t *testing.T) {
+	t.Parallel()
+	p := comprehensivePlan()
+	p.BaselineSet = planmodel.BaselineSetIntent{
+		Name:            "complete-before-state",
+		ScenarioTargets: []string{"git-control-tower", "plan-manager"},
+		RepoPaths:       []string{"packages/proto/**"},
+		CapturePolicy:   planmodel.BaselineCapturePolicyExecutionStart,
+		Compatibility:   planmodel.BaselineSetCompatibilityCurrent,
+	}
+
+	markdown := plans.RenderMarkdown(p)
+	if !strings.Contains(markdown, "### Baseline Set") || !strings.Contains(markdown, "Source evidence is informational") {
+		t.Fatalf("baseline set render missing declarative coverage:\n%s", markdown)
+	}
+	if strings.Contains(markdown, "baseline snapshot status --scenario git-control-tower") {
+		t.Fatalf("baseline set render must not reintroduce per-scenario command wall:\n%s", markdown)
+	}
+	parsed, err := planmodel.ParsePlanMarkdown(markdown)
+	if err != nil {
+		t.Fatalf("parse baseline set render: %v", err)
+	}
+	if got, want := parsed.BaselineSet.Name, p.BaselineSet.Name; got != want {
+		t.Fatalf("baseline set name = %q, want %q", got, want)
+	}
+	if renderedAgain := plans.RenderMarkdown(parsed); markdown != renderedAgain {
+		t.Fatalf("baseline set render did not round trip\n--- first ---\n%s\n--- second ---\n%s", markdown, renderedAgain)
+	}
+}
+
 // TestRenderShowsWorkPostureAndGreenfieldBlock asserts the Work Posture section
 // and the exact Greenfield block are always present in a greenfield render.
 func TestRenderShowsWorkPostureAndGreenfieldBlock(t *testing.T) {

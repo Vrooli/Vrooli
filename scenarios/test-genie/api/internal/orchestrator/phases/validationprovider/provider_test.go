@@ -503,7 +503,7 @@ func TestRunMissingAssessmentIsMaturityContract(t *testing.T) {
 	}
 }
 
-func TestRunMissingPresentationIsMaturityContract(t *testing.T) {
+func TestRunMissingPresentationUsesCompatibilityMode(t *testing.T) {
 	assessment := testAssessment("SEVERITY_WARNING")
 	assessment.Presentation = nil
 	prevResolve, prevClient := ResolveBaseURL, NewClient
@@ -518,8 +518,34 @@ func TestRunMissingPresentationIsMaturityContract(t *testing.T) {
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
 
 	got := Run(context.Background(), testProvider(false), "demo", "")
+	if !got.Success || got.Error != nil {
+		t.Fatalf("missing presentation must preserve the provider's real result: %+v", got)
+	}
+	if got.Presentation != nil {
+		t.Fatalf("compatibility mode must not synthesize a provider-owned presentation: %+v", got.Presentation)
+	}
+	if joined := strings.Join(observationStrings(got.Observations), "\n"); !strings.Contains(joined, "presentation compatibility mode") {
+		t.Fatalf("missing presentation must be visible to operators:\n%s", joined)
+	}
+}
+
+func TestRunMalformedPresentationRemainsMaturityContract(t *testing.T) {
+	assessment := testAssessment("SEVERITY_WARNING")
+	assessment.Presentation.ContractVersion = "v0"
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client {
+		return fakeClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+			Scenario:   "demo",
+			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+			Assessment: assessment,
+		}}
+	}
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	got := Run(context.Background(), testProvider(false), "demo", "")
 	if got.FailureClass != shared.FailureClassMaturityContract || got.Error == nil || !strings.Contains(got.Error.Error(), "presentation") {
-		t.Fatalf("missing presentation must fail as a maturity contract: %+v", got)
+		t.Fatalf("malformed presentation must fail as a maturity contract: %+v", got)
 	}
 }
 

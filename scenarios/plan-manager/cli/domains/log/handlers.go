@@ -75,6 +75,13 @@ func (h *handlers) bugAdd(ctx cliapp.RunContext) error {
 		SourceCommand:   ctx.Flag("source-command"),
 		IdempotencyKey:  ctx.Flag("idempotency-key"),
 		RunId:           ctx.Flag("run-id"),
+		SignalType:      ctx.Flag("signal-type"),
+		ReportSeverity:  ctx.Flag("report-severity"),
+		Repro:           splitCSV(ctx.Flag("repro")),
+		Expected:        ctx.Flag("expected"),
+		Actual:          ctx.Flag("actual"),
+		Description:     ctx.Flag("description"),
+		HonestyFlags:    splitCSV(ctx.Flag("honesty-flags")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("file bug", err, nil)
@@ -92,6 +99,13 @@ func (h *handlers) recordAdd(ctx cliapp.RunContext) error {
 		SourceCommand:   ctx.Flag("source-command"),
 		IdempotencyKey:  ctx.Flag("idempotency-key"),
 		RunId:           ctx.Flag("run-id"),
+		Kind:            ctx.Flag("kind"),
+		Scenario:        ctx.Flag("scenario"),
+		Trigger:         ctx.Flag("trigger"),
+		Approach:        ctx.Flag("approach"),
+		RecordEvidence:  ctx.Flag("record-evidence"),
+		Outcome:         ctx.Flag("outcome"),
+		CreatedBy:       ctx.Flag("created-by"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("capture record", err, nil)
@@ -240,6 +254,7 @@ func renderAdd(ctx cliapp.RunContext, msg *logv1.AddEntryResponse) error {
 	if e.GetSyncStatus() != sharedv1.LogSyncStatus_LOG_SYNC_STATUS_LOCAL && e.GetSyncStatus() != sharedv1.LogSyncStatus_LOG_SYNC_STATUS_UNSPECIFIED {
 		changes = append(changes, fmt.Sprintf("downstream sync: %s", syncStatusLabel(e.GetSyncStatus())))
 	}
+	changes = append(changes, captureLines(e.GetCapture())...)
 	return cliapp.RenderProtoMutation(ctx, msg, cliapp.MutationReport{
 		Result:      []string{result},
 		Changes:     append(changes, formatStep(msg.GetStep())...),
@@ -307,6 +322,7 @@ func entryDetail(e *sharedv1.LogEntry) []string {
 	if d := e.GetDownstream(); d != nil && (d.GetReference() != "" || d.GetDetail() != "") {
 		out = append(out, downstreamLine(d))
 	}
+	out = append(out, captureLines(e.GetCapture())...)
 	return out
 }
 
@@ -323,6 +339,26 @@ func downstreamLine(d *sharedv1.DownstreamRef) string {
 		line += " — " + d.GetDetail()
 	}
 	return line
+}
+
+func captureLines(c *sharedv1.CaptureDisposition) []string {
+	if c == nil || c.GetState() == "" {
+		return nil
+	}
+	lines := []string{"capture disposition: " + c.GetState()}
+	if c.GetDraftId() != "" {
+		lines = append(lines, "private draft: "+c.GetDraftId())
+	}
+	if len(c.GetNeeds()) > 0 {
+		lines = append(lines, "needs: "+strings.Join(c.GetNeeds(), ", "))
+	}
+	for _, invalid := range c.GetInvalid() {
+		lines = append(lines, "invalid "+invalid.GetField()+": "+invalid.GetMessage())
+	}
+	if len(c.GetNextAction()) > 0 {
+		lines = append(lines, "repair: "+strings.Join(c.GetNextAction(), " "))
+	}
+	return lines
 }
 
 func splitCSV(s string) []string {

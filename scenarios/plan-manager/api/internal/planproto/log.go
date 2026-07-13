@@ -20,6 +20,9 @@ func LogEntryToProto(e planmodel.LogEntry) *sharedv1.LogEntry {
 		Triage:           TriageToProto(e.Triage),
 		SyncStatus:       LogSyncStatusToProto(e.SyncStatus),
 		Downstream:       downstreamRefToProto(e.Downstream),
+		Bug:              bugPayloadToProto(e.Bug),
+		Record:           recordPayloadToProto(e.Record),
+		Capture:          captureDispositionToProto(e.Capture),
 		SourceCommand:    e.SourceCommand,
 		Evidence:         append([]string(nil), e.Evidence...),
 		AttributionRunId: e.AttributionRunID,
@@ -29,6 +32,31 @@ func LogEntryToProto(e planmodel.LogEntry) *sharedv1.LogEntry {
 		CreatedAt:        e.CreatedAt,
 		UpdatedAt:        e.UpdatedAt,
 	}
+}
+
+func bugPayloadToProto(b planmodel.BugReportPayload) *sharedv1.BugReportPayload {
+	if b.SignalType == "" && b.Severity == "" && b.Expected == "" && b.Actual == "" && b.Description == "" && len(b.Repro) == 0 && len(b.Context) == 0 && len(b.HonestyFlags) == 0 {
+		return nil
+	}
+	return &sharedv1.BugReportPayload{SignalType: b.SignalType, Severity: b.Severity, Repro: append([]string(nil), b.Repro...), Expected: b.Expected, Actual: b.Actual, Description: b.Description, Context: b.Context, HonestyFlags: append([]string(nil), b.HonestyFlags...)}
+}
+
+func recordPayloadToProto(r planmodel.RecordPayload) *sharedv1.RecordPayload {
+	if r == (planmodel.RecordPayload{}) {
+		return nil
+	}
+	return &sharedv1.RecordPayload{Kind: r.Kind, Scenario: r.Scenario, Trigger: r.Trigger, Approach: r.Approach, Evidence: r.Evidence, Outcome: r.Outcome, CreatedBy: r.CreatedBy}
+}
+
+func captureDispositionToProto(c planmodel.CaptureDisposition) *sharedv1.CaptureDisposition {
+	if c.State == "" && c.DraftID == "" && len(c.Needs) == 0 && len(c.Invalid) == 0 && len(c.Warnings) == 0 && len(c.NextAction) == 0 {
+		return nil
+	}
+	invalid := make([]*sharedv1.CaptureDiagnostic, 0, len(c.Invalid))
+	for _, d := range c.Invalid {
+		invalid = append(invalid, &sharedv1.CaptureDiagnostic{Field: d.Field, Value: d.Value, Message: d.Message})
+	}
+	return &sharedv1.CaptureDisposition{State: c.State, DraftId: c.DraftID, Needs: append([]string(nil), c.Needs...), Invalid: invalid, Warnings: append([]string(nil), c.Warnings...), NextAction: append([]string(nil), c.NextAction...)}
 }
 
 // LogEntriesToProto converts a slice of entries.
@@ -41,7 +69,7 @@ func LogEntriesToProto(entries []planmodel.LogEntry) []*sharedv1.LogEntry {
 }
 
 func downstreamRefToProto(d planmodel.DownstreamRef) *sharedv1.DownstreamRef {
-	if d == (planmodel.DownstreamRef{}) {
+	if d.System == "" && d.Kind == "" && d.Reference == "" && d.Detail == "" && d.SyncedAt == "" && d.Capture.State == "" && d.Capture.DraftID == "" && len(d.Capture.Needs) == 0 && len(d.Capture.Invalid) == 0 && len(d.Capture.Warnings) == 0 && len(d.Capture.NextAction) == 0 {
 		return nil
 	}
 	return &sharedv1.DownstreamRef{
@@ -50,6 +78,7 @@ func downstreamRefToProto(d planmodel.DownstreamRef) *sharedv1.DownstreamRef {
 		Reference: d.Reference,
 		Detail:    d.Detail,
 		SyncedAt:  d.SyncedAt,
+		Capture:   captureDispositionToProto(d.Capture),
 	}
 }
 

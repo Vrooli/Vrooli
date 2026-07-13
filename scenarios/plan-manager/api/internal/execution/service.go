@@ -169,6 +169,7 @@ func (s *service) GetStatus(ctx context.Context, executionID string) (Execution,
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
+	s.applyFreshenContext(&pctx, e)
 	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 }
 
@@ -186,6 +187,7 @@ func (s *service) GetContext(ctx context.Context, executionID, phaseID string) (
 		targetPhaseID = e.CurrentPhaseID
 	}
 	pctx := s.buildContext(ctx, plan, targetPhaseID, e.ID, contextModeContext)
+	s.applyFreshenContext(&pctx, e)
 	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 }
 
@@ -251,6 +253,7 @@ func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext
 		return PhaseContext{}, false, GuidedStep{}, err
 	}
 	pctx := s.buildContext(ctx, plan, next, e.ID, contextModePhaseEntry)
+	s.applyFreshenContext(&pctx, e)
 	return pctx, e.Complete, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 }
 
@@ -464,6 +467,12 @@ func (s *service) freshenInputs(ctx context.Context, e *Execution, plan planmode
 		e.FreshenStatus = FreshenStatusDegraded
 		e.FreshenDetail = strings.TrimSpace(strings.Join(nonEmpty(res.Detail, res.StalenessSummary), "; "))
 	}
+	if res.BaselineSet.Name != "" {
+		state := res.BaselineSet
+		state.CapturedAt = now
+		state.Detail = e.FreshenDetail
+		e.BaselineSet = state
+	}
 	// Best-effort persist of the freshen marker — a write failure must not block
 	// the start/resume the agent asked for (the freshen retries next resume).
 	_ = s.repo.SaveExecution(ctx, *e)
@@ -475,6 +484,7 @@ func (s *service) applyFreshenContext(pctx *PhaseContext, e Execution) {
 	pctx.InputsFreshened = e.InputsFreshenedAt != ""
 	pctx.FreshenStatus = e.FreshenStatus
 	pctx.FreshenDetail = e.FreshenDetail
+	pctx.BaselineSet = e.BaselineSet
 }
 
 // nonEmpty returns the non-blank values among its args, preserving order.

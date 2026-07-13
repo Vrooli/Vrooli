@@ -46,10 +46,11 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	// floor + LookPath-guarded runner), reading plans through a PlanSource adapter.
 	resolver := internalvalidation.NewFileResolver(repoRoot())
 	validationSvc := internalvalidation.NewService(internalvalidation.Deps{
-		Plans:     planSourceAdapter{svc: plansSvc},
-		Resolver:  resolver,
-		Staleness: internalvalidation.NewExistenceStaleness(resolver),
-		Runner:    internalvalidation.DefaultRunner(),
+		Plans:       planSourceAdapter{svc: plansSvc},
+		Resolver:    resolver,
+		Staleness:   internalvalidation.NewExistenceStaleness(resolver),
+		Runner:      internalvalidation.DefaultRunner(),
+		Collections: newGCTCollectionClient(),
 		// Same result store the validation module writes to — execution READS the
 		// last stored result here (cheap), never triggering a live run on status/next.
 		Results: internalvalidation.NewSQLiteResultStore(db, clk),
@@ -172,6 +173,23 @@ func (a inputFreshenerAdapter) FreshenInputs(ctx context.Context, planID string)
 		BaselineName:     capture.BaselineName,
 		Detail:           capture.Detail,
 	}
+	if len(capture.ScenarioTargets) > 0 || len(capture.RepoPaths) > 0 {
+		status := internalexecution.BaselineSetStatusPartial
+		if capture.Captured {
+			status = internalexecution.BaselineSetStatusComplete
+		} else if capture.Required == 0 {
+			status = internalexecution.BaselineSetStatusDegraded
+		}
+		res.BaselineSet = internalexecution.BaselineSetState{
+			Version: internalexecution.BaselineSetStateSchemaVersion, Name: capture.BaselineName,
+			CollectionBranch: capture.CollectionBranch,
+			ScenarioTargets:  append([]string(nil), capture.ScenarioTargets...),
+			RepoPaths:        append([]string(nil), capture.RepoPaths...),
+			Status:           status, Required: capture.Required, Ready: capture.Ready, Pending: capture.Pending,
+			Failed: capture.Failed, Skipped: capture.Skipped, Stale: capture.Stale,
+			Members: baselineSetMembers(capture.Members), PathSnapshots: baselineSetPathSnapshots(capture.PathSnapshots), Detail: capture.Detail,
+		}
+	}
 	// Reference staleness is REPORTED, never written back to the authored plan.
 	// A staleness recompute failure is non-fatal — the baseline capture is the
 	// primary freshen action; staleness is advisory.
@@ -179,6 +197,22 @@ func (a inputFreshenerAdapter) FreshenInputs(ctx context.Context, planID string)
 		res.StalenessSummary = summarizeStaleness(report)
 	}
 	return res, nil
+}
+
+func baselineSetMembers(members []internalvalidation.BaselineCollectionMember) []internalexecution.BaselineSetMember {
+	out := make([]internalexecution.BaselineSetMember, 0, len(members))
+	for _, member := range members {
+		out = append(out, internalexecution.BaselineSetMember{Scenario: member.Scenario, BaselineName: member.BaselineName, Required: member.Required, Status: member.Status, RunID: member.RunID, GitSHA: member.GitSHA, Error: member.Error})
+	}
+	return out
+}
+
+func baselineSetPathSnapshots(snapshots []internalvalidation.BaselinePathSnapshot) []internalexecution.BaselineSetPathSnapshot {
+	out := make([]internalexecution.BaselineSetPathSnapshot, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		out = append(out, internalexecution.BaselineSetPathSnapshot{Name: snapshot.Name, Branch: snapshot.Branch, CreatedAt: snapshot.CreatedAt})
+	}
+	return out
 }
 
 // summarizeStaleness renders a short human roll-up of the recomputed reference

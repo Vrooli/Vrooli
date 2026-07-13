@@ -168,6 +168,22 @@ message Run {
   // what a parked run is waiting on and its ETA — a parked run is suspended,
   // not hung.
   optional AwaitHandle await_handle = 36;
+
+  // Substrate agent-manager uses to drive the agent CLI (codec-pipe vs
+  // interactive web-console session). Orthogonal to run_mode. Unset/UNSPECIFIED
+  // is treated as EXECUTION_MODE_CODEC_PIPE. Surfaced so operators see the mode
+  // on run records everywhere runs are listed.
+  ExecutionMode execution_mode = 37;
+
+  // Id of the web-console session hosting the interactive agent CLI. Set only
+  // for interactive runs; backs the run-detail deep link to the live session.
+  string web_console_session_id = 38;
+
+  // Resolved deep link to the live web-console session (computed, not
+  // persisted). Set only for interactive runs when the web-console UI base is
+  // resolvable server-side; empty otherwise so the client can fall back to
+  // showing web_console_session_id alone.
+  string web_console_session_url = 39;
 }
 
 // AwaitHandle identifies the externally-owned async work a parked run is

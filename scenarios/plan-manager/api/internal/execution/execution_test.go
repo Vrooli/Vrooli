@@ -849,6 +849,31 @@ func TestFreshenCapturedNotReRunOnResume(t *testing.T) {
 	require.Equal(t, 1, fr.calls, "a captured baseline is pinned; resume must not re-capture")
 }
 
+func TestFreshenPersistsBaselineSetCheckpointAcrossStatusReads(t *testing.T) {
+	fr := &fakeFreshener{result: execution.FreshenResult{
+		BaselineCaptured: true,
+		BaselineName:     "before",
+		BaselineSet: execution.BaselineSetState{
+			Version: 1, Name: "before", ScenarioTargets: []string{"git-control-tower", "plan-manager"}, RepoPaths: []string{"scenarios/plan-manager/**"},
+			Status: execution.BaselineSetStatusComplete, Required: 2, Ready: 2,
+			CollectionBranch: "agi", Members: []execution.BaselineSetMember{{Scenario: "git-control-tower", Required: true, Status: "ready", RunID: "run-gct"}},
+			PathSnapshots: []execution.BaselineSetPathSnapshot{{Name: "paths-before", Branch: "agi", CreatedAt: "2026-07-13T00:00:00Z"}},
+		},
+	}}
+	h := newHarnessWithFreshener(t, threePhasePlan(), fr)
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+	require.True(t, e.BaselineSet.Complete())
+	require.Equal(t, []string{"git-control-tower", "plan-manager"}, e.BaselineSet.ScenarioTargets)
+	loaded, pctx, _, err := h.svc.GetStatus(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.Equal(t, e.BaselineSet, loaded.BaselineSet)
+	require.Equal(t, e.BaselineSet, pctx.BaselineSet)
+	require.NotEmpty(t, loaded.BaselineSet.CapturedAt)
+	require.Equal(t, "run-gct", loaded.BaselineSet.Members[0].RunID)
+	require.Equal(t, "paths-before", loaded.BaselineSet.PathSnapshots[0].Name)
+}
+
 // TestFreshenDegradationIsNonBlocking proves a freshener error is recorded as a
 // degraded status, surfaced in the phase context, and never blocks the start.
 func TestFreshenDegradationIsNonBlocking(t *testing.T) {

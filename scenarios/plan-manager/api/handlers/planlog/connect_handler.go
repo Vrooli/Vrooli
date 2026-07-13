@@ -73,6 +73,11 @@ func (h *connectHandler) AddBug(ctx context.Context, req *connect.Request[logv1.
 		SourceCommand:   m.GetSourceCommand(),
 		IdempotencyKey:  m.GetIdempotencyKey(),
 		RunID:           m.GetRunId(),
+		Bug: internalplanlog.BugReportPayload{
+			SignalType: m.GetSignalType(), Severity: m.GetReportSeverity(), Repro: m.GetRepro(),
+			Expected: m.GetExpected(), Actual: m.GetActual(), Description: m.GetDescription(),
+			Context: m.GetContext(), HonestyFlags: m.GetHonestyFlags(),
+		},
 	})
 	return addResponse(entry, dedup, step, err)
 }
@@ -88,6 +93,10 @@ func (h *connectHandler) AddRecord(ctx context.Context, req *connect.Request[log
 		SourceCommand:   m.GetSourceCommand(),
 		IdempotencyKey:  m.GetIdempotencyKey(),
 		RunID:           m.GetRunId(),
+		Record: internalplanlog.RecordPayload{
+			Kind: m.GetKind(), Scenario: m.GetScenario(), Trigger: m.GetTrigger(),
+			Approach: m.GetApproach(), Evidence: m.GetRecordEvidence(), Outcome: m.GetOutcome(), CreatedBy: m.GetCreatedBy(),
+		},
 	})
 	return addResponse(entry, dedup, step, err)
 }

@@ -78,6 +78,23 @@ function StringList({ items, empty }: { items: readonly string[]; empty: string 
   );
 }
 
+function commaSeparated(value: string): string[] {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function CaptureState({ entry }: { entry: LogEntry }) {
+  const capture = entry.capture;
+  if (!capture?.state) return null;
+  return (
+    <div className="mt-2 rounded-control border border-app-border bg-app-surface px-2 py-1 text-xs text-app-foreground">
+      <p>Capture: {capture.state}{capture.draftId ? ` — private draft ${capture.draftId}` : ""}</p>
+      {capture.needs.length > 0 ? <p>Needs: {capture.needs.join(", ")}</p> : null}
+      {capture.invalid.map((invalid) => <p key={`${invalid.field}-${invalid.value}`}>Invalid {invalid.field}: {invalid.message}</p>)}
+      {capture.nextAction.length > 0 ? <code className="block break-all font-mono">Repair: {capture.nextAction.join(" ")}</code> : null}
+    </div>
+  );
+}
+
 function RelevantContextList({ items }: { items: readonly RelevantContextItem[] }) {
   const { t } = useTranslation();
   if (items.length === 0) {
@@ -178,8 +195,22 @@ export function ExecutionRunner() {
   const [findingDetail, setFindingDetail] = useState("");
   const [bugTitle, setBugTitle] = useState("");
   const [bugDetail, setBugDetail] = useState("");
+  const [bugSignalType, setBugSignalType] = useState("");
+  const [bugSeverity, setBugSeverity] = useState("");
+  const [bugRepro, setBugRepro] = useState("");
+  const [bugExpected, setBugExpected] = useState("");
+  const [bugActual, setBugActual] = useState("");
+  const [bugDescription, setBugDescription] = useState("");
+  const [bugScenario, setBugScenario] = useState("");
+  const [bugHonestyFlags, setBugHonestyFlags] = useState("");
   const [recordTitle, setRecordTitle] = useState("");
   const [recordDetail, setRecordDetail] = useState("");
+  const [recordKind, setRecordKind] = useState("");
+  const [recordScenario, setRecordScenario] = useState("");
+  const [recordTrigger, setRecordTrigger] = useState("");
+  const [recordApproach, setRecordApproach] = useState("");
+  const [recordEvidence, setRecordEvidence] = useState("");
+  const [recordOutcome, setRecordOutcome] = useState("");
   const [noteTitle, setNoteTitle] = useState("");
   const [noteDetail, setNoteDetail] = useState("");
   const [error, setError] = useState<unknown>(null);
@@ -187,6 +218,22 @@ export function ExecutionRunner() {
 
   const execution = state.execution;
   const context = state.context;
+	// The generated workspace package is refreshed on install. Keep the running
+	// UI compatible with an already-installed older package while the Connect
+	// wire contract adds this optional field.
+	const baselineSet = context as (PhaseContext & {
+		baselineSet?: {
+			name: string;
+			status: string;
+			required: number;
+			ready: number;
+			pending: number;
+			failed: number;
+			repoPaths: string[];
+			members?: Array<{ scenario: string; status: string; runId: string; gitSha?: string; required: boolean }>;
+			pathSnapshots?: Array<{ name: string; branch: string }>;
+		};
+	}) | undefined;
   const currentPhaseId = context?.currentPhase?.id ?? execution?.currentPhaseId ?? "";
 
   const run = (fn: () => Promise<void>) => {
@@ -292,12 +339,28 @@ export function ExecutionRunner() {
     run(async () => {
       const res = await addBug(execution.id, currentPhaseId, bugTitle.trim(), {
         detail: bugDetail.trim(),
+        signalType: bugSignalType.trim(),
+        reportSeverity: bugSeverity.trim(),
+        repro: commaSeparated(bugRepro),
+        expected: bugExpected.trim(),
+        actual: bugActual.trim(),
+        description: bugDescription.trim(),
+        context: bugScenario.trim() ? { scenario: bugScenario.trim() } : {},
+        honestyFlags: commaSeparated(bugHonestyFlags),
       });
       const bug = res.entry;
       if (bug) {
         setState((prev) => ({ ...prev, bugs: [...prev.bugs, bug], step: res.step }));
         setBugTitle("");
         setBugDetail("");
+        setBugSignalType("");
+        setBugSeverity("");
+        setBugRepro("");
+        setBugExpected("");
+        setBugActual("");
+        setBugDescription("");
+        setBugScenario("");
+        setBugHonestyFlags("");
         await refreshStatus(execution.id);
       }
     });
@@ -308,12 +371,24 @@ export function ExecutionRunner() {
     run(async () => {
       const res = await addRecord(execution.id, currentPhaseId, recordTitle.trim(), {
         detail: recordDetail.trim(),
+        kind: recordKind.trim(),
+        scenario: recordScenario.trim(),
+        trigger: recordTrigger.trim(),
+        approach: recordApproach.trim(),
+        recordEvidence: recordEvidence.trim(),
+        outcome: recordOutcome.trim(),
       });
       const record = res.entry;
       if (record) {
         setState((prev) => ({ ...prev, records: [...prev.records, record], step: res.step }));
         setRecordTitle("");
         setRecordDetail("");
+        setRecordKind("");
+        setRecordScenario("");
+        setRecordTrigger("");
+        setRecordApproach("");
+        setRecordEvidence("");
+        setRecordOutcome("");
         await refreshStatus(execution.id);
       }
     });
@@ -557,6 +632,39 @@ export function ExecutionRunner() {
                   <span className="text-xs text-app-muted-foreground">{context.freshenDetail}</span>
                 </MetaRow>
               ) : null}
+			  {baselineSet?.baselineSet?.name ? (
+				<>
+				  <MetaRow term={t(strings.pages.execution.baselineSetHeading)}>
+					<span data-testid="execution-baseline-set" className="font-mono text-xs">
+					  {baselineSet.baselineSet.name} ({baselineSet.baselineSet.status})
+					</span>
+				  </MetaRow>
+				  <MetaRow term={t(strings.pages.execution.baselineSetCoverage)}>
+					<span className="text-xs">
+					  required {baselineSet.baselineSet.required} · ready {baselineSet.baselineSet.ready} · pending {baselineSet.baselineSet.pending} · failed {baselineSet.baselineSet.failed}
+					</span>
+				  </MetaRow>
+				  {baselineSet.baselineSet.repoPaths.length > 0 ? (
+					<MetaRow term={t(strings.pages.execution.baselineSetSourcePaths)}>
+					  <span className="text-xs text-app-muted-foreground">{baselineSet.baselineSet.repoPaths.join(", ")}</span>
+					</MetaRow>
+				  ) : null}
+				  {baselineSet.baselineSet.members && baselineSet.baselineSet.members.length > 0 ? (
+					<MetaRow term={t(strings.pages.execution.baselineSetMembers)}>
+					  <span className="text-xs text-app-muted-foreground">
+						{baselineSet.baselineSet.members.map((member) => `${member.scenario}: ${member.status}${member.runId ? ` (${member.runId})` : ""}${member.gitSha ? ` @${member.gitSha}` : ""}`).join(" · ")}
+					  </span>
+					</MetaRow>
+				  ) : null}
+				  {baselineSet.baselineSet.pathSnapshots && baselineSet.baselineSet.pathSnapshots.length > 0 ? (
+					<MetaRow term={t(strings.pages.execution.baselineSetSourceEvidence)}>
+					  <span className="text-xs text-app-muted-foreground">
+						{baselineSet.baselineSet.pathSnapshots.map((snapshot) => `${snapshot.name}${snapshot.branch ? ` (${snapshot.branch})` : ""}`).join(", ")}
+					  </span>
+					</MetaRow>
+				  ) : null}
+				</>
+			  ) : null}
             </dl>
           </Card>
 
@@ -740,6 +848,16 @@ export function ExecutionRunner() {
               rows={2}
               aria-label={t(strings.pages.execution.bugDetailLabel)}
             />
+            <div className="grid gap-2 md:grid-cols-2">
+              <Input value={bugSignalType} onChange={(e) => setBugSignalType(e.target.value)} placeholder="Signal type (for example, regression)" aria-label="Bug signal type" />
+              <Input value={bugSeverity} onChange={(e) => setBugSeverity(e.target.value)} placeholder="Report severity (blocker, major, minor)" aria-label="Bug report severity" />
+              <Input value={bugScenario} onChange={(e) => setBugScenario(e.target.value)} placeholder="Affected scenario" aria-label="Affected scenario" />
+              <Input value={bugHonestyFlags} onChange={(e) => setBugHonestyFlags(e.target.value)} placeholder="Honesty flags (comma-separated)" aria-label="Bug honesty flags" />
+            </div>
+            <Textarea value={bugRepro} onChange={(e) => setBugRepro(e.target.value)} rows={2} placeholder="Reproduction steps (comma-separated)" aria-label="Bug reproduction steps" />
+            <Textarea value={bugExpected} onChange={(e) => setBugExpected(e.target.value)} rows={2} placeholder="Expected behavior" aria-label="Bug expected behavior" />
+            <Textarea value={bugActual} onChange={(e) => setBugActual(e.target.value)} rows={2} placeholder="Actual behavior" aria-label="Bug actual behavior" />
+            <Textarea value={bugDescription} onChange={(e) => setBugDescription(e.target.value)} rows={3} placeholder="Taxonomy description" aria-label="Bug taxonomy description" />
             <Button
               type="button"
               size="sm"
@@ -759,6 +877,7 @@ export function ExecutionRunner() {
                 <li key={bug.id} className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
                   <p className="font-medium text-app-foreground">{bug.title}</p>
                   {bug.detail ? <p className="text-app-muted-foreground">{bug.detail}</p> : null}
+                  <CaptureState entry={bug} />
                 </li>
               ))}
             </ul>
@@ -781,6 +900,14 @@ export function ExecutionRunner() {
               rows={2}
               aria-label={t(strings.pages.execution.recordDetailLabel)}
             />
+            <div className="grid gap-2 md:grid-cols-2">
+              <Input value={recordKind} onChange={(e) => setRecordKind(e.target.value)} placeholder="Record kind" aria-label="Record kind" />
+              <Input value={recordScenario} onChange={(e) => setRecordScenario(e.target.value)} placeholder="Target scenario" aria-label="Record scenario" />
+              <Input value={recordOutcome} onChange={(e) => setRecordOutcome(e.target.value)} placeholder="Outcome" aria-label="Record outcome" />
+            </div>
+            <Textarea value={recordTrigger} onChange={(e) => setRecordTrigger(e.target.value)} rows={2} placeholder="Trigger or goal" aria-label="Record trigger" />
+            <Textarea value={recordApproach} onChange={(e) => setRecordApproach(e.target.value)} rows={2} placeholder="Approach" aria-label="Record approach" />
+            <Textarea value={recordEvidence} onChange={(e) => setRecordEvidence(e.target.value)} rows={2} placeholder="Validation evidence" aria-label="Record evidence" />
             <Button
               type="button"
               size="sm"
@@ -800,6 +927,7 @@ export function ExecutionRunner() {
                 <li key={record.id} className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
                   <p className="font-medium text-app-foreground">{record.title}</p>
                   {record.detail ? <p className="text-app-muted-foreground">{record.detail}</p> : null}
+                  <CaptureState entry={record} />
                 </li>
               ))}
             </ul>

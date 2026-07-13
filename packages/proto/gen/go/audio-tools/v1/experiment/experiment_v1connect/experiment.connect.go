@@ -60,6 +60,12 @@ const (
 	// ExperimentServiceCompareExperimentsProcedure is the fully-qualified name of the
 	// ExperimentService's CompareExperiments RPC.
 	ExperimentServiceCompareExperimentsProcedure = "/vrooli.audio_tools.v1.experiment.ExperimentService/CompareExperiments"
+	// ExperimentServiceRecordQualificationEvidenceProcedure is the fully-qualified name of the
+	// ExperimentService's RecordQualificationEvidence RPC.
+	ExperimentServiceRecordQualificationEvidenceProcedure = "/vrooli.audio_tools.v1.experiment.ExperimentService/RecordQualificationEvidence"
+	// ExperimentServiceListQualificationEvidenceProcedure is the fully-qualified name of the
+	// ExperimentService's ListQualificationEvidence RPC.
+	ExperimentServiceListQualificationEvidenceProcedure = "/vrooli.audio_tools.v1.experiment.ExperimentService/ListQualificationEvidence"
 )
 
 // ExperimentServiceClient is a client for the vrooli.audio_tools.v1.experiment.ExperimentService
@@ -74,6 +80,8 @@ type ExperimentServiceClient interface {
 	StreamExperimentEvents(context.Context, *connect.Request[experiment.StreamExperimentEventsRequest]) (*connect.ServerStreamForClient[experiment.ExperimentEvent], error)
 	GetExperimentReport(context.Context, *connect.Request[experiment.GetExperimentReportRequest]) (*connect.Response[experiment.GetExperimentReportResponse], error)
 	CompareExperiments(context.Context, *connect.Request[experiment.CompareExperimentsRequest]) (*connect.Response[experiment.CompareExperimentsResponse], error)
+	RecordQualificationEvidence(context.Context, *connect.Request[experiment.RecordQualificationEvidenceRequest]) (*connect.Response[experiment.RecordQualificationEvidenceResponse], error)
+	ListQualificationEvidence(context.Context, *connect.Request[experiment.ListQualificationEvidenceRequest]) (*connect.Response[experiment.ListQualificationEvidenceResponse], error)
 }
 
 // NewExperimentServiceClient constructs a client for the
@@ -142,20 +150,34 @@ func NewExperimentServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(experimentServiceMethods.ByName("CompareExperiments")),
 			connect.WithClientOptions(opts...),
 		),
+		recordQualificationEvidence: connect.NewClient[experiment.RecordQualificationEvidenceRequest, experiment.RecordQualificationEvidenceResponse](
+			httpClient,
+			baseURL+ExperimentServiceRecordQualificationEvidenceProcedure,
+			connect.WithSchema(experimentServiceMethods.ByName("RecordQualificationEvidence")),
+			connect.WithClientOptions(opts...),
+		),
+		listQualificationEvidence: connect.NewClient[experiment.ListQualificationEvidenceRequest, experiment.ListQualificationEvidenceResponse](
+			httpClient,
+			baseURL+ExperimentServiceListQualificationEvidenceProcedure,
+			connect.WithSchema(experimentServiceMethods.ByName("ListQualificationEvidence")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // experimentServiceClient implements ExperimentServiceClient.
 type experimentServiceClient struct {
-	startExperiment        *connect.Client[experiment.StartExperimentRequest, experiment.StartExperimentResponse]
-	getExperiment          *connect.Client[experiment.GetExperimentRequest, experiment.GetExperimentResponse]
-	waitExperiment         *connect.Client[experiment.WaitExperimentRequest, experiment.WaitExperimentResponse]
-	listExperiments        *connect.Client[experiment.ListExperimentsRequest, experiment.ListExperimentsResponse]
-	cancelExperiment       *connect.Client[experiment.CancelExperimentRequest, experiment.CancelExperimentResponse]
-	deleteExperiment       *connect.Client[experiment.DeleteExperimentRequest, experiment.DeleteExperimentResponse]
-	streamExperimentEvents *connect.Client[experiment.StreamExperimentEventsRequest, experiment.ExperimentEvent]
-	getExperimentReport    *connect.Client[experiment.GetExperimentReportRequest, experiment.GetExperimentReportResponse]
-	compareExperiments     *connect.Client[experiment.CompareExperimentsRequest, experiment.CompareExperimentsResponse]
+	startExperiment             *connect.Client[experiment.StartExperimentRequest, experiment.StartExperimentResponse]
+	getExperiment               *connect.Client[experiment.GetExperimentRequest, experiment.GetExperimentResponse]
+	waitExperiment              *connect.Client[experiment.WaitExperimentRequest, experiment.WaitExperimentResponse]
+	listExperiments             *connect.Client[experiment.ListExperimentsRequest, experiment.ListExperimentsResponse]
+	cancelExperiment            *connect.Client[experiment.CancelExperimentRequest, experiment.CancelExperimentResponse]
+	deleteExperiment            *connect.Client[experiment.DeleteExperimentRequest, experiment.DeleteExperimentResponse]
+	streamExperimentEvents      *connect.Client[experiment.StreamExperimentEventsRequest, experiment.ExperimentEvent]
+	getExperimentReport         *connect.Client[experiment.GetExperimentReportRequest, experiment.GetExperimentReportResponse]
+	compareExperiments          *connect.Client[experiment.CompareExperimentsRequest, experiment.CompareExperimentsResponse]
+	recordQualificationEvidence *connect.Client[experiment.RecordQualificationEvidenceRequest, experiment.RecordQualificationEvidenceResponse]
+	listQualificationEvidence   *connect.Client[experiment.ListQualificationEvidenceRequest, experiment.ListQualificationEvidenceResponse]
 }
 
 // StartExperiment calls vrooli.audio_tools.v1.experiment.ExperimentService.StartExperiment.
@@ -204,6 +226,18 @@ func (c *experimentServiceClient) CompareExperiments(ctx context.Context, req *c
 	return c.compareExperiments.CallUnary(ctx, req)
 }
 
+// RecordQualificationEvidence calls
+// vrooli.audio_tools.v1.experiment.ExperimentService.RecordQualificationEvidence.
+func (c *experimentServiceClient) RecordQualificationEvidence(ctx context.Context, req *connect.Request[experiment.RecordQualificationEvidenceRequest]) (*connect.Response[experiment.RecordQualificationEvidenceResponse], error) {
+	return c.recordQualificationEvidence.CallUnary(ctx, req)
+}
+
+// ListQualificationEvidence calls
+// vrooli.audio_tools.v1.experiment.ExperimentService.ListQualificationEvidence.
+func (c *experimentServiceClient) ListQualificationEvidence(ctx context.Context, req *connect.Request[experiment.ListQualificationEvidenceRequest]) (*connect.Response[experiment.ListQualificationEvidenceResponse], error) {
+	return c.listQualificationEvidence.CallUnary(ctx, req)
+}
+
 // ExperimentServiceHandler is an implementation of the
 // vrooli.audio_tools.v1.experiment.ExperimentService service.
 type ExperimentServiceHandler interface {
@@ -216,6 +250,8 @@ type ExperimentServiceHandler interface {
 	StreamExperimentEvents(context.Context, *connect.Request[experiment.StreamExperimentEventsRequest], *connect.ServerStream[experiment.ExperimentEvent]) error
 	GetExperimentReport(context.Context, *connect.Request[experiment.GetExperimentReportRequest]) (*connect.Response[experiment.GetExperimentReportResponse], error)
 	CompareExperiments(context.Context, *connect.Request[experiment.CompareExperimentsRequest]) (*connect.Response[experiment.CompareExperimentsResponse], error)
+	RecordQualificationEvidence(context.Context, *connect.Request[experiment.RecordQualificationEvidenceRequest]) (*connect.Response[experiment.RecordQualificationEvidenceResponse], error)
+	ListQualificationEvidence(context.Context, *connect.Request[experiment.ListQualificationEvidenceRequest]) (*connect.Response[experiment.ListQualificationEvidenceResponse], error)
 }
 
 // NewExperimentServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -279,6 +315,18 @@ func NewExperimentServiceHandler(svc ExperimentServiceHandler, opts ...connect.H
 		connect.WithSchema(experimentServiceMethods.ByName("CompareExperiments")),
 		connect.WithHandlerOptions(opts...),
 	)
+	experimentServiceRecordQualificationEvidenceHandler := connect.NewUnaryHandler(
+		ExperimentServiceRecordQualificationEvidenceProcedure,
+		svc.RecordQualificationEvidence,
+		connect.WithSchema(experimentServiceMethods.ByName("RecordQualificationEvidence")),
+		connect.WithHandlerOptions(opts...),
+	)
+	experimentServiceListQualificationEvidenceHandler := connect.NewUnaryHandler(
+		ExperimentServiceListQualificationEvidenceProcedure,
+		svc.ListQualificationEvidence,
+		connect.WithSchema(experimentServiceMethods.ByName("ListQualificationEvidence")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.audio_tools.v1.experiment.ExperimentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ExperimentServiceStartExperimentProcedure:
@@ -299,6 +347,10 @@ func NewExperimentServiceHandler(svc ExperimentServiceHandler, opts ...connect.H
 			experimentServiceGetExperimentReportHandler.ServeHTTP(w, r)
 		case ExperimentServiceCompareExperimentsProcedure:
 			experimentServiceCompareExperimentsHandler.ServeHTTP(w, r)
+		case ExperimentServiceRecordQualificationEvidenceProcedure:
+			experimentServiceRecordQualificationEvidenceHandler.ServeHTTP(w, r)
+		case ExperimentServiceListQualificationEvidenceProcedure:
+			experimentServiceListQualificationEvidenceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -342,4 +394,12 @@ func (UnimplementedExperimentServiceHandler) GetExperimentReport(context.Context
 
 func (UnimplementedExperimentServiceHandler) CompareExperiments(context.Context, *connect.Request[experiment.CompareExperimentsRequest]) (*connect.Response[experiment.CompareExperimentsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.experiment.ExperimentService.CompareExperiments is not implemented"))
+}
+
+func (UnimplementedExperimentServiceHandler) RecordQualificationEvidence(context.Context, *connect.Request[experiment.RecordQualificationEvidenceRequest]) (*connect.Response[experiment.RecordQualificationEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.experiment.ExperimentService.RecordQualificationEvidence is not implemented"))
+}
+
+func (UnimplementedExperimentServiceHandler) ListQualificationEvidence(context.Context, *connect.Request[experiment.ListQualificationEvidenceRequest]) (*connect.Response[experiment.ListQualificationEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.experiment.ExperimentService.ListQualificationEvidence is not implemented"))
 }

@@ -51,6 +51,54 @@ git-control-tower baseline delete --scenario S --name N
 Snapshot and diff operations are durable. Canceling a client detaches; it does
 not abort the Test Genie run. The status commands reattach to persisted intent.
 
+## Collections and scoped source evidence
+
+A baseline collection is a branch-scoped, durable selection of existing
+single-scenario baseline identities. It records required-member coverage
+(`ready`, `pending`, `failed`, `skipped`, and `stale`) rather than inventing a
+multi-scenario Test Genie run. Required coverage is complete only when every
+required member is ready; partial coverage is never a clean behavioral result.
+
+```text
+git-control-tower baseline collection capture --name N --member scenario[:baseline] ...
+git-control-tower baseline collection show --name N --wait
+git-control-tower baseline collection diff --name N --operation-id phase-1 [--scenario S ...] --wait
+git-control-tower baseline collection delete --name N
+```
+
+Collection diff starts persist a caller-supplied operation identity before any
+child run starts. Reusing the same identity with the same selected members
+reattaches to that operation; changing the selection is rejected. `--wait`
+performs one server-owned attachment to the durable child handles and returns
+the aggregate precedence (`regression`, `not-ready`, `not-comparable`, or
+`clean`) with member provenance: baseline name, Test Genie run, capture Git
+SHA, and current status.
+
+Collections may carry a separately captured path snapshot. Path snapshots use
+safe repo-relative glob selections, reject traversal and sensitive locations
+(`.git`, `.env`, `secrets`, `credentials`), exclude symlinks, retain binary or
+oversized files as metadata only, and keep permitted bounded text bytes in a
+private content-addressed store. They capture the worktree as it is, including
+uncommitted, untracked, and explicitly selected ignored files, so a later
+comparison is exact source evidence.
+
+```text
+git-control-tower baseline path capture --name before --path 'scenarios/foo/**' --retention 168h
+git-control-tower baseline path capture --name after --path 'scenarios/foo/**'
+git-control-tower baseline path diff --before before --after after --path 'scenarios/foo/**'
+```
+
+Source deltas include additions, deletions, unambiguous digest-based renames,
+and metadata/content modifications, and are always labelled
+`informational-source-evidence`: they are
+not a Test Genie verdict and cannot make incomplete collection coverage or a
+behavioral regression pass. API and CLI output contains path metadata and
+digests only, never retained file bytes. The optional diff selection is
+validated with the same safe repo-relative glob policy and matches either side
+of a rename. Deleting a snapshot removes its
+manifest and garbage-collects content objects no longer referenced by any
+snapshot in that repository.
+
 ## V1 migration
 
 The storage boundary alone understands the former surface-pointer schema:
@@ -92,6 +140,17 @@ Manifests remain branch-scoped under:
 ```text
 data/<repoID>/baselines/<scenario>/<branch>/<name>.json
 ```
+
+Collection manifests are stored under
+`data/<repoID>/baseline-collections/<branch>/`; path snapshot manifests and
+their content-addressed objects are stored under
+`data/<repoID>/path-snapshots/`. Source object writes use private permissions,
+atomic replacement, a 1 MiB per-file text cap, an 8 MiB per-snapshot retained
+content cap, a 64 MiB repository source-evidence quota, and a seven-day
+retention lease by default. `baseline path capture --retention` can choose a
+shorter or longer whole-second lease up to 30 days; the resulting expiry is
+returned by the API and CLI. Capture sweeps expired manifests under the same
+store lock and garbage-collects unreferenced objects.
 
 Writes are atomic and guarded by branch-scoped locking. Concurrent finalizers
 for the same capture converge on one manifest and one pin. A detached HEAD is

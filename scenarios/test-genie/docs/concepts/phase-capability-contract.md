@@ -90,11 +90,17 @@ The v1 rules are deliberately narrow:
 Test Genie stores and forwards the exact presentation object in run events,
 terminal records, live status, findings artifacts, and CLI JSON. It may add
 run-level status, timing, position, history, and a clearly-labelled cross-phase
-top priority, but it does not add phase semantics. A missing, unsupported, or
-non-canonical presentation is a maturity-contract failure for a delegated
-provider. Native or degraded phases remain nil/degraded evidence rather than a
-synthetic passing presentation. Historical runs retain whatever was persisted;
-they are not backfilled from the current provider catalog.
+top priority, but it does not add phase semantics. Unsupported or non-canonical
+presentations are maturity-contract failures. During the provider migration, a
+missing presentation is execution-compatible only when the assessment itself is
+structurally valid and identity-stamped: Test Genie preserves the provider's raw
+findings, leaves `phasePresentation` nil, and emits an explicit compatibility
+warning. It never synthesizes a presentation. `test-genie provider-contract
+check` and provider-conformance remain strict, so the compatibility path cannot
+be mistaken for provider conformance. Native or degraded phases remain
+nil/degraded evidence rather than a synthetic passing presentation. Historical
+runs retain whatever was persisted; they are not backfilled from the current
+provider catalog.
 
 The retired `PhaseMaturityStanding` wire fields remain decode-only at their
 original protobuf numbers for historical run, event, and `findings.json` bytes.

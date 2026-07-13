@@ -73,9 +73,11 @@ type ValidationChild struct {
 type ValidationCheckKind string
 
 const (
-	ValidationCheckScenarioDiff ValidationCheckKind = "scenario_baseline_diff"
-	ValidationCheckRepoDiff     ValidationCheckKind = "repo_diff"
-	ValidationCheckCustom       ValidationCheckKind = "custom_command"
+	ValidationCheckScenarioDiff     ValidationCheckKind = "scenario_baseline_diff"
+	ValidationCheckCollectionDiff   ValidationCheckKind = "collection_diff"
+	ValidationCheckPathSnapshotDiff ValidationCheckKind = "path_snapshot_diff"
+	ValidationCheckRepoDiff         ValidationCheckKind = "repo_diff"
+	ValidationCheckCustom           ValidationCheckKind = "custom_command"
 )
 
 // ValidationCheck is a typed validation work item. SemanticKey is independent
@@ -87,6 +89,8 @@ type ValidationCheck struct {
 	Scenario    string
 	Baseline    string
 	Paths       []string
+	Scenarios   []string
+	Branch      string
 	Command     string
 	Oracle      bool
 }
@@ -169,13 +173,24 @@ type BaselineScope struct {
 // Detail when git-control-tower is unavailable or the anchor intent is still a
 // placeholder — never a fabricated capture.
 type BaselineCapture struct {
-	Captured        bool
-	Scenario        string
-	BaselineName    string
-	RunID           string
-	SchemaVersion   int
-	DegradedReasons []string
-	Detail          string
+	Captured         bool
+	Scenario         string
+	BaselineName     string
+	ScenarioTargets  []string
+	RepoPaths        []string
+	CollectionBranch string
+	Members          []BaselineCollectionMember
+	PathSnapshots    []BaselinePathSnapshot
+	Required         int
+	Ready            int
+	Pending          int
+	Failed           int
+	Skipped          int
+	Stale            int
+	RunID            string
+	SchemaVersion    int
+	DegradedReasons  []string
+	Detail           string
 }
 
 type CommandReferenceValidator interface {

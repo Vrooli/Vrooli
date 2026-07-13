@@ -73,6 +73,48 @@ message Execution {
   bool complete = 5;
   string started_at = 6;
   string updated_at = 7;
+	BaselineSetState baseline_set = 8;
+}
+
+// Execution-owned checkpoint for a resolved GCT collection. Source paths are
+// informational evidence; required/ready coverage is behavioral only.
+message BaselineSetState {
+  int32 version = 1;
+  string name = 2;
+  repeated string scenario_targets = 3;
+  repeated string repo_paths = 4;
+  string captured_at = 5;
+  // complete | partial | degraded
+  string status = 6;
+  int32 required = 7;
+  int32 ready = 8;
+  int32 pending = 9;
+  int32 failed = 10;
+  int32 skipped = 11;
+  int32 stale = 12;
+  string detail = 13;
+  string collection_branch = 14;
+  repeated BaselineSetMember members = 15;
+  repeated BaselineSetPathSnapshot path_snapshots = 16;
+}
+
+message BaselineSetMember {
+  string scenario = 1;
+  string baseline_name = 2;
+  bool required = 3;
+  // pending | ready | failed | skipped | stale | not-comparable
+  string status = 4;
+  string run_id = 5;
+  string error = 6;
+  string git_sha = 7;
+}
+
+// Metadata-only reference to bounded GCT source evidence. Content is never
+// returned through Plan Manager.
+message BaselineSetPathSnapshot {
+  string name = 1;
+  string branch = 2;
+  string created_at = 3;
 }
 
 // PhaseContext is the just-in-time context injected for a phase: everything an
@@ -110,6 +152,7 @@ message PhaseContext {
   // a smaller agent gets an explicit "capture or confirm none" gate before a
   // phase is recommended done.
   PhaseFeedbackCheckpoint feedback_checkpoint = 15;
+	BaselineSetState baseline_set = 16;
 }
 
 // PhaseFeedbackCheckpoint reports whether the current phase has durable feedback

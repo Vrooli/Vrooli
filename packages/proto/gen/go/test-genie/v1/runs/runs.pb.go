@@ -5964,9 +5964,23 @@ type ProviderConformance struct {
 	Violations     []string               `protobuf:"bytes,9,rep,name=violations,proto3" json:"violations,omitempty"`
 	// autofix is the spec-derived autofix declaration rollup (Stage 1, advisory).
 	// It never enters adoption_score or the hard-violation set.
-	Autofix       *AutofixCoverage `protobuf:"bytes,10,opt,name=autofix,proto3" json:"autofix,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Autofix *AutofixCoverage `protobuf:"bytes,10,opt,name=autofix,proto3" json:"autofix,omitempty"`
+	// classification is the mutually exclusive fleet posture: compliant,
+	// unavailable (advisory live infrastructure), exempt (intentionally native),
+	// or violation (deterministic descriptor/response contract failure).
+	Classification string `protobuf:"bytes,11,opt,name=classification,proto3" json:"classification,omitempty"`
+	// reason_codes are stable machine-readable details for classification. Human
+	// diagnostics remain in violations; consumers must not infer state by parsing
+	// those strings.
+	ReasonCodes []string `protobuf:"bytes,12,rep,name=reason_codes,json=reasonCodes,proto3" json:"reason_codes,omitempty"`
+	// True when the descriptor declares at least one implemented deterministic
+	// fixer that must satisfy the sandboxed PreviewFix/ApplyFix contract.
+	FixContractRequired bool `protobuf:"varint,13,opt,name=fix_contract_required,json=fixContractRequired,proto3" json:"fix_contract_required,omitempty"`
+	// True only after the provider's PreviewFix/ApplyFix responses agree and all
+	// candidate paths stay inside the isolated conformance fixture.
+	FixContractValid bool `protobuf:"varint,14,opt,name=fix_contract_valid,json=fixContractValid,proto3" json:"fix_contract_valid,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ProviderConformance) Reset() {
@@ -6067,6 +6081,34 @@ func (x *ProviderConformance) GetAutofix() *AutofixCoverage {
 		return x.Autofix
 	}
 	return nil
+}
+
+func (x *ProviderConformance) GetClassification() string {
+	if x != nil {
+		return x.Classification
+	}
+	return ""
+}
+
+func (x *ProviderConformance) GetReasonCodes() []string {
+	if x != nil {
+		return x.ReasonCodes
+	}
+	return nil
+}
+
+func (x *ProviderConformance) GetFixContractRequired() bool {
+	if x != nil {
+		return x.FixContractRequired
+	}
+	return false
+}
+
+func (x *ProviderConformance) GetFixContractValid() bool {
+	if x != nil {
+		return x.FixContractValid
+	}
+	return false
 }
 
 // AutofixCoverage is the per-provider autofix declaration rollup derived from a
@@ -7320,7 +7362,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x06source\x18\x03 \x01(\tR\x06source\x12\x1c\n" +
 	"\tdelegated\x18\x04 \x01(\bR\tdelegated\x12\x1a\n" +
 	"\bprovider\x18\x05 \x01(\tR\bprovider\x12%\n" +
-	"\x0efinding_source\x18\x06 \x01(\tR\rfindingSource\"\x82\x03\n" +
+	"\x0efinding_source\x18\x06 \x01(\tR\rfindingSource\"\xaf\x04\n" +
 	"\x13ProviderConformance\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x14\n" +
 	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x1c\n" +
@@ -7336,7 +7378,11 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"violations\x18\t \x03(\tR\n" +
 	"violations\x12D\n" +
 	"\aautofix\x18\n" +
-	" \x01(\v2*.vrooli.test_genie.v1.runs.AutofixCoverageR\aautofix\"\xa6\x02\n" +
+	" \x01(\v2*.vrooli.test_genie.v1.runs.AutofixCoverageR\aautofix\x12&\n" +
+	"\x0eclassification\x18\v \x01(\tR\x0eclassification\x12!\n" +
+	"\freason_codes\x18\f \x03(\tR\vreasonCodes\x122\n" +
+	"\x15fix_contract_required\x18\r \x01(\bR\x13fixContractRequired\x12,\n" +
+	"\x12fix_contract_valid\x18\x0e \x01(\bR\x10fixContractValid\"\xa6\x02\n" +
 	"\x0fAutofixCoverage\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12)\n" +
 	"\x10fixable_universe\x18\x02 \x01(\x05R\x0ffixableUniverse\x12 \n" +

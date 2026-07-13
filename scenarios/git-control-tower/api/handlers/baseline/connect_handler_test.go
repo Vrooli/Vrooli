@@ -2,6 +2,8 @@ package baseline
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -126,6 +128,102 @@ func TestSnapshotTailSurvivesClientCancelAndProjectsV2(t *testing.T) { // [REQ:G
 	}
 	if runs.pins != 1 {
 		t.Fatalf("pins=%d", runs.pins)
+	}
+}
+
+func TestCollectionCaptureProjectsMemberCoverageAndResumes(t *testing.T) {
+	exec := &recordingExecutor{}
+	runs := &recordingRuns{}
+	srv, svc := newServerDeps(t, exec, runs)
+	srv.finalizeCollection = func(ctx context.Context, repoID int64, pending bl.PendingCollectionCapture) {
+		if _, err := svc.FinalizeCollectionCapture(context.WithoutCancel(ctx), repoID, pending); err != nil {
+			t.Errorf("finalize collection: %v", err)
+		}
+	}
+	request := &baselinesv1.StartCollectionCaptureRequest{
+		Name: "before", Branch: "agi",
+		Targets: []*baselinesv1.CollectionTarget{
+			{Scenario: "plan-manager", BaselineName: "before", Required: true},
+			{Scenario: "git-control-tower", BaselineName: "before", Required: true},
+		},
+	}
+	started, err := srv.StartCollectionCapture(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		t.Fatalf("StartCollectionCapture: %v", err)
+	}
+	if started.Msg.GetResumed() || started.Msg.GetCollection().GetCoverage().GetPending() != 2 {
+		t.Fatalf("initial collection = %#v", started.Msg)
+	}
+	got, err := srv.GetCollection(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: "before", Branch: "agi"}))
+	if err != nil {
+		t.Fatalf("GetCollection: %v", err)
+	}
+	if !got.Msg.GetCollection().GetCoverage().GetComplete() || got.Msg.GetCollection().GetCoverage().GetReady() != 2 {
+		t.Fatalf("final collection = %#v", got.Msg.GetCollection())
+	}
+	srv.finalizeCollectionDiffFn = func(ctx context.Context, repoID int64, pending bl.PendingCollectionDiff) {
+		if _, err := svc.FinalizeCollectionDiff(context.WithoutCancel(ctx), repoID, pending); err != nil {
+			t.Errorf("finalize collection diff: %v", err)
+		}
+	}
+	diff, err := srv.StartCollectionDiff(context.Background(), connect.NewRequest(&baselinesv1.StartCollectionDiffRequest{Name: "before", Branch: "agi", OperationId: "phase-1", Scenarios: []string{"plan-manager"}}))
+	if err != nil {
+		t.Fatalf("StartCollectionDiff: %v", err)
+	}
+	if len(diff.Msg.GetMembers()) != 1 || diff.Msg.GetMembers()[0].GetScenario() != "plan-manager" || diff.Msg.GetMembers()[0].GetStatus() != "pending" {
+		t.Fatalf("narrow collection diff = %#v", diff.Msg)
+	}
+	settled, err := srv.GetCollectionDiff(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionDiffRequest{Name: "before", Branch: "agi", OperationId: "phase-1", Wait: true}))
+	if err != nil || len(settled.Msg.GetMembers()) != 1 || settled.Msg.GetMembers()[0].GetStatus() != "ready" {
+		t.Fatalf("settled collection diff = %#v err=%v", settled.Msg, err)
+	}
+	resumed, err := srv.StartCollectionCapture(context.Background(), connect.NewRequest(request))
+	if err != nil || !resumed.Msg.GetResumed() || exec.calls != 3 {
+		t.Fatalf("resume = %#v err=%v calls=%d", resumed.Msg, err, exec.calls)
+	}
+}
+
+func TestPathSnapshotHandlersReturnMetadataWithoutContent(t *testing.T) {
+	exec := &recordingExecutor{}
+	runs := &recordingRuns{}
+	srv, _ := newServerDeps(t, exec, runs)
+	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, "dirty.txt"), []byte("dirty source bytes\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv.repos = fakeRepos{dir: repo}
+	before, err := srv.CapturePathSnapshot(context.Background(), connect.NewRequest(&baselinesv1.CapturePathSnapshotRequest{Name: "before", Branch: "agi", Selections: []string{"*.txt"}, RetentionSeconds: 2 * 60 * 60}))
+	if err != nil {
+		t.Fatalf("CapturePathSnapshot: %v", err)
+	}
+	entry := before.Msg.GetSnapshot().GetEntries()[0]
+	if entry.GetDigest() == "" || entry.GetDetail() == "dirty source bytes\n" {
+		t.Fatalf("source bytes leaked or digest absent: %#v", entry)
+	}
+	created, err := time.Parse(time.RFC3339Nano, before.Msg.GetSnapshot().GetCreatedAt())
+	if err != nil {
+		t.Fatalf("parse created_at: %v", err)
+	}
+	expires, err := time.Parse(time.RFC3339Nano, before.Msg.GetSnapshot().GetExpiresAt())
+	if err != nil || expires.Sub(created) != 2*time.Hour {
+		t.Fatalf("retention was not preserved: created=%s expires=%s err=%v", created, expires, err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "dirty.txt"), []byte("changed source bytes\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.CapturePathSnapshot(context.Background(), connect.NewRequest(&baselinesv1.CapturePathSnapshotRequest{Name: "after", Branch: "agi", Selections: []string{"*.txt"}})); err != nil {
+		t.Fatalf("CapturePathSnapshot after: %v", err)
+	}
+	diff, err := srv.DiffPathSnapshots(context.Background(), connect.NewRequest(&baselinesv1.DiffPathSnapshotsRequest{BeforeName: "before", AfterName: "after", Branch: "agi"}))
+	if err != nil {
+		t.Fatalf("DiffPathSnapshots: %v", err)
+	}
+	if diff.Msg.GetClassification() != "informational-source-evidence" || len(diff.Msg.GetDeltas()) != 1 || diff.Msg.GetDeltas()[0].GetStatus() != "modified" {
+		t.Fatalf("source diff = %#v", diff.Msg)
+	}
+	filtered, err := srv.DiffPathSnapshots(context.Background(), connect.NewRequest(&baselinesv1.DiffPathSnapshotsRequest{BeforeName: "before", AfterName: "after", Branch: "agi", Selections: []string{"other/**"}}))
+	if err != nil || len(filtered.Msg.GetDeltas()) != 0 {
+		t.Fatalf("filtered source diff = %#v err=%v", filtered.Msg, err)
 	}
 }
 

@@ -196,6 +196,20 @@ func TestScenarioPortRequiresNameAndPort(t *testing.T) {
 	}
 }
 
+func TestScenarioPortAtPathPassesPhysicalScenarioDirectory(t *testing.T) {
+	runner := &stubRunner{responses: []stubResponse{{output: []byte(`{"success":true,"scenario":"generated","port_name":"API_PORT","port":16542}`)}}}
+	client := New(WithRunner(runner))
+
+	_, err := client.ScenarioPortAtPath(context.Background(), "generated", "API_PORT", "/tmp/workspace/scenarios/generated")
+	if err != nil {
+		t.Fatalf("ScenarioPortAtPath returned error: %v", err)
+	}
+	wantArgs := []string{"--no-stale-check", "scenario", "port", "generated", "API_PORT", "--json", "--path", "/tmp/workspace/scenarios/generated"}
+	if len(runner.calls) != 1 || !reflect.DeepEqual(runner.calls[0].args, wantArgs) {
+		t.Fatalf("call args = %v, want %v", runner.calls, wantArgs)
+	}
+}
+
 func TestListScenariosDecodesTypedFields(t *testing.T) {
 	runner := &stubRunner{
 		responses: []stubResponse{

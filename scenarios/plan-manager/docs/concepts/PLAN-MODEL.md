@@ -117,6 +117,44 @@ promote obvious legacy phase sections (`Objective`, `Checklist`, `Validation`,
 `Definition of done`) into structured phase fields before preserving any
 unmapped prose as legacy provenance.
 
+### Baseline sets
+
+New implementation plans may carry an optional `baseline_set` intent derived
+from their Change Boundary: a stable collection name, explicit behavioral
+scenario targets, selected repository paths, execution-start capture policy,
+and compatibility state. Plan Manager owns this intent and its phase policy;
+Git Control Tower owns the underlying collection, Test Genie anchors, and
+source-evidence mechanics.
+
+At execution start, Plan Manager persists an immutable baseline-set checkpoint
+on the execution: resolved scenario/path inventory, capture timestamp, required
+coverage counts, and complete/partial/degraded state. Resume reads that
+checkpoint rather than recapturing or deriving a new before-state. Required
+behavioral coverage must be complete before it is treated as a usable oracle.
+Selected source paths are captured as **informational source evidence** only;
+their changes never substitute for a Test Genie regression verdict.
+
+The checkpoint also keeps the collection branch, each member's baseline/run and
+capture status, and metadata-only path-snapshot references. This is recovery and
+operator provenance: source bytes remain private in GCT. Validation captures a
+bounded current “after” snapshot through GCT, requests a typed phase-filtered
+path delta, and records it as a non-oracle child alongside the behavioral
+collection diff. Final Definition-of-Done requires the persisted collection to
+be complete and runs a durable typed full-inventory collection diff; it never
+replays the rendered collection command through a shell.
+
+For a phase with a narrow validation scope, Plan Manager intersects that scope
+with the execution checkpoint's captured target inventory (falling back to
+authored intent only before an execution exists) and dispatches one typed GCT
+collection-diff operation for the selected members. The operation is durable
+and idempotent, and the
+behavioral aggregate remains `unknown`/not-comparable whenever required
+coverage is incomplete; source evidence is presented separately.
+
+Legacy regression anchors remain readable and execute under their existing
+single-scenario semantics. Rendered new plans show a compact baseline-set
+summary rather than a wall of generated child commands.
+
 **Phases** — ordered, first-class units of work (see [Phase](#phase)).
 
 | Field | Origin | Meaning |

@@ -267,12 +267,12 @@ describe("ExecutionRunner", () => {
   it("captures bug reports, records, notes, and explicit no-feedback checkpoints", async () => {
     const user = await startAndLand();
     addBug.mockResolvedValue({
-      entry: create(LogEntrySchema, { id: "b1", title: "confirmed defect", detail: "breaks done gate" }),
+      entry: create(LogEntrySchema, { id: "b1", title: "confirmed defect", detail: "breaks done gate", capture: { state: "draft", draftId: "bug-1", needs: ["actual"], nextAction: ["prompt-manager", "team", "bug-repair", "scenario-qa", "bug-1"] } }),
       step,
       deduplicated: false,
     });
     addRecord.mockResolvedValue({
-      entry: create(LogEntrySchema, { id: "r1", title: "checkpoint pattern", detail: "phase-close review" }),
+      entry: create(LogEntrySchema, { id: "r1", title: "checkpoint pattern", detail: "phase-close review", capture: { state: "published" } }),
       step,
       deduplicated: false,
     });
@@ -284,10 +284,23 @@ describe("ExecutionRunner", () => {
 
     await user.type(screen.getByTestId(selectors.execution.bugTitle), "confirmed defect");
     await user.type(screen.getByTestId(selectors.execution.bugDetail), "breaks done gate");
+    await user.type(screen.getByLabelText("Bug signal type"), "regression");
+    await user.type(screen.getByLabelText("Bug report severity"), "major");
+    await user.type(screen.getByLabelText("Affected scenario"), "plan-manager");
+    await user.type(screen.getByLabelText("Bug reproduction steps"), "start, open plan");
+    await user.type(screen.getByLabelText("Bug expected behavior"), "fresh data");
+    await user.type(screen.getByLabelText("Bug actual behavior"), "stale data");
+    await user.type(screen.getByLabelText("Bug taxonomy description"), "details");
     await user.click(screen.getByTestId(selectors.execution.recordBugButton));
 
     await user.type(screen.getByTestId(selectors.execution.recordTitle), "checkpoint pattern");
     await user.type(screen.getByTestId(selectors.execution.recordDetail), "phase-close review");
+    await user.type(screen.getByLabelText("Record kind"), "execute");
+    await user.type(screen.getByLabelText("Record scenario"), "plan-manager");
+    await user.type(screen.getByLabelText("Record outcome"), "shipped");
+    await user.type(screen.getByLabelText("Record trigger"), "close phase");
+    await user.type(screen.getByLabelText("Record approach"), "use checkpoint");
+    await user.type(screen.getByLabelText("Record evidence"), "go test");
     await user.click(screen.getByTestId(selectors.execution.recordRecordButton));
 
     await user.type(screen.getByTestId(selectors.execution.noteTitle), "operator note");
@@ -296,8 +309,15 @@ describe("ExecutionRunner", () => {
     await user.click(screen.getByTestId(selectors.execution.noFeedbackButton));
 
     await waitFor(() => {
-      expect(addBug).toHaveBeenCalledWith("exec-1", "p1", "confirmed defect", { detail: "breaks done gate" });
-      expect(addRecord).toHaveBeenCalledWith("exec-1", "p1", "checkpoint pattern", { detail: "phase-close review" });
+      expect(addBug).toHaveBeenCalledWith("exec-1", "p1", "confirmed defect", {
+        detail: "breaks done gate", signalType: "regression", reportSeverity: "major", repro: ["start", "open plan"],
+        expected: "fresh data", actual: "stale data", description: "details", context: { scenario: "plan-manager" }, honestyFlags: [],
+      });
+      expect(addRecord).toHaveBeenCalledWith("exec-1", "p1", "checkpoint pattern", {
+        detail: "phase-close review", kind: "execute", scenario: "plan-manager", trigger: "close phase",
+        approach: "use checkpoint", recordEvidence: "go test", outcome: "shipped",
+      });
+      expect(screen.getByText(/private draft bug-1/i)).toBeInTheDocument();
       expect(addNote).toHaveBeenCalledWith("exec-1", "p1", "operator note", { detail: "" });
       expect(addNote).toHaveBeenCalledWith("exec-1", "p1", "Phase feedback reviewed: none", {
         detail: "No decisions, findings, bugs, records, or reusable notes to capture for this phase.",

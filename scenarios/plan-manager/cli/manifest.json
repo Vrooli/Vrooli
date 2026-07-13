@@ -2414,7 +2414,7 @@
         },
         {
           "name": "bug-add",
-          "description": "File a bug report (forwarded to the issue tracker)",
+          "description": "Capture a taxonomy-complete bug report (published or saved as a private draft)",
           "positionals": [
             {
               "name": "plan-or-execution",
@@ -2455,6 +2455,34 @@
             {
               "name": "run-id",
               "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+            },
+            {
+              "name": "signal-type",
+              "description": "Scenario QA signal type: code-defect|regression|prompt-confusion|data-shape-mismatch|unexpected-error|unknown"
+            },
+            {
+              "name": "report-severity",
+              "description": "Scenario QA severity: blocker|major|minor"
+            },
+            {
+              "name": "repro",
+              "description": "Comma-separated reproduction steps"
+            },
+            {
+              "name": "expected",
+              "description": "Expected behavior"
+            },
+            {
+              "name": "actual",
+              "description": "Observed behavior"
+            },
+            {
+              "name": "description",
+              "description": "Free-form report details"
+            },
+            {
+              "name": "honesty-flags",
+              "description": "Comma-separated Scenario QA honesty flags"
             }
           ],
           "binding": {
@@ -2472,7 +2500,7 @@
         },
         {
           "name": "record-add",
-          "description": "Capture a reusable record (forwarded to Swarm Manager)",
+          "description": "Capture a classified learning record (published or saved as a private draft)",
           "positionals": [
             {
               "name": "plan-or-execution",
@@ -2509,6 +2537,34 @@
             {
               "name": "run-id",
               "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+            },
+            {
+              "name": "kind",
+              "description": "Swarm record kind"
+            },
+            {
+              "name": "scenario",
+              "description": "Owning scenario slug"
+            },
+            {
+              "name": "trigger",
+              "description": "What triggered this work"
+            },
+            {
+              "name": "approach",
+              "description": "What was done"
+            },
+            {
+              "name": "record-evidence",
+              "description": "Validation evidence for the record"
+            },
+            {
+              "name": "outcome",
+              "description": "Swarm record outcome"
+            },
+            {
+              "name": "created-by",
+              "description": "Record author/provenance"
             }
           ],
           "binding": {

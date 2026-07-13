@@ -46,6 +46,12 @@ type Server struct {
 	// finalizeDiffFn, when set, overrides the async diff finalize tail (tests run
 	// it synchronously to assert the verdict caches).
 	finalizeDiffFn func(ctx context.Context, pending bl.PendingDiff)
+	// finalizeCollection, when set, overrides collection-member finalization for
+	// deterministic handler tests.
+	finalizeCollection func(ctx context.Context, repoID int64, pending bl.PendingCollectionCapture)
+	// finalizeCollectionDiff, when set, runs an aggregate child finalizer
+	// synchronously in tests.
+	finalizeCollectionDiffFn func(ctx context.Context, repoID int64, pending bl.PendingCollectionDiff)
 }
 
 // Deps wires the Connect server.
@@ -399,6 +405,195 @@ func (s *Server) DeleteBaseline(ctx context.Context, req *connect.Request[baseli
 	return connect.NewResponse(&baselinesv1.DeleteBaselineResponse{Deleted: true}), nil
 }
 
+// StartCollectionCapture creates or resumes a durable multi-scenario capture.
+// It returns after child runs are started; each child remains finalized by the
+// server even if this transport disconnects.
+func (s *Server) StartCollectionCapture(ctx context.Context, req *connect.Request[baselinesv1.StartCollectionCaptureRequest]) (*connect.Response[baselinesv1.StartCollectionCaptureResponse], error) {
+	m := req.Msg
+	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("StartCollectionCapture", err)
+	}
+	targets := make([]bl.CollectionTarget, 0, len(m.GetTargets()))
+	for _, target := range m.GetTargets() {
+		targets = append(targets, bl.CollectionTarget{Scenario: target.GetScenario(), BaselineName: target.GetBaselineName(), Required: target.GetRequired()})
+	}
+	started, err := s.svc.StartCollectionCapture(ctx, bl.StartCollectionCaptureRequest{
+		RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
+	})
+	if err != nil {
+		return nil, s.wrap("StartCollectionCapture", err)
+	}
+	for _, pending := range started.Pending {
+		s.finalizeCollectionCapture(ctx, rid, pending)
+	}
+	return connect.NewResponse(&baselinesv1.StartCollectionCaptureResponse{Collection: collectionToProto(started.Collection), Resumed: started.Resumed}), nil
+}
+
+func (s *Server) finalizeCollectionCapture(ctx context.Context, repoID int64, pending bl.PendingCollectionCapture) {
+	if s.finalizeCollection != nil {
+		s.finalizeCollection(ctx, repoID, pending)
+		return
+	}
+	tailCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), snapshotTailCeiling)
+	go func() {
+		defer cancel()
+		if _, err := s.svc.FinalizeCollectionCapture(tailCtx, repoID, pending); err != nil {
+			s.logger.Printf("baselines.StartCollectionCapture: finalize failed collection=%s scenario=%s run=%s: %v", pending.CollectionName, pending.Scenario, pending.Pending.Run.RunID, err)
+		}
+	}()
+}
+
+func (s *Server) GetCollection(ctx context.Context, req *connect.Request[baselinesv1.GetCollectionRequest]) (*connect.Response[baselinesv1.GetCollectionResponse], error) {
+	m := req.Msg
+	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("GetCollection", err)
+	}
+	var collection bl.CollectionManifest
+	if m.GetWait() {
+		collection, err = s.svc.ResumeCollectionCapture(ctx, rid, branch, m.GetName())
+	} else {
+		collection, err = s.svc.StorageLoadCollection(rid, branch, m.GetName())
+	}
+	if err != nil {
+		return nil, s.wrap("GetCollection", err)
+	}
+	return connect.NewResponse(&baselinesv1.GetCollectionResponse{Collection: collectionToProto(collection)}), nil
+}
+
+// StartCollectionDiff starts durable child diffs for the explicit selection.
+// The immediate response is intentionally a handle report, not a fabricated
+// final verdict; callers reattach to each returned child run through the normal
+// durable diff status endpoint while the server-owned finalizers persist them.
+func (s *Server) StartCollectionDiff(ctx context.Context, req *connect.Request[baselinesv1.StartCollectionDiffRequest]) (*connect.Response[baselinesv1.StartCollectionDiffResponse], error) {
+	m := req.Msg
+	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("StartCollectionDiff", err)
+	}
+	started, err := s.svc.StartCollectionDiff(ctx, bl.StartCollectionDiffRequest{RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), OperationID: m.GetOperationId(), Scenarios: m.GetScenarios()})
+	if err != nil {
+		return nil, s.wrap("StartCollectionDiff", err)
+	}
+	for _, pending := range started.Pending {
+		s.finalizeCollectionDiff(ctx, rid, pending)
+	}
+	aggregate := bl.AggregateCollectionDiff(started.Collection, started.Members)
+	out := &baselinesv1.StartCollectionDiffResponse{Collection: collectionToProto(started.Collection), Classification: string(aggregate.Verdict), OperationId: started.Operation.ID}
+	for _, member := range started.Members {
+		out.Members = append(out.Members, collectionDiffMemberToProto(member))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (s *Server) GetCollectionDiff(ctx context.Context, req *connect.Request[baselinesv1.GetCollectionDiffRequest]) (*connect.Response[baselinesv1.GetCollectionDiffResponse], error) {
+	m := req.Msg
+	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("GetCollectionDiff", err)
+	}
+	collection, operation, err := s.svc.GetCollectionDiff(ctx, rid, branch, m.GetName(), m.GetOperationId(), m.GetWait())
+	if err != nil {
+		return nil, s.wrap("GetCollectionDiff", err)
+	}
+	aggregate := operation.Aggregate(collection)
+	out := &baselinesv1.GetCollectionDiffResponse{Collection: collectionToProto(collection), Classification: string(aggregate.Verdict), OperationId: operation.ID}
+	for _, member := range operation.Members {
+		out.Members = append(out.Members, collectionDiffMemberToProto(member))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (s *Server) finalizeCollectionDiff(ctx context.Context, repoID int64, pending bl.PendingCollectionDiff) {
+	if s.finalizeCollectionDiffFn != nil {
+		s.finalizeCollectionDiffFn(ctx, repoID, pending)
+		return
+	}
+	tailCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), snapshotTailCeiling)
+	go func() {
+		defer cancel()
+		if _, err := s.svc.FinalizeCollectionDiff(tailCtx, repoID, pending); err != nil {
+			s.logger.Printf("baselines.StartCollectionDiff: finalize failed collection=%s operation=%s scenario=%s: %v", pending.CollectionName, pending.OperationID, pending.Scenario, err)
+		}
+	}()
+}
+
+func (s *Server) DeleteCollection(ctx context.Context, req *connect.Request[baselinesv1.DeleteCollectionRequest]) (*connect.Response[baselinesv1.DeleteCollectionResponse], error) {
+	m := req.Msg
+	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("DeleteCollection", err)
+	}
+	if err := s.svc.DeleteCollection(ctx, rid, branch, m.GetName()); err != nil {
+		return nil, s.wrap("DeleteCollection", err)
+	}
+	return connect.NewResponse(&baselinesv1.DeleteCollectionResponse{Deleted: true}), nil
+}
+
+func (s *Server) CapturePathSnapshot(ctx context.Context, req *connect.Request[baselinesv1.CapturePathSnapshotRequest]) (*connect.Response[baselinesv1.CapturePathSnapshotResponse], error) {
+	m := req.Msg
+	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("CapturePathSnapshot", err)
+	}
+	captured, err := s.svc.CapturePathSnapshot(ctx, bl.CapturePathSnapshotRequest{RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Selections: m.GetSelections(), Retention: time.Duration(m.GetRetentionSeconds()) * time.Second})
+	if err != nil {
+		return nil, s.wrap("CapturePathSnapshot", err)
+	}
+	return connect.NewResponse(&baselinesv1.CapturePathSnapshotResponse{Snapshot: pathSnapshotToProto(captured.Snapshot), Resumed: captured.Resumed}), nil
+}
+
+func (s *Server) GetPathSnapshot(ctx context.Context, req *connect.Request[baselinesv1.GetPathSnapshotRequest]) (*connect.Response[baselinesv1.GetPathSnapshotResponse], error) {
+	m := req.Msg
+	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("GetPathSnapshot", err)
+	}
+	snapshot, err := s.svc.StorageLoadPathSnapshot(rid, branch, m.GetName())
+	if err != nil {
+		return nil, s.wrap("GetPathSnapshot", err)
+	}
+	return connect.NewResponse(&baselinesv1.GetPathSnapshotResponse{Snapshot: pathSnapshotToProto(snapshot)}), nil
+}
+
+func (s *Server) DiffPathSnapshots(ctx context.Context, req *connect.Request[baselinesv1.DiffPathSnapshotsRequest]) (*connect.Response[baselinesv1.DiffPathSnapshotsResponse], error) {
+	m := req.Msg
+	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("DiffPathSnapshots", err)
+	}
+	before, err := s.svc.StorageLoadPathSnapshot(rid, branch, m.GetBeforeName())
+	if err != nil {
+		return nil, s.wrap("DiffPathSnapshots", err)
+	}
+	after, err := s.svc.StorageLoadPathSnapshot(rid, branch, m.GetAfterName())
+	if err != nil {
+		return nil, s.wrap("DiffPathSnapshots", err)
+	}
+	out := &baselinesv1.DiffPathSnapshotsResponse{Classification: "informational-source-evidence"}
+	deltas, err := bl.FilterSourceDeltas(bl.DiffPathSnapshots(before, after), m.GetSelections())
+	if err != nil {
+		return nil, s.wrap("DiffPathSnapshots", err)
+	}
+	for _, delta := range deltas {
+		out.Deltas = append(out.Deltas, sourceDeltaToProto(delta))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (s *Server) DeletePathSnapshot(ctx context.Context, req *connect.Request[baselinesv1.DeletePathSnapshotRequest]) (*connect.Response[baselinesv1.DeletePathSnapshotResponse], error) {
+	m := req.Msg
+	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("DeletePathSnapshot", err)
+	}
+	if err := s.svc.DeletePathSnapshot(ctx, rid, branch, m.GetName()); err != nil {
+		return nil, s.wrap("DeletePathSnapshot", err)
+	}
+	return connect.NewResponse(&baselinesv1.DeletePathSnapshotResponse{Deleted: true}), nil
+}
+
 // wrap maps domain errors to Connect codes and logs internal ones.
 func (s *Server) wrap(op string, err error) error {
 	switch {
@@ -406,6 +601,8 @@ func (s *Server) wrap(op string, err error) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, bl.ErrAlreadyExists):
 		return connect.NewError(connect.CodeAlreadyExists, err)
+	case errors.Is(err, bl.ErrSnapshotQuota):
+		return connect.NewError(connect.CodeResourceExhausted, err)
 	}
 	s.logger.Printf("baselines.%s: %v", op, err)
 	return connect.NewError(connect.CodeInternal, err)

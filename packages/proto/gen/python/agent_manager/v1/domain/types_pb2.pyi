@@ -110,6 +110,12 @@ class RunMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_MODE_SANDBOXED: _ClassVar[RunMode]
     RUN_MODE_IN_PLACE: _ClassVar[RunMode]
 
+class ExecutionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EXECUTION_MODE_UNSPECIFIED: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_CODEC_PIPE: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_INTERACTIVE: _ClassVar[ExecutionMode]
+
 class ApprovalState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     APPROVAL_STATE_UNSPECIFIED: _ClassVar[ApprovalState]
@@ -236,6 +242,9 @@ RUN_PHASE_COMPLETED: RunPhase
 RUN_MODE_UNSPECIFIED: RunMode
 RUN_MODE_SANDBOXED: RunMode
 RUN_MODE_IN_PLACE: RunMode
+EXECUTION_MODE_UNSPECIFIED: ExecutionMode
+EXECUTION_MODE_CODEC_PIPE: ExecutionMode
+EXECUTION_MODE_INTERACTIVE: ExecutionMode
 APPROVAL_STATE_UNSPECIFIED: ApprovalState
 APPROVAL_STATE_NONE: ApprovalState
 APPROVAL_STATE_PENDING: ApprovalState

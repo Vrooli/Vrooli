@@ -92,6 +92,9 @@ const (
 	// PlansServiceCreateFromTemplateProcedure is the fully-qualified name of the PlansService's
 	// CreateFromTemplate RPC.
 	PlansServiceCreateFromTemplateProcedure = "/vrooli.plan_manager.v1.plans.PlansService/CreateFromTemplate"
+	// PlansServiceListAuditFactsProcedure is the fully-qualified name of the PlansService's
+	// ListAuditFacts RPC.
+	PlansServiceListAuditFactsProcedure = "/vrooli.plan_manager.v1.plans.PlansService/ListAuditFacts"
 )
 
 // PlansServiceClient is a client for the vrooli.plan_manager.v1.plans.PlansService service.
@@ -151,6 +154,10 @@ type PlansServiceClient interface {
 	ListTemplates(context.Context, *connect.Request[plans.ListTemplatesRequest]) (*connect.Response[plans.ListTemplatesResponse], error)
 	// CreateFromTemplate pre-scaffolds a plan from a template.
 	CreateFromTemplate(context.Context, *connect.Request[plans.CreateFromTemplateRequest]) (*connect.Response[plans.CreateFromTemplateResponse], error)
+	// ListAuditFacts exposes Plan Manager's authoritative, run-scoped mutation
+	// facts for evidence reconciliation. It is read-only and does not transfer
+	// ownership of plans or Agent Manager identity to another scenario.
+	ListAuditFacts(context.Context, *connect.Request[plans.ListAuditFactsRequest]) (*connect.Response[plans.ListAuditFactsResponse], error)
 }
 
 // NewPlansServiceClient constructs a client for the vrooli.plan_manager.v1.plans.PlansService
@@ -296,6 +303,12 @@ func NewPlansServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(plansServiceMethods.ByName("CreateFromTemplate")),
 			connect.WithClientOptions(opts...),
 		),
+		listAuditFacts: connect.NewClient[plans.ListAuditFactsRequest, plans.ListAuditFactsResponse](
+			httpClient,
+			baseURL+PlansServiceListAuditFactsProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("ListAuditFacts")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -323,6 +336,7 @@ type plansServiceClient struct {
 	reconcilePlans        *connect.Client[plans.ReconcilePlansRequest, plans.ReconcilePlansResponse]
 	listTemplates         *connect.Client[plans.ListTemplatesRequest, plans.ListTemplatesResponse]
 	createFromTemplate    *connect.Client[plans.CreateFromTemplateRequest, plans.CreateFromTemplateResponse]
+	listAuditFacts        *connect.Client[plans.ListAuditFactsRequest, plans.ListAuditFactsResponse]
 }
 
 // ListPlans calls vrooli.plan_manager.v1.plans.PlansService.ListPlans.
@@ -435,6 +449,11 @@ func (c *plansServiceClient) CreateFromTemplate(ctx context.Context, req *connec
 	return c.createFromTemplate.CallUnary(ctx, req)
 }
 
+// ListAuditFacts calls vrooli.plan_manager.v1.plans.PlansService.ListAuditFacts.
+func (c *plansServiceClient) ListAuditFacts(ctx context.Context, req *connect.Request[plans.ListAuditFactsRequest]) (*connect.Response[plans.ListAuditFactsResponse], error) {
+	return c.listAuditFacts.CallUnary(ctx, req)
+}
+
 // PlansServiceHandler is an implementation of the vrooli.plan_manager.v1.plans.PlansService
 // service.
 type PlansServiceHandler interface {
@@ -493,6 +512,10 @@ type PlansServiceHandler interface {
 	ListTemplates(context.Context, *connect.Request[plans.ListTemplatesRequest]) (*connect.Response[plans.ListTemplatesResponse], error)
 	// CreateFromTemplate pre-scaffolds a plan from a template.
 	CreateFromTemplate(context.Context, *connect.Request[plans.CreateFromTemplateRequest]) (*connect.Response[plans.CreateFromTemplateResponse], error)
+	// ListAuditFacts exposes Plan Manager's authoritative, run-scoped mutation
+	// facts for evidence reconciliation. It is read-only and does not transfer
+	// ownership of plans or Agent Manager identity to another scenario.
+	ListAuditFacts(context.Context, *connect.Request[plans.ListAuditFactsRequest]) (*connect.Response[plans.ListAuditFactsResponse], error)
 }
 
 // NewPlansServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -634,6 +657,12 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(plansServiceMethods.ByName("CreateFromTemplate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	plansServiceListAuditFactsHandler := connect.NewUnaryHandler(
+		PlansServiceListAuditFactsProcedure,
+		svc.ListAuditFacts,
+		connect.WithSchema(plansServiceMethods.ByName("ListAuditFacts")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.plan_manager.v1.plans.PlansService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlansServiceListPlansProcedure:
@@ -680,6 +709,8 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 			plansServiceListTemplatesHandler.ServeHTTP(w, r)
 		case PlansServiceCreateFromTemplateProcedure:
 			plansServiceCreateFromTemplateHandler.ServeHTTP(w, r)
+		case PlansServiceListAuditFactsProcedure:
+			plansServiceListAuditFactsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -775,4 +806,8 @@ func (UnimplementedPlansServiceHandler) ListTemplates(context.Context, *connect.
 
 func (UnimplementedPlansServiceHandler) CreateFromTemplate(context.Context, *connect.Request[plans.CreateFromTemplateRequest]) (*connect.Response[plans.CreateFromTemplateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.CreateFromTemplate is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) ListAuditFacts(context.Context, *connect.Request[plans.ListAuditFactsRequest]) (*connect.Response[plans.ListAuditFactsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.ListAuditFacts is not implemented"))
 }

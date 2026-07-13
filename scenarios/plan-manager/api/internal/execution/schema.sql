@@ -36,6 +36,16 @@ CREATE TABLE IF NOT EXISTS executions (
 CREATE INDEX IF NOT EXISTS idx_executions_plan ON executions(plan_id);
 CREATE INDEX IF NOT EXISTS idx_executions_run ON executions(run_id);
 
+-- execution_baseline_sets — immutable resolved collection/path selection and
+-- its latest capture coverage for a guided execution. Kept separately from the
+-- legacy executions row so existing stores adopt it through CREATE IF NOT EXISTS
+-- without a brittle ALTER TABLE migration.
+CREATE TABLE IF NOT EXISTS execution_baseline_sets (
+  execution_id TEXT PRIMARY KEY,
+  document     TEXT NOT NULL DEFAULT '{}',
+  updated_at   TEXT NOT NULL
+);
+
 -- Decisions and candidate findings are NOT stored here — they are typed entries
 -- in the log domain's log_entries table (internal/planlog). The handoff snapshots
 -- a compact log summary read from that domain.

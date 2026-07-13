@@ -119,6 +119,25 @@ message WorkflowSettingsV2 {
   // Can be overridden at execution time via ExecutionParameters.browser_profile.
   // Use presets ("stealth", "balanced", "fast", "none") for common configurations.
   BrowserProfile browser_profile = 10;
+
+  // Deterministic fake media devices for this workflow (e.g. a WAV-backed
+  // fake microphone for dictation flows). The browser is launched with
+  // Chromium fake-media flags and the context is granted microphone
+  // permission for the workflow's own scenario origin.
+  FakeMediaConfig fake_media = 11;
+}
+
+// FakeMediaConfig requests deterministic fake media devices for execution.
+// Chromium serves fake capture devices process-wide, so the driver launches
+// (and pools) a dedicated browser instance per distinct configuration.
+//
+// @usage WorkflowSettingsV2.fake_media
+message FakeMediaConfig {
+  // WAV file served as the fake microphone capture source.
+  // Relative paths are resolved against the execution parameter project_root
+  // and must stay within it, so committed workflows can reference repo
+  // fixtures without host-specific absolute paths.
+  optional string microphone_wav = 1;
 }
 
 // WorkflowNodeV2 represents a single workflow step.

@@ -39,6 +39,7 @@ func PlanToProto(p planmodel.Plan) *sharedv1.Plan {
 		NonGoals:                p.NonGoals,
 		References:              ReferencesToProto(p.References),
 		RegressionAnchor:        AnchorToProto(p.RegressionAnchor),
+		BaselineSet:             BaselineSetToProto(p.BaselineSet),
 		DefinitionOfDone:        p.DefinitionOfDone,
 		Phases:                  PhasesToProto(p.Phases),
 		Supersedes:              p.Supersedes,
@@ -128,6 +129,7 @@ func PlanFromProto(p *sharedv1.Plan) planmodel.Plan {
 		NonGoals:                p.GetNonGoals(),
 		References:              ReferencesFromProto(p.GetReferences()),
 		RegressionAnchor:        AnchorFromProto(p.GetRegressionAnchor()),
+		BaselineSet:             BaselineSetFromProto(p.GetBaselineSet()),
 		DefinitionOfDone:        p.GetDefinitionOfDone(),
 		Phases:                  PhasesFromProto(p.GetPhases()),
 		Supersedes:              p.GetSupersedes(),
@@ -584,6 +586,32 @@ func AnchorToProto(a planmodel.RegressionAnchor) *sharedv1.RegressionAnchor {
 		Commands:       a.Commands,
 		CapturedAt:     a.CapturedAt,
 		Unavailable:    a.Unavailable,
+	}
+}
+
+func BaselineSetToProto(intent planmodel.BaselineSetIntent) *sharedv1.BaselineSetIntent {
+	if intent.Name == "" && len(intent.ScenarioTargets) == 0 && len(intent.RepoPaths) == 0 && intent.CapturePolicy == "" && intent.Compatibility == "" {
+		return nil
+	}
+	return &sharedv1.BaselineSetIntent{
+		Name:            intent.Name,
+		ScenarioTargets: intent.ScenarioTargets,
+		RepoPaths:       intent.RepoPaths,
+		CapturePolicy:   intent.CapturePolicy,
+		Compatibility:   intent.Compatibility,
+	}
+}
+
+func BaselineSetFromProto(intent *sharedv1.BaselineSetIntent) planmodel.BaselineSetIntent {
+	if intent == nil {
+		return planmodel.BaselineSetIntent{}
+	}
+	return planmodel.BaselineSetIntent{
+		Name:            intent.GetName(),
+		ScenarioTargets: append([]string(nil), intent.GetScenarioTargets()...),
+		RepoPaths:       append([]string(nil), intent.GetRepoPaths()...),
+		CapturePolicy:   intent.GetCapturePolicy(),
+		Compatibility:   intent.GetCompatibility(),
 	}
 }
 

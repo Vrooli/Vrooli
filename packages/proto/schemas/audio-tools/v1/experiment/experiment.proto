@@ -31,6 +31,8 @@ service ExperimentService {
   rpc StreamExperimentEvents(StreamExperimentEventsRequest) returns (stream ExperimentEvent);
   rpc GetExperimentReport(GetExperimentReportRequest) returns (GetExperimentReportResponse);
   rpc CompareExperiments(CompareExperimentsRequest) returns (CompareExperimentsResponse);
+  rpc RecordQualificationEvidence(RecordQualificationEvidenceRequest) returns (RecordQualificationEvidenceResponse);
+  rpc ListQualificationEvidence(ListQualificationEvidenceRequest) returns (ListQualificationEvidenceResponse);
 }
 
 enum ExperimentStatus {
@@ -171,6 +173,37 @@ message ExperimentEvent {
   google.protobuf.Timestamp at = 5;
 }
 
+// QualificationEvidence is the metadata-only, provider-cell-scoped proof for
+// gates that cannot be inferred from an eval replay: faults, recovery,
+// browser product paths, and physical-device validation. artifact_ref names a
+// durable BAS execution, report, or manually attested artifact; it never
+// contains transcript or audio payload.
+enum QualificationEvidenceKind {
+  QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED = 0;
+  QUALIFICATION_EVIDENCE_KIND_INTERVAL_ACCOUNTING = 1;
+  QUALIFICATION_EVIDENCE_KIND_BOUNDED_RECOVERY = 2;
+  QUALIFICATION_EVIDENCE_KIND_FAULT = 3;
+  QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH = 4;
+  QUALIFICATION_EVIDENCE_KIND_DEVICE = 5;
+}
+
+message QualificationEvidence {
+  string id = 1;
+  string engine_id = 2;
+  string strategy = 3;
+  string policy_profile = 4;
+  QualificationEvidenceKind kind = 5;
+  string fault_profile = 6;
+  bool passed = 7;
+  string artifact_ref = 8;
+  string notes = 9;
+  string machine_json = 10;
+  google.protobuf.Timestamp observed_at = 11;
+  // Exact engine model qualified by the artifact. Required for promotion so a
+  // same-host model upgrade cannot inherit evidence from the prior model.
+  string model_id = 12;
+}
+
 message StartExperimentRequest {
   string name = 1;
   ExperimentRecipe recipe = 2;
@@ -261,4 +294,23 @@ message ComparedExperiment {
 
 message CompareExperimentsResponse {
   repeated ComparedExperiment experiments = 1;
+}
+
+message RecordQualificationEvidenceRequest {
+  QualificationEvidence evidence = 1;
+}
+
+message RecordQualificationEvidenceResponse {
+  QualificationEvidence evidence = 1;
+}
+
+message ListQualificationEvidenceRequest {
+  string engine_id = 1;
+  string strategy = 2;
+  string policy_profile = 3;
+  string model_id = 4;
+}
+
+message ListQualificationEvidenceResponse {
+  repeated QualificationEvidence evidence = 1;
 }

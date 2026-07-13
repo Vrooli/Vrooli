@@ -73,6 +73,8 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
 		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
 		{Name: "delete", NeedsAPI: true, Description: "Delete a baseline and unpin its single Test Genie run (--scenario --name [--branch])", Run: func(a []string) error { return runDelete(core, a) }},
+		{Name: "collection", NeedsAPI: true, Description: "Capture, inspect, or start selected durable diffs for a multi-scenario baseline collection: `collection capture --name N --member scenario[:baseline] ...`, `collection show --name N --wait`, `collection diff --name N [--scenario S ...]`, or `collection delete --name N`", Run: func(a []string) error { return runCollection(core, a) }},
+		{Name: "path", NeedsAPI: true, Description: "Capture and compare bounded informational source evidence: `path capture --name N --path glob ...`, `path diff --before N --after N`, `path show`, or `path delete`", Run: func(a []string) error { return runPathSnapshot(core, a) }},
 	}
 	subcommands = append(subcommands, registerEngagementVerbs(core)...)
 	return cliapp.SubcommandGroup{

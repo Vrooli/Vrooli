@@ -125,9 +125,22 @@ type Run struct {
 	// status == RUN_STATUS_PARKED; nil otherwise). Surfaced so operators see
 	// what a parked run is waiting on and its ETA — a parked run is suspended,
 	// not hung.
-	AwaitHandle   *AwaitHandle `protobuf:"bytes,36,opt,name=await_handle,json=awaitHandle,proto3,oneof" json:"await_handle,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AwaitHandle *AwaitHandle `protobuf:"bytes,36,opt,name=await_handle,json=awaitHandle,proto3,oneof" json:"await_handle,omitempty"`
+	// Substrate agent-manager uses to drive the agent CLI (codec-pipe vs
+	// interactive web-console session). Orthogonal to run_mode. Unset/UNSPECIFIED
+	// is treated as EXECUTION_MODE_CODEC_PIPE. Surfaced so operators see the mode
+	// on run records everywhere runs are listed.
+	ExecutionMode ExecutionMode `protobuf:"varint,37,opt,name=execution_mode,json=executionMode,proto3,enum=agent_manager.v1.ExecutionMode" json:"execution_mode,omitempty"`
+	// Id of the web-console session hosting the interactive agent CLI. Set only
+	// for interactive runs; backs the run-detail deep link to the live session.
+	WebConsoleSessionId string `protobuf:"bytes,38,opt,name=web_console_session_id,json=webConsoleSessionId,proto3" json:"web_console_session_id,omitempty"`
+	// Resolved deep link to the live web-console session (computed, not
+	// persisted). Set only for interactive runs when the web-console UI base is
+	// resolvable server-side; empty otherwise so the client can fall back to
+	// showing web_console_session_id alone.
+	WebConsoleSessionUrl string `protobuf:"bytes,39,opt,name=web_console_session_url,json=webConsoleSessionUrl,proto3" json:"web_console_session_url,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -410,6 +423,27 @@ func (x *Run) GetAwaitHandle() *AwaitHandle {
 		return x.AwaitHandle
 	}
 	return nil
+}
+
+func (x *Run) GetExecutionMode() ExecutionMode {
+	if x != nil {
+		return x.ExecutionMode
+	}
+	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
+}
+
+func (x *Run) GetWebConsoleSessionId() string {
+	if x != nil {
+		return x.WebConsoleSessionId
+	}
+	return ""
+}
+
+func (x *Run) GetWebConsoleSessionUrl() string {
+	if x != nil {
+		return x.WebConsoleSessionUrl
+	}
+	return ""
 }
 
 // AwaitHandle identifies the externally-owned async work a parked run is
@@ -2556,7 +2590,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\x0f\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdb\x10\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -2602,7 +2636,10 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x12finalization_error\x18\" \x01(\tR\x11finalizationError\x12B\n" +
 	"\ffinalized_at\x18# \x01(\v2\x1a.google.protobuf.TimestampH\n" +
 	"R\vfinalizedAt\x88\x01\x01\x12E\n" +
-	"\fawait_handle\x18$ \x01(\v2\x1d.agent_manager.v1.AwaitHandleH\vR\vawaitHandle\x88\x01\x01B\x13\n" +
+	"\fawait_handle\x18$ \x01(\v2\x1d.agent_manager.v1.AwaitHandleH\vR\vawaitHandle\x88\x01\x01\x12F\n" +
+	"\x0eexecution_mode\x18% \x01(\x0e2\x1f.agent_manager.v1.ExecutionModeR\rexecutionMode\x123\n" +
+	"\x16web_console_session_id\x18& \x01(\tR\x13webConsoleSessionId\x125\n" +
+	"\x17web_console_session_url\x18' \x01(\tR\x14webConsoleSessionUrlB\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +
@@ -2855,9 +2892,10 @@ var file_agent_manager_v1_domain_run_proto_goTypes = []any{
 	(ApprovalState)(0),               // 31: agent_manager.v1.ApprovalState
 	(*RunConfig)(nil),                // 32: agent_manager.v1.RunConfig
 	(RunFinalizationStatus)(0),       // 33: agent_manager.v1.RunFinalizationStatus
-	(*durationpb.Duration)(nil),      // 34: google.protobuf.Duration
-	(IdempotencyStatus)(0),           // 35: agent_manager.v1.IdempotencyStatus
-	(RunnerType)(0),                  // 36: agent_manager.v1.RunnerType
+	(ExecutionMode)(0),               // 34: agent_manager.v1.ExecutionMode
+	(*durationpb.Duration)(nil),      // 35: google.protobuf.Duration
+	(IdempotencyStatus)(0),           // 36: agent_manager.v1.IdempotencyStatus
+	(RunnerType)(0),                  // 37: agent_manager.v1.RunnerType
 }
 var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
 	27, // 0: agent_manager.v1.Run.run_mode:type_name -> agent_manager.v1.RunMode
@@ -2876,33 +2914,34 @@ var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
 	33, // 13: agent_manager.v1.Run.finalization_status:type_name -> agent_manager.v1.RunFinalizationStatus
 	29, // 14: agent_manager.v1.Run.finalized_at:type_name -> google.protobuf.Timestamp
 	1,  // 15: agent_manager.v1.Run.await_handle:type_name -> agent_manager.v1.AwaitHandle
-	29, // 16: agent_manager.v1.AwaitHandle.deadline:type_name -> google.protobuf.Timestamp
-	29, // 17: agent_manager.v1.AwaitHandle.registered_at:type_name -> google.protobuf.Timestamp
-	30, // 18: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
-	29, // 19: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
-	29, // 20: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
-	25, // 21: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
-	30, // 22: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
-	34, // 23: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
-	34, // 24: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
-	29, // 25: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
-	35, // 26: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
-	29, // 27: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
-	29, // 28: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
-	36, // 29: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
-	8,  // 30: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
-	26, // 31: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
-	11, // 32: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
-	14, // 33: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
-	29, // 34: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
-	0,  // 35: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
-	0,  // 36: agent_manager.v1.ParkRunResponse.run:type_name -> agent_manager.v1.Run
-	0,  // 37: agent_manager.v1.WakeRunResponse.run:type_name -> agent_manager.v1.Run
-	38, // [38:38] is the sub-list for method output_type
-	38, // [38:38] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	34, // 16: agent_manager.v1.Run.execution_mode:type_name -> agent_manager.v1.ExecutionMode
+	29, // 17: agent_manager.v1.AwaitHandle.deadline:type_name -> google.protobuf.Timestamp
+	29, // 18: agent_manager.v1.AwaitHandle.registered_at:type_name -> google.protobuf.Timestamp
+	30, // 19: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
+	29, // 20: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
+	29, // 21: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
+	25, // 22: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
+	30, // 23: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
+	35, // 24: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
+	35, // 25: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
+	29, // 26: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
+	36, // 27: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
+	29, // 28: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
+	29, // 29: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
+	37, // 30: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
+	8,  // 31: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
+	26, // 32: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
+	11, // 33: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
+	14, // 34: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
+	29, // 35: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
+	0,  // 36: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
+	0,  // 37: agent_manager.v1.ParkRunResponse.run:type_name -> agent_manager.v1.Run
+	0,  // 38: agent_manager.v1.WakeRunResponse.run:type_name -> agent_manager.v1.Run
+	39, // [39:39] is the sub-list for method output_type
+	39, // [39:39] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_run_proto_init() }

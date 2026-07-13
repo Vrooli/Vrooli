@@ -101,6 +101,13 @@ FROM executions WHERE id = ? LIMIT 1`
 SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
 FROM executions WHERE plan_id = ? ORDER BY updated_at DESC, started_at DESC, id DESC LIMIT 1`
 
+	upsertBaselineSetSQL = `
+INSERT INTO execution_baseline_sets (execution_id, document, updated_at)
+VALUES (?, ?, ?)
+ON CONFLICT(execution_id) DO UPDATE SET document=excluded.document, updated_at=excluded.updated_at`
+
+	getBaselineSetSQL = `SELECT document FROM execution_baseline_sets WHERE execution_id = ? LIMIT 1`
+
 	upsertHandoffSQL = `
 INSERT INTO handoffs (id, execution_id, plan_id, completeness, resume_phase_id, document, assembled_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -139,6 +146,15 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 	); err != nil {
 		return fmt.Errorf("upsert execution %q: %w", e.ID, err)
 	}
+	if e.BaselineSet.Name != "" {
+		raw, err := json.Marshal(e.BaselineSet)
+		if err != nil {
+			return fmt.Errorf("marshal execution baseline set %q: %w", e.ID, err)
+		}
+		if _, err := r.db.ExecContext(ctx, upsertBaselineSetSQL, e.ID, string(raw), updated); err != nil {
+			return fmt.Errorf("upsert execution baseline set %q: %w", e.ID, err)
+		}
+	}
 	return nil
 }
 
@@ -158,6 +174,9 @@ func (r *sqliteRepository) GetExecution(ctx context.Context, id string) (Executi
 		return Execution{}, false, fmt.Errorf("get execution %q: %w", id, err)
 	}
 	e.Complete = complete != 0
+	if err := r.loadBaselineSet(ctx, &e); err != nil {
+		return Execution{}, false, err
+	}
 	return e, true, nil
 }
 
@@ -177,7 +196,25 @@ func (r *sqliteRepository) LatestExecutionForPlan(ctx context.Context, planID st
 		return Execution{}, false, fmt.Errorf("latest execution for plan %q: %w", planID, err)
 	}
 	e.Complete = complete != 0
+	if err := r.loadBaselineSet(ctx, &e); err != nil {
+		return Execution{}, false, err
+	}
 	return e, true, nil
+}
+
+func (r *sqliteRepository) loadBaselineSet(ctx context.Context, e *Execution) error {
+	var raw string
+	err := r.db.QueryRowContext(ctx, getBaselineSetSQL, e.ID).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil // legacy execution: no baseline-set checkpoint
+	}
+	if err != nil {
+		return fmt.Errorf("get execution baseline set %q: %w", e.ID, err)
+	}
+	if err := json.Unmarshal([]byte(raw), &e.BaselineSet); err != nil {
+		return fmt.Errorf("unmarshal execution baseline set %q: %w", e.ID, err)
+	}
+	return nil
 }
 
 func (r *sqliteRepository) SaveHandoff(ctx context.Context, h Handoff) error {

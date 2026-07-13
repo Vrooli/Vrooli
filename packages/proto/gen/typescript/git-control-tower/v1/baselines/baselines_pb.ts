@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file git-control-tower/v1/baselines/baselines.proto.
  */
 export const file_git_control_tower_v1_baselines_baselines: GenFile = /*@__PURE__*/
-  fileDesc("Ci5naXQtY29udHJvbC10b3dlci92MS9iYXNlbGluZXMvYmFzZWxpbmVzLnByb3RvEiV2cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzIrYBCghHaXRTdGF0ZRILCgNzaGEYASABKAkSDgoGYnJhbmNoGAIgASgJEhAKCGRldGFjaGVkGAMgASgIEg0KBWRpcnR5GAQgASgIEhUKDWRpcnR5X3N1bW1hcnkYBSABKAkSFgoOY29tbWl0X21lc3NhZ2UYBiABKAkSFQoNY29tbWl0X2F1dGhvchgHIAEoCRITCgtjb21taXRfZGF0ZRgIIAEoCRIRCglzYW5kYm94ZWQYCSABKAgi6QEKCVJ1bkFuY2hvchIOCgZydW5faWQYASABKAkSEwoLY2FwdHVyZWRfYXQYAiABKAkSFwoPY2FwdHVyZV9wcm9maWxlGAMgASgJEhMKC3RyZWVfZGlnZXN0GAQgASgJEhgKEHBoYXNlX3NldF9kaWdlc3QYBSABKAkSHwoXZGVzY3JpcHRvcl9zbmFwc2hvdF9yZWYYBiABKAkSIgoaZGVzY3JpcHRvcl9zbmFwc2hvdF9kaWdlc3QYByABKAkSKgoiZGVzY3JpcHRvcl9zbmFwc2hvdF9zY2hlbWFfdmVyc2lvbhgIIAEoBSJbCg1NaWdyYXRpb25JbmZvEhsKE2Zyb21fc2NoZW1hX3ZlcnNpb24YASABKAUSEwoLbWlncmF0ZWRfYXQYAiABKAkSGAoQZGVncmFkZWRfcmVhc29ucxgDIAMoCSLIAgoQQmFzZWxpbmVNYW5pZmVzdBIMCgRuYW1lGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBmJyYW5jaBgDIAEoCRISCgpjcmVhdGVkX2F0GAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSPAoDZ2l0GAYgASgLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HaXRTdGF0ZRI9CgNydW4YByABKAsyMC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlJ1bkFuY2hvchIWCg5zY2hlbWFfdmVyc2lvbhgIIAEoBRJHCgltaWdyYXRpb24YCSABKAsyNC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLk1pZ3JhdGlvbkluZm8iTwoJU3RhbGVuZXNzEhUKDWNvbW1pdHNfc2luY2UYASABKAUSFQoNZmlsZXNfY2hhbmdlZBgCIAEoBRIUCgxsaWtlbHlfc3RhbGUYAyABKAgivAEKElJ1bkFydGlmYWN0Q2F0YWxvZxIOCgZydW5faWQYASABKAkSFgoOc2NoZW1hX3ZlcnNpb24YAiABKAUSDgoGZGlnZXN0GAMgASgJEjkKCWFydGlmYWN0cxgEIAMoCzImLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQXJ0aWZhY3RSZWYSGQoRbGVnYWN5X2Rpc2NvdmVyZWQYBSABKAgSGAoQZGVncmFkZWRfcmVhc29ucxgGIAMoCSJUCgtWaXN1YWxEZWx0YRIMCgRwYWdlGAEgASgJEg0KBWxhYmVsGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIYChBjaGFuZ2VkX2ZyYWN0aW9uGAQgASgBIssCChJFdmlkZW5jZUNvbXBhcmlzb24SEwoLYmFzZV9ydW5faWQYASABKAkSFgoOY3VycmVudF9ydW5faWQYAiABKAkSTwoMYmFzZV9jYXRhbG9nGAMgASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5SdW5BcnRpZmFjdENhdGFsb2cSUgoPY3VycmVudF9jYXRhbG9nGAQgASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5SdW5BcnRpZmFjdENhdGFsb2cSSQoNdmlzdWFsX2RlbHRhcxgFIAMoCzIyLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuVmlzdWFsRGVsdGESGAoQZGVncmFkZWRfcmVhc29ucxgGIAMoCSKNAQoaU25hcHNob3RGb3JCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSEgoKY3JlYXRlZF9ieRgGIAEoCRIOCgZyZWFzb24YByABKAkSDwoHcmVwb19pZBgIIAEoA0oECAQQBUoECAUQBiK7AQobU25hcHNob3RGb3JCYXNlbGluZVJlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgRuYW1lGAMgASgJEg4KBmJyYW5jaBgEIAEoCRIfChdlc3RpbWF0ZWRfdG90YWxfc2Vjb25kcxgFIAEoBRIRCglldGFfa25vd24YBiABKAgSFQoNZGlydHlfd2FybmluZxgHIAEoCRIRCgljb2FsZXNjZWQYCCABKAgieQoYR2V0U25hcHNob3RTdGF0dXNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg4KBnJ1bl9pZBgEIAEoCRIPCgdyZXBvX2lkGAUgASgDEgwKBHdhaXQYBiABKAginAIKGUdldFNuYXBzaG90U3RhdHVzUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBG5hbWUYAyABKAkSDgoGYnJhbmNoGAQgASgJEg4KBnJ1bl9pZBgFIAEoCRISCgpydW5fc3RhdHVzGAYgASgJEkkKCGJhc2VsaW5lGAcgASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0Eg0KBWVycm9yGAggASgJEhkKEXNpbWlsYXJfYmFzZWxpbmVzGAkgAygJEiYKHnJlY29tbWVuZGVkX25leHRfY2hlY2tfc2Vjb25kcxgKIAEoBSJVChJHZXRCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHcmVwb19pZBgEIAEoAyJgChNHZXRCYXNlbGluZVJlc3BvbnNlEkkKCGJhc2VsaW5lGAEgASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0Il8KFExpc3RCYXNlbGluZXNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBmJyYW5jaBgCIAEoCRIUCgxhbGxfYnJhbmNoZXMYAyABKAgSDwoHcmVwb19pZBgEIAEoAyJjChVMaXN0QmFzZWxpbmVzUmVzcG9uc2USSgoJYmFzZWxpbmVzGAEgAygLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0IlkKEFN0YXJ0RGlmZlJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHcmVwb19pZBgFIAEoA0oECAQQBSLZAQoRU3RhcnREaWZmUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBG5hbWUYAyABKAkSDgoGYnJhbmNoGAQgASgJEh8KF2VzdGltYXRlZF90b3RhbF9zZWNvbmRzGAUgASgFEhEKCWV0YV9rbm93bhgGIAEoCBIRCgljb2FsZXNjZWQYByABKAgSEgoKcmV1c2VkX3J1bhgIIAEoCBISCgpyZXVzZWRfc2hhGAkgASgJEhUKDWRpcnR5X3dhcm5pbmcYCiABKAkiiwEKFEdldERpZmZSZXN1bHRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg4KBnJ1bl9pZBgEIAEoCRIPCgdyZXBvX2lkGAYgASgDEgwKBHdhaXQYByABKAgSDgoGbGF0ZXN0GAggASgISgQIBRAGIq8BChVHZXREaWZmUmVzdWx0UmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEj8KBGRpZmYYAiABKAsyMS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRpZmZSZXN1bHQSDQoFZXJyb3IYAyABKAkSJgoecmVjb21tZW5kZWRfbmV4dF9jaGVja19zZWNvbmRzGAQgASgFEg4KBnJ1bl9pZBgFIAEoCSKTAwoKRGlmZlJlc3VsdBJJCghiYXNlbGluZRgBIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdBJECgtjdXJyZW50X2dpdBgCIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2l0U3RhdGUSQwoJc3RhbGVuZXNzGAMgASgLMjAudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFsZW5lc3MSDwoHdmVyZGljdBgFIAEoCRIVCg1kaXJ0eV93YXJuaW5nGAYgASgJEjQKBnBoYXNlcxgHIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VEaWZmEksKCGV2aWRlbmNlGAggASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5FdmlkZW5jZUNvbXBhcmlzb25KBAgEEAUiPwoLUnVuQnVzeUluZm8SEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEg4KBnByZXNldBgDIAEoCSJYChVEZWxldGVCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHcmVwb19pZBgEIAEoAyIpChZEZWxldGVCYXNlbGluZVJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgy+wcKEEJhc2VsaW5lc1NlcnZpY2USnAEKE1NuYXBzaG90Rm9yQmFzZWxpbmUSQS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlNuYXBzaG90Rm9yQmFzZWxpbmVSZXF1ZXN0GkIudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TbmFwc2hvdEZvckJhc2VsaW5lUmVzcG9uc2USlgEKEUdldFNuYXBzaG90U3RhdHVzEj8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRTbmFwc2hvdFN0YXR1c1JlcXVlc3QaQC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldFNuYXBzaG90U3RhdHVzUmVzcG9uc2UShAEKC0dldEJhc2VsaW5lEjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRCYXNlbGluZVJlcXVlc3QaOi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldEJhc2VsaW5lUmVzcG9uc2USigEKDUxpc3RCYXNlbGluZXMSOy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkxpc3RCYXNlbGluZXNSZXF1ZXN0GjwudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5MaXN0QmFzZWxpbmVzUmVzcG9uc2USfgoJU3RhcnREaWZmEjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFydERpZmZSZXF1ZXN0GjgudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFydERpZmZSZXNwb25zZRKKAQoNR2V0RGlmZlJlc3VsdBI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0RGlmZlJlc3VsdFJlcXVlc3QaPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldERpZmZSZXN1bHRSZXNwb25zZRKNAQoORGVsZXRlQmFzZWxpbmUSPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRlbGV0ZUJhc2VsaW5lUmVxdWVzdBo9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuRGVsZXRlQmFzZWxpbmVSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2dpdC1jb250cm9sLXRvd2VyL3YxL2Jhc2VsaW5lcztiYXNlbGluZXNfdjFiBnByb3RvMw", [file_test_genie_v1_runs_runs]);
+  fileDesc("Ci5naXQtY29udHJvbC10b3dlci92MS9iYXNlbGluZXMvYmFzZWxpbmVzLnByb3RvEiV2cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzIrYBCghHaXRTdGF0ZRILCgNzaGEYASABKAkSDgoGYnJhbmNoGAIgASgJEhAKCGRldGFjaGVkGAMgASgIEg0KBWRpcnR5GAQgASgIEhUKDWRpcnR5X3N1bW1hcnkYBSABKAkSFgoOY29tbWl0X21lc3NhZ2UYBiABKAkSFQoNY29tbWl0X2F1dGhvchgHIAEoCRITCgtjb21taXRfZGF0ZRgIIAEoCRIRCglzYW5kYm94ZWQYCSABKAgi6QEKCVJ1bkFuY2hvchIOCgZydW5faWQYASABKAkSEwoLY2FwdHVyZWRfYXQYAiABKAkSFwoPY2FwdHVyZV9wcm9maWxlGAMgASgJEhMKC3RyZWVfZGlnZXN0GAQgASgJEhgKEHBoYXNlX3NldF9kaWdlc3QYBSABKAkSHwoXZGVzY3JpcHRvcl9zbmFwc2hvdF9yZWYYBiABKAkSIgoaZGVzY3JpcHRvcl9zbmFwc2hvdF9kaWdlc3QYByABKAkSKgoiZGVzY3JpcHRvcl9zbmFwc2hvdF9zY2hlbWFfdmVyc2lvbhgIIAEoBSJbCg1NaWdyYXRpb25JbmZvEhsKE2Zyb21fc2NoZW1hX3ZlcnNpb24YASABKAUSEwoLbWlncmF0ZWRfYXQYAiABKAkSGAoQZGVncmFkZWRfcmVhc29ucxgDIAMoCSLIAgoQQmFzZWxpbmVNYW5pZmVzdBIMCgRuYW1lGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBmJyYW5jaBgDIAEoCRISCgpjcmVhdGVkX2F0GAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSPAoDZ2l0GAYgASgLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HaXRTdGF0ZRI9CgNydW4YByABKAsyMC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlJ1bkFuY2hvchIWCg5zY2hlbWFfdmVyc2lvbhgIIAEoBRJHCgltaWdyYXRpb24YCSABKAsyNC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLk1pZ3JhdGlvbkluZm8iTwoJU3RhbGVuZXNzEhUKDWNvbW1pdHNfc2luY2UYASABKAUSFQoNZmlsZXNfY2hhbmdlZBgCIAEoBRIUCgxsaWtlbHlfc3RhbGUYAyABKAgivAEKElJ1bkFydGlmYWN0Q2F0YWxvZxIOCgZydW5faWQYASABKAkSFgoOc2NoZW1hX3ZlcnNpb24YAiABKAUSDgoGZGlnZXN0GAMgASgJEjkKCWFydGlmYWN0cxgEIAMoCzImLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQXJ0aWZhY3RSZWYSGQoRbGVnYWN5X2Rpc2NvdmVyZWQYBSABKAgSGAoQZGVncmFkZWRfcmVhc29ucxgGIAMoCSJUCgtWaXN1YWxEZWx0YRIMCgRwYWdlGAEgASgJEg0KBWxhYmVsGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIYChBjaGFuZ2VkX2ZyYWN0aW9uGAQgASgBIssCChJFdmlkZW5jZUNvbXBhcmlzb24SEwoLYmFzZV9ydW5faWQYASABKAkSFgoOY3VycmVudF9ydW5faWQYAiABKAkSTwoMYmFzZV9jYXRhbG9nGAMgASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5SdW5BcnRpZmFjdENhdGFsb2cSUgoPY3VycmVudF9jYXRhbG9nGAQgASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5SdW5BcnRpZmFjdENhdGFsb2cSSQoNdmlzdWFsX2RlbHRhcxgFIAMoCzIyLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuVmlzdWFsRGVsdGESGAoQZGVncmFkZWRfcmVhc29ucxgGIAMoCSKNAQoaU25hcHNob3RGb3JCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSEgoKY3JlYXRlZF9ieRgGIAEoCRIOCgZyZWFzb24YByABKAkSDwoHcmVwb19pZBgIIAEoA0oECAQQBUoECAUQBiK7AQobU25hcHNob3RGb3JCYXNlbGluZVJlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgRuYW1lGAMgASgJEg4KBmJyYW5jaBgEIAEoCRIfChdlc3RpbWF0ZWRfdG90YWxfc2Vjb25kcxgFIAEoBRIRCglldGFfa25vd24YBiABKAgSFQoNZGlydHlfd2FybmluZxgHIAEoCRIRCgljb2FsZXNjZWQYCCABKAgieQoYR2V0U25hcHNob3RTdGF0dXNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg4KBnJ1bl9pZBgEIAEoCRIPCgdyZXBvX2lkGAUgASgDEgwKBHdhaXQYBiABKAginAIKGUdldFNuYXBzaG90U3RhdHVzUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBG5hbWUYAyABKAkSDgoGYnJhbmNoGAQgASgJEg4KBnJ1bl9pZBgFIAEoCRISCgpydW5fc3RhdHVzGAYgASgJEkkKCGJhc2VsaW5lGAcgASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0Eg0KBWVycm9yGAggASgJEhkKEXNpbWlsYXJfYmFzZWxpbmVzGAkgAygJEiYKHnJlY29tbWVuZGVkX25leHRfY2hlY2tfc2Vjb25kcxgKIAEoBSJVChJHZXRCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHcmVwb19pZBgEIAEoAyJgChNHZXRCYXNlbGluZVJlc3BvbnNlEkkKCGJhc2VsaW5lGAEgASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0Il8KFExpc3RCYXNlbGluZXNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBmJyYW5jaBgCIAEoCRIUCgxhbGxfYnJhbmNoZXMYAyABKAgSDwoHcmVwb19pZBgEIAEoAyJjChVMaXN0QmFzZWxpbmVzUmVzcG9uc2USSgoJYmFzZWxpbmVzGAEgAygLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0IlkKEFN0YXJ0RGlmZlJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHcmVwb19pZBgFIAEoA0oECAQQBSLZAQoRU3RhcnREaWZmUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBG5hbWUYAyABKAkSDgoGYnJhbmNoGAQgASgJEh8KF2VzdGltYXRlZF90b3RhbF9zZWNvbmRzGAUgASgFEhEKCWV0YV9rbm93bhgGIAEoCBIRCgljb2FsZXNjZWQYByABKAgSEgoKcmV1c2VkX3J1bhgIIAEoCBISCgpyZXVzZWRfc2hhGAkgASgJEhUKDWRpcnR5X3dhcm5pbmcYCiABKAkiiwEKFEdldERpZmZSZXN1bHRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg4KBnJ1bl9pZBgEIAEoCRIPCgdyZXBvX2lkGAYgASgDEgwKBHdhaXQYByABKAgSDgoGbGF0ZXN0GAggASgISgQIBRAGIq8BChVHZXREaWZmUmVzdWx0UmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEj8KBGRpZmYYAiABKAsyMS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRpZmZSZXN1bHQSDQoFZXJyb3IYAyABKAkSJgoecmVjb21tZW5kZWRfbmV4dF9jaGVja19zZWNvbmRzGAQgASgFEg4KBnJ1bl9pZBgFIAEoCSKTAwoKRGlmZlJlc3VsdBJJCghiYXNlbGluZRgBIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdBJECgtjdXJyZW50X2dpdBgCIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2l0U3RhdGUSQwoJc3RhbGVuZXNzGAMgASgLMjAudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFsZW5lc3MSDwoHdmVyZGljdBgFIAEoCRIVCg1kaXJ0eV93YXJuaW5nGAYgASgJEjQKBnBoYXNlcxgHIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VEaWZmEksKCGV2aWRlbmNlGAggASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5FdmlkZW5jZUNvbXBhcmlzb25KBAgEEAUiPwoLUnVuQnVzeUluZm8SEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEg4KBnByZXNldBgDIAEoCSJYChVEZWxldGVCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHcmVwb19pZBgEIAEoAyIpChZEZWxldGVCYXNlbGluZVJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgiTQoQQ29sbGVjdGlvblRhcmdldBIQCghzY2VuYXJpbxgBIAEoCRIVCg1iYXNlbGluZV9uYW1lGAIgASgJEhAKCHJlcXVpcmVkGAMgASgIIqEBChBDb2xsZWN0aW9uTWVtYmVyEhAKCHNjZW5hcmlvGAEgASgJEhUKDWJhc2VsaW5lX25hbWUYAiABKAkSEAoIcmVxdWlyZWQYAyABKAgSDgoGc3RhdHVzGAQgASgJEg4KBnJ1bl9pZBgFIAEoCRINCgVlcnJvchgGIAEoCRISCgp1cGRhdGVkX2F0GAcgASgJEg8KB2dpdF9zaGEYCCABKAkiiAEKEkNvbGxlY3Rpb25Db3ZlcmFnZRIQCghyZXF1aXJlZBgBIAEoBRINCgVyZWFkeRgCIAEoBRIPCgdwZW5kaW5nGAMgASgFEg4KBmZhaWxlZBgEIAEoBRIPCgdza2lwcGVkGAUgASgFEg0KBXN0YWxlGAYgASgFEhAKCGNvbXBsZXRlGAcgASgIIt8CChJCYXNlbGluZUNvbGxlY3Rpb24SDAoEbmFtZRgBIAEoCRIOCgZicmFuY2gYAiABKAkSEgoKY3JlYXRlZF9hdBgDIAEoCRISCgp1cGRhdGVkX2F0GAQgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAUgASgFEkgKB21lbWJlcnMYBiADKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkNvbGxlY3Rpb25NZW1iZXISSwoIY292ZXJhZ2UYByABKAsyOS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkNvbGxlY3Rpb25Db3ZlcmFnZRJUCg5wYXRoX3NuYXBzaG90cxgIIAMoCzI8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuUGF0aFNuYXBzaG90UmVmZXJlbmNlItUBCh1TdGFydENvbGxlY3Rpb25DYXB0dXJlUmVxdWVzdBIMCgRuYW1lGAEgASgJEg4KBmJyYW5jaBgCIAEoCRJICgd0YXJnZXRzGAMgAygLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5Db2xsZWN0aW9uVGFyZ2V0EhIKCmNyZWF0ZWRfYnkYBCABKAkSDgoGcmVhc29uGAUgASgJEg8KB3JlcG9faWQYBiABKAMSFwoPcGF0aF9zZWxlY3Rpb25zGAcgAygJIoABCh5TdGFydENvbGxlY3Rpb25DYXB0dXJlUmVzcG9uc2USTQoKY29sbGVjdGlvbhgBIAEoCzI5LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVDb2xsZWN0aW9uEg8KB3Jlc3VtZWQYAiABKAgiUwoUR2V0Q29sbGVjdGlvblJlcXVlc3QSDAoEbmFtZRgBIAEoCRIOCgZicmFuY2gYAiABKAkSDwoHcmVwb19pZBgDIAEoAxIMCgR3YWl0GAQgASgIImYKFUdldENvbGxlY3Rpb25SZXNwb25zZRJNCgpjb2xsZWN0aW9uGAEgASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZUNvbGxlY3Rpb24iewoUQ29sbGVjdGlvbkRpZmZNZW1iZXISEAoIc2NlbmFyaW8YASABKAkSEAoIcmVxdWlyZWQYAiABKAgSDgoGc3RhdHVzGAMgASgJEg4KBnJ1bl9pZBgEIAEoCRIPCgd2ZXJkaWN0GAUgASgJEg4KBmRldGFpbBgGIAEoCSJ0ChpTdGFydENvbGxlY3Rpb25EaWZmUmVxdWVzdBIMCgRuYW1lGAEgASgJEg4KBmJyYW5jaBgCIAEoCRIRCglzY2VuYXJpb3MYAyADKAkSDwoHcmVwb19pZBgEIAEoAxIUCgxvcGVyYXRpb25faWQYBSABKAki6AEKG1N0YXJ0Q29sbGVjdGlvbkRpZmZSZXNwb25zZRJNCgpjb2xsZWN0aW9uGAEgASgLMjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZUNvbGxlY3Rpb24STAoHbWVtYmVycxgCIAMoCzI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQ29sbGVjdGlvbkRpZmZNZW1iZXISFgoOY2xhc3NpZmljYXRpb24YAyABKAkSFAoMb3BlcmF0aW9uX2lkGAQgASgJIm0KGEdldENvbGxlY3Rpb25EaWZmUmVxdWVzdBIMCgRuYW1lGAEgASgJEg4KBmJyYW5jaBgCIAEoCRIUCgxvcGVyYXRpb25faWQYAyABKAkSDwoHcmVwb19pZBgEIAEoAxIMCgR3YWl0GAUgASgIIuYBChlHZXRDb2xsZWN0aW9uRGlmZlJlc3BvbnNlEk0KCmNvbGxlY3Rpb24YASABKAsyOS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkJhc2VsaW5lQ29sbGVjdGlvbhJMCgdtZW1iZXJzGAIgAygLMjsudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5Db2xsZWN0aW9uRGlmZk1lbWJlchIWCg5jbGFzc2lmaWNhdGlvbhgDIAEoCRIUCgxvcGVyYXRpb25faWQYBCABKAkiSAoXRGVsZXRlQ29sbGVjdGlvblJlcXVlc3QSDAoEbmFtZRgBIAEoCRIOCgZicmFuY2gYAiABKAkSDwoHcmVwb19pZBgDIAEoAyIrChhEZWxldGVDb2xsZWN0aW9uUmVzcG9uc2USDwoHZGVsZXRlZBgBIAEoCCJJChVQYXRoU25hcHNob3RSZWZlcmVuY2USDAoEbmFtZRgBIAEoCRIOCgZicmFuY2gYAiABKAkSEgoKY3JlYXRlZF9hdBgDIAEoCSJyCglQYXRoRW50cnkSDAoEcGF0aBgBIAEoCRIMCgRtb2RlGAIgASgNEgwKBHR5cGUYAyABKAkSDAoEc2l6ZRgEIAEoAxIOCgZkaWdlc3QYBSABKAkSDQoFc3RhdGUYBiABKAkSDgoGZGV0YWlsGAcgASgJItsBCgxQYXRoU25hcHNob3QSDAoEbmFtZRgBIAEoCRIOCgZicmFuY2gYAiABKAkSEgoKY3JlYXRlZF9hdBgDIAEoCRIWCg5zY2hlbWFfdmVyc2lvbhgEIAEoBRISCgpzZWxlY3Rpb25zGAUgAygJEkEKB2VudHJpZXMYBiADKAsyMC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlBhdGhFbnRyeRIWCg5jbGFzc2lmaWNhdGlvbhgHIAEoCRISCgpleHBpcmVzX2F0GAggASgJIq4BCgtTb3VyY2VEZWx0YRIMCgRwYXRoGAEgASgJEg4KBnN0YXR1cxgCIAEoCRJACgZiZWZvcmUYAyABKAsyMC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlBhdGhFbnRyeRI/CgVhZnRlchgEIAEoCzIwLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuUGF0aEVudHJ5InoKGkNhcHR1cmVQYXRoU25hcHNob3RSZXF1ZXN0EgwKBG5hbWUYASABKAkSDgoGYnJhbmNoGAIgASgJEhIKCnNlbGVjdGlvbnMYAyADKAkSDwoHcmVwb19pZBgEIAEoAxIZChFyZXRlbnRpb25fc2Vjb25kcxgFIAEoAyJ1ChtDYXB0dXJlUGF0aFNuYXBzaG90UmVzcG9uc2USRQoIc25hcHNob3QYASABKAsyMy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlBhdGhTbmFwc2hvdBIPCgdyZXN1bWVkGAIgASgIIkcKFkdldFBhdGhTbmFwc2hvdFJlcXVlc3QSDAoEbmFtZRgBIAEoCRIOCgZicmFuY2gYAiABKAkSDwoHcmVwb19pZBgDIAEoAyJgChdHZXRQYXRoU25hcHNob3RSZXNwb25zZRJFCghzbmFwc2hvdBgBIAEoCzIzLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuUGF0aFNuYXBzaG90IngKGERpZmZQYXRoU25hcHNob3RzUmVxdWVzdBITCgtiZWZvcmVfbmFtZRgBIAEoCRISCgphZnRlcl9uYW1lGAIgASgJEg4KBmJyYW5jaBgDIAEoCRIPCgdyZXBvX2lkGAQgASgDEhIKCnNlbGVjdGlvbnMYBSADKAkidwoZRGlmZlBhdGhTbmFwc2hvdHNSZXNwb25zZRIWCg5jbGFzc2lmaWNhdGlvbhgBIAEoCRJCCgZkZWx0YXMYAiADKAsyMi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlNvdXJjZURlbHRhIkoKGURlbGV0ZVBhdGhTbmFwc2hvdFJlcXVlc3QSDAoEbmFtZRgBIAEoCRIOCgZicmFuY2gYAiABKAkSDwoHcmVwb19pZBgDIAEoAyItChpEZWxldGVQYXRoU25hcHNob3RSZXNwb25zZRIPCgdkZWxldGVkGAEgASgIMuUSChBCYXNlbGluZXNTZXJ2aWNlEpwBChNTbmFwc2hvdEZvckJhc2VsaW5lEkEudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TbmFwc2hvdEZvckJhc2VsaW5lUmVxdWVzdBpCLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuU25hcHNob3RGb3JCYXNlbGluZVJlc3BvbnNlEpYBChFHZXRTbmFwc2hvdFN0YXR1cxI/LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0U25hcHNob3RTdGF0dXNSZXF1ZXN0GkAudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRTbmFwc2hvdFN0YXR1c1Jlc3BvbnNlEoQBCgtHZXRCYXNlbGluZRI5LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0QmFzZWxpbmVSZXF1ZXN0GjoudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRCYXNlbGluZVJlc3BvbnNlEooBCg1MaXN0QmFzZWxpbmVzEjsudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5MaXN0QmFzZWxpbmVzUmVxdWVzdBo8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuTGlzdEJhc2VsaW5lc1Jlc3BvbnNlEn4KCVN0YXJ0RGlmZhI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuU3RhcnREaWZmUmVxdWVzdBo4LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuU3RhcnREaWZmUmVzcG9uc2USigEKDUdldERpZmZSZXN1bHQSOy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldERpZmZSZXN1bHRSZXF1ZXN0GjwudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXREaWZmUmVzdWx0UmVzcG9uc2USjQEKDkRlbGV0ZUJhc2VsaW5lEjwudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5EZWxldGVCYXNlbGluZVJlcXVlc3QaPS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRlbGV0ZUJhc2VsaW5lUmVzcG9uc2USpQEKFlN0YXJ0Q29sbGVjdGlvbkNhcHR1cmUSRC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN0YXJ0Q29sbGVjdGlvbkNhcHR1cmVSZXF1ZXN0GkUudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFydENvbGxlY3Rpb25DYXB0dXJlUmVzcG9uc2USigEKDUdldENvbGxlY3Rpb24SOy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldENvbGxlY3Rpb25SZXF1ZXN0GjwudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRDb2xsZWN0aW9uUmVzcG9uc2USnAEKE1N0YXJ0Q29sbGVjdGlvbkRpZmYSQS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN0YXJ0Q29sbGVjdGlvbkRpZmZSZXF1ZXN0GkIudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFydENvbGxlY3Rpb25EaWZmUmVzcG9uc2USlgEKEUdldENvbGxlY3Rpb25EaWZmEj8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRDb2xsZWN0aW9uRGlmZlJlcXVlc3QaQC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldENvbGxlY3Rpb25EaWZmUmVzcG9uc2USkwEKEERlbGV0ZUNvbGxlY3Rpb24SPi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRlbGV0ZUNvbGxlY3Rpb25SZXF1ZXN0Gj8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5EZWxldGVDb2xsZWN0aW9uUmVzcG9uc2USnAEKE0NhcHR1cmVQYXRoU25hcHNob3QSQS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkNhcHR1cmVQYXRoU25hcHNob3RSZXF1ZXN0GkIudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5DYXB0dXJlUGF0aFNuYXBzaG90UmVzcG9uc2USkAEKD0dldFBhdGhTbmFwc2hvdBI9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0UGF0aFNuYXBzaG90UmVxdWVzdBo+LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0UGF0aFNuYXBzaG90UmVzcG9uc2USlgEKEURpZmZQYXRoU25hcHNob3RzEj8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5EaWZmUGF0aFNuYXBzaG90c1JlcXVlc3QaQC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRpZmZQYXRoU25hcHNob3RzUmVzcG9uc2USmQEKEkRlbGV0ZVBhdGhTbmFwc2hvdBJALnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuRGVsZXRlUGF0aFNuYXBzaG90UmVxdWVzdBpBLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuRGVsZXRlUGF0aFNuYXBzaG90UmVzcG9uc2VCXFpaZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9naXQtY29udHJvbC10b3dlci92MS9iYXNlbGluZXM7YmFzZWxpbmVzX3YxYgZwcm90bzM", [file_test_genie_v1_runs_runs]);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.GitState
@@ -950,6 +950,916 @@ export const DeleteBaselineResponseSchema: GenMessage<DeleteBaselineResponse> = 
   messageDesc(file_git_control_tower_v1_baselines_baselines, 23);
 
 /**
+ * @generated from message vrooli.git_control_tower.v1.baselines.CollectionTarget
+ */
+export type CollectionTarget = Message<"vrooli.git_control_tower.v1.baselines.CollectionTarget"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string baseline_name = 2;
+   */
+  baselineName: string;
+
+  /**
+   * @generated from field: bool required = 3;
+   */
+  required: boolean;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.CollectionTarget.
+ * Use `create(CollectionTargetSchema)` to create a new message.
+ */
+export const CollectionTargetSchema: GenMessage<CollectionTarget> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 24);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.CollectionMember
+ */
+export type CollectionMember = Message<"vrooli.git_control_tower.v1.baselines.CollectionMember"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string baseline_name = 2;
+   */
+  baselineName: string;
+
+  /**
+   * @generated from field: bool required = 3;
+   */
+  required: boolean;
+
+  /**
+   * pending | ready | failed | skipped | stale
+   *
+   * @generated from field: string status = 4;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string run_id = 5;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string error = 6;
+   */
+  error: string;
+
+  /**
+   * @generated from field: string updated_at = 7;
+   */
+  updatedAt: string;
+
+  /**
+   * @generated from field: string git_sha = 8;
+   */
+  gitSha: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.CollectionMember.
+ * Use `create(CollectionMemberSchema)` to create a new message.
+ */
+export const CollectionMemberSchema: GenMessage<CollectionMember> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 25);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.CollectionCoverage
+ */
+export type CollectionCoverage = Message<"vrooli.git_control_tower.v1.baselines.CollectionCoverage"> & {
+  /**
+   * @generated from field: int32 required = 1;
+   */
+  required: number;
+
+  /**
+   * @generated from field: int32 ready = 2;
+   */
+  ready: number;
+
+  /**
+   * @generated from field: int32 pending = 3;
+   */
+  pending: number;
+
+  /**
+   * @generated from field: int32 failed = 4;
+   */
+  failed: number;
+
+  /**
+   * @generated from field: int32 skipped = 5;
+   */
+  skipped: number;
+
+  /**
+   * @generated from field: int32 stale = 6;
+   */
+  stale: number;
+
+  /**
+   * @generated from field: bool complete = 7;
+   */
+  complete: boolean;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.CollectionCoverage.
+ * Use `create(CollectionCoverageSchema)` to create a new message.
+ */
+export const CollectionCoverageSchema: GenMessage<CollectionCoverage> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 26);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.BaselineCollection
+ */
+export type BaselineCollection = Message<"vrooli.git_control_tower.v1.baselines.BaselineCollection"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: string created_at = 3;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string updated_at = 4;
+   */
+  updatedAt: string;
+
+  /**
+   * @generated from field: int32 schema_version = 5;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.CollectionMember members = 6;
+   */
+  members: CollectionMember[];
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.CollectionCoverage coverage = 7;
+   */
+  coverage?: CollectionCoverage | undefined;
+
+  /**
+   * Informational source-evidence snapshots attached at collection capture.
+   *
+   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.PathSnapshotReference path_snapshots = 8;
+   */
+  pathSnapshots: PathSnapshotReference[];
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.BaselineCollection.
+ * Use `create(BaselineCollectionSchema)` to create a new message.
+ */
+export const BaselineCollectionSchema: GenMessage<BaselineCollection> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 27);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest
+ */
+export type StartCollectionCaptureRequest = Message<"vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.CollectionTarget targets = 3;
+   */
+  targets: CollectionTarget[];
+
+  /**
+   * @generated from field: string created_by = 4;
+   */
+  createdBy: string;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: int64 repo_id = 6;
+   */
+  repoId: bigint;
+
+  /**
+   * Safe repo-relative globs. Empty means no source evidence requested.
+   *
+   * @generated from field: repeated string path_selections = 7;
+   */
+  pathSelections: string[];
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest.
+ * Use `create(StartCollectionCaptureRequestSchema)` to create a new message.
+ */
+export const StartCollectionCaptureRequestSchema: GenMessage<StartCollectionCaptureRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 28);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse
+ */
+export type StartCollectionCaptureResponse = Message<"vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse"> & {
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.BaselineCollection collection = 1;
+   */
+  collection?: BaselineCollection | undefined;
+
+  /**
+   * @generated from field: bool resumed = 2;
+   */
+  resumed: boolean;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse.
+ * Use `create(StartCollectionCaptureResponseSchema)` to create a new message.
+ */
+export const StartCollectionCaptureResponseSchema: GenMessage<StartCollectionCaptureResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 29);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.GetCollectionRequest
+ */
+export type GetCollectionRequest = Message<"vrooli.git_control_tower.v1.baselines.GetCollectionRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: int64 repo_id = 3;
+   */
+  repoId: bigint;
+
+  /**
+   * When true, reattach server-side to durable pending member runs before
+   * returning the current aggregate coverage.
+   *
+   * @generated from field: bool wait = 4;
+   */
+  wait: boolean;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.GetCollectionRequest.
+ * Use `create(GetCollectionRequestSchema)` to create a new message.
+ */
+export const GetCollectionRequestSchema: GenMessage<GetCollectionRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 30);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.GetCollectionResponse
+ */
+export type GetCollectionResponse = Message<"vrooli.git_control_tower.v1.baselines.GetCollectionResponse"> & {
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.BaselineCollection collection = 1;
+   */
+  collection?: BaselineCollection | undefined;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.GetCollectionResponse.
+ * Use `create(GetCollectionResponseSchema)` to create a new message.
+ */
+export const GetCollectionResponseSchema: GenMessage<GetCollectionResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 31);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.CollectionDiffMember
+ */
+export type CollectionDiffMember = Message<"vrooli.git_control_tower.v1.baselines.CollectionDiffMember"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: bool required = 2;
+   */
+  required: boolean;
+
+  /**
+   * pending | ready | failed | skipped | stale | not-comparable
+   *
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string run_id = 4;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string verdict = 5;
+   */
+  verdict: string;
+
+  /**
+   * @generated from field: string detail = 6;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.CollectionDiffMember.
+ * Use `create(CollectionDiffMemberSchema)` to create a new message.
+ */
+export const CollectionDiffMemberSchema: GenMessage<CollectionDiffMember> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 32);
+
+/**
+ * Starts only explicitly selected members; an empty selection means every
+ * collection member. The resulting child run IDs are durable diff handles.
+ *
+ * @generated from message vrooli.git_control_tower.v1.baselines.StartCollectionDiffRequest
+ */
+export type StartCollectionDiffRequest = Message<"vrooli.git_control_tower.v1.baselines.StartCollectionDiffRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: repeated string scenarios = 3;
+   */
+  scenarios: string[];
+
+  /**
+   * @generated from field: int64 repo_id = 4;
+   */
+  repoId: bigint;
+
+  /**
+   * Required caller-supplied idempotency key for the durable aggregate.
+   *
+   * @generated from field: string operation_id = 5;
+   */
+  operationId: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.StartCollectionDiffRequest.
+ * Use `create(StartCollectionDiffRequestSchema)` to create a new message.
+ */
+export const StartCollectionDiffRequestSchema: GenMessage<StartCollectionDiffRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 33);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse
+ */
+export type StartCollectionDiffResponse = Message<"vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse"> & {
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.BaselineCollection collection = 1;
+   */
+  collection?: BaselineCollection | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.CollectionDiffMember members = 2;
+   */
+  members: CollectionDiffMember[];
+
+  /**
+   * @generated from field: string classification = 3;
+   */
+  classification: string;
+
+  /**
+   * @generated from field: string operation_id = 4;
+   */
+  operationId: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse.
+ * Use `create(StartCollectionDiffResponseSchema)` to create a new message.
+ */
+export const StartCollectionDiffResponseSchema: GenMessage<StartCollectionDiffResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 34);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.GetCollectionDiffRequest
+ */
+export type GetCollectionDiffRequest = Message<"vrooli.git_control_tower.v1.baselines.GetCollectionDiffRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: string operation_id = 3;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: int64 repo_id = 4;
+   */
+  repoId: bigint;
+
+  /**
+   * @generated from field: bool wait = 5;
+   */
+  wait: boolean;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.GetCollectionDiffRequest.
+ * Use `create(GetCollectionDiffRequestSchema)` to create a new message.
+ */
+export const GetCollectionDiffRequestSchema: GenMessage<GetCollectionDiffRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 35);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.GetCollectionDiffResponse
+ */
+export type GetCollectionDiffResponse = Message<"vrooli.git_control_tower.v1.baselines.GetCollectionDiffResponse"> & {
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.BaselineCollection collection = 1;
+   */
+  collection?: BaselineCollection | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.CollectionDiffMember members = 2;
+   */
+  members: CollectionDiffMember[];
+
+  /**
+   * @generated from field: string classification = 3;
+   */
+  classification: string;
+
+  /**
+   * @generated from field: string operation_id = 4;
+   */
+  operationId: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.GetCollectionDiffResponse.
+ * Use `create(GetCollectionDiffResponseSchema)` to create a new message.
+ */
+export const GetCollectionDiffResponseSchema: GenMessage<GetCollectionDiffResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 36);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.DeleteCollectionRequest
+ */
+export type DeleteCollectionRequest = Message<"vrooli.git_control_tower.v1.baselines.DeleteCollectionRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: int64 repo_id = 3;
+   */
+  repoId: bigint;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.DeleteCollectionRequest.
+ * Use `create(DeleteCollectionRequestSchema)` to create a new message.
+ */
+export const DeleteCollectionRequestSchema: GenMessage<DeleteCollectionRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 37);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.DeleteCollectionResponse
+ */
+export type DeleteCollectionResponse = Message<"vrooli.git_control_tower.v1.baselines.DeleteCollectionResponse"> & {
+  /**
+   * @generated from field: bool deleted = 1;
+   */
+  deleted: boolean;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.DeleteCollectionResponse.
+ * Use `create(DeleteCollectionResponseSchema)` to create a new message.
+ */
+export const DeleteCollectionResponseSchema: GenMessage<DeleteCollectionResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 38);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.PathSnapshotReference
+ */
+export type PathSnapshotReference = Message<"vrooli.git_control_tower.v1.baselines.PathSnapshotReference"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: string created_at = 3;
+   */
+  createdAt: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.PathSnapshotReference.
+ * Use `create(PathSnapshotReferenceSchema)` to create a new message.
+ */
+export const PathSnapshotReferenceSchema: GenMessage<PathSnapshotReference> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 39);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.PathEntry
+ */
+export type PathEntry = Message<"vrooli.git_control_tower.v1.baselines.PathEntry"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: uint32 mode = 2;
+   */
+  mode: number;
+
+  /**
+   * @generated from field: string type = 3;
+   */
+  type: string;
+
+  /**
+   * @generated from field: int64 size = 4;
+   */
+  size: bigint;
+
+  /**
+   * @generated from field: string digest = 5;
+   */
+  digest: string;
+
+  /**
+   * present | excluded | unreadable. Omitted bytes are never returned.
+   *
+   * @generated from field: string state = 6;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string detail = 7;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.PathEntry.
+ * Use `create(PathEntrySchema)` to create a new message.
+ */
+export const PathEntrySchema: GenMessage<PathEntry> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 40);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.PathSnapshot
+ */
+export type PathSnapshot = Message<"vrooli.git_control_tower.v1.baselines.PathSnapshot"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: string created_at = 3;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: int32 schema_version = 4;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: repeated string selections = 5;
+   */
+  selections: string[];
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.PathEntry entries = 6;
+   */
+  entries: PathEntry[];
+
+  /**
+   * @generated from field: string classification = 7;
+   */
+  classification: string;
+
+  /**
+   * RFC3339 UTC expiry for bounded retained source evidence.
+   *
+   * @generated from field: string expires_at = 8;
+   */
+  expiresAt: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.PathSnapshot.
+ * Use `create(PathSnapshotSchema)` to create a new message.
+ */
+export const PathSnapshotSchema: GenMessage<PathSnapshot> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 41);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.SourceDelta
+ */
+export type SourceDelta = Message<"vrooli.git_control_tower.v1.baselines.SourceDelta"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * added | deleted | renamed | modified | unchanged | excluded | unreadable
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.PathEntry before = 3;
+   */
+  before?: PathEntry | undefined;
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.PathEntry after = 4;
+   */
+  after?: PathEntry | undefined;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.SourceDelta.
+ * Use `create(SourceDeltaSchema)` to create a new message.
+ */
+export const SourceDeltaSchema: GenMessage<SourceDelta> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 42);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.CapturePathSnapshotRequest
+ */
+export type CapturePathSnapshotRequest = Message<"vrooli.git_control_tower.v1.baselines.CapturePathSnapshotRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: repeated string selections = 3;
+   */
+  selections: string[];
+
+  /**
+   * @generated from field: int64 repo_id = 4;
+   */
+  repoId: bigint;
+
+  /**
+   * Optional bounded retention period. Zero selects the seven-day default.
+   *
+   * @generated from field: int64 retention_seconds = 5;
+   */
+  retentionSeconds: bigint;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.CapturePathSnapshotRequest.
+ * Use `create(CapturePathSnapshotRequestSchema)` to create a new message.
+ */
+export const CapturePathSnapshotRequestSchema: GenMessage<CapturePathSnapshotRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 43);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse
+ */
+export type CapturePathSnapshotResponse = Message<"vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse"> & {
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.PathSnapshot snapshot = 1;
+   */
+  snapshot?: PathSnapshot | undefined;
+
+  /**
+   * @generated from field: bool resumed = 2;
+   */
+  resumed: boolean;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse.
+ * Use `create(CapturePathSnapshotResponseSchema)` to create a new message.
+ */
+export const CapturePathSnapshotResponseSchema: GenMessage<CapturePathSnapshotResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 44);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.GetPathSnapshotRequest
+ */
+export type GetPathSnapshotRequest = Message<"vrooli.git_control_tower.v1.baselines.GetPathSnapshotRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: int64 repo_id = 3;
+   */
+  repoId: bigint;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.GetPathSnapshotRequest.
+ * Use `create(GetPathSnapshotRequestSchema)` to create a new message.
+ */
+export const GetPathSnapshotRequestSchema: GenMessage<GetPathSnapshotRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 45);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse
+ */
+export type GetPathSnapshotResponse = Message<"vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse"> & {
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.baselines.PathSnapshot snapshot = 1;
+   */
+  snapshot?: PathSnapshot | undefined;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse.
+ * Use `create(GetPathSnapshotResponseSchema)` to create a new message.
+ */
+export const GetPathSnapshotResponseSchema: GenMessage<GetPathSnapshotResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 46);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsRequest
+ */
+export type DiffPathSnapshotsRequest = Message<"vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsRequest"> & {
+  /**
+   * @generated from field: string before_name = 1;
+   */
+  beforeName: string;
+
+  /**
+   * @generated from field: string after_name = 2;
+   */
+  afterName: string;
+
+  /**
+   * @generated from field: string branch = 3;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: int64 repo_id = 4;
+   */
+  repoId: bigint;
+
+  /**
+   * Optional safe glob filter for a phase-scoped informational review.
+   *
+   * @generated from field: repeated string selections = 5;
+   */
+  selections: string[];
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsRequest.
+ * Use `create(DiffPathSnapshotsRequestSchema)` to create a new message.
+ */
+export const DiffPathSnapshotsRequestSchema: GenMessage<DiffPathSnapshotsRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 47);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse
+ */
+export type DiffPathSnapshotsResponse = Message<"vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse"> & {
+  /**
+   * @generated from field: string classification = 1;
+   */
+  classification: string;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.SourceDelta deltas = 2;
+   */
+  deltas: SourceDelta[];
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse.
+ * Use `create(DiffPathSnapshotsResponseSchema)` to create a new message.
+ */
+export const DiffPathSnapshotsResponseSchema: GenMessage<DiffPathSnapshotsResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 48);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.DeletePathSnapshotRequest
+ */
+export type DeletePathSnapshotRequest = Message<"vrooli.git_control_tower.v1.baselines.DeletePathSnapshotRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: int64 repo_id = 3;
+   */
+  repoId: bigint;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.DeletePathSnapshotRequest.
+ * Use `create(DeletePathSnapshotRequestSchema)` to create a new message.
+ */
+export const DeletePathSnapshotRequestSchema: GenMessage<DeletePathSnapshotRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 49);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse
+ */
+export type DeletePathSnapshotResponse = Message<"vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse"> & {
+  /**
+   * @generated from field: bool deleted = 1;
+   */
+  deleted: boolean;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse.
+ * Use `create(DeletePathSnapshotResponseSchema)` to create a new message.
+ */
+export const DeletePathSnapshotResponseSchema: GenMessage<DeletePathSnapshotResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 50);
+
+/**
  * @generated from service vrooli.git_control_tower.v1.baselines.BaselinesService
  */
 export const BaselinesService: GenService<{
@@ -1008,6 +1918,84 @@ export const BaselinesService: GenService<{
     methodKind: "unary";
     input: typeof DeleteBaselineRequestSchema;
     output: typeof DeleteBaselineResponseSchema;
+  },
+  /**
+   * Collections aggregate existing per-scenario immutable anchors. They do not
+   * create a multi-scenario Test Genie run or alter comparison semantics.
+   *
+   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture
+   */
+  startCollectionCapture: {
+    methodKind: "unary";
+    input: typeof StartCollectionCaptureRequestSchema;
+    output: typeof StartCollectionCaptureResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollection
+   */
+  getCollection: {
+    methodKind: "unary";
+    input: typeof GetCollectionRequestSchema;
+    output: typeof GetCollectionResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff
+   */
+  startCollectionDiff: {
+    methodKind: "unary";
+    input: typeof StartCollectionDiffRequestSchema;
+    output: typeof StartCollectionDiffResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiff
+   */
+  getCollectionDiff: {
+    methodKind: "unary";
+    input: typeof GetCollectionDiffRequestSchema;
+    output: typeof GetCollectionDiffResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection
+   */
+  deleteCollection: {
+    methodKind: "unary";
+    input: typeof DeleteCollectionRequestSchema;
+    output: typeof DeleteCollectionResponseSchema;
+  },
+  /**
+   * Path snapshots are separately classified source evidence. They never
+   * participate in Test Genie regression verdicts.
+   *
+   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.CapturePathSnapshot
+   */
+  capturePathSnapshot: {
+    methodKind: "unary";
+    input: typeof CapturePathSnapshotRequestSchema;
+    output: typeof CapturePathSnapshotResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.GetPathSnapshot
+   */
+  getPathSnapshot: {
+    methodKind: "unary";
+    input: typeof GetPathSnapshotRequestSchema;
+    output: typeof GetPathSnapshotResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.DiffPathSnapshots
+   */
+  diffPathSnapshots: {
+    methodKind: "unary";
+    input: typeof DiffPathSnapshotsRequestSchema;
+    output: typeof DiffPathSnapshotsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.baselines.BaselinesService.DeletePathSnapshot
+   */
+  deletePathSnapshot: {
+    methodKind: "unary";
+    input: typeof DeletePathSnapshotRequestSchema;
+    output: typeof DeletePathSnapshotResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_git_control_tower_v1_baselines_baselines, 0);

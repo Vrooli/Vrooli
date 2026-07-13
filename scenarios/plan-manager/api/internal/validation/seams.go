@@ -61,6 +61,98 @@ type OperationStore interface {
 // verdict rather than fabricating a pass.
 type CommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
 
+// BaselineCollectionClient is Plan Manager's typed seam to Git Control Tower.
+// It carries collection policy and coverage as data, avoiding CLI text parsing
+// or reconstruction of one child command per scenario. The concrete Connect
+// adapter belongs at the module edge; tests inject this small interface.
+type BaselineCollectionClient interface {
+	StartCollectionCapture(ctx context.Context, req BaselineCollectionCaptureRequest) (BaselineCollectionCaptureResult, error)
+	StartCollectionDiff(ctx context.Context, req BaselineCollectionDiffRequest) (BaselineCollectionDiffResult, error)
+	DiffPathEvidence(ctx context.Context, req BaselinePathDiffRequest) (BaselinePathDiffResult, error)
+}
+
+type BaselineCollectionCaptureRequest struct {
+	Name      string
+	Scenarios []string
+	RepoPaths []string
+}
+
+type BaselineCollectionCaptureResult struct {
+	Name          string
+	Branch        string
+	Required      int
+	Ready         int
+	Pending       int
+	Failed        int
+	Skipped       int
+	Stale         int
+	Members       []BaselineCollectionMember
+	PathSnapshots []BaselinePathSnapshot
+}
+
+// BaselineCollectionMember and BaselinePathSnapshot are the durable GCT
+// provenance that Plan Manager stores on its execution checkpoint. They are
+// evidence references, never reconstructed from plan prose on resume.
+type BaselineCollectionMember struct {
+	Scenario     string
+	BaselineName string
+	Required     bool
+	Status       string
+	RunID        string
+	GitSHA       string
+	Error        string
+}
+
+type BaselinePathSnapshot struct {
+	Name      string
+	Branch    string
+	CreatedAt string
+}
+
+type BaselineCollectionDiffRequest struct {
+	Name        string
+	OperationID string
+	Scenarios   []string
+}
+
+type BaselineCollectionDiffResult struct {
+	OperationID    string
+	Classification string
+	Detail         string
+}
+
+type BaselinePathDiffRequest struct {
+	BeforeName  string
+	Branch      string
+	Paths       []string
+	OperationID string
+}
+
+type BaselinePathDiffResult struct {
+	AfterName string
+	Deltas    int
+	Detail    string
+}
+
+// BaselineInventorySource supplies the latest execution-owned collection
+// checkpoint. Validation uses its captured target list in preference to mutable
+// plan prose, while keeping plan policy as the fallback before execution starts.
+type BaselineInventorySource interface {
+	LatestBaselineInventory(ctx context.Context, planID string) (BaselineInventory, bool, error)
+}
+
+type BaselineInventory struct {
+	Name            string
+	Branch          string
+	ScenarioTargets []string
+	PathSnapshots   []BaselinePathSnapshot
+	Complete        bool
+}
+
+func (r BaselineCollectionCaptureResult) Complete() bool {
+	return r.Required > 0 && r.Required == r.Ready
+}
+
 // DefaultRunner returns the production CommandRunner (LookPath-guarded,
 // timeout-bounded). Wired in the handler module; tests inject a fake instead.
 func DefaultRunner() CommandRunner { return execRunner }

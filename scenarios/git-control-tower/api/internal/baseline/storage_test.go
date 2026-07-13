@@ -52,6 +52,94 @@ func TestStorageSaveLoadRoundTrip(t *testing.T) {
 	}
 }
 
+func TestStorageCollectionRoundTripAndDelete(t *testing.T) {
+	s := newTestStorage(t)
+	collection := sampleCollection()
+	if err := s.SaveCollection(1, collection, CreateOnly); err != nil {
+		t.Fatalf("SaveCollection: %v", err)
+	}
+	got, err := s.LoadCollection(1, "agi", "plan-before")
+	if err != nil {
+		t.Fatalf("LoadCollection: %v", err)
+	}
+	if len(got.Members) != 3 || got.Members[0].Scenario != "git-control-tower" {
+		t.Fatalf("normalized collection = %#v", got)
+	}
+	if err := s.SaveCollection(1, collection, CreateOnly); !errors.Is(err, ErrAlreadyExists) {
+		t.Fatalf("duplicate collection save = %v", err)
+	}
+	if err := s.DeleteCollection(1, "agi", "plan-before"); err != nil {
+		t.Fatalf("DeleteCollection: %v", err)
+	}
+	if _, err := s.LoadCollection(1, "agi", "plan-before"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("collection after delete = %v", err)
+	}
+}
+
+func TestStoragePathSnapshotsRetainSharedObjectsUntilLastManifestIsDeleted(t *testing.T) {
+	s := newTestStorage(t)
+	root := t.TempDir()
+	path := filepath.Join(root, "dirty.txt")
+	if err := os.WriteFile(path, []byte("dirty start\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	first, objects, err := CapturePathSnapshot(root, "before", "agi", []string{"*.txt"}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := first
+	second.Name = "also-before"
+	if err := s.SavePathSnapshot(1, first, objects, CreateOnly); err != nil {
+		t.Fatalf("SavePathSnapshot first: %v", err)
+	}
+	if err := s.SavePathSnapshot(1, second, objects, CreateOnly); err != nil {
+		t.Fatalf("SavePathSnapshot second: %v", err)
+	}
+	got, err := s.LoadPathSnapshot(1, "agi", "before")
+	if err != nil || got.Entries[0].ContentRef == "" {
+		t.Fatalf("LoadPathSnapshot = %#v, %v", got, err)
+	}
+	objectPath, err := s.pathSnapshotObjectPath(1, got.Entries[0].ContentRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeletePathSnapshot(1, "agi", "before"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(objectPath); err != nil {
+		t.Fatalf("shared object removed too early: %v", err)
+	}
+	if err := s.DeletePathSnapshot(1, "agi", "also-before"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(objectPath); !os.IsNotExist(err) {
+		t.Fatalf("unreferenced object retained: %v", err)
+	}
+}
+
+func TestStorageSweepExpiredPathSnapshotsReclaimsManifestAndObjects(t *testing.T) {
+	s := newTestStorage(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "expired.txt"), []byte("expired\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	created := time.Now().Add(-8 * 24 * time.Hour)
+	snapshot, objects, err := CapturePathSnapshot(root, "expired", "agi", []string{"*.txt"}, created)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SavePathSnapshot(1, snapshot, objects, CreateOnly); err != nil {
+		t.Fatal(err)
+	}
+	removed, err := s.SweepExpiredPathSnapshots(1, time.Now())
+	if err != nil || removed != 1 {
+		t.Fatalf("SweepExpiredPathSnapshots = %d, %v", removed, err)
+	}
+	if _, err := s.LoadPathSnapshot(1, "agi", "expired"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expired snapshot survived: %v", err)
+	}
+}
+
 func writeRawManifest(t *testing.T, s *Storage, branch, name string, value any) string {
 	t.Helper()
 	dir, err := s.branchDir(1, "foo", branch)

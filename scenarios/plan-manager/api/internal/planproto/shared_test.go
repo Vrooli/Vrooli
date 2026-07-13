@@ -82,6 +82,13 @@ func TestPlanToProtoMapsNestedStructuredFields(t *testing.T) {
 			Commands:       []string{"go test ./..."},
 			CapturedAt:     "2026-06-25T09:00:00Z",
 		},
+		BaselineSet: planmodel.BaselineSetIntent{
+			Name:            "all-targets",
+			ScenarioTargets: []string{"git-control-tower", "plan-manager"},
+			RepoPaths:       []string{"packages/proto/**"},
+			CapturePolicy:   planmodel.BaselineCapturePolicyExecutionStart,
+			Compatibility:   planmodel.BaselineSetCompatibilityCurrent,
+		},
 		References: []planmodel.Reference{{
 			ID:           "ref-1",
 			Kind:         planmodel.ReferenceReq,
@@ -132,6 +139,12 @@ func TestPlanToProtoMapsNestedStructuredFields(t *testing.T) {
 	}
 	if proto.GetRegressionAnchor().GetBaselineName() != "base" {
 		t.Fatalf("anchor = %#v", proto.GetRegressionAnchor())
+	}
+	if got, want := proto.GetBaselineSet().GetName(), "all-targets"; got != want {
+		t.Fatalf("baseline set name = %q, want %q", got, want)
+	}
+	if got, want := len(proto.GetBaselineSet().GetScenarioTargets()), 2; got != want {
+		t.Fatalf("baseline set targets = %d, want %d", got, want)
 	}
 	if proto.GetWorkspaceId() != "ws-1" || proto.GetWorkspaceRoot() != "/workspaces/main" {
 		t.Fatalf("workspace fields = %q/%q", proto.GetWorkspaceId(), proto.GetWorkspaceRoot())

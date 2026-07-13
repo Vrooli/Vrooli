@@ -1,6 +1,7 @@
 package baseline
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,8 +17,14 @@ import (
 	"git-control-tower/internal/git"
 )
 
+const maxPathSnapshotRepositoryBytes int64 = 64 << 20
+
 // ErrNotFound is returned when a baseline does not exist.
 var ErrNotFound = errors.New("baseline not found")
+
+// ErrSnapshotQuota is returned before writing a path snapshot that would make
+// the repository's retained source evidence exceed its bounded object budget.
+var ErrSnapshotQuota = errors.New("path snapshot storage quota exceeded")
 
 // ErrAlreadyExists is returned by Save (create mode) when a baseline with the
 // same scenario+branch+name already exists.
@@ -118,6 +125,58 @@ func (s *Storage) baselinesDir(repoID int64) (string, error) {
 		storage.ClassData,
 		fmt.Sprintf("%d/baselines", repoID),
 	)
+}
+
+func (s *Storage) collectionDir(repoID int64, branch string) (string, error) {
+	return s.resolver.Path(s.opts(), storage.ClassData, fmt.Sprintf("%d/baseline-collections/%s", repoID, sanitizeSegment(branch)))
+}
+
+func (s *Storage) collectionPath(dir, name string) string {
+	return filepath.Join(dir, sanitizeSegment(name)+".json")
+}
+
+func (s *Storage) collectionDiffPath(dir, name, operationID string) string {
+	return filepath.Join(dir, ".diffs", sanitizeSegment(name)+"__"+sanitizeSegment(operationID)+".json")
+}
+
+func (s *Storage) pathSnapshotRepoDir(repoID int64) (string, error) {
+	return s.resolver.Path(s.opts(), storage.ClassData, fmt.Sprintf("%d/path-snapshots", repoID))
+}
+
+func (s *Storage) pathSnapshotDir(repoID int64, branch string) (string, error) {
+	root, err := s.pathSnapshotRepoDir(repoID)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, sanitizeSegment(branch)), nil
+}
+
+func (s *Storage) pathSnapshotPath(dir, name string) string {
+	return filepath.Join(dir, sanitizeSegment(name)+".json")
+}
+
+func (s *Storage) pathSnapshotObjectDir(repoID int64) (string, error) {
+	root, err := s.pathSnapshotRepoDir(repoID)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "objects"), nil
+}
+
+func (s *Storage) pathSnapshotObjectPath(repoID int64, digest string) (string, error) {
+	if len(digest) != 64 {
+		return "", fmt.Errorf("invalid path snapshot content digest")
+	}
+	for _, r := range digest {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return "", fmt.Errorf("invalid path snapshot content digest")
+		}
+	}
+	dir, err := s.pathSnapshotObjectDir(repoID)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, digest), nil
 }
 
 func (s *Storage) manifestPath(dir, name string) string {
@@ -446,6 +505,32 @@ func (s *Storage) SaveDiffIntent(repoID int64, intent DiffIntent) error {
 	})
 }
 
+// LoadDiffIntent reconstructs one durable child diff finalizer after a server
+// restart or a collection-level wait attachment.
+func (s *Storage) LoadDiffIntent(repoID int64, scenario, branch, name, runID string) (DiffIntent, bool, error) {
+	dir, err := s.branchDir(repoID, scenario, branch)
+	if err != nil {
+		return DiffIntent{}, false, err
+	}
+	var intent DiffIntent
+	found := false
+	err = s.withLock(dir, name, func() error {
+		data, err := os.ReadFile(s.diffIntentPath(dir, name, runID))
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("read diff intent: %w", err)
+		}
+		found = true
+		return json.Unmarshal(data, &intent)
+	})
+	if err != nil {
+		return DiffIntent{}, false, err
+	}
+	return intent, found, nil
+}
+
 // LatestDiffIntent returns the newest StartDiff intent for a baseline.
 func (s *Storage) LatestDiffIntent(repoID int64, scenario, branch, name string) (DiffIntent, bool, error) {
 	dir, err := s.branchDir(repoID, scenario, branch)
@@ -590,6 +675,446 @@ func (s *Storage) Delete(repoID int64, scenario, branch, name string) error {
 		}
 		return os.Remove(path)
 	})
+}
+
+// SaveCollection writes a durable aggregate of existing per-scenario anchors.
+// The collection lock is separate from member locks: it never blocks snapshot
+// finalization for an individual scenario, and member state can be reconciled
+// independently after restart.
+func (s *Storage) SaveCollection(repoID int64, collection CollectionManifest, mode SaveMode) error {
+	collection = collection.Normalized()
+	if err := collection.Validate(); err != nil {
+		return err
+	}
+	dir, err := s.collectionDir(repoID, collection.Branch)
+	if err != nil {
+		return err
+	}
+	return s.withLock(dir, collection.Name, func() error {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("create collection dir: %w", err)
+		}
+		path := s.collectionPath(dir, collection.Name)
+		if mode == CreateOnly {
+			if _, err := os.Stat(path); err == nil {
+				return ErrAlreadyExists
+			} else if !os.IsNotExist(err) {
+				return fmt.Errorf("stat collection: %w", err)
+			}
+		}
+		return writeJSONAtomic(path, collection)
+	})
+}
+
+func (s *Storage) LoadCollection(repoID int64, branch, name string) (CollectionManifest, error) {
+	dir, err := s.collectionDir(repoID, branch)
+	if err != nil {
+		return CollectionManifest{}, err
+	}
+	var collection CollectionManifest
+	err = s.withLock(dir, name, func() error {
+		data, err := os.ReadFile(s.collectionPath(dir, name))
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("read collection: %w", err)
+		}
+		if err := json.Unmarshal(data, &collection); err != nil {
+			return fmt.Errorf("decode collection: %w", err)
+		}
+		collection = collection.Normalized()
+		return collection.Validate()
+	})
+	if err != nil {
+		return CollectionManifest{}, err
+	}
+	return collection, nil
+}
+
+func (s *Storage) DeleteCollection(repoID int64, branch, name string) error {
+	dir, err := s.collectionDir(repoID, branch)
+	if err != nil {
+		return err
+	}
+	return s.withLock(dir, name, func() error {
+		if err := os.Remove(s.collectionPath(dir, name)); os.IsNotExist(err) {
+			return ErrNotFound
+		} else if err != nil {
+			return fmt.Errorf("delete collection: %w", err)
+		}
+		matches, err := filepath.Glob(filepath.Join(dir, ".diffs", sanitizeSegment(name)+"__*.json"))
+		if err != nil {
+			return fmt.Errorf("find collection diff operations for deletion: %w", err)
+		}
+		for _, path := range matches {
+			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("delete collection diff operation: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+func (s *Storage) SaveCollectionDiffOperation(repoID int64, operation CollectionDiffOperation, mode SaveMode) error {
+	if strings.TrimSpace(operation.ID) == "" || strings.TrimSpace(operation.Collection) == "" || strings.TrimSpace(operation.Branch) == "" {
+		return fmt.Errorf("collection diff operation id, collection, and branch are required")
+	}
+	dir, err := s.collectionDir(repoID, operation.Branch)
+	if err != nil {
+		return err
+	}
+	return s.withLock(dir, operation.Collection, func() error {
+		path := s.collectionDiffPath(dir, operation.Collection, operation.ID)
+		if mode == CreateOnly {
+			if _, err := os.Stat(path); err == nil {
+				return ErrAlreadyExists
+			} else if !os.IsNotExist(err) {
+				return fmt.Errorf("stat collection diff operation: %w", err)
+			}
+		}
+		return writeJSONAtomic(path, operation)
+	})
+}
+
+func (s *Storage) LoadCollectionDiffOperation(repoID int64, branch, name, operationID string) (CollectionDiffOperation, error) {
+	dir, err := s.collectionDir(repoID, branch)
+	if err != nil {
+		return CollectionDiffOperation{}, err
+	}
+	var operation CollectionDiffOperation
+	err = s.withLock(dir, name, func() error {
+		data, err := os.ReadFile(s.collectionDiffPath(dir, name, operationID))
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("read collection diff operation: %w", err)
+		}
+		if err := json.Unmarshal(data, &operation); err != nil {
+			return fmt.Errorf("decode collection diff operation: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return CollectionDiffOperation{}, err
+	}
+	return operation, nil
+}
+
+// SavePathSnapshot atomically commits a manifest and its content-addressed
+// text objects. The store lock serializes creation, deletion, and garbage
+// collection so a deleted snapshot cannot race a new object into being swept.
+// Objects are write-once and verify their SHA-256 reference before retention.
+func (s *Storage) SavePathSnapshot(repoID int64, snapshot PathSnapshot, objects map[string][]byte, mode SaveMode) error {
+	if err := snapshot.Validate(); err != nil {
+		return err
+	}
+	root, err := s.pathSnapshotRepoDir(repoID)
+	if err != nil {
+		return err
+	}
+	return s.withLock(root, ".path-snapshot-store", func() error {
+		dir, err := s.pathSnapshotDir(repoID, snapshot.Branch)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("create path snapshot directory: %w", err)
+		}
+		path := s.pathSnapshotPath(dir, snapshot.Name)
+		if mode == CreateOnly {
+			if _, err := os.Stat(path); err == nil {
+				return ErrAlreadyExists
+			} else if !os.IsNotExist(err) {
+				return fmt.Errorf("stat path snapshot: %w", err)
+			}
+		}
+		refs := snapshotContentRefs(snapshot)
+		var needed int64
+		for ref := range refs {
+			object, ok := objects[ref]
+			if !ok {
+				return fmt.Errorf("path snapshot object %q is missing", ref)
+			}
+			digest := sha256.Sum256(object)
+			if fmt.Sprintf("%x", digest) != ref {
+				return fmt.Errorf("path snapshot object %q has wrong digest", ref)
+			}
+			objectPath, err := s.pathSnapshotObjectPath(repoID, ref)
+			if err != nil {
+				return err
+			}
+			if _, err := os.Stat(objectPath); os.IsNotExist(err) {
+				needed += int64(len(object))
+			} else if err != nil {
+				return fmt.Errorf("stat path snapshot object: %w", err)
+			}
+		}
+		used, err := s.pathSnapshotObjectBytes(repoID)
+		if err != nil {
+			return err
+		}
+		if used+needed > maxPathSnapshotRepositoryBytes {
+			return fmt.Errorf("%w: limit is %d bytes", ErrSnapshotQuota, maxPathSnapshotRepositoryBytes)
+		}
+		for ref := range refs {
+			objectPath, err := s.pathSnapshotObjectPath(repoID, ref)
+			if err != nil {
+				return err
+			}
+			if _, err := os.Stat(objectPath); err == nil {
+				continue
+			} else if !os.IsNotExist(err) {
+				return fmt.Errorf("stat path snapshot object: %w", err)
+			}
+			if err := os.MkdirAll(filepath.Dir(objectPath), 0o755); err != nil {
+				return fmt.Errorf("create path snapshot object directory: %w", err)
+			}
+			if err := writeBytesAtomic(objectPath, objects[ref], 0o600); err != nil {
+				return fmt.Errorf("write path snapshot object: %w", err)
+			}
+		}
+		return writeJSONAtomic(path, snapshot)
+	})
+}
+
+// LoadPathSnapshot reads immutable source evidence. It deliberately returns no
+// file bytes; transport callers can expose only redacted summaries and bounded
+// diffs built by this package.
+func (s *Storage) LoadPathSnapshot(repoID int64, branch, name string) (PathSnapshot, error) {
+	root, err := s.pathSnapshotRepoDir(repoID)
+	if err != nil {
+		return PathSnapshot{}, err
+	}
+	var snapshot PathSnapshot
+	err = s.withLock(root, ".path-snapshot-store", func() error {
+		dir, err := s.pathSnapshotDir(repoID, branch)
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(s.pathSnapshotPath(dir, name))
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("read path snapshot: %w", err)
+		}
+		if err := json.Unmarshal(data, &snapshot); err != nil {
+			return fmt.Errorf("decode path snapshot: %w", err)
+		}
+		return snapshot.Validate()
+	})
+	if err != nil {
+		return PathSnapshot{}, err
+	}
+	return snapshot, nil
+}
+
+// DeletePathSnapshot deletes one manifest and runs reference-count-free GC.
+// A full manifest scan is bounded by retention policy and avoids a second,
+// crash-prone mutable refcount index.
+func (s *Storage) DeletePathSnapshot(repoID int64, branch, name string) error {
+	root, err := s.pathSnapshotRepoDir(repoID)
+	if err != nil {
+		return err
+	}
+	return s.withLock(root, ".path-snapshot-store", func() error {
+		dir, err := s.pathSnapshotDir(repoID, branch)
+		if err != nil {
+			return err
+		}
+		if err := os.Remove(s.pathSnapshotPath(dir, name)); os.IsNotExist(err) {
+			return ErrNotFound
+		} else if err != nil {
+			return fmt.Errorf("delete path snapshot: %w", err)
+		}
+		return s.collectPathSnapshotObjectsLocked(repoID)
+	})
+}
+
+// SweepExpiredPathSnapshots removes expired manifests then reclaims any newly
+// unreferenced content objects. It uses the same store lock as writes/deletes,
+// so a crash leaves either the old manifest or a recoverable object scan — not
+// a partially shared object refcount.
+func (s *Storage) SweepExpiredPathSnapshots(repoID int64, now time.Time) (int, error) {
+	root, err := s.pathSnapshotRepoDir(repoID)
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	err = s.withLock(root, ".path-snapshot-store", func() error {
+		var expired []string
+		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") || strings.Contains(filepath.ToSlash(path), "/.locks/") {
+				return nil
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			var snapshot PathSnapshot
+			if json.Unmarshal(data, &snapshot) != nil {
+				return nil // preserve corrupt evidence for manual recovery
+			}
+			if !snapshot.ExpiresAt.After(now.UTC()) {
+				expired = append(expired, path)
+			}
+			return nil
+		})
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		for _, path := range expired {
+			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("remove expired path snapshot: %w", err)
+			}
+			removed++
+		}
+		return s.collectPathSnapshotObjectsLocked(repoID)
+	})
+	return removed, err
+}
+
+func snapshotContentRefs(snapshot PathSnapshot) map[string]struct{} {
+	refs := make(map[string]struct{})
+	for _, entry := range snapshot.Entries {
+		if entry.ContentRef != "" {
+			refs[entry.ContentRef] = struct{}{}
+		}
+	}
+	return refs
+}
+
+func (s *Storage) pathSnapshotObjectBytes(repoID int64) (int64, error) {
+	dir, err := s.pathSnapshotObjectDir(repoID)
+	if err != nil {
+		return 0, err
+	}
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("read path snapshot objects: %w", err)
+	}
+	var total int64
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return 0, fmt.Errorf("stat path snapshot object: %w", err)
+		}
+		total += info.Size()
+	}
+	return total, nil
+}
+
+func (s *Storage) collectPathSnapshotObjectsLocked(repoID int64) error {
+	root, err := s.pathSnapshotRepoDir(repoID)
+	if err != nil {
+		return err
+	}
+	refs := map[string]struct{}{}
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") || strings.Contains(filepath.ToSlash(path), "/.locks/") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		var snapshot PathSnapshot
+		if err := json.Unmarshal(data, &snapshot); err != nil {
+			return fmt.Errorf("decode path snapshot during garbage collection: %w", err)
+		}
+		for ref := range snapshotContentRefs(snapshot) {
+			refs[ref] = struct{}{}
+		}
+		return nil
+	})
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("scan path snapshots for garbage collection: %w", err)
+	}
+	dir, err := s.pathSnapshotObjectDir(repoID)
+	if err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read path snapshot objects for garbage collection: %w", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if _, retained := refs[entry.Name()]; retained {
+			continue
+		}
+		if err := os.Remove(filepath.Join(dir, entry.Name())); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove unreferenced path snapshot object: %w", err)
+		}
+	}
+	return nil
+}
+
+// UpdateCollectionMember applies one member transition while holding the
+// collection's lock. Returning ErrNotFound is intentional: a deleted
+// collection must not be silently recreated by a late server-owned finalizer.
+func (s *Storage) UpdateCollectionMember(repoID int64, branch, name, scenario string, update func(*CollectionMember) error) (CollectionManifest, error) {
+	dir, err := s.collectionDir(repoID, branch)
+	if err != nil {
+		return CollectionManifest{}, err
+	}
+	var out CollectionManifest
+	err = s.withLock(dir, name, func() error {
+		data, err := os.ReadFile(s.collectionPath(dir, name))
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("read collection: %w", err)
+		}
+		if err := json.Unmarshal(data, &out); err != nil {
+			return fmt.Errorf("decode collection: %w", err)
+		}
+		out = out.Normalized()
+		found := false
+		for i := range out.Members {
+			if out.Members[i].Scenario != scenario {
+				continue
+			}
+			found = true
+			if err := update(&out.Members[i]); err != nil {
+				return err
+			}
+			break
+		}
+		if !found {
+			return fmt.Errorf("collection member %q not found", scenario)
+		}
+		out.UpdatedAt = time.Now().UTC()
+		out = out.Normalized()
+		if err := out.Validate(); err != nil {
+			return err
+		}
+		return writeJSONAtomic(s.collectionPath(dir, name), out)
+	})
+	if err != nil {
+		return CollectionManifest{}, err
+	}
+	return out, nil
 }
 
 // List returns manifests for a scenario. An empty branch lists across every
@@ -759,12 +1284,23 @@ func decodeManifest(data []byte, migratedAt time.Time) (BaselineManifest, bool, 
 }
 
 func writeManifestAtomic(path string, m BaselineManifest) error {
-	data, err := json.MarshalIndent(m, "", "  ")
+	return writeJSONAtomic(path, m)
+}
+
+func writeJSONAtomic(path string, value any) error {
+	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal baseline: %w", err)
 	}
+	return writeBytesAtomic(path, data, 0o644)
+}
+
+func writeBytesAtomic(path string, data []byte, mode os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create atomic-write directory: %w", err)
+	}
 	tmp := path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
 	if err != nil {
 		return fmt.Errorf("open baseline tmp: %w", err)
 	}

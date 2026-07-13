@@ -119,9 +119,14 @@ func renderVerificationCluster(b *strings.Builder, p Plan) {
 		return
 	}
 	b.WriteString("## Verification\n\n")
-	if anchorPresent(p.RegressionAnchor) {
+	if !baselineSetPresent(p.BaselineSet) && anchorPresent(p.RegressionAnchor) {
 		b.WriteString("### Regression Anchor\n\n")
 		b.WriteString(renderAnchor(p.RegressionAnchor, p.ChangeBoundary))
+		b.WriteString("\n")
+	}
+	if baselineSetPresent(p.BaselineSet) {
+		b.WriteString("### Baseline Set\n\n")
+		b.WriteString(renderBaselineSet(p.BaselineSet))
 		b.WriteString("\n")
 	}
 	if hasStrategy {
@@ -155,6 +160,11 @@ func renderExecutionSetupCluster(b *strings.Builder, p Plan, opts RenderOptions)
 		return
 	}
 	b.WriteString("## Execution Setup\n\n")
+	if !opts.Compact && strings.TrimSpace(p.Slug) != "" {
+		b.WriteString("Run this plan through Plan Manager so it owns phase status, validation, feedback, and handoff:\n\n")
+		fmt.Fprintf(b, "```bash\nplan-manager exec continue %s\n```\n\n", p.Slug)
+		b.WriteString("Use the runner's next-action guidance for the current phase; it names the relevant log, validation, transition, and completion commands just in time.\n\n")
+	}
 	if hasContext {
 		b.WriteString(renderRelevantContext(p.RelevantContext, RelevantContextScopeGlobal))
 		b.WriteString("\n")
@@ -934,6 +944,37 @@ func renderAnchor(a RegressionAnchor, boundary ChangeBoundary) string {
 		fmt.Fprintf(&b, "- Captured at: `%s`\n", a.CapturedAt)
 	}
 	renderAnchorCommands(&b, renderAnchorCommandSet(a, boundary))
+	return b.String()
+}
+
+// baselineSetPresent distinguishes new plans from the legacy anchor projection.
+// A zero value remains deliberately supported for imported plans.
+func baselineSetPresent(intent BaselineSetIntent) bool {
+	return strings.TrimSpace(intent.Name) != "" || len(intent.ScenarioTargets) > 0 || len(intent.RepoPaths) > 0
+}
+
+// renderBaselineSet is intentionally declarative. Operational child commands
+// are server-owned GCT collection operations; rendering them here would recreate
+// the command wall this model replaces and invite callers to sequence children
+// themselves.
+func renderBaselineSet(intent BaselineSetIntent) string {
+	var b strings.Builder
+	if intent.Name != "" {
+		fmt.Fprintf(&b, "- Name: `%s`\n", intent.Name)
+	}
+	if intent.CapturePolicy != "" {
+		fmt.Fprintf(&b, "- Capture policy: %s\n", intent.CapturePolicy)
+	}
+	if len(intent.ScenarioTargets) > 0 {
+		fmt.Fprintf(&b, "- Behavioral scenario coverage: %s\n", backtickJoin(intent.ScenarioTargets))
+	} else {
+		b.WriteString("- Behavioral scenario coverage: none (operator-only or repository-path plan)\n")
+	}
+	if len(intent.RepoPaths) > 0 {
+		fmt.Fprintf(&b, "- Source changes for review (informational): %s\n", backtickJoin(intent.RepoPaths))
+	}
+	b.WriteString("- Coverage gate: every required behavioral member must be ready before a phase or final result can be clean.\n")
+	b.WriteString("- Source evidence is informational and never substitutes for a Test Genie regression verdict.\n")
 	return b.String()
 }
 

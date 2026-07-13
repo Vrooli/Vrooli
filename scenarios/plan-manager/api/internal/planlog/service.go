@@ -149,6 +149,8 @@ func (s *service) addEntry(ctx context.Context, typ EntryType, in AddInputs) (En
 		IdempotencyKey:   key,
 		CreatedAt:        now,
 		UpdatedAt:        now,
+		Bug:              in.Bug,
+		Record:           in.Record,
 	}
 	if typ == planmodel.LogEntryFinding {
 		e.Triage = planmodel.TriageCandidate // findings file as CANDIDATE; never auto-promoted
@@ -276,6 +278,8 @@ func (s *service) PromoteEntry(ctx context.Context, id string, toType EntryType,
 		PromotedFromID:   src.ID,
 		CreatedAt:        now,
 		UpdatedAt:        now,
+		Bug:              src.Bug,
+		Record:           src.Record,
 	}
 	promoted = s.attemptSync(ctx, promoted)
 	// Preserve the original finding, marked promoted with the link recorded.
@@ -341,6 +345,7 @@ func (s *service) attemptSync(ctx context.Context, e Entry) Entry {
 		return e
 	}
 	e.Downstream = ref
+	e.Capture = ref.Capture
 	if err == nil {
 		e.SyncStatus = planmodel.LogSyncSynced
 		e.Downstream.SyncedAt = s.now()

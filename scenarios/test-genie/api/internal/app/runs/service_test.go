@@ -262,6 +262,93 @@ func TestCompareRunsUsesCapturedCatalogEvolutionAndTypedReasons(t *testing.T) { 
 	assertComparisonReason(t, byPhase["runtime"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE)
 }
 
+func inapplicablePhase(phase, displayName string) sharedruns.PhaseDescriptorSnapshot {
+	descriptor := capturedPhase(phase, displayName)
+	descriptor.Applicability = sharedruns.ApplicabilityDecisionSnapshot{Status: "not_applicable", Planned: false}
+	return descriptor
+}
+
+// A conditional phase that is not applicable in BOTH runs is a matched state
+// with no regression signal: it stays visible in the phase table (with
+// INAPPLICABLE reasons) but must not worsen the run-level verdict. Before this
+// contract, any scenario with a conditional phase (ai-conformance, search, …)
+// could never compare better than not-comparable.
+func TestCompareRunsSymmetricInapplicableDoesNotPoisonOverallVerdict(t *testing.T) {
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusFailed,
+		Phases: []sharedruns.PhaseRecord{
+			{Name: "unit", Status: "failed"}, // preexisting failure
+			{Name: "structure", Status: "passed"},
+		},
+	})
+	seedDescriptorSnapshot(t, root, "base",
+		capturedPhase("unit", "Unit"), capturedPhase("structure", "Structure"), inapplicablePhase("ai-conformance", "AI Conformance"),
+	)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusFailed,
+		Phases: []sharedruns.PhaseRecord{
+			{Name: "unit", Status: "failed"},
+			{Name: "structure", Status: "passed"},
+		},
+	})
+	seedDescriptorSnapshot(t, root, "cur",
+		capturedPhase("unit", "Unit"), capturedPhase("structure", "Structure"), inapplicablePhase("ai-conformance", "AI Conformance"),
+	)
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	byPhase := map[string]*runspb.PhaseDiff{}
+	for _, diff := range resp.Msg.GetPhases() {
+		byPhase[diff.GetPhase()] = diff
+	}
+	// The inapplicable phase remains visible and individually not-comparable.
+	assertComparisonReason(t, byPhase["ai-conformance"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_INAPPLICABLE)
+	if got := byPhase["ai-conformance"].GetVerdict(); got != verdictNotComparable {
+		t.Errorf("ai-conformance phase verdict: want %s, got %s", verdictNotComparable, got)
+	}
+	// The overall verdict rolls up from the comparable phases only.
+	if got := resp.Msg.GetVerdict(); got != verdictPreexisting {
+		t.Errorf("overall verdict: want %s, got %s", verdictPreexisting, got)
+	}
+}
+
+// Asymmetric applicability (applicable in one run, not applicable in the
+// other) means the tested surface changed between the runs, so it still
+// forces the run-level verdict to not-comparable.
+func TestCompareRunsAsymmetricInapplicableStillNotComparable(t *testing.T) {
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{
+			{Name: "structure", Status: "passed"},
+			{Name: "conditional", Status: "passed"},
+		},
+	})
+	seedDescriptorSnapshot(t, root, "base",
+		capturedPhase("structure", "Structure"), capturedPhase("conditional", "Conditional"),
+	)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{
+			{Name: "structure", Status: "passed"},
+		},
+	})
+	seedDescriptorSnapshot(t, root, "cur",
+		capturedPhase("structure", "Structure"), inapplicablePhase("conditional", "Conditional"),
+	)
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if got := resp.Msg.GetVerdict(); got != verdictNotComparable {
+		t.Errorf("overall verdict: want %s, got %s", verdictNotComparable, got)
+	}
+}
+
 func assertComparisonReason(t *testing.T, diff *runspb.PhaseDiff, code runspb.PhaseComparisonReasonCode) {
 	t.Helper()
 	if diff == nil {

@@ -1088,7 +1088,7 @@ class CatalogPhase(_message.Message):
     def __init__(self, name: _Optional[str] = ..., optional: _Optional[bool] = ..., source: _Optional[str] = ..., delegated: _Optional[bool] = ..., provider: _Optional[str] = ..., finding_source: _Optional[str] = ...) -> None: ...
 
 class ProviderConformance(_message.Message):
-    __slots__ = ("provider", "phase", "reachable", "contract_valid", "identity_ok", "spec_valid", "metrics_adopted", "adoption_score", "violations", "autofix")
+    __slots__ = ("provider", "phase", "reachable", "contract_valid", "identity_ok", "spec_valid", "metrics_adopted", "adoption_score", "violations", "autofix", "classification", "reason_codes", "fix_contract_required", "fix_contract_valid")
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
     REACHABLE_FIELD_NUMBER: _ClassVar[int]
@@ -1099,6 +1099,10 @@ class ProviderConformance(_message.Message):
     ADOPTION_SCORE_FIELD_NUMBER: _ClassVar[int]
     VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
     AUTOFIX_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODES_FIELD_NUMBER: _ClassVar[int]
+    FIX_CONTRACT_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    FIX_CONTRACT_VALID_FIELD_NUMBER: _ClassVar[int]
     provider: str
     phase: str
     reachable: bool
@@ -1109,7 +1113,11 @@ class ProviderConformance(_message.Message):
     adoption_score: float
     violations: _containers.RepeatedScalarFieldContainer[str]
     autofix: AutofixCoverage
-    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., reachable: _Optional[bool] = ..., contract_valid: _Optional[bool] = ..., identity_ok: _Optional[bool] = ..., spec_valid: _Optional[bool] = ..., metrics_adopted: _Optional[bool] = ..., adoption_score: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ..., autofix: _Optional[_Union[AutofixCoverage, _Mapping]] = ...) -> None: ...
+    classification: str
+    reason_codes: _containers.RepeatedScalarFieldContainer[str]
+    fix_contract_required: bool
+    fix_contract_valid: bool
+    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., reachable: _Optional[bool] = ..., contract_valid: _Optional[bool] = ..., identity_ok: _Optional[bool] = ..., spec_valid: _Optional[bool] = ..., metrics_adopted: _Optional[bool] = ..., adoption_score: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ..., autofix: _Optional[_Union[AutofixCoverage, _Mapping]] = ..., classification: _Optional[str] = ..., reason_codes: _Optional[_Iterable[str]] = ..., fix_contract_required: _Optional[bool] = ..., fix_contract_valid: _Optional[bool] = ...) -> None: ...
 
 class AutofixCoverage(_message.Message):
     __slots__ = ("total", "fixable_universe", "implemented", "pending", "manual", "declared", "declaration_complete", "implementation_rate")

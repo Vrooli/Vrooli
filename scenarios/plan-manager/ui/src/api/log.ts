@@ -36,6 +36,29 @@ export interface AddSeverityOptions extends AddEntryOptions {
   severity?: LogSeverity;
 }
 
+/** Full Scenario QA taxonomy supplied by the execution runner. */
+export interface AddBugOptions extends AddSeverityOptions {
+  signalType?: string;
+  reportSeverity?: string;
+  repro?: string[];
+  expected?: string;
+  actual?: string;
+  description?: string;
+  context?: Record<string, string>;
+  honestyFlags?: string[];
+}
+
+/** Full Swarm Manager classification supplied by the execution runner. */
+export interface AddRecordOptions extends AddEntryOptions {
+  kind?: string;
+  scenario?: string;
+  trigger?: string;
+  approach?: string;
+  recordEvidence?: string;
+  outcome?: string;
+  createdBy?: string;
+}
+
 export interface AddEntryResult {
   entry: LogEntry | undefined;
   step: GuidedStep | undefined;
@@ -87,11 +110,19 @@ export async function addBug(
   planOrExecution: string,
   phaseId: string,
   title: string,
-  opts: AddSeverityOptions = {},
+  opts: AddBugOptions = {},
 ): Promise<AddEntryResult> {
   const resp = await logClient.addBug({
     ...baseFields(planOrExecution, phaseId, title, opts),
     severity: opts.severity ?? LogSeverity.UNSPECIFIED,
+    signalType: opts.signalType ?? "",
+    reportSeverity: opts.reportSeverity ?? "",
+    repro: opts.repro ?? [],
+    expected: opts.expected ?? "",
+    actual: opts.actual ?? "",
+    description: opts.description ?? "",
+    context: opts.context ?? {},
+    honestyFlags: opts.honestyFlags ?? [],
   });
   return { entry: resp.entry, step: resp.step, deduplicated: resp.deduplicated };
 }
@@ -100,9 +131,18 @@ export async function addRecord(
   planOrExecution: string,
   phaseId: string,
   title: string,
-  opts: AddEntryOptions = {},
+  opts: AddRecordOptions = {},
 ): Promise<AddEntryResult> {
-  const resp = await logClient.addRecord(baseFields(planOrExecution, phaseId, title, opts));
+  const resp = await logClient.addRecord({
+    ...baseFields(planOrExecution, phaseId, title, opts),
+    kind: opts.kind ?? "",
+    scenario: opts.scenario ?? "",
+    trigger: opts.trigger ?? "",
+    approach: opts.approach ?? "",
+    recordEvidence: opts.recordEvidence ?? "",
+    outcome: opts.outcome ?? "",
+    createdBy: opts.createdBy ?? "",
+  });
   return { entry: resp.entry, step: resp.step, deduplicated: resp.deduplicated };
 }
 

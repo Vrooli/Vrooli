@@ -221,14 +221,19 @@ func (x *EvalReport) GetPromotionVerdicts() []*PromotionVerdict {
 	return nil
 }
 
-// PromotionVerdict is a provider-scoped trust-floor result. A non-stable
+// PromotionVerdict is a provider-cell-scoped trust-floor result. A non-stable
 // verdict names missing qualification categories instead of inferring
-// readiness from a short experiment.
+// readiness from a short experiment or merging incompatible strategies.
 type PromotionVerdict struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EngineId      string                 `protobuf:"bytes,1,opt,name=engine_id,json=engineId,proto3" json:"engine_id,omitempty"`
 	Stable        bool                   `protobuf:"varint,2,opt,name=stable,proto3" json:"stable,omitempty"`
 	Reasons       []string               `protobuf:"bytes,3,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	Strategy      string                 `protobuf:"bytes,4,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	PolicyProfile string                 `protobuf:"bytes,5,opt,name=policy_profile,json=policyProfile,proto3" json:"policy_profile,omitempty"`
+	// Exact provider model identity. Promotion evidence never crosses a model
+	// upgrade merely because it ran on the same engine and host.
+	ModelId       string `protobuf:"bytes,6,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -284,6 +289,27 @@ func (x *PromotionVerdict) GetReasons() []string {
 	return nil
 }
 
+func (x *PromotionVerdict) GetStrategy() string {
+	if x != nil {
+		return x.Strategy
+	}
+	return ""
+}
+
+func (x *PromotionVerdict) GetPolicyProfile() string {
+	if x != nil {
+		return x.PolicyProfile
+	}
+	return ""
+}
+
+func (x *PromotionVerdict) GetModelId() string {
+	if x != nil {
+		return x.ModelId
+	}
+	return ""
+}
+
 type StrategyReport struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
 	Strategy                 string                 `protobuf:"bytes,1,opt,name=strategy,proto3" json:"strategy,omitempty"`
@@ -318,6 +344,9 @@ type StrategyReport struct {
 	PolicyProfile string `protobuf:"bytes,28,opt,name=policy_profile,json=policyProfile,proto3" json:"policy_profile,omitempty"`
 	ReplayLane    string `protobuf:"bytes,29,opt,name=replay_lane,json=replayLane,proto3" json:"replay_lane,omitempty"`
 	FaultProfile  string `protobuf:"bytes,30,opt,name=fault_profile,json=faultProfile,proto3" json:"fault_profile,omitempty"`
+	// Actual provider model used for this row, retained so qualification is
+	// invalidated by a model change instead of inheriting stale evidence.
+	ModelId       string `protobuf:"bytes,31,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -558,6 +587,13 @@ func (x *StrategyReport) GetReplayLane() string {
 func (x *StrategyReport) GetFaultProfile() string {
 	if x != nil {
 		return x.FaultProfile
+	}
+	return ""
+}
+
+func (x *StrategyReport) GetModelId() string {
+	if x != nil {
+		return x.ModelId
 	}
 	return ""
 }
@@ -1868,12 +1904,14 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\bwarnings\x18\x05 \x03(\v2).vrooli.audio_tools.v1.eval.ReportWarningR\bwarnings\x12b\n" +
 	"\x14normalization_policy\x18\x06 \x01(\v2/.vrooli.audio_tools.v1.eval.NormalizationPolicyR\x13normalizationPolicy\x12'\n" +
 	"\x0flatency_honesty\x18\a \x01(\tR\x0elatencyHonesty\x12[\n" +
-	"\x12promotion_verdicts\x18\b \x03(\v2,.vrooli.audio_tools.v1.eval.PromotionVerdictR\x11promotionVerdicts\"a\n" +
+	"\x12promotion_verdicts\x18\b \x03(\v2,.vrooli.audio_tools.v1.eval.PromotionVerdictR\x11promotionVerdicts\"\xbf\x01\n" +
 	"\x10PromotionVerdict\x12\x1b\n" +
 	"\tengine_id\x18\x01 \x01(\tR\bengineId\x12\x16\n" +
 	"\x06stable\x18\x02 \x01(\bR\x06stable\x12\x18\n" +
-	"\areasons\x18\x03 \x03(\tR\areasons\"\xe8\n" +
-	"\n" +
+	"\areasons\x18\x03 \x03(\tR\areasons\x12\x1a\n" +
+	"\bstrategy\x18\x04 \x01(\tR\bstrategy\x12%\n" +
+	"\x0epolicy_profile\x18\x05 \x01(\tR\rpolicyProfile\x12\x19\n" +
+	"\bmodel_id\x18\x06 \x01(\tR\amodelId\"\x83\v\n" +
 	"\x0eStrategyReport\x12\x1a\n" +
 	"\bstrategy\x18\x01 \x01(\tR\bstrategy\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x10\n" +
@@ -1908,7 +1946,8 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\x0epolicy_profile\x18\x1c \x01(\tR\rpolicyProfile\x12\x1f\n" +
 	"\vreplay_lane\x18\x1d \x01(\tR\n" +
 	"replayLane\x12#\n" +
-	"\rfault_profile\x18\x1e \x01(\tR\ffaultProfile\"\xf5\b\n" +
+	"\rfault_profile\x18\x1e \x01(\tR\ffaultProfile\x12\x19\n" +
+	"\bmodel_id\x18\x1f \x01(\tR\amodelId\"\xf5\b\n" +
 	"\n" +
 	"ClipReport\x12\x17\n" +
 	"\aclip_id\x18\x01 \x01(\tR\x06clipId\x12\x1c\n" +
