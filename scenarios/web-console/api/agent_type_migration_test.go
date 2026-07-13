@@ -61,6 +61,19 @@ func TestMigrateSessionsAgentTypeConstraint_RelaxesOldCheck(t *testing.T) {
 		t.Fatal("expected old CHECK to reject opencode before migration")
 	}
 
+	// In production the additive column migrations (which add origin/owner/
+	// display_label) run before the constraint rebuild, so the rebuild's column
+	// copy expects those columns to exist. Add them here to match that order.
+	for _, c := range []string{
+		`ALTER TABLE sessions ADD COLUMN origin TEXT NOT NULL DEFAULT 'ui'`,
+		`ALTER TABLE sessions ADD COLUMN owner TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN display_label TEXT NOT NULL DEFAULT ''`,
+	} {
+		if _, err := db.Exec(c); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	if err := migrateSessionsAgentTypeConstraint(db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}

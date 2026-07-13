@@ -179,6 +179,11 @@
             { "name": "cols", "description": "Initial columns" },
             { "name": "rows", "description": "Initial rows" },
             { "name": "backend", "description": "Backend id (e.g. pty, tmux)" },
+            { "name": "origin", "description": "Provenance: ui|programmatic|remote (default: programmatic)" },
+            { "name": "owner", "description": "Free-form provenance tag, e.g. agent-manager" },
+            { "name": "label", "description": "Human-facing label for the sidebar" },
+            { "name": "launch-command", "description": "Command staged (or executed) in the new session" },
+            { "name": "execute-launch-command", "bool": true, "description": "Run the launch command immediately instead of only staging it" },
             { "name": "body-file", "description": "Path to a JSON body (overrides individual flags)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "Create" },

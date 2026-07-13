@@ -102,16 +102,43 @@ func (a *Adapter) Create(_ context.Context, in CreateInput) (Session, error) {
 		})
 	}
 
+	// Provenance: an origin-less create can only be programmatic (every
+	// first-party UI client sets origin explicitly), so normalize before we
+	// persist and echo it back.
+	origin := intsessions.NormalizeOrigin(in.Origin)
+	if a.Store != nil {
+		_ = a.Store.SetProvenance(sess.ID, origin, in.Owner, in.DisplayLabel)
+	}
+
+	// Server-side launch execution: paste the launch command into the fresh
+	// PTY so it runs exactly once, mirroring the Recover paste seam (bracketed
+	// paste + trailing newline to execute). Best-effort — the session already
+	// exists and was returned to the caller, so a paste failure must not fail
+	// the create and orphan the pane; unlike Recover (where the resume paste is
+	// the whole point), the command here is a convenience the user can retype.
+	if in.ExecuteLaunchCommand && in.LaunchCommand != "" {
+		if err := sess.SendInput(session.InputText(in.LaunchCommand + "\n").AsPaste().WithSource("launch")); err != nil {
+			a.logger().Printf("create-session[%s]: paste launch command: %v", sess.ID, err)
+		}
+	}
+
 	a.Events.Emit(events.SessionCreated, sess.ID, map[string]string{
 		"shell":   sess.Shell,
 		"cols":    fmt.Sprintf("%d", sess.Cols),
 		"rows":    fmt.Sprintf("%d", sess.Rows),
 		"backend": string(sess.Backend),
+		"origin":  string(origin),
+		"owner":   in.Owner,
+		"label":   in.DisplayLabel,
+		"agent":   string(intsessions.NormalizeAgentType(in.AgentType)),
 	})
 	a.Metrics.SessionsCreated.Add(1)
 	a.Metrics.ActiveSessions.Add(1)
 
 	resp := intsessions.FromSession(sess)
+	resp.Origin = string(origin)
+	resp.Owner = in.Owner
+	resp.DisplayLabel = in.DisplayLabel
 	if in.IdempotencyKey != "" {
 		a.Idempotency.Set(in.IdempotencyKey, resp)
 	}
@@ -120,11 +147,37 @@ func (a *Adapter) Create(_ context.Context, in CreateInput) (Session, error) {
 
 func (a *Adapter) List(_ context.Context) ([]Session, error) {
 	live := a.Manager.List()
+	// The store is the source of truth for provenance (origin/owner/label);
+	// the in-memory session carries only PTY/terminal state. Merge one store
+	// read into the live list rather than reading per-session.
+	provenance := a.provenanceByID()
 	out := make([]Session, 0, len(live))
 	for _, sess := range live {
-		out = append(out, responseToHandlerSession(intsessions.FromSession(sess)))
+		s := responseToHandlerSession(intsessions.FromSession(sess))
+		if p, ok := provenance[s.ID]; ok {
+			s.Origin, s.Owner, s.DisplayLabel = string(p.Origin), p.Owner, p.DisplayLabel
+		}
+		out = append(out, s)
 	}
 	return out, nil
+}
+
+// provenanceByID snapshots stored provenance keyed by session id. Returns an
+// empty map when no store is configured (e.g. minimal test servers).
+func (a *Adapter) provenanceByID() map[string]sessionstore.Metadata {
+	if a.Store == nil {
+		return nil
+	}
+	rows, err := a.Store.List()
+	if err != nil {
+		a.logger().Printf("list sessions: load provenance: %v", err)
+		return nil
+	}
+	byID := make(map[string]sessionstore.Metadata, len(rows))
+	for _, m := range rows {
+		byID[m.ID] = m
+	}
+	return byID
 }
 
 // RecoveryStatus exposes startup session-recovery progress for the List
@@ -152,7 +205,13 @@ func (a *Adapter) Get(_ context.Context, id string) (Session, error) {
 	if !ok {
 		return Session{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
 	}
-	return responseToHandlerSession(intsessions.FromSession(sess)), nil
+	s := responseToHandlerSession(intsessions.FromSession(sess))
+	if a.Store != nil {
+		if m, err := a.Store.Get(id); err == nil {
+			s.Origin, s.Owner, s.DisplayLabel = string(m.Origin), m.Owner, m.DisplayLabel
+		}
+	}
+	return s, nil
 }
 
 func (a *Adapter) Delete(_ context.Context, id string) error {
@@ -260,6 +319,10 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 		"backend":   string(newSess.Backend),
 		"recovered": "true",
 		"from":      oldID,
+		"origin":    string(old.Origin),
+		"owner":     old.Owner,
+		"label":     old.DisplayLabel,
+		"agent":     string(old.AgentType),
 	})
 
 	codexHomeCopied := false
@@ -277,6 +340,9 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 		LaunchCommand:  old.LaunchCommand,
 		CWD:            old.CWD,
 	})
+	// Carry provenance onto the recovered session so it keeps its original
+	// origin/owner/label in the sidebar.
+	_ = a.Store.SetProvenance(newSess.ID, old.Origin, old.Owner, old.DisplayLabel)
 
 	// Carry the prior conversation history onto the new session id so the
 	// messages view is populated after reattach. Best-effort: a copy failure
@@ -388,6 +454,9 @@ func responseToHandlerSession(r intsessions.Response) Session {
 		Policy:          Policy{Mode: string(r.Policy.Mode), Duration: r.Policy.Duration},
 		Busy:            r.Busy,
 		Recovered:       r.Recovered,
+		Origin:          r.Origin,
+		Owner:           r.Owner,
+		DisplayLabel:    r.DisplayLabel,
 	}
 }
 

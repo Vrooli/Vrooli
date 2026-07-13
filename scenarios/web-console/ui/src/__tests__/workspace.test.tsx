@@ -22,6 +22,9 @@ const mockSession: SessionInfo = {
   survives_restart: false,
   policy: { mode: "never" },
   busy: false,
+  origin: "ui",
+  owner: "",
+  display_label: "",
 };
 
 const conversationEvent = (
@@ -49,7 +52,6 @@ let mockRemovePane: ReturnType<typeof vi.fn>;
 let mockClearError: ReturnType<typeof vi.fn>;
 let mockSendToActiveTerminal: ReturnType<typeof vi.fn>;
 let mockFocusActiveTerminal: ReturnType<typeof vi.fn>;
-let mockHandleTerminalReady: ReturnType<typeof vi.fn>;
 let mockHandleExit: ReturnType<typeof vi.fn>;
 let mockRegisterTerminalRef: ReturnType<typeof vi.fn>;
 const { mockSyncPaneUpdate, mockSyncPaneOrder } = vi.hoisted(() => ({
@@ -115,7 +117,6 @@ vi.mock("../hooks/useSessionManager", () => ({
     createError: hookState.createError,
     clearError: mockClearError,
     launchSession: mockLaunchSession,
-    handleTerminalReady: mockHandleTerminalReady,
     removePane: mockRemovePane,
     handleExit: mockHandleExit,
     sendToActiveTerminal: mockSendToActiveTerminal,
@@ -307,7 +308,6 @@ describe("Workspace", () => {
     mockClearError = vi.fn();
     mockSendToActiveTerminal = vi.fn();
     mockFocusActiveTerminal = vi.fn();
-    mockHandleTerminalReady = vi.fn();
     mockHandleExit = vi.fn();
     mockRegisterTerminalRef = vi.fn();
     mockStoreActions.setTabContextMenu = vi.fn((next: typeof mockStoreState.tabContextMenu) => {

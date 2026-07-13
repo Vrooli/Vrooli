@@ -94,7 +94,6 @@ function ensureSpeechChunks(paragraphs: string[]): string[] {
 interface TerminalPaneProps {
   sessionId: string;
   onExit?: (sessionId: string) => void;
-  onReady?: () => void;
   onVoiceStart?: () => void;
   onVoiceStop?: () => void;
   /** Called when TTS speaking state changes for this pane. */
@@ -162,7 +161,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived }, ref) {
+  function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived }, ref) {
     const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
@@ -277,7 +276,6 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
             lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
           }
         });
-        onReady?.();
       },
     });
 

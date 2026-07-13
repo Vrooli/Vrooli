@@ -1,5 +1,5 @@
 import { createClient } from "@connectrpc/connect";
-import { SessionsService } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
+import { SessionsService, SessionOrigin } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
 import { resolveApiBase, buildWsUrl } from "@vrooli/api-base";
 
 import { transport } from "./client";
@@ -24,6 +24,12 @@ export interface ExpirationPolicy {
 // CROSS-LANGUAGE COUPLING: Backend IDs must match BackendID constants in api/backend_registry.go
 export type BackendID = "standard" | "persistent";
 
+// Provenance of a session — who/what created it. Mirrors sessionstore.Origin in
+// the API ("ui" | "programmatic" | "remote"); "unspecified" is the pre-Phase-1
+// / unknown fallback. The sidebar buckets sessions by this (see the origin tabs
+// work) so a CLI- or remotely-created session is visually distinct from a UI one.
+export type SessionOriginName = "ui" | "programmatic" | "remote" | "unspecified";
+
 export interface BackendOption {
   id: BackendID;
   display_name: string;
@@ -44,6 +50,12 @@ export interface SessionInfo {
   policy: ExpirationPolicy;
   busy: boolean;
   recovered?: boolean;
+  /** Session provenance for sidebar bucketing (see SessionOriginName). */
+  origin: SessionOriginName;
+  /** Free-form owner tag set by the creator (empty for anonymous UI creates). */
+  owner: string;
+  /** Human-facing label set by the creator (empty when unset). */
+  display_label: string;
 }
 
 export interface PolicyResponse {
@@ -101,6 +113,9 @@ type ProtoSession = {
   policy?: { mode: string; duration: string };
   busy: boolean;
   recovered: boolean;
+  origin?: SessionOrigin;
+  owner?: string;
+  displayLabel?: string;
 };
 
 type ProtoRecoverable = {
@@ -129,6 +144,33 @@ type ProtoPolicyView = {
   hasExpiry: boolean;
 };
 
+/** Map the SessionOrigin proto enum to the string form the sidebar buckets on. */
+export function originName(o: SessionOrigin | undefined): SessionOriginName {
+  switch (o) {
+    case SessionOrigin.UI:
+      return "ui";
+    case SessionOrigin.PROGRAMMATIC:
+      return "programmatic";
+    case SessionOrigin.REMOTE:
+      return "remote";
+    default:
+      return "unspecified";
+  }
+}
+
+/** Coerce a free-form origin string (e.g. from the SSE lifecycle payload) into a
+ *  closed SessionOriginName, defaulting unknown/empty to "unspecified". */
+export function coerceOriginName(s: string | undefined): SessionOriginName {
+  switch (s) {
+    case "ui":
+    case "programmatic":
+    case "remote":
+      return s;
+    default:
+      return "unspecified";
+  }
+}
+
 function decodeSession(s: ProtoSession | undefined): SessionInfo {
   const policy = s?.policy;
   return {
@@ -145,6 +187,9 @@ function decodeSession(s: ProtoSession | undefined): SessionInfo {
     },
     busy: s?.busy ?? false,
     ...(s?.recovered ? { recovered: true } : {}),
+    origin: originName(s?.origin),
+    owner: s?.owner ?? "",
+    display_label: s?.displayLabel ?? "",
   };
 }
 
@@ -195,6 +240,10 @@ export async function createSession(opts?: {
   backend?: BackendID;
   policy?: { mode: PolicyMode; duration?: string };
   launch_command?: string;
+  // execute_launch_command asks the server to run launch_command in the new
+  // PTY (via server-side paste) so the command runs exactly once without the
+  // client typing it after the WebSocket connects.
+  execute_launch_command?: boolean;
   agent_type?: AgentType;
 }): Promise<SessionInfo> {
   const resp = await sessionsClient.create({
@@ -203,7 +252,12 @@ export async function createSession(opts?: {
     rows: opts?.rows ?? 0,
     backend: opts?.backend ?? "",
     launchCommand: opts?.launch_command ?? "",
+    executeLaunchCommand: opts?.execute_launch_command ?? false,
     agentType: opts?.agent_type ?? "",
+    // First-party UI client: tag provenance explicitly so an origin-less
+    // create (which the server normalizes to programmatic) can only come from
+    // a non-UI caller.
+    origin: SessionOrigin.UI,
     ...(opts?.policy
       ? { policy: { mode: opts.policy.mode, duration: opts.policy.duration ?? "" }, hasPolicy: true }
       : {}),

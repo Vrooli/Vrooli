@@ -79,6 +79,13 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	if t := sess.GetCreatedAt(); t != "" {
 		results = append(results, fmt.Sprintf("Created: %s", support.FormatTime(t)))
 	}
+	results = append(results, fmt.Sprintf("Origin: %s", originString(sess.GetOrigin())))
+	if owner := sess.GetOwner(); owner != "" {
+		results = append(results, fmt.Sprintf("Owner: %s", owner))
+	}
+	if label := sess.GetDisplayLabel(); label != "" {
+		results = append(results, fmt.Sprintf("Label: %s", label))
+	}
 	results = append(results, fmt.Sprintf("Policy: %s", policyString(sess.GetPolicy())))
 
 	report := cliapp.ListReport{
@@ -99,14 +106,18 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 // createBody mirrors CreateRequest's JSON form so --body-file is supported
 // uniformly. Pointer fields toggle the has_policy flag server-side.
 type createBody struct {
-	Shell         string         `json:"shell,omitempty"`
-	Cols          int32          `json:"cols,omitempty"`
-	Rows          int32          `json:"rows,omitempty"`
-	Backend       string         `json:"backend,omitempty"`
-	Policy        *policyBody    `json:"policy,omitempty"`
-	LaunchCommand string         `json:"launchCommand,omitempty"`
-	AgentType     string         `json:"agentType,omitempty"`
-	Extra         map[string]any `json:"-"`
+	Shell                string         `json:"shell,omitempty"`
+	Cols                 int32          `json:"cols,omitempty"`
+	Rows                 int32          `json:"rows,omitempty"`
+	Backend              string         `json:"backend,omitempty"`
+	Policy               *policyBody    `json:"policy,omitempty"`
+	LaunchCommand        string         `json:"launchCommand,omitempty"`
+	AgentType            string         `json:"agentType,omitempty"`
+	Origin               string         `json:"origin,omitempty"`
+	Owner                string         `json:"owner,omitempty"`
+	DisplayLabel         string         `json:"displayLabel,omitempty"`
+	ExecuteLaunchCommand bool           `json:"executeLaunchCommand,omitempty"`
+	Extra                map[string]any `json:"-"`
 }
 
 type policyBody struct {
@@ -125,10 +136,15 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 	}
 
 	body := createBody{
-		Shell:   strings.TrimSpace(ctx.Flag("shell")),
-		Cols:    int32(cols),
-		Rows:    int32(rows),
-		Backend: strings.TrimSpace(ctx.Flag("backend")),
+		Shell:                strings.TrimSpace(ctx.Flag("shell")),
+		Cols:                 int32(cols),
+		Rows:                 int32(rows),
+		Backend:              strings.TrimSpace(ctx.Flag("backend")),
+		LaunchCommand:        strings.TrimSpace(ctx.Flag("launch-command")),
+		Origin:               strings.TrimSpace(ctx.Flag("origin")),
+		Owner:                strings.TrimSpace(ctx.Flag("owner")),
+		DisplayLabel:         strings.TrimSpace(ctx.Flag("label")),
+		ExecuteLaunchCommand: ctx.BoolFlag("execute-launch-command"),
 	}
 	if bodyFile := strings.TrimSpace(ctx.Flag("body-file")); bodyFile != "" {
 		raw, err := support.ReadJSONFile(bodyFile, true)
@@ -140,13 +156,24 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		}
 	}
 
+	// Resolve origin after the --body-file merge so either source can set it.
+	// Omitted origin stays UNSPECIFIED; the server normalizes it to PROGRAMMATIC.
+	origin, err := parseOrigin(body.Origin)
+	if err != nil {
+		return err
+	}
+
 	req := connect.NewRequest(&sessionsv1.CreateRequest{
-		Shell:         body.Shell,
-		Cols:          body.Cols,
-		Rows:          body.Rows,
-		Backend:       body.Backend,
-		LaunchCommand: body.LaunchCommand,
-		AgentType:     body.AgentType,
+		Shell:                body.Shell,
+		Cols:                 body.Cols,
+		Rows:                 body.Rows,
+		Backend:              body.Backend,
+		LaunchCommand:        body.LaunchCommand,
+		AgentType:            body.AgentType,
+		Origin:               origin,
+		Owner:                body.Owner,
+		DisplayLabel:         body.DisplayLabel,
+		ExecuteLaunchCommand: body.ExecuteLaunchCommand,
 	})
 	if body.Policy != nil {
 		req.Msg.Policy = &sessionsv1.ExpirationPolicy{Mode: body.Policy.Mode, Duration: body.Policy.Duration}
@@ -159,12 +186,21 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 	}
 	sess := resp.Msg.GetSession()
 
+	changes := []string{
+		fmt.Sprintf("Backend: %s", sess.GetBackend()),
+		fmt.Sprintf("Shell: %s", sess.GetShell()),
+		fmt.Sprintf("Origin: %s", originString(sess.GetOrigin())),
+	}
+	if owner := sess.GetOwner(); owner != "" {
+		changes = append(changes, fmt.Sprintf("Owner: %s", owner))
+	}
+	if label := sess.GetDisplayLabel(); label != "" {
+		changes = append(changes, fmt.Sprintf("Label: %s", label))
+	}
+
 	report := cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Created session %s", sess.GetId())},
-		Changes: []string{
-			fmt.Sprintf("Backend: %s", sess.GetBackend()),
-			fmt.Sprintf("Shell: %s", sess.GetShell()),
-		},
+		Result:      []string{fmt.Sprintf("Created session %s", sess.GetId())},
+		Changes:     changes,
 		NextCommand: []string{fmt.Sprintf("%s session get %s", support.CLIName, sess.GetId())},
 	}
 	if ctx.JSON() {
@@ -372,10 +408,47 @@ func sessionRows(sessions []*sessionsv1.Session) []string {
 	}
 	rows := make([]string, 0, len(sessions))
 	for _, s := range sessions {
-		rows = append(rows, fmt.Sprintf("%s | shell=%s | backend=%s | %dx%d | busy=%t",
-			support.ShortID(s.GetId()), s.GetShell(), s.GetBackend(), s.GetCols(), s.GetRows(), s.GetBusy()))
+		row := fmt.Sprintf("%s | shell=%s | backend=%s | %dx%d | busy=%t | origin=%s",
+			support.ShortID(s.GetId()), s.GetShell(), s.GetBackend(), s.GetCols(), s.GetRows(), s.GetBusy(), originString(s.GetOrigin()))
+		if owner := s.GetOwner(); owner != "" {
+			row += " | owner=" + owner
+		}
+		rows = append(rows, row)
 	}
 	return rows
+}
+
+// parseOrigin maps the human-facing --origin value onto the proto enum. An
+// omitted value stays UNSPECIFIED (the server normalizes it to PROGRAMMATIC);
+// an unrecognized value is a client-side error.
+func parseOrigin(raw string) (sessionsv1.SessionOrigin, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "":
+		return sessionsv1.SessionOrigin_SESSION_ORIGIN_UNSPECIFIED, nil
+	case "ui":
+		return sessionsv1.SessionOrigin_SESSION_ORIGIN_UI, nil
+	case "programmatic":
+		return sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, nil
+	case "remote":
+		return sessionsv1.SessionOrigin_SESSION_ORIGIN_REMOTE, nil
+	default:
+		return sessionsv1.SessionOrigin_SESSION_ORIGIN_UNSPECIFIED,
+			fmt.Errorf("invalid --origin %q (want ui|programmatic|remote)", raw)
+	}
+}
+
+// originString renders the proto enum as its human-facing token.
+func originString(o sessionsv1.SessionOrigin) string {
+	switch o {
+	case sessionsv1.SessionOrigin_SESSION_ORIGIN_UI:
+		return "ui"
+	case sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC:
+		return "programmatic"
+	case sessionsv1.SessionOrigin_SESSION_ORIGIN_REMOTE:
+		return "remote"
+	default:
+		return "unspecified"
+	}
 }
 
 func recoverableRows(rows []*sessionsv1.RecoverableSession) []string {

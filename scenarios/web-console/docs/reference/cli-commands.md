@@ -27,7 +27,7 @@ Show capability inventory and liveness from `GET /api/v1/capabilities`.
 |---|---|
 | `list` / `ls` | List active sessions |
 | `get` / `show` | Show one session |
-| `create` | Create a session (optionally `--body-file PATH`) |
+| `create` | Create a session (optionally `--body-file PATH`). Provenance/launch flags: `--origin ui\|programmatic\|remote` (default `programmatic`), `--owner <tag>`, `--label <text>`, `--launch-command <cmd>`, `--execute-launch-command` (run the launch command headlessly instead of only staging it) |
 | `delete` / `rm` | Terminate a session |
 | `policy-get` | Show the expiration policy for a session |
 | `policy-set` | Set the expiration policy (`--mode`, optional `--duration`) |

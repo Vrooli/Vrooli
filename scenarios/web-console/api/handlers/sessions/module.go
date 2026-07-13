@@ -63,21 +63,36 @@ type Session struct {
 	Policy          Policy
 	Busy            bool
 	Recovered       bool
+	// Provenance. Origin is the closed-set vocabulary
+	// "ui" | "programmatic" | "remote".
+	Origin       string
+	Owner        string
+	DisplayLabel string
 }
 
 // CreateInput carries the fields a caller may set when creating a session.
 // HasPolicy distinguishes "client explicitly set the policy" from
 // "client omitted policy → use defaults".
 type CreateInput struct {
-	Shell          string
-	Cols           int
-	Rows           int
-	Backend        string
-	Policy         Policy
-	HasPolicy      bool
-	LaunchCommand  string
-	AgentType      string
-	IdempotencyKey string
+	Shell         string
+	Cols          int
+	Rows          int
+	Backend       string
+	Policy        Policy
+	HasPolicy     bool
+	LaunchCommand string
+	// ExecuteLaunchCommand, when true, pastes LaunchCommand into the new
+	// pane's PTY server-side so the command runs exactly once without the
+	// client typing it after the WebSocket connects.
+	ExecuteLaunchCommand bool
+	AgentType            string
+	IdempotencyKey       string
+	// Provenance. Origin is the closed-set vocabulary
+	// "ui" | "programmatic" | "remote"; the empty string normalizes to
+	// "programmatic" at Create time.
+	Origin       string
+	Owner        string
+	DisplayLabel string
 }
 
 // RecoverInput bundles inputs for the recovery RPC.

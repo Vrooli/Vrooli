@@ -39,6 +39,16 @@ const (
 	AgentGrok     Agent = "grok"
 )
 
+// Origin records who opened a session. It is provenance the UI uses to
+// separate human-opened tabs from agent- or remote-launched sessions.
+type Origin string
+
+const (
+	OriginUI           Origin = "ui"
+	OriginProgrammatic Origin = "programmatic"
+	OriginRemote       Origin = "remote"
+)
+
 // Metadata holds persisted session state for restart recovery.
 type Metadata struct {
 	ID       string
@@ -62,6 +72,10 @@ type Metadata struct {
 	OrphanedAt     time.Time
 
 	RecoveredInto string
+
+	Origin       Origin
+	Owner        string
+	DisplayLabel string
 }
 
 // AgentInfo is the partial-update payload used when a populator (codex tailer,
@@ -90,6 +104,12 @@ type Store interface {
 	MarkLive(id string) error
 	MarkDismissed(id string, recoveredInto string) error
 	ListRecoverable() ([]Metadata, error)
+
+	// SetProvenance records who opened a session. Unlike UpdateAgentInfo it
+	// writes all three fields unconditionally: owner and displayLabel are
+	// legitimately empty for anonymous UI sessions, so an empty value is the
+	// intended value, not "leave unchanged".
+	SetProvenance(id string, origin Origin, owner, displayLabel string) error
 }
 
 // SQLStore implements Store using SQLite.
@@ -113,8 +133,8 @@ func (s *SQLStore) Save(meta Metadata) error {
 		INSERT OR REPLACE INTO sessions (
 			id, backend, shell, cols, rows, policy_mode, policy_duration, created_at, detached,
 			status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
-			last_activity_at, orphaned_at, recovered_into
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			last_activity_at, orphaned_at, recovered_into, origin, owner, display_label
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		meta.ID,
 		string(meta.Backend),
 		meta.Shell,
@@ -133,6 +153,9 @@ func (s *SQLStore) Save(meta Metadata) error {
 		formatTimeOrEmpty(meta.LastActivityAt),
 		formatTimeOrEmpty(meta.OrphanedAt),
 		meta.RecoveredInto,
+		string(meta.Origin),
+		meta.Owner,
+		meta.DisplayLabel,
 	)
 	return err
 }
@@ -140,7 +163,7 @@ func (s *SQLStore) Save(meta Metadata) error {
 const selectColumns = `
 	id, backend, shell, cols, rows, policy_mode, policy_duration, created_at, detached,
 	status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
-	last_activity_at, orphaned_at, recovered_into`
+	last_activity_at, orphaned_at, recovered_into, origin, owner, display_label`
 
 func (s *SQLStore) Get(id string) (Metadata, error) {
 	row := s.db.QueryRow(`SELECT `+selectColumns+` FROM sessions WHERE id = ?`, id)
@@ -227,6 +250,14 @@ func (s *SQLStore) UpdateAgentInfo(id string, info AgentInfo) error {
 	return err
 }
 
+func (s *SQLStore) SetProvenance(id string, origin Origin, owner, displayLabel string) error {
+	_, err := s.db.Exec(
+		`UPDATE sessions SET origin = ?, owner = ?, display_label = ? WHERE id = ?`,
+		string(origin), owner, displayLabel, id,
+	)
+	return err
+}
+
 func (s *SQLStore) MarkOrphaned(id string, at time.Time) error {
 	_, err := s.db.Exec(`
 		UPDATE sessions
@@ -308,6 +339,7 @@ func scanMetadata(row scannable) (Metadata, error) {
 		backendID, policyMode, createdStr string
 		status, agentType                 string
 		lastActivity, orphanedAt          string
+		origin                            string
 		policyDurationPtr                 *string
 		detached                          int
 	)
@@ -317,10 +349,12 @@ func scanMetadata(row scannable) (Metadata, error) {
 		&status, &agentType, &meta.LaunchCommand, &meta.AgentSessionID,
 		&meta.CWD, &meta.LastRolloutPath,
 		&lastActivity, &orphanedAt, &meta.RecoveredInto,
+		&origin, &meta.Owner, &meta.DisplayLabel,
 	)
 	if err != nil {
 		return meta, fmt.Errorf("scan session metadata: %w", err)
 	}
+	meta.Origin = Origin(origin)
 	meta.Backend = backend.ID(backendID)
 	meta.Policy.Mode = policy.Mode(policyMode)
 	if policyDurationPtr != nil {
@@ -469,6 +503,20 @@ func (s *InMemoryStore) UpdateAgentInfo(id string, info AgentInfo) error {
 	if !info.LastActivityAt.IsZero() {
 		meta.LastActivityAt = info.LastActivityAt
 	}
+	s.sessions[id] = meta
+	return nil
+}
+
+func (s *InMemoryStore) SetProvenance(id string, origin Origin, owner, displayLabel string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	meta, ok := s.sessions[id]
+	if !ok {
+		return fmt.Errorf("session %s not found", id)
+	}
+	meta.Origin = origin
+	meta.Owner = owner
+	meta.DisplayLabel = displayLabel
 	s.sessions[id] = meta
 	return nil
 }

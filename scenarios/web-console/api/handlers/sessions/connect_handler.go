@@ -9,6 +9,8 @@ import (
 	"connectrpc.com/connect"
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
+
+	"web-console/internal/sessionstore"
 )
 
 // Deps wires the seams the Connect sessions handler needs.
@@ -64,13 +66,17 @@ const idempotencyHeader = "X-Idempotency-Key"
 
 func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessionsv1.CreateRequest]) (*connect.Response[sessionsv1.CreateResponse], error) {
 	in := CreateInput{
-		Shell:          req.Msg.GetShell(),
-		Cols:           int(req.Msg.GetCols()),
-		Rows:           int(req.Msg.GetRows()),
-		Backend:        req.Msg.GetBackend(),
-		LaunchCommand:  req.Msg.GetLaunchCommand(),
-		AgentType:      req.Msg.GetAgentType(),
-		IdempotencyKey: req.Header().Get(idempotencyHeader),
+		Shell:                req.Msg.GetShell(),
+		Cols:                 int(req.Msg.GetCols()),
+		Rows:                 int(req.Msg.GetRows()),
+		Backend:              req.Msg.GetBackend(),
+		LaunchCommand:        req.Msg.GetLaunchCommand(),
+		ExecuteLaunchCommand: req.Msg.GetExecuteLaunchCommand(),
+		AgentType:            req.Msg.GetAgentType(),
+		Origin:               originToString(req.Msg.GetOrigin()),
+		Owner:                req.Msg.GetOwner(),
+		DisplayLabel:         req.Msg.GetDisplayLabel(),
+		IdempotencyKey:       req.Header().Get(idempotencyHeader),
 	}
 	if req.Msg.GetHasPolicy() && req.Msg.GetPolicy() != nil {
 		in.HasPolicy = true
@@ -244,6 +250,39 @@ func sessionToProto(s Session) *sessionsv1.Session {
 		Policy:          policyToProto(s.Policy),
 		Busy:            s.Busy,
 		Recovered:       s.Recovered,
+		Origin:          originToEnum(s.Origin),
+		Owner:           s.Owner,
+		DisplayLabel:    s.DisplayLabel,
+	}
+}
+
+// originToString maps the wire enum to the closed-set vocabulary the service
+// layer speaks. SESSION_ORIGIN_UNSPECIFIED becomes the empty string, which
+// Create normalizes to "programmatic".
+func originToString(o sessionsv1.SessionOrigin) string {
+	switch o {
+	case sessionsv1.SessionOrigin_SESSION_ORIGIN_UI:
+		return string(sessionstore.OriginUI)
+	case sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC:
+		return string(sessionstore.OriginProgrammatic)
+	case sessionsv1.SessionOrigin_SESSION_ORIGIN_REMOTE:
+		return string(sessionstore.OriginRemote)
+	default:
+		return ""
+	}
+}
+
+// originToEnum maps the stored/service origin string back to the wire enum.
+func originToEnum(s string) sessionsv1.SessionOrigin {
+	switch sessionstore.Origin(s) {
+	case sessionstore.OriginUI:
+		return sessionsv1.SessionOrigin_SESSION_ORIGIN_UI
+	case sessionstore.OriginProgrammatic:
+		return sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC
+	case sessionstore.OriginRemote:
+		return sessionsv1.SessionOrigin_SESSION_ORIGIN_REMOTE
+	default:
+		return sessionsv1.SessionOrigin_SESSION_ORIGIN_UNSPECIFIED
 	}
 }
 

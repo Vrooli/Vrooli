@@ -28,7 +28,13 @@ CREATE TABLE IF NOT EXISTS sessions (
     last_rollout_path TEXT NOT NULL DEFAULT '',
     last_activity_at TEXT NOT NULL DEFAULT '',
     orphaned_at TEXT NOT NULL DEFAULT '',
-    recovered_into TEXT NOT NULL DEFAULT ''
+    recovered_into TEXT NOT NULL DEFAULT '',
+    -- Provenance: who opened this session. Rows predating this column are
+    -- backfilled to 'ui' by the ALTER TABLE migration in api/main.go, because
+    -- every historical session was opened from the web UI.
+    origin TEXT NOT NULL DEFAULT 'ui',
+    owner TEXT NOT NULL DEFAULT '',
+    display_label TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC);

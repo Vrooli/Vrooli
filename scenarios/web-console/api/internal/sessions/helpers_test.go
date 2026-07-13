@@ -3,7 +3,6 @@ package sessions
 import (
 	"strings"
 	"testing"
-
 	"web-console/internal/sessionstore"
 )
 

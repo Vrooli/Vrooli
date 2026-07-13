@@ -83,8 +83,27 @@ func initSchema(db *sql.DB) error {
 	}
 	log.Println("Schema initialized successfully")
 
-	// Migrations: add columns to existing tables. ALTER TABLE ADD COLUMN
-	// errors if the column already exists, so we ignore that specific error.
+	if err := applyColumnMigrations(db); err != nil {
+		return err
+	}
+
+	if err := migrateSessionsAgentTypeConstraint(db); err != nil {
+		return fmt.Errorf("migration: %w", err)
+	}
+
+	if err := reconcileDefaultShortcutProfile(db); err != nil {
+		return fmt.Errorf("migration: %w", err)
+	}
+
+	return nil
+}
+
+// applyColumnMigrations adds columns to existing tables. ALTER TABLE ADD COLUMN
+// errors if the column already exists, so we ignore that specific error. New
+// columns declare their DEFAULT so pre-existing rows are backfilled by SQLite
+// as part of the ADD COLUMN — origin backfills to 'ui' because every historical
+// session was opened from the web UI.
+func applyColumnMigrations(db *sql.DB) error {
 	migrations := []string{
 		`ALTER TABLE workspace_panes ADD COLUMN supports_messages_view INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE sessions ADD COLUMN backend TEXT NOT NULL DEFAULT 'standard'`,
@@ -98,8 +117,12 @@ func initSchema(db *sql.DB) error {
 		`ALTER TABLE sessions ADD COLUMN last_activity_at TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN orphaned_at TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN recovered_into TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN origin TEXT NOT NULL DEFAULT 'ui'`,
+		`ALTER TABLE sessions ADD COLUMN owner TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN display_label TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {
@@ -109,15 +132,6 @@ func initSchema(db *sql.DB) error {
 			}
 		}
 	}
-
-	if err := migrateSessionsAgentTypeConstraint(db); err != nil {
-		return fmt.Errorf("migration: %w", err)
-	}
-
-	if err := reconcileDefaultShortcutProfile(db); err != nil {
-		return fmt.Errorf("migration: %w", err)
-	}
-
 	return nil
 }
 
@@ -151,7 +165,8 @@ func migrateSessionsAgentTypeConstraint(db *sql.DB) error {
 
 	const cols = `id, backend, shell, cols, rows, policy_mode, policy_duration,
 		created_at, detached, status, agent_type, launch_command, agent_session_id,
-		cwd, last_rollout_path, last_activity_at, orphaned_at, recovered_into`
+		cwd, last_rollout_path, last_activity_at, orphaned_at, recovered_into,
+		origin, owner, display_label`
 	stmts := []string{
 		`PRAGMA foreign_keys=off`,
 		`ALTER TABLE sessions RENAME TO sessions_legacy_agentcheck`,
@@ -175,13 +190,17 @@ func migrateSessionsAgentTypeConstraint(db *sql.DB) error {
 			last_rollout_path TEXT NOT NULL DEFAULT '',
 			last_activity_at TEXT NOT NULL DEFAULT '',
 			orphaned_at TEXT NOT NULL DEFAULT '',
-			recovered_into TEXT NOT NULL DEFAULT ''
+			recovered_into TEXT NOT NULL DEFAULT '',
+			origin TEXT NOT NULL DEFAULT 'ui',
+			owner TEXT NOT NULL DEFAULT '',
+			display_label TEXT NOT NULL DEFAULT ''
 		)`,
 		`INSERT INTO sessions (` + cols + `) SELECT ` + cols + ` FROM sessions_legacy_agentcheck`,
 		`DROP TABLE sessions_legacy_agentcheck`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,
 		`PRAGMA foreign_keys=on`,
 	}
 	for _, stmt := range stmts {
@@ -514,6 +533,10 @@ func NewServer(db *sql.DB) *Server {
 	log.Printf("audio-tools adoption: STT/TTS/processor/summarize + admin/runtime ports wired to %s", atClient.BaseURL())
 
 	srv.sweeper.Start()
+	// Fan session lifecycle events (created/deleted/terminated) from the event
+	// logger onto the SSE hub so externally created/destroyed sessions appear
+	// and disappear in every connected browser's sidebar live.
+	srv.startSessionLifecycleBridge()
 	// sessions.StartReattachWatchdog() runs after async recovery completes (see
 	// the recovery goroutine above) so the watchdog and recovery never race to
 	// reattach the same session.

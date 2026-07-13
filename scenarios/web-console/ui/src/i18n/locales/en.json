@@ -328,7 +328,11 @@
     "sortName": "Name",
     "sortActivity": "Recent activity",
     "sortUnread": "Unread",
-    "reorderAria": "Reorder {{name}}"
+    "reorderAria": "Reorder {{name}}",
+    "originTabsAria": "Filter sessions by origin",
+    "originTabUi": "UI-owned",
+    "originTabProgrammatic": "Programmatic",
+    "originTabRemote": "Remote"
   },
   "tabContextMenu": {
     "rename": "Rename",

@@ -55,17 +55,21 @@ export function useSessionManager() {
   const [hydrationError, setHydrationError] = useState<ErrorInfo | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const terminalRefs = useRef<Map<string, TerminalPaneHandle>>(new Map());
-  const pendingCommands = useRef<Map<string, string>>(new Map());
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const flushPendingCommand = useCallback((sessionId: string) => {
-    const command = pendingCommands.current.get(sessionId);
-    if (!command) return;
-    const handle = terminalRefs.current.get(sessionId);
-    if (!handle) return;
-    pendingCommands.current.delete(sessionId);
-    handle.submitInput(command + "\n", "toolbar-submit");
-  }, []);
+  // Mirror panes/isHydrated into refs so the SSE-driven merge callbacks below
+  // can stay identity-stable (empty deps — see the wiring in Workspace) while
+  // still reading the freshest state. Reading state through the callback
+  // closure would go stale; a ref does not.
+  const panesRef = useRef(panes);
+  panesRef.current = panes;
+  const isHydratedRef = useRef(isHydrated);
+  isHydratedRef.current = isHydrated;
+  // External creates that land before hydration finishes are buffered, then
+  // flushed once hydration establishes the authoritative baseline. Merging
+  // before that would trip hydratePanes' hydrate-once guard (its setPanes keeps
+  // `prev` whenever prev.length > 0), suppressing the full initial list.
+  const pendingExternalRef = useRef<{ session: SessionInfo; supportsMessagesView: boolean }[]>([]);
 
   // Hydrate workspace panes from existing sessions so reload reconnects to
   // durable sessions instead of showing the empty-state landing screen.
@@ -251,11 +255,11 @@ export function useSessionManager() {
         backend: opts?.backend,
         policy: opts?.policy,
         launch_command: command,
+        // Execute the launch command server-side (paste into the fresh PTY) so
+        // it runs exactly once. The client no longer types it after connect.
+        execute_launch_command: Boolean(command),
         agent_type: agentTypeFromCommand(command),
       });
-      if (command) {
-        pendingCommands.current.set(session.id, command);
-      }
       setPanes((prev) => [...prev, { session, supportsMessagesView: supportsMessagesViewForCommand(command) }]);
       return session;
     } catch (err) {
@@ -276,10 +280,6 @@ export function useSessionManager() {
     }
   }, []);
 
-  const handleTerminalReady = useCallback((sessionId: string) => {
-    flushPendingCommand(sessionId);
-  }, [flushPendingCommand]);
-
   const removePane = useCallback(async (sessionId: string) => {
     setPanes((prev) => prev.filter((p) => p.session.id !== sessionId));
     terminalRefs.current.delete(sessionId);
@@ -297,6 +297,61 @@ export function useSessionManager() {
 
   const handleExit = useCallback((sessionId: string) => {
     console.log(`Session ${sessionId} exited`);
+  }, []);
+
+  // applyExternalMerge appends an externally created session as a pane. It is
+  // idempotent by session id: a session already tracked — because THIS client
+  // created it (launchSession appended it optimistically) or an earlier event
+  // already merged it — is a no-op. That id-dedup is what keeps a UI-originated
+  // create from being double-added when its own session.created echo arrives.
+  // Appending (never replacing the array) leaves every other pane's live state
+  // untouched, so a merge can't reset an active tab, unread badge, or scroll.
+  const applyExternalMerge = useCallback((session: SessionInfo, supportsMessagesView: boolean) => {
+    setPanes((prev) => {
+      if (prev.some((p) => p.session.id === session.id)) return prev;
+      return [...prev, { session, supportsMessagesView }];
+    });
+  }, []);
+
+  // mergeExternalSession is the SSE entry point for an externally created
+  // session (any origin). Before hydration completes it buffers, so it never
+  // races the initial listSessions() baseline (see pendingExternalRef).
+  const mergeExternalSession = useCallback(
+    (session: SessionInfo, supportsMessagesView = false) => {
+      if (!isHydratedRef.current) {
+        pendingExternalRef.current.push({ session, supportsMessagesView });
+        return;
+      }
+      applyExternalMerge(session, supportsMessagesView);
+    },
+    [applyExternalMerge],
+  );
+
+  // Flush buffered pre-hydration external creates once hydration lands. The
+  // authoritative list is already in place, so applyExternalMerge's id-dedup
+  // silently drops any that hydration already covered.
+  useEffect(() => {
+    if (!isHydrated) return;
+    const pending = pendingExternalRef.current;
+    if (pending.length === 0) return;
+    pendingExternalRef.current = [];
+    for (const item of pending) applyExternalMerge(item.session, item.supportsMessagesView);
+  }, [isHydrated, applyExternalMerge]);
+
+  // endExternalSession drops a session that was deleted/terminated elsewhere.
+  // Delete and terminate are handled identically. The focused pane is spared:
+  // yanking the terminal the user is actively looking at would destroy their
+  // view mid-read, so we leave it in place (its terminal WebSocket has already
+  // closed, showing a disconnected state) and let the user close it explicitly
+  // — closing skips the confirm dialog because the now-gone session 404s. Every
+  // other pane is removed and its local resources released. No deleteSession
+  // call: the session is already gone server-side.
+  const endExternalSession = useCallback((sessionId: string) => {
+    if (!panesRef.current.some((p) => p.session.id === sessionId)) return;
+    if (useWorkspaceStore.getState().activePane === sessionId) return;
+    setPanes((prev) => prev.filter((p) => p.session.id !== sessionId));
+    terminalRefs.current.delete(sessionId);
+    ttsPlaybackRegistry.stop(sessionId);
   }, []);
 
   const submitToActiveTerminal = useCallback(
@@ -359,14 +414,11 @@ export function useSessionManager() {
     (sessionId: string, handle: TerminalPaneHandle | null) => {
       if (handle) {
         terminalRefs.current.set(sessionId, handle);
-        // onReady can fire before the ref callback in some mount orders.
-        // Flush here too so queued launch commands are never stranded.
-        flushPendingCommand(sessionId);
       } else {
         terminalRefs.current.delete(sessionId);
       }
     },
-    [flushPendingCommand],
+    [],
   );
 
   const stopActiveTts = useCallback(
@@ -444,8 +496,9 @@ export function useSessionManager() {
     clearError,
     clearHydrationError,
     launchSession,
-    handleTerminalReady,
     removePane,
+    mergeExternalSession,
+    endExternalSession,
     handleExit,
     submitToActiveTerminal,
     subscribeActiveInputSettled,

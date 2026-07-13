@@ -25,6 +25,12 @@ const pane = (sessionId: string, headerColor: string): PaneMetadata => ({
   supportsMessagesView: false,
 });
 
+// These tests exercise the (UI-origin) single-bucket path, where the sidebar
+// renders exactly as it did before origin tabs. Wrap the flat item list in the
+// one "ui" bucket the component now consumes.
+const asBuckets = (items: ReturnType<typeof buildWorkspaceNavigationItems>) =>
+  [{ bucket: "ui" as const, items }];
+
 const baseProps = {
   containerRef: createRef<HTMLElement>(),
   isMobile: false,
@@ -50,13 +56,13 @@ describe("SessionSidebar", () => {
       groups: [],
       activePane: "a",
     });
-    const { container } = render(<SessionSidebar {...baseProps} items={items} />);
+    const { container } = render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
     expect(container.innerHTML).toContain("linear-gradient");
   });
 
   it("has a sort control that updates the store sort mode", () => {
     const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
-    render(<SessionSidebar {...baseProps} items={items} />);
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
     const select = screen.getByTestId("sidebar-sort-select");
     expect(select).toHaveValue("manual");
     fireEvent.change(select, { target: { value: "name" } });
@@ -65,18 +71,18 @@ describe("SessionSidebar", () => {
 
   it("shows drag handles only in manual sort mode", () => {
     const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
-    const { rerender } = render(<SessionSidebar {...baseProps} items={items} />);
+    const { rerender } = render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
     expect(screen.getByTestId("sidebar-drag-handle-a")).toBeInTheDocument();
 
     act(() => useWorkspaceStore.setState({ sidebarSortMode: "name" }));
-    rerender(<SessionSidebar {...baseProps} items={items} />);
+    rerender(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
     expect(screen.queryByTestId("sidebar-drag-handle-a")).not.toBeInTheDocument();
   });
 
   it("closes the mobile drawer when the plus button starts a terminal", () => {
     useWorkspaceStore.setState({ plusButtonBehavior: "new-terminal" });
     const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
-    render(<SessionSidebar {...baseProps} items={items} isMobile mobileOpen />);
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} isMobile mobileOpen />);
 
     fireEvent.pointerDown(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
     fireEvent.pointerUp(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
@@ -93,7 +99,7 @@ describe("SessionSidebar", () => {
       pane("c", "transparent"),
     ];
     const items = buildWorkspaceNavigationItems({ panes, groups: [group], activePane: "a" });
-    render(<SessionSidebar {...baseProps} items={items} />);
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
 
     expect(screen.getByTestId("sidebar-group-header-g1")).toBeInTheDocument();
     expect(screen.getByTestId("sidebar-session-a").closest("[data-group-id]")).toHaveAttribute("data-group-id", "g1");
@@ -109,7 +115,7 @@ describe("SessionSidebar", () => {
       activePane: "a",
     });
     useWorkspaceStore.setState({ groups: [group] });
-    render(<SessionSidebar {...baseProps} items={items} />);
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
 
     fireEvent.contextMenu(screen.getByTestId("sidebar-group-header-g1"), { clientX: 20, clientY: 40 });
     fireEvent.click(screen.getByTestId("group-ctx-new-session"));

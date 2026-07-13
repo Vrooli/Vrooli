@@ -26,6 +26,12 @@ export type PlusButtonBehavior = "launcher" | "new-terminal";
  *  the rest are view-only sorts that never write sort_order. */
 export type SidebarSortMode = "manual" | "name" | "activity" | "unread";
 
+/** Which origin bucket the sidebar tab strip currently shows. Mirrors the
+ *  session-origin buckets (see workspaceNavigation.originBucket): a session with
+ *  origin "unspecified" folds into "programmatic", so the tab set is exactly
+ *  these three. */
+export type SidebarOriginTab = "ui" | "programmatic" | "remote";
+
 export interface TabGroupMeta {
   id: string;
   name: string;
@@ -88,6 +94,12 @@ interface WorkspaceState {
   recentHeaderColors: string[];
   /** Sidebar session ordering mode. View-only except "manual". */
   sidebarSortMode: SidebarSortMode;
+  /** Active origin tab in the sidebar. Only meaningful while the tab strip is
+   *  mounted (i.e. at least one non-UI-origin session exists); when the active
+   *  bucket has no sessions the sidebar falls back to the first present bucket
+   *  without mutating this, so the choice survives a bucket emptying and
+   *  refilling. */
+  sidebarOriginTab: SidebarOriginTab;
   /** Tint the app chrome (status bar, top bar, toolbar, sidebar) to match the
    *  focused terminal's background in single-focus (tabs/sidebar) modes. */
   adaptiveChrome: boolean;
@@ -151,6 +163,7 @@ interface WorkspaceActions {
   /** Record an explicitly-picked header color into recents (dedup, cap 6). */
   addRecentHeaderColor: (color: string) => void;
   setSidebarSortMode: (mode: SidebarSortMode) => void;
+  setSidebarOriginTab: (tab: SidebarOriginTab) => void;
   setAdaptiveChrome: (enabled: boolean) => void;
   toggleModifier: (key: keyof ModifierState) => void;
   clearModifiers: () => void;
@@ -213,6 +226,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       recentCombos: [],
       recentHeaderColors: [],
       sidebarSortMode: "manual",
+      sidebarOriginTab: "ui",
       adaptiveChrome: true,
       modifiers: { ctrl: false, alt: false, shift: false },
       pendingInputDrafts: {},
@@ -236,6 +250,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }),
 
       setSidebarSortMode: (mode) => set({ sidebarSortMode: mode }),
+      setSidebarOriginTab: (tab) => set({ sidebarOriginTab: tab }),
       setAdaptiveChrome: (enabled) => set({ adaptiveChrome: enabled }),
 
       addPane: (sessionId, name, activate, supportsMessagesView = false) =>
@@ -425,7 +440,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 16,
+      version: 17,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -496,6 +511,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 16) {
           state.adaptiveChrome ??= true;
         }
+        if (version < 17) {
+          state.sidebarOriginTab ??= "ui";
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -529,6 +547,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         recentCombos: state.recentCombos,
         recentHeaderColors: state.recentHeaderColors,
         sidebarSortMode: state.sidebarSortMode,
+        sidebarOriginTab: state.sidebarOriginTab,
         adaptiveChrome: state.adaptiveChrome,
         keepScreenAwake: state.keepScreenAwake,
       }),

@@ -322,7 +322,11 @@
     "sortName": "Name",
     "sortActivity": "Recent activity",
     "sortUnread": "Unread",
-    "reorderAria": "Reorder {{name}}"
+    "reorderAria": "Reorder {{name}}",
+    "originTabsAria": "オリジンでセッションを絞り込む",
+    "originTabUi": "UI作成",
+    "originTabProgrammatic": "プログラム",
+    "originTabRemote": "リモート"
   },
   "tabContextMenu": {
     "rename": "名前を変更",

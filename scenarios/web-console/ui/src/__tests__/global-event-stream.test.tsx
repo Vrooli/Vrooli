@@ -87,6 +87,93 @@ describe("dispatchGlobalEvent (Layer 1)", () => {
   });
 });
 
+describe("dispatchGlobalEvent session_status (Layer 1)", () => {
+  it("maps a created event into a full SessionInfo + derived supportsMessagesView", () => {
+    const onSessionCreated = vi.fn();
+    dispatchGlobalEvent(
+      {
+        id: 10,
+        session_id: "ext-1",
+        kind: "session_status",
+        sequence: 0,
+        payload: {
+          action: "created",
+          shell: "/bin/zsh",
+          cols: 120,
+          rows: 40,
+          backend: "persistent",
+          origin: "programmatic",
+          owner: "cli",
+          display_label: "nightly build",
+          agent: "claude",
+          created_at: "2026-07-12T00:00:00Z",
+        },
+      },
+      undefined,
+      { onSessionCreated },
+    );
+    expect(onSessionCreated).toHaveBeenCalledTimes(1);
+    const [session, supportsMessagesView] = onSessionCreated.mock.calls[0] as [Record<string, unknown>, boolean];
+    expect(session).toMatchObject({
+      id: "ext-1",
+      shell: "/bin/zsh",
+      cols: 120,
+      rows: 40,
+      backend: "persistent",
+      survives_restart: true, // derived from backend === "persistent"
+      origin: "programmatic",
+      owner: "cli",
+      display_label: "nightly build",
+      created_at: "2026-07-12T00:00:00Z",
+    });
+    expect(supportsMessagesView).toBe(true); // agent === "claude"
+  });
+
+  it("derives supportsMessagesView=false for a plain shell (agent none/absent)", () => {
+    const onSessionCreated = vi.fn();
+    dispatchGlobalEvent(
+      { id: 11, session_id: "ext-2", kind: "session_status", sequence: 0, payload: { action: "created", agent: "none", backend: "standard" } },
+      undefined,
+      { onSessionCreated },
+    );
+    const [session, supportsMessagesView] = onSessionCreated.mock.calls[0] as [Record<string, unknown>, boolean];
+    expect(supportsMessagesView).toBe(false);
+    expect(session).toMatchObject({ id: "ext-2", origin: "unspecified", survives_restart: false });
+  });
+
+  it("routes a deleted event to onSessionEnded with reason 'deleted'", () => {
+    const onSessionEnded = vi.fn();
+    dispatchGlobalEvent(
+      { id: 12, session_id: "ext-3", kind: "session_status", sequence: 0, payload: { action: "deleted" } },
+      undefined,
+      { onSessionEnded },
+    );
+    expect(onSessionEnded).toHaveBeenCalledWith("ext-3", "deleted");
+  });
+
+  it("routes a terminated event to onSessionEnded with reason 'terminated'", () => {
+    const onSessionEnded = vi.fn();
+    dispatchGlobalEvent(
+      { id: 13, session_id: "ext-4", kind: "session_status", sequence: 0, payload: { action: "terminated", reason: "expired" } },
+      undefined,
+      { onSessionEnded },
+    );
+    expect(onSessionEnded).toHaveBeenCalledWith("ext-4", "terminated");
+  });
+
+  it("ignores an unknown/absent action without invoking any lifecycle callback", () => {
+    const onSessionCreated = vi.fn();
+    const onSessionEnded = vi.fn();
+    dispatchGlobalEvent(
+      { id: 14, session_id: "ext-5", kind: "session_status", sequence: 0, payload: {} },
+      undefined,
+      { onSessionCreated, onSessionEnded },
+    );
+    expect(onSessionCreated).not.toHaveBeenCalled();
+    expect(onSessionEnded).not.toHaveBeenCalled();
+  });
+});
+
 describe("useGlobalEventStream idempotency (Layer 1)", () => {
   it("does not double-apply an event replayed with the same global id on reconnect", () => {
     const sources: FakeEventSource[] = [];

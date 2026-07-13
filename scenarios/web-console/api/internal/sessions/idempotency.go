@@ -26,6 +26,11 @@ type Response struct {
 	Policy          policy.Policy `json:"policy"`
 	Busy            bool          `json:"busy"`
 	Recovered       bool          `json:"recovered,omitempty"`
+	// Provenance. Carried on the cached response so a replayed (idempotent)
+	// create returns the same origin/owner/label as the original.
+	Origin       string `json:"origin,omitempty"`
+	Owner        string `json:"owner,omitempty"`
+	DisplayLabel string `json:"display_label,omitempty"`
 }
 
 type idempotencyEntry struct {

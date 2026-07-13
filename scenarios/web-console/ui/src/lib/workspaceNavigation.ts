@@ -1,7 +1,8 @@
 import type { ConversationCursor, ConversationEvent } from "../api/conversation";
+import type { SessionOriginName } from "../api/sessions";
 import { formatRelativeTime, stripMarkdown } from "../components/MessageJumpList.helpers";
 import type { PaneViewMode } from "../stores/useConversationStore";
-import type { PaneMetadata, SidebarSortMode, TabGroupMeta } from "../stores/useWorkspaceStore";
+import type { PaneMetadata, SidebarOriginTab, SidebarSortMode, TabGroupMeta } from "../stores/useWorkspaceStore";
 
 type ConversationSessionSnapshot = {
   events: ConversationEvent[];
@@ -46,6 +47,14 @@ export interface BuildWorkspaceNavigationItemsOptions {
    * (always manual).
    */
   sortMode?: SidebarSortMode;
+  /**
+   * Optional override for each pane's emitted `globalIndex`. The origin-bucketed
+   * sidebar passes each pane's index in the FULL (unbucketed) store array so
+   * drag-reorder keeps addressing the backing array even when a bucket renders
+   * only a subsequence of it. Omitted for the flat list, where `globalIndex` is
+   * simply the pane's position.
+   */
+  globalIndexBySession?: Record<string, number>;
 }
 
 /** Per-pane comparison inputs used by the non-manual sidebar sorts. */
@@ -143,6 +152,7 @@ export function buildWorkspaceNavigationItems({
   lastVisitedBySession = {},
   now = new Date(),
   sortMode = "manual",
+  globalIndexBySession,
 }: BuildWorkspaceNavigationItemsOptions): WorkspaceNavigationItem[] {
   const groupMap = new Map(groups.map((group) => [group.id, group]));
   const items: WorkspaceNavigationItem[] = [];
@@ -198,7 +208,7 @@ export function buildWorkspaceNavigationItems({
     items.push({
       kind: "pane",
       pane,
-      globalIndex: idx,
+      globalIndex: globalIndexBySession?.[pane.sessionId] ?? idx,
       group,
       groupPosition: group
         ? previousInSameGroup && nextInSameGroup
@@ -220,4 +230,67 @@ export function buildWorkspaceNavigationItems({
   });
 
   return items;
+}
+
+// ---------------------------------------------------------------------------
+// Origin buckets
+// ---------------------------------------------------------------------------
+
+/** Display order of the sidebar origin tabs, top to bottom / left to right. */
+export const ORIGIN_BUCKET_ORDER: readonly SidebarOriginTab[] = ["ui", "programmatic", "remote"];
+
+/**
+ * Fold a session's provenance into a sidebar origin bucket. "unspecified" (and
+ * any unknown/absent origin) normalizes to "programmatic", matching the server's
+ * normalization of an origin-less create — so a session that reaches the UI
+ * untagged still lands in a real bucket rather than a fourth phantom one.
+ */
+export function originBucket(origin: SessionOriginName | undefined): SidebarOriginTab {
+  return origin === "ui" ? "ui" : origin === "remote" ? "remote" : "programmatic";
+}
+
+export interface OriginBucketNavigation {
+  bucket: SidebarOriginTab;
+  items: WorkspaceNavigationItem[];
+}
+
+export interface BuildOriginBucketedNavigationOptions extends BuildWorkspaceNavigationItemsOptions {
+  /** Provenance per session id. Sessions absent from the map bucket into
+   *  "programmatic" via originBucket's unspecified fallback. */
+  originBySession: Record<string, SessionOriginName | undefined>;
+}
+
+/**
+ * Partition the sidebar into origin buckets (UI-owned / Programmatic / Remote),
+ * each carrying its own navigation list with groups, sort, and drag intact.
+ *
+ * Only non-empty buckets are returned, in ORIGIN_BUCKET_ORDER. Each bucket's
+ * items are built over just that bucket's panes — so groups, sort modes, and
+ * group-position rounding compose *within* the bucket — while `globalIndex` is
+ * pinned to the pane's position in the full (unbucketed) list so drag-reorder
+ * still addresses the backing store array.
+ *
+ * With only UI-origin sessions this returns a single "ui" bucket, and the caller
+ * renders that list exactly as it did before origin tabs existed.
+ */
+export function buildOriginBucketedNavigation({
+  originBySession,
+  ...options
+}: BuildOriginBucketedNavigationOptions): OriginBucketNavigation[] {
+  const { panes } = options;
+  const globalIndexBySession: Record<string, number> = {};
+  panes.forEach((pane, index) => {
+    globalIndexBySession[pane.sessionId] = index;
+  });
+
+  const result: OriginBucketNavigation[] = [];
+  for (const bucket of ORIGIN_BUCKET_ORDER) {
+    const bucketPanes = panes.filter((pane) => originBucket(originBySession[pane.sessionId]) === bucket);
+    if (bucketPanes.length === 0) continue;
+    result.push({
+      bucket,
+      items: buildWorkspaceNavigationItems({ ...options, panes: bucketPanes, globalIndexBySession }),
+    });
+  }
+  return result;
 }

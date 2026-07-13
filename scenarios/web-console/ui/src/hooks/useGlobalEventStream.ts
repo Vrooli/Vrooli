@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { resolveApiBase } from "@vrooli/api-base";
 import type { ConversationEvent } from "../api/conversation";
+import { coerceOriginName, type BackendID, type SessionInfo } from "../api/sessions";
 import { useConversationStore } from "../stores/useConversationStore";
 import { refreshConversationSession } from "./useConversationSession";
 
@@ -20,13 +21,25 @@ import { refreshConversationSession } from "./useConversationSession";
  * `appendEvent`/`updateEvent` also dedupe by event id as belt-and-suspenders.
  */
 
-interface GlobalEventEnvelope {
+interface GlobalEventEnvelopeBase {
   id: number;
   session_id: string;
-  kind: "conversation_event" | "conversation_event_update" | "conversation_out_of_sync" | "session_status";
   sequence: number;
-  payload: ConversationEventPayload;
 }
+
+// Discriminated on `kind` so each variant carries its real payload shape: the
+// conversation kinds a ConversationEventPayload, session_status a
+// SessionStatusPayload. This lets the dispatch switch narrow `envelope.payload`
+// per case without any cast.
+type GlobalEventEnvelope =
+  | (GlobalEventEnvelopeBase & {
+      kind: "conversation_event" | "conversation_event_update" | "conversation_out_of_sync";
+      payload: ConversationEventPayload;
+    })
+  | (GlobalEventEnvelopeBase & {
+      kind: "session_status";
+      payload: SessionStatusPayload;
+    });
 
 interface ConversationEventPayload {
   id?: string;
@@ -41,11 +54,64 @@ interface ConversationEventPayload {
   sequence?: number;
 }
 
-export interface UseGlobalEventStreamOptions {
+/**
+ * Payload of a `session_status` envelope: a session existence transition
+ * (created/deleted/terminated) fanned from the API's event logger onto the SSE
+ * hub (see api/session_lifecycle_bridge.go). The "created" action carries enough
+ * to build a full sidebar row without a follow-up fetch; delete/terminate carry
+ * just the action (terminate adds a reason).
+ */
+interface SessionStatusPayload {
+  action?: "created" | "deleted" | "terminated";
+  shell?: string;
+  cols?: number;
+  rows?: number;
+  backend?: string;
+  origin?: string;
+  owner?: string;
+  display_label?: string;
+  agent?: string;
+  recovered?: boolean;
+  created_at?: string;
+  reason?: string;
+}
+
+/** Lifecycle callbacks for externally originated session existence changes. */
+export interface SessionLifecycleHandlers {
+  /** An externally created session (any origin) should be merged into state.
+   *  `supportsMessagesView` is derived from the launch agent so the merged pane
+   *  matches a locally launched one. */
+  onSessionCreated?: (session: SessionInfo, supportsMessagesView: boolean) => void;
+  /** An externally deleted/terminated session should be dropped from state. */
+  onSessionEnded?: (sessionId: string, reason: "deleted" | "terminated") => void;
+}
+
+export interface UseGlobalEventStreamOptions extends SessionLifecycleHandlers {
   /** Surface an auto-summarize failure for the active pane (banner + retry). */
   onSummarizeError?: (sessionId: string, eventId: string, message: string) => void;
   /** Test seam: inject a fake EventSource factory. */
   createEventSource?: (url: string) => EventSource;
+}
+
+/** Build a full SessionInfo from a `created` lifecycle payload so the sidebar
+ *  merge needs no follow-up fetch. Fields absent from the event (policy, busy)
+ *  take neutral defaults; survives_restart is derived from the backend. */
+function sessionFromStatusPayload(sessionId: string, p: SessionStatusPayload): SessionInfo {
+  return {
+    id: sessionId,
+    shell: p.shell ?? "",
+    created_at: p.created_at ?? new Date().toISOString(),
+    cols: p.cols ?? 0,
+    rows: p.rows ?? 0,
+    backend: (p.backend as BackendID) || "standard",
+    survives_restart: p.backend === "persistent",
+    policy: { mode: "never" },
+    busy: false,
+    ...(p.recovered ? { recovered: true } : {}),
+    origin: coerceOriginName(p.origin),
+    owner: p.owner ?? "",
+    display_label: p.display_label ?? "",
+  };
 }
 
 /** Builds the same-origin SSE endpoint URL (honors proxy/api-base resolution). */
@@ -64,17 +130,21 @@ const SEEN_ID_LIMIT = 4096;
 export function dispatchGlobalEvent(
   envelope: GlobalEventEnvelope,
   onSummarizeError?: (sessionId: string, eventId: string, message: string) => void,
+  lifecycle?: SessionLifecycleHandlers,
 ): void {
   const store = useConversationStore.getState();
-  const { kind, session_id: sessionId, payload } = envelope;
+  const { session_id: sessionId } = envelope;
 
-  switch (kind) {
+  // Switch on envelope.kind (not a destructured copy) so TS narrows
+  // envelope.payload to the per-kind shape inside each case — no casts.
+  switch (envelope.kind) {
     case "conversation_event": {
-      const event = toConversationEvent(sessionId, envelope.sequence, payload);
+      const event = toConversationEvent(sessionId, envelope.sequence, envelope.payload);
       if (event) store.appendEvent(event);
       break;
     }
     case "conversation_event_update": {
+      const { payload } = envelope;
       const eventId = payload.id;
       if (!eventId) break;
       const patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean } = {};
@@ -94,10 +164,19 @@ export function dispatchGlobalEvent(
       }
       break;
     }
-    case "session_status":
-      // Reserved for forward compatibility (e.g. live exit status for
-      // unmounted panes). No-op until the server emits it.
+    case "session_status": {
+      // Session existence transitions from ANY origin (another tab, the CLI, an
+      // expiry sweep). The bridge (api/session_lifecycle_bridge.go) fans these
+      // onto the hub so the sidebar tracks sessions this client did not create.
+      const p = envelope.payload;
+      if (p.action === "created") {
+        const supportsMessagesView = Boolean(p.agent) && p.agent !== "none";
+        lifecycle?.onSessionCreated?.(sessionFromStatusPayload(sessionId, p), supportsMessagesView);
+      } else if (p.action === "deleted" || p.action === "terminated") {
+        lifecycle?.onSessionEnded?.(sessionId, p.action);
+      }
       break;
+    }
   }
 }
 
@@ -125,11 +204,13 @@ function toConversationEvent(
 }
 
 export function useGlobalEventStream(options: UseGlobalEventStreamOptions = {}): void {
-  const { onSummarizeError, createEventSource } = options;
-  // Keep the latest onSummarizeError in a ref so re-creating the callback
-  // doesn't tear down and re-open the SSE connection.
+  const { onSummarizeError, onSessionCreated, onSessionEnded, createEventSource } = options;
+  // Keep the latest callbacks in refs so re-creating them doesn't tear down and
+  // re-open the SSE connection.
   const onSummarizeErrorRef = useRef(onSummarizeError);
   onSummarizeErrorRef.current = onSummarizeError;
+  const lifecycleRef = useRef<SessionLifecycleHandlers>({ onSessionCreated, onSessionEnded });
+  lifecycleRef.current = { onSessionCreated, onSessionEnded };
 
   useEffect(() => {
     if (typeof EventSource === "undefined" && !createEventSource) return;
@@ -162,7 +243,7 @@ export function useGlobalEventStream(options: UseGlobalEventStreamOptions = {}):
       // out-of-sync nudges are advisory and intentionally carry id:0 — they must
       // always be processed, never deduped against a prior nudge.
       if (typeof envelope.id === "number" && envelope.id > 0 && !markSeen(envelope.id)) return;
-      dispatchGlobalEvent(envelope, onSummarizeErrorRef.current);
+      dispatchGlobalEvent(envelope, onSummarizeErrorRef.current, lifecycleRef.current);
     };
 
     const kinds = [

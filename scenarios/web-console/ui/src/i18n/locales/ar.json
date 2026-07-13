@@ -326,7 +326,11 @@
     "sortName": "Name",
     "sortActivity": "Recent activity",
     "sortUnread": "Unread",
-    "reorderAria": "Reorder {{name}}"
+    "reorderAria": "Reorder {{name}}",
+    "originTabsAria": "تصفية الجلسات حسب المصدر",
+    "originTabUi": "واجهة المستخدم",
+    "originTabProgrammatic": "برمجية",
+    "originTabRemote": "بعيد"
   },
   "tabContextMenu": {
     "rename": "إعادة التسمية",

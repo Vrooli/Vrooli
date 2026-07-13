@@ -32,7 +32,7 @@ import type { GateResult, InputSource } from "./terminal/inputGate";
 import { uploadFile } from "../api/uploads";
 import { fetchCapabilities } from "../api/capabilities";
 import { getSessionDefaults } from "../api/settings";
-import { getSession, type BackendOption, type BackendID, type ExpirationPolicy } from "../api/sessions";
+import { getSession, type BackendOption, type BackendID, type ExpirationPolicy, type SessionOriginName } from "../api/sessions";
 import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
 import GridSplitter from "./GridSplitter";
@@ -65,7 +65,7 @@ import { useConversationStore, type PaneViewMode } from "../stores/useConversati
 import type { TTSPlaybackState } from "../audio-integration";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
-import { buildWorkspaceNavigationItems, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
+import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
 import { useTabLikeNavigationShortcuts } from "../hooks/useTabLikeNavigationShortcuts";
 
 type ActiveResize = {
@@ -113,8 +113,9 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
     clearError,
     clearHydrationError,
     launchSession,
-    handleTerminalReady,
     removePane: removeSessionPane,
+    mergeExternalSession,
+    endExternalSession,
     handleExit: sessionHandleExit,
     submitToActiveTerminal,
     subscribeActiveInputSettled,
@@ -1029,7 +1030,14 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   // Single SSE subscription for the whole app: conversation events + unread
   // updates for ALL sessions flow here, decoupled from any terminal WS. Auto-
   // summarize failures surface through the active pane's banner handler.
-  useGlobalEventStream({ onSummarizeError: handlePaneSummarizeError });
+  // Session lifecycle events (created/deleted/terminated from any origin) merge
+  // into / drop from the pane list live; the store-reconciliation effect above
+  // propagates those to the sidebar without a re-hydration.
+  useGlobalEventStream({
+    onSummarizeError: handlePaneSummarizeError,
+    onSessionCreated: mergeExternalSession,
+    onSessionEnded: endExternalSession,
+  });
   // Keep every session's conversation hydrated for badges even when its
   // terminal pane is unmounted (offscreen panes no longer hydrate themselves).
   useConversationHydration(orderedPanes.map((pane) => pane.sessionId));
@@ -1273,7 +1281,6 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         onToggleView={handlePaneToggleView}
         onViewSwitchPendingChange={handleViewSwitchPendingChange}
         onStartArrangeDrag={startArrangeDrag}
-        onTerminalReady={handleTerminalReady}
         onTerminalExit={handleExit}
         onTerminalRef={registerTerminalRef}
         onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
@@ -1296,6 +1303,21 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
     viewModes: conversationViewModes,
     lastVisitedBySession,
     sortMode: workspace.sidebarSortMode,
+  });
+  // Provenance per session for the origin-bucketed sidebar. Origin lives on the
+  // session (not the workspace pane metadata), so it comes from the session
+  // manager's pane list rather than the store.
+  const originBySession: Record<string, SessionOriginName> = {};
+  for (const sp of sessionPanes) originBySession[sp.session.id] = sp.session.origin;
+  const sidebarOriginBuckets = buildOriginBucketedNavigation({
+    panes: orderedPanes,
+    groups: workspace.groups ?? [],
+    activePane: workspace.activePane,
+    conversationSessions,
+    viewModes: conversationViewModes,
+    lastVisitedBySession,
+    sortMode: workspace.sidebarSortMode,
+    originBySession,
   });
   const activeNavigationItem = navigationItems.find(
     (item) => item.kind === "pane" && item.pane.sessionId === workspace.activePane,
@@ -1520,7 +1542,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         >
           {workspace.displayMode === "sidebar" && (
             <SessionSidebar
-              items={navigationItems}
+              buckets={sidebarOriginBuckets}
               containerRef={sidebarLayoutRef}
               isMobile={isMobile}
               mobileOpen={mobileSidebarOpen}
@@ -1575,7 +1597,6 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
                   onToggleView={handlePaneToggleView}
                   onViewSwitchPendingChange={handleViewSwitchPendingChange}
                   messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? renderViewToggleButton() : undefined}
-                  onTerminalReady={handleTerminalReady}
                   onTerminalExit={handleExit}
                   onTerminalRef={registerTerminalRef}
                   onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}

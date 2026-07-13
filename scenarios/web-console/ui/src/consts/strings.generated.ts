@@ -341,6 +341,10 @@ export const strings = {
     sortActivity: "sessionSidebar.sortActivity",
     sortUnread: "sessionSidebar.sortUnread",
     reorderAria: "sessionSidebar.reorderAria",
+    originTabsAria: "sessionSidebar.originTabsAria",
+    originTabUi: "sessionSidebar.originTabUi",
+    originTabProgrammatic: "sessionSidebar.originTabProgrammatic",
+    originTabRemote: "sessionSidebar.originTabRemote",
   },
   tabContextMenu: {
     rename: "tabContextMenu.rename",

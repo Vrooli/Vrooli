@@ -237,6 +237,9 @@ export function makeSessions(
       survives_restart: false,
       policy: { mode: "never" as const },
       busy: false,
+      origin: "ui" as const,
+      owner: "",
+      display_label: "",
     },
   }));
 }
@@ -257,6 +260,9 @@ export function createMockSession(
     survives_restart: false,
     policy: { mode: "never" as const },
     busy: false,
+    origin: "ui" as const,
+    owner: "",
+    display_label: "",
     ...overrides,
   };
 }

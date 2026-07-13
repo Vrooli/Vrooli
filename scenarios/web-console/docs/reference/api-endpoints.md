@@ -32,6 +32,15 @@ Every HTTP and WebSocket endpoint exposed by the web-console API. Routes are reg
 
 Recovery contract and state machine: [Session Recovery guide](../guides/SESSION_RECOVERY.md).
 
+**Create provenance & launch fields.** `CreateRequest` (proto `web-console/v1/sessions`) carries provenance and launch intent alongside the shell/backend fields:
+
+- `origin` (`SessionOrigin`): who opened the session. The taxonomy is `SESSION_ORIGIN_UI` (human-opened browser tab), `SESSION_ORIGIN_PROGRAMMATIC` (agent/CLI caller), and `SESSION_ORIGIN_REMOTE`. `SESSION_ORIGIN_UNSPECIFIED` is **normalized to `SESSION_ORIGIN_PROGRAMMATIC`** on create — every first-party UI client sets `UI` explicitly, so an origin-less create can only have come from a programmatic caller. Persisted to `sessions.origin`.
+- `owner`: free-form provenance tag (e.g. `agent-manager`). Persisted to `sessions.owner`.
+- `display_label`: human-facing sidebar label. Persisted to `sessions.display_label`.
+- `launch_command`: command staged in the new session. By default it is only staged; set `execute_launch_command=true` to have the server paste it into the fresh session's stdin immediately after create (headless launch — the command runs with no browser attached, reusing the same paste seam as recovery). `execute_launch_command` is a create-time intent and is not persisted.
+
+Rows that predate these columns are backfilled to `origin='ui'` by an additive `ALTER TABLE` migration; see [data-model](./data-model.md#sessions).
+
 ## Terminal I/O (WebSocket)
 
 | Method | Path | Handler |

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ConversationEvent } from "../api/conversation";
-import { buildWorkspaceNavigationItems, countWorkspaceUnreadMessages, sortPanesForView, type PaneSortMetrics } from "../lib/workspaceNavigation";
+import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, countWorkspaceUnreadMessages, originBucket, sortPanesForView, type PaneSortMetrics } from "../lib/workspaceNavigation";
+import type { SessionOriginName } from "../api/sessions";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
 import type { PaneMetadata, TabGroupMeta } from "../stores/useWorkspaceStore";
 
@@ -130,6 +131,78 @@ describe("buildWorkspaceNavigationItems", () => {
       globalIndex: 1,
       activityLabel: "Visited 10m",
     });
+  });
+});
+
+describe("originBucket", () => {
+  it("folds unspecified and unknown origins into programmatic", () => {
+    expect(originBucket("ui")).toBe("ui");
+    expect(originBucket("programmatic")).toBe("programmatic");
+    expect(originBucket("remote")).toBe("remote");
+    expect(originBucket("unspecified")).toBe("programmatic");
+    expect(originBucket(undefined)).toBe("programmatic");
+  });
+});
+
+describe("buildOriginBucketedNavigation", () => {
+  const origins = (map: Record<string, SessionOriginName>) => map;
+
+  it("returns a single ui bucket when only UI sessions exist", () => {
+    const buckets = buildOriginBucketedNavigation({
+      panes: [pane("a"), pane("b")],
+      groups: [],
+      activePane: "a",
+      originBySession: origins({ a: "ui", b: "ui" }),
+    });
+    expect(buckets).toHaveLength(1);
+    expect(buckets[0]?.bucket).toBe("ui");
+    expect(buckets[0]?.items.map((i) => (i.kind === "pane" ? i.pane.sessionId : "grp"))).toEqual(["a", "b"]);
+  });
+
+  it("splits sessions into ordered buckets, folding unspecified into programmatic", () => {
+    const buckets = buildOriginBucketedNavigation({
+      panes: [pane("ui1"), pane("prog1"), pane("rem1"), pane("unspec1")],
+      groups: [],
+      activePane: "ui1",
+      originBySession: origins({ ui1: "ui", prog1: "programmatic", rem1: "remote", unspec1: "unspecified" }),
+    });
+    // Buckets come back in ORIGIN_BUCKET_ORDER: ui, programmatic, remote.
+    expect(buckets.map((b) => b.bucket)).toEqual(["ui", "programmatic", "remote"]);
+    const programmatic = buckets.find((b) => b.bucket === "programmatic");
+    // unspecified sessions land in the programmatic bucket alongside programmatic ones.
+    expect(
+      programmatic?.items.flatMap((i) => (i.kind === "pane" ? [i.pane.sessionId] : [])),
+    ).toEqual(["prog1", "unspec1"]);
+  });
+
+  it("pins globalIndex to the full-list position so drag addresses the store array", () => {
+    // Store order is [ui, prog, ui, prog]; the programmatic bucket renders a
+    // subsequence but each pane keeps its index in the full array.
+    const buckets = buildOriginBucketedNavigation({
+      panes: [pane("ui0"), pane("prog1"), pane("ui2"), pane("prog3")],
+      groups: [],
+      activePane: "ui0",
+      originBySession: origins({ ui0: "ui", prog1: "programmatic", ui2: "ui", prog3: "programmatic" }),
+    });
+    const programmatic = buckets.find((b) => b.bucket === "programmatic");
+    const indices = programmatic?.items.flatMap((i) => (i.kind === "pane" ? [{ id: i.pane.sessionId, globalIndex: i.globalIndex }] : []));
+    expect(indices).toEqual([
+      { id: "prog1", globalIndex: 1 },
+      { id: "prog3", globalIndex: 3 },
+    ]);
+  });
+
+  it("keeps groups and collapsed-group hiding intact within a bucket", () => {
+    const buckets = buildOriginBucketedNavigation({
+      panes: [pane("p1", "g1"), pane("p2", "g1")],
+      groups: [{ id: "g1", name: "Work", color: "#123456", isCollapsed: true }],
+      activePane: "p1",
+      originBySession: origins({ p1: "programmatic", p2: "programmatic" }),
+    });
+    const programmatic = buckets.find((b) => b.bucket === "programmatic");
+    // The group label survives (tabCount 2), but its collapsed panes are hidden.
+    expect(programmatic?.items).toHaveLength(1);
+    expect(programmatic?.items[0]).toMatchObject({ kind: "group-label", tabCount: 2 });
   });
 });
 

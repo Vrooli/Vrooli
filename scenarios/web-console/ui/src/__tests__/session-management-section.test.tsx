@@ -52,6 +52,9 @@ const makeSession = (id: string): SessionInfo => ({
   survives_restart: false,
   policy: { mode: "never" },
   busy: false,
+  origin: "ui",
+  owner: "",
+  display_label: "",
 });
 
 describe("SessionManagementSection", () => {

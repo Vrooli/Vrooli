@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { paneColorStyle } from "../lib/paneColor";
-import type { WorkspaceNavigationItem } from "../lib/workspaceNavigation";
+import type { OriginBucketNavigation } from "../lib/workspaceNavigation";
+import type { SidebarOriginTab } from "../stores/useWorkspaceStore";
 import { useLongPress } from "../hooks/useLongPress";
 import { usePressGesture } from "../hooks/usePressGesture";
 import { useResizablePanel } from "../hooks/useResizablePanel";
@@ -19,7 +20,11 @@ const SIDEBAR_LONG_PRESS_MS = 500;
 const SIDEBAR_PRESS_MOVE_THRESHOLD = 8;
 
 interface SessionSidebarProps {
-  items: WorkspaceNavigationItem[];
+  /** Session navigation partitioned into origin buckets (UI-owned / Programmatic
+   *  / Remote), non-empty buckets only, in display order. A single "ui" bucket
+   *  means only UI-origin sessions exist — the tab strip stays unmounted and the
+   *  list renders exactly as it did before origin tabs. */
+  buckets: OriginBucketNavigation[];
   containerRef: RefObject<HTMLElement | null>;
   isMobile: boolean;
   mobileOpen: boolean;
@@ -37,8 +42,14 @@ function modeLabel(viewMode: string): string {
   return viewMode === "messages" ? "Messages" : "Terminal";
 }
 
+const ORIGIN_TAB_LABEL = {
+  ui: strings.sessionSidebar.originTabUi,
+  programmatic: strings.sessionSidebar.originTabProgrammatic,
+  remote: strings.sessionSidebar.originTabRemote,
+} as const satisfies Record<SidebarOriginTab, string>;
+
 export default function SessionSidebar({
-  items,
+  buckets,
   containerRef,
   isMobile,
   mobileOpen,
@@ -63,6 +74,8 @@ export default function SessionSidebar({
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const sidebarSortMode = useWorkspaceStore((s) => s.sidebarSortMode);
   const setSidebarSortMode = useWorkspaceStore((s) => s.setSidebarSortMode);
+  const sidebarOriginTab = useWorkspaceStore((s) => s.sidebarOriginTab);
+  const setSidebarOriginTab = useWorkspaceStore((s) => s.setSidebarOriginTab);
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
   const { syncPaneUpdate, syncPaneOrder } = useWorkspaceSync();
   const { removePaneFromGroup } = useGroupActions();
@@ -101,6 +114,16 @@ export default function SessionSidebar({
     onPress: plusButtonBehavior === "launcher" ? handleSidebarOpenLauncher : handleSidebarNewTerminal,
     onLongPress: plusButtonBehavior === "launcher" ? handleSidebarNewTerminal : handleSidebarOpenLauncher,
   });
+
+  // Origin tabs appear only when a non-UI-origin session exists; with just UI
+  // sessions `buckets` holds a single "ui" entry and the list renders exactly
+  // as it did before origin tabs. `activeBucket` resolves the persisted tab
+  // against the buckets actually present, so a tab whose bucket has emptied
+  // falls back to the first present bucket without mutating the persisted
+  // choice (it stays valid for when that origin reappears).
+  const showOriginTabs = buckets.some((bucket) => bucket.bucket !== "ui");
+  const activeBucket = buckets.find((bucket) => bucket.bucket === sidebarOriginTab) ?? buckets[0];
+  const items = activeBucket?.items ?? [];
 
   const paneItems = items.filter((item) => item.kind === "pane");
   const totalUnread = paneItems.reduce((sum, item) => sum + item.unreadCount, 0);
@@ -255,6 +278,39 @@ export default function SessionSidebar({
           </Button>
         )}
       </div>
+
+      {showOriginTabs && (
+        <div
+          role="tablist"
+          aria-label={t(strings.sessionSidebar.originTabsAria)}
+          data-testid="sidebar-origin-tabs"
+          className="flex select-none items-center gap-1 border-b border-wc-default px-2 py-1.5"
+        >
+          {buckets.map((bucket) => {
+            const count = bucket.items.reduce((sum, item) => sum + (item.kind === "pane" ? 1 : 0), 0);
+            const isActiveTab = bucket.bucket === activeBucket?.bucket;
+            return (
+              <button
+                key={bucket.bucket}
+                type="button"
+                role="tab"
+                aria-selected={isActiveTab}
+                data-testid={`sidebar-origin-tab-${bucket.bucket}`}
+                className={cn(
+                  "flex min-w-0 flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors",
+                  isActiveTab
+                    ? "bg-wc-surface-raised text-wc-text-primary"
+                    : "text-wc-text-muted hover:bg-wc-surface-raised/60 hover:text-wc-text-secondary",
+                )}
+                onClick={() => setSidebarOriginTab(bucket.bucket)}
+              >
+                <span className="truncate">{t(ORIGIN_TAB_LABEL[bucket.bucket])}</span>
+                <span className="shrink-0 rounded bg-wc-surface-input px-1 text-[10px]">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex select-none items-center gap-1.5 border-b border-wc-default px-3 py-1.5 text-[11px] text-wc-text-muted">
         <ArrowDownUp className="h-3 w-3 shrink-0" />

@@ -13,6 +13,7 @@ describe("useWorkspaceStore", () => {
       defaultHeaderColor: "transparent",
       defaultThemeId: "slate-ocean",
       defaultFontSize: 14,
+      sidebarOriginTab: "ui",
     });
   });
 
@@ -336,6 +337,19 @@ describe("useWorkspaceStore", () => {
     });
   });
 
+  describe("setSidebarOriginTab", () => {
+    it("defaults to the ui bucket", () => {
+      expect(useWorkspaceStore.getState().sidebarOriginTab).toBe("ui");
+    });
+
+    it("updates the active origin tab", () => {
+      useWorkspaceStore.getState().setSidebarOriginTab("programmatic");
+      expect(useWorkspaceStore.getState().sidebarOriginTab).toBe("programmatic");
+      useWorkspaceStore.getState().setSidebarOriginTab("remote");
+      expect(useWorkspaceStore.getState().sidebarOriginTab).toBe("remote");
+    });
+  });
+
   describe("persist migration v14→v15", () => {
     it("seeds new fields without dropping existing persisted state", () => {
       const migrate = useWorkspaceStore.persist.getOptions().migrate;
@@ -354,6 +368,33 @@ describe("useWorkspaceStore", () => {
       expect(migrated.defaultHeaderColor).toBe("#ff6b6b");
       expect(migrated.recentCombos).toEqual(["ctrl-c"]);
       expect(migrated.displayMode).toBe("sidebar");
+    });
+  });
+
+  describe("persist migration v16→v17", () => {
+    it("seeds sidebarOriginTab on a pre-origin-tab snapshot and leaves prior state intact", () => {
+      const migrate = useWorkspaceStore.persist.getOptions().migrate;
+      if (!migrate) throw new Error("migrate function missing");
+      const prior = {
+        displayMode: "sidebar",
+        sidebarSortMode: "activity",
+        adaptiveChrome: false,
+        recentHeaderColors: ["#111111"],
+      };
+      const migrated = migrate(prior, 16) as Record<string, unknown>;
+      expect(migrated.sidebarOriginTab).toBe("ui");
+      // Fields from the pre-change snapshot survive the migration untouched.
+      expect(migrated.displayMode).toBe("sidebar");
+      expect(migrated.sidebarSortMode).toBe("activity");
+      expect(migrated.adaptiveChrome).toBe(false);
+      expect(migrated.recentHeaderColors).toEqual(["#111111"]);
+    });
+
+    it("does not clobber a persisted origin tab from a future-shaped snapshot", () => {
+      const migrate = useWorkspaceStore.persist.getOptions().migrate;
+      if (!migrate) throw new Error("migrate function missing");
+      const migrated = migrate({ sidebarOriginTab: "remote" }, 16) as Record<string, unknown>;
+      expect(migrated.sidebarOriginTab).toBe("remote");
     });
   });
 });

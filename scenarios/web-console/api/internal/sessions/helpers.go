@@ -42,6 +42,24 @@ func NormalizeAgentType(s string) sessionstore.Agent {
 	}
 }
 
+// NormalizeOrigin maps a free-form origin string to a closed-set Origin value.
+// The empty string (an origin-less create) and any unrecognized input normalize
+// to OriginProgrammatic: every first-party UI client sets 'ui' explicitly, so a
+// create that arrives without an origin can only have come from a programmatic
+// caller.
+func NormalizeOrigin(s string) sessionstore.Origin {
+	switch sessionstore.Origin(s) {
+	case sessionstore.OriginUI:
+		return sessionstore.OriginUI
+	case sessionstore.OriginRemote:
+		return sessionstore.OriginRemote
+	case sessionstore.OriginProgrammatic:
+		return sessionstore.OriginProgrammatic
+	default:
+		return sessionstore.OriginProgrammatic
+	}
+}
+
 // Recoverability decides whether a stored session row can be recovered and,
 // if not, why.
 func Recoverability(m sessionstore.Metadata) (bool, string) {

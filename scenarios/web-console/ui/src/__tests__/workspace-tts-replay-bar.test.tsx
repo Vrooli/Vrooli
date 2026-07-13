@@ -90,7 +90,6 @@ vi.mock("../hooks/useSessionManager", () => ({
     createError: null,
     clearError: vi.fn(),
     launchSession: vi.fn().mockResolvedValue(hookState.panes[0]?.session),
-    handleTerminalReady: vi.fn(),
     removePane: vi.fn(),
     handleExit: vi.fn(),
     sendToActiveTerminal: vi.fn(),

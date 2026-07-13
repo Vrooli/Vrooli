@@ -45,7 +45,6 @@ interface WorkspacePaneShellProps {
   onViewSwitchPendingChange?: (sessionId: string, pending: boolean) => void;
   messagesToolbarTrailingAction?: ReactNode;
   onStartArrangeDrag?: (paneId: string, e: ReactPointerEvent) => void;
-  onTerminalReady: (sessionId: string) => void;
   onTerminalExit: (sessionId: string) => void;
   onTerminalRef: (sessionId: string, handle: TerminalPaneHandle | null) => void;
   onVoiceStart?: () => void;
@@ -93,7 +92,6 @@ function WorkspacePaneShell({
   onViewSwitchPendingChange,
   messagesToolbarTrailingAction,
   onStartArrangeDrag,
-  onTerminalReady,
   onTerminalExit,
   onTerminalRef,
   onVoiceStart,
@@ -212,7 +210,6 @@ function WorkspacePaneShell({
           <TerminalPane
             sessionId={sessionId}
             onExit={onTerminalExit}
-            onReady={() => onTerminalReady(sessionId)}
             onVoiceStart={onVoiceStart}
             onVoiceStop={onVoiceStop}
             onTtsSpeakingChange={(speaking) => onTtsSpeakingChange(sessionId, speaking)}
