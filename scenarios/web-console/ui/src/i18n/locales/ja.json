@@ -23,7 +23,8 @@
     "viaProvider": "{{provider}}より",
     "copyTitle": "コマンドをコピー",
     "executeTitle": "ターミナルで実行",
-    "noActiveTerminal": "アクティブなターミナルがありません"
+    "noActiveTerminal": "アクティブなターミナルがありません",
+    "closeAriaLabel": "AI入力を閉じる"
   },
   "voiceMicButton": {
     "preparing": "準備中...",
@@ -418,7 +419,8 @@
     "backendLabel": "バックエンド:",
     "timeoutLabel": "タイムアウト:",
     "persistentHint": "永続セッションはtmuxを使用してwebコンソール再起動後も維持されます。",
-    "creating": "セッションを作成中..."
+    "creating": "セッションを作成中...",
+    "closeAriaLabel": "ランチャーを閉じる"
   },
   "settings": {
     "title": "設定",
@@ -789,7 +791,8 @@
       "testMicMsSuffix": "{{value}}ms",
       "testMicNoTranscript": "(no transcript returned)",
       "testMicError": "Test failed"
-    }
+    },
+    "closeAriaLabel": "設定を閉じる"
   },
   "appearance": {
     "title": "外観",
@@ -801,7 +804,8 @@
     "applyToAll": "すべてのセッションに適用",
     "recentColorsHeading": "Recent",
     "addSecondaryColor": "Add second color",
-    "removeSecondaryColor": "Remove second color"
+    "removeSecondaryColor": "Remove second color",
+    "closeAriaLabel": "外観設定を閉じる"
   },
   "audioSettings": {
     "volume": "音量",
@@ -835,5 +839,23 @@
     "expand": "Expand",
     "ungroupAll": "Ungroup all",
     "delete": "Delete group"
+  },
+  "manageGroups": {
+    "title": "グループを管理",
+    "closeAriaLabel": "グループ管理を閉じる",
+    "menuItem": "グループを管理…",
+    "empty": "グループはまだありません。作成してセッションを整理しましょう。",
+    "sessionCount": "{{count}} セッション",
+    "create": "新しいグループ",
+    "renameAriaLabel": "グループ「{{name}}」の名前を変更",
+    "recolorAriaLabel": "「{{name}}」の色を変更",
+    "deleteAriaLabel": "グループ「{{name}}」を削除",
+    "deleteTitle": "「{{name}}」を削除しますか？",
+    "deleteConsequence": "{{count}} 件のセッションがグループ解除されます。",
+    "deleteConsequenceNone": "このグループにセッションはありません。",
+    "deleteCancel": "キャンセル",
+    "deleteConfirm": "削除",
+    "assignSession": "現在のセッションを追加",
+    "removeSession": "現在のセッションを外す"
   }
 }

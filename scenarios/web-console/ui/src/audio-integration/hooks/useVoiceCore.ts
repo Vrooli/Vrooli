@@ -76,6 +76,7 @@ const INITIAL_STATE: VoiceInputState = {
   rejectedAudio: null,
   speakerVerificationEnabled: false,
   speakerProfileConfigured: false,
+  turnDiagnostic: null,
   wakeWordConfigured: false,
   passiveListeningActive: false,
   staleLiveMicLease: false,
@@ -1313,6 +1314,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           setState((s) => ({ ...s, fallbackNotice: message }));
         };
       }
+      if (provider.onDiagnostic !== undefined) {
+        provider.onDiagnostic = (diagnostic) => {
+          setState((s) => ({ ...s, turnDiagnostic: diagnostic }));
+        };
+      }
 
       // The provider acquires its own mic stream on start (single owner, fresh
       // getUserMedia). We no longer inject a pre-warmed stream — holding the mic
@@ -1964,6 +1970,12 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     }));
   }, [controller]);
 
+  /** Returns a privacy-safe diagnostic JSON document, never audio or text. */
+  const exportTurnDiagnostic = useCallback((): string | null => {
+    const provider = providerRef.current;
+    return provider?.exportDiagnostic?.() ?? null;
+  }, []);
+
   return {
     ...state,
     // Derived booleans for UI components
@@ -1984,5 +1996,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     enterPassiveMode,
     exitPassiveMode,
     releaseMicrophone,
+    exportTurnDiagnostic,
   };
 }

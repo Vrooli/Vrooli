@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -20,6 +20,13 @@ interface DrawerShellProps {
   /** Test id applied to the panel element. */
   panelTestId?: string;
   /**
+   * Panel sizing. 'full' (default) is the full-page inset card on desktop;
+   * 'compact' keeps the identical mobile bottom sheet but renders a centered
+   * auto-height max-w-md card on desktop, so small panels (appearance, AI
+   * prompt) can adopt the drawer without becoming full-page.
+   */
+  size?: "full" | "compact";
+  /**
    * When true, the panel bottom is lifted above the on-screen keyboard by
    * anchoring it to `--wc-kb-height` (set by useAppViewport) instead of the
    * viewport bottom. Opt-in because only drawers with a focused input (the
@@ -35,11 +42,12 @@ interface DrawerShellProps {
 }
 
 /**
- * DrawerShell is the shared full-page overlay used by message-contained
- * previews (file previews, Mermaid diagrams). It owns the backdrop, panel
- * sizing, safe-area handling, Escape-to-close, and the header chrome. It is a
- * pure UI contract and intentionally knows nothing about file previews,
- * preview ids, or diagram source.
+ * DrawerShell is the shared modal/drawer surface for web-console: full-page
+ * previews, the composer, settings, the launcher, and small compact panels.
+ * It owns the backdrop, panel sizing, safe-area handling, dialog semantics
+ * (role=dialog, aria-modal, labelled title), Escape-to-close, focus trapping,
+ * and the header chrome. It is a pure UI contract and intentionally knows
+ * nothing about its consumers' domains.
  */
 export function DrawerShell({
   open,
@@ -49,6 +57,7 @@ export function DrawerShell({
   headerActions,
   headerExtra,
   panelTestId,
+  size = "full",
   avoidKeyboard = false,
   children,
 }: DrawerShellProps) {
@@ -60,25 +69,36 @@ export function DrawerShell({
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(open, panelRef);
 
+  const titleId = useId();
+
   if (!open) return null;
 
+  const desktopSizeClasses =
+    size === "compact"
+      ? "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:max-h-[80vh] md:rounded-2xl md:border"
+      : "md:inset-x-8 md:bottom-8 md:top-8 md:rounded-2xl md:border";
+
   return (
-    <div className="fixed inset-0 z-[80]">
+    <div className="fixed inset-0 z-wc-drawer">
       <div className="absolute inset-0 bg-wc-backdrop" onClick={onClose} />
       <div
         ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         data-testid={panelTestId}
         className={
-          "wc-stable-theme absolute inset-x-0 top-[max(1rem,var(--wc-safe-top,0px))] flex flex-col overflow-hidden rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised shadow-2xl md:inset-x-8 md:bottom-8 md:top-8 md:rounded-2xl md:border " +
+          "wc-stable-theme absolute inset-x-0 top-[max(1rem,var(--wc-safe-top,0px))] flex flex-col overflow-hidden rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised shadow-2xl " +
+          desktopSizeClasses +
           // Lift the panel above the keyboard when requested; otherwise pin to
           // the viewport bottom. The md: breakpoint (desktop, no keyboard)
-          // overrides both to a fixed inset.
-          (avoidKeyboard ? "bottom-[var(--wc-kb-height,0px)]" : "bottom-0")
+          // overrides both to the size variant's placement.
+          (avoidKeyboard ? " bottom-[var(--wc-kb-height,0px)]" : " bottom-0")
         }
       >
         <div className="shrink-0 border-b border-wc-default px-4 py-3">
           <div className="flex items-center gap-3">
-            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-wc-text-primary">{title}</h2>
+            <h2 id={titleId} className="min-w-0 flex-1 truncate text-sm font-semibold text-wc-text-primary">{title}</h2>
             {headerActions}
             <button
               type="button"

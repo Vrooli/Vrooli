@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState, type CSSProperties, type RefObject } from "react";
 import { readSafeAreaInsets } from "../lib/safeArea";
 
 interface FloatingDimensions {
@@ -11,7 +11,13 @@ interface ViewportDimensions {
   height: number;
 }
 
-type FloatingPlacement = "right-start" | "left-start" | "bottom-start" | "top-start";
+export type FloatingPlacement =
+  | "right-start"
+  | "left-start"
+  | "bottom-start"
+  | "top-start"
+  | "bottom-end"
+  | "top-end";
 
 interface AnchoredFloatingOptions {
   anchor: DOMRect | { left: number; right: number; top: number; bottom: number; width: number; height: number };
@@ -60,6 +66,10 @@ export function computeAnchoredFloatingPosition({
         return { x: anchor.left, y: anchor.bottom + gap };
       case "top-start":
         return { x: anchor.left, y: anchor.top - size.height - gap };
+      case "bottom-end":
+        return { x: anchor.right - size.width, y: anchor.bottom + gap };
+      case "top-end":
+        return { x: anchor.right - size.width, y: anchor.top - size.height - gap };
     }
   };
 
@@ -78,6 +88,41 @@ export function computeAnchoredFloatingPosition({
     y: Math.min(Math.max(fallback.y, minY), maxY),
     placement: fallbackPlacement,
   };
+}
+
+/**
+ * Measure-then-position for anchored desktop popovers: renders the popover
+ * invisibly for one layout pass, measures it, then places it against the
+ * anchor via computeAnchoredFloatingPosition (the single anchor-math
+ * implementation). Callers pass a stable (module-const) placements array.
+ */
+export function useAnchoredPopoverPosition(
+  open: boolean,
+  anchorRef: RefObject<HTMLElement | null>,
+  popoverRef: RefObject<HTMLElement | null>,
+  placements?: FloatingPlacement[],
+): CSSProperties {
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPosition(null);
+      return;
+    }
+    const anchor = anchorRef.current;
+    const popover = popoverRef.current;
+    if (!anchor || !popover) return;
+    const result = computeAnchoredFloatingPosition({
+      anchor: anchor.getBoundingClientRect(),
+      size: { width: popover.offsetWidth, height: popover.offsetHeight },
+      placements,
+    });
+    setPosition({ x: result.x, y: result.y });
+  }, [open, anchorRef, popoverRef, placements]);
+
+  return position
+    ? { position: "fixed", left: position.x, top: position.y }
+    : { position: "fixed", left: 0, top: 0, opacity: 0, pointerEvents: "none" };
 }
 
 export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {

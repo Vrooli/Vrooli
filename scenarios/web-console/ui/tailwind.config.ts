@@ -50,6 +50,37 @@ export default {
         "wc-error-surface": "rgb(var(--wc-error-surface))",
         "wc-accent-active": "rgb(var(--wc-accent-active))",
       },
+      /* Overlay z-layer scale — the SSOT for every overlay z value in
+         src/components. Components must use these tokens (z-wc-*) and never
+         arbitrary z-[..] or raw z-40/z-50 utilities. Tiers, bottom → top:
+
+           chrome          in-pane chrome (sticky headers, resize handles,
+                           upload overlays, scroll-to-bottom buttons)
+           chrome-raised   chrome that must sit above sibling chrome
+           popover         anchored quick-pick popovers + their backdrops
+           drawer          DrawerShell + full-screen drawer surfaces
+           menu            context menus (ContextMenuBase) + their backdrops.
+                           Above drawer: menus spawn from direct presses on
+                           whatever surface is topmost (e.g. long-pressing a
+                           session inside the mobile sidebar drawer)
+           confirm         ConfirmDialog (must layer over drawers and menus)
+           toolbar         FloatingToolbar (draggable, above all surfaces)
+           tooltip         transient tooltips (always visible)
+
+         Backdrop tokens sit one step below their surface so the surface
+         paints above its own backdrop regardless of DOM order. */
+      zIndex: {
+        "wc-chrome": "10",
+        "wc-chrome-raised": "20",
+        "wc-popover-backdrop": "40",
+        "wc-popover": "41",
+        "wc-drawer": "50",
+        "wc-menu-backdrop": "60",
+        "wc-menu": "61",
+        "wc-confirm": "70",
+        "wc-toolbar": "80",
+        "wc-tooltip": "90",
+      },
     },
   },
   plugins: [],

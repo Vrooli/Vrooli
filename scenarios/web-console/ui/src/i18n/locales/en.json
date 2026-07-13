@@ -23,7 +23,8 @@
     "viaProvider": "via {{provider}}",
     "copyTitle": "Copy command",
     "executeTitle": "Execute in terminal",
-    "noActiveTerminal": "No active terminal"
+    "noActiveTerminal": "No active terminal",
+    "closeAriaLabel": "Close AI input"
   },
   "voiceMicButton": {
     "preparing": "Preparing...",
@@ -425,7 +426,8 @@
     "backendLabel": "Backend:",
     "timeoutLabel": "Timeout:",
     "persistentHint": "Persistent sessions survive web console restarts using tmux.",
-    "creating": "Creating session..."
+    "creating": "Creating session...",
+    "closeAriaLabel": "Close launcher"
   },
   "settings": {
     "title": "Settings",
@@ -796,7 +798,8 @@
       "testMicMsSuffix": "{{value}}ms",
       "testMicNoTranscript": "(no transcript returned)",
       "testMicError": "Test failed"
-    }
+    },
+    "closeAriaLabel": "Close settings"
   },
   "appearance": {
     "title": "Appearance",
@@ -808,7 +811,8 @@
     "applyToAll": "Apply to all sessions",
     "recentColorsHeading": "Recent",
     "addSecondaryColor": "Add second color",
-    "removeSecondaryColor": "Remove second color"
+    "removeSecondaryColor": "Remove second color",
+    "closeAriaLabel": "Close appearance settings"
   },
   "audioSettings": {
     "volume": "Volume",
@@ -842,5 +846,25 @@
     "expand": "Expand",
     "ungroupAll": "Ungroup all",
     "delete": "Delete group"
+  },
+  "manageGroups": {
+    "title": "Manage Groups",
+    "closeAriaLabel": "Close group management",
+    "menuItem": "Manage Groups…",
+    "empty": "No groups yet. Create one to organize your sessions.",
+    "sessionCount": "{{count}} sessions",
+    "sessionCount_one": "{{count}} session",
+    "create": "New group",
+    "renameAriaLabel": "Rename group {{name}}",
+    "recolorAriaLabel": "Change color of {{name}}",
+    "deleteAriaLabel": "Delete group {{name}}",
+    "deleteTitle": "Delete “{{name}}”?",
+    "deleteConsequence": "{{count}} sessions will be ungrouped.",
+    "deleteConsequence_one": "{{count}} session will be ungrouped.",
+    "deleteConsequenceNone": "No sessions are in this group.",
+    "deleteCancel": "Cancel",
+    "deleteConfirm": "Delete",
+    "assignSession": "Add current session",
+    "removeSession": "Remove current session"
   }
 }

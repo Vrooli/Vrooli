@@ -307,6 +307,11 @@ const literalSelectors: LiteralSelectorTree = {
   toolbar: {
     container: 'mobile-toolbar',
   },
+  voice: {
+    micButton: 'voice-mic-btn',
+    errorTooltip: 'voice-error-tooltip',
+    exportDiagnostic: 'voice-export-diagnostic',
+  },
   ai: {
     input: 'ai-input',
     prompt: 'ai-input-prompt',

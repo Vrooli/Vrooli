@@ -26,8 +26,23 @@ vi.mock("@vrooli/audio-capture-browser", () => {
     constructor() { captureMocks.journals.push(this); }
     restore = vi.fn(async () => ({ chunks: [], nextSequence: 0n, nextSample: 0n }));
   }
+  class StreamDiagnosticRecorder {
+    private snapshot = { sessionId: "", generation: 0, durability: "reduced", state: "preparing", capturedSequence: -1, sentSequence: -1, processedSequence: -1, statusCodes: [] as string[], errorCodes: [] as string[], events: [] as Array<{ kind: string; code: string }> };
+    constructor(sessionId = "", generation = 0, durability = "reduced") { this.reset(sessionId, generation, durability); }
+    reset(sessionId: string, generation: number, durability: string) { this.snapshot = { sessionId, generation, durability, state: "preparing", capturedSequence: -1, sentSequence: -1, processedSequence: -1, statusCodes: [], errorCodes: [], events: [] }; }
+    state(state: string, code = state) { this.snapshot.state = state; this.snapshot.events.push({ kind: "state", code }); }
+    captured(sequence: bigint) { this.snapshot.capturedSequence = Number(sequence); }
+    sent(sequence: bigint) { this.snapshot.sentSequence = Number(sequence); }
+    processed(sequence: bigint) { this.snapshot.processedSequence = Number(sequence); }
+    status(code: string) { this.snapshot.statusCodes.push(code); }
+    error(code: string) { this.snapshot.errorCodes.push(code); }
+    terminal(state: string, code: string) { this.snapshot.state = state; this.snapshot.events.push({ kind: "terminal", code }); }
+    read() { return { ...this.snapshot, statusCodes: [...this.snapshot.statusCodes], errorCodes: [...this.snapshot.errorCodes], events: [...this.snapshot.events] }; }
+    exportJSON() { return JSON.stringify(this.read()); }
+  }
   return {
     TurnJournal,
+    StreamDiagnosticRecorder,
     IndexedDBTurnJournalStore: class {},
     MemoryTurnJournalStore: class {},
     TARGET_SAMPLE_RATE: 16_000,
@@ -50,6 +65,16 @@ vi.mock("@vrooli/audio-capture-browser", () => {
       return () => `identity-${++next}`;
     })(),
     rememberUnfinishedSession: vi.fn(),
+    dispatchStreamMessage: (raw: string, handlers: Record<string, (...args: unknown[]) => void>, delivered: Set<string>) => {
+      const message = JSON.parse(raw) as { type: string; code?: string; text?: string; processedSequence?: number; segmentId?: string; segmentIndex?: number };
+      if (message.type === "status") handlers.onStatus?.(message.code ?? "stream_status", message.text ?? "Streaming transcription status updated.", message.processedSequence === undefined ? undefined : BigInt(message.processedSequence));
+      else if (message.type === "final") handlers.onFinal?.(message.text?.trim() ?? "");
+      else if (message.type === "error") handlers.onError?.(message.code ?? "provider_failure", message.text ?? "Streaming provider failed.");
+      else if (message.type === "segment-final" && message.text !== undefined && (!message.segmentId || !delivered.has(message.segmentId))) {
+        if (message.segmentId) delivered.add(message.segmentId);
+        handlers.onSegmentFinal?.(message.text, message.segmentIndex ?? 0);
+      }
+    },
   };
 });
 
@@ -134,5 +159,57 @@ describe("PcmVoiceStreamProvider", () => {
     captureMocks.captureFrame(new Float32Array([0.2]), 16_000);
     await settle();
     expect(captureMocks.encodedFrames).toHaveBeenCalledTimes(beforeDrop);
+  });
+
+  it("[REQ:ATD-P1-002] exposes a metadata-only terminal diagnostic with coverage", async () => {
+    await provider.start();
+    await settle();
+    const ws = FakeWebSocket.instances.at(-1);
+    if (!ws || !captureMocks.captureFrame) throw new Error("expected an active PCM stream");
+    captureMocks.captureFrame(new Float32Array([0.1]), 16_000);
+    await settle();
+    ws.onmessage?.({ data: JSON.stringify({ type: "status", code: "processed_acknowledgement", processedSequence: 0 }) });
+    ws.onmessage?.({ data: JSON.stringify({ type: "final", text: "private transcript" }) });
+
+    expect(provider.getDiagnostic()).toMatchObject({ capturedSequence: 0, processedSequence: 0, state: "completed" });
+    expect(provider.exportDiagnostic()).not.toContain("private transcript");
+  });
+
+  it("[REQ:ATD-P0-001] delivers a replayed durable segment identity once", async () => {
+    const onSegmentFinal = vi.fn();
+    provider.onSegmentFinal = onSegmentFinal;
+    await provider.start();
+    await settle();
+    const ws = FakeWebSocket.instances.at(-1);
+    if (!ws) throw new Error("expected an active PCM stream");
+
+    const durableSegment = { type: "segment-final", text: "replayed once", segmentIndex: 0, segmentId: "turn-1:0:0:1" };
+    ws.onmessage?.({ data: JSON.stringify(durableSegment) });
+    ws.onmessage?.({ data: JSON.stringify(durableSegment) });
+
+    expect(onSegmentFinal).toHaveBeenCalledTimes(1);
+    expect(onSegmentFinal).toHaveBeenCalledWith("replayed once", 0);
+  });
+
+  it("[REQ:ATD-P0-004] retains the journal when a final follows incomplete coverage", async () => {
+    const onResult = vi.fn();
+    const onError = vi.fn();
+    provider.onResult = onResult;
+    provider.onError = onError;
+    await provider.start();
+    await settle();
+    const ws = FakeWebSocket.instances.at(-1);
+    if (!ws || !captureMocks.captureFrame) throw new Error("expected an active PCM stream");
+    captureMocks.captureFrame(new Float32Array([0.1]), 16_000);
+    await settle();
+
+    ws.onmessage?.({ data: JSON.stringify({ type: "error", code: "incomplete_coverage", text: "coverage incomplete" }) });
+    ws.onmessage?.({ data: JSON.stringify({ type: "final", text: "must not be delivered" }) });
+    await settle();
+
+    expect(onError).toHaveBeenCalledWith("coverage incomplete");
+    expect(onResult).not.toHaveBeenCalled();
+    expect(captureMocks.journals[0]?.discard).not.toHaveBeenCalled();
+    expect(provider.getDiagnostic()).toMatchObject({ state: "failed" });
   });
 });

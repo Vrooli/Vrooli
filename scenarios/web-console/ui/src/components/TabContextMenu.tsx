@@ -1,10 +1,7 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronRight, ClipboardCopy, FolderPlus, FolderMinus, Palette, Pencil, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ClipboardCopy, FolderCog, FolderMinus, FolderPlus, Palette, Pencil, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
-import type { TabGroupMeta } from "../stores/useWorkspaceStore";
-import { useFloatingPosition } from "../hooks/useFloatingPosition";
 
 interface TabContextMenuProps {
   /** Viewport coordinates where the menu should appear. */
@@ -13,13 +10,11 @@ interface TabContextMenuProps {
   sessionId: string;
   /** Current group ID of this pane (null if ungrouped). */
   currentGroupId: string | null;
-  /** All available groups for the "Add to group" submenu. */
-  groups: TabGroupMeta[];
   onRename: () => void;
   onCustomize: () => void;
-  onAddToGroup: (groupId: string) => void;
   onRemoveFromGroup: () => void;
-  onCreateGroup: () => void;
+  /** Open the Manage Groups drawer with this session as context. */
+  onManageGroups: () => void;
   /**
    * Reorder this pane one slot earlier/later. Only supplied by the sidebar in
    * manual-sort mode (and omitted at the list boundaries), so these are the
@@ -36,44 +31,21 @@ export default function TabContextMenu({
   position,
   sessionId,
   currentGroupId,
-  groups,
   onRename,
   onCustomize,
-  onAddToGroup,
   onRemoveFromGroup,
-  onCreateGroup,
+  onManageGroups,
   onMoveUp,
   onMoveDown,
   onClose,
   onDismiss,
 }: TabContextMenuProps) {
   const { t } = useTranslation();
-  const [showGroupSubmenu, setShowGroupSubmenu] = useState(false);
-  const addToGroupButtonRef = useRef<HTMLButtonElement>(null);
-  const groupSubmenuRef = useRef<HTMLDivElement>(null);
-  const [groupSubmenuPosition, setGroupSubmenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const { computeAnchoredPosition } = useFloatingPosition();
 
   const handleAction = (action: () => void) => {
     action();
     onDismiss();
   };
-
-  useLayoutEffect(() => {
-    if (!showGroupSubmenu) {
-      setGroupSubmenuPosition(null);
-      return;
-    }
-    const anchor = addToGroupButtonRef.current;
-    const submenu = groupSubmenuRef.current;
-    if (!anchor || !submenu) return;
-    const position = computeAnchoredPosition({
-      anchor: anchor.getBoundingClientRect(),
-      size: { width: submenu.offsetWidth, height: submenu.offsetHeight },
-      placements: ["right-start", "left-start", "bottom-start", "top-start"],
-    });
-    setGroupSubmenuPosition({ x: position.x, y: position.y });
-  }, [computeAnchoredPosition, groups.length, showGroupSubmenu]);
 
   return (
     <ContextMenuBase position={position} onClose={onDismiss}>
@@ -100,69 +72,37 @@ export default function TabContextMenu({
       {/* Divider */}
       <div className="border-t border-wc-default my-1" />
 
-      {/* Group actions */}
+      {/* Group membership: "Add to Group" opens the Manage Groups drawer with
+          this session as context (assign, create, rename, delete all live
+          there); grouped panes get a one-tap remove plus the same drawer. */}
       {currentGroupId ? (
-        <button
-          data-testid="tab-ctx-remove-from-group"
-          className={contextMenuItemClass}
-          onClick={() => handleAction(onRemoveFromGroup)}
-        >
-          <FolderMinus className="h-4 w-4 shrink-0" />
-          {t(strings.tabContextMenu.removeFromGroup)}
-        </button>
-      ) : (
-        <div
-          className="relative"
-          onPointerEnter={() => setShowGroupSubmenu(true)}
-          onPointerLeave={() => setShowGroupSubmenu(false)}
-        >
+        <>
           <button
-            ref={addToGroupButtonRef}
-            data-testid="tab-ctx-add-to-group"
+            data-testid="tab-ctx-remove-from-group"
             className={contextMenuItemClass}
-            onClick={() => setShowGroupSubmenu((prev) => !prev)}
+            onClick={() => handleAction(onRemoveFromGroup)}
           >
-            <FolderPlus className="h-4 w-4 shrink-0" />
-            {t(strings.tabContextMenu.addToGroup)}
-            <ChevronRight className="h-3 w-3 ml-auto shrink-0" />
+            <FolderMinus className="h-4 w-4 shrink-0" />
+            {t(strings.tabContextMenu.removeFromGroup)}
           </button>
-
-          {showGroupSubmenu && (
-            <div
-              ref={groupSubmenuRef}
-              data-testid="tab-ctx-group-submenu"
-              className="wc-stable-theme fixed z-[60] min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
-              style={
-                groupSubmenuPosition
-                  ? { left: groupSubmenuPosition.x, top: groupSubmenuPosition.y }
-                  : { left: position.x, top: position.y, opacity: 0, pointerEvents: "none" as const }
-              }
-            >
-              {groups.map((group) => (
-                <button
-                  key={group.id}
-                  data-testid={`tab-ctx-group-${group.id}`}
-                  className={contextMenuItemClass}
-                  onClick={() => handleAction(() => onAddToGroup(group.id))}
-                >
-                  <span
-                    className="h-3 w-3 rounded-full shrink-0"
-                    style={{ backgroundColor: group.color }}
-                  />
-                  {group.name}
-                </button>
-              ))}
-              <button
-                data-testid="tab-ctx-new-group"
-                className={contextMenuItemClass}
-                onClick={() => handleAction(onCreateGroup)}
-              >
-                <Plus className="h-4 w-4 shrink-0" />
-                {t(strings.tabContextMenu.newGroup)}
-              </button>
-            </div>
-          )}
-        </div>
+          <button
+            data-testid="tab-ctx-manage-groups"
+            className={contextMenuItemClass}
+            onClick={() => handleAction(onManageGroups)}
+          >
+            <FolderCog className="h-4 w-4 shrink-0" />
+            {t(strings.manageGroups.menuItem)}
+          </button>
+        </>
+      ) : (
+        <button
+          data-testid="tab-ctx-add-to-group"
+          className={contextMenuItemClass}
+          onClick={() => handleAction(onManageGroups)}
+        >
+          <FolderPlus className="h-4 w-4 shrink-0" />
+          {t(strings.tabContextMenu.addToGroup)}
+        </button>
       )}
 
       {/* Reorder (touch-friendly stand-in for the hover-only drag handle) */}

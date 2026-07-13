@@ -74,6 +74,20 @@ describe("VoiceMicButton", () => {
     expect(screen.queryByText("Test error")).toBeNull();
   });
 
+  it("[REQ:ATD-P1-002] offers a safe diagnostic export for a failed voice turn", () => {
+    const exportDiagnostic = vi.fn(() => null);
+    render(
+      <VoiceMicButton
+        {...defaults}
+        error="Connection failed"
+        canExportDiagnostic
+        onExportDiagnostic={exportDiagnostic}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("voice-export-diagnostic"));
+    expect(exportDiagnostic).toHaveBeenCalledOnce();
+  });
+
   it("does not show error styling when recording with error", () => {
     render(<VoiceMicButton {...defaults} isRecording error="Test error" />);
     const btn = screen.getByTestId("voice-mic-btn");

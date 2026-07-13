@@ -153,6 +153,8 @@ interface MobileToolbarProps {
   voiceActivity?: VoiceActivitySnapshot;
   voicePartialTranscript?: string;
   voiceBackend?: string;
+  voiceCanExportDiagnostic?: boolean;
+  onVoiceExportDiagnostic?: () => string | null;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoicePrepare?: () => void;
   onVoiceStop?: () => void;
@@ -207,6 +209,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceActivity,
   voicePartialTranscript,
   voiceBackend,
+  voiceCanExportDiagnostic,
+  onVoiceExportDiagnostic,
   onVoiceStart,
   onVoicePrepare,
   onVoiceStop,
@@ -699,6 +703,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               voiceActivity={voiceActivity}
               partialTranscript={voicePartialTranscript}
               backend={voiceBackend}
+              canExportDiagnostic={voiceCanExportDiagnostic}
+              onExportDiagnostic={onVoiceExportDiagnostic}
               isTtsSpeaking={isTtsSpeaking}
               onPrepare={onVoicePrepare}
               onStart={onVoiceStart}
@@ -841,6 +847,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 voiceActivity={voiceActivity}
                 partialTranscript={voicePartialTranscript}
                 backend={voiceBackend}
+                canExportDiagnostic={voiceCanExportDiagnostic}
+                onExportDiagnostic={onVoiceExportDiagnostic}
                 isTtsSpeaking={isTtsSpeaking}
                 onPrepare={onVoicePrepare}
                 onStart={onVoiceStart}
@@ -959,6 +967,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               voiceActivity={voiceActivity}
               partialTranscript={voicePartialTranscript}
               backend={voiceBackend}
+              canExportDiagnostic={voiceCanExportDiagnostic}
+              onExportDiagnostic={onVoiceExportDiagnostic}
               isTtsSpeaking={isTtsSpeaking}
               onPrepare={onVoicePrepare}
               onStart={onVoiceStart}

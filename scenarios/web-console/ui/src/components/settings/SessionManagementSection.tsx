@@ -285,7 +285,7 @@ export default function SessionManagementSection({
                                   : "rgb(var(--wc-surface-input))",
                             }}
                           />
-                          <div className="absolute left-0 top-full z-10 mt-1 hidden gap-1 rounded-xl border border-wc-default bg-wc-surface-raised p-2 shadow-xl group-hover:flex">
+                          <div className="absolute left-0 top-full z-wc-chrome mt-1 hidden gap-1 rounded-xl border border-wc-default bg-wc-surface-raised p-2 shadow-xl group-hover:flex">
                             <button
                               className="h-4 w-4 rounded-full border border-wc-default"
                               style={{ backgroundColor: "rgb(var(--wc-surface-input))" }}

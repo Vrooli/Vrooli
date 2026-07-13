@@ -1,241 +1,247 @@
 {
-  "metadata": {
-    "name": "session-metadata-persists-across-route-navigation",
-    "description": "Verify server-side session persistence after leaving and returning from workspace route",
-    "labels": {
-      "reset": "full",
-      "requirements_json": "[\"REQ-P0-003a\"]"
-    },
-    "execution_mode": "mutating"
-  },
-  "settings": {
-    "viewport_width": 1440,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "run-terminal-command-flow",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": {
-          "workflow_path": "flows/terminal-command-smoke.json",
-          "args": {
-            "command": "printf 'BAS_E2E_PERSIST_OK\\n'"
-          }
-        },
-        "metadata": {
-          "label": "Launch initial terminal session"
-        }
-      }
-    },
-    {
-      "id": "open-sessions-page",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "[data-testid=\"toolbar-settings\"], [data-testid=\"tabbar-settings\"]"
-        },
-        "metadata": {
-          "label": "Open Settings"
-        }
-      }
-    },
-    {
-      "id": "open-sessions-tab",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "[data-testid=\"settings-tab-sessions\"]"
-        },
-        "metadata": {
-          "label": "Open Sessions tab"
-        }
-      }
-    },
-    {
-      "id": "wait-sessions-row",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid^='sessions-pane-']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 15000
-        },
-        "metadata": {
-          "label": "Wait for at least one session row"
-        }
-      }
-    },
-    {
-      "id": "capture-sessions-before-back",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const rows = Array.from(document.querySelectorAll('[data-testid^=\"sessions-pane-\"]')); const ids = rows.map((row) => (row.getAttribute('data-testid') || '').replace('sessions-pane-', '')).filter(Boolean); document.body.setAttribute('data-sessions-count-before', String(ids.length)); document.body.setAttribute('data-sessions-before', ids.join(',')); })()"
-        },
-        "metadata": {
-          "label": "Capture session IDs before leaving page"
-        }
-      }
-    },
-    {
-      "id": "click-back-to-workspace",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "[data-testid=\"settings-close\"]"
-        },
-        "metadata": {
-          "label": "Return to workspace route"
-        }
-      }
-    },
-    {
-      "id": "wait-workspace-control",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 10000
-        },
-        "metadata": {
-          "label": "Wait for workspace controls"
-        }
-      }
-    },
-    {
-      "id": "open-sessions-page-again",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "[data-testid=\"toolbar-settings\"], [data-testid=\"tabbar-settings\"]"
-        },
-        "metadata": {
-          "label": "Open Settings again"
-        }
-      }
-    },
-    {
-      "id": "open-sessions-tab-again",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "[data-testid=\"settings-tab-sessions\"]"
-        },
-        "metadata": {
-          "label": "Open Sessions tab again"
-        }
-      }
-    },
-    {
-      "id": "wait-sessions-row-again",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid^='sessions-pane-']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 15000
-        },
-        "metadata": {
-          "label": "Wait for sessions rows after returning"
-        }
-      }
-    },
-    {
-      "id": "evaluate-session-persistence",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const beforeCount = Number(document.body.getAttribute('data-sessions-count-before') || '0'); const beforeRaw = document.body.getAttribute('data-sessions-before') || ''; const beforeIds = beforeRaw.split(',').filter(Boolean); const afterRows = Array.from(document.querySelectorAll('[data-testid^=\"sessions-pane-\"]')); const afterIds = afterRows.map((row) => (row.getAttribute('data-testid') || '').replace('sessions-pane-', '')).filter(Boolean); const overlap = beforeIds.filter((id) => afterIds.includes(id)).length; const ok = beforeCount > 0 && overlap >= 1; document.body.setAttribute('data-session-persistence-ok', ok ? 'true' : 'false'); })()"
-        },
-        "metadata": {
-          "label": "Mark persistence result with session identity overlap"
-        }
-      }
-    },
-    {
-      "id": "assert-session-persistence",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-session-persistence-ok='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected session metadata to remain available after route navigation"
-        },
-        "metadata": {
-          "label": "Verify session persistence"
-        }
-      }
-    }
+  "id": "551b5e17-45b1-480e-a897-32aac44b7306",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "session-metadata-persists-across-route-navigation",
+  "folder_path": "/bas/cases/01-foundation/01-terminal",
+  "description": "Verify server-side session persistence after leaving and returning from workspace route",
+  "tags": [
+    "reset:full",
+    "requirements_json:[\"REQ-P0-003a\"]"
   ],
-  "edges": [
-    {
-      "id": "e1",
-      "source": "run-terminal-command-flow",
-      "target": "open-sessions-page",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  "version": 1,
+  "created_at": "2026-07-12T19:31:13.439434934Z",
+  "updated_at": "2026-07-12T19:31:13.439434934Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
     },
-    {
-      "id": "e2",
-      "source": "open-sessions-page",
-      "target": "open-sessions-tab",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e2b",
-      "source": "open-sessions-tab",
-      "target": "wait-sessions-row",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e3",
-      "source": "wait-sessions-row",
-      "target": "capture-sessions-before-back",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e4",
-      "source": "capture-sessions-before-back",
-      "target": "click-back-to-workspace",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e5",
-      "source": "click-back-to-workspace",
-      "target": "wait-workspace-control",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e6",
-      "source": "wait-workspace-control",
-      "target": "open-sessions-page-again",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e7",
-      "source": "open-sessions-page-again",
-      "target": "open-sessions-tab-again",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e7b",
-      "source": "open-sessions-tab-again",
-      "target": "wait-sessions-row-again",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e8",
-      "source": "wait-sessions-row-again",
-      "target": "evaluate-session-persistence",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e9",
-      "source": "evaluate-session-persistence",
-      "target": "assert-session-persistence",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    }
-  ]
+    "nodes": [
+      {
+        "id": "run-terminal-command-flow",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "flows/terminal-command-smoke.json",
+            "args": {
+              "command": {
+                "string_value": "printf 'BAS_E2E_PERSIST_OK\\n'"
+              }
+            }
+          },
+          "metadata": {
+            "label": "Launch initial terminal session"
+          }
+        }
+      },
+      {
+        "id": "open-sessions-page",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"toolbar-settings\"], [data-testid=\"tabbar-settings\"]"
+          },
+          "metadata": {
+            "label": "Open Settings"
+          }
+        }
+      },
+      {
+        "id": "open-sessions-tab",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"settings-tab-sessions\"]"
+          },
+          "metadata": {
+            "label": "Open Sessions tab"
+          }
+        }
+      },
+      {
+        "id": "wait-sessions-row",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid^='sessions-pane-']",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for at least one session row"
+          }
+        }
+      },
+      {
+        "id": "capture-sessions-before-back",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const rows = Array.from(document.querySelectorAll('[data-testid^=\"sessions-pane-\"]')); const ids = rows.map((row) => (row.getAttribute('data-testid') || '').replace('sessions-pane-', '')).filter(Boolean); document.body.setAttribute('data-sessions-count-before', String(ids.length)); document.body.setAttribute('data-sessions-before', ids.join(',')); })()"
+          },
+          "metadata": {
+            "label": "Capture session IDs before leaving page"
+          }
+        }
+      },
+      {
+        "id": "click-back-to-workspace",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"settings-close\"]"
+          },
+          "metadata": {
+            "label": "Return to workspace route"
+          }
+        }
+      },
+      {
+        "id": "wait-workspace-control",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Wait for workspace controls"
+          }
+        }
+      },
+      {
+        "id": "open-sessions-page-again",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"toolbar-settings\"], [data-testid=\"tabbar-settings\"]"
+          },
+          "metadata": {
+            "label": "Open Settings again"
+          }
+        }
+      },
+      {
+        "id": "open-sessions-tab-again",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"settings-tab-sessions\"]"
+          },
+          "metadata": {
+            "label": "Open Sessions tab again"
+          }
+        }
+      },
+      {
+        "id": "wait-sessions-row-again",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid^='sessions-pane-']",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for sessions rows after returning"
+          }
+        }
+      },
+      {
+        "id": "evaluate-session-persistence",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const beforeCount = Number(document.body.getAttribute('data-sessions-count-before') || '0'); const beforeRaw = document.body.getAttribute('data-sessions-before') || ''; const beforeIds = beforeRaw.split(',').filter(Boolean); const afterRows = Array.from(document.querySelectorAll('[data-testid^=\"sessions-pane-\"]')); const afterIds = afterRows.map((row) => (row.getAttribute('data-testid') || '').replace('sessions-pane-', '')).filter(Boolean); const overlap = beforeIds.filter((id) => afterIds.includes(id)).length; const ok = beforeCount > 0 && overlap >= 1; document.body.setAttribute('data-session-persistence-ok', ok ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Mark persistence result with session identity overlap"
+          }
+        }
+      },
+      {
+        "id": "assert-session-persistence",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-session-persistence-ok='true']",
+            "failure_message": "Expected session metadata to remain available after route navigation",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify session persistence"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "run-terminal-command-flow",
+        "target": "open-sessions-page",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "open-sessions-page",
+        "target": "open-sessions-tab",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2b",
+        "source": "open-sessions-tab",
+        "target": "wait-sessions-row",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "wait-sessions-row",
+        "target": "capture-sessions-before-back",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "capture-sessions-before-back",
+        "target": "click-back-to-workspace",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "click-back-to-workspace",
+        "target": "wait-workspace-control",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "wait-workspace-control",
+        "target": "open-sessions-page-again",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "open-sessions-page-again",
+        "target": "open-sessions-tab-again",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7b",
+        "source": "open-sessions-tab-again",
+        "target": "wait-sessions-row-again",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "wait-sessions-row-again",
+        "target": "evaluate-session-persistence",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "evaluate-session-persistence",
+        "target": "assert-session-persistence",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
 }

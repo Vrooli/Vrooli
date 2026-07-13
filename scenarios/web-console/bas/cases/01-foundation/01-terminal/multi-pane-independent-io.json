@@ -1,345 +1,347 @@
 {
-  "metadata": {
-    "name": "multi-pane-independent-io",
-    "description": "Launch two panes, run distinct stdin commands, and verify output stays isolated per pane",
-    "labels": {
-      "reset": "full",
-      "requirements_json": "[\"REQ-P0-001b\", \"REQ-P0-002b\"]"
-    },
-    "execution_mode": "mutating"
-  },
-  "settings": {
-    "viewport_width": 1440,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "open-workspace",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": {
-          "workflow_path": "actions/open-workspace.json"
-        },
-        "metadata": {
-          "label": "Open workspace"
-        }
-      }
-    },
-    {
-      "id": "reset-sessions",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": {
-          "workflow_path": "actions/reset-sessions-best-effort.json"
-        },
-        "metadata": {
-          "label": "Reset sessions (best effort)"
-        }
-      }
-    },
-    {
-      "id": "capture-baseline-session-ids",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const ids = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')).map((pane) => pane.getAttribute('data-session-id') || '').filter(Boolean); localStorage.setItem('bas.multipane.baselineSessionIds', JSON.stringify(ids)); })()"
-        },
-        "metadata": {
-          "label": "Capture baseline session IDs"
-        }
-      }
-    },
-    {
-      "id": "launch-pane-one",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": {
-          "workflow_path": "cases/01-foundation/01-terminal/interactive-stdin-roundtrip.json"
-        },
-        "metadata": {
-          "label": "Seed first interactive pane"
-        }
-      }
-    },
-    {
-      "id": "click-new-terminal",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]"
-        },
-        "metadata": {
-          "label": "Open launcher for second pane"
-        }
-      }
-    },
-    {
-      "id": "wait-launcher",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "@selector/launcher.dialog",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 10000
-        },
-        "metadata": {
-          "label": "Wait for launcher"
-        }
-      }
-    },
-    {
-      "id": "launch-empty-shell",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "@selector/launcher.emptyShell"
-        },
-        "metadata": {
-          "label": "Launch second empty shell"
-        }
-      }
-    },
-    {
-      "id": "wait-second-pane",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1000
-        },
-        "metadata": {
-          "label": "Wait for second pane render"
-        }
-      }
-    },
-    {
-      "id": "capture-new-session-ids",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const baseline = new Set(JSON.parse(localStorage.getItem('bas.multipane.baselineSessionIds') || '[]')); const currentIds = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')).map((pane) => pane.getAttribute('data-session-id') || '').filter(Boolean); const newIds = currentIds.filter((id) => !baseline.has(id)); localStorage.setItem('bas.multipane.newSessionIds', JSON.stringify(newIds)); document.body.setAttribute('data-multipane-new-count-ok', newIds.length >= 2 ? 'true' : 'false'); })()"
-        },
-        "metadata": {
-          "label": "Capture newly-created session IDs"
-        }
-      }
-    },
-    {
-      "id": "assert-new-session-count",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-multipane-new-count-ok='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected at least two new sessions for this test"
-        },
-        "metadata": {
-          "label": "Verify isolated session set"
-        }
-      }
-    },
-    {
-      "id": "focus-second-pane",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const newIds = JSON.parse(localStorage.getItem('bas.multipane.newSessionIds') || '[]'); const secondId = newIds[1] || newIds[newIds.length - 1] || ''; if (!secondId) return; const pane = document.querySelector(`[data-testid=\"terminal-pane-container\"][data-session-id=\"${secondId}\"]`); if (pane instanceof HTMLElement) pane.click(); })()"
-        },
-        "metadata": {
-          "label": "Activate second pane"
-        }
-      }
-    },
-    {
-      "id": "focus-xterm-second",
-      "action": {
-        "type": "ACTION_TYPE_FOCUS",
-        "focus": {
-          "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea",
-          "timeout_ms": 5000
-        },
-        "metadata": {
-          "label": "Focus second pane input"
-        }
-      }
-    },
-    {
-      "id": "send-second-pane-command",
-      "action": {
-        "type": "ACTION_TYPE_KEYBOARD",
-        "keyboard": {
-          "keys": [
-            "e",
-            "c",
-            "h",
-            "o",
-            "Space",
-            "p",
-            "a",
-            "n",
-            "e",
-            "2",
-            "o",
-            "k",
-            "Enter"
-          ]
-        },
-        "metadata": {
-          "label": "Emit second pane marker"
-        }
-      }
-    },
-    {
-      "id": "wait-markers",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1200
-        },
-        "metadata": {
-          "label": "Wait for marker output"
-        }
-      }
-    },
-    {
-      "id": "evaluate-pane-isolation",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { let countOk = false; let isolated = false; const newIds = JSON.parse(localStorage.getItem('bas.multipane.newSessionIds') || '[]'); const deadline = Date.now() + 8000; while (Date.now() < deadline) { const texts = newIds.map((id) => { const pane = document.querySelector(`[data-testid=\"terminal-pane\"][data-session-id=\"${id}\"]`); return (pane?.textContent || '').toLowerCase(); }); countOk = newIds.length >= 2; const pane1Hits = texts.filter((t) => t.includes('basstdinliveok')).length; const pane2Hits = texts.filter((t) => t.includes('pane2ok')).length; isolated = pane1Hits === 1 && pane2Hits === 1; if (countOk && isolated) break; await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-multipane-count-ok', countOk ? 'true' : 'false'); document.body.setAttribute('data-multipane-isolation-ok', isolated ? 'true' : 'false'); })()"
-        },
-        "metadata": {
-          "label": "Check per-pane output isolation"
-        }
-      }
-    },
-    {
-      "id": "assert-pane-count",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-multipane-count-ok='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected at least two terminal panes"
-        },
-        "metadata": {
-          "label": "Verify pane count"
-        }
-      }
-    },
-    {
-      "id": "assert-pane-isolation",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-multipane-isolation-ok='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected each marker in exactly one pane"
-        },
-        "metadata": {
-          "label": "Verify I/O isolation"
-        }
-      }
-    }
+  "id": "58c3606e-be3b-4808-bc3b-6b5643e17924",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "multi-pane-independent-io",
+  "folder_path": "/bas/cases/01-foundation/01-terminal",
+  "description": "Launch two panes, run distinct stdin commands, and verify output stays isolated per pane",
+  "tags": [
+    "reset:full",
+    "requirements_json:[\"REQ-P0-001b\", \"REQ-P0-002b\"]"
   ],
-  "edges": [
-    {
-      "id": "e1",
-      "source": "open-workspace",
-      "target": "reset-sessions",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  "version": 1,
+  "created_at": "2026-07-12T19:31:13.435745191Z",
+  "updated_at": "2026-07-12T19:31:13.435745191Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
     },
-    {
-      "id": "e2",
-      "source": "reset-sessions",
-      "target": "capture-baseline-session-ids",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e3",
-      "source": "capture-baseline-session-ids",
-      "target": "launch-pane-one",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e4",
-      "source": "launch-pane-one",
-      "target": "click-new-terminal",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e5",
-      "source": "click-new-terminal",
-      "target": "wait-launcher",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e6",
-      "source": "wait-launcher",
-      "target": "launch-empty-shell",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e7",
-      "source": "launch-empty-shell",
-      "target": "wait-second-pane",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e8",
-      "source": "wait-second-pane",
-      "target": "capture-new-session-ids",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e9",
-      "source": "capture-new-session-ids",
-      "target": "assert-new-session-count",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e10",
-      "source": "assert-new-session-count",
-      "target": "focus-second-pane",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e11",
-      "source": "focus-second-pane",
-      "target": "focus-xterm-second",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e12",
-      "source": "focus-xterm-second",
-      "target": "send-second-pane-command",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e13",
-      "source": "send-second-pane-command",
-      "target": "wait-markers",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e14",
-      "source": "wait-markers",
-      "target": "evaluate-pane-isolation",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e15",
-      "source": "evaluate-pane-isolation",
-      "target": "assert-pane-count",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e16",
-      "source": "assert-pane-count",
-      "target": "assert-pane-isolation",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    }
-  ]
+    "nodes": [
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          },
+          "metadata": {
+            "label": "Open workspace"
+          }
+        }
+      },
+      {
+        "id": "reset-sessions",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/reset-sessions-best-effort.json"
+          },
+          "metadata": {
+            "label": "Reset sessions (best effort)"
+          }
+        }
+      },
+      {
+        "id": "capture-baseline-session-ids",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const ids = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')).map((pane) => pane.getAttribute('data-session-id') || '').filter(Boolean); localStorage.setItem('bas.multipane.baselineSessionIds', JSON.stringify(ids)); })()"
+          },
+          "metadata": {
+            "label": "Capture baseline session IDs"
+          }
+        }
+      },
+      {
+        "id": "launch-pane-one",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "cases/01-foundation/01-terminal/interactive-stdin-roundtrip.json"
+          },
+          "metadata": {
+            "label": "Seed first interactive pane"
+          }
+        }
+      },
+      {
+        "id": "click-new-terminal",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]"
+          },
+          "metadata": {
+            "label": "Open launcher for second pane"
+          }
+        }
+      },
+      {
+        "id": "wait-launcher",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/launcher.dialog",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Wait for launcher"
+          }
+        }
+      },
+      {
+        "id": "launch-empty-shell",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/launcher.emptyShell"
+          },
+          "metadata": {
+            "label": "Launch second empty shell"
+          }
+        }
+      },
+      {
+        "id": "wait-second-pane",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1000
+          },
+          "metadata": {
+            "label": "Wait for second pane render"
+          }
+        }
+      },
+      {
+        "id": "capture-new-session-ids",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const baseline = new Set(JSON.parse(localStorage.getItem('bas.multipane.baselineSessionIds') || '[]')); const currentIds = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')).map((pane) => pane.getAttribute('data-session-id') || '').filter(Boolean); const newIds = currentIds.filter((id) => !baseline.has(id)); localStorage.setItem('bas.multipane.newSessionIds', JSON.stringify(newIds)); document.body.setAttribute('data-multipane-new-count-ok', newIds.length >= 2 ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Capture newly-created session IDs"
+          }
+        }
+      },
+      {
+        "id": "assert-new-session-count",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-multipane-new-count-ok='true']",
+            "failure_message": "Expected at least two new sessions for this test",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify isolated session set"
+          }
+        }
+      },
+      {
+        "id": "focus-second-pane",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const newIds = JSON.parse(localStorage.getItem('bas.multipane.newSessionIds') || '[]'); const secondId = newIds[1] || newIds[newIds.length - 1] || ''; if (!secondId) return; const pane = document.querySelector(`[data-testid=\"terminal-pane-container\"][data-session-id=\"${secondId}\"]`); if (pane instanceof HTMLElement) pane.click(); })()"
+          },
+          "metadata": {
+            "label": "Activate second pane"
+          }
+        }
+      },
+      {
+        "id": "focus-xterm-second",
+        "action": {
+          "type": "ACTION_TYPE_FOCUS",
+          "focus": {
+            "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Focus second pane input"
+          }
+        }
+      },
+      {
+        "id": "send-second-pane-command",
+        "action": {
+          "type": "ACTION_TYPE_KEYBOARD",
+          "keyboard": {
+            "keys": [
+              "e",
+              "c",
+              "h",
+              "o",
+              "Space",
+              "p",
+              "a",
+              "n",
+              "e",
+              "2",
+              "o",
+              "k",
+              "Enter"
+            ]
+          },
+          "metadata": {
+            "label": "Emit second pane marker"
+          }
+        }
+      },
+      {
+        "id": "wait-markers",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1200
+          },
+          "metadata": {
+            "label": "Wait for marker output"
+          }
+        }
+      },
+      {
+        "id": "evaluate-pane-isolation",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { let countOk = false; let isolated = false; const newIds = JSON.parse(localStorage.getItem('bas.multipane.newSessionIds') || '[]'); const deadline = Date.now() + 8000; while (Date.now() < deadline) { const texts = newIds.map((id) => { const pane = document.querySelector(`[data-testid=\"terminal-pane\"][data-session-id=\"${id}\"]`); return (pane?.textContent || '').toLowerCase(); }); countOk = newIds.length >= 2; const pane1Hits = texts.filter((t) => t.includes('basstdinliveok')).length; const pane2Hits = texts.filter((t) => t.includes('pane2ok')).length; isolated = pane1Hits === 1 && pane2Hits === 1; if (countOk && isolated) break; await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-multipane-count-ok', countOk ? 'true' : 'false'); document.body.setAttribute('data-multipane-isolation-ok', isolated ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Check per-pane output isolation"
+          }
+        }
+      },
+      {
+        "id": "assert-pane-count",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-multipane-count-ok='true']",
+            "failure_message": "Expected at least two terminal panes",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify pane count"
+          }
+        }
+      },
+      {
+        "id": "assert-pane-isolation",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-multipane-isolation-ok='true']",
+            "failure_message": "Expected each marker in exactly one pane",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify I/O isolation"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "open-workspace",
+        "target": "reset-sessions",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "reset-sessions",
+        "target": "capture-baseline-session-ids",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "capture-baseline-session-ids",
+        "target": "launch-pane-one",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "launch-pane-one",
+        "target": "click-new-terminal",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "click-new-terminal",
+        "target": "wait-launcher",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "wait-launcher",
+        "target": "launch-empty-shell",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "launch-empty-shell",
+        "target": "wait-second-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "wait-second-pane",
+        "target": "capture-new-session-ids",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "capture-new-session-ids",
+        "target": "assert-new-session-count",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "assert-new-session-count",
+        "target": "focus-second-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
+        "source": "focus-second-pane",
+        "target": "focus-xterm-second",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "focus-xterm-second",
+        "target": "send-second-pane-command",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
+        "source": "send-second-pane-command",
+        "target": "wait-markers",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "wait-markers",
+        "target": "evaluate-pane-isolation",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "evaluate-pane-isolation",
+        "target": "assert-pane-count",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e16",
+        "source": "assert-pane-count",
+        "target": "assert-pane-isolation",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
 }

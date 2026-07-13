@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import GroupContextMenu from "../components/GroupContextMenu";
-import { HEADER_COLORS } from "../consts/config";
 import type { TabGroupMeta } from "../stores/useWorkspaceStore";
 
 const group: TabGroupMeta = {
@@ -15,12 +14,9 @@ function renderMenu(overrides: Partial<React.ComponentProps<typeof GroupContextM
   const props = {
     position: { x: 10, y: 10 },
     group,
-    onRename: vi.fn(),
-    onRecolor: vi.fn(),
     onNewSession: vi.fn(),
     onToggleCollapse: vi.fn(),
-    onUngroupAll: vi.fn(),
-    onDelete: vi.fn(),
+    onManageGroups: vi.fn(),
     onDismiss: vi.fn(),
     ...overrides,
   };
@@ -29,30 +25,19 @@ function renderMenu(overrides: Partial<React.ComponentProps<typeof GroupContextM
 }
 
 describe("GroupContextMenu", () => {
-  it("fires rename and dismisses", () => {
-    const props = renderMenu();
-    fireEvent.click(screen.getByTestId("group-ctx-rename"));
-    expect(props.onRename).toHaveBeenCalled();
-    expect(props.onDismiss).toHaveBeenCalled();
+  it("is a thin quick-path menu: no rename/recolor/ungroup/delete items", () => {
+    renderMenu();
+    expect(screen.queryByTestId("group-ctx-rename")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("group-ctx-recolor")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("group-ctx-ungroup-all")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("group-ctx-delete")).not.toBeInTheDocument();
   });
 
-  it("recolor opens the palette and applies a color", () => {
+  it("fires collapse toggle", () => {
     const props = renderMenu();
-    expect(screen.queryByTestId("group-ctx-palette")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("group-ctx-recolor"));
-    expect(screen.getByTestId("group-ctx-palette")).toBeInTheDocument();
-    const color = HEADER_COLORS[0];
-    fireEvent.click(screen.getByTestId(`group-ctx-color-${color}`));
-    expect(props.onRecolor).toHaveBeenCalledWith(color);
-    expect(props.onDismiss).toHaveBeenCalled();
-  });
-
-  it("fires ungroup-all and collapse toggle", () => {
-    const props = renderMenu();
-    fireEvent.click(screen.getByTestId("group-ctx-ungroup-all"));
-    expect(props.onUngroupAll).toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("group-ctx-toggle-collapse"));
     expect(props.onToggleCollapse).toHaveBeenCalled();
+    expect(props.onDismiss).toHaveBeenCalled();
   });
 
   it("fires new-session-in-group and dismisses", () => {
@@ -62,9 +47,15 @@ describe("GroupContextMenu", () => {
     expect(props.onDismiss).toHaveBeenCalled();
   });
 
-  it("fires delete", () => {
+  it("hides new-session when not provided", () => {
+    renderMenu({ onNewSession: undefined });
+    expect(screen.queryByTestId("group-ctx-new-session")).not.toBeInTheDocument();
+  });
+
+  it("opens the Manage Groups drawer entry", () => {
     const props = renderMenu();
-    fireEvent.click(screen.getByTestId("group-ctx-delete"));
-    expect(props.onDelete).toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("group-ctx-manage-groups"));
+    expect(props.onManageGroups).toHaveBeenCalled();
+    expect(props.onDismiss).toHaveBeenCalled();
   });
 });

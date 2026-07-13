@@ -77,8 +77,9 @@ describe("matchProseFilePaths", () => {
     const text = "start /a/b.md middle ./c/d.ts end";
     const matches = matchProseFilePaths(text);
     expect(matches).toHaveLength(2);
-    expect(text.slice(matches[0]!.start, matches[0]!.end)).toBe("/a/b.md");
-    expect(text.slice(matches[1]!.start, matches[1]!.end)).toBe("./c/d.ts");
+    const [first, second] = matches;
+    expect(text.slice(first?.start, first?.end)).toBe("/a/b.md");
+    expect(text.slice(second?.start, second?.end)).toBe("./c/d.ts");
   });
 });
 

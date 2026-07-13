@@ -20,6 +20,7 @@ import { useConversationStore, getSessionConversationEvents } from "../stores/us
 import { refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
 import { type ConversationEvent } from "../api/conversation";
 import { useFilePreviewController } from "./file-preview/useFilePreviewController";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
@@ -152,6 +153,9 @@ interface MessageRowProps {
   onMermaidOpen: (code: string) => void;
 }
 
+/** Anchored placement order for popovers opening below their trigger. */
+const BELOW_ANCHOR_PLACEMENTS: FloatingPlacement[] = ["bottom-end", "bottom-start", "top-end", "top-start"];
+
 const MessageRow = memo(function MessageRow({
   event,
   index,
@@ -192,6 +196,15 @@ const MessageRow = memo(function MessageRow({
   const [isTall, setIsTall] = useState(false);
   const audioButtonRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  // Desktop audio popover anchors below the per-message audio button,
+  // end-aligned, via the shared anchored-floating math.
+  const audioPopoverRef = useRef<HTMLDivElement | null>(null);
+  const audioPopoverStyle = useAnchoredPopoverPosition(
+    openPopoverId === event.id && !isMobile,
+    audioButtonRef,
+    audioPopoverRef,
+    BELOW_ANCHOR_PLACEMENTS,
+  );
 
   useEffect(() => {
     const node = contentRef.current;
@@ -219,15 +232,6 @@ const MessageRow = memo(function MessageRow({
     : isUser
       ? "border-l-sky-500/60"
       : "border-l-emerald-500/60";
-
-  const getPopoverStyle = (): React.CSSProperties => {
-    const btn = audioButtonRef.current;
-    if (!btn) return { position: "fixed", top: 100, right: 16 };
-    const rect = btn.getBoundingClientRect();
-    const top = Math.min(rect.bottom + 4, window.innerHeight - 200);
-    const right = Math.max(8, window.innerWidth - rect.right);
-    return { position: "fixed", top, right };
-  };
 
   return (
     <article
@@ -317,11 +321,11 @@ const MessageRow = memo(function MessageRow({
 
             {isPopoverOpen && createPortal(
               isMobile ? (
-                <div className="fixed inset-0 z-[60]" onMouseDown={(e) => e.preventDefault()}>
+                <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => e.preventDefault()}>
                   <div className="absolute inset-0 bg-wc-backdrop" onClick={() => setOpenPopoverId(null)} />
                   <div
                     data-testid={`audio-popover-${event.id}`}
-                    className="wc-stable-theme absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
+                    className="wc-stable-theme absolute bottom-0 left-0 right-0 z-wc-popover rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
                   >
                     <div className="mb-3 flex justify-center">
                       <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
@@ -365,11 +369,12 @@ const MessageRow = memo(function MessageRow({
                 </div>
               ) : (
                 <>
-                  <div className="fixed inset-0 z-[60]" onClick={() => setOpenPopoverId(null)} />
+                  <div className="fixed inset-0 z-wc-popover-backdrop" onClick={() => setOpenPopoverId(null)} />
                   <div
+                    ref={audioPopoverRef}
                     data-testid={`audio-popover-${event.id}`}
-                    className="wc-stable-theme z-[61] w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
-                    style={getPopoverStyle()}
+                    className="wc-stable-theme z-wc-popover w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
+                    style={audioPopoverStyle}
                   >
                     <AudioSettingsContent
                       testIdPrefix={`msg-${event.id}`}
@@ -934,7 +939,7 @@ export default function MessagesPane({
     >
       <div
         data-testid="messages-control-strip"
-        className="z-10 flex items-center justify-start gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
+        className="z-wc-chrome flex items-center justify-start gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
       >
         <button
           data-testid="messages-search-btn"
@@ -1078,7 +1083,7 @@ export default function MessagesPane({
         <button
           data-testid="msg-new-pill"
           onClick={scrollToBottom}
-          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
+          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-wc-chrome-raised -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
           type="button"
         >
           <ArrowDown className="me-1.5 inline-block h-3.5 w-3.5" />
@@ -1091,7 +1096,7 @@ export default function MessagesPane({
           data-testid="msg-jump-bottom"
           aria-label={t(strings.messagesPane.jumpToBottomAria)}
           onClick={scrollToBottom}
-          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised/60 p-2 text-wc-text-secondary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input hover:text-wc-text-primary"
+          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-wc-chrome-raised -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised/60 p-2 text-wc-text-secondary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input hover:text-wc-text-primary"
           type="button"
         >
           <ArrowDown className="h-4 w-4" />

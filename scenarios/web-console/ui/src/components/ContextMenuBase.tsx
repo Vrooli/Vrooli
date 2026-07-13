@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useFloatingPosition } from "../hooks/useFloatingPosition";
 
 interface ContextMenuBaseProps {
@@ -34,16 +35,7 @@ export default function ContextMenuBase({ position, onClose, children, "data-tes
   }, []);
 
   // Dismiss on Escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  useEscapeKey(true, onClose);
 
   // Compute clamped position (invisible until measured)
   const clamped = menuSize ? clampPosition(position.x, position.y, menuSize) : null;
@@ -53,14 +45,14 @@ export default function ContextMenuBase({ position, onClose, children, "data-tes
       {/* Backdrop */}
       <div
         data-testid="ctx-backdrop"
-        className="fixed inset-0 z-40"
+        className="fixed inset-0 z-wc-menu-backdrop"
         onClick={onClose}
       />
       {/* Menu */}
       <div
         ref={menuRef}
         data-testid={testId}
-        className="wc-stable-theme fixed z-50 min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
+        className="wc-stable-theme fixed z-wc-menu min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
         style={
           clamped
             ? { left: clamped.x, top: clamped.y }

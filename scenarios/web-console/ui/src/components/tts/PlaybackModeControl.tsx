@@ -1,11 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/classnames";
 import { strings } from "../../consts/strings";
+import { useAnchoredPopoverPosition, type FloatingPlacement } from "../../hooks/useFloatingPosition";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export type SummarizationLevel = "light" | "moderate" | "heavy";
+
+/** Anchored placement order for the mode menu opening above its trigger. */
+const MENU_PLACEMENTS: FloatingPlacement[] = ["top-start", "top-end", "bottom-start", "bottom-end"];
 
 const LEVEL_OPTIONS = [
   { value: "light", labelKey: strings.playbackMode.light, hintKey: strings.playbackMode.lightHint },
@@ -55,26 +60,13 @@ export function PlaybackModeControl({
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open]);
+  useEscapeKey(open, () => setOpen(false));
 
-  const getMenuStyle = useCallback((): React.CSSProperties => {
-    const btn = buttonRef.current;
-    if (!btn) return { position: "fixed", bottom: 48, left: 16 };
-    const rect = btn.getBoundingClientRect();
-    return {
-      position: "fixed",
-      bottom: window.innerHeight - rect.top + 6,
-      left: Math.max(8, rect.left),
-      minWidth: Math.max(180, rect.width),
-    };
-  }, []);
+  // The menu anchors above the trigger, start-aligned, via the shared
+  // anchored-floating math; it never renders narrower than the trigger.
+  const menuRef = useRef<HTMLDivElement>(null);
+  const anchoredStyle = useAnchoredPopoverPosition(open, buttonRef, menuRef, MENU_PLACEMENTS);
+  const menuMinWidth = Math.max(180, buttonRef.current?.getBoundingClientRect().width ?? 0);
 
   // No control when there's neither a summary nor a way to get one.
   if (!hasOriginalVersion && !canSummarize) return null;
@@ -136,14 +128,15 @@ export function PlaybackModeControl({
         <>
           <div
             data-testid={`${testIdPrefix}-mode-menu-backdrop`}
-            className="fixed inset-0 z-[60]"
+            className="fixed inset-0 z-wc-popover-backdrop"
             onClick={() => setOpen(false)}
           />
           <div
+            ref={menuRef}
             data-testid={`${testIdPrefix}-mode-menu`}
             role="menu"
-            className="wc-stable-theme z-[61] rounded-xl border border-wc-default bg-wc-surface-raised p-1 shadow-lg"
-            style={getMenuStyle()}
+            className="wc-stable-theme z-wc-popover rounded-xl border border-wc-default bg-wc-surface-raised p-1 shadow-lg"
+            style={{ ...anchoredStyle, minWidth: menuMinWidth }}
           >
             {hasOriginalVersion && (
               <button

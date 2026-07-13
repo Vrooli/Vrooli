@@ -50,7 +50,8 @@ import VoiceRejectionBanner from "./VoiceRejectionBanner";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
-import ConfirmCloseDialog from "./ConfirmCloseDialog";
+import ManageGroupsDrawer from "./ManageGroupsDrawer";
+import { ConfirmDialog } from "./ConfirmDialog";
 import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
 import SessionSidebar from "./SessionSidebar";
@@ -1339,6 +1340,8 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         voiceActivity={voiceInput.voiceActivity}
         voicePartialTranscript={voiceInput.partialTranscript}
         voiceBackend={voiceInput.backend}
+        voiceCanExportDiagnostic={voiceInput.turnDiagnostic !== null}
+        onVoiceExportDiagnostic={voiceInput.exportTurnDiagnostic}
         onVoicePrepare={voiceInput.prepareRecording}
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
@@ -1540,7 +1543,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
            * Circular icon button with a translucent background so it doesn't
            * obscure too much terminal content but is still easy to tap. */}
           {activeViewMode === "terminal" && workspace.activePane && workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && (
-            <div className="absolute end-2 top-2.5 z-20">
+            <div className="absolute end-2 top-2.5 z-wc-chrome-raised">
               {renderViewToggleButton()}
             </div>
           )}
@@ -1621,7 +1624,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
       )}
 
       {/* Bottom bar */}
-      <div className="relative z-10 shrink-0">
+      <div className="relative z-wc-chrome shrink-0">
         {/* TTS player bar — visible for active manual playback, or when
          * auto-TTS is enabled and there is playback/replay context.
          *
@@ -1722,6 +1725,8 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           voiceActivity={voiceInput.voiceActivity}
           voicePartialTranscript={voiceInput.partialTranscript}
           voiceBackend={voiceInput.backend}
+          voiceCanExportDiagnostic={voiceInput.turnDiagnostic !== null}
+          onVoiceExportDiagnostic={voiceInput.exportTurnDiagnostic}
           onVoicePrepare={voiceInput.prepareRecording}
           onVoiceStart={handleVoiceStart}
           onVoiceStop={handleVoiceStop}
@@ -1783,6 +1788,8 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
             voiceActivity={voiceInput.voiceActivity}
             partialTranscript={voiceInput.partialTranscript}
             backend={voiceInput.backend}
+            canExportDiagnostic={voiceInput.turnDiagnostic !== null}
+            onExportDiagnostic={voiceInput.exportTurnDiagnostic}
             isTtsSpeaking={isTtsSpeaking}
             onPrepare={voiceInput.prepareRecording}
             onStart={handleVoiceStart}
@@ -1823,15 +1830,25 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
       {/* Appearance Modal */}
       <AppearanceModal />
 
+      {/* Manage Groups drawer (opened from TabBar / SessionSidebar menus) */}
+      <ManageGroupsDrawer />
+
       {/* AI Modal */}
       <AiInput onExecute={(cmd) => { handleSendToTerminal(cmd, "toolbar-submit"); }} />
 
       {/* Close confirmation dialog */}
-      <ConfirmCloseDialog
+      <ConfirmDialog
         open={pendingClose !== null}
-        sessionName={workspace.panes.find((p) => p.sessionId === pendingClose)?.name ?? "terminal"}
+        title={t(strings.confirmClose.title)}
+        body={t(strings.confirmClose.body, {
+          name: workspace.panes.find((p) => p.sessionId === pendingClose)?.name ?? "terminal",
+        })}
+        cancelLabel={t(strings.confirmClose.cancel)}
+        confirmLabel={t(strings.confirmClose.confirm)}
+        destructive
         onConfirm={handleConfirmClose}
         onCancel={handleCancelClose}
+        testIdPrefix="confirm-close"
       />
     </div>
   );

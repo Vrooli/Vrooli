@@ -124,12 +124,42 @@ describe("TerminalLauncher", () => {
     expect(btn.hasAttribute("disabled")).toBe(true);
   });
 
-  it("closes when backdrop is clicked", () => {
+  it("closes when backdrop is clicked, not when the panel is clicked", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
-    fireEvent.click(screen.getByTestId("terminal-launcher"));
+    const panel = screen.getByTestId("terminal-launcher");
+    fireEvent.click(panel);
+    expect(onClose).not.toHaveBeenCalled();
+    const backdrop = panel.parentElement?.firstElementChild as HTMLElement;
+    fireEvent.click(backdrop);
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("closes on Escape (dialog semantics via DrawerShell)", () => {
+    render(
+      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
+    );
+    const panel = screen.getByTestId("terminal-launcher");
+    expect(panel.getAttribute("role")).toBe("dialog");
+    expect(panel.getAttribute("aria-modal")).toBe("true");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("traps focus inside the launcher, cycling through its native selects", () => {
+    render(
+      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
+    );
+    // Expand session options so the selects are in the tab order.
+    fireEvent.click(screen.getByTestId("launcher-options-toggle"));
+    const panel = screen.getByTestId("terminal-launcher");
+    const timeoutSelect = screen.getByTestId("launcher-timeout-select");
+    timeoutSelect.focus();
+    fireEvent.keyDown(panel, { key: "Tab" });
+    expect(panel.contains(document.activeElement)).toBe(true);
+    fireEvent.keyDown(panel, { key: "Tab", shiftKey: true });
+    expect(panel.contains(document.activeElement)).toBe(true);
   });
 
   it("shows 'Creating session...' when isCreating is true", () => {

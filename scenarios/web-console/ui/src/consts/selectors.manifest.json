@@ -76,6 +76,18 @@
       "testId": "mobile-toolbar",
       "selector": "[data-testid=\"mobile-toolbar\"]"
     },
+    "voice.micButton": {
+      "testId": "voice-mic-btn",
+      "selector": "[data-testid=\"voice-mic-btn\"]"
+    },
+    "voice.errorTooltip": {
+      "testId": "voice-error-tooltip",
+      "selector": "[data-testid=\"voice-error-tooltip\"]"
+    },
+    "voice.exportDiagnostic": {
+      "testId": "voice-export-diagnostic",
+      "selector": "[data-testid=\"voice-export-diagnostic\"]"
+    },
     "ai.input": {
       "testId": "ai-input",
       "selector": "[data-testid=\"ai-input\"]"

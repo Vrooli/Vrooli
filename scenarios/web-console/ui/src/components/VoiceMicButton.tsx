@@ -1,12 +1,24 @@
 import { memo, useRef, useLayoutEffect, useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Mic, Loader2, AlertCircle, X } from "lucide-react";
+import { Mic, Loader2, AlertCircle, X, FileDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
+import { selectors } from "../consts/selectors";
 import { cn } from "../lib/classnames";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
 import type { ServerVadStateSnapshot } from "../audio-integration";
 import { VAD_AUTO_STOP_VISUAL_GRACE_MS, useServerVadStateStore, SERVER_VAD_STALE_MS, decideAutoStopRing } from "../audio-integration";
+
+// `selectors` exposes dynamic branches precisely, while literal branches are
+// intentionally erased by the registry's runtime tree type. Keep the declared
+// voice literals centralised in selectors.ts and recover their local shape here.
+const voiceSelectors = selectors as unknown as {
+  voice: {
+    micButton: string;
+    errorTooltip: string;
+    exportDiagnostic: string;
+  };
+};
 
 /** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
 const LONG_PRESS_MS = 300;
@@ -66,6 +78,9 @@ interface VoiceMicButtonProps {
   onTtsStop?: () => void;
   /** User intent to use voice soon; may warm the mic without starting capture. */
   onPrepare?: () => void;
+  /** Enables metadata-only diagnostic export after an interrupted turn. */
+  canExportDiagnostic?: boolean;
+  onExportDiagnostic?: () => string | null;
   /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
   className?: string;
   /** Extra classes for the inner button element. */
@@ -79,7 +94,7 @@ interface VoiceMicButtonProps {
 }
 
 /** Fixed-position tooltip rendered via portal so it can't be clipped by overflow parents. */
-function ErrorTooltip({ anchor, text, onDismiss }: { anchor: HTMLElement; text: string; onDismiss: () => void }) {
+function ErrorTooltip({ anchor, text, onDismiss, canExportDiagnostic = false, onExportDiagnostic }: { anchor: HTMLElement; text: string; onDismiss: () => void; canExportDiagnostic?: boolean; onExportDiagnostic?: () => string | null }) {
   const [style, setStyle] = useState<React.CSSProperties>({ visibility: "hidden" });
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -109,11 +124,33 @@ function ErrorTooltip({ anchor, text, onDismiss }: { anchor: HTMLElement; text: 
   return createPortal(
     <div
       ref={tooltipRef}
-      className="wc-stable-theme z-[9999] flex w-52 items-start gap-1.5 rounded border border-amber-500/50 bg-wc-surface-raised px-2 py-1 text-[10px] text-amber-300 shadow-lg"
+      data-testid={voiceSelectors.voice.errorTooltip}
+      className="wc-stable-theme z-wc-tooltip flex w-52 items-start gap-1.5 rounded border border-amber-500/50 bg-wc-surface-raised px-2 py-1 text-[10px] text-amber-300 shadow-lg"
       style={style}
       role="status"
     >
       <span className="min-w-0 flex-1 break-words">{text}</span>
+      {canExportDiagnostic && onExportDiagnostic ? (
+        <button
+          type="button"
+          onClick={() => {
+            const json = onExportDiagnostic();
+            if (!json) return;
+            const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "voice-turn-diagnostic.json";
+            link.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="rounded p-0.5 text-amber-200 transition hover:bg-amber-500/15 hover:text-amber-100"
+          aria-label="Export safe voice diagnostic"
+          data-testid={voiceSelectors.voice.exportDiagnostic}
+          title="Export safe diagnostic"
+        >
+          <FileDown className="h-3 w-3" />
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onDismiss}
@@ -149,6 +186,8 @@ function VoiceMicButtonInner({
   onReleaseMic,
   onTtsStop,
   onPrepare,
+  canExportDiagnostic = false,
+  onExportDiagnostic,
   className: wrapperClassName,
   buttonClassName,
   iconClassName = "h-3.5 w-3.5",
@@ -281,7 +320,7 @@ function VoiceMicButtonInner({
     <div className={cn("relative shrink-0", wrapperClassName)}>
       <button
         ref={setButtonEl}
-        data-testid="voice-mic-btn"
+        data-testid={voiceSelectors.voice.micButton}
         onPointerEnter={handlePrepare}
         onFocus={handlePrepare}
         onPointerDown={handlePointerDown}
@@ -345,7 +384,7 @@ function VoiceMicButtonInner({
           <svg
             aria-hidden="true"
             data-testid="voice-auto-stop-ring"
-            className="pointer-events-none absolute left-1/2 top-1/2 z-10 aspect-square h-[calc(100%-4px)] min-h-6 max-h-8 -translate-x-1/2 -translate-y-1/2 -rotate-90 overflow-visible"
+            className="pointer-events-none absolute left-1/2 top-1/2 z-wc-chrome aspect-square h-[calc(100%-4px)] min-h-6 max-h-8 -translate-x-1/2 -translate-y-1/2 -rotate-90 overflow-visible"
             viewBox="0 0 44 44"
           >
             <circle
@@ -379,7 +418,7 @@ function VoiceMicButtonInner({
         )}
       </button>
       {showErrorTooltip && buttonEl && (
-        <ErrorTooltip anchor={buttonEl} text={error as string} onDismiss={() => setDismissedError(error)} />
+        <ErrorTooltip anchor={buttonEl} text={error as string} onDismiss={() => setDismissedError(error)} canExportDiagnostic={canExportDiagnostic} onExportDiagnostic={onExportDiagnostic} />
       )}
       {isMicActive && partialTranscript && buttonEl && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">

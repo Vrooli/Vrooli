@@ -122,50 +122,64 @@ describe("TabBar rename", () => {
   });
 });
 
-describe("TabBar create group", () => {
+describe("TabBar group quick paths", () => {
+  const groupMeta: TabGroupMeta = { id: "g1", name: "Work", color: HEADER_COLORS[0] ?? "#123456", isCollapsed: false };
+
   beforeEach(() => {
     vi.clearAllMocks();
     useWorkspaceStore.setState({
       panes: makePanes("a", "b"),
       activePane: "a",
-      groups: [] as TabGroupMeta[],
+      groups: [groupMeta],
       displayMode: "tabs",
       tabContextMenu: null,
+      manageGroupsTarget: null,
     });
   });
 
-  it("creates group via API, assigns pane, and enters group rename mode", async () => {
+  it("Add to Group opens the Manage Groups drawer with the session as context", () => {
     renderTabBar();
 
-    // Open context menu on tab "a"
+    // Ungrouped pane: no inline group list — assignment lives in the drawer.
     fireEvent.contextMenu(screen.getByTestId("tab-a"), { clientX: 50, clientY: 10 });
+    expect(screen.queryByTestId("tab-ctx-group-g1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tab-ctx-remove-from-group")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tab-ctx-manage-groups")).not.toBeInTheDocument();
 
-    // Hover "Add to Group" to open submenu
-    const addToGroupBtn = screen.getByTestId("tab-ctx-add-to-group");
-    fireEvent.pointerEnter(addToGroupBtn);
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
 
-    // Click "New Group..."
-    const newGroupBtn = screen.getByTestId("tab-ctx-new-group");
-    fireEvent.click(newGroupBtn);
+    expect(useWorkspaceStore.getState().manageGroupsTarget).toEqual({ sessionId: "a" });
+  });
 
-    // Wait for async group creation
+  it("grouped panes get one-tap remove plus the Manage Groups entry point", async () => {
+    const panes = useWorkspaceStore.getState().panes.map((p) =>
+      p.sessionId === "a" ? { ...p, groupId: "g1" } : p,
+    );
+    useWorkspaceStore.setState({ panes });
+    renderTabBar();
+
+    fireEvent.contextMenu(screen.getByTestId("tab-a"), { clientX: 50, clientY: 10 });
+    expect(screen.queryByTestId("tab-ctx-add-to-group")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("tab-ctx-remove-from-group"));
+
     await waitFor(() => {
-      // New groups get an auto-distinct palette color (no existing groups → first entry).
-      expect(mockCreateTabGroup).toHaveBeenCalledWith({ name: "New Group", color: HEADER_COLORS[0] });
+      const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === "a");
+      expect(pane?.groupId).toBeNull();
     });
+    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("a", { group_id: null });
+  });
 
-    // Group should be added to store
-    await waitFor(() => {
-      const groups = useWorkspaceStore.getState().groups;
-      expect(groups).toHaveLength(1);
-      expect(groups[0]?.id).toBe("g-new");
-    });
+  it("opens the Manage Groups drawer from a grouped pane's menu", () => {
+    const panes = useWorkspaceStore.getState().panes.map((p) =>
+      p.sessionId === "a" ? { ...p, groupId: "g1" } : p,
+    );
+    useWorkspaceStore.setState({ panes });
+    renderTabBar();
 
-    // Pane "a" should be assigned to the group
-    const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === "a");
-    expect(pane?.groupId).toBe("g-new");
+    fireEvent.contextMenu(screen.getByTestId("tab-a"), { clientX: 50, clientY: 10 });
+    fireEvent.click(screen.getByTestId("tab-ctx-manage-groups"));
 
-    // Backend sync for pane update should have been called
-    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("a", { group_id: "g-new" });
+    expect(useWorkspaceStore.getState().manageGroupsTarget).toEqual({ sessionId: "a" });
   });
 });

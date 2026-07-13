@@ -23,7 +23,8 @@
     "viaProvider": "عبر {{provider}}",
     "copyTitle": "نسخ الأمر",
     "executeTitle": "تنفيذ في الطرفية",
-    "noActiveTerminal": "لا توجد طرفية نشطة"
+    "noActiveTerminal": "لا توجد طرفية نشطة",
+    "closeAriaLabel": "إغلاق إدخال الذكاء الاصطناعي"
   },
   "voiceMicButton": {
     "preparing": "جارٍ التحضير...",
@@ -423,7 +424,8 @@
     "backendLabel": "الواجهة الخلفية:",
     "timeoutLabel": "المهلة:",
     "persistentHint": "الجلسات الدائمة تظل قائمة عبر إعادة تشغيل وحدة التحكم باستخدام tmux.",
-    "creating": "جارٍ إنشاء الجلسة..."
+    "creating": "جارٍ إنشاء الجلسة...",
+    "closeAriaLabel": "إغلاق المشغّل"
   },
   "settings": {
     "title": "الإعدادات",
@@ -794,7 +796,8 @@
       "testMicMsSuffix": "{{value}}ms",
       "testMicNoTranscript": "(no transcript returned)",
       "testMicError": "Test failed"
-    }
+    },
+    "closeAriaLabel": "إغلاق الإعدادات"
   },
   "appearance": {
     "title": "المظهر",
@@ -806,7 +809,8 @@
     "applyToAll": "تطبيق على جميع الجلسات",
     "recentColorsHeading": "Recent",
     "addSecondaryColor": "Add second color",
-    "removeSecondaryColor": "Remove second color"
+    "removeSecondaryColor": "Remove second color",
+    "closeAriaLabel": "إغلاق إعدادات المظهر"
   },
   "audioSettings": {
     "volume": "مستوى الصوت",
@@ -840,5 +844,25 @@
     "expand": "Expand",
     "ungroupAll": "Ungroup all",
     "delete": "Delete group"
+  },
+  "manageGroups": {
+    "title": "إدارة المجموعات",
+    "closeAriaLabel": "إغلاق إدارة المجموعات",
+    "menuItem": "إدارة المجموعات…",
+    "empty": "لا توجد مجموعات بعد. أنشئ مجموعة لتنظيم جلساتك.",
+    "sessionCount": "{{count}} جلسة",
+    "sessionCount_one": "جلسة واحدة",
+    "create": "مجموعة جديدة",
+    "renameAriaLabel": "إعادة تسمية المجموعة {{name}}",
+    "recolorAriaLabel": "تغيير لون {{name}}",
+    "deleteAriaLabel": "حذف المجموعة {{name}}",
+    "deleteTitle": "حذف “{{name}}”؟",
+    "deleteConsequence": "سيتم إلغاء تجميع {{count}} جلسة.",
+    "deleteConsequence_one": "سيتم إلغاء تجميع جلسة واحدة.",
+    "deleteConsequenceNone": "لا توجد جلسات في هذه المجموعة.",
+    "deleteCancel": "إلغاء",
+    "deleteConfirm": "حذف",
+    "assignSession": "إضافة الجلسة الحالية",
+    "removeSession": "إزالة الجلسة الحالية"
   }
 }

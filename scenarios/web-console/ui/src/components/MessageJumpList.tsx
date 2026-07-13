@@ -5,13 +5,14 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type CSSProperties,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import { AlignLeft, CheckSquare, ClipboardCopy, Code, FileText, Pause, Play, Search, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEvent } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { buildMessageExport, DEFAULT_MESSAGE_EXPORT_FORMAT } from "../lib/messageExport";
@@ -71,7 +72,9 @@ interface MessageJumpListProps {
   /** Controlled search query — lifted by MessagesPane so dimming/nav persist. */
   query?: string;
   onQueryChange?: (query: string) => void;
-  desktopStyle?: CSSProperties;
+  /** Desktop anchor: when set, the panel positions itself against this
+   *  element via the shared anchored-floating math (above, end-aligned). */
+  desktopAnchorRef?: RefObject<HTMLElement | null>;
   /** Mini playback header — playback state from the parent AudioPlayerBar. */
   currentTime?: number;
   duration?: number | null;
@@ -454,6 +457,12 @@ function OptionButton({
   );
 }
 
+/** Anchored placement order for the desktop panel opening above its trigger. */
+const ABOVE_ANCHOR_PLACEMENTS: FloatingPlacement[] = ["top-end", "top-start", "bottom-end", "bottom-start"];
+
+/** Stable stand-in so the position hook can run unconditionally without an anchor. */
+const NULL_ANCHOR_REF: RefObject<HTMLElement | null> = { current: null };
+
 export default function MessageJumpList({
   events,
   focusedEventId,
@@ -463,7 +472,7 @@ export default function MessageJumpList({
   initialFocus,
   query,
   onQueryChange,
-  desktopStyle,
+  desktopAnchorRef,
   currentTime = 0,
   duration = null,
   isPaused = true,
@@ -478,6 +487,13 @@ export default function MessageJumpList({
   const isMobile = useMediaQuery("(max-width: 767px)");
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const desktopPanelRef = useRef<HTMLDivElement>(null);
+  const anchoredStyle = useAnchoredPopoverPosition(
+    Boolean(desktopAnchorRef) && !isMobile,
+    desktopAnchorRef ?? NULL_ANCHOR_REF,
+    desktopPanelRef,
+    ABOVE_ANCHOR_PLACEMENTS,
+  );
   const itemRefs = useRef(new Map<string, HTMLElement>());
 
   const isControlledQuery = onQueryChange !== undefined;
@@ -1019,12 +1035,16 @@ export default function MessageJumpList({
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-40" onMouseDown={(e) => e.preventDefault()}>
+    <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => e.preventDefault()}>
       <div className="absolute inset-0 bg-wc-backdrop" onClick={onClose} />
       {isMobile ? (
-        <div className="absolute bottom-0 left-0 right-0 z-50 ps-[var(--wc-safe-left,0px)] pe-[var(--wc-safe-right,0px)]">{content_node}</div>
+        <div className="absolute bottom-0 left-0 right-0 z-wc-popover ps-[var(--wc-safe-left,0px)] pe-[var(--wc-safe-right,0px)]">{content_node}</div>
       ) : (
-        <div className="absolute z-50" style={desktopStyle ?? { top: 48, right: 16 }}>
+        <div
+          ref={desktopPanelRef}
+          className="absolute z-wc-popover"
+          style={desktopAnchorRef ? anchoredStyle : { top: 48, right: 16 }}
+        >
           {content_node}
         </div>
       )}

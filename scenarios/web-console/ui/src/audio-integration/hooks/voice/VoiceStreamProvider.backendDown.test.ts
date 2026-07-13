@@ -117,6 +117,9 @@ describe("VoiceStreamProvider backend-down error", () => {
 
     const ws = FakeWebSocket.instances.at(-1);
     if (!ws) throw new Error("expected a WebSocket instance");
+    // A final delivered while the recorder is still actively recording is
+    // treated as backend loss, so end the turn before the final arrives.
+    provider.stop();
     ws.onmessage?.({
       data: JSON.stringify({ type: "final", text: "transcribed text" }),
     });

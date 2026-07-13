@@ -1,37 +1,34 @@
-import { useState } from "react";
-import { ChevronDown, ChevronRight, FolderMinus, Palette, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderCog, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
-import { HEADER_COLORS } from "../consts/config";
 import type { TabGroupMeta } from "../stores/useWorkspaceStore";
 
 interface GroupContextMenuProps {
   /** Viewport coordinates where the menu should appear. */
   position: { x: number; y: number };
   group: TabGroupMeta;
-  onRename: () => void;
-  onRecolor: (color: string) => void;
   onNewSession?: () => void;
   onToggleCollapse: () => void;
-  onUngroupAll: () => void;
-  onDelete: () => void;
+  /** Open the Manage Groups drawer (rename/recolor/delete live there). */
+  onManageGroups: () => void;
   onDismiss: () => void;
 }
 
+/**
+ * Quick ephemeral actions on a group header. Management operations (rename,
+ * recolor, ungroup, delete) live in the Manage Groups drawer — this menu only
+ * keeps the in-place toggles plus a deep link into that drawer.
+ */
 export default function GroupContextMenu({
   position,
   group,
-  onRename,
-  onRecolor,
   onNewSession,
   onToggleCollapse,
-  onUngroupAll,
-  onDelete,
+  onManageGroups,
   onDismiss,
 }: GroupContextMenuProps) {
   const { t } = useTranslation();
-  const [showPalette, setShowPalette] = useState(false);
 
   const handleAction = (action: () => void) => {
     action();
@@ -40,42 +37,6 @@ export default function GroupContextMenu({
 
   return (
     <ContextMenuBase position={position} onClose={onDismiss} data-testid="group-ctx-menu">
-      {/* Rename */}
-      <button
-        data-testid="group-ctx-rename"
-        className={contextMenuItemClass}
-        onClick={() => handleAction(onRename)}
-      >
-        <Pencil className="h-4 w-4 shrink-0" />
-        {t(strings.groupContextMenu.rename)}
-      </button>
-
-      {/* Recolor (inline palette) */}
-      <button
-        data-testid="group-ctx-recolor"
-        className={contextMenuItemClass}
-        onClick={() => setShowPalette((prev) => !prev)}
-      >
-        <Palette className="h-4 w-4 shrink-0" />
-        {t(strings.groupContextMenu.recolor)}
-        <ChevronRight className="h-3 w-3 ml-auto shrink-0" />
-      </button>
-      {showPalette && (
-        <div data-testid="group-ctx-palette" className="flex flex-wrap gap-1.5 px-3 py-2">
-          {HEADER_COLORS.map((color) => (
-            <button
-              key={color}
-              type="button"
-              data-testid={`group-ctx-color-${color}`}
-              className="h-5 w-5 rounded-full border border-wc-default"
-              style={{ backgroundColor: color }}
-              onClick={() => handleAction(() => onRecolor(color))}
-              title={color}
-            />
-          ))}
-        </div>
-      )}
-
       {onNewSession && (
         <button
           data-testid="group-ctx-new-session"
@@ -103,24 +64,13 @@ export default function GroupContextMenu({
 
       <div className="border-t border-wc-default my-1" />
 
-      {/* Ungroup all */}
       <button
-        data-testid="group-ctx-ungroup-all"
+        data-testid="group-ctx-manage-groups"
         className={contextMenuItemClass}
-        onClick={() => handleAction(onUngroupAll)}
+        onClick={() => handleAction(onManageGroups)}
       >
-        <FolderMinus className="h-4 w-4 shrink-0" />
-        {t(strings.groupContextMenu.ungroupAll)}
-      </button>
-
-      {/* Delete group */}
-      <button
-        data-testid="group-ctx-delete"
-        className={contextMenuItemClass}
-        onClick={() => handleAction(onDelete)}
-      >
-        <Trash2 className="h-4 w-4 shrink-0" />
-        {t(strings.groupContextMenu.delete)}
+        <FolderCog className="h-4 w-4 shrink-0" />
+        {t(strings.manageGroups.menuItem)}
       </button>
     </ContextMenuBase>
   );

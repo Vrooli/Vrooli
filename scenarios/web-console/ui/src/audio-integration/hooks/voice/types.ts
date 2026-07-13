@@ -2,6 +2,8 @@
 //
 // Shared types, constants, and interfaces for the voice input system.
 
+import type { StreamTurnDiagnostic } from "@vrooli/audio-capture-browser";
+
 /** Sentinel error value indicating Whisper transcription failed after retries. */
 export const WHISPER_FAILED_SENTINEL = "__WHISPER_FAILED__";
 
@@ -234,6 +236,8 @@ export interface VoiceInputState {
   /** Whether speaker verification is enabled and configured for the current session. */
   speakerVerificationEnabled: boolean;
   speakerProfileConfigured: boolean;
+  /** Latest metadata-only streaming record, retained after a failed turn for safe export. */
+  turnDiagnostic: StreamTurnDiagnostic | null;
 }
 
 /** A voice command detected from a segment-final transcript. */
@@ -288,4 +292,7 @@ export interface TranscriptionProvider {
   onError: ((error: string) => void) | null;
   onPartial?: ((text: string) => void) | null;
   onStatus?: ((status: { code: string; message: string }) => void) | null;
+  onDiagnostic?: ((diagnostic: StreamTurnDiagnostic) => void) | null;
+  getDiagnostic?(): StreamTurnDiagnostic;
+  exportDiagnostic?(): string;
 }

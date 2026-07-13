@@ -1,9 +1,10 @@
 // DOC: docs/reference/configuration.md#launcher-shortcuts
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
 import { useState, useCallback, useEffect } from "react";
-import { Terminal, Zap, X, ChevronDown, ChevronRight, Info } from "lucide-react";
+import { Terminal, Zap, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
+import { DrawerShell } from "./DrawerShell";
 import { strings } from "../consts/strings";
 import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../consts/shortcuts";
 import { shortcutsClient } from "../api/shortcuts";
@@ -125,32 +126,16 @@ export default function TerminalLauncher({
     }
   }, [customCommand, onLaunch, buildLaunchOptions]);
 
-  if (!open) return null;
-
   return (
-    <div
-      data-testid="terminal-launcher"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-wc-backdrop-heavy"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <DrawerShell
+      open={open}
+      onClose={onClose}
+      closeAriaLabel={t(strings.terminalLauncher.closeAriaLabel)}
+      title={t(strings.terminalLauncher.newTerminal)}
+      panelTestId="terminal-launcher"
     >
-      <div className="wc-stable-theme mx-4 w-full max-w-md rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl">
-        <div className="flex items-center justify-between border-b border-wc-default px-4 py-3">
-          <h2 className="text-lg font-semibold text-wc-text-primary">
-            {t(strings.terminalLauncher.newTerminal)}
-          </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="space-y-3 p-4">
+      <div className="flex h-full flex-col">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           {/* Empty shell option */}
           <button
             data-testid="launcher-empty-shell"
@@ -283,11 +268,11 @@ export default function TerminalLauncher({
         </div>
 
         {isCreating && (
-          <div className="border-t border-wc-default px-4 py-2 text-center text-sm text-wc-text-muted">
+          <div className="shrink-0 border-t border-wc-default px-4 py-2 text-center text-sm text-wc-text-muted">
             {t(strings.terminalLauncher.creating)}
           </div>
         )}
       </div>
-    </div>
+    </DrawerShell>
   );
 }

@@ -1,79 +1,98 @@
 {
-  "metadata": {
-    "name": "file-preview-drilldown",
-    "description": "From a seeded assistant message, click a markdown file link to open the file-preview viewer, verify the markdown renderer, then open the SVG link and verify the image renderer.",
-    "labels": {
-      "reset": "none",
-      "requirements_json": "[\"REQ-P0-001a\"]"
+  "id": "27145765-2e9a-4626-a0cc-ebc7ef913bd3",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "file-preview-drilldown",
+  "folder_path": "/bas/cases/02-messages/02-file-preview",
+  "description": "From a seeded assistant message, click a markdown file link to open the file-preview viewer, verify the markdown renderer, then open the SVG link and verify the image renderer.",
+  "tags": [
+    "reset:none",
+    "requirements_json:[\"REQ-P0-001a\"]"
+  ],
+  "version": 1,
+  "created_at": "2026-07-12T19:31:13.442140006Z",
+  "updated_at": "2026-07-12T19:31:13.442140006Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
     },
-    "execution_mode": "observer"
-  },
-  "settings": {
-    "viewport_width": 1440,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "open-workspace",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": { "workflow_path": "actions/open-workspace.json" },
-        "metadata": { "label": "Open workspace" }
+    "nodes": [
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          },
+          "metadata": {
+            "label": "Open workspace"
+          }
+        }
+      },
+      {
+        "id": "hydrate-wait",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1500
+          },
+          "metadata": {
+            "label": "Allow sessions + conversation to hydrate"
+          }
+        }
+      },
+      {
+        "id": "find-and-open-markdown",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const tabs = Array.from(document.querySelectorAll('[data-testid^=\"tab-\"]')).filter((el) => { const id = el.getAttribute('data-testid') || ''; return id !== 'tab-bar' && id !== 'tab-bar-new' && !id.startsWith('tab-group-') && !id.startsWith('tab-rename-input-'); }); let opened = false; for (const tab of tabs) { tab.click(); await sleep(400); const toggle = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); if (toggle instanceof HTMLElement) { toggle.click(); await sleep(400); } const link = document.querySelector('a[href$=\"preview-fixture.md\"]'); if (link instanceof HTMLElement) { link.click(); await sleep(900); if (document.querySelector('[data-testid=\"messages-file-viewer-panel\"]') && document.querySelector('[data-testid=\"file-preview-markdown\"]')) { opened = true; break; } } } document.body.setAttribute('data-filepreview-md-opened', opened ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Find the FILEPREVIEW_SEED session and open the markdown fixture link"
+          }
+        }
+      },
+      {
+        "id": "assert-markdown-preview",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-filepreview-md-opened='true']",
+            "failure_message": "Expected the markdown file link to open the file-preview viewer with the markdown renderer (seed.sh hook seeding may be unavailable)",
+            "timeout_ms": 6000
+          },
+          "metadata": {
+            "label": "Verify markdown preview opened"
+          }
+        }
+      },
+      {
+        "id": "open-svg-fixture",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); await sleep(400); const link = document.querySelector('a[href$=\"preview-fixture.svg\"]'); let opened = false; if (link instanceof HTMLElement) { link.click(); await sleep(900); if (document.querySelector('[data-testid=\"messages-file-viewer-panel\"]') && document.querySelector('[data-testid=\"file-preview-image\"]')) { opened = true; } } document.body.setAttribute('data-filepreview-svg-opened', opened ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Open the SVG fixture link"
+          }
+        }
+      },
+      {
+        "id": "assert-svg-preview",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-filepreview-svg-opened='true']",
+            "failure_message": "Expected the SVG file link to open the file-preview viewer with the image renderer",
+            "timeout_ms": 6000
+          },
+          "metadata": {
+            "label": "Verify SVG image preview opened"
+          }
+        }
       }
-    },
-    {
-      "id": "hydrate-wait",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": { "duration_ms": 1500 },
-        "metadata": { "label": "Allow sessions + conversation to hydrate" }
-      }
-    },
-    {
-      "id": "find-and-open-markdown",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const tabs = Array.from(document.querySelectorAll('[data-testid^=\"tab-\"]')).filter((el) => { const id = el.getAttribute('data-testid') || ''; return id !== 'tab-bar' && id !== 'tab-bar-new' && !id.startsWith('tab-group-') && !id.startsWith('tab-rename-input-'); }); let opened = false; for (const tab of tabs) { tab.click(); await sleep(400); const toggle = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); if (toggle instanceof HTMLElement) { toggle.click(); await sleep(400); } const link = document.querySelector('a[href$=\"preview-fixture.md\"]'); if (link instanceof HTMLElement) { link.click(); await sleep(900); if (document.querySelector('[data-testid=\"messages-file-viewer-panel\"]') && document.querySelector('[data-testid=\"file-preview-markdown\"]')) { opened = true; break; } } } document.body.setAttribute('data-filepreview-md-opened', opened ? 'true' : 'false'); })()"
-        },
-        "metadata": { "label": "Find the FILEPREVIEW_SEED session and open the markdown fixture link" }
-      }
-    },
-    {
-      "id": "assert-markdown-preview",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-filepreview-md-opened='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 6000,
-          "failure_message": "Expected the markdown file link to open the file-preview viewer with the markdown renderer (seed.sh hook seeding may be unavailable)"
-        },
-        "metadata": { "label": "Verify markdown preview opened" }
-      }
-    },
-    {
-      "id": "open-svg-fixture",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); await sleep(400); const link = document.querySelector('a[href$=\"preview-fixture.svg\"]'); let opened = false; if (link instanceof HTMLElement) { link.click(); await sleep(900); if (document.querySelector('[data-testid=\"messages-file-viewer-panel\"]') && document.querySelector('[data-testid=\"file-preview-image\"]')) { opened = true; } } document.body.setAttribute('data-filepreview-svg-opened', opened ? 'true' : 'false'); })()"
-        },
-        "metadata": { "label": "Open the SVG fixture link" }
-      }
-    },
-    {
-      "id": "assert-svg-preview",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-filepreview-svg-opened='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 6000,
-          "failure_message": "Expected the SVG file link to open the file-preview viewer with the image renderer"
-        },
-        "metadata": { "label": "Verify SVG image preview opened" }
-      }
-    }
-  ]
+    ]
+  }
 }

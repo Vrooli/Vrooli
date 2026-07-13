@@ -288,6 +288,16 @@ surfaces as a visible busy status.
 - No BAS mobile viewport workflow yet for floating toolbar key/chord behavior.
 - Playbooks phase currently blocks on BAS startup when browser-automation-studio dependencies are unavailable (e2e workflows present but cannot execute).
 
+**Added recovery coverage (2026-07-12):**
+`bas/cases/02-messages/02-voice/deterministic-incomplete-coverage.json`
+executed successfully as `06696480-3902-47e3-8db6-8e7971ef42e0`. It grants the
+WAV-backed fake microphone to the real Web Console UI, crosses its same-origin
+voice WebSocket proxy, injects a server close only after the first PCM chunk,
+and asserts the visible `incomplete_coverage` error plus metadata-only
+diagnostic export. The Audio Tools fault gate was enabled only for this run and
+restored to false afterward. This is deterministic desktop-browser evidence,
+not a substitute for the remaining iOS/Android device matrix.
+
 ## 9a. File Preview — Intentionally Deferred (2026-06-30)
 
 The file-preview subsystem (`api/internal/filepreview`, `FilePreviewService`, blob/range route, UI renderer registry) ships these deliberate deferrals — all are working-as-intended, not bugs:

@@ -255,6 +255,19 @@ export function buildVoiceStreamWsUrl(language?: string, sessionId?: string, res
   if (sessionId) params.set("protocol_version", "2");
   if (sessionId) params.set("session_id", sessionId);
   if (resumeToken) params.set("resume_token", resumeToken);
+  // Browser qualification cannot attach custom headers to a WebSocket
+  // handshake. Mirror Audio Tools' explicitly opt-in page parameters so the
+  // Web Console's same-origin proxy can forward a bounded test fault to the
+  // upstream server. Normal pages do not carry these parameters, and the
+  // upstream still requires its boot-only fault gate.
+  if (typeof window !== "undefined") {
+    const pageParams = new URLSearchParams(window.location.search);
+    const fault = pageParams.get("stt_test_fault");
+    if (pageParams.get("stt_test_mode") === "1" && fault) {
+      params.set("test_mode", "1");
+      params.set("test_fault", fault);
+    }
+  }
   return `${wsBase}/api/v1/voice/stream?${params.toString()}`;
 }
 

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import AppearanceModal from "../components/AppearanceModal";
 import { HEADER_COLORS } from "../consts/config";
+import { strings } from "../consts/strings";
 
 const { mockSyncPaneUpdate } = vi.hoisted(() => ({
   mockSyncPaneUpdate: vi.fn(),
@@ -28,25 +29,6 @@ vi.mock("../stores/useWorkspaceStore", () => ({
 vi.mock("../hooks/useWorkspaceSync", () => ({
   useWorkspaceSync: () => ({
     syncPaneUpdate: mockSyncPaneUpdate,
-  }),
-}));
-
-// Mock draggable position hook
-vi.mock("../hooks/useDraggablePosition", () => ({
-  useDraggablePosition: () => ({
-    elementRef: { current: null },
-    floatingStyle: { transform: "translate3d(100px, 100px, 0)" },
-    pointerHandlers: {
-      onPointerDown: vi.fn(),
-      onPointerMove: vi.fn(),
-      onPointerUp: vi.fn(),
-      onPointerCancel: vi.fn(),
-    },
-    handleClickCapture: vi.fn(),
-    resetPosition: vi.fn(),
-    moveTo: vi.fn(),
-    isDragging: false,
-    position: { x: 100, y: 100 },
   }),
 }));
 
@@ -79,14 +61,27 @@ describe("AppearanceModal", () => {
   it("backdrop click sets appearanceModalPane to null", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
-    fireEvent.click(screen.getByTestId("appearance-backdrop"));
+    const panel = screen.getByTestId("appearance-modal");
+    const backdrop = panel.parentElement?.firstElementChild as HTMLElement;
+    fireEvent.click(backdrop);
     expect(mockStoreState.setAppearanceModalPane).toHaveBeenCalledWith(null);
   });
 
   it("close button sets appearanceModalPane to null", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
-    fireEvent.click(screen.getByTestId("appearance-close"));
+    fireEvent.click(screen.getByLabelText(strings.appearance.closeAriaLabel));
+    expect(mockStoreState.setAppearanceModalPane).toHaveBeenCalledWith(null);
+  });
+
+  it("closes on Escape and renders dialog semantics via DrawerShell compact", () => {
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    const panel = screen.getByTestId("appearance-modal");
+    expect(panel.getAttribute("role")).toBe("dialog");
+    expect(panel.getAttribute("aria-modal")).toBe("true");
+    expect(panel.className).toContain("md:max-w-md");
+    fireEvent.keyDown(window, { key: "Escape" });
     expect(mockStoreState.setAppearanceModalPane).toHaveBeenCalledWith(null);
   });
 

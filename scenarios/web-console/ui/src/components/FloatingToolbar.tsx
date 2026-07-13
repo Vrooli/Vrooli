@@ -70,6 +70,8 @@ interface FloatingToolbarProps {
   voiceActivity?: VoiceActivitySnapshot;
   voicePartialTranscript?: string;
   voiceBackend?: string;
+  voiceCanExportDiagnostic?: boolean;
+  onVoiceExportDiagnostic?: () => string | null;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoicePrepare?: () => void;
   onVoiceStop?: () => void;
@@ -104,6 +106,8 @@ export default function FloatingToolbar({
   voiceActivity,
   voicePartialTranscript,
   voiceBackend,
+  voiceCanExportDiagnostic,
+  onVoiceExportDiagnostic,
   onVoiceStart,
   onVoicePrepare,
   onVoiceStop,
@@ -289,6 +293,8 @@ export default function FloatingToolbar({
           voiceActivity={voiceActivity}
           partialTranscript={voicePartialTranscript}
           backend={voiceBackend}
+          canExportDiagnostic={voiceCanExportDiagnostic}
+          onExportDiagnostic={onVoiceExportDiagnostic}
           isTtsSpeaking={isTtsSpeaking}
           onPrepare={onVoicePrepare}
           onStart={onVoiceStart}
@@ -324,7 +330,7 @@ export default function FloatingToolbar({
     <div
       ref={(node) => { elementRef.current = node; }}
       data-testid="floating-toolbar"
-      className={`fixed left-0 top-0 z-[2600] flex items-center rounded-full border border-wc-default bg-wc-surface-raised/95 backdrop-blur-md shadow-lg select-none touch-none ${
+      className={`fixed left-0 top-0 z-wc-toolbar flex items-center rounded-full border border-wc-default bg-wc-surface-raised/95 backdrop-blur-md shadow-lg select-none touch-none ${
         docked ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
       } ${animating ? "wc-dock-transition" : ""}`}
       style={computedStyle}

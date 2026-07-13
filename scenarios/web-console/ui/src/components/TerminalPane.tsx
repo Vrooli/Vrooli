@@ -714,12 +714,12 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         onDrop={handleDrop}
       >
         {uploading && (
-          <div data-testid="upload-overlay" className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-sm text-white">
+          <div data-testid="upload-overlay" className="absolute inset-0 z-wc-chrome-raised flex items-center justify-center bg-black/50 text-sm text-white">
             {t(strings.terminalPane.uploadingImage)}
           </div>
         )}
         {uploadError && (
-          <div data-testid="upload-error" className="absolute top-2 left-2 z-20 rounded bg-red-600/90 px-3 py-1.5 text-xs text-white shadow-lg">
+          <div data-testid="upload-error" className="absolute top-2 left-2 z-wc-chrome-raised rounded bg-red-600/90 px-3 py-1.5 text-xs text-white shadow-lg">
             {uploadError}
           </div>
         )}

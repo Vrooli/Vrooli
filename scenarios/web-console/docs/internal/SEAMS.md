@@ -25,6 +25,17 @@ Last updated: 2026-05-16
 > commands for the scenario, but web-console must not start Whisper, Kokoro, or
 > other audio provider resources directly.
 
+## Voice turn diagnostics (2026-07-11)
+
+`PcmVoiceStreamProvider` is the Web Console's same-origin transport adapter;
+the shared `StreamDiagnosticRecorder` from `@vrooli/audio-capture-browser`
+is the privacy boundary. It records only opaque session identity, protocol
+state, retained durability level, coverage cursors, status/error codes, and
+terminal reason—never PCM or transcript text. `useVoiceCore` exposes its
+sanitized JSON export to every mic surface, and `VoiceMicButton` makes it
+available from the failed-turn recovery tooltip. This keeps browser capture
+semantics shared while leaving Web Console responsible for its own recovery UX.
+
 ## Audio Summarize Model Catalog (added 2026-05-17)
 
 **Owner boundary:** audio-tools owns summarize model policy, catalog metadata,

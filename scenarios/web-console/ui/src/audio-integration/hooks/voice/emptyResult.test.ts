@@ -119,6 +119,10 @@ describe("VoiceStreamProvider empty-result contract", () => {
     const ws = FakeWebSocket.instances.at(-1);
     if (!ws) throw new Error("expected a WebSocket");
 
+    // A final that arrives while the recorder is still actively recording is
+    // treated as backend loss (reconnect/fallback), so end the turn first —
+    // the empty-final contract applies to finals after an intentional stop.
+    provider.stop();
     ws.onmessage?.({ data: JSON.stringify({ type: "final", text: "   " }) });
 
     expect(onResult).toHaveBeenCalledTimes(1);

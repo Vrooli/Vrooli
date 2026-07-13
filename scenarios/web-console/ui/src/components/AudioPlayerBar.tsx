@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
+import { useCallback, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TTSPlaybackCapabilities } from "../audio-integration";
 import type { ConversationEvent } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";
@@ -51,6 +52,9 @@ export interface AudioPlayerBarProps {
   /** Optional close control for manually-started playback surfaces. */
   onDismiss?: () => void;
 }
+
+/** Anchored placement order for popovers opening above their trigger. */
+const ABOVE_ANCHOR_PLACEMENTS: FloatingPlacement[] = ["top-end", "top-start", "bottom-end", "bottom-start"];
 
 /** Format seconds as m:ss. Returns "--:--" when value is null or not finite. */
 function formatTime(seconds: number | null): string {
@@ -124,27 +128,15 @@ export default function AudioPlayerBar({
   // layout from shifting between playing and idle.
   const isIdle = duration === null;
 
-  // Compute popover position anchored above the audio button
-  const getPopoverStyle = useCallback((): CSSProperties => {
-    const btn = audioButtonRef.current;
-    if (!btn) return { position: "fixed", bottom: 48, right: 16 };
-    const rect = btn.getBoundingClientRect();
-    return {
-      position: "fixed",
-      bottom: window.innerHeight - rect.top + 8,
-      right: Math.max(8, window.innerWidth - rect.right),
-    };
-  }, []);
-
-  const getMessageSelectorStyle = useCallback((): CSSProperties => {
-    const btn = currentMessageButtonRef.current;
-    if (!btn) return { bottom: 48, right: 16 };
-    const rect = btn.getBoundingClientRect();
-    return {
-      bottom: window.innerHeight - rect.top + 8,
-      right: Math.max(8, window.innerWidth - rect.right),
-    };
-  }, []);
+  // Desktop settings popover anchors above the audio button, end-aligned,
+  // via the shared anchored-floating math (measure-then-position).
+  const audioPopoverRef = useRef<HTMLDivElement>(null);
+  const audioPopoverStyle = useAnchoredPopoverPosition(
+    showPopover && !isMobile,
+    audioButtonRef,
+    audioPopoverRef,
+    ABOVE_ANCHOR_PLACEMENTS,
+  );
 
   return (
     <div
@@ -212,7 +204,7 @@ export default function AudioPlayerBar({
             setShowMessageSelector(false);
           }}
           onClose={() => setShowMessageSelector(false)}
-          desktopStyle={getMessageSelectorStyle()}
+          desktopAnchorRef={currentMessageButtonRef}
           currentTime={currentTime}
           duration={duration}
           isPaused={isPaused}
@@ -285,7 +277,7 @@ export default function AudioPlayerBar({
       {showPopover && createPortal(
         isMobile ? (
           // Mobile bottom sheet
-          <div className="fixed inset-0 z-[60]" onMouseDown={(e) => e.preventDefault()}>
+          <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => e.preventDefault()}>
             <div
               data-testid="audio-sheet-backdrop"
               className="absolute inset-0 bg-wc-backdrop"
@@ -293,7 +285,7 @@ export default function AudioPlayerBar({
             />
             <div
               data-testid="audio-popover"
-              className="wc-stable-theme absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
+              className="wc-stable-theme absolute bottom-0 left-0 right-0 z-wc-popover rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
             >
               <div className="mb-3 flex justify-center">
                 <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
@@ -322,13 +314,14 @@ export default function AudioPlayerBar({
           <>
             <div
               data-testid="audio-popover-backdrop"
-              className="fixed inset-0 z-[60]"
+              className="fixed inset-0 z-wc-popover-backdrop"
               onClick={() => setShowPopover(false)}
             />
             <div
+              ref={audioPopoverRef}
               data-testid="audio-popover"
-              className="wc-stable-theme z-[61] w-60 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
-              style={getPopoverStyle()}
+              className="wc-stable-theme z-wc-popover w-60 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
+              style={audioPopoverStyle}
             >
               <AudioSettingsContent
                 testIdPrefix="tts"

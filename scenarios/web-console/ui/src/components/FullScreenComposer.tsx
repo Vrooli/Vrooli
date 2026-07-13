@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ImagePlus, Loader2, SendHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { DrawerShell } from "./DrawerShell";
 import { AttachmentPreviewTray, type ComposerAttachment } from "./composer/AttachmentPreviewTray";
 import { strings } from "../consts/strings";
@@ -348,43 +349,17 @@ export default function FullScreenComposer({
           </button>
         </div>
 
-        {showDiscardPrompt && (
-          <div
-            data-testid="composer-discard-prompt"
-            className="absolute inset-0 z-[90] flex items-center justify-center bg-wc-backdrop p-4"
-            onClick={() => setShowDiscardPrompt(false)}
-          >
-            <div
-              className="wc-stable-theme w-full max-w-sm rounded-lg border border-wc-default bg-wc-surface-raised p-5 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="mb-2 text-sm font-semibold text-wc-text-primary">
-                {t(strings.composer.discardTitle)}
-              </h2>
-              <p className="mb-4 text-xs text-wc-text-secondary">
-                {t(strings.composer.discardMessage, { count: attachments.length })}
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  data-testid="composer-discard-cancel"
-                  onClick={() => setShowDiscardPrompt(false)}
-                  className="rounded-full px-4 py-1.5 text-sm font-medium text-wc-text-primary transition hover:bg-white/10"
-                >
-                  {t(strings.composer.discardCancel)}
-                </button>
-                <button
-                  type="button"
-                  data-testid="composer-discard-confirm"
-                  onClick={confirmDiscard}
-                  className="rounded-full bg-red-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-red-700"
-                >
-                  {t(strings.composer.discardConfirm)}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmDialog
+          open={showDiscardPrompt}
+          title={t(strings.composer.discardTitle)}
+          body={t(strings.composer.discardMessage, { count: attachments.length })}
+          cancelLabel={t(strings.composer.discardCancel)}
+          confirmLabel={t(strings.composer.discardConfirm)}
+          destructive
+          onCancel={() => setShowDiscardPrompt(false)}
+          onConfirm={confirmDiscard}
+          testIdPrefix="composer-discard"
+        />
       </div>
     </DrawerShell>
   );

@@ -1,14 +1,14 @@
 // DOC: docs/concepts/ARCHITECTURE.md#file-map
 // [REQ:P0-005b] AI Input UI Component
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Sparkles, Send, Copy, Play, Loader2, AlertCircle, X, GripHorizontal } from "lucide-react";
+import { Sparkles, Send, Copy, Play, Loader2, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
+import { DrawerShell } from "./DrawerShell";
 import { generateAICommand } from "../api/ai";
 import { strings } from "../consts/strings";
 import { toErrorInfo } from "../lib/errors";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import { useDraggablePosition } from "../hooks/useDraggablePosition";
 
 /**
  * AI Input modal for generating shell commands from natural language.
@@ -23,19 +23,6 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
   const setAiModalOpen = useWorkspaceStore((s) => s.setAiModalOpen);
   const activePane = useWorkspaceStore((s) => s.activePane);
   const hasActiveTerminal = activePane !== null;
-
-  const { elementRef, floatingStyle, pointerHandlers, handleClickCapture } =
-    useDraggablePosition({
-      isActive: aiModalOpen,
-      storageKey: "wc-ai-pos",
-      defaultPosition: () => {
-        if (typeof window === "undefined") return { x: 100, y: 100 };
-        return {
-          x: Math.max(12, (window.innerWidth - 400) / 2),
-          y: Math.max(12, window.innerHeight * 0.15),
-        };
-      },
-    });
 
   const [prompt, setPrompt] = useState("");
   const [command, setCommand] = useState<string | null>(null);
@@ -123,63 +110,23 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
     [command, handleGenerate, handleExecute],
   );
 
-  if (!aiModalOpen) return null;
-
   const close = () => setAiModalOpen(false);
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        data-testid="ai-backdrop"
-        className="fixed inset-0 z-40 bg-wc-backdrop"
-        onClick={close}
-      />
-
-      {/* Modal */}
-      <div
-        ref={(node) => { elementRef.current = node; }}
-        data-testid="ai-input"
-        className="wc-stable-theme fixed left-0 top-0 z-50 w-[25rem] max-w-[calc(100vw-24px)] rounded-lg border border-wc-default bg-wc-surface-raised shadow-2xl flex flex-col"
-        style={floatingStyle}
-        onPointerDown={(e) => {
-          const target = e.target as HTMLElement | null;
-          const isOnHandle = Boolean(target?.closest("[data-drag-handle]"));
-          const isOnControl = Boolean(target?.closest("button, a, input, textarea, select"));
-          if (isOnHandle && !isOnControl) {
-            pointerHandlers.onPointerDown(e);
-          }
-        }}
-        onPointerMove={pointerHandlers.onPointerMove}
-        onPointerUp={pointerHandlers.onPointerUp}
-        onPointerCancel={pointerHandlers.onPointerCancel}
-        onClickCapture={handleClickCapture}
-      >
-        {/* Drag handle header */}
-        <div
-          data-drag-handle
-          className="flex items-center justify-between px-3 py-2 border-b border-wc-default cursor-grab active:cursor-grabbing select-none touch-none"
-        >
-          <div className="flex items-center gap-2">
-            <GripHorizontal className="h-4 w-4 text-wc-text-faint" />
-            <Sparkles className="h-4 w-4 text-wc-accent" />
-            <h2 className="text-sm font-semibold text-wc-text-primary">
-              {t(strings.aiInput.heading)}
-            </h2>
-          </div>
-          <Button
-            data-testid="ai-close"
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={close}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-
-        {/* Content */}
-        <div className="p-3">
+    <DrawerShell
+      open={aiModalOpen}
+      onClose={close}
+      size="compact"
+      closeAriaLabel={t(strings.aiInput.closeAriaLabel)}
+      title={
+        <span className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 shrink-0 text-wc-accent" />
+          {t(strings.aiInput.heading)}
+        </span>
+      }
+      panelTestId="ai-input"
+    >
+      <div className="h-full overflow-y-auto p-3">
           <div className="flex items-center gap-2">
             <input
               ref={inputRef}
@@ -255,8 +202,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
               </Button>
             </div>
           )}
-        </div>
       </div>
-    </>
+    </DrawerShell>
   );
 }

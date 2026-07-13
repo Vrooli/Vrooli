@@ -1,26 +1,30 @@
 {
-  "metadata": {
-    "name": "reset-sessions-best-effort",
-    "description": "Best-effort deletion of existing sessions for deterministic terminal tests",
-    "labels": {
-      "reset": "none"
-    },
-    "execution_mode": "observer"
-  },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "reset-session-state",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { const maxAttempts = 8; const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)); let remainingCount = -1; for (let attempt = 0; attempt < maxAttempts; attempt++) { try { const listRes = await fetch('/api/v1/sessions', { cache: 'no-store' }); if (!listRes.ok) { await sleep(250); continue; } const sessions = await listRes.json(); if (!Array.isArray(sessions)) { await sleep(250); continue; } if (sessions.length > 0) { for (const session of sessions) { const id = session && typeof session.id === 'string' ? session.id : ''; if (!id) continue; try { await fetch(`/api/v1/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' }); } catch {} } } await sleep(250); const verifyRes = await fetch('/api/v1/sessions', { cache: 'no-store' }); if (!verifyRes.ok) { await sleep(250); continue; } const remaining = await verifyRes.json(); if (Array.isArray(remaining)) { remainingCount = remaining.length; if (remainingCount === 0) break; } } catch {} await sleep(250); } document.body.setAttribute('data-bas-session-reset-count', String(Math.max(remainingCount, 0))); document.body.setAttribute('data-bas-session-reset-clean', remainingCount === 0 ? 'true' : 'false'); })()"
-        },
-        "metadata": {
-          "label": "Best-effort reset of existing terminal sessions"
+  "id": "ee5740d3-a4e6-4145-a8a1-ca5d053bfd71",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "reset-sessions-best-effort",
+  "folder_path": "/bas/actions",
+  "description": "Best-effort deletion of existing sessions for deterministic terminal tests",
+  "tags": [
+    "reset:none"
+  ],
+  "version": 1,
+  "created_at": "2026-07-12T19:31:13.433448419Z",
+  "updated_at": "2026-07-12T19:31:13.433448419Z",
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {
+        "id": "reset-session-state",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const maxAttempts = 8; const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)); let remainingCount = -1; for (let attempt = 0; attempt < maxAttempts; attempt++) { try { const listRes = await fetch('/api/v1/sessions', { cache: 'no-store' }); if (!listRes.ok) { await sleep(250); continue; } const sessions = await listRes.json(); if (!Array.isArray(sessions)) { await sleep(250); continue; } if (sessions.length > 0) { for (const session of sessions) { const id = session && typeof session.id === 'string' ? session.id : ''; if (!id) continue; try { await fetch(`/api/v1/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' }); } catch {} } } await sleep(250); const verifyRes = await fetch('/api/v1/sessions', { cache: 'no-store' }); if (!verifyRes.ok) { await sleep(250); continue; } const remaining = await verifyRes.json(); if (Array.isArray(remaining)) { remainingCount = remaining.length; if (remainingCount === 0) break; } } catch {} await sleep(250); } document.body.setAttribute('data-bas-session-reset-count', String(Math.max(remainingCount, 0))); document.body.setAttribute('data-bas-session-reset-clean', remainingCount === 0 ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Best-effort reset of existing terminal sessions"
+          }
         }
       }
-    }
-  ],
-  "edges": []
+    ]
+  }
 }

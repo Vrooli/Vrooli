@@ -81,10 +81,34 @@ describe("SettingsModal", () => {
     expect(screen.getByTestId("sessions-section")).toBeTruthy();
   });
 
-  it("closes on backdrop click", () => {
+  it("closes on backdrop click, not on panel click", () => {
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
-    fireEvent.click(screen.getByTestId("settings-backdrop"));
+    const panel = screen.getByTestId("settings-modal");
+    fireEvent.click(panel);
+    expect(mockStoreState.setSettingsModalOpen).not.toHaveBeenCalled();
+    const backdrop = panel.parentElement?.firstElementChild as HTMLElement;
+    fireEvent.click(backdrop);
     expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("closes on Escape and renders dialog semantics", () => {
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    const panel = screen.getByTestId("settings-modal");
+    expect(panel.getAttribute("role")).toBe("dialog");
+    expect(panel.getAttribute("aria-modal")).toBe("true");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("traps focus inside the settings dialog", () => {
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    const panel = screen.getByTestId("settings-modal");
+    const tab = screen.getByTestId("settings-tab-sessions");
+    tab.focus();
+    fireEvent.keyDown(panel, { key: "Tab" });
+    expect(panel.contains(document.activeElement)).toBe(true);
+    fireEvent.keyDown(panel, { key: "Tab", shiftKey: true });
+    expect(panel.contains(document.activeElement)).toBe(true);
   });
 
   it("renders mobile tabs row on mobile", () => {

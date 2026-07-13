@@ -95,6 +95,10 @@ interface WorkspaceState {
   modifiers: ModifierState;
   groups: TabGroupMeta[];
   tabContextMenu: TabContextMenuState | null;
+  /** Open state of the Manage Groups drawer. Non-null = open; `sessionId`
+   *  carries the optional session context (opened from a tab's menu) that
+   *  enables the per-group assign/remove toggle. Ephemeral — not persisted. */
+  manageGroupsTarget: { sessionId: string | null } | null;
   /** Keep the device screen awake to support hands-free voice interaction. */
   keepScreenAwake: boolean;
   /** Unsent terminal input keyed by session, snapshotted when a pane unmounts
@@ -161,6 +165,7 @@ interface WorkspaceActions {
   toggleGroupCollapsed: (groupId: string) => void;
   applyAppearanceToAll: (sessionId: string) => void;
   setTabContextMenu: (menu: TabContextMenuState | null) => void;
+  setManageGroupsTarget: (target: { sessionId: string | null } | null) => void;
   setKeepScreenAwake: (enabled: boolean) => void;
   /** Stash a session's unsent terminal input before its pane unmounts. */
   setPendingInputDraft: (sessionId: string, draft: string) => void;
@@ -213,6 +218,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       pendingInputDrafts: {},
       groups: [],
       tabContextMenu: null,
+      manageGroupsTarget: null,
       keepScreenAwake: true,
 
       addRecentCombo: (comboId) =>
@@ -414,6 +420,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           };
         }),
       setTabContextMenu: (menu) => set({ tabContextMenu: menu }),
+      setManageGroupsTarget: (target) => set({ manageGroupsTarget: target }),
       setKeepScreenAwake: (enabled) => set({ keepScreenAwake: enabled }),
     }),
     {

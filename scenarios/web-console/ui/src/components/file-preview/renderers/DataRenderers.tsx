@@ -52,7 +52,7 @@ export function CsvPreview({ model, text }: PreviewRendererProps) {
       )}
       <div className="min-h-0 flex-1 overflow-auto p-4">
         <table className="w-full border-collapse text-left text-xs">
-          <thead className="sticky top-0 z-10">
+          <thead className="sticky top-0 z-wc-chrome">
             <tr>
               {header.map((cell, i) => (
                 <th

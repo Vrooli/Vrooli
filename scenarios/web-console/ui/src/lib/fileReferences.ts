@@ -80,7 +80,8 @@ export function looksLikeInlineFileReference(text: string): boolean {
   const value = text.trim();
   if (!value || /\s/.test(value) || isExternalHref(value)) return false;
   const matches = matchProseFilePaths(value);
-  if (matches.length === 1 && matches[0]!.start === 0 && matches[0]!.end === value.length) {
+  const only = matches.length === 1 ? matches[0] : undefined;
+  if (only && only.start === 0 && only.end === value.length) {
     return true;
   }
   if (value.includes("/") || value.includes("\\")) return false;

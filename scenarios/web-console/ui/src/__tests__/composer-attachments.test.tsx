@@ -152,17 +152,41 @@ describe("FullScreenComposer — staged attachments", () => {
 
     // Escape does NOT immediately close — it prompts.
     act(() => fireEvent.keyDown(window, { key: "Escape" }));
-    expect(screen.getByTestId("composer-discard-prompt")).toBeTruthy();
+    expect(screen.getByTestId("composer-discard-dialog")).toBeTruthy();
     expect(screen.getByTestId("full-screen-composer")).toBeTruthy();
 
     // Keep editing dismisses the prompt, composer stays open.
     fireEvent.click(screen.getByTestId("composer-discard-cancel"));
-    expect(screen.queryByTestId("composer-discard-prompt")).toBeNull();
+    expect(screen.queryByTestId("composer-discard-dialog")).toBeNull();
+    expect(screen.getByTestId("full-screen-composer")).toBeTruthy();
+
+    // Escape with the prompt open cancels the topmost surface (the prompt),
+    // never the composer underneath it.
+    act(() => fireEvent.keyDown(window, { key: "Escape" }));
+    expect(screen.getByTestId("composer-discard-dialog")).toBeTruthy();
+    act(() => fireEvent.keyDown(window, { key: "Escape" }));
+    expect(screen.queryByTestId("composer-discard-dialog")).toBeNull();
     expect(screen.getByTestId("full-screen-composer")).toBeTruthy();
 
     // Discard clears + closes.
     act(() => fireEvent.keyDown(window, { key: "Escape" }));
     fireEvent.click(screen.getByTestId("composer-discard-confirm"));
     expect(screen.queryByTestId("full-screen-composer")).toBeNull();
+  });
+
+  it("traps focus in the discard prompt (topmost trap wins over the drawer's)", () => {
+    render(<AttachHarness />);
+    const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+    act(() => fireEvent.change(input, { target: { files: [pngFile("a.png")] } }));
+    act(() => fireEvent.keyDown(window, { key: "Escape" }));
+
+    const dialog = screen.getByTestId("composer-discard-dialog");
+    // Cancel is auto-focused on open.
+    expect(document.activeElement).toBe(screen.getByTestId("composer-discard-cancel"));
+    // Tab from the confirm (last control) wraps inside the dialog, not into
+    // the composer drawer behind it.
+    screen.getByTestId("composer-discard-confirm").focus();
+    fireEvent.keyDown(screen.getByTestId("composer-discard-confirm"), { key: "Tab" });
+    expect(dialog.contains(document.activeElement)).toBe(true);
   });
 });

@@ -36,6 +36,7 @@ export const strings = {
     copyTitle: "aiInput.copyTitle",
     executeTitle: "aiInput.executeTitle",
     noActiveTerminal: "aiInput.noActiveTerminal",
+    closeAriaLabel: "aiInput.closeAriaLabel",
   },
   voiceMicButton: {
     preparing: "voiceMicButton.preparing",
@@ -438,6 +439,7 @@ export const strings = {
     timeoutLabel: "terminalLauncher.timeoutLabel",
     persistentHint: "terminalLauncher.persistentHint",
     creating: "terminalLauncher.creating",
+    closeAriaLabel: "terminalLauncher.closeAriaLabel",
   },
   settings: {
     title: "settings.title",
@@ -809,6 +811,7 @@ export const strings = {
       testMicNoTranscript: "settings.voiceInputSection.testMicNoTranscript",
       testMicError: "settings.voiceInputSection.testMicError",
     },
+    closeAriaLabel: "settings.closeAriaLabel",
   },
   appearance: {
     title: "appearance.title",
@@ -821,6 +824,7 @@ export const strings = {
     recentColorsHeading: "appearance.recentColorsHeading",
     addSecondaryColor: "appearance.addSecondaryColor",
     removeSecondaryColor: "appearance.removeSecondaryColor",
+    closeAriaLabel: "appearance.closeAriaLabel",
   },
   audioSettings: {
     volume: "audioSettings.volume",
@@ -854,6 +858,26 @@ export const strings = {
     expand: "groupContextMenu.expand",
     ungroupAll: "groupContextMenu.ungroupAll",
     delete: "groupContextMenu.delete",
+  },
+  manageGroups: {
+    title: "manageGroups.title",
+    closeAriaLabel: "manageGroups.closeAriaLabel",
+    menuItem: "manageGroups.menuItem",
+    empty: "manageGroups.empty",
+    sessionCount: "manageGroups.sessionCount",
+    sessionCount_one: "manageGroups.sessionCount_one",
+    create: "manageGroups.create",
+    renameAriaLabel: "manageGroups.renameAriaLabel",
+    recolorAriaLabel: "manageGroups.recolorAriaLabel",
+    deleteAriaLabel: "manageGroups.deleteAriaLabel",
+    deleteTitle: "manageGroups.deleteTitle",
+    deleteConsequence: "manageGroups.deleteConsequence",
+    deleteConsequence_one: "manageGroups.deleteConsequence_one",
+    deleteConsequenceNone: "manageGroups.deleteConsequenceNone",
+    deleteCancel: "manageGroups.deleteCancel",
+    deleteConfirm: "manageGroups.deleteConfirm",
+    assignSession: "manageGroups.assignSession",
+    removeSession: "manageGroups.removeSession",
   },
 } as const;
 

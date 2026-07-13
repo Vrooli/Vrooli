@@ -1,151 +1,155 @@
 {
-  "metadata": {
-    "name": "launch-custom-command-executes",
-    "description": "Launch a terminal with a custom command and verify launched session connectivity",
-    "labels": {
-      "reset": "full",
-      "requirements_json": "[\"REQ-P0-002b\", \"REQ-P0-006a\"]"
-    },
-    "execution_mode": "mutating"
-  },
-  "settings": {
-    "viewport_width": 1440,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "run-terminal-command-flow",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": {
-          "workflow_path": "flows/terminal-command-smoke.json",
-          "args": {
-            "command": "echo BAS_E2E_TERMINAL_OK"
-          }
-        },
-        "metadata": {
-          "label": "Launch terminal and execute command"
-        }
-      }
-    },
-    {
-      "id": "wait-command-output",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1000
-        },
-        "metadata": {
-          "label": "Allow command output to render"
-        }
-      }
-    },
-    {
-      "id": "assert-session-id-captured",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-terminal-smoke-session-id-captured='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected launched session ID to be captured for output checks"
-        },
-        "metadata": {
-          "label": "Verify launched session tracking"
-        }
-      }
-    },
-    {
-      "id": "evaluate-terminal-traffic",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const sessionId = localStorage.getItem('bas.terminalSmoke.sessionId') || ''; const outputMap = window.__bas_ws_output || {}; const hasSessionTraffic = sessionId ? typeof outputMap[sessionId] === 'string' : false; document.body.setAttribute('data-terminal-traffic-ok', hasSessionTraffic ? 'true' : 'false'); })()"
-        },
-        "metadata": {
-          "label": "Mark websocket traffic via tracked sockets"
-        }
-      }
-    },
-    {
-      "id": "assert-terminal-traffic",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-terminal-traffic-ok='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected terminal websocket traffic after running a command"
-        },
-        "metadata": {
-          "label": "Verify websocket message traffic"
-        }
-      }
-    },
-    {
-      "id": "evaluate-terminal-output",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { let seen = false; const sessionId = localStorage.getItem('bas.terminalSmoke.sessionId') || ''; const deadline = Date.now() + 8000; while (Date.now() < deadline) { const pane = sessionId ? document.querySelector(`[data-testid='terminal-pane'][data-session-id='${sessionId}']`) : document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const paneText = pane ? (pane.textContent || '') : ''; const outputMap = window.__bas_ws_output || {}; const wsText = sessionId ? (outputMap[sessionId] || '') : ''; if (paneText.includes('BAS_E2E_TERMINAL_OK') || wsText.includes('BAS_E2E_TERMINAL_OK')) { seen = true; break; } await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-terminal-output-ok', seen ? 'true' : 'false'); })()"
-        },
-        "metadata": {
-          "label": "Extract command marker from tracked terminal stdout"
-        }
-      }
-    },
-    {
-      "id": "assert-terminal-output",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-terminal-output-ok='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected custom command marker in terminal output after launch"
-        },
-        "metadata": {
-          "label": "Verify command marker output"
-        }
-      }
-    }
+  "id": "01f0048a-f934-4f43-bde3-438c9e71a132",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "launch-custom-command-executes",
+  "folder_path": "/bas/cases/01-foundation/01-terminal",
+  "description": "Launch a terminal with a custom command and verify launched session connectivity",
+  "tags": [
+    "reset:full",
+    "requirements_json:[\"REQ-P0-002b\", \"REQ-P0-006a\"]"
   ],
-  "edges": [
-    {
-      "id": "e1",
-      "source": "run-terminal-command-flow",
-      "target": "wait-command-output",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  "version": 1,
+  "created_at": "2026-07-12T19:31:13.434883530Z",
+  "updated_at": "2026-07-12T19:31:13.434883530Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
     },
-    {
-      "id": "e2",
-      "source": "wait-command-output",
-      "target": "assert-session-id-captured",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e3",
-      "source": "assert-session-id-captured",
-      "target": "evaluate-terminal-traffic",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e4",
-      "source": "evaluate-terminal-traffic",
-      "target": "assert-terminal-traffic",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e5",
-      "source": "assert-terminal-traffic",
-      "target": "evaluate-terminal-output",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e6",
-      "source": "evaluate-terminal-output",
-      "target": "assert-terminal-output",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    }
-  ]
+    "nodes": [
+      {
+        "id": "run-terminal-command-flow",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "flows/terminal-command-smoke.json",
+            "args": {
+              "command": {
+                "string_value": "echo BAS_E2E_TERMINAL_OK"
+              }
+            }
+          },
+          "metadata": {
+            "label": "Launch terminal and execute command"
+          }
+        }
+      },
+      {
+        "id": "wait-command-output",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1000
+          },
+          "metadata": {
+            "label": "Allow command output to render"
+          }
+        }
+      },
+      {
+        "id": "assert-session-id-captured",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-terminal-smoke-session-id-captured='true']",
+            "failure_message": "Expected launched session ID to be captured for output checks",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify launched session tracking"
+          }
+        }
+      },
+      {
+        "id": "evaluate-terminal-traffic",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const sessionId = localStorage.getItem('bas.terminalSmoke.sessionId') || ''; const outputMap = window.__bas_ws_output || {}; const hasSessionTraffic = sessionId ? typeof outputMap[sessionId] === 'string' : false; document.body.setAttribute('data-terminal-traffic-ok', hasSessionTraffic ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Mark websocket traffic via tracked sockets"
+          }
+        }
+      },
+      {
+        "id": "assert-terminal-traffic",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-terminal-traffic-ok='true']",
+            "failure_message": "Expected terminal websocket traffic after running a command",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify websocket message traffic"
+          }
+        }
+      },
+      {
+        "id": "evaluate-terminal-output",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { let seen = false; const sessionId = localStorage.getItem('bas.terminalSmoke.sessionId') || ''; const deadline = Date.now() + 8000; while (Date.now() < deadline) { const pane = sessionId ? document.querySelector(`[data-testid='terminal-pane'][data-session-id='${sessionId}']`) : document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const paneText = pane ? (pane.textContent || '') : ''; const outputMap = window.__bas_ws_output || {}; const wsText = sessionId ? (outputMap[sessionId] || '') : ''; if (paneText.includes('BAS_E2E_TERMINAL_OK') || wsText.includes('BAS_E2E_TERMINAL_OK')) { seen = true; break; } await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-terminal-output-ok', seen ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Extract command marker from tracked terminal stdout"
+          }
+        }
+      },
+      {
+        "id": "assert-terminal-output",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-terminal-output-ok='true']",
+            "failure_message": "Expected custom command marker in terminal output after launch",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify command marker output"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "run-terminal-command-flow",
+        "target": "wait-command-output",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "wait-command-output",
+        "target": "assert-session-id-captured",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "assert-session-id-captured",
+        "target": "evaluate-terminal-traffic",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "evaluate-terminal-traffic",
+        "target": "assert-terminal-traffic",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "assert-terminal-traffic",
+        "target": "evaluate-terminal-output",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "evaluate-terminal-output",
+        "target": "assert-terminal-output",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
 }

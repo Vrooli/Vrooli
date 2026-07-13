@@ -3,13 +3,14 @@ import { ArrowDownUp, GripVertical, MessageSquareText, Plus, Settings, TerminalS
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
-import { paneColorStyle, nextGroupColor } from "../lib/paneColor";
+import { paneColorStyle } from "../lib/paneColor";
 import type { WorkspaceNavigationItem } from "../lib/workspaceNavigation";
 import { useLongPress } from "../hooks/useLongPress";
 import { usePressGesture } from "../hooks/usePressGesture";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
+import { useGroupActions } from "../hooks/useGroupActions";
 import { Button } from "./ui/button";
 import TabContextMenu from "./TabContextMenu";
 import GroupContextMenu from "./GroupContextMenu";
@@ -55,26 +56,20 @@ export default function SessionSidebar({
   const tabContextMenu = useWorkspaceStore((s) => s.tabContextMenu);
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
   const groups = useWorkspaceStore((s) => s.groups);
-  const addGroup = useWorkspaceStore((s) => s.addGroup);
-  const updateGroup = useWorkspaceStore((s) => s.updateGroup);
-  const removeGroup = useWorkspaceStore((s) => s.removeGroup);
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
-  const setPaneGroup = useWorkspaceStore((s) => s.setPaneGroup);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
-  const addPaneToGroup = useWorkspaceStore((s) => s.addPaneToGroup);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
+  const setManageGroupsTarget = useWorkspaceStore((s) => s.setManageGroupsTarget);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const sidebarSortMode = useWorkspaceStore((s) => s.sidebarSortMode);
   const setSidebarSortMode = useWorkspaceStore((s) => s.setSidebarSortMode);
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
-  const { syncCreateGroup, syncPaneUpdate, syncPaneOrder, syncUpdateGroup, syncDeleteGroup } = useWorkspaceSync();
+  const { syncPaneUpdate, syncPaneOrder } = useWorkspaceSync();
+  const { removePaneFromGroup } = useGroupActions();
   const [editingPaneId, setEditingPaneId] = useState<string | null>(null);
   const [editingPaneName, setEditingPaneName] = useState("");
   const editingInputRef = useRef<HTMLInputElement>(null);
-  // Group inline-rename + context menu state.
-  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const [editingGroupName, setEditingGroupName] = useState("");
-  const editingGroupInputRef = useRef<HTMLInputElement>(null);
+  // Group context menu state.
   const [groupMenu, setGroupMenu] = useState<{ groupId: string; position: { x: number; y: number } } | null>(null);
   // Manual-mode drag-reorder (driven by an explicit grip handle so it never
   // collides with the row tap / long-press gestures).
@@ -140,28 +135,7 @@ export default function SessionSidebar({
     setTabContextMenu({ sessionId, position: { x, y } });
   }, [setTabContextMenu]);
 
-  // --- Group rename + context menu -----------------------------------------
-  useEffect(() => {
-    if (!editingGroupId) return;
-    editingGroupInputRef.current?.focus();
-    editingGroupInputRef.current?.select();
-  }, [editingGroupId]);
-
-  const startGroupRename = useCallback((groupId: string, currentName: string) => {
-    setEditingGroupId(groupId);
-    setEditingGroupName(currentName);
-  }, []);
-
-  const commitGroupRename = useCallback(() => {
-    if (editingGroupId && editingGroupName.trim()) {
-      const trimmed = editingGroupName.trim();
-      updateGroup(editingGroupId, { name: trimmed });
-      syncUpdateGroup(editingGroupId, { name: trimmed });
-    }
-    setEditingGroupId(null);
-    setEditingGroupName("");
-  }, [editingGroupId, editingGroupName, updateGroup, syncUpdateGroup]);
-
+  // --- Group context menu ---------------------------------------------------
   const openGroupMenu = useCallback((groupId: string, x: number, y: number) => {
     setGroupMenu({ groupId, position: { x, y } });
   }, []);
@@ -172,31 +146,6 @@ export default function SessionSidebar({
     onTap: (groupId) => toggleGroupCollapsed(groupId),
     onLongPress: (groupId, point) => openGroupMenu(groupId, point.x, point.y),
   });
-
-  /** Assign a pane to a group, keeping the group contiguous + syncing both. */
-  const handleAddPaneToGroup = useCallback((sessionId: string, groupId: string) => {
-    addPaneToGroup(sessionId, groupId);
-    syncPaneUpdate(sessionId, { group_id: groupId });
-    const { panes: updated, activePane: active } = useWorkspaceStore.getState();
-    syncPaneOrder(updated.map((p) => p.sessionId), active);
-  }, [addPaneToGroup, syncPaneUpdate, syncPaneOrder]);
-
-  /** Clear group membership for every pane in a group (the group itself stays). */
-  const ungroupAllMembers = useCallback((groupId: string) => {
-    for (const p of useWorkspaceStore.getState().panes) {
-      if (p.groupId === groupId) {
-        setPaneGroup(p.sessionId, null);
-        syncPaneUpdate(p.sessionId, { group_id: null });
-      }
-    }
-  }, [setPaneGroup, syncPaneUpdate]);
-
-  /** Hard-delete a group: ungroup its members, then drop it locally + remotely. */
-  const deleteGroup = useCallback((groupId: string) => {
-    ungroupAllMembers(groupId);
-    removeGroup(groupId);
-    syncDeleteGroup(groupId);
-  }, [ungroupAllMembers, removeGroup, syncDeleteGroup]);
 
   const startSidebarDrag = useCallback((paneId: string, index: number, event: React.PointerEvent<HTMLElement>) => {
     if (!isManualSort) return;
@@ -330,7 +279,6 @@ export default function SessionSidebar({
         {items.map((item) => {
           if (item.kind === "group-label") {
             const { group, tabCount } = item;
-            const isEditingGroup = editingGroupId === group.id;
             return (
               <div
                 key={`group-${group.id}`}
@@ -346,39 +294,19 @@ export default function SessionSidebar({
                 }}
               >
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group.color }} />
-                {isEditingGroup ? (
-                  <input
-                    ref={editingGroupInputRef}
-                    data-testid={`sidebar-group-rename-input-${group.id}`}
-                    className="min-w-0 flex-1 select-text rounded bg-wc-surface-input px-1 font-medium text-wc-text-primary outline-none ring-1 ring-wc-accent"
-                    value={editingGroupName}
-                    onChange={(event) => setEditingGroupName(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") commitGroupRename();
-                      if (event.key === "Escape") {
-                        setEditingGroupId(null);
-                        setEditingGroupName("");
-                      }
-                      event.stopPropagation();
-                    }}
-                    onBlur={commitGroupRename}
-                    onClick={(event) => event.stopPropagation()}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    data-testid={`sidebar-group-${group.id}`}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-start"
-                    {...groupPressGesture.getGestureHandlers(group.id)}
-                    onClick={() => {
-                      if (groupPressGesture.shouldSuppressClick(group.id)) return;
-                      toggleGroupCollapsed(group.id);
-                    }}
-                    title={group.isCollapsed ? t(strings.tabBar.expandGroup, { name: group.name }) : t(strings.tabBar.collapseGroup, { name: group.name })}
-                  >
-                    <span className="min-w-0 flex-1 truncate font-medium">{group.name}</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  data-testid={`sidebar-group-${group.id}`}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-start"
+                  {...groupPressGesture.getGestureHandlers(group.id)}
+                  onClick={() => {
+                    if (groupPressGesture.shouldSuppressClick(group.id)) return;
+                    toggleGroupCollapsed(group.id);
+                  }}
+                  title={group.isCollapsed ? t(strings.tabBar.expandGroup, { name: group.name }) : t(strings.tabBar.collapseGroup, { name: group.name })}
+                >
+                  <span className="min-w-0 flex-1 truncate font-medium">{group.name}</span>
+                </button>
                 <span className="shrink-0 rounded bg-wc-surface-input px-1 text-[10px]">{tabCount}</span>
               </div>
             );
@@ -546,7 +474,7 @@ export default function SessionSidebar({
           {sidebarContent}
           <div
             data-testid="workspace-sidebar-resize-handle"
-            className="absolute end-[-6px] top-0 z-20 h-full w-3 cursor-col-resize"
+            className="absolute end-[-6px] top-0 z-wc-chrome-raised h-full w-3 cursor-col-resize"
             {...resizeHandleProps}
           >
             <div className="mx-auto h-full w-px bg-transparent transition-colors hover:bg-wc-accent" />
@@ -555,7 +483,7 @@ export default function SessionSidebar({
       )}
 
       {isMobile && mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label={t(strings.sessionSidebar.title)}>
+        <div className="fixed inset-0 z-wc-drawer md:hidden" role="dialog" aria-modal="true" aria-label={t(strings.sessionSidebar.title)}>
           <button
             data-testid="workspace-sidebar-backdrop"
             className="absolute inset-0 bg-black/55"
@@ -591,34 +519,13 @@ export default function SessionSidebar({
             position={tabContextMenu.position}
             sessionId={tabContextMenu.sessionId}
             currentGroupId={paneItem.pane.groupId}
-            groups={groups}
             onRename={() => {
               startRename(paneItem.pane.sessionId, paneItem.pane.name);
               setTabContextMenu(null);
             }}
             onCustomize={() => setAppearanceModalPane(tabContextMenu.sessionId)}
-            onAddToGroup={(groupId) => {
-              handleAddPaneToGroup(tabContextMenu.sessionId, groupId);
-            }}
-            onRemoveFromGroup={() => {
-              setPaneGroup(tabContextMenu.sessionId, null);
-              syncPaneUpdate(tabContextMenu.sessionId, { group_id: null });
-            }}
-            onCreateGroup={async () => {
-              const targetSessionId = tabContextMenu.sessionId;
-              const serverGroup = await syncCreateGroup(
-                "New Group",
-                nextGroupColor(groups.map((g) => g.color)),
-              );
-              addGroup({
-                id: serverGroup.id,
-                name: serverGroup.name,
-                color: serverGroup.color,
-                isCollapsed: false,
-              });
-              handleAddPaneToGroup(targetSessionId, serverGroup.id);
-              startGroupRename(serverGroup.id, serverGroup.name);
-            }}
+            onRemoveFromGroup={() => removePaneFromGroup(tabContextMenu.sessionId)}
+            onManageGroups={() => setManageGroupsTarget({ sessionId: tabContextMenu.sessionId })}
             onMoveUp={canMoveUp ? () => moveTo(orderIdx - 1) : undefined}
             onMoveDown={canMoveDown ? () => moveTo(orderIdx + 1) : undefined}
             onClose={onClosePane}
@@ -634,18 +541,9 @@ export default function SessionSidebar({
           <GroupContextMenu
             position={groupMenu.position}
             group={group}
-            onRename={() => {
-              startGroupRename(group.id, group.name);
-              setGroupMenu(null);
-            }}
-            onRecolor={(color) => {
-              updateGroup(group.id, { color });
-              syncUpdateGroup(group.id, { color });
-            }}
             onNewSession={() => onNewSessionInGroup(group.id)}
             onToggleCollapse={() => toggleGroupCollapsed(group.id)}
-            onUngroupAll={() => ungroupAllMembers(group.id)}
-            onDelete={() => deleteGroup(group.id)}
+            onManageGroups={() => setManageGroupsTarget({ sessionId: null })}
             onDismiss={() => setGroupMenu(null)}
           />
         );
