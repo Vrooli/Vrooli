@@ -152,7 +152,7 @@ func (s *Service) Get(name string) (*GoalWithScope, error) {
 	if err != nil {
 		return nil, err
 	}
-	in, err := s.buildScopeInput()
+	in, items, inits, err := s.buildScopeData()
 	if err != nil {
 		return nil, err
 	}
@@ -160,6 +160,9 @@ func (s *Service) Get(name string) (*GoalWithScope, error) {
 	scope := ComputeScope(in)
 	s.recordDrift(g, scope)
 	gws := &GoalWithScope{Goal: *g, Scope: scope}
+	// Hydrate the rendered refs from the data the scope walk already loaded —
+	// a map join, not extra I/O.
+	gws.ScopeEntities = buildScopeEntities(g.Targets, scope, items, inits)
 	attachETA(gws, in, s.newEstimator())
 	return gws, nil
 }
@@ -469,13 +472,20 @@ func (s *Service) computeScope(g *Goal) (Scope, error) {
 }
 
 func (s *Service) buildScopeInput() (ScopeInput, error) {
+	in, _, _, err := s.buildScopeData()
+	return in, err
+}
+
+// buildScopeData builds the scope input and also returns the raw items and
+// initiatives it was built from, for read-time hydration (ScopeEntities).
+func (s *Service) buildScopeData() (ScopeInput, []backlog.BacklogItem, []initiatives.Initiative, error) {
 	items, err := s.backlog.LoadAll(nil)
 	if err != nil {
-		return ScopeInput{}, fmt.Errorf("load backlog: %w", err)
+		return ScopeInput{}, nil, nil, fmt.Errorf("load backlog: %w", err)
 	}
 	inits, err := s.initiatives.LoadAll()
 	if err != nil {
-		return ScopeInput{}, fmt.Errorf("load initiatives: %w", err)
+		return ScopeInput{}, nil, nil, fmt.Errorf("load initiatives: %w", err)
 	}
 	in := ScopeInput{
 		ItemDeps:        make(map[string][]string, len(items)),
@@ -494,7 +504,89 @@ func (s *Service) buildScopeInput() (ScopeInput, error) {
 		in.InitiativeItems[ini.Name] = ini.Items
 		in.InitiativeDeps[ini.Name] = ini.DependsOn
 	}
-	return in, nil
+	return in, items, inits, nil
+}
+
+// buildScopeEntities hydrates the refs the goal detail view renders (targets ∪
+// ready ∪ blocked) from the already-loaded items and initiatives. Returns nil
+// when nothing resolves so the field is omitted from JSON.
+func buildScopeEntities(targets []string, scope Scope, items []backlog.BacklogItem, inits []initiatives.Initiative) *ScopeEntities {
+	wanted := make(map[string]bool, len(targets)+len(scope.Ready)+len(scope.Blocked))
+	for _, refs := range [][]string{targets, scope.Ready, scope.Blocked} {
+		for _, ref := range refs {
+			wanted[ref] = true
+		}
+	}
+	if len(wanted) == 0 {
+		return nil
+	}
+
+	itemsByRef := make(map[string]backlog.BacklogItem, len(items))
+	for _, it := range items {
+		itemsByRef[string(it.Kind)+"/"+it.Name] = it
+	}
+
+	out := &ScopeEntities{}
+	for ref := range wanted {
+		if IsInitiativeTarget(ref) {
+			continue
+		}
+		if it, ok := itemsByRef[ref]; ok {
+			if out.Items == nil {
+				out.Items = make(map[string]backlog.BacklogItem)
+			}
+			out.Items[ref] = it
+		}
+	}
+	for i := range inits {
+		ref := initiativeNode(inits[i].Name)
+		if !wanted[ref] {
+			continue
+		}
+		if out.Initiatives == nil {
+			out.Initiatives = make(map[string]InitiativeSummary)
+		}
+		out.Initiatives[ref] = InitiativeSummary{
+			Initiative: inits[i],
+			Rollup:     rollupFromItems(inits[i], itemsByRef),
+		}
+	}
+	if out.Items == nil && out.Initiatives == nil {
+		return nil
+	}
+	return out
+}
+
+// rollupFromItems mirrors the initiatives domain's rollup semantics
+// (aggregateInitiativeData) over the in-memory item set: unknown refs count as
+// pending; archived items count as archived (and completed when they finished).
+func rollupFromItems(ini initiatives.Initiative, itemsByRef map[string]backlog.BacklogItem) initiatives.RollupStatus {
+	r := initiatives.RollupStatus{Total: len(ini.Items)}
+	for _, ref := range ini.Items {
+		it, ok := itemsByRef[ref]
+		if !ok {
+			r.Pending++
+			continue
+		}
+		if backlog.IsArchived(it) {
+			r.Archived++
+			if it.Status == backlog.StatusCompleted {
+				r.Completed++
+			}
+			continue
+		}
+		switch it.Status {
+		case backlog.StatusCompleted:
+			r.Completed++
+		case backlog.StatusFailed:
+			r.Failed++
+		case backlog.StatusInProgress, backlog.StatusQueued, backlog.StatusResearching:
+			r.InProgress++
+		default:
+			r.Pending++
+		}
+	}
+	return r
 }
 
 // recordDrift appends a scope snapshot (and emits an event) only when the

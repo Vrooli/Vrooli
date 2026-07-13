@@ -9,7 +9,9 @@ package goals
 import (
 	"strings"
 
+	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eta"
+	"swarm-manager/internal/initiatives"
 )
 
 // Status values for a goal.
@@ -103,4 +105,24 @@ type GoalWithScope struct {
 	Goal  Goal      `json:"goal"`
 	Scope Scope     `json:"scope"`
 	ETA   *eta.Band `json:"eta,omitempty"`
+	// ScopeEntities hydrates the refs the goal detail view renders. Attached
+	// by Get (the detail read) only, so List stays light.
+	ScopeEntities *ScopeEntities `json:"scope_entities,omitempty"`
+}
+
+// ScopeEntities is read-time hydration for a goal's rendered refs (targets ∪
+// ready ∪ blocked): full backlog items and initiative summaries keyed by ref.
+// The detail UI reuses its standard cards from this instead of joining the
+// list endpoints, which window and filter items out. Derived, never stored —
+// the goal itself keeps only refs so nothing here can go stale on disk.
+type ScopeEntities struct {
+	Items       map[string]backlog.BacklogItem `json:"items,omitempty"`
+	Initiatives map[string]InitiativeSummary   `json:"initiatives,omitempty"`
+}
+
+// InitiativeSummary pairs a target initiative with rollup counts computed from
+// the same live item data the scope walk loaded.
+type InitiativeSummary struct {
+	Initiative initiatives.Initiative   `json:"initiative"`
+	Rollup     initiatives.RollupStatus `json:"rollup"`
 }

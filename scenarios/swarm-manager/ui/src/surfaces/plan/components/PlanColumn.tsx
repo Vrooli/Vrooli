@@ -18,6 +18,8 @@ export interface PlanColumnProps {
   showWaves?: boolean;
   /** Card ids to render dimmed (snoozed cards with show-snoozed on). */
   dimmedIds?: Set<string>;
+  /** Card id to render with the deep-link emphasis ring. */
+  highlightedId?: string | null;
   /** Rendered after the groups (e.g. the beyond-horizon rollup). */
   footer?: ReactNode;
   emptyState: ReactNode;
@@ -32,6 +34,7 @@ export function PlanColumn({
   groups,
   showWaves = false,
   dimmedIds,
+  highlightedId,
   footer,
   emptyState,
   testId,
@@ -56,7 +59,7 @@ export function PlanColumn({
           : (
             <>
               {groups.map((group) => (
-                <WaveGroup key={group.id} group={group} showWaves={showWaves} dimmedIds={dimmedIds} />
+                <WaveGroup key={group.id} group={group} showWaves={showWaves} dimmedIds={dimmedIds} highlightedId={highlightedId} />
               ))}
               {footer}
             </>

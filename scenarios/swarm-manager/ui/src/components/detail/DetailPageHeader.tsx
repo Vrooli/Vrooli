@@ -43,6 +43,11 @@ export interface DetailPageHeaderProps {
   metadata?: ReactNode;
   /** Optional tab bar rendered below the LensBar (e.g., backlog tabs). */
   tabBar?: ReactNode;
+  /**
+   * Overrides the default lens navigation (graph focus/select deep link).
+   * Goal pages use this to scope the plan board via ?goal= instead.
+   */
+  onDrillToLens?: (nodeId: string, lens: AppGraphLens) => void;
   /** When provided, the status badge becomes clickable for inline status changes. */
   onStatusChange?: (newStatus: BacklogStatus) => void;
   /** Whether a status change is in flight. */
@@ -63,6 +68,7 @@ export function DetailPageHeader({
   tabBar,
   onStatusChange,
   statusChangePending,
+  onDrillToLens,
   className,
 }: DetailPageHeaderProps) {
   const goBack = useAppBack();
@@ -78,9 +84,9 @@ export function DetailPageHeader({
     goBack();
   };
 
-  const handleDrillToLens = (id: string, lens: AppGraphLens) => {
+  const handleDrillToLens = onDrillToLens ?? ((id: string, lens: AppGraphLens) => {
     navigate(graphPath({ lens, focus: id, select: id }));
-  };
+  });
 
   return (
     <header className={cn("border-b border-slate-800", className)} data-testid="detail-page-header">

@@ -6,6 +6,8 @@
  */
 
 import type { PlanEtaBandData } from "../surfaces/plan/types";
+import type { BacklogItem } from "./backlog";
+import type { InitiativeWithRollup } from "./initiative";
 
 export const GOAL_STATUSES = ["active", "archived"] as const;
 export type GoalStatus = (typeof GOAL_STATUSES)[number];
@@ -47,11 +49,23 @@ export interface GoalScope {
   progressPct: number;
 }
 
+/**
+ * Read-time hydration of the refs the goal detail view renders (targets ∪
+ * ready ∪ blocked), keyed by ref — full items and initiative summaries so the
+ * detail page can render the standard cards without joining list endpoints.
+ */
+export interface GoalScopeEntities {
+  items: Record<string, BacklogItem>;
+  initiatives: Record<string, InitiativeWithRollup>;
+}
+
 /** A goal paired with its computed scope and (optional) ETA band. */
 export interface GoalWithScope {
   goal: Goal;
   scope: GoalScope;
   eta: PlanEtaBandData | null;
+  /** Present on detail reads (GET one goal); omitted from list reads. */
+  scopeEntities?: GoalScopeEntities;
 }
 
 /** Fields for creating a goal. */

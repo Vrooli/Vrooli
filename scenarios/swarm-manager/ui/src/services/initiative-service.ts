@@ -57,8 +57,12 @@ interface RawAttribution {
   source?: string;
 }
 
-/** Normalize a single initiative-with-rollup from the API's snake_case to camelCase. */
-function normalizeItem(
+/**
+ * Normalize a single initiative-with-rollup from the API's snake_case to
+ * camelCase. Also exported for the goals service, which hydrates initiative
+ * refs in a goal's scope with the same wire shape.
+ */
+export function normalizeInitiativeWithRollup(
   raw: {
     initiative?: RawInitiative;
     rollup?: RawRollup;
@@ -113,8 +117,8 @@ function normalizeAttribution(raw?: RawAttribution): AgentSessionAttribution | u
   };
 }
 
-function normalizeItems(raw: unknown[]): InitiativeWithRollup[] {
-  return raw.map((item) => normalizeItem(item as {
+function normalizeItemList(raw: unknown[]): InitiativeWithRollup[] {
+  return raw.map((item) => normalizeInitiativeWithRollup(item as {
     initiative?: Record<string, unknown>;
     rollup?: RawRollup;
     target_scenarios?: string[];
@@ -142,12 +146,12 @@ export function createInitiativeService(
     async list(): Promise<InitiativeWithRollup[]> {
       const resp = await apiClient.get<{ items?: unknown[] } | unknown[]>(API_ENDPOINTS.initiatives);
       const raw = Array.isArray(resp) ? resp : (resp.items ?? []);
-      return normalizeItems(raw);
+      return normalizeItemList(raw);
     },
 
     async get(name: string): Promise<InitiativeWithRollup> {
       const raw = await apiClient.get<Record<string, unknown>>(API_ENDPOINTS.initiativeByName(name));
-      return normalizeItem(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
+      return normalizeInitiativeWithRollup(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
     },
 
     async listFiles(name: string): Promise<TreeFile[]> {
@@ -164,7 +168,7 @@ export function createInitiativeService(
         API_ENDPOINTS.initiativeByName(name),
         { note },
       );
-      return normalizeItem(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
+      return normalizeInitiativeWithRollup(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
     },
 
     async archiveItem(name: string): Promise<void> {
@@ -186,7 +190,7 @@ export function createInitiativeService(
         API_ENDPOINTS.initiativeByName(name),
         body,
       );
-      return normalizeItem(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
+      return normalizeInitiativeWithRollup(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
     },
   };
 }

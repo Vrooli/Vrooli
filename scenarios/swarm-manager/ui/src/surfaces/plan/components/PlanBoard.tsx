@@ -6,19 +6,21 @@
  * filters live in the shared drawer and persist in the URL.
  */
 
-import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, Clock, MessageCircleQuestion, Play } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ChevronDown, Clock, MessageCircleQuestion, Play, X } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { OpsBulkActions } from "../../../components/operations/OpsBulkActions";
 import type { RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
 import { Button } from "../../../components/ui/button";
 import { Popover } from "../../../components/ui/popover";
 import { cn } from "../../../lib/utils";
-import { graphPath } from "../../../app/routes/route-paths";
+import { detailPathFromNodeId, graphPath } from "../../../app/routes/route-paths";
 import { useAttachToSessionAction } from "../../../components/session/context/useAttachToSessionAction";
 import { planDependencyCyclesOption, planEtaOption } from "../../../components/session/context/session-context-refs";
 import { useOperationsPolling } from "../../../hooks/useOperationsPolling";
+import { useOperationsStore } from "../../../stores/operations-store";
 import { useSnoozedKeys } from "../../../stores/snooze-store";
+import type { ActivityRow } from "../../../types/operations";
 import type { BacklogKind } from "../../../types";
 import { usePlanData } from "../hooks/usePlanData";
 import { usePlanUrlState } from "../hooks/usePlanUrlState";
@@ -203,6 +205,22 @@ function CycleWarning({ cycles }: { cycles: string[] }) {
   );
 }
 
+/** Node id for a Now-column activity row, so deep links to running work don't misreport a miss. */
+function activityNodeId(row: ActivityRow): string | null {
+  switch (row.ownerType) {
+    case "backlog":
+      return row.ownerKind ? `backlog-item/${row.ownerKind}/${row.ownerName}` : null;
+    case "initiative":
+      return `initiative/${row.ownerName}`;
+    case "scenario":
+      return `scenario/${row.ownerName}`;
+    case "capture":
+      return `capture/${row.ownerName}`;
+    default:
+      return null;
+  }
+}
+
 function cycleEntityToNodeId(entity: string): string {
   const trimmed = entity.trim();
   if (trimmed.startsWith("backlog-item/") || trimmed.startsWith("scenario/") || trimmed.startsWith("initiative/") || trimmed.startsWith("goal/")) {
@@ -300,20 +318,84 @@ function EtaStrip({ eta, goal }: { eta: PlanBoardMetaData["eta"]; goal: string }
   );
 }
 
-function BeyondHorizon({ cards }: { cards: PlanCardData[] }) {
+function BeyondHorizon({ cards, highlightedId }: { cards: PlanCardData[]; highlightedId?: string | null }) {
   if (cards.length === 0) return null;
   return (
-    <details className="rounded-lg border border-slate-800/60 px-2 py-1" data-testid="plan-beyond-horizon">
+    <details
+      className="rounded-lg border border-slate-800/60 px-2 py-1"
+      data-testid="plan-beyond-horizon"
+      open={highlightedId ? cards.some((card) => card.id === highlightedId) || undefined : undefined}
+    >
       <summary className="cursor-pointer list-none py-1 text-xs font-medium text-slate-500 hover:text-slate-300">
         <ChevronDown className="mr-1 inline h-3.5 w-3.5" aria-hidden />
         beyond horizon ({cards.length})
       </summary>
       <div className="mt-1 space-y-1.5 pb-1">
         {cards.map((card) => (
-          <PlanCardView key={card.id} card={card} showWave />
+          <PlanCardView key={card.id} card={card} showWave highlighted={card.id === highlightedId} />
         ))}
       </div>
     </details>
+  );
+}
+
+/**
+ * Shown when a detail page deep-linked to a card (?select=) that isn't on
+ * the current board — filtered out, goal-scoped away, or completed outside
+ * the Done window. An honest notice with escape hatches instead of silently
+ * rewriting the user's filters.
+ */
+function SelectMissNotice({
+  nodeId,
+  hasFilters,
+  onClearFilters,
+  onDismiss,
+}: {
+  nodeId: string;
+  hasFilters: boolean;
+  onClearFilters: () => void;
+  onDismiss: () => void;
+}) {
+  const navigate = useNavigate();
+  const label = nodeId.split("/").pop() || nodeId;
+  const detailHref = detailPathFromNodeId(nodeId);
+  const linkClass = "underline decoration-amber-400/40 underline-offset-2 hover:text-amber-100";
+  return (
+    <span
+      className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 rounded bg-amber-500/10 px-2 py-0.5 text-xs text-amber-200"
+      data-testid="plan-select-miss"
+    >
+      <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="max-w-[14rem] truncate font-medium" title={nodeId}>{label}</span>
+      <span className="text-amber-200/70">isn&apos;t on the current board</span>
+      {detailHref && (
+        <Link to={detailHref} className={linkClass} data-testid="plan-select-miss-details">
+          details
+        </Link>
+      )}
+      <button
+        type="button"
+        onClick={() => navigate(graphPath({ lens: "focus", focus: nodeId, select: nodeId }))}
+        className={linkClass}
+        data-testid="plan-select-miss-graph"
+      >
+        graph
+      </button>
+      {hasFilters && (
+        <button type="button" onClick={onClearFilters} className={linkClass} data-testid="plan-select-miss-clear">
+          clear filters
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        className="rounded p-0.5 hover:bg-amber-500/20"
+        data-testid="plan-select-miss-dismiss"
+      >
+        <X className="h-3 w-3" aria-hidden />
+      </button>
+    </span>
   );
 }
 
@@ -336,6 +418,72 @@ export function PlanBoard() {
     [board?.later.groups, snoozedKeys, urlState.showSnoozed],
   );
   const laterSplit = useMemo(() => splitBeyondHorizon(later.groups), [later.groups]);
+
+  // ----- ?select= deep link (detail-page "Plan" pill) -----------------------
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlSelect = searchParams.get("select");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [missedSelect, setMissedSelect] = useState<string | null>(null);
+  const operationsView = useOperationsStore((s) => s.view);
+
+  // Every node id currently represented on the board: column cards plus
+  // Now-column activity rows (running work never appears as a plan card).
+  const presentCardIds = useMemo(() => {
+    const ids = new Set<string>();
+    const groups = [...next.groups, ...laterSplit.visible, ...(board?.done.groups ?? [])];
+    for (const group of groups) {
+      for (const card of group.cards) ids.add(card.id);
+    }
+    for (const card of laterSplit.beyond) ids.add(card.id);
+    for (const row of operationsView?.activities ?? []) {
+      const nodeId = activityNodeId(row);
+      if (nodeId) ids.add(nodeId);
+    }
+    return ids;
+  }, [board?.done.groups, laterSplit, next.groups, operationsView?.activities]);
+
+  // Consume the param once the board is loaded: highlight a present card,
+  // otherwise surface the miss notice. The param is one-shot state, so it is
+  // stripped from the URL either way.
+  useEffect(() => {
+    if (!urlSelect || !board) return;
+    setSearchParams((prev) => {
+      const nextParams = new URLSearchParams(prev);
+      nextParams.delete("select");
+      nextParams.delete("focus");
+      return nextParams;
+    }, { replace: true });
+    if (presentCardIds.has(urlSelect)) {
+      setHighlightId(urlSelect);
+      setMissedSelect(null);
+    } else {
+      setMissedSelect(urlSelect);
+    }
+  }, [board, presentCardIds, setSearchParams, urlSelect]);
+
+  // After a miss, "clear filters" (or any board change) may reveal the card —
+  // promote the miss to a highlight as soon as it shows up.
+  useEffect(() => {
+    if (missedSelect && presentCardIds.has(missedSelect)) {
+      setHighlightId(missedSelect);
+      setMissedSelect(null);
+    }
+  }, [missedSelect, presentCardIds]);
+
+  // Scroll the highlighted card into view, then let the ring fade.
+  useEffect(() => {
+    if (!highlightId) return;
+    const raf = window.requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-testid="plan-card-${CSS.escape(highlightId)}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    });
+    const timer = window.setTimeout(() => setHighlightId(null), 4000);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+    };
+  }, [highlightId]);
 
   if (loading && !board) {
     return (
@@ -377,6 +525,17 @@ export function PlanBoard() {
           </span>
         )}
         <EtaStrip eta={board.meta.eta} goal={urlState.goal} />
+        {missedSelect && (
+          <SelectMissNotice
+            nodeId={missedSelect}
+            hasFilters={urlState.hasFilters || Boolean(urlState.goal)}
+            onClearFilters={() => {
+              urlState.resetFilters();
+              urlState.setGoal("");
+            }}
+            onDismiss={() => setMissedSelect(null)}
+          />
+        )}
       </div>
       <div className="flex min-h-0 flex-1 divide-x divide-slate-800 overflow-x-auto border-t border-slate-800">
         <NowColumn />
@@ -387,6 +546,7 @@ export function PlanBoard() {
           headerAction={<NextHeaderActions groups={next.groups} goal={urlState.goal} />}
           groups={next.groups}
           dimmedIds={next.snoozedIds}
+          highlightedId={highlightId}
           emptyState={<EmptyHint text="Nothing actionable — everything is running, blocked, or done." testId="plan-next-empty" />}
           testId="plan-column-next"
         />
@@ -397,7 +557,8 @@ export function PlanBoard() {
           groups={laterSplit.visible}
           showWaves
           dimmedIds={later.snoozedIds}
-          footer={laterSplit.beyond.length > 0 ? <BeyondHorizon cards={laterSplit.beyond} /> : undefined}
+          highlightedId={highlightId}
+          footer={laterSplit.beyond.length > 0 ? <BeyondHorizon cards={laterSplit.beyond} highlightedId={highlightId} /> : undefined}
           emptyState={<EmptyHint text="No blocked work." testId="plan-later-empty" />}
           testId="plan-column-later"
         />
@@ -424,6 +585,7 @@ export function PlanBoard() {
             </div>
           }
           groups={board.done.groups}
+          highlightedId={highlightId}
           emptyState={<EmptyHint text="No recent outcomes in this window." testId="plan-done-empty" />}
           testId="plan-column-done"
         />

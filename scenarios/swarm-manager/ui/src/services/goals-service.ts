@@ -14,11 +14,14 @@ import type {
   CreateGoalInput,
   Goal,
   GoalScope,
+  GoalScopeEntities,
   GoalScopeSnapshot,
   GoalWithScope,
   UpdateGoalInput,
 } from "../types/goal";
+import type { BacklogItem } from "../types/backlog";
 import type { PlanEtaBandData } from "../surfaces/plan/types";
+import { normalizeInitiativeWithRollup } from "./initiative-service";
 
 interface RawSnapshot {
   at?: string;
@@ -79,10 +82,37 @@ interface RawEta {
   laneCapacity?: number;
 }
 
+/** Raw backlog item as the goals backend embeds it (Go snake_case JSON). */
+interface RawScopeItem {
+  name?: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  priority?: number;
+  tags?: string[];
+  created?: string;
+  updated?: string;
+  kind?: string;
+  depends_on?: string[];
+  dependsOn?: string[];
+  initiative?: string;
+  effort?: string;
+  note?: string;
+  archived_at?: string;
+  archivedAt?: string;
+}
+
+interface RawScopeEntities {
+  items?: Record<string, RawScopeItem>;
+  initiatives?: Record<string, { initiative?: Record<string, unknown>; rollup?: Record<string, unknown> }>;
+}
+
 interface RawGoalWithScope {
   goal?: RawGoal;
   scope?: RawScope;
   eta?: RawEta | null;
+  scope_entities?: RawScopeEntities;
+  scopeEntities?: RawScopeEntities;
 }
 
 function normalizeSnapshot(raw: RawSnapshot): GoalScopeSnapshot {
@@ -143,11 +173,47 @@ function normalizeEta(raw: RawEta | null | undefined): PlanEtaBandData | null {
   };
 }
 
+function normalizeScopeItem(raw: RawScopeItem): BacklogItem {
+  const archivedAt = raw.archivedAt ?? raw.archived_at;
+  return {
+    name: raw.name ?? "",
+    title: raw.title ?? raw.name ?? "",
+    description: raw.description ?? "",
+    status: (raw.status ?? "backlog") as BacklogItem["status"],
+    priority: raw.priority ?? 0,
+    tags: raw.tags ?? [],
+    created: raw.created ?? "",
+    updated: raw.updated ?? "",
+    kind: (raw.kind ?? "execute") as BacklogItem["kind"],
+    dependsOn: raw.dependsOn ?? raw.depends_on ?? [],
+    ...(raw.initiative ? { initiative: raw.initiative } : {}),
+    ...(raw.effort ? { effort: raw.effort } : {}),
+    ...(raw.note ? { note: raw.note } : {}),
+    ...(archivedAt ? { archivedAt } : {}),
+  } as BacklogItem;
+}
+
+function normalizeScopeEntities(raw: RawScopeEntities | undefined): GoalScopeEntities | undefined {
+  if (!raw) return undefined;
+  const items: GoalScopeEntities["items"] = {};
+  for (const [ref, item] of Object.entries(raw.items ?? {})) {
+    items[ref] = normalizeScopeItem(item);
+  }
+  const initiatives: GoalScopeEntities["initiatives"] = {};
+  for (const [ref, summary] of Object.entries(raw.initiatives ?? {})) {
+    initiatives[ref] = normalizeInitiativeWithRollup(summary);
+  }
+  if (Object.keys(items).length === 0 && Object.keys(initiatives).length === 0) return undefined;
+  return { items, initiatives };
+}
+
 function normalizeWithScope(raw: RawGoalWithScope): GoalWithScope {
+  const scopeEntities = normalizeScopeEntities(raw.scopeEntities ?? raw.scope_entities);
   return {
     goal: normalizeGoal(raw.goal ?? {}),
     scope: normalizeScope(raw.scope),
     eta: normalizeEta(raw.eta),
+    ...(scopeEntities ? { scopeEntities } : {}),
   };
 }
 

@@ -70,9 +70,11 @@ export interface PlanCardViewProps {
   showWave?: boolean;
   /** Render dimmed (snoozed card with show-snoozed on). */
   dimmed?: boolean;
+  /** Transient emphasis ring (deep-link arrival). */
+  highlighted?: boolean;
 }
 
-export function PlanCardView({ card, showWave = false, dimmed = false }: PlanCardViewProps) {
+export function PlanCardView({ card, showWave = false, dimmed = false, highlighted = false }: PlanCardViewProps) {
   const navigate = useNavigate();
   const actions = usePlanCardActions();
 
@@ -146,6 +148,7 @@ export function PlanCardView({ card, showWave = false, dimmed = false }: PlanCar
       action={<PlanCardMenu card={card} />}
       onClick={handleOpen}
       dimmed={dimmed}
+      highlighted={highlighted}
       testId={`plan-card-${card.id}`}
     />
   );

@@ -3,7 +3,7 @@
  * nearest-blocker group, the Next gates band, etc.).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { PlanCardGroupData } from "../types";
@@ -21,6 +21,8 @@ export interface WaveGroupProps {
   defaultCollapsed?: boolean;
   /** Card ids to render dimmed (snoozed cards with show-snoozed on). */
   dimmedIds?: Set<string>;
+  /** Card id to render with the deep-link emphasis ring. */
+  highlightedId?: string | null;
 }
 
 export function WaveGroup({
@@ -28,9 +30,17 @@ export function WaveGroup({
   showWaves = false,
   defaultCollapsed = false,
   dimmedIds,
+  highlightedId,
 }: WaveGroupProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const icon = BLOCKER_ICON[group.blockerKind];
+
+  // A deep-linked card must be visible to receive its emphasis ring.
+  useEffect(() => {
+    if (highlightedId && group.cards.some((card) => card.id === highlightedId)) {
+      setCollapsed(false);
+    }
+  }, [group.cards, highlightedId]);
 
   return (
     <div data-testid={`plan-group-${group.id}`}>
@@ -60,6 +70,7 @@ export function WaveGroup({
               card={card}
               showWave={showWaves}
               dimmed={dimmedIds?.has(card.id) ?? false}
+              highlighted={card.id === highlightedId}
             />
           ))}
         </div>

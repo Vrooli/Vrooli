@@ -40,6 +40,8 @@ export interface BoardCardProps {
   action?: ReactNode;
   onClick?: () => void;
   dimmed?: boolean;
+  /** Transient emphasis ring (deep-link "show me this card" arrival). */
+  highlighted?: boolean;
   testId?: string;
 }
 
@@ -52,6 +54,7 @@ export function BoardCard({
   action,
   onClick,
   dimmed = false,
+  highlighted = false,
   testId,
 }: BoardCardProps) {
   const interactive = Boolean(onClick);
@@ -74,6 +77,7 @@ export function BoardCard({
         "flex items-start gap-2 rounded-lg border border-slate-700/40 bg-slate-900/40 px-3 py-2",
         interactive && "cursor-pointer transition-colors hover:bg-slate-800/60",
         dimmed && "opacity-50",
+        highlighted && "border-cyan-400/70 ring-2 ring-cyan-400/60",
       )}
       data-testid={testId}
     >

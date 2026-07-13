@@ -284,7 +284,22 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
       selectNode(focus.selectedNodeId);
       setHighlightState(focus.highlightState);
     }
-  }, [focusNodeId, highlightState.mode, processedNodes, selectedNodeId, selectNode, setHighlightState, styledEdges]);
+
+    // Land the camera on the target too. Deep links (?select=/?focus=) and
+    // lens drills should show the node, not wherever the persisted viewport
+    // intent or fitView happens to leave the camera. Scheduled a frame later
+    // than useGraphAutoFit's restore so this wins the race.
+    const target = processedNodes.find((n) => n.id === targetNodeId);
+    if (target) {
+      const raf = window.requestAnimationFrame(() => {
+        flowRef.current?.setCenter(target.position.x, target.position.y, {
+          zoom: 1,
+          duration: 300,
+        });
+      });
+      return () => window.cancelAnimationFrame(raf);
+    }
+  }, [flowRef, focusNodeId, highlightState.mode, processedNodes, selectedNodeId, selectNode, setHighlightState, styledEdges]);
 
   // Reset the focus-restored flag on navigation context changes (lens switch
   // or focusNodeId change), so restoration fires for the new context.

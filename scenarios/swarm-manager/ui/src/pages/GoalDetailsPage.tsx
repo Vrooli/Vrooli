@@ -15,9 +15,11 @@ import {
   Trash2,
   Workflow,
 } from "lucide-react";
+import { BacklogCard } from "../components/backlog/backlog-card";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
+import { InitiativeSummaryCard } from "../components/initiative/initiative-summary-card";
 import { GOAL_LENSES } from "../components/detail/lens-options";
 import { Button } from "../components/ui/button";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -27,11 +29,12 @@ import { StatusBadge } from "../components/detail/StatusBadge";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { goalsService } from "../services/goals-service";
 import { GOALS_QUERY_KEY } from "../surfaces/plan/hooks/useGoals";
-import type { GoalScope, GoalWithScope } from "../types/goal";
+import type { GoalScope, GoalScopeEntities, GoalWithScope } from "../types/goal";
 import { ENTITY_TYPE_ICONS } from "../types/constants";
 import {
   backlogDetailPath,
   goalDetailPath,
+  graphPath,
   initiativeDetailPath,
   routeTargetToNodeId,
 } from "../app/routes/route-paths";
@@ -101,13 +104,58 @@ function RefChip({ refId }: { refId: string }) {
   );
 }
 
-function RefList({ refs, emptyText }: { refs: string[]; emptyText: string }) {
+/**
+ * One scope ref rendered as the standard entity card — the same BacklogCard /
+ * InitiativeSummaryCard used by the sidebar and pickers — fed by the server's
+ * scope hydration. Falls back to the lightweight RefChip when a ref didn't
+ * resolve (e.g. a target typo or a deleted item).
+ */
+function ScopeEntityCard({ refId, entities }: { refId: string; entities?: GoalScopeEntities }) {
+  const navigate = useNavigate();
+
+  const item = entities?.items[refId];
+  if (item) {
+    return (
+      <button
+        type="button"
+        onClick={() => navigate(backlogDetailPath(item.kind, item.name))}
+        className="w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
+        data-testid={`goal-ref-card-${refId}`}
+      >
+        <BacklogCard item={item} />
+      </button>
+    );
+  }
+
+  const summary = entities?.initiatives[refId];
+  if (summary) {
+    return (
+      <div data-testid={`goal-ref-card-${refId}`}>
+        <InitiativeSummaryCard
+          item={summary}
+          onOpen={() => navigate(initiativeDetailPath(summary.initiative.name))}
+        />
+      </div>
+    );
+  }
+
+  return <RefChip refId={refId} />;
+}
+
+function RefList({ refs, emptyText, entities }: { refs: string[]; emptyText: string; entities?: GoalScopeEntities }) {
   if (refs.length === 0) {
     return <p className="text-sm text-slate-500">{emptyText}</p>;
   }
+  if (!entities) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {refs.map((ref) => <RefChip key={ref} refId={ref} />)}
+      </div>
+    );
+  }
   return (
-    <div className="flex flex-wrap gap-2">
-      {refs.map((ref) => <RefChip key={ref} refId={ref} />)}
+    <div className="grid gap-2 lg:grid-cols-2">
+      {refs.map((ref) => <ScopeEntityCard key={ref} refId={ref} entities={entities} />)}
     </div>
   );
 }
@@ -323,6 +371,7 @@ export function GoalDetailsPage() {
           status={goal.status}
           nodeId={nodeId}
           lenses={GOAL_LENSES}
+          onDrillToLens={() => navigate(graphPath({ lens: "plan", goal: goal.name }))}
           metadata={<span className="text-xs text-slate-500">Updated {goal.updated ? formatRelativeTime(goal.updated) : "never"}</span>}
           actions={actions}
         />
@@ -332,7 +381,7 @@ export function GoalDetailsPage() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           <DetailSection title="Targets" icon={Target} hideDivider data-testid="goal-targets">
-            <RefList refs={goal.targets} emptyText="This goal does not have explicit targets yet." />
+            <RefList refs={goal.targets} emptyText="This goal does not have explicit targets yet." entities={query.data.scopeEntities} />
           </DetailSection>
 
           <DetailSection title="Scope Progress" icon={Workflow} data-testid="goal-scope">
@@ -340,11 +389,11 @@ export function GoalDetailsPage() {
           </DetailSection>
 
           <DetailSection title="Ready Work" icon={ListChecks} data-testid="goal-ready">
-            <RefList refs={scope.ready} emptyText="No ready work in this goal right now." />
+            <RefList refs={scope.ready} emptyText="No ready work in this goal right now." entities={query.data.scopeEntities} />
           </DetailSection>
 
           <DetailSection title="Blocked Work" icon={ListChecks} data-testid="goal-blocked">
-            <RefList refs={scope.blocked} emptyText="No blocked work in this goal right now." />
+            <RefList refs={scope.blocked} emptyText="No blocked work in this goal right now." entities={query.data.scopeEntities} />
           </DetailSection>
 
           <DetailSection title="Scope Creep" icon={Workflow} data-testid="goal-history">
