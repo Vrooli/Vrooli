@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/evidence"
 )
 
 // delegationTestModeDoc renders a minimal initiative-target mode document
@@ -266,6 +267,7 @@ func completeDelegatedRun(t *testing.T, agent *fakeAgent, runID, progress string
 	}
 }
 
+// [REQ:REQ-P1-011-OWNER-RECONCILIATION]
 // TestStartTargetPhaseStartsDrainOnBarePlan is the plan-first entry point
 // test: the generic drain starts directly on a plan-manager plan — no
 // initiative — with plan-scoped rounds, plan reads, and the plan ownership
@@ -307,6 +309,13 @@ func TestStartTargetPhaseStartsDrainOnBarePlan(t *testing.T) {
 	holder, err := svc.lock.Inspect("plan--exec-1")
 	if err != nil || holder == nil {
 		t.Fatalf("plan lock holder = %v err=%v, want held", holder, err)
+	}
+	owners, err := svc.LookupOwners(context.Background(), round.RunID)
+	if err != nil {
+		t.Fatalf("LookupOwners: %v", err)
+	}
+	if len(owners) != 1 || owners[0].Kind != evidence.OwnerOperatingModeExecution || owners[0].ID != round.ExecutionID || owners[0].Round != round.Round {
+		t.Fatalf("plan-target evidence owner = %+v", owners)
 	}
 
 	// The round is addressable through the ordinary round actions with the

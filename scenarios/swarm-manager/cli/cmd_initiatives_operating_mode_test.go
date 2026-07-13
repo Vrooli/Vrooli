@@ -208,6 +208,7 @@ func TestCmdInitiativesModeWorkspace_RendersExecutionProvenance(t *testing.T) {
 					ExecutionId: "execution-1", Status: "active", DefinitionDigest: "sha256:def",
 					InputContractDigest:    "sha256:inputs",
 					ReachablePromptSources: []*apipb.OperatingModePinnedPromptSource{{Revision: "rev-1"}},
+					Evidence:               []*apipb.OperatingModeEvidenceRecord{{SubjectKind: "plan", Action: "created", Confidence: "authoritative", Verification: "verified", RunId: "run-1"}},
 				}},
 				Rounds: []*apipb.OperatingModeRoundEnvelope{{
 					Round: 1, Phase: "investigate", Status: "agent_running", ExecutionId: "execution-1",
@@ -219,7 +220,7 @@ func TestCmdInitiativesModeWorkspace_RendersExecutionProvenance(t *testing.T) {
 	out := clitest.CaptureStdout(t, func() error {
 		return app.cmdInitiativesModeWorkspace([]string{"--name", "init"})
 	})
-	for _, want := range []string{"execution-1: active", "definition=sha256:def", "inputs=sha256:inputs", "prompts=1", "execution=execution-1"} {
+	for _, want := range []string{"execution-1: active", "definition=sha256:def", "inputs=sha256:inputs", "prompts=1", "evidence=1", "plan.created authoritative/verified run=run-1", "execution=execution-1"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("workspace output missing %q:\n%s", want, out)
 		}

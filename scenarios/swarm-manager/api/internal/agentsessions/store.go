@@ -34,8 +34,6 @@ type Store interface {
 	ListSessions(filters ListFilters) ([]Session, error)
 	AppendMessage(sessionID string, message Message) error
 	SaveProposal(sessionID string, proposal Proposal) error
-	AppendArtifact(sessionID string, artifact Artifact) error
-	AppendArtifacts(sessionID string, artifacts []Artifact) error
 	ListArtifacts(sessionID string) ([]Artifact, error)
 	ListArtifactsByEntity(artifactType ArtifactType, entityRef string) ([]Artifact, error)
 	SaveAttachment(sessionID string, attachment Attachment, reader io.Reader) error
@@ -183,62 +181,6 @@ func (s *FileStore) SaveProposal(sessionID string, proposal Proposal) error {
 	if proposal.Status == ProposalStatusReady {
 		session.Status = StatusProposalReady
 	}
-	return s.saveSessionLocked(session)
-}
-
-func (s *FileStore) AppendArtifact(sessionID string, artifact Artifact) error {
-	if err := artifact.Validate(); err != nil {
-		return err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	session, err := s.loadSessionLocked(sessionID)
-	if err != nil {
-		return err
-	}
-	if artifact.SessionID != session.ID {
-		return validationError("artifact session_id does not match session")
-	}
-	if err := appendJSONL(filepath.Join(s.sessionDir(session.ID), artifactsFileName), artifact); err != nil {
-		return err
-	}
-	session.UpdatedAt = artifact.CreatedAt
-	return s.saveSessionLocked(session)
-}
-
-func (s *FileStore) AppendArtifacts(sessionID string, artifacts []Artifact) error {
-	if len(artifacts) == 0 {
-		return nil
-	}
-	for i := range artifacts {
-		if err := artifacts[i].Validate(); err != nil {
-			return fmt.Errorf("%w: artifacts[%d]: %v", ErrValidation, i, err)
-		}
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	session, err := s.loadSessionLocked(sessionID)
-	if err != nil {
-		return err
-	}
-	for i := range artifacts {
-		if artifacts[i].SessionID != session.ID {
-			return validationError("artifact session_id does not match session")
-		}
-	}
-	path := filepath.Join(s.sessionDir(session.ID), artifactsFileName)
-	existing, err := readJSONL[Artifact](path)
-	if err != nil {
-		return err
-	}
-	next := append(existing, artifacts...)
-	if err := writeJSONLAtomic(path, next); err != nil {
-		return err
-	}
-	session.UpdatedAt = artifacts[len(artifacts)-1].CreatedAt
 	return s.saveSessionLocked(session)
 }
 

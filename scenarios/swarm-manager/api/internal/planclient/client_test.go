@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
@@ -20,6 +21,7 @@ type fakePlansService struct {
 	gotCompact      bool
 	gotImportSource string
 	gotImportSlug   string
+	gotAuditRunID   string
 }
 
 func (f *fakePlansService) ListPlans(_ context.Context, _ *connect.Request[plansv1.ListPlansRequest]) (*connect.Response[plansv1.ListPlansResponse], error) {
@@ -57,6 +59,20 @@ func (f *fakePlansService) ImportPlan(_ context.Context, req *connect.Request[pl
 	}}), nil
 }
 
+func (f *fakePlansService) ListAuditFacts(_ context.Context, req *connect.Request[plansv1.ListAuditFactsRequest]) (*connect.Response[plansv1.ListAuditFactsResponse], error) {
+	f.gotAuditRunID = req.Msg.GetRunId()
+	return connect.NewResponse(&plansv1.ListAuditFactsResponse{Facts: []*plansv1.PlanAuditFact{{
+		EventId:       "plan-1:created:1",
+		RunId:         req.Msg.GetRunId(),
+		TaskId:        "task-1",
+		Action:        "plan.created",
+		PlanId:        "plan-1",
+		ContentDigest: "sha256:plan-1",
+		OccurredAt:    "2026-07-12T20:00:00Z",
+	}}}), nil
+}
+
+// [REQ:REQ-P1-011-CANONICAL-LEDGER]
 func TestConnectClient_PlansCallsResolvePerCall(t *testing.T) {
 	service := &fakePlansService{}
 	path, handler := plansconnect.NewPlansServiceHandler(service)
@@ -105,7 +121,15 @@ func TestConnectClient_PlansCallsResolvePerCall(t *testing.T) {
 	if imported.GetId() != "imported-id" || service.gotImportSource != "/tmp/external-plan.markdown" || service.gotImportSlug != "new-plan" {
 		t.Fatalf("ImportPlan mismatch plan=%+v service=%+v", imported, service)
 	}
-	if resolveCalls != 4 {
-		t.Fatalf("resolver calls = %d, want 4", resolveCalls)
+
+	auditFacts, err := client.ListAuditFacts(context.Background(), "run-1")
+	if err != nil {
+		t.Fatalf("ListAuditFacts: %v", err)
+	}
+	if len(auditFacts) != 1 || service.gotAuditRunID != "run-1" || auditFacts[0].Action != "plan.created" || !auditFacts[0].OccurredAt.Equal(time.Date(2026, 7, 12, 20, 0, 0, 0, time.UTC)) {
+		t.Fatalf("ListAuditFacts mismatch facts=%+v run_id=%q", auditFacts, service.gotAuditRunID)
+	}
+	if resolveCalls != 5 {
+		t.Fatalf("resolver calls = %d, want 5", resolveCalls)
 	}
 }

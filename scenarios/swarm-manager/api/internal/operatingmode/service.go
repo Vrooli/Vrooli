@@ -10,6 +10,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/promptmanager"
 )
@@ -199,27 +200,35 @@ type Config struct {
 }
 
 type Service struct {
-	store         *Store
-	overlay       *OverlayStore
-	lock          InitiativeLock
-	initiatives   InitiativeReader
-	initLister    InitiativeLister
-	modeUpdater   InitiativeModeUpdater
-	planRefBinder InitiativePlanRefBinder
-	backlog       BacklogReader
-	backlogMut    BacklogMutator
-	reconciler    ProposalReconciler
-	itemExecs     ItemExecutionController
-	agent         AgentSpawner
-	activity      InitiativeActivitySpawner
-	prompts       promptmanager.Client
-	promptCatalog PromptCatalogResolver
-	events        *eventlog.Emitter
-	classifier    FieldClassifier
-	scenarioRoot  string
-	clock         func() time.Time
-	requestedBy   string
-	planExecution PlanExecutionClient
+	store              *Store
+	overlay            *OverlayStore
+	lock               InitiativeLock
+	initiatives        InitiativeReader
+	initLister         InitiativeLister
+	modeUpdater        InitiativeModeUpdater
+	planRefBinder      InitiativePlanRefBinder
+	backlog            BacklogReader
+	backlogMut         BacklogMutator
+	reconciler         ProposalReconciler
+	itemExecs          ItemExecutionController
+	agent              AgentSpawner
+	activity           InitiativeActivitySpawner
+	prompts            promptmanager.Client
+	promptCatalog      PromptCatalogResolver
+	events             *eventlog.Emitter
+	classifier         FieldClassifier
+	scenarioRoot       string
+	clock              func() time.Time
+	requestedBy        string
+	planExecution      PlanExecutionClient
+	evidenceReconciler EvidenceReconciler
+	evidenceService    *evidence.Service
+}
+
+// EvidenceReconciler pulls producer facts for an Agent Manager run. A failure
+// is observable but never changes an already committed round outcome.
+type EvidenceReconciler interface {
+	Reconcile(context.Context, string) error
 }
 
 type StartPhaseRequest struct {
@@ -307,13 +316,14 @@ type ActiveOperatingModeRoundConflict struct {
 }
 
 type Workspace struct {
-	InitiativeName string                   `json:"initiative_name"`
-	Mode           string                   `json:"mode"`
-	Definition     WorkspaceMode            `json:"definition"`
-	Lock           *initiativelock.Holder   `json:"lock,omitempty"`
-	Artifacts      []ArtifactSnapshot       `json:"artifacts"`
-	Rounds         []RoundEnvelope          `json:"rounds"`
-	Executions     []OperatingModeExecution `json:"executions"`
+	InitiativeName      string                       `json:"initiative_name"`
+	Mode                string                       `json:"mode"`
+	Definition          WorkspaceMode                `json:"definition"`
+	Lock                *initiativelock.Holder       `json:"lock,omitempty"`
+	Artifacts           []ArtifactSnapshot           `json:"artifacts"`
+	Rounds              []RoundEnvelope              `json:"rounds"`
+	Executions          []OperatingModeExecution     `json:"executions"`
+	EvidenceByExecution map[string][]evidence.Record `json:"evidence_by_execution,omitempty"`
 }
 
 type WorkspaceMode struct {
@@ -572,6 +582,73 @@ func NewService(cfg Config) (*Service, error) {
 		planExecution: cfg.PlanExecution,
 	}, nil
 }
+
+// LookupOwners scans every initiative and registered initiative-target mode
+// before deciding. The evidence ledger combines this result with the Session
+// index and rejects dual ownership rather than applying an implicit precedence.
+func (s *Service) LookupOwners(_ context.Context, runID string) ([]evidence.Owner, error) {
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		return nil, nil
+	}
+	if s == nil || s.initLister == nil || s.store == nil {
+		return nil, fmt.Errorf("operating-mode owner index is not configured")
+	}
+	indexed, err := s.store.LookupRunOwners(runID)
+	if err != nil {
+		return nil, fmt.Errorf("load global operating-mode run owners: %w", err)
+	}
+	owners := make([]evidence.Owner, 0, len(indexed)+1)
+	seen := make(map[evidence.Owner]struct{}, len(indexed)+1)
+	for _, owner := range indexed {
+		if strings.TrimSpace(owner.ExecutionID) == "" || owner.Round <= 0 {
+			return nil, fmt.Errorf("global operating-mode run owner for %q is invalid", runID)
+		}
+		evidenceOwner := evidence.Owner{Kind: evidence.OwnerOperatingModeExecution, ID: owner.ExecutionID, Round: owner.Round}
+		seen[evidenceOwner] = struct{}{}
+		owners = append(owners, evidenceOwner)
+	}
+	if len(owners) > 0 {
+		return owners, nil
+	}
+	initiatives, err := s.initLister.ListInitiatives()
+	if err != nil {
+		return nil, err
+	}
+	// Pre-global-index initiative executions remain readable. This recovery scan
+	// runs only when the canonical index has no match; new runs always publish
+	// to the global index in IndexRunOwner.
+	for _, initiative := range initiatives {
+		for _, mode := range Modes() {
+			def, err := DefinitionFor(mode)
+			if err != nil {
+				return nil, err
+			}
+			if def.Target.Kind != TargetInitiative || !def.RunsModeRounds() {
+				continue
+			}
+			owner, err := s.store.ResolveRunOwner(initiative.Name, mode, runID)
+			if errors.Is(err, ErrRunOwnerNotFound) {
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+			evidenceOwner := evidence.Owner{Kind: evidence.OwnerOperatingModeExecution, ID: owner.ExecutionID, Round: owner.Round}
+			if _, exists := seen[evidenceOwner]; !exists {
+				seen[evidenceOwner] = struct{}{}
+				owners = append(owners, evidenceOwner)
+			}
+		}
+	}
+	return owners, nil
+}
+
+func (s *Service) SetEvidenceReconciler(reconciler EvidenceReconciler) {
+	s.evidenceReconciler = reconciler
+}
+
+func (s *Service) SetEvidenceService(service *evidence.Service) { s.evidenceService = service }
 
 func (s *Service) ResolveRoundActionMode(initiativeName, rawMode string) (Mode, error) {
 	trimmed := strings.TrimSpace(rawMode)

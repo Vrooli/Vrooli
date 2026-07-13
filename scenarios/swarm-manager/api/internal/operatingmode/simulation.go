@@ -26,7 +26,7 @@ type SimulationResponse struct {
 	Label        string             `json:"label"`
 	Presets      []SimulationPreset `json:"presets"`
 	ActivePreset string             `json:"active_preset"`
-	Initiative   InitiativeSnapshot `json:"initiative"`
+	Target       SimulationTarget   `json:"target"`
 	Trace        []SimulationStep   `json:"trace"`
 }
 
@@ -63,11 +63,21 @@ type SimulationStep struct {
 }
 
 type SimulationInputs struct {
-	Initiative         InitiativeSnapshot `json:"initiative"`
-	Items              []RoundItem        `json:"items"`
-	Artifacts          []ArtifactSnapshot `json:"artifacts"`
-	PriorRounds        []RoundEnvelope    `json:"prior_rounds"`
-	AcceptanceCriteria []string           `json:"acceptance_criteria"`
+	Target      SimulationTarget   `json:"target"`
+	Artifacts   []ArtifactSnapshot `json:"artifacts"`
+	PriorRounds []RoundEnvelope    `json:"prior_rounds"`
+	target      TargetInstance
+}
+
+// SimulationTarget is the target-neutral fixture projection a simulated phase
+// receives. Target-specific details belong in Context; no initiative-shaped
+// fields are implied for a plan or future target kind.
+type SimulationTarget struct {
+	Kind        TargetKind     `json:"kind"`
+	ID          string         `json:"id"`
+	Title       string         `json:"title"`
+	Description string         `json:"description,omitempty"`
+	Context     map[string]any `json:"context,omitempty"`
 }
 
 // SimulationTransition describes the guarded edge a simulated round took. The
@@ -104,6 +114,7 @@ func (s *Service) simulateDefinition(ctx context.Context, def Definition, preset
 	preset := resolveSimulationPreset(presets, presetID)
 	init := simulationInitiative(def, preset)
 	items := preset.roundItems()
+	target := simulationTargetInstance(def, init, items)
 	rounds := make([]RoundEnvelope, 0, len(def.PhaseGraph.Phases))
 	trace := make([]SimulationStep, 0, len(def.PhaseGraph.Phases))
 	stepIdx := 0
@@ -135,11 +146,10 @@ func (s *Service) simulateDefinition(ctx context.Context, def Definition, preset
 			}
 		}
 		inputs := SimulationInputs{
-			Initiative:         init,
-			Items:              append([]RoundItem(nil), items...),
-			Artifacts:          simulationArtifacts(def, rounds),
-			PriorRounds:        cloneRounds(rounds),
-			AcceptanceCriteria: append([]string(nil), init.AcceptanceCriteria...),
+			Target:      simulationTargetProjection(target),
+			Artifacts:   simulationArtifacts(def, rounds),
+			PriorRounds: cloneRounds(rounds),
+			target:      target,
 		}
 		// Consume the preset's next seeded step when it names this phase; the
 		// step's output overrides the contract-derived canned scaffolding. An
@@ -173,15 +183,15 @@ func (s *Service) simulateDefinition(ctx context.Context, def Definition, preset
 			Round:           len(rounds) + 1,
 			Mode:            string(def.Mode),
 			ScopeKind:       string(def.Target.Kind),
-			ScopeID:         init.Name,
-			InitiativeName:  init.Name,
+			ScopeID:         target.ID,
+			InitiativeName:  simulationInitiativeNameForTarget(target),
 			Phase:           string(phaseDef.Phase),
 			RunStrategy:     string(def.RunStrategy.Kind),
 			AgentProfileKey: execPhaseDef.ProfileKey,
 			GeneratedAt:     s.clock().UTC().Format(timeFormatRFC3339),
 			RunID:           fmt.Sprintf("simulation-%03d", len(rounds)+1),
 			Status:          RoundStatusCompleted,
-			Items:           append([]RoundItem(nil), items...),
+			Items:           simulationRoundItems(target),
 			Payload:         payload,
 		}
 		resolved, err := s.applyPhaseResultInMemory(ctx, def, &round, output)
@@ -241,7 +251,7 @@ func (s *Service) simulateDefinition(ctx context.Context, def Definition, preset
 				Label:        def.Label,
 				Presets:      presetMetadata(presets),
 				ActivePreset: preset.meta.ID,
-				Initiative:   init,
+				Target:       simulationTargetProjection(target),
 				Trace:        trace,
 			}, nil
 		}
@@ -251,37 +261,65 @@ func (s *Service) simulateDefinition(ctx context.Context, def Definition, preset
 }
 
 // simulationStepContext rebuilds the RunContext that fed a simulation step
-// from its recorded inputs. It is the bridge that lets the render-preview
-// endpoint substitute the exact same fixture data the trace already shows, and
-// it is pure (no store reads or adapter resolution), matching the isolated
-// nature of SimulateMode. The sandbox initiative doubles as the target
-// instance; the mode's declared target kind still drives read composition.
+// from its recorded target-neutral fixture. It is the bridge that lets the
+// render-preview endpoint substitute the exact same fixture data the trace
+// already shows, and it is pure (no store reads or adapter resolution).
 func simulationStepContext(def Definition, phaseDef PhaseDefinition, inputs SimulationInputs) RunContext {
-	rc := RunContext{
-		Def:      def,
-		PhaseDef: phaseDef,
-		Target: TargetInstance{
-			Kind:        def.Target.Kind,
-			ID:          inputs.Initiative.Name,
-			Title:       inputs.Initiative.Title,
-			Description: inputs.Initiative.Description,
-			Initiative:  inputs.Initiative,
-			Items:       inputs.Items,
-		},
+	return RunContext{
+		Def:       def,
+		PhaseDef:  phaseDef,
+		Target:    inputs.target,
 		Artifacts: inputs.Artifacts,
 		Rounds:    inputs.PriorRounds,
 	}
+}
+
+func simulationTargetInstance(def Definition, initiative InitiativeSnapshot, items []RoundItem) TargetInstance {
+	target := TargetInstance{
+		Kind:        def.Target.Kind,
+		ID:          initiative.Name,
+		Title:       initiative.Title,
+		Description: initiative.Description,
+		Initiative:  initiative,
+		Items:       append([]RoundItem(nil), items...),
+	}
 	if def.Target.PlanRef.Required || def.Target.Kind == TargetPlanManagerPlan {
-		// A bound-plan mode always has plan context by the time phases run;
-		// the simulation substitutes a deterministic fixture so PLAN_CONTEXT
-		// reads — and delegated plan-target sub-contexts — resolve without a
-		// live plan-manager call.
-		rc.Target.Plan = simulatedPlanContext()
+		target.Plan = simulatedPlanContext()
 		if def.Target.Kind == TargetPlanManagerPlan {
-			rc.Target.ID = rc.Target.Plan.ExecutionID
+			target.ID = target.Plan.ExecutionID
 		}
 	}
-	return rc
+	return target
+}
+
+func simulationTargetProjection(target TargetInstance) SimulationTarget {
+	context := map[string]any{}
+	if target.Kind == TargetInitiative {
+		context["acceptance_criteria"] = append([]string(nil), target.Initiative.AcceptanceCriteria...)
+		context["member_items"] = append([]RoundItem(nil), target.Items...)
+	}
+	if target.Plan != nil {
+		context["plan"] = map[string]any{
+			"source":       target.Plan.Source,
+			"plan_id":      target.Plan.PlanID,
+			"execution_id": target.Plan.ExecutionID,
+		}
+	}
+	return SimulationTarget{Kind: target.Kind, ID: target.ID, Title: target.Title, Description: target.Description, Context: context}
+}
+
+func simulationInitiativeNameForTarget(target TargetInstance) string {
+	if target.Kind == TargetInitiative {
+		return target.Initiative.Name
+	}
+	return ""
+}
+
+func simulationRoundItems(target TargetInstance) []RoundItem {
+	if target.Kind != TargetInitiative {
+		return nil
+	}
+	return append([]RoundItem(nil), target.Items...)
 }
 
 // simulatedPlanContext is the deterministic bound-plan fixture simulation
@@ -622,7 +660,7 @@ func simulationInitiative(def Definition, preset simPreset) InitiativeSnapshot {
 		title = def.Label + " Simulation"
 	}
 	if strings.TrimSpace(description) == "" {
-		description = "Ephemeral sandbox initiative used to preview operating-mode flow."
+		description = "Ephemeral sandbox target used to preview operating-mode flow."
 	}
 	items := preset.roundItems()
 	itemRefs := make([]string, 0, len(items))

@@ -9,7 +9,7 @@
       "description": "Implement API integration with scenario-completeness-scoring for fetching scores",
       "id": "REQ-P1-007-API",
       "prd_ref": "OT-P1-007",
-      "status": "draft",
+      "status": "planned",
       "title": "Completeness Scoring API Integration",
       "validation": [
         {
@@ -43,7 +43,7 @@
       "description": "Display completeness scores in the scenario catalog and details views",
       "id": "REQ-P1-007-UI",
       "prd_ref": "OT-P1-007",
-      "status": "draft",
+      "status": "planned",
       "title": "Completeness Score Display",
       "validation": [
         {

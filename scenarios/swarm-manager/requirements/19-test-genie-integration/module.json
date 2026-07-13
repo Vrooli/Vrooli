@@ -9,7 +9,7 @@
       "description": "Implement API integration with test-genie for triggering test execution and retrieving results",
       "id": "REQ-P1-009-API",
       "prd_ref": "OT-P1-009",
-      "status": "draft",
+      "status": "planned",
       "title": "Test Genie API Integration",
       "validation": [
         {
@@ -43,7 +43,7 @@
       "description": "Display test results and execution controls in scenario details",
       "id": "REQ-P1-009-UI",
       "prd_ref": "OT-P1-009",
-      "status": "draft",
+      "status": "planned",
       "title": "Test Results Display Interface",
       "validation": [
         {

@@ -72,63 +72,63 @@
     {
       "id": "REQ-P0-006-UI",
       "title": "Scenario Catalog UI",
-      "status": "in_progress",
+      "status": "not_implemented",
       "prd_ref": "OT-P0-005",
       "category": "ui",
-      "description": "Implement searchable and filterable UI for scenario catalog with priority ranking display",
+      "description": "The declared searchable scenario-catalog page is not currently implemented as a maintained UI surface; retain this requirement as an explicit gap rather than pointing validation at deleted tests.",
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/pages/ScenariosPage.test.tsx::filters scenarios by search term in name",
+          "ref": "",
           "phase": "unit",
           "status": "failing",
           "notes": "Test search by name functionality"
         },
         {
           "type": "test",
-          "ref": "ui/src/pages/ScenariosPage.test.tsx::filters scenarios by search term in description",
+          "ref": "",
           "phase": "unit",
           "status": "failing",
           "notes": "Test search by description functionality"
         },
         {
           "type": "test",
-          "ref": "ui/src/pages/ScenariosPage.test.tsx::search is case insensitive",
+          "ref": "",
           "phase": "unit",
           "status": "failing",
           "notes": "Test search case insensitivity"
         },
         {
           "type": "test",
-          "ref": "ui/src/pages/ScenariosPage.test.tsx::opens filter dropdown when filter button is clicked",
+          "ref": "",
           "phase": "unit",
           "status": "failing",
           "notes": "Test filter dropdown opens"
         },
         {
           "type": "test",
-          "ref": "ui/src/pages/ScenariosPage.test.tsx::displays scenarios sorted by priority",
+          "ref": "",
           "phase": "unit",
           "status": "failing",
           "notes": "Test priority sorting display"
         },
         {
           "type": "test",
-          "ref": "ui/src/pages/ScenariosPage.test.tsx::displays scenario count",
+          "ref": "",
           "phase": "unit",
           "status": "failing",
           "notes": "Test scenario count display"
         },
         {
           "type": "test",
-          "ref": "ui/src/pages/ScenariosPage.test.tsx::shows no results state when search matches nothing",
+          "ref": "",
           "phase": "unit",
           "status": "failing",
           "notes": "Test no results state shows clear filters button"
         },
         {
           "type": "test",
-          "ref": "ui/src/pages/ScenariosPage.test.tsx::clear filters button resets search",
+          "ref": "",
           "phase": "unit",
           "status": "failing",
           "notes": "Test clear filters resets search"

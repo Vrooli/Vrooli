@@ -35,7 +35,7 @@ func TestSubcommandGroups(t *testing.T) {
 	groups := SubcommandGroups(testutil.StubDeps())
 
 	wantNames := []string{
-		"backlog", "scenarios", "settings", "queue", "execution", "prompts",
+		"backlog", "scenarios", "settings", "queue", "execution", "evidence", "prompts",
 		"initiatives", "operating-mode", "captures", "records", "agent-manager",
 		"operations", "portfolio", "sessions", "stats", "ai-search", "autofiler",
 	}

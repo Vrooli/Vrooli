@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -36,8 +37,8 @@ func TestSimulateModeReturnsDeterministicTraceForPhaseModes(t *testing.T) {
 			if len(got.Presets) == 0 || got.Presets[0].ID != "happy-path" {
 				t.Fatalf("presets = %+v, want happy-path first", got.Presets)
 			}
-			if got.Initiative.Name != simulationInitiativeName || got.Initiative.Mode != string(tt.mode) {
-				t.Fatalf("initiative = %+v, want simulation initiative for %s", got.Initiative, tt.mode)
+			if got.Target.Kind != TargetInitiative || got.Target.ID != simulationInitiativeName {
+				t.Fatalf("target = %+v, want simulation initiative target for %s", got.Target, tt.mode)
 			}
 			if len(got.Trace) != len(tt.wantPhases) {
 				t.Fatalf("trace len = %d, want %d: %+v", len(got.Trace), len(tt.wantPhases), got.Trace)
@@ -50,12 +51,14 @@ func TestSimulateModeReturnsDeterministicTraceForPhaseModes(t *testing.T) {
 				if step.Round.Status != RoundStatusCompleted {
 					t.Fatalf("step %d status = %q, want completed", i, step.Round.Status)
 				}
-				if len(step.Inputs.Items) == 0 || len(step.Inputs.AcceptanceCriteria) == 0 {
-					t.Fatalf("step %d inputs missing mock items/criteria: %+v", i, step.Inputs)
+				items, _ := step.Inputs.Target.Context["member_items"].([]RoundItem)
+				criteria, _ := step.Inputs.Target.Context["acceptance_criteria"].([]string)
+				if len(items) == 0 || len(criteria) == 0 {
+					t.Fatalf("step %d inputs missing target-scoped items/criteria: %+v", i, step.Inputs)
 				}
 				// Seeded items carry realistic titles/statuses, not bare refs.
-				if step.Inputs.Items[0].Title == "" || step.Inputs.Items[0].Status == "" {
-					t.Fatalf("step %d item missing title/status: %+v", i, step.Inputs.Items[0])
+				if items[0].Title == "" || items[0].Status == "" {
+					t.Fatalf("step %d item missing title/status: %+v", i, items[0])
 				}
 				if i < len(tt.wantPhases)-1 {
 					if step.Transition == nil || step.Transition.To != tt.wantPhases[i+1] {
@@ -137,6 +140,29 @@ func TestSimulateModeUsesRealTransitionGuards(t *testing.T) {
 	if last.Transition == nil || last.Transition.To != "" ||
 		last.Transition.Field != "progress" || last.Transition.Value != "complete" {
 		t.Fatalf("last execute transition = %+v, want progress=complete guarded stop", last.Transition)
+	}
+}
+
+// [REQ:REQ-P0-011-INPUT-CONTRACT]
+func TestSimulationUsesDeclaredPlanTargetWithoutInitiativeLeakage(t *testing.T) {
+	svc := newTestServiceWithOptions(t, t.TempDir(), serviceOptions{})
+	simulation, err := svc.SimulateMode(context.Background(), ModePhasedPlanDrain, "happy-path")
+	if err != nil {
+		t.Fatalf("SimulateMode: %v", err)
+	}
+	if simulation.Target.Kind != TargetPlanManagerPlan || simulation.Target.ID != "simulated-plan-execution" {
+		t.Fatalf("simulation target = %+v, want plan-manager execution target", simulation.Target)
+	}
+	if strings.Contains(strings.ToLower(simulation.Target.Description), "initiative") {
+		t.Fatalf("plan-target simulation description leaked initiative terminology: %q", simulation.Target.Description)
+	}
+	if _, exists := simulation.Target.Context["initiative"]; exists {
+		t.Fatalf("plan target context leaked initiative fixture: %+v", simulation.Target.Context)
+	}
+	for _, step := range simulation.Trace {
+		if step.Inputs.Target.Kind != TargetPlanManagerPlan || step.Round.ScopeID != "simulated-plan-execution" || step.Round.InitiativeName != "" || len(step.Round.Items) != 0 {
+			t.Fatalf("plan-target simulation step leaked initiative state: target=%+v round=%+v", step.Inputs.Target, step.Round)
+		}
 	}
 }
 
@@ -383,8 +409,8 @@ func TestSimulationPresetsAreModeOwnedData(t *testing.T) {
 	if replan.Branch == "" || replan.Scenario == "" || replan.Label == "" {
 		t.Fatalf("preset metadata not data-sourced: %+v", replan)
 	}
-	if got.Initiative.Title != "Unify the audio-session lifecycle" {
-		t.Fatalf("initiative title = %q, want the example-run's seeded title", got.Initiative.Title)
+	if got.Target.Title != "Unify the audio-session lifecycle" {
+		t.Fatalf("target title = %q, want the example-run's seeded title", got.Target.Title)
 	}
 }
 

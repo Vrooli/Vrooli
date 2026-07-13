@@ -2,13 +2,10 @@
 package main
 
 import (
-	"net/http"
-
 	"swarm-manager/cli/domains"
 	"swarm-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 )
 
 const (
@@ -26,29 +23,13 @@ var (
 type App struct {
 	core      *cliapp.ScenarioApp
 	globalDry bool // set by preflight from --dry-run global flag
-	identity  cliutil.IdentityEnv
 }
 
 func NewApp() (*App, error) {
 	app := &App{}
 
-	// Detect agent identity from environment. When present, wrap the HTTP
-	// transport so every outgoing request carries the identity token header.
-	identity := cliutil.DetectIdentity()
-	app.identity = identity
-	var httpClientOpts cliutil.HTTPClientOptions
-	if identity.IsIdentityPresent() {
-		httpClientOpts.Client = &http.Client{
-			Transport: &identityTransport{
-				base:  http.DefaultTransport,
-				token: identity.Token,
-			},
-		}
-	}
-
 	disableStatus := true
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		HTTPClientOptions:    httpClientOpts,
 		Name:                 appName,
 		Version:              appVersion,
 		Description:          "Swarm Manager CLI",
@@ -94,6 +75,10 @@ func (a *App) dependencies() support.Dependencies {
 		AISearchReconcileCan:            a.cmdAISearchReconcileCancel,
 		AutoFilerStatus:                 a.cmdAutoFilerStatus,
 		AutoFilerRunNow:                 a.cmdAutoFilerRunNow,
+		EvidenceRun:                     a.cmdEvidenceRun,
+		EvidenceEntity:                  a.cmdEvidenceEntity,
+		EvidenceReconcile:               a.cmdEvidenceReconcile,
+		EvidenceVerify:                  a.cmdEvidenceVerify,
 		BacklogSearchAI:                 a.cmdAISearchSearch("backlog"),
 		InitiativesSearchAI:             a.cmdAISearchSearch("initiative"),
 		BacklogList:                     a.cmdBacklogList,

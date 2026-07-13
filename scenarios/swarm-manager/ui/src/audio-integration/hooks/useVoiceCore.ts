@@ -34,7 +34,7 @@ import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshots
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "../index";
 import { getSharedAudioContext, ensureAudioContextOnGesture } from "../index";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "../index";
-import { VoiceStreamProvider } from "../index";
+import { PcmVoiceStreamProvider, VoiceStreamProvider } from "../index";
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
 import { decidePassiveArm } from "./voice/passiveArmDecision";
@@ -712,9 +712,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           // DOC: docs/internal/VOICE-LATENCY.md#websocket-pre-connection
           if (streamingAvailableRef.current) {
             if (!providerRef.current) {
-              providerRef.current = new VoiceStreamProvider();
+              providerRef.current = new PcmVoiceStreamProvider();
             }
-            if (providerRef.current instanceof VoiceStreamProvider) {
+            if (providerRef.current instanceof VoiceStreamProvider || providerRef.current instanceof PcmVoiceStreamProvider) {
               const currentLanguage = voiceLanguageRef.current;
               const lang = currentLanguage === "auto" ? "" : (currentLanguage.split("-")[0] ?? "en");
               providerRef.current.preConnect(lang);
@@ -874,7 +874,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       if (!providerRef.current) {
         if (backendRef.current === "whisper") {
           providerRef.current = streamingAvailableRef.current
-            ? new VoiceStreamProvider()
+            ? new PcmVoiceStreamProvider()
             : new WhisperProvider();
           console.info("[voice] Provider:", streamingAvailableRef.current ? "VoiceStream" : "WhisperHTTP");
         } else if (backendRef.current === "web-speech") {
@@ -897,7 +897,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       }
 
       // Wire up segment-final handler for persistent mode
-      if (provider instanceof VoiceStreamProvider) {
+      if (provider instanceof VoiceStreamProvider || provider instanceof PcmVoiceStreamProvider) {
         provider.onSegmentFinal = handleSegmentFinal;
         // A segment-accepted event proves verification is wired up and the
         // profile is configured. We no longer surface a soft banner when a
@@ -1058,10 +1058,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       let preWarmedStream: MediaStream | undefined;
       if (lowLatencyVoiceRef.current && isMicStreamAlive()) {
         preWarmedStream = getMicStream() ?? undefined;
-        if (provider instanceof VoiceStreamProvider) {
+        if (provider instanceof VoiceStreamProvider || provider instanceof PcmVoiceStreamProvider) {
           provider.retainStream = true;
         }
-      } else if (provider instanceof VoiceStreamProvider) {
+      } else if (provider instanceof VoiceStreamProvider || provider instanceof PcmVoiceStreamProvider) {
         provider.retainStream = false;
       }
 
@@ -1256,7 +1256,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     provider.onError = null;
     if (provider.onPartial !== undefined) provider.onPartial = null;
     if (provider.onStatus !== undefined) provider.onStatus = null;
-    if (provider instanceof VoiceStreamProvider) {
+    if (provider instanceof VoiceStreamProvider || provider instanceof PcmVoiceStreamProvider) {
       provider.onSegmentFinal = null;
       provider.onSegmentAccepted = null;
       provider.onSegmentRejected = null;

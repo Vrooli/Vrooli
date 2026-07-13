@@ -1,6 +1,10 @@
 package operatingmode
 
-import "strings"
+import (
+	"strings"
+
+	"swarm-manager/internal/evidence"
+)
 
 type (
 	Mode                  string
@@ -375,7 +379,36 @@ type PhaseDefinition struct {
 	// (classify/routes). Nil for phases whose transitions are all plain guarded
 	// edges. Populated by the data loader from the classified transition.
 	TransitionClassification *TransitionClassification
-	RequiresCriteria         bool
+	// EvidenceRequirements are normalized, data-defined facts that must be
+	// present before this round may complete. They are deliberately independent
+	// of a mode's domain vocabulary: the evidence ledger owns fact lookup and
+	// producer-completeness semantics.
+	EvidenceRequirements []EvidenceRequirement
+	RequiresCriteria     bool
+}
+
+// EvidenceRequirement is the operating-mode data representation of one
+// canonical-ledger predicate. A match is accepted only at or above
+// MinConfidence; missing facts remain pending until the named producer has
+// published terminal coverage for the run and subject kind.
+type EvidenceRequirement struct {
+	SubjectKind   string              `json:"subject_kind"`
+	Action        string              `json:"action"`
+	ProducerID    string              `json:"producer,omitempty"`
+	MinConfidence evidence.Confidence `json:"min_confidence"`
+	MinCount      int                 `json:"min_count,omitempty"`
+	MatchFields   map[string]string   `json:"match_fields,omitempty"`
+}
+
+func (r EvidenceRequirement) LedgerRequirement() evidence.Requirement {
+	return evidence.Requirement{
+		SubjectKind:   r.SubjectKind,
+		Action:        r.Action,
+		ProducerID:    r.ProducerID,
+		MinConfidence: r.MinConfidence,
+		MinCount:      r.MinCount,
+		MatchFields:   r.MatchFields,
+	}
 }
 
 // Delegated reports whether the phase is executed by a sub-mode

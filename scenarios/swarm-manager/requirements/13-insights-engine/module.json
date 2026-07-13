@@ -9,7 +9,7 @@
       "description": "Implement insights engine backend for pattern detection and suggestion generation",
       "id": "REQ-P1-003-ENGINE",
       "prd_ref": "OT-P1-003",
-      "status": "draft",
+      "status": "planned",
       "title": "Insights Pattern Detection Engine",
       "validation": [
         {
@@ -43,7 +43,7 @@
       "description": "Display insights and self-improvement suggestions in the UI",
       "id": "REQ-P1-003-UI",
       "prd_ref": "OT-P1-003",
-      "status": "draft",
+      "status": "planned",
       "title": "Insights Display Interface",
       "validation": [
         {

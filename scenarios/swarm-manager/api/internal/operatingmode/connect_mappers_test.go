@@ -3,6 +3,9 @@ package operatingmode
 import (
 	"encoding/json"
 	"testing"
+	"time"
+
+	"swarm-manager/internal/evidence"
 )
 
 // TestHandoffToProto_CarriesFrontier proves the elastic-slice frontier travels
@@ -124,7 +127,10 @@ func TestWorkspaceToProtoCarriesExecutionManifestProvenance(t *testing.T) {
 			Mode: string(ModePhasedPlanDrain), Phase: "execute", SkillID: "phased-plan-execute-next",
 			Revision: "rev-1", ContentHash: "sha256:prompt",
 		}},
-	}}})
+	}}, EvidenceByExecution: map[string][]evidence.Record{"execution-1": {{
+		Observation: evidence.Observation{SourceSystem: "plan-manager", SourceEventID: "plan-created", RunID: "run-1", Subject: evidence.Subject{Kind: "plan", ID: "plan-1"}, Action: "plan.created", Confidence: evidence.ConfidenceAuthoritative, Verification: evidence.VerificationVerified, ObservedAt: time.Date(2026, 7, 12, 20, 0, 0, 0, time.UTC)},
+		Owner:       evidence.Owner{Kind: evidence.OwnerOperatingModeExecution, ID: "execution-1", Round: 2}, LinkedAt: time.Date(2026, 7, 12, 20, 1, 0, 0, time.UTC),
+	}}}})
 	if len(got.GetExecutions()) != 1 {
 		t.Fatalf("executions = %+v", got.GetExecutions())
 	}
@@ -146,5 +152,8 @@ func TestWorkspaceToProtoCarriesExecutionManifestProvenance(t *testing.T) {
 	}
 	if len(execution.GetReachablePromptSources()) != 1 || execution.GetReachablePromptSources()[0].GetRevision() != "rev-1" {
 		t.Fatalf("prompt source projection = %+v", execution.GetReachablePromptSources())
+	}
+	if len(execution.GetEvidence()) != 1 || execution.GetEvidence()[0].GetAction() != "plan.created" || execution.GetEvidence()[0].GetRound() != 2 {
+		t.Fatalf("evidence projection = %+v", execution.GetEvidence())
 	}
 }

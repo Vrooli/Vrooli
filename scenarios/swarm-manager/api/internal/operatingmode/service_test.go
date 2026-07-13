@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/promptmanager"
 
@@ -796,6 +797,59 @@ func TestStartPhaseCreatesExecutionManifestAndRunOwnerIndex(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-P1-011-OWNER-RECONCILIATION]
+func TestLookupOwnersResolvesPlanTargetRunFromGlobalIndex(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestService(t, root, &fakeAgent{}, &fakePrompts{})
+	svc.store.ExecutionID = func() string { return "execution-plan-001" }
+	execution, err := svc.store.CreateExecution("plan-123", MustDefinition(ModePhasedPlanDrain))
+	if err != nil {
+		t.Fatalf("CreateExecution: %v", err)
+	}
+	if err := svc.store.IndexRunOwner(execution, "run-plan-001", 1); err != nil {
+		t.Fatalf("IndexRunOwner: %v", err)
+	}
+	owners, err := svc.LookupOwners(context.Background(), "run-plan-001")
+	if err != nil {
+		t.Fatalf("LookupOwners: %v", err)
+	}
+	if len(owners) != 1 || owners[0].Kind != evidence.OwnerOperatingModeExecution || owners[0].ID != execution.ExecutionID || owners[0].Round != 1 {
+		t.Fatalf("owners = %+v", owners)
+	}
+}
+
+// [REQ:REQ-P1-011-OWNER-RECONCILIATION]
+func TestLookupOwnersPreservesCrossTargetRunAmbiguity(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestService(t, root, &fakeAgent{}, &fakePrompts{})
+	ids := []string{"execution-plan-001", "execution-plan-002"}
+	svc.store.ExecutionID = func() string {
+		id := ids[0]
+		ids = ids[1:]
+		return id
+	}
+	first, err := svc.store.CreateExecution("plan-123", MustDefinition(ModePhasedPlanDrain))
+	if err != nil {
+		t.Fatalf("CreateExecution first: %v", err)
+	}
+	second, err := svc.store.CreateExecution("plan-456", MustDefinition(ModePhasedPlanDrain))
+	if err != nil {
+		t.Fatalf("CreateExecution second: %v", err)
+	}
+	for _, execution := range []OperatingModeExecution{first, second} {
+		if err := svc.store.IndexRunOwner(execution, "run-shared", 1); err != nil {
+			t.Fatalf("IndexRunOwner %q: %v", execution.ExecutionID, err)
+		}
+	}
+	owners, err := svc.LookupOwners(context.Background(), "run-shared")
+	if err != nil {
+		t.Fatalf("LookupOwners: %v", err)
+	}
+	if len(owners) != 2 || owners[0].ID == owners[1].ID {
+		t.Fatalf("owners = %+v, want both owners for ambiguity", owners)
+	}
+}
+
 func TestRefreshRoundUsesPinnedDefinitionAfterRegistryMutation(t *testing.T) {
 	root := t.TempDir()
 	final := `{"operating_mode_result":{"handoff":{"summary":"investigated"},"artifacts":[{"path":"modes/holistic-loop/findings.md","content":"# Findings"}]}}`
@@ -1483,6 +1537,12 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 	})
 	store.TargetDir = func(kind TargetKind, scopeID string) string {
 		return TargetScopeDir(filepath.Join(root, "data"), kind, scopeID)
+	}
+	store.RunOwnerDir = func() string {
+		return filepath.Join(root, "data", "operating-mode-run-owners")
+	}
+	store.RunOwnerRecovery = func(runID string) ([]GlobalRunOwner, error) {
+		return RecoverTargetRunOwners(filepath.Join(root, "data"), runID)
 	}
 	store.Clock = func() time.Time {
 		return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)

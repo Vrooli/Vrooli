@@ -272,29 +272,15 @@ describe("Initiative Mode Service", () => {
           scenario: "A drain that stalls on an external blocker.",
         },
       ],
-      initiative: {
-        name: "simulation-sandbox",
-        title: "Phased Plan Drain Simulation",
-        mode: "phased-plan-drain",
-        items: ["execute/item-1"],
-        acceptanceCriteria: ["review output"],
-      },
+      target: { kind: "plan-manager-plan", id: "simulated-plan-execution", title: "Phased Plan Drain Simulation", context: { plan: { plan_id: "simulated-plan" } } },
       trace: [{
         index: 0,
         phase: "classify_progress",
         phaseKind: "review",
         inputs: {
-          initiative: {
-            name: "simulation-sandbox",
-            title: "Phased Plan Drain Simulation",
-            mode: "phased-plan-drain",
-            items: ["execute/item-1"],
-            acceptanceCriteria: ["review output"],
-          },
-          items: [{ ref: "execute/item-1", title: "Item 1" }],
+          target: { kind: "plan-manager-plan", id: "simulated-plan-execution", title: "Phased Plan Drain Simulation" },
           artifacts: [],
           priorRounds: [],
-          acceptanceCriteria: ["review output"],
         },
         output: {
           progress: { decision: "complete", currentPhase: "classify_progress", rationale: "ready" },
@@ -329,9 +315,9 @@ describe("Initiative Mode Service", () => {
     expect(simulation.activePreset).toBe("happy-path");
     expect(simulation.presets.map((preset) => preset.id)).toEqual(["happy-path", "blocked"]);
     expect(simulation.presets[1]?.branch).toBe("classify_progress → (blocked, terminal)");
-    expect(simulation.initiative.acceptanceCriteria).toEqual(["review output"]);
+    expect(simulation.target).toMatchObject({ kind: "plan-manager-plan", id: "simulated-plan-execution" });
     expect(simulation.trace[0]?.phaseKind).toBe("review");
-    expect(simulation.trace[0]?.inputs.items[0]?.ref).toBe("execute/item-1");
+    expect(simulation.trace[0]?.inputs.target.kind).toBe("plan-manager-plan");
     expect(simulation.trace[0]?.output.progress?.decision).toBe("complete");
     expect(simulation.trace[0]?.transition?.conditionKind).toBe("eq");
     expect(simulation.trace[0]?.transition?.field).toBe("progress.decision");
@@ -343,7 +329,7 @@ describe("Initiative Mode Service", () => {
       mode: "phased-plan-drain",
       activePreset: "blocked",
       presets: [],
-      initiative: { name: "simulation-sandbox", mode: "phased-plan-drain", items: [], acceptanceCriteria: [] },
+      target: { kind: "plan-manager-plan", id: "simulated-plan-execution" },
       trace: [],
     });
 

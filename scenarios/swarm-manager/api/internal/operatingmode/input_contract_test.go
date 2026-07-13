@@ -65,6 +65,7 @@ func compileInputTestDefinition(def Definition) error {
 	return err
 }
 
+// [REQ:REQ-P0-011-INPUT-CONTRACT]
 func TestCompileInputContractShippedGraphIsDeterministic(t *testing.T) {
 	defs := cloneRegistryForTest()
 	root := defs[ModeHolisticLoop]
@@ -234,6 +235,7 @@ func TestValidateCallerInputSnapshotNormalizesAndHashesDeterministically(t *test
 	}
 }
 
+// [REQ:REQ-P0-011-INPUT-CONTRACT]
 func TestValidateCallerInputSnapshotRejectsInvalidValues(t *testing.T) {
 	def := callerInputContractDefinition()
 	compiled, err := CompileInputContract(map[Mode]Definition{def.Mode: def}, def)
@@ -318,6 +320,7 @@ func TestOptionalCallerInputRendersNullWhenAbsentFromSnapshot(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-P0-011-INPUT-CONTRACT]
 func TestDeclaredReadsUsesPinnedExecutionContractAfterLiveSourceMutation(t *testing.T) {
 	store := testStore(t)
 	store.ExecutionID = func() string { return "execution-input-pinned" }

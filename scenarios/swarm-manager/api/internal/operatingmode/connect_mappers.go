@@ -3,7 +3,9 @@ package operatingmode
 import (
 	"encoding/json"
 	"sort"
+	"time"
 
+	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/initiativelock"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -423,7 +425,26 @@ func promptSourcesToProto(in map[string]PinnedPromptSource) []*apipb.OperatingMo
 	return out
 }
 
-func executionToProto(in OperatingModeExecution) *apipb.OperatingModeExecutionSnapshot {
+func evidenceRecordsToProto(in []evidence.Record) []*apipb.OperatingModeEvidenceRecord {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]*apipb.OperatingModeEvidenceRecord, 0, len(in))
+	for _, record := range in {
+		out = append(out, &apipb.OperatingModeEvidenceRecord{
+			SourceSystem: record.Observation.SourceSystem, SourceEventId: record.Observation.SourceEventID,
+			RunId: record.Observation.RunID, SubjectKind: record.Observation.Subject.Kind,
+			SubjectId: record.Observation.Subject.ID, Action: record.Observation.Action,
+			Confidence: string(record.Observation.Confidence), Verification: string(record.Observation.Verification),
+			ContentDigest: record.Observation.ContentDigest, Metadata: record.Observation.Metadata,
+			ObservedAt: record.Observation.ObservedAt.UTC().Format(time.RFC3339Nano),
+			LinkedAt:   record.LinkedAt.UTC().Format(time.RFC3339Nano), Round: int32(record.Owner.Round),
+		})
+	}
+	return out
+}
+
+func executionToProto(in OperatingModeExecution, records []evidence.Record) *apipb.OperatingModeExecutionSnapshot {
 	return &apipb.OperatingModeExecutionSnapshot{
 		ExecutionId: in.ExecutionID, ScopeKind: in.ScopeKind, ScopeId: in.ScopeID,
 		Mode: in.Mode, Status: string(in.Status), CreatedAt: in.CreatedAt,
@@ -436,16 +457,17 @@ func executionToProto(in OperatingModeExecution) *apipb.OperatingModeExecutionSn
 		Migration:              executionMigrationToProto(in.Migration),
 		CompiledInputContract:  structFromRaw(in.CompiledInputContract),
 		InputRetentionMetadata: structFromMap(in.InputRetentionMetadata),
+		Evidence:               evidenceRecordsToProto(records),
 	}
 }
 
-func executionsToProto(in []OperatingModeExecution) []*apipb.OperatingModeExecutionSnapshot {
+func executionsToProto(in []OperatingModeExecution, evidenceByExecution map[string][]evidence.Record) []*apipb.OperatingModeExecutionSnapshot {
 	if len(in) == 0 {
 		return nil
 	}
 	out := make([]*apipb.OperatingModeExecutionSnapshot, len(in))
 	for i, execution := range in {
-		out[i] = executionToProto(execution)
+		out[i] = executionToProto(execution, evidenceByExecution[execution.ExecutionID])
 	}
 	return out
 }
@@ -562,7 +584,7 @@ func workspaceToProto(w Workspace) *apipb.OperatingModeWorkspace {
 		Lock:           lockHolderToProto(w.Lock),
 		Artifacts:      artifactSnapshotsToProto(w.Artifacts),
 		Rounds:         roundEnvelopesToProto(w.Rounds),
-		Executions:     executionsToProto(w.Executions),
+		Executions:     executionsToProto(w.Executions, w.EvidenceByExecution),
 	}
 }
 
@@ -703,11 +725,19 @@ func simulationTransitionToProto(t *SimulationTransition) *apipb.OperatingModeSi
 
 func simulationInputsToProto(in SimulationInputs) *apipb.OperatingModeSimulationInputs {
 	return &apipb.OperatingModeSimulationInputs{
-		Initiative:         initiativeSnapshotToProto(in.Initiative),
-		Items:              roundItemsToProto(in.Items),
-		Artifacts:          artifactSnapshotsToProto(in.Artifacts),
-		PriorRounds:        roundEnvelopesToProto(in.PriorRounds),
-		AcceptanceCriteria: in.AcceptanceCriteria,
+		Target:      simulationTargetToProto(in.Target),
+		Artifacts:   artifactSnapshotsToProto(in.Artifacts),
+		PriorRounds: roundEnvelopesToProto(in.PriorRounds),
+	}
+}
+
+func simulationTargetToProto(target SimulationTarget) *apipb.OperatingModeSimulationTarget {
+	return &apipb.OperatingModeSimulationTarget{
+		Kind:        string(target.Kind),
+		Id:          target.ID,
+		Title:       target.Title,
+		Description: target.Description,
+		Context:     structFromMap(target.Context),
 	}
 }
 
@@ -743,7 +773,7 @@ func simulationToProto(s SimulationResponse) *apipb.OperatingModeSimulationRespo
 		Label:        s.Label,
 		Presets:      presets,
 		ActivePreset: s.ActivePreset,
-		Initiative:   initiativeSnapshotToProto(s.Initiative),
+		Target:       simulationTargetToProto(s.Target),
 		Trace:        trace,
 	}
 }

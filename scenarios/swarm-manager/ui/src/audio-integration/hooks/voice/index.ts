@@ -11,3 +11,4 @@ export { VAD_CALIBRATION_MS, VAD_FALLBACK_SILENCE_TIMEOUT_MS, VAD_FALLBACK_SEGME
 export { WhisperProvider } from "./WhisperProvider";
 export { WebSpeechProvider } from "./WebSpeechProvider";
 export { VoiceStreamProvider } from "./VoiceStreamProvider";
+export { PcmVoiceStreamProvider } from "./PcmVoiceStreamProvider";

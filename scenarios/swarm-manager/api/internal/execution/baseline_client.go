@@ -236,8 +236,8 @@ func (c *ConnectBaselineClient) Ping(ctx context.Context) error {
 }
 
 // baselineDiffResultFromProto folds the proto DiffBaselineResponse into the
-// execution package's neutral BaselineDiffResult, attributing every per-surface
-// finding to its surface and deriving the CLI-equivalent exit code.
+// execution package's neutral BaselineDiffResult, attributing every per-phase
+// finding to its phase and deriving the CLI-equivalent exit code.
 func baselineDiffResultFromProto(scenario string, msg *baselinesv1.DiffResult) BaselineDiffResult {
 	out := BaselineDiffResult{
 		ScenarioName: scenario,
@@ -254,18 +254,18 @@ func baselineDiffResultFromProto(scenario string, msg *baselinesv1.DiffResult) B
 		out.Stale = st.GetLikelyStale()
 	}
 
-	for _, sd := range msg.GetSurfaces() {
-		if sd == nil {
+	for _, phaseDiff := range msg.GetPhases() {
+		if phaseDiff == nil {
 			continue
 		}
-		surface := sd.GetSurfaceId()
-		if sd.GetVerdict() == baselineVerdictRegression {
-			out.RegressedSurfaces = append(out.RegressedSurfaces, surface)
+		phase := phaseDiff.GetPhase()
+		if phaseDiff.GetVerdict() == baselineVerdictRegression {
+			out.RegressedSurfaces = append(out.RegressedSurfaces, phase)
 		}
-		out.Regressions = appendFindings(out.Regressions, surface, sd.GetRegressions())
-		out.NewFailures = appendFindings(out.NewFailures, surface, sd.GetNewFailures())
-		out.PreExisting = appendFindings(out.PreExisting, surface, sd.GetPreexisting())
-		out.Cleared = appendFindings(out.Cleared, surface, sd.GetCleared())
+		out.Regressions = appendFindings(out.Regressions, phase, phaseDiff.GetRegressions())
+		out.NewFailures = appendFindings(out.NewFailures, phase, phaseDiff.GetNewFailures())
+		out.PreExisting = appendFindings(out.PreExisting, phase, phaseDiff.GetPreexistingFailures())
+		out.Cleared = appendFindings(out.Cleared, phase, phaseDiff.GetClearedFailures())
 	}
 	return out
 }

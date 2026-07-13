@@ -4,6 +4,7 @@ import type { Proposal } from "./feedback";
 export type OperatingModeRoundStatus =
   | "reserved"
   | "agent_running"
+  | "pending_evidence"
   | "completed"
   | "needs_attention"
   | "failed"
@@ -411,6 +412,22 @@ export interface OperatingModePinnedPromptSource {
   redacted: boolean;
 }
 
+export interface OperatingModeEvidenceRecord {
+  sourceSystem: string;
+  sourceEventId: string;
+  runId: string;
+  subjectKind: string;
+  subjectId: string;
+  action: string;
+  confidence: string;
+  verification: string;
+  contentDigest?: string;
+  metadata: Record<string, string>;
+  observedAt: string;
+  linkedAt: string;
+  round?: number;
+}
+
 export interface OperatingModeExecutionSnapshot {
   executionId: string;
   scopeKind: string;
@@ -428,6 +445,7 @@ export interface OperatingModeExecutionSnapshot {
   compiledInputContract?: OperatingModeCompiledInputContract;
   inputRetentionMetadata?: Record<string, unknown>;
   reachablePromptSources: OperatingModePinnedPromptSource[];
+  evidence?: OperatingModeEvidenceRecord[];
   migration?: {
     sourceLayout: string;
     migratedAt: string;
@@ -467,18 +485,17 @@ export interface OperatingModePhaseResult {
 }
 
 export interface OperatingModeSimulationInputs {
-  initiative: {
-    name: string;
-    title: string;
-    description?: string;
-    mode: InitiativeOperatingMode;
-    items: string[];
-    acceptanceCriteria: string[];
-  };
-  items: OperatingModeRoundItem[];
+  target: OperatingModeSimulationTarget;
   artifacts: OperatingModeArtifactSnapshot[];
   priorRounds: OperatingModeRound[];
-  acceptanceCriteria: string[];
+}
+
+export interface OperatingModeSimulationTarget {
+  kind: string;
+  id: string;
+  title: string;
+  description?: string;
+  context?: Record<string, unknown>;
 }
 
 export interface OperatingModeSimulationTransition {
@@ -532,7 +549,7 @@ export interface OperatingModeSimulation {
   label: string;
   presets: OperatingModeSimulationPreset[];
   activePreset: string;
-  initiative: OperatingModeSimulationInputs["initiative"];
+  target: OperatingModeSimulationTarget;
   trace: OperatingModeSimulationStep[];
 }
 

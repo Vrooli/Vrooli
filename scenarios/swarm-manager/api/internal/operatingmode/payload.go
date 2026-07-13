@@ -12,6 +12,7 @@ const (
 	payloadBacklogSyncAppliedAt = "backlog_sync_applied_at"
 	payloadBacklogSyncPlan      = "backlog_sync_plan"
 	payloadCanceledAt           = "canceled_at"
+	payloadEvidenceGate         = "evidence_gate"
 	payloadFinishedAt           = "finished_at"
 	payloadProgress             = "progress"
 	payloadPlanRef              = "plan_ref"
@@ -74,6 +75,19 @@ func (p RoundPayloadView) SetCanceledAt(value string) {
 
 func (p RoundPayloadView) SetFinishedAt(value string) {
 	p.setString(payloadFinishedAt, value)
+}
+
+func (p RoundPayloadView) SetEvidenceGateState(state string) {
+	p.setString(payloadEvidenceGate, state)
+}
+
+func (p RoundPayloadView) ClearEvidenceGateState() {
+	delete(p.payload, payloadEvidenceGate)
+}
+
+func (p RoundPayloadView) EvidenceGateState() string {
+	value, _ := p.String(payloadEvidenceGate)
+	return value
 }
 
 func (p RoundPayloadView) FinishedAt() string {

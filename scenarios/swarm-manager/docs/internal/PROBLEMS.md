@@ -393,6 +393,27 @@ mutation, followed by execution-and-round-state compare-and-reserve. Phase 4's
 remaining work is release-gate evidence: replay matrices, bounded live smoke,
 and fresh comparable green baselines for all four affected scenarios.
 
+### Operating-mode P0/P1 sequencing audit (2026-07-12)
+
+The P0/P1 evidence plan requires a durable Phase 4 gate that is green,
+comparable, and recorded before any P1 implementation. No such historical gate
+record is available for the current worktree. This is an acceptance-audit
+failure, not evidence that the implemented contracts are incorrect: focused
+P0/P1 tests may be rerun for regression confidence, but a later run cannot
+establish the required historical ordering. Do not mark the plan fully accepted
+until an independently durable pre-P1 gate record exists.
+
+The full Swarm Manager Test Genie run started for this work also has no
+retrievable terminal verdict after its single server-owned wait. The same
+failure affects the four dirty-worktree baseline-diff runs started on
+2026-07-12 (`20260712-213419-6cc61946` swarm-manager,
+`20260712-213421-da6bed0d` agent-manager,
+`20260712-213417-1ec57018` plan-manager, and
+`20260712-213422-e869d6bf` prompt-manager): every prescribed one-shot wait
+returned no verdict. The failure is tracked in scenario-qa as
+`knw-1783890090831874064`; do not poll or retry those runs as a substitute for
+the missing audit record.
+
 ### Current Test Coverage Status
 
 **Go API Tests**: Comprehensive coverage

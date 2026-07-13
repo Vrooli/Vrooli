@@ -9,7 +9,7 @@
       "description": "Implement API integration with app-issue-tracker for issue creation and status tracking",
       "id": "REQ-P1-008-API",
       "prd_ref": "OT-P1-008",
-      "status": "draft",
+      "status": "planned",
       "title": "Issue Tracker API Integration",
       "validation": [
         {
@@ -43,7 +43,7 @@
       "description": "Display issue creation and tracking interface in scenario details",
       "id": "REQ-P1-008-UI",
       "prd_ref": "OT-P1-008",
-      "status": "draft",
+      "status": "planned",
       "title": "Issue Tracking Interface",
       "validation": [
         {

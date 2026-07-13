@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
+	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 func TestExitCodeForBaselineVerdict(t *testing.T) {
@@ -39,18 +40,18 @@ func TestBaselineDiffResultFromProto_RegressionSplit(t *testing.T) {
 		Staleness: &baselinesv1.Staleness{
 			LikelyStale: true,
 		},
-		Surfaces: []*baselinesv1.SurfaceDiff{
+		Phases: []*runsv1.PhaseDiff{
 			{
-				SurfaceId:   "tests",
-				Verdict:     baselineVerdictRegression,
-				Regressions: []string{"TestFoo", "TestBar"},
-				Preexisting: []string{"TestOld"},
+				Phase:               "tests",
+				Verdict:             baselineVerdictRegression,
+				Regressions:         []string{"TestFoo", "TestBar"},
+				PreexistingFailures: []string{"TestOld"},
 			},
 			{
-				SurfaceId:   "standards",
-				Verdict:     baselineVerdictNewFailure,
-				NewFailures: []string{"new-lint-rule"},
-				Cleared:     []string{"fixed-violation"},
+				Phase:           "standards",
+				Verdict:         baselineVerdictNewFailure,
+				NewFailures:     []string{"new-lint-rule"},
+				ClearedFailures: []string{"fixed-violation"},
 			},
 		},
 	}

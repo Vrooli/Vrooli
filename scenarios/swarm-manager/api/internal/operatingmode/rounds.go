@@ -20,12 +20,13 @@ import (
 type RoundStatus string
 
 const (
-	RoundStatusReserved       RoundStatus = "reserved"
-	RoundStatusAgentRunning   RoundStatus = "agent_running"
-	RoundStatusCompleted      RoundStatus = "completed"
-	RoundStatusNeedsAttention RoundStatus = "needs_attention"
-	RoundStatusFailed         RoundStatus = "failed"
-	RoundStatusCanceled       RoundStatus = "canceled"
+	RoundStatusReserved        RoundStatus = "reserved"
+	RoundStatusAgentRunning    RoundStatus = "agent_running"
+	RoundStatusPendingEvidence RoundStatus = "pending_evidence"
+	RoundStatusCompleted       RoundStatus = "completed"
+	RoundStatusNeedsAttention  RoundStatus = "needs_attention"
+	RoundStatusFailed          RoundStatus = "failed"
+	RoundStatusCanceled        RoundStatus = "canceled"
 )
 
 type ArtifactUpdate struct {
@@ -109,9 +110,14 @@ var (
 // run never creates an initiative directory. The mode's declared target kind
 // selects the resolver.
 type Store struct {
-	InitDir   func(scopeID string) string
-	TargetDir func(kind TargetKind, scopeID string) string
-	Clock     func() time.Time
+	InitDir     func(scopeID string) string
+	TargetDir   func(kind TargetKind, scopeID string) string
+	RunOwnerDir func() string
+	// RunOwnerRecovery finds pre-index non-initiative executions. It is a
+	// bounded migration adapter: recovered owners are immediately persisted in
+	// RunOwnerDir, after which the canonical cross-target index is authoritative.
+	RunOwnerRecovery func(runID string) ([]GlobalRunOwner, error)
+	Clock            func() time.Time
 	// ExecutionID is injectable for deterministic execution-layout tests.
 	ExecutionID func() string
 	mu          sync.Mutex

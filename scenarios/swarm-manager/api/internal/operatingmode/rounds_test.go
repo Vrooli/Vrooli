@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// [REQ:REQ-P0-011-ENVELOPE-PROVENANCE]
 func TestResolvedEnvelopeSurvivesSaveReloadAndRoutesNovelFields(t *testing.T) {
 	store := testStore(t)
 	def := MustDefinition(ModePhasedPlanDrain)
@@ -111,6 +112,9 @@ func testStore(t *testing.T) *Store {
 		},
 		TargetDir: func(kind TargetKind, scopeID string) string {
 			return TargetScopeDir(filepath.Join(root, "data"), kind, scopeID)
+		},
+		RunOwnerDir: func() string {
+			return filepath.Join(root, "data", "operating-mode-run-owners")
 		},
 		Clock: func() time.Time {
 			return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)

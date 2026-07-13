@@ -37,21 +37,21 @@
     {
       "id": "REQ-P1-002-UI",
       "title": "Execution Operations Interface",
-      "status": "in_progress",
+      "status": "not_implemented",
       "prd_ref": "OT-P1-002",
       "category": "ui",
-      "description": "Create execution page UI showing pending/running/completed/failed runs with start/cancel/retry controls",
+      "description": "The declared standalone execution operations page is not currently implemented as a maintained UI surface; retain this requirement as an explicit gap rather than pointing validation at deleted files.",
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/pages/ExecutionPage.tsx",
+          "ref": "",
           "phase": "unit",
           "status": "failing",
           "notes": "ExecutionPage renders run list with status badges and action buttons"
         },
         {
           "type": "test",
-          "ref": "ui/src/pages/ExecutionPage.test.tsx",
+          "ref": "",
           "phase": "business",
           "status": "failing",
           "notes": "Users can view and govern execution runs from the Execution tab"

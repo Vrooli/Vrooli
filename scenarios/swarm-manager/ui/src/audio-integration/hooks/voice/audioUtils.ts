@@ -4,6 +4,8 @@
 // Also provides AudioRingBuffer, downsampling, and a passive capture pipeline
 // for wake word detection.
 
+export { downsample } from "@vrooli/audio-capture-browser";
+
 /**
  * Build a bandpass filter chain targeting the speech band (80Hz-8kHz).
  * Returns an AnalyserNode (for level monitoring) and a filtered MediaStream
@@ -137,33 +139,6 @@ export class AudioRingBuffer {
     this._totalWritten = 0;
     this.buffer.fill(0);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Downsampling — linear interpolation for MFCC input
-// ---------------------------------------------------------------------------
-
-/**
- * Downsample audio from `fromRate` to `toRate` using linear interpolation.
- * Used to convert AudioContext's native rate (typically 48kHz) to 16kHz for MFCC.
- */
-export function downsample(buffer: Float32Array, fromRate: number, toRate: number): Float32Array {
-  if (fromRate === toRate) return buffer;
-  if (toRate > fromRate) throw new Error(`Cannot upsample: ${fromRate} -> ${toRate}`);
-
-  const ratio = fromRate / toRate;
-  const outputLength = Math.ceil(buffer.length / ratio);
-  const output = new Float32Array(outputLength);
-
-  for (let i = 0; i < outputLength; i++) {
-    const srcIndex = i * ratio;
-    const srcFloor = Math.floor(srcIndex);
-    const srcCeil = Math.min(srcFloor + 1, buffer.length - 1);
-    const frac = srcIndex - srcFloor;
-    output[i] = (buffer[srcFloor] ?? 0) * (1 - frac) + (buffer[srcCeil] ?? 0) * frac;
-  }
-
-  return output;
 }
 
 // ---------------------------------------------------------------------------

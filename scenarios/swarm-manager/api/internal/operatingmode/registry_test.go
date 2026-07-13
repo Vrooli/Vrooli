@@ -1,6 +1,7 @@
 package operatingmode
 
 import (
+	"maps"
 	"strings"
 	"testing"
 )
@@ -566,9 +567,22 @@ func clonePhaseDefinitions(in map[Phase]PhaseDefinition) map[Phase]PhaseDefiniti
 	for phase, def := range in {
 		def.OutputArtifacts = append([]ArtifactDefinition(nil), def.OutputArtifacts...)
 		def.ResultBindings = append([]ResultBinding(nil), def.ResultBindings...)
+		def.EvidenceRequirements = cloneEvidenceRequirements(def.EvidenceRequirements)
 		def.OutputContract.RequiredArtifacts = append([]ArtifactDefinition(nil), def.OutputContract.RequiredArtifacts...)
 		def.AutoStartAfter = append([]Phase(nil), def.AutoStartAfter...)
 		out[phase] = def
+	}
+	return out
+}
+
+func cloneEvidenceRequirements(in []EvidenceRequirement) []EvidenceRequirement {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]EvidenceRequirement, len(in))
+	for i, requirement := range in {
+		requirement.MatchFields = maps.Clone(requirement.MatchFields)
+		out[i] = requirement
 	}
 	return out
 }

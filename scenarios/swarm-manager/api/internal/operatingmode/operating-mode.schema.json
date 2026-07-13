@@ -303,6 +303,10 @@
           "type": "array", "items": { "$ref": "#/$defs/ArtifactDefinition" },
           "description": "Files the phase is expected to produce under the mode's artifact root."
         },
+        "evidence_requirements": {
+          "type": "array", "items": { "$ref": "#/$defs/EvidenceRequirement" },
+          "description": "Canonical evidence facts required before this phase can complete. Missing evidence remains pending until the named producer has terminal coverage for the run and subject kind."
+        },
         "result_bindings": {
           "type": "array", "items": { "$ref": "#/$defs/ResultBinding" },
           "description": "Bindings that persist a structured result field into a durable artifact."
@@ -312,6 +316,26 @@
           "description": "Ordered guarded edges out of this phase. The first transition whose guard matches selects the next phase(s). Omit for a terminal phase, or use a single `{ \"when\": {\"op\":\"always\"}, \"to\": [next] }` for an unconditional edge. An empty `to` is a guarded stop (e.g. a `blocked` progress decision)."
         },
         "metrics": { "$ref": "#/$defs/PhaseMetrics" }
+      }
+    },
+
+    "EvidenceRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "action", "min_confidence"],
+      "description": "A normalized, mode-data verification predicate over the canonical evidence ledger. It intentionally names no mode-specific vocabulary.",
+      "properties": {
+        "subject_kind": { "type": "string", "minLength": 1, "maxLength": 96, "description": "Normalized evidence subject kind, such as plan, artifact, file, repository_change, or cli_invocation." },
+        "action": { "type": "string", "minLength": 1, "maxLength": 128, "description": "Normalized fact action required for the subject." },
+        "producer": { "type": "string", "minLength": 1, "maxLength": 128, "description": "Optional canonical evidence producer id. Omit only for requirements satisfied by any producer; an omitted producer cannot turn absence into definitive missing evidence." },
+        "min_confidence": { "type": "string", "enum": ["reported", "observed", "authoritative", "operator_verified"], "description": "Lowest acceptable canonical evidence confidence." },
+        "min_count": { "type": "integer", "minimum": 1, "default": 1, "description": "Number of matching facts required before the gate is satisfied." },
+        "match_fields": {
+          "type": "object", "maxProperties": 24,
+          "additionalProperties": { "type": "string", "maxLength": 512 },
+          "propertyNames": { "maxLength": 96 },
+          "description": "Bounded metadata fields that must exactly match the evidence observation."
+        }
       }
     },
 

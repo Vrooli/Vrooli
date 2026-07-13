@@ -38,6 +38,7 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
 	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/goals"
 	"swarm-manager/internal/graph"
@@ -109,6 +110,8 @@ type Server struct {
 	emitter             *eventlog.Emitter
 	statsEngine         *stats.Engine
 	eventRepo           *eventlog.SQLiteRepository
+	evidenceStore       *evidence.Store
+	evidenceSvc         *evidence.Service
 	aiSearchSvc         *aisearch.Service
 	aiSearchReconciler  *aisearch.Reconciler
 	aiSearchSyncLoop    *aisearch.SyncLoop
@@ -301,6 +304,7 @@ func (s *Server) setupRoutes() {
 	s.registerFeedbackRoutes(materializer)
 	s.registerInitiativeReviewRoutes(materializer)
 	s.registerOperatingModeRoutes(scenarioRoot, materializer)
+	s.wireEvidence()
 	s.registerOperationsRoutes()
 	s.registerPlanRoutes(scenarioRoot)
 	s.registerPlanImportRoutes(backlogHandler, initService)

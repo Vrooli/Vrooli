@@ -672,6 +672,24 @@ The CLI uses `settings.default_mode` when `execution create` is called without `
 | POST | `/api/v1/execution/{id}/trigger-review` | Trigger or re-trigger a GCT review for a terminal execution |
 | GET | `/api/v1/gct/status` | Check git-control-tower availability (`{"available": true/false}`) |
 
+## Canonical Evidence
+
+Canonical evidence is immutable producer output linked to exactly one Session
+or operating-mode execution after exhaustive owner resolution. The endpoints
+return owner-linked records; they never expose identity tokens or raw Agent
+Manager tool payloads.
+
+| RPC | Description |
+|-----|-------------|
+| `EvidenceService.ListRun` | List canonical records for a verified run. |
+| `EvidenceService.ListEntity` | List records affecting a normalized entity. |
+| `EvidenceService.Reconcile` | Retry supported producers for a run. |
+| `EvidenceService.RecordOperatorVerification` | Append an operator repair with owner, stable event id, actor, reason, subject, and action. |
+
+An operator repair is a new `operator_verified` observation, never a mutation
+or confidence promotion of an existing reported record. Requests attributed to
+a verified agent are rejected from this endpoint.
+
 ## Agent Activities
 
 `AgentActivity` is the durable telemetry/audit record for tracked AgentManager usage. Unlike execution records, activities are created for workshop/research/classify/follow-up/spec-sync flows in addition to governed backlog processing.

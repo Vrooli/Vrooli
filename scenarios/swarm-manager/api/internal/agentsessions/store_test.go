@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestFileStorePersistsSessionLogsAndArtifacts(t *testing.T) {
+func TestFileStoreReadsLegacyArtifactsForMigration(t *testing.T) {
 	store := NewFileStore(t.TempDir())
 	session := validStoredSession("sess_store")
 	if err := store.CreateSession(session); err != nil {
@@ -32,7 +32,7 @@ func TestFileStorePersistsSessionLogsAndArtifacts(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SaveProposal() error = %v", err)
 	}
-	if err := store.AppendArtifact(session.ID, Artifact{
+	writeLegacyArtifacts(t, store, Artifact{
 		ID:           "art-1",
 		SessionID:    session.ID,
 		ArtifactType: ArtifactInitiative,
@@ -40,9 +40,7 @@ func TestFileStorePersistsSessionLogsAndArtifacts(t *testing.T) {
 		EntityRef:    "quality-gates",
 		Title:        "Quality Gates",
 		CreatedAt:    testTimestamp,
-	}); err != nil {
-		t.Fatalf("AppendArtifact() error = %v", err)
-	}
+	})
 
 	loaded, err := store.LoadSession(session.ID)
 	if err != nil {
@@ -61,53 +59,6 @@ func TestFileStorePersistsSessionLogsAndArtifacts(t *testing.T) {
 	}
 	if len(artifacts) != 1 || artifacts[0].ID != "art-1" {
 		t.Fatalf("unexpected artifacts: %+v", artifacts)
-	}
-}
-
-func TestFileStoreAppendArtifactsIsAtomicOnValidationFailure(t *testing.T) {
-	store := NewFileStore(t.TempDir())
-	session := validStoredSession("sess_atomic")
-	if err := store.CreateSession(session); err != nil {
-		t.Fatalf("CreateSession() error = %v", err)
-	}
-	if err := store.AppendArtifact(session.ID, Artifact{
-		ID:           "art-existing",
-		SessionID:    session.ID,
-		ArtifactType: ArtifactInitiative,
-		Action:       ArtifactActionCreated,
-		EntityRef:    "existing",
-		CreatedAt:    testTimestamp,
-	}); err != nil {
-		t.Fatalf("AppendArtifact() error = %v", err)
-	}
-
-	err := store.AppendArtifacts(session.ID, []Artifact{
-		{
-			ID:           "art-valid",
-			SessionID:    session.ID,
-			ArtifactType: ArtifactBacklogItem,
-			Action:       ArtifactActionCreated,
-			EntityRef:    "idea/valid",
-			CreatedAt:    testTimestamp,
-		},
-		{
-			ID:           "art-invalid",
-			SessionID:    session.ID,
-			ArtifactType: ArtifactBacklogItem,
-			Action:       ArtifactActionCreated,
-			CreatedAt:    testTimestamp,
-		},
-	})
-	if err == nil {
-		t.Fatal("AppendArtifacts() error = nil, want validation failure")
-	}
-
-	loaded, err := store.LoadSession(session.ID)
-	if err != nil {
-		t.Fatalf("LoadSession() error = %v", err)
-	}
-	if len(loaded.Artifacts) != 1 || loaded.Artifacts[0].ID != "art-existing" {
-		t.Fatalf("artifacts after failed append = %+v", loaded.Artifacts)
 	}
 }
 
@@ -176,16 +127,14 @@ func TestFileStoreDeleteSessionRemovesSessionOwnedFiles(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SaveProposal() error = %v", err)
 	}
-	if err := store.AppendArtifact(session.ID, Artifact{
+	writeLegacyArtifacts(t, store, Artifact{
 		ID:           "art-delete",
 		SessionID:    session.ID,
 		ArtifactType: ArtifactFile,
 		Action:       ArtifactActionLinked,
 		EntityRef:    "README.md",
 		CreatedAt:    testTimestamp,
-	}); err != nil {
-		t.Fatalf("AppendArtifact() error = %v", err)
-	}
+	})
 
 	sessionDir := filepath.Join(root, "agent-sessions", session.ID)
 	if _, err := os.Stat(filepath.Join(sessionDir, sessionFileName)); err != nil {
@@ -207,6 +156,21 @@ func TestFileStoreDeleteSessionRemovesSessionOwnedFiles(t *testing.T) {
 	}
 	if len(sessions) != 0 {
 		t.Fatalf("sessions after delete = %+v", sessions)
+	}
+}
+
+func writeLegacyArtifacts(t *testing.T, store *FileStore, artifacts ...Artifact) {
+	t.Helper()
+	if len(artifacts) == 0 {
+		return
+	}
+	for index, artifact := range artifacts {
+		if err := artifact.Validate(); err != nil {
+			t.Fatalf("legacy artifact %d validation: %v", index, err)
+		}
+	}
+	if err := writeJSONLAtomic(filepath.Join(store.sessionDir(artifacts[0].SessionID), artifactsFileName), artifacts); err != nil {
+		t.Fatalf("write legacy artifacts: %v", err)
 	}
 }
 

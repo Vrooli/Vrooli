@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { selectors } from "../../../consts/selectors";
-import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
+import type { OperatingModeCapabilities, OperatingModeEvidenceRecord, OperatingModeRound } from "../../../types/operating-mode";
 import { RoundCard } from "./round-card";
 import { RoundDetailDialog } from "./round-detail-dialog";
 import { phaseLabel, statusClasses } from "./utils";
@@ -39,6 +39,7 @@ export function RoundTimeline({
   onCancel,
   onCompleteItems,
   onApplyBacklogSync,
+  evidenceByRun,
 }: {
   rounds: OperatingModeRound[];
   capabilities: OperatingModeCapabilities;
@@ -47,6 +48,7 @@ export function RoundTimeline({
   onCancel: (round: OperatingModeRound) => void;
   onCompleteItems: (round: OperatingModeRound, itemRefs: string[]) => void;
   onApplyBacklogSync: (round: OperatingModeRound, mutationIds: string[]) => void;
+  evidenceByRun?: Record<string, OperatingModeEvidenceRecord[]>;
 }) {
   const [detailRound, setDetailRound] = useState<OperatingModeRound | null>(null);
 
@@ -118,6 +120,7 @@ export function RoundTimeline({
           round={detailRound}
           isOpen={Boolean(detailRound)}
           onClose={() => setDetailRound(null)}
+          evidence={detailRound.runId ? evidenceByRun?.[detailRound.runId] : undefined}
         />
       )}
     </div>

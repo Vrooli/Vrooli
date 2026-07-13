@@ -1,6 +1,7 @@
 package operatingmode
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -271,6 +272,9 @@ func validateModePhase(def Definition, phase Phase, phaseDef PhaseDefinition) er
 		if !IsValidPhaseKind(phaseDef.Kind) {
 			return fmt.Errorf("mode %q phase %q kind must be one of investigate|execute|review|reconcile (got %q)", def.Mode, phase, phaseDef.Kind)
 		}
+		if err := validateEvidenceRequirements(phaseDef); err != nil {
+			return fmt.Errorf("mode %q phase %q: %w", def.Mode, phase, err)
+		}
 		return validatePhaseAutoStartAfter(def, phaseDef)
 	}
 	if strings.TrimSpace(phaseDef.CatalogID) == "" || strings.TrimSpace(phaseDef.SkillID) == "" {
@@ -305,6 +309,29 @@ func validateModePhase(def Definition, phase Phase, phaseDef PhaseDefinition) er
 	}
 	if err := validatePhaseAutoStartAfter(def, phaseDef); err != nil {
 		return err
+	}
+	if err := validateEvidenceRequirements(phaseDef); err != nil {
+		return fmt.Errorf("mode %q phase %q: %w", def.Mode, phase, err)
+	}
+	return nil
+}
+
+func validateEvidenceRequirements(phaseDef PhaseDefinition) error {
+	seen := map[string]struct{}{}
+	for i, requirement := range phaseDef.EvidenceRequirements {
+		ledger := requirement.LedgerRequirement()
+		if err := ledger.Validate(); err != nil {
+			return fmt.Errorf("evidence_requirements[%d]: %w", i, err)
+		}
+		fields, err := json.Marshal(ledger.MatchFields)
+		if err != nil {
+			return fmt.Errorf("evidence_requirements[%d] encode match_fields: %w", i, err)
+		}
+		key := strings.Join([]string{ledger.SubjectKind, ledger.Action, ledger.ProducerID, string(ledger.MinConfidence), string(fields)}, "\x00")
+		if _, duplicate := seen[key]; duplicate {
+			return fmt.Errorf("evidence_requirements[%d] duplicates an earlier requirement", i)
+		}
+		seen[key] = struct{}{}
 	}
 	return nil
 }

@@ -30,6 +30,7 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P0 | OT-P0-008 | Tabbed navigation UI | 1 |
 | P0 | OT-P0-009 | agent-manager integration | 1 |
 | P0 | OT-P0-010 | ecosystem-manager integration | 1 |
+| P0 | OT-P0-011 | Data-defined operating-mode execution | 3 |
 | P1 | OT-P1-001 | Execution control policy | 1 |
 | P1 | OT-P1-002 | Execution operations page | 1 |
 | P1 | OT-P1-003 | Insights engine | 1 |
@@ -40,6 +41,7 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P1 | OT-P1-008 | app-issue-tracker integration | 1 |
 | P1 | OT-P1-009 | test-genie integration | 1 |
 | P1 | OT-P1-010 | Settings modal | 1 |
+| P1 | OT-P1-011 | Verified evidence ledger | 3 |
 | P2 | OT-P2-001 | Advanced cost formulas | 0 |
 | P2 | OT-P2-002 | Pattern recognition | 0 |
 | P2 | OT-P2-003 | Analytics dashboard | 0 |

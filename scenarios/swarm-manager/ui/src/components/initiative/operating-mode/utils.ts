@@ -108,6 +108,8 @@ export function statusClasses(status: string): string {
       return "border-slate-600 bg-slate-800/70 text-slate-300";
     case "agent_running":
       return "border-cyan-500/30 bg-cyan-500/10 text-cyan-300";
+    case "pending_evidence":
+      return "border-violet-500/30 bg-violet-500/10 text-violet-300";
     default:
       return "border-amber-500/30 bg-amber-500/10 text-amber-300";
   }

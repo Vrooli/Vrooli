@@ -47,6 +47,7 @@ export * from "./hooks/voice/autoStopDecision";
 export * from "./hooks/voice/sharedAudioContext";
 export * from "./hooks/voice/micReadiness";
 export { VoiceStreamProvider } from "./hooks/voice/VoiceStreamProvider";
+export { PcmVoiceStreamProvider } from "./hooks/voice/PcmVoiceStreamProvider";
 export { WhisperProvider } from "./hooks/voice/WhisperProvider";
 export { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
 export * from "./hooks/voice/wakeword";

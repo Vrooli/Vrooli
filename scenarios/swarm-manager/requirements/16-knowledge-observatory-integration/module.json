@@ -9,7 +9,7 @@
       "description": "Implement API integration with knowledge-observatory for PROBLEMS.md file operations",
       "id": "REQ-P1-006-API",
       "prd_ref": "OT-P1-006",
-      "status": "draft",
+      "status": "planned",
       "title": "Knowledge Observatory API Integration",
       "validation": [
         {
@@ -43,7 +43,7 @@
       "description": "Display PROBLEMS.md file viewer and pruning interface",
       "id": "REQ-P1-006-UI",
       "prd_ref": "OT-P1-006",
-      "status": "draft",
+      "status": "planned",
       "title": "PROBLEMS.md Management Interface",
       "validation": [
         {

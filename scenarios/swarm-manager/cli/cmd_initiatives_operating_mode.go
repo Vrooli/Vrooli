@@ -147,7 +147,13 @@ func (a *App) cmdInitiativesModeWorkspace(args []string) error {
 			if len(execution.GetReachablePromptSources()) > 0 {
 				fmt.Printf(" prompts=%d", len(execution.GetReachablePromptSources()))
 			}
+			if len(execution.GetEvidence()) > 0 {
+				fmt.Printf(" evidence=%d", len(execution.GetEvidence()))
+			}
 			fmt.Println()
+			for _, record := range execution.GetEvidence() {
+				fmt.Printf("      %s.%s %s/%s run=%s\n", record.GetSubjectKind(), record.GetAction(), record.GetConfidence(), record.GetVerification(), record.GetRunId())
+			}
 		}
 	}
 	printSection("Phases")
@@ -193,7 +199,7 @@ func (a *App) cmdInitiativesModeWorkspace(args []string) error {
 				fmt.Printf(" resolution=%s", summary)
 			}
 			fmt.Println()
-			if round.GetStatus() == "needs_attention" && strings.TrimSpace(round.GetError()) != "" {
+			if (round.GetStatus() == "needs_attention" || round.GetStatus() == "pending_evidence") && strings.TrimSpace(round.GetError()) != "" {
 				fmt.Printf("    reason: %s\n", round.GetError())
 			}
 		}

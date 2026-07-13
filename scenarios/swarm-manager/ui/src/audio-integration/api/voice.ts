@@ -253,11 +253,17 @@ function apiBaseToWsBase(apiBase: string): string {
  * web-console's API, which proxies the upstream WebSocket to audio-tools
  * server-side (Phase E of the UI↔own-API migration).
  */
-export function buildVoiceStreamWsUrl(language?: string): string {
+export function buildVoiceStreamWsUrl(language?: string, sessionId?: string, resumeToken?: string): string {
   const wsBase = apiBaseToWsBase(API_BASE.replace(/\/$/, ""));
   const url = `${wsBase}/api/v1/voice/stream`;
-  if (language) return `${url}?language=${encodeURIComponent(language)}`;
-  return url;
+  // Legacy callers keep WebM. The canonical PCM provider supplies a durable
+  // session identity and is therefore explicitly negotiated as protocol v2.
+  const params = new URLSearchParams({ format: sessionId ? "pcm_s16le" : "webm" });
+  if (language) params.set("language", language);
+  if (sessionId) params.set("protocol_version", "2");
+  if (sessionId) params.set("session_id", sessionId);
+  if (resumeToken) params.set("resume_token", resumeToken);
+  return `${url}?${params.toString()}`;
 }
 
 export async function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
@@ -458,4 +464,3 @@ export async function deleteSpeakerVerificationProfile(profileId: string): Promi
   const resp = await audioAdminClient.deleteSpeakerProfile({ profileId });
   return decodeSpeakerConfig(resp.config);
 }
-

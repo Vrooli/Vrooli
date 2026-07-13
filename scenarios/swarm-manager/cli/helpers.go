@@ -30,8 +30,8 @@ func (a *App) requestMultipart(method, path string, payload []byte, contentType 
 	for key, value := range a.core.APIClient.AuthHeaders() {
 		req.Header.Set(key, value)
 	}
-	if a.identity.IsIdentityPresent() {
-		req.Header.Set(headerAgentIdentityToken, a.identity.Token)
+	if a.core.HTTPClient != nil {
+		a.core.HTTPClient.ApplyRequestHeaders(req)
 	}
 
 	timeout := a.core.HTTPClient.Timeout()

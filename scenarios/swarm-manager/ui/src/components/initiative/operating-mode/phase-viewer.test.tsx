@@ -72,11 +72,9 @@ function simulationStep(overrides: Partial<OperatingModeSimulationStep> = {}): O
     phase: "investigate",
     phaseKind: "investigate",
     inputs: {
-      initiative: { name: "sim", title: "Sim", mode: "holistic-loop", items: [], acceptanceCriteria: [] },
-      items: [{ ref: "execute/alpha", title: "Alpha item", status: "todo" }],
+      target: { kind: "initiative", id: "sim", title: "Sim", context: { acceptance_criteria: ["Works end to end."] } },
       artifacts: [],
       priorRounds: [],
-      acceptanceCriteria: ["Works end to end."],
     },
     output: { handoff: { summary: "Investigated." } },
     round: {

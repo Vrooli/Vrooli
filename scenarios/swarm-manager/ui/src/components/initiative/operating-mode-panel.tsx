@@ -7,6 +7,7 @@ import { PageLoadingState } from "../ui/loading-states";
 import { DetailSection } from "../detail/DetailSection";
 import { selectors } from "../../consts/selectors";
 import type { Initiative, InitiativeRollup } from "../../types";
+import type { OperatingModeEvidenceRecord } from "../../types/operating-mode";
 import { useUrlState } from "../../hooks/use-url-state";
 import { AcceptanceCriteriaEditor } from "./operating-mode/acceptance-criteria-editor";
 import { ArtifactList } from "./operating-mode/artifact-list";
@@ -93,6 +94,13 @@ export function OperatingModePanel({
   const capabilities = workspace?.definition.capabilities;
 
   const items = (initiative.items ?? []).map((ref) => ({ ref, title: ref }));
+  const evidenceByRun = (workspace?.executions ?? []).reduce<Record<string, OperatingModeEvidenceRecord[]>>((byRun, execution) => {
+    for (const record of execution.evidence ?? []) {
+      if (!record.runId) continue;
+      (byRun[record.runId] ??= []).push(record);
+    }
+    return byRun;
+  }, {});
 
   return (
     <div className="space-y-2" data-testid={selectors.initiativeDetails.modePanel}>
@@ -193,6 +201,7 @@ export function OperatingModePanel({
             onApplyBacklogSync={(target, mutationIds) =>
               applyBacklogSyncMutation.mutate({ round: target, mutationIds })
             }
+            evidenceByRun={evidenceByRun}
           />
         </DetailSection>
       )}

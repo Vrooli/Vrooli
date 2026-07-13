@@ -50,7 +50,14 @@ Open `modes/my-mode/mode.json` and shape it to your methodology:
 - **Declared output** — `declared_output.fields` names the structured fields a phase must emit (`name`, `type`, `required`, `enum`, numeric/length bounds, nested `fields`). This one schema is what makes the phase robust to imperfect model output: the resolution ladder extracts, reconstructs, or honestly abstains against it (see the Northstar's resolution-ladder section). A required field named `progress` / `verdict` / `handoff` / `backlog_sync` sets the matching contract flag.
 - **Policy blocks** — `prompt.catalog_prefix`, `artifact.root`, `profile.default_profile_key`, `backlog_sync`, `metrics`, `lock.initiative_exclusive`, and `ui.workspace_tab_id`.
 
-Example-runs live in `modes/my-mode/example-runs/*.json`. Each seeds a sandbox initiative and an ordered list of per-phase outputs, then declares the `expected_path` the real guards should walk. The reserved `happy-path` id is the simulator's default preset; a phase mode that ships any example-runs must own one. Add a file per branch you want to prove (a replan, a non-accepting review, a blocked stop).
+Example-runs live in `modes/my-mode/example-runs/*.json`. Each seeds the
+declared target fixture and an ordered list of per-phase outputs, then declares
+the `expected_path` the real guards should walk. Initiative modes may supply
+items and criteria; a plan-target mode instead receives the deterministic plan
+fixture through its target adapter. The reserved `happy-path` id is the
+simulator's default preset; a phase mode that ships any example-runs must own
+one. Add a file per branch you want to prove (a replan, a non-accepting review,
+a blocked stop).
 
 ### 3. Validate
 

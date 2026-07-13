@@ -27,6 +27,10 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 	if err != nil {
 		return RoundEnvelope{}, err
 	}
+	s.reconcileEvidence(ctx, round.RunID)
+	if round.Status == RoundStatusPendingEvidence || (round.Status == RoundStatusNeedsAttention && RoundPayload(round.Payload).EvidenceGateState() == "missing") {
+		return s.refreshPendingEvidence(ctx, initiativeName, mode, number, round)
+	}
 	if !isRoundActive(round) || strings.TrimSpace(round.RunID) == "" || s.agent == nil {
 		// A completed round with a pending_auto_start marker means a previous
 		// auto-dispatch was deferred (typically by lane saturation). Retry
@@ -78,10 +82,33 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 					"field", cls.Field, "violations", cls.Violations)
 				s.emitPhaseFailed(round, round.Error)
 			} else {
-				round.Status = RoundStatusCompleted
-				s.emitPhaseCompleted(round)
-				s.emitParsedPhaseSignals(round)
-				completedNormally = true
+				gate, gateErr := s.evaluateEvidenceRequirements(ctx, round)
+				switch {
+				case gateErr != nil:
+					// Evidence is eventually consistent. A ledger or producer outage
+					// must not turn a correctly completed agent run into a false
+					// failure, so retain a retryable pending state with an explicit
+					// diagnostic instead.
+					round.Status = RoundStatusPendingEvidence
+					round.Error = "evidence evaluation pending: " + gateErr.Error()
+					MutableRoundPayload(&round).SetEvidenceGateState("pending")
+				case gate.Pending:
+					round.Status = RoundStatusPendingEvidence
+					round.Error = gate.Reason
+					MutableRoundPayload(&round).SetEvidenceGateState("pending")
+				case gate.Missing:
+					round.Status = RoundStatusNeedsAttention
+					round.Error = gate.Reason
+					MutableRoundPayload(&round).SetEvidenceGateState("missing")
+					s.emitPhaseFailed(round, round.Error)
+				default:
+					round.Status = RoundStatusCompleted
+					round.Error = ""
+					MutableRoundPayload(&round).ClearEvidenceGateState()
+					s.emitPhaseCompleted(round)
+					s.emitParsedPhaseSignals(round)
+					completedNormally = true
+				}
 			}
 		default:
 			// Honest abstain: the ladder could not resolve or reconstruct the
@@ -128,6 +155,15 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 		s.maybeAutoStartNext(ctx, round)
 	}
 	return round, nil
+}
+
+func (s *Service) reconcileEvidence(ctx context.Context, runID string) {
+	if s.evidenceReconciler == nil || strings.TrimSpace(runID) == "" {
+		return
+	}
+	if err := s.evidenceReconciler.Reconcile(ctx, runID); err != nil {
+		slog.Warn("operating mode: evidence reconciliation failed after refresh", "run_id", runID, "error", err)
+	}
 }
 
 func (s *Service) CancelRound(ctx context.Context, initiativeName string, mode Mode, number int) (RoundEnvelope, error) {

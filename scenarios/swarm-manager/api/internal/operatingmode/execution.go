@@ -20,10 +20,11 @@ const executionManifestSchemaVersion = "operating-mode-execution/v1"
 type ExecutionStatus string
 
 const (
-	ExecutionStatusActive         ExecutionStatus = "active"
-	ExecutionStatusCompleted      ExecutionStatus = "completed"
-	ExecutionStatusNeedsAttention ExecutionStatus = "needs_attention"
-	ExecutionStatusCanceled       ExecutionStatus = "canceled"
+	ExecutionStatusActive          ExecutionStatus = "active"
+	ExecutionStatusPendingEvidence ExecutionStatus = "pending_evidence"
+	ExecutionStatusCompleted       ExecutionStatus = "completed"
+	ExecutionStatusNeedsAttention  ExecutionStatus = "needs_attention"
+	ExecutionStatusCanceled        ExecutionStatus = "canceled"
 )
 
 var (
@@ -110,6 +111,21 @@ type RunOwner struct {
 
 type runOwnerIndex struct {
 	Owners map[string]RunOwner `json:"owners"`
+}
+
+// GlobalRunOwner is the owner-neutral run lookup record. Unlike the
+// scope-local index, it preserves the target kind and scope so evidence can
+// resolve any declared operating-mode target without guessing from the run id.
+type GlobalRunOwner struct {
+	TargetKind  TargetKind `json:"target_kind"`
+	ScopeID     string     `json:"scope_id"`
+	Mode        Mode       `json:"mode"`
+	ExecutionID string     `json:"execution_id"`
+	Round       int        `json:"round"`
+}
+
+type globalRunOwnerIndex struct {
+	Owners map[string][]GlobalRunOwner `json:"owners"`
 }
 
 func pinDefinitionBundle(root Definition, resolve func(Mode) (Definition, error)) (DefinitionBundle, string, error) {
@@ -521,6 +537,8 @@ func executionStatusForLegacyRound(def Definition, bundle DefinitionBundle, roun
 		return ExecutionStatusCanceled
 	case RoundStatusFailed, RoundStatusNeedsAttention:
 		return ExecutionStatusNeedsAttention
+	case RoundStatusPendingEvidence:
+		return ExecutionStatusPendingEvidence
 	case RoundStatusCompleted:
 		if len(nextPhasesForCompletedRoundWithResolver(def, round, bundle.Definition)) == 0 {
 			return ExecutionStatusCompleted
@@ -708,7 +726,68 @@ func (s *Store) IndexRunOwner(execution OperatingModeExecution, runID string, ro
 		return fmt.Errorf("%w: run %q maps to both %+v and %+v", ErrRunOwnerAmbiguous, runID, existing, want)
 	}
 	index.Owners[runID] = want
-	return storage.WriteJSONAtomic(path, index)
+	if err := storage.WriteJSONAtomic(path, index); err != nil {
+		return err
+	}
+	globalPath, ok := s.globalRunOwnerIndexPath()
+	if !ok {
+		return nil
+	}
+	global, err := loadGlobalRunOwnerIndex(globalPath)
+	if err != nil {
+		return err
+	}
+	globalOwner := GlobalRunOwner{TargetKind: TargetKind(execution.ScopeKind), ScopeID: execution.ScopeID, Mode: Mode(execution.Mode), ExecutionID: execution.ExecutionID, Round: round}
+	for _, existing := range global.Owners[runID] {
+		if existing == globalOwner {
+			return nil
+		}
+	}
+	global.Owners[runID] = append(global.Owners[runID], globalOwner)
+	sortGlobalRunOwners(global.Owners[runID])
+	return storage.WriteJSONAtomic(globalPath, global)
+}
+
+// LookupRunOwners returns every globally indexed operating-mode owner for a
+// run. More than one result is intentional: the evidence resolver must expose
+// ambiguity rather than apply a precedence rule.
+func (s *Store) LookupRunOwners(runID string) ([]GlobalRunOwner, error) {
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		return nil, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	path, ok := s.globalRunOwnerIndexPath()
+	if !ok {
+		return nil, nil
+	}
+	index, err := loadGlobalRunOwnerIndex(path)
+	if err != nil {
+		return nil, err
+	}
+	owners := append([]GlobalRunOwner(nil), index.Owners[runID]...)
+	if len(owners) > 0 || s.RunOwnerRecovery == nil {
+		return owners, nil
+	}
+	recovered, err := s.RunOwnerRecovery(runID)
+	if err != nil {
+		return nil, fmt.Errorf("recover pre-index run owners: %w", err)
+	}
+	for _, owner := range recovered {
+		if err := validateGlobalRunOwner(owner); err != nil {
+			return nil, err
+		}
+		index.Owners[runID] = appendUniqueGlobalRunOwner(index.Owners[runID], owner)
+	}
+	if len(index.Owners[runID]) == 0 {
+		return nil, nil
+	}
+	sortGlobalRunOwners(index.Owners[runID])
+	if err := storage.WriteJSONAtomic(path, index); err != nil {
+		return nil, fmt.Errorf("backfill global run owner index: %w", err)
+	}
+	return append([]GlobalRunOwner(nil), index.Owners[runID]...), nil
 }
 
 func (s *Store) ResolveRunOwner(scopeID string, mode Mode, runID string) (RunOwner, error) {
@@ -771,6 +850,8 @@ func (s *Service) syncExecutionStatus(round RoundEnvelope) error {
 		execution.Status = ExecutionStatusCanceled
 	case RoundStatusFailed, RoundStatusNeedsAttention:
 		execution.Status = ExecutionStatusNeedsAttention
+	case RoundStatusPendingEvidence:
+		execution.Status = ExecutionStatusPendingEvidence
 	case RoundStatusCompleted:
 		if len(nextPhasesForCompletedRoundWithResolver(def, round, execution.DefinitionBundle.Definition)) == 0 {
 			execution.Status = ExecutionStatusCompleted
@@ -864,4 +945,119 @@ func (s *Store) runOwnerIndexPath(scopeID string, def Definition) (string, error
 		return "", err
 	}
 	return filepath.Join(root, filepath.FromSlash(def.Artifact.Root), "run-owners.json"), nil
+}
+
+func (s *Store) globalRunOwnerIndexPath() (string, bool) {
+	if s == nil || s.RunOwnerDir == nil {
+		return "", false
+	}
+	root := strings.TrimSpace(s.RunOwnerDir())
+	if root == "" {
+		return "", false
+	}
+	return filepath.Join(root, "run-owners.json"), true
+}
+
+func loadGlobalRunOwnerIndex(path string) (globalRunOwnerIndex, error) {
+	index := globalRunOwnerIndex{Owners: map[string][]GlobalRunOwner{}}
+	found, err := storage.ReadJSON(path, &index)
+	if err != nil {
+		return globalRunOwnerIndex{}, err
+	}
+	if !found || index.Owners == nil {
+		index.Owners = map[string][]GlobalRunOwner{}
+	}
+	return index, nil
+}
+
+// RecoverTargetRunOwners scans only the default non-initiative target roots
+// for one run. It is used once for data that predates the canonical global
+// index; a successful lookup backfills the index, avoiding an ongoing scan.
+func RecoverTargetRunOwners(dataRoot, runID string) ([]GlobalRunOwner, error) {
+	runID = strings.TrimSpace(runID)
+	if strings.TrimSpace(dataRoot) == "" || runID == "" {
+		return nil, nil
+	}
+	definitions := make([]Definition, 0, len(Modes()))
+	for _, mode := range Modes() {
+		definition, err := DefinitionFor(mode)
+		if err != nil {
+			return nil, err
+		}
+		if definition.Target.Kind != TargetInitiative && definition.Target.Kind != "" && definition.RunsModeRounds() {
+			definitions = append(definitions, definition)
+		}
+	}
+	owners := []GlobalRunOwner{}
+	for _, definition := range definitions {
+		root := filepath.Join(dataRoot, "mode-targets", string(definition.Target.Kind))
+		scopes, err := os.ReadDir(root)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read target root %q: %w", root, err)
+		}
+		for _, scope := range scopes {
+			if !scope.IsDir() {
+				continue
+			}
+			modeRoot := filepath.Join(root, scope.Name(), filepath.FromSlash(definition.Artifact.Root))
+			index, err := loadRunOwnerIndex(filepath.Join(modeRoot, "run-owners.json"))
+			if err != nil {
+				return nil, err
+			}
+			local, ok := index.Owners[runID]
+			if !ok {
+				continue
+			}
+			var execution OperatingModeExecution
+			found, err := storage.ReadJSON(filepath.Join(modeRoot, "executions", local.ExecutionID, "manifest.json"), &execution)
+			if err != nil {
+				return nil, err
+			}
+			if !found {
+				return nil, fmt.Errorf("run owner %q references missing execution %q", runID, local.ExecutionID)
+			}
+			owner := GlobalRunOwner{TargetKind: TargetKind(execution.ScopeKind), ScopeID: execution.ScopeID, Mode: Mode(execution.Mode), ExecutionID: execution.ExecutionID, Round: local.Round}
+			if owner.TargetKind != definition.Target.Kind || owner.Mode != definition.Mode {
+				return nil, fmt.Errorf("run owner %q manifest does not match target index", runID)
+			}
+			if err := validateGlobalRunOwner(owner); err != nil {
+				return nil, err
+			}
+			owners = appendUniqueGlobalRunOwner(owners, owner)
+		}
+	}
+	sortGlobalRunOwners(owners)
+	return owners, nil
+}
+
+func validateGlobalRunOwner(owner GlobalRunOwner) error {
+	if owner.TargetKind == "" || strings.TrimSpace(owner.ScopeID) == "" || owner.Mode == "" || strings.TrimSpace(owner.ExecutionID) == "" || owner.Round <= 0 {
+		return fmt.Errorf("global operating-mode run owner is invalid")
+	}
+	return nil
+}
+
+func appendUniqueGlobalRunOwner(owners []GlobalRunOwner, candidate GlobalRunOwner) []GlobalRunOwner {
+	for _, existing := range owners {
+		if existing == candidate {
+			return owners
+		}
+	}
+	return append(owners, candidate)
+}
+
+func sortGlobalRunOwners(owners []GlobalRunOwner) {
+	sort.Slice(owners, func(i, j int) bool {
+		left, right := owners[i], owners[j]
+		if left.ExecutionID != right.ExecutionID {
+			return left.ExecutionID < right.ExecutionID
+		}
+		if left.Round != right.Round {
+			return left.Round < right.Round
+		}
+		return left.ScopeID < right.ScopeID
+	})
 }

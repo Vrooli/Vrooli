@@ -14,22 +14,26 @@ import { Button } from "../../ui/button";
 import { Dialog } from "../../ui/dialog";
 import { selectors } from "../../../consts/selectors";
 import { formatRelativeTime } from "../../../lib";
-import type { OperatingModePhaseResolutionRecord, OperatingModeRound } from "../../../types/operating-mode";
+import type { OperatingModeEvidenceRecord, OperatingModePhaseResolutionRecord, OperatingModeRound } from "../../../types/operating-mode";
 import { phaseLabel, resolutionSummary, statusClasses } from "./utils";
 
 export interface RoundDetailDialogProps {
   round: OperatingModeRound;
   isOpen: boolean;
   onClose: () => void;
+  evidence?: OperatingModeEvidenceRecord[];
 }
 
-export function RoundDetailDialog({ round, isOpen, onClose }: RoundDetailDialogProps) {
+export function RoundDetailDialog({ round, isOpen, onClose, evidence = [] }: RoundDetailDialogProps) {
   const [copied, setCopied] = useState(false);
-  const errorTone = round.status === "needs_attention"
+  const awaitingEvidence = round.status === "pending_evidence";
+  const errorTone = awaitingEvidence
+    ? "border-violet-500/30 bg-violet-500/10 text-violet-200"
+    : round.status === "needs_attention"
     ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
     : "border-red-500/30 bg-red-500/10 text-red-200";
-  const errorLabelTone = round.status === "needs_attention" ? "text-amber-300" : "text-red-300";
-  const errorLabel = round.status === "needs_attention" ? "Needs attention" : "Error";
+  const errorLabelTone = awaitingEvidence ? "text-violet-300" : round.status === "needs_attention" ? "text-amber-300" : "text-red-300";
+  const errorLabel = awaitingEvidence ? "Waiting for evidence" : round.status === "needs_attention" ? "Needs attention" : "Error";
 
   const handleCopyRunId = async () => {
     if (!round.runId) return;
@@ -96,6 +100,20 @@ export function RoundDetailDialog({ round, isOpen, onClose }: RoundDetailDialogP
         )}
 
         <ResolutionBlock resolution={round.resolution} />
+
+        {evidence.length > 0 && (
+          <div>
+            <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500">Verified evidence</p>
+            <ul className="space-y-1">
+              {evidence.map((record) => (
+                <li key={`${record.sourceSystem}:${record.sourceEventId}`} className="rounded-md border border-slate-800 bg-slate-950/40 px-2 py-1.5 text-xs text-slate-300">
+                  <span className="font-medium text-slate-200">{record.subjectKind}.{record.action}</span>
+                  <span className="ml-2 text-slate-500">{record.confidence} · {record.verification}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {round.resolvedEnvelope && Object.keys(round.resolvedEnvelope).length > 0 && (
           <details className="rounded-md border border-slate-800 bg-slate-950/40 p-3">

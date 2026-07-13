@@ -23,6 +23,7 @@ func callerExecutionDefinition(t *testing.T) Definition {
 	return def
 }
 
+// [REQ:REQ-P0-011-IMMUTABLE-EXECUTION]
 func TestPinDefinitionBundleIsTransitiveImmutableAndDigestStable(t *testing.T) {
 	root, err := clonePinnedDefinition(MustDefinition(ModeHolisticLoop))
 	if err != nil {
@@ -148,6 +149,7 @@ func TestCreateExecutionRejectsInvalidInputContractBeforeFilesystemMutation(t *t
 	}
 }
 
+// [REQ:REQ-P0-011-IMMUTABLE-EXECUTION]
 func TestCreateExecutionWithInputsPersistsValidatedSnapshotBeforeRounds(t *testing.T) {
 	store := testStore(t)
 	store.ExecutionID = func() string { return "execution-with-inputs" }
@@ -248,12 +250,46 @@ func TestRunOwnerIndexIsIdempotentAndRejectsDualOwnership(t *testing.T) {
 	if err != nil || owner.ExecutionID != first.ExecutionID || owner.Round != 1 {
 		t.Fatalf("ResolveRunOwner = %+v, %v", owner, err)
 	}
+	globalOwners, err := store.LookupRunOwners("run-123")
+	if err != nil || len(globalOwners) != 1 || globalOwners[0].TargetKind != TargetPlanManagerPlan || globalOwners[0].ScopeID != "plan-123" || globalOwners[0].Mode != ModePhasedPlanDrain || globalOwners[0].ExecutionID != first.ExecutionID || globalOwners[0].Round != 1 {
+		t.Fatalf("LookupRunOwners = %+v, %v", globalOwners, err)
+	}
 	if err := store.IndexRunOwner(second, "run-123", 1); !errors.Is(err, ErrRunOwnerAmbiguous) {
 		t.Fatalf("dual ownership error = %v, want ErrRunOwnerAmbiguous", err)
 	}
 	owner, err = store.ResolveRunOwner("plan-123", ModePhasedPlanDrain, "run-123")
 	if err != nil || owner.ExecutionID != first.ExecutionID {
 		t.Fatalf("ambiguous write changed existing owner: %+v, %v", owner, err)
+	}
+}
+
+// [REQ:REQ-P1-011-OWNER-RECONCILIATION]
+func TestLookupRunOwnersBackfillsPreGlobalPlanTargetIndex(t *testing.T) {
+	store := testStore(t)
+	store.ExecutionID = func() string { return "execution-pre-index" }
+	store.RunOwnerRecovery = func(runID string) ([]GlobalRunOwner, error) {
+		return RecoverTargetRunOwners(filepath.Dir(store.RunOwnerDir()), runID)
+	}
+	execution, err := store.CreateExecution("plan-pre-index", MustDefinition(ModePhasedPlanDrain))
+	if err != nil {
+		t.Fatalf("CreateExecution: %v", err)
+	}
+	if err := store.IndexRunOwner(execution, "run-pre-index", 1); err != nil {
+		t.Fatalf("IndexRunOwner: %v", err)
+	}
+	globalPath := filepath.Join(store.RunOwnerDir(), "run-owners.json")
+	if err := os.Remove(globalPath); err != nil {
+		t.Fatalf("remove canonical index: %v", err)
+	}
+	owners, err := store.LookupRunOwners("run-pre-index")
+	if err != nil {
+		t.Fatalf("LookupRunOwners: %v", err)
+	}
+	if len(owners) != 1 || owners[0].ExecutionID != execution.ExecutionID || owners[0].ScopeID != "plan-pre-index" || owners[0].TargetKind != TargetPlanManagerPlan {
+		t.Fatalf("recovered owners = %+v", owners)
+	}
+	if _, err := os.Stat(globalPath); err != nil {
+		t.Fatalf("recovered owner was not backfilled: %v", err)
 	}
 }
 

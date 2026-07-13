@@ -233,6 +233,16 @@
           "completion": "required"
         },
         {
+          "path": "internal/EVIDENCE.md",
+          "docType": "evidence-model",
+          "title": "Canonical Evidence",
+          "description": "Owner-neutral evidence ledger, provenance trust levels, completeness watermarks, and operating-mode gates",
+          "audience": ["developers", "agents", "operators"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
+        },
+        {
           "path": "internal/PROGRESS.md",
           "docType": "progress",
           "title": "Progress",

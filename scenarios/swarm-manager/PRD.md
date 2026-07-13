@@ -24,6 +24,7 @@
 - [ ] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with five tabs: Backlog, Scenarios, Execution, Prompts, Settings
 - [ ] OT-P0-009 | agent-manager integration | Spawn agents for all automated work through agent-manager
 - [ ] OT-P0-010 | ecosystem-manager integration | Initialize and improve scenarios from backlog ideas via ecosystem-manager
+- [ ] OT-P0-011 | Data-defined operating-mode execution | Validate, snapshot, and replay a generic operating-mode input, prompt, output, and provenance contract without consulting mutable live definitions
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Execution control policy | Manual/scheduled/yolo defaults with configurable delay
@@ -36,6 +37,7 @@
 - [ ] OT-P1-008 | app-issue-tracker integration | Open and track issues against scenarios
 - [ ] OT-P1-009 | test-genie integration | Run tests and display results
 - [ ] OT-P1-010 | Settings modal | Theme, execution policy config, insights config
+- [ ] OT-P1-011 | Verified evidence ledger | Link verified Agent Manager work to Sessions and operating-mode executions with idempotent reconciliation and watermark-aware evidence gates
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Advanced cost formulas | Sophisticated priority calculations based on value/effort

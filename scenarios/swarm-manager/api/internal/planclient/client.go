@@ -50,6 +50,22 @@ type PlanReader interface {
 	GetPlan(ctx context.Context, id string) (*sharedv1.Plan, error)
 }
 
+// PlanAuditReader is the narrow, run-scoped audit seam consumed by Swarm
+// Manager's evidence reconciler. Plan Manager retains fact authority.
+type PlanAuditReader interface {
+	ListAuditFacts(ctx context.Context, runID string) ([]PlanAuditFact, error)
+}
+
+type PlanAuditFact struct {
+	EventID       string
+	RunID         string
+	TaskID        string
+	Action        string
+	PlanID        string
+	ContentDigest string
+	OccurredAt    time.Time
+}
+
 // PlanImporter is implemented by clients that can canonicalize external
 // markdown through plan-manager before swarm-manager binds work to it.
 type PlanImporter interface {
@@ -119,6 +135,34 @@ func (c *ConnectClient) ListPlans(ctx context.Context) ([]*sharedv1.Plan, error)
 		return nil, opError("ListPlans", "", err)
 	}
 	return resp.Msg.GetPlans(), nil
+}
+
+func (c *ConnectClient) ListAuditFacts(ctx context.Context, runID string) ([]PlanAuditFact, error) {
+	client, err := c.plans(ctx)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.ListAuditFacts(ctx, connect.NewRequest(&plansv1.ListAuditFactsRequest{RunId: runID}))
+	if err != nil {
+		return nil, opError("ListAuditFacts", runID, err)
+	}
+	facts := make([]PlanAuditFact, 0, len(response.Msg.GetFacts()))
+	for _, fact := range response.Msg.GetFacts() {
+		occurredAt, err := time.Parse(time.RFC3339Nano, fact.GetOccurredAt())
+		if err != nil {
+			return nil, fmt.Errorf("ListAuditFacts %q: parse occurred_at: %w", runID, err)
+		}
+		facts = append(facts, PlanAuditFact{
+			EventID:       fact.GetEventId(),
+			RunID:         fact.GetRunId(),
+			TaskID:        fact.GetTaskId(),
+			Action:        fact.GetAction(),
+			PlanID:        fact.GetPlanId(),
+			ContentDigest: fact.GetContentDigest(),
+			OccurredAt:    occurredAt.UTC(),
+		})
+	}
+	return facts, nil
 }
 
 func (c *ConnectClient) RenderMarkdown(ctx context.Context, id string, compact bool) (RenderMarkdownResult, error) {

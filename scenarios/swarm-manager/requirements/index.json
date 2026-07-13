@@ -25,7 +25,9 @@
     "17-scenario-completeness-scoring-integratio/module.json",
     "18-app-issue-tracker-integration/module.json",
     "19-test-genie-integration/module.json",
-    "20-settings-modal/module.json"
+    "20-settings-modal/module.json",
+    "21-data-defined-operating-mode-execution/module.json",
+    "22-verified-evidence-ledger/module.json"
   ],
   "modules": [
     {
@@ -147,6 +149,18 @@
       "path": "20-settings-modal",
       "priority": "P1",
       "title": "Settings modal"
+    },
+    {
+      "id": "MOD-P0-011",
+      "path": "21-data-defined-operating-mode-execution",
+      "priority": "P0",
+      "title": "Data-defined operating-mode execution"
+    },
+    {
+      "id": "MOD-P1-021",
+      "path": "22-verified-evidence-ledger",
+      "priority": "P1",
+      "title": "Verified evidence ledger"
     }
   ]
 }

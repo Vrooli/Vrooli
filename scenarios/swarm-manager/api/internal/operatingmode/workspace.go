@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+
+	"swarm-manager/internal/evidence"
 )
 
 func (s *Service) Workspace(ctx context.Context, initiativeName string) (Workspace, error) {
@@ -60,14 +62,25 @@ func (s *Service) Workspace(ctx context.Context, initiativeName string) (Workspa
 	if err != nil {
 		return Workspace{}, err
 	}
+	evidenceByExecution := map[string][]evidence.Record{}
+	if s.evidenceService != nil {
+		for _, execution := range executions {
+			records, err := s.evidenceService.ListByOwnerID(ctx, evidence.OwnerOperatingModeExecution, execution.ExecutionID)
+			if err != nil {
+				return Workspace{}, err
+			}
+			evidenceByExecution[execution.ExecutionID] = records
+		}
+	}
 	return Workspace{
-		InitiativeName: init.Name,
-		Mode:           string(def.Mode),
-		Definition:     workspaceMode(def, rounds, init.AcceptanceCriteria),
-		Lock:           holder,
-		Artifacts:      artifacts,
-		Rounds:         rounds,
-		Executions:     executions,
+		InitiativeName:      init.Name,
+		Mode:                string(def.Mode),
+		Definition:          workspaceMode(def, rounds, init.AcceptanceCriteria),
+		Lock:                holder,
+		Artifacts:           artifacts,
+		Rounds:              rounds,
+		Executions:          executions,
+		EvidenceByExecution: evidenceByExecution,
 	}, nil
 }
 

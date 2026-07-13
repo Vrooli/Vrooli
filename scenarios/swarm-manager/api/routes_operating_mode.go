@@ -37,6 +37,12 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 	store.TargetDir = func(kind operatingmode.TargetKind, scopeID string) string {
 		return operatingmode.TargetScopeDir(s.dataRoot, kind, scopeID)
 	}
+	store.RunOwnerDir = func() string {
+		return filepath.Join(s.dataRoot, "operating-mode-run-owners")
+	}
+	store.RunOwnerRecovery = func(runID string) ([]operatingmode.GlobalRunOwner, error) {
+		return operatingmode.RecoverTargetRunOwners(s.dataRoot, runID)
+	}
 	lock := &initiativelock.Lock{Dir: func(key string) string {
 		if kind, token, ok := operatingmode.ParseTargetOwnershipKey(key); ok {
 			return operatingmode.TargetScopeDir(s.dataRoot, kind, token)

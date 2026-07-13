@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/stats"
 
@@ -53,6 +54,11 @@ func (s *Server) initEventLog() {
 	}
 	s.eventDB = eventDB
 	s.eventRepo = repo
+	s.evidenceStore = evidence.NewStore(eventDB)
+	if err := s.evidenceStore.InitSchema(context.Background()); err != nil {
+		slog.Error("evidence ledger schema init error", "error", err)
+		s.evidenceStore = nil
+	}
 	s.emitter = eventlog.NewEmitter(repo)
 	s.statsEngine = stats.NewEngine(repo)
 	if err := s.statsEngine.Rebuild(context.Background()); err != nil {

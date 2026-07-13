@@ -10,6 +10,7 @@
       "description": "Swarm-manager work records — durable narrative write-ups of completed fixes, features, refactors, and investigations across every scenario (the recursive-learning loop's memory). Route here to learn how a prior agent solved a problem: each hit carries the trigger that prompted the work and the approach that was taken, not just an id.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "swarm-manager",
@@ -46,7 +47,7 @@
       },
       "tests": {
         "name": "swarm-manager records — primary golden corpus",
-        "description": "Reviewed corpus for durable swarm-manager work records. Positives target known learning-loop record ids; negatives prove unrelated junk rejection.",
+        "description": "Reviewed corpus for durable swarm-manager work records. It spans fleet readiness, circuit-breaker resilience, Test Genie provider phases, UI-health migration, and descriptor-backed search; added labels were verified through live record search on 2026-07-12.",
         "coverage": {
           "required_tag_groups": [
             {
@@ -55,9 +56,17 @@
               "tags": [
                 "search-maturity",
                 "ui-health",
-                "descriptor"
+                "descriptor",
+                "fleet-readiness",
+                "resilience",
+                "test-genie",
+                "routing-resilience",
+                "registry-hardening",
+                "plan-import",
+                "corpus-evidence",
+                "telemetry"
               ],
-              "min_reviewed_positive": 3
+              "min_reviewed_positive": 12
             }
           ]
         },
@@ -100,11 +109,86 @@
             "expect_within_top_k": 5
           },
           {
+            "id": "fleet-scan-budget",
+            "query": "AI Search Fleet Production Readiness bounded concurrent fleet scan",
+            "tags": ["strong", "fleet-readiness", "reviewed-live"],
+            "expect_ids": ["rec-b76ea45030b3b797"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "fleet-telemetry-remediation",
+            "query": "AI Search Fleet Production Readiness provider reliability telemetry",
+            "tags": ["weak-real", "fleet-readiness", "reviewed-live"],
+            "expect_ids": ["rec-f75101398e5d6b1c"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "circuit-breaker-recovery",
+            "query": "search hub provider circuit breaker live recovery",
+            "tags": ["hard", "resilience", "reviewed-live"],
+            "expect_ids": ["rec-0545b9c800d2d37e", "rec-cb89bb9d1507f4d3"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "test-genie-provider-phase",
+            "query": "test genie search phase provider contract",
+            "tags": ["strong", "test-genie", "reviewed-live"],
+            "expect_ids": ["rec-68bdd772ca368dda", "rec-65b94b77abe56c2b"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "routing-timeout-resilience",
+            "query": "search hub rerank timeout circuit breaker resilience",
+            "tags": ["hard", "routing-resilience", "reviewed-live"],
+            "expect_ids": ["rec-b24fae463c2d100b"],
+            "expect_within_top_k": 5,
+            "note": "Verified against the live records index on 2026-07-12; the result records the generic timeout and circuit-breaker remediation."
+          },
+          {
+            "id": "registry-build-path",
+            "query": "test genie descriptor registry build path applicability invariant",
+            "tags": ["strong", "registry-hardening", "reviewed-live"],
+            "expect_ids": ["rec-16777512b70a216d"],
+            "expect_within_top_k": 5,
+            "note": "Verified against the live records index on 2026-07-12; the record documents the descriptor-backed registry build path."
+          },
+          {
+            "id": "plan-import-ui",
+            "query": "swarm manager create work from plan import UI",
+            "tags": ["weak-real", "plan-import", "reviewed-live"],
+            "expect_ids": ["rec-bf0cc80f3890139b"],
+            "expect_within_top_k": 5,
+            "note": "Verified against the live records index on 2026-07-12; the record covers the plan-import UI flow."
+          },
+          {
+            "id": "corpus-slo-evidence",
+            "query": "AI Search Fleet Production Readiness reviewed corpus SLO evidence",
+            "tags": ["strong", "corpus-evidence", "reviewed-live"],
+            "expect_ids": ["rec-e2fce103fc5e8ecd"],
+            "expect_within_top_k": 5,
+            "note": "Verified against the live records index on 2026-07-12; the record captures descriptor synchronization and baseline evidence."
+          },
+          {
+            "id": "federated-telemetry",
+            "query": "search hub federated provider latency degradation telemetry",
+            "tags": ["hard", "telemetry", "reviewed-live"],
+            "expect_ids": ["rec-4776d413ed01e540"],
+            "expect_within_top_k": 5,
+            "note": "Verified against the live records index on 2026-07-12; the record documents provider latency and degradation telemetry."
+          },
+          {
             "id": "junk-gibberish",
             "query": "florbnax qwop zxcv swarm nonsense",
             "tags": [
               "gibberish"
             ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.65
+          },
+          {
+            "id": "junk-gibberish-2",
+            "query": "florbnax qwop zxcv archival moonbeam",
+            "tags": ["gibberish", "reviewed-live"],
             "expect_no_strong_hit": true,
             "expect_max_score": 0.65
           }

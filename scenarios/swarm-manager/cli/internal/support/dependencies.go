@@ -149,6 +149,10 @@ type Dependencies struct {
 	InitiativesSearchAI   CommandFunc
 	AutoFilerStatus       CommandFunc
 	AutoFilerRunNow       CommandFunc
+	EvidenceRun           CommandFunc
+	EvidenceEntity        CommandFunc
+	EvidenceReconcile     CommandFunc
+	EvidenceVerify        CommandFunc
 	// Top-level operating-mode catalog CLI (see cmd_operating_mode.go).
 	OperatingModeList  CommandFunc
 	OperatingModeGet   CommandFunc

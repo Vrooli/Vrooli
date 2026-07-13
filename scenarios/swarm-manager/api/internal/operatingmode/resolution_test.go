@@ -98,6 +98,7 @@ func TestResolveSubagentTailRecoversTrueFinalMessage(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-P0-011-ENVELOPE-PROVENANCE]
 func TestSelectedMessageProvenanceIsStableAcrossCandidateReordering(t *testing.T) {
 	candidatesA := []resolutionCandidate{
 		{Content: "progress", EventID: "event-1", Sequence: 10},

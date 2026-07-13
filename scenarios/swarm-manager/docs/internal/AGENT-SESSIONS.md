@@ -140,7 +140,11 @@ Proposal apply never lets a session agent directly mutate project-management fil
 
 ## Artifacts
 
-Artifacts are first-class link records in `artifacts.jsonl`. They connect a session to entities or files that were proposed, created, updated, deleted, or linked.
+Artifacts are first-class projections of canonical evidence observations. They
+connect a session to entities or files that were proposed, created, updated,
+deleted, or linked. Domain mutation paths create the observation from verified
+Agent Manager provenance after the mutation commits; an agent's prose is never
+treated as proof that an artifact exists.
 
 Artifact records include:
 
@@ -153,7 +157,11 @@ Artifact records include:
 - verified attribution
 - `created_at`
 
-Backlog and initiative detail views should use persisted attribution and artifact lookup endpoints instead of scraping event logs. Event logs are for metrics and chronology; artifacts are the navigable audit model.
+Backlog and initiative detail views should use persisted attribution and the
+evidence-backed artifact lookup endpoints instead of scraping event logs. Event
+logs are for metrics and chronology; the evidence ledger is the navigable audit
+model. The old per-session `artifacts.jsonl` file is read only during migration
+and recovery; new artifact links are never written there.
 
 ## UI Entry Points
 
@@ -193,13 +201,15 @@ agent-sessions/
     messages.jsonl
     proposals/
       <proposal_id>.json
-    artifacts.jsonl
     attachments/
       <attachment_id>/
         <safe_filename>
 ```
 
-`session.json` is the indexable snapshot. Messages and artifacts are append-only JSONL so long-running conversations keep an auditable transcript.
+`session.json` is the indexable snapshot and `messages.jsonl` is the
+conversation transcript. Session artifact views are projected from the
+canonical evidence ledger. Historical `artifacts.jsonl` files are import-only
+migration input and are not part of the active storage contract.
 
 ## Maintenance Notes
 

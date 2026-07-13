@@ -48,6 +48,7 @@ import type {
   OperatingModeSimulationInputs,
   OperatingModeSimulationPreset,
   OperatingModeSimulationStep,
+  OperatingModeSimulationTarget,
   OperatingModeTransitionConditionKind,
   OperatingModeWorkspace,
   OperatingModeWorkspaceDefinition,
@@ -416,6 +417,7 @@ function mapOperatingModeExecution(
   execution: ompb.OperatingModeExecutionSnapshot | undefined,
 ): OperatingModeExecutionSnapshot {
   const migration = execution?.migration;
+  const evidence = execution?.evidence ?? [];
   return {
     executionId: execution?.executionId ?? "",
     scopeKind: execution?.scopeKind ?? "",
@@ -442,6 +444,21 @@ function mapOperatingModeExecution(
       templateVariables: source.templateVariables ?? [],
       retention: orUndef(source.retention),
       redacted: source.redacted ?? false,
+    })),
+    evidence: evidence.map((record) => ({
+      sourceSystem: record.sourceSystem ?? "",
+      sourceEventId: record.sourceEventId ?? "",
+      runId: record.runId ?? "",
+      subjectKind: record.subjectKind ?? "",
+      subjectId: record.subjectId ?? "",
+      action: record.action ?? "",
+      confidence: record.confidence ?? "",
+      verification: record.verification ?? "",
+      contentDigest: orUndef(record.contentDigest),
+      metadata: record.metadata ?? {},
+      observedAt: record.observedAt ?? "",
+      linkedAt: record.linkedAt ?? "",
+      round: record.round || undefined,
     })),
     migration: migration
       ? {
@@ -537,26 +554,23 @@ function mapPhaseResult(r: ompb.OperatingModePhaseResult | undefined): Operating
   };
 }
 
-function mapInitiativeSnapshot(
-  s: ompb.OperatingModeInitiativeSnapshot | undefined,
-): OperatingModeSimulationInputs["initiative"] {
+function mapSimulationTarget(
+  target: ompb.OperatingModeSimulationTarget | undefined,
+): OperatingModeSimulationTarget {
   return {
-    name: s?.name ?? "",
-    title: s?.title ?? "",
-    description: orUndef(s?.description),
-    mode: asMode(s?.mode),
-    items: s?.items ?? [],
-    acceptanceCriteria: s?.acceptanceCriteria ?? [],
+    kind: target?.kind ?? "",
+    id: target?.id ?? "",
+    title: target?.title ?? "",
+    description: orUndef(target?.description),
+    context: target?.context as Record<string, unknown> | undefined,
   };
 }
 
 function mapSimulationInputs(in_: ompb.OperatingModeSimulationInputs | undefined): OperatingModeSimulationInputs {
   return {
-    initiative: mapInitiativeSnapshot(in_?.initiative),
-    items: (in_?.items ?? []).map(mapRoundItem),
+    target: mapSimulationTarget(in_?.target),
     artifacts: (in_?.artifacts ?? []).map(mapArtifactSnapshot),
     priorRounds: (in_?.priorRounds ?? []).map(mapRound),
-    acceptanceCriteria: in_?.acceptanceCriteria ?? [],
   };
 }
 
@@ -603,7 +617,7 @@ function mapSimulation(s: ompb.OperatingModeSimulationResponse | undefined): Ope
     label: s?.label ?? "",
     presets: (s?.presets ?? []).map(mapSimulationPreset),
     activePreset: s?.activePreset ?? "",
-    initiative: mapInitiativeSnapshot(s?.initiative),
+    target: mapSimulationTarget(s?.target),
     trace: (s?.trace ?? []).map(mapSimulationStep),
   };
 }

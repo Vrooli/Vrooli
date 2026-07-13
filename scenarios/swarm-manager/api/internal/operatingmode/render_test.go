@@ -169,17 +169,20 @@ func TestRenderSimulationPromptSubstitutesFixtureData(t *testing.T) {
 					}
 				} else if def.Target.Kind == TargetInitiative {
 					// Substituted initiative title.
-					if title := presetSim.Initiative.Title; title != "" && !strings.Contains(resp.Prompt, title) {
+					if title := presetSim.Target.Title; title != "" && !strings.Contains(resp.Prompt, title) {
 						t.Fatalf("%q/%q/%d prompt missing title %q:\n%s", mode, preset.ID, i, title, resp.Prompt)
 					}
 					// Substituted member-item refs (carried in MEMBER_ITEMS_JSON).
-					for _, ref := range presetSim.Initiative.Items {
+					items, _ := presetSim.Target.Context["member_items"].([]RoundItem)
+					for _, item := range items {
+						ref := item.Ref
 						if !strings.Contains(resp.Prompt, ref) {
 							t.Fatalf("%q/%q/%d prompt missing item ref %q:\n%s", mode, preset.ID, i, ref, resp.Prompt)
 						}
 					}
 					// Substituted acceptance criteria.
-					for _, criterion := range presetSim.Initiative.AcceptanceCriteria {
+					criteria, _ := presetSim.Target.Context["acceptance_criteria"].([]string)
+					for _, criterion := range criteria {
 						if !strings.Contains(resp.Prompt, criterion) {
 							t.Fatalf("%q/%q/%d prompt missing criterion %q:\n%s", mode, preset.ID, i, criterion, resp.Prompt)
 						}

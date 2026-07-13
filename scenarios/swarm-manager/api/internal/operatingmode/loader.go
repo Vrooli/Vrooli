@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"swarm-manager/internal/evidence"
 )
 
 // This file is the data-driven engine's loader: it turns an operating-mode data
@@ -140,22 +142,32 @@ type phaseGraphDoc struct {
 }
 
 type phaseDoc struct {
-	ID               string             `json:"id"`
-	Kind             string             `json:"kind"`
-	ExecutedBy       string             `json:"executed_by,omitempty"`
-	ActivityPurpose  string             `json:"activity_purpose"`
-	LockPurpose      string             `json:"lock_purpose,omitempty"`
-	AutoStartAfter   []string           `json:"auto_start_after,omitempty"`
-	WritesRepo       bool               `json:"writes_repo,omitempty"`
-	RequiresCriteria bool               `json:"requires_criteria,omitempty"`
-	Reads            []string           `json:"reads"`
-	ProfileKey       string             `json:"profile_key,omitempty"`
-	Prompt           *phasePromptDoc    `json:"prompt,omitempty"`
-	DeclaredOutput   *declaredOutputDoc `json:"declared_output,omitempty"`
-	OutputArtifacts  []artifactDefDoc   `json:"output_artifacts,omitempty"`
-	ResultBindings   []resultBindingDoc `json:"result_bindings,omitempty"`
-	Transitions      []transitionDoc    `json:"transitions,omitempty"`
-	Metrics          *phaseMetricsDoc   `json:"metrics,omitempty"`
+	ID                   string                   `json:"id"`
+	Kind                 string                   `json:"kind"`
+	ExecutedBy           string                   `json:"executed_by,omitempty"`
+	ActivityPurpose      string                   `json:"activity_purpose"`
+	LockPurpose          string                   `json:"lock_purpose,omitempty"`
+	AutoStartAfter       []string                 `json:"auto_start_after,omitempty"`
+	WritesRepo           bool                     `json:"writes_repo,omitempty"`
+	RequiresCriteria     bool                     `json:"requires_criteria,omitempty"`
+	Reads                []string                 `json:"reads"`
+	ProfileKey           string                   `json:"profile_key,omitempty"`
+	Prompt               *phasePromptDoc          `json:"prompt,omitempty"`
+	DeclaredOutput       *declaredOutputDoc       `json:"declared_output,omitempty"`
+	OutputArtifacts      []artifactDefDoc         `json:"output_artifacts,omitempty"`
+	ResultBindings       []resultBindingDoc       `json:"result_bindings,omitempty"`
+	Transitions          []transitionDoc          `json:"transitions,omitempty"`
+	Metrics              *phaseMetricsDoc         `json:"metrics,omitempty"`
+	EvidenceRequirements []evidenceRequirementDoc `json:"evidence_requirements,omitempty"`
+}
+
+type evidenceRequirementDoc struct {
+	SubjectKind   string            `json:"subject_kind"`
+	Action        string            `json:"action"`
+	ProducerID    string            `json:"producer,omitempty"`
+	MinConfidence string            `json:"min_confidence"`
+	MinCount      int               `json:"min_count,omitempty"`
+	MatchFields   map[string]string `json:"match_fields,omitempty"`
 }
 
 type phasePromptDoc struct {
@@ -386,10 +398,11 @@ func (p phaseDoc) toPhaseDefinition(catalogPrefix, defaultProfileKey string) (Ph
 			return PhaseDefinition{}, fmt.Errorf("delegated phase (executed_by=%q) must not declare reads/prompt/declared_output/output_artifacts/result_bindings/metrics/purposes/profile/writes_repo/requires_criteria: the sub-mode owns the execution surface", executedBy)
 		}
 		return PhaseDefinition{
-			Phase:          Phase(p.ID),
-			Kind:           PhaseKind(p.Kind),
-			ExecutedBy:     Mode(executedBy),
-			AutoStartAfter: toPhases(p.AutoStartAfter),
+			Phase:                Phase(p.ID),
+			Kind:                 PhaseKind(p.Kind),
+			ExecutedBy:           Mode(executedBy),
+			AutoStartAfter:       toPhases(p.AutoStartAfter),
+			EvidenceRequirements: p.evidenceRequirements(),
 		}, nil
 	}
 	suffix := strings.TrimSpace(promptSuffix(p))
@@ -426,14 +439,37 @@ func (p phaseDoc) toPhaseDefinition(catalogPrefix, defaultProfileKey string) (Ph
 			Trigger: defaultString(promptTrigger(p), "Operator starts "+catalogPrefix+" "+suffix+" phase"),
 			Purpose: defaultString(promptPurpose(p), "Run the "+p.ID+" phase."),
 		},
-		ProfileKey:       profileKey,
-		WritesRepo:       p.WritesRepo,
-		OutputArtifacts:  outputArtifacts,
-		ResultBindings:   p.resultBindings(),
-		OutputContract:   outputContract,
-		DeclaredOutput:   p.declaredOutput(),
-		RequiresCriteria: p.RequiresCriteria,
+		ProfileKey:           profileKey,
+		WritesRepo:           p.WritesRepo,
+		OutputArtifacts:      outputArtifacts,
+		ResultBindings:       p.resultBindings(),
+		OutputContract:       outputContract,
+		DeclaredOutput:       p.declaredOutput(),
+		EvidenceRequirements: p.evidenceRequirements(),
+		RequiresCriteria:     p.RequiresCriteria,
 	}, nil
+}
+
+func (p phaseDoc) evidenceRequirements() []EvidenceRequirement {
+	if len(p.EvidenceRequirements) == 0 {
+		return nil
+	}
+	requirements := make([]EvidenceRequirement, 0, len(p.EvidenceRequirements))
+	for _, requirement := range p.EvidenceRequirements {
+		matchFields := make(map[string]string, len(requirement.MatchFields))
+		for key, value := range requirement.MatchFields {
+			matchFields[key] = value
+		}
+		requirements = append(requirements, EvidenceRequirement{
+			SubjectKind:   requirement.SubjectKind,
+			Action:        requirement.Action,
+			ProducerID:    requirement.ProducerID,
+			MinConfidence: evidence.Confidence(requirement.MinConfidence),
+			MinCount:      requirement.MinCount,
+			MatchFields:   matchFields,
+		})
+	}
+	return requirements
 }
 
 // declaredOutput converts the on-disk declared_output block into the typed

@@ -80,6 +80,24 @@ describe("RoundDetailDialog", () => {
     expect(screen.queryByText("Error")).toBeNull();
   });
 
+  it("labels pending evidence as retryable and renders canonical evidence", () => {
+    render(
+      <RoundDetailDialog
+        round={makeRound({ status: "pending_evidence", error: "evidence requirement plan.created: producer coverage is incomplete" })}
+        evidence={[{
+          sourceSystem: "plan-manager", sourceEventId: "event-1", runId: "run-deadbeef",
+          subjectKind: "plan", subjectId: "plan-1", action: "created",
+          confidence: "authoritative", verification: "verified", metadata: {}, observedAt: "2026-07-12T20:00:00Z", linkedAt: "2026-07-12T20:00:01Z",
+        }]}
+        isOpen
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("Waiting for evidence")).toBeInTheDocument();
+    expect(screen.getByText("Verified evidence")).toBeInTheDocument();
+    expect(screen.getByText("plan.created")).toBeInTheDocument();
+  });
+
   it("renders the items and handoff sections when present", () => {
     render(<RoundDetailDialog round={makeRound()} isOpen onClose={() => {}} />);
     expect(screen.getByText("execute/some-task")).toBeInTheDocument();
