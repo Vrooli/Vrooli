@@ -58,6 +58,7 @@ const CATEGORY_TO_VARIANT: Record<ErrorCategory, ErrorVariant> = {
   SERVER: "server",
   VALIDATION: "generic", // Validation errors use generic display
   PARSE: "server",       // Parse errors are treated as server issues
+  STALE_CHUNK: "generic", // Deploy artifact; boundaries render the reload-specific UI
   RUNTIME: "generic",
 };
 

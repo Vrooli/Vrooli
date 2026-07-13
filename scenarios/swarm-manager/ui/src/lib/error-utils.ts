@@ -20,6 +20,7 @@
  * ║  - SERVER: Server error (5xx) → Retry with backoff             ║
  * ║  - VALIDATION: Bad input → Fix input, don't retry              ║
  * ║  - PARSE: Invalid response → Report bug, don't retry           ║
+ * ║  - STALE_CHUNK: Deploy replaced this tab's chunks → Reload     ║
  * ║  - RUNTIME: Unexpected error → Refresh page                    ║
  * ╚════════════════════════════════════════════════════════════════╝
  *
@@ -29,6 +30,7 @@
  * - Correlation IDs for tracing errors across systems
  */
 
+import { isStaleChunkError } from "@vrooli/api-base";
 import { isApiError, type ApiError } from "./api-client";
 
 /**
@@ -42,8 +44,9 @@ export type ErrorCategory =
   | "NOT_FOUND"  // Resource doesn't exist → navigate away
   | "SERVER"     // Server-side error → retry later
   | "VALIDATION" // Client-side input error → fix and resubmit
-  | "PARSE"      // Response parsing failed → report bug
-  | "RUNTIME";   // Unexpected runtime error → refresh
+  | "PARSE"       // Response parsing failed → report bug
+  | "STALE_CHUNK" // Lazy chunk gone after a deploy → reload to update
+  | "RUNTIME";    // Unexpected runtime error → refresh
 
 /**
  * Structured error log entry for observability.
@@ -96,6 +99,13 @@ function mapApiErrorToCategory(error: ApiError): ErrorCategory {
 export function categorizeError(error: unknown): ErrorCategory {
   if (isApiError(error)) {
     return mapApiErrorToCategory(error);
+  }
+
+  // Must run before the generic "fetch" → NETWORK match: a stale-chunk
+  // failure ("Failed to fetch dynamically imported module") is a deploy
+  // artifact whose recovery is a reload, not a retry.
+  if (isStaleChunkError(error)) {
+    return "STALE_CHUNK";
   }
 
   if (error instanceof Error) {
@@ -260,6 +270,11 @@ export const RECOVERY_PATHS: Record<ErrorCategory, {
   PARSE: {
     action: "Received an invalid response from the server",
     buttonLabel: "Report Issue",
+    canRetry: false,
+  },
+  STALE_CHUNK: {
+    action: "A new version was deployed while this tab was open - reload to update",
+    buttonLabel: "Reload",
     canRetry: false,
   },
   RUNTIME: {
