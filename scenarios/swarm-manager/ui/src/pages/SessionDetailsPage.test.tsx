@@ -251,7 +251,7 @@ describe("SessionDetailsPage", () => {
 
     expect(screen.getByRole("tab", { name: "Conversation" })).toHaveAttribute("data-state", "active");
     expect(screen.queryByTestId("detail-mobile-actions-fab")).toBeNull();
-    expect(screen.getByTestId("session-mobile-header-actions")).toBeInTheDocument();
+    expect(screen.getByTestId("session-header-actions")).toBeInTheDocument();
     expect(screen.getByText("Plan it.")).toBeVisible();
     expect(screen.queryByText("Apply this plan.")).toBeNull();
     expect(screen.getByTestId("agent-session-composer").closest(".fixed")).toBeInTheDocument();
@@ -268,8 +268,8 @@ describe("SessionDetailsPage", () => {
 
     renderPage();
 
-    await userEvent.click(screen.getByTestId("session-mobile-header-actions"));
-    expect(screen.getByTestId("session-mobile-actions-sheet")).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("session-header-actions"));
+    expect(screen.getByTestId("session-actions-menu")).toBeInTheDocument();
 
     await userEvent.click(screen.getByTestId("session-refresh"));
 
@@ -368,30 +368,32 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByTestId("agent-session-composer")).toHaveValue("Retry this");
   });
 
-  it("invokes refresh and cancel actions", async () => {
+  it("invokes refresh (from the menu) and cancel (inline primary) actions", async () => {
     const refreshSession = vi.fn().mockResolvedValue(SESSION);
     const cancelSession = vi.fn().mockResolvedValue(SESSION);
     storeMock.useAgentSessionStore.setState({ refreshSession, cancelSession });
 
     renderPage();
 
-    fireEvent.click(screen.getByTestId("session-refresh"));
     fireEvent.click(screen.getByTestId("session-cancel"));
+    await userEvent.click(screen.getByTestId("session-header-actions"));
+    await userEvent.click(screen.getByTestId("session-refresh"));
 
     await waitFor(() => expect(refreshSession).toHaveBeenCalledWith("sess_meta"));
     await waitFor(() => expect(cancelSession).toHaveBeenCalledWith("sess_meta"));
   });
 
-  it("keeps desktop delete in the header ellipsis menu", async () => {
+  it("keeps only Cancel inline; delete and refresh live in the header ellipsis menu", async () => {
     renderPage();
 
-    expect(screen.getByTestId("session-refresh")).toBeInTheDocument();
     expect(screen.getByTestId("session-cancel")).toBeInTheDocument();
+    expect(screen.queryByTestId("session-refresh")).toBeNull();
     expect(screen.queryByTestId("session-delete-action")).toBeNull();
 
-    await userEvent.click(screen.getByTestId("session-desktop-header-actions"));
+    await userEvent.click(screen.getByTestId("session-header-actions"));
 
-    expect(screen.getByTestId("session-desktop-actions-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("session-actions-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("session-refresh")).toBeInTheDocument();
     expect(screen.getByTestId("session-delete-action")).toHaveTextContent("Delete session");
   });
 
@@ -402,7 +404,7 @@ describe("SessionDetailsPage", () => {
     storeMock.useAgentSessionStore.setState({ deleteSession });
     renderPage();
 
-    await userEvent.click(screen.getByTestId("session-desktop-header-actions"));
+    await userEvent.click(screen.getByTestId("session-header-actions"));
     await userEvent.click(screen.getByTestId("session-delete-action"));
 
     expect(screen.getByTestId("session-delete-dialog")).toBeInTheDocument();
@@ -420,7 +422,7 @@ describe("SessionDetailsPage", () => {
     storeMock.useAgentSessionStore.setState({ deleteSession });
     renderPage();
 
-    await userEvent.click(screen.getByTestId("session-desktop-header-actions"));
+    await userEvent.click(screen.getByTestId("session-header-actions"));
     await userEvent.click(screen.getByTestId("session-delete-action"));
     await userEvent.click(screen.getByTestId("session-delete-confirm"));
 
@@ -433,9 +435,9 @@ describe("SessionDetailsPage", () => {
     installMatchMediaMock(true);
     renderPage();
 
-    await userEvent.click(screen.getByTestId("session-mobile-header-actions"));
+    await userEvent.click(screen.getByTestId("session-header-actions"));
 
-    expect(screen.getByTestId("session-mobile-actions-sheet")).toBeInTheDocument();
+    expect(screen.getByTestId("session-actions-menu")).toBeInTheDocument();
     expect(screen.getByTestId("session-delete-action")).toHaveTextContent("Delete session");
   });
 
@@ -443,7 +445,7 @@ describe("SessionDetailsPage", () => {
     storeMock.useAgentSessionStore.setState({ isMutating: true });
     renderPage();
 
-    await userEvent.click(screen.getByTestId("session-desktop-header-actions"));
+    await userEvent.click(screen.getByTestId("session-header-actions"));
 
     expect(screen.getByTestId("session-delete-action")).toBeDisabled();
   });

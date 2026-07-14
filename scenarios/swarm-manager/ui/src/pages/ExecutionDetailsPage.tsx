@@ -24,7 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
+import { type ActionMenuItem } from "../components/ui/action-menu";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
@@ -45,7 +45,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { EXECUTION_LENSES } from "../components/detail/lens-options";
 import { selectors } from "../consts/selectors";
 import { canRunPostRunChecks } from "../lib/finalization";
-import { ENTITY_TYPE_ICONS } from "../types/constants";
 import type { ExecutionRecord } from "../types";
 import { routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
@@ -103,7 +102,6 @@ export function ExecutionDetailsPage() {
         header={
           <DetailPageHeader
             entityType="execution"
-            entityIcon={ENTITY_TYPE_ICONS.execution}
             title={executionId ?? "Unknown"}
             nodeId={null}
             lenses={[]}
@@ -208,36 +206,10 @@ export function ExecutionDetailsPage() {
     </div>
   );
 
-  const mobileActionItems: ActionMenuItem[] = [];
-  mobileActionItems.push(attachToSession.actionItem);
-  if (isActive) {
-    mobileActionItems.push({
-      label: "Cancel",
-      icon: <XCircle />,
-      loading: actionBusy,
-      disabled: actionBusy,
-      destructive: true,
-      onSelect: () => void cancel(),
-    });
-  } else if (execution.status === "failed") {
-    mobileActionItems.push({
-      label: "Retry",
-      icon: <RotateCcw />,
-      loading: actionBusy,
-      disabled: actionBusy,
-      onSelect: () => void retry(),
-    });
-  } else if (canRunPostRunChecks(execution)) {
-    mobileActionItems.push({
-      label: runChecksLabel,
-      icon: <ClipboardCheck />,
-      loading: actionBusy,
-      disabled: actionBusy,
-      onSelect: () => void triggerReview(),
-    });
-  }
+  // --- Secondary actions (header overflow menu) ---
+  const menuActions: ActionMenuItem[] = [attachToSession.actionItem];
   if (isTerminal) {
-    mobileActionItems.push({
+    menuActions.push({
       label: "Follow-up",
       icon: <MessageSquarePlus />,
       disabled: actionBusy,
@@ -245,33 +217,21 @@ export function ExecutionDetailsPage() {
     });
   }
 
-  // --- Mobile actions ---
-  const mobileActions = mobileActionItems.length > 0
-    ? <ActionMenuSheetContent items={mobileActionItems} />
-    : undefined;
-
   return (
     <DetailPageLayout
       header={
         <DetailPageHeader
-          entityType="execution"
-          entityIcon={ENTITY_TYPE_ICONS.execution}
+          entityType="Execution"
           title={`${execution.backlogKind}/${execution.backlogName}`}
           subtitle={execution.operation ?? undefined}
           status={execution.status}
           nodeId={nodeId}
           lenses={EXECUTION_LENSES}
-          actions={
-            <div className="flex items-center gap-2">
-              {primaryAction}
-              {attachToSession.button}
-            </div>
-          }
+          primaryAction={primaryAction}
+          menuActions={menuActions}
           tabBar={tabBar}
         />
       }
-      mobileActions={mobileActions}
-      mobileActionsTitle="Execution Actions"
     >
       {attachToSession.sheet}
       <div className="space-y-0 md:mx-auto md:max-w-3xl">

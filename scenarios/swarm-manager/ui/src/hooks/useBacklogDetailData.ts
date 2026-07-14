@@ -206,9 +206,15 @@ export function useBacklogDetailData({
       pendingSynthesis: readinessData?.pendingSynthesis ?? false,
       agentRunning: agentRunIsBlocking,
       agentExecuting: agentRunIsExecuting,
-      hasPendingDecisions: workshopRounds.some(
-        (r) => r.items?.some((wi) => wi.type === "decision" && wi.selected == null),
-      ),
+      // Only the LATEST round gates the CTAs: each workshop round supersedes
+      // the previous one, so decisions left unanswered in an early round no
+      // longer block once a later round (or finalize) exists. This mirrors the
+      // server's pending_items computation in the maturity summary.
+      hasPendingDecisions: workshopRounds.length > 0
+        ? (workshopRounds[workshopRounds.length - 1]?.items?.some(
+            (wi) => wi.type === "decision" && wi.selected == null,
+          ) ?? false)
+        : false,
       hasExecutionHistory: (executionHistory?.length ?? 0) > 0,
       hasTerminalExecution: (executionHistory ?? []).some(
         (e) => e.status === "completed" || e.status === "failed" || e.status === "canceled" || e.status === "needs_fixup",

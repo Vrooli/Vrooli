@@ -15,7 +15,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, MessageCirclePlus, ClipboardCheck, Workflow } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
-import { ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
+import { type ActionMenuItem } from "../components/ui/action-menu";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
@@ -55,7 +55,6 @@ import { getStatusColorClasses } from "../surfaces/graph/lib/status-colors";
 import { StatusChip } from "../components/ui/status-chip";
 import { BACKLOG_STATUS_COLORS } from "../types";
 import { backlogDetailPath, initiativeDetailPath, operatingModeDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
-import { ENTITY_TYPE_ICONS } from "../types";
 import { useAppBack } from "../app/routes/useAppBack";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { initiativeOption } from "../components/session/context/session-context-refs";
@@ -438,14 +437,8 @@ export function InitiativeDetailsPage() {
     [fileService, refetchFiles, selectedFile?.path],
   );
 
-  const mobileActionItems: ActionMenuItem[] = initiative ? [
+  const menuActions: ActionMenuItem[] = initiative ? [
     attachToSession.actionItem,
-    {
-      label: "Add Feedback",
-      icon: <MessageCirclePlus />,
-      onSelect: () => setFeedbackDialogOpen(true),
-      testId: selectors.initiativeDetails.addFeedbackButtonMobile,
-    },
     isArchived
       ? {
           label: "Unarchive",
@@ -470,7 +463,6 @@ export function InitiativeDetailsPage() {
       onSelect: handleDeleteClick,
     },
   ] : [];
-  const mobileActions = initiative ? <ActionMenuSheetContent items={mobileActionItems} /> : undefined;
 
   // Resolve member items against the backlog store
   const resolvedItems = useMemo<ResolvedInitiativeItem[]>(() => {
@@ -576,8 +568,7 @@ export function InitiativeDetailsPage() {
       <DetailPageLayout
         header={
           <DetailPageHeader
-            entityType="initiative"
-            entityIcon={ENTITY_TYPE_ICONS.initiative}
+            entityType="Initiative"
             title={name ?? "Unknown"}
             nodeId={null}
             lenses={[]}
@@ -629,32 +620,26 @@ export function InitiativeDetailsPage() {
     <DetailPageLayout
       header={
         <DetailPageHeader
-          entityType="initiative"
-          entityIcon={ENTITY_TYPE_ICONS.initiative}
+          entityType="Initiative"
           title={initiative.title || initiative.name}
           status={initiative.status}
           nodeId={nodeId}
           lenses={INITIATIVE_LENSES}
-          metadata={initiative.createdBy ? <AttributionChip attribution={initiative.createdBy} /> : undefined}
           tabBar={tabBar}
-          actions={
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFeedbackDialogOpen(true)}
-                data-testid={selectors.initiativeDetails.addFeedbackButtonDesktop}
-              >
-                <MessageCirclePlus className="mr-1.5 h-4 w-4" />
-                Add Feedback
-              </Button>
-              {attachToSession.button}
-            </div>
+          primaryAction={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFeedbackDialogOpen(true)}
+              data-testid={selectors.initiativeDetails.addFeedbackButtonDesktop}
+            >
+              <MessageCirclePlus className="mr-1.5 h-4 w-4" />
+              Add Feedback
+            </Button>
           }
+          menuActions={menuActions}
         />
       }
-      mobileActions={mobileActions}
-      mobileActionsTitle="Initiative Actions"
     >
       {attachToSession.sheet}
       <div className="space-y-0 md:mx-auto md:max-w-3xl" data-testid={selectors.initiativeDetails.page}>
@@ -775,7 +760,7 @@ export function InitiativeDetailsPage() {
                   }}
                 />
 
-                <div className="flex gap-6 text-xs text-slate-500">
+                <div className="flex flex-wrap items-center gap-6 text-xs text-slate-500">
                   <div>
                     <span className="uppercase tracking-wider">Created</span>{" "}
                     <span className="text-slate-400">{formatRelativeTime(initiative.created)}</span>
@@ -784,6 +769,12 @@ export function InitiativeDetailsPage() {
                     <span className="uppercase tracking-wider">Updated</span>{" "}
                     <span className="text-slate-400">{formatRelativeTime(initiative.updated)}</span>
                   </div>
+                  {initiative.createdBy && (
+                    <div className="flex items-center gap-2">
+                      <span className="uppercase tracking-wider">By</span>
+                      <AttributionChip attribution={initiative.createdBy} />
+                    </div>
+                  )}
                 </div>
               </div>
             </DetailSection>

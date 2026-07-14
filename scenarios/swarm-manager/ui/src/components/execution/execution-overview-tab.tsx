@@ -18,7 +18,7 @@ import { IdentityBadge } from "../ui/identity-badge";
 import { PostRunStatusBadge } from "./post-run-status-badge";
 import { DetailSection } from "../detail/DetailSection";
 import { formatRelativeTime, canRunPostRunChecks } from "../../lib";
-import { formatExecutionMode } from "../../types";
+import { ENTITY_TYPE_ICONS, formatExecutionMode } from "../../types";
 import { selectors } from "../../consts/selectors";
 import { buildAgentRunUrl } from "../../services/external-links";
 import type { ExecutionRecord } from "../../types";
@@ -53,7 +53,7 @@ export function ExecutionOverviewTab({
 
   return (
     <div className="space-y-0" data-testid={selectors.executionDetails.page}>
-      <DetailSection title="Details" hideDivider>
+      <DetailSection title="Overview" icon={ENTITY_TYPE_ICONS.execution} hideDivider>
         <div className="space-y-3">
           {/* Metadata grid */}
           <div

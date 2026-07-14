@@ -7,11 +7,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertCircle, Bot, MoreVertical, PanelRightOpen, RefreshCw, Square, Trash2 } from "lucide-react";
+import { AlertCircle, RefreshCw, Square, Trash2 } from "lucide-react";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { Button } from "../components/ui/button";
-import { BottomSheet } from "../components/ui/bottom-sheet";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { SessionArtifactList } from "../components/session/SessionArtifactList";
@@ -29,16 +28,14 @@ import { sessionOption, startupBriefOption, type SessionContextOption } from "..
 import { clearStagedContextForSession, mergeContextOptions, peekStagedContextForSession } from "../components/session/context/pending-session-context";
 import { readSessionDraft, writeSessionDraft } from "../components/session/session-draft-storage";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
-import { ActionMenu, ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
+import { type ActionMenuItem } from "../components/ui/action-menu";
 import { nodeIdForSessionArtifact } from "../components/session/session-artifact-routing";
 import {
   defaultSessionInspectorSection,
   isSessionWaitingForAgent,
-  SESSION_KIND_ICONS,
   SESSION_KIND_LABELS,
   TERMINAL_SESSION_STATUSES,
 } from "../components/session/session-view-model";
-import { cn } from "../lib/utils";
 import { formatDisplayText, formatRelativeTime } from "../lib/format-utils";
 import { useAgentSessionStore } from "../stores";
 import { useAgentSessionEvents } from "../hooks/useAgentSessionEvents";
@@ -96,7 +93,6 @@ export function SessionDetailsPage() {
   const [pendingContext, setPendingContext] = useState<SessionContextOption[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
-  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const { requestDelete: requestDeleteSession, dialogProps: deleteDialogProps } =
     useDeleteConfirm("session");
   const [mobileSection, setMobileSection] = useState<SessionSectionValue>("conversation");
@@ -285,7 +281,6 @@ export function SessionDetailsPage() {
 
   if (!session) return <PageLoadingState label="Loading session..." />;
 
-  const Icon = SESSION_KIND_ICONS[session.kind] ?? Bot;
   const cancelDisabled = isMutating || TERMINAL_SESSION_STATUSES.has(session.status);
   const deleteDisabled = isMutating;
   const isWaitingForAgent = isSessionWaitingForAgent(session);
@@ -314,7 +309,7 @@ export function SessionDetailsPage() {
     { value: "details" as const, label: "Details", content: detailContent("plain") },
   ];
 
-  const mobileActionItems: ActionMenuItem[] = [
+  const menuActions: ActionMenuItem[] = [
     attachToSession.actionItem,
     ...(session.status === "draft" ? [{
       label: "Refresh brief",
@@ -333,13 +328,6 @@ export function SessionDetailsPage() {
       testId: "session-refresh",
     },
     {
-      label: "Cancel",
-      icon: <Square />,
-      onSelect: () => void handleCancel(),
-      disabled: cancelDisabled,
-      testId: "session-cancel",
-    },
-    {
       label: "Delete session",
       icon: <Trash2 />,
       onSelect: handleDelete,
@@ -348,61 +336,12 @@ export function SessionDetailsPage() {
       testId: "session-delete-action",
     },
   ];
-  const desktopMoreItems = mobileActionItems.filter((item) => item.testId === "session-delete-action" || item.testId === attachToSession.actionItem.testId);
 
-  const headerActions = (
-    <>
-      {isMobile ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setMobileActionsOpen(true)}
-          aria-label="Session actions"
-          data-testid="session-mobile-header-actions"
-        >
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      ) : (
-        <>
-          {inspectorCollapsed && (
-            <Button variant="ghost" size="sm" onClick={() => setInspectorCollapsed(false)} data-testid="session-inspector-header-expand">
-              <PanelRightOpen className="mr-1.5 h-3.5 w-3.5" />
-              Inspector
-            </Button>
-          )}
-          {session.status === "draft" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void handleRefreshStartupBrief()}
-              disabled={isMutating || startupBriefQuery.isFetching}
-              data-testid="session-startup-brief-refresh"
-            >
-              <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", startupBriefQuery.isFetching && "animate-spin")} />
-              Brief
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={() => void handleRefresh()} disabled={isMutating || isRefreshing} data-testid="session-refresh">
-            <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", isRefreshing && "animate-spin")} />
-            Refresh
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => void handleCancel()} disabled={cancelDisabled} data-testid="session-cancel">
-            <Square className="mr-1.5 h-3.5 w-3.5" />
-            Cancel
-          </Button>
-          <ActionMenu
-            items={desktopMoreItems}
-            label="Session actions"
-            triggerTestId="session-desktop-header-actions"
-            menuTestId="session-desktop-actions-menu"
-          />
-        </>
-      )}
-    </>
-  );
-
-  const mobileActions = (
-    <ActionMenuSheetContent items={mobileActionItems} onItemSelected={() => setMobileActionsOpen(false)} />
+  const primaryAction = (
+    <Button variant="ghost" size="sm" onClick={() => void handleCancel()} disabled={cancelDisabled} data-testid="session-cancel">
+      <Square className="mr-1.5 h-3.5 w-3.5" />
+      Cancel
+    </Button>
   );
 
   return (
@@ -410,13 +349,15 @@ export function SessionDetailsPage() {
       header={
         <DetailPageHeader
           entityType="Session"
-          entityIcon={Icon}
           title={session.title || "Agent session"}
           subtitle={`${SESSION_KIND_LABELS[session.kind]} · ${formatRelativeTime(session.updatedAt)}`}
           status={formatDisplayText(session.status)}
           nodeId={null}
           lenses={[]}
-          actions={headerActions}
+          primaryAction={primaryAction}
+          menuActions={menuActions}
+          menuTriggerTestId="session-header-actions"
+          menuTestId="session-actions-menu"
           tabBar={
             isMobile ? (
               <SessionSectionTabs
@@ -506,17 +447,6 @@ export function SessionDetailsPage() {
           </div>
         )}
       </div>
-      {isMobile && (
-        <BottomSheet
-          isOpen={mobileActionsOpen}
-          onClose={() => setMobileActionsOpen(false)}
-          title="Session actions"
-          contentClassName="px-0 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
-          data-testid="session-mobile-actions-sheet"
-        >
-          {mobileActions}
-        </BottomSheet>
-      )}
       {attachToSession.sheet}
       <ConfirmDialog {...deleteDialogProps} />
     </DetailPageLayout>

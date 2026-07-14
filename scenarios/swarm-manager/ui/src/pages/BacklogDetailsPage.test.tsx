@@ -270,7 +270,7 @@ describe("BacklogDetailsPage", () => {
 
     renderPage();
 
-    const header = await screen.findByTestId("backlog-details-header");
+    const header = await screen.findByTestId("detail-page-header");
     expect(within(header).getByRole("button", { name: "Run" })).toBeInTheDocument();
     expect(within(header).queryByRole("button", { name: "Workshop" })).not.toBeInTheDocument();
     expect(within(header).queryByRole("button", { name: /Next Round/i })).not.toBeInTheDocument();
@@ -417,7 +417,7 @@ describe("BacklogDetailsPage", () => {
 
     renderPage("execute", "agent-manager-sandbox-auto-apply-defaults");
 
-    const header = await screen.findByTestId("backlog-details-header");
+    const header = await screen.findByTestId("detail-page-header");
     await waitFor(() => {
       expect(within(header).getByRole("button", { name: "Finalize" })).toBeInTheDocument();
     });
@@ -432,6 +432,97 @@ describe("BacklogDetailsPage", () => {
     expect(within(header).queryByRole("button", { name: "Finalize" })).not.toBeInTheDocument();
   });
 
+  it("still shows Run when an early round's unanswered decisions were superseded by later rounds", async () => {
+    // Regression: only the LATEST workshop round gates the primary CTA. An
+    // item finalized in round 3 must show Run even if round 1 still contains
+    // decisions with selected=null (the later rounds superseded them).
+    const executeItem = {
+      ...mockItem,
+      kind: "execute" as const,
+      name: "superseded-decisions",
+      title: "Item with stale unanswered decisions in round one",
+    };
+    const roundOne = JSON.stringify({
+      round: 1,
+      mode: "workshop",
+      items: [
+        { id: "d1", type: "decision", selected: null },
+        { id: "d2", type: "decision", selected: null },
+      ],
+      readiness: {},
+      pending_synthesis: false,
+    });
+    const roundTwo = JSON.stringify({
+      round: 2,
+      mode: "workshop",
+      items: [{ id: "d3", type: "decision", selected: "A" }],
+      readiness: {},
+      pending_synthesis: false,
+    });
+    const roundThree = JSON.stringify({
+      round: 3,
+      mode: "finalize",
+      items: [],
+      readiness: {},
+      pending_synthesis: false,
+    });
+
+    vi.mocked(backlogService.get).mockResolvedValue(executeItem);
+    vi.mocked(backlogService.getFiles).mockResolvedValue([
+      {
+        name: "workshop",
+        path: "workshop",
+        type: "directory" as const,
+        children: [
+          { name: "round-001.json", path: "workshop/round-001.json", type: "file" as const, size: 100 },
+          { name: "round-002.json", path: "workshop/round-002.json", type: "file" as const, size: 100 },
+          { name: "round-003.json", path: "workshop/round-003.json", type: "file" as const, size: 100 },
+        ],
+      },
+    ]);
+    vi.mocked(backlogService.getFileContent).mockImplementation(async (_kind, _name, path) => {
+      if (path === "workshop/round-001.json") return roundOne;
+      if (path === "workshop/round-002.json") return roundTwo;
+      if (path === "workshop/round-003.json") return roundThree;
+      return "";
+    });
+    vi.mocked(backlogService.getMaturitySummary).mockResolvedValue({
+      items: [
+        {
+          kind: "execute",
+          name: "superseded-decisions",
+          title: executeItem.title,
+          rounds_completed: 3,
+          raw_scores: {
+            problem_clarity: 3,
+            scope_defined: 3,
+            approach_solid: 3,
+            testable: 3,
+            risk_awareness: 3,
+          },
+          effective_scores: {
+            problem_clarity: 3,
+            scope_defined: 3,
+            approach_solid: 3,
+            testable: 3,
+            risk_awareness: 3,
+          },
+          ready: true,
+          pending_items: 0,
+          pending_synthesis: false,
+          has_plan: true,
+        },
+      ],
+    });
+
+    renderPage("execute", "superseded-decisions");
+
+    const header = await screen.findByTestId("detail-page-header");
+    await waitFor(() => {
+      expect(within(header).getByRole("button", { name: "Run" })).toBeInTheDocument();
+    });
+  });
+
   it("shows queue button for research items (research items are queueable)", async () => {
     vi.mocked(backlogService.get).mockResolvedValue({
       ...mockItem,
@@ -443,7 +534,7 @@ describe("BacklogDetailsPage", () => {
     renderPage("research", "test-research");
 
     await waitFor(() => {
-      expect(screen.getByTestId("backlog-details-header")).toBeInTheDocument();
+      expect(screen.getByTestId("detail-page-header")).toBeInTheDocument();
     });
 
     // Research items follow the normal CTA funnel and can be queued.

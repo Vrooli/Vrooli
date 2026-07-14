@@ -335,17 +335,11 @@ export function OperatingModeDetailsPage() {
       header={
         <DetailPageHeader
           entityType="Operating Mode"
-          entityIcon={Layers}
           title={entry.label}
           subtitle={entry.mode}
           nodeId={null}
           lenses={EMPTY_LENSES}
-          metadata={
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300">
-              {linkedInitiatives.length} initiative{linkedInitiatives.length === 1 ? "" : "s"}
-            </span>
-          }
-          actions={attachToSession.button}
+          menuActions={[attachToSession.actionItem]}
           tabBar={tabBar}
         />
       }

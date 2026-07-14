@@ -7,10 +7,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Archive,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock3,
   ListChecks,
+  ShieldAlert,
   Target,
   Trash2,
   Workflow,
@@ -21,11 +23,10 @@ import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
 import { InitiativeSummaryCard } from "../components/initiative/initiative-summary-card";
 import { GOAL_LENSES } from "../components/detail/lens-options";
-import { Button } from "../components/ui/button";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import type { ActionMenuItem } from "../components/ui/action-menu";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
-import { StatusBadge } from "../components/detail/StatusBadge";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { goalsService } from "../services/goals-service";
 import { GOALS_QUERY_KEY } from "../surfaces/plan/hooks/useGoals";
@@ -33,7 +34,6 @@ import type { GoalScope, GoalScopeEntities, GoalWithScope } from "../types/goal"
 import { ENTITY_TYPE_ICONS } from "../types/constants";
 import {
   backlogDetailPath,
-  goalDetailPath,
   graphPath,
   initiativeDetailPath,
   routeTargetToNodeId,
@@ -275,7 +275,7 @@ export function GoalDetailsPage() {
   if (query.isLoading) {
     return (
       <DetailPageLayout
-        header={<DetailPageHeader entityType="goal" entityIcon={ENTITY_TYPE_ICONS.goal} title="Loading goal" nodeId={null} lenses={[]} />}
+        header={<DetailPageHeader entityType="Goal" title="Loading goal" nodeId={null} lenses={[]} />}
       >
         <PageLoadingState label="Loading goal..." variant="detail" />
       </DetailPageLayout>
@@ -285,7 +285,7 @@ export function GoalDetailsPage() {
   if (query.error || !query.data) {
     return (
       <DetailPageLayout
-        header={<DetailPageHeader entityType="goal" entityIcon={ENTITY_TYPE_ICONS.goal} title="Goal unavailable" nodeId={null} lenses={[]} />}
+        header={<DetailPageHeader entityType="Goal" title="Goal unavailable" nodeId={null} lenses={[]} />}
       >
         <ErrorState
           error={query.error instanceof Error ? query.error : undefined}
@@ -308,155 +308,152 @@ export function GoalDetailsPage() {
     }
   };
 
-  const actions = (
-    <>
-      <div className="hidden items-center gap-1 rounded-full border border-slate-800 bg-slate-900 px-2 py-1 md:flex">
-        <span className="text-xs text-slate-500">P{goal.priority}</span>
-        <button
-          type="button"
-          onClick={() => changePriority(1)}
-          disabled={busy || goal.priority >= MAX_PRIORITY}
-          className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-40"
-          aria-label="Raise goal priority"
-          data-testid="goal-priority-up"
-        >
-          <ChevronUp className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => changePriority(-1)}
-          disabled={busy || goal.priority <= MIN_PRIORITY}
-          className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-40"
-          aria-label="Lower goal priority"
-          data-testid="goal-priority-down"
-        >
-          <ChevronDown className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      {goal.status !== "archived" && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setConfirmArchive(true)}
-          disabled={busy}
-          data-testid="goal-archive"
-        >
-          <Archive className="mr-1.5 h-4 w-4" />
-          Archive
-        </Button>
-      )}
-      <Button
-        type="button"
-        variant="destructive"
-        size="sm"
-        onClick={() => setConfirmDelete(true)}
-        disabled={busy}
-        data-testid="goal-delete"
-      >
-        <Trash2 className="mr-1.5 h-4 w-4" />
-        Delete
-      </Button>
-    </>
-  );
+  const menuActions: ActionMenuItem[] = [
+    ...(goal.status !== "archived" ? [{
+      label: "Archive",
+      icon: <Archive />,
+      disabled: busy,
+      onSelect: () => setConfirmArchive(true),
+      testId: "goal-archive",
+    }] : []),
+    {
+      label: "Delete",
+      icon: <Trash2 />,
+      disabled: busy,
+      destructive: true,
+      onSelect: () => setConfirmDelete(true),
+      testId: "goal-delete",
+    },
+  ];
 
   return (
     <DetailPageLayout
       header={
         <DetailPageHeader
-          entityType="goal"
-          entityIcon={ENTITY_TYPE_ICONS.goal}
+          entityType="Goal"
           title={goal.title || goal.name}
           subtitle={goal.description || goal.name}
           status={goal.status}
           nodeId={nodeId}
           lenses={GOAL_LENSES}
           onDrillToLens={() => navigate(graphPath({ lens: "plan", goal: goal.name }))}
-          metadata={<span className="text-xs text-slate-500">Updated {goal.updated ? formatRelativeTime(goal.updated) : "never"}</span>}
-          actions={actions}
+          menuActions={menuActions}
         />
       }
-      bodyClassName="mx-auto w-full max-w-6xl"
+      bodyClassName="mx-auto w-full max-w-3xl"
     >
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-4">
-          <DetailSection title="Targets" icon={Target} hideDivider data-testid="goal-targets">
-            <RefList refs={goal.targets} emptyText="This goal does not have explicit targets yet." entities={query.data.scopeEntities} />
-          </DetailSection>
-
-          <DetailSection title="Scope Progress" icon={Workflow} data-testid="goal-scope">
-            <ScopeProgress scope={scope} />
-          </DetailSection>
-
-          <DetailSection title="Ready Work" icon={ListChecks} data-testid="goal-ready">
-            <RefList refs={scope.ready} emptyText="No ready work in this goal right now." entities={query.data.scopeEntities} />
-          </DetailSection>
-
-          <DetailSection title="Blocked Work" icon={ListChecks} data-testid="goal-blocked">
-            <RefList refs={scope.blocked} emptyText="No blocked work in this goal right now." entities={query.data.scopeEntities} />
-          </DetailSection>
-
-          <DetailSection title="Scope Creep" icon={Workflow} data-testid="goal-history">
-            <ScopeHistory goal={goal} />
-          </DetailSection>
-        </div>
-
-        <aside className="space-y-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <Clock3 className="h-4 w-4 text-cyan-400" />
-              <h2 className="text-sm font-semibold text-slate-100">ETA Band</h2>
-            </div>
-            {eta ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-2xl font-semibold text-slate-100">{eta.p50Label}-{eta.p80Label}</p>
-                  <p className="text-xs text-slate-500">{eta.basisLabel || eta.basis}</p>
+      <div className="min-w-0 space-y-4">
+        <DetailSection title="Overview" icon={ENTITY_TYPE_ICONS.goal} hideDivider data-testid="goal-overview">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Progress
                 </div>
-                <div className="grid gap-2 text-sm">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-500">Confidence</span>
-                    <span className="text-slate-200">{eta.confidence || "unknown"}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-500">Remaining</span>
-                    <span className="text-slate-200">{eta.remainingItems}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-500">Lane capacity</span>
-                    <span className="text-slate-200">{eta.laneCapacity}</span>
-                  </div>
+                <div className="mt-2 text-xl font-semibold text-slate-100 sm:text-2xl">
+                  {Math.max(0, Math.min(100, Math.round(scope.progressPct)))}%
                 </div>
+                <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+                  {scope.completedCount} of {scope.total} complete
+                </p>
               </div>
-            ) : (
-              <p className="text-sm text-slate-500">No ETA is available for this goal yet.</p>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <h2 className="mb-3 text-sm font-semibold text-slate-100">Metadata</h2>
-            <div className="grid gap-2 text-sm">
-              <div className="flex justify-between gap-3">
-                <span className="text-slate-500">Name</span>
-                <Link to={goalDetailPath(goal.name)} className="min-w-0 truncate text-cyan-300 hover:text-cyan-200">
-                  {goal.name}
-                </Link>
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3" data-testid="goal-eta-card">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                  <Clock3 className="h-3.5 w-3.5" />
+                  ETA Band
+                </div>
+                <div className="mt-2 text-xl font-semibold text-slate-100 sm:text-2xl">
+                  {eta ? `${eta.p50Label}-${eta.p80Label}` : "—"}
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+                  {eta
+                    ? `${eta.basisLabel || eta.basis} · ${eta.confidence || "unknown"} confidence · lane capacity ${eta.laneCapacity}`
+                    : "No ETA is available for this goal yet."}
+                </p>
               </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-slate-500">Status</span>
-                <StatusBadge status={goal.status} size="sm" />
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                  <ChevronUp className="h-3.5 w-3.5" />
+                  Priority
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xl font-semibold text-slate-100 sm:text-2xl">P{goal.priority}</span>
+                  <span className="flex flex-col">
+                    <button
+                      type="button"
+                      onClick={() => changePriority(1)}
+                      disabled={busy || goal.priority >= MAX_PRIORITY}
+                      className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-40"
+                      aria-label="Raise goal priority"
+                      data-testid="goal-priority-up"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changePriority(-1)}
+                      disabled={busy || goal.priority <= MIN_PRIORITY}
+                      className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-40"
+                      aria-label="Lower goal priority"
+                      data-testid="goal-priority-down"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">Drives goal-directed drain order</p>
               </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-slate-500">Priority</span>
-                <span className="text-slate-200">P{goal.priority}</span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-slate-500">Created</span>
-                <span className="text-slate-200">{goal.created ? formatRelativeTime(goal.created) : "unknown"}</span>
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  Blocked
+                </div>
+                <div className={`mt-2 text-xl font-semibold sm:text-2xl ${scope.blockedCount > 0 ? "text-red-300" : "text-slate-100"}`}>
+                  {scope.blockedCount}
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+                  {scope.blockedCount > 0 ? "items blocked right now" : "nothing blocked right now"}
+                </p>
               </div>
             </div>
+
+            <div className="flex flex-wrap gap-6 text-xs text-slate-500">
+              <div>
+                <span className="uppercase tracking-wider">Name</span>{" "}
+                <span className="text-slate-400">{goal.name}</span>
+              </div>
+              <div>
+                <span className="uppercase tracking-wider">Created</span>{" "}
+                <span className="text-slate-400">{goal.created ? formatRelativeTime(goal.created) : "unknown"}</span>
+              </div>
+              <div>
+                <span className="uppercase tracking-wider">Updated</span>{" "}
+                <span className="text-slate-400">{goal.updated ? formatRelativeTime(goal.updated) : "never"}</span>
+              </div>
+            </div>
           </div>
-        </aside>
+        </DetailSection>
+
+        <DetailSection title="Targets" icon={Target} storageKey="goal.targets" data-testid="goal-targets">
+          <RefList refs={goal.targets} emptyText="This goal does not have explicit targets yet." entities={query.data.scopeEntities} />
+        </DetailSection>
+
+        <DetailSection title="Scope Progress" icon={Workflow} storageKey="goal.scope-progress" data-testid="goal-scope">
+          <ScopeProgress scope={scope} />
+        </DetailSection>
+
+        <DetailSection title="Ready Work" icon={ListChecks} storageKey="goal.ready-work" data-testid="goal-ready">
+          <RefList refs={scope.ready} emptyText="No ready work in this goal right now." entities={query.data.scopeEntities} />
+        </DetailSection>
+
+        <DetailSection title="Blocked Work" icon={ListChecks} storageKey="goal.blocked-work" data-testid="goal-blocked">
+          <RefList refs={scope.blocked} emptyText="No blocked work in this goal right now." entities={query.data.scopeEntities} />
+        </DetailSection>
+
+        <DetailSection title="Scope Creep" icon={Workflow} storageKey="goal.scope-creep" defaultOpen={false} data-testid="goal-history">
+          <ScopeHistory goal={goal} />
+        </DetailSection>
       </div>
 
       <ConfirmDialog

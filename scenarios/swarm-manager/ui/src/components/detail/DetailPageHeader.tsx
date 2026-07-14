@@ -4,7 +4,13 @@
  * Unified header for all entity detail pages. Two-row layout:
  *
  * Row 1: nav button + title (nearly full width for readability)
- * Row 2: entity type badge + status + subtitle + primary action
+ * Row 2: status badge + subtitle + primary action + overflow menu
+ *
+ * The action contract is deliberately narrow so the row can never overflow:
+ * at most ONE always-visible primary action; everything else goes in
+ * `menuActions`, rendered as an ellipsis menu (a bottom sheet on mobile).
+ * Entity-type icons and metadata chips live in the body's "Overview"
+ * section, not here.
  *
  * Also provides:
  * - Integrated LensBar for cross-lens navigation
@@ -13,12 +19,13 @@
 
 import { type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, X, type LucideIcon } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { graphPath } from "../../app/routes/route-paths";
 import { useAppBack } from "../../app/routes/useAppBack";
 import { useAppShell } from "../../app/shell/AppShellContext";
 import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
+import { ActionMenu, type ActionMenuItem } from "../ui/action-menu";
 import { StatusBadge } from "./StatusBadge";
 import { TitlePopover } from "./TitlePopover";
 import { LensBar } from "./LensBar";
@@ -27,9 +34,8 @@ import type { AppGraphLens } from "../../app/routes/route-paths";
 import type { BacklogStatus } from "../../types";
 
 export interface DetailPageHeaderProps {
+  /** Human label for the entity kind — names the actions menu ("Backlog actions"). */
   entityType: string;
-  /** Optional icon rendered inside the entity type badge. */
-  entityIcon?: LucideIcon;
   title: string;
   subtitle?: string;
   status?: string;
@@ -37,10 +43,13 @@ export interface DetailPageHeaderProps {
   nodeId: string | null;
   /** Available lens navigation options. */
   lenses: LensOption[];
-  /** Entity-specific action buttons (rendered in the metadata row). */
-  actions?: ReactNode;
-  /** Optional metadata chips rendered beside the entity/status badges. */
-  metadata?: ReactNode;
+  /** The single always-visible action button. Anything else belongs in `menuActions`. */
+  primaryAction?: ReactNode;
+  /** Secondary actions, shown in an ellipsis menu (bottom sheet on mobile). */
+  menuActions?: ActionMenuItem[];
+  /** Optional testid overrides for the actions menu trigger/panel. */
+  menuTriggerTestId?: string;
+  menuTestId?: string;
   /** Optional tab bar rendered below the LensBar (e.g., backlog tabs). */
   tabBar?: ReactNode;
   /**
@@ -57,14 +66,15 @@ export interface DetailPageHeaderProps {
 
 export function DetailPageHeader({
   entityType,
-  entityIcon: EntityIcon,
   title,
   subtitle,
   status,
   nodeId,
   lenses,
-  actions,
-  metadata,
+  primaryAction,
+  menuActions,
+  menuTriggerTestId = "detail-header-actions",
+  menuTestId = "detail-header-actions-menu",
   tabBar,
   onStatusChange,
   statusChangePending,
@@ -87,6 +97,9 @@ export function DetailPageHeader({
   const handleDrillToLens = onDrillToLens ?? ((id: string, lens: AppGraphLens) => {
     navigate(graphPath({ lens, focus: id, select: id }));
   });
+
+  const hasMenu = (menuActions?.length ?? 0) > 0;
+  const showActionRow = Boolean(status || subtitle || primaryAction || hasMenu);
 
   return (
     <header className={cn("border-b border-slate-800", className)} data-testid="detail-page-header">
@@ -113,46 +126,41 @@ export function DetailPageHeader({
             />
           </h1>
 
-          {/* Row 2: entity badge + status + subtitle + actions */}
-          <div className="mt-1 flex items-center gap-2">
-            {EntityIcon ? (
-              <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-slate-700/60 px-1.5" title={entityType}>
-                <EntityIcon className="h-3.5 w-3.5 text-slate-400" />
-              </span>
-            ) : (
-              <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-slate-700/60 px-2 text-xs font-medium uppercase tracking-wider text-slate-400">
-                {entityType}
-              </span>
-            )}
+          {/* Row 2: status + subtitle + primary action + overflow menu */}
+          {showActionRow && (
+            <div className="mt-1 flex items-center gap-2">
+              {status && (
+                <StatusBadge
+                  status={status}
+                  size="sm"
+                  onStatusChange={onStatusChange}
+                  statusChangePending={statusChangePending}
+                />
+              )}
 
-            {status && (
-              <StatusBadge
-                status={status}
-                size="sm"
-                onStatusChange={onStatusChange}
-                statusChangePending={statusChangePending}
-              />
-            )}
+              {subtitle && (
+                <p className="min-w-0 truncate text-sm text-slate-400">{subtitle}</p>
+              )}
 
-            {subtitle && (
-              <p className="min-w-0 truncate text-sm text-slate-400">{subtitle}</p>
-            )}
+              {/* Spacer pushes actions to the right */}
+              <div className="flex-1" />
 
-            {metadata && (
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                {metadata}
-              </div>
-            )}
+              {primaryAction && (
+                <div className="flex shrink-0 items-center">{primaryAction}</div>
+              )}
 
-            {/* Spacer pushes actions to the right */}
-            <div className="flex-1" />
-
-            {actions && (
-              <div className="flex shrink-0 items-center gap-2">
-                {actions}
-              </div>
-            )}
-          </div>
+              {hasMenu && (
+                <ActionMenu
+                  items={menuActions ?? []}
+                  label={`${entityType} actions`}
+                  mobileSheet
+                  triggerTestId={menuTriggerTestId}
+                  menuTestId={menuTestId}
+                  className="h-7 w-7 shrink-0"
+                />
+              )}
+            </div>
+          )}
         </div>
 
         <button

@@ -7,7 +7,7 @@
 
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Activity, Archive, CheckSquare, CircleHelp, ClipboardList, Files, Sparkles } from "lucide-react";
+import { Activity, Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { PlanPanel } from "../components/backlog/plan-panel";
@@ -17,11 +17,11 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
 import { BacklogDetailsPanel } from "../components/backlog/backlog-details-panel";
 import { BacklogNotesPanel } from "../components/backlog/backlog-notes-panel";
-import { BacklogActionButtons } from "../components/backlog/backlog-action-buttons";
+import { buildBacklogActionMenuItems } from "../components/backlog/backlog-action-buttons";
+import type { ActionMenuItem } from "../components/ui/action-menu";
 import { OutputTab } from "../components/backlog/output-tab";
 import { ActivityTab } from "../components/backlog/activity-tab";
 import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
-import { BacklogDesktopHeader } from "../components/backlog/backlog-desktop-header";
 import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
 import { HeaderPrimaryAction } from "../components/backlog/header-primary-action";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
@@ -37,7 +37,7 @@ import { useBacklogHandlers } from "../hooks/useBacklogHandlers";
 import { findBacklogFileByPath } from "../lib/workshop-files";
 import { isAgentActivityBlocking, isAgentActivityExecuting } from "../lib/agent-activity-utils";
 import { selectors } from "../consts/selectors";
-import { BACKLOG_KIND_ICONS, BACKLOG_KIND_LABELS, BACKLOG_KINDS } from "../types";
+import { BACKLOG_KIND_LABELS, BACKLOG_KINDS } from "../types";
 import type { BacklogFile, BacklogKind } from "../types";
 import {
   selectLatestActivityForBacklog,
@@ -54,7 +54,7 @@ import { EvidenceRequestPanel } from "../components/backlog/evidence-request-pan
 import { useQueryClient } from "@tanstack/react-query";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
-import { AttributionChip } from "../components/detail/AttributionChip";
+import { formatRelativeTime } from "../lib";
 import { executionDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAppBack } from "../app/routes/useAppBack";
 import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
@@ -394,42 +394,48 @@ export function BacklogDetailsPage() {
     />
   );
 
-  const mobileActionButtons = item && itemActions ? (
-    <div className="space-y-2">
-      {attachToSession.button}
-      <BacklogActionButtons
-        item={item}
-        isUpdating={isUpdating}
-        onFinalizeWorkshop={handlers.handleFinalizeWorkshop}
-        onStartRun={uiStore.openRunModal}
-        onRunWorkshop={handlers.handleRunWorkshop}
-        onEdit={uiStore.openEdit}
-        onFollowUp={() => uiStore.setFollowUpTarget(executionHistory?.[0] ?? null)}
-        onRetry={async () => {
-          await backlogService.retry(item.kind, item.name);
-          data.refetchItem();
-          await queryClient.invalidateQueries({
-            queryKey: ["execution-history", item.kind, item.name],
+  const menuActions: ActionMenuItem[] = item && itemActions ? [
+    attachToSession.actionItem,
+    ...buildBacklogActionMenuItems(
+      {
+        itemActions,
+        isLocked,
+        isTerminal,
+        agentRunningLabel,
+        workshopActionLabel,
+        deliverableLabel,
+        agentLabel,
+        isRunningAgent,
+      },
+      {
+        isUpdating,
+        onFinalizeWorkshop: handlers.handleFinalizeWorkshop,
+        onStartRun: uiStore.openRunModal,
+        onRunWorkshop: handlers.handleRunWorkshop,
+        onEdit: uiStore.openEdit,
+        onFollowUp: () => uiStore.setFollowUpTarget(executionHistory?.[0] ?? null),
+        onRetry: () => {
+          void backlogService.retry(item.kind, item.name).then(async () => {
+            data.refetchItem();
+            await queryClient.invalidateQueries({
+              queryKey: ["execution-history", item.kind, item.name],
+            });
           });
-        }}
-        onOpenAgentDialog={uiStore.openAgent}
-        onArchive={() => handlers.handleArchiveItem()}
-        onStatusChange={(newStatus) => handlers.handleUpdateItem({
-          title: item.title, description: item.description,
-          status: newStatus, priority: item.priority, tags: item.tags,
-        })}
-        onResetWorkshop={uiStore.openWorkshopReset}
-        hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
-        onDelete={() => {
+        },
+        onOpenAgentDialog: uiStore.openAgent,
+        onArchive: () => handlers.handleArchiveItem(),
+        onResetWorkshop: uiStore.openWorkshopReset,
+        hasWorkshopRounds: (workshopRounds?.length ?? 0) > 0,
+        onDelete: () => {
           if (getDeleteConfirmLevel("backlog") === "none") {
             handlers.handleDeleteConfirm();
           } else {
             uiStore.openDelete();
           }
-        }}
-      />
-    </div>
-  ) : undefined;
+        },
+      },
+    ),
+  ] : [];
 
   const suggestionActions = item?.status === "suggested" && item.archivedAt == null ? (
     <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] px-3 py-3">
@@ -523,26 +529,20 @@ export function BacklogDetailsPage() {
       <DetailPageLayout
         header={
           <DetailPageHeader
-            entityType={backlogKind ? BACKLOG_KIND_LABELS[backlogKind] : "backlog"}
-            entityIcon={backlogKind ? BACKLOG_KIND_ICONS[backlogKind] : undefined}
+            entityType={backlogKind ? BACKLOG_KIND_LABELS[backlogKind] : "Backlog"}
             title={item?.title ?? name ?? "Loading..."}
             status={item?.status}
             nodeId={nodeId}
             lenses={BACKLOG_LENSES}
-            metadata={item?.createdBy ? <AttributionChip attribution={item.createdBy} /> : undefined}
-            actions={item ? (
-              <div className="flex items-center gap-2">
-                <HeaderPrimaryAction className="shrink-0" onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} />
-                {attachToSession.button}
-              </div>
+            primaryAction={item ? (
+              <HeaderPrimaryAction className="shrink-0" onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} />
             ) : undefined}
+            menuActions={menuActions}
             onStatusChange={!isLocked ? (newStatus) => data.updateStatus(newStatus) : undefined}
             statusChangePending={data.isUpdatingStatus}
             tabBar={tabBar}
           />
         }
-        mobileActions={mobileActionButtons}
-        mobileActionsTitle="Backlog Actions"
       >
         {attachToSession.sheet}
         <div className="space-y-0 lg:space-y-6" data-testid={selectors.backlogDetails.page}>
@@ -554,161 +554,85 @@ export function BacklogDetailsPage() {
           )}
           {item && !pageError && (
             <>
-              {/* Mobile tab content */}
-              <div className="lg:hidden">
-                {item.archivedAt != null && (
-                  <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                    <span className="text-sm text-amber-300">Archived</span>
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-amber-300 hover:text-amber-200"
-                      onClick={handlers.handleUnarchiveItem}
-                      disabled={isArchiving}
-                    >
-                      {isArchiving ? "Restoring..." : "Unarchive"}
-                    </button>
+              {item.archivedAt != null && (
+                <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                  <div className="flex items-center gap-2 text-sm text-amber-300">
+                    <Archive className="h-4 w-4" />
+                    <span>Archived {formatRelativeTime(item.archivedAt)}</span>
                   </div>
-                )}
-                {activeTab === "info" && (
-                  <div className="flex-1 space-y-0 overflow-y-auto pb-4">
-                    {(deleteError || archiveError) && (
-                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                        {deleteError || archiveError}
-                      </div>
-                    )}
-                    {suggestionActions}
-                    {detailsPanel}
-                    <BacklogScenariosPanel targetScenarios={targetScenarios} />
-                    {notesPanel}
-                    {operationalTargetsSection}
-                  </div>
-                )}
-                {activeTab === "prompt" && (
-                  <PlanPanel backlogKind={backlogKind} backlogName={name} className="flex-1 overflow-y-auto" />
-                )}
-                {activeTab === "files" && fileWorkspaceElement}
-                {activeTab === "output" && (
-                  <div className="flex-1 space-y-0 overflow-y-auto pb-4">
-                    <OutputTab
-                      executionHistory={executionHistory}
-                      agentRunIsBusy={agentRunIsBusy}
-                      latestAgentActivity={latestAgentActivity}
-                      agentManagerUiUrl={agentManagerUiUrl}
-                      reviewRounds={reviewRounds}
-                      isGatheringEvidence={isGatheringEvidence}
-                      isAwaitingManualReview={isAwaitingManualReview}
-                      backlogKind={backlogKind ?? ""}
-                      backlogName={name ?? ""}
-                      onStopRun={(runId) => void stopRun(runId)}
-                      onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                      onArchive={item ? () => handlers.handleArchiveItem() : undefined}
-                      onVerifyEvidence={(round, evidenceId, verified) => {
-                        const execId = executionHistory?.[0]?.executionId;
-                        void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
-                          .then(() => queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }));
-                      }}
-                      onRequestMoreEvidence={(round, evidenceId) => {
-                        useReviewStore.getState().openRequestPanel(round, evidenceId);
-                      }}
-                    />
-                  </div>
-                )}
-                {activeTab === "activity" && (
-                  <div className="flex-1 space-y-0 overflow-y-auto pb-4">
-                    <ActivityTab
-                      timeline={timeline}
-                      agentRunIsBlocking={agentRunIsBlocking}
-                      latestAgentActivity={latestAgentActivity}
-                      agentManagerUiUrl={agentManagerUiUrl}
-                      onStopRun={(runId) => void stopRun(runId)}
-                      onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                      onViewExecution={(exec) => navigate(executionDetailPath(exec.executionId))}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Desktop content */}
-              <div className="hidden space-y-6 lg:block">
-                {suggestionActions}
-                <BacklogDesktopHeader
-                  item={item}
-                  deleteError={deleteError}
-                  archiveError={archiveError}
-                  primaryAction={<HeaderPrimaryAction onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} />}
-                  onEdit={uiStore.openEdit}
-                  onDelete={() => {
-                if (getDeleteConfirmLevel("backlog") === "none") {
-                  handlers.handleDeleteConfirm();
-                } else {
-                  uiStore.openDelete();
-                }
-              }}
-                  onArchive={handlers.handleArchiveItem}
-                  onUnarchive={handlers.handleUnarchiveItem}
-                  isArchiving={isArchiving}
-                  onResetWorkshop={uiStore.openWorkshopReset}
-                  hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
-                  onOpenAgentDialog={uiStore.openAgent}
-                  onStatusChange={(newStatus) => handlers.handleUpdateItem({
-                    title: item.title, description: item.description,
-                    status: newStatus, priority: item.priority, tags: item.tags,
-                  })}
-                />
-                <div>
-                  {activeTab === "info" && (
-                    <div className="space-y-0 pt-3">
-                      {detailsPanel}
-                      <BacklogScenariosPanel targetScenarios={targetScenarios} />
-                      {notesPanel}
-                      {operationalTargetsSection}
-                    </div>
-                  )}
-                  {activeTab === "prompt" && (
-                    <PlanPanel backlogKind={backlogKind} backlogName={name} className="mt-3 min-h-[500px] rounded-lg border border-slate-800 bg-slate-900/50" />
-                  )}
-                  {activeTab === "files" && fileWorkspaceElement}
-                  {activeTab === "output" && (
-                    <div className="space-y-0 pt-3">
-                      <OutputTab
-                        executionHistory={executionHistory}
-                        agentRunIsBusy={agentRunIsBusy}
-                        latestAgentActivity={latestAgentActivity}
-                        agentManagerUiUrl={agentManagerUiUrl}
-                        reviewRounds={reviewRounds}
-                        isGatheringEvidence={isGatheringEvidence}
-                        isAwaitingManualReview={isAwaitingManualReview}
-                        backlogKind={backlogKind ?? ""}
-                        backlogName={name ?? ""}
-                        onStopRun={(runId) => void stopRun(runId)}
-                        onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                        onArchive={item ? () => handlers.handleArchiveItem() : undefined}
-                        onVerifyEvidence={(round, evidenceId, verified) => {
-                          const execId = executionHistory?.[0]?.executionId;
-                          void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
-                            .then(() => queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }));
-                        }}
-                        onRequestMoreEvidence={(round, evidenceId) => {
-                          useReviewStore.getState().openRequestPanel(round, evidenceId);
-                        }}
-                      />
-                    </div>
-                  )}
-                  {activeTab === "activity" && (
-                    <div className="space-y-0 pt-3">
-                      <ActivityTab
-                        timeline={timeline}
-                        agentRunIsBlocking={agentRunIsBlocking}
-                        latestAgentActivity={latestAgentActivity}
-                        agentManagerUiUrl={agentManagerUiUrl}
-                        onStopRun={(runId) => void stopRun(runId)}
-                        onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                      onViewExecution={(exec) => navigate(executionDetailPath(exec.executionId))}
-                      />
-                    </div>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+                    onClick={handlers.handleUnarchiveItem}
+                    disabled={isArchiving}
+                  >
+                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                    {isArchiving ? "Restoring..." : "Unarchive"}
+                  </Button>
                 </div>
-              </div>
+              )}
+              {(deleteError || archiveError) && (
+                <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {deleteError || archiveError}
+                </div>
+              )}
+              {activeTab === "info" && (
+                <div className="flex-1 space-y-0 overflow-y-auto pb-4 lg:pt-3">
+                  {suggestionActions}
+                  {detailsPanel}
+                  <BacklogScenariosPanel targetScenarios={targetScenarios} />
+                  {notesPanel}
+                  {operationalTargetsSection}
+                </div>
+              )}
+              {activeTab === "prompt" && (
+                <PlanPanel
+                  backlogKind={backlogKind}
+                  backlogName={name}
+                  className="flex-1 overflow-y-auto lg:mt-3 lg:min-h-[500px] lg:rounded-lg lg:border lg:border-slate-800 lg:bg-slate-900/50"
+                />
+              )}
+              {activeTab === "files" && fileWorkspaceElement}
+              {activeTab === "output" && (
+                <div className="flex-1 space-y-0 overflow-y-auto pb-4 lg:pt-3">
+                  <OutputTab
+                    executionHistory={executionHistory}
+                    agentRunIsBusy={agentRunIsBusy}
+                    latestAgentActivity={latestAgentActivity}
+                    agentManagerUiUrl={agentManagerUiUrl}
+                    reviewRounds={reviewRounds}
+                    isGatheringEvidence={isGatheringEvidence}
+                    isAwaitingManualReview={isAwaitingManualReview}
+                    backlogKind={backlogKind ?? ""}
+                    backlogName={name ?? ""}
+                    onStopRun={(runId) => void stopRun(runId)}
+                    onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
+                    onArchive={item ? () => handlers.handleArchiveItem() : undefined}
+                    onVerifyEvidence={(round, evidenceId, verified) => {
+                      const execId = executionHistory?.[0]?.executionId;
+                      void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
+                        .then(() => queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }));
+                    }}
+                    onRequestMoreEvidence={(round, evidenceId) => {
+                      useReviewStore.getState().openRequestPanel(round, evidenceId);
+                    }}
+                  />
+                </div>
+              )}
+              {activeTab === "activity" && (
+                <div className="flex-1 space-y-0 overflow-y-auto pb-4 lg:pt-3">
+                  <ActivityTab
+                    timeline={timeline}
+                    agentRunIsBlocking={agentRunIsBlocking}
+                    latestAgentActivity={latestAgentActivity}
+                    agentManagerUiUrl={agentManagerUiUrl}
+                    onStopRun={(runId) => void stopRun(runId)}
+                    onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
+                    onViewExecution={(exec) => navigate(executionDetailPath(exec.executionId))}
+                  />
+                </div>
+              )}
             </>
           )}
 

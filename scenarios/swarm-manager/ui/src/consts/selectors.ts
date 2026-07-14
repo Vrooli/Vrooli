@@ -179,7 +179,6 @@ export const literalSelectors = {
   // Backlog details page selectors
   backlogDetails: {
     page: "backlog-details-page",
-    header: "backlog-details-header",
     title: "backlog-details-title",
     description: "backlog-details-description",
     backButton: "backlog-details-back",
@@ -204,7 +203,6 @@ export const literalSelectors = {
     suggestionsSubmit: "backlog-suggestions-submit",
     // Experience architecture additions (Phase 29)
     breadcrumb: "backlog-details-breadcrumb",
-    statusSelect: "backlog-details-status-select",
     activityTimeline: "backlog-details-activity-timeline",
     activeRunBanner: "backlog-details-active-run-banner",
     tabRow: "backlog-details-tab-row",
@@ -404,7 +402,6 @@ export const literalSelectors = {
     tabReview: "initiative-details-tab-review",
     tabMode: "initiative-details-tab-mode",
     addFeedbackButtonDesktop: "initiative-details-add-feedback-desktop",
-    addFeedbackButtonMobile: "initiative-details-add-feedback-mobile",
     modePanel: "initiative-mode-panel",
     modeHero: "initiative-mode-hero",
     modeHeroLabel: "initiative-mode-hero-label",

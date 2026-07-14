@@ -67,13 +67,20 @@ describe("GoalDetailsPage", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText("Workspace goal")).toBeInTheDocument());
+    expect(screen.getByTestId("goal-overview")).toHaveTextContent("50%");
+    expect(screen.getByTestId("goal-overview")).toHaveTextContent("P4");
     expect(screen.getByTestId("goal-targets")).toHaveTextContent("ship-workspace");
     expect(screen.getByTestId("goal-targets")).toHaveTextContent("navigation");
     expect(screen.getByTestId("goal-scope")).toHaveTextContent("50%");
     expect(screen.getByTestId("goal-ready")).toHaveTextContent("ship-workspace");
     expect(screen.getByTestId("goal-blocked")).toHaveTextContent("blocker");
-    expect(screen.getByTestId("goal-history")).toHaveTextContent("3");
     expect(screen.getByText("1d-2d")).toBeInTheDocument();
+
+    // Scope Creep is collapsed by default; expanding reveals the history table.
+    expect(screen.getByTestId("goal-history")).not.toHaveTextContent("3");
+    await userEvent.click(screen.getByTestId("goal-history-toggle"));
+    expect(screen.getByTestId("goal-history")).toHaveTextContent("3");
+
     expect(screen.getAllByTestId("goal-ref-execute/ship-workspace")[0]).toHaveAttribute(
       "href",
       "/backlog/execute/ship-workspace",
@@ -87,10 +94,15 @@ describe("GoalDetailsPage", () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByTestId("goal-archive")).toBeInTheDocument());
+    // Archive and delete live in the header overflow menu.
+    await waitFor(() => expect(screen.getByTestId("detail-header-actions")).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId("detail-header-actions"));
     await userEvent.click(screen.getByTestId("goal-archive"));
     expect(screen.getByTestId("goal-archive-confirm")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("goal-archive-confirm")).toBeNull());
 
+    await userEvent.click(screen.getByTestId("detail-header-actions"));
     await userEvent.click(screen.getByTestId("goal-delete"));
     const dialog = screen.getByTestId("goal-delete-confirm");
     expect(dialog).toBeInTheDocument();

@@ -25,6 +25,8 @@ export interface ActionMenuProps {
   triggerSize?: ButtonProps["size"];
   onItemSelected?: () => void;
   className?: string;
+  /** Render the menu as a full-width bottom sheet on mobile (uses `label` as the sheet title). */
+  mobileSheet?: boolean;
 }
 
 export function ActionMenu({
@@ -37,6 +39,7 @@ export function ActionMenu({
   triggerSize = "icon",
   onItemSelected,
   className,
+  mobileSheet,
 }: ActionMenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -67,6 +70,8 @@ export function ActionMenu({
         onClose={() => setOpen(false)}
         triggerRef={triggerRef}
         placement="bottom-end"
+        mobileSheet={mobileSheet}
+        mobileTitle={label}
         className="min-w-[200px] overflow-hidden py-1"
         testId={menuTestId}
       >

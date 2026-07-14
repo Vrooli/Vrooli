@@ -22,7 +22,6 @@ import { useCaptureStore } from "../stores/capture-store";
 import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { formatRelativeTime } from "../lib";
 import type { Capture } from "../types";
-import { ENTITY_TYPE_ICONS } from "../types";
 import type { BacklogFormValues } from "../types";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { backlogService } from "../services/backlog-service";
@@ -167,49 +166,42 @@ export function CaptureDetailsPage() {
     capture.status === "classified" && items.length > 0 ? "Classified" :
     "No action";
 
-  const headerActions = (
-    <div className="flex items-center gap-2">
-      {capture.status === "failed" && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRetry}
-          disabled={isRetrying}
-        >
-          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRetrying ? "animate-spin" : ""}`} />
-          Retry
-        </Button>
-      )}
-      {attachToSession.button}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleDeleteClick}
-        disabled={isDeleting}
-        className="text-red-400 hover:text-red-300"
-      >
-        {isDeleting ? (
-          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-        )}
-        Delete
-      </Button>
-    </div>
-  );
+  const primaryAction = capture.status === "failed" ? (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleRetry}
+      disabled={isRetrying}
+    >
+      <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRetrying ? "animate-spin" : ""}`} />
+      Retry
+    </Button>
+  ) : undefined;
+
+  const menuActions = [
+    attachToSession.actionItem,
+    {
+      label: "Delete",
+      icon: <Trash2 />,
+      onSelect: handleDeleteClick,
+      disabled: isDeleting,
+      loading: isDeleting,
+      destructive: true,
+    },
+  ];
 
   return (
     <DetailPageLayout
       header={
         <DetailPageHeader
           entityType="Capture"
-          entityIcon={ENTITY_TYPE_ICONS.capture}
           title={capture.text.length > 80 ? capture.text.slice(0, 80) + "..." : capture.text}
           subtitle={formatRelativeTime(capture.created)}
           status={statusLabel}
           nodeId={null}
           lenses={[]}
-          actions={headerActions}
+          primaryAction={primaryAction}
+          menuActions={menuActions}
         />
       }
     >

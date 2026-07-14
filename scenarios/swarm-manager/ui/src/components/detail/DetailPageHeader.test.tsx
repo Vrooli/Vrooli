@@ -41,11 +41,11 @@ function LocationProbe() {
 }
 
 describe("DetailPageHeader", () => {
-  it("renders entity type badge and title", () => {
+  it("renders the title without an entity-type badge (icons live in the body Overview)", () => {
     renderHeader();
 
-    expect(screen.getByText("backlog")).toBeInTheDocument();
     expect(screen.getByText("Test Item")).toBeInTheDocument();
+    expect(screen.queryByText("backlog")).toBeNull();
   });
 
   it("opens a popover with the full title and a copy button when the title is clicked", async () => {
@@ -60,18 +60,31 @@ describe("DetailPageHeader", () => {
     expect(screen.getByTestId("detail-title-copy-button")).toBeInTheDocument();
   });
 
-  it("renders subtitle, status, and action slot when provided", () => {
+  it("renders subtitle, status, one primary action, and an overflow menu", async () => {
     renderHeader({
       subtitle: "execute/test",
       status: "in_progress",
-      metadata: <span data-testid="custom-metadata">Created by session</span>,
-      actions: <button data-testid="custom-action">Run</button>,
+      primaryAction: <button data-testid="custom-action">Run</button>,
+      menuActions: [
+        { label: "Archive", onSelect: () => {}, testId: "menu-archive" },
+      ],
     });
 
     expect(screen.getByText("execute/test")).toBeInTheDocument();
     expect(screen.getByTestId("detail-page-header")).toBeInTheDocument();
-    expect(screen.getByTestId("custom-metadata")).toBeInTheDocument();
     expect(screen.getByTestId("custom-action")).toBeInTheDocument();
+
+    // Secondary actions live behind the ellipsis, not inline.
+    expect(screen.queryByTestId("menu-archive")).toBeNull();
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("detail-header-actions"));
+    expect(screen.getByTestId("detail-header-actions-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("menu-archive")).toBeInTheDocument();
+  });
+
+  it("renders no action row when only the title is provided", () => {
+    renderHeader();
+    expect(screen.queryByTestId("detail-header-actions")).toBeNull();
   });
 
   it("renders LensBar when nodeId and lenses are provided", () => {

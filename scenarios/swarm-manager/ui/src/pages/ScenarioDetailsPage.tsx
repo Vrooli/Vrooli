@@ -18,8 +18,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
-import { Circle } from "lucide-react";
+import { Circle, Play, RefreshCw, Square } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
+import type { ActionMenuItem } from "../components/ui/action-menu";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import type { FileSelectionResult } from "../components/scenarios/file-selection-dialog";
@@ -32,7 +33,7 @@ import { ScenarioDangerZone } from "../components/scenarios/ScenarioDangerZone";
 import { ScenarioLifecycleActions } from "../components/scenarios/ScenarioLifecycleActions";
 import { ScenarioMobileView } from "../components/scenarios/ScenarioMobileView";
 import { selectors } from "../consts/selectors";
-import { ENTITY_TYPE_ICONS, SCENARIO_STATUS_ICONS } from "../types";
+import { SCENARIO_STATUS_ICONS } from "../types";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { SCENARIO_LENSES } from "../components/detail/lens-options";
@@ -186,47 +187,52 @@ export function ScenarioDetailsPage() {
   }
 
   const lifecycleActions = scenario ? (
-    <div className="flex items-center gap-2">
-      <ScenarioLifecycleActions
-        isRunning={isRunning}
-        isStopped={isStopped}
-        actionPending={actionMutation.isPending}
-        actionInFlight={actionInFlight}
-        onAction={(action) => actionMutation.mutate(action)}
-      />
-      {attachToSession.button}
-    </div>
+    <ScenarioLifecycleActions
+      isRunning={isRunning}
+      isStopped={isStopped}
+      actionPending={actionMutation.isPending}
+      actionInFlight={actionInFlight}
+      onAction={(action) => actionMutation.mutate(action)}
+    />
   ) : undefined;
 
-  const mobileLifecycleActions = scenario ? (
-    <div className="space-y-2">
-      {attachToSession.button}
-      <ScenarioLifecycleActions
-        isRunning={isRunning}
-        isStopped={isStopped}
-        actionPending={actionMutation.isPending}
-        actionInFlight={actionInFlight}
-        onAction={(action) => actionMutation.mutate(action)}
-        mobile
-      />
-    </div>
-  ) : undefined;
+  const menuActions: ActionMenuItem[] = scenario ? [
+    attachToSession.actionItem,
+    {
+      label: "Start",
+      icon: <Play />,
+      loading: actionInFlight === "start",
+      disabled: actionMutation.isPending || isRunning,
+      onSelect: () => actionMutation.mutate("start"),
+    },
+    {
+      label: "Stop",
+      icon: <Square />,
+      loading: actionInFlight === "stop",
+      disabled: actionMutation.isPending || isStopped,
+      onSelect: () => actionMutation.mutate("stop"),
+    },
+    {
+      label: "Restart",
+      icon: <RefreshCw />,
+      loading: actionInFlight === "restart",
+      disabled: actionMutation.isPending,
+      onSelect: () => actionMutation.mutate("restart"),
+    },
+  ] : [];
 
   return (
     <DetailPageLayout
       header={
         <DetailPageHeader
-          entityType="scenario"
-          entityIcon={ENTITY_TYPE_ICONS.scenario}
+          entityType="Scenario"
           title={scenario?.displayName || name || "Unknown"}
           status={scenario?.status}
           nodeId={nodeId}
           lenses={SCENARIO_LENSES}
-          actions={lifecycleActions}
+          menuActions={menuActions}
         />
       }
-      mobileActions={mobileLifecycleActions}
-      mobileActionsTitle="Scenario Actions"
     >
     {attachToSession.sheet}
     <div className="space-y-6" data-testid={selectors.scenarioDetails.page}>

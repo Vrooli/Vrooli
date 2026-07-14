@@ -15,17 +15,18 @@ import {
   Edit,
   FolderOpen,
   GitBranch,
-  Info,
   Tags,
   Target,
 } from "lucide-react";
 import { TagList } from "../ui/tag-list";
 import { EntityLink } from "../ui/entity-link";
 import { DetailSection } from "../detail/DetailSection";
+import { AttributionChip } from "../detail/AttributionChip";
 import { NoteEditor } from "../ui/note-editor";
 import { DependencyChipList } from "./dependency-chip-list";
 import { formatRelativeTime } from "../../lib";
 import { selectors } from "../../consts/selectors";
+import { BACKLOG_KIND_ICONS } from "../../types";
 import type { BacklogItem, BacklogStatus } from "../../types";
 import type { DependencyRelations, ResolvedDependency } from "../../lib/backlog-queue-utils";
 
@@ -59,7 +60,7 @@ export function BacklogDetailsPanel({
   }, [item.description]);
 
   return (
-    <DetailSection title="Details" icon={Info} hideDivider>
+    <DetailSection title="Overview" icon={BACKLOG_KIND_ICONS[item.kind]} hideDivider>
       <div className="space-y-3">
         <div className="relative">
           <div
@@ -238,6 +239,16 @@ export function BacklogDetailsPanel({
         <NoteEditor note={item.note ?? ""} onSave={onSaveNote} />
 
         <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Priority</p>
+            <p className="text-sm text-slate-300">P{item.priority}</p>
+          </div>
+          {item.createdBy && (
+            <div className="space-y-1">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Created by</p>
+              <AttributionChip attribution={item.createdBy} />
+            </div>
+          )}
           <div className="space-y-1">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Created</p>
             <p className="text-sm text-slate-300" title={new Date(item.created).toLocaleString()}>

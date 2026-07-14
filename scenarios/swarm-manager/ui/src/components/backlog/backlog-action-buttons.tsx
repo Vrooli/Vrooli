@@ -1,10 +1,15 @@
 /**
- * BacklogActionButtons
+ * buildBacklogActionMenuItems
  *
- * Renders the full set of action buttons for a backlog item (finalize, run,
- * workshop, edit, follow-up, agent, archive, status, delete).
+ * Builds the overflow-menu actions for a backlog item (secondary CTAs, edit,
+ * follow-up, retry, agent, archive, reset workshop, delete) for the
+ * DetailPageHeader ellipsis menu. The item's primary CTA is rendered by
+ * `HeaderPrimaryAction` and excluded here; status changes go through the
+ * header's StatusBadge.
  *
- * Reads shared state from BacklogDetailContext.
+ * A pure builder (not a hook): the detail page assembles it from the same
+ * values it feeds BacklogDetailContext, since the page renders the provider
+ * and cannot read its own context.
  */
 
 import {
@@ -18,15 +23,22 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { ActionMenuItemButton, type ActionMenuItem } from "../ui/action-menu";
-import { Select } from "../ui/select";
+import { type ActionMenuItem } from "../ui/action-menu";
 import { selectors } from "../../consts/selectors";
-import { USER_SETTABLE_STATUSES, formatBacklogStatus } from "../../types";
-import type { BacklogStatus } from "../../types";
-import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
+import type { ItemActions } from "../../lib/backlog-queue-utils";
 
-export interface BacklogActionButtonsProps {
-  item: { title: string; description: string; status: BacklogStatus; priority: number; tags: string[] };
+export interface BacklogActionMenuDetail {
+  itemActions: ItemActions | null;
+  isLocked: boolean;
+  isTerminal: boolean;
+  agentRunningLabel: string;
+  workshopActionLabel: string;
+  deliverableLabel: string;
+  agentLabel: string;
+  isRunningAgent: boolean;
+}
+
+export interface BacklogActionMenuOptions {
   isUpdating: boolean;
   onFinalizeWorkshop: () => void;
   onStartRun: () => void;
@@ -36,14 +48,12 @@ export interface BacklogActionButtonsProps {
   onRetry: () => void;
   onOpenAgentDialog: () => void;
   onArchive: () => void;
-  onStatusChange: (newStatus: BacklogStatus) => void;
   onResetWorkshop: () => void;
   hasWorkshopRounds: boolean;
   onDelete: () => void;
 }
 
-export function BacklogActionButtons({
-  item,
+export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
   isUpdating,
   onFinalizeWorkshop,
   onStartRun,
@@ -53,25 +63,24 @@ export function BacklogActionButtons({
   onRetry,
   onOpenAgentDialog,
   onArchive,
-  onStatusChange,
   onResetWorkshop,
   hasWorkshopRounds,
   onDelete,
-}: BacklogActionButtonsProps) {
+}: BacklogActionMenuOptions): ActionMenuItem[] {
   const {
     itemActions, isLocked, isTerminal,
     agentRunningLabel, workshopActionLabel, deliverableLabel,
     agentLabel, isRunningAgent,
-  } = useBacklogDetail();
+  } = detail;
 
-  if (!itemActions) return null;
+  if (!itemActions) return [];
 
-  const primaryActionItems: ActionMenuItem[] = [];
-  const secondaryActionItems: ActionMenuItem[] = [];
-  const destructiveActionItems: ActionMenuItem[] = [];
+  const items: ActionMenuItem[] = [];
 
-  if (itemActions.canFinalize || itemActions.finalizeDisabled) {
-    primaryActionItems.push({
+  // Secondary CTAs — every available CTA except the primary one, which
+  // HeaderPrimaryAction already renders as the visible header button.
+  if (itemActions.primaryCta !== "finalize" && (itemActions.canFinalize || itemActions.finalizeDisabled)) {
+    items.push({
       label: itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : `Finalize ${deliverableLabel}`,
       icon: <Sparkles />,
       onSelect: onFinalizeWorkshop,
@@ -79,8 +88,8 @@ export function BacklogActionButtons({
       title: (itemActions.finalizeDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined,
     });
   }
-  if (itemActions.canRun || itemActions.runDisabled) {
-    primaryActionItems.push({
+  if (itemActions.primaryCta !== "run" && (itemActions.canRun || itemActions.runDisabled)) {
+    items.push({
       label: itemActions.agentExecuting ? agentRunningLabel : "Run",
       icon: <Play />,
       onSelect: onStartRun,
@@ -88,8 +97,8 @@ export function BacklogActionButtons({
       title: itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined,
     });
   }
-  if (itemActions.canWorkshop || itemActions.workshopDisabled) {
-    primaryActionItems.push({
+  if (itemActions.primaryCta !== "workshop" && (itemActions.canWorkshop || itemActions.workshopDisabled)) {
+    items.push({
       label: itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel,
       icon: <MessageSquareText />,
       onSelect: onRunWorkshop,
@@ -97,20 +106,21 @@ export function BacklogActionButtons({
       title: (itemActions.workshopDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined,
     });
   }
-  secondaryActionItems.push({
+  items.push({
     label: "Edit",
     icon: <Edit />,
     onSelect: onEdit,
+    testId: selectors.backlogDetails.editButton,
   });
   if (itemActions.canFollowUp) {
-    secondaryActionItems.push({
+    items.push({
       label: "Follow Up",
       icon: <MessageSquare />,
       onSelect: onFollowUp,
     });
   }
   if (itemActions.canRetry) {
-    secondaryActionItems.push({
+    items.push({
       label: "Retry",
       icon: <RefreshCw />,
       onSelect: onRetry,
@@ -118,15 +128,16 @@ export function BacklogActionButtons({
     });
   }
   if (!itemActions.canFollowUp && !itemActions.canRetry && !isTerminal) {
-    secondaryActionItems.push({
+    items.push({
       label: agentLabel,
       icon: <Sparkles />,
       onSelect: onOpenAgentDialog,
       disabled: isLocked,
+      testId: selectors.backlogDetails.agentButton,
     });
   }
   if (itemActions.canArchive) {
-    secondaryActionItems.push({
+    items.push({
       label: isUpdating ? "Archiving..." : "Archive",
       icon: <Archive />,
       onSelect: onArchive,
@@ -134,59 +145,20 @@ export function BacklogActionButtons({
     });
   }
   if (hasWorkshopRounds && !isLocked) {
-    destructiveActionItems.push({
+    items.push({
       label: "Reset Workshop",
       icon: <RotateCcw />,
       onSelect: onResetWorkshop,
       destructive: true,
     });
   }
-  destructiveActionItems.push({
+  items.push({
     label: "Delete",
     icon: <Trash2 />,
     onSelect: onDelete,
     destructive: true,
+    testId: selectors.backlogDetails.deleteButton,
   });
 
-  return (
-    <div className="py-1">
-      {primaryActionItems.map((actionItem) => (
-        <ActionMenuItemButton key={actionItem.label} item={actionItem} />
-      ))}
-      {itemActions.disabledReason && (itemActions.runDisabled || itemActions.workshopDisabled || itemActions.finalizeDisabled) ? (
-        <p className="px-3 py-2 text-xs text-amber-400/80">{itemActions.disabledReason}</p>
-      ) : null}
-      {itemActions.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled && !itemActions.canFinalize && !itemActions.finalizeDisabled ? (
-        <p className="px-3 py-2 text-xs text-slate-500">{itemActions.notQueueableReason}</p>
-      ) : null}
-      {secondaryActionItems.map((actionItem) => (
-        <ActionMenuItemButton key={actionItem.label} item={actionItem} />
-      ))}
-      {!isLocked && (
-        <div className="px-3 py-2">
-          <label htmlFor="action-status-select" className="text-xs text-slate-400">
-            Status
-          </label>
-          <Select
-            id="action-status-select"
-            variant="filter"
-            withChevron
-            value={item.status}
-            onChange={(e) => {
-              const newStatus = e.target.value as BacklogStatus;
-              if (newStatus !== item.status) onStatusChange(newStatus);
-            }}
-            data-testid={selectors.backlogDetails.statusSelect}
-          >
-            {USER_SETTABLE_STATUSES.map((s) => (
-              <option key={s} value={s}>{formatBacklogStatus(s)}</option>
-            ))}
-          </Select>
-        </div>
-      )}
-      {destructiveActionItems.map((actionItem) => (
-        <ActionMenuItemButton key={actionItem.label} item={actionItem} />
-      ))}
-    </div>
-  );
+  return items;
 }
