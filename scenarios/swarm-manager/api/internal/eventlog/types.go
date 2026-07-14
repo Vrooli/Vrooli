@@ -506,6 +506,7 @@ type ProposalAppliedPayload struct {
 	RoundNumber     int    `json:"round_number,omitempty"`
 	RoundSlug       string `json:"round_slug,omitempty"`
 	RunID           string `json:"run_id,omitempty"`
+	SessionID       string `json:"session_id,omitempty"`
 	Entrypoint      string `json:"entrypoint,omitempty"`
 	DecidedBy       string `json:"decided_by,omitempty"`
 	MutationID      string `json:"mutation_id"`

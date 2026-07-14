@@ -46,17 +46,7 @@ export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
     staleTime: 60_000,
   });
 
-  const feedbackMap = useMemo(() => {
-    const map = new Map<string, FeedbackItem>();
-    for (const item of summaryQuery.data?.feedback?.items ?? []) {
-      map.set(`${item.kind}/${item.name}`, {
-        kind: item.kind,
-        name: item.name,
-        pendingDecisions: item.pending_decisions ?? 0,
-      });
-    }
-    return map;
-  }, [summaryQuery.data?.feedback]);
+  const feedbackMap = useMemo(() => new Map<string, FeedbackItem>(), []);
 
   const maturityMap = useMemo(() => {
     const map = new Map<string, MaturityItem>();

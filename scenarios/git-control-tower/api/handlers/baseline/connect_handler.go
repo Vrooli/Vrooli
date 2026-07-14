@@ -493,7 +493,10 @@ func (s *Server) GetCollection(ctx context.Context, req *connect.Request[baselin
 	if m.GetWait() {
 		collection, err = s.svc.ResumeCollectionCapture(ctx, rid, branch, m.GetName())
 	} else {
-		collection, err = s.svc.StorageLoadCollection(rid, branch, m.GetName())
+		// A non-wait read must still project already-terminal children. This
+		// recovers a collection whose detached finalizer was interrupted by an
+		// API restart without turning ordinary status reads into waits.
+		collection, err = s.svc.ReconcileCollectionCapture(ctx, rid, branch, m.GetName())
 	}
 	if err != nil {
 		return nil, s.wrap("GetCollection", err)

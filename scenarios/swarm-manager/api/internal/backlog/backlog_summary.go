@@ -1,4 +1,4 @@
-// Combined summary endpoint — returns feedback, maturity, and pending-questions
+// Combined summary endpoint — returns maturity and pending-questions
 // data in a single response. This avoids three separate LoadAll + workshop-round
 // traversals, cutting the BacklogPage bootstrap from 3 sequential RPCs to 1.
 package backlog
@@ -15,9 +15,8 @@ import (
 	"swarm-manager/internal/httputil"
 )
 
-// BacklogSummaryResponse combines feedback, maturity, and pending-questions data.
+// BacklogSummaryResponse combines maturity and pending-questions data.
 type BacklogSummaryResponse struct {
-	Feedback         FeedbackSummaryResponse  `json:"feedback"`
 	Maturity         MaturitySummaryResponse  `json:"maturity"`
 	PendingQuestions PendingQuestionsResponse `json:"pending_questions"`
 }
@@ -31,7 +30,7 @@ type itemRoundData struct {
 	roundOK    bool
 }
 
-// BacklogSummary returns a combined summary covering feedback, maturity, and
+// BacklogSummary returns a combined summary covering maturity and
 // pending questions in one round-trip. Internally it loads all items once and
 // performs a single pass over workshop rounds.
 func (h *Handler) BacklogSummary(w http.ResponseWriter, r *http.Request) {
@@ -52,44 +51,16 @@ func (h *Handler) BacklogSummary(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	feedbackItems, totalPending := buildFeedbackSummary(rounds)
 	maturityItems := buildMaturitySummary(rounds)
 	pendingItems := buildPendingQuestions(rounds)
 
 	resp := BacklogSummaryResponse{
-		Feedback: FeedbackSummaryResponse{
-			Items:              feedbackItems,
-			TotalPending:       totalPending,
-			TotalItemsAffected: len(feedbackItems),
-		},
 		Maturity:         MaturitySummaryResponse{Items: maturityItems},
 		PendingQuestions: PendingQuestionsResponse{Items: pendingItems},
 	}
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] summary", apierr.Internal("failed to encode response"))
 	}
-}
-
-func buildFeedbackSummary(rounds []itemRoundData) ([]FeedbackItemSummary, int) {
-	var items []FeedbackItemSummary
-	totalPending := 0
-	for _, rd := range rounds {
-		if !rd.roundOK || rd.round == nil {
-			continue
-		}
-		pending := CountPendingDecisions(rd.round)
-		if pending > 0 {
-			items = append(items, FeedbackItemSummary{
-				Kind: rd.item.Kind, Name: rd.item.Name,
-				Title: rd.item.Title, PendingDecisions: pending,
-			})
-			totalPending += pending
-		}
-	}
-	if items == nil {
-		items = []FeedbackItemSummary{}
-	}
-	return items, totalPending
 }
 
 func buildMaturitySummary(rounds []itemRoundData) []MaturityItemSummary {

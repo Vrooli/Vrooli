@@ -37,6 +37,7 @@ export type { IAgentActivityService, ListAgentActivitiesFilters } from "./agent-
 
 // Agent Sessions
 export { agentSessionService, createAgentSessionService } from "./agent-session-service";
+export { proposalSessionService, createProposalSessionService } from "./proposal-session-service";
 export type {
   ApplyAgentSessionProposalResult,
   CreateAgentSessionArgs,
@@ -93,15 +94,6 @@ export type {
   RequestThread,
 } from "./review-service";
 
-// Feedback (initiative)
-export { feedbackService, createFeedbackService, FeedbackLockConflictError } from "./feedback-service";
-export type {
-  IFeedbackService,
-  StartFeedbackArgs,
-  ContinueFeedbackArgs,
-  DecideFeedbackArgs,
-  DismissFeedbackArgs,
-} from "./feedback-service";
 
 // Initiative Review
 export { initiativeReviewService, createInitiativeReviewService } from "./initiative-review-service";

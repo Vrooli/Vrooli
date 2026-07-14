@@ -224,12 +224,15 @@
         "enabled": false,
         "required": false,
         "purpose": "Cache frequently used styles, templates, and generated charts for performance optimization"
-      },
-      "browserless": {
-        "type": "browserless",
+      }
+    },
+    "scenarios": {
+      "browser-automation-studio": {
         "enabled": true,
         "required": false,
-        "purpose": "Optional PNG rendering via the shared browserless screenshot compatibility path"
+        "startup_policy": "try_start",
+        "description": "PNG rendering leg (replacing the deleted browserless resource). The renderer serves chart HTML over its own HTTP surface and calls BAS CaptureService.Capture (Connect-RPC) to screenshot it via the scenario=chart-generator shorthand; the returned artifact bytes become the PNG export.",
+        "degraded_behavior": "Without browser-automation-studio, PNG export falls back to a basic Go-drawn placeholder image; HTML/SVG/PDF exports are unaffected."
       }
     }
   },

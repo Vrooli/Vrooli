@@ -7,7 +7,7 @@
 
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Activity, Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, Sparkles } from "lucide-react";
+import { Activity, Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, GitPullRequestArrow, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { PlanPanel } from "../components/backlog/plan-panel";
@@ -25,6 +25,7 @@ import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-p
 import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
 import { HeaderPrimaryAction } from "../components/backlog/header-primary-action";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
+import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
 import { backlogOption } from "../components/session/context/session-context-refs";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
@@ -64,7 +65,7 @@ import type { WorkshopAutoAdvance, WorkshopSaveResponse } from "../services/back
 
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const AGENT_RUN_REFRESH_MS = 6000;
-type DetailsTab = "info" | "prompt" | "files" | "output" | "activity";
+type DetailsTab = "info" | "prompt" | "proposals" | "files" | "output" | "activity";
 
 export function BacklogDetailsPage() {
   // --- Navigation / selection ---
@@ -123,7 +124,7 @@ export function BacklogDetailsPage() {
 
   // --- Local UI state (URL-synced or needs render) ---
   const [activeTab, setActiveTab] = useUrlState<DetailsTab>("tab", "info", {
-    validate: (v): v is DetailsTab => ["info", "prompt", "files", "output", "activity"].includes(v),
+    validate: (v): v is DetailsTab => ["info", "prompt", "proposals", "files", "output", "activity"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
   const [workshopAutoAdvance, setWorkshopAutoAdvance] = useState<WorkshopAutoAdvance | null>(null);
@@ -501,6 +502,10 @@ export function BacklogDetailsPage() {
             <Sparkles className="h-4 w-4" />
             {backlogKind === "research" ? "Conclusion" : "Plan"}
           </TabsTrigger>
+          <TabsTrigger value="proposals" className="gap-2">
+            <GitPullRequestArrow className="h-4 w-4" />
+            Proposals
+          </TabsTrigger>
           <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
             <Files className="h-4 w-4" />
             Files
@@ -592,6 +597,9 @@ export function BacklogDetailsPage() {
                   backlogName={name}
                   className="flex-1 overflow-y-auto lg:mt-3 lg:min-h-[500px] lg:rounded-lg lg:border lg:border-slate-800 lg:bg-slate-900/50"
                 />
+              )}
+              {activeTab === "proposals" && backlogKind && name && item && (
+                <ProposalSessionsPanel target={{ type: "backlog_item", ref: `${backlogKind}/${name}`, name: item.title || name }} />
               )}
               {activeTab === "files" && fileWorkspaceElement}
               {activeTab === "output" && (

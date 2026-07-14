@@ -342,14 +342,17 @@ func (s *Service) FinalizeCollectionCapture(ctx context.Context, repoID int64, p
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return s.storage.LoadCollection(repoID, pending.Branch, pending.CollectionName)
 		}
-		_, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, pending.Scenario, func(member *CollectionMember) error {
+		collection, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, pending.Scenario, func(member *CollectionMember) error {
 			member.Status, member.Error, member.UpdatedAt = CollectionMemberFailed, err.Error(), s.now().UTC()
 			return nil
 		})
 		if updateErr != nil {
 			return CollectionManifest{}, updateErr
 		}
-		return CollectionManifest{}, err
+		// The member transition is durable evidence of this terminal failure.
+		// Return it with the error so aggregate callers can keep processing
+		// siblings instead of leaving the collection pending forever.
+		return collection, err
 	}
 	return s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, pending.Scenario, func(member *CollectionMember) error {
 		member.Status, member.RunID, member.GitSHA, member.Error, member.UpdatedAt = CollectionMemberReady, result.Manifest.RunID(), result.Manifest.Git.Sha, "", s.now().UTC()
@@ -383,13 +386,71 @@ func (s *Service) ResumeCollectionCapture(ctx context.Context, repoID int64, bra
 			}
 			continue
 		}
-		collection, err = s.FinalizeCollectionCapture(ctx, repoID, PendingCollectionCapture{CollectionName: name, Branch: branch, Scenario: member.Scenario, Pending: intent.PendingCapture()})
-		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return collection, nil
+		updated, finalizeErr := s.FinalizeCollectionCapture(ctx, repoID, PendingCollectionCapture{CollectionName: name, Branch: branch, Scenario: member.Scenario, Pending: intent.PendingCapture()})
+		if finalizeErr != nil {
+			if errors.Is(finalizeErr, context.Canceled) || errors.Is(finalizeErr, context.DeadlineExceeded) {
+				return updated, nil
 			}
-			return CollectionManifest{}, err
+			if updated.Name == "" {
+				return CollectionManifest{}, finalizeErr
+			}
+			// A terminal child failure was durably projected onto its member by
+			// FinalizeCollectionCapture. Continue so callers receive aggregate
+			// coverage rather than an opaque parent RPC error.
+			collection = updated
+			continue
 		}
+		collection = updated
+	}
+	return collection, nil
+}
+
+// ReconcileCollectionCapture finalizes only members whose durable Test Genie
+// runs are already terminal. Unlike ResumeCollectionCapture it never blocks on
+// an in-progress run. This makes ordinary collection reads recover a terminal
+// member after an API restart or a detached finalizer, while preserving the
+// one-wait protocol for callers that need to block.
+func (s *Service) ReconcileCollectionCapture(ctx context.Context, repoID int64, branch, name string) (CollectionManifest, error) {
+	collection, err := s.storage.LoadCollection(repoID, branch, name)
+	if err != nil {
+		return CollectionManifest{}, err
+	}
+	for _, member := range collection.Members {
+		if member.Status != CollectionMemberPending || member.RunID == "" {
+			continue
+		}
+		status, statusErr := s.exec.RunStatus(ctx, member.Scenario, member.RunID)
+		if statusErr != nil || !status.Terminal {
+			continue
+		}
+		intent, found, loadErr := s.storage.LoadSnapshotIntent(repoID, member.Scenario, branch, member.BaselineName, member.RunID)
+		if loadErr != nil {
+			return CollectionManifest{}, loadErr
+		}
+		if !found {
+			collection, err = s.storage.UpdateCollectionMember(repoID, branch, name, member.Scenario, func(target *CollectionMember) error {
+				target.Status, target.Error, target.UpdatedAt = CollectionMemberFailed, "durable snapshot intent is missing", s.now().UTC()
+				return nil
+			})
+			if err != nil {
+				return CollectionManifest{}, err
+			}
+			continue
+		}
+		updated, finalizeErr := s.FinalizeCollectionCapture(ctx, repoID, PendingCollectionCapture{CollectionName: name, Branch: branch, Scenario: member.Scenario, Pending: intent.PendingCapture()})
+		if finalizeErr != nil {
+			if errors.Is(finalizeErr, context.Canceled) || errors.Is(finalizeErr, context.DeadlineExceeded) {
+				return updated, nil
+			}
+			if updated.Name == "" {
+				return CollectionManifest{}, finalizeErr
+			}
+			collection = updated
+			continue
+		}
+		collection = updated
+		// A terminal child failure has already been recorded as failed coverage;
+		// continue across other members so the returned collection is truthful.
 	}
 	return collection, nil
 }

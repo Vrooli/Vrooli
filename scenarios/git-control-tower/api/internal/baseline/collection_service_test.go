@@ -71,6 +71,39 @@ func TestResumeCollectionCaptureReattachesDurablePendingMembers(t *testing.T) {
 	}
 }
 
+func TestReconcileCollectionCaptureFinalizesTerminalMembersWithoutWaiting(t *testing.T) {
+	svc, exec := collectionService(t)
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil || len(started.Pending) != 1 {
+		t.Fatalf("start = %#v err=%v", started, err)
+	}
+
+	collection, err := svc.ReconcileCollectionCapture(context.Background(), 1, "agi", "before")
+	if err != nil || !collection.Coverage().Complete() || collection.Coverage().Ready != 1 || exec.calls != 1 {
+		t.Fatalf("reconciled = %#v err=%v calls=%d", collection, err, exec.calls)
+	}
+}
+
+func TestReconcileCollectionCaptureProjectsTerminalFailureWithoutParentError(t *testing.T) {
+	svc, exec := collectionService(t)
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil || len(started.Pending) != 1 {
+		t.Fatalf("start = %#v err=%v", started, err)
+	}
+	exec.err = errors.New("comprehensive run failed")
+
+	collection, err := svc.ReconcileCollectionCapture(context.Background(), 1, "agi", "before")
+	if err != nil || collection.Coverage().Complete() || collection.Coverage().Failed != 1 || collection.Coverage().Pending != 0 {
+		t.Fatalf("reconciled failure = %#v err=%v", collection, err)
+	}
+}
+
 func TestDeleteCollectionCleansAttachedSourceEvidence(t *testing.T) {
 	svc, _ := collectionService(t)
 	repo := t.TempDir()

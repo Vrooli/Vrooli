@@ -1,3 +1,14 @@
+/**
+ * @vrooliComponentSource react-component-library:DrawerShell
+ * @vrooliComponentVersion 1.0.0
+ * @vrooliComponentAdoption 66af1418-3596-413a-b978-2a70b7bc1511
+ * @vrooliComponentAppliedAt 2026-07-14T03:49:23Z
+ * @vrooliComponentSourceSha256 f829278e7555040abdfe731c380911da3dce0a2724cd464abddc757c16625a89
+ * @vrooliComponentDriftHash f829278e7555040abdfe731c380911da3dce0a2724cd464abddc757c16625a89
+ *
+ * This file was copied from React Component Library. Local edits are allowed;
+ * run "react-component-library adoptions refresh" to inspect drift.
+ */
 import { useEffect, type RefObject } from "react";
 
 const FOCUSABLE_SELECTOR =

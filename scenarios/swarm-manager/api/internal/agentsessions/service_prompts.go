@@ -15,6 +15,9 @@ func buildInitialPrompt(session Session, message Message, attachments []Attachme
 	// spawn) while guaranteeing the methodology reaches the agent verbatim.
 	fmt.Fprintf(&b, "Before anything else, read your operating guide in full: run `prompt-manager skill read %s`. It is the complete methodology for this session; the attached startup brief is only current state, not the procedure. Follow the skill.\n", session.SkillID)
 	fmt.Fprintf(&b, "Session ID: %s\n", session.ID)
+	if session.ProposalTarget != nil {
+		fmt.Fprintf(&b, "This is a proposal session for %s %q. Return any recommended graph change as the skill's fenced mutation_list JSON envelope; never mutate files directly.\n", session.ProposalTarget.Type, session.ProposalTarget.Ref)
+	}
 	if hasContextType(message.Context, ContextStartupBrief) {
 		b.WriteString("Startup brief context is attached below. For broad status, planning, or authoring questions, answer from this brief first and run at most one targeted refresh/drill-down command before the first useful answer.\n")
 	}

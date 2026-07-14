@@ -34,7 +34,7 @@ Selected for maximum flexibility and professional output quality over:
 - Plotly (built-in interactivity but less control)
 
 ### Export Pipeline
-- PNG: Browserless (headless Chrome) with fallback to Go native generation
+- PNG: browser-automation-studio CaptureService (Connect-RPC screenshot of the served chart HTML) with fallback to Go native generation
 - SVG: Native D3.js output
 - PDF: Vector graphics support for print quality
 

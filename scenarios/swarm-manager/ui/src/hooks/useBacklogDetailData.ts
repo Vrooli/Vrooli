@@ -138,17 +138,7 @@ export function useBacklogDetailData({
     staleTime: 60_000,
   });
 
-  const feedbackMap = useMemo(() => {
-    const map = new Map<string, FeedbackItem>();
-    for (const entry of summaryQuery.data?.feedback?.items ?? []) {
-      map.set(`${entry.kind}/${entry.name}`, {
-        kind: entry.kind,
-        name: entry.name,
-        pendingDecisions: entry.pending_decisions ?? 0,
-      });
-    }
-    return map;
-  }, [summaryQuery.data?.feedback]);
+  const feedbackMap = useMemo(() => new Map<string, FeedbackItem>(), []);
 
   const maturityMap = useMemo(() => {
     const map = new Map<string, MaturityItem>();

@@ -56,7 +56,7 @@ This scenario enables local discovery by:
 - **Shared Workflows**: 
   - `ollama.json` - For understanding natural language queries
   - `rate-limiter.json` - For managing API rate limits
-- **Resources**: ollama, n8n, postgres, redis, browserless
+- **Resources**: ollama, n8n, postgres, redis, browser-automation-studio
 
 ## UX Design
 Clean, map-focused interface with exploration-friendly design:

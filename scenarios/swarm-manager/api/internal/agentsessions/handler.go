@@ -1,6 +1,7 @@
 package agentsessions
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -35,8 +36,106 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/refresh", h.Refresh).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/cancel", h.Cancel).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/apply", h.ApplyProposal).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/decide", h.DecideMutationProposal).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/revise", h.ReviseMutationProposal).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/proposal-sessions", h.CreateProposalSession).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/proposal-sessions", h.ListProposalSessions).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/artifacts", h.ListArtifacts).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/artifacts/by-entity", h.GetArtifactsByEntity).Methods(http.MethodGet)
+}
+
+type proposalSessionRequest struct {
+	Kind   Kind           `json:"kind"`
+	Title  string         `json:"title"`
+	Target ProposalTarget `json:"target"`
+}
+
+func (h *Handler) CreateProposalSession(w http.ResponseWriter, r *http.Request) {
+	var req proposalSessionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierr.MapError(w, "[agent-sessions] create proposal session", apierr.BadRequest("invalid request body"))
+		return
+	}
+	if req.Kind == "" {
+		req.Kind = KindSwarmOperations
+	}
+	if strings.TrimSpace(req.Title) == "" {
+		req.Title = "Proposal for " + req.Target.Name
+	}
+	session, err := h.service.Create(r.Context(), CreateRequest{Kind: req.Kind, Title: req.Title, ProposalTarget: &req.Target})
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] create proposal session", err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, session)
+}
+
+func (h *Handler) ListProposalSessions(w http.ResponseWriter, r *http.Request) {
+	targetType, targetRef := ContextType(strings.TrimSpace(r.URL.Query().Get("target_type"))), strings.TrimSpace(r.URL.Query().Get("target_ref"))
+	sessions, err := h.service.List(r.Context(), ListFilters{})
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] list proposal sessions", err)
+		return
+	}
+	filtered := make([]Session, 0, len(sessions))
+	for _, session := range sessions {
+		if session.ProposalTarget == nil {
+			continue
+		}
+		if targetType != "" && session.ProposalTarget.Type != targetType {
+			continue
+		}
+		if targetRef != "" && session.ProposalTarget.Ref != targetRef {
+			continue
+		}
+		filtered = append(filtered, session)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sessions": filtered})
+}
+
+type mutationProposalDecisionRequest struct {
+	AcceptedMutationIDs []string `json:"accepted_mutation_ids"`
+	Note                string   `json:"note"`
+}
+
+func (h *Handler) DecideMutationProposal(w http.ResponseWriter, r *http.Request) {
+	var req mutationProposalDecisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierr.MapError(w, "[agent-sessions] decide mutation proposal", apierr.BadRequest("invalid request body"))
+		return
+	}
+	vars := mux.Vars(r)
+	session, err := h.service.DecideMutationListProposal(r.Context(), vars["session_id"], vars["proposal_id"], req.AcceptedMutationIDs, req.Note)
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] decide mutation proposal", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, session)
+}
+
+type mutationProposalRevisionRequest struct {
+	Note string `json:"note"`
+}
+
+func (h *Handler) ReviseMutationProposal(w http.ResponseWriter, r *http.Request) {
+	var req mutationProposalRevisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierr.MapError(w, "[agent-sessions] revise mutation proposal", apierr.BadRequest("invalid request body"))
+		return
+	}
+	vars := mux.Vars(r)
+	session, err := h.service.RequestMutationProposalRevision(r.Context(), vars["session_id"], vars["proposal_id"], req.Note)
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] revise mutation proposal", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, session)
+}
+
+func writeJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
 }
 
 func (h *Handler) StartupBrief(w http.ResponseWriter, r *http.Request) {

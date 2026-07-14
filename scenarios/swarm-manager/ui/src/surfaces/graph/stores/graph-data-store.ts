@@ -223,22 +223,17 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       const freshTopo = get().graphsByLens.topology;
       const snoozedKeys = useSnoozeStore.getState().snoozedKeys();
 
-      // Fetch enrichment data (feedback + maturity) so we can detect pending
-      // decisions, workshop-needed, and maturity-ready states.
+      // Fetch maturity enrichment for focus filtering.
       const enrichmentMap = new Map<string, NodeEnrichment>();
       try {
         const summary = await backlogService.getBacklogSummary();
-        const feedbackByKey = new Map(
-          (summary.feedback?.items ?? []).map((f) => [`${f.kind}/${f.name}`, f]),
-        );
         const maturityByKey = new Map(
           (summary.maturity?.items ?? []).map((m) => [`${m.kind}/${m.name}`, m]),
         );
-        for (const key of new Set([...feedbackByKey.keys(), ...maturityByKey.keys()])) {
-          const fb = feedbackByKey.get(key);
+        for (const key of maturityByKey.keys()) {
           const mat = maturityByKey.get(key);
           enrichmentMap.set(key, {
-            pendingDecisions: fb?.pending_decisions ?? 0,
+            pendingDecisions: 0,
             maturityReady: mat ? (mat.ready ?? null) : null,
             pendingSynthesis: mat?.pending_synthesis ?? false,
           });

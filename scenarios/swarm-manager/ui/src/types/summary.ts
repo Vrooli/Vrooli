@@ -1,5 +1,5 @@
 /**
- * Summary, feedback, and pending questions domain types.
+ * Summary and pending questions domain types.
  */
 
 import type { BacklogKind } from "./backlog";
@@ -30,32 +30,11 @@ export interface MaturitySummaryResponse {
 }
 
 /**
- * Combined backlog summary response (feedback + maturity + pending questions).
- * Returned by the /backlog/summary endpoint to avoid 3 separate round-trips.
+ * Combined backlog summary response (maturity + pending questions).
  */
 export interface BacklogSummaryResponse {
-  feedback: FeedbackSummaryResponse;
   maturity: MaturitySummaryResponse;
   pending_questions: PendingQuestionsResponse;
-}
-
-/**
- * Summary of pending feedback for a single backlog item.
- */
-export interface FeedbackItemSummary {
-  kind: BacklogKind;
-  name: string;
-  title: string;
-  pending_decisions: number;
-}
-
-/**
- * Response from the feedback summary endpoint.
- */
-export interface FeedbackSummaryResponse {
-  items: FeedbackItemSummary[];
-  total_pending: number;
-  total_items_affected: number;
 }
 
 // ============================================================================

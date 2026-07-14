@@ -1,0 +1,14 @@
+{
+  "libraryId": "react-component-library:DrawerShell",
+  "displayName": "DrawerShell",
+  "description": "Token-bound, self-contained drawer and modal shell.",
+  "tags": ["overlay", "drawer", "layout", "reviewed", "accessibility"],
+  "slot": "ui-pattern",
+  "category": "overlays",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native", "reason": "Uses the standard semantic token vocabulary." }
+  ],
+  "latest": "0.2.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

@@ -66,7 +66,7 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 		},
 		Reconciler: operatingModeProposalReconciler{
 			applier:      applier,
-			stateBuilder: newFeedbackStateBuilder(materializer, s.initStore, s.backlogHandler.Store()),
+			stateBuilder: newProposalStateBuilder(materializer, s.initStore, s.backlogHandler.Store()),
 		},
 		ItemExecutions: operatingModeExecutionController{
 			service: s.executionSvc,

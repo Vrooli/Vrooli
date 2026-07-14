@@ -217,15 +217,18 @@ type GraphEdge struct {
 // also populate Mode, Phase, and RunID. At least InitiativeName is
 // required. Entrypoint identifies the originating surface so downstream
 // telemetry (event log, agentactivity) can group by code path
-// ("initiative.feedback", "initiative.review", etc.).
+// ("session.proposal", "initiative.review", etc.).
 type Source struct {
-	InitiativeName   string
-	Mode             string
-	Phase            string
-	FeedbackRoundID  string
-	RoundNumber      int
-	RoundSlug        string
-	RunID            string
+	InitiativeName  string
+	Mode            string
+	Phase           string
+	FeedbackRoundID string
+	RoundNumber     int
+	RoundSlug       string
+	RunID           string
+	// SessionID attributes proposal applications emitted from an agent session.
+	// It is independent of legacy feedback-round provenance during cutover.
+	SessionID        string
 	Entrypoint       string
 	ReviewRoundID    string
 	DecidedBy        string

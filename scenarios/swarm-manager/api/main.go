@@ -116,7 +116,6 @@ type Server struct {
 	aiSearchReconciler  *aisearch.Reconciler
 	aiSearchSyncLoop    *aisearch.SyncLoop
 	aiSearchStopChan    chan struct{}
-	feedbackSweeperStop chan struct{}
 	reviewSweeperStop   chan struct{}
 	autoFilerSweeper    *autofiler.Sweeper
 	autoFilerStopChan   chan struct{}
@@ -195,20 +194,19 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	})
 
 	srv := &Server{
-		router:              mux.NewRouter(),
-		agentSvc:            agentSvc,
-		executionStopChan:   make(chan struct{}),
-		reviewStopChan:      make(chan struct{}),
-		initReviewStopChan:  make(chan struct{}),
-		aiSearchStopChan:    make(chan struct{}),
-		feedbackSweeperStop: make(chan struct{}),
-		reviewSweeperStop:   make(chan struct{}),
-		autoFilerStopChan:   make(chan struct{}),
-		scenarioRoot:        scenarioRoot,
-		dataRoot:            dataRoot,
-		cacheRoot:           cacheRoot,
-		promptClient:        promptClient,
-		audioToolsResolver:  resolveAudioToolsResolver(),
+		router:             mux.NewRouter(),
+		agentSvc:           agentSvc,
+		executionStopChan:  make(chan struct{}),
+		reviewStopChan:     make(chan struct{}),
+		initReviewStopChan: make(chan struct{}),
+		aiSearchStopChan:   make(chan struct{}),
+		reviewSweeperStop:  make(chan struct{}),
+		autoFilerStopChan:  make(chan struct{}),
+		scenarioRoot:       scenarioRoot,
+		dataRoot:           dataRoot,
+		cacheRoot:          cacheRoot,
+		promptClient:       promptClient,
+		audioToolsResolver: resolveAudioToolsResolver(),
 	}
 
 	// Wire audioports against an audio-tools client. Mirrors web-console:
@@ -239,7 +237,7 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	}
 
 	// initEventLog must run before setupRoutes so that route registration
-	// captures a non-nil s.emitter. Constructors like registerFeedbackRoutes
+	// captures a non-nil s.emitter. Constructors such as proposal application
 	// build internal services (backlog.Service for proposal apply) that take
 	// the emitter at construction time and have no SetEventLogger backstop;
 	// if s.emitter were still nil here, those services would hold a typed-nil
@@ -301,7 +299,7 @@ func (s *Server) setupRoutes() {
 		overviewSvc.SetGovernanceProvider(execSvc)
 	}
 	materializer := s.registerGraphRoutes(scenarioRoot)
-	s.registerFeedbackRoutes(materializer)
+	s.wireSessionMutationProposals(materializer)
 	s.registerInitiativeReviewRoutes(materializer)
 	s.registerOperatingModeRoutes(scenarioRoot, materializer)
 	s.wireEvidence()
@@ -944,7 +942,6 @@ func main() {
 	close(srv.reviewStopChan)
 	close(srv.initReviewStopChan)
 	close(srv.aiSearchStopChan)
-	close(srv.feedbackSweeperStop)
 	close(srv.reviewSweeperStop)
 	close(srv.autoFilerStopChan)
 }

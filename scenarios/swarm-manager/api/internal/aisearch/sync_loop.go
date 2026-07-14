@@ -8,7 +8,7 @@ import (
 )
 
 // SyncLoop periodically drives Reconciler.RunOnce on a ticker. Mirrors
-// internal/feedback/sweeper.go in shape: RunOnce is exported separately for
+// other durable periodic reconcilers in shape: RunOnce is exported separately for
 // synchronous boot-time use and tests; Start blocks on a ticker until the
 // caller's context is canceled.
 //

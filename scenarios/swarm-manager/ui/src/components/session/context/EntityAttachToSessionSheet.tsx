@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { sessionDetailPath } from "../../../app/routes/route-paths";
 import { selectors } from "../../../consts/selectors";
 import { useAgentSessionStore } from "../../../stores";
+import { proposalSessionService } from "../../../services/proposal-session-service";
 import type { AgentSession, AgentSessionKind } from "../../../types";
 import { cn } from "../../../lib/utils";
 import { BottomSheet } from "../../ui/bottom-sheet";
@@ -29,6 +30,12 @@ interface EntityAttachToSessionSheetProps {
   onClose: () => void;
   option: SessionContextOption;
   currentSessionId?: string;
+  /**
+   * Constrains a new session to the reviewed mutation-list proposal flow.
+   * Existing sessions stay available so an operator can continue work already
+   * in progress, but a new session is always created through the proposal API.
+   */
+  proposalMode?: boolean;
 }
 
 export function EntityAttachToSessionSheet({
@@ -36,6 +43,7 @@ export function EntityAttachToSessionSheet({
   onClose,
   option,
   currentSessionId,
+  proposalMode = false,
 }: EntityAttachToSessionSheetProps) {
   if (!isOpen) return null;
   return (
@@ -44,6 +52,7 @@ export function EntityAttachToSessionSheet({
       onClose={onClose}
       option={option}
       currentSessionId={currentSessionId}
+      proposalMode={proposalMode}
     />
   );
 }
@@ -53,6 +62,7 @@ function EntityAttachToSessionSheetContent({
   onClose,
   option,
   currentSessionId,
+  proposalMode = false,
 }: EntityAttachToSessionSheetProps) {
   const navigate = useNavigate();
   const fetchSessions = useAgentSessionStore((s) => s.fetchSessions);
@@ -78,7 +88,10 @@ function EntityAttachToSessionSheetContent({
     void fetchSessions({ limit: 100 }, { force: true });
   }, [compatibleKinds, fetchSessions, isOpen]);
 
-  const suggestions = useMemo(() => attachStarterSuggestions(selectedKind, option), [selectedKind, option]);
+  const suggestions = useMemo(
+    () => attachStarterSuggestions(selectedKind, option).filter((suggestion) => !proposalMode || suggestion.proposalFlavor === "mutation_list"),
+    [option, proposalMode, selectedKind],
+  );
   const selectedSuggestion = suggestions.find((suggestion) => suggestion.id === selectedSuggestionId) ?? null;
 
   const visibleSessions = useMemo(() => {
@@ -114,14 +127,19 @@ function EntityAttachToSessionSheetContent({
   const quickStart = async () => {
     setLocalError(null);
     try {
-      const session = await createSession({
-        kind: selectedKind,
-        title: titleForQuickStart(option),
-      });
+      const createsProposal = proposalMode || selectedSuggestion?.proposalFlavor === "mutation_list";
+      const session = createsProposal && (option.type === "initiative" || option.type === "backlog_item")
+        ? await proposalSessionService.create({
+          title: `Proposal for ${option.title || option.ref}`,
+          target: { type: option.type, ref: option.ref, name: option.title || option.ref },
+        })
+        : await createSession({ kind: selectedKind, title: titleForQuickStart(option) });
       stageContextForSession(session.id, option);
       if (selectedSuggestion) {
         // The detail page restores this like any saved composer draft.
         writeSessionDraft(session.id, selectedSuggestion.text);
+      } else if (proposalMode) {
+        writeSessionDraft(session.id, `Review ${option.title || option.ref} and return a validated mutation_list proposal.`);
       }
       onClose();
       navigate(sessionDetailPath(session.id));
@@ -134,8 +152,8 @@ function EntityAttachToSessionSheetContent({
     <BottomSheet
       isOpen={isOpen}
       onClose={onClose}
-      title="Attach to session"
-      description="Stage this entity in a session composer."
+      title={proposalMode ? "Start proposal" : "Attach to session"}
+      description={proposalMode ? "Choose a proposal type, then review the resulting mutation list before anything changes." : "Stage this entity in a session composer."}
       className="!max-w-3xl border-slate-700/80 bg-slate-900"
       contentClassName="px-0 py-0"
       footer={
@@ -144,7 +162,9 @@ function EntityAttachToSessionSheetContent({
             {mode === "new"
               ? selectedSuggestion
                 ? "The chosen prompt will prefill the first message."
-                : "Context is staged before the first message."
+                : proposalMode
+                  ? "A proposal session starts with a structured mutation-list request."
+                  : "Context is staged before the first message."
               : selectedSession
                 ? `Selected ${selectedSession.title || selectedSession.id}`
                 : "Pick a session from the list."}
@@ -159,7 +179,7 @@ function EntityAttachToSessionSheetContent({
                 data-testid={selectors.agentSessions.entityAttachQuickStart}
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Draft session
+                {proposalMode ? "Start proposal" : "Draft session"}
               </Button>
             ) : (
               <Button size="sm" onClick={attachToExisting} disabled={!canAttachSelected} data-testid={selectors.agentSessions.entityAttachConfirm}>
@@ -191,15 +211,15 @@ function EntityAttachToSessionSheetContent({
           <div className="grid gap-1.5 sm:grid-cols-2">
             <ModeCard
               icon={<MessageCirclePlus className="h-4 w-4" />}
-              title="New session"
-              subtitle={`${CONTEXT_TYPE_LABELS[option.type]} context will be staged before the first message.`}
+              title={proposalMode ? "New proposal session" : "New session"}
+              subtitle={proposalMode ? "Choose a proposal type before the first message." : `${CONTEXT_TYPE_LABELS[option.type]} context will be staged before the first message.`}
               selected={mode === "new"}
               onSelect={() => setMode("new")}
               testId={selectors.agentSessions.entityAttachModeNew}
             />
             <ModeCard
               icon={<ListPlus className="h-4 w-4" />}
-              title="Add to existing session"
+              title={proposalMode ? "Continue existing session" : "Add to existing session"}
               subtitle="Stage this context in a session you already have open."
               selected={mode === "existing"}
               onSelect={() => setMode("existing")}
@@ -223,25 +243,31 @@ function EntityAttachToSessionSheetContent({
 
         {mode === "new" ? (
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3" data-testid="entity-attach-new-section">
-            <div>
-              <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Session type
-              </p>
-              <SessionKindChoices
-                kinds={compatibleKinds}
-                selectedKind={selectedKind}
-                onSelect={(kind) => {
-                  setSelectedKind(kind);
-                  // Suggestion lists differ per kind; a stale pick would prefill
-                  // a prompt the user never saw.
-                  setSelectedSuggestionId(null);
-                }}
-              />
-            </div>
+            {proposalMode ? (
+              <div className="rounded-md border border-violet-400/20 bg-violet-400/5 px-3 py-2 text-sm text-slate-300">
+                Proposal sessions use managed Swarm Operations and always produce a reviewable mutation list.
+              </div>
+            ) : (
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                  Session type
+                </p>
+                <SessionKindChoices
+                  kinds={compatibleKinds}
+                  selectedKind={selectedKind}
+                  onSelect={(kind) => {
+                    setSelectedKind(kind);
+                    // Suggestion lists differ per kind; a stale pick would prefill
+                    // a prompt the user never saw.
+                    setSelectedSuggestionId(null);
+                  }}
+                />
+              </div>
+            )}
             {suggestions.length > 0 && (
               <div>
                 <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                  Start with · optional
+                  {proposalMode ? "Proposal type · optional" : "Start with · optional"}
                 </p>
                 <div className="space-y-1.5">
                   {suggestions.map((suggestion) => {

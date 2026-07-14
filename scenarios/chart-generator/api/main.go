@@ -135,6 +135,17 @@ func main() {
 	// Interactive chart endpoint (P1 feature - animation and interactivity)
 	r.HandleFunc("/api/v1/charts/interactive", generateInteractiveChartHandler).Methods("POST")
 
+	// Serve generated chart files so browser-automation-studio can screenshot
+	// PNG exports (it navigates to scenario=chart-generator,path=<renderedURLPrefix>...).
+	// Read-only GET of the dedicated render root; must precede the UI catch-all.
+	if err := os.MkdirAll(renderRootDir, 0o755); err != nil {
+		log.Printf("⚠️ Failed to create chart render dir %s: %v", renderRootDir, err)
+	}
+	r.PathPrefix(renderedURLPrefix).Handler(
+		http.StripPrefix(renderedURLPrefix, http.FileServer(http.Dir(renderRootDir))),
+	)
+	log.Printf("🖼️  Rendered chart files served from %s at %s", renderRootDir, renderedURLPrefix)
+
 	// Serve static UI files - must come after API routes
 	// This catches all unmatched routes and serves the UI
 	uiPath := "../ui"

@@ -87,10 +87,10 @@ optional:
     fallback: Mock data and local database only
     access_method: POST http://localhost:8888/search
 
-  - resource_name: browserless
+  - resource_name: browser-automation-studio
     purpose: Screenshot capture for UI testing
     fallback: Manual UI validation
-    access_method: resource-browserless screenshot
+    access_method: browser-automation-studio screenshot
 ```
 
 ### Resource Integration Standards
@@ -99,7 +99,7 @@ integration_priorities:
   1_resource_cli:
     - command: resource-postgres exec
       purpose: Database schema initialization and migrations
-    - command: resource-browserless screenshot
+    - command: browser-automation-studio screenshot
       purpose: UI testing and validation
 
   2_direct_api:
@@ -532,7 +532,7 @@ structure:
 
 resources:
   required: [postgres, ollama]
-  optional: [redis, searxng, browserless]
+  optional: [redis, searxng, browser-automation-studio]
   health_timeout: 60
 
 tests:

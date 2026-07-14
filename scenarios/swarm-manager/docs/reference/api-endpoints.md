@@ -555,7 +555,7 @@ Run-id-validated backlog reconciliation endpoint for create/update/follow-up
 work proposed by a completed operating-mode round. The round must contain a
 `backlog_sync.proposal` object in its final `operating_mode_result`; Swarm
 Manager normalizes and validates that proposal through the same proposal
-applier used by initiative feedback before applying the accepted mutation IDs.
+applier used by proposal sessions before applying the accepted mutation IDs.
 
 ```json
 {
@@ -580,11 +580,13 @@ Archive sets `archived_at` on an initiative. Initiatives retain their status whe
 
 `DELETE /api/v1/initiatives/{name}/archive-item`
 
-## Initiative Feedback Proposals
+## Session Mutation Proposals
 
-The feedback flow accepts an agent-emitted proposal envelope and applies the
-selected mutations. The envelope shape is owned by `proposals.Proposal`; the
-mutation list shown below is the surface the apply layer enforces.
+Proposal sessions accept an agent-emitted envelope and apply only the selected
+mutations. Create a target-bound session with `POST /api/v1/proposal-sessions`,
+then review its `mutation_list` proposal on the target's Proposals tab. The
+envelope shape is owned by `proposals.Proposal`; the mutation list shown below
+is the surface the apply layer enforces.
 
 ### Proposal envelope
 

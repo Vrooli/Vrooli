@@ -3,17 +3,20 @@ module chart-generator-api
 go 1.25.0
 
 require (
+	connectrpc.com/connect v1.19.2
 	github.com/go-echarts/go-echarts/v2 v2.6.3
 	github.com/gorilla/mux v1.8.1
 	github.com/johnfercher/maroto/v2 v2.3.1
 	github.com/lib/pq v1.10.9
 	github.com/rs/cors v1.10.1
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/vrooli/packages/proto v0.0.0
 )
 
 require github.com/kr/text v0.2.0 // indirect
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/boombuler/barcode v1.0.1 // indirect
 	github.com/f-amaral/go-async v0.3.0 // indirect
@@ -30,6 +33,7 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	golang.org/x/image v0.18.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 

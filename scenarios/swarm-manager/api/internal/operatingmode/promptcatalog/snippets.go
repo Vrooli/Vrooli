@@ -37,7 +37,7 @@ const elasticSliceSnippet = "## Slice discipline: advance the frontier by one co
 // the BacklogSyncPlan / proposal envelope an agent emits.
 //
 // Every surface that produces a backlog-sync proposal — reconcile phases on
-// initiative-scoped operating modes, the initiative-feedback skill, and any
+// initiative-scoped operating modes, the session proposal skill, and any
 // future surface that proposes mutations against an initiative's item graph
 // — substitutes this snippet into its prompt under the
 // BACKLOG_SYNC_PROPOSAL_SNIPPET key. The snippet describes only the wire
@@ -101,7 +101,7 @@ const backlogSyncProposalSnippet = "## Required output: backlog-sync proposal en
 	"7. **Never write to initiative or item files directly.** Read-only CLI (listing files, reading item spec.json) is fine; the proposal is the only change mechanism.\n"
 
 // BacklogSyncProposalSnippet returns the canonical proposal-envelope contract
-// rendered as markdown. Both reconcile prompts and the initiative-feedback
+// rendered as markdown. Both reconcile prompts and the session proposal
 // prompt substitute the result under BACKLOG_SYNC_PROPOSAL_SNIPPET so the
 // contract never diverges across surfaces.
 func BacklogSyncProposalSnippet() string {

@@ -68,17 +68,6 @@ func TestSkillUsageSummary(t *testing.T) {
 }
 
 func TestResolveInitiativeSkill(t *testing.T) {
-	feedback, ok := ResolveInitiativeSkill("feedback")
-	if !ok {
-		t.Fatal("expected feedback resolver hit")
-	}
-	if feedback.SkillID != "swarm-manager-initiative-feedback" {
-		t.Fatalf("feedback skill = %q", feedback.SkillID)
-	}
-	cont, ok := ResolveInitiativeSkill("feedback_continue")
-	if !ok || cont.SkillID != "swarm-manager-initiative-feedback" {
-		t.Fatalf("feedback_continue should map to feedback skill, got ok=%v skill=%q", ok, cont.SkillID)
-	}
 	review, ok := ResolveInitiativeSkill("review")
 	if !ok || review.SkillID != "swarm-manager-initiative-review" {
 		t.Fatalf("review skill = %q (ok=%v)", review.SkillID, ok)

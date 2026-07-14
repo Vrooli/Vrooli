@@ -1,4 +1,4 @@
-import type { ProposalMutation } from "../../../types/feedback";
+import type { ProposalMutation } from "../../../types/proposal";
 import type {
   OperatingModeBacklogSyncResult,
   OperatingModeCapabilities,

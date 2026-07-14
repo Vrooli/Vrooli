@@ -12,7 +12,7 @@ import (
 // registerGraphRoutes constructs the projection service, WebSocket broker,
 // and per-initiative Materializer, then wires invalidation dispatch across
 // mutating services. Returns the Materializer so downstream callers
-// (feedback routes) can share the same instance instead of constructing
+// (proposal routes) can share the same instance instead of constructing
 // a second one that wouldn't be connected to the invalidation hook.
 func (s *Server) registerGraphRoutes(scenarioRoot string) *graph.Materializer {
 	if s.backlogHandler == nil {

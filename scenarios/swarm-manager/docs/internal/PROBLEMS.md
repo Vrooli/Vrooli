@@ -37,6 +37,18 @@ A second polish pass landed five UI-side phases (clickable mode chip + Info-tab 
 
 ## Recently Resolved
 
+### Proposal launch skipped operator intent selection (2026-07-14)
+
+**Problem**: The target-scoped Proposals tab created a new session immediately.
+It skipped the shared attach-to-session chooser and hid the concrete proposal
+intent options that the retired feedback dialog had made visible.
+
+**Resolution**: Starting a proposal now opens the shared session sheet in a
+proposal-focused mode. It offers split oversized items, merge coupled items,
+identify missing work, reconcile code drift, and reframe scope before creating
+a target-bound, managed Swarm Operations mutation-list session. Operators can
+still attach the target to an existing session instead.
+
 ### Operating-mode "Execution" tab → Flow, with interpretable trace + simulation presets (2026-07-07)
 
 **Problem**: The operating-mode detail page's third tab was labeled "Execution",

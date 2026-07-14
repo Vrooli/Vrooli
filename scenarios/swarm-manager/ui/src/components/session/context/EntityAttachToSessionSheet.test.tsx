@@ -15,6 +15,7 @@ import { selectors } from "../../../consts/selectors";
 import { agentSessionStoreInitialState, useAgentSessionStore } from "../../../stores";
 import { readSessionDraft } from "../session-draft-storage";
 import { peekStagedContextForSession } from "./pending-session-context";
+import { proposalSessionService } from "../../../services/proposal-session-service";
 import type { AgentSession } from "../../../types";
 import type { SessionContextOption } from "./session-context-refs";
 
@@ -23,6 +24,13 @@ const BACKLOG_OPTION: SessionContextOption = {
   ref: "fix/flaky-stats",
   title: "Fix flaky stats test",
   nodeId: "backlog-item/fix/flaky-stats",
+};
+
+const INITIATIVE_OPTION: SessionContextOption = {
+  type: "initiative",
+  ref: "initiative-alpha",
+  title: "Initiative Alpha",
+  nodeId: "initiative/initiative-alpha",
 };
 
 const CREATED_SESSION = { id: "sess-new", kind: "meta_orchestration", status: "draft" } as AgentSession;
@@ -38,14 +46,20 @@ function seedStore(overrides: Partial<ReturnType<typeof useAgentSessionStore.get
   });
 }
 
-function renderSheet() {
+function renderSheet(options: { option?: SessionContextOption; proposalMode?: boolean } = {}) {
   return renderWithProviders(
-    <EntityAttachToSessionSheet isOpen onClose={vi.fn()} option={BACKLOG_OPTION} />,
+    <EntityAttachToSessionSheet
+      isOpen
+      onClose={vi.fn()}
+      option={options.option ?? BACKLOG_OPTION}
+      proposalMode={options.proposalMode}
+    />,
   );
 }
 
 describe("EntityAttachToSessionSheet", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     localStorage.clear();
     seedStore();
   });
@@ -108,5 +122,34 @@ describe("EntityAttachToSessionSheet", () => {
       expect(peekStagedContextForSession("sess-new")).toEqual([BACKLOG_OPTION]);
     });
     expect(readSessionDraft("sess-new")).toBe("");
+  });
+
+  it("uses the proposal flow's five mutation lenses instead of generic session suggestions", async () => {
+    renderSheet({ option: INITIATIVE_OPTION, proposalMode: true });
+
+    expect(screen.getByRole("heading", { name: "Start proposal" })).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.agentSessions.entityAttachKindSelect)).toBeNull();
+    expect(screen.getAllByTestId(selectors.agentSessions.entityAttachSuggestion)).toHaveLength(5);
+    expect(screen.getByText('Split oversized items in "Initiative Alpha".')).toBeInTheDocument();
+    expect(screen.getByText('Merge tightly coupled items in "Initiative Alpha".')).toBeInTheDocument();
+    expect(screen.getByText('Identify missing work for "Initiative Alpha".')).toBeInTheDocument();
+    expect(screen.getByText('Reconcile this initiative with code drift: "Initiative Alpha".')).toBeInTheDocument();
+    expect(screen.getByText('Reframe the scope and outcomes for "Initiative Alpha".')).toBeInTheDocument();
+  });
+
+  it("creates a target-bound proposal session when started from proposal mode", async () => {
+    const create = vi.spyOn(proposalSessionService, "create").mockResolvedValue(CREATED_SESSION as never);
+    renderSheet({ option: INITIATIVE_OPTION, proposalMode: true });
+
+    await userEvent.click(screen.getByText('Identify missing work for "Initiative Alpha".'));
+    await userEvent.click(screen.getByTestId(selectors.agentSessions.entityAttachQuickStart));
+
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledWith({
+        title: "Proposal for Initiative Alpha",
+        target: { type: "initiative", ref: "initiative-alpha", name: "Initiative Alpha" },
+      });
+    });
+    expect(readSessionDraft("sess-new")).toBe('Identify missing work for "Initiative Alpha".');
   });
 });

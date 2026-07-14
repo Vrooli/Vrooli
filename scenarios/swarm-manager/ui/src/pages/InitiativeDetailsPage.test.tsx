@@ -417,20 +417,16 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByText("Priority P3")).toBeInTheDocument();
   });
 
-  it("exposes the Feedback tab and Add Feedback entry point on the details page", async () => {
+  it("exposes the Proposals tab on the details page", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
     });
-    // Both the tab-row entry and the header button that launches the dialog
-    // must be present — they are the two user-visible surfaces wired in W6.
-    // The mobile button lives behind a bottom-sheet that jsdom does not
-    // render in isolation; assert the desktop entry point here and cover
-    // the mobile variant as a screen-size case if we add one later.
+    // Proposal sessions are started from the target-scoped Proposals tab.
     expect(screen.getByTestId("initiative-details-tab-feedback")).toBeInTheDocument();
-    expect(screen.getByTestId("initiative-details-add-feedback-desktop")).toBeInTheDocument();
+    expect(screen.getByText("Proposals")).toBeInTheDocument();
   });
 
   it("exposes the operating mode workspace tab", async () => {

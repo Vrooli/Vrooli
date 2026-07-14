@@ -302,19 +302,14 @@ var staticEntries = []Entry{
 		Purpose:    "Canonical conclusion structure and quality gates for conclusion.md.",
 	},
 	{
-		ID:         "initiative-feedback",
-		Title:      "Initiative Feedback Agent",
+		ID:         "session-proposals",
+		Title:      "Session-backed Proposal Agent",
 		Group:      GroupInitiative,
 		UsageType:  UsageDirectRuntime,
 		SourceType: SourceSkill,
-		Trigger:    "User submits feedback on an initiative; runs once per round and again on each user-driven revision",
-		SkillID:    "swarm-manager-initiative-feedback",
-		Purpose:    "Translate user feedback + initiative context into a structured proposal of mutations against the item graph.",
-		VariableKeys: []string{
-			"INITIATIVE_NAME", "INITIATIVE_TITLE", "INITIATIVE_DESCRIPTION",
-			"CURRENT_GRAPH", "ITEM_SUMMARIES", "PRIOR_FEEDBACK", "PRIOR_HANDOFFS",
-			"ITEM_FOLDER_INDEX", "THIS_FEEDBACK", "ATTACHMENT_IMAGES",
-		},
+		Trigger:    "A session is launched against an initiative or an initiative-owned backlog item",
+		SkillID:    "swarm-manager-proposals",
+		Purpose:    "Produce an operator-reviewed mutation-list proposal from hydrated entity context.",
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 			"swarm-manager-initiative-context",
@@ -404,8 +399,6 @@ func ResolveCaptureSkill() (Entry, bool) {
 // the caller can fall back to the hard-coded skill ID for resilience.
 func ResolveInitiativeSkill(purpose string) (Entry, bool) {
 	switch strings.ToLower(strings.TrimSpace(purpose)) {
-	case "feedback", "feedback_continue":
-		return Lookup("initiative-feedback")
 	case "review":
 		return Lookup("initiative-review")
 	}

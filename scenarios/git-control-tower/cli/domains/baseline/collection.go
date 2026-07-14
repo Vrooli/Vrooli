@@ -73,16 +73,16 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 		}
 		// Preserve the old convenience flag without maintaining a separate wait
 		// lifecycle. The status endpoint is the durable producer authority.
-		return runCollectionDiffStatus(core, []string{"--name", *name, "--branch", *branch, "--operation-id", *operationID, "--wait", "--json"})
+		return runCollectionDiffStatus(core, collectionFollowupArgs(*name, *branch, "--operation-id", *operationID, "--wait", "--json"))
 	}
 	fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
 	for _, member := range resp.Msg.GetMembers() {
 		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
 	}
-	fmt.Printf("  wait once: git-control-tower baseline collection diff status --name %s --branch %s --operation-id %s --wait\n", *name, *branch, resp.Msg.GetOperationId())
+	fmt.Printf("  wait once: %s\n", collectionFollowupCommand("diff status", *name, *branch, "--operation-id", resp.Msg.GetOperationId(), "--wait"))
 	fmt.Println("  Ctrl-C detaches; rerun that exact status command to recover. Do not poll.")
 	if *wait {
-		return runCollectionDiffStatus(core, []string{"--name", *name, "--branch", *branch, "--operation-id", *operationID, "--wait"})
+		return runCollectionDiffStatus(core, collectionFollowupArgs(*name, *branch, "--operation-id", *operationID, "--wait"))
 	}
 	return nil
 }
@@ -116,7 +116,7 @@ func runCollectionDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
 	}
 	if resp.Msg.GetClassification() == "not-ready" {
-		fmt.Printf("  still running; reattach once: git-control-tower baseline collection diff status --name %s --branch %s --operation-id %s --wait\n", *name, *branch, *operationID)
+		fmt.Printf("  still running; reattach once: %s\n", collectionFollowupCommand("diff status", *name, *branch, "--operation-id", *operationID, "--wait"))
 	}
 	return nil
 }
@@ -126,6 +126,22 @@ func collectionFlags(fs *flag.FlagSet) (name, branch *string, json *bool) {
 	branch = fs.String("branch", "", "Git branch (default: current)")
 	json = fs.Bool("json", false, "Emit JSON")
 	return name, branch, json
+}
+
+// collectionFollowupArgs produces a parse-safe argument list for a reattach
+// command. A blank --branch value would make Go's flag parser consume the next
+// flag (commonly --wait) as its value, silently defeating the reattach.
+func collectionFollowupArgs(name, branch string, tail ...string) []string {
+	args := []string{"--name", name}
+	if branch = strings.TrimSpace(branch); branch != "" {
+		args = append(args, "--branch", branch)
+	}
+	return append(args, tail...)
+}
+
+func collectionFollowupCommand(action, name, branch string, tail ...string) string {
+	args := append([]string{"git-control-tower", "baseline", "collection", action}, collectionFollowupArgs(name, branch, tail...)...)
+	return strings.Join(args, " ")
 }
 
 func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
@@ -161,7 +177,7 @@ func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 		return printJSON(resp.Msg)
 	}
 	printCollection(resp.Msg.GetCollection(), resp.Msg.GetResumed())
-	fmt.Printf("  wait once: git-control-tower baseline collection show --name %s --branch %s --wait\n", *name, *branch)
+	fmt.Printf("  wait once: %s\n", collectionFollowupCommand("show", *name, *branch, "--wait"))
 	fmt.Println("  Ctrl-C detaches; rerun that exact command to recover. Do not poll.")
 	return nil
 }
@@ -206,7 +222,7 @@ func runCollectionShow(core *cliapp.ScenarioApp, args []string) error {
 	}
 	printCollection(resp.Msg.GetCollection(), false)
 	if !resp.Msg.GetCollection().GetCoverage().GetComplete() {
-		fmt.Printf("  reattach once: git-control-tower baseline collection show --name %s --branch %s --wait\n", *name, *branch)
+		fmt.Printf("  reattach once: %s\n", collectionFollowupCommand("show", *name, *branch, "--wait"))
 	}
 	return nil
 }
@@ -241,7 +257,7 @@ func runCollectionExtend(core *cliapp.ScenarioApp, args []string) error {
 	}
 	fmt.Printf("Extended collection %q with: %s\n", *name, strings.Join(resp.Msg.GetAddedScenarios(), ", "))
 	printCollection(resp.Msg.GetCollection(), resp.Msg.GetResumed())
-	fmt.Printf("  wait once: git-control-tower baseline collection show --name %s --branch %s --wait\n", *name, *branch)
+	fmt.Printf("  wait once: %s\n", collectionFollowupCommand("show", *name, *branch, "--wait"))
 	return nil
 }
 

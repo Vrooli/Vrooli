@@ -267,7 +267,7 @@ resource-ollama policy resolve --role embedding.default --field embedding_dimens
 **Impact**: No automated UI validation
 **Status**: Not Implemented
 
-**Recommendation**: Add browserless-based UI tests for:
+**Recommendation**: Add BAS/Playwright-based UI tests for:
 - Campaign creation workflow
 - Idea generation UI
 - Search functionality

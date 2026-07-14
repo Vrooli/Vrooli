@@ -200,14 +200,7 @@ export function useCommandPostItemActions(
     return result;
   }, [summaryQuery.data?.pending_questions, completedSteppers]);
 
-  const feedbackItems = useMemo<FeedbackItem[]>(
-    () => (summaryQuery.data?.feedback?.items ?? []).map((item) => ({
-      kind: item.kind,
-      name: item.name,
-      pendingDecisions: item.pending_decisions ?? 0,
-    })),
-    [summaryQuery.data?.feedback],
-  );
+  const feedbackItems = useMemo<FeedbackItem[]>(() => [], []);
 
   const maturityItems = useMemo<MaturityItem[]>(
     () => (summaryQuery.data?.maturity?.items ?? []).map((item) => ({

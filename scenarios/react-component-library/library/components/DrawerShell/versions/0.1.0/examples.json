@@ -1,0 +1,25 @@
+{
+  "examples": [
+    {
+      "name": "full-open",
+      "displayName": "Full drawer",
+      "props": { "open": true, "title": "Drawer title", "children": { "$text": "Drawer content" } },
+      "expect": [
+        { "kind": "role", "role": "dialog", "name": "Drawer title" },
+        { "kind": "role", "role": "button", "name": "Close drawer" }
+      ]
+    },
+    {
+      "name": "compact-open",
+      "displayName": "Compact drawer",
+      "props": { "open": true, "size": "compact", "title": "Compact drawer", "children": { "$text": "Compact content" } },
+      "expect": [{ "kind": "text", "value": "Compact content" }]
+    },
+    {
+      "name": "with-header-actions",
+      "displayName": "Header actions",
+      "props": { "open": true, "title": "Actions", "headerActions": { "$node": "button", "children": [{ "$text": "Save" }] }, "children": { "$text": "Actionable content" } },
+      "expect": [{ "kind": "text", "value": "Save" }]
+    }
+  ]
+}

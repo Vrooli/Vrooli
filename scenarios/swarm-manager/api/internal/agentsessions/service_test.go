@@ -241,6 +241,97 @@ func TestServiceStartSwarmOperationsUsesOperationsSkillAndPurpose(t *testing.T) 
 	}
 }
 
+func TestProposalSessionRefreshIngestsValidatedMutationProposal(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+	processor := &fakeMutationProposalProcessor{ingestion: MutationProposalIngestion{PayloadJSON: `{"form":"mutation_list","mutations":[]}`}}
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "waiting_for_user", Summary: "```json\n{\"form\":\"mutation_list\",\"mutations\":[]}\n```"}}
+	svc := newTestService(t, spawner)
+	svc.SetContextResolver(fakeContextResolver{})
+	svc.SetMutationProposalProcessor(processor)
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Proposal", ProposalTarget: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if draft.SkillID != SkillProposals {
+		t.Fatalf("skill = %q", draft.SkillID)
+	}
+	if _, err := svc.Start(context.Background(), ContinueRequest{SessionID: draft.ID, Message: "Find missing work."}); err != nil {
+		t.Fatal(err)
+	}
+	refreshed, err := svc.Refresh(context.Background(), draft.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if processor.ingestCalls != 1 || len(refreshed.Proposals) != 1 {
+		t.Fatalf("ingest/proposals = %d/%+v", processor.ingestCalls, refreshed.Proposals)
+	}
+	proposal := refreshed.Proposals[0]
+	if proposal.Kind != ProposalMutationList || proposal.Status != ProposalStatusReady || proposal.Target == nil || proposal.Target.Ref != "quality-gates" {
+		t.Fatalf("proposal = %+v", proposal)
+	}
+}
+
+func TestProposalSessionRefreshPersistsRevisionStateForMalformedTurn(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+	processor := &fakeMutationProposalProcessor{ingestion: MutationProposalIngestion{PayloadJSON: `{}`, ParseWarnings: []string{"invalid JSON"}}}
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "waiting_for_user", Summary: "not valid proposal output"}}
+	svc := newTestService(t, spawner)
+	svc.SetContextResolver(fakeContextResolver{})
+	svc.SetMutationProposalProcessor(processor)
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Proposal", ProposalTarget: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Start(context.Background(), ContinueRequest{SessionID: draft.ID, Message: "Find missing work."}); err != nil {
+		t.Fatal(err)
+	}
+	refreshed, err := svc.Refresh(context.Background(), draft.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refreshed.Proposals) != 1 || refreshed.Proposals[0].Status != ProposalStatusNeedsRevision || !refreshed.Proposals[0].NeedsRevision {
+		t.Fatalf("proposal = %+v", refreshed.Proposals)
+	}
+}
+
+func TestMutationProposalDecisionAndRevisionUseSameSessionRun(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+	processor := &fakeMutationProposalProcessor{application: MutationProposalApplication{Outcomes: []MutationOutcome{{MutationID: "m1", Applied: true}, {MutationID: "m2", Skipped: true}}}}
+	spawner := &fakeSessionSpawner{}
+	svc := newTestService(t, spawner)
+	svc.SetMutationProposalProcessor(processor)
+	session := createStartedSession(t, svc, KindSwarmOperations, "Proposal", "Find missing work.")
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{Kind: ProposalMutationList, Status: ProposalStatusReady, Summary: "Proposal", PayloadJSON: `{"form":"mutation_list","mutations":[]}`, Target: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	applied, err := svc.DecideMutationListProposal(context.Background(), session.ID, proposal.ID, []string{"m1"}, "apply one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if processor.accepted[0] != "m1" || applied.Proposals[0].Status != ProposalStatusApplied || len(applied.Proposals[0].Decisions) != 1 {
+		t.Fatalf("applied = %+v processor=%+v", applied.Proposals, processor)
+	}
+	proposal, err = svc.RecordProposal(context.Background(), session.ID, Proposal{Kind: ProposalMutationList, Status: ProposalStatusNeedsRevision, NeedsRevision: true, Summary: "Needs revision", PayloadJSON: `{}`, Target: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}, ValidationErrors: []string{"unknown target"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	revised, err := svc.RequestMutationProposalRevision(context.Background(), session.ID, proposal.ID, "please narrow scope")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spawner.continueRunID != session.RunID || !strings.Contains(spawner.continueMessage, "unknown target") || !strings.Contains(spawner.continueMessage, "please narrow scope") {
+		t.Fatalf("continue = %q / %q", spawner.continueRunID, spawner.continueMessage)
+	}
+	revisedProposal, found := findProposal(revised, proposal.ID)
+	if !found || revisedProposal.Status != ProposalStatusSuperseded {
+		t.Fatalf("revision proposal = %+v", revised.Proposals)
+	}
+}
+
 // TestServiceStartInitialPromptDeliversFullSkill proves the spawned agent is
 // directed to read its whole operating guide (the full skill methodology), not
 // just the attached startup-brief snapshot — the Phase 7 guarantee that the
@@ -891,6 +982,22 @@ func mustStruct(t *testing.T, fields map[string]any) *structpb.Struct {
 type fakeBacklogBatchApplier struct {
 	payloadJSON string
 	provenance  identity.Provenance
+}
+
+type fakeMutationProposalProcessor struct {
+	ingestion   MutationProposalIngestion
+	application MutationProposalApplication
+	ingestCalls int
+	accepted    []string
+}
+
+func (f *fakeMutationProposalProcessor) Ingest(_ context.Context, _ ProposalTarget, _ string) (MutationProposalIngestion, error) {
+	f.ingestCalls++
+	return f.ingestion, nil
+}
+func (f *fakeMutationProposalProcessor) Apply(_ context.Context, _ ProposalTarget, _ string, accepted []string, _ MutationProposalSource) (MutationProposalApplication, error) {
+	f.accepted = append([]string(nil), accepted...)
+	return f.application, nil
 }
 
 type fakeContextResolver struct{}

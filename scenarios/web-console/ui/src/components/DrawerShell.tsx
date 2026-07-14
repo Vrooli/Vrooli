@@ -1,18 +1,28 @@
-import { useId, useRef, type ReactNode } from "react";
-import { X } from "lucide-react";
+/**
+ * @vrooliComponentSource react-component-library:DrawerShell
+ * @vrooliComponentVersion 1.0.0
+ * @vrooliComponentAdoption 66af1418-3596-413a-b978-2a70b7bc1511
+ * @vrooliComponentAppliedAt 2026-07-14T03:49:23Z
+ * @vrooliComponentSourceSha256 6bcf14cb7bed31be6c9cb045a02789ebeeb1f068a90c6287649ecda736d8be54
+ * @vrooliComponentDriftHash 6bcf14cb7bed31be6c9cb045a02789ebeeb1f068a90c6287649ecda736d8be54
+ *
+ * This file was copied from React Component Library. Local edits are allowed;
+ * run "react-component-library adoptions refresh" to inspect drift.
+ */
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface DrawerShellProps {
   /** Whether the drawer is mounted/visible. Returns null when false. */
-  open: boolean;
+  open?: boolean;
   /** Close handler invoked by the backdrop, close button, and Escape key. */
-  onClose: () => void;
+  onClose?: () => void;
   /** Accessible label for the close button. */
-  closeAriaLabel: string;
+  closeAriaLabel?: string;
   /** Primary header title (truncated single line). */
-  title: ReactNode;
+  title?: ReactNode;
   /** Optional controls rendered in the title row, before the close button. */
   headerActions?: ReactNode;
   /** Optional content rendered below the title row (subtitle, badges, toolbars). */
@@ -50,10 +60,10 @@ interface DrawerShellProps {
  * nothing about its consumers' domains.
  */
 export function DrawerShell({
-  open,
-  onClose,
-  closeAriaLabel,
-  title,
+  open = true,
+  onClose = () => {},
+  closeAriaLabel = "Close drawer",
+  title = "Drawer",
   headerActions,
   headerExtra,
   panelTestId,
@@ -61,15 +71,19 @@ export function DrawerShell({
   avoidKeyboard = false,
   children,
 }: DrawerShellProps) {
-  useEscapeKey(open, onClose);
+	const closeButtonRef = useRef<HTMLButtonElement>(null);
+	const panelRef = useRef<HTMLDivElement>(null);
+	const titleId = useId();
 
-  // Keep keyboard focus inside the drawer while open (accessibility): Tab and
-  // Shift+Tab cycle the panel's focusable controls rather than leaking to the
-  // terminal/background behind the overlay.
-  const panelRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(open, panelRef);
+	useEscapeKey(open, onClose);
+	useFocusTrap(open, panelRef);
 
-  const titleId = useId();
+	useEffect(() => {
+		if (!open) return;
+		const previousFocus = document.activeElement as HTMLElement | null;
+		closeButtonRef.current?.focus();
+		return () => previousFocus?.focus();
+	}, [open]);
 
   if (!open) return null;
 
@@ -80,7 +94,7 @@ export function DrawerShell({
 
   return (
     <div className="fixed inset-0 z-wc-drawer">
-      <div className="absolute inset-0 bg-wc-backdrop" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-wc-backdrop" aria-label="Dismiss drawer backdrop" onClick={onClose} />
       <div
         ref={panelRef}
         role="dialog"
@@ -89,11 +103,8 @@ export function DrawerShell({
         data-testid={panelTestId}
         className={
           "wc-stable-theme absolute inset-x-0 top-[max(1rem,var(--wc-safe-top,0px))] flex flex-col overflow-hidden rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised shadow-2xl " +
-          desktopSizeClasses +
-          // Lift the panel above the keyboard when requested; otherwise pin to
-          // the viewport bottom. The md: breakpoint (desktop, no keyboard)
-          // overrides both to the size variant's placement.
-          (avoidKeyboard ? " bottom-[var(--wc-kb-height,0px)]" : " bottom-0")
+			  desktopSizeClasses +
+			  (avoidKeyboard ? " bottom-[var(--wc-kb-height,0px)]" : " bottom-0")
         }
       >
         <div className="shrink-0 border-b border-wc-default px-4 py-3">
@@ -101,12 +112,13 @@ export function DrawerShell({
             <h2 id={titleId} className="min-w-0 flex-1 truncate text-sm font-semibold text-wc-text-primary">{title}</h2>
             {headerActions}
             <button
+              ref={closeButtonRef}
               type="button"
               onClick={onClose}
               className="shrink-0 rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
               aria-label={closeAriaLabel}
             >
-              <X className="h-4 w-4" />
+              <span aria-hidden>×</span>
             </button>
           </div>
           {headerExtra}
@@ -117,3 +129,5 @@ export function DrawerShell({
     </div>
   );
 }
+
+export default DrawerShell;

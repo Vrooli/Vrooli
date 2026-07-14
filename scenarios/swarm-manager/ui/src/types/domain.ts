@@ -20,6 +20,7 @@ export * from "./archive";
 export * from "./scenario";
 export * from "./agent";
 export * from "./agent-session";
+export * from "./proposal";
 export * from "./execution";
 export * from "./settings";
 export * from "./summary";

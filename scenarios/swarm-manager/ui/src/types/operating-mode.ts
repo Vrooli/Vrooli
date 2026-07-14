@@ -1,5 +1,5 @@
 import type { InitiativeOperatingMode } from "./initiative";
-import type { Proposal } from "./feedback";
+import type { Proposal } from "./proposal";
 
 export type OperatingModeRoundStatus =
   | "reserved"

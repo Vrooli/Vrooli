@@ -31,10 +31,7 @@ export function useNodeActionContext(nodeData: BacklogGraphNodeData): ItemAction
     const fullItem = allItems.find((i) => i.kind === nodeData.kind && i.name === nodeData.name);
     const item = fullItem ?? { kind: nodeData.kind, name: nodeData.name, status: nodeData.status, dependsOn: [] };
 
-    // Extract feedback/maturity for this specific item from the summary cache.
-    const feedbackItem = (summaryQuery.data?.feedback?.items ?? []).find(
-      (f) => `${f.kind}/${f.name}` === key,
-    );
+    // Extract maturity for this specific item from the summary cache.
     const maturityItem = (summaryQuery.data?.maturity?.items ?? []).find(
       (m) => `${m.kind}/${m.name}` === key,
     );
@@ -49,7 +46,7 @@ export function useNodeActionContext(nodeData: BacklogGraphNodeData): ItemAction
       readinessReady: maturityItem ? (maturityItem.ready ?? null) : null,
       pendingSynthesis: maturityItem?.pending_synthesis ?? false,
       agentRunning: false,
-      hasPendingDecisions: (feedbackItem?.pending_decisions ?? 0) > 0,
+      hasPendingDecisions: false,
       hasExecutionHistory,
     });
   }, [nodeData.kind, nodeData.name, nodeData.status, allItems, blockingMap, executions, summaryQuery.data]);

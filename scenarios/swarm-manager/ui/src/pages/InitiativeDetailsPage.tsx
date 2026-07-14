@@ -12,7 +12,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, MessageCirclePlus, ClipboardCheck, Workflow } from "lucide-react";
+import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, GitPullRequestArrow, ClipboardCheck, Workflow } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { type ActionMenuItem } from "../components/ui/action-menu";
@@ -29,8 +29,7 @@ import { NoteEditor } from "../components/ui/note-editor";
 import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
 import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
 import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDependencyGraph";
-import { FeedbackPanel } from "../components/initiative/feedback-panel";
-import { FeedbackDialog } from "../components/initiative/feedback-dialog";
+import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
 import { InitiativeReviewPanel } from "../components/initiative/initiative-review-panel";
 import { OperatingModePanel } from "../components/initiative/operating-mode-panel";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
@@ -59,7 +58,7 @@ import { useAppBack } from "../app/routes/useAppBack";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { initiativeOption } from "../components/session/context/session-context-refs";
 
-type InitiativeTab = "info" | "mode" | "feedback" | "review" | "files";
+type InitiativeTab = "info" | "mode" | "proposals" | "review" | "files";
 type ItemsView = "list" | "graph";
 
 interface ResolvedInitiativeItem {
@@ -342,11 +341,9 @@ export function InitiativeDetailsPage() {
 
   // --- Tab state ---
   const [activeTab, setActiveTab] = useUrlState<InitiativeTab>("tab", "info", {
-    validate: (v): v is InitiativeTab => ["info", "mode", "feedback", "review", "files"].includes(v),
+    validate: (v): v is InitiativeTab => ["info", "mode", "proposals", "review", "files"].includes(v),
   });
 
-  // --- Feedback dialog (header button entry point) ---
-  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
 
   // --- File service ---
   const fileService = useMemo(
@@ -599,9 +596,9 @@ export function InitiativeDetailsPage() {
             <Workflow className="h-4 w-4" />
             Mode
           </TabsTrigger>
-          <TabsTrigger value="feedback" className="gap-2" data-testid={selectors.initiativeDetails.tabFeedback}>
-            <MessageCirclePlus className="h-4 w-4" />
-            Feedback
+          <TabsTrigger value="proposals" className="gap-2" data-testid={selectors.initiativeDetails.tabFeedback}>
+            <GitPullRequestArrow className="h-4 w-4" />
+            Proposals
           </TabsTrigger>
           <TabsTrigger value="review" className="gap-2" data-testid={selectors.initiativeDetails.tabReview}>
             <ClipboardCheck className="h-4 w-4" />
@@ -626,17 +623,6 @@ export function InitiativeDetailsPage() {
           nodeId={nodeId}
           lenses={INITIATIVE_LENSES}
           tabBar={tabBar}
-          primaryAction={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setFeedbackDialogOpen(true)}
-              data-testid={selectors.initiativeDetails.addFeedbackButtonDesktop}
-            >
-              <MessageCirclePlus className="mr-1.5 h-4 w-4" />
-              Add Feedback
-            </Button>
-          }
           menuActions={menuActions}
         />
       }
@@ -950,21 +936,7 @@ export function InitiativeDetailsPage() {
           </>
         )}
 
-        {activeTab === "feedback" && (
-          <FeedbackPanel
-            initiativeName={initiative.name}
-            previewItems={resolvedItems.map((item) => ({
-              kind: item.kind,
-              name: item.name,
-              title: item.title,
-              status: item.status,
-              dependsOn: item.dependsOn,
-              priority: item.priority,
-              archivedAt: item.archivedAt,
-              missing: item.missing,
-            }))}
-          />
-        )}
+        {activeTab === "proposals" && <ProposalSessionsPanel target={{ type: "initiative", ref: initiative.name, name: initiative.title || initiative.name }} />}
 
         {activeTab === "mode" && (
           <OperatingModePanel
@@ -1002,19 +974,6 @@ export function InitiativeDetailsPage() {
           </FileServiceProvider>
         )}
       </div>
-
-      <FeedbackDialog
-        initiativeName={initiative.name}
-        isOpen={feedbackDialogOpen}
-        onClose={() => setFeedbackDialogOpen(false)}
-        items={resolvedItems
-          .filter((it) => !it.archivedAt && !it.missing)
-          .map((it) => ({ ref: it.ref, title: it.title }))}
-        onSubmitted={() => {
-          setActiveTab("feedback");
-          void queryClient.invalidateQueries({ queryKey: ["initiative-feedback", initiative.name] });
-        }}
-      />
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog {...deleteDialogProps} />

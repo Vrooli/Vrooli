@@ -100,7 +100,7 @@ curl http://localhost:${API_PORT}/api/v1/automations?profile_id=UUID
 - ✅ Responsive design testing: mobile (375x667) and tablet (768x1024) viewports
 - ✅ Screenshot generation for visual regression tracking
 - ✅ Connection status and user profile element verification
-- ✅ Graceful fallback when browserless resource not available
+- ✅ Graceful fallback when browser-automation-studio not available
 - ✅ Test infrastructure upgraded from 4/5 to 5/5 components
 
 **Impact:**

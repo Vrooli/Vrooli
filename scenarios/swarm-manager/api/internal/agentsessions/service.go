@@ -22,6 +22,7 @@ const (
 	SkillMetaOrchestrator       = "swarm-manager-meta-orchestrator"
 	SkillOperatingModeAuthoring = "swarm-manager-operating-mode-authoring"
 	SkillSwarmOperations        = "swarm-manager-operations-session"
+	SkillProposals              = "swarm-manager-proposals"
 
 	EnvSessionID   = "VROOLI_SWARM_MANAGER_SESSION_ID"
 	EnvSessionKind = "VROOLI_SWARM_MANAGER_SESSION_KIND"
@@ -49,6 +50,28 @@ type ContextResolver interface {
 	ResolveSessionMessageContext(ctx context.Context, refs []ContextRef, limits ContextLimits) ([]ContextItem, error)
 }
 
+// MutationProposalProcessor keeps graph-aware extraction and ApplyFlow on the
+// API composition side. Agent sessions own durable conversation and review
+// state without importing proposal/backlog packages (which would form a cycle).
+type MutationProposalProcessor interface {
+	Ingest(ctx context.Context, target ProposalTarget, assistantReply string) (MutationProposalIngestion, error)
+	Apply(ctx context.Context, target ProposalTarget, payloadJSON string, acceptedMutationIDs []string, source MutationProposalSource) (MutationProposalApplication, error)
+}
+
+type MutationProposalIngestion struct {
+	PayloadJSON      string
+	ParseWarnings    []string
+	ValidationErrors []string
+}
+
+type MutationProposalSource struct {
+	SessionID string
+	RunID     string
+	DecidedAt string
+}
+
+type MutationProposalApplication struct{ Outcomes []MutationOutcome }
+
 // MessageReferenceEnricher resolves typed entity references (`type:name` code
 // spans) found in assistant message content into ContextItems whose NodeID the
 // UI linkifies. Implemented by the session-context resolver; consumed at
@@ -59,17 +82,18 @@ type MessageReferenceEnricher interface {
 }
 
 type Service struct {
-	store               Store
-	spawner             SessionSpawner
-	eventReader         RunEventReader
-	backlogBatchApplier BacklogBatchApplier
-	contextResolver     ContextResolver
-	eventLogger         EventLogger
-	projectRoot         string
-	profileKey          string
-	evidenceService     *evidence.Service
-	evidenceReconciler  EvidenceReconciler
-	evidenceProjection  bool
+	store                     Store
+	spawner                   SessionSpawner
+	eventReader               RunEventReader
+	backlogBatchApplier       BacklogBatchApplier
+	contextResolver           ContextResolver
+	eventLogger               EventLogger
+	projectRoot               string
+	profileKey                string
+	evidenceService           *evidence.Service
+	evidenceReconciler        EvidenceReconciler
+	evidenceProjection        bool
+	mutationProposalProcessor MutationProposalProcessor
 }
 
 // EvidenceReconciler pulls producer facts for a verified Agent Manager run.
@@ -95,19 +119,21 @@ func (s *Service) SetEvidenceReconciler(reconciler EvidenceReconciler) {
 }
 
 type ServiceConfig struct {
-	Store               Store
-	Spawner             SessionSpawner
-	EventReader         RunEventReader
-	BacklogBatchApplier BacklogBatchApplier
-	ContextResolver     ContextResolver
-	EventLogger         EventLogger
-	ProjectRoot         string
-	ProfileKey          string
+	Store                     Store
+	Spawner                   SessionSpawner
+	EventReader               RunEventReader
+	BacklogBatchApplier       BacklogBatchApplier
+	ContextResolver           ContextResolver
+	EventLogger               EventLogger
+	ProjectRoot               string
+	ProfileKey                string
+	MutationProposalProcessor MutationProposalProcessor
 }
 
 type CreateRequest struct {
-	Kind  Kind
-	Title string
+	Kind           Kind
+	Title          string
+	ProposalTarget *ProposalTarget
 }
 
 type ContinueRequest struct {
@@ -148,14 +174,15 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		}
 	}
 	return &Service{
-		store:               cfg.Store,
-		spawner:             cfg.Spawner,
-		eventReader:         cfg.EventReader,
-		backlogBatchApplier: cfg.BacklogBatchApplier,
-		contextResolver:     cfg.ContextResolver,
-		eventLogger:         cfg.EventLogger,
-		projectRoot:         cfg.ProjectRoot,
-		profileKey:          cfg.ProfileKey,
+		store:                     cfg.Store,
+		spawner:                   cfg.Spawner,
+		eventReader:               cfg.EventReader,
+		backlogBatchApplier:       cfg.BacklogBatchApplier,
+		contextResolver:           cfg.ContextResolver,
+		eventLogger:               cfg.EventLogger,
+		projectRoot:               cfg.ProjectRoot,
+		profileKey:                cfg.ProfileKey,
+		mutationProposalProcessor: cfg.MutationProposalProcessor,
 	}, nil
 }
 
@@ -167,6 +194,10 @@ func (s *Service) SetContextResolver(resolver ContextResolver) {
 	s.contextResolver = resolver
 }
 
+func (s *Service) SetMutationProposalProcessor(processor MutationProposalProcessor) {
+	s.mutationProposalProcessor = processor
+}
+
 func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error) {
 	req.Title = strings.TrimSpace(req.Title)
 	if !IsKnownKind(req.Kind) {
@@ -175,18 +206,27 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error
 	if req.Title == "" {
 		return Session{}, apierr.BadRequest("title is required")
 	}
+	if req.ProposalTarget != nil {
+		if err := req.ProposalTarget.Validate(); err != nil {
+			return Session{}, apierr.BadRequest("invalid proposal target: %s", err)
+		}
+	}
 
 	now := nowRFC3339()
 	session := Session{
-		ID:         "sess_" + idgen.Generate(),
-		Title:      req.Title,
-		Kind:       req.Kind,
-		Status:     StatusDraft,
-		SkillID:    skillIDForKind(req.Kind),
-		ProfileKey: s.profileKey,
-		CreatedAt:  now,
-		UpdatedAt:  now,
-		CreatedBy:  attributionForContext(ctx),
+		ID:             "sess_" + idgen.Generate(),
+		Title:          req.Title,
+		Kind:           req.Kind,
+		Status:         StatusDraft,
+		SkillID:        skillIDForKind(req.Kind),
+		ProfileKey:     s.profileKey,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+		CreatedBy:      attributionForContext(ctx),
+		ProposalTarget: req.ProposalTarget,
+	}
+	if req.ProposalTarget != nil {
+		session.SkillID = SkillProposals
 	}
 	if err := s.store.CreateSession(session); err != nil {
 		return Session{}, err
@@ -210,7 +250,11 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 	if s.spawner == nil {
 		return Session{}, apierr.Unavailable("agent session spawning is unavailable")
 	}
-	contextItems, err := s.resolveMessageContext(ctx, session, refsWithAutoContext(session.Kind, req.ContextRefs, req.AutoContextPolicy, s.startupBriefResolverAvailable()))
+	refs := refsWithAutoContext(session.Kind, req.ContextRefs, req.AutoContextPolicy, s.startupBriefResolverAvailable())
+	if session.ProposalTarget != nil {
+		refs = append(refs, ContextRef{Type: session.ProposalTarget.Type, Ref: session.ProposalTarget.Ref})
+	}
+	contextItems, err := s.resolveMessageContext(ctx, session, refs)
 	if err != nil {
 		return Session{}, err
 	}
@@ -444,6 +488,9 @@ func (s *Service) Refresh(ctx context.Context, sessionID string) (Session, error
 			assistantMessage.Context = enricher.EnrichMessageReferences(ctx, assistantMessage.Content)
 		}
 		if err := s.store.AppendMessage(session.ID, assistantMessage); err != nil {
+			return Session{}, err
+		}
+		if err := s.ingestMutationProposal(ctx, session, assistantMessage.Content); err != nil {
 			return Session{}, err
 		}
 	}

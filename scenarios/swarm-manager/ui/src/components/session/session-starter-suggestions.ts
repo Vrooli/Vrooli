@@ -187,6 +187,8 @@ export interface AttachStarterSuggestion {
   text: string;
   /** True when the text speaks about the attached entity specifically. */
   specific: boolean;
+  /** Starts a proposal-targeted session instead of a generic conversation. */
+  proposalFlavor?: "mutation_list";
 }
 
 const ATTACH_TITLE_MAX = 70;
@@ -207,7 +209,7 @@ export function attachStarterSuggestions(
 ): AttachStarterSuggestion[] {
   const rawTitle = option.title.trim() || option.ref;
   const title = rawTitle.length > ATTACH_TITLE_MAX ? `${rawTitle.slice(0, ATTACH_TITLE_MAX - 3)}...` : rawTitle;
-  return starterSuggestionsForKind(kind)
+  const generic = starterSuggestionsForKind(kind)
     .filter((suggestion) =>
       (suggestion.requirements ?? []).every(
         (requirement) => requirement.optional || (requirement.kind === "context" && requirement.type === option.type),
@@ -226,4 +228,23 @@ export function attachStarterSuggestions(
       };
     })
     .sort((a, b) => Number(b.specific) - Number(a.specific));
+
+  if (option.type !== "initiative" && option.type !== "backlog_item") return generic;
+  const entityLabel = title;
+  const proposalActions: AttachStarterSuggestion[] = option.type === "initiative"
+    ? [
+      { id: "proposal-split", prefix: "Split oversized items in" },
+      { id: "proposal-merge", prefix: "Merge tightly coupled items in" },
+      { id: "proposal-identify-missing", prefix: "Identify missing work for" },
+      { id: "proposal-reconcile", prefix: "Reconcile this initiative with code drift:" },
+      { id: "proposal-reframe", prefix: "Reframe the scope and outcomes for" },
+    ].map(({ id, prefix }) => ({ id, icon: GitPullRequestArrow, text: `${prefix} "${entityLabel}".`, specific: true, proposalFlavor: "mutation_list" }))
+    : [
+      { id: "proposal-split", prefix: "Split" },
+      { id: "proposal-merge", prefix: "Find merge candidates for" },
+      { id: "proposal-identify-followups", prefix: "Identify follow-up work for" },
+      { id: "proposal-reframe-item", prefix: "Reframe the scope for" },
+      { id: "proposal-reconcile-item", prefix: "Reconcile this item with related work:" },
+    ].map(({ id, prefix }) => ({ id, icon: GitPullRequestArrow, text: `${prefix} "${entityLabel}".`, specific: true, proposalFlavor: "mutation_list" }));
+  return [...proposalActions, ...generic];
 }

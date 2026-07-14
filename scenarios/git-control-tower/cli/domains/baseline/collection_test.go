@@ -1,6 +1,9 @@
 package baseline
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestParseCollectionMemberUsesCollectionNameAndAllowsOverride(t *testing.T) {
 	member, err := parseCollectionMember("plan-manager", "before")
@@ -13,5 +16,13 @@ func TestParseCollectionMemberUsesCollectionNameAndAllowsOverride(t *testing.T) 
 	}
 	if _, err := parseCollectionMember(":bad", "before"); err == nil {
 		t.Fatal("empty scenario accepted")
+	}
+}
+
+func TestCollectionFollowupArgsOmitEmptyBranch(t *testing.T) {
+	got := collectionFollowupArgs("before", "", "--wait")
+	want := []string{"--name", "before", "--wait"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("follow-up args = %#v, want %#v", got, want)
 	}
 }

@@ -166,7 +166,6 @@ export interface IBacklogService {
   }): Promise<Blob>;
   importItems(file: File, apply?: boolean): Promise<ImportBacklogResponse>;
   getBacklogSummary(): Promise<import("../../types").BacklogSummaryResponse>;
-  getFeedbackSummary(): Promise<import("../../types").FeedbackSummaryResponse>;
   getMaturitySummary(): Promise<import("../../types").MaturitySummaryResponse>;
   getPendingQuestions(): Promise<import("../../types").PendingQuestionsResponse>;
   workshopSave(

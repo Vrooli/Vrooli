@@ -39,7 +39,6 @@ export const API_ENDPOINTS = {
   backlogImport: "/backlog/import",
   backlogValidateGlobs: "/backlog/validate-globs",
   backlogSummary: "/backlog/summary",
-  backlogFeedbackSummary: "/backlog/feedback-summary",
   backlogMaturitySummary: "/backlog/maturity-summary",
   backlogPendingQuestions: "/backlog/pending-questions",
   scenarios: "/scenarios",
@@ -77,6 +76,11 @@ export const API_ENDPOINTS = {
   agentSessionCancel: (sessionId: string) => `/agent-sessions/${sessionId}/cancel`,
   agentSessionApplyProposal: (sessionId: string, proposalId: string) =>
     `/agent-sessions/${sessionId}/proposals/${proposalId}/apply`,
+  proposalSessions: "/proposal-sessions",
+  agentSessionDecideMutationProposal: (sessionId: string, proposalId: string) =>
+    `/agent-sessions/${sessionId}/proposals/${proposalId}/decide`,
+  agentSessionReviseMutationProposal: (sessionId: string, proposalId: string) =>
+    `/agent-sessions/${sessionId}/proposals/${proposalId}/revise`,
   agentSessionArtifacts: (sessionId: string) => `/agent-sessions/${sessionId}/artifacts`,
   agentSessionArtifactsByEntity: "/artifacts/by-entity",
   gctStatus: "/gct/status",
@@ -107,23 +111,6 @@ export const API_ENDPOINTS = {
   initiativeFileOperations: (name: string) => `/initiatives/${name}/files`,
   initiativeFileContent: (name: string, filePath: string) =>
     `/initiatives/${name}/files/${filePath}`,
-  // Initiative feedback — user feedback rounds on an initiative.
-  // Multi-turn agent dialogue that produces structured mutation proposals
-  // the user can selectively accept, reject, revise, or dismiss.
-  initiativeFeedback: (name: string) => `/initiatives/${name}/feedback`,
-  initiativeFeedbackRound: (name: string, round: number) =>
-    `/initiatives/${name}/feedback/${round}`,
-  initiativeFeedbackContinue: (name: string, round: number) =>
-    `/initiatives/${name}/feedback/${round}/continue`,
-  initiativeFeedbackDecide: (name: string, round: number) =>
-    `/initiatives/${name}/feedback/${round}/decide`,
-  initiativeFeedbackDismiss: (name: string, round: number) =>
-    `/initiatives/${name}/feedback/${round}/dismiss`,
-  initiativeFeedbackCancel: (name: string, round: number) =>
-    `/initiatives/${name}/feedback/${round}/cancel`,
-  initiativeFeedbackAttachment: (name: string, round: number, attachmentId: string) =>
-    `/initiatives/${name}/feedback/${round}/attachments/${attachmentId}`,
-  initiativeFeedbackLock: (name: string) => `/initiatives/${name}/feedback/lock`,
   // Initiative review — final verdict after all member items reach terminal.
   initiativeReviewRounds: (name: string) => `/initiatives/${name}/review`,
   initiativeReviewRound: (name: string, round: number) =>

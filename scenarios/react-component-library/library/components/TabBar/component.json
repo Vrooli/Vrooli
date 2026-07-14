@@ -1,0 +1,14 @@
+{
+  "libraryId": "react-component-library:TabBar",
+  "displayName": "TabBar",
+  "description": "Token-bound, keyboard-accessible tab strip with optional close and add actions.",
+  "tags": ["navigation", "tabs", "layout", "reviewed", "accessibility"],
+  "slot": "ui-pattern",
+  "category": "navigation",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native", "reason": "Uses the standard semantic token vocabulary." }
+  ],
+  "latest": "0.1.0",
+  "draft": "0.1.0-draft.1",
+  "deprecatedVersions": []
+}
