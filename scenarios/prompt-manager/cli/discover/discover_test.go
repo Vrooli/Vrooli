@@ -1,6 +1,7 @@
 package discover
 
 import (
+	"strings"
 	"testing"
 
 	clitest "prompt-manager/cli/internal/testutil"
@@ -34,6 +35,42 @@ func TestCommandsRegistersDiscoverCommand(t *testing.T) {
 	if !byName["discover"] || !byName["discovery-gaps"] || !byName["discovery-metrics"] {
 		t.Fatalf("expected discover, discovery-gaps, and discovery-metrics commands, got %+v", group.Commands)
 	}
+}
+
+// TestCommandsDocumentTheirFlags pins the help contract for legacy Run
+// commands: every flag the handler's FlagSet parses must be named in the
+// command's HelpText, and Usage must be set — otherwise --help renders a bare
+// usage line and agents guess flag values (the skill-pack --complexity
+// incident). The discover complexity vocabulary must also be spelled out.
+func TestCommandsDocumentTheirFlags(t *testing.T) {
+	flagsByCommand := map[string][]string{
+		"discover":          {"--complexity", "--limit", "--type", "--json"},
+		"discovery-gaps":    {"--since", "--type", "--limit", "--json"},
+		"discovery-metrics": {"--since", "--type", "--json"},
+	}
+	for _, command := range Commands(nil).Commands {
+		wantFlags, ok := flagsByCommand[command.Name]
+		if !ok {
+			t.Fatalf("command %q missing from the help-contract table; add its flags", command.Name)
+		}
+		if command.Usage == "" {
+			t.Fatalf("command %q must set Usage so --help shows the invocation shape", command.Name)
+		}
+		for _, flagName := range wantFlags {
+			if !containsString(command.HelpText, flagName) {
+				t.Fatalf("command %q HelpText does not document %s", command.Name, flagName)
+			}
+		}
+	}
+	for _, command := range Commands(nil).Commands {
+		if command.Name == "discover" && !containsString(command.HelpText, "minor|moderate|major|architectural") {
+			t.Fatalf("discover HelpText must spell out the complexity vocabulary, got: %s", command.HelpText)
+		}
+	}
+}
+
+func containsString(haystack, needle string) bool {
+	return len(needle) > 0 && strings.Contains(haystack, needle)
 }
 
 func TestCmdDiscoveryMetricsQueriesEndpoint(t *testing.T) {

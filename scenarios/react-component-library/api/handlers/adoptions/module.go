@@ -173,11 +173,12 @@ var Endpoints = []module.EndpointDescriptor{
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"component_id":      "string",
-				"scenario":          "string",
-				"adopted_path":      "string",
-				"version":           "string (optional)",
-				"confirm_overwrite": "bool",
+				"component_id":        "string",
+				"scenario":            "string",
+				"adopted_path":        "string",
+				"version":             "string (optional)",
+				"confirm_overwrite":   "bool",
+				"override_validation": "bool (explicitly allow a blocking dependency verdict)",
 			},
 		},
 		Response: &module.Schema{
@@ -197,8 +198,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Overwrites an adopted file from a selected library version. Local modifications require explicit confirmation.",
 		Category:    "adoptions",
 		Request: &module.Schema{
-			Type:       "object",
-			Properties: map[string]string{"id": "string", "version": "string (optional)", "confirm_local_overwrite": "bool"},
+			Type: "object",
+			Properties: map[string]string{
+				"id":                      "string",
+				"version":                 "string (optional)",
+				"confirm_local_overwrite": "bool",
+				"override_validation":     "bool (explicitly allow a blocking dependency verdict)",
+			},
 		},
 		Response: &module.Schema{
 			Type:       "object",

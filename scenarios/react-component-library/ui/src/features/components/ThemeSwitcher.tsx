@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
@@ -11,11 +11,13 @@ import { errorMessage } from "../../lib/errorMessage";
 import { cn } from "../../lib/utils";
 
 interface Props {
-  /** iframe whose harness will receive the rcl-theme-apply message. */
-  frameRef: RefObject<HTMLIFrameElement | null>;
+  /** Posts to every live preview frame, not only the first gallery item. */
+  postToFrames: (message: unknown) => void;
   /** Set true once the harness has posted "preview-ready"; we re-apply
    *  the active theme on every reload so it survives save-driven nav. */
   previewReady: boolean;
+  /** Re-applies a chosen override after the app bridge changes theme. */
+  appResolvedTheme: "light" | "dark";
   className?: string;
 }
 
@@ -29,7 +31,7 @@ interface Props {
  * each token on :root so component CSS variables resolve to the new
  * values immediately.
  */
-export function ThemeSwitcher({ frameRef, previewReady, className }: Props) {
+export function ThemeSwitcher({ postToFrames, previewReady, appResolvedTheme, className }: Props) {
   const { t } = useTranslation();
   const [selection, setSelection] = useState("");
   const [scenarioId, setScenarioId] = useState("");
@@ -66,18 +68,21 @@ export function ThemeSwitcher({ frameRef, previewReady, className }: Props) {
   // Re-apply the active theme on every (re)load — the harness JS state
   // is wiped when the iframe reloads after a save, so we resend.
   useEffect(() => {
-    if (!previewReady || !activeTheme) return;
-    const win = frameRef.current?.contentWindow;
-    if (!win) return;
-    win.postMessage(
-      {
-        type: "rcl-theme-apply",
-        themeId: activeTheme.id,
-        tokens: { ...activeTheme.tokens },
-      },
-      "*",
-    );
-  }, [previewReady, activeTheme, frameRef]);
+    if (!previewReady) return;
+    // Empty selection is deliberately "Follow app": clear any previous
+    // overrides and leave resolved-theme ownership with ComponentEditor.
+    if (!activeTheme) {
+      postToFrames({ type: "rcl-theme-apply", themeId: "", tokens: {} });
+      return;
+    }
+    const resolvedTheme = activeTheme.id === "dark" ? "dark" : "light";
+    postToFrames({ type: "rcl-resolved-theme", theme: resolvedTheme });
+    postToFrames({
+      type: "rcl-theme-apply",
+      themeId: activeTheme.id,
+      tokens: { ...activeTheme.tokens },
+    });
+  }, [previewReady, activeTheme, appResolvedTheme, postToFrames]);
 
   const queryError = builtinThemeQuery.error ?? scenarioThemeQuery.error;
   const loading = builtinThemeQuery.isLoading || scenarioThemeQuery.isLoading;

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Menu, Settings as SettingsIcon } from "lucide-react";
 
 import { useTranslation } from "../i18n";
+import { BrandMark } from "./BrandMark";
 
 interface Props {
   onOpenDrawer: () => void;
@@ -24,12 +25,7 @@ export function MobileHeader({ onOpenDrawer }: Props) {
         <Menu aria-hidden className="h-5 w-5" />
       </button>
       <Link to="/" data-testid="mobile-header-brand" className="flex items-center gap-2 text-app-foreground">
-        <span
-          aria-hidden
-          className="inline-flex h-7 w-7 items-center justify-center rounded-control bg-app-primary text-sm font-semibold text-app-primary-foreground"
-        >
-          {t("app.brandInitials", { defaultValue: "RC" })}
-        </span>
+        <BrandMark className="h-7 w-7 shrink-0 text-app-primary" />
         <span className="text-sm font-semibold tracking-tight">
           {t("app.brand", { defaultValue: "Component Library" })}
         </span>

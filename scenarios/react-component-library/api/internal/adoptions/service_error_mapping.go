@@ -21,5 +21,9 @@ func ToConnectError(err error) error {
 	if errors.As(err, &invalid) {
 		return connect.NewError(connect.CodeInvalidArgument, invalid)
 	}
+	var blocked ErrAdoptionValidationBlocked
+	if errors.As(err, &blocked) {
+		return connect.NewError(connect.CodeFailedPrecondition, blocked)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

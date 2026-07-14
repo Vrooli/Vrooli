@@ -65,11 +65,12 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 
 func (h *handlers) apply(ctx cliapp.RunContext) error {
 	req := &adoptionsv1.ApplyAdoptionRequest{
-		ComponentId:      ctx.Positional("component-id"),
-		Scenario:         ctx.Positional("scenario"),
-		AdoptedPath:      ctx.Positional("adopted-path"),
-		Version:          ctx.Flag("version"),
-		ConfirmOverwrite: ctx.Flag("confirm-overwrite") == "true",
+		ComponentId:        ctx.Positional("component-id"),
+		Scenario:           ctx.Positional("scenario"),
+		AdoptedPath:        ctx.Positional("adopted-path"),
+		Version:            ctx.Flag("version"),
+		ConfirmOverwrite:   ctx.Flag("confirm-overwrite") == "true",
+		OverrideValidation: ctx.Flag("override-validation") == "true",
 	}
 	resp, err := h.client.ApplyAdoption(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -91,6 +92,7 @@ func (h *handlers) reapply(ctx cliapp.RunContext) error {
 		Id:                    ctx.Positional("id"),
 		Version:               ctx.Flag("version"),
 		ConfirmLocalOverwrite: ctx.Flag("confirm-local-overwrite") == "true",
+		OverrideValidation:    ctx.Flag("override-validation") == "true",
 	}
 	resp, err := h.client.ReapplyAdoption(context.Background(), connect.NewRequest(req))
 	if err != nil {

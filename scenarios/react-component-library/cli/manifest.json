@@ -28,7 +28,8 @@
           ],
           "flags": [
             { "name": "version", "description": "Library version to apply; defaults to latest" },
-            { "name": "confirm-overwrite", "description": "Set to true to overwrite an existing target file" }
+            { "name": "confirm-overwrite", "description": "Set to true to overwrite an existing target file" },
+            { "name": "override-validation", "description": "Explicitly allow a blocking dependency validation verdict" }
           ],
           "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ApplyAdoption" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
@@ -41,7 +42,8 @@
           ],
           "flags": [
             { "name": "version", "description": "Library version to apply; defaults to latest" },
-            { "name": "confirm-local-overwrite", "description": "Set to true to overwrite local modifications" }
+            { "name": "confirm-local-overwrite", "description": "Set to true to overwrite local modifications" },
+            { "name": "override-validation", "description": "Explicitly allow a blocking dependency validation verdict" }
           ],
           "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ReapplyAdoption" },
           "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal", "filesystem:write"] }

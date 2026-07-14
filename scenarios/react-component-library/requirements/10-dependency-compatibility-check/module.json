@@ -31,7 +31,7 @@
       "prd_ref": "OT-P1-004",
       "category": "deps",
       "criticality": "P1",
-      "description": "`DepsService.ValidateAdoption(component_id, scenario, version)` (Connect-RPC) reads the target's `package.json` via the storage resolver, resolves declarations for the requested adopted component version, runs semver intersection against each declared dep, and returns `ok | warn | block`. `block` fires when a major-version range cannot be satisfied or the target is unparseable; `warn` fires when a runtime/dev dep is missing or minor/patch ranges don't intersect. Peer dependencies are must-be-provided by the target scenario.",
+      "description": "`DepsService.ValidateAdoption(component_id, scenario, version)` (Connect-RPC) reads the target's `package.json` via the storage resolver, resolves declarations for the requested adopted component version, runs semver intersection against each declared dep, and returns `ok | warn | block`. `block` fires when a major-version range cannot be satisfied or the target is unparseable; `warn` fires when a runtime/dev dep is missing or minor/patch ranges don't intersect. Peer dependencies are must-be-provided by the target scenario. AdoptionsService.Apply and Reapply invoke it server-side before writing, so UI, CLI, and direct RPC callers share the same enforcement.",
       "tags": ["deps", "adoption"],
       "validation": [
         {
@@ -43,18 +43,35 @@
     },
     {
       "id": "DC-003",
-      "title": "Adoption UI surfaces dep verdicts and blocks proceed on block",
+      "title": "Adoption UI surfaces dep verdicts and requires acknowledgement for warnings or blocks",
       "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "deps",
       "criticality": "P1",
-      "description": "Adoption modal shows the dep verdict before confirm. `ok` enables proceed; `warn` enables proceed with an acknowledgment checkbox; `block` disables proceed and shows the failing dep + reason.",
+      "description": "Adoption modal shows the dep verdict before confirm. `ok` enables proceed; `warn` requires an acknowledgment checkbox; `block` shows the failing dependency and requires an explicit acknowledgement, which is forwarded as `override_validation` to the server.",
       "tags": ["deps", "ui"],
       "validation": [
         {
           "type": "automated",
           "status": "complete",
-          "notes": "features/adoptions/CreateAdoptionDialog.test.tsx: OK enables confirm + dispatches createAdoption; BLOCK disables confirm and lists the failing dep; WARN requires the acknowledgment checkbox before confirm enables."
+          "notes": "features/adoptions/CreateAdoptionDialog.test.tsx: OK enables confirm + dispatches createAdoption; BLOCK lists the failing dep, requires acknowledgement, and forwards overrideValidation; WARN requires the acknowledgment checkbox before confirm enables."
+        }
+      ]
+    },
+    {
+      "id": "DC-005",
+      "title": "Adoption writes enforce dependency and style-fit validation server-side",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "deps",
+      "criticality": "P1",
+      "description": "Before Apply or Reapply writes a target file, AdoptionsService invokes both dependency validation and design-style fit validation. A blocking dependency verdict returns FailedPrecondition unless the caller explicitly sets override_validation; the override never skips either validation call. The proto field is exposed through both the UI and CLI adoption commands.",
+      "tags": ["deps", "adoption", "enforcement"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/internal/adoptions/service_test.go::TestService_ApplyAndReapply_BlockDependencyVerdictsUnlessExplicitlyOverridden proves both write paths reject block verdicts without an override, execute both validators, and allow a deliberate override. CLI and UI tests prove override forwarding."
         }
       ]
     },

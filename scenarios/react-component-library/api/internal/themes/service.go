@@ -58,17 +58,8 @@ func (s *service) ResolveFromScenario(ctx context.Context, scenario string) (The
 }
 
 func (s *service) EnsureBuiltinsSeeded(ctx context.Context) error {
-	n, err := s.repo.CountBuiltins(ctx)
-	if err != nil {
-		return fmt.Errorf("count builtins: %w", err)
-	}
-	if n > 0 {
-		return nil
-	}
-	for _, t := range builtinThemes() {
-		if err := s.repo.UpsertBuiltin(ctx, t); err != nil {
-			return fmt.Errorf("seed %s: %w", t.ID, err)
-		}
+	if err := s.repo.ReplaceBuiltins(ctx, builtinThemes()); err != nil {
+		return fmt.Errorf("migrate builtin themes: %w", err)
 	}
 	return nil
 }
@@ -79,76 +70,21 @@ func (s *service) EnsureBuiltinsSeeded(ctx context.Context) error {
 func builtinThemes() []Theme {
 	return []Theme{
 		{
-			ID: "vrooli-default", Name: "Vrooli Default", Source: "builtin",
+			ID: "light", Name: "Light", Source: "builtin",
 			Tokens: map[string]string{
-				"--color-primary":    "#2563eb",
-				"--color-secondary":  "#0891b2",
-				"--color-neutral":    "#f8fafc",
-				"--color-surface":    "#ffffff",
-				"--color-on-surface": "#0f172a",
-				"--color-error":      "#dc2626",
-				"--color-success":    "#16a34a",
-				"--color-warning":    "#d97706",
-				"--rounded-sm":       "0.375rem",
-				"--rounded-md":       "0.5rem",
-				"--rounded-lg":       "1rem",
-				"--rounded-full":     "9999px",
-				"--spacing-unit":     "0.25rem",
-				"--spacing-touch":    "44px",
+				"--color-background": "#f8fafc", "--color-surface": "#ffffff", "--color-surface-muted": "#f1f5f9", "--color-surface-raised": "#ffffff", "--color-foreground": "#0f172a", "--color-muted-foreground": "#475569", "--color-border": "#cbd5e1", "--color-primary": "#2563eb", "--color-primary-foreground": "#ffffff", "--color-accent": "#0891b2", "--color-success": "#16a34a", "--color-danger": "#dc2626", "--color-warning": "#d97706", "--color-info": "#0284c7", "--color-focus": "#2563eb", "--radius-control": "0.375rem", "--radius-panel": "0.5rem", "--radius-sheet": "0.75rem", "--radius-pill": "9999px",
 			},
 		},
 		{
-			ID: "neutral-light", Name: "Neutral Light", Source: "builtin",
+			ID: "dark", Name: "Dark", Source: "builtin",
 			Tokens: map[string]string{
-				"--color-primary":    "#475569",
-				"--color-secondary":  "#64748b",
-				"--color-neutral":    "#ffffff",
-				"--color-surface":    "#ffffff",
-				"--color-on-surface": "#0f172a",
-				"--color-error":      "#b91c1c",
-				"--color-success":    "#15803d",
-				"--color-warning":    "#a16207",
-				"--rounded-sm":       "0.25rem",
-				"--rounded-md":       "0.375rem",
-				"--rounded-lg":       "0.75rem",
-				"--rounded-full":     "9999px",
-				"--spacing-unit":     "0.25rem",
-			},
-		},
-		{
-			ID: "neutral-dark", Name: "Neutral Dark", Source: "builtin",
-			Tokens: map[string]string{
-				"--color-primary":    "#94a3b8",
-				"--color-secondary":  "#cbd5e1",
-				"--color-neutral":    "#0f172a",
-				"--color-surface":    "#1e293b",
-				"--color-on-surface": "#f1f5f9",
-				"--color-error":      "#f87171",
-				"--color-success":    "#4ade80",
-				"--color-warning":    "#fbbf24",
-				"--rounded-sm":       "0.25rem",
-				"--rounded-md":       "0.375rem",
-				"--rounded-lg":       "0.75rem",
-				"--rounded-full":     "9999px",
-				"--spacing-unit":     "0.25rem",
+				"--color-background": "#020617", "--color-surface": "#0f172a", "--color-surface-muted": "#1e293b", "--color-surface-raised": "#1e293b", "--color-foreground": "#f8fafc", "--color-muted-foreground": "#cbd5e1", "--color-border": "#334155", "--color-primary": "#60a5fa", "--color-primary-foreground": "#0f172a", "--color-accent": "#67e8f9", "--color-success": "#4ade80", "--color-danger": "#f87171", "--color-warning": "#fbbf24", "--color-info": "#7dd3fc", "--color-focus": "#93c5fd", "--radius-control": "0.375rem", "--radius-panel": "0.5rem", "--radius-sheet": "0.75rem", "--radius-pill": "9999px",
 			},
 		},
 		{
 			ID: "high-contrast", Name: "High Contrast", Source: "builtin",
 			Tokens: map[string]string{
-				"--color-primary":    "#000000",
-				"--color-secondary":  "#000000",
-				"--color-neutral":    "#ffffff",
-				"--color-surface":    "#ffffff",
-				"--color-on-surface": "#000000",
-				"--color-error":      "#cc0000",
-				"--color-success":    "#006600",
-				"--color-warning":    "#cc6600",
-				"--rounded-sm":       "0",
-				"--rounded-md":       "0",
-				"--rounded-lg":       "0",
-				"--rounded-full":     "0",
-				"--spacing-unit":     "0.25rem",
+				"--color-background": "#ffffff", "--color-surface": "#ffffff", "--color-surface-muted": "#f5f5f5", "--color-surface-raised": "#ffffff", "--color-foreground": "#000000", "--color-muted-foreground": "#1f2937", "--color-border": "#000000", "--color-primary": "#0000ee", "--color-primary-foreground": "#ffffff", "--color-accent": "#000000", "--color-success": "#006600", "--color-danger": "#b00020", "--color-warning": "#7c2d12", "--color-info": "#003f8c", "--color-focus": "#0000ee", "--radius-control": "0", "--radius-panel": "0", "--radius-sheet": "0", "--radius-pill": "0",
 			},
 		},
 	}

@@ -68,7 +68,7 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHarnessError(w, h.logger, id, err)
 		return
 	}
-	bundle, err := h.service.GetBundle(r.Context(), componentID)
+	bundle, err := h.service.GetBundleVersion(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")))
 	if err != nil {
 		writeHarnessError(w, h.logger, id, err)
 		return
@@ -182,7 +182,7 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessExample) string {
 `)
 	sb.WriteString(previewDesignSystemCSS())
 	sb.WriteString(`
-  html, body { margin: 0; padding: 0; min-height: 100vh; background: #0b0d12; color: #f5f7fa; font-family: ui-sans-serif, system-ui, sans-serif; }
+  html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--color-background); color: var(--color-foreground); font-family: ui-sans-serif, system-ui, sans-serif; }
   #root { padding: 16px; }
   #preview-importmap-diagnostics,
   #preview-error { padding: 16px; font-family: ui-monospace, SFMono-Regular, monospace; color: #ff8c8c; white-space: pre-wrap; }
@@ -222,16 +222,17 @@ const previewExample = {
   setup: ` + jsonObjectLiteral(ex.SetupJSON) + `,
   expect: ` + jsonArrayLiteral(ex.ExpectJSON) + `,
 };
-// Color-scheme bridge (req DV-001): the host posts
-// {type:"rcl-color-scheme", colorScheme:"system"|"light"|"dark"}; we
-// apply CSS color-scheme on :root and toggle a "dark" class on body.
+// Resolved-theme bridge: the host owns the app/system decision and posts
+// {type:"rcl-resolved-theme", theme:"light"|"dark"}. Stamping the root is
+// essential: design-tokens.css deliberately guards its OS media fallback with
+// :not([data-resolved-theme=light]), so a body class cannot override OS dark.
 window.addEventListener("message", (ev) => {
   const data = ev && ev.data;
-  if (!data || data.type !== "rcl-color-scheme") return;
-  const cs = data.colorScheme;
-  if (cs !== "system" && cs !== "light" && cs !== "dark") return;
-  document.documentElement.style.colorScheme = cs === "system" ? "light dark" : cs;
-  document.body.classList.toggle("dark", cs === "dark");
+  if (!data || data.type !== "rcl-resolved-theme") return;
+  const theme = data.theme;
+  if (theme !== "light" && theme !== "dark") return;
+  document.documentElement.dataset.resolvedTheme = theme;
+  document.documentElement.style.colorScheme = theme;
 });
 // Theme bridge (req TH-003): the host posts
 // {type:"rcl-theme-apply", themeId:"<id>", tokens:{"--color-primary":"#..."}}
@@ -730,32 +731,45 @@ func jsonArrayLiteral(raw string) string {
 	return string(normalized)
 }
 
-var (
-	previewCSSOnce sync.Once
-	previewCSS     string
-)
+var previewCSSCache struct {
+	sync.Mutex
+	path     string
+	modified int64
+	css      string
+}
 
 func previewDesignSystemCSS() string {
-	previewCSSOnce.Do(func() {
-		for _, pattern := range []string{
-			"../../../ui/dist/assets/*.css",
-			"../ui/dist/assets/*.css",
-			"ui/dist/assets/*.css",
-			"scenarios/react-component-library/ui/dist/assets/*.css",
-		} {
-			matches, err := filepath.Glob(pattern)
-			if err != nil || len(matches) == 0 {
-				continue
-			}
-			raw, err := os.ReadFile(matches[0])
-			if err == nil && len(raw) > 0 {
-				previewCSS = string(raw)
-				return
-			}
+	previewCSSCache.Lock()
+	defer previewCSSCache.Unlock()
+	for _, pattern := range []string{
+		"../../../ui/dist/assets/*.css",
+		"../ui/dist/assets/*.css",
+		"ui/dist/assets/*.css",
+		"scenarios/react-component-library/ui/dist/assets/*.css",
+	} {
+		matches, err := filepath.Glob(pattern)
+		if err != nil || len(matches) == 0 {
+			continue
 		}
-		previewCSS = fallbackPreviewDesignSystemCSS
-	})
-	return previewCSS
+		info, err := os.Stat(matches[0])
+		if err != nil {
+			continue
+		}
+		if previewCSSCache.path == matches[0] && previewCSSCache.modified == info.ModTime().UnixNano() && previewCSSCache.css != "" {
+			return previewCSSCache.css
+		}
+		raw, err := os.ReadFile(matches[0])
+		if err == nil && len(raw) > 0 {
+			previewCSSCache.path = matches[0]
+			previewCSSCache.modified = info.ModTime().UnixNano()
+			previewCSSCache.css = string(raw)
+			return previewCSSCache.css
+		}
+	}
+	previewCSSCache.path = ""
+	previewCSSCache.modified = 0
+	previewCSSCache.css = fallbackPreviewDesignSystemCSS
+	return previewCSSCache.css
 }
 
 const fallbackPreviewDesignSystemCSS = `
@@ -775,11 +789,31 @@ const fallbackPreviewDesignSystemCSS = `
   --color-danger: #dc2626;
   --color-warning: #d97706;
   --color-info: #0284c7;
+  --color-focus: #2563eb;
   --radius-control: 0.375rem;
   --radius-panel: 0.5rem;
   --radius-pill: 9999px;
   --touch-target: 44px;
   color-scheme: light;
+}
+:root[data-resolved-theme="dark"] {
+  --color-background: #020617;
+  --color-shell: #020617;
+  --color-surface: #0f172a;
+  --color-surface-muted: #1e293b;
+  --color-surface-raised: #1e293b;
+  --color-foreground: #f8fafc;
+  --color-muted-foreground: #cbd5e1;
+  --color-border: #334155;
+  --color-primary: #60a5fa;
+  --color-primary-foreground: #0f172a;
+  --color-accent: #67e8f9;
+  --color-success: #4ade80;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-info: #7dd3fc;
+  --color-focus: #93c5fd;
+  color-scheme: dark;
 }
 .bg-app-background { background-color: var(--color-background); }
 .bg-app-shell { background-color: var(--color-shell); }

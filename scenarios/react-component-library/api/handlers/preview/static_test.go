@@ -99,6 +99,9 @@ func TestRenderHarnessHTMLInjectsDesignSystemCSS(t *testing.T) {
 	require.Contains(t, html, `--color-primary`)
 	require.Contains(t, html, `.bg-app-primary`)
 	require.Contains(t, html, `.rounded-control`)
+	require.NotContains(t, html, `background: #0b0d12`)
+	require.Contains(t, html, `rcl-resolved-theme`)
+	require.Contains(t, html, `document.documentElement.dataset.resolvedTheme`)
 }
 
 func TestRenderHarnessHTMLShowsImportMapDiagnostics(t *testing.T) {

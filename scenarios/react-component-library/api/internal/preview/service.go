@@ -13,6 +13,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
@@ -50,6 +51,9 @@ type Bundler interface {
 // component, reads its content, then bundles.
 type Service interface {
 	GetBundle(ctx context.Context, id string) (Bundle, error)
+	// GetBundleVersion compiles an immutable catalog version. An empty version
+	// preserves GetBundle's editable-current-content behavior.
+	GetBundleVersion(ctx context.Context, id, version string) (Bundle, error)
 }
 
 type service struct {
@@ -69,7 +73,20 @@ func NewServiceWithDeps(comp components.Service, bundler Bundler, depsSvc deps.S
 }
 
 func (s *service) GetBundle(ctx context.Context, id string) (Bundle, error) {
-	content, err := s.components.GetContent(ctx, id)
+	return s.GetBundleVersion(ctx, id, "")
+}
+
+func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bundle, error) {
+	version = strings.TrimSpace(version)
+	var (
+		content components.Content
+		err     error
+	)
+	if version == "" {
+		content, err = s.components.GetContent(ctx, id)
+	} else {
+		content, err = s.components.GetVersionContent(ctx, id, version)
+	}
 	if err != nil {
 		return Bundle{}, err
 	}
@@ -79,7 +96,11 @@ func (s *service) GetBundle(ctx context.Context, id string) (Bundle, error) {
 		if err != nil {
 			return Bundle{}, err
 		}
-		declarations, err = s.deps.ListForComponentVersion(ctx, id, c.LatestVersion)
+		dependencyVersion := version
+		if dependencyVersion == "" {
+			dependencyVersion = c.LatestVersion
+		}
+		declarations, err = s.deps.ListForComponentVersion(ctx, id, dependencyVersion)
 		if err != nil {
 			return Bundle{}, err
 		}

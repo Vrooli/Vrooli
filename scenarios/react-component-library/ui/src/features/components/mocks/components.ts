@@ -2,6 +2,7 @@ import { vi } from "vitest";
 
 import {
   makeGetComponentContentResponse,
+  makeGetComponentVersionContentResponse,
   makeIndexComponentsResponse,
   makeListComponentExamplesResponse,
   makeListComponentsResponse,
@@ -15,6 +16,7 @@ export interface ComponentsMocks {
     getComponentByLibraryId: ReturnType<typeof vi.fn>;
     indexComponents: ReturnType<typeof vi.fn>;
     getComponentContent: ReturnType<typeof vi.fn>;
+    getComponentVersionContent: ReturnType<typeof vi.fn>;
     updateComponentContent: ReturnType<typeof vi.fn>;
   };
   listComponentExamples: ReturnType<typeof vi.fn>;
@@ -27,6 +29,7 @@ export const makeComponentsMocks = (): ComponentsMocks => ({
     getComponentByLibraryId: vi.fn().mockResolvedValue({ component: undefined }),
     indexComponents: vi.fn().mockResolvedValue(makeIndexComponentsResponse()),
     getComponentContent: vi.fn().mockResolvedValue(makeGetComponentContentResponse()),
+    getComponentVersionContent: vi.fn().mockResolvedValue(makeGetComponentVersionContentResponse()),
     updateComponentContent: vi.fn().mockResolvedValue(makeUpdateComponentContentResponse()),
   },
   listComponentExamples: vi.fn().mockResolvedValue(makeListComponentExamplesResponse()),

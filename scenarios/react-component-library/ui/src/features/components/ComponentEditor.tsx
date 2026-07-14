@@ -1,12 +1,13 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 import { ArrowLeft, Code2, Eye, Info, Save } from "lucide-react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
 import { Button } from "../../components/ui/button";
-import { Dialog } from "../../components/ui/dialog";
 import { StatusBadge } from "../../components/ui/status-badge";
+import { useTheme } from "../../components/theme/useTheme";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -15,12 +16,28 @@ import { componentsClient, listComponentExamples, type ComponentExample } from "
 import { useComponentInspector } from "../../hooks/useComponentInspector";
 import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
 import { useDeviceFilters } from "../../hooks/useDeviceFilters";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { errorMessage } from "../../lib/errorMessage";
 import { EmulatorToolbar, EmulatorViewport } from "./EmulatorChrome";
 import { InspectorPanel } from "./InspectorPanel";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
+const PANEL_LAYOUT_STORAGE_KEY = "rcl.component-editor.desktop-layout.v1";
+const DEFAULT_DESKTOP_PANEL_LAYOUT = { preview: 42, code: 38, info: 20 };
+
+// JSDOM does not provide ResizeObserver, while the browser-only panel library
+// requires one at mount time. The fallback is intentionally inert: production
+// browsers retain the native observer and panel sizing; unit tests only need a
+// stable layout tree.
+if (typeof ResizeObserver === "undefined") {
+  class NoopResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = NoopResizeObserver;
+}
 
 /**
  * Build the harness URL the iframe loads. The query param `v` is the
@@ -28,15 +45,22 @@ const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
  * React's `src` diff forces the iframe to reload. The harness route is
  * served by the API at the same origin as the Connect transport.
  */
-function harnessUrl(id: string, version: string, reloadKey = 0, example?: ComponentExample): string {
+function harnessUrl(
+  id: string,
+  contentVersion: string,
+  reloadKey = 0,
+  example?: ComponentExample,
+  selectedVersion?: string,
+): string {
   const base = API_BASE.replace(/\/$/, "");
-  const v = encodeURIComponent(version || "initial");
+  const v = encodeURIComponent(contentVersion || "initial");
   const url = new URL(`${base}/preview/${encodeURIComponent(id)}/harness.html`);
   url.searchParams.set("v", v);
   url.searchParams.set("r", String(reloadKey));
+  if (selectedVersion) url.searchParams.set("version", selectedVersion);
   if (example) {
     url.searchParams.set("example", example.name);
-    url.searchParams.set("version", example.version);
+    url.searchParams.set("version", selectedVersion || example.version);
   }
   return url.toString();
 }
@@ -46,6 +70,7 @@ interface ComponentEditorProps {
   libraryId: string;
   onClose: () => void;
   metadataSlot?: ReactNode;
+  selectedVersion?: string;
 }
 
 /**
@@ -58,22 +83,38 @@ interface ComponentEditorProps {
  * file moved underneath us, so the user sees a typed error instead of
  * silently overwriting drift.
  */
-export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: ComponentEditorProps) {
+export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selectedVersion }: ComponentEditorProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const emulator = useDeviceEmulation();
   const filters = useDeviceFilters();
+  const desktopLayout = useMediaQuery("(min-width: 1024px)");
+  const { resolved: appResolvedTheme } = useTheme();
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const previewFramesRef = useRef(new Set<HTMLIFrameElement>());
   const inspector = useComponentInspector(previewFrameRef);
 
   const contentQuery = useQuery({
-    queryKey: ["components", "content", id],
-    queryFn: () => componentsClient.getComponentContent({ id }),
+    queryKey: ["components", "content", id, selectedVersion ?? "current"],
+    queryFn: async (): Promise<{ content: string; sha256: string }> => {
+      if (!selectedVersion) {
+        const current = await componentsClient.getComponentContent({ id });
+        return { content: current.content, sha256: current.sha256 };
+      }
+      const historical = await componentsClient.getComponentVersionContent({
+        componentId: id,
+        version: selectedVersion,
+      });
+      return {
+        content: historical.content,
+        sha256: historical.version?.contentSha256 ?? "",
+      };
+    },
   });
 
   const examplesQuery = useQuery({
-    queryKey: ["components", "examples", id],
-    queryFn: () => listComponentExamples({ componentId: id, limit: 200 }),
+    queryKey: ["components", "examples", id, selectedVersion ?? "current"],
+    queryFn: () => listComponentExamples({ componentId: id, version: selectedVersion, limit: 200 }),
   });
 
   const [buffer, setBuffer] = useState<string>("");
@@ -83,11 +124,42 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
   const [previewMessage, setPreviewMessage] = useState("");
   const [readyExamples, setReadyExamples] = useState<ReadonlySet<string>>(() => new Set());
   const [previewReloadKey, setPreviewReloadKey] = useState(0);
-  const [mode, setMode] = useState<"preview" | "code">("code");
-  const [infoOpen, setInfoOpen] = useState(false);
+  const [mode, setMode] = useState<"preview" | "code" | "info">("code");
+  const initialDesktopLayout = useMemo(() => {
+    try {
+      const saved = window.localStorage.getItem(PANEL_LAYOUT_STORAGE_KEY);
+      if (!saved) return DEFAULT_DESKTOP_PANEL_LAYOUT;
+      const parsed = JSON.parse(saved) as Record<string, unknown>;
+      if (["preview", "code", "info"].every((key) => typeof parsed[key] === "number")) {
+        return {
+          preview: parsed.preview as number,
+          code: parsed.code as number,
+          info: parsed.info as number,
+        };
+      }
+    } catch {
+      // A stale or unavailable browser storage entry must never prevent editing.
+    }
+    return DEFAULT_DESKTOP_PANEL_LAYOUT;
+  }, []);
   const savedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewReady = previewState === "ready";
+  const resolvedPreviewTheme = filters.colorScheme === "system"
+    ? appResolvedTheme
+    : filters.colorScheme;
+
+  const postToPreviewFrames = useCallback((message: unknown) => {
+    for (const frame of previewFramesRef.current) {
+      frame.contentWindow?.postMessage(message, "*");
+    }
+  }, []);
+
+  const registerPreviewFrame = useCallback((frame: HTMLIFrameElement | null) => {
+    if (!frame) return;
+    previewFramesRef.current.add(frame);
+    if (!previewFrameRef.current) previewFrameRef.current = frame;
+  }, []);
 
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
@@ -108,17 +180,12 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
     return () => window.removeEventListener("message", handler);
   }, [id, t]);
 
-  // Push color-scheme into the harness whenever it changes, plus once
-  // on preview-ready so a reload (new baselineSha) re-applies it.
+  // The app owns the resolved theme. Emulator "system" means follow the
+  // app decision, never a separate OS media decision inside the iframe.
   useEffect(() => {
     if (!previewReady) return;
-    const win = previewFrameRef.current?.contentWindow;
-    if (!win) return;
-    win.postMessage(
-      { type: "rcl-color-scheme", colorScheme: filters.colorScheme },
-      "*",
-    );
-  }, [filters.colorScheme, previewReady]);
+    postToPreviewFrames({ type: "rcl-resolved-theme", theme: resolvedPreviewTheme });
+  }, [postToPreviewFrames, previewReady, resolvedPreviewTheme]);
 
   useEffect(() => {
     // A new baselineSha (post-save or first fetch) means the iframe is
@@ -182,7 +249,8 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
     },
   });
 
-  const dirty = !!contentQuery.data && buffer !== contentQuery.data.content;
+  const readOnly = Boolean(selectedVersion);
+  const dirty = !readOnly && !!contentQuery.data && buffer !== contentQuery.data.content;
 
   const handleBeforeMount = (monaco: Monaco) => {
     const diagnosticsOptions = {
@@ -204,6 +272,15 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
     setPreviewMessage("");
     setReadyExamples(new Set());
     setPreviewReloadKey((current) => current + 1);
+  };
+
+  const saveDesktopPanelLayout = (layout: Record<string, number>) => {
+    if (!desktopLayout) return;
+    try {
+      window.localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+    } catch {
+      // Layout persistence is a convenience; keep resizing usable if storage is blocked.
+    }
   };
 
   return (
@@ -239,7 +316,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
                   {t(strings.components.editor.dirty)}
                 </StatusBadge>
               )}
-              {previewReady && mode === "preview" && (
+              {previewReady && (desktopLayout || mode === "preview") && (
                 <StatusBadge
                   data-testid={selectors.components.editor.previewBadge}
                   tone="success"
@@ -251,17 +328,6 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <Button
-              data-testid={selectors.components.editor.infoButton}
-              type="button"
-              variant="secondary"
-              onClick={() => setInfoOpen(true)}
-              aria-label={t(strings.components.editor.info)}
-              title={t(strings.components.editor.info)}
-              className="h-8 w-8 rounded-md p-0"
-            >
-              <Info aria-hidden className="h-4 w-4" />
-            </Button>
-            <Button
               data-testid={selectors.components.editor.closeButton}
               onClick={onClose}
               className="h-8 gap-1.5 rounded-md px-2 text-xs"
@@ -270,21 +336,10 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
               <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
               {t(strings.components.editor.close)}
             </Button>
-            <Button
-              data-testid={selectors.components.editor.saveButton}
-              onClick={() => saveMutation.mutate()}
-              disabled={!dirty || saveMutation.isPending || contentQuery.isLoading}
-              className="h-8 gap-1.5 rounded-md px-2 text-xs"
-            >
-              <Save aria-hidden className="h-3.5 w-3.5" />
-              {saveMutation.isPending
-                ? t(strings.components.editor.saving)
-                : t(strings.components.editor.save)}
-            </Button>
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-app-border">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-app-border lg:hidden">
           <div
             data-testid={selectors.components.editor.modeSwitch}
             className="flex shrink-0 overflow-hidden rounded-md border border-app-border"
@@ -309,17 +364,16 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
               <Code2 aria-hidden className="h-3.5 w-3.5" />
               {t(strings.components.editor.codeMode)}
             </Button>
+            <Button
+              type="button"
+              variant={mode === "info" ? "primary" : "secondary"}
+              className="h-7 gap-1.5 rounded-none px-2 text-xs lg:hidden"
+              onClick={() => setMode("info")}
+            >
+              <Info aria-hidden className="h-3.5 w-3.5" />
+              {t(strings.components.editor.info)}
+            </Button>
           </div>
-          {mode === "preview" && (
-            <ThemeSwitcher
-              frameRef={previewFrameRef}
-              previewReady={previewReady}
-            />
-          )}
-          <EmulatorToolbar
-            emulator={emulator}
-            filters={filters}
-          />
         </div>
       </header>
 
@@ -352,9 +406,36 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
 
       {contentQuery.data && (
         <div className="min-h-0 flex-1">
+          {selectedVersion && (
+            <p className="border-b border-app-border bg-app-warning/10 px-4 py-2 text-xs text-app-warning">
+              {t(strings.components.editor.viewingVersion, { version: selectedVersion })}
+            </p>
+          )}
+          <Group
+            id="component-editor-panels"
+            orientation={desktopLayout ? "horizontal" : "vertical"}
+            defaultLayout={desktopLayout ? initialDesktopLayout : { [mode]: 100 }}
+            onLayoutChanged={saveDesktopPanelLayout}
+            className="h-full min-h-0"
+          >
+          <Panel id="code" minSize="20%" defaultSize="38%" className={mode === "code" ? "" : "max-lg:hidden"}>
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="flex shrink-0 items-center justify-end border-b border-app-border bg-app-surface px-2 py-1.5">
+              <Button
+                data-testid={selectors.components.editor.saveButton}
+                onClick={() => saveMutation.mutate()}
+                disabled={readOnly || !dirty || saveMutation.isPending || contentQuery.isLoading}
+                className="h-7 gap-1.5 rounded-md px-2 text-xs"
+              >
+                <Save aria-hidden className="h-3.5 w-3.5" />
+                {saveMutation.isPending
+                  ? t(strings.components.editor.saving)
+                  : t(strings.components.editor.save)}
+              </Button>
+            </div>
           <div
             data-testid={selectors.components.editor.surface}
-            className={`h-full min-h-0 overflow-hidden ${mode === "code" ? "" : "hidden"}`}
+            className="min-h-0 flex-1 overflow-hidden"
           >
             <Editor
               height="100%"
@@ -364,7 +445,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
               onChange={(v) => setBuffer(v ?? "")}
               beforeMount={handleBeforeMount}
               onMount={handleMount}
-              theme="vs-dark"
+              theme={appResolvedTheme === "dark" ? "vs-dark" : "vs"}
               options={{
                 fontSize: 13,
                 lineNumbers: "on",
@@ -374,14 +455,27 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
                 insertSpaces: true,
                 wordWrap: "on",
                 automaticLayout: true,
+                readOnly,
               }}
-            />
+          />
           </div>
+          </div>
+          </Panel>
+          <Separator className="hidden w-1 shrink-0 bg-app-border hover:bg-app-primary lg:block" />
+          <Panel id="preview" minSize="20%" defaultSize="42%" className={mode === "preview" ? "" : "max-lg:hidden"}>
           <div
             data-testid={selectors.components.editor.preview}
-            className={`h-full min-h-0 overflow-hidden bg-app-background ${mode === "preview" ? "" : "hidden"}`}
+            className="flex h-full min-h-0 flex-col overflow-hidden bg-app-background"
           >
-            <div className="relative h-full">
+            <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
+              <ThemeSwitcher
+                postToFrames={postToPreviewFrames}
+                previewReady={previewReady}
+                appResolvedTheme={resolvedPreviewTheme}
+              />
+              <EmulatorToolbar emulator={emulator} filters={filters} />
+            </div>
+            <div className="relative min-h-0 flex-1">
               <EmulatorViewport emulator={emulator} filters={filters}>
                 <div
                   data-testid={selectors.components.editor.gallery}
@@ -393,7 +487,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
                 >
                   {examples.length > 0 ? (
                     <div className="grid min-w-0 gap-3">
-                      {examples.map((example, index) => (
+                      {examples.map((example) => (
                         <section
                           key={`${example.version}:${example.name}`}
                           data-testid={selectors.components.editor.exampleCard}
@@ -410,9 +504,10 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
                           <iframe
                             data-testid={selectors.components.editor.previewFrame}
                             title={`${t(strings.components.editor.previewHeading)} - ${example.displayName || example.name}`}
-                            src={harnessUrl(id, baselineSha, previewReloadKey, example)}
+                            src={harnessUrl(id, baselineSha, previewReloadKey, example, selectedVersion)}
                             sandbox="allow-scripts allow-same-origin"
-                            ref={index === 0 ? previewFrameRef : undefined}
+                            ref={registerPreviewFrame}
+                            onLoad={() => postToPreviewFrames({ type: "rcl-resolved-theme", theme: resolvedPreviewTheme })}
                             onError={() => {
                               setPreviewState("error");
                               setPreviewMessage(t(strings.components.editor.previewFailed));
@@ -426,9 +521,10 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
                     <iframe
                       data-testid={selectors.components.editor.previewFrame}
                       title={t(strings.components.editor.previewHeading)}
-                      src={harnessUrl(id, baselineSha, previewReloadKey)}
+                      src={harnessUrl(id, baselineSha, previewReloadKey, undefined, selectedVersion)}
                       sandbox="allow-scripts allow-same-origin"
-                      ref={previewFrameRef}
+                      ref={registerPreviewFrame}
+                      onLoad={() => postToPreviewFrames({ type: "rcl-resolved-theme", theme: resolvedPreviewTheme })}
                       onError={() => {
                         setPreviewState("error");
                         setPreviewMessage(t(strings.components.editor.previewFailed));
@@ -460,6 +556,15 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
             </div>
             <InspectorPanel inspector={inspector} />
           </div>
+          </Panel>
+          <Separator className="hidden w-1 shrink-0 bg-app-border hover:bg-app-primary lg:block" />
+          <Panel id="info" minSize="15%" defaultSize="20%" className={mode === "info" ? "" : "max-lg:hidden"}>
+            <aside data-testid={selectors.components.editor.infoDialog} className="h-full overflow-auto border-l border-app-border bg-app-surface p-4">
+              <h3 className="mb-3 text-sm font-semibold text-app-foreground">{t(strings.components.editor.info)}</h3>
+              {metadataSlot ?? <p className="text-sm text-app-muted-foreground">{t(strings.components.editor.noInfo)}</p>}
+            </aside>
+          </Panel>
+          </Group>
         </div>
       )}
 
@@ -470,24 +575,6 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: Compon
         >
           {t(strings.components.editor.saved)}
         </p>
-      )}
-      {infoOpen && (
-        <Dialog
-          open={infoOpen}
-          title={libraryId}
-          description={baselineSha ? t(strings.components.editor.sha, { sha: baselineSha }) : undefined}
-          onClose={() => setInfoOpen(false)}
-          closeLabel={t(strings.components.editor.closeInfo)}
-          className="max-w-md"
-        >
-          <div data-testid={selectors.components.editor.infoDialog}>
-            {metadataSlot ?? (
-              <p className="text-sm text-app-muted-foreground">
-                {t(strings.components.editor.noInfo)}
-              </p>
-            )}
-          </div>
-        </Dialog>
       )}
     </section>
   );

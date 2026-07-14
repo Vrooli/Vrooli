@@ -16,7 +16,7 @@
     "type-check:catalog": "node scripts/catalog-conformance.mjs type-check",
     "catalog:check": "node scripts/catalog-conformance.mjs check",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage; unit_status=$?; node scripts/preview-e2e.mjs; preview_status=$?; test $unit_status -eq 0 -a $preview_status -eq 0",
     "test:preview-e2e": "node scripts/preview-e2e.mjs",
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check"
@@ -40,7 +40,9 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^15.1.1",
+    "react-resizable-panels": "^4.12.2",
     "react-router-dom": "^7.15.0",
+    "shiki": "^4.3.1",
     "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {

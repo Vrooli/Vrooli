@@ -188,6 +188,7 @@ func main() {
 	// the on-disk @deps headers.
 	depsSvc := depsH.BuildService(db, depsInternal.NewFSPackageJSONReader(scenariosRoot))
 	depsObserver := &componentsDepsObserver{svc: depsSvc, logger: log.Default()}
+	adoptionsInternal.SetValidationGates(adoptionsSvc, depsSvc, componentsSvc)
 
 	// Wire the themes domain (req 12). Same scenariosRoot as adoptions
 	// + deps so the DESIGN.md reader walks the same tree. Seed the

@@ -33,8 +33,10 @@ interface Props {
  *
  * On every (componentId, scenario) change, calls DepsService.ValidateAdoption
  * and renders the verdict (ok | warn | block). Confirm is disabled while
- * validating, when verdict is block, or when verdict is warn without the
- * acknowledgment checkbox checked.
+ * validating, or when a warning/block verdict has not been explicitly
+ * acknowledged. A block acknowledgement is deliberately forwarded as the
+ * server-side override_validation flag; direct RPC/CLI callers therefore get
+ * the same protection as this UI.
  */
 export function CreateAdoptionDialog({ open, onClose }: Props) {
   const { t } = useTranslation();
@@ -176,6 +178,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
         adoptedPath: adoptedPath.trim(),
         version: adoptedVersion.trim(),
         confirmOverwrite: overwriteRequired,
+        ...(kind === VerdictKind.BLOCK && ack ? { overrideValidation: true } : {}),
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["adoptions"] });
@@ -198,8 +201,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
     !componentId.trim() ||
     !scenario.trim() ||
     !adoptedPath.trim() ||
-    kind === VerdictKind.BLOCK ||
-    ((kind === VerdictKind.WARN || styleKind === StyleFitVerdictKind.WARN) && !ack);
+    ((kind === VerdictKind.BLOCK || kind === VerdictKind.WARN || styleKind === StyleFitVerdictKind.WARN) && !ack);
 
   const verdictKindString = useMemo(() => {
     switch (kind) {
@@ -419,7 +421,7 @@ function VerdictBlock({
           ))}
         </ul>
       )}
-      {kind === VerdictKind.WARN && (
+      {(kind === VerdictKind.WARN || kind === VerdictKind.BLOCK) && (
         <WarnAcknowledgement ack={ack} setAck={setAck} />
       )}
     </div>

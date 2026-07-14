@@ -144,4 +144,17 @@ describe("VersionsCard", () => {
     });
     expect(screen.getByTestId(selectors.versions.diff.runButton)).toBeDisabled();
   });
+
+  it("selects a historical version for the enclosing detail view", async () => {
+    const { versionsClient } = await import("../../api/versions");
+    vi.mocked(versionsClient.listVersions).mockResolvedValueOnce(
+      makeListVersionsResponse({ versions: [makeVersion({ version: "1.0.0" })] }),
+    );
+    const onSelectVersion = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<VersionsCard componentId="cmp-1" onSelectVersion={onSelectVersion} />);
+    await screen.findByTestId(selectors.versions.list);
+    await user.click(screen.getByRole("button", { name: "View this version" }));
+    expect(onSelectVersion).toHaveBeenCalledWith("1.0.0");
+  });
 });

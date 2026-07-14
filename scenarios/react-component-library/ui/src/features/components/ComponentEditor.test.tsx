@@ -6,6 +6,7 @@ import { renderWithProviders } from "../../test-utils";
 import {
   makeComponentExample,
   makeGetComponentContentResponse,
+  makeGetComponentVersionContentResponse,
   makeListComponentExamplesResponse,
   makeUpdateComponentContentResponse,
 } from "./mocks/factories";
@@ -129,6 +130,27 @@ describe("ComponentEditor", () => {
     };
     expect(monacoMocks.setTypeScriptDiagnosticsOptions).toHaveBeenCalledWith(expected);
     expect(monacoMocks.setJavaScriptDiagnosticsOptions).toHaveBeenCalledWith(expected);
+  });
+
+  it("loads a selected historical version read-only instead of current source", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentVersionContent).mockResolvedValueOnce(
+      makeGetComponentVersionContentResponse({ content: "export const Historical = () => null;" }),
+    );
+
+    renderWithProviders(
+      <ComponentEditor id="cmp-1" libraryId="lib:Button" selectedVersion="1.0.0" onClose={() => {}} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toBe(
+        "export const Historical = () => null;",
+      );
+    });
+    expect(componentsClient.getComponentVersionContent).toHaveBeenCalledWith({
+      componentId: "cmp-1",
+      version: "1.0.0",
+    });
   });
 
   it("disables Save until the buffer is dirty and forwards expectedSha256", async () => {

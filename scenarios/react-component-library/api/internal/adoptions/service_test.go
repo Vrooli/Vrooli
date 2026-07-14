@@ -13,6 +13,7 @@ import (
 	"react-component-library/internal/adoptions"
 	adoptmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
+	"react-component-library/internal/deps"
 	"react-component-library/internal/testutil/mocks"
 )
 
@@ -65,6 +66,23 @@ func (f *fakeLibrary) GetVersion(_ context.Context, componentID, version string)
 // fakeFiles is a minimal ScenarioFileReader keyed by "<scenario>::<path>".
 type fakeFiles struct {
 	bytes map[string][]byte
+}
+
+type validationDeps struct {
+	verdict deps.Verdict
+	calls   int
+}
+
+func (f *validationDeps) ValidateAdoption(context.Context, string, string, string) (deps.Verdict, error) {
+	f.calls++
+	return f.verdict, nil
+}
+
+type validationStyles struct{ calls int }
+
+func (f *validationStyles) ValidateStyleFit(context.Context, string, string, string) (components.StyleFitVerdict, error) {
+	f.calls++
+	return components.StyleFitVerdict{Kind: components.StyleFitVerdictWarn}, nil
 }
 
 func (f *fakeFiles) Read(_ context.Context, scenario, p string) ([]byte, error) {
@@ -356,6 +374,49 @@ func TestService_Apply_UsesSameIDInRecordAndProvenance(t *testing.T) {
 	require.Contains(t, adopted, "@vrooliComponentAdoption "+a.ID)
 	require.NotContains(t, adopted, "@vrooliComponent libraryId")
 	require.Equal(t, sha(adopted), a.AdoptedSnapshotSHA256)
+}
+
+func TestService_ApplyAndReapply_BlockDependencyVerdictsUnlessExplicitlyOverridden(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp": {ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.0.0"},
+		},
+		body: map[string]string{
+			"cmp": "// @vrooliComponent libraryId=rcl:Button version=1.0.0\nexport function Button() { return <button />; }\n",
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	svc := adoptions.NewService(repo, lib, files, clk)
+	dependency := &validationDeps{verdict: deps.Verdict{Kind: deps.VerdictBlock}}
+	styles := &validationStyles{}
+	adoptions.SetValidationGates(svc, dependency, styles)
+
+	_, _, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+		ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+	})
+	var blocked adoptions.ErrAdoptionValidationBlocked
+	require.ErrorAs(t, err, &blocked)
+	require.Empty(t, files.bytes, "blocked apply must not write a target file")
+	require.Equal(t, 1, dependency.calls)
+	require.Equal(t, 1, styles.calls, "style validation still runs when dependency validation blocks")
+
+	applied, _, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+		ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", OverrideValidation: true,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, applied.ID)
+
+	_, _, err = svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: applied.ID, Version: "1.0.0"})
+	require.ErrorAs(t, err, &blocked)
+	require.Equal(t, 3, dependency.calls)
+	require.Equal(t, 3, styles.calls, "reapply also executes both validation gates")
+
+	_, _, err = svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: applied.ID, Version: "1.0.0", OverrideValidation: true})
+	require.NoError(t, err)
+	require.Equal(t, 4, dependency.calls)
+	require.Equal(t, 4, styles.calls)
 }
 
 func TestService_Reapply_PersistsNewVersionAndSnapshot(t *testing.T) {

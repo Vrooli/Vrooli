@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import process from "node:process";
+import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 const DEFAULT_CHROME = "/usr/bin/google-chrome";
 const COMPONENT_LINK_SELECTOR = '[data-testid^="sidebar-component-"]';
@@ -66,6 +69,74 @@ function compactDetails(details) {
   };
 }
 
+function screenshotArtifactDir() {
+  return process.env.RCL_PREVIEW_E2E_ARTIFACT_DIR || process.env.TEST_GENIE_ARTIFACT_DIR || "";
+}
+
+function screenshotHash(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function safeArtifactPart(value) {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "-");
+}
+
+async function selectResolvedTheme(page, theme) {
+  for (let attempts = 0; attempts < 3; attempts += 1) {
+    const resolved = await page.locator("html").getAttribute("data-resolved-theme");
+    if (resolved === theme) return;
+    await page.locator('[data-testid="theme-toggle"]').click();
+    await page.waitForTimeout(100);
+  }
+  throw new Error(`app theme did not resolve to ${theme}`);
+}
+
+async function captureThemeTier(page, frameElements, componentID) {
+  const captures = {};
+  const outputDir = screenshotArtifactDir();
+  if (outputDir) await mkdir(outputDir, { recursive: true });
+
+  for (const theme of ["light", "dark"]) {
+    await selectResolvedTheme(page, theme);
+    await page.waitForTimeout(100);
+    captures[theme] = [];
+    const count = await frameElements.count();
+    for (let index = 0; index < count; index += 1) {
+      const iframe = frameElements.nth(index);
+      const handle = await iframe.elementHandle();
+      const frame = await handle?.contentFrame();
+      if (!frame) throw new Error(`preview iframe ${index} had no content frame for ${theme}`);
+      await frame.waitForFunction((expected) => document.documentElement.dataset.resolvedTheme === expected, theme, {
+        timeout: 5_000,
+      });
+      const background = await frame.locator("body").evaluate((element) => getComputedStyle(element).backgroundColor);
+      if (!background || background === "rgba(0, 0, 0, 0)" || background === "transparent") {
+        throw new Error(`preview iframe ${index} has a blank ${theme} background`);
+      }
+      const bytes = await iframe.screenshot();
+      if (bytes.length < 256) throw new Error(`preview iframe ${index} ${theme} screenshot is unexpectedly small`);
+      const hash = screenshotHash(bytes);
+      const example = new URL((await iframe.getAttribute("src")) || "http://invalid/").searchParams.get("example") || "default";
+      const artifact = `${safeArtifactPart(componentID)}--${safeArtifactPart(example)}--${index}--${theme}.png`;
+      if (outputDir) await writeFile(path.join(outputDir, artifact), bytes);
+      captures[theme].push({ example, background, bytes: bytes.length, hash, artifact: outputDir ? artifact : undefined });
+    }
+  }
+
+  if (captures.light.length !== captures.dark.length) throw new Error("theme screenshot frame count changed");
+  for (let index = 0; index < captures.light.length; index += 1) {
+    const light = captures.light[index];
+    const dark = captures.dark[index];
+    if (light.background === dark.background) {
+      throw new Error(`preview iframe ${index} background did not change between light and dark`);
+    }
+    if (light.hash === dark.hash) {
+      throw new Error(`preview iframe ${index} screenshot did not change between light and dark`);
+    }
+  }
+  return captures;
+}
+
 async function componentTargetsFromSidebar(page) {
   if (process.env.RCL_PREVIEW_COMPONENT_ID) {
     return [{
@@ -127,7 +198,12 @@ async function assertComponentPreview(page, componentID) {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     await page.locator('[data-testid="components-editor-panel"]').waitFor({ state: "visible", timeout: 15_000 });
-    await page.locator('[data-testid="components-editor-preview-mode-button"]').click();
+    // Desktop shows Preview, Code, and Info together. The segmented switcher
+    // is intentionally mobile-only, so only use it when it is actually shown.
+    const previewModeButton = page.locator('[data-testid="components-editor-preview-mode-button"]');
+    if (await previewModeButton.isVisible()) {
+      await previewModeButton.click();
+    }
 
     const frameElements = page.locator('[data-testid="components-editor-preview-frame"]');
     await frameElements.first().waitFor({ state: "attached", timeout: 10_000 });
@@ -183,8 +259,9 @@ async function assertComponentPreview(page, componentID) {
       throw new Error(`preview did not reach rendered state, badge=${badge || "<empty>"}`);
     }
 
+    const screenshots = await captureThemeTier(page, frameElements, componentID);
     assertNoKnownRuntimeErrors(logs);
-    return { ok: true, componentID, frameSrc, frames: frameResults, badge, previewResponses: responses };
+    return { ok: true, componentID, frameSrc, frames: frameResults, screenshots, badge, previewResponses: responses };
   } catch (error) {
     throw new PreviewFailure(error instanceof Error ? error.message : String(error), {
       logs,

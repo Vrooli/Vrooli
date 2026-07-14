@@ -2,8 +2,7 @@
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: React Component Library のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "React Component Library",
-    "brand": "コンポーネントライブラリ",
-    "brandInitials": "RC"
+    "brand": "コンポーネントライブラリ"
   },
   "nav": {
     "label": "主なナビゲーション",
@@ -119,7 +118,6 @@
       "saving": "保存中…",
       "close": "一覧に戻る",
       "info": "コンポーネント詳細",
-      "closeInfo": "コンポーネント詳細を閉じる",
       "noInfo": "追加のコンポーネント詳細はありません。",
       "dirty": "未保存の変更",
       "sha": "sha256 {{sha}}",
@@ -131,7 +129,12 @@
       "previewReady": "描画済み",
       "previewFailed": "プレビューの描画に失敗しました。",
       "previewTimeout": "タイムアウト前にプレビューの準備完了が報告されませんでした。",
-      "previewRetry": "再試行"
+      "previewRetry": "再試行",
+      "viewingVersion": "不変バージョン {{version}} を表示しています。編集するには情報パネルで現在のソースを選択してください。",
+      "libraryIdLabel": "ライブラリID",
+      "slotLabel": "スロット",
+      "categoryLabel": "カテゴリ",
+      "tagsLabel": "タグ"
     },
     "themeSwitcher": {
       "label": "テーマ",
@@ -250,6 +253,9 @@
     "loading": "バージョンを読み込み中…",
     "empty": "記録されたバージョンはまだありません — コンポーネントを保存すると記録されます。",
     "summary": "{{count}} 件のバージョン",
+    "currentSource": "現在の編集可能なソース",
+    "viewVersion": "このバージョンを表示",
+    "viewingVersion": "このバージョンを表示中",
     "recordedAt": "記録: {{when}}",
     "shaLabel": "sha256 {{sha}}",
     "versionLabel": "v{{version}}",

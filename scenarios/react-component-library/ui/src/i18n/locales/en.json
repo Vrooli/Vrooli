@@ -2,8 +2,7 @@
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like React Component Library are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "React Component Library",
-    "brand": "Component Library",
-    "brandInitials": "RC"
+    "brand": "Component Library"
   },
   "nav": {
     "label": "Primary navigation",
@@ -123,7 +122,6 @@
       "saving": "Saving…",
       "close": "Back to list",
       "info": "Component details",
-      "closeInfo": "Close component details",
       "noInfo": "No additional component details are available.",
       "dirty": "Unsaved changes",
       "sha": "sha256 {{sha}}",
@@ -135,7 +133,12 @@
       "previewReady": "Rendered",
       "previewFailed": "Preview failed to render.",
       "previewTimeout": "Preview did not report ready before the timeout.",
-      "previewRetry": "Retry"
+      "previewRetry": "Retry",
+      "viewingVersion": "Viewing immutable version {{version}}. Select Current in the Info panel to edit.",
+      "libraryIdLabel": "Library ID",
+      "slotLabel": "Slot",
+      "categoryLabel": "Category",
+      "tagsLabel": "Tags"
     },
     "themeSwitcher": {
       "label": "Theme",
@@ -254,6 +257,9 @@
     "loading": "Loading versions…",
     "empty": "No recorded versions yet — save a change to the component to record one.",
     "summary": "{{count}} version(s)",
+    "currentSource": "Current editable source",
+    "viewVersion": "View this version",
+    "viewingVersion": "Viewing this version",
     "recordedAt": "Recorded {{when}}",
     "shaLabel": "sha256 {{sha}}",
     "versionLabel": "v{{version}}",

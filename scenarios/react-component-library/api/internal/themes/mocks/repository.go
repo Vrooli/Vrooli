@@ -37,6 +37,18 @@ func (f *FakeRepository) UpsertBuiltin(_ context.Context, t themes.Theme) error 
 	return nil
 }
 
+func (f *FakeRepository) ReplaceBuiltins(ctx context.Context, items []themes.Theme) error {
+	f.mu.Lock()
+	f.items = map[string]themes.Theme{}
+	f.mu.Unlock()
+	for _, item := range items {
+		if err := f.UpsertBuiltin(ctx, item); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (f *FakeRepository) GetBuiltin(_ context.Context, id string) (themes.Theme, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

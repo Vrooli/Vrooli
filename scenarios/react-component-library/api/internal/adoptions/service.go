@@ -15,6 +15,7 @@ import (
 
 	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
+	"react-component-library/internal/deps"
 
 	"github.com/google/uuid"
 )
@@ -71,6 +72,17 @@ type ScenarioFileWriter interface {
 	Write(ctx context.Context, scenario, adoptedPath string, content []byte) (string, error)
 }
 
+// DependencyValidator and StyleFitValidator keep adoption enforcement at the
+// service boundary. Transport callers cannot skip these checks, while tests
+// can supply narrow fakes without constructing sibling services.
+type DependencyValidator interface {
+	ValidateAdoption(ctx context.Context, componentID, version, scenario string) (deps.Verdict, error)
+}
+
+type StyleFitValidator interface {
+	ValidateStyleFit(ctx context.Context, componentID, version, scenario string) (components.StyleFitVerdict, error)
+}
+
 // ErrAdoptedFileMissing is the typed sentinel ScenarioFileReader
 // implementations return when the adopted_path does not exist. Refresh
 // translates it to StatusUnknown rather than failing the whole batch.
@@ -90,6 +102,8 @@ type service struct {
 	clock    clock.Clock
 	reporter DriftReporter
 	logger   *log.Logger
+	deps     DependencyValidator
+	styles   StyleFitValidator
 }
 
 // NewService constructs the production Service. reporter may be nil
@@ -110,6 +124,17 @@ func SetDriftReporter(svc Service, r DriftReporter, logger *log.Logger) {
 		if logger != nil {
 			s.logger = logger
 		}
+	}
+}
+
+// SetValidationGates installs the two authoritative pre-apply checks. The
+// validators are configured in main after all sibling services exist; keeping
+// this separate from NewService preserves the focused construction seam used
+// by refresh-only tests.
+func SetValidationGates(svc Service, dependency DependencyValidator, style StyleFitValidator) {
+	if s, ok := svc.(*service); ok {
+		s.deps = dependency
+		s.styles = style
 	}
 }
 
@@ -215,6 +240,9 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (Adoption, string, e
 	if version == "" {
 		return Adoption{}, "", ErrInvalidAdoption{Field: "version", Reason: "component has no latest version"}
 	}
+	if err := s.validateAdoption(ctx, in.ComponentID, version, in.Scenario, in.OverrideValidation); err != nil {
+		return Adoption{}, "", err
+	}
 	exists, err := s.files.Exists(ctx, in.Scenario, in.AdoptedPath)
 	if err != nil {
 		return Adoption{}, "", err
@@ -265,6 +293,9 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		}
 		version = firstNonEmpty(cmp.LatestVersion, cmp.Version, row.AdoptedVersion)
 	}
+	if err := s.validateAdoption(ctx, row.ComponentID, version, row.Scenario, in.OverrideValidation); err != nil {
+		return Adoption{}, "", err
+	}
 	v, err := s.library.GetVersion(ctx, row.ComponentID, version)
 	if err != nil {
 		return Adoption{}, "", err
@@ -286,6 +317,31 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		return Adoption{}, "", err
 	}
 	return updated, written, nil
+}
+
+// validateAdoption deliberately executes both checks before deciding whether
+// a blocking dependency verdict is allowed. Style-fit currently communicates
+// compatibility as ok/info/warn, while dependency validation owns the
+// blocking verdict. An override only bypasses that block; it never bypasses
+// execution of either server-side validation.
+func (s *service) validateAdoption(ctx context.Context, componentID, version, scenario string, override bool) error {
+	blocked := false
+	if s.deps != nil {
+		verdict, err := s.deps.ValidateAdoption(ctx, componentID, version, scenario)
+		if err != nil {
+			return fmt.Errorf("validate adoption dependencies: %w", err)
+		}
+		blocked = verdict.Kind == deps.VerdictBlock
+	}
+	if s.styles != nil {
+		if _, err := s.styles.ValidateStyleFit(ctx, componentID, version, scenario); err != nil {
+			return fmt.Errorf("validate adoption style fit: %w", err)
+		}
+	}
+	if blocked && !override {
+		return ErrAdoptionValidationBlocked{ComponentID: componentID, Version: version, Scenario: scenario}
+	}
+	return nil
 }
 
 func (s *service) List(ctx context.Context, q ListQuery) ([]Adoption, error) {

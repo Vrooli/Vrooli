@@ -9,9 +9,8 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strings"
-
 	"prompt-manager/cli/internal/appctx"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -71,6 +70,15 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Aliases:     []string{"disc"},
 				NeedsAPI:    true,
 				Description: "Discover relevant skills via topic + AI search with budget awareness",
+				Usage:       `prompt-manager discover "<query>" ["<query>" ...] [options]`,
+				HelpText: `Arguments:
+  <query>                One or more discovery queries (quote multi-word queries)
+
+Options:
+  --complexity <value>   Task complexity: minor|moderate|major|architectural (default: moderate)
+  --limit <n>            Maximum number of results (default: 10)
+  --type <value>         Result type: skill|action|all (default: skill)
+  --json                 Emit JSON output instead of human format`,
 				Run: func(args []string) error {
 					return cmdDiscover(ctx, args)
 				},
@@ -80,6 +88,12 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Aliases:     []string{"gaps"},
 				NeedsAPI:    true,
 				Description: "Show clustered unmet-capability queries (discovery misses) within a window",
+				Usage:       "prompt-manager discovery-gaps [options]",
+				HelpText: `Options:
+  --since <window>       Window to report, e.g. 7d, 24h, 30m (default: 7d)
+  --type <value>         Filter by missed type: skill|action|all (default: all)
+  --limit <n>            Maximum number of clusters to show (default: 20)
+  --json                 Emit JSON output instead of human format`,
 				Run: func(args []string) error {
 					return cmdDiscoveryGaps(ctx, args)
 				},
@@ -89,6 +103,11 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Aliases:     []string{"disc-metrics"},
 				NeedsAPI:    true,
 				Description: "Show aggregate discovery telemetry (call volume, returned-count distribution, budget/clipping rates) within a window",
+				Usage:       "prompt-manager discovery-metrics [options]",
+				HelpText: `Options:
+  --since <window>       Window to report, e.g. 7d, 24h, 30m (default: 7d)
+  --type <value>         Filter by call type: skill|action|all (default: all)
+  --json                 Emit JSON output instead of human format`,
 				Run: func(args []string) error {
 					return cmdDiscoveryMetrics(ctx, args)
 				},

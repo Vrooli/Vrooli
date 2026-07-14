@@ -15,7 +15,6 @@ export const strings = {
   app: {
     title: "app.title",
     brand: "app.brand",
-    brandInitials: "app.brandInitials",
   },
   nav: {
     label: "nav.label",
@@ -135,7 +134,6 @@ export const strings = {
       saving: "components.editor.saving",
       close: "components.editor.close",
       info: "components.editor.info",
-      closeInfo: "components.editor.closeInfo",
       noInfo: "components.editor.noInfo",
       dirty: "components.editor.dirty",
       sha: "components.editor.sha",
@@ -148,6 +146,11 @@ export const strings = {
       previewFailed: "components.editor.previewFailed",
       previewTimeout: "components.editor.previewTimeout",
       previewRetry: "components.editor.previewRetry",
+      viewingVersion: "components.editor.viewingVersion",
+      libraryIdLabel: "components.editor.libraryIdLabel",
+      slotLabel: "components.editor.slotLabel",
+      categoryLabel: "components.editor.categoryLabel",
+      tagsLabel: "components.editor.tagsLabel",
     },
     themeSwitcher: {
       label: "components.themeSwitcher.label",
@@ -266,6 +269,9 @@ export const strings = {
     loading: "versions.loading",
     empty: "versions.empty",
     summary: "versions.summary",
+    currentSource: "versions.currentSource",
+    viewVersion: "versions.viewVersion",
+    viewingVersion: "versions.viewingVersion",
     recordedAt: "versions.recordedAt",
     shaLabel: "versions.shaLabel",
     versionLabel: "versions.versionLabel",

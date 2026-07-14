@@ -182,5 +182,11 @@
         "enabled": true
       }
     }
+  },
+  "phases": {
+    "unit": {
+      "require_runtime": true,
+      "timeout": "180s"
+    }
   }
 }

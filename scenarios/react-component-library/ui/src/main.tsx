@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+import { installChunkReloadGuard } from "@vrooli/api-base";
 import "./styles.css";
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
@@ -14,6 +15,11 @@ if (window.top !== window.self) {
 // INTEROP-CRITICAL: Spatial navigation is initialized at startup for embedded
 // keyboard/gamepad control flows.
 initSpatialNav();
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next
+// navigation. This guard reloads once (rate-limited) instead.
+installChunkReloadGuard();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

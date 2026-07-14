@@ -3,6 +3,7 @@ import { NavLink, Link } from "react-router-dom";
 import { GaugeCircle, GitBranch, Library, Settings as SettingsIcon } from "lucide-react";
 
 import { useTranslation } from "../i18n";
+import { BrandMark } from "./BrandMark";
 
 interface NavItem {
   to: string;
@@ -58,12 +59,7 @@ export function SidebarContent({ onNavigate, headerSlot, inventorySlot }: Sideba
           className="flex items-center gap-2 text-app-foreground"
           data-testid="app-brand"
         >
-          <span
-            aria-hidden
-            className="inline-flex h-7 w-7 items-center justify-center rounded-control bg-app-primary text-sm font-semibold text-app-primary-foreground"
-          >
-            {t("app.brandInitials", { defaultValue: "RC" })}
-          </span>
+          <BrandMark className="h-7 w-7 shrink-0 text-app-primary" />
           <span className="text-sm font-semibold tracking-tight">
             {t("app.brand", { defaultValue: "Component Library" })}
           </span>

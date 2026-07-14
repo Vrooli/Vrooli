@@ -30,6 +30,7 @@ type adoptionsService struct {
 	resolveResp *adoptionsv1.ResolveAdoptionPathResponse
 	listReqs    []*adoptionsv1.ListAdoptionsRequest
 	applyReqs   []*adoptionsv1.ApplyAdoptionRequest
+	reapplyReqs []*adoptionsv1.ReapplyAdoptionRequest
 	refreshReqs []*adoptionsv1.RefreshAdoptionsRequest
 	resolveReqs []*adoptionsv1.ResolveAdoptionPathRequest
 }
@@ -54,7 +55,10 @@ func (s *adoptionsService) ApplyAdoption(_ context.Context, req *connect.Request
 	return connect.NewResponse(s.applyResp), nil
 }
 
-func (s *adoptionsService) ReapplyAdoption(_ context.Context, _ *connect.Request[adoptionsv1.ReapplyAdoptionRequest]) (*connect.Response[adoptionsv1.ReapplyAdoptionResponse], error) {
+func (s *adoptionsService) ReapplyAdoption(_ context.Context, req *connect.Request[adoptionsv1.ReapplyAdoptionRequest]) (*connect.Response[adoptionsv1.ReapplyAdoptionResponse], error) {
+	s.mu.Lock()
+	s.reapplyReqs = append(s.reapplyReqs, req.Msg)
+	s.mu.Unlock()
 	if s.reapplyResp == nil {
 		s.reapplyResp = &adoptionsv1.ReapplyAdoptionResponse{Adoption: sampleAdoption(), WrittenPath: "/tmp/Button.tsx"}
 	}
@@ -151,14 +155,14 @@ func TestAdoptionsApply_ForwardsPositionalsAndVersion(t *testing.T) {
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "component-id"}, {Name: "scenario"}, {Name: "adopted-path"}},
-		Flags:       []cliapp.Flag{{Name: "version"}, {Name: "confirm-overwrite"}},
+		Flags:       []cliapp.Flag{{Name: "version"}, {Name: "confirm-overwrite"}, {Name: "override-validation"}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{
 			"component-id": "cmp-btn",
 			"scenario":     "swarm-manager",
 			"adopted-path": "ui/Button.tsx",
 		},
-		Flags: map[string]string{"version": "1.0.0", "confirm-overwrite": "true"},
+		Flags: map[string]string{"version": "1.0.0", "confirm-overwrite": "true", "override-validation": "true"},
 	})
 	require.NoError(t, h.apply(ctx))
 	require.Len(t, svc.applyReqs, 1)
@@ -166,6 +170,24 @@ func TestAdoptionsApply_ForwardsPositionalsAndVersion(t *testing.T) {
 	require.Equal(t, "ui/Button.tsx", svc.applyReqs[0].AdoptedPath)
 	require.Equal(t, "1.0.0", svc.applyReqs[0].Version)
 	require.True(t, svc.applyReqs[0].ConfirmOverwrite)
+	require.True(t, svc.applyReqs[0].OverrideValidation)
+}
+
+func TestAdoptionsReapply_ForwardsValidationOverride(t *testing.T) {
+	svc := &adoptionsService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "id"}},
+		Flags:       []cliapp.Flag{{Name: "version"}, {Name: "confirm-local-overwrite"}, {Name: "override-validation"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"id": "ad-1"},
+		Flags:       map[string]string{"version": "1.0.0", "confirm-local-overwrite": "true", "override-validation": "true"},
+	})
+	require.NoError(t, h.reapply(ctx))
+	require.Len(t, svc.reapplyReqs, 1)
+	require.True(t, svc.reapplyReqs[0].ConfirmLocalOverwrite)
+	require.True(t, svc.reapplyReqs[0].OverrideValidation)
 }
 
 func TestAdoptionsRefresh_SummaryLineIncludesCounts(t *testing.T) {

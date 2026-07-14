@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
@@ -17,6 +17,8 @@ import { errorMessage } from "../../lib/errorMessage";
 
 interface VersionsCardProps {
   componentId: string;
+  selectedVersion?: string;
+  onSelectVersion?: (version: string | undefined) => void;
 }
 
 const EMPTY_VERSIONS: Version[] = [];
@@ -28,7 +30,7 @@ const EMPTY_VERSIONS: Version[] = [];
  *
  * Surface for req 11 (VR-001..003).
  */
-export function VersionsCard({ componentId }: VersionsCardProps) {
+export function VersionsCard({ componentId, selectedVersion, onSelectVersion }: VersionsCardProps) {
   const { t } = useTranslation();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -85,7 +87,16 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
       )}
 
       {versions.length > 0 && (
-        <ul data-testid={selectors.versions.list} className="mt-3 space-y-2 text-sm text-app-foreground">
+        <>
+          <Button
+            type="button"
+            variant={selectedVersion ? "secondary" : "primary"}
+            className="mt-3 h-8 px-3 text-xs"
+            onClick={() => onSelectVersion?.(undefined)}
+          >
+            {t(strings.versions.currentSource)}
+          </Button>
+          <ul data-testid={selectors.versions.list} className="mt-3 space-y-2 text-sm text-app-foreground">
           {versions.map((v) => (
             <li
               key={v.id}
@@ -120,9 +131,20 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
               <span data-testid={selectors.versions.itemId} className="sr-only">
                 {v.id}
               </span>
+              <Button
+                type="button"
+                variant={selectedVersion === v.version ? "primary" : "secondary"}
+                className="mt-2 h-7 px-2 text-xs"
+                onClick={() => onSelectVersion?.(v.version)}
+              >
+                {selectedVersion === v.version
+                  ? t(strings.versions.viewingVersion)
+                  : t(strings.versions.viewVersion)}
+              </Button>
             </li>
           ))}
         </ul>
+        </>
       )}
 
       <div
@@ -239,7 +261,30 @@ function CellView({ cell, side }: { cell: { lineNumber: number; text: string; op
         {cell.op === DiffOp.EMPTY ? "" : cell.lineNumber || ""}
       </span>
       <span className="mr-1 inline-block w-3 select-none">{marker}</span>
-      {cell.text}
+      <HighlightedSource source={cell.text} />
     </div>
   );
+}
+
+function HighlightedSource({ source }: { source: string }) {
+  const [html, setHTML] = useState<string>();
+
+  useEffect(() => {
+    let active = true;
+    void import("shiki")
+      .then(({ codeToHtml }) => codeToHtml(source, { lang: "tsx", theme: "github-dark" }))
+      .then((rendered) => {
+        if (active) setHTML(rendered);
+      })
+      .catch(() => {
+        // The source remains visible if a language bundle cannot load.
+        if (active) setHTML(undefined);
+      });
+    return () => { active = false; };
+  }, [source]);
+
+  if (!html) return <>{source}</>;
+  // Shiki escapes source text before producing this markup; the component
+  // never accepts HTML from an API response as executable markup.
+  return <span className="inline [&_pre]:m-0 [&_pre]:inline [&_pre]:bg-transparent! [&_code]:bg-transparent!" dangerouslySetInnerHTML={{ __html: html }} />;
 }

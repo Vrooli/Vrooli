@@ -57,11 +57,12 @@ func (h *connectHandler) ListAdoptions(ctx context.Context, req *connect.Request
 
 func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request[adoptionsv1.ApplyAdoptionRequest]) (*connect.Response[adoptionsv1.ApplyAdoptionResponse], error) {
 	got, writtenPath, err := h.deps.Service.Apply(ctx, adoptions.ApplyInput{
-		ComponentID:      req.Msg.ComponentId,
-		Scenario:         req.Msg.Scenario,
-		AdoptedPath:      req.Msg.AdoptedPath,
-		Version:          req.Msg.Version,
-		ConfirmOverwrite: req.Msg.ConfirmOverwrite,
+		ComponentID:        req.Msg.ComponentId,
+		Scenario:           req.Msg.Scenario,
+		AdoptedPath:        req.Msg.AdoptedPath,
+		Version:            req.Msg.Version,
+		ConfirmOverwrite:   req.Msg.ConfirmOverwrite,
+		OverrideValidation: req.Msg.OverrideValidation,
 	})
 	if err != nil {
 		connectErr := adoptions.ToConnectError(err)
@@ -78,6 +79,7 @@ func (h *connectHandler) ReapplyAdoption(ctx context.Context, req *connect.Reque
 		ID:                    req.Msg.Id,
 		Version:               req.Msg.Version,
 		ConfirmLocalOverwrite: req.Msg.ConfirmLocalOverwrite,
+		OverrideValidation:    req.Msg.OverrideValidation,
 	})
 	if err != nil {
 		connectErr := adoptions.ToConnectError(err)

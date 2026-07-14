@@ -17,7 +17,8 @@ import (
 // preview service only uses GetContent; the rest panics so we notice
 // if the surface widens unintentionally.
 type fakeComponentsService struct {
-	getContentFn func(ctx context.Context, id string) (components.Content, error)
+	getContentFn        func(ctx context.Context, id string) (components.Content, error)
+	getVersionContentFn func(ctx context.Context, id, version string) (components.Content, error)
 }
 
 func (f *fakeComponentsService) GetContent(ctx context.Context, id string) (components.Content, error) {
@@ -52,7 +53,14 @@ func (f *fakeComponentsService) GetVersion(context.Context, string, string) (com
 	panic("not called")
 }
 
-func (f *fakeComponentsService) GetVersionContent(context.Context, string, string) (components.Content, error) {
+func (f *fakeComponentsService) GetVersionContent(ctx context.Context, id, version string) (components.Content, error) {
+	if f.getVersionContentFn == nil {
+		panic("not called")
+	}
+	return f.getVersionContentFn(ctx, id, version)
+}
+
+func (f *fakeComponentsService) ListExamples(context.Context, components.ExampleQuery) ([]components.ComponentExample, error) {
 	panic("not called")
 }
 
@@ -147,6 +155,23 @@ func TestService_GetBundle_DigestStable(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, first.SHA256, second.SHA256)
 	require.Equal(t, first.JS, second.JS)
+}
+
+func TestService_GetBundleVersion_UsesImmutableVersionContent(t *testing.T) {
+	comp := &fakeComponentsService{
+		getContentFn: func(context.Context, string) (components.Content, error) {
+			return components.Content{Body: "export const Current = () => null", SourcePath: "current.tsx"}, nil
+		},
+		getVersionContentFn: func(_ context.Context, id, version string) (components.Content, error) {
+			require.Equal(t, "cmp-1", id)
+			require.Equal(t, "1.0.0", version)
+			return components.Content{Body: "export const Historical = () => <div>v1</div>", SourcePath: "versions/1.0.0/Historical.tsx"}, nil
+		},
+	}
+	bundle, err := NewService(comp, NewEsbuilder()).GetBundleVersion(context.Background(), "cmp-1", "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, "versions/1.0.0/Historical.tsx", bundle.SourcePath)
+	require.Contains(t, bundle.JS, "Historical")
 }
 
 func TestEsbuilderBundlesRelativeImports(t *testing.T) {

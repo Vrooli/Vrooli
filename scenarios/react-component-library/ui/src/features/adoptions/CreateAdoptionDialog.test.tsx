@@ -156,8 +156,9 @@ describe("CreateAdoptionDialog", () => {
     });
   });
 
-  it("BLOCK verdict disables confirm and shows the failing dep", async () => {
+  it("BLOCK verdict requires acknowledgement and forwards the server-side override", async () => {
     const { depsClient } = await import("../../api/deps");
+    const { adoptionsClient } = await import("../../api/adoptions");
     vi.mocked(depsClient.validateAdoption).mockResolvedValue(
       create(ValidateAdoptionResponseSchema, {
         kind: VerdictKind.BLOCK,
@@ -181,8 +182,22 @@ describe("CreateAdoptionDialog", () => {
         screen.getByTestId(selectors.adoptions.createVerdict).getAttribute("data-verdict-kind"),
       ).toBe("block");
     });
-    expect(screen.getByTestId(selectors.adoptions.createConfirm)).toBeDisabled();
+    const confirm = screen.getByTestId(selectors.adoptions.createConfirm);
+    expect(confirm).toBeDisabled();
     expect(screen.getByTestId(selectors.adoptions.createVerdictIssue).textContent).toContain("react");
+    await user.click(screen.getByTestId(selectors.adoptions.createVerdictAck));
+    expect(confirm).not.toBeDisabled();
+    await user.click(confirm);
+    await waitFor(() => {
+      expect(adoptionsClient.applyAdoption).toHaveBeenCalledWith({
+        componentId: "cmp-button",
+        scenario: "swarm-manager",
+        adoptedPath: "ui/src/components/Button.tsx",
+        version: "1.0.0",
+        confirmOverwrite: false,
+        overrideValidation: true,
+      });
+    });
   });
 
   it("WARN verdict requires ack before enabling confirm", async () => {

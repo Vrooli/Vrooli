@@ -5,6 +5,7 @@ import {
   ListComponentsResponseSchema,
   IndexComponentsResponseSchema,
   GetComponentContentResponseSchema,
+  GetComponentVersionContentResponseSchema,
   UpdateComponentContentResponseSchema,
   ComponentExampleSchema,
   ListComponentExamplesResponseSchema,
@@ -14,6 +15,7 @@ import {
   type ListComponentExamplesResponse,
   type IndexComponentsResponse,
   type GetComponentContentResponse,
+  type GetComponentVersionContentResponse,
   type UpdateComponentContentResponse,
 } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 
@@ -24,6 +26,7 @@ export type {
   ListComponentExamplesResponse,
   IndexComponentsResponse,
   GetComponentContentResponse,
+  GetComponentVersionContentResponse,
   UpdateComponentContentResponse,
 };
 
@@ -85,6 +88,14 @@ export const makeGetComponentContentResponse = (
     content: "export const Button = () => null;\n",
     sourcePath: "components/Button.tsx",
     sha256: "abc123def456",
+    ...overrides,
+  });
+
+export const makeGetComponentVersionContentResponse = (
+  overrides: MessageInitShape<typeof GetComponentVersionContentResponseSchema> = {},
+): GetComponentVersionContentResponse =>
+  create(GetComponentVersionContentResponseSchema, {
+    content: "export const ButtonV1 = () => null;\n",
     ...overrides,
   });
 

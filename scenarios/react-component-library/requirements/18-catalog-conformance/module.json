@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Static and browser gates that make the catalog source itself a tested surface.",
-    "last_validated_at": "2026-07-10T09:48:00-04:00",
+    "last_validated_at": "2026-07-13T20:48:49-04:00",
     "module": "catalog-conformance",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -38,7 +38,7 @@
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "`ui/scripts/preview-e2e.mjs` enumerates catalog components from the API, opens the real UI in Chromium, switches the editor to preview mode, and validates every preview/example iframe reaches ready without forbidden console, pageerror, host, or in-iframe runtime failures.",
+      "description": "`ui/scripts/preview-e2e.mjs` enumerates catalog components from the API, opens the real UI in Chromium, switches the editor to preview mode, and validates every preview/example iframe reaches ready without forbidden console, pageerror, host, or in-iframe runtime failures. It captures every iframe in resolved light and dark themes, rejects blank captures, and requires both background and screenshot bytes to differ. `test:coverage` runs this browser gate after Vitest; the Test Genie unit phase requires the scenario runtime so the gate is server-owned.",
       "tags": [
         "catalog",
         "browser",
@@ -50,7 +50,7 @@
           "ref": "ui/scripts/preview-e2e.mjs",
           "phase": "workflow",
           "status": "failing",
-          "notes": "`pnpm run test:preview-e2e` passed across all 11 components and curated example frames after Phase 6; focused Button/StatusBadge smoke runs also passed during the runtime resolver fix."
+          "notes": "`node ui/scripts/preview-e2e.mjs` passed across 11 components and 34 example frames in both themes (68 screenshots). The required Test Genie unit-phase integration is `ui/package.json:test:coverage`, with .vrooli/testing.json unit.require_runtime=true."
         }
       ]
     },
@@ -71,7 +71,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "complete",
+          "status": "failing",
           "notes": "Cross-scenario unit evidence lives in experience-manager: `api/internal/reconcile/reconcile_test.go::TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence` proves component harness target construction and evidence persistence."
         },
         {

@@ -103,17 +103,19 @@ type CreateInput struct {
 }
 
 type ApplyInput struct {
-	ComponentID      string
-	Scenario         string
-	AdoptedPath      string
-	Version          string
-	ConfirmOverwrite bool
+	ComponentID        string
+	Scenario           string
+	AdoptedPath        string
+	Version            string
+	ConfirmOverwrite   bool
+	OverrideValidation bool
 }
 
 type ReapplyInput struct {
 	ID                    string
 	Version               string
 	ConfirmLocalOverwrite bool
+	OverrideValidation    bool
 }
 
 // AppliedSnapshotUpdate records the exact library version and bytes
@@ -172,4 +174,17 @@ type ErrInvalidAdoption struct {
 
 func (e ErrInvalidAdoption) Error() string {
 	return fmt.Sprintf("invalid adoption: %s: %s", e.Field, e.Reason)
+}
+
+// ErrAdoptionValidationBlocked means the server-side dependency gate returned
+// a blocking verdict. It is distinct from malformed input so transports can
+// make the operator explicitly acknowledge the required override.
+type ErrAdoptionValidationBlocked struct {
+	ComponentID string
+	Scenario    string
+	Version     string
+}
+
+func (e ErrAdoptionValidationBlocked) Error() string {
+	return fmt.Sprintf("adoption validation blocked %q@%q for scenario %q; set override_validation to continue", e.ComponentID, e.Version, e.Scenario)
 }

@@ -127,15 +127,15 @@ function refreshedAtLabel(adoption: Adoption, t: ReturnType<typeof useTranslatio
  * library component → target scenario mapping plus its drift status.
  * Surface for req 08 (AD-001..AD-003).
  */
-export function AdoptionsCard() {
+export function AdoptionsCard({ componentId }: { componentId?: string }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [scenario, setScenario] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
 
   const adoptionsQuery = useQuery({
-    queryKey: ["adoptions", { scenario }],
-    queryFn: () => adoptionsClient.listAdoptions({ scenario, limit: 0 }),
+    queryKey: ["adoptions", { scenario, componentId }],
+    queryFn: () => adoptionsClient.listAdoptions({ scenario, componentId, limit: 0 }),
   });
 
   const refreshMutation = useMutation({

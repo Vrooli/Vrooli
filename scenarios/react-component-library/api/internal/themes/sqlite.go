@@ -37,6 +37,50 @@ func (s *sqliteRepository) UpsertBuiltin(ctx context.Context, t Theme) error {
 	return nil
 }
 
+// ReplaceBuiltins migrates the seed registry in place. It deliberately keeps
+// the table and its history-bearing timestamps intact; only superseded seed
+// rows are removed and canonical rows are upserted in one transaction.
+func (s *sqliteRepository) ReplaceBuiltins(ctx context.Context, themes []Theme) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin replace builtins: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	ids := make([]string, 0, len(themes))
+	for _, theme := range themes {
+		id := strings.TrimSpace(theme.ID)
+		if id == "" {
+			return fmt.Errorf("theme id required")
+		}
+		ids = append(ids, id)
+	}
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
+	if len(ids) > 0 {
+		args := make([]any, len(ids))
+		for i := range ids {
+			args[i] = ids[i]
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM builtin_themes WHERE id NOT IN (`+placeholders+`)`, args...); err != nil {
+			return fmt.Errorf("remove superseded builtins: %w", err)
+		}
+	}
+	for _, theme := range themes {
+		tokensJSON, err := encodeTokens(theme.Tokens)
+		if err != nil {
+			return fmt.Errorf("encode tokens: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO builtin_themes (id, name, tokens_json) VALUES (?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET name=excluded.name, tokens_json=excluded.tokens_json`, theme.ID, theme.Name, tokensJSON); err != nil {
+			return fmt.Errorf("upsert builtin theme %q: %w", theme.ID, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit replace builtins: %w", err)
+	}
+	return nil
+}
+
 func (s *sqliteRepository) GetBuiltin(ctx context.Context, id string) (Theme, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
