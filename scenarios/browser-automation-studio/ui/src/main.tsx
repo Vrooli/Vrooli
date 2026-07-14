@@ -1,3 +1,4 @@
+import { installChunkReloadGuard } from '@vrooli/api-base';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge';
 import { mountApp } from './renderApp';
 import { logger } from './utils/logger';
@@ -37,6 +38,11 @@ if (
   initIframeBridgeChild({ parentOrigin, appId: 'browser-automation-studio' });
   window.__browserAutomationStudioBridgeInitialized = true;
 }
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next
+// navigation. This guard reloads once (rate-limited) instead.
+installChunkReloadGuard();
 
 const container = document.getElementById('root');
 

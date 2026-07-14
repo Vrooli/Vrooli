@@ -24,3 +24,10 @@ export {
 // Connect-RPC transport
 export { createScenarioConnectTransport } from './connect.js'
 export type { ScenarioConnectTransportOptions } from './connect.js'
+
+// Stale-chunk recovery for code-split UIs
+export {
+  installChunkReloadGuard,
+  isStaleChunkError,
+  reloadForStaleChunk,
+} from './chunk-reload.js'

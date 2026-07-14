@@ -46,6 +46,18 @@ const (
 	// ExecutionServiceContinueExecutionProcedure is the fully-qualified name of the ExecutionService's
 	// ContinueExecution RPC.
 	ExecutionServiceContinueExecutionProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/ContinueExecution"
+	// ExecutionServiceSyncBaselineProcedure is the fully-qualified name of the ExecutionService's
+	// SyncBaseline RPC.
+	ExecutionServiceSyncBaselineProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/SyncBaseline"
+	// ExecutionServiceAmendScopeProcedure is the fully-qualified name of the ExecutionService's
+	// AmendScope RPC.
+	ExecutionServiceAmendScopeProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/AmendScope"
+	// ExecutionServiceAdoptBaselineProcedure is the fully-qualified name of the ExecutionService's
+	// AdoptBaseline RPC.
+	ExecutionServiceAdoptBaselineProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/AdoptBaseline"
+	// ExecutionServiceRepairSourceScopeProcedure is the fully-qualified name of the ExecutionService's
+	// RepairSourceScope RPC.
+	ExecutionServiceRepairSourceScopeProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/RepairSourceScope"
 	// ExecutionServiceGetNextProcedure is the fully-qualified name of the ExecutionService's GetNext
 	// RPC.
 	ExecutionServiceGetNextProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/GetNext"
@@ -55,6 +67,9 @@ const (
 	// ExecutionServiceCompleteProcedure is the fully-qualified name of the ExecutionService's Complete
 	// RPC.
 	ExecutionServiceCompleteProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/Complete"
+	// ExecutionServicePartialHandoffProcedure is the fully-qualified name of the ExecutionService's
+	// PartialHandoff RPC.
+	ExecutionServicePartialHandoffProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/PartialHandoff"
 	// ExecutionServiceGetHandoffProcedure is the fully-qualified name of the ExecutionService's
 	// GetHandoff RPC.
 	ExecutionServiceGetHandoffProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/GetHandoff"
@@ -79,6 +94,18 @@ type ExecutionServiceClient interface {
 	// ContinueExecution resumes or starts a run for a plan/execution id and
 	// returns the single recommended next runner action without advancing.
 	ContinueExecution(context.Context, *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error)
+	// SyncBaseline performs one nonblocking typed read of the producer-owned GCT
+	// collection attached to an execution. It never starts or waits for capture.
+	SyncBaseline(context.Context, *connect.Request[execution.SyncBaselineRequest]) (*connect.Response[execution.SyncBaselineResponse], error)
+	// AmendScope records an auditable phase-scope expansion within an already
+	// captured collection and invalidates older evidence for that phase.
+	AmendScope(context.Context, *connect.Request[execution.AmendScopeRequest]) (*connect.Response[execution.AmendScopeResponse], error)
+	// AdoptBaseline repairs a legacy execution by creating a new producer ticket
+	// or recording an explicit degraded state. It never starts or waits for GCT.
+	AdoptBaseline(context.Context, *connect.Request[execution.AdoptBaselineRequest]) (*connect.Response[execution.AdoptBaselineResponse], error)
+	// RepairSourceScope replaces a repair-required informational selection only
+	// after it is boundary-checked and re-estimated by Git Control Tower.
+	RepairSourceScope(context.Context, *connect.Request[execution.RepairSourceScopeRequest]) (*connect.Response[execution.RepairSourceScopeResponse], error)
 	// GetNext advances the runner's pointer to the next actionable phase and
 	// returns its injected context.
 	GetNext(context.Context, *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error)
@@ -88,6 +115,9 @@ type ExecutionServiceClient interface {
 	// Complete runs the thin guided completion process and assembles the canonical
 	// handoff, capturing a velocity point (OT-P1-001/002).
 	Complete(context.Context, *connect.Request[execution.CompleteRequest]) (*connect.Response[execution.CompleteResponse], error)
+	// PartialHandoff persists a resumable incomplete handoff and never marks the
+	// execution normally complete.
+	PartialHandoff(context.Context, *connect.Request[execution.PartialHandoffRequest]) (*connect.Response[execution.PartialHandoffResponse], error)
 	// GetHandoff returns the assembled canonical handoff for an execution.
 	GetHandoff(context.Context, *connect.Request[execution.GetHandoffRequest]) (*connect.Response[execution.GetHandoffResponse], error)
 	// GetVelocity returns the per-plan velocity series.
@@ -136,6 +166,30 @@ func NewExecutionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(executionServiceMethods.ByName("ContinueExecution")),
 			connect.WithClientOptions(opts...),
 		),
+		syncBaseline: connect.NewClient[execution.SyncBaselineRequest, execution.SyncBaselineResponse](
+			httpClient,
+			baseURL+ExecutionServiceSyncBaselineProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("SyncBaseline")),
+			connect.WithClientOptions(opts...),
+		),
+		amendScope: connect.NewClient[execution.AmendScopeRequest, execution.AmendScopeResponse](
+			httpClient,
+			baseURL+ExecutionServiceAmendScopeProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("AmendScope")),
+			connect.WithClientOptions(opts...),
+		),
+		adoptBaseline: connect.NewClient[execution.AdoptBaselineRequest, execution.AdoptBaselineResponse](
+			httpClient,
+			baseURL+ExecutionServiceAdoptBaselineProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("AdoptBaseline")),
+			connect.WithClientOptions(opts...),
+		),
+		repairSourceScope: connect.NewClient[execution.RepairSourceScopeRequest, execution.RepairSourceScopeResponse](
+			httpClient,
+			baseURL+ExecutionServiceRepairSourceScopeProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("RepairSourceScope")),
+			connect.WithClientOptions(opts...),
+		),
 		getNext: connect.NewClient[execution.GetNextRequest, execution.GetNextResponse](
 			httpClient,
 			baseURL+ExecutionServiceGetNextProcedure,
@@ -152,6 +206,12 @@ func NewExecutionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+ExecutionServiceCompleteProcedure,
 			connect.WithSchema(executionServiceMethods.ByName("Complete")),
+			connect.WithClientOptions(opts...),
+		),
+		partialHandoff: connect.NewClient[execution.PartialHandoffRequest, execution.PartialHandoffResponse](
+			httpClient,
+			baseURL+ExecutionServicePartialHandoffProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("PartialHandoff")),
 			connect.WithClientOptions(opts...),
 		),
 		getHandoff: connect.NewClient[execution.GetHandoffRequest, execution.GetHandoffResponse](
@@ -176,9 +236,14 @@ type executionServiceClient struct {
 	getContext        *connect.Client[execution.GetContextRequest, execution.GetContextResponse]
 	resume            *connect.Client[execution.ResumeRequest, execution.ResumeResponse]
 	continueExecution *connect.Client[execution.ContinueExecutionRequest, execution.ContinueExecutionResponse]
+	syncBaseline      *connect.Client[execution.SyncBaselineRequest, execution.SyncBaselineResponse]
+	amendScope        *connect.Client[execution.AmendScopeRequest, execution.AmendScopeResponse]
+	adoptBaseline     *connect.Client[execution.AdoptBaselineRequest, execution.AdoptBaselineResponse]
+	repairSourceScope *connect.Client[execution.RepairSourceScopeRequest, execution.RepairSourceScopeResponse]
 	getNext           *connect.Client[execution.GetNextRequest, execution.GetNextResponse]
 	transitionPhase   *connect.Client[execution.TransitionPhaseRequest, execution.TransitionPhaseResponse]
 	complete          *connect.Client[execution.CompleteRequest, execution.CompleteResponse]
+	partialHandoff    *connect.Client[execution.PartialHandoffRequest, execution.PartialHandoffResponse]
 	getHandoff        *connect.Client[execution.GetHandoffRequest, execution.GetHandoffResponse]
 	getVelocity       *connect.Client[execution.GetVelocityRequest, execution.GetVelocityResponse]
 }
@@ -208,6 +273,26 @@ func (c *executionServiceClient) ContinueExecution(ctx context.Context, req *con
 	return c.continueExecution.CallUnary(ctx, req)
 }
 
+// SyncBaseline calls vrooli.plan_manager.v1.execution.ExecutionService.SyncBaseline.
+func (c *executionServiceClient) SyncBaseline(ctx context.Context, req *connect.Request[execution.SyncBaselineRequest]) (*connect.Response[execution.SyncBaselineResponse], error) {
+	return c.syncBaseline.CallUnary(ctx, req)
+}
+
+// AmendScope calls vrooli.plan_manager.v1.execution.ExecutionService.AmendScope.
+func (c *executionServiceClient) AmendScope(ctx context.Context, req *connect.Request[execution.AmendScopeRequest]) (*connect.Response[execution.AmendScopeResponse], error) {
+	return c.amendScope.CallUnary(ctx, req)
+}
+
+// AdoptBaseline calls vrooli.plan_manager.v1.execution.ExecutionService.AdoptBaseline.
+func (c *executionServiceClient) AdoptBaseline(ctx context.Context, req *connect.Request[execution.AdoptBaselineRequest]) (*connect.Response[execution.AdoptBaselineResponse], error) {
+	return c.adoptBaseline.CallUnary(ctx, req)
+}
+
+// RepairSourceScope calls vrooli.plan_manager.v1.execution.ExecutionService.RepairSourceScope.
+func (c *executionServiceClient) RepairSourceScope(ctx context.Context, req *connect.Request[execution.RepairSourceScopeRequest]) (*connect.Response[execution.RepairSourceScopeResponse], error) {
+	return c.repairSourceScope.CallUnary(ctx, req)
+}
+
 // GetNext calls vrooli.plan_manager.v1.execution.ExecutionService.GetNext.
 func (c *executionServiceClient) GetNext(ctx context.Context, req *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error) {
 	return c.getNext.CallUnary(ctx, req)
@@ -221,6 +306,11 @@ func (c *executionServiceClient) TransitionPhase(ctx context.Context, req *conne
 // Complete calls vrooli.plan_manager.v1.execution.ExecutionService.Complete.
 func (c *executionServiceClient) Complete(ctx context.Context, req *connect.Request[execution.CompleteRequest]) (*connect.Response[execution.CompleteResponse], error) {
 	return c.complete.CallUnary(ctx, req)
+}
+
+// PartialHandoff calls vrooli.plan_manager.v1.execution.ExecutionService.PartialHandoff.
+func (c *executionServiceClient) PartialHandoff(ctx context.Context, req *connect.Request[execution.PartialHandoffRequest]) (*connect.Response[execution.PartialHandoffResponse], error) {
+	return c.partialHandoff.CallUnary(ctx, req)
 }
 
 // GetHandoff calls vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff.
@@ -249,6 +339,18 @@ type ExecutionServiceHandler interface {
 	// ContinueExecution resumes or starts a run for a plan/execution id and
 	// returns the single recommended next runner action without advancing.
 	ContinueExecution(context.Context, *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error)
+	// SyncBaseline performs one nonblocking typed read of the producer-owned GCT
+	// collection attached to an execution. It never starts or waits for capture.
+	SyncBaseline(context.Context, *connect.Request[execution.SyncBaselineRequest]) (*connect.Response[execution.SyncBaselineResponse], error)
+	// AmendScope records an auditable phase-scope expansion within an already
+	// captured collection and invalidates older evidence for that phase.
+	AmendScope(context.Context, *connect.Request[execution.AmendScopeRequest]) (*connect.Response[execution.AmendScopeResponse], error)
+	// AdoptBaseline repairs a legacy execution by creating a new producer ticket
+	// or recording an explicit degraded state. It never starts or waits for GCT.
+	AdoptBaseline(context.Context, *connect.Request[execution.AdoptBaselineRequest]) (*connect.Response[execution.AdoptBaselineResponse], error)
+	// RepairSourceScope replaces a repair-required informational selection only
+	// after it is boundary-checked and re-estimated by Git Control Tower.
+	RepairSourceScope(context.Context, *connect.Request[execution.RepairSourceScopeRequest]) (*connect.Response[execution.RepairSourceScopeResponse], error)
 	// GetNext advances the runner's pointer to the next actionable phase and
 	// returns its injected context.
 	GetNext(context.Context, *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error)
@@ -258,6 +360,9 @@ type ExecutionServiceHandler interface {
 	// Complete runs the thin guided completion process and assembles the canonical
 	// handoff, capturing a velocity point (OT-P1-001/002).
 	Complete(context.Context, *connect.Request[execution.CompleteRequest]) (*connect.Response[execution.CompleteResponse], error)
+	// PartialHandoff persists a resumable incomplete handoff and never marks the
+	// execution normally complete.
+	PartialHandoff(context.Context, *connect.Request[execution.PartialHandoffRequest]) (*connect.Response[execution.PartialHandoffResponse], error)
 	// GetHandoff returns the assembled canonical handoff for an execution.
 	GetHandoff(context.Context, *connect.Request[execution.GetHandoffRequest]) (*connect.Response[execution.GetHandoffResponse], error)
 	// GetVelocity returns the per-plan velocity series.
@@ -301,6 +406,30 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 		connect.WithSchema(executionServiceMethods.ByName("ContinueExecution")),
 		connect.WithHandlerOptions(opts...),
 	)
+	executionServiceSyncBaselineHandler := connect.NewUnaryHandler(
+		ExecutionServiceSyncBaselineProcedure,
+		svc.SyncBaseline,
+		connect.WithSchema(executionServiceMethods.ByName("SyncBaseline")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionServiceAmendScopeHandler := connect.NewUnaryHandler(
+		ExecutionServiceAmendScopeProcedure,
+		svc.AmendScope,
+		connect.WithSchema(executionServiceMethods.ByName("AmendScope")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionServiceAdoptBaselineHandler := connect.NewUnaryHandler(
+		ExecutionServiceAdoptBaselineProcedure,
+		svc.AdoptBaseline,
+		connect.WithSchema(executionServiceMethods.ByName("AdoptBaseline")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionServiceRepairSourceScopeHandler := connect.NewUnaryHandler(
+		ExecutionServiceRepairSourceScopeProcedure,
+		svc.RepairSourceScope,
+		connect.WithSchema(executionServiceMethods.ByName("RepairSourceScope")),
+		connect.WithHandlerOptions(opts...),
+	)
 	executionServiceGetNextHandler := connect.NewUnaryHandler(
 		ExecutionServiceGetNextProcedure,
 		svc.GetNext,
@@ -317,6 +446,12 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 		ExecutionServiceCompleteProcedure,
 		svc.Complete,
 		connect.WithSchema(executionServiceMethods.ByName("Complete")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionServicePartialHandoffHandler := connect.NewUnaryHandler(
+		ExecutionServicePartialHandoffProcedure,
+		svc.PartialHandoff,
+		connect.WithSchema(executionServiceMethods.ByName("PartialHandoff")),
 		connect.WithHandlerOptions(opts...),
 	)
 	executionServiceGetHandoffHandler := connect.NewUnaryHandler(
@@ -343,12 +478,22 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 			executionServiceResumeHandler.ServeHTTP(w, r)
 		case ExecutionServiceContinueExecutionProcedure:
 			executionServiceContinueExecutionHandler.ServeHTTP(w, r)
+		case ExecutionServiceSyncBaselineProcedure:
+			executionServiceSyncBaselineHandler.ServeHTTP(w, r)
+		case ExecutionServiceAmendScopeProcedure:
+			executionServiceAmendScopeHandler.ServeHTTP(w, r)
+		case ExecutionServiceAdoptBaselineProcedure:
+			executionServiceAdoptBaselineHandler.ServeHTTP(w, r)
+		case ExecutionServiceRepairSourceScopeProcedure:
+			executionServiceRepairSourceScopeHandler.ServeHTTP(w, r)
 		case ExecutionServiceGetNextProcedure:
 			executionServiceGetNextHandler.ServeHTTP(w, r)
 		case ExecutionServiceTransitionPhaseProcedure:
 			executionServiceTransitionPhaseHandler.ServeHTTP(w, r)
 		case ExecutionServiceCompleteProcedure:
 			executionServiceCompleteHandler.ServeHTTP(w, r)
+		case ExecutionServicePartialHandoffProcedure:
+			executionServicePartialHandoffHandler.ServeHTTP(w, r)
 		case ExecutionServiceGetHandoffProcedure:
 			executionServiceGetHandoffHandler.ServeHTTP(w, r)
 		case ExecutionServiceGetVelocityProcedure:
@@ -382,6 +527,22 @@ func (UnimplementedExecutionServiceHandler) ContinueExecution(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution is not implemented"))
 }
 
+func (UnimplementedExecutionServiceHandler) SyncBaseline(context.Context, *connect.Request[execution.SyncBaselineRequest]) (*connect.Response[execution.SyncBaselineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.SyncBaseline is not implemented"))
+}
+
+func (UnimplementedExecutionServiceHandler) AmendScope(context.Context, *connect.Request[execution.AmendScopeRequest]) (*connect.Response[execution.AmendScopeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.AmendScope is not implemented"))
+}
+
+func (UnimplementedExecutionServiceHandler) AdoptBaseline(context.Context, *connect.Request[execution.AdoptBaselineRequest]) (*connect.Response[execution.AdoptBaselineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.AdoptBaseline is not implemented"))
+}
+
+func (UnimplementedExecutionServiceHandler) RepairSourceScope(context.Context, *connect.Request[execution.RepairSourceScopeRequest]) (*connect.Response[execution.RepairSourceScopeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.RepairSourceScope is not implemented"))
+}
+
 func (UnimplementedExecutionServiceHandler) GetNext(context.Context, *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.GetNext is not implemented"))
 }
@@ -392,6 +553,10 @@ func (UnimplementedExecutionServiceHandler) TransitionPhase(context.Context, *co
 
 func (UnimplementedExecutionServiceHandler) Complete(context.Context, *connect.Request[execution.CompleteRequest]) (*connect.Response[execution.CompleteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.Complete is not implemented"))
+}
+
+func (UnimplementedExecutionServiceHandler) PartialHandoff(context.Context, *connect.Request[execution.PartialHandoffRequest]) (*connect.Response[execution.PartialHandoffResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.PartialHandoff is not implemented"))
 }
 
 func (UnimplementedExecutionServiceHandler) GetHandoff(context.Context, *connect.Request[execution.GetHandoffRequest]) (*connect.Response[execution.GetHandoffResponse], error) {

@@ -430,7 +430,7 @@ class BaselineCollection(_message.Message):
     def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., schema_version: _Optional[int] = ..., members: _Optional[_Iterable[_Union[CollectionMember, _Mapping]]] = ..., coverage: _Optional[_Union[CollectionCoverage, _Mapping]] = ..., path_snapshots: _Optional[_Iterable[_Union[PathSnapshotReference, _Mapping]]] = ...) -> None: ...
 
 class StartCollectionCaptureRequest(_message.Message):
-    __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id", "path_selections")
+    __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id", "path_selections", "include_ignored", "retain_content")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     TARGETS_FIELD_NUMBER: _ClassVar[int]
@@ -438,6 +438,8 @@ class StartCollectionCaptureRequest(_message.Message):
     REASON_FIELD_NUMBER: _ClassVar[int]
     REPO_ID_FIELD_NUMBER: _ClassVar[int]
     PATH_SELECTIONS_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_IGNORED_FIELD_NUMBER: _ClassVar[int]
+    RETAIN_CONTENT_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     targets: _containers.RepeatedCompositeFieldContainer[CollectionTarget]
@@ -445,7 +447,9 @@ class StartCollectionCaptureRequest(_message.Message):
     reason: str
     repo_id: int
     path_selections: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[CollectionTarget, _Mapping]]] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ..., path_selections: _Optional[_Iterable[str]] = ...) -> None: ...
+    include_ignored: bool
+    retain_content: bool
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[CollectionTarget, _Mapping]]] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ..., path_selections: _Optional[_Iterable[str]] = ..., include_ignored: _Optional[bool] = ..., retain_content: _Optional[bool] = ...) -> None: ...
 
 class StartCollectionCaptureResponse(_message.Message):
     __slots__ = ("collection", "resumed")
@@ -472,6 +476,32 @@ class GetCollectionResponse(_message.Message):
     COLLECTION_FIELD_NUMBER: _ClassVar[int]
     collection: BaselineCollection
     def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ...) -> None: ...
+
+class ExtendCollectionRequest(_message.Message):
+    __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    TARGETS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    targets: _containers.RepeatedCompositeFieldContainer[CollectionTarget]
+    created_by: str
+    reason: str
+    repo_id: int
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[CollectionTarget, _Mapping]]] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
+
+class ExtendCollectionResponse(_message.Message):
+    __slots__ = ("collection", "added_scenarios", "resumed")
+    COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    ADDED_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    RESUMED_FIELD_NUMBER: _ClassVar[int]
+    collection: BaselineCollection
+    added_scenarios: _containers.RepeatedScalarFieldContainer[str]
+    resumed: bool
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., added_scenarios: _Optional[_Iterable[str]] = ..., resumed: _Optional[bool] = ...) -> None: ...
 
 class CollectionDiffMember(_message.Message):
     __slots__ = ("scenario", "required", "status", "run_id", "verdict", "detail")
@@ -586,7 +616,7 @@ class PathEntry(_message.Message):
     def __init__(self, path: _Optional[str] = ..., mode: _Optional[int] = ..., type: _Optional[str] = ..., size: _Optional[int] = ..., digest: _Optional[str] = ..., state: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class PathSnapshot(_message.Message):
-    __slots__ = ("name", "branch", "created_at", "schema_version", "selections", "entries", "classification", "expires_at")
+    __slots__ = ("name", "branch", "created_at", "schema_version", "selections", "entries", "classification", "expires_at", "include_ignored", "retain_content", "policy_version")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -595,6 +625,9 @@ class PathSnapshot(_message.Message):
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_IGNORED_FIELD_NUMBER: _ClassVar[int]
+    RETAIN_CONTENT_FIELD_NUMBER: _ClassVar[int]
+    POLICY_VERSION_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     created_at: str
@@ -603,7 +636,98 @@ class PathSnapshot(_message.Message):
     entries: _containers.RepeatedCompositeFieldContainer[PathEntry]
     classification: str
     expires_at: str
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., schema_version: _Optional[int] = ..., selections: _Optional[_Iterable[str]] = ..., entries: _Optional[_Iterable[_Union[PathEntry, _Mapping]]] = ..., classification: _Optional[str] = ..., expires_at: _Optional[str] = ...) -> None: ...
+    include_ignored: bool
+    retain_content: bool
+    policy_version: int
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., schema_version: _Optional[int] = ..., selections: _Optional[_Iterable[str]] = ..., entries: _Optional[_Iterable[_Union[PathEntry, _Mapping]]] = ..., classification: _Optional[str] = ..., expires_at: _Optional[str] = ..., include_ignored: _Optional[bool] = ..., retain_content: _Optional[bool] = ..., policy_version: _Optional[int] = ...) -> None: ...
+
+class PathSnapshotContributor(_message.Message):
+    __slots__ = ("path", "files", "bytes")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    BYTES_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    files: int
+    bytes: int
+    def __init__(self, path: _Optional[str] = ..., files: _Optional[int] = ..., bytes: _Optional[int] = ...) -> None: ...
+
+class PathSnapshotIssue(_message.Message):
+    __slots__ = ("code", "severity", "detail")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    severity: str
+    detail: str
+    def __init__(self, code: _Optional[str] = ..., severity: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+
+class PathSnapshotRecommendation(_message.Message):
+    __slots__ = ("selection", "reason")
+    SELECTION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    selection: str
+    reason: str
+    def __init__(self, selection: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class PathSnapshotEstimate(_message.Message):
+    __slots__ = ("selections", "include_ignored", "retain_content", "eligible_files", "eligible_bytes", "excluded_ignored_files", "excluded_ignored_bytes", "excluded_sensitive_files", "excluded_binary_files", "oversized_files", "retained_content_bytes", "top_contributors", "issues", "recommendations", "repair_required", "policy_version")
+    SELECTIONS_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_IGNORED_FIELD_NUMBER: _ClassVar[int]
+    RETAIN_CONTENT_FIELD_NUMBER: _ClassVar[int]
+    ELIGIBLE_FILES_FIELD_NUMBER: _ClassVar[int]
+    ELIGIBLE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_IGNORED_FILES_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_IGNORED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_SENSITIVE_FILES_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_BINARY_FILES_FIELD_NUMBER: _ClassVar[int]
+    OVERSIZED_FILES_FIELD_NUMBER: _ClassVar[int]
+    RETAINED_CONTENT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    TOP_CONTRIBUTORS_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDATIONS_FIELD_NUMBER: _ClassVar[int]
+    REPAIR_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    POLICY_VERSION_FIELD_NUMBER: _ClassVar[int]
+    selections: _containers.RepeatedScalarFieldContainer[str]
+    include_ignored: bool
+    retain_content: bool
+    eligible_files: int
+    eligible_bytes: int
+    excluded_ignored_files: int
+    excluded_ignored_bytes: int
+    excluded_sensitive_files: int
+    excluded_binary_files: int
+    oversized_files: int
+    retained_content_bytes: int
+    top_contributors: _containers.RepeatedCompositeFieldContainer[PathSnapshotContributor]
+    issues: _containers.RepeatedCompositeFieldContainer[PathSnapshotIssue]
+    recommendations: _containers.RepeatedCompositeFieldContainer[PathSnapshotRecommendation]
+    repair_required: bool
+    policy_version: int
+    def __init__(self, selections: _Optional[_Iterable[str]] = ..., include_ignored: _Optional[bool] = ..., retain_content: _Optional[bool] = ..., eligible_files: _Optional[int] = ..., eligible_bytes: _Optional[int] = ..., excluded_ignored_files: _Optional[int] = ..., excluded_ignored_bytes: _Optional[int] = ..., excluded_sensitive_files: _Optional[int] = ..., excluded_binary_files: _Optional[int] = ..., oversized_files: _Optional[int] = ..., retained_content_bytes: _Optional[int] = ..., top_contributors: _Optional[_Iterable[_Union[PathSnapshotContributor, _Mapping]]] = ..., issues: _Optional[_Iterable[_Union[PathSnapshotIssue, _Mapping]]] = ..., recommendations: _Optional[_Iterable[_Union[PathSnapshotRecommendation, _Mapping]]] = ..., repair_required: _Optional[bool] = ..., policy_version: _Optional[int] = ...) -> None: ...
+
+class EstimatePathSnapshotRequest(_message.Message):
+    __slots__ = ("selections", "repo_id", "include_ignored", "retain_content")
+    SELECTIONS_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_IGNORED_FIELD_NUMBER: _ClassVar[int]
+    RETAIN_CONTENT_FIELD_NUMBER: _ClassVar[int]
+    selections: _containers.RepeatedScalarFieldContainer[str]
+    repo_id: int
+    include_ignored: bool
+    retain_content: bool
+    def __init__(self, selections: _Optional[_Iterable[str]] = ..., repo_id: _Optional[int] = ..., include_ignored: _Optional[bool] = ..., retain_content: _Optional[bool] = ...) -> None: ...
+
+class EstimatePathSnapshotResponse(_message.Message):
+    __slots__ = ("estimate",)
+    ESTIMATE_FIELD_NUMBER: _ClassVar[int]
+    estimate: PathSnapshotEstimate
+    def __init__(self, estimate: _Optional[_Union[PathSnapshotEstimate, _Mapping]] = ...) -> None: ...
+
+class PathSnapshotPolicyViolation(_message.Message):
+    __slots__ = ("estimate",)
+    ESTIMATE_FIELD_NUMBER: _ClassVar[int]
+    estimate: PathSnapshotEstimate
+    def __init__(self, estimate: _Optional[_Union[PathSnapshotEstimate, _Mapping]] = ...) -> None: ...
 
 class SourceDelta(_message.Message):
     __slots__ = ("path", "status", "before", "after")
@@ -618,18 +742,22 @@ class SourceDelta(_message.Message):
     def __init__(self, path: _Optional[str] = ..., status: _Optional[str] = ..., before: _Optional[_Union[PathEntry, _Mapping]] = ..., after: _Optional[_Union[PathEntry, _Mapping]] = ...) -> None: ...
 
 class CapturePathSnapshotRequest(_message.Message):
-    __slots__ = ("name", "branch", "selections", "repo_id", "retention_seconds")
+    __slots__ = ("name", "branch", "selections", "repo_id", "retention_seconds", "include_ignored", "retain_content")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     SELECTIONS_FIELD_NUMBER: _ClassVar[int]
     REPO_ID_FIELD_NUMBER: _ClassVar[int]
     RETENTION_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_IGNORED_FIELD_NUMBER: _ClassVar[int]
+    RETAIN_CONTENT_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     selections: _containers.RepeatedScalarFieldContainer[str]
     repo_id: int
     retention_seconds: int
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., selections: _Optional[_Iterable[str]] = ..., repo_id: _Optional[int] = ..., retention_seconds: _Optional[int] = ...) -> None: ...
+    include_ignored: bool
+    retain_content: bool
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., selections: _Optional[_Iterable[str]] = ..., repo_id: _Optional[int] = ..., retention_seconds: _Optional[int] = ..., include_ignored: _Optional[bool] = ..., retain_content: _Optional[bool] = ...) -> None: ...
 
 class CapturePathSnapshotResponse(_message.Message):
     __slots__ = ("snapshot", "resumed")

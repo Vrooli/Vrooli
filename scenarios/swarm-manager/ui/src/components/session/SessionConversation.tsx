@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChatThread } from "../chat/ChatThread";
-import { MessageComposer } from "../composer/MessageComposer";
+import { MessageComposer, type MessageComposerHandle } from "../composer/MessageComposer";
 import { formatRelativeTime } from "../../lib/format-utils";
 import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
@@ -59,6 +59,7 @@ export function SessionConversation({
   desktopPresentation = "card",
 }: SessionConversationProps) {
   const navigate = useNavigate();
+  const composerRef = useRef<MessageComposerHandle>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [contextPickerInitialType, setContextPickerInitialType] = useState<AgentSessionContextType | null>(null);
   const [contextPickerFilterKey, setContextPickerFilterKey] = useState<StarterContextFilterKey | null>(null);
@@ -111,7 +112,12 @@ export function SessionConversation({
           sessionKind={sessionKind}
           pendingContext={pendingContext}
           pendingAttachmentCount={pendingAttachments.length}
-          onChooseText={onDraftChange}
+          onChooseText={(text) => {
+            // Through the composer handle so the user's undo history survives
+            // the swap; falls back to a plain state set before first render.
+            if (composerRef.current) composerRef.current.replaceText(text);
+            else onDraftChange(text);
+          }}
           onRequestContext={(type, filterKey) => openContextPicker(type, filterKey)}
           onRequestImage={() => setImagePickerRequestKey((value) => value + 1)}
           className={cn("flex-1 p-3", variant === "mobile" && "px-3 pb-40")}
@@ -143,6 +149,7 @@ export function SessionConversation({
         )}
       >
         <MessageComposer
+          ref={composerRef}
           value={draft}
           onChange={onDraftChange}
           onSubmit={onSend}

@@ -42,6 +42,18 @@ service ExecutionService {
   // ContinueExecution resumes or starts a run for a plan/execution id and
   // returns the single recommended next runner action without advancing.
   rpc ContinueExecution(ContinueExecutionRequest) returns (ContinueExecutionResponse);
+  // SyncBaseline performs one nonblocking typed read of the producer-owned GCT
+  // collection attached to an execution. It never starts or waits for capture.
+  rpc SyncBaseline(SyncBaselineRequest) returns (SyncBaselineResponse);
+  // AmendScope records an auditable phase-scope expansion within an already
+  // captured collection and invalidates older evidence for that phase.
+  rpc AmendScope(AmendScopeRequest) returns (AmendScopeResponse);
+  // AdoptBaseline repairs a legacy execution by creating a new producer ticket
+  // or recording an explicit degraded state. It never starts or waits for GCT.
+  rpc AdoptBaseline(AdoptBaselineRequest) returns (AdoptBaselineResponse);
+  // RepairSourceScope replaces a repair-required informational selection only
+  // after it is boundary-checked and re-estimated by Git Control Tower.
+  rpc RepairSourceScope(RepairSourceScopeRequest) returns (RepairSourceScopeResponse);
   // GetNext advances the runner's pointer to the next actionable phase and
   // returns its injected context.
   rpc GetNext(GetNextRequest) returns (GetNextResponse);
@@ -51,6 +63,9 @@ service ExecutionService {
   // Complete runs the thin guided completion process and assembles the canonical
   // handoff, capturing a velocity point (OT-P1-001/002).
   rpc Complete(CompleteRequest) returns (CompleteResponse);
+  // PartialHandoff persists a resumable incomplete handoff and never marks the
+  // execution normally complete.
+  rpc PartialHandoff(PartialHandoffRequest) returns (PartialHandoffResponse);
   // GetHandoff returns the assembled canonical handoff for an execution.
   rpc GetHandoff(GetHandoffRequest) returns (GetHandoffResponse);
   // GetVelocity returns the per-plan velocity series.
@@ -74,6 +89,8 @@ message Execution {
   string started_at = 6;
   string updated_at = 7;
 	BaselineSetState baseline_set = 8;
+	repeated ScopeAmendment scope_amendments = 9;
+	string degraded_reason = 10;
 }
 
 // Execution-owned checkpoint for a resolved GCT collection. Source paths are
@@ -84,7 +101,7 @@ message BaselineSetState {
   repeated string scenario_targets = 3;
   repeated string repo_paths = 4;
   string captured_at = 5;
-  // complete | partial | degraded
+  // required | scope_repair_required | complete | partial | degraded
   string status = 6;
   int32 required = 7;
   int32 ready = 8;
@@ -96,7 +113,36 @@ message BaselineSetState {
   string collection_branch = 14;
   repeated BaselineSetMember members = 15;
   repeated BaselineSetPathSnapshot path_snapshots = 16;
+  repeated string capture_argv = 17;
+  repeated string wait_argv = 18;
+  repeated string sync_argv = 19;
+  string last_synced_at = 20;
+  SourceEvidencePreflight source_preflight = 21;
+  bool preflight_unavailable = 22;
 }
+
+// Direct GCT preflight evidence retained with the execution checkpoint. It is
+// source-evidence guidance, not a behavioral Test Genie verdict.
+message SourceEvidencePreflight {
+  int32 eligible_files = 1;
+  int64 eligible_bytes = 2;
+  int64 retained_content_bytes = 3;
+  bool repair_required = 4;
+  repeated SourceEvidenceIssue issues = 5;
+  repeated SourceEvidenceRecommendation recommendations = 6;
+  int32 policy_version = 7;
+  bool include_ignored = 8;
+  bool retain_content = 9;
+  int32 excluded_ignored_files = 10;
+  int64 excluded_ignored_bytes = 11;
+  int32 excluded_sensitive_files = 12;
+  int32 excluded_binary_files = 13;
+  int32 oversized_files = 14;
+  repeated SourceEvidenceContributor top_contributors = 15;
+}
+message SourceEvidenceIssue { string code = 1; string severity = 2; string detail = 3; }
+message SourceEvidenceRecommendation { string selection = 1; string reason = 2; }
+message SourceEvidenceContributor { string path = 1; int32 files = 2; int64 bytes = 3; }
 
 message BaselineSetMember {
   string scenario = 1;
@@ -115,6 +161,18 @@ message BaselineSetPathSnapshot {
   string name = 1;
   string branch = 2;
   string created_at = 3;
+}
+
+message ScopeAmendment {
+  string id = 1;
+  string phase_id = 2;
+  string author = 3;
+  string reason = 4;
+  repeated string old_minimum = 5;
+  repeated string new_minimum = 6;
+  string invalidated_at = 7;
+  string created_at = 8;
+  repeated string invalidated_ticket_ids = 9;
 }
 
 // PhaseContext is the just-in-time context injected for a phase: everything an
@@ -153,6 +211,7 @@ message PhaseContext {
   // phase is recommended done.
   PhaseFeedbackCheckpoint feedback_checkpoint = 15;
 	BaselineSetState baseline_set = 16;
+	int32 scope_generation = 17;
 }
 
 // PhaseFeedbackCheckpoint reports whether the current phase has durable feedback
@@ -251,6 +310,52 @@ message ContinueExecutionResponse {
   shared.GuidedStep step = 3;
 }
 
+message SyncBaselineRequest { string execution_id = 1; }
+
+message SyncBaselineResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message AmendScopeRequest {
+  string execution_id = 1;
+  string phase_id = 2;
+  repeated string member = 3;
+  string author = 4;
+  string reason = 5;
+}
+message AmendScopeResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message AdoptBaselineRequest {
+  string execution_id = 1;
+  string mode = 2; // recapture | degraded
+  string name = 3;
+  repeated string member = 4;
+  repeated string path = 5;
+  string reason = 6;
+}
+message AdoptBaselineResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message RepairSourceScopeRequest {
+  string execution_id = 1;
+  repeated string path = 2;
+  string reason = 3;
+}
+message RepairSourceScopeResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
 message GetNextRequest {
   string execution_id = 1;
 }
@@ -301,6 +406,17 @@ message CompleteResponse {
   shared.Handoff handoff = 1;
   // Unsatisfied nudges the agent should address; an empty list means the
   // completion process is clean.
+  repeated CompletionNudge nudges = 2;
+  shared.GuidedStep step = 3;
+}
+
+message PartialHandoffRequest {
+  string execution_id = 1;
+  int64 tokens = 2;
+  int32 iterations = 3;
+}
+message PartialHandoffResponse {
+  shared.Handoff handoff = 1;
   repeated CompletionNudge nudges = 2;
   shared.GuidedStep step = 3;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { Database, ImagePlus, Loader2, MessageSquarePlus, SendHorizontal } from "lucide-react";
 import { useAutoResizeTextarea } from "../../hooks/useAutoResizeTextarea";
@@ -11,6 +11,15 @@ import { MicButton } from "./MicButton";
 
 const MAX_TEXTAREA_HEIGHT = 104;
 const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/gif,image/webp";
+
+export interface MessageComposerHandle {
+  /**
+   * Replace the composer text through the browser's editing pipeline so the
+   * user's native undo history survives (Ctrl+Z restores what they had typed).
+   * A plain controlled-state set would discard that history.
+   */
+  replaceText: (text: string) => void;
+}
 
 interface MessageComposerProps {
   value: string;
@@ -41,7 +50,7 @@ interface MessageComposerProps {
   micTestId?: string;
 }
 
-export function MessageComposer({
+export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(function MessageComposer({
   value,
   onChange,
   onSubmit,
@@ -68,10 +77,28 @@ export function MessageComposer({
   imagePickerRequestKey = 0,
   onTranscript,
   micTestId,
-}: MessageComposerProps) {
+}: MessageComposerProps, ref) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   useAutoResizeTextarea(textareaRef, value, { maxHeight: MAX_TEXTAREA_HEIGHT });
+
+  useImperativeHandle(ref, () => ({
+    replaceText: (text: string) => {
+      const textarea = textareaRef.current;
+      // execCommand routes the edit through the browser's undo stack and
+      // fires a native input event, so the controlled state stays in sync.
+      if (textarea && !textarea.disabled && typeof document.execCommand === "function") {
+        textarea.focus();
+        textarea.select();
+        try {
+          if (document.execCommand("insertText", false, text)) return;
+        } catch {
+          // Unsupported here — fall through to the controlled set.
+        }
+      }
+      onChange(text);
+    },
+  }), [onChange]);
 
   const computedCanSubmit = canSubmit ?? Boolean(value.trim() || attachments.length > 0 || contextItems.length > 0);
   const submitDisabled = !computedCanSubmit || disabled || isSubmitting;
@@ -197,4 +224,4 @@ export function MessageComposer({
       {footer}
     </div>
   );
-}
+});

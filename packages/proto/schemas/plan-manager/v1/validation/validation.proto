@@ -40,14 +40,15 @@ service ValidationService {
   // DeriveBaselineScope derives the exact baseline/validation command set across
   // all affected locations for a phase (OT-P0-005).
   rpc DeriveBaselineScope(DeriveBaselineScopeRequest) returns (DeriveBaselineScopeResponse);
-  // StartValidation persists a durable operation and complete child set before
-  // dispatch. Scoped idempotency retries return the original operation.
+  // StartValidation persists a durable producer ticket and exact action argv.
+  // It never dispatches or waits for producer work.
   rpc StartValidation(StartValidationRequest) returns (StartValidationResponse);
   // GetValidationOperation inspects a durable operation or waits once. A
   // transport timeout detaches without canceling server-owned work.
   rpc GetValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
   rpc WaitValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
   rpc ResumeValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
+  rpc SyncValidation(SyncValidationRequest) returns (SyncValidationResponse);
   // RunValidation runs the derived baseline/check set on request and returns the
   // result + staleness (OT-P0-005, PM-VALID-001). Never fabricates results on
   // exec failure — degrades to UNKNOWN.
@@ -149,12 +150,34 @@ message ValidationOperation {
   int32 schema_version = 18;
   string scope_fingerprint = 19;
   string queue_reason = 20;
+  repeated string producer_wait_argv = 21;
+  repeated string sync_argv = 22;
+  string last_synced_at = 23;
+  string execution_id = 24;
+  int32 scope_generation = 25;
+  repeated string required_members = 26;
+  repeated string selected_members = 27;
+  bool full_inventory = 28;
+  repeated TestRunEvidence test_runs = 29;
+}
+
+message TestRunEvidence {
+  string scenario = 1;
+  string run_id = 2;
+  string status = 3;
+  string fingerprint = 4;
+  string terminal_at = 5;
+  string detail = 6;
 }
 
 message StartValidationRequest {
   string plan_id = 1;
   string phase_id = 2;
   string idempotency_key = 3;
+  string execution_id = 4;
+  int32 scope_generation = 5;
+  repeated string member = 6;
+  repeated TestRunEvidence test_runs = 7;
 }
 
 message StartValidationResponse {
@@ -170,6 +193,9 @@ message GetValidationOperationRequest {
 message GetValidationOperationResponse {
   ValidationOperation operation = 1;
 }
+
+message SyncValidationRequest { string operation_id = 1; }
+message SyncValidationResponse { ValidationOperation operation = 1; }
 
 message RunValidationRequest {
   string plan_id = 1;

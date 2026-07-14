@@ -140,7 +140,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandPort), Group: "Lifecycle and Utility Commands", Summary: "Show running port assignments", Handler: CommandPort, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}, {Name: "port name"}},
-				Options:     []commandtree.OptionArg{commandtree.JSONOption(), instanceOption()},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption(), instanceOption(), {Name: "--path", ValueName: "path", Description: "Resolve a running scenario started from this physical scenario directory"}},
 			},
 		},
 		{Name: string(CommandRequirements), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario requirements", Handler: CommandRequirements, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
@@ -232,6 +232,7 @@ type (
 	StopAllRequest  struct{ JSON bool }
 	PortRequest     struct {
 		ScenarioName, PortName string
+		Path                   string
 		JSON                   bool
 	}
 	OpenRequest struct {
@@ -594,6 +595,7 @@ func ParsePortRequest(globalsJSON bool, args []string) (PortRequest, error) {
 	}
 	req := PortRequest{
 		ScenarioName: slug,
+		Path:         parsed.FlagValue("--path"),
 		JSON:         globalsJSON || parsed.HasFlag("--json"),
 	}
 	if len(parsed.Positionals) > 1 {

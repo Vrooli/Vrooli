@@ -1247,7 +1247,8 @@ export type DiscoverSkillPackRequest = Message<"vrooli.plan_manager.v1.authoring
   concepts: string[];
 
   /**
-   * Optional prompt-manager discovery complexity, e.g. "architectural".
+   * Optional prompt-manager discovery complexity: minor|moderate|major|architectural.
+   * Synonyms low/medium/high are normalized; omit to use prompt-manager's default.
    *
    * @generated from field: string complexity = 3;
    */

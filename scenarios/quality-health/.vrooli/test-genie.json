@@ -287,6 +287,20 @@
         "fix_class": "auto",
         "fixer_status": "implemented"
       },
+      "UI_LAZY_CHUNK_RECOVERY": {
+        "capability_id": "typescript_quality",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "quality-health",
+          "react-coherence"
+        ],
+        "fix_class": "manual",
+        "reason": "Installing the reload guard is an app-entry code change, not a safe config rewrite."
+      },
       "GO_MOD_PRESENT_FOR_API_OR_CLI": {
         "capability_id": "go_quality",
         "local_level_impact": "L2",

@@ -75,6 +75,7 @@ type (
 type PortRequest struct {
 	ScenarioName string
 	PortName     string
+	Path         string
 	JSON         bool
 }
 

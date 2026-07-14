@@ -1,5 +1,6 @@
 import { Profiler, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { installChunkReloadGuard } from '@vrooli/api-base'
 import App from './App.tsx'
 import { onProfilerRender } from './lib/profiler'
 
@@ -43,6 +44,11 @@ const initBridge = async () => {
   initIframeBridgeChild({ parentOrigin, appId: 'system-monitor' });
   window.__systemMonitorBridgeInitialized = true;
 };
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next
+// navigation. This guard reloads once (rate-limited) instead.
+installChunkReloadGuard();
 
 const mountApp = () => {
   const rootEl = document.getElementById('root');

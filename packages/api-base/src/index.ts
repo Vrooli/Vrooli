@@ -29,6 +29,10 @@ export {
   resolveWithConfig,
   createConfigCache,
   createScenarioConnectTransport,
+  // Stale-chunk recovery
+  installChunkReloadGuard,
+  isStaleChunkError,
+  reloadForStaleChunk,
 } from './client/index.js'
 
 export type { ScenarioConnectTransportOptions } from './client/index.js'

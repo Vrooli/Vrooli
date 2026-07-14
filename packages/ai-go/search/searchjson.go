@@ -129,6 +129,10 @@ type PerformanceConfig struct {
 	// TelemetryRequired opts the provider into a hard requirement that latency
 	// evidence exist: certification fails if no run latency can be measured.
 	TelemetryRequired bool `json:"telemetry_required,omitempty"`
+	// MinimumSamples is the minimum number of evaluated cases required before a
+	// run can substantiate this provider's latency and degradation policy. Zero
+	// means the class default (DefaultMinimumSamples).
+	MinimumSamples int `json:"minimum_samples,omitempty"`
 }
 
 // Validate bounds-checks the performance policy.
@@ -138,6 +142,9 @@ func (p PerformanceConfig) Validate() error {
 	}
 	if p.DegradedRateMax < 0 || p.DegradedRateMax > 1 {
 		return fmt.Errorf("performance.degraded_rate_max must be between 0 and 1")
+	}
+	if p.MinimumSamples < 0 {
+		return fmt.Errorf("performance.minimum_samples must be >= 0")
 	}
 	return nil
 }
@@ -155,6 +162,21 @@ func DefaultP95BudgetMs(class string) int {
 		return 15000
 	default:
 		return 2000
+	}
+}
+
+// DefaultMinimumSamples returns the smallest evaluated corpus that can support
+// a production performance claim for a provider class. External providers are
+// reachability/smoke-only by design; locally owned providers need a broader
+// sample before their p95 and degradation figures are meaningful.
+func DefaultMinimumSamples(class string) int {
+	switch strings.TrimSpace(class) {
+	case ClassExternal:
+		return 1
+	case ClassLocalIndex, ClassLocalLive, ClassAsync:
+		return 8
+	default:
+		return 8
 	}
 }
 

@@ -60,7 +60,7 @@ const NoFixesMessage = "No auto-fixable findings are available."
 func BuildFixResponse(scenario string, applied bool, candidates []Candidate) *scenariovalidationv1.FixResponse {
 	resp := &scenariovalidationv1.FixResponse{
 		Scenario:   scenario,
-		Applied:    applied,
+		Applied:    applied && len(candidates) > 0,
 		Candidates: CandidatesToProto(candidates),
 	}
 	if len(candidates) == 0 {
@@ -82,7 +82,8 @@ func (r *Registry) PreviewFixResponse(scenario, root string, ruleIDs []string) (
 }
 
 // ApplyFixResponse applies the registry's remediations for root (restricted to
-// ruleIDs when non-empty) and returns the shared FixResponse with applied=true.
+// ruleIDs when non-empty) and returns the shared FixResponse. Applied is true
+// only when at least one candidate actually existed to mutate.
 func (r *Registry) ApplyFixResponse(scenario, root string, ruleIDs []string) (*scenariovalidationv1.FixResponse, error) {
 	candidates, err := r.Apply(root, ruleIDs)
 	if err != nil {

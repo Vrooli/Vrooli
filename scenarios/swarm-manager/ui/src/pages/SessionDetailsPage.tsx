@@ -27,6 +27,7 @@ import { useComposerImageAttachments } from "../components/composer/useComposerI
 import { optionsToRefs } from "../components/session/context/session-context-options";
 import { sessionOption, startupBriefOption, type SessionContextOption } from "../components/session/context/session-context-refs";
 import { clearStagedContextForSession, mergeContextOptions, peekStagedContextForSession } from "../components/session/context/pending-session-context";
+import { readSessionDraft, writeSessionDraft } from "../components/session/session-draft-storage";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { ActionMenu, ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
 import { nodeIdForSessionArtifact } from "../components/session/session-artifact-routing";
@@ -99,17 +100,13 @@ export function SessionDetailsPage() {
   const { requestDelete: requestDeleteSession, dialogProps: deleteDialogProps } =
     useDeleteConfirm("session");
   const [mobileSection, setMobileSection] = useState<SessionSectionValue>("conversation");
-  const sessionDraftKey = sessionId ? `swarm-session-draft:${sessionId}` : "swarm-session-draft:unknown";
+  const draftSessionId = sessionId ?? "unknown";
   const sessionAttachments = useComposerImageAttachments(sessionId ? `swarm-session-attachments:${sessionId}` : "swarm-session-attachments:unknown");
 
   useEffect(() => {
-    try {
-      setDraft(localStorage.getItem(sessionDraftKey) ?? "");
-    } catch {
-      setDraft("");
-    }
+    setDraft(readSessionDraft(draftSessionId));
     setPendingContext(session?.status === "draft" ? [startupBriefOption(session.kind)] : []);
-  }, [session?.id, session?.kind, session?.status, sessionDraftKey]);
+  }, [session?.id, session?.kind, session?.status, draftSessionId]);
 
   useEffect(() => {
     if (!session) return;
@@ -139,18 +136,10 @@ export function SessionDetailsPage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      try {
-        if (draft) {
-          localStorage.setItem(sessionDraftKey, draft);
-        } else {
-          localStorage.removeItem(sessionDraftKey);
-        }
-      } catch {
-        // ignore storage failures
-      }
+      writeSessionDraft(draftSessionId, draft);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [draft, sessionDraftKey]);
+  }, [draft, draftSessionId]);
 
   const handleSend = useCallback(async () => {
     if (!session || (!draft.trim() && sessionAttachments.attachments.length === 0 && pendingContext.length === 0)) return;
@@ -177,13 +166,13 @@ export function SessionDetailsPage() {
         await continueSession(sendArgs);
       }
       sessionAttachments.clearAll();
-      try { localStorage.removeItem(sessionDraftKey); } catch { /* ignore */ }
+      writeSessionDraft(draftSessionId, "");
     } catch (err) {
       setDraft(message);
       setPendingContext(context);
       setLocalError(err instanceof Error ? err.message : "Unable to send session message.");
     }
-  }, [continueSession, draft, pendingContext, session, sessionAttachments, sessionDraftKey, startSession, uploadSessionAttachments]);
+  }, [continueSession, draft, draftSessionId, pendingContext, session, sessionAttachments, startSession, uploadSessionAttachments]);
 
   const handleRefresh = useCallback(async () => {
     if (!session) return;

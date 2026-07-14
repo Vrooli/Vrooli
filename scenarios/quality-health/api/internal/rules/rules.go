@@ -22,6 +22,7 @@ const (
 	RuleTSDangerousPatterns   = "TS_DANGEROUS_PATTERNS"
 	RuleESLintTypedConfig     = "ESLINT_TYPED_CONFIG"
 	RuleNodeBuildTypecheck    = "NODE_BUILD_TYPECHECK"
+	RuleUILazyChunkRecovery   = "UI_LAZY_CHUNK_RECOVERY"
 	RuleTestingConfigStrict   = "TESTING_CONFIG_LINT_STRICT"
 	RuleGoModPresent          = "GO_MOD_PRESENT_FOR_API_OR_CLI"
 	RuleGoLintConfigPresent   = "GO_LINT_CONFIG_PRESENT"
@@ -91,6 +92,7 @@ func Registry() []Rule {
 		{ID: RuleTSDangerousPatterns, Title: "TypeScript dangerous patterns", Category: "typescript", Severity: "warning", FixClass: FixClassDetectionOnly, FixReason: "Source-semantic suppressions require human intent and are not safe config rewrites.", ContractID: "typescript-static-quality", Applies: Applicability{Language: "typescript"}, Evaluate: evalDangerousPatterns},
 		{ID: RuleESLintTypedConfig, Title: "Typed ESLint config", Category: "typescript", Severity: "error", FixClass: FixClassAutofix, ContractID: "typescript-static-quality", Applies: Applicability{Language: "typescript"}, Evaluate: evalESLintTyped},
 		{ID: RuleNodeBuildTypecheck, Title: "Node build typecheck", Category: "typescript", Severity: "error", FixClass: FixClassAutofix, ContractID: "typescript-static-quality", Applies: Applicability{Language: "typescript"}, Evaluate: evalPackage},
+		{ID: RuleUILazyChunkRecovery, Title: "Lazy-chunk deploy recovery", Category: "typescript", Severity: "error", FixClass: FixClassDetectionOnly, FixReason: "Installing the reload guard is an app-entry code change, not a safe config rewrite.", ContractID: "typescript-static-quality", Applies: Applicability{Language: "typescript"}, WhyItMatters: "Vite builds emit content-hashed chunks; a rebuild deletes the old ones, so any tab opened before the deploy crashes into its error boundary on the next lazy() navigation unless the app self-heals with a reload.", Remediation: "Call installChunkReloadGuard() from @vrooli/api-base at the app entry point (before React mounts), or handle Vite's vite:preloadError event directly.", Evaluate: evalLazyChunkRecovery},
 		{ID: RuleTestingConfigStrict, Title: "Testing strict lint handlers", Category: "scenario", Severity: "error", FixClass: FixClassAutofix, ContractID: "scenario-quality-gates", Applies: Applicability{SurfaceKind: "scenario", Scenario: true}, Evaluate: evalTestingConfig},
 		{ID: RuleGoModPresent, Title: "Go module present", Category: "go", Severity: "error", FixClass: FixClassAutofix, ContractID: "go-static-quality", Applies: Applicability{Language: "go"}, Evaluate: evalGoModPresent},
 		{ID: RuleGoLintConfigPresent, Title: "Go lint config present", Category: "go", Severity: "error", FixClass: FixClassAutofix, ContractID: "go-static-quality", Applies: Applicability{Language: "go"}, Evaluate: evalGoLintConfigPresent},
@@ -314,6 +316,70 @@ func evalPackage(ctx EvalContext) []Finding {
 		return []Finding{ruleFinding(ctx, rule, path, "Build script skips TypeScript type checking", "Build script is `"+build+"`.", "tsc --noEmit or type-check before bundling", build)}
 	}
 	return nil
+}
+
+// lazyCallPattern matches React's lazy()/React.lazy() call sites without
+// matching identifiers that merely end in "lazy" (e.g. isLazy(...)).
+var lazyCallPattern = regexp.MustCompile(`\blazy\s*\(`)
+
+// evalLazyChunkRecovery flags Vite UIs that code-split with lazy() but have
+// no stale-chunk recovery: after a rebuild the old hashed chunks are gone,
+// so tabs opened before the deploy crash into their error boundary on the
+// next lazy navigation unless the app reloads itself.
+func evalLazyChunkRecovery(ctx EvalContext) []Finding {
+	rule, _ := ByID(RuleUILazyChunkRecovery)
+	viteConfig := firstExisting(
+		filepath.Join(ctx.Surface.RootPath, "vite.config.ts"),
+		filepath.Join(ctx.Surface.RootPath, "vite.config.js"),
+		filepath.Join(ctx.Surface.RootPath, "vite.config.mts"),
+		filepath.Join(ctx.Surface.RootPath, "vite.config.mjs"),
+	)
+	if viteConfig == "" {
+		// Only Vite builds have hashed-chunk churn plus the vite:preloadError hook.
+		return nil
+	}
+	var lazyFiles []string
+	guarded := false
+	_ = filepath.WalkDir(ctx.Surface.RootPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case "node_modules", "dist", "build", "coverage", ".vite", ".git":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if ext := filepath.Ext(path); ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		text := string(raw)
+		if strings.Contains(text, "installChunkReloadGuard") || strings.Contains(text, "vite:preloadError") {
+			guarded = true
+		}
+		// Test files exercise lazy() without shipping chunks; skip them.
+		base := filepath.Base(path)
+		if strings.Contains(base, ".test.") || strings.Contains(base, ".spec.") {
+			return nil
+		}
+		if lazyCallPattern.MatchString(text) {
+			lazyFiles = append(lazyFiles, path)
+		}
+		return nil
+	})
+	if guarded || len(lazyFiles) == 0 {
+		return nil
+	}
+	sort.Strings(lazyFiles)
+	if len(lazyFiles) > 10 {
+		lazyFiles = lazyFiles[:10]
+	}
+	return []Finding{ruleFinding(ctx, rule, lazyFiles[0], "Code-split UI has no stale-chunk recovery", "lazy() call sites: "+strings.Join(lazyFiles, ", ")+".", "installChunkReloadGuard() (from @vrooli/api-base) or a vite:preloadError handler", "no vite:preloadError handling found")}
 }
 
 func evalDangerousPatterns(ctx EvalContext) []Finding {

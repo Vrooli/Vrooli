@@ -89,6 +89,12 @@ func UninstallService(ctx context.Context, opts ServiceInstallOptions) (ServiceI
 	return ServiceInstallResult{UnitName: systemdUserUnitName, UnitPath: unitPath, Scope: "user", Active: false}, nil
 }
 
+// ServiceStartHint is the platform-native command that starts the installed
+// supervisor service, shown in `runtime supervisor status` next steps.
+func ServiceStartHint() string {
+	return "systemctl --user start " + systemdUserUnitName
+}
+
 func systemdUserUnitPath() (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {

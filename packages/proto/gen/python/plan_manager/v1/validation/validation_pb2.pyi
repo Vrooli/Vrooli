@@ -117,7 +117,7 @@ class ValidationChildOperation(_message.Message):
     def __init__(self, id: _Optional[str] = ..., command: _Optional[str] = ..., oracle: _Optional[bool] = ..., status: _Optional[_Union[ValidationChildStatus, str]] = ..., attempt: _Optional[int] = ..., external_id: _Optional[str] = ..., verdict: _Optional[_Union[_model_pb2.ValidationVerdict, str]] = ..., detail: _Optional[str] = ..., error: _Optional[_Union[ValidationOperationError, _Mapping]] = ..., queued_at: _Optional[str] = ..., started_at: _Optional[str] = ..., terminal_at: _Optional[str] = ...) -> None: ...
 
 class ValidationOperation(_message.Message):
-    __slots__ = ("id", "plan_id", "phase_id", "idempotency_key", "status", "attempt", "children", "result", "result_ref", "error", "queued_at", "started_at", "terminal_at", "queue_budget_seconds", "execution_budget_seconds", "transport_wait_budget_seconds", "recommended_wait_seconds", "schema_version", "scope_fingerprint", "queue_reason")
+    __slots__ = ("id", "plan_id", "phase_id", "idempotency_key", "status", "attempt", "children", "result", "result_ref", "error", "queued_at", "started_at", "terminal_at", "queue_budget_seconds", "execution_budget_seconds", "transport_wait_budget_seconds", "recommended_wait_seconds", "schema_version", "scope_fingerprint", "queue_reason", "producer_wait_argv", "sync_argv", "last_synced_at", "execution_id", "scope_generation", "required_members", "selected_members", "full_inventory", "test_runs")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -138,6 +138,15 @@ class ValidationOperation(_message.Message):
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     QUEUE_REASON_FIELD_NUMBER: _ClassVar[int]
+    PRODUCER_WAIT_ARGV_FIELD_NUMBER: _ClassVar[int]
+    SYNC_ARGV_FIELD_NUMBER: _ClassVar[int]
+    LAST_SYNCED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_MEMBERS_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_MEMBERS_FIELD_NUMBER: _ClassVar[int]
+    FULL_INVENTORY_FIELD_NUMBER: _ClassVar[int]
+    TEST_RUNS_FIELD_NUMBER: _ClassVar[int]
     id: str
     plan_id: str
     phase_id: str
@@ -158,17 +167,50 @@ class ValidationOperation(_message.Message):
     schema_version: int
     scope_fingerprint: str
     queue_reason: str
-    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., status: _Optional[_Union[ValidationOperationStatus, str]] = ..., attempt: _Optional[int] = ..., children: _Optional[_Iterable[_Union[ValidationChildOperation, _Mapping]]] = ..., result: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., result_ref: _Optional[str] = ..., error: _Optional[_Union[ValidationOperationError, _Mapping]] = ..., queued_at: _Optional[str] = ..., started_at: _Optional[str] = ..., terminal_at: _Optional[str] = ..., queue_budget_seconds: _Optional[int] = ..., execution_budget_seconds: _Optional[int] = ..., transport_wait_budget_seconds: _Optional[int] = ..., recommended_wait_seconds: _Optional[int] = ..., schema_version: _Optional[int] = ..., scope_fingerprint: _Optional[str] = ..., queue_reason: _Optional[str] = ...) -> None: ...
+    producer_wait_argv: _containers.RepeatedScalarFieldContainer[str]
+    sync_argv: _containers.RepeatedScalarFieldContainer[str]
+    last_synced_at: str
+    execution_id: str
+    scope_generation: int
+    required_members: _containers.RepeatedScalarFieldContainer[str]
+    selected_members: _containers.RepeatedScalarFieldContainer[str]
+    full_inventory: bool
+    test_runs: _containers.RepeatedCompositeFieldContainer[TestRunEvidence]
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., status: _Optional[_Union[ValidationOperationStatus, str]] = ..., attempt: _Optional[int] = ..., children: _Optional[_Iterable[_Union[ValidationChildOperation, _Mapping]]] = ..., result: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., result_ref: _Optional[str] = ..., error: _Optional[_Union[ValidationOperationError, _Mapping]] = ..., queued_at: _Optional[str] = ..., started_at: _Optional[str] = ..., terminal_at: _Optional[str] = ..., queue_budget_seconds: _Optional[int] = ..., execution_budget_seconds: _Optional[int] = ..., transport_wait_budget_seconds: _Optional[int] = ..., recommended_wait_seconds: _Optional[int] = ..., schema_version: _Optional[int] = ..., scope_fingerprint: _Optional[str] = ..., queue_reason: _Optional[str] = ..., producer_wait_argv: _Optional[_Iterable[str]] = ..., sync_argv: _Optional[_Iterable[str]] = ..., last_synced_at: _Optional[str] = ..., execution_id: _Optional[str] = ..., scope_generation: _Optional[int] = ..., required_members: _Optional[_Iterable[str]] = ..., selected_members: _Optional[_Iterable[str]] = ..., full_inventory: _Optional[bool] = ..., test_runs: _Optional[_Iterable[_Union[TestRunEvidence, _Mapping]]] = ...) -> None: ...
+
+class TestRunEvidence(_message.Message):
+    __slots__ = ("scenario", "run_id", "status", "fingerprint", "terminal_at", "detail")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_AT_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    status: str
+    fingerprint: str
+    terminal_at: str
+    detail: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., fingerprint: _Optional[str] = ..., terminal_at: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class StartValidationRequest(_message.Message):
-    __slots__ = ("plan_id", "phase_id", "idempotency_key")
+    __slots__ = ("plan_id", "phase_id", "idempotency_key", "execution_id", "scope_generation", "member", "test_runs")
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    MEMBER_FIELD_NUMBER: _ClassVar[int]
+    TEST_RUNS_FIELD_NUMBER: _ClassVar[int]
     plan_id: str
     phase_id: str
     idempotency_key: str
-    def __init__(self, plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    execution_id: str
+    scope_generation: int
+    member: _containers.RepeatedScalarFieldContainer[str]
+    test_runs: _containers.RepeatedCompositeFieldContainer[TestRunEvidence]
+    def __init__(self, plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., execution_id: _Optional[str] = ..., scope_generation: _Optional[int] = ..., member: _Optional[_Iterable[str]] = ..., test_runs: _Optional[_Iterable[_Union[TestRunEvidence, _Mapping]]] = ...) -> None: ...
 
 class StartValidationResponse(_message.Message):
     __slots__ = ("operation", "deduplicated")
@@ -187,6 +229,18 @@ class GetValidationOperationRequest(_message.Message):
     def __init__(self, operation_id: _Optional[str] = ..., wait: _Optional[bool] = ...) -> None: ...
 
 class GetValidationOperationResponse(_message.Message):
+    __slots__ = ("operation",)
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    operation: ValidationOperation
+    def __init__(self, operation: _Optional[_Union[ValidationOperation, _Mapping]] = ...) -> None: ...
+
+class SyncValidationRequest(_message.Message):
+    __slots__ = ("operation_id",)
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    operation_id: str
+    def __init__(self, operation_id: _Optional[str] = ...) -> None: ...
+
+class SyncValidationResponse(_message.Message):
     __slots__ = ("operation",)
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     operation: ValidationOperation

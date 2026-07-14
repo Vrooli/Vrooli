@@ -412,7 +412,8 @@ message DiscoverSkillPackRequest {
   // Decomposed discovery concepts (domain / technology / problem type /
   // scenario surface lenses). Empty falls back to the plan title.
   repeated string concepts = 2;
-  // Optional prompt-manager discovery complexity, e.g. "architectural".
+  // Optional prompt-manager discovery complexity: minor|moderate|major|architectural.
+  // Synonyms low/medium/high are normalized; omit to use prompt-manager's default.
   string complexity = 3;
 }
 

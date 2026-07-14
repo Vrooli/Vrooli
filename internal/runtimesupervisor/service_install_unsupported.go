@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !darwin
 
 package runtimesupervisor
 
@@ -22,9 +22,13 @@ type ServiceInstallResult struct {
 }
 
 func InstallService(context.Context, ServiceInstallOptions) (ServiceInstallResult, error) {
-	return ServiceInstallResult{}, fmt.Errorf("runtime supervisor service install is only implemented for Linux systemd user services")
+	return ServiceInstallResult{}, fmt.Errorf("runtime supervisor service install is only implemented for Linux (systemd user services) and macOS (launchd agents)")
 }
 
 func UninstallService(context.Context, ServiceInstallOptions) (ServiceInstallResult, error) {
-	return ServiceInstallResult{}, fmt.Errorf("runtime supervisor service uninstall is only implemented for Linux systemd user services")
+	return ServiceInstallResult{}, fmt.Errorf("runtime supervisor service uninstall is only implemented for Linux (systemd user services) and macOS (launchd agents)")
 }
+
+// ServiceStartHint is the platform-native command that starts the installed
+// supervisor service; empty when service install is unsupported.
+func ServiceStartHint() string { return "" }

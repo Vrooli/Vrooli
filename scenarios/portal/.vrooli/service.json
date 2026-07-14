@@ -76,7 +76,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "port": 20004
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -220,14 +220,16 @@
         "type": "scenario",
         "enabled": true,
         "required": false,
-      "description": "Provides coding-agent chat execution through Portal's declared role-only profile.",
-      "config": {
-        "profiles": {
-          "reconcile": true,
-          "mode": "update_if_unmodified",
-          "sources": [".vrooli/agent-profiles/agent-chat.json"]
+        "description": "Provides coding-agent chat execution through Portal's declared role-only profile.",
+        "config": {
+          "profiles": {
+            "reconcile": true,
+            "mode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-profiles/agent-chat.json"
+            ]
+          }
         }
-      }
       },
       "prompt-manager": {
         "type": "scenario",

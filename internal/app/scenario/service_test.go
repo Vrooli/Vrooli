@@ -12,8 +12,9 @@ import (
 )
 
 type fakeScenarioOps struct {
-	started []string
-	detail  orchestrator.Detail
+	started      []string
+	detail       orchestrator.Detail
+	detailAtPath string
 }
 
 func (f *fakeScenarioOps) StartDetailed(name string, opts lifecycle.StartOptions) (orchestrator.StartResult, error) {
@@ -44,6 +45,11 @@ func (f *fakeScenarioOps) Detail(name string) (orchestrator.Detail, error) {
 		return f.detail, nil
 	}
 	return orchestrator.Detail{Runtime: process.ScenarioRuntime{}}, nil
+}
+
+func (f *fakeScenarioOps) DetailAtPath(_ string, path string) (orchestrator.Detail, error) {
+	f.detailAtPath = path
+	return f.Detail("")
 }
 
 func (f *fakeScenarioOps) StartAll() (control.StartReport, error) {
@@ -132,6 +138,22 @@ func TestPortResolvesSpecificPortFromRuntimeDetails(t *testing.T) {
 	}
 	if resp.Single.PortName != "API_PORT" || resp.Single.Step != "api" || resp.Single.Port != 18080 {
 		t.Fatalf("single = %#v, want API_PORT/api/18080", resp.Single)
+	}
+}
+
+func TestPortUsesExplicitScenarioPath(t *testing.T) {
+	ops := &fakeScenarioOps{detail: portDetail("running", 18080)}
+	svc := Service{Scenarios: ops, Runner: fakeRunner{}}
+
+	resp, err := svc.Port(PortRequest{ScenarioName: "demo", PortName: "api", Path: "/tmp/generated/scenarios/demo"})
+	if err != nil {
+		t.Fatalf("Port(api,path) error = %v", err)
+	}
+	if resp.Single == nil || !resp.Single.Success {
+		t.Fatalf("response = %#v, want successful single-port response", resp)
+	}
+	if got, want := ops.detailAtPath, "/tmp/generated/scenarios/demo"; got != want {
+		t.Fatalf("DetailAtPath path = %q, want %q", got, want)
 	}
 }
 

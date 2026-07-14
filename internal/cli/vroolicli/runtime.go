@@ -739,7 +739,9 @@ func (app *App) statusRuntimeSupervisor(ctx *CommandContext, args []string) erro
 	if report.Status != scenarioruntime.SupervisorStatusRunning {
 		_, _ = io.WriteString(ctx.Stdout, "Next steps:\n")
 		_, _ = io.WriteString(ctx.Stdout, "  vrooli runtime supervisor install --user\n")
-		_, _ = io.WriteString(ctx.Stdout, "  systemctl --user start vrooli-runtime-supervisor.service\n")
+		if hint := runtimesupervisor.ServiceStartHint(); hint != "" {
+			_, _ = io.WriteString(ctx.Stdout, "  "+hint+"\n")
+		}
 		_, _ = io.WriteString(ctx.Stdout, "  vrooli runtime supervisor status\n")
 	}
 	return nil

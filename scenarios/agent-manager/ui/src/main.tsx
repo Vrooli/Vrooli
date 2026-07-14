@@ -1,12 +1,17 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { getProxyInfo } from "@vrooli/api-base";
+import { getProxyInfo, installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import { onProfilerRender } from "./lib/profiler";
 import "./styles/global.css";
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next
+// navigation. This guard reloads once (rate-limited) instead.
+installChunkReloadGuard();
 
 declare global {
   interface Window {

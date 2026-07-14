@@ -28,14 +28,16 @@ type Execution struct {
 	Id     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	PlanId string                 `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
 	// VROOLI_AGENT_MANAGER_RUN_ID when present (best-effort when absent).
-	RunId          string            `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	CurrentPhaseId string            `protobuf:"bytes,4,opt,name=current_phase_id,json=currentPhaseId,proto3" json:"current_phase_id,omitempty"`
-	Complete       bool              `protobuf:"varint,5,opt,name=complete,proto3" json:"complete,omitempty"`
-	StartedAt      string            `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	UpdatedAt      string            `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	BaselineSet    *BaselineSetState `protobuf:"bytes,8,opt,name=baseline_set,json=baselineSet,proto3" json:"baseline_set,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	RunId           string            `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	CurrentPhaseId  string            `protobuf:"bytes,4,opt,name=current_phase_id,json=currentPhaseId,proto3" json:"current_phase_id,omitempty"`
+	Complete        bool              `protobuf:"varint,5,opt,name=complete,proto3" json:"complete,omitempty"`
+	StartedAt       string            `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	UpdatedAt       string            `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	BaselineSet     *BaselineSetState `protobuf:"bytes,8,opt,name=baseline_set,json=baselineSet,proto3" json:"baseline_set,omitempty"`
+	ScopeAmendments []*ScopeAmendment `protobuf:"bytes,9,rep,name=scope_amendments,json=scopeAmendments,proto3" json:"scope_amendments,omitempty"`
+	DegradedReason  string            `protobuf:"bytes,10,opt,name=degraded_reason,json=degradedReason,proto3" json:"degraded_reason,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Execution) Reset() {
@@ -124,6 +126,20 @@ func (x *Execution) GetBaselineSet() *BaselineSetState {
 	return nil
 }
 
+func (x *Execution) GetScopeAmendments() []*ScopeAmendment {
+	if x != nil {
+		return x.ScopeAmendments
+	}
+	return nil
+}
+
+func (x *Execution) GetDegradedReason() string {
+	if x != nil {
+		return x.DegradedReason
+	}
+	return ""
+}
+
 // Execution-owned checkpoint for a resolved GCT collection. Source paths are
 // informational evidence; required/ready coverage is behavioral only.
 type BaselineSetState struct {
@@ -133,20 +149,26 @@ type BaselineSetState struct {
 	ScenarioTargets []string               `protobuf:"bytes,3,rep,name=scenario_targets,json=scenarioTargets,proto3" json:"scenario_targets,omitempty"`
 	RepoPaths       []string               `protobuf:"bytes,4,rep,name=repo_paths,json=repoPaths,proto3" json:"repo_paths,omitempty"`
 	CapturedAt      string                 `protobuf:"bytes,5,opt,name=captured_at,json=capturedAt,proto3" json:"captured_at,omitempty"`
-	// complete | partial | degraded
-	Status           string                     `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	Required         int32                      `protobuf:"varint,7,opt,name=required,proto3" json:"required,omitempty"`
-	Ready            int32                      `protobuf:"varint,8,opt,name=ready,proto3" json:"ready,omitempty"`
-	Pending          int32                      `protobuf:"varint,9,opt,name=pending,proto3" json:"pending,omitempty"`
-	Failed           int32                      `protobuf:"varint,10,opt,name=failed,proto3" json:"failed,omitempty"`
-	Skipped          int32                      `protobuf:"varint,11,opt,name=skipped,proto3" json:"skipped,omitempty"`
-	Stale            int32                      `protobuf:"varint,12,opt,name=stale,proto3" json:"stale,omitempty"`
-	Detail           string                     `protobuf:"bytes,13,opt,name=detail,proto3" json:"detail,omitempty"`
-	CollectionBranch string                     `protobuf:"bytes,14,opt,name=collection_branch,json=collectionBranch,proto3" json:"collection_branch,omitempty"`
-	Members          []*BaselineSetMember       `protobuf:"bytes,15,rep,name=members,proto3" json:"members,omitempty"`
-	PathSnapshots    []*BaselineSetPathSnapshot `protobuf:"bytes,16,rep,name=path_snapshots,json=pathSnapshots,proto3" json:"path_snapshots,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// required | scope_repair_required | complete | partial | degraded
+	Status               string                     `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	Required             int32                      `protobuf:"varint,7,opt,name=required,proto3" json:"required,omitempty"`
+	Ready                int32                      `protobuf:"varint,8,opt,name=ready,proto3" json:"ready,omitempty"`
+	Pending              int32                      `protobuf:"varint,9,opt,name=pending,proto3" json:"pending,omitempty"`
+	Failed               int32                      `protobuf:"varint,10,opt,name=failed,proto3" json:"failed,omitempty"`
+	Skipped              int32                      `protobuf:"varint,11,opt,name=skipped,proto3" json:"skipped,omitempty"`
+	Stale                int32                      `protobuf:"varint,12,opt,name=stale,proto3" json:"stale,omitempty"`
+	Detail               string                     `protobuf:"bytes,13,opt,name=detail,proto3" json:"detail,omitempty"`
+	CollectionBranch     string                     `protobuf:"bytes,14,opt,name=collection_branch,json=collectionBranch,proto3" json:"collection_branch,omitempty"`
+	Members              []*BaselineSetMember       `protobuf:"bytes,15,rep,name=members,proto3" json:"members,omitempty"`
+	PathSnapshots        []*BaselineSetPathSnapshot `protobuf:"bytes,16,rep,name=path_snapshots,json=pathSnapshots,proto3" json:"path_snapshots,omitempty"`
+	CaptureArgv          []string                   `protobuf:"bytes,17,rep,name=capture_argv,json=captureArgv,proto3" json:"capture_argv,omitempty"`
+	WaitArgv             []string                   `protobuf:"bytes,18,rep,name=wait_argv,json=waitArgv,proto3" json:"wait_argv,omitempty"`
+	SyncArgv             []string                   `protobuf:"bytes,19,rep,name=sync_argv,json=syncArgv,proto3" json:"sync_argv,omitempty"`
+	LastSyncedAt         string                     `protobuf:"bytes,20,opt,name=last_synced_at,json=lastSyncedAt,proto3" json:"last_synced_at,omitempty"`
+	SourcePreflight      *SourceEvidencePreflight   `protobuf:"bytes,21,opt,name=source_preflight,json=sourcePreflight,proto3" json:"source_preflight,omitempty"`
+	PreflightUnavailable bool                       `protobuf:"varint,22,opt,name=preflight_unavailable,json=preflightUnavailable,proto3" json:"preflight_unavailable,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *BaselineSetState) Reset() {
@@ -291,6 +313,378 @@ func (x *BaselineSetState) GetPathSnapshots() []*BaselineSetPathSnapshot {
 	return nil
 }
 
+func (x *BaselineSetState) GetCaptureArgv() []string {
+	if x != nil {
+		return x.CaptureArgv
+	}
+	return nil
+}
+
+func (x *BaselineSetState) GetWaitArgv() []string {
+	if x != nil {
+		return x.WaitArgv
+	}
+	return nil
+}
+
+func (x *BaselineSetState) GetSyncArgv() []string {
+	if x != nil {
+		return x.SyncArgv
+	}
+	return nil
+}
+
+func (x *BaselineSetState) GetLastSyncedAt() string {
+	if x != nil {
+		return x.LastSyncedAt
+	}
+	return ""
+}
+
+func (x *BaselineSetState) GetSourcePreflight() *SourceEvidencePreflight {
+	if x != nil {
+		return x.SourcePreflight
+	}
+	return nil
+}
+
+func (x *BaselineSetState) GetPreflightUnavailable() bool {
+	if x != nil {
+		return x.PreflightUnavailable
+	}
+	return false
+}
+
+// Direct GCT preflight evidence retained with the execution checkpoint. It is
+// source-evidence guidance, not a behavioral Test Genie verdict.
+type SourceEvidencePreflight struct {
+	state                  protoimpl.MessageState          `protogen:"open.v1"`
+	EligibleFiles          int32                           `protobuf:"varint,1,opt,name=eligible_files,json=eligibleFiles,proto3" json:"eligible_files,omitempty"`
+	EligibleBytes          int64                           `protobuf:"varint,2,opt,name=eligible_bytes,json=eligibleBytes,proto3" json:"eligible_bytes,omitempty"`
+	RetainedContentBytes   int64                           `protobuf:"varint,3,opt,name=retained_content_bytes,json=retainedContentBytes,proto3" json:"retained_content_bytes,omitempty"`
+	RepairRequired         bool                            `protobuf:"varint,4,opt,name=repair_required,json=repairRequired,proto3" json:"repair_required,omitempty"`
+	Issues                 []*SourceEvidenceIssue          `protobuf:"bytes,5,rep,name=issues,proto3" json:"issues,omitempty"`
+	Recommendations        []*SourceEvidenceRecommendation `protobuf:"bytes,6,rep,name=recommendations,proto3" json:"recommendations,omitempty"`
+	PolicyVersion          int32                           `protobuf:"varint,7,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
+	IncludeIgnored         bool                            `protobuf:"varint,8,opt,name=include_ignored,json=includeIgnored,proto3" json:"include_ignored,omitempty"`
+	RetainContent          bool                            `protobuf:"varint,9,opt,name=retain_content,json=retainContent,proto3" json:"retain_content,omitempty"`
+	ExcludedIgnoredFiles   int32                           `protobuf:"varint,10,opt,name=excluded_ignored_files,json=excludedIgnoredFiles,proto3" json:"excluded_ignored_files,omitempty"`
+	ExcludedIgnoredBytes   int64                           `protobuf:"varint,11,opt,name=excluded_ignored_bytes,json=excludedIgnoredBytes,proto3" json:"excluded_ignored_bytes,omitempty"`
+	ExcludedSensitiveFiles int32                           `protobuf:"varint,12,opt,name=excluded_sensitive_files,json=excludedSensitiveFiles,proto3" json:"excluded_sensitive_files,omitempty"`
+	ExcludedBinaryFiles    int32                           `protobuf:"varint,13,opt,name=excluded_binary_files,json=excludedBinaryFiles,proto3" json:"excluded_binary_files,omitempty"`
+	OversizedFiles         int32                           `protobuf:"varint,14,opt,name=oversized_files,json=oversizedFiles,proto3" json:"oversized_files,omitempty"`
+	TopContributors        []*SourceEvidenceContributor    `protobuf:"bytes,15,rep,name=top_contributors,json=topContributors,proto3" json:"top_contributors,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *SourceEvidencePreflight) Reset() {
+	*x = SourceEvidencePreflight{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SourceEvidencePreflight) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SourceEvidencePreflight) ProtoMessage() {}
+
+func (x *SourceEvidencePreflight) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SourceEvidencePreflight.ProtoReflect.Descriptor instead.
+func (*SourceEvidencePreflight) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SourceEvidencePreflight) GetEligibleFiles() int32 {
+	if x != nil {
+		return x.EligibleFiles
+	}
+	return 0
+}
+
+func (x *SourceEvidencePreflight) GetEligibleBytes() int64 {
+	if x != nil {
+		return x.EligibleBytes
+	}
+	return 0
+}
+
+func (x *SourceEvidencePreflight) GetRetainedContentBytes() int64 {
+	if x != nil {
+		return x.RetainedContentBytes
+	}
+	return 0
+}
+
+func (x *SourceEvidencePreflight) GetRepairRequired() bool {
+	if x != nil {
+		return x.RepairRequired
+	}
+	return false
+}
+
+func (x *SourceEvidencePreflight) GetIssues() []*SourceEvidenceIssue {
+	if x != nil {
+		return x.Issues
+	}
+	return nil
+}
+
+func (x *SourceEvidencePreflight) GetRecommendations() []*SourceEvidenceRecommendation {
+	if x != nil {
+		return x.Recommendations
+	}
+	return nil
+}
+
+func (x *SourceEvidencePreflight) GetPolicyVersion() int32 {
+	if x != nil {
+		return x.PolicyVersion
+	}
+	return 0
+}
+
+func (x *SourceEvidencePreflight) GetIncludeIgnored() bool {
+	if x != nil {
+		return x.IncludeIgnored
+	}
+	return false
+}
+
+func (x *SourceEvidencePreflight) GetRetainContent() bool {
+	if x != nil {
+		return x.RetainContent
+	}
+	return false
+}
+
+func (x *SourceEvidencePreflight) GetExcludedIgnoredFiles() int32 {
+	if x != nil {
+		return x.ExcludedIgnoredFiles
+	}
+	return 0
+}
+
+func (x *SourceEvidencePreflight) GetExcludedIgnoredBytes() int64 {
+	if x != nil {
+		return x.ExcludedIgnoredBytes
+	}
+	return 0
+}
+
+func (x *SourceEvidencePreflight) GetExcludedSensitiveFiles() int32 {
+	if x != nil {
+		return x.ExcludedSensitiveFiles
+	}
+	return 0
+}
+
+func (x *SourceEvidencePreflight) GetExcludedBinaryFiles() int32 {
+	if x != nil {
+		return x.ExcludedBinaryFiles
+	}
+	return 0
+}
+
+func (x *SourceEvidencePreflight) GetOversizedFiles() int32 {
+	if x != nil {
+		return x.OversizedFiles
+	}
+	return 0
+}
+
+func (x *SourceEvidencePreflight) GetTopContributors() []*SourceEvidenceContributor {
+	if x != nil {
+		return x.TopContributors
+	}
+	return nil
+}
+
+type SourceEvidenceIssue struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Severity      string                 `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"`
+	Detail        string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SourceEvidenceIssue) Reset() {
+	*x = SourceEvidenceIssue{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SourceEvidenceIssue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SourceEvidenceIssue) ProtoMessage() {}
+
+func (x *SourceEvidenceIssue) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SourceEvidenceIssue.ProtoReflect.Descriptor instead.
+func (*SourceEvidenceIssue) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SourceEvidenceIssue) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *SourceEvidenceIssue) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *SourceEvidenceIssue) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type SourceEvidenceRecommendation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Selection     string                 `protobuf:"bytes,1,opt,name=selection,proto3" json:"selection,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SourceEvidenceRecommendation) Reset() {
+	*x = SourceEvidenceRecommendation{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SourceEvidenceRecommendation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SourceEvidenceRecommendation) ProtoMessage() {}
+
+func (x *SourceEvidenceRecommendation) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SourceEvidenceRecommendation.ProtoReflect.Descriptor instead.
+func (*SourceEvidenceRecommendation) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SourceEvidenceRecommendation) GetSelection() string {
+	if x != nil {
+		return x.Selection
+	}
+	return ""
+}
+
+func (x *SourceEvidenceRecommendation) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type SourceEvidenceContributor struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Files         int32                  `protobuf:"varint,2,opt,name=files,proto3" json:"files,omitempty"`
+	Bytes         int64                  `protobuf:"varint,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SourceEvidenceContributor) Reset() {
+	*x = SourceEvidenceContributor{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SourceEvidenceContributor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SourceEvidenceContributor) ProtoMessage() {}
+
+func (x *SourceEvidenceContributor) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SourceEvidenceContributor.ProtoReflect.Descriptor instead.
+func (*SourceEvidenceContributor) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SourceEvidenceContributor) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SourceEvidenceContributor) GetFiles() int32 {
+	if x != nil {
+		return x.Files
+	}
+	return 0
+}
+
+func (x *SourceEvidenceContributor) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
 type BaselineSetMember struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Scenario     string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -307,7 +701,7 @@ type BaselineSetMember struct {
 
 func (x *BaselineSetMember) Reset() {
 	*x = BaselineSetMember{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[2]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +713,7 @@ func (x *BaselineSetMember) String() string {
 func (*BaselineSetMember) ProtoMessage() {}
 
 func (x *BaselineSetMember) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[2]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +726,7 @@ func (x *BaselineSetMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaselineSetMember.ProtoReflect.Descriptor instead.
 func (*BaselineSetMember) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{2}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *BaselineSetMember) GetScenario() string {
@@ -397,7 +791,7 @@ type BaselineSetPathSnapshot struct {
 
 func (x *BaselineSetPathSnapshot) Reset() {
 	*x = BaselineSetPathSnapshot{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[3]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -409,7 +803,7 @@ func (x *BaselineSetPathSnapshot) String() string {
 func (*BaselineSetPathSnapshot) ProtoMessage() {}
 
 func (x *BaselineSetPathSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[3]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -422,7 +816,7 @@ func (x *BaselineSetPathSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaselineSetPathSnapshot.ProtoReflect.Descriptor instead.
 func (*BaselineSetPathSnapshot) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{3}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *BaselineSetPathSnapshot) GetName() string {
@@ -444,6 +838,114 @@ func (x *BaselineSetPathSnapshot) GetCreatedAt() string {
 		return x.CreatedAt
 	}
 	return ""
+}
+
+type ScopeAmendment struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	PhaseId              string                 `protobuf:"bytes,2,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	Author               string                 `protobuf:"bytes,3,opt,name=author,proto3" json:"author,omitempty"`
+	Reason               string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	OldMinimum           []string               `protobuf:"bytes,5,rep,name=old_minimum,json=oldMinimum,proto3" json:"old_minimum,omitempty"`
+	NewMinimum           []string               `protobuf:"bytes,6,rep,name=new_minimum,json=newMinimum,proto3" json:"new_minimum,omitempty"`
+	InvalidatedAt        string                 `protobuf:"bytes,7,opt,name=invalidated_at,json=invalidatedAt,proto3" json:"invalidated_at,omitempty"`
+	CreatedAt            string                 `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	InvalidatedTicketIds []string               `protobuf:"bytes,9,rep,name=invalidated_ticket_ids,json=invalidatedTicketIds,proto3" json:"invalidated_ticket_ids,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ScopeAmendment) Reset() {
+	*x = ScopeAmendment{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScopeAmendment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScopeAmendment) ProtoMessage() {}
+
+func (x *ScopeAmendment) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScopeAmendment.ProtoReflect.Descriptor instead.
+func (*ScopeAmendment) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ScopeAmendment) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ScopeAmendment) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+func (x *ScopeAmendment) GetAuthor() string {
+	if x != nil {
+		return x.Author
+	}
+	return ""
+}
+
+func (x *ScopeAmendment) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ScopeAmendment) GetOldMinimum() []string {
+	if x != nil {
+		return x.OldMinimum
+	}
+	return nil
+}
+
+func (x *ScopeAmendment) GetNewMinimum() []string {
+	if x != nil {
+		return x.NewMinimum
+	}
+	return nil
+}
+
+func (x *ScopeAmendment) GetInvalidatedAt() string {
+	if x != nil {
+		return x.InvalidatedAt
+	}
+	return ""
+}
+
+func (x *ScopeAmendment) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *ScopeAmendment) GetInvalidatedTicketIds() []string {
+	if x != nil {
+		return x.InvalidatedTicketIds
+	}
+	return nil
 }
 
 // PhaseContext is the just-in-time context injected for a phase: everything an
@@ -483,13 +985,14 @@ type PhaseContext struct {
 	// phase is recommended done.
 	FeedbackCheckpoint *PhaseFeedbackCheckpoint `protobuf:"bytes,15,opt,name=feedback_checkpoint,json=feedbackCheckpoint,proto3" json:"feedback_checkpoint,omitempty"`
 	BaselineSet        *BaselineSetState        `protobuf:"bytes,16,opt,name=baseline_set,json=baselineSet,proto3" json:"baseline_set,omitempty"`
+	ScopeGeneration    int32                    `protobuf:"varint,17,opt,name=scope_generation,json=scopeGeneration,proto3" json:"scope_generation,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PhaseContext) Reset() {
 	*x = PhaseContext{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[4]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -501,7 +1004,7 @@ func (x *PhaseContext) String() string {
 func (*PhaseContext) ProtoMessage() {}
 
 func (x *PhaseContext) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[4]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -514,7 +1017,7 @@ func (x *PhaseContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhaseContext.ProtoReflect.Descriptor instead.
 func (*PhaseContext) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{4}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PhaseContext) GetCurrentPhase() *shared.Phase {
@@ -629,6 +1132,13 @@ func (x *PhaseContext) GetBaselineSet() *BaselineSetState {
 	return nil
 }
 
+func (x *PhaseContext) GetScopeGeneration() int32 {
+	if x != nil {
+		return x.ScopeGeneration
+	}
+	return 0
+}
+
 // PhaseFeedbackCheckpoint reports whether the current phase has durable feedback
 // captured in the log ledger, or an explicit no-feedback note. It is computed
 // from LogService entries; execution never stores feedback on the phase.
@@ -653,7 +1163,7 @@ type PhaseFeedbackCheckpoint struct {
 
 func (x *PhaseFeedbackCheckpoint) Reset() {
 	*x = PhaseFeedbackCheckpoint{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[5]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -665,7 +1175,7 @@ func (x *PhaseFeedbackCheckpoint) String() string {
 func (*PhaseFeedbackCheckpoint) ProtoMessage() {}
 
 func (x *PhaseFeedbackCheckpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[5]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -678,7 +1188,7 @@ func (x *PhaseFeedbackCheckpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhaseFeedbackCheckpoint.ProtoReflect.Descriptor instead.
 func (*PhaseFeedbackCheckpoint) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{5}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PhaseFeedbackCheckpoint) GetPhaseId() string {
@@ -788,7 +1298,7 @@ type CompletionNudge struct {
 
 func (x *CompletionNudge) Reset() {
 	*x = CompletionNudge{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[6]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -800,7 +1310,7 @@ func (x *CompletionNudge) String() string {
 func (*CompletionNudge) ProtoMessage() {}
 
 func (x *CompletionNudge) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[6]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -813,7 +1323,7 @@ func (x *CompletionNudge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompletionNudge.ProtoReflect.Descriptor instead.
 func (*CompletionNudge) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{6}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CompletionNudge) GetKind() string {
@@ -849,7 +1359,7 @@ type StartRequest struct {
 
 func (x *StartRequest) Reset() {
 	*x = StartRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[7]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -861,7 +1371,7 @@ func (x *StartRequest) String() string {
 func (*StartRequest) ProtoMessage() {}
 
 func (x *StartRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[7]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -874,7 +1384,7 @@ func (x *StartRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRequest.ProtoReflect.Descriptor instead.
 func (*StartRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{7}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *StartRequest) GetPlanId() string {
@@ -902,7 +1412,7 @@ type StartResponse struct {
 
 func (x *StartResponse) Reset() {
 	*x = StartResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[8]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -914,7 +1424,7 @@ func (x *StartResponse) String() string {
 func (*StartResponse) ProtoMessage() {}
 
 func (x *StartResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[8]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -927,7 +1437,7 @@ func (x *StartResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartResponse.ProtoReflect.Descriptor instead.
 func (*StartResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{8}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StartResponse) GetExecution() *Execution {
@@ -960,7 +1470,7 @@ type GetStatusRequest struct {
 
 func (x *GetStatusRequest) Reset() {
 	*x = GetStatusRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[9]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -972,7 +1482,7 @@ func (x *GetStatusRequest) String() string {
 func (*GetStatusRequest) ProtoMessage() {}
 
 func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[9]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -985,7 +1495,7 @@ func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetStatusRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{9}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetStatusRequest) GetExecutionId() string {
@@ -1006,7 +1516,7 @@ type GetStatusResponse struct {
 
 func (x *GetStatusResponse) Reset() {
 	*x = GetStatusResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[10]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1018,7 +1528,7 @@ func (x *GetStatusResponse) String() string {
 func (*GetStatusResponse) ProtoMessage() {}
 
 func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[10]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1031,7 +1541,7 @@ func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetStatusResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{10}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetStatusResponse) GetExecution() *Execution {
@@ -1067,7 +1577,7 @@ type GetContextRequest struct {
 
 func (x *GetContextRequest) Reset() {
 	*x = GetContextRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[11]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1079,7 +1589,7 @@ func (x *GetContextRequest) String() string {
 func (*GetContextRequest) ProtoMessage() {}
 
 func (x *GetContextRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[11]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1092,7 +1602,7 @@ func (x *GetContextRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetContextRequest.ProtoReflect.Descriptor instead.
 func (*GetContextRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{11}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetContextRequest) GetExecutionId() string {
@@ -1120,7 +1630,7 @@ type GetContextResponse struct {
 
 func (x *GetContextResponse) Reset() {
 	*x = GetContextResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[12]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1132,7 +1642,7 @@ func (x *GetContextResponse) String() string {
 func (*GetContextResponse) ProtoMessage() {}
 
 func (x *GetContextResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[12]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1145,7 +1655,7 @@ func (x *GetContextResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetContextResponse.ProtoReflect.Descriptor instead.
 func (*GetContextResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{12}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetContextResponse) GetExecution() *Execution {
@@ -1183,7 +1693,7 @@ type ResumeRequest struct {
 
 func (x *ResumeRequest) Reset() {
 	*x = ResumeRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[13]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1195,7 +1705,7 @@ func (x *ResumeRequest) String() string {
 func (*ResumeRequest) ProtoMessage() {}
 
 func (x *ResumeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[13]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1208,7 +1718,7 @@ func (x *ResumeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeRequest.ProtoReflect.Descriptor instead.
 func (*ResumeRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{13}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ResumeRequest) GetPlanOrExecution() string {
@@ -1243,7 +1753,7 @@ type ResumeResponse struct {
 
 func (x *ResumeResponse) Reset() {
 	*x = ResumeResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[14]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1255,7 +1765,7 @@ func (x *ResumeResponse) String() string {
 func (*ResumeResponse) ProtoMessage() {}
 
 func (x *ResumeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[14]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1268,7 +1778,7 @@ func (x *ResumeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeResponse.ProtoReflect.Descriptor instead.
 func (*ResumeResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{14}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ResumeResponse) GetExecution() *Execution {
@@ -1306,7 +1816,7 @@ type ContinueExecutionRequest struct {
 
 func (x *ContinueExecutionRequest) Reset() {
 	*x = ContinueExecutionRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[15]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1318,7 +1828,7 @@ func (x *ContinueExecutionRequest) String() string {
 func (*ContinueExecutionRequest) ProtoMessage() {}
 
 func (x *ContinueExecutionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[15]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1331,7 +1841,7 @@ func (x *ContinueExecutionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContinueExecutionRequest.ProtoReflect.Descriptor instead.
 func (*ContinueExecutionRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{15}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ContinueExecutionRequest) GetPlanOrExecution() string {
@@ -1366,7 +1876,7 @@ type ContinueExecutionResponse struct {
 
 func (x *ContinueExecutionResponse) Reset() {
 	*x = ContinueExecutionResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[16]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1378,7 +1888,7 @@ func (x *ContinueExecutionResponse) String() string {
 func (*ContinueExecutionResponse) ProtoMessage() {}
 
 func (x *ContinueExecutionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[16]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1391,7 +1901,7 @@ func (x *ContinueExecutionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContinueExecutionResponse.ProtoReflect.Descriptor instead.
 func (*ContinueExecutionResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{16}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ContinueExecutionResponse) GetExecution() *Execution {
@@ -1415,6 +1925,510 @@ func (x *ContinueExecutionResponse) GetStep() *shared.GuidedStep {
 	return nil
 }
 
+type SyncBaselineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncBaselineRequest) Reset() {
+	*x = SyncBaselineRequest{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncBaselineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncBaselineRequest) ProtoMessage() {}
+
+func (x *SyncBaselineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncBaselineRequest.ProtoReflect.Descriptor instead.
+func (*SyncBaselineRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *SyncBaselineRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+type SyncBaselineResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Execution     *Execution             `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	Context       *PhaseContext          `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncBaselineResponse) Reset() {
+	*x = SyncBaselineResponse{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncBaselineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncBaselineResponse) ProtoMessage() {}
+
+func (x *SyncBaselineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncBaselineResponse.ProtoReflect.Descriptor instead.
+func (*SyncBaselineResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SyncBaselineResponse) GetExecution() *Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *SyncBaselineResponse) GetContext() *PhaseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *SyncBaselineResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+type AmendScopeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	PhaseId       string                 `protobuf:"bytes,2,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	Member        []string               `protobuf:"bytes,3,rep,name=member,proto3" json:"member,omitempty"`
+	Author        string                 `protobuf:"bytes,4,opt,name=author,proto3" json:"author,omitempty"`
+	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AmendScopeRequest) Reset() {
+	*x = AmendScopeRequest{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AmendScopeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AmendScopeRequest) ProtoMessage() {}
+
+func (x *AmendScopeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AmendScopeRequest.ProtoReflect.Descriptor instead.
+func (*AmendScopeRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *AmendScopeRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *AmendScopeRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+func (x *AmendScopeRequest) GetMember() []string {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *AmendScopeRequest) GetAuthor() string {
+	if x != nil {
+		return x.Author
+	}
+	return ""
+}
+
+func (x *AmendScopeRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type AmendScopeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Execution     *Execution             `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	Context       *PhaseContext          `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AmendScopeResponse) Reset() {
+	*x = AmendScopeResponse{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AmendScopeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AmendScopeResponse) ProtoMessage() {}
+
+func (x *AmendScopeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AmendScopeResponse.ProtoReflect.Descriptor instead.
+func (*AmendScopeResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *AmendScopeResponse) GetExecution() *Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *AmendScopeResponse) GetContext() *PhaseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *AmendScopeResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+type AdoptBaselineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	Mode          string                 `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"` // recapture | degraded
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Member        []string               `protobuf:"bytes,4,rep,name=member,proto3" json:"member,omitempty"`
+	Path          []string               `protobuf:"bytes,5,rep,name=path,proto3" json:"path,omitempty"`
+	Reason        string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdoptBaselineRequest) Reset() {
+	*x = AdoptBaselineRequest{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdoptBaselineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdoptBaselineRequest) ProtoMessage() {}
+
+func (x *AdoptBaselineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdoptBaselineRequest.ProtoReflect.Descriptor instead.
+func (*AdoptBaselineRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *AdoptBaselineRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *AdoptBaselineRequest) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *AdoptBaselineRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AdoptBaselineRequest) GetMember() []string {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *AdoptBaselineRequest) GetPath() []string {
+	if x != nil {
+		return x.Path
+	}
+	return nil
+}
+
+func (x *AdoptBaselineRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type AdoptBaselineResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Execution     *Execution             `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	Context       *PhaseContext          `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdoptBaselineResponse) Reset() {
+	*x = AdoptBaselineResponse{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdoptBaselineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdoptBaselineResponse) ProtoMessage() {}
+
+func (x *AdoptBaselineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdoptBaselineResponse.ProtoReflect.Descriptor instead.
+func (*AdoptBaselineResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AdoptBaselineResponse) GetExecution() *Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *AdoptBaselineResponse) GetContext() *PhaseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *AdoptBaselineResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+type RepairSourceScopeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	Path          []string               `protobuf:"bytes,2,rep,name=path,proto3" json:"path,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RepairSourceScopeRequest) Reset() {
+	*x = RepairSourceScopeRequest{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RepairSourceScopeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RepairSourceScopeRequest) ProtoMessage() {}
+
+func (x *RepairSourceScopeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RepairSourceScopeRequest.ProtoReflect.Descriptor instead.
+func (*RepairSourceScopeRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RepairSourceScopeRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *RepairSourceScopeRequest) GetPath() []string {
+	if x != nil {
+		return x.Path
+	}
+	return nil
+}
+
+func (x *RepairSourceScopeRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type RepairSourceScopeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Execution     *Execution             `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	Context       *PhaseContext          `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RepairSourceScopeResponse) Reset() {
+	*x = RepairSourceScopeResponse{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RepairSourceScopeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RepairSourceScopeResponse) ProtoMessage() {}
+
+func (x *RepairSourceScopeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RepairSourceScopeResponse.ProtoReflect.Descriptor instead.
+func (*RepairSourceScopeResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *RepairSourceScopeResponse) GetExecution() *Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *RepairSourceScopeResponse) GetContext() *PhaseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *RepairSourceScopeResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
 type GetNextRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
@@ -1424,7 +2438,7 @@ type GetNextRequest struct {
 
 func (x *GetNextRequest) Reset() {
 	*x = GetNextRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[17]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1436,7 +2450,7 @@ func (x *GetNextRequest) String() string {
 func (*GetNextRequest) ProtoMessage() {}
 
 func (x *GetNextRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[17]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1449,7 +2463,7 @@ func (x *GetNextRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNextRequest.ProtoReflect.Descriptor instead.
 func (*GetNextRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{17}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetNextRequest) GetExecutionId() string {
@@ -1471,7 +2485,7 @@ type GetNextResponse struct {
 
 func (x *GetNextResponse) Reset() {
 	*x = GetNextResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[18]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1483,7 +2497,7 @@ func (x *GetNextResponse) String() string {
 func (*GetNextResponse) ProtoMessage() {}
 
 func (x *GetNextResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[18]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1496,7 +2510,7 @@ func (x *GetNextResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNextResponse.ProtoReflect.Descriptor instead.
 func (*GetNextResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{18}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetNextResponse) GetContext() *PhaseContext {
@@ -1539,7 +2553,7 @@ type TransitionPhaseRequest struct {
 
 func (x *TransitionPhaseRequest) Reset() {
 	*x = TransitionPhaseRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[19]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1551,7 +2565,7 @@ func (x *TransitionPhaseRequest) String() string {
 func (*TransitionPhaseRequest) ProtoMessage() {}
 
 func (x *TransitionPhaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[19]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1564,7 +2578,7 @@ func (x *TransitionPhaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransitionPhaseRequest.ProtoReflect.Descriptor instead.
 func (*TransitionPhaseRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{19}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *TransitionPhaseRequest) GetExecutionId() string {
@@ -1613,7 +2627,7 @@ type TransitionPhaseResponse struct {
 
 func (x *TransitionPhaseResponse) Reset() {
 	*x = TransitionPhaseResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[20]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1625,7 +2639,7 @@ func (x *TransitionPhaseResponse) String() string {
 func (*TransitionPhaseResponse) ProtoMessage() {}
 
 func (x *TransitionPhaseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[20]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1638,7 +2652,7 @@ func (x *TransitionPhaseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransitionPhaseResponse.ProtoReflect.Descriptor instead.
 func (*TransitionPhaseResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{20}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *TransitionPhaseResponse) GetExecution() *Execution {
@@ -1671,7 +2685,7 @@ type ValidationOverride struct {
 
 func (x *ValidationOverride) Reset() {
 	*x = ValidationOverride{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[21]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1683,7 +2697,7 @@ func (x *ValidationOverride) String() string {
 func (*ValidationOverride) ProtoMessage() {}
 
 func (x *ValidationOverride) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[21]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1696,7 +2710,7 @@ func (x *ValidationOverride) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationOverride.ProtoReflect.Descriptor instead.
 func (*ValidationOverride) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{21}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ValidationOverride) GetReason() string {
@@ -1715,7 +2729,7 @@ type FeedbackOverride struct {
 
 func (x *FeedbackOverride) Reset() {
 	*x = FeedbackOverride{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[22]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1727,7 +2741,7 @@ func (x *FeedbackOverride) String() string {
 func (*FeedbackOverride) ProtoMessage() {}
 
 func (x *FeedbackOverride) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[22]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1740,7 +2754,7 @@ func (x *FeedbackOverride) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeedbackOverride.ProtoReflect.Descriptor instead.
 func (*FeedbackOverride) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{22}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *FeedbackOverride) GetReason() string {
@@ -1762,7 +2776,7 @@ type CompleteRequest struct {
 
 func (x *CompleteRequest) Reset() {
 	*x = CompleteRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[23]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1774,7 +2788,7 @@ func (x *CompleteRequest) String() string {
 func (*CompleteRequest) ProtoMessage() {}
 
 func (x *CompleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[23]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1787,7 +2801,7 @@ func (x *CompleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteRequest.ProtoReflect.Descriptor instead.
 func (*CompleteRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{23}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CompleteRequest) GetExecutionId() string {
@@ -1824,7 +2838,7 @@ type CompleteResponse struct {
 
 func (x *CompleteResponse) Reset() {
 	*x = CompleteResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[24]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1836,7 +2850,7 @@ func (x *CompleteResponse) String() string {
 func (*CompleteResponse) ProtoMessage() {}
 
 func (x *CompleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[24]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1849,7 +2863,7 @@ func (x *CompleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteResponse.ProtoReflect.Descriptor instead.
 func (*CompleteResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{24}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *CompleteResponse) GetHandoff() *shared.Handoff {
@@ -1873,6 +2887,126 @@ func (x *CompleteResponse) GetStep() *shared.GuidedStep {
 	return nil
 }
 
+type PartialHandoffRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	Tokens        int64                  `protobuf:"varint,2,opt,name=tokens,proto3" json:"tokens,omitempty"`
+	Iterations    int32                  `protobuf:"varint,3,opt,name=iterations,proto3" json:"iterations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PartialHandoffRequest) Reset() {
+	*x = PartialHandoffRequest{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PartialHandoffRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PartialHandoffRequest) ProtoMessage() {}
+
+func (x *PartialHandoffRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PartialHandoffRequest.ProtoReflect.Descriptor instead.
+func (*PartialHandoffRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *PartialHandoffRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *PartialHandoffRequest) GetTokens() int64 {
+	if x != nil {
+		return x.Tokens
+	}
+	return 0
+}
+
+func (x *PartialHandoffRequest) GetIterations() int32 {
+	if x != nil {
+		return x.Iterations
+	}
+	return 0
+}
+
+type PartialHandoffResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Handoff       *shared.Handoff        `protobuf:"bytes,1,opt,name=handoff,proto3" json:"handoff,omitempty"`
+	Nudges        []*CompletionNudge     `protobuf:"bytes,2,rep,name=nudges,proto3" json:"nudges,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PartialHandoffResponse) Reset() {
+	*x = PartialHandoffResponse{}
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PartialHandoffResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PartialHandoffResponse) ProtoMessage() {}
+
+func (x *PartialHandoffResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PartialHandoffResponse.ProtoReflect.Descriptor instead.
+func (*PartialHandoffResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *PartialHandoffResponse) GetHandoff() *shared.Handoff {
+	if x != nil {
+		return x.Handoff
+	}
+	return nil
+}
+
+func (x *PartialHandoffResponse) GetNudges() []*CompletionNudge {
+	if x != nil {
+		return x.Nudges
+	}
+	return nil
+}
+
+func (x *PartialHandoffResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
 type GetHandoffRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
@@ -1882,7 +3016,7 @@ type GetHandoffRequest struct {
 
 func (x *GetHandoffRequest) Reset() {
 	*x = GetHandoffRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[25]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1894,7 +3028,7 @@ func (x *GetHandoffRequest) String() string {
 func (*GetHandoffRequest) ProtoMessage() {}
 
 func (x *GetHandoffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[25]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1907,7 +3041,7 @@ func (x *GetHandoffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHandoffRequest.ProtoReflect.Descriptor instead.
 func (*GetHandoffRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{25}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *GetHandoffRequest) GetExecutionId() string {
@@ -1927,7 +3061,7 @@ type GetHandoffResponse struct {
 
 func (x *GetHandoffResponse) Reset() {
 	*x = GetHandoffResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[26]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1939,7 +3073,7 @@ func (x *GetHandoffResponse) String() string {
 func (*GetHandoffResponse) ProtoMessage() {}
 
 func (x *GetHandoffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[26]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1952,7 +3086,7 @@ func (x *GetHandoffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHandoffResponse.ProtoReflect.Descriptor instead.
 func (*GetHandoffResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{26}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *GetHandoffResponse) GetHandoff() *shared.Handoff {
@@ -1978,7 +3112,7 @@ type GetVelocityRequest struct {
 
 func (x *GetVelocityRequest) Reset() {
 	*x = GetVelocityRequest{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[27]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1990,7 +3124,7 @@ func (x *GetVelocityRequest) String() string {
 func (*GetVelocityRequest) ProtoMessage() {}
 
 func (x *GetVelocityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[27]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2003,7 +3137,7 @@ func (x *GetVelocityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVelocityRequest.ProtoReflect.Descriptor instead.
 func (*GetVelocityRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{27}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetVelocityRequest) GetPlanId() string {
@@ -2023,7 +3157,7 @@ type GetVelocityResponse struct {
 
 func (x *GetVelocityResponse) Reset() {
 	*x = GetVelocityResponse{}
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[28]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2035,7 +3169,7 @@ func (x *GetVelocityResponse) String() string {
 func (*GetVelocityResponse) ProtoMessage() {}
 
 func (x *GetVelocityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[28]
+	mi := &file_plan_manager_v1_execution_execution_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2048,7 +3182,7 @@ func (x *GetVelocityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVelocityResponse.ProtoReflect.Descriptor instead.
 func (*GetVelocityResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{28}
+	return file_plan_manager_v1_execution_execution_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GetVelocityResponse) GetPoints() []*shared.VelocityPoint {
@@ -2069,7 +3203,7 @@ var File_plan_manager_v1_execution_execution_proto protoreflect.FileDescriptor
 
 const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
-	")plan-manager/v1/execution/execution.proto\x12 vrooli.plan_manager.v1.execution\x1a\"plan-manager/v1/shared/model.proto\"\xa6\x02\n" +
+	")plan-manager/v1/execution/execution.proto\x12 vrooli.plan_manager.v1.execution\x1a\"plan-manager/v1/shared/model.proto\"\xac\x03\n" +
 	"\tExecution\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x15\n" +
@@ -2080,7 +3214,10 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"started_at\x18\x06 \x01(\tR\tstartedAt\x12\x1d\n" +
 	"\n" +
 	"updated_at\x18\a \x01(\tR\tupdatedAt\x12U\n" +
-	"\fbaseline_set\x18\b \x01(\v22.vrooli.plan_manager.v1.execution.BaselineSetStateR\vbaselineSet\"\xcd\x04\n" +
+	"\fbaseline_set\x18\b \x01(\v22.vrooli.plan_manager.v1.execution.BaselineSetStateR\vbaselineSet\x12[\n" +
+	"\x10scope_amendments\x18\t \x03(\v20.vrooli.plan_manager.v1.execution.ScopeAmendmentR\x0fscopeAmendments\x12'\n" +
+	"\x0fdegraded_reason\x18\n" +
+	" \x01(\tR\x0edegradedReason\"\xeb\x06\n" +
 	"\x10BaselineSetState\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
@@ -2100,7 +3237,41 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\x06detail\x18\r \x01(\tR\x06detail\x12+\n" +
 	"\x11collection_branch\x18\x0e \x01(\tR\x10collectionBranch\x12M\n" +
 	"\amembers\x18\x0f \x03(\v23.vrooli.plan_manager.v1.execution.BaselineSetMemberR\amembers\x12`\n" +
-	"\x0epath_snapshots\x18\x10 \x03(\v29.vrooli.plan_manager.v1.execution.BaselineSetPathSnapshotR\rpathSnapshots\"\xce\x01\n" +
+	"\x0epath_snapshots\x18\x10 \x03(\v29.vrooli.plan_manager.v1.execution.BaselineSetPathSnapshotR\rpathSnapshots\x12!\n" +
+	"\fcapture_argv\x18\x11 \x03(\tR\vcaptureArgv\x12\x1b\n" +
+	"\twait_argv\x18\x12 \x03(\tR\bwaitArgv\x12\x1b\n" +
+	"\tsync_argv\x18\x13 \x03(\tR\bsyncArgv\x12$\n" +
+	"\x0elast_synced_at\x18\x14 \x01(\tR\flastSyncedAt\x12d\n" +
+	"\x10source_preflight\x18\x15 \x01(\v29.vrooli.plan_manager.v1.execution.SourceEvidencePreflightR\x0fsourcePreflight\x123\n" +
+	"\x15preflight_unavailable\x18\x16 \x01(\bR\x14preflightUnavailable\"\xe1\x06\n" +
+	"\x17SourceEvidencePreflight\x12%\n" +
+	"\x0eeligible_files\x18\x01 \x01(\x05R\religibleFiles\x12%\n" +
+	"\x0eeligible_bytes\x18\x02 \x01(\x03R\religibleBytes\x124\n" +
+	"\x16retained_content_bytes\x18\x03 \x01(\x03R\x14retainedContentBytes\x12'\n" +
+	"\x0frepair_required\x18\x04 \x01(\bR\x0erepairRequired\x12M\n" +
+	"\x06issues\x18\x05 \x03(\v25.vrooli.plan_manager.v1.execution.SourceEvidenceIssueR\x06issues\x12h\n" +
+	"\x0frecommendations\x18\x06 \x03(\v2>.vrooli.plan_manager.v1.execution.SourceEvidenceRecommendationR\x0frecommendations\x12%\n" +
+	"\x0epolicy_version\x18\a \x01(\x05R\rpolicyVersion\x12'\n" +
+	"\x0finclude_ignored\x18\b \x01(\bR\x0eincludeIgnored\x12%\n" +
+	"\x0eretain_content\x18\t \x01(\bR\rretainContent\x124\n" +
+	"\x16excluded_ignored_files\x18\n" +
+	" \x01(\x05R\x14excludedIgnoredFiles\x124\n" +
+	"\x16excluded_ignored_bytes\x18\v \x01(\x03R\x14excludedIgnoredBytes\x128\n" +
+	"\x18excluded_sensitive_files\x18\f \x01(\x05R\x16excludedSensitiveFiles\x122\n" +
+	"\x15excluded_binary_files\x18\r \x01(\x05R\x13excludedBinaryFiles\x12'\n" +
+	"\x0foversized_files\x18\x0e \x01(\x05R\x0eoversizedFiles\x12f\n" +
+	"\x10top_contributors\x18\x0f \x03(\v2;.vrooli.plan_manager.v1.execution.SourceEvidenceContributorR\x0ftopContributors\"]\n" +
+	"\x13SourceEvidenceIssue\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
+	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x16\n" +
+	"\x06detail\x18\x03 \x01(\tR\x06detail\"T\n" +
+	"\x1cSourceEvidenceRecommendation\x12\x1c\n" +
+	"\tselection\x18\x01 \x01(\tR\tselection\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"[\n" +
+	"\x19SourceEvidenceContributor\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
+	"\x05files\x18\x02 \x01(\x05R\x05files\x12\x14\n" +
+	"\x05bytes\x18\x03 \x01(\x03R\x05bytes\"\xce\x01\n" +
 	"\x11BaselineSetMember\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12#\n" +
 	"\rbaseline_name\x18\x02 \x01(\tR\fbaselineName\x12\x1a\n" +
@@ -2113,7 +3284,20 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x03 \x01(\tR\tcreatedAt\"\xc5\b\n" +
+	"created_at\x18\x03 \x01(\tR\tcreatedAt\"\xa9\x02\n" +
+	"\x0eScopeAmendment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12\x16\n" +
+	"\x06author\x18\x03 \x01(\tR\x06author\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12\x1f\n" +
+	"\vold_minimum\x18\x05 \x03(\tR\n" +
+	"oldMinimum\x12\x1f\n" +
+	"\vnew_minimum\x18\x06 \x03(\tR\n" +
+	"newMinimum\x12%\n" +
+	"\x0einvalidated_at\x18\a \x01(\tR\rinvalidatedAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\b \x01(\tR\tcreatedAt\x124\n" +
+	"\x16invalidated_ticket_ids\x18\t \x03(\tR\x14invalidatedTicketIds\"\xf0\b\n" +
 	"\fPhaseContext\x12I\n" +
 	"\rcurrent_phase\x18\x01 \x01(\v2$.vrooli.plan_manager.v1.shared.PhaseR\fcurrentPhase\x12C\n" +
 	"\n" +
@@ -2133,7 +3317,8 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\x0efreshen_detail\x18\r \x01(\tR\rfreshenDetail\x12V\n" +
 	"\x0fchange_boundary\x18\x0e \x01(\v2-.vrooli.plan_manager.v1.shared.ChangeBoundaryR\x0echangeBoundary\x12j\n" +
 	"\x13feedback_checkpoint\x18\x0f \x01(\v29.vrooli.plan_manager.v1.execution.PhaseFeedbackCheckpointR\x12feedbackCheckpoint\x12U\n" +
-	"\fbaseline_set\x18\x10 \x01(\v22.vrooli.plan_manager.v1.execution.BaselineSetStateR\vbaselineSet\"\xb1\x03\n" +
+	"\fbaseline_set\x18\x10 \x01(\v22.vrooli.plan_manager.v1.execution.BaselineSetStateR\vbaselineSet\x12)\n" +
+	"\x10scope_generation\x18\x11 \x01(\x05R\x0fscopeGeneration\"\xb1\x03\n" +
 	"\x17PhaseFeedbackCheckpoint\x12\x19\n" +
 	"\bphase_id\x18\x01 \x01(\tR\aphaseId\x12\x1a\n" +
 	"\breviewed\x18\x02 \x01(\bR\breviewed\x12\x1c\n" +
@@ -2190,6 +3375,41 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\x19ContinueExecutionResponse\x12I\n" +
 	"\texecution\x18\x01 \x01(\v2+.vrooli.plan_manager.v1.execution.ExecutionR\texecution\x12H\n" +
 	"\acontext\x18\x02 \x01(\v2..vrooli.plan_manager.v1.execution.PhaseContextR\acontext\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"8\n" +
+	"\x13SyncBaselineRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"\xea\x01\n" +
+	"\x14SyncBaselineResponse\x12I\n" +
+	"\texecution\x18\x01 \x01(\v2+.vrooli.plan_manager.v1.execution.ExecutionR\texecution\x12H\n" +
+	"\acontext\x18\x02 \x01(\v2..vrooli.plan_manager.v1.execution.PhaseContextR\acontext\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"\x99\x01\n" +
+	"\x11AmendScopeRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x19\n" +
+	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12\x16\n" +
+	"\x06member\x18\x03 \x03(\tR\x06member\x12\x16\n" +
+	"\x06author\x18\x04 \x01(\tR\x06author\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\xe8\x01\n" +
+	"\x12AmendScopeResponse\x12I\n" +
+	"\texecution\x18\x01 \x01(\v2+.vrooli.plan_manager.v1.execution.ExecutionR\texecution\x12H\n" +
+	"\acontext\x18\x02 \x01(\v2..vrooli.plan_manager.v1.execution.PhaseContextR\acontext\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"\xa5\x01\n" +
+	"\x14AdoptBaselineRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x12\n" +
+	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
+	"\x06member\x18\x04 \x03(\tR\x06member\x12\x12\n" +
+	"\x04path\x18\x05 \x03(\tR\x04path\x12\x16\n" +
+	"\x06reason\x18\x06 \x01(\tR\x06reason\"\xeb\x01\n" +
+	"\x15AdoptBaselineResponse\x12I\n" +
+	"\texecution\x18\x01 \x01(\v2+.vrooli.plan_manager.v1.execution.ExecutionR\texecution\x12H\n" +
+	"\acontext\x18\x02 \x01(\v2..vrooli.plan_manager.v1.execution.PhaseContextR\acontext\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"i\n" +
+	"\x18RepairSourceScopeRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x12\n" +
+	"\x04path\x18\x02 \x03(\tR\x04path\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xef\x01\n" +
+	"\x19RepairSourceScopeResponse\x12I\n" +
+	"\texecution\x18\x01 \x01(\v2+.vrooli.plan_manager.v1.execution.ExecutionR\texecution\x12H\n" +
+	"\acontext\x18\x02 \x01(\v2..vrooli.plan_manager.v1.execution.PhaseContextR\acontext\x12=\n" +
 	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"3\n" +
 	"\x0eGetNextRequest\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"\xb6\x01\n" +
@@ -2220,6 +3440,16 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\x10CompleteResponse\x12@\n" +
 	"\ahandoff\x18\x01 \x01(\v2&.vrooli.plan_manager.v1.shared.HandoffR\ahandoff\x12I\n" +
 	"\x06nudges\x18\x02 \x03(\v21.vrooli.plan_manager.v1.execution.CompletionNudgeR\x06nudges\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"r\n" +
+	"\x15PartialHandoffRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x16\n" +
+	"\x06tokens\x18\x02 \x01(\x03R\x06tokens\x12\x1e\n" +
+	"\n" +
+	"iterations\x18\x03 \x01(\x05R\n" +
+	"iterations\"\xe4\x01\n" +
+	"\x16PartialHandoffResponse\x12@\n" +
+	"\ahandoff\x18\x01 \x01(\v2&.vrooli.plan_manager.v1.shared.HandoffR\ahandoff\x12I\n" +
+	"\x06nudges\x18\x02 \x03(\v21.vrooli.plan_manager.v1.execution.CompletionNudgeR\x06nudges\x12=\n" +
 	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"6\n" +
 	"\x11GetHandoffRequest\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"\x95\x01\n" +
@@ -2230,17 +3460,23 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\"\x9a\x01\n" +
 	"\x13GetVelocityResponse\x12D\n" +
 	"\x06points\x18\x01 \x03(\v2,.vrooli.plan_manager.v1.shared.VelocityPointR\x06points\x12=\n" +
-	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step2\xc8\t\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step2\xd8\x0e\n" +
 	"\x10ExecutionService\x12h\n" +
 	"\x05Start\x12..vrooli.plan_manager.v1.execution.StartRequest\x1a/.vrooli.plan_manager.v1.execution.StartResponse\x12t\n" +
 	"\tGetStatus\x122.vrooli.plan_manager.v1.execution.GetStatusRequest\x1a3.vrooli.plan_manager.v1.execution.GetStatusResponse\x12w\n" +
 	"\n" +
 	"GetContext\x123.vrooli.plan_manager.v1.execution.GetContextRequest\x1a4.vrooli.plan_manager.v1.execution.GetContextResponse\x12k\n" +
 	"\x06Resume\x12/.vrooli.plan_manager.v1.execution.ResumeRequest\x1a0.vrooli.plan_manager.v1.execution.ResumeResponse\x12\x8c\x01\n" +
-	"\x11ContinueExecution\x12:.vrooli.plan_manager.v1.execution.ContinueExecutionRequest\x1a;.vrooli.plan_manager.v1.execution.ContinueExecutionResponse\x12n\n" +
+	"\x11ContinueExecution\x12:.vrooli.plan_manager.v1.execution.ContinueExecutionRequest\x1a;.vrooli.plan_manager.v1.execution.ContinueExecutionResponse\x12}\n" +
+	"\fSyncBaseline\x125.vrooli.plan_manager.v1.execution.SyncBaselineRequest\x1a6.vrooli.plan_manager.v1.execution.SyncBaselineResponse\x12w\n" +
+	"\n" +
+	"AmendScope\x123.vrooli.plan_manager.v1.execution.AmendScopeRequest\x1a4.vrooli.plan_manager.v1.execution.AmendScopeResponse\x12\x80\x01\n" +
+	"\rAdoptBaseline\x126.vrooli.plan_manager.v1.execution.AdoptBaselineRequest\x1a7.vrooli.plan_manager.v1.execution.AdoptBaselineResponse\x12\x8c\x01\n" +
+	"\x11RepairSourceScope\x12:.vrooli.plan_manager.v1.execution.RepairSourceScopeRequest\x1a;.vrooli.plan_manager.v1.execution.RepairSourceScopeResponse\x12n\n" +
 	"\aGetNext\x120.vrooli.plan_manager.v1.execution.GetNextRequest\x1a1.vrooli.plan_manager.v1.execution.GetNextResponse\x12\x86\x01\n" +
 	"\x0fTransitionPhase\x128.vrooli.plan_manager.v1.execution.TransitionPhaseRequest\x1a9.vrooli.plan_manager.v1.execution.TransitionPhaseResponse\x12q\n" +
-	"\bComplete\x121.vrooli.plan_manager.v1.execution.CompleteRequest\x1a2.vrooli.plan_manager.v1.execution.CompleteResponse\x12w\n" +
+	"\bComplete\x121.vrooli.plan_manager.v1.execution.CompleteRequest\x1a2.vrooli.plan_manager.v1.execution.CompleteResponse\x12\x83\x01\n" +
+	"\x0ePartialHandoff\x127.vrooli.plan_manager.v1.execution.PartialHandoffRequest\x1a8.vrooli.plan_manager.v1.execution.PartialHandoffResponse\x12w\n" +
 	"\n" +
 	"GetHandoff\x123.vrooli.plan_manager.v1.execution.GetHandoffRequest\x1a4.vrooli.plan_manager.v1.execution.GetHandoffResponse\x12z\n" +
 	"\vGetVelocity\x124.vrooli.plan_manager.v1.execution.GetVelocityRequest\x1a5.vrooli.plan_manager.v1.execution.GetVelocityResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution;execution_v1b\x06proto3"
@@ -2257,119 +3493,164 @@ func file_plan_manager_v1_execution_execution_proto_rawDescGZIP() []byte {
 	return file_plan_manager_v1_execution_execution_proto_rawDescData
 }
 
-var file_plan_manager_v1_execution_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_plan_manager_v1_execution_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
 var file_plan_manager_v1_execution_execution_proto_goTypes = []any{
-	(*Execution)(nil),                  // 0: vrooli.plan_manager.v1.execution.Execution
-	(*BaselineSetState)(nil),           // 1: vrooli.plan_manager.v1.execution.BaselineSetState
-	(*BaselineSetMember)(nil),          // 2: vrooli.plan_manager.v1.execution.BaselineSetMember
-	(*BaselineSetPathSnapshot)(nil),    // 3: vrooli.plan_manager.v1.execution.BaselineSetPathSnapshot
-	(*PhaseContext)(nil),               // 4: vrooli.plan_manager.v1.execution.PhaseContext
-	(*PhaseFeedbackCheckpoint)(nil),    // 5: vrooli.plan_manager.v1.execution.PhaseFeedbackCheckpoint
-	(*CompletionNudge)(nil),            // 6: vrooli.plan_manager.v1.execution.CompletionNudge
-	(*StartRequest)(nil),               // 7: vrooli.plan_manager.v1.execution.StartRequest
-	(*StartResponse)(nil),              // 8: vrooli.plan_manager.v1.execution.StartResponse
-	(*GetStatusRequest)(nil),           // 9: vrooli.plan_manager.v1.execution.GetStatusRequest
-	(*GetStatusResponse)(nil),          // 10: vrooli.plan_manager.v1.execution.GetStatusResponse
-	(*GetContextRequest)(nil),          // 11: vrooli.plan_manager.v1.execution.GetContextRequest
-	(*GetContextResponse)(nil),         // 12: vrooli.plan_manager.v1.execution.GetContextResponse
-	(*ResumeRequest)(nil),              // 13: vrooli.plan_manager.v1.execution.ResumeRequest
-	(*ResumeResponse)(nil),             // 14: vrooli.plan_manager.v1.execution.ResumeResponse
-	(*ContinueExecutionRequest)(nil),   // 15: vrooli.plan_manager.v1.execution.ContinueExecutionRequest
-	(*ContinueExecutionResponse)(nil),  // 16: vrooli.plan_manager.v1.execution.ContinueExecutionResponse
-	(*GetNextRequest)(nil),             // 17: vrooli.plan_manager.v1.execution.GetNextRequest
-	(*GetNextResponse)(nil),            // 18: vrooli.plan_manager.v1.execution.GetNextResponse
-	(*TransitionPhaseRequest)(nil),     // 19: vrooli.plan_manager.v1.execution.TransitionPhaseRequest
-	(*TransitionPhaseResponse)(nil),    // 20: vrooli.plan_manager.v1.execution.TransitionPhaseResponse
-	(*ValidationOverride)(nil),         // 21: vrooli.plan_manager.v1.execution.ValidationOverride
-	(*FeedbackOverride)(nil),           // 22: vrooli.plan_manager.v1.execution.FeedbackOverride
-	(*CompleteRequest)(nil),            // 23: vrooli.plan_manager.v1.execution.CompleteRequest
-	(*CompleteResponse)(nil),           // 24: vrooli.plan_manager.v1.execution.CompleteResponse
-	(*GetHandoffRequest)(nil),          // 25: vrooli.plan_manager.v1.execution.GetHandoffRequest
-	(*GetHandoffResponse)(nil),         // 26: vrooli.plan_manager.v1.execution.GetHandoffResponse
-	(*GetVelocityRequest)(nil),         // 27: vrooli.plan_manager.v1.execution.GetVelocityRequest
-	(*GetVelocityResponse)(nil),        // 28: vrooli.plan_manager.v1.execution.GetVelocityResponse
-	(*shared.Phase)(nil),               // 29: vrooli.plan_manager.v1.shared.Phase
-	(*shared.ValidationResult)(nil),    // 30: vrooli.plan_manager.v1.shared.ValidationResult
-	(shared.StalenessTier)(0),          // 31: vrooli.plan_manager.v1.shared.StalenessTier
-	(shared.Completeness)(0),           // 32: vrooli.plan_manager.v1.shared.Completeness
-	(*shared.RelevantContextItem)(nil), // 33: vrooli.plan_manager.v1.shared.RelevantContextItem
-	(*shared.LogSummary)(nil),          // 34: vrooli.plan_manager.v1.shared.LogSummary
-	(*shared.ChangeBoundary)(nil),      // 35: vrooli.plan_manager.v1.shared.ChangeBoundary
-	(*shared.GuidedStep)(nil),          // 36: vrooli.plan_manager.v1.shared.GuidedStep
-	(shared.PhaseStatus)(0),            // 37: vrooli.plan_manager.v1.shared.PhaseStatus
-	(*shared.Plan)(nil),                // 38: vrooli.plan_manager.v1.shared.Plan
-	(*shared.Handoff)(nil),             // 39: vrooli.plan_manager.v1.shared.Handoff
-	(*shared.VelocityPoint)(nil),       // 40: vrooli.plan_manager.v1.shared.VelocityPoint
+	(*Execution)(nil),                    // 0: vrooli.plan_manager.v1.execution.Execution
+	(*BaselineSetState)(nil),             // 1: vrooli.plan_manager.v1.execution.BaselineSetState
+	(*SourceEvidencePreflight)(nil),      // 2: vrooli.plan_manager.v1.execution.SourceEvidencePreflight
+	(*SourceEvidenceIssue)(nil),          // 3: vrooli.plan_manager.v1.execution.SourceEvidenceIssue
+	(*SourceEvidenceRecommendation)(nil), // 4: vrooli.plan_manager.v1.execution.SourceEvidenceRecommendation
+	(*SourceEvidenceContributor)(nil),    // 5: vrooli.plan_manager.v1.execution.SourceEvidenceContributor
+	(*BaselineSetMember)(nil),            // 6: vrooli.plan_manager.v1.execution.BaselineSetMember
+	(*BaselineSetPathSnapshot)(nil),      // 7: vrooli.plan_manager.v1.execution.BaselineSetPathSnapshot
+	(*ScopeAmendment)(nil),               // 8: vrooli.plan_manager.v1.execution.ScopeAmendment
+	(*PhaseContext)(nil),                 // 9: vrooli.plan_manager.v1.execution.PhaseContext
+	(*PhaseFeedbackCheckpoint)(nil),      // 10: vrooli.plan_manager.v1.execution.PhaseFeedbackCheckpoint
+	(*CompletionNudge)(nil),              // 11: vrooli.plan_manager.v1.execution.CompletionNudge
+	(*StartRequest)(nil),                 // 12: vrooli.plan_manager.v1.execution.StartRequest
+	(*StartResponse)(nil),                // 13: vrooli.plan_manager.v1.execution.StartResponse
+	(*GetStatusRequest)(nil),             // 14: vrooli.plan_manager.v1.execution.GetStatusRequest
+	(*GetStatusResponse)(nil),            // 15: vrooli.plan_manager.v1.execution.GetStatusResponse
+	(*GetContextRequest)(nil),            // 16: vrooli.plan_manager.v1.execution.GetContextRequest
+	(*GetContextResponse)(nil),           // 17: vrooli.plan_manager.v1.execution.GetContextResponse
+	(*ResumeRequest)(nil),                // 18: vrooli.plan_manager.v1.execution.ResumeRequest
+	(*ResumeResponse)(nil),               // 19: vrooli.plan_manager.v1.execution.ResumeResponse
+	(*ContinueExecutionRequest)(nil),     // 20: vrooli.plan_manager.v1.execution.ContinueExecutionRequest
+	(*ContinueExecutionResponse)(nil),    // 21: vrooli.plan_manager.v1.execution.ContinueExecutionResponse
+	(*SyncBaselineRequest)(nil),          // 22: vrooli.plan_manager.v1.execution.SyncBaselineRequest
+	(*SyncBaselineResponse)(nil),         // 23: vrooli.plan_manager.v1.execution.SyncBaselineResponse
+	(*AmendScopeRequest)(nil),            // 24: vrooli.plan_manager.v1.execution.AmendScopeRequest
+	(*AmendScopeResponse)(nil),           // 25: vrooli.plan_manager.v1.execution.AmendScopeResponse
+	(*AdoptBaselineRequest)(nil),         // 26: vrooli.plan_manager.v1.execution.AdoptBaselineRequest
+	(*AdoptBaselineResponse)(nil),        // 27: vrooli.plan_manager.v1.execution.AdoptBaselineResponse
+	(*RepairSourceScopeRequest)(nil),     // 28: vrooli.plan_manager.v1.execution.RepairSourceScopeRequest
+	(*RepairSourceScopeResponse)(nil),    // 29: vrooli.plan_manager.v1.execution.RepairSourceScopeResponse
+	(*GetNextRequest)(nil),               // 30: vrooli.plan_manager.v1.execution.GetNextRequest
+	(*GetNextResponse)(nil),              // 31: vrooli.plan_manager.v1.execution.GetNextResponse
+	(*TransitionPhaseRequest)(nil),       // 32: vrooli.plan_manager.v1.execution.TransitionPhaseRequest
+	(*TransitionPhaseResponse)(nil),      // 33: vrooli.plan_manager.v1.execution.TransitionPhaseResponse
+	(*ValidationOverride)(nil),           // 34: vrooli.plan_manager.v1.execution.ValidationOverride
+	(*FeedbackOverride)(nil),             // 35: vrooli.plan_manager.v1.execution.FeedbackOverride
+	(*CompleteRequest)(nil),              // 36: vrooli.plan_manager.v1.execution.CompleteRequest
+	(*CompleteResponse)(nil),             // 37: vrooli.plan_manager.v1.execution.CompleteResponse
+	(*PartialHandoffRequest)(nil),        // 38: vrooli.plan_manager.v1.execution.PartialHandoffRequest
+	(*PartialHandoffResponse)(nil),       // 39: vrooli.plan_manager.v1.execution.PartialHandoffResponse
+	(*GetHandoffRequest)(nil),            // 40: vrooli.plan_manager.v1.execution.GetHandoffRequest
+	(*GetHandoffResponse)(nil),           // 41: vrooli.plan_manager.v1.execution.GetHandoffResponse
+	(*GetVelocityRequest)(nil),           // 42: vrooli.plan_manager.v1.execution.GetVelocityRequest
+	(*GetVelocityResponse)(nil),          // 43: vrooli.plan_manager.v1.execution.GetVelocityResponse
+	(*shared.Phase)(nil),                 // 44: vrooli.plan_manager.v1.shared.Phase
+	(*shared.ValidationResult)(nil),      // 45: vrooli.plan_manager.v1.shared.ValidationResult
+	(shared.StalenessTier)(0),            // 46: vrooli.plan_manager.v1.shared.StalenessTier
+	(shared.Completeness)(0),             // 47: vrooli.plan_manager.v1.shared.Completeness
+	(*shared.RelevantContextItem)(nil),   // 48: vrooli.plan_manager.v1.shared.RelevantContextItem
+	(*shared.LogSummary)(nil),            // 49: vrooli.plan_manager.v1.shared.LogSummary
+	(*shared.ChangeBoundary)(nil),        // 50: vrooli.plan_manager.v1.shared.ChangeBoundary
+	(*shared.GuidedStep)(nil),            // 51: vrooli.plan_manager.v1.shared.GuidedStep
+	(shared.PhaseStatus)(0),              // 52: vrooli.plan_manager.v1.shared.PhaseStatus
+	(*shared.Plan)(nil),                  // 53: vrooli.plan_manager.v1.shared.Plan
+	(*shared.Handoff)(nil),               // 54: vrooli.plan_manager.v1.shared.Handoff
+	(*shared.VelocityPoint)(nil),         // 55: vrooli.plan_manager.v1.shared.VelocityPoint
 }
 var file_plan_manager_v1_execution_execution_proto_depIdxs = []int32{
 	1,  // 0: vrooli.plan_manager.v1.execution.Execution.baseline_set:type_name -> vrooli.plan_manager.v1.execution.BaselineSetState
-	2,  // 1: vrooli.plan_manager.v1.execution.BaselineSetState.members:type_name -> vrooli.plan_manager.v1.execution.BaselineSetMember
-	3,  // 2: vrooli.plan_manager.v1.execution.BaselineSetState.path_snapshots:type_name -> vrooli.plan_manager.v1.execution.BaselineSetPathSnapshot
-	29, // 3: vrooli.plan_manager.v1.execution.PhaseContext.current_phase:type_name -> vrooli.plan_manager.v1.shared.Phase
-	29, // 4: vrooli.plan_manager.v1.execution.PhaseContext.next_phase:type_name -> vrooli.plan_manager.v1.shared.Phase
-	30, // 5: vrooli.plan_manager.v1.execution.PhaseContext.last_validation:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
-	31, // 6: vrooli.plan_manager.v1.execution.PhaseContext.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
-	32, // 7: vrooli.plan_manager.v1.execution.PhaseContext.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
-	33, // 8: vrooli.plan_manager.v1.execution.PhaseContext.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
-	34, // 9: vrooli.plan_manager.v1.execution.PhaseContext.log_summary:type_name -> vrooli.plan_manager.v1.shared.LogSummary
-	35, // 10: vrooli.plan_manager.v1.execution.PhaseContext.change_boundary:type_name -> vrooli.plan_manager.v1.shared.ChangeBoundary
-	5,  // 11: vrooli.plan_manager.v1.execution.PhaseContext.feedback_checkpoint:type_name -> vrooli.plan_manager.v1.execution.PhaseFeedbackCheckpoint
-	1,  // 12: vrooli.plan_manager.v1.execution.PhaseContext.baseline_set:type_name -> vrooli.plan_manager.v1.execution.BaselineSetState
-	0,  // 13: vrooli.plan_manager.v1.execution.StartResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	36, // 14: vrooli.plan_manager.v1.execution.StartResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	4,  // 15: vrooli.plan_manager.v1.execution.StartResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	0,  // 16: vrooli.plan_manager.v1.execution.GetStatusResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	4,  // 17: vrooli.plan_manager.v1.execution.GetStatusResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	36, // 18: vrooli.plan_manager.v1.execution.GetStatusResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	0,  // 19: vrooli.plan_manager.v1.execution.GetContextResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	4,  // 20: vrooli.plan_manager.v1.execution.GetContextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	36, // 21: vrooli.plan_manager.v1.execution.GetContextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	0,  // 22: vrooli.plan_manager.v1.execution.ResumeResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	4,  // 23: vrooli.plan_manager.v1.execution.ResumeResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	36, // 24: vrooli.plan_manager.v1.execution.ResumeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	0,  // 25: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	4,  // 26: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	36, // 27: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	4,  // 28: vrooli.plan_manager.v1.execution.GetNextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	36, // 29: vrooli.plan_manager.v1.execution.GetNextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	37, // 30: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.to_status:type_name -> vrooli.plan_manager.v1.shared.PhaseStatus
-	21, // 31: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.validation_override:type_name -> vrooli.plan_manager.v1.execution.ValidationOverride
-	22, // 32: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.feedback_override:type_name -> vrooli.plan_manager.v1.execution.FeedbackOverride
-	0,  // 33: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	38, // 34: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	36, // 35: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	39, // 36: vrooli.plan_manager.v1.execution.CompleteResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
-	6,  // 37: vrooli.plan_manager.v1.execution.CompleteResponse.nudges:type_name -> vrooli.plan_manager.v1.execution.CompletionNudge
-	36, // 38: vrooli.plan_manager.v1.execution.CompleteResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	39, // 39: vrooli.plan_manager.v1.execution.GetHandoffResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
-	36, // 40: vrooli.plan_manager.v1.execution.GetHandoffResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	40, // 41: vrooli.plan_manager.v1.execution.GetVelocityResponse.points:type_name -> vrooli.plan_manager.v1.shared.VelocityPoint
-	36, // 42: vrooli.plan_manager.v1.execution.GetVelocityResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	7,  // 43: vrooli.plan_manager.v1.execution.ExecutionService.Start:input_type -> vrooli.plan_manager.v1.execution.StartRequest
-	9,  // 44: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:input_type -> vrooli.plan_manager.v1.execution.GetStatusRequest
-	11, // 45: vrooli.plan_manager.v1.execution.ExecutionService.GetContext:input_type -> vrooli.plan_manager.v1.execution.GetContextRequest
-	13, // 46: vrooli.plan_manager.v1.execution.ExecutionService.Resume:input_type -> vrooli.plan_manager.v1.execution.ResumeRequest
-	15, // 47: vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution:input_type -> vrooli.plan_manager.v1.execution.ContinueExecutionRequest
-	17, // 48: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:input_type -> vrooli.plan_manager.v1.execution.GetNextRequest
-	19, // 49: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:input_type -> vrooli.plan_manager.v1.execution.TransitionPhaseRequest
-	23, // 50: vrooli.plan_manager.v1.execution.ExecutionService.Complete:input_type -> vrooli.plan_manager.v1.execution.CompleteRequest
-	25, // 51: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:input_type -> vrooli.plan_manager.v1.execution.GetHandoffRequest
-	27, // 52: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:input_type -> vrooli.plan_manager.v1.execution.GetVelocityRequest
-	8,  // 53: vrooli.plan_manager.v1.execution.ExecutionService.Start:output_type -> vrooli.plan_manager.v1.execution.StartResponse
-	10, // 54: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:output_type -> vrooli.plan_manager.v1.execution.GetStatusResponse
-	12, // 55: vrooli.plan_manager.v1.execution.ExecutionService.GetContext:output_type -> vrooli.plan_manager.v1.execution.GetContextResponse
-	14, // 56: vrooli.plan_manager.v1.execution.ExecutionService.Resume:output_type -> vrooli.plan_manager.v1.execution.ResumeResponse
-	16, // 57: vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution:output_type -> vrooli.plan_manager.v1.execution.ContinueExecutionResponse
-	18, // 58: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:output_type -> vrooli.plan_manager.v1.execution.GetNextResponse
-	20, // 59: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:output_type -> vrooli.plan_manager.v1.execution.TransitionPhaseResponse
-	24, // 60: vrooli.plan_manager.v1.execution.ExecutionService.Complete:output_type -> vrooli.plan_manager.v1.execution.CompleteResponse
-	26, // 61: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:output_type -> vrooli.plan_manager.v1.execution.GetHandoffResponse
-	28, // 62: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:output_type -> vrooli.plan_manager.v1.execution.GetVelocityResponse
-	53, // [53:63] is the sub-list for method output_type
-	43, // [43:53] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	8,  // 1: vrooli.plan_manager.v1.execution.Execution.scope_amendments:type_name -> vrooli.plan_manager.v1.execution.ScopeAmendment
+	6,  // 2: vrooli.plan_manager.v1.execution.BaselineSetState.members:type_name -> vrooli.plan_manager.v1.execution.BaselineSetMember
+	7,  // 3: vrooli.plan_manager.v1.execution.BaselineSetState.path_snapshots:type_name -> vrooli.plan_manager.v1.execution.BaselineSetPathSnapshot
+	2,  // 4: vrooli.plan_manager.v1.execution.BaselineSetState.source_preflight:type_name -> vrooli.plan_manager.v1.execution.SourceEvidencePreflight
+	3,  // 5: vrooli.plan_manager.v1.execution.SourceEvidencePreflight.issues:type_name -> vrooli.plan_manager.v1.execution.SourceEvidenceIssue
+	4,  // 6: vrooli.plan_manager.v1.execution.SourceEvidencePreflight.recommendations:type_name -> vrooli.plan_manager.v1.execution.SourceEvidenceRecommendation
+	5,  // 7: vrooli.plan_manager.v1.execution.SourceEvidencePreflight.top_contributors:type_name -> vrooli.plan_manager.v1.execution.SourceEvidenceContributor
+	44, // 8: vrooli.plan_manager.v1.execution.PhaseContext.current_phase:type_name -> vrooli.plan_manager.v1.shared.Phase
+	44, // 9: vrooli.plan_manager.v1.execution.PhaseContext.next_phase:type_name -> vrooli.plan_manager.v1.shared.Phase
+	45, // 10: vrooli.plan_manager.v1.execution.PhaseContext.last_validation:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
+	46, // 11: vrooli.plan_manager.v1.execution.PhaseContext.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
+	47, // 12: vrooli.plan_manager.v1.execution.PhaseContext.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
+	48, // 13: vrooli.plan_manager.v1.execution.PhaseContext.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	49, // 14: vrooli.plan_manager.v1.execution.PhaseContext.log_summary:type_name -> vrooli.plan_manager.v1.shared.LogSummary
+	50, // 15: vrooli.plan_manager.v1.execution.PhaseContext.change_boundary:type_name -> vrooli.plan_manager.v1.shared.ChangeBoundary
+	10, // 16: vrooli.plan_manager.v1.execution.PhaseContext.feedback_checkpoint:type_name -> vrooli.plan_manager.v1.execution.PhaseFeedbackCheckpoint
+	1,  // 17: vrooli.plan_manager.v1.execution.PhaseContext.baseline_set:type_name -> vrooli.plan_manager.v1.execution.BaselineSetState
+	0,  // 18: vrooli.plan_manager.v1.execution.StartResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	51, // 19: vrooli.plan_manager.v1.execution.StartResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	9,  // 20: vrooli.plan_manager.v1.execution.StartResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	0,  // 21: vrooli.plan_manager.v1.execution.GetStatusResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	9,  // 22: vrooli.plan_manager.v1.execution.GetStatusResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	51, // 23: vrooli.plan_manager.v1.execution.GetStatusResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 24: vrooli.plan_manager.v1.execution.GetContextResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	9,  // 25: vrooli.plan_manager.v1.execution.GetContextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	51, // 26: vrooli.plan_manager.v1.execution.GetContextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 27: vrooli.plan_manager.v1.execution.ResumeResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	9,  // 28: vrooli.plan_manager.v1.execution.ResumeResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	51, // 29: vrooli.plan_manager.v1.execution.ResumeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 30: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	9,  // 31: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	51, // 32: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 33: vrooli.plan_manager.v1.execution.SyncBaselineResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	9,  // 34: vrooli.plan_manager.v1.execution.SyncBaselineResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	51, // 35: vrooli.plan_manager.v1.execution.SyncBaselineResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 36: vrooli.plan_manager.v1.execution.AmendScopeResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	9,  // 37: vrooli.plan_manager.v1.execution.AmendScopeResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	51, // 38: vrooli.plan_manager.v1.execution.AmendScopeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 39: vrooli.plan_manager.v1.execution.AdoptBaselineResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	9,  // 40: vrooli.plan_manager.v1.execution.AdoptBaselineResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	51, // 41: vrooli.plan_manager.v1.execution.AdoptBaselineResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 42: vrooli.plan_manager.v1.execution.RepairSourceScopeResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	9,  // 43: vrooli.plan_manager.v1.execution.RepairSourceScopeResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	51, // 44: vrooli.plan_manager.v1.execution.RepairSourceScopeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	9,  // 45: vrooli.plan_manager.v1.execution.GetNextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	51, // 46: vrooli.plan_manager.v1.execution.GetNextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	52, // 47: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.to_status:type_name -> vrooli.plan_manager.v1.shared.PhaseStatus
+	34, // 48: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.validation_override:type_name -> vrooli.plan_manager.v1.execution.ValidationOverride
+	35, // 49: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.feedback_override:type_name -> vrooli.plan_manager.v1.execution.FeedbackOverride
+	0,  // 50: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	53, // 51: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	51, // 52: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	54, // 53: vrooli.plan_manager.v1.execution.CompleteResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
+	11, // 54: vrooli.plan_manager.v1.execution.CompleteResponse.nudges:type_name -> vrooli.plan_manager.v1.execution.CompletionNudge
+	51, // 55: vrooli.plan_manager.v1.execution.CompleteResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	54, // 56: vrooli.plan_manager.v1.execution.PartialHandoffResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
+	11, // 57: vrooli.plan_manager.v1.execution.PartialHandoffResponse.nudges:type_name -> vrooli.plan_manager.v1.execution.CompletionNudge
+	51, // 58: vrooli.plan_manager.v1.execution.PartialHandoffResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	54, // 59: vrooli.plan_manager.v1.execution.GetHandoffResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
+	51, // 60: vrooli.plan_manager.v1.execution.GetHandoffResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	55, // 61: vrooli.plan_manager.v1.execution.GetVelocityResponse.points:type_name -> vrooli.plan_manager.v1.shared.VelocityPoint
+	51, // 62: vrooli.plan_manager.v1.execution.GetVelocityResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	12, // 63: vrooli.plan_manager.v1.execution.ExecutionService.Start:input_type -> vrooli.plan_manager.v1.execution.StartRequest
+	14, // 64: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:input_type -> vrooli.plan_manager.v1.execution.GetStatusRequest
+	16, // 65: vrooli.plan_manager.v1.execution.ExecutionService.GetContext:input_type -> vrooli.plan_manager.v1.execution.GetContextRequest
+	18, // 66: vrooli.plan_manager.v1.execution.ExecutionService.Resume:input_type -> vrooli.plan_manager.v1.execution.ResumeRequest
+	20, // 67: vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution:input_type -> vrooli.plan_manager.v1.execution.ContinueExecutionRequest
+	22, // 68: vrooli.plan_manager.v1.execution.ExecutionService.SyncBaseline:input_type -> vrooli.plan_manager.v1.execution.SyncBaselineRequest
+	24, // 69: vrooli.plan_manager.v1.execution.ExecutionService.AmendScope:input_type -> vrooli.plan_manager.v1.execution.AmendScopeRequest
+	26, // 70: vrooli.plan_manager.v1.execution.ExecutionService.AdoptBaseline:input_type -> vrooli.plan_manager.v1.execution.AdoptBaselineRequest
+	28, // 71: vrooli.plan_manager.v1.execution.ExecutionService.RepairSourceScope:input_type -> vrooli.plan_manager.v1.execution.RepairSourceScopeRequest
+	30, // 72: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:input_type -> vrooli.plan_manager.v1.execution.GetNextRequest
+	32, // 73: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:input_type -> vrooli.plan_manager.v1.execution.TransitionPhaseRequest
+	36, // 74: vrooli.plan_manager.v1.execution.ExecutionService.Complete:input_type -> vrooli.plan_manager.v1.execution.CompleteRequest
+	38, // 75: vrooli.plan_manager.v1.execution.ExecutionService.PartialHandoff:input_type -> vrooli.plan_manager.v1.execution.PartialHandoffRequest
+	40, // 76: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:input_type -> vrooli.plan_manager.v1.execution.GetHandoffRequest
+	42, // 77: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:input_type -> vrooli.plan_manager.v1.execution.GetVelocityRequest
+	13, // 78: vrooli.plan_manager.v1.execution.ExecutionService.Start:output_type -> vrooli.plan_manager.v1.execution.StartResponse
+	15, // 79: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:output_type -> vrooli.plan_manager.v1.execution.GetStatusResponse
+	17, // 80: vrooli.plan_manager.v1.execution.ExecutionService.GetContext:output_type -> vrooli.plan_manager.v1.execution.GetContextResponse
+	19, // 81: vrooli.plan_manager.v1.execution.ExecutionService.Resume:output_type -> vrooli.plan_manager.v1.execution.ResumeResponse
+	21, // 82: vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution:output_type -> vrooli.plan_manager.v1.execution.ContinueExecutionResponse
+	23, // 83: vrooli.plan_manager.v1.execution.ExecutionService.SyncBaseline:output_type -> vrooli.plan_manager.v1.execution.SyncBaselineResponse
+	25, // 84: vrooli.plan_manager.v1.execution.ExecutionService.AmendScope:output_type -> vrooli.plan_manager.v1.execution.AmendScopeResponse
+	27, // 85: vrooli.plan_manager.v1.execution.ExecutionService.AdoptBaseline:output_type -> vrooli.plan_manager.v1.execution.AdoptBaselineResponse
+	29, // 86: vrooli.plan_manager.v1.execution.ExecutionService.RepairSourceScope:output_type -> vrooli.plan_manager.v1.execution.RepairSourceScopeResponse
+	31, // 87: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:output_type -> vrooli.plan_manager.v1.execution.GetNextResponse
+	33, // 88: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:output_type -> vrooli.plan_manager.v1.execution.TransitionPhaseResponse
+	37, // 89: vrooli.plan_manager.v1.execution.ExecutionService.Complete:output_type -> vrooli.plan_manager.v1.execution.CompleteResponse
+	39, // 90: vrooli.plan_manager.v1.execution.ExecutionService.PartialHandoff:output_type -> vrooli.plan_manager.v1.execution.PartialHandoffResponse
+	41, // 91: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:output_type -> vrooli.plan_manager.v1.execution.GetHandoffResponse
+	43, // 92: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:output_type -> vrooli.plan_manager.v1.execution.GetVelocityResponse
+	78, // [78:93] is the sub-list for method output_type
+	63, // [63:78] is the sub-list for method input_type
+	63, // [63:63] is the sub-list for extension type_name
+	63, // [63:63] is the sub-list for extension extendee
+	0,  // [0:63] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_execution_execution_proto_init() }
@@ -2383,7 +3664,7 @@ func file_plan_manager_v1_execution_execution_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plan_manager_v1_execution_execution_proto_rawDesc), len(file_plan_manager_v1_execution_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   44,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

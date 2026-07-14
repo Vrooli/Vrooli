@@ -151,8 +151,17 @@ func TestPerformancePolicyDefaults(t *testing.T) {
 	if DefaultP95BudgetMs(ClassAsync) <= DefaultP95BudgetMs(ClassExternal) {
 		t.Error("async budget must be the loosest")
 	}
-	if err := (PerformanceConfig{P95Ms: 800, DegradedRateMax: 0.1, TelemetryRequired: true}).Validate(); err != nil {
+	if err := (PerformanceConfig{P95Ms: 800, DegradedRateMax: 0.1, TelemetryRequired: true, MinimumSamples: 8}).Validate(); err != nil {
 		t.Errorf("valid performance rejected: %v", err)
+	}
+	if err := (PerformanceConfig{MinimumSamples: -1}).Validate(); err == nil {
+		t.Error("negative minimum samples unexpectedly accepted")
+	}
+	if got := DefaultMinimumSamples(ClassLocalIndex); got != 8 {
+		t.Errorf("local index minimum samples = %d, want 8", got)
+	}
+	if got := DefaultMinimumSamples(ClassExternal); got != 1 {
+		t.Errorf("external minimum samples = %d, want 1", got)
 	}
 	if _, err := ParseSearchFile([]byte(`{"version":"1.0.0","providers":[{"provider_id":"a","class":"external","performance":{"p95_ms":4000},"tuning":{"engine":"dense"}}]}`)); err != nil {
 		t.Errorf("valid performance block rejected: %v", err)

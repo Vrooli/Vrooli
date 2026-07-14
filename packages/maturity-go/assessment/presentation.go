@@ -103,6 +103,21 @@ func ValidatePhasePresentation(a *commonv1.MaturityAssessment) error {
 	return nil
 }
 
+// RequireProviderContract is the single definition of the delegated-provider
+// response contract: the assessment must validate structurally, carry the
+// expected provider/phase identity, and include the canonical v1 phase
+// presentation. Every surface that answers "will this response pass Test
+// Genie's run gate?" — the run gate itself, the conformance scan, and the
+// `provider-contract check` CLI — must call this (or these exact clauses)
+// rather than re-assembling its own subset, so the contract cannot drift
+// across surfaces.
+func RequireProviderContract(provider, phase string, a *commonv1.MaturityAssessment) error {
+	if err := RequireIdentity(provider, phase, a); err != nil {
+		return err
+	}
+	return ValidatePhasePresentation(a)
+}
+
 func buildCapabilityPresentation(capability *commonv1.CapabilityMaturityAssessment, findings []*commonv1.AssessmentFinding) *commonv1.PhaseCapabilityPresentation {
 	if capability == nil {
 		return nil

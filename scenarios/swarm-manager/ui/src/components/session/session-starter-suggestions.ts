@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { AgentSessionContextType, AgentSessionKind } from "../../types";
 import type { StarterContextFilterKey } from "./context/starter-context-filters";
+import type { SessionContextOption } from "./context/session-context-refs";
 
 export type SuggestionRequirement =
   | { kind: "context"; type: AgentSessionContextType; optional?: boolean; filterKey?: StarterContextFilterKey }
@@ -34,6 +35,11 @@ export interface StarterSuggestion {
    * context (e.g. "12 active initiatives"). Never disables the card.
    */
   softCountType?: AgentSessionContextType;
+  /**
+   * Variant of `text` that speaks about a specific attached entity by title —
+   * used by the attach-to-session sheet where exactly one entity is in hand.
+   */
+  contextText?: (title: string) => string;
 }
 
 /** What count badge (if any) a card should show, and whether a zero gates the card. */
@@ -87,12 +93,14 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           id: "operations-decisions",
           icon: ListTodo,
           text: "Help me drain workshop decisions for a backlog item.",
+          contextText: (title) => `Help me drain workshop decisions for "${title}".`,
           requirements: [{ kind: "context", type: "backlog_item" }],
         },
         {
           id: "operations-run",
           icon: Activity,
           text: "Review a failed or stale run and recommend recovery.",
+          contextText: (title) => `Review run "${title}" and recommend recovery.`,
           requirements: [
             { kind: "context", type: "execution", filterKey: "execution_failed_or_stale" },
             { kind: "context", type: "agent_activity", optional: true },
@@ -102,6 +110,7 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           id: "operations-initiative",
           icon: Layers,
           text: "Assess an initiative and recommend the best operating mode.",
+          contextText: (title) => `Assess "${title}" and recommend the best operating mode.`,
           requirements: [{ kind: "context", type: "initiative" }],
         },
       ];
@@ -118,18 +127,21 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           icon: GitPullRequestArrow,
           text: "Start a new mode from the closest existing one, then adapt it.",
           detail: "Reuse-first: clone an existing mode (or compose the generic drain via executed_by) instead of a blank template.",
+          contextText: (title) => `Start a new mode from "${title}", then adapt it.`,
           requirements: [{ kind: "context", type: "operating_mode" }],
         },
         {
           id: "mode-compare",
           icon: Gauge,
           text: "Compare this workflow against an existing operating mode.",
+          contextText: (title) => `Compare this workflow against "${title}".`,
           requirements: [{ kind: "context", type: "operating_mode" }],
         },
         {
           id: "mode-initiative",
           icon: Layers,
           text: "Design an operating mode for this initiative's workflow.",
+          contextText: (title) => `Design an operating mode for the workflow behind "${title}".`,
           requirements: [{ kind: "context", type: "initiative" }],
         },
       ];
@@ -145,6 +157,7 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           id: "meta-existing",
           icon: Search,
           text: "Inspect existing Swarm context first, then propose a plan.",
+          contextText: (title) => `Inspect "${title}" and related Swarm context first, then propose a plan.`,
           requirements: [
             { kind: "context", type: "initiative", optional: true },
             { kind: "context", type: "scenario", optional: true },
@@ -154,6 +167,7 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           id: "meta-backlog",
           icon: ListTodo,
           text: "Plan follow-up work for a backlog item.",
+          contextText: (title) => `Plan follow-up work for "${title}".`,
           requirements: [{ kind: "context", type: "backlog_item" }],
         },
         {
@@ -164,4 +178,52 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
         },
       ];
   }
+}
+
+/** A starter card as offered by the attach-to-session sheet. */
+export interface AttachStarterSuggestion {
+  id: string;
+  icon: LucideIcon;
+  text: string;
+  /** True when the text speaks about the attached entity specifically. */
+  specific: boolean;
+}
+
+const ATTACH_TITLE_MAX = 70;
+
+/**
+ * The starter cards that make sense when drafting a session around one
+ * attached entity: cards whose every hard requirement is met by that entity
+ * (image-gated cards drop out — the sheet has no attachment tray). Cards that
+ * mention the entity's context type render their `contextText` interpolation
+ * and sort first.
+ *
+ * Requirement filter keys (e.g. failed-or-stale runs) are ignored here: the
+ * user explicitly chose this entity, so it outranks the picker's narrowing.
+ */
+export function attachStarterSuggestions(
+  kind: AgentSessionKind,
+  option: Pick<SessionContextOption, "type" | "title" | "ref">,
+): AttachStarterSuggestion[] {
+  const rawTitle = option.title.trim() || option.ref;
+  const title = rawTitle.length > ATTACH_TITLE_MAX ? `${rawTitle.slice(0, ATTACH_TITLE_MAX - 3)}...` : rawTitle;
+  return starterSuggestionsForKind(kind)
+    .filter((suggestion) =>
+      (suggestion.requirements ?? []).every(
+        (requirement) => requirement.optional || (requirement.kind === "context" && requirement.type === option.type),
+      ),
+    )
+    .map((suggestion) => {
+      const mentionsOption = (suggestion.requirements ?? []).some(
+        (requirement) => requirement.kind === "context" && requirement.type === option.type,
+      );
+      const specific = Boolean(suggestion.contextText && mentionsOption);
+      return {
+        id: suggestion.id,
+        icon: suggestion.icon,
+        text: specific && suggestion.contextText ? suggestion.contextText(title) : suggestion.text,
+        specific,
+      };
+    })
+    .sort((a, b) => Number(b.specific) - Number(a.specific));
 }

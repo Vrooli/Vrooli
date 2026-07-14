@@ -650,7 +650,7 @@ class LogSummary(_message.Message):
     def __init__(self, total: _Optional[int] = ..., decisions: _Optional[int] = ..., findings: _Optional[int] = ..., bug_reports: _Optional[int] = ..., records: _Optional[int] = ..., notes: _Optional[int] = ..., candidate_findings: _Optional[int] = ..., pending_sync: _Optional[int] = ..., failed_sync: _Optional[int] = ..., recent: _Optional[_Iterable[_Union[LogSummaryItem, _Mapping]]] = ...) -> None: ...
 
 class ValidationResult(_message.Message):
-    __slots__ = ("id", "plan_id", "phase_id", "verdict", "staleness", "commands_run", "detail", "ran_at", "command_findings")
+    __slots__ = ("id", "plan_id", "phase_id", "verdict", "staleness", "commands_run", "detail", "ran_at", "command_findings", "execution_id", "operation_id", "scope_generation", "full_inventory", "required_members", "selected_members")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -660,6 +660,12 @@ class ValidationResult(_message.Message):
     DETAIL_FIELD_NUMBER: _ClassVar[int]
     RAN_AT_FIELD_NUMBER: _ClassVar[int]
     COMMAND_FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    FULL_INVENTORY_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_MEMBERS_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_MEMBERS_FIELD_NUMBER: _ClassVar[int]
     id: str
     plan_id: str
     phase_id: str
@@ -669,7 +675,13 @@ class ValidationResult(_message.Message):
     detail: str
     ran_at: str
     command_findings: _containers.RepeatedCompositeFieldContainer[CommandValidationFinding]
-    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., verdict: _Optional[_Union[ValidationVerdict, str]] = ..., staleness: _Optional[_Union[StalenessTier, str]] = ..., commands_run: _Optional[_Iterable[str]] = ..., detail: _Optional[str] = ..., ran_at: _Optional[str] = ..., command_findings: _Optional[_Iterable[_Union[CommandValidationFinding, _Mapping]]] = ...) -> None: ...
+    execution_id: str
+    operation_id: str
+    scope_generation: int
+    full_inventory: bool
+    required_members: _containers.RepeatedScalarFieldContainer[str]
+    selected_members: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., verdict: _Optional[_Union[ValidationVerdict, str]] = ..., staleness: _Optional[_Union[StalenessTier, str]] = ..., commands_run: _Optional[_Iterable[str]] = ..., detail: _Optional[str] = ..., ran_at: _Optional[str] = ..., command_findings: _Optional[_Iterable[_Union[CommandValidationFinding, _Mapping]]] = ..., execution_id: _Optional[str] = ..., operation_id: _Optional[str] = ..., scope_generation: _Optional[int] = ..., full_inventory: _Optional[bool] = ..., required_members: _Optional[_Iterable[str]] = ..., selected_members: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CommandValidationFinding(_message.Message):
     __slots__ = ("command_text", "verdict", "validation_level", "message", "location", "issue_codes", "suggestions", "guidance")

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"time"
@@ -162,6 +163,37 @@ func (s *Service) Detail(name string) (Detail, error) {
 			HTTPStatus: 404,
 		}
 	}
+	return detail, nil
+}
+
+// DetailAtPath reads runtime details for a scenario that was started from an
+// explicit physical directory. Generated scenarios are intentionally absent
+// from the repository catalog, so normal Detail(name) cannot identify their
+// manifest or select the matching runtime instance.
+func (s *Service) DetailAtPath(name, path string) (Detail, error) {
+	cleanPath := filepath.Clean(path)
+	if path == "" || cleanPath == "." {
+		return Detail{}, &vroolierr.Error{Code: "scenario_path_required", Category: "Usage", Message: "scenario path is required", HTTPStatus: 400}
+	}
+	manifestPath := filepath.Join(cleanPath, ".vrooli", "service.json")
+	manifest, err := scenario.ReadService(manifestPath)
+	if err != nil {
+		return Detail{}, fmt.Errorf("load scenario %q at %q: %w", name, cleanPath, err)
+	}
+	item := scenario.Scenario{Slug: name, Path: cleanPath, ServicePath: manifestPath, Manifest: manifest}
+	if item.Manifest.Service.Name == "" {
+		item.Manifest.Service.Name = name
+	}
+	ctx := context.Background()
+	detail, ok, err := s.registryDetailAtPath(ctx, item, cleanPath)
+	if err != nil {
+		return Detail{}, err
+	}
+	if !ok {
+		runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
+		detail = Detail{Scenario: item, Runtime: runtime, Details: scenario.DescribeRuntime(item.Manifest, runtime)}
+	}
+	detail.StartOperation = s.startOperationView(ctx, item)
 	return detail, nil
 }
 

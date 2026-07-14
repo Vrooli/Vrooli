@@ -29,6 +29,7 @@ type ScenarioOperations interface {
 	Inventory() ([]orchestrator.Detail, error)
 	InventoryReport() (orchestrator.InventoryReport, error)
 	Detail(name string) (orchestrator.Detail, error)
+	DetailAtPath(name, path string) (orchestrator.Detail, error)
 	StartAll() (control.StartReport, error)
 	StopAll() (control.StopReport, error)
 	ResolvePort(name, portName string) (orchestrator.ResolvedPort, error)
@@ -291,7 +292,15 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 	if hostlifecycle.InSandbox() {
 		return s.hostPort(req)
 	}
-	detail, err := s.Scenarios.Detail(req.ScenarioName)
+	var (
+		detail orchestrator.Detail
+		err    error
+	)
+	if strings.TrimSpace(req.Path) != "" {
+		detail, err = s.Scenarios.DetailAtPath(req.ScenarioName, req.Path)
+	} else {
+		detail, err = s.Scenarios.Detail(req.ScenarioName)
+	}
 	if err != nil {
 		return PortResponse{}, err
 	}

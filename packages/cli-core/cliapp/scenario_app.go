@@ -285,6 +285,10 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 
 	preflight := func(cmd Command, global GlobalOptions) error {
 		a.warnIfRunningScenarioLocalBinary()
+		// All ScenarioApp transports (JSON REST, Connect, and multipart upload)
+		// reuse HTTPClient.ApplyRequestHeaders. Set this before reachability
+		// checks so the actual command invocation has one stable observation id.
+		a.HTTPClient.SetHeaderSource(cliutil.InvocationHeaders(a.options.Name, cmd.Name))
 
 		if cmd.NeedsAPI {
 			if err := a.ensureAPIReachable(cmd, global.AutoStart); err != nil {

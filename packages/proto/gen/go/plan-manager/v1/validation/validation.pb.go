@@ -657,6 +657,15 @@ type ValidationOperation struct {
 	SchemaVersion              int32                       `protobuf:"varint,18,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
 	ScopeFingerprint           string                      `protobuf:"bytes,19,opt,name=scope_fingerprint,json=scopeFingerprint,proto3" json:"scope_fingerprint,omitempty"`
 	QueueReason                string                      `protobuf:"bytes,20,opt,name=queue_reason,json=queueReason,proto3" json:"queue_reason,omitempty"`
+	ProducerWaitArgv           []string                    `protobuf:"bytes,21,rep,name=producer_wait_argv,json=producerWaitArgv,proto3" json:"producer_wait_argv,omitempty"`
+	SyncArgv                   []string                    `protobuf:"bytes,22,rep,name=sync_argv,json=syncArgv,proto3" json:"sync_argv,omitempty"`
+	LastSyncedAt               string                      `protobuf:"bytes,23,opt,name=last_synced_at,json=lastSyncedAt,proto3" json:"last_synced_at,omitempty"`
+	ExecutionId                string                      `protobuf:"bytes,24,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	ScopeGeneration            int32                       `protobuf:"varint,25,opt,name=scope_generation,json=scopeGeneration,proto3" json:"scope_generation,omitempty"`
+	RequiredMembers            []string                    `protobuf:"bytes,26,rep,name=required_members,json=requiredMembers,proto3" json:"required_members,omitempty"`
+	SelectedMembers            []string                    `protobuf:"bytes,27,rep,name=selected_members,json=selectedMembers,proto3" json:"selected_members,omitempty"`
+	FullInventory              bool                        `protobuf:"varint,28,opt,name=full_inventory,json=fullInventory,proto3" json:"full_inventory,omitempty"`
+	TestRuns                   []*TestRunEvidence          `protobuf:"bytes,29,rep,name=test_runs,json=testRuns,proto3" json:"test_runs,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -831,18 +840,169 @@ func (x *ValidationOperation) GetQueueReason() string {
 	return ""
 }
 
+func (x *ValidationOperation) GetProducerWaitArgv() []string {
+	if x != nil {
+		return x.ProducerWaitArgv
+	}
+	return nil
+}
+
+func (x *ValidationOperation) GetSyncArgv() []string {
+	if x != nil {
+		return x.SyncArgv
+	}
+	return nil
+}
+
+func (x *ValidationOperation) GetLastSyncedAt() string {
+	if x != nil {
+		return x.LastSyncedAt
+	}
+	return ""
+}
+
+func (x *ValidationOperation) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *ValidationOperation) GetScopeGeneration() int32 {
+	if x != nil {
+		return x.ScopeGeneration
+	}
+	return 0
+}
+
+func (x *ValidationOperation) GetRequiredMembers() []string {
+	if x != nil {
+		return x.RequiredMembers
+	}
+	return nil
+}
+
+func (x *ValidationOperation) GetSelectedMembers() []string {
+	if x != nil {
+		return x.SelectedMembers
+	}
+	return nil
+}
+
+func (x *ValidationOperation) GetFullInventory() bool {
+	if x != nil {
+		return x.FullInventory
+	}
+	return false
+}
+
+func (x *ValidationOperation) GetTestRuns() []*TestRunEvidence {
+	if x != nil {
+		return x.TestRuns
+	}
+	return nil
+}
+
+type TestRunEvidence struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Fingerprint   string                 `protobuf:"bytes,4,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	TerminalAt    string                 `protobuf:"bytes,5,opt,name=terminal_at,json=terminalAt,proto3" json:"terminal_at,omitempty"`
+	Detail        string                 `protobuf:"bytes,6,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestRunEvidence) Reset() {
+	*x = TestRunEvidence{}
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestRunEvidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestRunEvidence) ProtoMessage() {}
+
+func (x *TestRunEvidence) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestRunEvidence.ProtoReflect.Descriptor instead.
+func (*TestRunEvidence) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TestRunEvidence) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *TestRunEvidence) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *TestRunEvidence) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *TestRunEvidence) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *TestRunEvidence) GetTerminalAt() string {
+	if x != nil {
+		return x.TerminalAt
+	}
+	return ""
+}
+
+func (x *TestRunEvidence) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
 type StartValidationRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	PlanId         string                 `protobuf:"bytes,1,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
-	PhaseId        string                 `protobuf:"bytes,2,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
-	IdempotencyKey string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	PlanId          string                 `protobuf:"bytes,1,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	PhaseId         string                 `protobuf:"bytes,2,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	IdempotencyKey  string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	ExecutionId     string                 `protobuf:"bytes,4,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	ScopeGeneration int32                  `protobuf:"varint,5,opt,name=scope_generation,json=scopeGeneration,proto3" json:"scope_generation,omitempty"`
+	Member          []string               `protobuf:"bytes,6,rep,name=member,proto3" json:"member,omitempty"`
+	TestRuns        []*TestRunEvidence     `protobuf:"bytes,7,rep,name=test_runs,json=testRuns,proto3" json:"test_runs,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StartValidationRequest) Reset() {
 	*x = StartValidationRequest{}
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[9]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +1014,7 @@ func (x *StartValidationRequest) String() string {
 func (*StartValidationRequest) ProtoMessage() {}
 
 func (x *StartValidationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[9]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +1027,7 @@ func (x *StartValidationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartValidationRequest.ProtoReflect.Descriptor instead.
 func (*StartValidationRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{9}
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StartValidationRequest) GetPlanId() string {
@@ -891,6 +1051,34 @@ func (x *StartValidationRequest) GetIdempotencyKey() string {
 	return ""
 }
 
+func (x *StartValidationRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *StartValidationRequest) GetScopeGeneration() int32 {
+	if x != nil {
+		return x.ScopeGeneration
+	}
+	return 0
+}
+
+func (x *StartValidationRequest) GetMember() []string {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *StartValidationRequest) GetTestRuns() []*TestRunEvidence {
+	if x != nil {
+		return x.TestRuns
+	}
+	return nil
+}
+
 type StartValidationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Operation     *ValidationOperation   `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
@@ -901,7 +1089,7 @@ type StartValidationResponse struct {
 
 func (x *StartValidationResponse) Reset() {
 	*x = StartValidationResponse{}
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[10]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -913,7 +1101,7 @@ func (x *StartValidationResponse) String() string {
 func (*StartValidationResponse) ProtoMessage() {}
 
 func (x *StartValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[10]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -926,7 +1114,7 @@ func (x *StartValidationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartValidationResponse.ProtoReflect.Descriptor instead.
 func (*StartValidationResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{10}
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StartValidationResponse) GetOperation() *ValidationOperation {
@@ -953,7 +1141,7 @@ type GetValidationOperationRequest struct {
 
 func (x *GetValidationOperationRequest) Reset() {
 	*x = GetValidationOperationRequest{}
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[11]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -965,7 +1153,7 @@ func (x *GetValidationOperationRequest) String() string {
 func (*GetValidationOperationRequest) ProtoMessage() {}
 
 func (x *GetValidationOperationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[11]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -978,7 +1166,7 @@ func (x *GetValidationOperationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetValidationOperationRequest.ProtoReflect.Descriptor instead.
 func (*GetValidationOperationRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{11}
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetValidationOperationRequest) GetOperationId() string {
@@ -1004,7 +1192,7 @@ type GetValidationOperationResponse struct {
 
 func (x *GetValidationOperationResponse) Reset() {
 	*x = GetValidationOperationResponse{}
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[12]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1016,7 +1204,7 @@ func (x *GetValidationOperationResponse) String() string {
 func (*GetValidationOperationResponse) ProtoMessage() {}
 
 func (x *GetValidationOperationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[12]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1029,10 +1217,98 @@ func (x *GetValidationOperationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetValidationOperationResponse.ProtoReflect.Descriptor instead.
 func (*GetValidationOperationResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{12}
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetValidationOperationResponse) GetOperation() *ValidationOperation {
+	if x != nil {
+		return x.Operation
+	}
+	return nil
+}
+
+type SyncValidationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OperationId   string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncValidationRequest) Reset() {
+	*x = SyncValidationRequest{}
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncValidationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncValidationRequest) ProtoMessage() {}
+
+func (x *SyncValidationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncValidationRequest.ProtoReflect.Descriptor instead.
+func (*SyncValidationRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SyncValidationRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+type SyncValidationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Operation     *ValidationOperation   `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncValidationResponse) Reset() {
+	*x = SyncValidationResponse{}
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncValidationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncValidationResponse) ProtoMessage() {}
+
+func (x *SyncValidationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncValidationResponse.ProtoReflect.Descriptor instead.
+func (*SyncValidationResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SyncValidationResponse) GetOperation() *ValidationOperation {
 	if x != nil {
 		return x.Operation
 	}
@@ -1049,7 +1325,7 @@ type RunValidationRequest struct {
 
 func (x *RunValidationRequest) Reset() {
 	*x = RunValidationRequest{}
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[13]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1061,7 +1337,7 @@ func (x *RunValidationRequest) String() string {
 func (*RunValidationRequest) ProtoMessage() {}
 
 func (x *RunValidationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[13]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1074,7 +1350,7 @@ func (x *RunValidationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunValidationRequest.ProtoReflect.Descriptor instead.
 func (*RunValidationRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{13}
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RunValidationRequest) GetPlanId() string {
@@ -1100,7 +1376,7 @@ type RunValidationResponse struct {
 
 func (x *RunValidationResponse) Reset() {
 	*x = RunValidationResponse{}
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[14]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1112,7 +1388,7 @@ func (x *RunValidationResponse) String() string {
 func (*RunValidationResponse) ProtoMessage() {}
 
 func (x *RunValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[14]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1125,7 +1401,7 @@ func (x *RunValidationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunValidationResponse.ProtoReflect.Descriptor instead.
 func (*RunValidationResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{14}
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RunValidationResponse) GetResult() *shared.ValidationResult {
@@ -1144,7 +1420,7 @@ type VerifyDefinitionOfDoneRequest struct {
 
 func (x *VerifyDefinitionOfDoneRequest) Reset() {
 	*x = VerifyDefinitionOfDoneRequest{}
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[15]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1156,7 +1432,7 @@ func (x *VerifyDefinitionOfDoneRequest) String() string {
 func (*VerifyDefinitionOfDoneRequest) ProtoMessage() {}
 
 func (x *VerifyDefinitionOfDoneRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[15]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1169,7 +1445,7 @@ func (x *VerifyDefinitionOfDoneRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyDefinitionOfDoneRequest.ProtoReflect.Descriptor instead.
 func (*VerifyDefinitionOfDoneRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{15}
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *VerifyDefinitionOfDoneRequest) GetPlanId() string {
@@ -1191,7 +1467,7 @@ type VerifyDefinitionOfDoneResponse struct {
 
 func (x *VerifyDefinitionOfDoneResponse) Reset() {
 	*x = VerifyDefinitionOfDoneResponse{}
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[16]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1203,7 +1479,7 @@ func (x *VerifyDefinitionOfDoneResponse) String() string {
 func (*VerifyDefinitionOfDoneResponse) ProtoMessage() {}
 
 func (x *VerifyDefinitionOfDoneResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[16]
+	mi := &file_plan_manager_v1_validation_validation_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1216,7 +1492,7 @@ func (x *VerifyDefinitionOfDoneResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyDefinitionOfDoneResponse.ProtoReflect.Descriptor instead.
 func (*VerifyDefinitionOfDoneResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{16}
+	return file_plan_manager_v1_validation_validation_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *VerifyDefinitionOfDoneResponse) GetResult() *shared.ValidationResult {
@@ -1280,7 +1556,8 @@ const file_plan_manager_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\v \x01(\tR\tstartedAt\x12\x1f\n" +
 	"\vterminal_at\x18\f \x01(\tR\n" +
-	"terminalAt\"\xc3\a\n" +
+	"terminalAt\"\xd0\n" +
+	"\n" +
 	"\x13ValidationOperation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x19\n" +
@@ -1305,11 +1582,32 @@ const file_plan_manager_v1_validation_validation_proto_rawDesc = "" +
 	"\x18recommended_wait_seconds\x18\x11 \x01(\x05R\x16recommendedWaitSeconds\x12%\n" +
 	"\x0eschema_version\x18\x12 \x01(\x05R\rschemaVersion\x12+\n" +
 	"\x11scope_fingerprint\x18\x13 \x01(\tR\x10scopeFingerprint\x12!\n" +
-	"\fqueue_reason\x18\x14 \x01(\tR\vqueueReason\"u\n" +
+	"\fqueue_reason\x18\x14 \x01(\tR\vqueueReason\x12,\n" +
+	"\x12producer_wait_argv\x18\x15 \x03(\tR\x10producerWaitArgv\x12\x1b\n" +
+	"\tsync_argv\x18\x16 \x03(\tR\bsyncArgv\x12$\n" +
+	"\x0elast_synced_at\x18\x17 \x01(\tR\flastSyncedAt\x12!\n" +
+	"\fexecution_id\x18\x18 \x01(\tR\vexecutionId\x12)\n" +
+	"\x10scope_generation\x18\x19 \x01(\x05R\x0fscopeGeneration\x12)\n" +
+	"\x10required_members\x18\x1a \x03(\tR\x0frequiredMembers\x12)\n" +
+	"\x10selected_members\x18\x1b \x03(\tR\x0fselectedMembers\x12%\n" +
+	"\x0efull_inventory\x18\x1c \x01(\bR\rfullInventory\x12O\n" +
+	"\ttest_runs\x18\x1d \x03(\v22.vrooli.plan_manager.v1.validation.TestRunEvidenceR\btestRuns\"\xb7\x01\n" +
+	"\x0fTestRunEvidence\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12 \n" +
+	"\vfingerprint\x18\x04 \x01(\tR\vfingerprint\x12\x1f\n" +
+	"\vterminal_at\x18\x05 \x01(\tR\n" +
+	"terminalAt\x12\x16\n" +
+	"\x06detail\x18\x06 \x01(\tR\x06detail\"\xac\x02\n" +
 	"\x16StartValidationRequest\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12\x19\n" +
 	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12'\n" +
-	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"\x93\x01\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12!\n" +
+	"\fexecution_id\x18\x04 \x01(\tR\vexecutionId\x12)\n" +
+	"\x10scope_generation\x18\x05 \x01(\x05R\x0fscopeGeneration\x12\x16\n" +
+	"\x06member\x18\x06 \x03(\tR\x06member\x12O\n" +
+	"\ttest_runs\x18\a \x03(\v22.vrooli.plan_manager.v1.validation.TestRunEvidenceR\btestRuns\"\x93\x01\n" +
 	"\x17StartValidationResponse\x12T\n" +
 	"\toperation\x18\x01 \x01(\v26.vrooli.plan_manager.v1.validation.ValidationOperationR\toperation\x12\"\n" +
 	"\fdeduplicated\x18\x02 \x01(\bR\fdeduplicated\"V\n" +
@@ -1317,6 +1615,10 @@ const file_plan_manager_v1_validation_validation_proto_rawDesc = "" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x12\n" +
 	"\x04wait\x18\x02 \x01(\bR\x04wait\"v\n" +
 	"\x1eGetValidationOperationResponse\x12T\n" +
+	"\toperation\x18\x01 \x01(\v26.vrooli.plan_manager.v1.validation.ValidationOperationR\toperation\":\n" +
+	"\x15SyncValidationRequest\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\"n\n" +
+	"\x16SyncValidationResponse\x12T\n" +
 	"\toperation\x18\x01 \x01(\v26.vrooli.plan_manager.v1.validation.ValidationOperationR\toperation\"J\n" +
 	"\x14RunValidationRequest\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12\x19\n" +
@@ -1337,8 +1639,7 @@ const file_plan_manager_v1_validation_validation_proto_rawDesc = "" +
 	"#VALIDATION_CHILD_STATUS_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eVALIDATION_CHILD_STATUS_QUEUED\x10\x01\x12#\n" +
 	"\x1fVALIDATION_CHILD_STATUS_RUNNING\x10\x02\x12$\n" +
-	" VALIDATION_CHILD_STATUS_TERMINAL\x10\x032\xdd\n" +
-	"\n" +
+	" VALIDATION_CHILD_STATUS_TERMINAL\x10\x032\xe5\v\n" +
 	"\x11ValidationService\x12\x8e\x01\n" +
 	"\x11ResolveReferences\x12;.vrooli.plan_manager.v1.validation.ResolveReferencesRequest\x1a<.vrooli.plan_manager.v1.validation.ResolveReferencesResponse\x12\x8b\x01\n" +
 	"\x10ComputeStaleness\x12:.vrooli.plan_manager.v1.validation.ComputeStalenessRequest\x1a;.vrooli.plan_manager.v1.validation.ComputeStalenessResponse\x12\x94\x01\n" +
@@ -1346,7 +1647,8 @@ const file_plan_manager_v1_validation_validation_proto_rawDesc = "" +
 	"\x0fStartValidation\x129.vrooli.plan_manager.v1.validation.StartValidationRequest\x1a:.vrooli.plan_manager.v1.validation.StartValidationResponse\x12\x9d\x01\n" +
 	"\x16GetValidationOperation\x12@.vrooli.plan_manager.v1.validation.GetValidationOperationRequest\x1aA.vrooli.plan_manager.v1.validation.GetValidationOperationResponse\x12\x9e\x01\n" +
 	"\x17WaitValidationOperation\x12@.vrooli.plan_manager.v1.validation.GetValidationOperationRequest\x1aA.vrooli.plan_manager.v1.validation.GetValidationOperationResponse\x12\xa0\x01\n" +
-	"\x19ResumeValidationOperation\x12@.vrooli.plan_manager.v1.validation.GetValidationOperationRequest\x1aA.vrooli.plan_manager.v1.validation.GetValidationOperationResponse\x12\x82\x01\n" +
+	"\x19ResumeValidationOperation\x12@.vrooli.plan_manager.v1.validation.GetValidationOperationRequest\x1aA.vrooli.plan_manager.v1.validation.GetValidationOperationResponse\x12\x85\x01\n" +
+	"\x0eSyncValidation\x128.vrooli.plan_manager.v1.validation.SyncValidationRequest\x1a9.vrooli.plan_manager.v1.validation.SyncValidationResponse\x12\x82\x01\n" +
 	"\rRunValidation\x127.vrooli.plan_manager.v1.validation.RunValidationRequest\x1a8.vrooli.plan_manager.v1.validation.RunValidationResponse\x12\x9d\x01\n" +
 	"\x16VerifyDefinitionOfDone\x12@.vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneRequest\x1aA.vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/validation;validation_v1b\x06proto3"
 
@@ -1363,7 +1665,7 @@ func file_plan_manager_v1_validation_validation_proto_rawDescGZIP() []byte {
 }
 
 var file_plan_manager_v1_validation_validation_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_plan_manager_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_plan_manager_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_plan_manager_v1_validation_validation_proto_goTypes = []any{
 	(ValidationOperationStatus)(0),         // 0: vrooli.plan_manager.v1.validation.ValidationOperationStatus
 	(ValidationChildStatus)(0),             // 1: vrooli.plan_manager.v1.validation.ValidationChildStatus
@@ -1376,57 +1678,65 @@ var file_plan_manager_v1_validation_validation_proto_goTypes = []any{
 	(*ValidationOperationError)(nil),       // 8: vrooli.plan_manager.v1.validation.ValidationOperationError
 	(*ValidationChildOperation)(nil),       // 9: vrooli.plan_manager.v1.validation.ValidationChildOperation
 	(*ValidationOperation)(nil),            // 10: vrooli.plan_manager.v1.validation.ValidationOperation
-	(*StartValidationRequest)(nil),         // 11: vrooli.plan_manager.v1.validation.StartValidationRequest
-	(*StartValidationResponse)(nil),        // 12: vrooli.plan_manager.v1.validation.StartValidationResponse
-	(*GetValidationOperationRequest)(nil),  // 13: vrooli.plan_manager.v1.validation.GetValidationOperationRequest
-	(*GetValidationOperationResponse)(nil), // 14: vrooli.plan_manager.v1.validation.GetValidationOperationResponse
-	(*RunValidationRequest)(nil),           // 15: vrooli.plan_manager.v1.validation.RunValidationRequest
-	(*RunValidationResponse)(nil),          // 16: vrooli.plan_manager.v1.validation.RunValidationResponse
-	(*VerifyDefinitionOfDoneRequest)(nil),  // 17: vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneRequest
-	(*VerifyDefinitionOfDoneResponse)(nil), // 18: vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse
-	(*shared.Reference)(nil),               // 19: vrooli.plan_manager.v1.shared.Reference
-	(shared.StalenessTier)(0),              // 20: vrooli.plan_manager.v1.shared.StalenessTier
-	(shared.ValidationVerdict)(0),          // 21: vrooli.plan_manager.v1.shared.ValidationVerdict
-	(*shared.ValidationResult)(nil),        // 22: vrooli.plan_manager.v1.shared.ValidationResult
+	(*TestRunEvidence)(nil),                // 11: vrooli.plan_manager.v1.validation.TestRunEvidence
+	(*StartValidationRequest)(nil),         // 12: vrooli.plan_manager.v1.validation.StartValidationRequest
+	(*StartValidationResponse)(nil),        // 13: vrooli.plan_manager.v1.validation.StartValidationResponse
+	(*GetValidationOperationRequest)(nil),  // 14: vrooli.plan_manager.v1.validation.GetValidationOperationRequest
+	(*GetValidationOperationResponse)(nil), // 15: vrooli.plan_manager.v1.validation.GetValidationOperationResponse
+	(*SyncValidationRequest)(nil),          // 16: vrooli.plan_manager.v1.validation.SyncValidationRequest
+	(*SyncValidationResponse)(nil),         // 17: vrooli.plan_manager.v1.validation.SyncValidationResponse
+	(*RunValidationRequest)(nil),           // 18: vrooli.plan_manager.v1.validation.RunValidationRequest
+	(*RunValidationResponse)(nil),          // 19: vrooli.plan_manager.v1.validation.RunValidationResponse
+	(*VerifyDefinitionOfDoneRequest)(nil),  // 20: vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneRequest
+	(*VerifyDefinitionOfDoneResponse)(nil), // 21: vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse
+	(*shared.Reference)(nil),               // 22: vrooli.plan_manager.v1.shared.Reference
+	(shared.StalenessTier)(0),              // 23: vrooli.plan_manager.v1.shared.StalenessTier
+	(shared.ValidationVerdict)(0),          // 24: vrooli.plan_manager.v1.shared.ValidationVerdict
+	(*shared.ValidationResult)(nil),        // 25: vrooli.plan_manager.v1.shared.ValidationResult
 }
 var file_plan_manager_v1_validation_validation_proto_depIdxs = []int32{
-	19, // 0: vrooli.plan_manager.v1.validation.ResolveReferencesResponse.references:type_name -> vrooli.plan_manager.v1.shared.Reference
-	20, // 1: vrooli.plan_manager.v1.validation.ComputeStalenessResponse.overall:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
-	19, // 2: vrooli.plan_manager.v1.validation.ComputeStalenessResponse.references:type_name -> vrooli.plan_manager.v1.shared.Reference
+	22, // 0: vrooli.plan_manager.v1.validation.ResolveReferencesResponse.references:type_name -> vrooli.plan_manager.v1.shared.Reference
+	23, // 1: vrooli.plan_manager.v1.validation.ComputeStalenessResponse.overall:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
+	22, // 2: vrooli.plan_manager.v1.validation.ComputeStalenessResponse.references:type_name -> vrooli.plan_manager.v1.shared.Reference
 	1,  // 3: vrooli.plan_manager.v1.validation.ValidationChildOperation.status:type_name -> vrooli.plan_manager.v1.validation.ValidationChildStatus
-	21, // 4: vrooli.plan_manager.v1.validation.ValidationChildOperation.verdict:type_name -> vrooli.plan_manager.v1.shared.ValidationVerdict
+	24, // 4: vrooli.plan_manager.v1.validation.ValidationChildOperation.verdict:type_name -> vrooli.plan_manager.v1.shared.ValidationVerdict
 	8,  // 5: vrooli.plan_manager.v1.validation.ValidationChildOperation.error:type_name -> vrooli.plan_manager.v1.validation.ValidationOperationError
 	0,  // 6: vrooli.plan_manager.v1.validation.ValidationOperation.status:type_name -> vrooli.plan_manager.v1.validation.ValidationOperationStatus
 	9,  // 7: vrooli.plan_manager.v1.validation.ValidationOperation.children:type_name -> vrooli.plan_manager.v1.validation.ValidationChildOperation
-	22, // 8: vrooli.plan_manager.v1.validation.ValidationOperation.result:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
+	25, // 8: vrooli.plan_manager.v1.validation.ValidationOperation.result:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
 	8,  // 9: vrooli.plan_manager.v1.validation.ValidationOperation.error:type_name -> vrooli.plan_manager.v1.validation.ValidationOperationError
-	10, // 10: vrooli.plan_manager.v1.validation.StartValidationResponse.operation:type_name -> vrooli.plan_manager.v1.validation.ValidationOperation
-	10, // 11: vrooli.plan_manager.v1.validation.GetValidationOperationResponse.operation:type_name -> vrooli.plan_manager.v1.validation.ValidationOperation
-	22, // 12: vrooli.plan_manager.v1.validation.RunValidationResponse.result:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
-	22, // 13: vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse.result:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
-	2,  // 14: vrooli.plan_manager.v1.validation.ValidationService.ResolveReferences:input_type -> vrooli.plan_manager.v1.validation.ResolveReferencesRequest
-	4,  // 15: vrooli.plan_manager.v1.validation.ValidationService.ComputeStaleness:input_type -> vrooli.plan_manager.v1.validation.ComputeStalenessRequest
-	6,  // 16: vrooli.plan_manager.v1.validation.ValidationService.DeriveBaselineScope:input_type -> vrooli.plan_manager.v1.validation.DeriveBaselineScopeRequest
-	11, // 17: vrooli.plan_manager.v1.validation.ValidationService.StartValidation:input_type -> vrooli.plan_manager.v1.validation.StartValidationRequest
-	13, // 18: vrooli.plan_manager.v1.validation.ValidationService.GetValidationOperation:input_type -> vrooli.plan_manager.v1.validation.GetValidationOperationRequest
-	13, // 19: vrooli.plan_manager.v1.validation.ValidationService.WaitValidationOperation:input_type -> vrooli.plan_manager.v1.validation.GetValidationOperationRequest
-	13, // 20: vrooli.plan_manager.v1.validation.ValidationService.ResumeValidationOperation:input_type -> vrooli.plan_manager.v1.validation.GetValidationOperationRequest
-	15, // 21: vrooli.plan_manager.v1.validation.ValidationService.RunValidation:input_type -> vrooli.plan_manager.v1.validation.RunValidationRequest
-	17, // 22: vrooli.plan_manager.v1.validation.ValidationService.VerifyDefinitionOfDone:input_type -> vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneRequest
-	3,  // 23: vrooli.plan_manager.v1.validation.ValidationService.ResolveReferences:output_type -> vrooli.plan_manager.v1.validation.ResolveReferencesResponse
-	5,  // 24: vrooli.plan_manager.v1.validation.ValidationService.ComputeStaleness:output_type -> vrooli.plan_manager.v1.validation.ComputeStalenessResponse
-	7,  // 25: vrooli.plan_manager.v1.validation.ValidationService.DeriveBaselineScope:output_type -> vrooli.plan_manager.v1.validation.DeriveBaselineScopeResponse
-	12, // 26: vrooli.plan_manager.v1.validation.ValidationService.StartValidation:output_type -> vrooli.plan_manager.v1.validation.StartValidationResponse
-	14, // 27: vrooli.plan_manager.v1.validation.ValidationService.GetValidationOperation:output_type -> vrooli.plan_manager.v1.validation.GetValidationOperationResponse
-	14, // 28: vrooli.plan_manager.v1.validation.ValidationService.WaitValidationOperation:output_type -> vrooli.plan_manager.v1.validation.GetValidationOperationResponse
-	14, // 29: vrooli.plan_manager.v1.validation.ValidationService.ResumeValidationOperation:output_type -> vrooli.plan_manager.v1.validation.GetValidationOperationResponse
-	16, // 30: vrooli.plan_manager.v1.validation.ValidationService.RunValidation:output_type -> vrooli.plan_manager.v1.validation.RunValidationResponse
-	18, // 31: vrooli.plan_manager.v1.validation.ValidationService.VerifyDefinitionOfDone:output_type -> vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse
-	23, // [23:32] is the sub-list for method output_type
-	14, // [14:23] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	11, // 10: vrooli.plan_manager.v1.validation.ValidationOperation.test_runs:type_name -> vrooli.plan_manager.v1.validation.TestRunEvidence
+	11, // 11: vrooli.plan_manager.v1.validation.StartValidationRequest.test_runs:type_name -> vrooli.plan_manager.v1.validation.TestRunEvidence
+	10, // 12: vrooli.plan_manager.v1.validation.StartValidationResponse.operation:type_name -> vrooli.plan_manager.v1.validation.ValidationOperation
+	10, // 13: vrooli.plan_manager.v1.validation.GetValidationOperationResponse.operation:type_name -> vrooli.plan_manager.v1.validation.ValidationOperation
+	10, // 14: vrooli.plan_manager.v1.validation.SyncValidationResponse.operation:type_name -> vrooli.plan_manager.v1.validation.ValidationOperation
+	25, // 15: vrooli.plan_manager.v1.validation.RunValidationResponse.result:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
+	25, // 16: vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse.result:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
+	2,  // 17: vrooli.plan_manager.v1.validation.ValidationService.ResolveReferences:input_type -> vrooli.plan_manager.v1.validation.ResolveReferencesRequest
+	4,  // 18: vrooli.plan_manager.v1.validation.ValidationService.ComputeStaleness:input_type -> vrooli.plan_manager.v1.validation.ComputeStalenessRequest
+	6,  // 19: vrooli.plan_manager.v1.validation.ValidationService.DeriveBaselineScope:input_type -> vrooli.plan_manager.v1.validation.DeriveBaselineScopeRequest
+	12, // 20: vrooli.plan_manager.v1.validation.ValidationService.StartValidation:input_type -> vrooli.plan_manager.v1.validation.StartValidationRequest
+	14, // 21: vrooli.plan_manager.v1.validation.ValidationService.GetValidationOperation:input_type -> vrooli.plan_manager.v1.validation.GetValidationOperationRequest
+	14, // 22: vrooli.plan_manager.v1.validation.ValidationService.WaitValidationOperation:input_type -> vrooli.plan_manager.v1.validation.GetValidationOperationRequest
+	14, // 23: vrooli.plan_manager.v1.validation.ValidationService.ResumeValidationOperation:input_type -> vrooli.plan_manager.v1.validation.GetValidationOperationRequest
+	16, // 24: vrooli.plan_manager.v1.validation.ValidationService.SyncValidation:input_type -> vrooli.plan_manager.v1.validation.SyncValidationRequest
+	18, // 25: vrooli.plan_manager.v1.validation.ValidationService.RunValidation:input_type -> vrooli.plan_manager.v1.validation.RunValidationRequest
+	20, // 26: vrooli.plan_manager.v1.validation.ValidationService.VerifyDefinitionOfDone:input_type -> vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneRequest
+	3,  // 27: vrooli.plan_manager.v1.validation.ValidationService.ResolveReferences:output_type -> vrooli.plan_manager.v1.validation.ResolveReferencesResponse
+	5,  // 28: vrooli.plan_manager.v1.validation.ValidationService.ComputeStaleness:output_type -> vrooli.plan_manager.v1.validation.ComputeStalenessResponse
+	7,  // 29: vrooli.plan_manager.v1.validation.ValidationService.DeriveBaselineScope:output_type -> vrooli.plan_manager.v1.validation.DeriveBaselineScopeResponse
+	13, // 30: vrooli.plan_manager.v1.validation.ValidationService.StartValidation:output_type -> vrooli.plan_manager.v1.validation.StartValidationResponse
+	15, // 31: vrooli.plan_manager.v1.validation.ValidationService.GetValidationOperation:output_type -> vrooli.plan_manager.v1.validation.GetValidationOperationResponse
+	15, // 32: vrooli.plan_manager.v1.validation.ValidationService.WaitValidationOperation:output_type -> vrooli.plan_manager.v1.validation.GetValidationOperationResponse
+	15, // 33: vrooli.plan_manager.v1.validation.ValidationService.ResumeValidationOperation:output_type -> vrooli.plan_manager.v1.validation.GetValidationOperationResponse
+	17, // 34: vrooli.plan_manager.v1.validation.ValidationService.SyncValidation:output_type -> vrooli.plan_manager.v1.validation.SyncValidationResponse
+	19, // 35: vrooli.plan_manager.v1.validation.ValidationService.RunValidation:output_type -> vrooli.plan_manager.v1.validation.RunValidationResponse
+	21, // 36: vrooli.plan_manager.v1.validation.ValidationService.VerifyDefinitionOfDone:output_type -> vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse
+	27, // [27:37] is the sub-list for method output_type
+	17, // [17:27] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_validation_validation_proto_init() }
@@ -1440,7 +1750,7 @@ func file_plan_manager_v1_validation_validation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plan_manager_v1_validation_validation_proto_rawDesc), len(file_plan_manager_v1_validation_validation_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   17,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

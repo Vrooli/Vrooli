@@ -511,10 +511,10 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 		"Xvfb", "ast-grep", "bats", "buf", "cloudflared", "curl",
 		"docker", "ffmpeg", "git", "go", "helm", "iopaint", "java", "jq", "kdump-tools",
 		"llama-cpp", "lychee",
-		"mcelog", "node", "openbox", "protoc", "protoc-gen-connect-go",
+		"mcelog", "node", "openbox", "pnpm", "protoc", "protoc-gen-connect-go",
 		"protoc-gen-es", "protoc-gen-go",
-		"python", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "sd",
-		"stripe", "tmux", "vault", "websockify",
+		"python", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "sd", "sd-gpu",
+		"stripe", "tmux", "uv", "vault", "websockify",
 		"x11vnc", "xdotool", "yq",
 	}
 	if len(toolNames) != len(expectedTools) {

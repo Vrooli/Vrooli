@@ -81,6 +81,26 @@ A missing or unknown class on an active provider fails certification with
 with `SEARCH_REINDEX_ENDPOINT_MISSING`. Model web/external behaviour by declaring
 `class: external`, never by scenario name.
 
+### Performance evidence policy
+
+`performance` records the provider-owned SLO that Search Hub evaluates from the
+latest fresh eval run:
+
+```jsonc
+"performance": {
+  "p95_ms": 1500,
+  "degraded_rate_max": 0.05,
+  "telemetry_required": true,
+  "minimum_samples": 8
+}
+```
+
+`minimum_samples` prevents a p95 or degradation rate from masquerading as a
+production result when it was calculated from a smoke-sized run. Local production
+providers normally declare at least 8 evaluated cases; external smoke-only
+providers declare 1. A run below this explicit floor produces the required
+`SEARCH_PERF_SAMPLES_UNPROVEN` finding.
+
 ## 3. `tuning` — the control-surface dashboard
 
 The `tuning` block is the typed `TuningConfig`. **Every field is one row of the

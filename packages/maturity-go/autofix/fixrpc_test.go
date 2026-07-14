@@ -22,6 +22,13 @@ func TestBuildFixResponseEmptyStampsMessage(t *testing.T) {
 	}
 }
 
+func TestBuildFixResponseDoesNotClaimApplyForEmptyCandidateSet(t *testing.T) {
+	resp := BuildFixResponse("demo", true, nil)
+	if resp.GetApplied() {
+		t.Fatal("empty apply must be reported as a no-op")
+	}
+}
+
 func TestCandidatesProtoRoundTrip(t *testing.T) {
 	in := []Candidate{{
 		RuleID:      "R1",

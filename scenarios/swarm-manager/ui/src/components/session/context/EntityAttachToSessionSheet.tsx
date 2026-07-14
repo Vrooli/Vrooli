@@ -8,7 +8,6 @@ import type { AgentSession, AgentSessionKind } from "../../../types";
 import { cn } from "../../../lib/utils";
 import { BottomSheet } from "../../ui/bottom-sheet";
 import { Button } from "../../ui/button";
-import { Card } from "../../ui/card";
 import { Input } from "../../ui/input";
 import { ContextChipTray } from "../../composer/ContextChipTray";
 import {
@@ -17,9 +16,13 @@ import {
   SESSION_KIND_LABELS,
 } from "../session-view-model";
 import { SessionSummaryCard } from "../session-summary-card";
+import { attachStarterSuggestions } from "../session-starter-suggestions";
+import { writeSessionDraft } from "../session-draft-storage";
 import { CONTEXT_TYPE_LABELS, compatibleSessionKindsForContextType, sessionKindAllowsContextType } from "./session-context-config";
 import { stageContextForSession } from "./pending-session-context";
 import { type SessionContextOption } from "./session-context-refs";
+
+type AttachMode = "new" | "existing";
 
 interface EntityAttachToSessionSheetProps {
   isOpen: boolean;
@@ -56,20 +59,27 @@ function EntityAttachToSessionSheetContent({
   const sessions = useAgentSessionStore((s) => s.sessions);
   const createSession = useAgentSessionStore((s) => s.createSession);
   const isMutating = useAgentSessionStore((s) => s.isMutating);
+  const [mode, setMode] = useState<AttachMode>("new");
   const [query, setQuery] = useState("");
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedKind, setSelectedKind] = useState<AgentSessionKind>(() => compatibleSessionKindsForContextType(option.type)[0] ?? "meta_orchestration");
+  const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const compatibleKinds = useMemo(() => compatibleSessionKindsForContextType(option.type), [option.type]);
 
   useEffect(() => {
+    setMode("new");
     setSelectedSessionId(null);
     setSelectedKind(compatibleKinds[0] ?? "meta_orchestration");
+    setSelectedSuggestionId(null);
     setQuery("");
     setLocalError(null);
     void fetchSessions({ limit: 100 }, { force: true });
   }, [compatibleKinds, fetchSessions, isOpen]);
+
+  const suggestions = useMemo(() => attachStarterSuggestions(selectedKind, option), [selectedKind, option]);
+  const selectedSuggestion = suggestions.find((suggestion) => suggestion.id === selectedSuggestionId) ?? null;
 
   const visibleSessions = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -109,6 +119,10 @@ function EntityAttachToSessionSheetContent({
         title: titleForQuickStart(option),
       });
       stageContextForSession(session.id, option);
+      if (selectedSuggestion) {
+        // The detail page restores this like any saved composer draft.
+        writeSessionDraft(session.id, selectedSuggestion.text);
+      }
       onClose();
       navigate(sessionDetailPath(session.id));
     } catch (err) {
@@ -127,15 +141,31 @@ function EntityAttachToSessionSheetContent({
       footer={
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="min-w-0 truncate text-xs text-slate-400">
-            {selectedSession
-              ? `Selected ${selectedSession.title || selectedSession.id}`
-              : "Pick a session below, or draft a new one above."}
+            {mode === "new"
+              ? selectedSuggestion
+                ? "The chosen prompt will prefill the first message."
+                : "Context is staged before the first message."
+              : selectedSession
+                ? `Selected ${selectedSession.title || selectedSession.id}`
+                : "Pick a session from the list."}
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-            <Button size="sm" onClick={attachToExisting} disabled={!canAttachSelected} data-testid={selectors.agentSessions.entityAttachConfirm}>
-              Attach
-            </Button>
+            {mode === "new" ? (
+              <Button
+                size="sm"
+                onClick={() => void quickStart()}
+                disabled={isMutating || compatibleKinds.length === 0}
+                data-testid={selectors.agentSessions.entityAttachQuickStart}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Draft session
+              </Button>
+            ) : (
+              <Button size="sm" onClick={attachToExisting} disabled={!canAttachSelected} data-testid={selectors.agentSessions.entityAttachConfirm}>
+                Attach
+              </Button>
+            )}
           </div>
         </div>
       }
@@ -157,45 +187,28 @@ function EntityAttachToSessionSheetContent({
             </div>
           )}
 
-          {/* Option A — start a fresh session */}
-          <Card padding="none" className="p-3.5" data-testid="entity-attach-new-section">
-            <SectionHeading
+          {/* Destination: fresh session or one that already exists */}
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            <ModeCard
               icon={<MessageCirclePlus className="h-4 w-4" />}
-              tone="accent"
-              title="New draft session"
+              title="New session"
               subtitle={`${CONTEXT_TYPE_LABELS[option.type]} context will be staged before the first message.`}
+              selected={mode === "new"}
+              onSelect={() => setMode("new")}
+              testId={selectors.agentSessions.entityAttachModeNew}
             />
-            <div className="mt-3">
-              <SessionKindChoices
-                kinds={compatibleKinds}
-                selectedKind={selectedKind}
-                onSelect={setSelectedKind}
-              />
-            </div>
-            <div className="mt-3 flex justify-end">
-              <Button size="sm" onClick={() => void quickStart()} disabled={isMutating || compatibleKinds.length === 0} data-testid={selectors.agentSessions.entityAttachQuickStart}>
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Draft session
-              </Button>
-            </div>
-          </Card>
-
-          {/* Either/or boundary */}
-          <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-wider text-slate-500" aria-hidden>
-            <span className="h-px flex-1 bg-white/10" />
-            or
-            <span className="h-px flex-1 bg-white/10" />
+            <ModeCard
+              icon={<ListPlus className="h-4 w-4" />}
+              title="Add to existing session"
+              subtitle="Stage this context in a session you already have open."
+              selected={mode === "existing"}
+              onSelect={() => setMode("existing")}
+              testId={selectors.agentSessions.entityAttachModeExisting}
+            />
           </div>
 
-          {/* Option B — attach to something that already exists */}
-          <div data-testid="entity-attach-existing-section">
-            <SectionHeading
-              icon={<ListPlus className="h-4 w-4" />}
-              tone="muted"
-              title="Add to an existing session"
-              subtitle="Stage this context in a session you already have open."
-            />
-            <div className="relative mt-3">
+          {mode === "existing" && (
+            <div className="relative" data-testid="entity-attach-existing-section">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
               <Input
                 value={query}
@@ -205,58 +218,127 @@ function EntityAttachToSessionSheetContent({
                 data-testid={selectors.agentSessions.entityAttachSearch}
               />
             </div>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" data-testid={selectors.agentSessions.entityAttachSessionList}>
-          {visibleSessions.length > 0 ? (
-            <div className="space-y-1.5">
-              {visibleSessions.map((session) => (
-                <AttachSessionRow
-                  key={session.id}
-                  session={session}
-                  selected={session.id === selectedSessionId}
-                  compatible={sessionKindAllowsContextType(session.kind, option.type)}
-                  onSelect={() => setSelectedSessionId(session.id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-md border border-dashed border-white/10 bg-slate-950/30 px-3 py-10 text-center text-sm text-slate-500">
-              No matching sessions.
-            </div>
           )}
         </div>
+
+        {mode === "new" ? (
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3" data-testid="entity-attach-new-section">
+            <div>
+              <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                Session type
+              </p>
+              <SessionKindChoices
+                kinds={compatibleKinds}
+                selectedKind={selectedKind}
+                onSelect={(kind) => {
+                  setSelectedKind(kind);
+                  // Suggestion lists differ per kind; a stale pick would prefill
+                  // a prompt the user never saw.
+                  setSelectedSuggestionId(null);
+                }}
+              />
+            </div>
+            {suggestions.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                  Start with · optional
+                </p>
+                <div className="space-y-1.5">
+                  {suggestions.map((suggestion) => {
+                    const Icon = suggestion.icon;
+                    const selected = suggestion.id === selectedSuggestionId;
+                    return (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => setSelectedSuggestionId(selected ? null : suggestion.id)}
+                        className={cn(
+                          "flex w-full items-start gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors",
+                          selected
+                            ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-50"
+                            : "border-slate-800 bg-slate-950/45 text-slate-200 hover:border-slate-700 hover:bg-slate-800/55",
+                        )}
+                        data-testid={selectors.agentSessions.entityAttachSuggestion}
+                      >
+                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-cyan-500/20 bg-cyan-500/10 text-cyan-200">
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="min-w-0 text-sm leading-5">{suggestion.text}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" data-testid={selectors.agentSessions.entityAttachSessionList}>
+            {visibleSessions.length > 0 ? (
+              <div className="space-y-1.5">
+                {visibleSessions.map((session) => (
+                  <AttachSessionRow
+                    key={session.id}
+                    session={session}
+                    selected={session.id === selectedSessionId}
+                    compatible={sessionKindAllowsContextType(session.kind, option.type)}
+                    onSelect={() => setSelectedSessionId(session.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed border-white/10 bg-slate-950/30 px-3 py-10 text-center text-sm text-slate-500">
+                No matching sessions.
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </BottomSheet>
   );
 }
 
-function SectionHeading({
+function ModeCard({
   icon,
   title,
   subtitle,
-  tone,
+  selected,
+  onSelect,
+  testId,
 }: {
   icon: ReactNode;
   title: string;
   subtitle: string;
-  tone: "accent" | "muted";
+  selected: boolean;
+  onSelect: () => void;
+  testId: string;
 }) {
   return (
-    <div className="flex items-start gap-2.5">
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={cn(
+        "flex min-w-0 items-start gap-2 rounded-md border px-2.5 py-2 text-left transition-colors",
+        selected
+          ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-50"
+          : "border-slate-800 bg-slate-950/55 text-slate-200 hover:border-slate-700 hover:bg-slate-800/55",
+      )}
+      data-testid={testId}
+    >
       <span
         className={cn(
           "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-          tone === "accent" ? "bg-cyan-400/10 text-cyan-300" : "bg-slate-700/40 text-slate-300",
+          selected ? "bg-cyan-400/10 text-cyan-300" : "bg-slate-700/40 text-slate-300",
         )}
       >
         {icon}
       </span>
-      <div className="min-w-0">
-        <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
-        <p className="mt-0.5 text-xs leading-snug text-slate-400">{subtitle}</p>
-      </div>
-    </div>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-medium leading-5">{title}</span>
+        <span className="line-clamp-2 text-xs leading-4 text-slate-400">{subtitle}</span>
+      </span>
+    </button>
   );
 }
 

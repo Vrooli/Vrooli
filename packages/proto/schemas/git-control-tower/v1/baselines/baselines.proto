@@ -29,11 +29,15 @@ service BaselinesService {
   // create a multi-scenario Test Genie run or alter comparison semantics.
   rpc StartCollectionCapture(StartCollectionCaptureRequest) returns (StartCollectionCaptureResponse);
   rpc GetCollection(GetCollectionRequest) returns (GetCollectionResponse);
+  // Adds new before-state members to an existing collection. Existing members
+  // and source evidence are immutable once capture has started.
+  rpc ExtendCollection(ExtendCollectionRequest) returns (ExtendCollectionResponse);
   rpc StartCollectionDiff(StartCollectionDiffRequest) returns (StartCollectionDiffResponse);
   rpc GetCollectionDiff(GetCollectionDiffRequest) returns (GetCollectionDiffResponse);
   rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionResponse);
   // Path snapshots are separately classified source evidence. They never
   // participate in Test Genie regression verdicts.
+  rpc EstimatePathSnapshot(EstimatePathSnapshotRequest) returns (EstimatePathSnapshotResponse);
   rpc CapturePathSnapshot(CapturePathSnapshotRequest) returns (CapturePathSnapshotResponse);
   rpc GetPathSnapshot(GetPathSnapshotRequest) returns (GetPathSnapshotResponse);
   rpc DiffPathSnapshots(DiffPathSnapshotsRequest) returns (DiffPathSnapshotsResponse);
@@ -289,6 +293,8 @@ message StartCollectionCaptureRequest {
   int64 repo_id = 6;
 	// Safe repo-relative globs. Empty means no source evidence requested.
   repeated string path_selections = 7;
+  bool include_ignored = 8;
+  bool retain_content = 9;
 }
 
 message StartCollectionCaptureResponse {
@@ -306,6 +312,21 @@ message GetCollectionRequest {
 }
 
 message GetCollectionResponse { BaselineCollection collection = 1; }
+
+message ExtendCollectionRequest {
+  string name = 1;
+  string branch = 2;
+  repeated CollectionTarget targets = 3;
+  string created_by = 4;
+  string reason = 5;
+  int64 repo_id = 6;
+}
+
+message ExtendCollectionResponse {
+  BaselineCollection collection = 1;
+  repeated string added_scenarios = 2;
+  bool resumed = 3;
+}
 
 message CollectionDiffMember {
   string scenario = 1;
@@ -385,7 +406,63 @@ message PathSnapshot {
   string classification = 7;
   // RFC3339 UTC expiry for bounded retained source evidence.
   string expires_at = 8;
+  bool include_ignored = 9;
+  bool retain_content = 10;
+  // Zero is a legacy snapshot; nonzero identifies the source-selection policy.
+  int32 policy_version = 11;
 }
+
+message PathSnapshotContributor {
+  string path = 1;
+  int32 files = 2;
+  int64 bytes = 3;
+}
+
+message PathSnapshotIssue {
+  string code = 1;
+  string severity = 2;
+  string detail = 3;
+}
+
+message PathSnapshotRecommendation {
+  string selection = 1;
+  string reason = 2;
+}
+
+// A preflight only. It is the single authority for source selection policy
+// used by direct capture and Plan Manager; it never starts Test Genie work.
+message PathSnapshotEstimate {
+  repeated string selections = 1;
+  bool include_ignored = 2;
+  bool retain_content = 3;
+  int32 eligible_files = 4;
+  int64 eligible_bytes = 5;
+  int32 excluded_ignored_files = 6;
+  int64 excluded_ignored_bytes = 7;
+  int32 excluded_sensitive_files = 8;
+  int32 excluded_binary_files = 9;
+  int32 oversized_files = 10;
+  int64 retained_content_bytes = 11;
+  repeated PathSnapshotContributor top_contributors = 12;
+  repeated PathSnapshotIssue issues = 13;
+  repeated PathSnapshotRecommendation recommendations = 14;
+  bool repair_required = 15;
+  int32 policy_version = 16;
+}
+
+message EstimatePathSnapshotRequest {
+  repeated string selections = 1;
+  int64 repo_id = 2;
+  bool include_ignored = 3;
+  bool retain_content = 4;
+}
+
+message EstimatePathSnapshotResponse { PathSnapshotEstimate estimate = 1; }
+
+// Returned as a typed Connect error detail when capture is refused before any
+// source-evidence record is written. Call EstimatePathSnapshot to inspect the
+// same report proactively.
+message PathSnapshotPolicyViolation { PathSnapshotEstimate estimate = 1; }
 
 message SourceDelta {
   string path = 1;
@@ -402,6 +479,8 @@ message CapturePathSnapshotRequest {
   int64 repo_id = 4;
   // Optional bounded retention period. Zero selects the seven-day default.
   int64 retention_seconds = 5;
+  bool include_ignored = 6;
+  bool retain_content = 7;
 }
 
 message CapturePathSnapshotResponse {

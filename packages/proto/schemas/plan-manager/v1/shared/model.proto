@@ -557,6 +557,14 @@ message ValidationResult {
   string ran_at = 8;
   // COMPUTED: authored cli: command references checked through CLI Health.
   repeated CommandValidationFinding command_findings = 9;
+  // Producer-ticket provenance. These fields let an execution gate prove that
+  // a synchronized pass covered its audited selected scope.
+  string execution_id = 10;
+  string operation_id = 11;
+  int32 scope_generation = 12;
+  bool full_inventory = 13;
+  repeated string required_members = 14;
+  repeated string selected_members = 15;
 }
 
 // CommandValidationFinding is one CLI Health-backed finding for an authored

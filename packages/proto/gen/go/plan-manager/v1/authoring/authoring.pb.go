@@ -2497,7 +2497,8 @@ type DiscoverSkillPackRequest struct {
 	// Decomposed discovery concepts (domain / technology / problem type /
 	// scenario surface lenses). Empty falls back to the plan title.
 	Concepts []string `protobuf:"bytes,2,rep,name=concepts,proto3" json:"concepts,omitempty"`
-	// Optional prompt-manager discovery complexity, e.g. "architectural".
+	// Optional prompt-manager discovery complexity: minor|moderate|major|architectural.
+	// Synonyms low/medium/high are normalized; omit to use prompt-manager's default.
 	Complexity    string `protobuf:"bytes,3,opt,name=complexity,proto3" json:"complexity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

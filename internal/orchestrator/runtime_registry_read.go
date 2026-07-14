@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -147,6 +148,53 @@ func (s *Service) registryDetail(ctx context.Context, item scenario.Scenario) (D
 		return Detail{}, false, err
 	}
 	// Evidence after the store reads — same ordering rule as the fleet path.
+	evidence, err := s.captureRegistryEvidence(ctx)
+	if err != nil {
+		return Detail{}, false, err
+	}
+	detail, authoritative := detailFromRegistryInstance(item, instance, claims, refs, health, evidence)
+	return detail, authoritative, nil
+}
+
+func (s *Service) registryDetailAtPath(ctx context.Context, item scenario.Scenario, path string) (Detail, bool, error) {
+	store, err := s.openRuntimeRegistry(ctx)
+	if err != nil {
+		return Detail{}, false, err
+	}
+	defer store.Close()
+
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
+		Scenario: item.Slug,
+		Variant:  scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize().Variant,
+		Statuses: scenarioruntime.ActiveInstanceStatuses(),
+	})
+	if err != nil {
+		return Detail{}, false, err
+	}
+	cleanPath := filepath.Clean(path)
+	matching := make([]scenarioruntime.Instance, 0, len(instances))
+	for _, instance := range instances {
+		if filepath.Clean(instance.WorkingDir) == cleanPath {
+			matching = append(matching, instance)
+		}
+	}
+	if len(matching) == 0 {
+		return Detail{}, false, nil
+	}
+
+	instance := latestRuntimeInstance(matching)
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID, Statuses: scenarioruntime.ActivePortClaimStatuses()})
+	if err != nil {
+		return Detail{}, false, err
+	}
+	refs, err := store.ListProcessRefs(ctx, instance.InstanceID)
+	if err != nil {
+		return Detail{}, false, err
+	}
+	health, err := store.GetHealthSnapshot(ctx, instance.InstanceID)
+	if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+		return Detail{}, false, err
+	}
 	evidence, err := s.captureRegistryEvidence(ctx)
 	if err != nil {
 		return Detail{}, false, err

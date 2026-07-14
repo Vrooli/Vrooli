@@ -1,16 +1,29 @@
 package cliutil
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
 // Environment variable names for agent identity detection.
 const (
 	EnvIdentityToken = "VROOLI_AGENT_IDENTITY_TOKEN"
+
+	// HeaderAgentIdentityToken carries the opaque Agent Manager token. APIs must
+	// verify it server-side before treating any request as agent-attributed.
+	HeaderAgentIdentityToken = "X-Agent-Identity-Token"
+	// HeaderInvocationScenario, HeaderInvocationCommand, and
+	// HeaderInvocationID are channel observations. They identify what the CLI
+	// says it invoked; unlike HeaderAgentIdentityToken, they are not proof that
+	// a particular binary performed the mutation.
+	HeaderInvocationScenario = "X-Vrooli-Invocation-Scenario"
+	HeaderInvocationCommand  = "X-Vrooli-Invocation-Command"
+	HeaderInvocationID       = "X-Vrooli-Invocation-Id"
 )
 
 var detectAgentManagerPort = DetectPortFromVrooli("agent-manager", "API_PORT")
@@ -52,6 +65,38 @@ func DetectIdentity() IdentityEnv {
 // IsIdentityPresent returns true if the identity token is set.
 func (env IdentityEnv) IsIdentityPresent() bool {
 	return env.Token != ""
+}
+
+// InvocationHeaders returns the common agent-provenance transport headers for
+// one CLI command invocation. The identity token is read when a request is
+// sent so a caller that establishes an agent environment after startup still
+// gets correct forwarding. Invocation fields are deliberately bounded channel
+// observations, not cryptographic attestations.
+func InvocationHeaders(scenario, command string) func() map[string]string {
+	scenario = strings.TrimSpace(scenario)
+	command = strings.TrimSpace(command)
+	invocationID := newInvocationID()
+	return func() map[string]string {
+		headers := map[string]string{
+			HeaderInvocationScenario: scenario,
+			HeaderInvocationCommand:  command,
+			HeaderInvocationID:       invocationID,
+		}
+		if token := strings.TrimSpace(os.Getenv(EnvIdentityToken)); token != "" {
+			headers[HeaderAgentIdentityToken] = token
+		}
+		return headers
+	}
+}
+
+func newInvocationID() string {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err == nil {
+		return fmt.Sprintf("cli-%x", raw[:])
+	}
+	// The random source should never fail on supported platforms. Keep request
+	// transport available if it does, while retaining process-local uniqueness.
+	return fmt.Sprintf("cli-%d", time.Now().UTC().UnixNano())
 }
 
 // VerifyIdentity calls the agent-manager's identity verification endpoint

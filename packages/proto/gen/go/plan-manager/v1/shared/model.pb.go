@@ -3201,6 +3201,14 @@ type ValidationResult struct {
 	RanAt       string                 `protobuf:"bytes,8,opt,name=ran_at,json=ranAt,proto3" json:"ran_at,omitempty"`
 	// COMPUTED: authored cli: command references checked through CLI Health.
 	CommandFindings []*CommandValidationFinding `protobuf:"bytes,9,rep,name=command_findings,json=commandFindings,proto3" json:"command_findings,omitempty"`
+	// Producer-ticket provenance. These fields let an execution gate prove that
+	// a synchronized pass covered its audited selected scope.
+	ExecutionId     string   `protobuf:"bytes,10,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	OperationId     string   `protobuf:"bytes,11,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	ScopeGeneration int32    `protobuf:"varint,12,opt,name=scope_generation,json=scopeGeneration,proto3" json:"scope_generation,omitempty"`
+	FullInventory   bool     `protobuf:"varint,13,opt,name=full_inventory,json=fullInventory,proto3" json:"full_inventory,omitempty"`
+	RequiredMembers []string `protobuf:"bytes,14,rep,name=required_members,json=requiredMembers,proto3" json:"required_members,omitempty"`
+	SelectedMembers []string `protobuf:"bytes,15,rep,name=selected_members,json=selectedMembers,proto3" json:"selected_members,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3294,6 +3302,48 @@ func (x *ValidationResult) GetRanAt() string {
 func (x *ValidationResult) GetCommandFindings() []*CommandValidationFinding {
 	if x != nil {
 		return x.CommandFindings
+	}
+	return nil
+}
+
+func (x *ValidationResult) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *ValidationResult) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *ValidationResult) GetScopeGeneration() int32 {
+	if x != nil {
+		return x.ScopeGeneration
+	}
+	return 0
+}
+
+func (x *ValidationResult) GetFullInventory() bool {
+	if x != nil {
+		return x.FullInventory
+	}
+	return false
+}
+
+func (x *ValidationResult) GetRequiredMembers() []string {
+	if x != nil {
+		return x.RequiredMembers
+	}
+	return nil
+}
+
+func (x *ValidationResult) GetSelectedMembers() []string {
+	if x != nil {
+		return x.SelectedMembers
 	}
 	return nil
 }
@@ -4594,7 +4644,7 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\vfailed_sync\x18\t \x01(\x05R\n" +
 	"failedSync\x12E\n" +
 	"\x06recent\x18\n" +
-	" \x03(\v2-.vrooli.plan_manager.v1.shared.LogSummaryItemR\x06recent\"\xa4\x03\n" +
+	" \x03(\v2-.vrooli.plan_manager.v1.shared.LogSummaryItemR\x06recent\"\x92\x05\n" +
 	"\x10ValidationResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x19\n" +
@@ -4604,7 +4654,14 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\fcommands_run\x18\x06 \x03(\tR\vcommandsRun\x12\x16\n" +
 	"\x06detail\x18\a \x01(\tR\x06detail\x12\x15\n" +
 	"\x06ran_at\x18\b \x01(\tR\x05ranAt\x12b\n" +
-	"\x10command_findings\x18\t \x03(\v27.vrooli.plan_manager.v1.shared.CommandValidationFindingR\x0fcommandFindings\"\x97\x02\n" +
+	"\x10command_findings\x18\t \x03(\v27.vrooli.plan_manager.v1.shared.CommandValidationFindingR\x0fcommandFindings\x12!\n" +
+	"\fexecution_id\x18\n" +
+	" \x01(\tR\vexecutionId\x12!\n" +
+	"\foperation_id\x18\v \x01(\tR\voperationId\x12)\n" +
+	"\x10scope_generation\x18\f \x01(\x05R\x0fscopeGeneration\x12%\n" +
+	"\x0efull_inventory\x18\r \x01(\bR\rfullInventory\x12)\n" +
+	"\x10required_members\x18\x0e \x03(\tR\x0frequiredMembers\x12)\n" +
+	"\x10selected_members\x18\x0f \x03(\tR\x0fselectedMembers\"\x97\x02\n" +
 	"\x18CommandValidationFinding\x12!\n" +
 	"\fcommand_text\x18\x01 \x01(\tR\vcommandText\x12\x18\n" +
 	"\averdict\x18\x02 \x01(\tR\averdict\x12)\n" +
