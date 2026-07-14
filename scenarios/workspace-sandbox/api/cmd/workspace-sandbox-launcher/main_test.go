@@ -102,14 +102,20 @@ func TestChooseLaunchModeOverlayfsRootRequiresRoot(t *testing.T) {
 }
 
 func TestChooseLaunchModeNonLinuxIsDirect(t *testing.T) {
-	d := testDeps(t)
-	d.goos = "darwin"
-	mode, err := chooseLaunchMode(driverid.OverlayfsUserNS, d)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if mode != modeDirect {
-		t.Fatalf("mode = %q, want %q", mode, modeDirect)
+	// Both non-Linux hosts run direct: darwin (Seatbelt applies inside exec,
+	// not via a userns launcher) and windows (no userns at all).
+	for _, goos := range []string{"darwin", "windows"} {
+		t.Run(goos, func(t *testing.T) {
+			d := testDeps(t)
+			d.goos = goos
+			mode, err := chooseLaunchMode(driverid.OverlayfsUserNS, d)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode != modeDirect {
+				t.Fatalf("mode = %q, want %q", mode, modeDirect)
+			}
+		})
 	}
 }
 
@@ -135,6 +141,39 @@ func TestRunReadsPreferenceAndExecsExpectedCommand(t *testing.T) {
 	}
 	if len(gotArgv) != 1 || gotArgv[0] != "/tmp/api" {
 		t.Fatalf("argv = %#v", gotArgv)
+	}
+}
+
+// TestRunWindowsUsesRunAndWaitNotExec pins the platform dispatch in run():
+// Windows has no execve semantics, so the launcher must runAndWait (spawn +
+// wait) rather than exec-replace itself. execProcess must NOT be called.
+func TestRunWindowsUsesRunAndWaitNotExec(t *testing.T) {
+	dir := t.TempDir()
+	if err := driverpref.Save(dir, driverid.Copy); err != nil {
+		t.Fatal(err)
+	}
+	var ranAndWaited bool
+	var gotArgv0 string
+	d := testDeps(t)
+	d.goos = "windows"
+	d.defaultBaseDir = func() string { return dir }
+	d.execProcess = func(string, []string, []string) error {
+		t.Fatal("execProcess must not be called on windows; run() must runAndWait")
+		return nil
+	}
+	d.runAndWait = func(argv0 string, argv []string, env []string) error {
+		ranAndWaited = true
+		gotArgv0 = argv0
+		return nil
+	}
+	if err := run([]string{"/tmp/api"}, d); err != nil {
+		t.Fatal(err)
+	}
+	if !ranAndWaited {
+		t.Fatal("runAndWait was not called on windows")
+	}
+	if gotArgv0 != "/tmp/api" {
+		t.Fatalf("argv0 = %q, want /tmp/api", gotArgv0)
 	}
 }
 

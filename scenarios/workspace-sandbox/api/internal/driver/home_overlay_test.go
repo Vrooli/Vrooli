@@ -124,7 +124,7 @@ func (m *staleMounter) IsMountPoint(path string) bool { return false }
 
 // TestDriver_HomeOverlayCapability pins each driver's Capabilities()
 // answer. Adding a new driver is a new row here, not editing a central
-// switch — same pattern as TestDriverContract_RequiresBwrap.
+// switch — same pattern as TestDriverContract_RequiredContainment.
 //
 // DOC: home-overlay seam — driver capability test.
 func TestDriver_HomeOverlayCapability(t *testing.T) {

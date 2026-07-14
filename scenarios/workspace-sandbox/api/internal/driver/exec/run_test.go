@@ -79,8 +79,8 @@ func TestExec_TimeoutReturns124(t *testing.T) {
 	}
 	cfg := DefaultBwrapConfig()
 	cfg.ResourceLimits.TimeoutSec = 1
-	// ModeNone runs in s.MergedDir directly, no bwrap dependency.
-	result, err := Exec(context.Background(), process.NewOSExecStarter(), sandbox, ModeNone, cfg, "sh", "-c", "sleep 5")
+	// driver.ContainmentNone runs in s.MergedDir directly, no bwrap dependency.
+	result, err := Exec(context.Background(), process.NewOSExecStarter(), sandbox, driver.ContainmentNone, cfg, "sh", "-c", "sleep 5")
 	if err != nil {
 		t.Fatalf("Exec returned unexpected error: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestStartProcess_OnExitFiresExactlyOnce(t *testing.T) {
 		close(done)
 	}
 
-	pid, err := StartProcess(context.Background(), process.NewOSExecStarter(), sandbox, ModeNone, cfg, "true")
+	pid, _, err := StartProcess(context.Background(), process.NewOSExecStarter(), sandbox, driver.ContainmentNone, cfg, "true")
 	if err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestStartProcess_WaitHappensWhenOnExitNil(t *testing.T) {
 	// Use a marker file to know when the child has exited; that's an
 	// indirect signal that the reaper goroutine ran (cmd.Wait returned).
 	marker := filepath.Join(tmp, "done")
-	pid, err := StartProcess(context.Background(), process.NewOSExecStarter(), sandbox, ModeNone, cfg, "sh", "-c", "touch "+marker)
+	pid, _, err := StartProcess(context.Background(), process.NewOSExecStarter(), sandbox, driver.ContainmentNone, cfg, "sh", "-c", "touch "+marker)
 	if err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}

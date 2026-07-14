@@ -34,10 +34,10 @@ type FakeDriver struct {
 	mu sync.Mutex
 
 	// Identity
-	IDValue           driver.DriverID
-	VersionValue      string
-	IsolationModeVal  driver.IsolationMode
-	CapabilitiesValue driver.DriverCapabilities
+	IDValue             driver.DriverID
+	VersionValue        string
+	ContainmentLevelVal driver.ContainmentLevel
+	CapabilitiesValue   driver.DriverCapabilities
 
 	// Default Mount return value. Mount always succeeds with this
 	// payload unless MountErr is set.
@@ -75,13 +75,13 @@ type FakeDriver struct {
 // no errors.
 func NewFakeDriver() *FakeDriver {
 	return &FakeDriver{
-		IDValue:          "mock",
-		VersionValue:     "1.0.0",
-		IsolationModeVal: driver.ModeNone,
+		IDValue:             "mock",
+		VersionValue:        "1.0.0",
+		ContainmentLevelVal: driver.ContainmentNone,
 		CapabilitiesValue: driver.DriverCapabilities{
 			HomeOverlay:        false,
 			CoW:                false,
-			NamespaceIsolation: driver.ModeNone,
+			NamespaceIsolation: driver.ContainmentNone,
 		},
 		MountPaths: &driver.MountPaths{
 			LowerDir:  "/tmp/lower",
@@ -97,10 +97,10 @@ func NewFakeDriver() *FakeDriver {
 
 // --- driver.MountDriver implementation ---
 
-func (d *FakeDriver) ID() driver.DriverID                     { return d.IDValue }
-func (d *FakeDriver) Version() string                         { return d.VersionValue }
-func (d *FakeDriver) RequiresBwrap() driver.IsolationMode     { return d.IsolationModeVal }
-func (d *FakeDriver) Capabilities() driver.DriverCapabilities { return d.CapabilitiesValue }
+func (d *FakeDriver) ID() driver.DriverID                          { return d.IDValue }
+func (d *FakeDriver) Version() string                              { return d.VersionValue }
+func (d *FakeDriver) RequiredContainment() driver.ContainmentLevel { return d.ContainmentLevelVal }
+func (d *FakeDriver) Capabilities() driver.DriverCapabilities      { return d.CapabilitiesValue }
 
 func (d *FakeDriver) IsAvailable(ctx context.Context) (bool, error) {
 	if d.IsAvailableErr != nil {

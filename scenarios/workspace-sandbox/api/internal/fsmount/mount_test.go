@@ -216,3 +216,19 @@ func (m *recordMounter) Unmount(ctx context.Context, target string, lazy bool) e
 }
 
 func (m *recordMounter) IsMountPoint(path string) bool { return false }
+
+// TestBackendUnsupportedError_IsSentinel verifies the typed error the
+// non-Linux mount fast path returns matches ErrBackendUnsupported via
+// errors.Is and carries backend/GOOS context in its message. This runs on
+// Linux CI (it constructs the error directly rather than depending on the
+// !linux build of sysMountOverlay).
+func TestBackendUnsupportedError_IsSentinel(t *testing.T) {
+	err := &fsmount.BackendUnsupportedError{Backend: "kernel-overlay", GOOS: "darwin"}
+	if !errors.Is(err, fsmount.ErrBackendUnsupported) {
+		t.Fatalf("errors.Is(err, ErrBackendUnsupported) = false, want true")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "kernel-overlay") || !strings.Contains(msg, "darwin") {
+		t.Errorf("error message %q missing backend/GOOS context", msg)
+	}
+}

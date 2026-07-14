@@ -324,14 +324,14 @@ func (h *osExecHandle) KillProcessGroup() error {
 // pid. Falls back to a single-process kill when getpgid fails (no
 // dedicated group, e.g. caller forgot Setpgid).
 func killProcessGroup(pid int) error {
-	pgid, err := syscall.Getpgid(pid)
+	pgid, err := sysGetpgid(pid)
 	if err != nil {
-		if killErr := syscall.Kill(pid, syscall.SIGKILL); killErr != nil && !errors.Is(killErr, syscall.ESRCH) {
+		if killErr := sysKill(pid, syscall.SIGKILL); killErr != nil && !isProcessGone(killErr) {
 			return killErr
 		}
 		return nil
 	}
-	if killErr := syscall.Kill(-pgid, syscall.SIGKILL); killErr != nil && !errors.Is(killErr, syscall.ESRCH) {
+	if killErr := sysKill(-pgid, syscall.SIGKILL); killErr != nil && !isProcessGone(killErr) {
 		return killErr
 	}
 	return nil

@@ -25,7 +25,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/process"
@@ -128,24 +127,6 @@ func inUserNamespace() bool {
 		return false
 	}
 	return !(fields[0] == "0" && fields[1] == "0" && fields[2] == "4294967295")
-}
-
-// getKernelVersion returns the kernel version string
-func getKernelVersion() string {
-	var uname syscall.Utsname
-	if err := syscall.Uname(&uname); err != nil {
-		return "unknown"
-	}
-
-	// Convert [65]int8 to string
-	var buf []byte
-	for _, c := range uname.Release {
-		if c == 0 {
-			break
-		}
-		buf = append(buf, byte(c))
-	}
-	return string(buf)
 }
 
 // IsKernelAtLeast checks if the kernel version is at least the specified version

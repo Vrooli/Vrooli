@@ -19,7 +19,7 @@ import (
 //	process_start.go      StartProcess (background processes)
 //	process_logs.go       GetProcessLogs / StreamProcessLogs / ListProcessLogs
 //	process_management.go ListProcesses / KillProcess / KillAllProcesses
-//	                       PostProcessStdin / ProcessStats / BwrapInfo
+//	                       PostProcessStdin / ProcessStats / ContainmentInfo
 //
 // Profile resolution + home-overlay enforcement live in
 // internal/runtime/profile.go (see runtime.ProfileResolver). The
@@ -81,6 +81,11 @@ type ExecResponse struct {
 	Stderr   string `json:"stderr"`
 	PID      int    `json:"pid,omitempty"`
 	TimedOut bool   `json:"timedOut,omitempty"` // True if process was killed due to timeout
+
+	// Containment is the process-containment that actually ran this command
+	// (backend + enforcement guarantees), stamped from the exec backend
+	// dispatch so callers get per-launch provenance rather than inference.
+	Containment *types.SandboxContainment `json:"containment,omitempty"`
 }
 
 // Exec executes a command inside a sandbox with bubblewrap isolation.
@@ -164,27 +169,38 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	cfg.ResourceLimits = runtime.ApplyResourceLimitDefaults(requestedLimits, h.Config.Execution)
 
 	d := h.Driver()
-	result, err := driverexec.Exec(r.Context(), h.Starter, sb, d.RequiresBwrap(), cfg, req.Command, req.Args...)
+	level := d.RequiredContainment()
+	result, err := driverexec.Exec(r.Context(), h.Starter, sb, level, cfg, req.Command, req.Args...)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Effective containment: the backend that actually ran this launch plus
+	// the enforcements it provides on this host.
+	containmentInfo, _ := driver.GetContainmentInfo(r.Context(), h.Starter)
+	effective := driver.EffectiveContainment(level, result.Backend, containmentInfo)
+
 	if h.ProcessTracker != nil && result.PID > 0 {
-		if _, err := h.ProcessTracker.Track(id, result.PID, req.Command, req.SessionID); err != nil {
+		proc, err := h.ProcessTracker.Track(id, result.PID, req.Command, req.SessionID)
+		if err != nil {
 			h.JSONError(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if proc != nil {
+			_ = h.ProcessTracker.SetContainment(id, result.PID, effective)
 		}
 	}
 
 	timedOut := result.ExitCode == 124 && result.Error != nil
 
 	h.JSONSuccess(w, ExecResponse{
-		ExitCode: result.ExitCode,
-		Stdout:   string(result.Stdout),
-		Stderr:   string(result.Stderr),
-		PID:      result.PID,
-		TimedOut: timedOut,
+		ExitCode:    result.ExitCode,
+		Stdout:      string(result.Stdout),
+		Stderr:      string(result.Stderr),
+		PID:         result.PID,
+		TimedOut:    timedOut,
+		Containment: effective,
 	})
 }
 

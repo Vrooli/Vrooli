@@ -1,68 +1,64 @@
 {
-  "description": "Configurable hooks to run tests/lint before final commit of approved changes",
-  "module_id": "MOD-P1-014",
-  "prd_ref": "OT-P1-005",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P1-005",
+      "title": "Pre-commit Validation Hooks",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-005",
       "category": "integration",
       "description": "Support configurable pre-commit hooks for running tests, linters and custom validation before finalizing sandbox changes. Must handle hook failures appropriately.",
-      "id": "REQ-P1-005",
-      "prd_ref": "OT-P1-005",
-      "status": "implemented",
-      "title": "Pre-commit Validation Hooks",
       "validation": [
         {
-          "notes": "Test hook configuration and policy creation",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/policy/policy_test.go::TestHookValidationPolicy_ValidateBeforeApply",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test hook configuration and policy creation"
         },
         {
-          "notes": "Verify required/non-required hook failure behavior",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/policy/policy_test.go::TestHookValidationPolicy_GetValidationHooks",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify required/non-required hook failure behavior"
         },
         {
-          "notes": "Test empty and configured hooks initialization",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/policy/policy_test.go::TestNewHookValidationPolicy_EmptyHooks,TestNewHookValidationPolicy_WithHooks",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test empty and configured hooks initialization"
         },
         {
-          "notes": "Test ValidationHookError implements DomainError",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/policy/policy_test.go::TestValidationHookError",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Test environment variable setup for hooks",
           "phase": "unit",
+          "status": "failing",
+          "notes": "Test ValidationHookError implements DomainError"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/policy/policy_test.go::TestBuildHookEnv",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test environment variable setup for hooks"
         },
         {
-          "notes": "Hook overhead <500ms",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Hook overhead \u003c500ms"
         },
         {
-          "notes": "Quality checks prevent invalid commits",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Quality checks prevent invalid commits"
         }
       ]
     }
-  ],
-  "title": "Pre-commit Validation Hooks"
+  ]
 }

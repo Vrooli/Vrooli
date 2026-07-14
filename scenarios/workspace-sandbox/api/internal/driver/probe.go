@@ -141,34 +141,29 @@ func IsBwrapAvailable(ctx context.Context, starter process.Starter) (bool, strin
 	return true, strings.TrimSpace(string(res.Stdout)), nil
 }
 
-// BwrapInfo describes the bwrap installation and namespace capabilities.
-type BwrapInfo struct {
-	Available            bool   `json:"available"`
-	Version              string `json:"version,omitempty"`
-	Path                 string `json:"path,omitempty"`
-	UserNamespaceEnabled bool   `json:"userNamespaceEnabled"`
-	OverlayfsInUserNS    bool   `json:"overlayfsInUserNS"`
-	Error                string `json:"error,omitempty"`
-}
+// Containment enforcement vocabulary — platform-neutral names for the
+// guarantees a containment backend provides. Reported by
+// GetContainmentInfo so callers reason about isolation strength without
+// knowing the OS mechanism (bwrap on Linux, Seatbelt on macOS, …).
+const (
+	EnforcementFilesystemWriteContainment = "filesystem-write-containment"
+	EnforcementNetworkDeny                = "network-deny"
+	EnforcementPIDNamespace               = "pid-namespace"
+	EnforcementPathIllusion               = "path-illusion"
+)
 
-// GetBwrapInfo returns information about the bwrap installation.
-func GetBwrapInfo(ctx context.Context, starter process.Starter) (*BwrapInfo, error) {
-	available, version, err := IsBwrapAvailable(ctx, starter)
-	if !available {
-		return &BwrapInfo{
-			Available: false,
-			Error:     err.Error(),
-		}, nil
-	}
-	bwrapPath, _ := starter.LookPath("bwrap")
-	info := &BwrapInfo{
-		Available: true,
-		Version:   version,
-		Path:      bwrapPath,
-	}
-	if data, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone"); err == nil {
-		info.UserNamespaceEnabled = strings.TrimSpace(string(data)) == "1"
-	}
-	info.OverlayfsInUserNS = overlayfsModuleAvailable()
-	return info, nil
+// ContainmentInfo is the per-OS report of the process-containment backend
+// used for isolated execution. Backend is the backend id ("bwrap" on
+// Linux, "none" when no OS containment backend is present); Available
+// reports whether it can run on this host; Enforcements lists the
+// guarantees the backend provides using the platform-neutral vocabulary
+// above. Version/Path are backend-specific diagnostics (empty when not
+// applicable). Served by the /driver/containment endpoint.
+type ContainmentInfo struct {
+	Backend      string   `json:"backend"`
+	Available    bool     `json:"available"`
+	Version      string   `json:"version,omitempty"`
+	Path         string   `json:"path,omitempty"`
+	Enforcements []string `json:"enforcements"`
+	Error        string   `json:"error,omitempty"`
 }

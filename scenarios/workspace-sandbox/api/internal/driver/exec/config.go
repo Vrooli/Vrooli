@@ -1,7 +1,8 @@
 // Package exec runs commands inside sandboxes. It is the single canonical
 // implementation of process isolation for all driver types; drivers no
-// longer implement Exec/StartProcess themselves. Mode-keyed dispatch
-// (DriverModeFor) chooses how strongly to isolate the process.
+// longer implement Exec/StartProcess themselves. ContainmentLevel-keyed
+// dispatch (buildStartOpts) selects the OS containment backend that
+// enforces how strongly the process is isolated.
 package exec
 
 import (
@@ -45,8 +46,8 @@ func (r ResourceLimits) HasLimits() bool {
 }
 
 // BwrapConfig configures bubblewrap execution parameters. The name is kept
-// for continuity with prior driver code; in ModeNone (copy driver) the
-// bwrap-specific fields are simply ignored.
+// for continuity with prior driver code; under ContainmentNone (copy
+// driver) the bwrap-specific fields are simply ignored.
 //
 // Construction order at every call site:
 //

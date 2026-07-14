@@ -64,14 +64,14 @@ func TestConflictTypeConstants(t *testing.T) {
 	}
 }
 
-func TestSandbox_WorkspacePath(t *testing.T) {
+func TestSandbox_HostWorkspacePath(t *testing.T) {
 	t.Run("returns merged dir when active", func(t *testing.T) {
 		s := &Sandbox{
 			Status:    StatusActive,
 			MergedDir: "/var/lib/sandbox/merged",
 		}
-		if got := s.WorkspacePath(); got != "/var/lib/sandbox/merged" {
-			t.Errorf("WorkspacePath() = %q, want '/var/lib/sandbox/merged'", got)
+		if got := s.HostWorkspacePath(); got != "/var/lib/sandbox/merged" {
+			t.Errorf("HostWorkspacePath() = %q, want '/var/lib/sandbox/merged'", got)
 		}
 	})
 
@@ -81,8 +81,8 @@ func TestSandbox_WorkspacePath(t *testing.T) {
 				Status:    status,
 				MergedDir: "/var/lib/sandbox/merged",
 			}
-			if got := s.WorkspacePath(); got != "" {
-				t.Errorf("WorkspacePath() with status %s = %q, want ''", status, got)
+			if got := s.HostWorkspacePath(); got != "" {
+				t.Errorf("HostWorkspacePath() with status %s = %q, want ''", status, got)
 			}
 		}
 	})
@@ -92,8 +92,8 @@ func TestSandbox_WorkspacePath(t *testing.T) {
 			Status:    StatusActive,
 			MergedDir: "",
 		}
-		if got := s.WorkspacePath(); got != "" {
-			t.Errorf("WorkspacePath() with empty MergedDir = %q, want ''", got)
+		if got := s.HostWorkspacePath(); got != "" {
+			t.Errorf("HostWorkspacePath() with empty MergedDir = %q, want ''", got)
 		}
 	})
 }

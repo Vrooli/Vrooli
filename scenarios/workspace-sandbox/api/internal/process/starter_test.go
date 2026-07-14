@@ -13,7 +13,6 @@ import (
 	osexec "os/exec"
 	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -200,7 +199,7 @@ func TestOSExecStarter_KillProcessGroup_KillsChildren(t *testing.T) {
 	h, err := s.Start(context.Background(), process.StartOpts{
 		Path:        requireBin(t, "sh"),
 		Args:        []string{"-c", "sleep 30 & wait"},
-		SysProcAttr: &syscall.SysProcAttr{Setpgid: true},
+		SysProcAttr: process.NewProcessGroupSysProcAttr(),
 	})
 	if err != nil {
 		t.Fatalf("Start: %v", err)

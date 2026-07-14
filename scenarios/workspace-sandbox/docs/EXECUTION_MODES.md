@@ -162,6 +162,49 @@ workspace-sandbox run abc123 --vrooli-aware -- scenario-manager start
 - Commands that need to call other Vrooli CLIs
 - Processes that communicate with local services
 
+### Per-OS Containment
+
+Isolation is carried out by a per-OS *containment backend* selected behind a
+platform-neutral seam. Each backend reports the guarantees it enforces using a
+platform-neutral vocabulary (served by `GET /api/v1/driver/containment`), so
+clients reason about isolation strength without knowing the OS mechanism. The
+backends are honest about what they cannot enforce: a missing guarantee is
+reported as absent, not silently downgraded.
+
+| Enforcement | Linux (`bwrap`) | macOS (`seatbelt`) | Other (`none`) |
+|-------------|:---------------:|:------------------:|:--------------:|
+| `filesystem-write-containment` (writes confined to the sandbox writable set) | ✅ | ✅ | ❌ |
+| `network-deny` (network blocked unless the profile allows it) | ✅ | ✅ | ❌ |
+| `pid-namespace` (process table isolated) | ✅ | ❌ | ❌ |
+| `path-illusion` (workspace visible at `/workspace`) | ✅ | ❌ | ❌ |
+
+- **Linux** uses [bubblewrap](https://github.com/containers/bubblewrap): the
+  merged dir is bind-mounted at `/workspace` (path illusion), namespaces are
+  unshared (pid, network when denied), and resource limits are applied via
+  `prlimit`.
+- **macOS** uses [Seatbelt](https://developer.apple.com/) via the system
+  `sandbox-exec` binary with a generated profile. It is **partial by design**:
+  writes are denied outside the sandbox writable set and network is denied when
+  the profile disallows it, but there is **no path illusion** (the workspace
+  stays at its host `mergedDir`, so `workspacePath == mergedDir` and
+  `pathIllusion == false`) and **no pid namespace**. Resource limits are applied
+  by an in-binary `rlimit-exec` self-exec shim (`setrlimit`) that replaces
+  Linux-only `prlimit`.
+- **Other platforms** have no native containment backend: execution falls
+  through to the direct path, which enforces nothing.
+
+Because Seatbelt still enforces the two guarantees `agent-manager` protected
+mode depends on (`filesystem-write-containment` + `network-deny`), protected
+mode runs on macOS without a degradation warning; the absent path-illusion and
+pid-namespace guarantees are reported but not required by protected mode.
+
+> **Cross-platform status.** The per-OS compile matrix, driver availability,
+> and shipped-vs-deferred items are tracked in
+> [`docs/internal/PORTABILITY_AUDIT.md`](internal/PORTABILITY_AUDIT.md). macOS
+> support is verified at the compile/unit level on the Linux dev host; the
+> operator checklist for the real-Mac field shakeout is
+> [`docs/guides/macos-shakeout.md`](guides/macos-shakeout.md).
+
 ## Resource Limits
 
 Resource limits help prevent runaway processes and enable fair resource sharing.

@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 
 	"workspace-sandbox/internal/process"
@@ -68,13 +67,11 @@ func (h *Handlers) HostVrooliScenario(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := process.Run(ctx, h.Starter, process.StartOpts{
-		Path: "vrooli",
-		Args: args,
-		Dir:  hostLifecycleDir(),
-		Env:  hostLifecycleEnv(os.Environ()),
-		SysProcAttr: &syscall.SysProcAttr{
-			Setpgid: true,
-		},
+		Path:        "vrooli",
+		Args:        args,
+		Dir:         hostLifecycleDir(),
+		Env:         hostLifecycleEnv(os.Environ()),
+		SysProcAttr: process.NewProcessGroupSysProcAttr(),
 	})
 	resp := hostVrooliScenarioResponse{
 		Success:  err == nil && result.Exit.ExitCode == 0,

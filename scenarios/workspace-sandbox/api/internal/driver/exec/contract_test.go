@@ -39,6 +39,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks/procmocks"
 	"workspace-sandbox/internal/types"
@@ -63,7 +64,7 @@ func TestExecContract_ExitZero(t *testing.T) {
 		Exit:   process.ProcessExit{ExitCode: 0},
 		Stdout: []byte("hello\n"),
 	})
-	res, err := Exec(context.Background(), starter, newSandboxFor(t), ModeNone, DefaultBwrapConfig(), "/bin/echo", "hello")
+	res, err := Exec(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, DefaultBwrapConfig(), "/bin/echo", "hello")
 	if err != nil {
 		t.Fatalf("Exec: %v", err)
 	}
@@ -87,7 +88,7 @@ func TestExecContract_ExitNonZero(t *testing.T) {
 	starter.AddCommand("/bin/false", procmocks.CommandBehavior{
 		Exit: process.ProcessExit{ExitCode: 7},
 	})
-	res, err := Exec(context.Background(), starter, newSandboxFor(t), ModeNone, DefaultBwrapConfig(), "/bin/false")
+	res, err := Exec(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, DefaultBwrapConfig(), "/bin/false")
 	if err != nil {
 		t.Fatalf("Exec: %v", err)
 	}
@@ -107,7 +108,7 @@ func TestExecContract_StartError(t *testing.T) {
 	starter.AddCommand("/bin/echo", procmocks.CommandBehavior{
 		StartErr: errors.New("fork EAGAIN"),
 	})
-	res, err := Exec(context.Background(), starter, newSandboxFor(t), ModeNone, DefaultBwrapConfig(), "/bin/echo", "test")
+	res, err := Exec(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, DefaultBwrapConfig(), "/bin/echo", "test")
 	if err != nil {
 		t.Fatalf("Exec: %v", err)
 	}
@@ -134,7 +135,7 @@ func TestExecContract_WaitError(t *testing.T) {
 		Exit:    process.ProcessExit{ExitCode: -1, Signal: 9},
 		WaitErr: errors.New("waitpid: no child"),
 	})
-	res, err := Exec(context.Background(), starter, newSandboxFor(t), ModeNone, DefaultBwrapConfig(), "/bin/echo", "x")
+	res, err := Exec(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, DefaultBwrapConfig(), "/bin/echo", "x")
 	if err != nil {
 		t.Fatalf("Exec: %v", err)
 	}
@@ -158,7 +159,7 @@ func TestExecContract_WallClockTimeout(t *testing.T) {
 	cfg := DefaultBwrapConfig()
 	cfg.ResourceLimits.TimeoutSec = 1
 	start := time.Now()
-	res, err := Exec(context.Background(), starter, newSandboxFor(t), ModeNone, cfg, "/bin/sleep", "5")
+	res, err := Exec(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, cfg, "/bin/sleep", "5")
 	dur := time.Since(start)
 	if err != nil {
 		t.Fatalf("Exec: %v", err)
@@ -181,12 +182,12 @@ func TestExecContract_WallClockTimeout(t *testing.T) {
 }
 
 // TestExecContract_BwrapRequired_NoBwrap pins the hard-fail behavior
-// of ModeBwrapRequired when bwrap is not on PATH. Used by kernel
+// of driver.ContainmentRequired when bwrap is not on PATH. Used by kernel
 // overlayfs flavors which can't fall back to direct exec.
 func TestExecContract_BwrapRequired_NoBwrap(t *testing.T) {
 	starter := procmocks.NewFakeStarter()
 	// LookPath table empty → bwrap returns ErrBinaryNotFound.
-	res, err := Exec(context.Background(), starter, newSandboxFor(t), ModeBwrapRequired, DefaultBwrapConfig(), "/bin/echo", "x")
+	res, err := Exec(context.Background(), starter, newSandboxFor(t), driver.ContainmentRequired, DefaultBwrapConfig(), "/bin/echo", "x")
 	if err == nil {
 		t.Fatal("expected error from bwrap-required without bwrap")
 	}
@@ -199,7 +200,7 @@ func TestExecContract_BwrapRequired_NoBwrap(t *testing.T) {
 }
 
 // TestExecContract_BwrapPreferred_NoBwrap_FallsBackDirect pins:
-// when mode is ModeBwrapPreferred and bwrap is missing, Exec falls
+// when mode is driver.ContainmentPreferred and bwrap is missing, Exec falls
 // back to direct execution (used by fuse-overlayfs whose mount is
 // host-visible). The fallback must run the command in s.MergedDir.
 func TestExecContract_BwrapPreferred_NoBwrap_FallsBackDirect(t *testing.T) {
@@ -209,7 +210,7 @@ func TestExecContract_BwrapPreferred_NoBwrap_FallsBackDirect(t *testing.T) {
 		Exit: process.ProcessExit{ExitCode: 0},
 	})
 	sb := newSandboxFor(t)
-	res, err := Exec(context.Background(), starter, sb, ModeBwrapPreferred, DefaultBwrapConfig(), "/bin/echo", "direct")
+	res, err := Exec(context.Background(), starter, sb, driver.ContainmentPreferred, DefaultBwrapConfig(), "/bin/echo", "direct")
 	if err != nil {
 		t.Fatalf("Exec: %v", err)
 	}
@@ -231,7 +232,7 @@ func TestExecContract_BwrapPreferred_NoBwrap_FallsBackDirect(t *testing.T) {
 }
 
 // TestExecContract_BwrapPreferred_HasBwrap pins: when bwrap is on
-// PATH, ModeBwrapPreferred routes through the bwrap exec. The
+// PATH, driver.ContainmentPreferred routes through the bwrap exec. The
 // resulting Start call uses bwrap as the path (resolved via LookPath)
 // and includes the user command somewhere in the args.
 func TestExecContract_BwrapPreferred_HasBwrap(t *testing.T) {
@@ -241,7 +242,7 @@ func TestExecContract_BwrapPreferred_HasBwrap(t *testing.T) {
 		Exit: process.ProcessExit{ExitCode: 0},
 	})
 	sb := newSandboxFor(t)
-	res, err := Exec(context.Background(), starter, sb, ModeBwrapPreferred, DefaultBwrapConfig(), "/bin/echo", "via-bwrap")
+	res, err := Exec(context.Background(), starter, sb, driver.ContainmentPreferred, DefaultBwrapConfig(), "/bin/echo", "via-bwrap")
 	if err != nil {
 		t.Fatalf("Exec: %v", err)
 	}
@@ -271,7 +272,7 @@ func TestExecContract_BwrapRequired_ResourceLimitsRequirePrlimit(t *testing.T) {
 	// Note: prlimit NOT in LookPath table → ErrBinaryNotFound.
 	cfg := DefaultBwrapConfig()
 	cfg.ResourceLimits.MemoryLimitMB = 256
-	_, err := Exec(context.Background(), starter, newSandboxFor(t), ModeBwrapRequired, cfg, "/bin/echo", "x")
+	_, err := Exec(context.Background(), starter, newSandboxFor(t), driver.ContainmentRequired, cfg, "/bin/echo", "x")
 	if err == nil {
 		t.Fatal("expected error when ResourceLimits set but prlimit missing")
 	}
@@ -305,7 +306,7 @@ func TestExecContract_StartProcess_OnExitFastExit(t *testing.T) {
 		}
 	}
 
-	pid, err := StartProcess(context.Background(), starter, newSandboxFor(t), ModeNone, cfg, "/bin/true")
+	pid, _, err := StartProcess(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, cfg, "/bin/true")
 	if err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
@@ -349,7 +350,7 @@ func TestExecContract_StartProcess_OnExitSignalKilled(t *testing.T) {
 		close(done)
 	}
 
-	if _, err := StartProcess(context.Background(), starter, newSandboxFor(t), ModeNone, cfg, "/bin/sleep", "100"); err != nil {
+	if _, _, err := StartProcess(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, cfg, "/bin/sleep", "100"); err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
 
@@ -384,7 +385,7 @@ func TestExecContract_StartProcess_OnExitOOMKilled(t *testing.T) {
 		close(done)
 	}
 
-	if _, err := StartProcess(context.Background(), starter, newSandboxFor(t), ModeNone, cfg, "/bin/heavy"); err != nil {
+	if _, _, err := StartProcess(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, cfg, "/bin/heavy"); err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
 	select {
@@ -410,7 +411,7 @@ func TestExecContract_StartProcess_OnExitNilStillReaped(t *testing.T) {
 	cfg := DefaultBwrapConfig()
 	cfg.OnExit = nil
 
-	if _, err := StartProcess(context.Background(), starter, newSandboxFor(t), ModeNone, cfg, "/bin/true"); err != nil {
+	if _, _, err := StartProcess(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, cfg, "/bin/true"); err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
 	// Allow the reaper goroutine to run.
@@ -419,7 +420,7 @@ func TestExecContract_StartProcess_OnExitNilStillReaped(t *testing.T) {
 	starter.AddCommand("/bin/echo done", procmocks.CommandBehavior{
 		Exit: process.ProcessExit{ExitCode: 0},
 	})
-	res, err := Exec(context.Background(), starter, newSandboxFor(t), ModeNone, DefaultBwrapConfig(), "/bin/echo", "done")
+	res, err := Exec(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, DefaultBwrapConfig(), "/bin/echo", "done")
 	if err != nil || res.ExitCode != 0 {
 		t.Fatalf("follow-up Exec failed: err=%v res=%+v", err, res)
 	}
@@ -439,7 +440,7 @@ func TestExecContract_StartProcess_StartErrorSurfaces(t *testing.T) {
 	cfg := DefaultBwrapConfig()
 	cfg.OnExit = func(_, _ int, _ bool) { fires.Add(1) }
 
-	pid, err := StartProcess(context.Background(), starter, newSandboxFor(t), ModeNone, cfg, "/bin/missing")
+	pid, _, err := StartProcess(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, cfg, "/bin/missing")
 	if err == nil {
 		t.Fatal("expected StartProcess to surface fork failure")
 	}
@@ -473,7 +474,7 @@ func TestExecContract_StartProcess_StdoutPiped(t *testing.T) {
 	cfg.StdoutWriter = &stdout
 	cfg.OnExit = func(_, _ int, _ bool) { close(done) }
 
-	if _, err := StartProcess(context.Background(), starter, newSandboxFor(t), ModeNone, cfg, "/bin/echo", "piped"); err != nil {
+	if _, _, err := StartProcess(context.Background(), starter, newSandboxFor(t), driver.ContainmentNone, cfg, "/bin/echo", "piped"); err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
 	select {
@@ -494,10 +495,10 @@ func TestExecContract_RejectsUnmountedSandbox(t *testing.T) {
 	starter := procmocks.NewFakeStarter()
 	starter.SetDefault(procmocks.CommandBehavior{Exit: process.ProcessExit{ExitCode: 0}})
 	sb := &types.Sandbox{ID: uuid.New()} // no MergedDir
-	if _, err := Exec(context.Background(), starter, sb, ModeNone, DefaultBwrapConfig(), "/bin/true"); err == nil {
+	if _, err := Exec(context.Background(), starter, sb, driver.ContainmentNone, DefaultBwrapConfig(), "/bin/true"); err == nil {
 		t.Error("Exec should reject sandbox with empty MergedDir")
 	}
-	if _, err := StartProcess(context.Background(), starter, sb, ModeNone, DefaultBwrapConfig(), "/bin/true"); err == nil {
+	if _, _, err := StartProcess(context.Background(), starter, sb, driver.ContainmentNone, DefaultBwrapConfig(), "/bin/true"); err == nil {
 		t.Error("StartProcess should reject sandbox with empty MergedDir")
 	}
 }
@@ -514,13 +515,13 @@ func TestExecContract_NilStarterPanics(t *testing.T) {
 		{
 			name: "Exec",
 			fn: func() {
-				_, _ = Exec(context.Background(), nil, newSandboxFor(t), ModeNone, DefaultBwrapConfig(), "/bin/true")
+				_, _ = Exec(context.Background(), nil, newSandboxFor(t), driver.ContainmentNone, DefaultBwrapConfig(), "/bin/true")
 			},
 		},
 		{
 			name: "StartProcess",
 			fn: func() {
-				_, _ = StartProcess(context.Background(), nil, newSandboxFor(t), ModeNone, DefaultBwrapConfig(), "/bin/true")
+				_, _, _ = StartProcess(context.Background(), nil, newSandboxFor(t), driver.ContainmentNone, DefaultBwrapConfig(), "/bin/true")
 			},
 		},
 	}

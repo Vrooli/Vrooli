@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -138,21 +137,4 @@ func (s *OverlayStrategy) detectChangeType(opts WalkOpts, rel, abs string, upper
 		return types.ChangeTypeDeleted
 	}
 	return types.ChangeTypeModified
-}
-
-// isCharDevWhiteout reports whether the entry at path is an overlayfs
-// whiteout (character device with major=0, minor=0).
-func isCharDevWhiteout(path string) bool {
-	info, err := os.Lstat(path)
-	if err != nil {
-		return false
-	}
-	if info.Mode()&os.ModeCharDevice == 0 {
-		return false
-	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return false
-	}
-	return stat.Rdev == 0
 }

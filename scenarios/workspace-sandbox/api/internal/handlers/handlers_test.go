@@ -27,9 +27,11 @@ import (
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/handlers"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/testutil/httpx"
 	"workspace-sandbox/internal/testutil/mocks"
+	"workspace-sandbox/internal/testutil/mocks/procmocks"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
 )
@@ -41,6 +43,10 @@ type liveOpt func(*handlers.Handlers)
 
 func withDriver(d driver.Driver) liveOpt {
 	return func(h *handlers.Handlers) { h.DriverSlot = driver.NewSlot(d) }
+}
+
+func withStarter(s process.Starter) liveOpt {
+	return func(h *handlers.Handlers) { h.Starter = s }
 }
 
 // newLive builds a *handlers.Handlers using a default-fake stack and
@@ -267,6 +273,79 @@ func TestGetSandboxSuccess(t *testing.T) {
 	}
 	if got.ID != testID {
 		t.Errorf("ID = %v, want %v", got.ID, testID)
+	}
+}
+
+// TestGetSandboxStampsWorkspaceLayout pins that GetSandbox reports the
+// negotiated workspace contract (workspacePath, pathIllusion, containment)
+// derived from the active driver's required containment and the host
+// containment probe. Two layouts:
+//
+//   - contained (ContainmentRequired + bwrap available): pathIllusion true,
+//     workspacePath "/workspace", containment backend bwrap.
+//   - identity (ContainmentNone): pathIllusion false, workspacePath ==
+//     mergedDir, containment backend none.
+func TestGetSandboxStampsWorkspaceLayout(t *testing.T) {
+	const merged = "/tmp/ws-sandbox/merged"
+
+	cases := []struct {
+		name         string
+		level        driver.ContainmentLevel
+		bwrap        bool
+		wantPath     string
+		wantIllusion bool
+		wantBackend  string
+		wantEnforceN int
+	}{
+		{"contained-bwrap", driver.ContainmentRequired, true, "/workspace", true, "bwrap", 4},
+		{"identity-none", driver.ContainmentNone, false, merged, false, "none", 0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			testID := uuid.New()
+			svc := &sandboxiface.FakeService{
+				GetFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+					return &types.Sandbox{
+						ID: testID, Status: types.StatusActive, MergedDir: merged,
+					}, nil
+				},
+			}
+			d := mocks.NewFakeDriver()
+			d.ContainmentLevelVal = tc.level
+			starter := procmocks.NewFakeStarter()
+			if tc.bwrap {
+				starter.SetLookPath("bwrap", "/usr/bin/bwrap")
+				starter.AddCommand("/usr/bin/bwrap --version", procmocks.CommandBehavior{
+					Stdout: []byte("bubblewrap 0.8.0\n"),
+				})
+			}
+			live := newLive(t, svc, withDriver(d), withStarter(starter))
+
+			resp, body := live.Do(t, "GET", sandboxesPath(testID, ""), nil)
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
+			}
+			var got types.Sandbox
+			if err := json.Unmarshal(body, &got); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			if got.WorkspacePath != tc.wantPath {
+				t.Errorf("workspacePath = %q, want %q", got.WorkspacePath, tc.wantPath)
+			}
+			if got.PathIllusion != tc.wantIllusion {
+				t.Errorf("pathIllusion = %v, want %v", got.PathIllusion, tc.wantIllusion)
+			}
+			if got.Containment == nil {
+				t.Fatal("containment must be present on the response")
+			}
+			if got.Containment.Backend != tc.wantBackend {
+				t.Errorf("containment.backend = %q, want %q", got.Containment.Backend, tc.wantBackend)
+			}
+			if len(got.Containment.Enforcements) != tc.wantEnforceN {
+				t.Errorf("containment.enforcements = %v, want %d", got.Containment.Enforcements, tc.wantEnforceN)
+			}
+		})
 	}
 }
 

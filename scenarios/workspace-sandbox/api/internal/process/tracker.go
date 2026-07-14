@@ -30,6 +30,7 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/types"
 )
 
 // ExitInfo captures the terminal state of a tracked process. It is the
@@ -75,6 +76,12 @@ type TrackedProcess struct {
 
 	// SessionID groups related processes.
 	SessionID string `json:"sessionId,omitempty"`
+
+	// Containment is the process-containment that actually ran this launch
+	// (backend + enforcement guarantees). Stamped by the handler from the
+	// exec backend dispatch so /processes reports per-launch provenance as
+	// truth. Nil when the launch predates containment stamping.
+	Containment *types.SandboxContainment `json:"containment,omitempty"`
 
 	// stdin is the writable end of a pipe wired to the process's stdin
 	// (when the process was started with WithStdin=true). Closed once on
@@ -183,7 +190,7 @@ func NewTrackerWithConfig(cfg TrackerConfig, clk clock.Clock) *Tracker {
 // Track adds a process to tracking for a sandbox.
 func (t *Tracker) Track(sandboxID uuid.UUID, pid int, command string, sessionID string) (*TrackedProcess, error) {
 	// Get process group ID
-	pgid, err := syscall.Getpgid(pid)
+	pgid, err := sysGetpgid(pid)
 	if err != nil {
 		// Use PID as PGID fallback
 		pgid = pid
@@ -219,6 +226,20 @@ func (t *Tracker) SetStdin(sandboxID uuid.UUID, pid int, stdin io.WriteCloser) e
 		return fmt.Errorf("process %d already has stdin attached", pid)
 	}
 	target.stdin = stdin
+	return nil
+}
+
+// SetContainment records the effective process-containment for a tracked
+// process so /processes can report per-launch provenance. Idempotent: the
+// last writer wins (a launch stamps it exactly once right after Track).
+func (t *Tracker) SetContainment(sandboxID uuid.UUID, pid int, cont *types.SandboxContainment) error {
+	target := t.findProcess(sandboxID, pid)
+	if target == nil {
+		return fmt.Errorf("process %d not found in sandbox %s", pid, sandboxID)
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	target.Containment = cont
 	return nil
 }
 
@@ -449,7 +470,7 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 			if err := t.killProcess(proc, syscall.SIGKILL); err != nil {
 				errors = append(errors, err)
 				// Still try direct PID kill as last resort
-				if killErr := syscall.Kill(proc.PID, syscall.SIGKILL); killErr != nil {
+				if killErr := sysKill(proc.PID, syscall.SIGKILL); killErr != nil {
 					errors = append(errors, killErr)
 				}
 			}
@@ -483,14 +504,14 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 func (t *Tracker) killProcess(proc *TrackedProcess, sig syscall.Signal) error {
 	// Try to kill the entire process group first
 	if proc.PGID != 0 {
-		err := syscall.Kill(-proc.PGID, sig)
+		err := sysKill(-proc.PGID, sig)
 		if err == nil {
 			return nil
 		}
 	}
 
 	// Fallback to killing just the process
-	return syscall.Kill(proc.PID, sig)
+	return sysKill(proc.PID, sig)
 }
 
 // KillProcess terminates a specific process.
@@ -517,7 +538,7 @@ func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int)
 			errors = append(errors, err)
 		}
 		// Also try direct PID kill as last resort
-		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+		if err := sysKill(pid, syscall.SIGKILL); err != nil {
 			errors = append(errors, err)
 		}
 	}

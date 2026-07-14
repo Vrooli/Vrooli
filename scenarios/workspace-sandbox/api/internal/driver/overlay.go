@@ -2,7 +2,7 @@
 // three overlay-flavored DriverIDs (overlayfs-userns, overlayfs-root,
 // fuse-overlayfs). The bodies of every method are identical across
 // flavors — only the mount backend, the availability probe, the
-// version string, and the required isolation mode differ. Those vary
+// version string, and the required containment level differ. Those vary
 // points are captured as fields on a single struct.
 package driver
 
@@ -46,7 +46,7 @@ type OverlayDriver struct {
 	starter      process.Starter
 	availability availabilityFunc
 	version      func() string
-	isolation    IsolationMode
+	isolation    ContainmentLevel
 	clock        clock.Clock
 }
 
@@ -64,7 +64,7 @@ func NewOverlayfsUserNSDriver(cfg Config, deps Deps) *OverlayDriver {
 		backend:   fsmount.BackendKernelOverlay,
 		mounter:   deps.Mounter,
 		starter:   deps.Starter,
-		isolation: ModeBwrapRequired,
+		isolation: ContainmentRequired,
 		version:   func() string { return "1.0" },
 		clock:     deps.Clock,
 	}
@@ -96,7 +96,7 @@ func NewOverlayfsRootDriver(cfg Config, deps Deps) *OverlayDriver {
 		backend:   fsmount.BackendKernelOverlay,
 		mounter:   deps.Mounter,
 		starter:   deps.Starter,
-		isolation: ModeBwrapRequired,
+		isolation: ContainmentRequired,
 		version:   func() string { return "1.0" },
 		clock:     deps.Clock,
 	}
@@ -132,7 +132,7 @@ func NewFuseOverlayfsDriver(cfg Config, deps Deps) *OverlayDriver {
 		backend:   fsmount.BackendFuseOverlayfs,
 		mounter:   deps.Mounter,
 		starter:   deps.Starter,
-		isolation: ModeBwrapPreferred,
+		isolation: ContainmentPreferred,
 		version:   func() string { return fuseOverlayfsVersion(deps.Starter) },
 		clock:     deps.Clock,
 	}
@@ -166,11 +166,11 @@ func NewOverlayfsDriver(cfg Config, deps Deps) *OverlayDriver {
 
 // --- Driver interface ---
 
-func (d *OverlayDriver) ID() DriverID                 { return d.id }
-func (d *OverlayDriver) Version() string              { return d.version() }
-func (d *OverlayDriver) RequiresBwrap() IsolationMode { return d.isolation }
-func (d *OverlayDriver) BaseDir() string              { return d.config.BaseDir }
-func (d *OverlayDriver) HomeOverlayBaseDir() string   { return d.config.HomeOverlayBaseDir }
+func (d *OverlayDriver) ID() DriverID                          { return d.id }
+func (d *OverlayDriver) Version() string                       { return d.version() }
+func (d *OverlayDriver) RequiredContainment() ContainmentLevel { return d.isolation }
+func (d *OverlayDriver) BaseDir() string                       { return d.config.BaseDir }
+func (d *OverlayDriver) HomeOverlayBaseDir() string            { return d.config.HomeOverlayBaseDir }
 
 // Capabilities reports the overlay driver's static contract.
 func (d *OverlayDriver) Capabilities() DriverCapabilities {

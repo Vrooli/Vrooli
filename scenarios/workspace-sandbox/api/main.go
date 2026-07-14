@@ -451,7 +451,10 @@ func resolveSQLiteDSN() (string, error) {
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
+	// Preflight checks - must be first, before any initialization. The
+	// rlimit-exec self-exec shim intercepts in init() (rlimit_shim.go) and
+	// exec-replaces the process before this runs, so the shim never reaches
+	// preflight's staleness rebuild or lifecycle guard.
 	if preflight.Run(preflight.Config{
 		ScenarioName: "workspace-sandbox",
 	}) {

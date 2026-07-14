@@ -3,7 +3,7 @@ package driver
 import "testing"
 
 // TestOverlayFactories pins the static (no-I/O) contract of each
-// overlay-flavored factory: ID, RequiresBwrap, Capabilities. Adding a
+// overlay-flavored factory: ID, RequiredContainment, Capabilities. Adding a
 // new flavor = a new row here.
 func TestOverlayFactories(t *testing.T) {
 	cfg := Config{BaseDir: t.TempDir()}
@@ -11,20 +11,20 @@ func TestOverlayFactories(t *testing.T) {
 		name         string
 		drv          *OverlayDriver
 		wantID       DriverID
-		wantBwrap    IsolationMode
+		wantBwrap    ContainmentLevel
 		wantHomeOver bool
 	}{
-		{"userns", NewOverlayfsUserNSDriver(cfg, testDeps()), DriverOverlayfsUserNS, ModeBwrapRequired, true},
-		{"root", NewOverlayfsRootDriver(cfg, testDeps()), DriverOverlayfsRoot, ModeBwrapRequired, true},
-		{"fuse", NewFuseOverlayfsDriver(cfg, testDeps()), DriverFuseOverlayfs, ModeBwrapPreferred, true},
+		{"userns", NewOverlayfsUserNSDriver(cfg, testDeps()), DriverOverlayfsUserNS, ContainmentRequired, true},
+		{"root", NewOverlayfsRootDriver(cfg, testDeps()), DriverOverlayfsRoot, ContainmentRequired, true},
+		{"fuse", NewFuseOverlayfsDriver(cfg, testDeps()), DriverFuseOverlayfs, ContainmentPreferred, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := tc.drv.ID(); got != tc.wantID {
 				t.Errorf("ID() = %v, want %v", got, tc.wantID)
 			}
-			if got := tc.drv.RequiresBwrap(); got != tc.wantBwrap {
-				t.Errorf("RequiresBwrap() = %v, want %v", got, tc.wantBwrap)
+			if got := tc.drv.RequiredContainment(); got != tc.wantBwrap {
+				t.Errorf("RequiredContainment() = %v, want %v", got, tc.wantBwrap)
 			}
 			caps := tc.drv.Capabilities()
 			if caps.HomeOverlay != tc.wantHomeOver {

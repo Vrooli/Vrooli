@@ -47,29 +47,32 @@ const (
 	DriverCopy            DriverID = driverid.Copy
 )
 
-// IsolationMode is the single decision boundary for "how isolated should
-// this exec be". Each driver declares its required mode via
-// MountDriver.RequiresBwrap; callers pass the result to exec.Exec /
-// exec.StartProcess. Defining the type here (instead of in driver/exec)
-// keeps the exec package free of a back-reference cycle.
-type IsolationMode int
+// ContainmentLevel is the single decision boundary for "how contained
+// should this exec be". Each driver declares its required level via
+// MountDriver.RequiredContainment; callers pass the result to exec.Exec /
+// exec.StartProcess, which dispatches to the OS-specific containment
+// backend. Defining the type here (instead of in driver/exec) keeps the
+// exec package free of a back-reference cycle.
+type ContainmentLevel int
 
 const (
-	// ModeNone runs the command directly in s.MergedDir with no namespace
-	// isolation. Used by the copy driver, which has no real mount.
-	ModeNone IsolationMode = iota
+	// ContainmentNone runs the command directly in s.MergedDir with no
+	// containment backend. Used by the copy driver, which has no real
+	// mount.
+	ContainmentNone ContainmentLevel = iota
 
-	// ModeBwrapPreferred uses bwrap when available; falls back to direct
-	// execution when bwrap isn't installed. Used by fuse-overlayfs whose
-	// mount is host-visible — direct execution still operates against the
-	// merged dir, just without process isolation.
-	ModeBwrapPreferred
+	// ContainmentPreferred uses the containment backend when available;
+	// falls back to direct execution when no backend is present. Used by
+	// fuse-overlayfs whose mount is host-visible — direct execution still
+	// operates against the merged dir, just without process isolation.
+	ContainmentPreferred
 
-	// ModeBwrapRequired hard-errors when bwrap is missing. Used by kernel
-	// overlayfs whose mount lives inside the API's mount namespace — a
-	// direct child won't see the merged dir, so falling back would return
-	// the host filesystem and silently produce wrong results.
-	ModeBwrapRequired
+	// ContainmentRequired hard-errors when no containment backend is
+	// available. Used by kernel overlayfs whose mount lives inside the
+	// API's mount namespace — a direct child won't see the merged dir, so
+	// falling back would return the host filesystem and silently produce
+	// wrong results.
+	ContainmentRequired
 )
 
 // MountPaths contains the paths used for overlay mounting.
@@ -106,10 +109,11 @@ type DriverCapabilities struct {
 	// CoW is true when changes are stored copy-on-write. False for the
 	// copy driver (full copies, not CoW).
 	CoW bool
-	// NamespaceIsolation is the isolation guarantee this driver provides
-	// when paired with bwrap. Mirrors RequiresBwrap() but is a struct
-	// field (one decision) rather than a method (one capability).
-	NamespaceIsolation IsolationMode
+	// NamespaceIsolation is the containment guarantee this driver provides
+	// when paired with a containment backend. Mirrors RequiredContainment()
+	// but is a struct field (one decision) rather than a method (one
+	// capability).
+	NamespaceIsolation ContainmentLevel
 }
 
 // MountDriver is the base interface every driver implements: mount
@@ -147,11 +151,11 @@ type MountDriver interface {
 	// missing dirs and already-unmounted overlays are not errors.
 	CleanupOrphan(ctx context.Context, id uuid.UUID) error
 
-	// RequiresBwrap declares which IsolationMode this driver requires.
-	// Callers pass the result to exec.Exec / exec.StartProcess. Replaces
-	// the prior central exec.DriverModeFor type-switch — adding a new
-	// driver no longer requires editing a central dispatcher.
-	RequiresBwrap() IsolationMode
+	// RequiredContainment declares which ContainmentLevel this driver
+	// requires. Callers pass the result to exec.Exec / exec.StartProcess.
+	// Replaces the prior central exec.DriverModeFor type-switch — adding a
+	// new driver no longer requires editing a central dispatcher.
+	RequiredContainment() ContainmentLevel
 
 	// Capabilities declares what features this driver supports. Pure
 	// (no I/O); each driver returns a static struct. Used by handlers

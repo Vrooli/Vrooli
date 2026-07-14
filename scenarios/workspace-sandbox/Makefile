@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help setup start stop restart status logs test open run dev endpoints clean build fmt fmt-go fmt-ui lint lint-go lint-ui lint-fix type-check check
+.PHONY: help setup start stop restart status logs test open run dev endpoints clean build fmt fmt-go fmt-ui lint lint-go lint-ui lint-fix type-check cross-compile check
 
 .DEFAULT_GOAL := help
 
@@ -125,7 +125,13 @@ type-check: ## Run UI type checking
 		cd ui && pnpm run type-check; \
 	fi
 
-check: fmt lint test ## Run full quality gates
+cross-compile: ## Cross-compile the api module for the non-Linux OS-seam targets (CGO-free)
+	@if [ -f api/go.mod ]; then \
+		cd api && GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 GOWORK=off go build ./... \
+			&& GOOS=windows GOARCH=amd64 CGO_ENABLED=0 GOWORK=off go build ./...; \
+	fi
+
+check: fmt lint cross-compile test ## Run full quality gates
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"

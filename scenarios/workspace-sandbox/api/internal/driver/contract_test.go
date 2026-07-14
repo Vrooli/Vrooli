@@ -33,30 +33,30 @@ func testMounter() fsmount.Mounter {
 
 // testDeps assembles a driver.Deps with production seam impls. Used by
 // the contract test which actually mounts real overlay filesystems.
-// Unit tests that only inspect static fields (RequiresBwrap, ID) can
+// Unit tests that only inspect static fields (RequiredContainment, ID) can
 // also use this; the real mounter/starter aren't exercised.
 func testDeps() Deps {
 	return Deps{Clock: testClock(), Mounter: testMounter(), Starter: testStarter()}
 }
 
-// TestDriverContract_RequiresBwrap pins each driver's isolation-mode
+// TestDriverContract_RequiredContainment pins each driver's containment-level
 // declaration. Adding a new driver = a new row here, not editing a
 // central type-switch.
-func TestDriverContract_RequiresBwrap(t *testing.T) {
+func TestDriverContract_RequiredContainment(t *testing.T) {
 	cfg := Config{BaseDir: t.TempDir()}
 	cases := []struct {
 		name string
 		drv  Driver
-		want IsolationMode
+		want ContainmentLevel
 	}{
-		{"copy", NewCopyDriver(cfg, testDeps()), ModeNone},
-		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg, testDeps()), ModeBwrapPreferred},
-		{"overlayfs", NewOverlayfsDriver(cfg, testDeps()), ModeBwrapRequired},
+		{"copy", NewCopyDriver(cfg, testDeps()), ContainmentNone},
+		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg, testDeps()), ContainmentPreferred},
+		{"overlayfs", NewOverlayfsDriver(cfg, testDeps()), ContainmentRequired},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := tc.drv.RequiresBwrap(); got != tc.want {
-				t.Errorf("%s.RequiresBwrap() = %v, want %v", tc.name, got, tc.want)
+			if got := tc.drv.RequiredContainment(); got != tc.want {
+				t.Errorf("%s.RequiredContainment() = %v, want %v", tc.name, got, tc.want)
 			}
 		})
 	}

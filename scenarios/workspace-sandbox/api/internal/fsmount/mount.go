@@ -35,7 +35,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"workspace-sandbox/internal/process"
 )
@@ -140,6 +139,34 @@ type Mounter interface {
 	IsMountPoint(path string) bool
 }
 
+// ErrBackendUnsupported is the sentinel every non-Linux mount syscall
+// failure wraps, so callers can errors.Is against it regardless of which
+// backend or GOOS produced it. The kernel-overlay fast path only exists
+// on Linux; the raw mount/unmount syscalls live behind build tags in
+// mount_linux.go (real) and mount_other.go (this sentinel).
+var ErrBackendUnsupported = errors.New("fsmount: mount backend unsupported on this platform")
+
+// BackendUnsupportedError reports that a mount backend has no
+// implementation on the running GOOS. Returned by the non-Linux build of
+// the raw mount/unmount syscall fast path.
+type BackendUnsupportedError struct {
+	// Backend is the name of the unsupported backend (e.g. "kernel-overlay").
+	Backend string
+	// GOOS is the platform that lacks an implementation.
+	GOOS string
+}
+
+// Error renders the platform/backend context for logs.
+func (e *BackendUnsupportedError) Error() string {
+	return fmt.Sprintf("fsmount: %s backend unsupported on %s", e.Backend, e.GOOS)
+}
+
+// Is lets errors.Is(err, ErrBackendUnsupported) match any
+// BackendUnsupportedError.
+func (e *BackendUnsupportedError) Is(target error) bool {
+	return target == ErrBackendUnsupported
+}
+
 // =============================================================================
 // SystemMounter — production implementation
 // =============================================================================
@@ -180,8 +207,12 @@ func (m *SystemMounter) Mount(ctx context.Context, opts MountOpts) error {
 // mountKernel uses the kernel overlayfs driver via syscall.Mount, with a
 // `mount -t overlay` fallback that surfaces a clearer error message.
 func (m *SystemMounter) mountKernel(ctx context.Context, opts MountOpts) error {
-	if err := syscall.Mount("overlay", opts.Merged, "overlay", 0, opts.optsString()); err == nil {
+	if err := sysMountOverlay(opts.Merged, opts.optsString()); err == nil {
 		return nil
+	} else if errors.Is(err, ErrBackendUnsupported) {
+		// No kernel overlayfs on this platform; the `mount` fallback
+		// would be equally unavailable, so surface the typed error.
+		return err
 	}
 	res, err := process.RunCombinedOutput(ctx, m.starter, process.StartOpts{
 		Path: "mount",
@@ -225,11 +256,7 @@ func (m *SystemMounter) Unmount(ctx context.Context, target string, lazy bool) e
 	// Try kernel-style first: this works for both kernel overlayfs
 	// mounts and (post-fusermount-detach) any leftover overlayfs
 	// remnant the kernel still sees.
-	flags := 0
-	if lazy {
-		flags = syscall.MNT_DETACH
-	}
-	if err := syscall.Unmount(target, flags); err == nil {
+	if err := sysUnmount(target, lazy); err == nil {
 		return nil
 	}
 

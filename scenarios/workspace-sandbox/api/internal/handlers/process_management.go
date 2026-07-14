@@ -16,7 +16,7 @@ import (
 
 // process_management.go: small process-control endpoints — list,
 // kill, kill-all, post-stdin, plus the read-only diagnostics
-// (ProcessStats, BwrapInfo). Each one is short and follows the same
+// (ProcessStats, ContainmentInfo). Each one is short and follows the same
 // shape: parse path vars → verify sandbox → call tracker/driver →
 // JSON result.
 
@@ -132,10 +132,11 @@ func (h *Handlers) ProcessStats(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, h.ProcessTracker.GetAllStats())
 }
 
-// BwrapInfo returns bubblewrap capabilities and version info.
-// [OT-P0-003] Bubblewrap Process Isolation
-func (h *Handlers) BwrapInfo(w http.ResponseWriter, r *http.Request) {
-	info, err := driver.GetBwrapInfo(r.Context(), h.Starter)
+// ContainmentInfo returns the per-OS process-containment backend report
+// (backend id, availability, version/path, enforcement list).
+// [OT-P0-003] Process Containment
+func (h *Handlers) ContainmentInfo(w http.ResponseWriter, r *http.Request) {
+	info, err := driver.GetContainmentInfo(r.Context(), h.Starter)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return

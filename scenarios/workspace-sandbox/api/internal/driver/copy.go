@@ -78,10 +78,11 @@ func (d *CopyDriver) ID() DriverID {
 	return DriverCopy
 }
 
-// RequiresBwrap returns ModeNone: the copy driver has no real mount, so
-// commands run directly in the workspace dir without namespace isolation.
-func (d *CopyDriver) RequiresBwrap() IsolationMode {
-	return ModeNone
+// RequiredContainment returns ContainmentNone: the copy driver has no real
+// mount, so commands run directly in the workspace dir without a
+// containment backend.
+func (d *CopyDriver) RequiredContainment() ContainmentLevel {
+	return ContainmentNone
 }
 
 // Capabilities reports the copy driver's contract: no home overlay
@@ -92,7 +93,7 @@ func (d *CopyDriver) Capabilities() DriverCapabilities {
 	return DriverCapabilities{
 		HomeOverlay:        false,
 		CoW:                false,
-		NamespaceIsolation: ModeNone,
+		NamespaceIsolation: ContainmentNone,
 	}
 }
 

@@ -67,7 +67,7 @@ type Driver interface {
     ID() DriverID
     Version() string
     IsAvailable(ctx context.Context) (bool, error)
-    RequiresBwrap() IsolationMode
+    RequiredContainment() ContainmentLevel
     Mount(ctx context.Context, s *types.Sandbox) (*MountPaths, error)
     Unmount(ctx context.Context, s *types.Sandbox) error
     GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error)
@@ -82,8 +82,8 @@ type Driver interface {
 wire payloads, preference file, and every internal switch. Four values:
 `overlayfs-userns`, `overlayfs-root`, `fuse-overlayfs`, `copy`.
 
-`RequiresBwrap` declares the per-driver isolation mode (replaces the
-prior central `exec.DriverModeFor` switch). `Mount` populates a
+`RequiredContainment` declares the per-driver containment level (replaces
+the prior central `exec.DriverModeFor` switch). `Mount` populates a
 `MountPaths` struct that may include the per-sandbox HOME overlay
 fields (`HomeMergedDir`, etc.) — both kernel overlayfs and
 fuse-overlayfs set these up; CopyDriver leaves them empty.
@@ -731,16 +731,18 @@ layer holds. Callers that want to verify a mount but might be holding a
 short-circuits to `nil` when the driver is not a `MountVerifier`.
 
 Process execution lives in the sub-package `driver/exec` behind a single
-`IsolationMode` knob:
+`ContainmentLevel` knob, dispatched to the OS containment backend (bwrap
+on Linux; a macOS Seatbelt backend plugs into the same seam):
 
-- `ModeNone` — no isolation, run in `s.MergedDir` directly. (`copy` driver)
-- `ModeBwrapPreferred` — bwrap if installed, direct fallback otherwise.
-  (`fuse-overlayfs` driver)
-- `ModeBwrapRequired` — bwrap or hard error. (`overlayfs` driver — the
-  mount lives inside the API's mount namespace, so a direct child can't
-  see it.)
+- `ContainmentNone` — no containment, run in `s.MergedDir` directly.
+  (`copy` driver)
+- `ContainmentPreferred` — containment backend if available, direct
+  fallback otherwise. (`fuse-overlayfs` driver)
+- `ContainmentRequired` — containment backend, or hard error when none is
+  available. (`overlayfs` driver — the mount lives inside the API's mount
+  namespace, so a direct child can't see it.)
 
-Each driver declares its required mode via `Driver.RequiresBwrap()`;
+Each driver declares its required level via `Driver.RequiredContainment()`;
 service code calls that and passes the result to `exec.Exec` /
 `exec.StartProcess`. There is no central type-switch — adding a new
 driver type means implementing the method, not editing a dispatcher.
@@ -1912,9 +1914,10 @@ contract is permanently observable, not just a paper invariant.
 | `starter.Start` fails (fork EAGAIN) | `TestExecContract_StartError` |
 | `Wait` returns an error alongside the exit state | `TestExecContract_WaitError` |
 | Wall-clock timeout → `ExitCode=124` | `TestExecContract_WallClockTimeout` |
-| `ModeBwrapRequired` without bwrap on PATH | `TestExecContract_BwrapRequired_NoBwrap` |
-| `ModeBwrapPreferred` falls back to direct exec | `TestExecContract_BwrapPreferred_NoBwrap_FallsBackDirect` |
-| `ModeBwrapPreferred` routes through bwrap when available | `TestExecContract_BwrapPreferred_HasBwrap` |
+| `ContainmentRequired` without bwrap on PATH | `TestExecContract_BwrapRequired_NoBwrap` |
+| `ContainmentPreferred` falls back to direct exec | `TestExecContract_BwrapPreferred_NoBwrap_FallsBackDirect` |
+| `ContainmentPreferred` routes through bwrap when available | `TestExecContract_BwrapPreferred_HasBwrap` |
+| `ContainmentLevel` -> backend dispatch (all levels) | `TestBuildStartOpts_LevelDispatch` |
 | ResourceLimits set but `prlimit` missing | `TestExecContract_BwrapRequired_ResourceLimitsRequirePrlimit` |
 | `StartProcess.OnExit` fires once on fast exit | `TestExecContract_StartProcess_OnExitFastExit` |
 | `StartProcess.OnExit` carries terminating signal | `TestExecContract_StartProcess_OnExitSignalKilled` |

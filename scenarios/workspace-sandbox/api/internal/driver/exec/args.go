@@ -6,11 +6,12 @@ import (
 	"sort"
 	"strings"
 
+	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/types"
 )
 
 // BuildExecCommand builds the full command line for executing in a sandbox
-// under bwrap-backed isolation modes (ModeBwrapPreferred, ModeBwrapRequired).
+// under the bwrap containment backend (ContainmentPreferred, ContainmentRequired).
 // Returns (executable, args). When ResourceLimits has prlimit-backed entries,
 // the returned executable is "prlimit" wrapping bwrap; otherwise it is "bwrap".
 func BuildExecCommand(s *types.Sandbox, cfg BwrapConfig, cmd string, cmdArgs ...string) (string, []string) {
@@ -82,8 +83,8 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 		args = append(args, "--hostname", cfg.Hostname)
 	}
 
-	// Bind the sandbox merged directory as /workspace.
-	args = append(args, "--bind", s.MergedDir, "/workspace")
+	// Bind the sandbox merged directory as the agent-visible workspace path.
+	args = append(args, "--bind", s.MergedDir, driver.NamespaceWorkspacePath)
 
 	// Bind the per-sandbox home overlay at the host $HOME path inside the
 	// namespace so agent CLIs find their host config (auth tokens, tool
@@ -120,7 +121,7 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 
 	workDir := cfg.WorkingDir
 	if workDir == "" {
-		workDir = "/workspace"
+		workDir = driver.NamespaceWorkspacePath
 	}
 	args = append(args, "--chdir", workDir)
 

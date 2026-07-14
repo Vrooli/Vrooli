@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"workspace-sandbox/internal/driver"
 	driverexec "workspace-sandbox/internal/driver/exec"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/runtime"
@@ -185,7 +186,8 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := h.Driver()
-	pid, err := driverexec.StartProcess(r.Context(), h.Starter, sb, d.RequiresBwrap(), cfg, req.Command, req.Args...)
+	level := d.RequiredContainment()
+	pid, backendID, err := driverexec.StartProcess(r.Context(), h.Starter, sb, level, cfg, req.Command, req.Args...)
 	if err != nil {
 		if pendingPair != nil {
 			if abortErr := h.ProcessLogger.AbortPair(pendingPair); abortErr != nil {
@@ -203,6 +205,13 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	// Publish the pid so any pending OnExit dispatch (process died very
 	// quickly) can pick it up.
 	pidCh <- pid
+
+	// Effective containment: the backend that actually launched this process
+	// plus the enforcements it provides on this host. Stamped on the tracked
+	// process (for /processes) and echoed in the response so the launch's
+	// provenance is truth, not inference.
+	containmentInfo, _ := driver.GetContainmentInfo(r.Context(), h.Starter)
+	effectiveContainment := driver.EffectiveContainment(level, backendID, containmentInfo)
 
 	var stdoutPath, stderrPath string
 	if pendingPair != nil {
@@ -226,6 +235,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 			h.JSONError(w, trackErr.Error(), http.StatusInternalServerError)
 			return
 		}
+		_ = h.ProcessTracker.SetContainment(id, pid, effectiveContainment)
 		if stdinWriter != nil {
 			if err := h.ProcessTracker.SetStdin(id, pid, stdinWriter); err != nil {
 				h.JSONError(w, err.Error(), http.StatusInternalServerError)
@@ -240,9 +250,10 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"pid":       pid,
-		"sandboxId": id,
-		"command":   req.Command,
+		"pid":         pid,
+		"sandboxId":   id,
+		"command":     req.Command,
+		"containment": effectiveContainment,
 	}
 	if req.Name != "" {
 		response["name"] = req.Name

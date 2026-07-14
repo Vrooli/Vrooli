@@ -119,7 +119,7 @@ canCreateSandbox(newPath, activeSandboxes):
 Potentially useful resources for workspace-sandbox:
 - (storage is embedded SQLite — no shared resource needed)
 - `redis` - Optional caching for sandbox lookup
-- `browserless` - UI testing for diff viewer
+- `browser-automation-studio` - UI testing for diff viewer
 
 ## Conclusion
 

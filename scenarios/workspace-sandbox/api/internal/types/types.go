@@ -352,10 +352,49 @@ type Sandbox struct {
 	// Used for conflict detection (OT-P2-002): if the canonical repo has diverged,
 	// patch application may fail or produce unexpected results.
 	BaseCommitHash string `json:"baseCommitHash,omitempty" db:"base_commit_hash"`
+
+	// --- Computed, never persisted (db:"-"). Populated by handlers from the
+	// active driver's required containment plus the host containment probe
+	// before the sandbox is serialized, so every sandbox-returning endpoint
+	// carries the same negotiated workspace contract. See the single
+	// derivation function driver.DeriveWorkspaceLayout. ---
+
+	// WorkspacePath is the path the agent process sees for its workspace.
+	// "/workspace" when exec containment bind-mounts the merged dir under a
+	// path illusion (bwrap on Linux); otherwise the host MergedDir (identity
+	// layout — copy driver, or any backend without path illusion). Consumers
+	// MUST take the agent-visible path from here, never infer it from GOOS or
+	// driver id.
+	WorkspacePath string `json:"workspacePath" db:"-"`
+
+	// PathIllusion is true when WorkspacePath differs from the host MergedDir
+	// because the containment backend translates host paths onto an illusory
+	// mount point. false means WorkspacePath == MergedDir and path
+	// translation is identity.
+	PathIllusion bool `json:"pathIllusion" db:"-"`
+
+	// Containment reports the process-containment that is actually in effect
+	// for execs against this sandbox (level, backend, enforcement list).
+	Containment *SandboxContainment `json:"containment,omitempty" db:"-"`
 }
 
-// WorkspacePath returns the path where sandbox operations should occur.
-func (s *Sandbox) WorkspacePath() string {
+// SandboxContainment describes the process-containment in effect: the
+// required level, the backend that carries it out ("bwrap" on Linux,
+// "none" when execution falls through to the direct path), and the
+// platform-neutral enforcement guarantees that backend provides. Reported
+// on sandbox responses (predicted from the driver) and stamped on
+// exec/process responses (the backend that actually ran the launch).
+type SandboxContainment struct {
+	Level        string   `json:"level"`
+	Backend      string   `json:"backend"`
+	Enforcements []string `json:"enforcements"`
+}
+
+// HostWorkspacePath returns the host-side path where sandbox operations
+// occur (the overlay merged dir), or "" when the sandbox is not active.
+// Distinct from the wire field WorkspacePath, which is the agent-visible
+// path inside the containment namespace.
+func (s *Sandbox) HostWorkspacePath() string {
 	if s.Status == StatusActive && s.MergedDir != "" {
 		return s.MergedDir
 	}

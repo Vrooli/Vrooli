@@ -1,43 +1,38 @@
 {
-  "description": "Apply approved diffs to canonical repo via controlled, trusted process",
-  "module_id": "MOD-P0-006",
-  "prd_ref": "OT-P0-006",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-006"
-      ],
-      "description": "Apply approved changes to canonical repository through controlled process with proper locking",
       "id": "REQ-P0-007",
-      "prd_ref": "OT-P0-006",
-      "status": "complete",
       "title": "Secure Patch Application",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "description": "Apply approved changes to canonical repository through controlled process with proper locking",
       "validation": [
         {
-          "notes": "API approves all changes and returns success result",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestApproveAllSuccess",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "API approves all changes and returns success result"
         },
         {
-          "notes": "integration: Approve endpoint returns 404 with hint for unknown sandbox",
-          "phase": "api",
+          "type": "test",
           "ref": "bas/cases/diff-generation/api/diff_endpoint.bats::approve endpoint returns 404 for unknown sandbox",
+          "phase": "api",
           "status": "implemented",
-          "type": "test"
+          "notes": "integration: Approve endpoint returns 404 with hint for unknown sandbox"
         },
         {
-          "notes": "integration: Reject endpoint returns 404 with hint for unknown sandbox",
-          "phase": "api",
+          "type": "test",
           "ref": "bas/cases/diff-generation/api/diff_endpoint.bats::reject endpoint returns 404 for unknown sandbox",
+          "phase": "api",
           "status": "implemented",
-          "type": "test"
+          "notes": "integration: Reject endpoint returns 404 with hint for unknown sandbox"
         }
       ]
     }
-  ],
-  "title": "Patch Application"
+  ]
 }

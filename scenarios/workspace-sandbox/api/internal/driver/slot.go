@@ -131,8 +131,8 @@ func (s *Slot) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
 	return s.Current().CleanupOrphan(ctx, id)
 }
 
-func (s *Slot) RequiresBwrap() IsolationMode {
-	return s.Current().RequiresBwrap()
+func (s *Slot) RequiredContainment() ContainmentLevel {
+	return s.Current().RequiredContainment()
 }
 
 // Capabilities delegates to the inner driver's Capabilities. Pure pass-through.

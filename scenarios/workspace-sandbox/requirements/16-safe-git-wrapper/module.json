@@ -1,54 +1,49 @@
 {
-  "description": "PATH-injected wrapper that explains correct workflow for blocked git commands during agent runs",
-  "module_id": "MOD-P1-016",
-  "prd_ref": "OT-P1-007",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P1-007",
+      "title": "Git Command Safety Wrapper",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
       "category": "security",
       "description": "Implement a PATH-injected git wrapper that intercepts restricted commands during sandbox sessions and provides helpful workflow guidance messages.",
-      "id": "REQ-P1-007",
-      "prd_ref": "OT-P1-007",
-      "status": "implemented",
-      "title": "Git Command Safety Wrapper",
       "validation": [
         {
-          "notes": "Test CreateSafeGitWrapper creates script that blocks restricted commands",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/bwrap_test.go::TestCreateSafeGitWrapper",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test CreateSafeGitWrapper creates script that blocks restricted commands"
         },
         {
-          "notes": "Wrapper intercepts git commit/stash/checkout/clean/reset commands",
-          "phase": "manual",
+          "type": "manual",
           "ref": "api/internal/driver/bwrap.go:CreateSafeGitWrapper",
-          "status": "passing",
-          "type": "inspection"
+          "phase": "manual",
+          "status": "implemented",
+          "notes": "Wrapper intercepts git commit/stash/checkout/clean/reset commands"
         },
         {
-          "notes": "Test with real git operations",
+          "type": "test",
           "phase": "api",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Test with real git operations"
         },
         {
-          "notes": "Wrapper overhead <10ms",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Wrapper overhead \u003c10ms"
         },
         {
-          "notes": "Users understand workflow restrictions",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Users understand workflow restrictions"
         }
       ]
     }
-  ],
-  "title": "Safe-Git Wrapper"
+  ]
 }
