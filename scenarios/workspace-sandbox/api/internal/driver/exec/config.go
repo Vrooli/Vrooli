@@ -205,6 +205,12 @@ func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) error {
 	case "none":
 		cfg.AllowNetwork = false
 	case "localhost", "full":
+		// Network control is binary (bwrap: --unshare-net or nothing;
+		// Seatbelt: deny network* or nothing), so "localhost" grants
+		// unrestricted network exactly like "full". The vocabulary name
+		// driver.EnforcementNetworkLoopbackOnly stays unclaimed until a
+		// backend can actually restrict egress to loopback
+		// (knw-1784006975589682125).
 		cfg.AllowNetwork = true
 	}
 

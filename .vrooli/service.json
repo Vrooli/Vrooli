@@ -15,14 +15,6 @@
         "enabled": true,
         "required": false
       },
-      "browserless": {
-        "enabled": true,
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        },
-        "required": true
-      },
       "claude-code": {
         "description": "Claude Code development assistant",
         "enabled": true,
@@ -537,6 +529,19 @@
       "name": "node",
       "notes": "Root-owned development toolchain",
       "reason": "Build and run JavaScript-based workspace tooling during development setup",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "pnpm",
+      "notes": "Pinned standalone binary matching the pnpm-workspace.yaml packageManager version; installed into ~/.vrooli/bin (no sudo).",
+      "reason": "Install and build scenario UI workspaces; lifecycle steps fall back to plain `pnpm` when the host Node.js has no corepack shims",
       "required": true,
       "when": [
         "setup",

@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -29,6 +30,7 @@ import (
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/channel"
 	"vrooli-bridge/agent/internal/config"
+	"vrooli-bridge/agent/internal/cpverify"
 	"vrooli-bridge/agent/internal/discovery"
 	"vrooli-bridge/agent/internal/nodecred"
 	"vrooli-bridge/agent/internal/platform"
@@ -43,6 +45,14 @@ func main() {
 
 func run(args []string) error {
 	logger := log.New(os.Stderr, "", log.LstdFlags)
+
+	// `service install|status|uninstall` is the OS-service management surface the
+	// bootstrap installer drives (OT-P0-007). It is layered over the same config
+	// resolution + service.Definition as --print-service-unit, so the installed
+	// unit's argv matches exactly what --print-service-unit renders.
+	if len(args) > 0 && args[0] == "service" {
+		return runService(args[1:])
+	}
 
 	cfg, err := config.Load(args)
 	if err != nil {
@@ -100,7 +110,23 @@ func run(args []string) error {
 		}
 	}
 
-	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred))
+	// Pin the control-plane key BEFORE dialing (SECURITY.md boundary 2): a paired
+	// agent verifies every server push against the key `pair redeem` wrote to
+	// <state-dir>/control_plane.pub. A missing pin is a hard, actionable failure —
+	// there is deliberately no trust-on-first-frame fallback. An unpaired agent
+	// skips this and exits cleanly on ErrNotConfigured below.
+	var cpVerifier *cpverify.Verifier
+	if cfg.Paired() {
+		cpVerifier, err = cpverify.Load(cfg.ControlPlaneKeyPath)
+		if err != nil {
+			if errors.Is(err, cpverify.ErrNoPin) {
+				return fmt.Errorf("%w — run `vrooli-bridge pair redeem` (or the bootstrap installer) to pin the control-plane key before starting the agent", err)
+			}
+			return fmt.Errorf("load pinned control-plane key: %w", err)
+		}
+	}
+
+	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred), channel.WithCPVerifier(cpVerifier))
 	hs := client.Handshake()
 	logger.Printf("channel handshake: node_id=%q protocol_version=%d os=%s arch=%s capabilities=%v",
 		hs.GetNodeId(), hs.GetProtocolVersion(), hs.GetOs(), hs.GetArch(), hs.GetCapabilities())
@@ -121,13 +147,25 @@ func run(args []string) error {
 }
 
 // renderServiceUnit builds this binary's platform-native background-service unit
-// from the resolved config. The argv it embeds re-runs THIS binary in its
-// long-lived dial mode (the same control-plane URL / node id / state dir), so
-// the installed service reconnects exactly as the foreground process would.
+// from the resolved config.
 func renderServiceUnit(cfg config.Config) (string, error) {
+	def, err := serviceDefinition(cfg)
+	if err != nil {
+		return "", err
+	}
+	return service.NewManager().Render(def)
+}
+
+// serviceDefinition builds the service.Definition for THIS binary from the
+// resolved config. The argv it embeds re-runs this binary in its long-lived dial
+// mode (the same control-plane URL / node id / state dir), so the installed
+// service reconnects exactly as the foreground process would. Both
+// --print-service-unit and the `service` verbs go through it so the rendered and
+// installed unit are byte-for-byte the same argv.
+func serviceDefinition(cfg config.Config) (service.Definition, error) {
 	exe, err := os.Executable()
 	if err != nil {
-		return "", fmt.Errorf("resolve agent binary path: %w", err)
+		return service.Definition{}, fmt.Errorf("resolve agent binary path: %w", err)
 	}
 	args := []string{
 		"--control-plane-url", cfg.ControlPlaneURL,
@@ -137,13 +175,115 @@ func renderServiceUnit(cfg config.Config) (string, error) {
 	if cfg.WorkDir != "" {
 		args = append(args, "--work-dir", cfg.WorkDir)
 	}
-	def := service.Definition{
+	return service.Definition{
 		Name:        "vrooli-bridge-agent",
 		Description: "Vrooli Bridge node agent",
 		ExecPath:    exe,
 		Args:        args,
 		WorkingDir:  cfg.WorkDir,
 		User:        cfg.ServiceUser,
+	}, nil
+}
+
+// runService dispatches `service install|status|uninstall`. It resolves config
+// from the remaining args exactly like the dial path (so the installed unit
+// carries the same control-plane URL / node id / state dir), builds this
+// binary's service.Definition, and drives the host's Manager. A --json flag on
+// any verb prints the machine-readable result (the phase-4 bootstrap script
+// parses install/status output); the default is a concise human line.
+func runService(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("service: expected a verb (install|status|uninstall)")
 	}
-	return service.NewManager().Render(def)
+	verb := args[0]
+	rest, asJSON := extractJSONFlag(args[1:])
+
+	cfg, err := config.Load(rest)
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	def, err := serviceDefinition(cfg)
+	if err != nil {
+		return err
+	}
+	mgr := service.NewManager()
+	ctx := context.Background()
+
+	switch verb {
+	case "install":
+		res, err := mgr.Install(ctx, def)
+		if err != nil {
+			return fmt.Errorf("service install: %w", err)
+		}
+		if asJSON {
+			return printJSON(res)
+		}
+		fmt.Printf("installed %s (%s)\n  unit:    %s\n  enabled: %t\n  running: %t\n",
+			res.UnitName, res.Kind, res.UnitPath, res.Enabled, res.Running)
+		return nil
+	case "status":
+		res, err := mgr.Status(ctx, def)
+		if err != nil {
+			return fmt.Errorf("service status: %w", err)
+		}
+		if asJSON {
+			if jerr := printJSON(res); jerr != nil {
+				return jerr
+			}
+		} else {
+			fmt.Printf("%s (%s)\n  unit:      %s\n  installed: %t\n  enabled:   %t\n  running:   %t\n  pid:       %d\n  detail:    %s\n",
+				res.UnitName, res.Kind, res.UnitPath, res.Installed, res.Enabled, res.Running, res.PID, res.Detail)
+		}
+		// Exit non-zero when not running so a caller (bootstrap script) can gate on
+		// `service status` without parsing output.
+		if !res.Running {
+			return errServiceNotRunning
+		}
+		return nil
+	case "uninstall":
+		res, err := mgr.Uninstall(ctx, def)
+		if err != nil {
+			return fmt.Errorf("service uninstall: %w", err)
+		}
+		if asJSON {
+			return printJSON(res)
+		}
+		fmt.Printf("uninstalled %s (%s)\n  unit:    %s\n  removed: %t\n",
+			res.UnitName, res.Kind, res.UnitPath, res.Removed)
+		return nil
+	default:
+		return fmt.Errorf("service: unknown verb %q (want install|status|uninstall)", verb)
+	}
+}
+
+// errServiceNotRunning is returned by `service status` when the service is not
+// active, so the process exits non-zero for scripted gating.
+var errServiceNotRunning = errors.New("service is not running")
+
+// extractJSONFlag removes a --json / -json token from args, returning the
+// remaining args and whether the flag was present. The service verbs hand the
+// remainder to config.Load, which owns the rest of the flag surface.
+func extractJSONFlag(args []string) ([]string, bool) {
+	out := make([]string, 0, len(args))
+	asJSON := false
+	for _, a := range args {
+		if a == "--json" || a == "-json" {
+			asJSON = true
+			continue
+		}
+		out = append(out, a)
+	}
+	return out, asJSON
+}
+
+func printJSON(v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(b))
+	return nil
 }

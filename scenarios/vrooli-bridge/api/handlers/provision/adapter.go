@@ -5,11 +5,11 @@ import (
 	"errors"
 
 	"vrooli-bridge/internal/audit"
+	"vrooli-bridge/internal/channelsign"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/provision"
 	"vrooli-bridge/internal/registry"
 
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
@@ -188,11 +188,14 @@ func (a auditSinkAdapter) Record(ctx context.Context, e provision.Entry) error {
 }
 
 // commandPusherAdapter translates a provision PushedCommand into a
-// channel.ProvisionCommand wrapped in a ServerFrame, serialises it with
-// protojson (compact single-line JSON the agent decodes with DiscardUnknown),
-// and pushes it to every live channel the node holds via the presence hub.
+// channel.ProvisionCommand wrapped in a ServerFrame, signs it with the
+// control-plane identity key, and pushes the signed envelope to every live
+// channel the node holds via the presence hub. The node verifies the signature
+// against the pinned control-plane key before it executes the privileged
+// command (SECURITY.md boundary 2).
 type commandPusherAdapter struct {
-	hub *presence.Hub
+	hub    *presence.Hub
+	signer channelsign.Signer
 }
 
 var _ provision.CommandPusher = commandPusherAdapter{}
@@ -207,7 +210,7 @@ func (a commandPusherAdapter) PushProvision(_ context.Context, nodeID string, cm
 			},
 		},
 	}
-	payload, err := protojson.Marshal(frame)
+	payload, err := channelsign.Marshal(a.signer, frame)
 	if err != nil {
 		return 0, err
 	}

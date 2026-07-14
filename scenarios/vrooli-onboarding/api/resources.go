@@ -41,8 +41,6 @@ var categoryMap = map[string]string{
 	"opencode": "ai", "whisper": "ai", "kokoro": "ai",
 	"segment-anything": "ai", "ultralytics-yolo": "ai", "nsfw-detector": "ai",
 	"unstructured-io": "ai", "agent-s2": "ai",
-	// Browser / automation
-	"browserless": "browser",
 	// IoT / hardware
 	"zigbee2mqtt": "iot", "home-assistant": "iot", "esphome": "iot",
 	"eclipse-ditto": "iot", "traccar": "iot",

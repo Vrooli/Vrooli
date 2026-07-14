@@ -6,8 +6,6 @@ import (
 	"log"
 	"testing"
 
-	"google.golang.org/protobuf/encoding/protojson"
-
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 
 	"github.com/stretchr/testify/require"
@@ -37,24 +35,22 @@ func TestCancelJob_CancelsRegisteredJob(t *testing.T) {
 	require.False(t, c.cancelJob("r1"), "an unregistered run is no longer cancellable")
 }
 
-// [REQ:BRG-P1-004] An AbortJob ServerFrame routes to cancelJob for the named
-// run, stopping its in-flight execution.
+// [REQ:BRG-P1-004] A signed AbortJob ServerFrame routes to cancelJob for the
+// named run, stopping its in-flight execution.
 func TestHandleServerFrame_AbortCancelsRun(t *testing.T) {
-	c := quietClient()
+	c, priv := signedClient(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	c.registerJob("run-7", cancel)
 
 	frame := &channelv1.ServerFrame{Payload: &channelv1.ServerFrame_Abort{
 		Abort: &channelv1.AbortJob{RunId: "run-7", Reason: "operator abort"},
 	}}
-	payload, err := protojson.Marshal(frame)
-	require.NoError(t, err)
 
-	c.handleServerFrame(string(payload))
+	c.handleServerFrame(signFrame(t, priv, frame))
 
 	select {
 	case <-ctx.Done():
 	default:
-		t.Fatal("the AbortJob frame should have cancelled run-7")
+		t.Fatal("the signed AbortJob frame should have cancelled run-7")
 	}
 }

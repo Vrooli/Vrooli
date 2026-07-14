@@ -17,12 +17,12 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        provisionconnect.ProvisionServiceSyncToRevisionProcedure,
 		Method:      "POST",
 		Summary:     "Sync a node to a project revision (privileged)",
-		Description: "Brings a node to a target git revision (`git fetch`@R + idempotent `vrooli setup`) via the node's separate privileged helper, creating a durable, audited provisioning op. Validates and rejects an unknown/revoked/offline node before any op is created. Honours X-Dry-Run. Owner-gated.",
+		Description: "Brings a node to a target git revision (`git fetch`@R + idempotent `vrooli setup`) via the node's separate privileged helper, creating a durable, audited provisioning op. Validates and rejects an unknown/revoked/offline node before any op is created. target_revision defaults to the control plane's current commit (pass \"@cp\" to say so explicitly) and is preflighted against the clone remote, so an unpushed commit is rejected with push-first guidance; rollback_revision accepts \"@cp\" too. Honours X-Dry-Run. Owner-gated.",
 		Category:    "provision",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
 			"node_id":           "string (required)",
-			"target_revision":   "string (required)",
-			"rollback_revision": "string",
+			"target_revision":   "string (defaults to the control plane's commit; \"@cp\" = same)",
+			"rollback_revision": "string (\"@cp\" accepted)",
 			"timeout_seconds":   "int64",
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{
@@ -30,10 +30,11 @@ var Endpoints = []module.EndpointDescriptor{
 			"dry_run": "bool",
 		}},
 		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Missing node_id/target_revision"},
+			{Status: 400, Code: "invalid_argument", Description: "Missing node_id, or an invalid revision (e.g. a relative ref like HEAD~1)"},
 			{Status: 401, Code: "unauthenticated", Description: "Owner token required"},
 			{Status: 404, Code: "not_found", Description: "Unknown node"},
 			{Status: 409, Code: "failed_precondition", Description: "Node revoked or offline"},
+			{Status: 412, Code: "failed_precondition", Description: "The resolved commit is not on the clone remote (push it first)"},
 			{Status: 503, Code: "unavailable", Description: "Provisioning command could not be delivered"},
 		},
 		Examples: []module.Example{

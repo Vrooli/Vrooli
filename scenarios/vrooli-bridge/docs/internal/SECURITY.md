@@ -31,15 +31,42 @@ Bridge has three distinct authorization boundaries, all enforced at the API/serv
 
 1. **Owner → control plane.** Access to the control plane is gated by scenario-authenticator (fail-closed, brief validation cache), consistent with device-sync-hub. Only the owner can register/revoke nodes, dispatch jobs, or provision.
 2. **Control plane ↔ node (mutual auth).** Every exchange is mutually authenticated — the node proves it is the paired node, and the control plane proves it is the legitimate coordinator (so a node never executes a job from an impostor). **Mechanism (decided 2026-06-18, see `DECISIONS.md`): per-node Ed25519 keypair pinned both directions at pairing.** The node generates an Ed25519 keypair at pairing and registers its public key in `node_credentials`; the control plane holds its own long-lived keypair, and the node pins the control-plane public key at bootstrap (delivered out-of-band alongside the pairing code). Node→CP calls (Connect-RPC: register, heartbeat, run results) carry a signature over the request verifiable against the stored node key; the dial-out SSE token is bound to the node key. CP→node pushes are verifiable against the pinned control-plane key, so a node rejects an impostor coordinator. TLS provides transport confidentiality; the pinned keys provide identity. Full PKI/mTLS-CA was rejected as heavier than a single owner needs.
+
+   **Status: built + tested (Phase 3 / G7).** CP→node: the control plane signs every server frame with its long-lived Ed25519 key and wraps it in a `SignedServerFrame` envelope (`api/internal/channelsign`, signature over the exact serialized frame bytes); the agent verifies each frame against the pinned control-plane key (`agent/internal/cpverify`) before acting on it. The pin is written to `<state-dir>/control_plane.pub` (0600, dir 0700) by `vrooli-bridge pair redeem --state-dir …`, **before** the single-use pairing code is burned; a redeem that cannot pin surfaces the key so the operator can pin by hand. At startup a paired agent that finds **no pin fails hard** (`cpverify.ErrNoPin`, no TOFU fallback), and any frame that fails verification is dropped and surfaced in the `rejected_cp_frames` health counter on the agent heartbeat. Node→CP: node calls carry an Ed25519 signature verifiable against the public key stored in `node_credentials` at pairing.
 3. **Per-node verb scopes + trust tiers.** Authorization for *what a node will run* is the manifest-validated verb allowlist plus that node's granted verb-namespaces (e.g. `scenario test*` yes, `secrets*` / `scenario deploy*` no). **Trust-tier mechanism (decided 2026-06-18, see `DECISIONS.md`): the runner executes as a dedicated non-privileged service user with no escalation path; a structurally separate privileged provisioning helper (a distinct root/admin process installed at bootstrap) performs only whitelisted provisioning ops over a local IPC the runner cannot forge.** The two tiers are different OS principals, not a flag. The non-privileged runner cannot invoke the privileged provisioning tier. Revocation is atomic and kills both job and provisioning rights immediately.
 
 ## Secrets
 
 | Secret | Source | Required? | Details |
 |---|---|---|---|
-| Node mutual-auth credential | minted at pairing | yes | Hashed at rest; rotated/destroyed on revoke. |
-| Pairing token | issued out-of-band by owner | yes (bootstrap) | Single-use, short TTL; burned on redeem. |
+| Node mutual-auth credential (Ed25519) | minted at pairing on the node | yes | Public key registered in `node_credentials`; private key stays on the node; destroyed on revoke/re-onboard. |
+| Control-plane signing key (Ed25519) | long-lived, control-plane-owned | yes | Private key never leaves the control plane; the **public** half is pinned on each node at redeem. |
+| Pairing code | issued out-of-band by owner (`pair issue`), or server-side during one-shot onboarding | yes (onboarding) | Single-use, short TTL; burned on redeem. During onboarding it is injected over SSH **stdin → `BRIDGE_PAIRING_CODE`**, never argv/logs/DB. |
+| SSH first-touch password | transient, owner-supplied for one named host | onboarding only | Held in memory for the single key-install dial, then **zeroed**; never written to disk, logs, or the DB. See Transient-Credential Posture. |
 | Node-bound secrets (for jobs that need them) | secrets-manager | optional (P2) | Bridge never ships secrets ad hoc; validation jobs prefer fixtures over real secrets. |
+
+### Transient-Credential Posture
+
+Onboarding a fresh node uses two short-lived credentials that are
+**deliberately never persisted**:
+
+- **SSH first-touch password.** `api/internal/onboard/ssh.FirstTouch`
+  takes an owner-supplied password for one reachable host, uses it for a
+  single `ssh-copy-id`-style key-install dial, and zeroes the buffer on
+  every exit path (asserted by test). It is never written to disk, logs,
+  or the DB — the whole point is to establish key-based passwordless SSH,
+  after which the password is worthless. If the host already trusts the
+  bridge key, `FirstTouch` short-circuits and **no password is used at
+  all**. The generated per-node keypair + `known_hosts` persist 0600
+  (dir 0700) under the bridge-owned storage namespace, never the
+  operator's `~/.ssh`.
+- **Pairing code.** During one-shot onboarding the control plane issues
+  the single-use code **server-side** and injects it over SSH **stdin**
+  into `BRIDGE_PAIRING_CODE` in the remote shell — never on argv (so it
+  cannot leak through `ps`), never echoed, never stored. The `onboard`
+  domain has no DB column or step-event field for either the SSH password
+  or the pairing code, and tests assert both are absent from DB rows,
+  step events, and captured logs.
 
 ## Threat Model
 
@@ -47,10 +74,10 @@ Bridge has three distinct authorization boundaries, all enforced at the API/serv
 |---|---|---|---|
 | Arbitrary remote code execution | An attacker (or a buggy caller) runs unintended commands on a node. | Typed `{scenario, verb, args}` jobs validated against the CLI manifest + per-node scopes; **no raw shell path exists** (the node-agent execs a validated argv, never `sh -c`). | **built + tested (Phase 3)**: `internal/dispatch/allowlist_test.go`, `agent/internal/exec/typedjob_test.go` |
 | Privilege escalation via the runner | Everyday job runner gains provisioning/`sudo` rights. | Structural two-tier separation; the runner has no path to the privileged provisioning tier. | **built + tested (Phase 4)**: `agent/internal/privsep/privsep_test.go::TestPrivilegeSeparation_NoCrossImport` proves `internal/exec` and `internal/privsep` share no in-process call path; the service-install adapter installs each tier under a separate OS principal (`agent/internal/service/service_test.go`) |
-| Node impersonation / credential theft | A rogue host receives jobs or exfiltrates results. | Mutual auth both directions; credentials hashed at rest; atomic revocation. | designed, unbuilt |
-| Control-plane impersonation (rogue coordinator) | A node executes attacker-supplied jobs. | Mutual auth — the node verifies the control plane, not just vice-versa. | designed, unbuilt |
-| Pairing-token replay / rogue node enrollment | Attacker pairs an unauthorized machine. | Single-use, short-TTL, out-of-band tokens; owner-approved enrollment. | designed, unbuilt |
-| MITM on the dial-out channel | Job/results intercepted or altered. | TLS in transit + mutual auth; off-LAN via tunnel-manager. | designed, unbuilt |
+| Node impersonation / credential theft | A rogue host receives jobs or exfiltrates results. | Node→CP calls carry an Ed25519 signature over the request, verified against the public key registered at pairing; the dial-out token is bound to the node key; credentials hashed at rest; atomic revocation. | **built + tested**: node signing + `node_credentials`; verify path in the node-facing handlers |
+| Control-plane impersonation (rogue coordinator) | A node executes attacker-supplied jobs. | CP→node pushes are wrapped in a `SignedServerFrame` (`api/internal/channelsign`, Ed25519 over the exact frame bytes) and verified by the agent against the **pinned** control-plane key (`agent/internal/cpverify`). No pin ⇒ hard startup error (no TOFU fallback); a frame that fails verification is dropped and counted in the `rejected_cp_frames` health signal. | **built + tested (Phase 3 / G7)**: `channelsign`, `cpverify`, `agent/internal/channel` counter |
+| Pairing-token replay / rogue node enrollment | Attacker pairs an unauthorized machine. | Single-use, short-TTL, out-of-band pairing code; the code is burned on redeem and never accepted twice; owner-issued via `pair issue`. | **built**: single-use code issuance + redeem |
+| MITM on the dial-out channel | Job/results intercepted or altered. | TLS in transit + signed frames both directions (above); off-LAN via tunnel-manager. | **built** (signing) / TLS at the transport edge |
 | Compromised / malicious node | A bad node returns false verdicts or attacks the control plane. | Nodes are the owner's own trusted machines; least-privilege control-plane API; audit of all exchanges; revocation. | partial (trust model) |
 | Provisioning tampering | A malicious revision R or setup step. | Provisioning fetches source from the owner's own repo at a pinned revision; privileged, consented, audited; idempotent with rollback. | **built + tested (Phase 4)**: `api/internal/provision/provision_test.go` (audited op lifecycle, idempotent re-sync, rollback outcome) + `agent/internal/privsep/privsep_test.go` (rollback-on-failed-setup, no-shell typed step plan) |
 | Node-agent supply chain | Tampered agent binary. | Agent is bridge-built and distributed by the owner; checksums on bootstrap; no third-party binary fetch. | designed, unbuilt |
@@ -64,7 +91,8 @@ These are open because this is the documentation-first foundation — the threat
 |---|---|---|
 | ~~Mutual-auth mechanism not yet chosen (mTLS vs signed tokens)~~ **RESOLVED 2026-06-18** | ~~high~~ closed | Decided: per-node Ed25519 keypair pinned both directions at pairing (`DECISIONS.md`). Implemented in Phase 2 (pairing/auth). |
 | ~~Runner OS-level sandboxing/least-privilege user not yet specified~~ **RESOLVED 2026-06-18** | ~~high~~ closed | Decided: dedicated non-privileged service user runs the runner; structurally separate privileged provisioning helper (`DECISIONS.md`). Implemented in Phase 0 (agent skeleton) + Phase 4 (provisioning helper). |
-| ~~Implementation/tests still pending for each mitigation above~~ **mostly closed for the P0 set** | high → low | Phase 2 (mutual auth), Phase 3 (allowlist + no-shell-path + audit), and **Phase 4 (privilege separation + provisioning + cross-platform agent)** now ship with tests. Remaining "designed, unbuilt" rows (impersonation, MITM, supply chain, exfiltration) are covered by the Phase-2/3 mutual-auth + TLS + audit machinery; their dedicated regression tests and the P1 hardening (update/rollback, artifact distribution) land in Phase 5. Track in `requirements/`. |
+| ~~Implementation/tests still pending for each mitigation above~~ **closed for the P0 set + mutual auth** | high → low | Mutual auth is now **built + tested both directions** (Phase 3 / G7: node→CP signing verified against `node_credentials`; CP→node `SignedServerFrame` verified against the pinned key, `rejected_cp_frames` counter, no-TOFU hard-fail). Allowlist + no-shell-path + audit (Phase 3), privilege separation + provisioning (Phase 4), and one-shot onboarding (Phases 1/3/5) ship with tests. Remaining "designed, unbuilt" rows (agent supply-chain checksums, artifact-exfiltration retention controls) are P1/P2 hardening tracked in `requirements/`. |
+| **Privileged-helper install divergence (G8 — REMAINS, documented not fixed)** | medium | The two-trust-tier separation is proven **structurally in-process** (AST import-graph test: `internal/exec` ⊥ `internal/privsep`) and the service renderer **supports** installing the privileged helper under a separate OS principal (`--service-user`). But the live `vrooli-bridge-agent service install` / onboarding path installs **only the single non-privileged runner unit** (`systemctl --user` on Linux, a launchd LaunchAgent on macOS) — it does **not** install a separate root/admin provisioning helper as a distinct OS principal. On the live path today, provisioning runs in the same user-level agent context rather than the designed second principal. The design decision (two OS principals, see `DECISIONS.md`) and the in-process proof stand; realizing the separate privileged principal at install time (per-OS root helper install + local IPC boundary) is the open work. Revisit trigger: before a fleet runs untrusted provisioning, or when per-OS privileged-service install is implemented. |
 | Audit tamper-evidence depends on workspace-sandbox guarantees | medium | The audit domain is built behind the `audit.Sink` seam (local append-only SQLite store today); a workspace-sandbox-backed Sink is a drop-in once that scenario is green. See PROBLEMS.md (2026-06-18 deferred entry). |
 
 ## Allowlist

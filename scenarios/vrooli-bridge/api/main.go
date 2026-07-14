@@ -13,10 +13,14 @@ import (
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/cpkeys"
+	"vrooli-bridge/internal/cprev"
 	"vrooli-bridge/internal/modules"
 	"vrooli-bridge/internal/nodeauth"
+	internalonboard "vrooli-bridge/internal/onboard"
+	onboardssh "vrooli-bridge/internal/onboard/ssh"
 	internalpairing "vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/presence"
+	internalprovision "vrooli-bridge/internal/provision"
 	internalqueue "vrooli-bridge/internal/queue"
 	internalregistry "vrooli-bridge/internal/registry"
 	internalruns "vrooli-bridge/internal/runs"
@@ -38,6 +42,7 @@ import (
 	fleetH "vrooli-bridge/handlers/fleet"
 	gateH "vrooli-bridge/handlers/gate"
 	healthH "vrooli-bridge/handlers/health"
+	onboardH "vrooli-bridge/handlers/onboard"
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
 	queueH "vrooli-bridge/handlers/queue"
@@ -159,6 +164,39 @@ func cpKeyDir() (string, error) {
 	return filepath.Dir(path), nil
 }
 
+// bootstrapScriptPath resolves the local path to the node bootstrap script the
+// onboard orchestrator copies to each host. Resolution order: the
+// BRIDGE_BOOTSTRAP_SCRIPT env override, then a set of layout-relative candidates
+// derived from the executable location and the working directory (the api binary
+// lives at scenarios/vrooli-bridge/api/, the script at ../bootstrap/). A missing
+// script is a hard configuration error surfaced at boot.
+func bootstrapScriptPath() (string, error) {
+	if p := strings.TrimSpace(os.Getenv("BRIDGE_BOOTSTRAP_SCRIPT")); p != "" {
+		return p, nil
+	}
+	candidates := []string{
+		filepath.Join("bootstrap", "bootstrap.sh"),
+		filepath.Join("scenarios", "vrooli-bridge", "bootstrap", "bootstrap.sh"),
+	}
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		candidates = append(candidates,
+			filepath.Join(exeDir, "..", "bootstrap", "bootstrap.sh"),
+			filepath.Join(exeDir, "bootstrap", "bootstrap.sh"),
+		)
+	}
+	for _, c := range candidates {
+		if info, err := os.Stat(c); err == nil && !info.IsDir() {
+			abs, err := filepath.Abs(c)
+			if err != nil {
+				return "", err
+			}
+			return abs, nil
+		}
+	}
+	return "", fmt.Errorf("node bootstrap script not found (set BRIDGE_BOOTSTRAP_SCRIPT); looked in %v", candidates)
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -246,14 +284,14 @@ func main() {
 	var scheduler *internalqueue.Scheduler
 	runsSvc := internalruns.NewService(
 		internalruns.NewSQLiteRepository(db, clk), clk,
-		internalruns.WithCanceller(queueH.NewChannelCanceller(presenceHub)),
+		internalruns.WithCanceller(queueH.NewChannelCanceller(presenceHub, cpKeypair)),
 		internalruns.WithTerminalHook(func(ctx context.Context, run internalruns.Run) {
 			if scheduler != nil {
 				scheduler.Complete(ctx, run.NodeID, run.ID)
 			}
 		}),
 	)
-	scheduler = internalqueue.NewScheduler(queueH.NewChannelPusher(presenceHub), queueH.NewAborter(runsSvc), clk, 0)
+	scheduler = internalqueue.NewScheduler(queueH.NewChannelPusher(presenceHub, cpKeypair), queueH.NewAborter(runsSvc), clk, 0)
 
 	// Audit (OT-P0-008): the append-only accountability substrate. The same
 	// store is the dispatch handler's write Sink and the audit handler's read
@@ -261,11 +299,52 @@ func main() {
 	// behind the same seam; see docs/internal/SECURITY.md + PROBLEMS.md.)
 	auditStore := internalaudit.NewSQLiteStore(db, clk)
 
+	// revResolver (phase 6): resolves the revision an onboarding/provisioning op
+	// pins to. By default that is the control plane's EXACT current commit
+	// (`git rev-parse HEAD`), so nodes never drift from the control plane; the
+	// "@cp" sentinel expands to it, a bad ref is rejected with a friendly boundary
+	// error, and a commit that was never pushed fails preflight with push-first
+	// guidance. It is shared by onboard, provision, and (via provision) fleet roll
+	// so all three behave identically. git discovers the monorepo root from the
+	// working directory; BRIDGE_CP_REPO_DIR / BRIDGE_CP_GIT_REMOTE override.
+	revResolver := cprev.New()
+
 	// provision (OT-P0-006): the PRIVILEGED tier. Built once here so the same
 	// instance backs both the provision handler (operator verbs + node ingest)
 	// and the fleet roll's provisioner adapter — the in-memory op coordination
 	// stays coherent across both call sites.
-	provisionSvc := provisionH.NewService(db, clk, registrySvc, presenceHub, auditStore)
+	provisionSvc := provisionH.NewService(db, clk, registrySvc, presenceHub, auditStore, cpKeypair,
+		internalprovision.WithRevisionResolver(revResolver))
+
+	// onboard (phase 5): the orchestration tier. It drives a raw SSH host to a
+	// paired, ONLINE, auto-starting fleet agent as a durable, server-owned op
+	// (SSH first-touch → push bootstrap script → remote bootstrap → verify
+	// online). The owner SSH password is request-scoped and zeroed by the SSH
+	// key install; the single-use pairing code is issued server-side (pairingSvc)
+	// and injected into the remote bootstrap over stdin (never argv/logs). It
+	// owns its durable op tables and reconciles ops orphaned by a restart at boot.
+	sshStateDir, err := onboardssh.ResolveStateDir()
+	if err != nil {
+		log.Fatalf("resolve onboarding SSH state dir: %v", err)
+	}
+	bootstrapScript, err := bootstrapScriptPath()
+	if err != nil {
+		log.Fatalf("resolve node bootstrap script: %v", err)
+	}
+	// The onboard service shares the revision resolver (default/@cp/preflight) and
+	// picks up an optional default control-plane URL from BRIDGE_CONTROL_PLANE_URL
+	// so an operator can omit control_plane_url when the control plane knows its
+	// own public URL.
+	onboardOpts := []internalonboard.Option{internalonboard.WithRevisionResolver(revResolver)}
+	if cpURL := strings.TrimSpace(os.Getenv("BRIDGE_CONTROL_PLANE_URL")); cpURL != "" {
+		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(cpURL))
+	}
+	onboardSvc := onboardH.NewService(db, clk, pairingSvc, presenceHub, onboardssh.NewService(sshStateDir), bootstrapScript, onboardOpts...)
+	if n, rerr := onboardSvc.ResumeInterrupted(context.Background()); rerr != nil {
+		log.Printf("onboard: reconcile interrupted ops failed: %v", rerr)
+	} else if n > 0 {
+		log.Printf("onboard: marked %d interrupted onboarding op(s) FAILED (safe to retry)", n)
+	}
 
 	// dispatch (OT-P0-004): the allowlist gate, built once here so the SAME
 	// instance backs both the dispatch handler and the gate domain's runner
@@ -296,11 +375,16 @@ func main() {
 		// privileged ProvisionCommand (presenceHub), audits (auditStore), and
 		// gates the node-facing ReportProvisionEvent on mutual auth (nodeVerifier).
 		provisionH.Module(provisionSvc, nodeVerifier, logger),
+		// onboard (phase 5): durable, orchestrated one-shot node onboarding over
+		// SSH. Owns its durable op tables; drives SSH first-touch + SCP + remote
+		// bootstrap (streamed VBOOTSTRAP markers), issues the pairing code
+		// server-side (pairingSvc), and confirms the node ONLINE (presenceHub).
+		onboardH.Module(onboardSvc, logger),
 		// fleet (OT-P1-001): fleet-wide version roll. Enumerates nodes
 		// (registrySvc), gates on presence + protocol compatibility (presenceHub),
 		// and dispatches a privileged provisioning op per eligible node by
 		// delegating to the shared provision service (provisionSvc).
-		fleetH.Module(db, clk, registrySvc, presenceHub, provisionSvc, logger),
+		fleetH.Module(db, clk, registrySvc, presenceHub, provisionSvc, revResolver, logger),
 		// gate (OT-P1-002): cross-OS deployment gate. Selects one eligible node
 		// per target OS (registrySvc + presenceHub), dispatches a validation run to
 		// each by delegating to the shared dispatch service (dispatchSvc) + runs

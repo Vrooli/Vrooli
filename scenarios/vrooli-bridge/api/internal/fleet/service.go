@@ -32,11 +32,28 @@ type service struct {
 	presence    Presence
 	provisioner Provisioner
 	clock       clock.Clock
+	revResolver RevisionResolver
+}
+
+// Option customises the service.
+type Option func(*service)
+
+// WithRevisionResolver wires the control-plane revision resolver. When set, the
+// roll target is defaulted (empty/"@cp" → the control plane's commit),
+// metacharacter-validated, and preflighted ONCE before dispatch, and the resolved
+// commit is what every node is pinned to (and what the rollout records); when
+// unset, the target is required non-empty and used verbatim (legacy behaviour).
+func WithRevisionResolver(r RevisionResolver) Option {
+	return func(s *service) { s.revResolver = r }
 }
 
 // NewService constructs the production Service.
-func NewService(repo Repository, nodes NodeLister, presence Presence, provisioner Provisioner, clk clock.Clock) Service {
-	return &service{repo: repo, nodes: nodes, presence: presence, provisioner: provisioner, clock: clk}
+func NewService(repo Repository, nodes NodeLister, presence Presence, provisioner Provisioner, clk clock.Clock, opts ...Option) Service {
+	s := &service{repo: repo, nodes: nodes, presence: presence, provisioner: provisioner, clock: clk}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Compile-time guarantee.
@@ -44,7 +61,16 @@ var _ Service = (*service)(nil)
 
 func (s *service) Roll(ctx context.Context, in RollInput) (RollDecision, error) {
 	target := trimRevision(in.TargetRevision)
-	if target == "" {
+	if s.revResolver != nil {
+		// Resolve ONCE so the whole roll pins to a single exact commit (empty/"@cp"
+		// → the control plane's commit), and preflight it here so an unpushed or
+		// invalid target fails the roll before any node is dispatched.
+		resolved, err := s.revResolver.Resolve(ctx, target)
+		if err != nil {
+			return RollDecision{}, err
+		}
+		target = resolved
+	} else if target == "" {
 		return RollDecision{}, ErrInvalidRoll{Field: "target_revision", Reason: "required"}
 	}
 

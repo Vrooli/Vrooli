@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"vrooli-bridge/internal/audit"
+	"vrooli-bridge/internal/channelsign"
 	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/module"
 	"vrooli-bridge/internal/nodeauth"
@@ -28,14 +29,15 @@ import (
 // main.go constructs it once and shares the single instance between this
 // module's handler and the fleet module's provisioner adapter, so the in-memory
 // op waiter/subscriber coordination stays coherent across both call sites.
-func NewService(db internalprovision.SQLExecutor, clk clock.Clock, registrySvc registry.Service, hub *presence.Hub, auditSink audit.Sink) internalprovision.Service {
+func NewService(db internalprovision.SQLExecutor, clk clock.Clock, registrySvc registry.Service, hub *presence.Hub, auditSink audit.Sink, signer channelsign.Signer, opts ...internalprovision.Option) internalprovision.Service {
 	return internalprovision.NewService(
 		internalprovision.NewSQLiteRepository(db, clk),
 		nodeReaderAdapter{svc: registrySvc},
 		hub, // *presence.Hub satisfies provision.Presence via IsOnline
 		auditSinkAdapter{sink: auditSink},
-		commandPusherAdapter{hub: hub},
+		commandPusherAdapter{hub: hub, signer: signer},
 		clk,
+		opts...,
 	)
 }
 

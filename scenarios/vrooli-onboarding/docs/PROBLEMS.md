@@ -21,7 +21,7 @@ All 3 medium standards violations resolved as of iter 4:
 - **Fix**: `fetchResources` now unwraps the response: `Array.isArray(data) ? data : data.resources`.
 
 ## Infrastructure-Dependent Test Phases
-- **Performance phase**: Lighthouse audits intermittently fail due to Chrome/Browserless connection timeouts. Latest successful run: performance 100%, accessibility 100%, best-practices 96%, SEO 91%.
+- **Performance phase**: Lighthouse audits intermittently fail due to Chrome connection timeouts in the browser smoke-test harness (BAS/Playwright). Latest successful run: performance 100%, accessibility 100%, best-practices 96%, SEO 91%.
 - **Playbooks phase**: Intermittently fails when scenario restart encounters issues with temporary Postgres/Redis instances.
 - **Progress DB tests**: `requireDB` in `progress_test.go` now uses `t.Skipf` (not `t.Fatalf`) when the database is unreachable (stale testcontainer port). This prevents hard test failures from infrastructure transience.
 - These phases pass when infrastructure is stable but are not consistently reproducible.

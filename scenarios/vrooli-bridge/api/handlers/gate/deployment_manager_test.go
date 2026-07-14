@@ -7,6 +7,7 @@ import (
 
 	auditmocks "vrooli-bridge/internal/audit/mocks"
 	"vrooli-bridge/internal/clock"
+	"vrooli-bridge/internal/cpkeys"
 	internalgate "vrooli-bridge/internal/gate"
 	gatemocks "vrooli-bridge/internal/gate/mocks"
 	"vrooli-bridge/internal/presence"
@@ -65,7 +66,9 @@ func newDMHarness(t *testing.T) *dmHarness {
 		}()
 	}
 
-	scheduler := internalqueue.NewScheduler(queueH.NewChannelPusher(hub), queueH.NewAborter(runsSvc), clk, 0)
+	cpKey, err := cpkeys.LoadOrCreate(t.TempDir())
+	require.NoError(t, err)
+	scheduler := internalqueue.NewScheduler(queueH.NewChannelPusher(hub, cpKey), queueH.NewAborter(runsSvc), clk, 0)
 	dispatchSvc := dispatchH.NewService(registrySvc, runsSvc, auditSink, hub, scheduler)
 
 	svc := internalgate.NewService(

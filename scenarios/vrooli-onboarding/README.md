@@ -54,10 +54,10 @@ Run tests with `make test` or `test-genie execute --scenario <your-scenario>`.
 
 ### UI Smoke Harness
 
-- `vrooli scenario ui-smoke <your-scenario>` launches a Browserless session against the production UI bundle, waits for `@vrooli/iframe-bridge` to signal readiness, captures a screenshot, HTML snapshot, console logs, and network trace.
+- `vrooli scenario ui-smoke <your-scenario>` launches a browser smoke-test session (BAS/Playwright) against the production UI bundle, waits for `@vrooli/iframe-bridge` to signal readiness, captures a screenshot, HTML snapshot, console logs, and network trace.
 - Artifacts live under `coverage/ui-smoke/` (screenshot, console.json, network.json, dom.html, raw.json) and the latest summary is stored at `coverage/ui-smoke/latest.json`.
 - Structure tests invoke the harness automatically. Disable it temporarily by toggling `structure.ui_smoke.enabled` in `.vrooli/testing.json` or extend the default timeouts via `timeout_ms` / `handshake_timeout_ms`.
-- Browserless must be running (`resource-browserless status --format json`). If it is offline the harness fails early so issues surface before release.
+- browser-automation-studio must be running (`browser-automation-studio status --format json`). If it is offline the harness fails early so issues surface before release.
 
 ## Required Environment Variables
 The lifecycle exports everything automatically when you run `vrooli scenario run`. If you start pieces manually, set these yourself (there are no fallbacks):

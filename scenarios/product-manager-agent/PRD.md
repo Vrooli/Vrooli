@@ -106,7 +106,7 @@ integration_priorities:
     - workflow: ollama.json
       location: initialization/automation/n8n/
       purpose: Strategic recommendation generation
-      reused_by: [research-assistant, idea-generator]
+      reused_by: [research-assistant]
       
     - workflow: sentiment-analyzer.json
       location: initialization/automation/n8n/

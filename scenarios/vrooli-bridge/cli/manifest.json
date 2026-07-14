@@ -203,8 +203,7 @@
           "flags": [
             {
               "name": "code",
-              "required": true,
-              "description": "The pairing code"
+              "description": "The pairing code. Prefer $BRIDGE_PAIRING_CODE so the single-use secret stays out of argv (where ps could leak it); this flag is an explicit override."
             },
             {
               "name": "public-key",
@@ -230,6 +229,10 @@
             {
               "name": "capabilities",
               "description": "Comma-separated self-reported verb namespaces"
+            },
+            {
+              "name": "state-dir",
+              "description": "Agent state directory to pin the returned control-plane key into (control_plane.pub, 0600). Defaults to $BRIDGE_AGENT_STATE_DIR."
             }
           ],
           "binding": {
@@ -1036,6 +1039,187 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "onboard",
+      "description": "One-shot node onboarding: drive a raw SSH host from bare OS to a paired, ONLINE fleet agent in one durable, re-attachable op",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Onboard a host end-to-end (SSH first-touch → bootstrap → verify online). Prompts for the SSH password interactively; set $BRIDGE_SSH_PASSWORD for non-interactive use. The password is sent once in the request body, never on argv.",
+          "flags": [
+            {
+              "name": "host",
+              "required": true,
+              "description": "SSH host to onboard (hostname or IP)"
+            },
+            {
+              "name": "user",
+              "description": "SSH user (default: root)"
+            },
+            {
+              "name": "port",
+              "description": "SSH port (default: 22)"
+            },
+            {
+              "name": "name",
+              "description": "Fleet label the node self-reports (default: the host's hostname)"
+            },
+            {
+              "name": "capabilities",
+              "aliases": [
+                "scopes"
+              ],
+              "description": "Comma-separated verb namespaces the node self-reports"
+            },
+            {
+              "name": "revision",
+              "default": "@cp",
+              "description": "Git revision to bring the node to. Default @cp = the control plane's current commit; accepts an explicit SHA or branch."
+            },
+            {
+              "name": "repo-url",
+              "description": "Source repo cloned on the node (default: server policy)"
+            },
+            {
+              "name": "checkout-dir",
+              "description": "Node checkout location (default: bootstrap default)"
+            },
+            {
+              "name": "control-plane-url",
+              "description": "Control-plane base URL the node pairs/dials back to (default: server $BRIDGE_CONTROL_PLANE_URL)"
+            },
+            {
+              "name": "verify-timeout",
+              "description": "Seconds to wait for the node to come ONLINE (0 = bootstrap default)"
+            },
+            {
+              "name": "skip-setup",
+              "bool": true,
+              "description": "Skip `make setup` on the node (it pairs and comes online but cannot run jobs until setup runs later)"
+            },
+            {
+              "name": "skip-prereqs",
+              "bool": true,
+              "description": "Assume prerequisites (git/go/pnpm/curl) are already present on the node"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OnboardService",
+            "method": "StartOnboarding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Show one onboarding op by id with its full step-event history",
+          "positionals": [
+            {
+              "name": "op-id",
+              "required": true,
+              "description": "Onboarding op id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OnboardService",
+            "method": "GetOnboarding"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List onboarding ops newest-first",
+          "flags": [
+            {
+              "name": "host",
+              "description": "Filter by SSH host"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum ops to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OnboardService",
+            "method": "ListOnboardings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "watch",
+          "description": "Follow an onboarding op's live step states through to a terminal state (block-once wait + step history; never polls). Exits non-zero on a failed op.",
+          "positionals": [
+            {
+              "name": "op-id",
+              "required": true,
+              "description": "Onboarding op id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "description": "Seconds to block per wait window before re-attaching (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OnboardService",
+            "method": "WaitOnboarding"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a non-terminal onboarding op (the remote host may be partially set up; a re-run converges)",
+          "positionals": [
+            {
+              "name": "op-id",
+              "required": true,
+              "description": "Onboarding op id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OnboardService",
+            "method": "CancelOnboarding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
             "permissions": [
               "network:internal"
             ]

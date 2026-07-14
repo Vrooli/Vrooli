@@ -144,6 +144,19 @@
         "required": { "type": "boolean", "default": false },
         "default": { "type": "string" },
         "bool": { "type": "boolean", "default": false },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Closed vocabulary of accepted values for this flag. The runtime parser rejects anything outside values/value_aliases and generated --help renders the choices. Only valid on non-bool flags."
+        },
+        "value_aliases": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 },
+          "propertyNames": { "minLength": 1 },
+          "description": "Accepted synonyms mapped to a member of values (e.g. \"low\": \"minor\"). The parser accepts the synonym and passes the raw string through; canonicalization stays server-side. Requires values."
+        },
         "bind": {
           "type": "object",
           "description": "Maps the flag's parsed value onto a specific proto request field via the named decoding strategy. Consumed by generic dispatchers (protodispatch) so hand-rolled handlers are not required for file-bearing or JSON-payload flags.",
@@ -169,6 +182,14 @@
           "then": {
             "not": { "required": ["default"], "properties": { "default": { "type": "string", "minLength": 1 } } }
           }
+        },
+        {
+          "if": { "properties": { "bool": { "const": true } }, "required": ["bool"] },
+          "then": { "not": { "required": ["values"] } }
+        },
+        {
+          "if": { "required": ["value_aliases"] },
+          "then": { "required": ["values"] }
         }
       ]
     },

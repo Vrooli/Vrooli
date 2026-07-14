@@ -40,14 +40,14 @@ The orchestrator comes with pre-configured profiles:
 
 | Profile | Description | Resources | Use Case |
 |---------|-------------|-----------|----------|
-| `developer-full` | Complete dev environment | postgres, n8n, ollama, browserless, qdrant, redis | Full-stack development |
+| `developer-full` | Complete dev environment | postgres, n8n, ollama, searxng, qdrant, redis | Full-stack development |
 | `developer-light` | Essential dev tools | postgres, n8n, ollama | Laptop/limited resources |
 | `business-productivity` | Business tools | postgres, n8n, ollama | Office productivity |
 | `creative-suite` | Content creation | postgres, n8n, ollama, minio | Creative work |
 | `gaming-entertainment` | Games and fun | postgres, n8n | Entertainment |
 | `household-management` | Family tools | postgres, n8n, ollama | Home management |
-| `demo-showcase` | Curated demos | postgres, n8n, ollama, browserless | Demonstrations |
-| `research-analysis` | Research tools | postgres, n8n, ollama, qdrant, browserless | Research work |
+| `demo-showcase` | Curated demos | postgres, n8n, ollama, qdrant | Demonstrations |
+| `research-analysis` | Research tools | postgres, n8n, ollama, qdrant, searxng | Research work |
 | `minimal` | Basic testing | postgres | Testing/troubleshooting |
 
 ## 🛠️ Quick Start

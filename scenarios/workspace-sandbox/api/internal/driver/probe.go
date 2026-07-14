@@ -150,6 +150,16 @@ const (
 	EnforcementNetworkDeny                = "network-deny"
 	EnforcementPIDNamespace               = "pid-namespace"
 	EnforcementPathIllusion               = "path-illusion"
+
+	// EnforcementNetworkLoopbackOnly names the loopback-only network
+	// guarantee a "localhost" NetworkAccess profile implies. NO current
+	// backend claims it: bwrap and Seatbelt network control is binary
+	// (deny-all via --unshare-net / (deny network*), or allow-all), so
+	// "localhost" profiles actually run with unrestricted network (see
+	// exec.ApplyIsolationProfile). The name exists in the vocabulary so
+	// consumers can detect and surface that gap instead of inferring
+	// loopback-only from the profile name.
+	EnforcementNetworkLoopbackOnly = "network-loopback-only"
 )
 
 // ContainmentInfo is the per-OS report of the process-containment backend

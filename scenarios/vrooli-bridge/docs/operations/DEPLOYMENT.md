@@ -16,9 +16,11 @@ Bridge has two distinct deployable units:
   agent, because a node is a real build/test environment, not a thin
   runner.
 
-> No product code exists yet. This is the documentation-first
-> foundation; deployment mechanics below describe the intended shape and
-> are marked where they are not yet implemented.
+> The control plane, the cross-compiled node-agent, the OS-native
+> service install, and the one-shot onboarding path are **built and
+> tested**. Deployment mechanics below note where a step is real versus
+> where a convenience (installer wrappers, code-signing, automated
+> backup wiring) is still intended-but-unimplemented.
 
 ## Purpose Of This Document
 
@@ -34,8 +36,9 @@ Use this document to answer:
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Local Vrooli stack (control plane on Linux) | target | Vrooli lifecycle, Go, Node/pnpm, SQLite path; scenario-authenticator for owner auth | Not yet implemented; this is the documentation-first foundation. |
-| Per-node agent service (Linux / macOS / Windows) | target | Full Vrooli install with root `vrooli` CLI on the node; node-agent installed as systemd / launchd / Windows Service | Cross-compiled agent + per-OS service installers not yet built. |
+| Local Vrooli stack (control plane on Linux) | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite path; owner auth (cli-core `auth login`) | Built and running as an ordinary Vrooli scenario. |
+| Per-node agent service (Linux / macOS) | supported | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as systemd (`--user`, requires linger) / launchd (LaunchAgent, requires a logged-in user) | Cross-compiled agent + `vrooli-bridge-agent service install` + one-shot onboarding are built and tested. Per-OS installer wrappers and code-signing are still convenience gaps. |
+| Per-node agent service (Windows) | gated | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a Windows Service | Service unit is render-only (`sc.exe create` argv); live install/onboarding on Windows is not yet exercised. |
 | Control plane on macOS / Windows | gated P2 | Vrooli-the-platform installable/runnable on those OSes | Depends on platform portability work outside this scenario (OT-P2-001). Bridge is written cross-platform so it is never the blocker. |
 | Managed cloud / SaaS | out of scope (v1) | — | Bridge is single-owner fleet infrastructure, not multi-tenant SaaS. |
 
@@ -81,10 +84,33 @@ Vrooli install plus the node-agent service.
 | Proto | Wire contracts for control-plane↔CLI and control-plane↔node live under `packages/proto/schemas/vrooli-bridge/`; generated clients are shared artifacts. The node↔control-plane protocol is proto-versioned with a `DiscardUnknown` backward-compat policy. |
 | Node-agent | One Go codebase cross-compiled `CGO_ENABLED=0` for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, and `windows/arm64`. Cross-compilation is **built** (`agent/Makefile` `matrix` target + the `agent/build/crosscompile_test.sh` gate, all six targets green). Each build registers as the platform-native service via the rendered unit (see Node-agent below). Per-OS installer wrappers and code-signing are not yet implemented. |
 
-A bootstrap installer is the single intended manual touch on a new node:
-it installs Vrooli, runs `vrooli setup`, installs the node-agent service,
-and pairs the node to the control plane out-of-band (pairing code/token).
-Everything after bootstrap is remote.
+Onboarding a fresh node is one durable, control-plane-driven operation —
+there is **no manual per-node installer to run**. Two equivalent surfaces
+exist:
+
+- **One-shot onboarding (recommended).** The owner points the control
+  plane at a raw SSH host (`vrooli-bridge onboard start …`, or the UI
+  OnboardNodeForm). The `onboard` domain establishes passwordless SSH
+  first-touch, pushes `bootstrap/bootstrap.sh`, issues a single-use
+  pairing code server-side (injected over SSH stdin, never argv/logs),
+  runs the script, and confirms the node is ONLINE — as one durable,
+  cancellable, restart-reconciled `OnboardingOp` the operator blocks on
+  with `onboard watch`. See
+  [`RUNBOOK.md`](RUNBOOK.md#onboarding-a-node-one-shot) and
+  [`../concepts/FLOWS.md`](../concepts/FLOWS.md#one-shot-node-onboarding).
+- **Manual bootstrap (fallback / air-gapped first touch).** Run
+  `bootstrap/bootstrap.sh` directly on the node with
+  `BRIDGE_PAIRING_CODE` in the environment. The script clones Vrooli at a
+  pinned revision, runs `vrooli setup`, builds the agent + CLI, generates
+  the node key, redeems the pairing code (pinning the control-plane key
+  **before** the code is burned), installs the OS-native service, enables
+  headless auto-start, and verifies the dial-out channel is live. It is
+  idempotent — a re-run after a partial failure converges, and a
+  fully-onboarded node re-run changes nothing. Marker grammar, step list,
+  and exit codes are documented in
+  [`../../bootstrap/README.md`](../../bootstrap/README.md).
+
+Everything after onboarding is remote.
 
 ## Node-agent
 
@@ -95,23 +121,33 @@ through the **structurally separate privileged helper** (`internal/privsep`) —
 two distinct OS principals, never one flagged process (DECISIONS.md two trust
 tiers).
 
-**Service install (built — `agent/internal/service`).** The agent renders its own
-platform-native background-service unit; the bootstrap installer writes it to the
-OS unit location and enables it:
+**Service install (built — `agent/internal/service`).** The agent both renders
+and installs its own platform-native background-service unit. The rendered unit
+and the installed unit share one `serviceDefinition`, so the running service argv
+byte-matches what `--print-service-unit` prints.
 
-- `vrooli-bridge-agent --print-service-unit --control-plane-url <url> --node-id <id> [--service-user vrooli-agent]`
-  emits the native unit for the host OS:
-  - **Linux** → a systemd unit (`[Service] ExecStart=…`, `Restart=on-failure`,
-    `User=<service-user>`, `WantedBy=multi-user.target`).
-  - **macOS** → a launchd plist (`ProgramArguments` argv, `KeepAlive`,
-    `UserName`).
-  - **Windows** → the `sc.exe create … binPath= … start= auto` argv.
-- The renderer selects by `platform.NativeServiceManager()` (a pure function of
-  `runtime.GOOS`); there are no scattered GOOS checks and no hardcoded POSIX
-  paths — every path comes from the resolved config.
-- The **privileged provisioning helper** installs as its own unit under a
-  separate principal (`--service-user vrooli-provisioner`), so the two trust
-  tiers are distinct OS users at install time.
+- `vrooli-bridge-agent service install|status|uninstall` — install writes the
+  native unit to the OS location and enables it; status reports whether the unit
+  is loaded/running; uninstall stops and removes it. Install is idempotent (a
+  re-run converges to the same enabled unit).
+- `vrooli-bridge-agent --print-service-unit …` still emits the native unit as
+  text (for review or hand-install) without touching the system.
+- Native unit per OS (`service.NewManager()` selects by `runtime.GOOS`; there are
+  no scattered GOOS checks and no hardcoded paths):
+  - **Linux** → a `systemctl --user` unit `vrooli-bridge-agent.service` under
+    `~/.config/systemd/user`. Headless auto-start requires
+    `loginctl enable-linger <user>` (the onboarding path runs this in the
+    `autostart` step).
+  - **macOS** → a launchd LaunchAgent labelled
+    `com.vrooli.bridge.vrooli-bridge-agent` under `~/Library/LaunchAgents`. A
+    LaunchAgent runs only while its user is GUI-logged-in, so a headless Mac mini
+    needs **auto-login enabled** (there is no linger equivalent — see
+    [`RUNBOOK.md`](RUNBOOK.md#mac-mini-onboarding)).
+  - **Windows** → render-only today (`sc.exe create … binPath= … start= auto`
+    argv); live install is not yet exercised.
+- The two trust tiers install as distinct OS principals: the non-privileged
+  runner as its service user, and the **privileged provisioning helper** as its
+  own separately-installed unit.
 
 **Provisioning (built — `internal/privsep` + control-plane `internal/provision`).**
 A `provision sync <node> --revision R` brings the node to revision R via a typed
@@ -174,7 +210,8 @@ drifted nodes is a later capability (OT-P2-004).
 
 ## Cross-References
 
-- [`RUNBOOK.md`](RUNBOOK.md) — operator procedures, backup/restore, fleet maintenance
+- [`RUNBOOK.md`](RUNBOOK.md) — operator procedures, onboarding, backup/restore, fleet maintenance
+- [`../../bootstrap/README.md`](../../bootstrap/README.md) — node bootstrap script contract (marker grammar, steps, exit codes)
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — fleet health and telemetry signals
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — control plane / node-agent / dial-out design
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — composed scenarios (device-sync-hub, test-genie, tunnel-manager, scenario-authenticator)

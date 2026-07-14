@@ -7,15 +7,18 @@ node-agents it manages.
 Bridge is the fleet control plane for an owner's trusted Vrooli nodes.
 Operations span two surfaces: the **control plane** (a normal Vrooli
 scenario) and the **nodes** (each a full Vrooli install running the
-node-agent service that dials out to the control plane). No product code
-exists yet — procedures below describe the intended operating model and
-note where a capability is not yet implemented.
+node-agent service that dials out to the control plane). The control
+plane, node-agent, OS-native service install, and one-shot onboarding are
+built and tested; procedures below note where a step is real versus where
+a capability (automated backup wiring, retention pruning) is still
+intended-but-unimplemented.
 
 ## Purpose Of This Document
 
 Use this document to answer:
 
 - How do I start, stop, and inspect the control plane?
+- How do I onboard a new node (including a headless Mac mini)?
 - What do I check when a node goes offline, a provision fails, or a job hangs?
 - How do I back up and restore the control-plane store?
 - How do I pin a fleet revision, revoke a node, or prune history?
@@ -48,15 +51,111 @@ installed as an OS-native service (systemd / launchd / Windows Service)
 and starts with the machine; it dials out to the control plane and
 maintains presence. Operate nodes **through** the control plane:
 
-- List fleet + presence/health: `vrooli-bridge nodes list` (planned).
-- Inspect one node: `vrooli-bridge nodes show <node>` (planned).
-- Revoke a node: `vrooli-bridge nodes revoke <node>` (planned) — atomically
-  kills its job and provisioning rights.
+- List fleet + presence/health: `vrooli-bridge nodes list`.
+- Inspect one node: `vrooli-bridge nodes get <node>`.
+- Revoke a node: `vrooli-bridge nodes revoke <node>` — atomically kills its
+  job and provisioning rights.
+
+All owner-gated verbs require an authenticated session; run
+`vrooli-bridge auth login` first (cli-core framework auth). To add a new
+node, use **onboarding** (below) rather than a manual per-node installer.
 
 On the node itself, the agent service is managed with the platform's
 service manager (`systemctl`, `launchctl`, or the Windows Service
 control panel) only for local recovery; routine fleet operations go
 through the control plane.
+
+## Onboarding A Node (one-shot)
+
+Onboarding turns a raw, SSH-reachable host into a paired, ONLINE,
+auto-starting fleet node in **one durable operation** — there is no
+manual per-node installer to run. The `onboard` domain drives SSH
+first-touch → push `bootstrap/bootstrap.sh` → issue a single-use pairing
+code server-side (injected over SSH stdin, never argv/logs) → run the
+script → confirm the node is ONLINE. The op is server-owned: it survives
+your client disconnecting and is re-attachable by id.
+
+CLI path (owner-authenticated; `auth login` first):
+
+```bash
+# Prompts for the SSH password interactively (masked); or set
+# BRIDGE_SSH_PASSWORD for non-interactive use. Blank password is allowed
+# when the host already trusts the bridge key.
+vrooli-bridge onboard start --host mini-01.local --user admin
+
+# Block ONCE on the terminal outcome (never poll); exits non-zero on failure:
+vrooli-bridge onboard watch <op-id>
+
+# Inspect full step history at any time:
+vrooli-bridge onboard status <op-id>
+vrooli-bridge onboard list --host mini-01.local
+```
+
+Key flags: `--revision` (default `@cp` = the control plane's current
+commit; pass an explicit already-pushed SHA/branch when HEAD is
+unpushed), `--name`, `--capabilities`, `--control-plane-url`,
+`--verify-timeout`, `--skip-setup`, `--skip-prereqs`. The UI path is the
+**OnboardNodeForm** on the fleet dashboard (same durable op, live step
+states, failure-taxonomy rendering).
+
+If an op FAILS, it records a machine-branchable reason
+(`ssh_setup_failed`, `pairing_failed`, `bootstrap_failed`,
+`verify_online_failed`, …). Every step is idempotent, so a FAILED op is
+always safe to re-run — `onboard start` again converges. `onboard cancel
+<op-id>` cancels a non-terminal op (the remote host may be partially set
+up; a re-run converges).
+
+### Mac mini onboarding
+
+Onboarding a headless Mac mini uses the same `onboard start` flow, but
+macOS imposes manual pre-steps the control plane cannot perform remotely,
+and a **darwin-gate dependency** (below) that must be satisfied first.
+
+**Darwin-gate dependency.** Bringing a node ONLINE runs `vrooli setup` on
+it. On macOS this depends on the macOS-compatibility workstream that
+flips the darwin gate and supplies the pnpm host tool + launchd supervisor
+install (tracked as project `macos-compatibility-phase-a`). Until a given
+Mac mini's Vrooli install can complete `vrooli setup`, onboarding will
+fail at the `setup` step with exit code `3` (unsupported platform). If
+setup is not yet viable on the target mini, run onboarding with
+`--skip-setup` to pair + come ONLINE for presence, and complete setup out
+of band before dispatching jobs.
+
+**Manual pre-steps on the Mac mini (operator, one-time):**
+
+1. **Enable Remote Login (SSH).** System Settings → General → Sharing →
+   Remote Login → on, for the admin user. This is the SSH target
+   `onboard start --host … --user …` connects to.
+2. **Install Docker Desktop** and launch it once so the daemon is
+   running (bridge nodes are real build/test environments; container
+   workloads need the runtime up).
+3. **Enable auto-login for the agent's user.** System Settings → Users &
+   Groups → Automatically log in as `<user>`. This is **required**: the
+   node-agent installs as a launchd **LaunchAgent**
+   (`com.vrooli.bridge.vrooli-bridge-agent`), which runs only while its
+   user is GUI-logged-in. A headless mini with no auto-login will pair
+   but the agent will not auto-start after reboot — there is no
+   `loginctl enable-linger` equivalent on macOS.
+
+**Then onboard from the control-plane host:**
+
+```bash
+vrooli-bridge auth login
+vrooli-bridge onboard start \
+  --host mini-01.local --user admin \
+  --name mac-mini-01 --revision <already-pushed-sha>
+vrooli-bridge onboard watch <op-id>
+```
+
+Verify success: the op reaches SUCCEEDED, `nodes list` shows the node
+ONLINE, and on the mini `launchctl print gui/$(id -u)/com.vrooli.bridge.vrooli-bridge-agent`
+shows the agent running. Local agent recovery on the mini uses
+`vrooli-bridge-agent service status|install|uninstall`; routine fleet
+operations go through the control plane.
+
+See the macOS-compat parallel workstream for the current darwin-gate
+status; do not assume `vrooli setup` succeeds on a mini until that track
+confirms it for the target hardware.
 
 ## Common Incidents
 
@@ -93,9 +192,10 @@ there, not here.
 | Validate tests | before handoff | `make test` |
 | Inspect control-plane logs | as needed | `make logs` |
 | Pin / roll fleet revision | per release or on drift | Set target revision R and provision the fleet (or one node) toward it (planned `vrooli-bridge` provisioning verb) |
-| Revoke a node | when a machine leaves the trust boundary | `vrooli-bridge nodes revoke <node>` (planned) — atomic kill of job + provisioning rights |
+| Onboard a new node | when adding a machine to the fleet | `vrooli-bridge onboard start --host … --user …` then `onboard watch <op-id>` (see [Onboarding A Node](#onboarding-a-node-one-shot)) |
+| Revoke a node | when a machine leaves the trust boundary | `vrooli-bridge nodes revoke <node>` — atomic kill of job + provisioning rights |
 | Prune audit / run history | per retention policy | Trim old dispatch/provisioning audit and run records beyond the retention window (policy + tooling not yet implemented) |
-| Rotate node pairing | on suspected compromise | Revoke and re-bootstrap the node with a fresh pairing token |
+| Rotate node pairing | on suspected compromise | Revoke and re-onboard the node (a fresh pairing code is issued server-side) |
 | Regenerate endpoints | after API endpoint changes | `make endpoints` |
 | Regenerate UI strings | after i18n changes | `cd ui && pnpm strings:gen` |
 
@@ -112,6 +212,8 @@ around the allowlist with raw shell.
 ## Cross-References
 
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — deployment tiers, packaging, release checklist, rollback
+- [`../../bootstrap/README.md`](../../bootstrap/README.md) — node bootstrap script contract (used by onboarding and manual first touch)
+- [`../concepts/FLOWS.md`](../concepts/FLOWS.md#one-shot-node-onboarding) — the durable onboarding state machine
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — fleet health, logs, metrics, and signals
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — composed scenarios and dependencies
 - [`../internal/SECURITY.md`](../internal/SECURITY.md) — trust tiers, allowlist, mutual auth, audit

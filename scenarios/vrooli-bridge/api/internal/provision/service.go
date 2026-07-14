@@ -72,6 +72,7 @@ type service struct {
 	clock          clock.Clock
 	coord          *coordinator
 	defaultTimeout int64
+	revResolver    RevisionResolver
 }
 
 // Option customises the service (default timeout).
@@ -84,6 +85,15 @@ func WithDefaultTimeout(seconds int64) Option {
 			s.defaultTimeout = seconds
 		}
 	}
+}
+
+// WithRevisionResolver wires the control-plane revision resolver. When set, the
+// target revision is defaulted (empty/"@cp" → the control plane's commit),
+// metacharacter-validated, and preflighted against the clone remote, and an
+// explicit rollback revision is @cp-expanded + validated; when unset, the target
+// is required non-empty and neither is normalised (legacy behaviour).
+func WithRevisionResolver(r RevisionResolver) Option {
+	return func(s *service) { s.revResolver = r }
 }
 
 // NewService constructs the production Service. A single instance is shared
@@ -111,11 +121,21 @@ var _ Service = (*service)(nil)
 
 func (s *service) Sync(ctx context.Context, in SyncInput) (Decision, error) {
 	nodeID := strings.TrimSpace(in.NodeID)
-	target := trimRevision(in.TargetRevision)
 	if nodeID == "" {
 		return Decision{}, ErrInvalidOp{Field: "node_id", Reason: "required"}
 	}
-	if target == "" {
+	target := trimRevision(in.TargetRevision)
+	if s.revResolver != nil {
+		// Default (empty/"@cp" → the control plane's commit), validate, and
+		// preflight the target against the clone remote before any op is created
+		// or pushed. Fleet roll reaches this same path, so @cp + push-first
+		// guidance cover a fleet-wide roll too.
+		resolved, rerr := s.revResolver.Resolve(ctx, target)
+		if rerr != nil {
+			return Decision{}, rerr
+		}
+		target = resolved
+	} else if target == "" {
 		return Decision{}, ErrInvalidOp{Field: "target_revision", Reason: "required"}
 	}
 
@@ -140,6 +160,16 @@ func (s *service) Sync(ctx context.Context, in SyncInput) (Decision, error) {
 	//    where it was. A never-provisioned node has no rollback target (first
 	//    provision).
 	rollback := trimRevision(in.RollbackRevision)
+	if rollback != "" && s.revResolver != nil {
+		// Expand "@cp" and validate an explicit rollback, but do NOT preflight it:
+		// the rollback is where the node already is, a recovery point that must not
+		// be gated on remote containment.
+		expanded, rerr := s.revResolver.Expand(ctx, rollback)
+		if rerr != nil {
+			return Decision{}, rerr
+		}
+		rollback = expanded
+	}
 	if rollback == "" {
 		if v, verr := s.repo.GetNodeVersion(ctx, nodeID); verr == nil {
 			rollback = v.Revision

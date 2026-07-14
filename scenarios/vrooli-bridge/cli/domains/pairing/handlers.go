@@ -3,6 +3,8 @@ package pairing
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -12,6 +14,13 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 )
+
+// controlPlaneKeyFileName is the file the redeemed control-plane public key is
+// pinned to inside the agent state dir. It MUST match the agent's
+// config.controlPlaneKeyFileName (<state-dir>/control_plane.pub) — the node-agent
+// reads exactly this path at startup and refuses to run without it. Change both
+// together.
+const controlPlaneKeyFileName = "control_plane.pub"
 
 // handlers bundles the Connect client closure over *cliapp.ScenarioApp.
 type handlers struct {
@@ -65,8 +74,27 @@ func (h *handlers) issue(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) redeem(ctx cliapp.RunContext) error {
+	// Resolve where to pin the control-plane key BEFORE burning the single-use
+	// code, so we never spend a code we cannot complete — the node-agent refuses
+	// to start without a pinned control-plane key (SECURITY.md boundary 2), so a
+	// redeem that could not pin would leave the node unstartable and the code
+	// spent.
+	pinDir, err := resolvePinDir(ctx)
+	if err != nil {
+		return err
+	}
+
+	// The pairing code is a single-use secret. Prefer it from $BRIDGE_PAIRING_CODE
+	// so the bootstrap installer never passes it on argv (where `ps` would leak it
+	// to any local user); the --code flag stays as an explicit override. Exactly
+	// one of the two must be present.
+	code, err := resolvePairingCode(ctx)
+	if err != nil {
+		return err
+	}
+
 	resp, err := h.client.RedeemPairingCode(context.Background(), connect.NewRequest(&pairingv1.RedeemPairingCodeRequest{
-		Code:          ctx.Flag("code"),
+		Code:          code,
 		NodePublicKey: ctx.Flag("public-key"),
 		Name:          ctx.Flag("name"),
 		Os:            ctx.Flag("os"),
@@ -80,14 +108,84 @@ func (h *handlers) redeem(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no response")
 	}
+
+	pinPath, perr := writePinnedKey(pinDir, resp.Msg.ControlPlanePublicKey)
+	if perr != nil {
+		// The code is already burned; surface the key so the operator can pin it by
+		// hand rather than having to re-pair.
+		return fmt.Errorf("paired as node %s but could not pin the control-plane key (%w) — write this base64 key to %s (0600) before starting the agent: %s",
+			resp.Msg.NodeId, perr, filepath.Join(pinDir, controlPlaneKeyFileName), resp.Msg.ControlPlanePublicKey)
+	}
+
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: []string{fmt.Sprintf("Paired as node %s.", resp.Msg.NodeId)},
 		Changes: []string{
 			fmt.Sprintf("node id:           %s", resp.Msg.NodeId),
 			fmt.Sprintf("control-plane key: %s", resp.Msg.ControlPlanePublicKey),
+			fmt.Sprintf("pinned key file:   %s (0600)", pinPath),
 		},
 		NextCommand: []string{"Start the node-agent with this node id to hold the dial-out channel."},
 	})
+}
+
+// pairingCodeEnvVar is the environment variable the bootstrap installer sets so
+// the single-use pairing code never appears in the redeem process's argv (which
+// `ps` would expose to any local user). The --code flag remains an explicit
+// override for interactive use.
+const pairingCodeEnvVar = "BRIDGE_PAIRING_CODE"
+
+// resolvePairingCode returns the pairing code from the --code flag, falling back
+// to $BRIDGE_PAIRING_CODE. Exactly one source must supply it; an empty result is
+// a hard error BEFORE any RPC so a missing code never burns anything.
+func resolvePairingCode(ctx cliapp.RunContext) (string, error) {
+	return pairingCodeFrom(ctx.Flag("code"), os.Getenv(pairingCodeEnvVar))
+}
+
+// pairingCodeFrom picks the pairing code from the flag value, falling back to the
+// env value. It is the pure core of resolvePairingCode (kept separate so it is
+// testable without a RunContext). Empty (from both) is a hard error.
+func pairingCodeFrom(flagValue, envValue string) (string, error) {
+	code := strings.TrimSpace(flagValue)
+	if code == "" {
+		code = strings.TrimSpace(envValue)
+	}
+	if code == "" {
+		return "", fmt.Errorf("no pairing code: pass --code or set $%s (kept out of argv so it cannot leak via ps)", pairingCodeEnvVar)
+	}
+	return code, nil
+}
+
+// resolvePinDir determines the agent state directory the control-plane key is
+// pinned into: the --state-dir flag wins, else $BRIDGE_AGENT_STATE_DIR (the same
+// env the agent reads). Pinning is mandatory, so an unresolvable directory is a
+// hard error BEFORE the code is redeemed.
+func resolvePinDir(ctx cliapp.RunContext) (string, error) {
+	dir := strings.TrimSpace(ctx.Flag("state-dir"))
+	if dir == "" {
+		dir = strings.TrimSpace(os.Getenv("BRIDGE_AGENT_STATE_DIR"))
+	}
+	if dir == "" {
+		return "", fmt.Errorf("no agent state directory to pin the control-plane key into: pass --state-dir or set BRIDGE_AGENT_STATE_DIR (the node-agent will not start without a pinned key)")
+	}
+	return dir, nil
+}
+
+// writePinnedKey persists the base64 control-plane public key to
+// <dir>/control_plane.pub at 0600 (creating dir at 0700), the exact path the
+// node-agent reads at startup. It returns the written path.
+func writePinnedKey(dir, keyB64 string) (string, error) {
+	key := strings.TrimSpace(keyB64)
+	if key == "" {
+		return "", fmt.Errorf("server returned no control-plane public key")
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", fmt.Errorf("create state dir %q: %w", dir, err)
+	}
+	path := filepath.Join(dir, controlPlaneKeyFileName)
+	if err := os.WriteFile(path, []byte(key), 0o600); err != nil {
+		return "", fmt.Errorf("write pinned key %q: %w", path, err)
+	}
+	return path, nil
 }
 
 func (h *handlers) request(ctx cliapp.RunContext) error {

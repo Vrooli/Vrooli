@@ -29,6 +29,7 @@ These are bridge's intended stateful flows. None is modeled yet — this is the 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Node bootstrap & pairing | pairing | Operator runs the one-touch installer with a pairing token. | A paired, mutually-authenticated, online node. | issued → installing → dialed-out → redeemed → trusted; failure/expiry paths. | Target Level 4–5. |
+| One-shot node onboarding | onboard | Operator points the control plane at a raw SSH host. | A paired, ONLINE, auto-starting node — driven end-to-end from bare OS. | pending → ssh_setup → pushing_script → bootstrapping → verifying → (succeeded \| failed \| cancelled); durable, cancellable, restart-reconciled. | **Level 3 (built, tested).** |
 | Job dispatch & durable run | dispatch + runs | Operator/automation dispatches a typed job to a node. | A terminal run verdict with logs/artifacts, re-attachable by id. | queued → dispatched → running → (passed/failed/aborted); survives disconnect; stale-completion risk on reconnect. | Target Level 5. |
 | Provisioning / sync-to-revision | provisioning | Control plane brings a node to revision R (or updates the fleet). | Node at revision R with reported version, or rolled back. | requested → fetching → setup → verify → (ready/rolled-back); idempotent re-runs. | Target Level 5. |
 | Cross-OS deployment gate | gate | deployment-manager requests a cross-OS validation. | Aggregated per-OS verdict → single pass/fail. | fan-out → per-node runs → aggregate → terminal; any-OS-fails-fails-gate. | Target Level 4. |
@@ -62,6 +63,63 @@ service's `coordinator` already centralises the transition logic for it).
 Code: `internal/dispatch`, `internal/runs`, `agent/internal/exec`. Tests:
 `internal/runs/durable_test.go`, `internal/runs/results_test.go`,
 `handlers/runs/connect_handler_test.go`.
+
+### One-shot node onboarding
+
+The `onboard` domain (phase 5) is the **orchestration tier** that turns a raw,
+SSH-reachable host into a paired, ONLINE, auto-starting fleet node in one durable
+`OnboardingOp`. It sequences the artifacts the earlier phases built — SSH
+first-touch (phase 1), the server-side pairing code (phase 3), and the idempotent
+node bootstrap script (phase 4) — so the operator kicks off `onboard start` and
+walks away.
+
+**States (persisted):** `pending → ssh_setup → pushing_script → bootstrapping →
+verifying → (succeeded | failed | cancelled)`. `succeeded/failed/cancelled` are
+terminal; `WaitOnboarding` is the block-once verb that returns exactly once on a
+terminal transition (no polling) or `timed_out` when its window elapses.
+
+**Ordered steps (server-side orchestration on a detached context):**
+
+1. **ssh_setup** — SSH first-touch: generate the bridge key, install it with the
+   owner's password, retest passwordless. The password is used once and zeroed.
+2. **pushing_script** — SCP the bootstrap script to the node.
+3. **bootstrapping** — issue a single-use pairing code SERVER-SIDE, then run the
+   bootstrap script remotely, injecting the code over **stdin** (env-only, never
+   argv/logs). Each `VBOOTSTRAP` stdout marker is parsed into a persisted
+   `OnboardingStepEvent` (the 12 bootstrap steps + the run envelope), so the
+   progress trail matches the script's actual emitted steps.
+4. **verifying** — the node id is captured from the pair-redeem/run-ok marker;
+   the orchestrator confirms the node is ONLINE in the fleet (holds a live
+   dial-out channel ⇒ its control-plane key is pinned).
+
+**Failure taxonomy** (recorded on the FAILED op, machine-branchable):
+`ssh_setup_failed`, `script_push_failed`, `pairing_issue_failed`,
+`bootstrap_usage_error` (exit 2), `unsupported_platform` (exit 3),
+`pairing_failed` (exit 4), `bootstrap_failed` (exit 1/other),
+`verify_online_failed`, `interrupted_by_restart`. Every step is idempotent, so a
+FAILED op is always safe to retry.
+
+**Durability & interruption:** the op is server-owned and survives the operator
+disconnecting. `CancelOnboarding` cancels the op-scoped context; the orchestrator
+(the single writer of op state) observes it at the next boundary and drives the op
+to CANCELLED. On a control-plane restart, `ResumeInterrupted` (run once at boot)
+reconciles any op left non-terminal to FAILED/`interrupted_by_restart` — never
+left dangling — because a mid-flight SSH/bootstrap is not checkpointable, and a
+re-run converges (idempotent).
+
+**Secrets never persist:** there is no column or event field for the SSH password
+(request-scoped, zeroed after the key install) or the pairing code (issued
+server-side, injected over stdin, zeroed after the remote exec). Both are asserted
+absent from DB rows, step events, and captured logs in tests.
+
+**Tests:** `internal/onboard/service_test.go` (state machine incl. cancel +
+failure at each phase, dry-run, resume, secret-non-persistence, block-once wait),
+`internal/onboard/marker_test.go` (VBOOTSTRAP parsing + node-id extraction),
+`internal/onboard/sqlite_test.go` (durable round-trip + migrate-never-recreate),
+`handlers/onboard/integration_test.go` (full flow through the Connect handler over
+a real SSH/SCP/streaming round-trip against an in-process sshd + stub bootstrap;
+env-only code delivery + non-leakage; real-SQLite restart-resume). Generated
+subpackage: `packages/proto/.../v1/onboard`.
 
 ### Cross-OS deployment gate
 

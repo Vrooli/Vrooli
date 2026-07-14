@@ -21,7 +21,7 @@ INSERT INTO profiles (
         "use_case": "development_and_testing",
         "category": "development"
     }',
-    ARRAY['postgres', 'n8n', 'ollama', 'browserless', 'qdrant', 'redis'],
+    ARRAY['postgres', 'n8n', 'ollama', 'qdrant', 'redis'],
     ARRAY['system-monitor', 'app-issue-tracker', 'app-monitor', 'scenario-auditor'],
     ARRAY['http://localhost:3000/system-monitor', 'http://localhost:3001/app-issue-tracker'],
     60
@@ -225,7 +225,7 @@ INSERT INTO profiles (
         "use_case": "demonstration",
         "category": "showcase"
     }',
-    ARRAY['postgres', 'n8n', 'ollama', 'browserless'],
+    ARRAY['postgres', 'n8n', 'ollama'],
     ARRAY['system-monitor', 'image-generation-pipeline', 'fall-foliage-explorer', 'chart-generator', 'app-monitor'],
     ARRAY['http://localhost:3000/app-monitor'],
     30
@@ -259,7 +259,7 @@ INSERT INTO profiles (
         "use_case": "research_and_analysis",
         "category": "research"
     }',
-    ARRAY['postgres', 'n8n', 'ollama', 'qdrant', 'browserless'],
+    ARRAY['postgres', 'n8n', 'ollama', 'qdrant'],
     ARRAY['research-assistant', 'data-structurer', 'bookmark-intelligence-hub', 'competitor-change-monitor', 'roi-fit-analysis'],
     ARRAY['http://localhost:3000/research-assistant'],
     90

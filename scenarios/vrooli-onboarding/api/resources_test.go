@@ -24,7 +24,6 @@ func TestCategorize(t *testing.T) {
 		{"ollama is ai", "ollama", "ai"},
 		{"redis is database", "redis", "database"},
 		{"minio is storage", "minio", "storage"},
-		{"browserless is browser", "browserless", "browser"},
 		{"unknown falls back to general", "some-unknown-resource", "general"},
 		{"empty string falls back to general", "", "general"},
 	}

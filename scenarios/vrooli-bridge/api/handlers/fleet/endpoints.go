@@ -17,10 +17,10 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        fleetconnect.FleetServiceRollFleetProcedure,
 		Method:      "POST",
 		Summary:     "Roll the fleet (or a subset) to a target revision",
-		Description: "Pins every registered (or named) node to a target git revision: enumerates the eligible nodes, classifies each (online + protocol-compatible + not-revoked → dispatch; otherwise skip with a reason), dispatches a privileged provisioning op to each eligible node, and records a durable rollout with the per-node ledger. Honours X-Dry-Run. Owner-gated.",
+		Description: "Pins every registered (or named) node to a target git revision: enumerates the eligible nodes, classifies each (online + protocol-compatible + not-revoked → dispatch; otherwise skip with a reason), dispatches a privileged provisioning op to each eligible node, and records a durable rollout with the per-node ledger. target_revision defaults to the control plane's current commit (pass \"@cp\" to say so explicitly) and is resolved+preflighted ONCE up front, so the whole fleet pins to a single exact commit and an unpushed target fails the roll before any node is touched. Honours X-Dry-Run. Owner-gated.",
 		Category:    "fleet",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
-			"target_revision": "string (required)",
+			"target_revision": "string (defaults to the control plane's commit; \"@cp\" = same)",
 			"node_ids":        "array<string>",
 			"timeout_seconds": "int64",
 		}},
@@ -31,8 +31,9 @@ var Endpoints = []module.EndpointDescriptor{
 			"results":    "array<NodeRolloutResult>",
 		}},
 		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Missing target_revision"},
+			{Status: 400, Code: "invalid_argument", Description: "An invalid revision (e.g. a relative ref like HEAD~1)"},
 			{Status: 401, Code: "unauthenticated", Description: "Owner token required"},
+			{Status: 412, Code: "failed_precondition", Description: "The resolved commit is not on the clone remote (push it first)"},
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
 		Examples: []module.Example{

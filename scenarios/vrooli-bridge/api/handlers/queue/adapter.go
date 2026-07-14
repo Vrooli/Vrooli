@@ -3,11 +3,11 @@ package queue
 import (
 	"context"
 
+	"vrooli-bridge/internal/channelsign"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/queue"
 	"vrooli-bridge/internal/runs"
 
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
@@ -20,15 +20,18 @@ import (
 // imports proto or a sibling domain; these adapters do.
 
 // channelPusher delivers a scheduled job to the node's held dial-out channel by
-// translating queue.Job → channel.JobPush ServerFrame → presence-hub push. It
-// satisfies the queue.Pusher seam.
+// translating queue.Job → channel.JobPush ServerFrame → signed envelope →
+// presence-hub push. It satisfies the queue.Pusher seam. Every frame is signed
+// with the control-plane identity key so the node verifies it against the pinned
+// key before acting (SECURITY.md boundary 2).
 type channelPusher struct {
-	hub *presence.Hub
+	hub    *presence.Hub
+	signer channelsign.Signer
 }
 
-// NewChannelPusher constructs the queue.Pusher that pushes JobPush frames.
-func NewChannelPusher(hub *presence.Hub) queue.Pusher {
-	return channelPusher{hub: hub}
+// NewChannelPusher constructs the queue.Pusher that pushes signed JobPush frames.
+func NewChannelPusher(hub *presence.Hub, signer channelsign.Signer) queue.Pusher {
+	return channelPusher{hub: hub, signer: signer}
 }
 
 var _ queue.Pusher = channelPusher{}
@@ -45,22 +48,25 @@ func (p channelPusher) Push(_ context.Context, job queue.Job) (int, error) {
 			},
 		},
 	}
-	payload, err := protojson.Marshal(frame)
+	payload, err := channelsign.Marshal(p.signer, frame)
 	if err != nil {
 		return 0, err
 	}
 	return p.hub.Push(job.NodeID, payload), nil
 }
 
-// channelCanceller pushes an AbortJob frame to a node so it STOPS an in-flight
-// run (OT-P1-004 node-side cancel). It satisfies the runs.Canceller seam.
+// channelCanceller pushes a signed AbortJob frame to a node so it STOPS an
+// in-flight run (OT-P1-004 node-side cancel). It satisfies the runs.Canceller
+// seam.
 type channelCanceller struct {
-	hub *presence.Hub
+	hub    *presence.Hub
+	signer channelsign.Signer
 }
 
-// NewChannelCanceller constructs the runs.Canceller that pushes AbortJob frames.
-func NewChannelCanceller(hub *presence.Hub) runs.Canceller {
-	return channelCanceller{hub: hub}
+// NewChannelCanceller constructs the runs.Canceller that pushes signed AbortJob
+// frames.
+func NewChannelCanceller(hub *presence.Hub, signer channelsign.Signer) runs.Canceller {
+	return channelCanceller{hub: hub, signer: signer}
 }
 
 var _ runs.Canceller = channelCanceller{}
@@ -71,7 +77,7 @@ func (c channelCanceller) CancelJob(_ context.Context, nodeID, runID, reason str
 			Abort: &channelv1.AbortJob{RunId: runID, Reason: reason},
 		},
 	}
-	payload, err := protojson.Marshal(frame)
+	payload, err := channelsign.Marshal(c.signer, frame)
 	if err != nil {
 		return err
 	}

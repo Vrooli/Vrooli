@@ -450,7 +450,6 @@ api/api
 .vrooli/generated-service.json
 packages/cli-core/sandbox-resolve
 .codex
-scripts/scenarios/templates/landing-page-react-vite/api/landing-manager-api
 scripts/main/generated/test-genie
 .vrooli/build/
 vrooli

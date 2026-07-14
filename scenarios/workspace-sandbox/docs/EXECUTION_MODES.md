@@ -30,7 +30,7 @@ The `agent-manager` `SandboxLauncher` is the canonical client and exercises ever
 | Isolation | Flag | Access | Network |
 |-----------|------|--------|---------|
 | **Full** | (default) | Only `/workspace` | Blocked |
-| **Vrooli-Aware** | `--vrooli-aware` | CLIs, configs, localhost | Localhost only |
+| **Vrooli-Aware** | `--vrooli-aware` | CLIs, configs, localhost | Unrestricted (intended: localhost-only — no backend enforces `network-loopback-only` yet; tracked as `knw-1784006975589682125`) |
 
 ## Execution Modes
 
@@ -624,7 +624,7 @@ workspace-sandbox exec $sandbox_id --vrooli-aware -- \
 
 **Solutions:**
 1. Add `--network` flag for full network access
-2. Use `--vrooli-aware` for localhost-only access
+2. Use `--vrooli-aware` for Vrooli CLI/config + network access (note: grants unrestricted network today, not loopback-only — see the isolation table above)
 3. Verify the network access is actually needed
 
 ### Logs Empty or Missing

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Roll one node or the fleet to a target revision; protocol-compatibility gating; auto-rollback on failed setup.",
-    "last_validated_at": "2026-06-18T09:13:58-04:00",
+    "last_validated_at": "2026-07-14T11:17:18-04:00",
     "module": "update-rollback",
     "prd_ref": "OT-P1-001",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P1-001",
       "title": "Remote Update, Version-Pin \u0026 Rollback",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "core",
       "description": "The control plane can roll one node or the whole fleet to a target revision, gate on node↔control-plane protocol compatibility before dispatching incompatible work, and automatically roll a node back to its prior revision if setup fails — keeping the fleet coherent without per-machine hand-maintenance.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/provision/rollback_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A failed setup during an update restores the node's prior revision; protocol-incompatible nodes are flagged needs-update and excluded from dispatch."
         },
         {

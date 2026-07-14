@@ -14,8 +14,9 @@
 package service
 
 import (
+	"context"
+	"encoding/xml"
 	"fmt"
-	"runtime"
 	"strings"
 
 	"vrooli-bridge/agent/internal/platform"
@@ -129,17 +130,17 @@ func LaunchdPlist(d Definition) (string, error) {
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	b.WriteString(`<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">` + "\n")
 	b.WriteString(`<plist version="1.0">` + "\n<dict>\n")
-	fmt.Fprintf(&b, "  <key>Label</key>\n  <string>%s</string>\n", LaunchdLabel(d.Name))
+	fmt.Fprintf(&b, "  <key>Label</key>\n  <string>%s</string>\n", plistValue(LaunchdLabel(d.Name)))
 	b.WriteString("  <key>ProgramArguments</key>\n  <array>\n")
 	for _, arg := range append([]string{d.ExecPath}, d.Args...) {
-		fmt.Fprintf(&b, "    <string>%s</string>\n", arg)
+		fmt.Fprintf(&b, "    <string>%s</string>\n", plistValue(arg))
 	}
 	b.WriteString("  </array>\n")
 	if d.WorkingDir != "" {
-		fmt.Fprintf(&b, "  <key>WorkingDirectory</key>\n  <string>%s</string>\n", d.WorkingDir)
+		fmt.Fprintf(&b, "  <key>WorkingDirectory</key>\n  <string>%s</string>\n", plistValue(d.WorkingDir))
 	}
 	if d.User != "" {
-		fmt.Fprintf(&b, "  <key>UserName</key>\n  <string>%s</string>\n", d.User)
+		fmt.Fprintf(&b, "  <key>UserName</key>\n  <string>%s</string>\n", plistValue(d.User))
 	}
 	b.WriteString("  <key>RunAtLoad</key>\n  <true/>\n")
 	b.WriteString("  <key>KeepAlive</key>\n  <true/>\n")
@@ -150,6 +151,17 @@ func LaunchdPlist(d Definition) (string, error) {
 // LaunchdLabel is the reverse-DNS launchd label for a service name.
 func LaunchdLabel(name string) string {
 	return "com.vrooli.bridge." + name
+}
+
+// plistValue XML-escapes a string for safe interpolation into a plist <string>
+// element. Argv tokens and paths can contain &, <, > (a control-plane URL query
+// string, a WorkingDir with a shell-special segment); without escaping those
+// would produce a malformed plist launchd rejects at load. Mirrors the
+// runtime-supervisor installer's escaping (internal/runtimesupervisor).
+func plistValue(value string) string {
+	var b strings.Builder
+	_ = xml.EscapeText(&b, []byte(value))
+	return b.String()
 }
 
 // WindowsServiceCreateArgs renders the `sc.exe create` argv that registers the
@@ -181,8 +193,16 @@ func fallback(primary, secondary string) string {
 
 // Manager installs/uninstalls/queries the node-agent service for the host OS.
 // NewManager returns the OS-appropriate implementation; the concrete managers
-// shell to the native tool (systemctl/launchctl/sc) and use the pure renderers
-// above for their unit content.
+// (in service_install.go) shell to the native tool (systemctl/launchctl/sc) and
+// use the pure renderers above for their unit content.
+//
+// Install/Status/Uninstall are the real capability the bootstrap installer
+// drives (OT-P0-007). They are idempotent by construction: Install rewrites the
+// unit and converges the service state (reload → enable → restart) so re-running
+// it is a no-op-shaped convergence, never an error; Uninstall tolerates an
+// already-absent unit; Status is read-only. Windows stays render-only — its
+// Install/Status/Uninstall return a "render-only" error and the operator installs
+// the rendered `sc.exe` argv with the platform's own tooling.
 type Manager interface {
 	// Kind reports which native service mechanism this manager drives.
 	Kind() platform.ServiceManagerKind
@@ -191,66 +211,71 @@ type Manager interface {
 	// for Windows, the joined `sc.exe` argv — so the install artifact is
 	// inspectable before anything touches the host.
 	Render(d Definition) (string, error)
+
+	// Install writes the rendered unit to the OS's unit location, then enables +
+	// starts the service so it auto-starts and survives process death via the
+	// native supervisor. It is idempotent: re-running rewrites the unit and
+	// restarts rather than erroring.
+	Install(ctx context.Context, d Definition) (InstallResult, error)
+
+	// Status reports whether the service is installed, enabled, and running,
+	// without mutating anything.
+	Status(ctx context.Context, d Definition) (StatusResult, error)
+
+	// Uninstall stops + disables the service and removes its unit file, fully
+	// reversing Install. It tolerates a partially- or never-installed service.
+	Uninstall(ctx context.Context, d Definition) (UninstallResult, error)
+}
+
+// InstallResult reports where the unit landed and the converged service state
+// after Install.
+type InstallResult struct {
+	Kind     platform.ServiceManagerKind `json:"kind"`
+	UnitName string                      `json:"unit_name"` // systemd unit name / launchd label
+	UnitPath string                      `json:"unit_path"` // absolute path of the written unit file
+	Enabled  bool                        `json:"enabled"`   // set to auto-start
+	Running  bool                        `json:"running"`   // started
+}
+
+// StatusResult is the read-only view of an installed service.
+type StatusResult struct {
+	Kind      platform.ServiceManagerKind `json:"kind"`
+	UnitName  string                      `json:"unit_name"`
+	UnitPath  string                      `json:"unit_path"`
+	Installed bool                        `json:"installed"` // unit file present
+	Enabled   bool                        `json:"enabled"`   // set to auto-start
+	Running   bool                        `json:"running"`   // currently active
+	PID       int                         `json:"pid"`       // main process pid, 0 if not running/unknown
+	Detail    string                      `json:"detail"`    // native state summary for humans
+}
+
+// UninstallResult reports what Uninstall reversed.
+type UninstallResult struct {
+	Kind     platform.ServiceManagerKind `json:"kind"`
+	UnitName string                      `json:"unit_name"`
+	UnitPath string                      `json:"unit_path"`
+	Removed  bool                        `json:"removed"` // the unit file was present and was removed
 }
 
 // NewManager returns the Manager for the OS the agent is running on, mirroring
 // platform.NativeServiceManager so install logic never scatters GOOS checks.
 func NewManager() Manager {
-	switch platform.NativeServiceManager() {
-	case platform.ServiceManagerSystemd:
-		return systemdManager{}
-	case platform.ServiceManagerLaunchd:
-		return launchdManager{}
-	case platform.ServiceManagerWindows:
-		return windowsManager{}
-	default:
-		return unsupportedManager{}
-	}
+	return ManagerForKind(platform.NativeServiceManager())
 }
 
 // ManagerForKind returns the Manager for an explicit kind (tests / cross-OS
-// rendering) without depending on the host's GOOS.
+// rendering) without depending on the host's GOOS. Each manager is constructed
+// with production seams (real filesystem + native tool exec); tests construct
+// the concrete managers directly with fakes.
 func ManagerForKind(kind platform.ServiceManagerKind) Manager {
 	switch kind {
 	case platform.ServiceManagerSystemd:
-		return systemdManager{}
+		return newSystemdManager()
 	case platform.ServiceManagerLaunchd:
-		return launchdManager{}
+		return newLaunchdManager()
 	case platform.ServiceManagerWindows:
 		return windowsManager{}
 	default:
 		return unsupportedManager{}
 	}
-}
-
-type systemdManager struct{}
-
-func (systemdManager) Kind() platform.ServiceManagerKind { return platform.ServiceManagerSystemd }
-func (systemdManager) Render(d Definition) (string, error) {
-	return SystemdUnit(d)
-}
-
-type launchdManager struct{}
-
-func (launchdManager) Kind() platform.ServiceManagerKind { return platform.ServiceManagerLaunchd }
-func (launchdManager) Render(d Definition) (string, error) {
-	return LaunchdPlist(d)
-}
-
-type windowsManager struct{}
-
-func (windowsManager) Kind() platform.ServiceManagerKind { return platform.ServiceManagerWindows }
-func (windowsManager) Render(d Definition) (string, error) {
-	args, err := WindowsServiceCreateArgs(d)
-	if err != nil {
-		return "", err
-	}
-	return "sc.exe " + strings.Join(args, " "), nil
-}
-
-type unsupportedManager struct{}
-
-func (unsupportedManager) Kind() platform.ServiceManagerKind { return platform.ServiceManagerUnknown }
-func (unsupportedManager) Render(Definition) (string, error) {
-	return "", fmt.Errorf("no native service manager for GOOS %q; run the agent in the foreground", runtime.GOOS)
 }

@@ -37,6 +37,18 @@ type Provisioner interface {
 	Provision(ctx context.Context, in ProvisionRequest) (opID string, err error)
 }
 
+// RevisionResolver defaults, validates, and preflights the roll's target revision
+// ONCE, up front, so the whole fleet pins to one exact commit: an empty or "@cp"
+// target resolves to the control plane's current commit, and an unpushed/invalid
+// target fails the roll loudly before any node is dispatched. Resolving once
+// (rather than per node) is what makes a roll atomic — a push landing mid-roll
+// cannot split the fleet across two commits. Production wires api/internal/cprev;
+// unit tests fake it or leave it unset (legacy: require a non-empty target, no
+// @cp, no preflight).
+type RevisionResolver interface {
+	Resolve(ctx context.Context, requested string) (string, error)
+}
+
 // ProvisionRequest is the fleet-local DTO for one node's provisioning dispatch.
 type ProvisionRequest struct {
 	Actor          string

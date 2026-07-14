@@ -222,8 +222,8 @@ behavior we need to test, and tests don't need to freeze individual row timestam
 | EmittingResolver | Mock events client, mock resolver | Real vrooli-events instance |
 | PolicyMiddleware | Mock policy cache | Real SSE-fed cache |
 | CLI | Mock API client | Real running scenario |
-| UI api.ts fetchers | `mockFetch()` (swap `globalThis.fetch`) | Real UI smoke via browserless |
-| UI subscribeSSE | `mockEventSource()` (swap `globalThis.EventSource`) | Real UI smoke via browserless |
+| UI api.ts fetchers | `mockFetch()` (swap `globalThis.fetch`) | Real UI smoke via BAS/Playwright |
+| UI subscribeSSE | `mockEventSource()` (swap `globalThis.EventSource`) | Real UI smoke via BAS/Playwright |
 
 ## Change Axes
 

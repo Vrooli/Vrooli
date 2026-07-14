@@ -28,19 +28,21 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/config"
+	"vrooli-bridge/agent/internal/cpverify"
 	"vrooli-bridge/agent/internal/exec"
 	"vrooli-bridge/agent/internal/health"
 	"vrooli-bridge/agent/internal/nodecred"
 	"vrooli-bridge/agent/internal/privsep"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
@@ -84,10 +86,17 @@ type Client struct {
 	provisionRPC provision_v1connect.ProvisionServiceClient
 	sampler      health.Sampler
 	cred         *nodecred.Credential
+	cpVerifier   *cpverify.Verifier
 	logger       *log.Logger
 	now          func() time.Time
 	minBackoff   time.Duration
 	maxBackoff   time.Duration
+
+	// rejectedFrames counts control-plane pushes dropped because they did not
+	// verify against the pinned control-plane key (unsigned, mis-signed, or
+	// wrong-key). It is surfaced on every heartbeat's HealthSnapshot details so an
+	// operator sees a node being fed impostor frames.
+	rejectedFrames atomic.Uint64
 
 	// baseCtx is the top-level dial context, captured at Dial. Job execution is
 	// anchored to it (not the per-session SSE context) so a running job survives
@@ -119,6 +128,14 @@ func WithSampler(s health.Sampler) Option { return func(c *Client) { c.sampler =
 // key, so the control plane can verify the node's identity. Without it the agent
 // falls back to the unauthenticated ?node= form (pre-pairing / Phase-1).
 func WithCredential(cred *nodecred.Credential) Option { return func(c *Client) { c.cred = cred } }
+
+// WithCPVerifier pins the control-plane public key the agent verifies every
+// server push against (SECURITY.md boundary 2). It is REQUIRED for a paired
+// agent: without it handleServerFrame rejects every frame, so a node can never
+// be driven by an unsigned or impostor control plane. main wires it from the
+// key `pair redeem` pinned at bootstrap; a missing pin is a hard startup failure
+// there, not a silent trust-on-first-use here.
+func WithCPVerifier(v *cpverify.Verifier) Option { return func(c *Client) { c.cpVerifier = v } }
 
 // WithLogger overrides the logger.
 func WithLogger(l *log.Logger) Option { return func(c *Client) { c.logger = l } }
@@ -314,13 +331,28 @@ func (c *Client) readFrames(ctx context.Context, body io.Reader) error {
 	return io.EOF
 }
 
-// handleServerFrame decodes one SSE event payload as a ServerFrame and acts on
-// it. Phase 1 only surfaces the compatibility verdict from a HandshakeAck;
-// unknown / not-yet-handled frame kinds are ignored (DiscardUnknown semantics).
+// handleServerFrame verifies one SSE event payload against the pinned
+// control-plane key and, only if it verifies, acts on the ServerFrame it carries
+// (SECURITY.md boundary 2). A frame that is unsigned, mis-signed, signed by a
+// different key, or otherwise unverifiable is rejected BEFORE any dispatch,
+// provisioning, or abort handler sees it: it is logged and counted
+// (rejectedFrames, surfaced on the next heartbeat) and dropped. There is no path
+// by which an unverified frame reaches a handler. A HandshakeAck's compatibility
+// verdict is surfaced; unknown / not-yet-handled frame kinds are ignored
+// (DiscardUnknown semantics).
 func (c *Client) handleServerFrame(payload string) {
-	var frame channelv1.ServerFrame
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal([]byte(payload), &frame); err != nil {
-		c.logger.Printf("channel: dropping unparseable server frame: %v", err)
+	if c.cpVerifier == nil {
+		// A paired agent is always wired with a verifier (main fails hard on a
+		// missing pin). Its absence here means a mis-wired build, not an untrusted
+		// control plane — refuse to act rather than trust the frame.
+		c.rejectedFrames.Add(1)
+		c.logger.Printf("channel: rejecting server frame — no pinned control-plane key wired (refusing to act on unverified pushes)")
+		return
+	}
+	frame, err := c.cpVerifier.Open([]byte(payload))
+	if err != nil {
+		n := c.rejectedFrames.Add(1)
+		c.logger.Printf("channel: rejected unverified server frame (%v); total rejected=%d", err, n)
 		return
 	}
 	if ack := frame.GetAck(); ack != nil {
@@ -501,10 +533,20 @@ func (c *Client) runHeartbeats(ctx context.Context) {
 func (c *Client) sendHeartbeat(ctx context.Context, seq *uint64) {
 	*seq++
 	now := c.now().UTC()
+	health := snapshotToProto(c.sampler.Sample())
+	// Surface the count of rejected (unsigned/mis-signed) control-plane pushes so
+	// an operator sees a node being fed impostor frames (SECURITY.md boundary 2).
+	// Only reported once non-zero so a healthy node's details stay clean.
+	if rejected := c.rejectedFrames.Load(); rejected > 0 {
+		if health.Details == nil {
+			health.Details = map[string]string{}
+		}
+		health.Details["rejected_cp_frames"] = strconv.FormatUint(rejected, 10)
+	}
 	hb := &channelv1.Heartbeat{
 		NodeId:   c.cfg.NodeID,
 		Sequence: *seq,
-		Health:   snapshotToProto(c.sampler.Sample()),
+		Health:   health,
 		SentAt:   timestamppb.New(now),
 	}
 	connReq := connect.NewRequest(&presencev1.ReportHeartbeatRequest{Heartbeat: hb})

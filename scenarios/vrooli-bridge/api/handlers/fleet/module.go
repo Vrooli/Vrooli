@@ -23,13 +23,18 @@ import (
 // bound to the concrete registry (enumerate + revocation), presence (online +
 // protocol compatibility), and provision (dispatch a privileged op). It owns its
 // own durable rollout tables, so it re-exports Schema().
-func Module(db internalfleet.SQLExecutor, clk clock.Clock, registrySvc registry.Service, hub *presence.Hub, provisionSvc provision.Service, logger *log.Logger) module.Module {
+func Module(db internalfleet.SQLExecutor, clk clock.Clock, registrySvc registry.Service, hub *presence.Hub, provisionSvc provision.Service, resolver internalfleet.RevisionResolver, logger *log.Logger) module.Module {
+	opts := []internalfleet.Option{}
+	if resolver != nil {
+		opts = append(opts, internalfleet.WithRevisionResolver(resolver))
+	}
 	svc := internalfleet.NewService(
 		internalfleet.NewSQLiteRepository(db, clk),
 		nodeListerAdapter{svc: registrySvc},
 		hub, // *presence.Hub satisfies fleet.Presence (IsOnline + Dispatchable)
 		provisionerAdapter{svc: provisionSvc},
 		clk,
+		opts...,
 	)
 	path, handler := fleetconnect.NewFleetServiceHandler(NewConnectHandler(Deps{
 		Service: svc,

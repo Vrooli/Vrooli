@@ -8,7 +8,9 @@ import (
 	"vrooli-bridge/internal/audit"
 	auditmocks "vrooli-bridge/internal/audit/mocks"
 	"vrooli-bridge/internal/auth"
+	"vrooli-bridge/internal/channelsign"
 	"vrooli-bridge/internal/clock"
+	"vrooli-bridge/internal/cpkeys"
 	"vrooli-bridge/internal/dispatch"
 	"vrooli-bridge/internal/presence"
 	internalqueue "vrooli-bridge/internal/queue"
@@ -22,9 +24,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/encoding/protojson"
 
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 )
 
@@ -95,7 +95,9 @@ func TestDispatchHandler_EndToEndPushesTypedJob(t *testing.T) {
 	// Wire the dispatch service with the same adapters the production Module uses,
 	// including the per-node scheduler on the push path (a free slot pushes the
 	// job immediately, so the JobPush still lands on the channel below).
-	scheduler := internalqueue.NewScheduler(queueH.NewChannelPusher(hub), queueH.NewAborter(runsSvc), clk, 0)
+	cpKey, err := cpkeys.LoadOrCreate(t.TempDir())
+	require.NoError(t, err)
+	scheduler := internalqueue.NewScheduler(queueH.NewChannelPusher(hub, cpKey), queueH.NewAborter(runsSvc), clk, 0)
 	svc := dispatch.NewService(
 		nodeReaderAdapter{svc: registrySvc},
 		hub,
@@ -113,8 +115,11 @@ func TestDispatchHandler_EndToEndPushesTypedJob(t *testing.T) {
 
 	select {
 	case payload := <-conn.Out():
-		var frame channelv1.ServerFrame
-		require.NoError(t, protojson.Unmarshal(payload, &frame))
+		// The pushed payload is a signed envelope; it must verify against the
+		// control-plane public key before it is decodable as a ServerFrame — the
+		// same check the node performs before acting (SECURITY.md boundary 2).
+		frame, err := channelsign.Open(cpKey.PublicKey(), payload)
+		require.NoError(t, err, "the pushed frame verifies against the control-plane key")
 		job := frame.GetJob()
 		require.NotNil(t, job, "the pushed frame carries a JobPush")
 		require.Equal(t, resp.Msg.RunId, job.RunId)

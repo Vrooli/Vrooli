@@ -9,6 +9,19 @@ type NodeReader interface {
 	GetTarget(ctx context.Context, id string) (TargetNode, error)
 }
 
+// RevisionResolver defaults, validates, and preflights revisions before a
+// provisioning op is dispatched. Resolve is the full pipeline for the target
+// (empty/"@cp" → the control plane's commit, metachar-validated, preflighted
+// against the clone remote). Expand is for the rollback target — a recovery point
+// the node already held — so it only defaults ("@cp" → commit; empty stays empty)
+// and validates, WITHOUT a remote push-check. Production wires api/internal/cprev;
+// unit tests fake it or leave it unset (legacy: require a non-empty target, no
+// preflight, no @cp).
+type RevisionResolver interface {
+	Resolve(ctx context.Context, requested string) (string, error)
+	Expand(ctx context.Context, requested string) (string, error)
+}
+
 // Presence is the live online/offline seam (the presence hub satisfies it).
 type Presence interface {
 	IsOnline(nodeID string) bool

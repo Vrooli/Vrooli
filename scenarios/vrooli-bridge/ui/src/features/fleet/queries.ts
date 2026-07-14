@@ -3,6 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { nodesClient, type Node } from "../../api/nodes";
 import { queueClient, type NodeQueue } from "../../api/queue";
 import { pairingClient, type IssuePairingCodeResponse } from "../../api/pairing";
+import {
+  onboardClient,
+  OnboardingState,
+  type GetOnboardingResponse,
+  type StartOnboardingInput,
+} from "../../api/onboard";
 
 /** Canonical react-query key for the owner's fleet node list. */
 export const NODES_QUERY_KEY = ["fleet", "nodes"] as const;
@@ -69,6 +75,56 @@ export function useIssuePairingCodeMutation() {
     mutationFn: (name: string): Promise<IssuePairingCodeResponse> =>
       pairingClient.issuePairingCode({ name }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: NODES_QUERY_KEY }),
+  });
+}
+
+/**
+ * Start a one-shot onboarding op (owner-gated OnboardService.StartOnboarding).
+ * The SSH password rides along in the request `input` and is never persisted by
+ * this hook — the caller holds it in component state only for the duration of
+ * the submit and clears it after. Returns the durable op id the form then polls
+ * via `useOnboardingQuery` for live step states. Refreshes the node list on
+ * success so the freshly onboarded node appears once it dials in.
+ */
+export function useStartOnboardingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: StartOnboardingInput) => onboardClient.startOnboarding(input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: NODES_QUERY_KEY }),
+  });
+}
+
+/** react-query key for a single onboarding op's live progress. */
+export const ONBOARDING_QUERY_KEY = (opId: string) => ["fleet", "onboarding", opId] as const;
+
+const TERMINAL_ONBOARDING_STATES: ReadonlySet<OnboardingState> = new Set([
+  OnboardingState.SUCCEEDED,
+  OnboardingState.FAILED,
+  OnboardingState.CANCELLED,
+]);
+
+/** True once an op has reached a terminal state (no more progress will arrive). */
+export function isTerminalOnboarding(state: OnboardingState): boolean {
+  return TERMINAL_ONBOARDING_STATES.has(state);
+}
+
+/**
+ * Follow one onboarding op's live step states by re-reading GetOnboarding (op +
+ * full persisted event history). Enabled only while an op id is present; polls
+ * on a short interval until the op is terminal, then stops (refetchInterval
+ * returns false). This is the fleet feature's live-update idiom — the durable
+ * server record is the source of truth, so a page reload simply re-attaches.
+ */
+export function useOnboardingQuery(opId: string | null) {
+  return useQuery({
+    queryKey: ONBOARDING_QUERY_KEY(opId ?? ""),
+    enabled: opId !== null,
+    queryFn: async (): Promise<GetOnboardingResponse> => onboardClient.getOnboarding({ id: opId ?? "" }),
+    refetchInterval: (query) => {
+      const op = query.state.data?.op;
+      if (op && isTerminalOnboarding(op.state)) return false;
+      return 2_000;
+    },
   });
 }
 

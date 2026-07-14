@@ -3,6 +3,7 @@ package channel
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/base64"
 	"io"
 	"net/http"
@@ -66,10 +67,14 @@ type fakeControlPlane struct {
 	sseToken     string // ?token= of the most recent dial-out
 	sseOpened    atomic.Int64
 	closeStreams chan struct{}
+	// pushFrames carries already-serialised SSE payloads (a signed
+	// SignedServerFrame envelope) the control plane pushes down a held stream, so
+	// a test can deliver a real server frame over the actual dial-out transport.
+	pushFrames chan string
 }
 
 func newFakeControlPlane() *fakeControlPlane {
-	return &fakeControlPlane{closeStreams: make(chan struct{})}
+	return &fakeControlPlane{closeStreams: make(chan struct{}), pushFrames: make(chan string, 8)}
 }
 
 func (f *fakeControlPlane) ReportHeartbeat(_ context.Context, req *connect.Request[presencev1.ReportHeartbeatRequest]) (*connect.Response[presencev1.ReportHeartbeatResponse], error) {
@@ -114,9 +119,16 @@ func (f *fakeControlPlane) handler() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, ": connected\n\n")
 		flusher.Flush()
-		select {
-		case <-r.Context().Done():
-		case <-f.closeStreams:
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case <-f.closeStreams:
+				return
+			case payload := <-f.pushFrames:
+				_, _ = io.WriteString(w, "data: "+payload+"\n\n")
+				flusher.Flush()
+			}
 		}
 	})
 	return mux
@@ -235,4 +247,73 @@ func TestDial_ReconnectsAfterStreamDrop(t *testing.T) {
 
 	require.Eventually(t, func() bool { return fcp.sseOpened.Load() >= 2 }, 2*time.Second, 5*time.Millisecond,
 		"agent should reopen the dial-out stream after a drop")
+}
+
+// [REQ:BRG-P0-002] TestDial_VerifiesSignedFramesOverTheWire is the G7 acceptance
+// test: over a REAL dial-out SSE loop, a frame signed by the pinned control-plane
+// key is verified and acted on, while a frame signed by a DIFFERENT key (an
+// impostor control plane) is rejected before any handler sees it and surfaces on
+// the node's heartbeat health as rejected_cp_frames. This exercises the whole
+// path — SSE read → envelope decode → signature verify → dispatch — not just the
+// verifier in isolation.
+func TestDial_VerifiesSignedFramesOverTheWire(t *testing.T) {
+	fcp := newFakeControlPlane()
+	srv := httptest.NewServer(fcp.handler())
+	defer srv.Close()
+
+	priv, verifier := testCPKeys(t)
+
+	cfg := config.Config{ControlPlaneURL: srv.URL, NodeID: "node-int", HeartbeatInterval: 10 * time.Millisecond}
+	client := NewClient(cfg,
+		WithHTTPClient(srv.Client()),
+		WithSampler(health.Fixed{Snap: health.Snapshot{ToolchainPresent: true}}),
+		WithCPVerifier(verifier),
+		WithBackoff(time.Millisecond, 5*time.Millisecond),
+	)
+
+	// A registered run whose cancel func fires iff a verified AbortJob reaches the
+	// dispatch handler — the observable proxy for "the frame was acted on".
+	runCtx, runCancel := context.WithCancel(context.Background())
+	client.registerJob("run-int", runCancel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = client.Dial(ctx) }()
+
+	require.Eventually(t, func() bool { return fcp.sseOpened.Load() >= 1 }, 2*time.Second, 5*time.Millisecond,
+		"agent holds the dial-out stream")
+
+	// Impostor: a provision frame signed by a DIFFERENT key must be rejected.
+	_, attacker, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	provision := &channelv1.ServerFrame{Payload: &channelv1.ServerFrame_Provision{
+		Provision: &channelv1.ProvisionCommand{OpId: "op-evil", TargetRevision: "deadbeef"},
+	}}
+	fcp.pushFrames <- signFrame(t, attacker, provision)
+
+	require.Eventually(t, func() bool { return client.rejectedFrames.Load() >= 1 }, 2*time.Second, 5*time.Millisecond,
+		"an impostor-signed frame is rejected and counted")
+	require.False(t, cancelled(runCtx), "the impostor frame must not have reached any handler")
+
+	// The rejection surfaces on the heartbeat health details for the operator.
+	require.Eventually(t, func() bool {
+		fcp.mu.Lock()
+		defer fcp.mu.Unlock()
+		for _, hb := range fcp.heartbeats {
+			if hb.GetHealth().GetDetails()["rejected_cp_frames"] == "1" {
+				return true
+			}
+		}
+		return false
+	}, 2*time.Second, 5*time.Millisecond, "rejected frame count is surfaced on the heartbeat")
+
+	// Legitimate: a frame signed by the PINNED key is verified and acted on.
+	abort := &channelv1.ServerFrame{Payload: &channelv1.ServerFrame_Abort{
+		Abort: &channelv1.AbortJob{RunId: "run-int", Reason: "operator abort"},
+	}}
+	fcp.pushFrames <- signFrame(t, priv, abort)
+
+	require.Eventually(t, func() bool { return cancelled(runCtx) }, 2*time.Second, 5*time.Millisecond,
+		"a validly signed AbortJob reaches the dispatch handler over the real transport")
+	require.Equal(t, uint64(1), client.rejectedFrames.Load(), "the valid frame is not counted as rejected")
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/auth"
+	"vrooli-bridge/internal/cprev"
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/provision"
 
@@ -69,6 +70,12 @@ func (h *connectHandler) SyncToRevision(ctx context.Context, req *connect.Reques
 		DryRun:           dryRun,
 	})
 	if err != nil {
+		// Revision-resolution failures (unsafe ref, unpushed commit, no CP commit)
+		// carry their own friendly Connect codes; fall back to the domain mapping
+		// for everything else.
+		if ce := cprev.ConnectError(err); ce != nil {
+			return nil, ce
+		}
 		connectErr := provision.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
 			h.deps.Logger.Printf("provision.SyncToRevision(node=%q rev=%q): %v", req.Msg.NodeId, req.Msg.TargetRevision, err)
