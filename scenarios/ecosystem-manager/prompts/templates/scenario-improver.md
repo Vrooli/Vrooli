@@ -19,7 +19,7 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
 4. `vrooli scenario test {{TARGET}} {all|structure|dependencies|unit|integration|e2e|business|performance}`
    - Tests must pass after your change, or you must clearly explain why they remain failing. Phase scripts automatically sync requirement coverage when full test suite run.
 5. `vrooli scenario ui-smoke {{TARGET}}`
-   - Ensures the production UI bundle loads, the iframe bridge is ready, and Browserless captures artifacts (screenshot, console, network).
+   - Ensures the production UI bundle loads, the iframe bridge is ready, and browser-automation-studio (BAS/Playwright) captures artifacts (screenshot, console, network).
 
 ## Working with PRD & Requirements
 - `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` is read-only unless the task explicitly grants edit access. Fix code/tests so the PRD reflects reality; don’t toggle checkboxes manually.

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file react-component-library/v1/components/components.proto.
  */
 export const file_react_component_library_v1_components_components: GenFile = /*@__PURE__*/
-  fileDesc("CjZyZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jb21wb25lbnRzL2NvbXBvbmVudHMucHJvdG8SLHZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzIrEECglDb21wb25lbnQSCgoCaWQYASABKAkSEgoKbGlicmFyeV9pZBgCIAEoCRIUCgxkaXNwbGF5X25hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEwoLc291cmNlX3BhdGgYBSABKAkSDwoHdmVyc2lvbhgGIAEoCRIMCgR0YWdzGAcgAygJEi4KCmluZGV4ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wElUKB2hlYWRlcnMYCiADKAsyRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQuSGVhZGVyc0VudHJ5EgwKBHNsdWcYCyABKAkSFQoNbWFuaWZlc3RfcGF0aBgMIAEoCRIVCg1kcmFmdF92ZXJzaW9uGA0gASgJEhYKDmxhdGVzdF92ZXJzaW9uGA4gASgJEgwKBHNsb3QYDyABKAkSXAoNZGVzaWduX3N0eWxlcxgQIAMoCzJFLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudERlc2lnbkFmZmluaXR5Gi4KDEhlYWRlcnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoYBChVMaXN0Q29tcG9uZW50c1JlcXVlc3QSDQoFbWF0Y2gYASABKAkSCwoDdGFnGAIgASgJEg0KBWxpbWl0GAMgASgFEgwKBHRhZ3MYBCADKAkSEAoIY2F0ZWdvcnkYBSABKAkSEAoIc3R5bGVfaWQYBiABKAkSEAoIYWZmaW5pdHkYByABKAkiZQoWTGlzdENvbXBvbmVudHNSZXNwb25zZRJLCgpjb21wb25lbnRzGAEgAygLMjcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50IiEKE0dldENvbXBvbmVudFJlcXVlc3QSCgoCaWQYASABKAkiYgoUR2V0Q29tcG9uZW50UmVzcG9uc2USSgoJY29tcG9uZW50GAEgASgLMjcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50IjQKHkdldENvbXBvbmVudEJ5TGlicmFyeUlkUmVxdWVzdBISCgpsaWJyYXJ5X2lkGAEgASgJIm0KH0dldENvbXBvbmVudEJ5TGlicmFyeUlkUmVzcG9uc2USSgoJY29tcG9uZW50GAEgASgLMjcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50IhgKFkluZGV4Q29tcG9uZW50c1JlcXVlc3QiggEKF0luZGV4Q29tcG9uZW50c1Jlc3BvbnNlEg8KB3NjYW5uZWQYASABKAUSDwoHaW5kZXhlZBgCIAEoBRIPCgdza2lwcGVkGAMgASgFEg8KB2RlbGV0ZWQYBCABKAUSDgoGZXJyb3JzGAUgAygJEhMKC2xpYnJhcnlfaWRzGAYgAygJIrsBChpJbml0aWFsaXplQ29tcG9uZW50UmVxdWVzdBISCgpsaWJyYXJ5X2lkGAEgASgJEgwKBHNsdWcYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEgwKBHRhZ3MYBSADKAkSFwoPaW5pdGlhbF92ZXJzaW9uGAYgASgJEhEKCWZpbGVfbmFtZRgHIAEoCRIWCg5pbml0aWFsX3NvdXJjZRgIIAEoCSKVAQobSW5pdGlhbGl6ZUNvbXBvbmVudFJlc3BvbnNlEkoKCWNvbXBvbmVudBgBIAEoCzI3LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudBIVCg1tYW5pZmVzdF9wYXRoGAIgASgJEhMKC3NvdXJjZV9wYXRoGAMgASgJIusBCh1DcmVhdGVDb21wb25lbnRWZXJzaW9uUmVxdWVzdBIUCgxjb21wb25lbnRfaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoCRIUCgxmcm9tX3ZlcnNpb24YAyABKAkSVAoGaW50ZW50GAQgASgOMkQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50VmVyc2lvbkludGVudBIRCglmaWxlX25hbWUYBSABKAkSDgoGc291cmNlGAYgASgJEhQKDGNoYW5nZWxvZ19tZBgHIAEoCSLSAQoeQ3JlYXRlQ29tcG9uZW50VmVyc2lvblJlc3BvbnNlEkoKCWNvbXBvbmVudBgBIAEoCzI3LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudBJPCgd2ZXJzaW9uGAIgASgLMj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50VmVyc2lvbhITCgtzb3VyY2VfcGF0aBgDIAEoCSK7AQoeVXBkYXRlQ29tcG9uZW50TWFuaWZlc3RSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDAoEdGFncxgEIAMoCRIWCg5sYXRlc3RfdmVyc2lvbhgFIAEoCRIVCg1kcmFmdF92ZXJzaW9uGAYgASgJEhsKE2RlcHJlY2F0ZWRfdmVyc2lvbnMYByADKAkibQofVXBkYXRlQ29tcG9uZW50TWFuaWZlc3RSZXNwb25zZRJKCgljb21wb25lbnQYASABKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQiKAoaR2V0Q29tcG9uZW50Q29udGVudFJlcXVlc3QSCgoCaWQYASABKAkiUwobR2V0Q29tcG9uZW50Q29udGVudFJlc3BvbnNlEg8KB2NvbnRlbnQYASABKAkSEwoLc291cmNlX3BhdGgYAiABKAkSDgoGc2hhMjU2GAMgASgJIlUKHVVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2NvbnRlbnQYAiABKAkSFwoPZXhwZWN0ZWRfc2hhMjU2GAMgASgJIkUKHlVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXNwb25zZRIOCgZzaGEyNTYYASABKAkSEwoLc291cmNlX3BhdGgYAiABKAki0wIKEENvbXBvbmVudFZlcnNpb24SCgoCaWQYASABKAkSFAoMY29tcG9uZW50X2lkGAIgASgJEhIKCmxpYnJhcnlfaWQYAyABKAkSDwoHdmVyc2lvbhgEIAEoCRJUCgZzdGF0dXMYBSABKA4yRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnRWZXJzaW9uU3RhdHVzEhMKC3NvdXJjZV9wYXRoGAYgASgJEhYKDmNvbnRlbnRfc2hhMjU2GAcgASgJEhQKDGNoYW5nZWxvZ19tZBgIIAEoCRIuCgppbmRleGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtyZWxlYXNlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiiwEKF0NvbXBvbmVudERlc2lnbkFmZmluaXR5EhAKCHN0eWxlX2lkGAEgASgJEk4KCGFmZmluaXR5GAIgASgOMjwudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuRGVzaWduQWZmaW5pdHkSDgoGcmVhc29uGAMgASgJIkMKHExpc3RDb21wb25lbnRWZXJzaW9uc1JlcXVlc3QSFAoMY29tcG9uZW50X2lkGAEgASgJEg0KBWxpbWl0GAIgASgFInEKHUxpc3RDb21wb25lbnRWZXJzaW9uc1Jlc3BvbnNlElAKCHZlcnNpb25zGAEgAygLMj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50VmVyc2lvbiJKCiFHZXRDb21wb25lbnRWZXJzaW9uQ29udGVudFJlcXVlc3QSFAoMY29tcG9uZW50X2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAkihgEKIkdldENvbXBvbmVudFZlcnNpb25Db250ZW50UmVzcG9uc2USTwoHdmVyc2lvbhgBIAEoCzI+LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudFZlcnNpb24SDwoHY29udGVudBgCIAEoCSL/AQoQQ29tcG9uZW50RXhhbXBsZRIKCgJpZBgBIAEoCRIUCgxjb21wb25lbnRfaWQYAiABKAkSEgoKbGlicmFyeV9pZBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEgwKBG5hbWUYBSABKAkSFAoMZGlzcGxheV9uYW1lGAYgASgJEhIKCnByb3BzX2pzb24YByABKAkSEgoKc2V0dXBfanNvbhgIIAEoCRITCgtleHBlY3RfanNvbhgJIAEoCRITCgtzb3VyY2VfcGF0aBgKIAEoCRIuCgppbmRleGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJUChxMaXN0Q29tcG9uZW50RXhhbXBsZXNSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEg0KBWxpbWl0GAMgASgFInEKHUxpc3RDb21wb25lbnRFeGFtcGxlc1Jlc3BvbnNlElAKCGV4YW1wbGVzGAEgAygLMj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50RXhhbXBsZSJHCgtEZXNpZ25TdHlsZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHRhZ3MYAyADKAkSEAoIc3VwcG9ydHMYBCADKAkiGQoXTGlzdERlc2lnblN0eWxlc1JlcXVlc3QiZQoYTGlzdERlc2lnblN0eWxlc1Jlc3BvbnNlEkkKBnN0eWxlcxgBIAMoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkRlc2lnblN0eWxlIlIKF1ZhbGlkYXRlU3R5bGVGaXRSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJIpwCChhWYWxpZGF0ZVN0eWxlRml0UmVzcG9uc2USTwoEa2luZBgBIAEoDjJBLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLlN0eWxlRml0VmVyZGljdEtpbmQSFAoMY29tcG9uZW50X2lkGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSEAoIc2NlbmFyaW8YBCABKAkSFgoOc2NlbmFyaW9fc3R5bGUYBSABKAkSTgoIYWZmaW5pdHkYBiABKA4yPC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5EZXNpZ25BZmZpbml0eRIOCgZkZXRhaWwYByABKAkqjAEKFkNvbXBvbmVudFZlcnNpb25JbnRlbnQSKAokQ09NUE9ORU5UX1ZFUlNJT05fSU5URU5UX1VOU1BFQ0lGSUVEEAASIgoeQ09NUE9ORU5UX1ZFUlNJT05fSU5URU5UX0RSQUZUEAESJAogQ09NUE9ORU5UX1ZFUlNJT05fSU5URU5UX1JFTEVBU0UQAirdAQoWQ29tcG9uZW50VmVyc2lvblN0YXR1cxIoCiRDT01QT05FTlRfVkVSU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIiCh5DT01QT05FTlRfVkVSU0lPTl9TVEFUVVNfRFJBRlQQARIlCiFDT01QT05FTlRfVkVSU0lPTl9TVEFUVVNfUkVMRUFTRUQQAhInCiNDT01QT05FTlRfVkVSU0lPTl9TVEFUVVNfREVQUkVDQVRFRBADEiUKIUNPTVBPTkVOVF9WRVJTSU9OX1NUQVRVU19BUkNISVZFRBAEKo4BCg5EZXNpZ25BZmZpbml0eRIfChtERVNJR05fQUZGSU5JVFlfVU5TUEVDSUZJRUQQABIaChZERVNJR05fQUZGSU5JVFlfTkFUSVZFEAESHgoaREVTSUdOX0FGRklOSVRZX0NPTVBBVElCTEUQAhIfChtERVNJR05fQUZGSU5JVFlfRElTQ09VUkFHRUQQAyqeAQoTU3R5bGVGaXRWZXJkaWN0S2luZBImCiJTVFlMRV9GSVRfVkVSRElDVF9LSU5EX1VOU1BFQ0lGSUVEEAASHQoZU1RZTEVfRklUX1ZFUkRJQ1RfS0lORF9PSxABEh8KG1NUWUxFX0ZJVF9WRVJESUNUX0tJTkRfSU5GTxACEh8KG1NUWUxFX0ZJVF9WRVJESUNUX0tJTkRfV0FSThADMpITChFDb21wb25lbnRzU2VydmljZRKbAQoOTGlzdENvbXBvbmVudHMSQy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5MaXN0Q29tcG9uZW50c1JlcXVlc3QaRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5MaXN0Q29tcG9uZW50c1Jlc3BvbnNlEpUBCgxHZXRDb21wb25lbnQSQS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRSZXF1ZXN0GkIudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50UmVzcG9uc2UStgEKF0dldENvbXBvbmVudEJ5TGlicmFyeUlkEkwudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWRSZXF1ZXN0Gk0udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWRSZXNwb25zZRKeAQoPSW5kZXhDb21wb25lbnRzEkQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuSW5kZXhDb21wb25lbnRzUmVxdWVzdBpFLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkluZGV4Q29tcG9uZW50c1Jlc3BvbnNlEqoBChNJbml0aWFsaXplQ29tcG9uZW50EkgudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuSW5pdGlhbGl6ZUNvbXBvbmVudFJlcXVlc3QaSS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Jbml0aWFsaXplQ29tcG9uZW50UmVzcG9uc2USswEKFkNyZWF0ZUNvbXBvbmVudFZlcnNpb24SSy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5DcmVhdGVDb21wb25lbnRWZXJzaW9uUmVxdWVzdBpMLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNyZWF0ZUNvbXBvbmVudFZlcnNpb25SZXNwb25zZRK2AQoXVXBkYXRlQ29tcG9uZW50TWFuaWZlc3QSTC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5VcGRhdGVDb21wb25lbnRNYW5pZmVzdFJlcXVlc3QaTS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5VcGRhdGVDb21wb25lbnRNYW5pZmVzdFJlc3BvbnNlEqoBChNHZXRDb21wb25lbnRDb250ZW50EkgudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50Q29udGVudFJlcXVlc3QaSS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRDb250ZW50UmVzcG9uc2USswEKFlVwZGF0ZUNvbXBvbmVudENvbnRlbnQSSy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5VcGRhdGVDb21wb25lbnRDb250ZW50UmVxdWVzdBpMLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLlVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXNwb25zZRKwAQoVTGlzdENvbXBvbmVudFZlcnNpb25zEkoudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuTGlzdENvbXBvbmVudFZlcnNpb25zUmVxdWVzdBpLLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkxpc3RDb21wb25lbnRWZXJzaW9uc1Jlc3BvbnNlEr8BChpHZXRDb21wb25lbnRWZXJzaW9uQ29udGVudBJPLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkdldENvbXBvbmVudFZlcnNpb25Db250ZW50UmVxdWVzdBpQLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkdldENvbXBvbmVudFZlcnNpb25Db250ZW50UmVzcG9uc2USsAEKFUxpc3RDb21wb25lbnRFeGFtcGxlcxJKLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkxpc3RDb21wb25lbnRFeGFtcGxlc1JlcXVlc3QaSy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5MaXN0Q29tcG9uZW50RXhhbXBsZXNSZXNwb25zZRKhAQoQTGlzdERlc2lnblN0eWxlcxJFLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkxpc3REZXNpZ25TdHlsZXNSZXF1ZXN0GkYudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuTGlzdERlc2lnblN0eWxlc1Jlc3BvbnNlEqEBChBWYWxpZGF0ZVN0eWxlRml0EkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuVmFsaWRhdGVTdHlsZUZpdFJlcXVlc3QaRi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5WYWxpZGF0ZVN0eWxlRml0UmVzcG9uc2VCZFpiZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9yZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jb21wb25lbnRzO2NvbXBvbmVudHNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CjZyZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jb21wb25lbnRzL2NvbXBvbmVudHMucHJvdG8SLHZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzIsMECglDb21wb25lbnQSCgoCaWQYASABKAkSEgoKbGlicmFyeV9pZBgCIAEoCRIUCgxkaXNwbGF5X25hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEwoLc291cmNlX3BhdGgYBSABKAkSDwoHdmVyc2lvbhgGIAEoCRIMCgR0YWdzGAcgAygJEi4KCmluZGV4ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wElUKB2hlYWRlcnMYCiADKAsyRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQuSGVhZGVyc0VudHJ5EgwKBHNsdWcYCyABKAkSFQoNbWFuaWZlc3RfcGF0aBgMIAEoCRIVCg1kcmFmdF92ZXJzaW9uGA0gASgJEhYKDmxhdGVzdF92ZXJzaW9uGA4gASgJEgwKBHNsb3QYDyABKAkSXAoNZGVzaWduX3N0eWxlcxgQIAMoCzJFLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudERlc2lnbkFmZmluaXR5EhAKCGNhdGVnb3J5GBEgASgJGi4KDEhlYWRlcnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoYBChVMaXN0Q29tcG9uZW50c1JlcXVlc3QSDQoFbWF0Y2gYASABKAkSCwoDdGFnGAIgASgJEg0KBWxpbWl0GAMgASgFEgwKBHRhZ3MYBCADKAkSEAoIY2F0ZWdvcnkYBSABKAkSEAoIc3R5bGVfaWQYBiABKAkSEAoIYWZmaW5pdHkYByABKAkiZQoWTGlzdENvbXBvbmVudHNSZXNwb25zZRJLCgpjb21wb25lbnRzGAEgAygLMjcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50IiEKE0dldENvbXBvbmVudFJlcXVlc3QSCgoCaWQYASABKAkiYgoUR2V0Q29tcG9uZW50UmVzcG9uc2USSgoJY29tcG9uZW50GAEgASgLMjcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50IjQKHkdldENvbXBvbmVudEJ5TGlicmFyeUlkUmVxdWVzdBISCgpsaWJyYXJ5X2lkGAEgASgJIm0KH0dldENvbXBvbmVudEJ5TGlicmFyeUlkUmVzcG9uc2USSgoJY29tcG9uZW50GAEgASgLMjcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50IhgKFkluZGV4Q29tcG9uZW50c1JlcXVlc3QiggEKF0luZGV4Q29tcG9uZW50c1Jlc3BvbnNlEg8KB3NjYW5uZWQYASABKAUSDwoHaW5kZXhlZBgCIAEoBRIPCgdza2lwcGVkGAMgASgFEg8KB2RlbGV0ZWQYBCABKAUSDgoGZXJyb3JzGAUgAygJEhMKC2xpYnJhcnlfaWRzGAYgAygJIrsBChpJbml0aWFsaXplQ29tcG9uZW50UmVxdWVzdBISCgpsaWJyYXJ5X2lkGAEgASgJEgwKBHNsdWcYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEgwKBHRhZ3MYBSADKAkSFwoPaW5pdGlhbF92ZXJzaW9uGAYgASgJEhEKCWZpbGVfbmFtZRgHIAEoCRIWCg5pbml0aWFsX3NvdXJjZRgIIAEoCSKVAQobSW5pdGlhbGl6ZUNvbXBvbmVudFJlc3BvbnNlEkoKCWNvbXBvbmVudBgBIAEoCzI3LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudBIVCg1tYW5pZmVzdF9wYXRoGAIgASgJEhMKC3NvdXJjZV9wYXRoGAMgASgJIrsBChZJbmdlc3RDb21wb25lbnRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhMKC3NvdXJjZV9maWxlGAIgASgJEgwKBHNsdWcYAyABKAkSFAoMZGlzcGxheV9uYW1lGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEgwKBHRhZ3MYBiADKAkSDAoEc2xvdBgHIAEoCRIUCgxzb3VyY2VfZmlsZXMYCCADKAkSDwoHdmVyc2lvbhgJIAEoCSJDCg1Jbmdlc3RGaW5kaW5nEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCRITCgtzb3VyY2VfZmlsZRgDIAEoCSLoAgoXSW5nZXN0Q29tcG9uZW50UmVzcG9uc2USSgoJY29tcG9uZW50GAEgASgLMjcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50EhUKDW1hbmlmZXN0X3BhdGgYAiABKAkSEwoLc291cmNlX3BhdGgYAyABKAkSFQoNZHJhZnRfdmVyc2lvbhgEIAEoCRJNCghmaW5kaW5ncxgFIAMoCzI7LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkluZ2VzdEZpbmRpbmcSFgoOY2hlY2tsaXN0X3BhdGgYBiABKAkSVwoNcGFyaXR5X3JlcG9ydBgHIAEoCzJALnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkluZ2VzdFBhcml0eVJlcG9ydCKoAQoSSW5nZXN0UGFyaXR5UmVwb3J0EhQKDG9yaWdpbl9maWxlcxgBIAMoCRIXCg9oYXJ2ZXN0ZWRfZmlsZXMYAiADKAkSTQoIZmluZGluZ3MYAyADKAsyOy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Jbmdlc3RGaW5kaW5nEhQKDGFja25vd2xlZGdlZBgEIAEoCCKOAgodQ3JlYXRlQ29tcG9uZW50VmVyc2lvblJlcXVlc3QSFAoMY29tcG9uZW50X2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSFAoMZnJvbV92ZXJzaW9uGAMgASgJElQKBmludGVudBgEIAEoDjJELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudFZlcnNpb25JbnRlbnQSEQoJZmlsZV9uYW1lGAUgASgJEg4KBnNvdXJjZRgGIAEoCRIUCgxjaGFuZ2Vsb2dfbWQYByABKAkSIQoZYWNrbm93bGVkZ2VfcGFyaXR5X3dhaXZlchgIIAEoCCLSAQoeQ3JlYXRlQ29tcG9uZW50VmVyc2lvblJlc3BvbnNlEkoKCWNvbXBvbmVudBgBIAEoCzI3LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudBJPCgd2ZXJzaW9uGAIgASgLMj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50VmVyc2lvbhITCgtzb3VyY2VfcGF0aBgDIAEoCSK7AQoeVXBkYXRlQ29tcG9uZW50TWFuaWZlc3RSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDAoEdGFncxgEIAMoCRIWCg5sYXRlc3RfdmVyc2lvbhgFIAEoCRIVCg1kcmFmdF92ZXJzaW9uGAYgASgJEhsKE2RlcHJlY2F0ZWRfdmVyc2lvbnMYByADKAkibQofVXBkYXRlQ29tcG9uZW50TWFuaWZlc3RSZXNwb25zZRJKCgljb21wb25lbnQYASABKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQiNgoaR2V0Q29tcG9uZW50Q29udGVudFJlcXVlc3QSCgoCaWQYASABKAkSDAoEcGF0aBgCIAEoCSJTChtHZXRDb21wb25lbnRDb250ZW50UmVzcG9uc2USDwoHY29udGVudBgBIAEoCRITCgtzb3VyY2VfcGF0aBgCIAEoCRIOCgZzaGEyNTYYAyABKAkiYwodVXBkYXRlQ29tcG9uZW50Q29udGVudFJlcXVlc3QSCgoCaWQYASABKAkSDwoHY29udGVudBgCIAEoCRIXCg9leHBlY3RlZF9zaGEyNTYYAyABKAkSDAoEcGF0aBgEIAEoCSJFCh5VcGRhdGVDb21wb25lbnRDb250ZW50UmVzcG9uc2USDgoGc2hhMjU2GAEgASgJEhMKC3NvdXJjZV9wYXRoGAIgASgJIv8DChBDb21wb25lbnRWZXJzaW9uEgoKAmlkGAEgASgJEhQKDGNvbXBvbmVudF9pZBgCIAEoCRISCgpsaWJyYXJ5X2lkGAMgASgJEg8KB3ZlcnNpb24YBCABKAkSVAoGc3RhdHVzGAUgASgOMkQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50VmVyc2lvblN0YXR1cxITCgtzb3VyY2VfcGF0aBgGIAEoCRIWCg5jb250ZW50X3NoYTI1NhgHIAEoCRIUCgxjaGFuZ2Vsb2dfbWQYCCABKAkSLgoKaW5kZXhlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLcmVsZWFzZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wElEKBWZpbGVzGAsgAygLMkIudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50VmVyc2lvbkZpbGUSVwoNcGFyaXR5X3JlcG9ydBgMIAEoCzJALnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkluZ2VzdFBhcml0eVJlcG9ydCJOChRDb21wb25lbnRWZXJzaW9uRmlsZRIMCgRwYXRoGAEgASgJEhYKDmNvbnRlbnRfc2hhMjU2GAIgASgJEhAKCGlzX2VudHJ5GAMgASgIIosBChdDb21wb25lbnREZXNpZ25BZmZpbml0eRIQCghzdHlsZV9pZBgBIAEoCRJOCghhZmZpbml0eRgCIAEoDjI8LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkRlc2lnbkFmZmluaXR5Eg4KBnJlYXNvbhgDIAEoCSJDChxMaXN0Q29tcG9uZW50VmVyc2lvbnNSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRINCgVsaW1pdBgCIAEoBSJxCh1MaXN0Q29tcG9uZW50VmVyc2lvbnNSZXNwb25zZRJQCgh2ZXJzaW9ucxgBIAMoCzI+LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudFZlcnNpb24iWAohR2V0Q29tcG9uZW50VmVyc2lvbkNvbnRlbnRSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEgwKBHBhdGgYAyABKAkihgEKIkdldENvbXBvbmVudFZlcnNpb25Db250ZW50UmVzcG9uc2USTwoHdmVyc2lvbhgBIAEoCzI+LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNvbXBvbmVudFZlcnNpb24SDwoHY29udGVudBgCIAEoCSL/AQoQQ29tcG9uZW50RXhhbXBsZRIKCgJpZBgBIAEoCRIUCgxjb21wb25lbnRfaWQYAiABKAkSEgoKbGlicmFyeV9pZBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEgwKBG5hbWUYBSABKAkSFAoMZGlzcGxheV9uYW1lGAYgASgJEhIKCnByb3BzX2pzb24YByABKAkSEgoKc2V0dXBfanNvbhgIIAEoCRITCgtleHBlY3RfanNvbhgJIAEoCRITCgtzb3VyY2VfcGF0aBgKIAEoCRIuCgppbmRleGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJUChxMaXN0Q29tcG9uZW50RXhhbXBsZXNSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEg0KBWxpbWl0GAMgASgFInEKHUxpc3RDb21wb25lbnRFeGFtcGxlc1Jlc3BvbnNlElAKCGV4YW1wbGVzGAEgAygLMj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50RXhhbXBsZSJHCgtEZXNpZ25TdHlsZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHRhZ3MYAyADKAkSEAoIc3VwcG9ydHMYBCADKAkiGQoXTGlzdERlc2lnblN0eWxlc1JlcXVlc3QiZQoYTGlzdERlc2lnblN0eWxlc1Jlc3BvbnNlEkkKBnN0eWxlcxgBIAMoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkRlc2lnblN0eWxlIlIKF1ZhbGlkYXRlU3R5bGVGaXRSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJIpwCChhWYWxpZGF0ZVN0eWxlRml0UmVzcG9uc2USTwoEa2luZBgBIAEoDjJBLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLlN0eWxlRml0VmVyZGljdEtpbmQSFAoMY29tcG9uZW50X2lkGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSEAoIc2NlbmFyaW8YBCABKAkSFgoOc2NlbmFyaW9fc3R5bGUYBSABKAkSTgoIYWZmaW5pdHkYBiABKA4yPC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5EZXNpZ25BZmZpbml0eRIOCgZkZXRhaWwYByABKAkqjAEKFkNvbXBvbmVudFZlcnNpb25JbnRlbnQSKAokQ09NUE9ORU5UX1ZFUlNJT05fSU5URU5UX1VOU1BFQ0lGSUVEEAASIgoeQ09NUE9ORU5UX1ZFUlNJT05fSU5URU5UX0RSQUZUEAESJAogQ09NUE9ORU5UX1ZFUlNJT05fSU5URU5UX1JFTEVBU0UQAirdAQoWQ29tcG9uZW50VmVyc2lvblN0YXR1cxIoCiRDT01QT05FTlRfVkVSU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIiCh5DT01QT05FTlRfVkVSU0lPTl9TVEFUVVNfRFJBRlQQARIlCiFDT01QT05FTlRfVkVSU0lPTl9TVEFUVVNfUkVMRUFTRUQQAhInCiNDT01QT05FTlRfVkVSU0lPTl9TVEFUVVNfREVQUkVDQVRFRBADEiUKIUNPTVBPTkVOVF9WRVJTSU9OX1NUQVRVU19BUkNISVZFRBAEKo4BCg5EZXNpZ25BZmZpbml0eRIfChtERVNJR05fQUZGSU5JVFlfVU5TUEVDSUZJRUQQABIaChZERVNJR05fQUZGSU5JVFlfTkFUSVZFEAESHgoaREVTSUdOX0FGRklOSVRZX0NPTVBBVElCTEUQAhIfChtERVNJR05fQUZGSU5JVFlfRElTQ09VUkFHRUQQAyqeAQoTU3R5bGVGaXRWZXJkaWN0S2luZBImCiJTVFlMRV9GSVRfVkVSRElDVF9LSU5EX1VOU1BFQ0lGSUVEEAASHQoZU1RZTEVfRklUX1ZFUkRJQ1RfS0lORF9PSxABEh8KG1NUWUxFX0ZJVF9WRVJESUNUX0tJTkRfSU5GTxACEh8KG1NUWUxFX0ZJVF9WRVJESUNUX0tJTkRfV0FSThADMrMUChFDb21wb25lbnRzU2VydmljZRKbAQoOTGlzdENvbXBvbmVudHMSQy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5MaXN0Q29tcG9uZW50c1JlcXVlc3QaRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5MaXN0Q29tcG9uZW50c1Jlc3BvbnNlEpUBCgxHZXRDb21wb25lbnQSQS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRSZXF1ZXN0GkIudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50UmVzcG9uc2UStgEKF0dldENvbXBvbmVudEJ5TGlicmFyeUlkEkwudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWRSZXF1ZXN0Gk0udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWRSZXNwb25zZRKeAQoPSW5kZXhDb21wb25lbnRzEkQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuSW5kZXhDb21wb25lbnRzUmVxdWVzdBpFLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkluZGV4Q29tcG9uZW50c1Jlc3BvbnNlEqoBChNJbml0aWFsaXplQ29tcG9uZW50EkgudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuSW5pdGlhbGl6ZUNvbXBvbmVudFJlcXVlc3QaSS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Jbml0aWFsaXplQ29tcG9uZW50UmVzcG9uc2USngEKD0luZ2VzdENvbXBvbmVudBJELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkluZ2VzdENvbXBvbmVudFJlcXVlc3QaRS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Jbmdlc3RDb21wb25lbnRSZXNwb25zZRKzAQoWQ3JlYXRlQ29tcG9uZW50VmVyc2lvbhJLLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkNyZWF0ZUNvbXBvbmVudFZlcnNpb25SZXF1ZXN0GkwudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ3JlYXRlQ29tcG9uZW50VmVyc2lvblJlc3BvbnNlErYBChdVcGRhdGVDb21wb25lbnRNYW5pZmVzdBJMLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLlVwZGF0ZUNvbXBvbmVudE1hbmlmZXN0UmVxdWVzdBpNLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLlVwZGF0ZUNvbXBvbmVudE1hbmlmZXN0UmVzcG9uc2USqgEKE0dldENvbXBvbmVudENvbnRlbnQSSC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRDb250ZW50UmVxdWVzdBpJLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkdldENvbXBvbmVudENvbnRlbnRSZXNwb25zZRKzAQoWVXBkYXRlQ29tcG9uZW50Q29udGVudBJLLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLlVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXF1ZXN0GkwudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuVXBkYXRlQ29tcG9uZW50Q29udGVudFJlc3BvbnNlErABChVMaXN0Q29tcG9uZW50VmVyc2lvbnMSSi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5MaXN0Q29tcG9uZW50VmVyc2lvbnNSZXF1ZXN0GksudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuTGlzdENvbXBvbmVudFZlcnNpb25zUmVzcG9uc2USvwEKGkdldENvbXBvbmVudFZlcnNpb25Db250ZW50Ek8udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50VmVyc2lvbkNvbnRlbnRSZXF1ZXN0GlAudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50VmVyc2lvbkNvbnRlbnRSZXNwb25zZRKwAQoVTGlzdENvbXBvbmVudEV4YW1wbGVzEkoudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuTGlzdENvbXBvbmVudEV4YW1wbGVzUmVxdWVzdBpLLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkxpc3RDb21wb25lbnRFeGFtcGxlc1Jlc3BvbnNlEqEBChBMaXN0RGVzaWduU3R5bGVzEkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuTGlzdERlc2lnblN0eWxlc1JlcXVlc3QaRi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5MaXN0RGVzaWduU3R5bGVzUmVzcG9uc2USoQEKEFZhbGlkYXRlU3R5bGVGaXQSRS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5WYWxpZGF0ZVN0eWxlRml0UmVxdWVzdBpGLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLlZhbGlkYXRlU3R5bGVGaXRSZXNwb25zZUJkWmJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3JlYWN0LWNvbXBvbmVudC1saWJyYXJ5L3YxL2NvbXBvbmVudHM7Y29tcG9uZW50c192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * Component is the canonical wire shape for a single indexed component.
@@ -136,6 +136,14 @@ export type Component = Message<"vrooli.react_component_library.v1.components.Co
    * @generated from field: repeated vrooli.react_component_library.v1.components.ComponentDesignAffinity design_styles = 16;
    */
   designStyles: ComponentDesignAffinity[];
+
+  /**
+   * Stable operator-facing catalog category from component.json. This is
+   * deliberately distinct from the implementation slot.
+   *
+   * @generated from field: string category = 17;
+   */
+  category: string;
 };
 
 /**
@@ -456,6 +464,176 @@ export const InitializeComponentResponseSchema: GenMessage<InitializeComponentRe
   messageDesc(file_react_component_library_v1_components_components, 10);
 
 /**
+ * IngestComponent copies a scenario-local TSX component into the library,
+ * records its source provenance, indexes it, and returns actionable static
+ * conformance findings. The API owns all filesystem and catalog mutation.
+ *
+ * @generated from message vrooli.react_component_library.v1.components.IngestComponentRequest
+ */
+export type IngestComponentRequest = Message<"vrooli.react_component_library.v1.components.IngestComponentRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string source_file = 2;
+   */
+  sourceFile: string;
+
+  /**
+   * @generated from field: string slug = 3;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: string display_name = 4;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: string description = 5;
+   */
+  description: string;
+
+  /**
+   * @generated from field: repeated string tags = 6;
+   */
+  tags: string[];
+
+  /**
+   * @generated from field: string slot = 7;
+   */
+  slot: string;
+
+  /**
+   * Optional origin companion paths. The API also discovers direct relative
+   * imports, so callers normally only need this for non-imported files.
+   *
+   * @generated from field: repeated string source_files = 8;
+   */
+  sourceFiles: string[];
+
+  /**
+   * @generated from field: string version = 9;
+   */
+  version: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.IngestComponentRequest.
+ * Use `create(IngestComponentRequestSchema)` to create a new message.
+ */
+export const IngestComponentRequestSchema: GenMessage<IngestComponentRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 11);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.components.IngestFinding
+ */
+export type IngestFinding = Message<"vrooli.react_component_library.v1.components.IngestFinding"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
+
+  /**
+   * @generated from field: string source_file = 3;
+   */
+  sourceFile: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.IngestFinding.
+ * Use `create(IngestFindingSchema)` to create a new message.
+ */
+export const IngestFindingSchema: GenMessage<IngestFinding> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 12);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.components.IngestComponentResponse
+ */
+export type IngestComponentResponse = Message<"vrooli.react_component_library.v1.components.IngestComponentResponse"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.components.Component component = 1;
+   */
+  component?: Component | undefined;
+
+  /**
+   * @generated from field: string manifest_path = 2;
+   */
+  manifestPath: string;
+
+  /**
+   * @generated from field: string source_path = 3;
+   */
+  sourcePath: string;
+
+  /**
+   * @generated from field: string draft_version = 4;
+   */
+  draftVersion: string;
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.components.IngestFinding findings = 5;
+   */
+  findings: IngestFinding[];
+
+  /**
+   * @generated from field: string checklist_path = 6;
+   */
+  checklistPath: string;
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.components.IngestParityReport parity_report = 7;
+   */
+  parityReport?: IngestParityReport | undefined;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.IngestComponentResponse.
+ * Use `create(IngestComponentResponseSchema)` to create a new message.
+ */
+export const IngestComponentResponseSchema: GenMessage<IngestComponentResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 13);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.components.IngestParityReport
+ */
+export type IngestParityReport = Message<"vrooli.react_component_library.v1.components.IngestParityReport"> & {
+  /**
+   * @generated from field: repeated string origin_files = 1;
+   */
+  originFiles: string[];
+
+  /**
+   * @generated from field: repeated string harvested_files = 2;
+   */
+  harvestedFiles: string[];
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.components.IngestFinding findings = 3;
+   */
+  findings: IngestFinding[];
+
+  /**
+   * @generated from field: bool acknowledged = 4;
+   */
+  acknowledged: boolean;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.IngestParityReport.
+ * Use `create(IngestParityReportSchema)` to create a new message.
+ */
+export const IngestParityReportSchema: GenMessage<IngestParityReport> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 14);
+
+/**
  * @generated from message vrooli.react_component_library.v1.components.CreateComponentVersionRequest
  */
 export type CreateComponentVersionRequest = Message<"vrooli.react_component_library.v1.components.CreateComponentVersionRequest"> & {
@@ -493,6 +671,11 @@ export type CreateComponentVersionRequest = Message<"vrooli.react_component_libr
    * @generated from field: string changelog_md = 7;
    */
   changelogMd: string;
+
+  /**
+   * @generated from field: bool acknowledge_parity_waiver = 8;
+   */
+  acknowledgeParityWaiver: boolean;
 };
 
 /**
@@ -500,7 +683,7 @@ export type CreateComponentVersionRequest = Message<"vrooli.react_component_libr
  * Use `create(CreateComponentVersionRequestSchema)` to create a new message.
  */
 export const CreateComponentVersionRequestSchema: GenMessage<CreateComponentVersionRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 11);
+  messageDesc(file_react_component_library_v1_components_components, 15);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.CreateComponentVersionResponse
@@ -527,7 +710,7 @@ export type CreateComponentVersionResponse = Message<"vrooli.react_component_lib
  * Use `create(CreateComponentVersionResponseSchema)` to create a new message.
  */
 export const CreateComponentVersionResponseSchema: GenMessage<CreateComponentVersionResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 12);
+  messageDesc(file_react_component_library_v1_components_components, 16);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.UpdateComponentManifestRequest
@@ -574,7 +757,7 @@ export type UpdateComponentManifestRequest = Message<"vrooli.react_component_lib
  * Use `create(UpdateComponentManifestRequestSchema)` to create a new message.
  */
 export const UpdateComponentManifestRequestSchema: GenMessage<UpdateComponentManifestRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 13);
+  messageDesc(file_react_component_library_v1_components_components, 17);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.UpdateComponentManifestResponse
@@ -591,7 +774,7 @@ export type UpdateComponentManifestResponse = Message<"vrooli.react_component_li
  * Use `create(UpdateComponentManifestResponseSchema)` to create a new message.
  */
 export const UpdateComponentManifestResponseSchema: GenMessage<UpdateComponentManifestResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 14);
+  messageDesc(file_react_component_library_v1_components_components, 18);
 
 /**
  * GetComponentContentRequest reads the on-disk source file backing a
@@ -605,6 +788,14 @@ export type GetComponentContentRequest = Message<"vrooli.react_component_library
    * @generated from field: string id = 1;
    */
   id: string;
+
+  /**
+   * Optional file path relative to the latest version folder. Empty selects
+   * the entry file for backward-compatible single-file callers.
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
 };
 
 /**
@@ -612,7 +803,7 @@ export type GetComponentContentRequest = Message<"vrooli.react_component_library
  * Use `create(GetComponentContentRequestSchema)` to create a new message.
  */
 export const GetComponentContentRequestSchema: GenMessage<GetComponentContentRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 15);
+  messageDesc(file_react_component_library_v1_components_components, 19);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.GetComponentContentResponse
@@ -648,7 +839,7 @@ export type GetComponentContentResponse = Message<"vrooli.react_component_librar
  * Use `create(GetComponentContentResponseSchema)` to create a new message.
  */
 export const GetComponentContentResponseSchema: GenMessage<GetComponentContentResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 16);
+  messageDesc(file_react_component_library_v1_components_components, 20);
 
 /**
  * UpdateComponentContentRequest writes the on-disk source file in
@@ -682,6 +873,14 @@ export type UpdateComponentContentRequest = Message<"vrooli.react_component_libr
    * @generated from field: string expected_sha256 = 3;
    */
   expectedSha256: string;
+
+  /**
+   * Optional file path relative to the latest version folder. Empty selects
+   * the entry file.
+   *
+   * @generated from field: string path = 4;
+   */
+  path: string;
 };
 
 /**
@@ -689,7 +888,7 @@ export type UpdateComponentContentRequest = Message<"vrooli.react_component_libr
  * Use `create(UpdateComponentContentRequestSchema)` to create a new message.
  */
 export const UpdateComponentContentRequestSchema: GenMessage<UpdateComponentContentRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 17);
+  messageDesc(file_react_component_library_v1_components_components, 21);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.UpdateComponentContentResponse
@@ -715,7 +914,7 @@ export type UpdateComponentContentResponse = Message<"vrooli.react_component_lib
  * Use `create(UpdateComponentContentResponseSchema)` to create a new message.
  */
 export const UpdateComponentContentResponseSchema: GenMessage<UpdateComponentContentResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 18);
+  messageDesc(file_react_component_library_v1_components_components, 22);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ComponentVersion
@@ -770,6 +969,16 @@ export type ComponentVersion = Message<"vrooli.react_component_library.v1.compon
    * @generated from field: google.protobuf.Timestamp released_at = 10;
    */
   releasedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.components.ComponentVersionFile files = 11;
+   */
+  files: ComponentVersionFile[];
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.components.IngestParityReport parity_report = 12;
+   */
+  parityReport?: IngestParityReport | undefined;
 };
 
 /**
@@ -777,7 +986,34 @@ export type ComponentVersion = Message<"vrooli.react_component_library.v1.compon
  * Use `create(ComponentVersionSchema)` to create a new message.
  */
 export const ComponentVersionSchema: GenMessage<ComponentVersion> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 19);
+  messageDesc(file_react_component_library_v1_components_components, 23);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.components.ComponentVersionFile
+ */
+export type ComponentVersionFile = Message<"vrooli.react_component_library.v1.components.ComponentVersionFile"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string content_sha256 = 2;
+   */
+  contentSha256: string;
+
+  /**
+   * @generated from field: bool is_entry = 3;
+   */
+  isEntry: boolean;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.ComponentVersionFile.
+ * Use `create(ComponentVersionFileSchema)` to create a new message.
+ */
+export const ComponentVersionFileSchema: GenMessage<ComponentVersionFile> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 24);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ComponentDesignAffinity
@@ -804,7 +1040,7 @@ export type ComponentDesignAffinity = Message<"vrooli.react_component_library.v1
  * Use `create(ComponentDesignAffinitySchema)` to create a new message.
  */
 export const ComponentDesignAffinitySchema: GenMessage<ComponentDesignAffinity> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 20);
+  messageDesc(file_react_component_library_v1_components_components, 25);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ListComponentVersionsRequest
@@ -826,7 +1062,7 @@ export type ListComponentVersionsRequest = Message<"vrooli.react_component_libra
  * Use `create(ListComponentVersionsRequestSchema)` to create a new message.
  */
 export const ListComponentVersionsRequestSchema: GenMessage<ListComponentVersionsRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 21);
+  messageDesc(file_react_component_library_v1_components_components, 26);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ListComponentVersionsResponse
@@ -843,7 +1079,7 @@ export type ListComponentVersionsResponse = Message<"vrooli.react_component_libr
  * Use `create(ListComponentVersionsResponseSchema)` to create a new message.
  */
 export const ListComponentVersionsResponseSchema: GenMessage<ListComponentVersionsResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 22);
+  messageDesc(file_react_component_library_v1_components_components, 27);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.GetComponentVersionContentRequest
@@ -858,6 +1094,11 @@ export type GetComponentVersionContentRequest = Message<"vrooli.react_component_
    * @generated from field: string version = 2;
    */
   version: string;
+
+  /**
+   * @generated from field: string path = 3;
+   */
+  path: string;
 };
 
 /**
@@ -865,7 +1106,7 @@ export type GetComponentVersionContentRequest = Message<"vrooli.react_component_
  * Use `create(GetComponentVersionContentRequestSchema)` to create a new message.
  */
 export const GetComponentVersionContentRequestSchema: GenMessage<GetComponentVersionContentRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 23);
+  messageDesc(file_react_component_library_v1_components_components, 28);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.GetComponentVersionContentResponse
@@ -887,7 +1128,7 @@ export type GetComponentVersionContentResponse = Message<"vrooli.react_component
  * Use `create(GetComponentVersionContentResponseSchema)` to create a new message.
  */
 export const GetComponentVersionContentResponseSchema: GenMessage<GetComponentVersionContentResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 24);
+  messageDesc(file_react_component_library_v1_components_components, 29);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ComponentExample
@@ -954,7 +1195,7 @@ export type ComponentExample = Message<"vrooli.react_component_library.v1.compon
  * Use `create(ComponentExampleSchema)` to create a new message.
  */
 export const ComponentExampleSchema: GenMessage<ComponentExample> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 25);
+  messageDesc(file_react_component_library_v1_components_components, 30);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ListComponentExamplesRequest
@@ -981,7 +1222,7 @@ export type ListComponentExamplesRequest = Message<"vrooli.react_component_libra
  * Use `create(ListComponentExamplesRequestSchema)` to create a new message.
  */
 export const ListComponentExamplesRequestSchema: GenMessage<ListComponentExamplesRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 26);
+  messageDesc(file_react_component_library_v1_components_components, 31);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ListComponentExamplesResponse
@@ -998,7 +1239,7 @@ export type ListComponentExamplesResponse = Message<"vrooli.react_component_libr
  * Use `create(ListComponentExamplesResponseSchema)` to create a new message.
  */
 export const ListComponentExamplesResponseSchema: GenMessage<ListComponentExamplesResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 27);
+  messageDesc(file_react_component_library_v1_components_components, 32);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.DesignStyle
@@ -1030,7 +1271,7 @@ export type DesignStyle = Message<"vrooli.react_component_library.v1.components.
  * Use `create(DesignStyleSchema)` to create a new message.
  */
 export const DesignStyleSchema: GenMessage<DesignStyle> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 28);
+  messageDesc(file_react_component_library_v1_components_components, 33);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ListDesignStylesRequest
@@ -1043,7 +1284,7 @@ export type ListDesignStylesRequest = Message<"vrooli.react_component_library.v1
  * Use `create(ListDesignStylesRequestSchema)` to create a new message.
  */
 export const ListDesignStylesRequestSchema: GenMessage<ListDesignStylesRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 29);
+  messageDesc(file_react_component_library_v1_components_components, 34);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ListDesignStylesResponse
@@ -1060,7 +1301,7 @@ export type ListDesignStylesResponse = Message<"vrooli.react_component_library.v
  * Use `create(ListDesignStylesResponseSchema)` to create a new message.
  */
 export const ListDesignStylesResponseSchema: GenMessage<ListDesignStylesResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 30);
+  messageDesc(file_react_component_library_v1_components_components, 35);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ValidateStyleFitRequest
@@ -1087,7 +1328,7 @@ export type ValidateStyleFitRequest = Message<"vrooli.react_component_library.v1
  * Use `create(ValidateStyleFitRequestSchema)` to create a new message.
  */
 export const ValidateStyleFitRequestSchema: GenMessage<ValidateStyleFitRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 31);
+  messageDesc(file_react_component_library_v1_components_components, 36);
 
 /**
  * @generated from message vrooli.react_component_library.v1.components.ValidateStyleFitResponse
@@ -1134,7 +1375,7 @@ export type ValidateStyleFitResponse = Message<"vrooli.react_component_library.v
  * Use `create(ValidateStyleFitResponseSchema)` to create a new message.
  */
 export const ValidateStyleFitResponseSchema: GenMessage<ValidateStyleFitResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_components_components, 32);
+  messageDesc(file_react_component_library_v1_components_components, 37);
 
 /**
  * @generated from enum vrooli.react_component_library.v1.components.ComponentVersionIntent
@@ -1303,6 +1544,14 @@ export const ComponentsService: GenService<{
     methodKind: "unary";
     input: typeof InitializeComponentRequestSchema;
     output: typeof InitializeComponentResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.components.ComponentsService.IngestComponent
+   */
+  ingestComponent: {
+    methodKind: "unary";
+    input: typeof IngestComponentRequestSchema;
+    output: typeof IngestComponentResponseSchema;
   },
   /**
    * @generated from rpc vrooli.react_component_library.v1.components.ComponentsService.CreateComponentVersion

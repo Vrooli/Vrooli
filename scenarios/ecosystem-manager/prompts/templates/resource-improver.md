@@ -484,7 +484,7 @@ vrooli scenario test ${SCENARIO}           # CLI alternative
 vrooli resource status ${RESOURCE} --json
 
 # Optional UI evidence
-vrooli resource browserless screenshot --scenario ${SCENARIO} --output /tmp/${SCENARIO}_ui.png
+browser-automation-studio screenshot --scenario ${SCENARIO} --output /tmp/${SCENARIO}_ui.png
 ```
 Compare results with the baseline artifacts and screenshots.
 

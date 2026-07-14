@@ -154,7 +154,7 @@ See [docs/README.md](docs/README.md) for full tier documentation.
 **Progress Tracking**: All progress logs go in `docs/PROGRESS.md` (not PRD.md). PRD checkboxes auto-flip via requirement sync.
 - Artifacts live under `coverage/ui-smoke/` (screenshot, console.json, network.json, dom.html, raw.json) and the latest summary is stored at `coverage/ui-smoke/latest.json`.
 - Structure tests invoke the harness automatically. Disable it temporarily by toggling `structure.ui_smoke.enabled` in `.vrooli/testing.json` or extend the default timeouts via `timeout_ms` / `handshake_timeout_ms`.
-- Browserless must be running (`resource-browserless status --format json`). If it is offline the harness fails early so issues surface before release.
+- Browser-automation-studio must be running (`browser-automation-studio status --json`). If it is offline the harness fails early so issues surface before release.
 
 ## Required Environment Variables
 The lifecycle exports everything automatically when you run `vrooli scenario run`. If you start pieces manually, set these yourself (there are no fallbacks):

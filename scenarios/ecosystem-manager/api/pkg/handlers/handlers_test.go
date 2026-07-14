@@ -1119,7 +1119,7 @@ func TestTaskHandlers_UpdateTaskStatus_CooldownConflict(t *testing.T) {
 		ID:            "cooldown-task",
 		Type:          "scenario",
 		Operation:     "improver",
-		Target:        "landing-manager",
+		Target:        "template-manager",
 		Status:        "failed",
 		CooldownUntil: future,
 	})

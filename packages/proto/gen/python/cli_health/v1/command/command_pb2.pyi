@@ -116,14 +116,16 @@ class CommandReferenceValidationResult(_message.Message):
     def __init__(self, command_text: _Optional[str] = ..., verdict: _Optional[_Union[CommandReferenceVerdict, str]] = ..., validation_level: _Optional[_Union[CommandReferenceValidationLevel, str]] = ..., canonical_command: _Optional[str] = ..., owner: _Optional[str] = ..., source: _Optional[str] = ..., issues: _Optional[_Iterable[_Union[CommandReferenceIssue, _Mapping]]] = ..., suggestions: _Optional[_Iterable[_Union[CommandReferenceSuggestion, _Mapping]]] = ..., guidance: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CommandReferenceIssue(_message.Message):
-    __slots__ = ("code", "message", "severity")
+    __slots__ = ("code", "message", "severity", "fix")
     CODE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    FIX_FIELD_NUMBER: _ClassVar[int]
     code: str
     message: str
     severity: str
-    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., severity: _Optional[str] = ...) -> None: ...
+    fix: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., severity: _Optional[str] = ..., fix: _Optional[str] = ...) -> None: ...
 
 class CommandReferenceSuggestion(_message.Message):
     __slots__ = ("command", "reason")

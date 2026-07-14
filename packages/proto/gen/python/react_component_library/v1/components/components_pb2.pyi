@@ -55,7 +55,7 @@ STYLE_FIT_VERDICT_KIND_INFO: StyleFitVerdictKind
 STYLE_FIT_VERDICT_KIND_WARN: StyleFitVerdictKind
 
 class Component(_message.Message):
-    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles")
+    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category")
     class HeadersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -79,6 +79,7 @@ class Component(_message.Message):
     LATEST_VERSION_FIELD_NUMBER: _ClassVar[int]
     SLOT_FIELD_NUMBER: _ClassVar[int]
     DESIGN_STYLES_FIELD_NUMBER: _ClassVar[int]
+    CATEGORY_FIELD_NUMBER: _ClassVar[int]
     id: str
     library_id: str
     display_name: str
@@ -95,7 +96,8 @@ class Component(_message.Message):
     latest_version: str
     slot: str
     design_styles: _containers.RepeatedCompositeFieldContainer[ComponentDesignAffinity]
-    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ...) -> None: ...
+    category: str
+    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ..., category: _Optional[str] = ...) -> None: ...
 
 class ListComponentsRequest(_message.Message):
     __slots__ = ("match", "tag", "limit", "tags", "category", "style_id", "affinity")
@@ -195,8 +197,70 @@ class InitializeComponentResponse(_message.Message):
     source_path: str
     def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., manifest_path: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
 
+class IngestComponentRequest(_message.Message):
+    __slots__ = ("scenario", "source_file", "slug", "display_name", "description", "tags", "slot", "source_files", "version")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FILE_FIELD_NUMBER: _ClassVar[int]
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    SLOT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FILES_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    source_file: str
+    slug: str
+    display_name: str
+    description: str
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    slot: str
+    source_files: _containers.RepeatedScalarFieldContainer[str]
+    version: str
+    def __init__(self, scenario: _Optional[str] = ..., source_file: _Optional[str] = ..., slug: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., slot: _Optional[str] = ..., source_files: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ...) -> None: ...
+
+class IngestFinding(_message.Message):
+    __slots__ = ("code", "message", "source_file")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FILE_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    message: str
+    source_file: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., source_file: _Optional[str] = ...) -> None: ...
+
+class IngestComponentResponse(_message.Message):
+    __slots__ = ("component", "manifest_path", "source_path", "draft_version", "findings", "checklist_path", "parity_report")
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    CHECKLIST_PATH_FIELD_NUMBER: _ClassVar[int]
+    PARITY_REPORT_FIELD_NUMBER: _ClassVar[int]
+    component: Component
+    manifest_path: str
+    source_path: str
+    draft_version: str
+    findings: _containers.RepeatedCompositeFieldContainer[IngestFinding]
+    checklist_path: str
+    parity_report: IngestParityReport
+    def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., manifest_path: _Optional[str] = ..., source_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[IngestFinding, _Mapping]]] = ..., checklist_path: _Optional[str] = ..., parity_report: _Optional[_Union[IngestParityReport, _Mapping]] = ...) -> None: ...
+
+class IngestParityReport(_message.Message):
+    __slots__ = ("origin_files", "harvested_files", "findings", "acknowledged")
+    ORIGIN_FILES_FIELD_NUMBER: _ClassVar[int]
+    HARVESTED_FILES_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    ACKNOWLEDGED_FIELD_NUMBER: _ClassVar[int]
+    origin_files: _containers.RepeatedScalarFieldContainer[str]
+    harvested_files: _containers.RepeatedScalarFieldContainer[str]
+    findings: _containers.RepeatedCompositeFieldContainer[IngestFinding]
+    acknowledged: bool
+    def __init__(self, origin_files: _Optional[_Iterable[str]] = ..., harvested_files: _Optional[_Iterable[str]] = ..., findings: _Optional[_Iterable[_Union[IngestFinding, _Mapping]]] = ..., acknowledged: _Optional[bool] = ...) -> None: ...
+
 class CreateComponentVersionRequest(_message.Message):
-    __slots__ = ("component_id", "version", "from_version", "intent", "file_name", "source", "changelog_md")
+    __slots__ = ("component_id", "version", "from_version", "intent", "file_name", "source", "changelog_md", "acknowledge_parity_waiver")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     FROM_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -204,6 +268,7 @@ class CreateComponentVersionRequest(_message.Message):
     FILE_NAME_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     CHANGELOG_MD_FIELD_NUMBER: _ClassVar[int]
+    ACKNOWLEDGE_PARITY_WAIVER_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     version: str
     from_version: str
@@ -211,7 +276,8 @@ class CreateComponentVersionRequest(_message.Message):
     file_name: str
     source: str
     changelog_md: str
-    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., from_version: _Optional[str] = ..., intent: _Optional[_Union[ComponentVersionIntent, str]] = ..., file_name: _Optional[str] = ..., source: _Optional[str] = ..., changelog_md: _Optional[str] = ...) -> None: ...
+    acknowledge_parity_waiver: bool
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., from_version: _Optional[str] = ..., intent: _Optional[_Union[ComponentVersionIntent, str]] = ..., file_name: _Optional[str] = ..., source: _Optional[str] = ..., changelog_md: _Optional[str] = ..., acknowledge_parity_waiver: _Optional[bool] = ...) -> None: ...
 
 class CreateComponentVersionResponse(_message.Message):
     __slots__ = ("component", "version", "source_path")
@@ -248,10 +314,12 @@ class UpdateComponentManifestResponse(_message.Message):
     def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ...) -> None: ...
 
 class GetComponentContentRequest(_message.Message):
-    __slots__ = ("id",)
+    __slots__ = ("id", "path")
     ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
     id: str
-    def __init__(self, id: _Optional[str] = ...) -> None: ...
+    path: str
+    def __init__(self, id: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class GetComponentContentResponse(_message.Message):
     __slots__ = ("content", "source_path", "sha256")
@@ -264,14 +332,16 @@ class GetComponentContentResponse(_message.Message):
     def __init__(self, content: _Optional[str] = ..., source_path: _Optional[str] = ..., sha256: _Optional[str] = ...) -> None: ...
 
 class UpdateComponentContentRequest(_message.Message):
-    __slots__ = ("id", "content", "expected_sha256")
+    __slots__ = ("id", "content", "expected_sha256", "path")
     ID_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_SHA256_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
     id: str
     content: str
     expected_sha256: str
-    def __init__(self, id: _Optional[str] = ..., content: _Optional[str] = ..., expected_sha256: _Optional[str] = ...) -> None: ...
+    path: str
+    def __init__(self, id: _Optional[str] = ..., content: _Optional[str] = ..., expected_sha256: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class UpdateComponentContentResponse(_message.Message):
     __slots__ = ("sha256", "source_path")
@@ -282,7 +352,7 @@ class UpdateComponentContentResponse(_message.Message):
     def __init__(self, sha256: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
 
 class ComponentVersion(_message.Message):
-    __slots__ = ("id", "component_id", "library_id", "version", "status", "source_path", "content_sha256", "changelog_md", "indexed_at", "released_at")
+    __slots__ = ("id", "component_id", "library_id", "version", "status", "source_path", "content_sha256", "changelog_md", "indexed_at", "released_at", "files", "parity_report")
     ID_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
@@ -293,6 +363,8 @@ class ComponentVersion(_message.Message):
     CHANGELOG_MD_FIELD_NUMBER: _ClassVar[int]
     INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
     RELEASED_AT_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    PARITY_REPORT_FIELD_NUMBER: _ClassVar[int]
     id: str
     component_id: str
     library_id: str
@@ -303,7 +375,19 @@ class ComponentVersion(_message.Message):
     changelog_md: str
     indexed_at: _timestamp_pb2.Timestamp
     released_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., status: _Optional[_Union[ComponentVersionStatus, str]] = ..., source_path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    files: _containers.RepeatedCompositeFieldContainer[ComponentVersionFile]
+    parity_report: IngestParityReport
+    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., status: _Optional[_Union[ComponentVersionStatus, str]] = ..., source_path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., files: _Optional[_Iterable[_Union[ComponentVersionFile, _Mapping]]] = ..., parity_report: _Optional[_Union[IngestParityReport, _Mapping]] = ...) -> None: ...
+
+class ComponentVersionFile(_message.Message):
+    __slots__ = ("path", "content_sha256", "is_entry")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    IS_ENTRY_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    content_sha256: str
+    is_entry: bool
+    def __init__(self, path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., is_entry: _Optional[bool] = ...) -> None: ...
 
 class ComponentDesignAffinity(_message.Message):
     __slots__ = ("style_id", "affinity", "reason")
@@ -330,12 +414,14 @@ class ListComponentVersionsResponse(_message.Message):
     def __init__(self, versions: _Optional[_Iterable[_Union[ComponentVersion, _Mapping]]] = ...) -> None: ...
 
 class GetComponentVersionContentRequest(_message.Message):
-    __slots__ = ("component_id", "version")
+    __slots__ = ("component_id", "version", "path")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     version: str
-    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
+    path: str
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class GetComponentVersionContentResponse(_message.Message):
     __slots__ = ("version", "content")

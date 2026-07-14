@@ -80,6 +80,11 @@ message CommandReferenceIssue {
   string code = 1;
   string message = 2;
   string severity = 3;
+  // fix, when non-empty, is the byte-exact replacement command text that
+  // resolves this issue (e.g. the unquoted_placeholder issue carries the same
+  // snippet with every unquoted <...> group wrapped in double quotes).
+  // Downstream fixers apply it verbatim; they never recompute it.
+  string fix = 4;
 }
 
 message CommandReferenceSuggestion {

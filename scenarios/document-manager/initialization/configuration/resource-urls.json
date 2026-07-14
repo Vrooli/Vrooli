@@ -92,15 +92,6 @@
       "auth_method": "token",
       "token": "${VAULT_TOKEN}",
       "health_check_url": "http://localhost:8200/v1/sys/health"
-    },
-    "browserless": {
-      "host": "localhost",
-      "port": 4110,
-      "base_url": "http://localhost:4110",
-      "api_url": "http://localhost:4110",
-      "concurrent_sessions": 10,
-      "session_timeout": 30000,
-      "health_check_url": "http://localhost:4110/health"
     }
   },
   "service_discovery": {

@@ -556,10 +556,15 @@ func (x *CommandReferenceValidationResult) GetGuidance() []string {
 }
 
 type CommandReferenceIssue struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	Severity      string                 `protobuf:"bytes,3,opt,name=severity,proto3" json:"severity,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Code     string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Message  string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Severity string                 `protobuf:"bytes,3,opt,name=severity,proto3" json:"severity,omitempty"`
+	// fix, when non-empty, is the byte-exact replacement command text that
+	// resolves this issue (e.g. the unquoted_placeholder issue carries the same
+	// snippet with every unquoted <...> group wrapped in double quotes).
+	// Downstream fixers apply it verbatim; they never recompute it.
+	Fix           string `protobuf:"bytes,4,opt,name=fix,proto3" json:"fix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -611,6 +616,13 @@ func (x *CommandReferenceIssue) GetMessage() string {
 func (x *CommandReferenceIssue) GetSeverity() string {
 	if x != nil {
 		return x.Severity
+	}
+	return ""
+}
+
+func (x *CommandReferenceIssue) GetFix() string {
+	if x != nil {
+		return x.Fix
 	}
 	return ""
 }
@@ -694,11 +706,12 @@ const file_cli_health_v1_command_command_proto_rawDesc = "" +
 	"\x06source\x18\x06 \x01(\tR\x06source\x12K\n" +
 	"\x06issues\x18\a \x03(\v23.vrooli.cli_health.v1.command.CommandReferenceIssueR\x06issues\x12Z\n" +
 	"\vsuggestions\x18\b \x03(\v28.vrooli.cli_health.v1.command.CommandReferenceSuggestionR\vsuggestions\x12\x1a\n" +
-	"\bguidance\x18\t \x03(\tR\bguidance\"a\n" +
+	"\bguidance\x18\t \x03(\tR\bguidance\"s\n" +
 	"\x15CommandReferenceIssue\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1a\n" +
-	"\bseverity\x18\x03 \x01(\tR\bseverity\"N\n" +
+	"\bseverity\x18\x03 \x01(\tR\bseverity\x12\x10\n" +
+	"\x03fix\x18\x04 \x01(\tR\x03fix\"N\n" +
 	"\x1aCommandReferenceSuggestion\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\tR\acommand\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason*\xd1\x01\n" +
