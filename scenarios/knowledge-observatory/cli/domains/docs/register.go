@@ -19,6 +19,8 @@ import (
 
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
 	kov1connect "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -128,7 +130,7 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
 		Title: "Documentation",
 		Commands: []cliapp.Command{
-			{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (read, add, view, search-files, search-text, search-deep, scenarios, tree, health, audit, heal, heal-status, autofix, reset, stats, templates, template)", Run: func(args []string) error {
+			{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (read, add, view, search-files, search-text, search-deep, scenarios, tree, health, audit, heal, heal-status, autofix, fix-placeholders, reset, stats, templates, template)", Run: func(args []string) error {
 				return run(deps, args)
 			}},
 		},
@@ -152,6 +154,7 @@ Subcommands:
   heal          Auto-fix documentation health issues (agent)
   heal-status   Check heal job status
   autofix       Quick-fix misplaced docs (deterministic, no agent)
+  fix-placeholders  Quote unquoted <...> placeholders in command snippets (deterministic, no agent)
   reset         Clean up stale entries
   stats         Show read/write/reset stats
   templates     List available document templates
@@ -192,6 +195,8 @@ func run(deps support.Dependencies, args []string) error {
 		return healStatus(deps, args[1:])
 	case "autofix":
 		return autoFix(deps, args[1:])
+	case "fix-placeholders":
+		return fixPlaceholders(deps, args[1:])
 	case "read":
 		return read(deps, args[1:])
 	case "add":
@@ -633,6 +638,90 @@ func autoFix(deps support.Dependencies, args []string) error {
 	}
 	fmt.Printf("Health: %.0f%% → %.0f%%\n", result.HealthBefore*100, result.HealthAfter*100)
 	return nil
+}
+
+// fixPlaceholders is a thin wrapper over the shared scenario-validation Fix
+// RPC scoped to the placeholder_style rule: PreviewFix for --dry-run, ApplyFix
+// otherwise. The server computes and applies the byte-exact edits; the CLI
+// only renders the returned candidates as a unified diff.
+func fixPlaceholders(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("docs fix-placeholders", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "Scenario name")
+	dryRun := fs.Bool("dry-run", false, "Preview the unified diff without writing")
+	jsonOut := fs.Bool("json", false, "Output raw JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	scenarioValue := strings.TrimSpace(*scenario)
+	if scenarioValue == "" {
+		scenarioValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if scenarioValue == "" {
+		return fmt.Errorf("usage: docs fix-placeholders <scenario> [--dry-run] [--json]")
+	}
+
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(deps.ScenarioApp())
+	if strings.TrimSpace(baseURL) == "" {
+		return fmt.Errorf("knowledge-observatory API base URL is empty — start the scenario or pass --api-base")
+	}
+	client := scenariovalidationv1connect.NewScenarioValidationServiceClient(httpClient, baseURL)
+	req := connect.NewRequest(&scenariovalidationv1.FixRequest{
+		Scenario: scenarioValue,
+		RuleIds:  []string{"placeholder_style"},
+	})
+	var resp *connect.Response[scenariovalidationv1.FixResponse]
+	var err error
+	if *dryRun {
+		resp, err = client.PreviewFix(context.Background(), req)
+	} else {
+		resp, err = client.ApplyFix(context.Background(), req)
+	}
+	if err != nil {
+		return fmt.Errorf("placeholder fix RPC failed: %w", err)
+	}
+	if *jsonOut {
+		body, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(resp.Msg)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(body))
+		return nil
+	}
+
+	if *dryRun {
+		fmt.Println("Dry run — no files were written.")
+	}
+	candidates := resp.Msg.GetCandidates()
+	if len(candidates) == 0 {
+		fmt.Println("No unquoted placeholders to fix.")
+	}
+	for _, c := range candidates {
+		fmt.Printf("%s: %s\n", c.GetFilePath(), c.GetDescription())
+		fmt.Print(renderBeforeAfterDiff(c.GetFilePath(), c.GetBefore(), c.GetAfter()))
+	}
+	for _, m := range resp.Msg.GetMessages() {
+		fmt.Println(m)
+	}
+	return nil
+}
+
+// renderBeforeAfterDiff renders a minimal unified diff (one hunk per changed
+// line) from full before/after file contents.
+func renderBeforeAfterDiff(path, before, after string) string {
+	beforeLines := strings.Split(before, "\n")
+	afterLines := strings.Split(after, "\n")
+	var b strings.Builder
+	fmt.Fprintf(&b, "--- a/%s\n+++ b/%s\n", path, path)
+	n := len(beforeLines)
+	if len(afterLines) < n {
+		n = len(afterLines)
+	}
+	for i := 0; i < n; i++ {
+		if beforeLines[i] != afterLines[i] {
+			fmt.Fprintf(&b, "@@ -%d +%d @@\n-%s\n+%s\n", i+1, i+1, beforeLines[i], afterLines[i])
+		}
+	}
+	return b.String()
 }
 
 func read(deps support.Dependencies, args []string) error {

@@ -49,7 +49,7 @@
     },
     
     "web_automation": {
-      "enabled": {{ "true" if "browserless" in resources.required else "false" }},
+      "enabled": false,
       "pdf_generation": true,
       "screenshot_capture": true,
       "scraping_support": true

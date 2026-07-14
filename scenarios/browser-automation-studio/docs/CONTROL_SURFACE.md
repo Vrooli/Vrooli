@@ -7,7 +7,7 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 | Lever | Set via | Default | When to move |
 |-------|---------|---------|--------------|
 | Execution budget & per-step limits | Workflow metadata `executionTimeoutMs`/`defaultTimeoutMs`; API `BAS_EXECUTION_*`; driver `EXECUTION_*` | API dynamic ≈ `30s + steps*10s` (subflows 15s/step, clamp 90s–4.5m); driver 30s default / 45s navigation / 30s waits / 15s assertions | Raise for flaky/slow sites; lower for CI fail fast. Keep driver < API < HTTP client (5m). |
-| Selector probes & heartbeats | `BAS_EXECUTION_DEFAULT_ENTRY_TIMEOUT_MS`, `BAS_EXECUTION_MIN_ENTRY_TIMEOUT_MS`, `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` (`BROWSERLESS_HEARTBEAT_INTERVAL` alias) | 3000ms entry / 250ms floor / 2000ms heartbeats (0 = off) | Increase entry timeout for slow rendering; shorten for fixtures to catch missing selectors quickly. Lengthen or disable heartbeats if clients are bandwidth-constrained; tighten for closer liveness tracking. |
+| Selector probes & heartbeats | `BAS_EXECUTION_DEFAULT_ENTRY_TIMEOUT_MS`, `BAS_EXECUTION_MIN_ENTRY_TIMEOUT_MS`, `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` | 3000ms entry / 250ms floor / 2000ms heartbeats (0 = off) | Increase entry timeout for slow rendering; shorten for fixtures to catch missing selectors quickly. Lengthen or disable heartbeats if clients are bandwidth-constrained; tighten for closer liveness tracking. |
 | Session concurrency/pooling | Driver `MAX_SESSIONS`, `SESSION_POOL_SIZE`, `SESSION_IDLE_TIMEOUT_MS`; engine capabilities mirror driver | 10 concurrent / pool 5 / idle 5m | Raise pool/idle for reuse-heavy runs; cap lower for resource-constrained nodes. Keep `maxConcurrent >= poolSize`. |
 | Telemetry backpressure | `BAS_EVENTS_PER_EXECUTION_BUFFER`, `BAS_EVENTS_PER_ATTEMPT_BUFFER`, `BAS_WS_CLIENT_*` | 200 per execution / 50 per attempt; WS send 256 / binary 120 / read 512 | Raise for verbose console/network/heartbeat streams or UX metrics; lower on memory pressure. Droppable events are heartbeat/telemetry/screenshot; completion/failure stay guaranteed. |
 | Recording quality & archive bounds | `BAS_RECORDING_DEFAULT_*`, `BAS_RECORDING_MAX_ARCHIVE_BYTES`, `BAS_RECORDING_MAX_FRAMES`, driver recording toggles | 1280x720, 6 FPS, JPEG 55; 200MB archive; 400 frames; 90s idle timeout | Raise quality/FPS for demos; lower for CI to reduce bandwidth and processing. Trim archive/frame caps when running many parallel recordings. |
@@ -34,7 +34,7 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 ## Recently wired levers (now active)
 
 - Execution timeout envs honored via `config.Execution` (base/per-step/subflow/min/max) with safe defaults (`BAS_EXECUTION_*`).
-- Heartbeat cadence now comes from `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` (alias `BROWSERLESS_HEARTBEAT_INTERVAL`), defaulting to 2s with 0 to disable.
+- Heartbeat cadence now comes from `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS`, defaulting to 2s with 0 to disable.
 - Event buffer limits now respect `BAS_EVENTS_PER_EXECUTION_BUFFER` / `BAS_EVENTS_PER_ATTEMPT_BUFFER` for WebSocket sinks and collectors.
 - Adhoc cleanup cadence/retention configurable via `BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS` / `BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS`.
 - Engine concurrency cap mirrors driver `MAX_SESSIONS` (default 10) for consistent pool limits.

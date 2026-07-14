@@ -616,7 +616,7 @@ const literalSelectors = {
     newButton: "new-workflow-button",
     newButtonFab: "new-workflow-button-fab",
   },
-  // Landing Manager Admin Portal selectors
+  // Landing-page admin portal selectors
   // Note: These are data-testid selector values, NOT actual credentials
   // nosec: These string literals are DOM test selectors, not secrets
   exports: {

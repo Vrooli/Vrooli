@@ -77,6 +77,7 @@ func resultToProto(r commandref.Result) *commandv1.CommandReferenceValidationRes
 			Code:     issue.Code,
 			Message:  issue.Message,
 			Severity: issue.Severity,
+			Fix:      issue.Fix,
 		})
 	}
 	for _, suggestion := range r.Suggestions {

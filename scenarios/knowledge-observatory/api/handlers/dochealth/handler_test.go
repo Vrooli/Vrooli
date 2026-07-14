@@ -65,6 +65,71 @@ func TestFixUnimplementedWithoutFixer(t *testing.T) {
 	}
 }
 
+// placeholderStubValidator flags one unquoted <...> group with a byte-exact
+// quoted fix, mimicking cli-health's DOCS-policy response.
+type placeholderStubValidator struct{}
+
+func (placeholderStubValidator) ValidateCommandReference(_ context.Context, req dochealth.CommandReferenceRequest) (dochealth.CommandReferenceResult, error) {
+	cmd := strings.TrimSpace(req.CommandText)
+	result := dochealth.CommandReferenceResult{CommandText: cmd, Verdict: "valid"}
+	if strings.Contains(cmd, "<id>") && !strings.Contains(cmd, `"<id>"`) {
+		result.Issues = append(result.Issues, dochealth.CommandReferenceIssue{
+			Code:     "unquoted_placeholder",
+			Message:  "placeholder is unquoted",
+			Severity: "warning",
+			Fix:      strings.Replace(cmd, "<id>", `"<id>"`, 1),
+		})
+	}
+	return result, nil
+}
+
+// TestFixPlaceholderStyleRule exercises the placeholder_style rule through the
+// shared Fix RPC: preview carries before/after without writing; apply writes
+// the quoted form; the rule filter excludes the doc-move fixer.
+func TestFixPlaceholderStyleRule(t *testing.T) {
+	root := t.TempDir()
+	scenario := filepath.Join(root, "demo-scenario")
+	docPath := filepath.Join(scenario, "docs", "guide.md")
+	original := "# Guide\n\n```bash\ndemo-scenario items get <id>\n```\n"
+	writeFile(t, docPath, original)
+	svc, err := dochealth.NewService(root, dochealth.WithCommandReferenceValidator(placeholderStubValidator{}))
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	h := NewWithDeps(Deps{Service: svc})
+
+	req := &scenariovalidationv1.FixRequest{Scenario: "demo-scenario", RuleIds: []string{"placeholder_style"}}
+	preview, err := h.PreviewFix(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		t.Fatalf("PreviewFix: %v", err)
+	}
+	cands := preview.Msg.GetCandidates()
+	if len(cands) != 1 || cands[0].GetRuleId() != "placeholder_style" {
+		t.Fatalf("preview candidates = %+v, want one placeholder_style", cands)
+	}
+	if !strings.Contains(cands[0].GetAfter(), `"<id>"`) || cands[0].GetApplied() {
+		t.Fatalf("preview candidate = %+v, want quoted after content and applied=false", cands[0])
+	}
+	if got, _ := os.ReadFile(docPath); string(got) != original {
+		t.Fatal("preview must not write files")
+	}
+
+	applied, err := h.ApplyFix(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		t.Fatalf("ApplyFix: %v", err)
+	}
+	if cands := applied.Msg.GetCandidates(); len(cands) != 1 || !cands[0].GetApplied() {
+		t.Fatalf("apply candidates = %+v, want one applied", cands)
+	}
+	got, err := os.ReadFile(docPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), `demo-scenario items get "<id>"`) {
+		t.Fatalf("applied content = %q, want quoted placeholder", got)
+	}
+}
+
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

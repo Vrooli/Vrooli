@@ -278,7 +278,7 @@
         "status": "ready",
         "fitness_score": 0.85,
         "constraints": [
-          "Requires full Vrooli stack with browserless Chromium workers and app-monitor proxy",
+          "Requires full Vrooli stack with the in-repo Playwright driver and app-monitor proxy",
           "Needs outbound network for OpenRouter fallback when Ollama disabled"
         ],
         "requirements": {
@@ -292,11 +292,6 @@
         },
         "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel. Persistent storage is local SQLite via api-core/storage.",
         "secrets": [
-          {
-            "secret_id": "browserless/api-key",
-            "classification": "infrastructure",
-            "notes": "Never ships with desktop bundles"
-          },
           {
             "secret_id": "openrouter/api-key",
             "classification": "user",
@@ -316,7 +311,7 @@
         "status": "limited",
         "fitness_score": 0.5,
         "constraints": [
-          "Browserless requires bundled Playwright runner",
+          "Browser automation requires a bundled Playwright runner",
           "MinIO requires background server and credentials",
           "Secrets must be provisioned at install time"
         ],
@@ -331,9 +326,9 @@
         },
         "adaptations": [
           {
-            "dependency": "browserless",
+            "dependency": "playwright-driver",
             "swap": "playwright-packaged",
-            "impact": "Compile Playwright into the Electron app to avoid remote dependency",
+            "impact": "Compile the Playwright driver into the Electron app to avoid a background service",
             "effort_days": 5,
             "notes": "Requires custom runner and sandbox hardening"
           },
@@ -344,7 +339,7 @@
             "effort_days": 2
           }
         ],
-        "notes": "Storage runs as embedded SQLite via api-core/storage. scenario-to-desktop currently ships a thin client only; full bundling blocked until browserless and minio swaps are executed.",
+        "notes": "Storage runs as embedded SQLite via api-core/storage. scenario-to-desktop currently ships a thin client only; full bundling blocked until the Playwright driver and minio swaps are executed.",
         "artifacts": [
           {
             "type": "electron-app",
@@ -379,61 +374,20 @@
           "source": "estimated",
           "confidence": "low"
         },
-        "notes": "Viable once deployment-manager can provision Browserless pools and managed storage"
+        "notes": "Viable once deployment-manager can provision Playwright driver pools and managed storage"
       },
       "tier-5-enterprise": {
         "status": "limited",
         "fitness_score": 0.55,
         "constraints": [
           "Secrets segregation + air-gapped resource support not implemented",
-          "Requires on-prem Browserless fleet management"
+          "Requires on-prem Playwright driver fleet management"
         ],
         "notes": "Follows SaaS path but with hardened secrets + monitoring"
       }
     },
     "dependencies": {
       "resources": {
-        "browserless": {
-          "resource_type": "browser-automation",
-          "footprint": {
-            "ram_mb": 2048,
-            "disk_mb": 512,
-            "cpu_cores": 2,
-            "network": "required",
-            "source": "estimated",
-            "confidence": "medium"
-          },
-          "platform_support": {
-            "tier-1-local": {
-              "supported": true,
-              "fitness_score": 0.85,
-              "notes": "Managed via shared Browserless resource"
-            },
-            "tier-2-desktop": {
-              "supported": false,
-              "fitness_score": 0.1,
-              "reason": "Electron cannot embed headless Chromium + Node cluster today",
-              "alternatives": [
-                "playwright-packaged"
-              ]
-            },
-            "tier-4-saas": {
-              "supported": true,
-              "fitness_score": 0.6,
-              "notes": "Needs auto-scaling pool"
-            }
-          },
-          "swappable_with": [
-            {
-              "id": "playwright-packaged",
-              "relationship": "future",
-              "notes": "Potential compiled runner for desktop/mobile"
-            }
-          ],
-          "packaging_hints": [
-            "Requires Puppeteer-compatible fonts + sandbox syscalls"
-          ]
-        },
         "playwright-driver": {
           "resource_type": "browser-automation",
           "footprint": {
@@ -458,9 +412,9 @@
           },
           "swappable_with": [
             {
-              "id": "browserless",
-              "relationship": "fallback",
-              "notes": "Use when remote pool is available"
+              "id": "playwright-packaged",
+              "relationship": "future",
+              "notes": "Compiled runner bundled directly into desktop/mobile builds"
             }
           ],
           "packaging_hints": [

@@ -118,7 +118,13 @@
             {
               "name": "policy",
               "default": "docs",
-              "description": "Validation policy: docs | skill | plan | action"
+              "description": "Validation policy: docs | skill | plan | action",
+              "values": [
+                "docs",
+                "skill",
+                "plan",
+                "action"
+              ]
             },
             {
               "name": "qualifiers",
@@ -127,7 +133,11 @@
             {
               "name": "refresh",
               "default": "never",
-              "description": "Refresh policy: never | on-miss"
+              "description": "Refresh policy: never | on-miss",
+              "values": [
+                "never",
+                "on-miss"
+              ]
             }
           ],
           "binding": {

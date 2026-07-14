@@ -171,8 +171,11 @@ func TestValidateRedirectionGuidanceExplainsPlaceholders(t *testing.T) {
 	if !strings.Contains(guidance, "shell redirection operators") {
 		t.Fatalf("guidance = %q, want redirection explanation", guidance)
 	}
-	if !strings.Contains(guidance, "TOKEN_VALUE") {
-		t.Fatalf("guidance = %q, want placeholder replacement example", guidance)
+	if !strings.Contains(guidance, "wrap it in double quotes") {
+		t.Fatalf("guidance = %q, want quoted-placeholder recommendation", guidance)
+	}
+	if strings.Contains(guidance, "TOKEN_VALUE") {
+		t.Fatalf("guidance = %q, must no longer recommend TOKEN_VALUE placeholders", guidance)
 	}
 }
 

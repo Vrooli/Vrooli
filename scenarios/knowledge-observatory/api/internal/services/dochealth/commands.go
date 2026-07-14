@@ -45,6 +45,7 @@ func validateCommandSnippets(ctx context.Context, scenarioDir string, markdownFi
 				})
 				continue
 			}
+			findings = append(findings, commandIssueFindings(snippet, result)...)
 			switch result.Verdict {
 			case "valid", "skipped":
 				continue
@@ -77,6 +78,42 @@ func validateCommandSnippets(ctx context.Context, scenarioDir string, markdownFi
 				})
 			}
 		}
+	}
+	return findings
+}
+
+// commandIssueFindingCodes maps DOCS-policy cli-health issue codes to their
+// own dochealth finding codes. Issue codes absent from this table stay folded
+// into the verdict-level finding (broken/partial/unknown_command_snippet) —
+// enum_placeholder_mismatch and invalid_literal_value deliberately remain
+// under broken_command_snippet because they make the snippet wrong, whereas
+// placeholder_style is a mechanical convention violation with a deterministic
+// autofix.
+var commandIssueFindingCodes = map[string]struct {
+	Code     string
+	Severity Severity
+}{
+	"unquoted_placeholder": {Code: "placeholder_style", Severity: SeverityWarning},
+}
+
+// commandIssueFindings surfaces per-issue findings for issue codes with a
+// dedicated mapping, carrying the byte-exact fix payload through.
+func commandIssueFindings(snippet commandSnippet, result CommandReferenceResult) []Finding {
+	var findings []Finding
+	for _, issue := range result.Issues {
+		mapped, ok := commandIssueFindingCodes[issue.Code]
+		if !ok {
+			continue
+		}
+		findings = append(findings, Finding{
+			Code:     mapped.Code,
+			Severity: mapped.Severity,
+			Message:  fmt.Sprintf("%s:%d command snippet %q: %s", snippet.File, snippet.Line, snippet.Command, issue.Message),
+			Path:     snippet.File,
+			Line:     snippet.Line,
+			Target:   snippet.Command,
+			Fix:      issue.Fix,
+		})
 	}
 	return findings
 }

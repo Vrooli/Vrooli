@@ -9,7 +9,7 @@ import (
 // orchestration can select/validate engines before execution begins.
 type EngineCapabilities struct {
 	SchemaVersion         string `json:"schema_version"`
-	Engine                string `json:"engine"`            // e.g., browserless, desktop
+	Engine                string `json:"engine"`            // e.g., playwright
 	Version               string `json:"version,omitempty"` // Implementation version/commit.
 	RequiresDocker        bool   `json:"requires_docker"`
 	RequiresXvfb          bool   `json:"requires_xvfb"`

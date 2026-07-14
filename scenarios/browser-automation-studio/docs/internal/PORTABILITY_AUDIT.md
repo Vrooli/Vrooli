@@ -5,9 +5,9 @@
 
 ## Target Tiers
 - [x] Tier 1 Local — fully supported (production today via app-monitor + Cloudflare tunnel).
-- [~] Tier 2 Desktop (Electron) — storage layer ready; **blocked** on Browserless and MinIO swaps. `service.json` `tier-2-desktop.fitness_score` = 0.5.
+- [~] Tier 2 Desktop (Electron) — storage layer ready; **blocked** on bundling the Playwright driver and the MinIO swap. `service.json` `tier-2-desktop.fitness_score` = 0.5.
 - [ ] Tier 3 Mobile — `service.json` declares `status: blocked`, `fitness_score: 0.1`. Browser automation requires Chromium; not addressable on iOS/Android.
-- [~] Tier 4 SaaS / Cloud — supported with the same caveats as Tier 1 plus orchestration of Browserless and MinIO. `fitness_score: 0.6`.
+- [~] Tier 4 SaaS / Cloud — supported with the same caveats as Tier 1 plus orchestration of the Playwright driver and MinIO. `fitness_score: 0.6`.
 - [ ] Tier 5 Enterprise / Appliance — derived from Tier 4 with hardened secrets; not separately audited.
 
 ## Environment Variable Status
@@ -19,7 +19,7 @@
 | `BAS_SQLITE_PATH` | `api/database/connection.go:113` | Yes — falls back to `DATABASE_URL=file:…` then `storage.NewResolver` | ✅ | Desktop bundles can inject an Electron-managed path. |
 | `DATABASE_URL` | `api/database/connection.go:115` (file: prefix only) | Yes | ✅ | |
 | `API_PORT` / `UI_PORT` | `internal/scenarioport/scenarioport.go:189`, `automation/session/manager.go:343`, `handlers/record_mode.go`, `sidecar/supervisor/process.go:104`, etc. | Mixed — some sites have defaults, some warn-and-default | ⚠️ Partial | Electron wrapper must inject both listener ports. `sidecar/supervisor/process.go:107` is the only site that logs a warning instead of crashing on missing `API_PORT`. |
-| `BROWSERLESS_PORT`, `MINIO_*` | Various | Hard requirement | ❌ for desktop | Both resources are not bundleable as-is — see Resource Dependencies table. |
+| `PLAYWRIGHT_DRIVER_URL`, `MINIO_*` | Various | Hard requirement | ❌ for desktop | Neither the driver process nor MinIO is bundleable as-is — see Resource Dependencies table. |
 
 **No code currently uses `VROOLI_DESKTOP_MODE`, `APP_DATA_DIR`, or `BUNDLE_ROOT`.** Adopting these would unblock the bundle-aware variant of `resolveScenarioRoot`.
 
@@ -29,7 +29,7 @@
 |---|---|---|---|---|
 | **SQLite (embedded)** | ✅ 1.0 | Already embedded | n/a | `modernc.org/sqlite` is pure-Go; CGO_ENABLED=0 builds verified clean (audit ran `CGO_ENABLED=0 go build ./...` → exit 0). |
 | **MinIO** | 🟡 ~0.4 | Runtime swap | Filesystem store rooted under `paths.ResolveRecordingsRoot()` | `service.json` lists this as a 2-day adaptation. Storage abstraction (`api/storage/interface.go`) already has the seam. |
-| **Browserless** | 🟡 ~0.6 | Runtime swap | Bundled Playwright driver via `ENGINE=playwright` + `PLAYWRIGHT_DRIVER_URL` (already supported at runtime per `README.md`) | The path exists; what's missing is shipping the Playwright driver inside the Electron bundle and wiring its lifecycle from main.ts. `service.json` lists this as a 5-day adaptation. |
+| **Playwright driver** | 🟡 ~0.6 | Bundle into app | Compile the Playwright driver into the Electron bundle via `ENGINE=playwright` + `PLAYWRIGHT_DRIVER_URL` (already supported at runtime per `README.md`) | The runtime path exists; what's missing is shipping the Playwright driver inside the Electron bundle and wiring its lifecycle from main.ts. `service.json` lists this as a 5-day adaptation. |
 | **Ollama** | 🟢 already optional | Optional with OpenRouter fallback | OpenRouter | `service.json` already declares Ollama as `required: false` and OpenRouter as `required: true`. Matches the `cross-platform-readiness/SKILL.md` §3.1 special-case for Ollama. |
 | **OpenRouter** | ✅ network-only | n/a | n/a | Per `cross-platform-readiness/SKILL.md` §7, `OPENROUTER_API_KEY` is `user_prompted` — already classified that way in `service.json` `tier-1-local.secrets`. |
 
@@ -52,7 +52,6 @@
 
 ## Secret Classification
 Already declared in `service.json` `tier-1-local.secrets`:
-- `browserless/api-key` — `infrastructure` (does not ship with desktop bundles)
 - `openrouter/api-key` — `user` (prompt at install time)
 
 The previous `browser-automation-studio/postgres-url` secret is gone; SQLite has no auth surface.

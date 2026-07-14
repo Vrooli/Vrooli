@@ -50,11 +50,10 @@ func setupTestDatabase(t *testing.T) *TestDatabase {
 	// Use environment variables or in-memory SQLite for testing
 	// For now, we'll use a mock configuration
 	config := &Config{
-		Port:           0, // Let the OS assign a port
-		DatabaseURL:    "postgres://test:test@localhost:5432/test?sslmode=disable",
-		HuginnURL:      "http://localhost:3000",
-		BrowserlessURL: "http://localhost:3001",
-		APIToken:       "test-token",
+		Port:        0, // Let the OS assign a port
+		DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+		HuginnURL:   "http://localhost:3000",
+		APIToken:    "test-token",
 	}
 
 	// Try to connect to test database
@@ -94,11 +93,10 @@ type TestServer struct {
 // setupTestServer creates a test server instance
 func setupTestServer(t *testing.T, withDB bool) *TestServer {
 	config := &Config{
-		Port:           0,
-		DatabaseURL:    "postgres://test:test@localhost:5432/test?sslmode=disable",
-		HuginnURL:      "http://localhost:3000",
-		BrowserlessURL: "http://localhost:3001",
-		APIToken:       "test-token",
+		Port:        0,
+		DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+		HuginnURL:   "http://localhost:3000",
+		APIToken:    "test-token",
 	}
 
 	var server *Server

@@ -27,6 +27,10 @@ type CommandReferenceIssue struct {
 	Code     string
 	Message  string
 	Severity string
+	// Fix, when non-empty, is the byte-exact replacement command text that
+	// resolves this issue. cli-health computes it once; fixers apply it
+	// verbatim and never recompute it.
+	Fix string
 }
 
 type CommandReferenceSuggestion struct {
@@ -111,6 +115,7 @@ func commandReferenceResultFromProto(r *commandv1.CommandReferenceValidationResu
 			Code:     issue.GetCode(),
 			Message:  issue.GetMessage(),
 			Severity: issue.GetSeverity(),
+			Fix:      issue.GetFix(),
 		})
 	}
 	for _, suggestion := range r.GetSuggestions() {

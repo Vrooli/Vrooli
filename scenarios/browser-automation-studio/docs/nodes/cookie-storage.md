@@ -63,7 +63,7 @@ Vrooli Ascension now ships dedicated nodes for browser cookies and web storage s
 - **Variable Suggestions:** Result-bearing nodes surface the `storeResult` field so values become first-class workflow variables immediately.
 
 ## Testing & Traceability
-- **Go Unit Tests:** Coverage now lives in the automation stack and CDP adapters (`automation/executor/*_test.go`, `browserless/cdp/cookie_actions.go`, `browserless/cdp/storage_actions.go`), ensuring contract payloads map cleanly to Browserless.
+- **Go Unit Tests:** Coverage now lives in the automation stack and CDP adapters (`automation/executor/*_test.go`), ensuring contract payloads map cleanly to the Playwright driver.
 - **CDP Exercises:** `cookie_actions.go` and `storage_actions.go` handle Chrome DevTools orchestration, including JSON parsing and expiry math.
 - **UI Regression:** `ui/src/components/__tests__/NodePalette.test.tsx` asserts palette counts and discoverability.
 

@@ -130,7 +130,7 @@ Advertisement of engine features:
 ```go
 type EngineCapabilities struct {
     SchemaVersion         string
-    Engine                string  // e.g., "playwright", "browserless"
+    Engine                string  // e.g., "playwright" ("browserless" is a legacy label)
     Version               string
     RequiresDocker        bool
     RequiresXvfb          bool
@@ -295,7 +295,7 @@ func (c SelectionConfig) Resolve(requested string) string {
 ```
 
 **Environment Variables**:
-- `ENGINE` - Default engine (currently defaults to "browserless", should be "playwright")
+- `ENGINE` - Default engine name (defaults to "playwright")
 - `ENGINE_OVERRIDE` - Force all executions to specific engine
 - `PLAYWRIGHT_DRIVER_URL` - URL to Playwright driver
 

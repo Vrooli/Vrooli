@@ -8,7 +8,7 @@
       "id": "KO-CLI-001",
       "title": "Required standard commands",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "description": "CLI provides status, help, and version commands as per scenario lifecycle contract",
       "validation": [
         {
@@ -23,8 +23,8 @@
       "id": "KO-CLI-002",
       "title": "Search command",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
-      "description": "knowledge-observatory search \u003cquery\u003e performs semantic search and displays ranked results",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "description": "knowledge-observatory search <query> performs semantic search and displays ranked results",
       "validation": [
         {
           "type": "test",
@@ -38,7 +38,7 @@
       "id": "KO-CLI-003",
       "title": "Health command",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "description": "knowledge-observatory health displays knowledge system quality metrics",
       "validation": [
         {
@@ -53,7 +53,7 @@
       "id": "KO-CLI-004",
       "title": "Graph command",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "description": "knowledge-observatory graph generates knowledge relationship visualization data",
       "validation": [
         {
@@ -68,7 +68,7 @@
       "id": "KO-CLI-005",
       "title": "CLI error handling",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "description": "Graceful error messages for missing API, invalid arguments, and resource unavailability",
       "validation": [
         {
@@ -76,6 +76,39 @@
           "ref": "cli/app_test.go",
           "phase": "unit",
           "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "KO-CLI-006",
+      "title": "Deterministic quoted-placeholder fix command",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets > P1",
+      "description": "docs fix-placeholders is a thin wrapper over the shared scenario-validation PreviewFix/ApplyFix RPC scoped to the placeholder_style rule: dochealth maps cli-health unquoted_placeholder issues to placeholder_style findings carrying the byte-exact fix, applies fixes verbatim and idempotently, and --dry-run selects exactly the files and lines the apply path would touch. The agent-driven dochealing service is not involved.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/services/dochealth/placeholderfix_test.go::TestPlaceholderFixDryRunAndApplyParity",
+          "phase": "unit",
+          "status": "pending"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/services/dochealth/placeholderfix_test.go::TestPlaceholderFixIdempotent",
+          "phase": "unit",
+          "status": "pending"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/services/dochealth/placeholderfix_test.go::TestCommandIssueFindingMapping",
+          "phase": "unit",
+          "status": "pending"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/dochealth/handler_test.go::TestFixPlaceholderStyleRule",
+          "phase": "unit",
+          "status": "pending"
         }
       ]
     }

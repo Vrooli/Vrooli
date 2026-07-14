@@ -22,11 +22,10 @@ import (
 
 // Configuration
 type Config struct {
-	Port           int    `json:"port"`
-	DatabaseURL    string `json:"database_url"`
-	HuginnURL      string `json:"huginn_url"`
-	BrowserlessURL string `json:"browserless_url"`
-	APIToken       string `json:"api_token"`
+	Port        int    `json:"port"`
+	DatabaseURL string `json:"database_url"`
+	HuginnURL   string `json:"huginn_url"`
+	APIToken    string `json:"api_token"`
 }
 
 // Server represents the API server
@@ -544,15 +543,13 @@ func loadConfig() (*Config, error) {
 
 	// Optional URLs for integrations (not required for basic operation)
 	huginnURL := os.Getenv("HUGINN_URL")
-	browserlessURL := os.Getenv("BROWSERLESS_URL")
 	apiToken := os.Getenv("BOOKMARK_API_TOKEN")
 
 	config := &Config{
-		Port:           port,
-		DatabaseURL:    databaseURL,
-		HuginnURL:      huginnURL,
-		BrowserlessURL: browserlessURL,
-		APIToken:       apiToken,
+		Port:        port,
+		DatabaseURL: databaseURL,
+		HuginnURL:   huginnURL,
+		APIToken:    apiToken,
 	}
 
 	return config, nil

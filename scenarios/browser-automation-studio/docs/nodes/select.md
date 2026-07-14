@@ -18,7 +18,7 @@
 ## Runtime Behavior
 
 1. The automation compiler forwards select params (mode, values/text/index, multi) unchanged; validation is handled by the workflow validator/UI.
-2. Browserless resolves the selector, adjusts the underlying `<select>` value(s) using the requested mode, and dispatches both `input` and `change` events so frameworks react.
+2. The Playwright driver resolves the selector, adjusts the underlying `<select>` value(s) using the requested mode, and dispatches both `input` and `change` events so frameworks react.
 3. When multi-select is enabled, the runtime verifies the target element actually supports multiple selections and raises a descriptive error otherwise.
 4. Telemetry stores the selection mode and final list of values for debugging.
 

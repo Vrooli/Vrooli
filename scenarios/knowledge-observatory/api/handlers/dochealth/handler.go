@@ -159,32 +159,82 @@ func (h *Handler) ApplyFix(ctx context.Context, req *connect.Request[scenarioval
 	return h.runFix(ctx, req, true)
 }
 
+// placeholderStyleRuleID is the rule id of the deterministic
+// quoted-placeholder fixer (dochealth.PlaceholderFix). It matches the
+// dochealth finding code so consumers can round-trip finding -> fix rule.
+const placeholderStyleRuleID = "placeholder_style"
+
 func (h *Handler) runFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest], apply bool) (*connect.Response[scenariovalidationv1.FixResponse], error) {
-	if h.fixer == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("documentation auto-fix service unavailable"))
-	}
 	scenario := strings.TrimSpace(req.Msg.GetScenario())
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
-	result, err := h.fixer.AutoFix(ctx, scenario, !apply)
-	if err != nil {
-		return nil, mapError(err)
+	ruleIDs := req.Msg.GetRuleIds()
+	wantRule := func(rule string) bool {
+		if len(ruleIDs) == 0 {
+			return true
+		}
+		for _, id := range ruleIDs {
+			if id == rule {
+				return true
+			}
+		}
+		return false
 	}
-	candidates := make([]autofixcore.Candidate, 0, len(result.Moved))
-	for _, m := range result.Moved {
-		candidates = append(candidates, autofixcore.Candidate{
-			RuleID:      "misplaced_doc",
-			FilePath:    m.ToPath,
-			Description: fmt.Sprintf("Move %s -> %s", m.FromPath, m.ToPath),
-			Applied:     apply,
-		})
+
+	var candidates []autofixcore.Candidate
+	var messages []string
+
+	if wantRule("misplaced_doc") {
+		if h.fixer == nil {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("documentation auto-fix service unavailable"))
+		}
+		result, err := h.fixer.AutoFix(ctx, scenario, !apply)
+		if err != nil {
+			return nil, mapError(err)
+		}
+		for _, m := range result.Moved {
+			candidates = append(candidates, autofixcore.Candidate{
+				RuleID:      "misplaced_doc",
+				FilePath:    m.ToPath,
+				Description: fmt.Sprintf("Move %s -> %s", m.FromPath, m.ToPath),
+				Applied:     apply,
+			})
+		}
+		for _, s := range result.Skipped {
+			messages = append(messages, fmt.Sprintf("skipped %s -> %s: %s", s.FromPath, s.ToPath, s.Reason))
+		}
 	}
+
+	if wantRule(placeholderStyleRuleID) && h.service != nil {
+		result, err := h.service.PlaceholderFix(ctx, scenario, !apply)
+		if err != nil {
+			return nil, mapError(err)
+		}
+		for _, f := range result.Files {
+			candidates = append(candidates, autofixcore.Candidate{
+				RuleID:      placeholderStyleRuleID,
+				FilePath:    f.Path,
+				Description: fmt.Sprintf("Quote %d unquoted placeholder group(s) on line(s) %s", f.FixCount, joinInts(f.Lines)),
+				Before:      f.Before,
+				After:       f.After,
+				Applied:     apply,
+			})
+		}
+		messages = append(messages, result.Skipped...)
+	}
+
 	resp := autofixcore.BuildFixResponse(scenario, apply, candidates)
-	for _, s := range result.Skipped {
-		resp.Messages = append(resp.Messages, fmt.Sprintf("skipped %s -> %s: %s", s.FromPath, s.ToPath, s.Reason))
-	}
+	resp.Messages = append(resp.Messages, messages...)
 	return connect.NewResponse(resp), nil
+}
+
+func joinInts(nums []int) string {
+	parts := make([]string, len(nums))
+	for i, n := range nums {
+		parts[i] = fmt.Sprintf("%d", n)
+	}
+	return strings.Join(parts, ",")
 }
 
 func mapError(err error) error {

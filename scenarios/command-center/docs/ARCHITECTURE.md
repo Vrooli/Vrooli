@@ -115,7 +115,7 @@ All scenes are lazy-loaded so the R3F/Three.js bundle is code-split per route.
 ### Hooks (`ui/src/hooks/`)
 
 - `useWakeLock.ts` (adapted from `scenarios/web-console`) — **not auto-invoked**.
-- `useFullscreen.ts` (adapted from `scenarios/landing-manager`) — **not auto-invoked**.
+- `useFullscreen.ts` — **not auto-invoked**.
 
 Both are wired into the policy layer by `command-center-kiosk-ux`.
 

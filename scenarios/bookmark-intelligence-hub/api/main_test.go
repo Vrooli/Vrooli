@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -754,11 +755,10 @@ func TestServerLifecycle(t *testing.T) {
 		t.Skip("Skipping server creation test (requires database)")
 
 		config := &Config{
-			Port:           0,
-			DatabaseURL:    "postgres://test:test@localhost:5432/test?sslmode=disable",
-			HuginnURL:      "http://localhost:3000",
-			BrowserlessURL: "http://localhost:3001",
-			APIToken:       "test-token",
+			Port:        0,
+			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			HuginnURL:   "http://localhost:3000",
+			APIToken:    "test-token",
 		}
 
 		// Try to create server (may fail without database)

@@ -21,7 +21,7 @@ The Bookmark Intelligence Hub automatically discovers, extracts, categorizes, an
 
 - PostgreSQL database (managed by Vrooli)
 - Huginn automation platform (managed by Vrooli)
-- Browserless headless browser service (managed by Vrooli)
+- browser-automation-studio scenario (managed by Vrooli) for rendering JavaScript-heavy pages
 
 ### Installation
 
@@ -73,7 +73,7 @@ bookmark-intelligence-hub actions approve action-123
 - **Platform Integrations**: Modular connectors for Reddit, Twitter, TikTok
 - **Database Layer**: PostgreSQL for bookmark storage and analytics
 - **Automation Layer**: Huginn agents for social media monitoring
-- **Fallback System**: Browserless for JavaScript-heavy content extraction
+- **Fallback System**: browser-automation-studio CaptureService (inline_dom) for JavaScript-heavy content extraction
 
 ### Data Flow
 
@@ -105,7 +105,8 @@ TIKTOK_SESSION_COOKIE=your_cookie
 
 # Service URLs
 HUGINN_URL=http://localhost:3000
-BROWSERLESS_URL=http://localhost:3001
+# JavaScript-heavy pages escalate to the browser-automation-studio scenario,
+# which is located via scenario discovery (no URL to configure here).
 ```
 
 ### Platform Setup
@@ -118,7 +119,7 @@ BROWSERLESS_URL=http://localhost:3001
 #### X (Twitter)
 1. Export session cookie from browser
 2. Set TWITTER_SESSION_COOKIE environment variable
-3. Configure browserless fallback for reliability
+3. Enable browser-automation-studio capture escalation for reliability
 
 #### TikTok
 1. Export session cookie from browser
@@ -231,7 +232,7 @@ bookmark-intelligence-hub/
 1. Implement `PlatformIntegration` interface
 2. Add platform-specific configuration
 3. Create Huginn automation agents
-4. Configure browserless fallback
+4. Enable browser-automation-studio capture escalation
 5. Add categorization rules
 6. Test integration workflow
 
@@ -261,7 +262,7 @@ pm::logs bookmark-intelligence-hub-api
 - Verify credentials are set correctly
 - Check rate limiting status
 - Ensure Huginn agents are active
-- Test browserless fallback
+- Test browser-automation-studio capture escalation
 
 **Low categorization accuracy**
 - Review and update category rules

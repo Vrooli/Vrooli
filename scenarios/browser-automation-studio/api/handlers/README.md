@@ -33,7 +33,7 @@ flowchart LR
     subgraph IO["IO & Infra"]
         DB[(SQLite Repo)]
         MINIO["MinIO"]
-        BROW["Browserless or future engine"]
+        BROW["Playwright driver"]
         HUB["websocket Hub"]
     end
 

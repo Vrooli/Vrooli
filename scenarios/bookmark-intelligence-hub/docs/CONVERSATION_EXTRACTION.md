@@ -169,8 +169,9 @@ Notes on the message stream:
   Detect breakage explicitly (zero messages decoded) and fall back.
 - **Cloudflare.** Raw HTML fetch worked with a browser UA; the JSON API did
   not. Expect to need realistic headers, and possibly a headless browser
-  (Browserless — already a Hub dependency) as the robust fallback that simply
-  renders the page and reads the DOM, sidestepping the encoding entirely.
+  (browser-automation-studio's CaptureService with inline_dom=true, already a
+  Hub dependency) as the robust fallback that simply renders the page and reads
+  the returned DOM, sidestepping the encoding entirely.
 - **Per-provider.** Each provider encodes differently. ChatGPT = turbo-stream.
   Claude/Gemini/Grok share pages will need their own probes. Structure the
   feature as one interface with per-provider adapters, mirroring the existing
@@ -187,10 +188,10 @@ Suggested shape, consistent with the scenario's screaming architecture:
   reddit/x/tiktok, with a provider-adapter interface:
   `detect(url) -> provider`, `fetch(url) -> rawHtml|dom`,
   `extract(raw) -> { title, model, createdAt, turns[], citedUrls[] }`.
-- **ChatGPT adapter:** turbo-stream decode (this doc), with a Browserless
-  render fallback.
-- **Generic fallback adapter:** Browserless render + readability/DOM scrape for
-  providers we haven't reverse-engineered yet.
+- **ChatGPT adapter:** turbo-stream decode (this doc), with a
+  browser-automation-studio capture (inline_dom) render fallback.
+- **Generic fallback adapter:** browser-automation-studio capture (inline_dom)
+  render + readability/DOM scrape for providers we haven't reverse-engineered yet.
 - Emit the same structured output the rest of the Hub consumes (categorization,
   action suggestions, cross-scenario feeds) so a saved conversation becomes
   first-class intelligence, not just stored text.

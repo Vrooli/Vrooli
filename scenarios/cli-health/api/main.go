@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/measures-go/manifestscan"
 	repocontract "github.com/vrooli/repo-contract-go"
 	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
@@ -221,7 +222,7 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "cli-health-api", "1.0.0"),
 		validationH.Module(logger, repoRoot, externalCLINames(discovery.ListExternalCLIs())),
-		commandH.Module(logger, commandref.Service{Discovery: discovery}),
+		commandH.Module(logger, commandref.Service{Discovery: discovery, Schemas: manifestscan.NewDescriptorSchemaReader(repoRoot)}),
 		searchH.Module(logger, aiService, overrideGate),
 		searchcontrolH.Module(logger, searchcontrolH.Deps{
 			Logger:       logger,

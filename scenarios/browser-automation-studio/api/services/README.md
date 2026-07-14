@@ -13,7 +13,7 @@ flowchart LR
     subgraph Automation["automation/*"]
         PLAN["Plan Compiler\nworkflow → ExecutionPlan"]
         EXEC["SimpleExecutor\n(retries, heartbeats,\nbranching)"]
-        ENG["Engine Factory\n(BrowserlessEngine)"]
+        ENG["Engine Factory\n(PlaywrightEngine)"]
         REC["FileWriter\nartifacts/telemetry"]
         EVT["Event sinks\nSequencer + WSHubSink"]
     end
@@ -22,7 +22,7 @@ flowchart LR
         DB[(SQLite Repo)]
         WS["Websocket Hub"]
         MINIO["MinIO / storage"]
-        BROW["Browserless"]
+        BROW["Playwright driver"]
     end
 
     WF --> PLAN --> EXEC

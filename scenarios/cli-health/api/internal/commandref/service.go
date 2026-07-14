@@ -38,6 +38,9 @@ type Issue struct {
 	Code     string
 	Message  string
 	Severity string
+	// Fix, when non-empty, is the byte-exact replacement command text that
+	// resolves this issue. Downstream fixers apply it verbatim.
+	Fix string
 }
 
 type Suggestion struct {
@@ -66,6 +69,10 @@ type Request struct {
 
 type Service struct {
 	Discovery aisearch.DiscoverySource
+	// Schemas resolves proto-derived request param schemas for manifest
+	// bindings (typed literal checks under the DOCS policy). Optional: nil
+	// skips typed checks.
+	Schemas ParamSchemaReader
 }
 
 type refreshDiscoverySource interface {
@@ -91,7 +98,23 @@ func (s Service) Validate(ctx context.Context, req Request) Result {
 		res.Guidance = append(res.Guidance, "Reference qualifier marks this command as non-current or literal, so current-command validation was skipped.")
 		return res
 	}
-	tokens, err := tokenizeCommand(commandText)
+	var tokens []string
+	var err error
+	if isDocsPolicy(req.Policy) {
+		var groups []unquotedGroup
+		var fixed string
+		tokens, groups, fixed, err = tokenizeCommandDocs(commandText)
+		for _, g := range groups {
+			res.Issues = append(res.Issues, Issue{
+				Code:     "unquoted_placeholder",
+				Message:  fmt.Sprintf("placeholder %s is unquoted; %s and %s are live shell operators when pasted verbatim — wrap the placeholder in double quotes", g.Text, "`<`", "`>`"),
+				Severity: "warning",
+				Fix:      fixed,
+			})
+		}
+	} else {
+		tokens, err = tokenizeCommand(commandText)
+	}
 	if err != nil {
 		res.Verdict = VerdictUnsupported
 		res.Level = LevelUnsupportedSyntax
@@ -155,6 +178,10 @@ func (s Service) Validate(ctx context.Context, req Request) Result {
 		res.Guidance = append(res.Guidance, "CLI Health proved the command path exists, but not every flag or positional argument.")
 		return res
 	}
+	if isDocsPolicy(req.Policy) {
+		s.validateDocsArgs(&res, match, argTokens)
+		return res
+	}
 	if err := cliapp.ValidateArgs(*match.Args, argTokens); err != nil {
 		res.Verdict = VerdictInvalid
 		res.Issues = append(res.Issues, Issue{Code: "invalid_arguments", Message: err.Error(), Severity: "error"})
@@ -171,7 +198,7 @@ func appendUnsupportedSyntaxGuidance(guidance []string, err error) []string {
 	var syntaxErr shellSyntaxError
 	if errors.As(err, &syntaxErr) && syntaxErr.Kind == "redirection" {
 		return append(guidance,
-			"`<` and `>` are shell redirection operators in executable shell snippets. If this was a placeholder, use a shell-safe value like `TOKEN_VALUE`; if the text is not meant to run, mark it as literal/text instead.",
+			"`<` and `>` are shell redirection operators in executable shell snippets. If this was a placeholder, wrap it in double quotes (e.g. \"<session>\") so it is shell-safe and machine-checkable; if the text is not meant to run, mark it as literal/text instead.",
 		)
 	}
 	return append(guidance, "Use a single command reference without pipes, redirects, command substitution, or chained shell syntax.")

@@ -19,16 +19,16 @@ This capability transforms browser automation from code-based scripts to visual,
 - **Accessibility Auditor**: Automatically test scenarios for WCAG compliance with visual proof
 
 ## ⚠️ Implementation Status (2025-11-14)
-- **Executor**: The refactored automation stack (`api/automation/{executor,engine,recorder,events}`) drives Browserless through `BrowserlessEngine`, normalizes outcomes, and persists artifacts/telemetry via `DBRecorder` + `WSHubSink`. It executes `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` (plus loop/branching) nodes with console/network logs, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata stored in SQLite/MinIO (`execution_steps`/`execution_artifacts`). Success/failure/else branching and per-node retry/backoff record attempt history alongside screenshots and telemetry.
-- **Assertions**: `assert` nodes validate selector existence/text/attribute conditions in Browserless, emit dedicated assertion artifacts, and broadcast assertion summaries through WebSocket/CLI/UI logs so failures short-circuit executions with actionable messaging.
+- **Executor**: The refactored automation stack (`api/automation/{executor,engine,recorder,events}`) drives the in-repo Playwright driver, normalizes outcomes, and persists artifacts/telemetry via `DBRecorder` + `WSHubSink`. It executes `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` (plus loop/branching) nodes with console/network logs, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata stored in SQLite/MinIO (`execution_steps`/`execution_artifacts`). Success/failure/else branching and per-node retry/backoff record attempt history alongside screenshots and telemetry.
+- **Assertions**: `assert` nodes validate selector existence/text/attribute conditions via the Playwright driver, emit dedicated assertion artifacts, and broadcast assertion summaries through WebSocket/CLI/UI logs so failures short-circuit executions with actionable messaging.
 - **Telemetry**: The gorilla hub emitter broadcasts structured `execution.*` and `step.*` events, including mid-step `step.heartbeat` payloads. The UI surfaces live heartbeat timing alongside console/network telemetry, and the CLI attaches to the WebSocket stream (when Node.js is available) to print heartbeats and step events while retaining HTTP polling fallbacks.
 - **Execution History**: The UI provides a full-featured execution history viewer in the Project Detail → Executions tab with filtering by status (all/completed/failed/running), timeline replay integration, execution details, and refresh functionality. The API exposes `/api/v1/executions?workflow_id={id}` for programmatic access, and the CLI provides `execution list` commands.
 - **Replay & Annotation**: The Replay tab consumes timeline artifacts to render highlight/mask overlays, zoom anchoring, cursor trails, and storyboard navigation, now including DOM snapshot previews for each frame. CLI `execution render` complements `/executions/{id}/export` by downloading screenshots and materialising a stylised HTML replay package. Stitched MP4/GIF exports and automation-facing replay checks remain roadmap work.
 - **Demo Workflow**: Fresh databases automatically seed a ready-to-run workflow (`Demo: Capture Example.com Hero`) that navigates to example.com, asserts the hero headline, and captures an annotated screenshot so UI/CLI validation is possible without manual authoring. The seed run provisions a project named **Demo Browser Automations** and creates a filesystem workspace at `scenarios/browser-automation-studio/data/projects/demo` (configurable with `BAS_DEMO_PROJECT_PATH`) so replay exports and renderer artifacts have a dedicated home.
 - **Replay Exporter**: `/api/v1/executions/{id}/export` returns replay packages with frame metadata, theme presets, and asset manifests. `browser-automation-studio execution export` surfaces the JSON payload, while `execution render` converts it into a self-contained marketing replay.
-- **Chrome Extension Imports**: `POST /api/v1/recordings/import` normalises zipped extension captures into executions, timeline artifacts, and replay assets served from `/api/v1/recordings/assets/{executionID}/…`, allowing real-user recordings to appear beside Browserless runs.
+- **Chrome Extension Imports**: `POST /api/v1/recordings/import` normalises zipped extension captures into executions, timeline artifacts, and replay assets served from `/api/v1/recordings/assets/{executionID}/…`, allowing real-user recordings to appear beside Playwright-driven runs.
 - **Requirements Tracking**: `requirements/index.json` (v0.2.0 modular registry) plus `vrooli scenario requirements report browser-automation-studio` reflect telemetry/replay progress. Automated integration with CI dashboards is still pending.
-- **Testing**: Compiler/runtime/executor telemetry have targeted unit coverage; WebSocket contract, handler integration, and end-to-end Browserless tests remain gaps.
+- **Testing**: Compiler/runtime/executor telemetry have targeted unit coverage; WebSocket contract, handler integration, and end-to-end Playwright-driver tests remain gaps.
 - **Docs & Positioning**: README/PRD/action-plan document the delivered executor/replay layers and call out remaining milestones (branching planner, CLI parity, testing ramp).
 
 > Treat this PRD as the target state. See `docs/action-plan.md` for the execution backlog and sequencing.
@@ -88,14 +88,14 @@ This capability transforms browser automation from code-based scripts to visual,
 ## 🏗️ Technical Architecture
 
 ### Resource Dependencies
-> Current implementation calls Browserless via `/chrome/function` with sequential steps; persistent sessions and branching logic remain on the roadmap.
+> Current implementation drives the in-repo Playwright driver with sequential steps; persistent sessions and branching logic remain on the roadmap.
 
 ```yaml
 required:
-  - resource_name: browserless
-    purpose: Core browser automation engine
-    integration_pattern: CLI commands via resource-browserless
-    access_method: resource-browserless [command]
+  - dependency: playwright-driver
+    purpose: Core browser automation engine (in-repo Node HTTP server)
+    integration_pattern: HTTP driver managed by the API sidecar supervisor (no resource CLI)
+    access_method: ENGINE=playwright + PLAYWRIGHT_DRIVER_URL (auto-started with the scenario)
     
   - resource_name: minio
     purpose: Screenshot and artifact storage
@@ -118,9 +118,9 @@ optional:
 ```yaml
 # Priority order for resource access (MUST follow this hierarchy):
 integration_priorities:
-  1_resource_cli:        # FIRST: Use resource CLI commands
-    - command: resource-browserless screenshot [url]
-      purpose: Capture webpage screenshots
+  1_engine_driver:       # FIRST: Use the Playwright driver via the automation engine
+    - command: ENGINE=playwright (driver auto-started by the API sidecar supervisor)
+      purpose: Capture webpage screenshots and drive the browser
   
   2_direct_api:          # LAST: Direct API only when necessary
     - justification: Real-time WebSocket streaming requires direct connection
@@ -183,7 +183,7 @@ primary_entities:
 ```
 
 ### API Contract
-> REST routes exist, but many responses contain placeholder execution data until Browserless integration lands.
+> REST routes exist, but many responses contain placeholder execution data until Playwright-driver integration lands.
 
 ```yaml
 # Defines how other scenarios/agents can use this capability
@@ -359,7 +359,7 @@ custom_commands:
 
 ### Upstream Dependencies
 **What capabilities must exist before this can function?**
-- **resource-browserless**: Provides core browser automation engine
+- **playwright-driver** (in-repo Node HTTP server): Provides the core browser automation engine, managed by the API sidecar supervisor
 - **embedded SQLite** (via `modernc.org/sqlite`): Stores workflow index and execution history
 - **resource-minio**: Stores screenshots and artifacts
 - **ollama.json workflow**: AI capabilities for workflow generation
@@ -425,7 +425,7 @@ style_profile:
 style_references:
   technical:
     - "n8n workflow editor - node-based visual programming"
-    - "Browserless dashboard - headless automation introspection"
+    - "Playwright Inspector - headless automation introspection"
     - "GitHub Actions - workflow visualization"
     - "Postman - API testing interface"
 ```
@@ -477,7 +477,7 @@ style_references:
 direct_execution:
   supported: true
   structure_compliance:
-    - service.json with browserless and minio resources (storage is embedded SQLite)
+    - service.json with the minio resource (the Playwright driver is an in-repo sidecar; storage is embedded SQLite)
     - React-based UI with Vite build
     - Go API with workflow engine
     - CLI wrapper for all API functions
@@ -516,14 +516,14 @@ discovery:
   metadata:
     description: Visual browser automation with AI-powered debugging
     keywords: [browser, automation, testing, scraping, workflow, visual]
-    dependencies: [browserless, minio]
+    dependencies: [playwright-driver, minio]
     enhances: [all UI scenarios]
 ```
 
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-- **Phased testing:** `test/phases/*.sh` owns the scenario-quality entry point. Structure + unit phases run today; integration/business phases will add Browserless end-to-end coverage once the executor matures.
+- **Phased testing:** `test/phases/*.sh` owns the scenario-quality entry point. Structure + unit phases run today; integration/business phases will add Playwright-driver end-to-end coverage once the executor matures.
 - **Lifecycle health:** `.vrooli/service.json` wires health probes, CLI smoke tests, and API curls into the lifecycle `make test` path.
 - **Requirements linkage:** `vrooli scenario requirements report browser-automation-studio` emits JSON/Markdown coverage that backs the README dashboard and now ingests `coverage/phase-results/*.json` from the test phases so live pass/fail state shows up alongside static requirement status (automation hooks still pending).
 
@@ -560,9 +560,9 @@ vrooli scenario requirements report browser-automation-studio --format markdown
 - **Restores**: Restoring any revision calls `RestoreWorkflowVersion`, replaying the historic definition into the active workflow while emitting a new version entry for traceability.
 
 ### Known Limitations
-- **Browser Resource Limits**: Browserless can handle ~10 concurrent sessions
+- **Browser Resource Limits**: The Playwright driver handles ~10 concurrent sessions
   - Workaround: Queue system for execution requests
-  - Future fix: Scale browserless horizontally
+  - Future fix: Scale the Playwright driver pool horizontally
   
 - **Screenshot Storage**: MinIO storage can grow quickly
   - Workaround: Retention policies and compression
@@ -576,10 +576,10 @@ vrooli scenario requirements report browser-automation-studio --format markdown
 ## 🚨 Risk Mitigation
 
 ### Technical Risks
-- **Browser Resource Limits**: Browserless can handle ~10 concurrent sessions
+- **Browser Resource Limits**: The Playwright driver handles ~10 concurrent sessions
   - Mitigation: Queue system for execution requests
   - Monitoring: Track active session count and execution queue depth
-  - Fallback: Horizontal scaling of browserless instances
+  - Fallback: Horizontal scaling of Playwright driver instances
 
 - **Screenshot Storage Growth**: MinIO storage can grow quickly with full-page captures
   - Mitigation: Retention policies and image compression
@@ -597,9 +597,9 @@ vrooli scenario requirements report browser-automation-studio --format markdown
   - Monitoring: User engagement metrics and workflow creation rates
   - Fallback: Enhanced AI workflow generation to lower barriers
 
-- **Browserless Dependency**: Core functionality depends on single resource
-  - Mitigation: Support multiple Browserless pools/tenants plus resilient queueing to survive outages
-  - Monitoring: Browserless health and availability metrics
+- **Playwright Driver Dependency**: Core functionality depends on a single driver
+  - Mitigation: Support multiple Playwright driver pools/tenants plus resilient queueing to survive outages
+  - Monitoring: Playwright driver health and availability metrics
   - Fallback: Direct CDP integration for resilience
 
 ### Operational Risks
@@ -612,7 +612,7 @@ vrooli scenario requirements report browser-automation-studio --format markdown
 
 ### Technical Documentation
 - [React Flow Documentation](https://reactflow.dev/docs/introduction/) - Visual workflow builder library
-- [Browserless Documentation](https://www.browserless.io/docs/) - Browser automation engine
+- Playwright driver (`playwright-driver/`) - Browser automation engine (in-repo Node HTTP server)
 - [Gorilla WebSocket](https://github.com/gorilla/websocket) - Real-time communication
 
 ### Standards & Best Practices

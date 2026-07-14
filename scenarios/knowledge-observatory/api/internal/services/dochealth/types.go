@@ -20,6 +20,10 @@ type Finding struct {
 	DocType  string
 	Line     int
 	Target   string
+	// Fix, when non-empty, is the byte-exact replacement for Target that
+	// resolves this finding (carried through from cli-health; applied
+	// verbatim by the deterministic placeholder fixer).
+	Fix string
 }
 
 // MisplacedDoc mirrors docvalidation.MisplacedDoc but uses the typed severity.

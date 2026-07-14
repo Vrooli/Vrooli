@@ -1,7 +1,7 @@
 // Package contracts defines engine-agnostic payloads and interfaces used by
 // automation engines, executors, recorders, and event sinks. The goal is to
 // keep these shapes stable so multiple engine implementations (e.g.,
-// Browserless, Desktop/Playwright) can plug in without changing downstream
+// Playwright, Desktop) can plug in without changing downstream
 // consumers.
 //
 // PROTO TYPE STRATEGY:

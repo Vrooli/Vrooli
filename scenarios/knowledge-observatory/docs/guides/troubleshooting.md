@@ -6,7 +6,7 @@
 - If CLI cannot resolve the API, set it explicitly:
 
 ```bash
-knowledge-observatory configure api_base http://localhost:<API_PORT>
+knowledge-observatory configure api_base http://localhost:"<API_PORT>"
 ```
 
 [CODE: cli/app.go]

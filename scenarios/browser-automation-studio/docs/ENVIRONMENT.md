@@ -7,15 +7,14 @@ One canonical reference for configuring the browser-automation-studio scenario (
 - `API_PORT` – API server port (15000-19999)
 - `UI_PORT` – UI server port (20000-24999)
 - `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET_NAME`
-- `BROWSERLESS_PORT`
 - `VROOLI_LIFECYCLE_MANAGED` – must be `true`
 
 ## Optional Overrides
 
-- Hosts: `API_HOST`, `UI_HOST`, `MINIO_HOST`, `BROWSERLESS_HOST` (default: `localhost`)
+- Hosts: `API_HOST`, `UI_HOST`, `MINIO_HOST` (default: `localhost`)
 - CORS: `CORS_ALLOWED_ORIGINS` (or legacy `ALLOWED_ORIGINS`, `CORS_ALLOWED_ORIGIN`)
 - Screenshot defaults: `SCREENSHOT_DEFAULT_WIDTH`, `SCREENSHOT_DEFAULT_HEIGHT`
-- Full URLs: `BROWSERLESS_URL`, `MINIO_ENDPOINT`, `BROWSER_AUTOMATION_API_URL`, `BAS_EXPORT_PAGE_URL`, `BAS_UI_BASE_URL`, `UI_SCHEME`, `UI_HOST`, `UI_PORT`, `BAS_EXPORT_PAGE_PATH` (default `/export/composer.html`)
+- Full URLs: `PLAYWRIGHT_DRIVER_URL`, `MINIO_ENDPOINT`, `BROWSER_AUTOMATION_API_URL`, `BAS_EXPORT_PAGE_URL`, `BAS_UI_BASE_URL`, `UI_SCHEME`, `UI_HOST`, `UI_PORT`, `BAS_EXPORT_PAGE_PATH` (default `/export/composer.html`)
 
 ## Database Configuration
 
@@ -71,8 +70,6 @@ Keep inner timeouts smaller than outers to get actionable errors.
 | `BAS_EXECUTION_DEFAULT_RETRY_DELAY_MS` / `BAS_EXECUTION_DEFAULT_BACKOFF_FACTOR` | Retry/backoff | `750` / `1.5` |
 | `BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS` | Completion poll | `250` |
 | `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` | Mid-step heartbeat cadence (ms, `0` disables) | `2000` |
-
-`BROWSERLESS_HEARTBEAT_INTERVAL` (Go duration string, e.g. `2s`) is also accepted for backward compatibility.
 
 ## WebSocket & Recording
 
@@ -164,7 +161,6 @@ export MINIO_PORT=9000
 export MINIO_ACCESS_KEY="minioadmin"
 export MINIO_SECRET_KEY="minioadmin"
 export MINIO_BUCKET_NAME="browser-automation-screenshots"
-export BROWSERLESS_PORT=3000
 export VROOLI_LIFECYCLE_MANAGED=true
 
 # Optional: override the SQLite file location (defaults via api-core/storage)

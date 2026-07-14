@@ -14,7 +14,8 @@
     "06-manifest-scaffolding-command/module.json",
     "07-non-canonical-cli-pattern-detection/module.json",
     "08-scenario-auditor-rule-integration/module.json",
-    "09-shared-ai-search-package-extraction/module.json"
+    "09-shared-ai-search-package-extraction/module.json",
+    "10-docs-policy-typed-command-validation/module.json"
   ],
   "modules": [
     {
@@ -70,6 +71,12 @@
       "path": "09-shared-ai-search-package-extraction",
       "priority": "P2",
       "title": "Shared AI search package extraction"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-docs-policy-typed-command-validation",
+      "priority": "P1",
+      "title": "DOCS-policy typed command validation"
     }
   ]
 }

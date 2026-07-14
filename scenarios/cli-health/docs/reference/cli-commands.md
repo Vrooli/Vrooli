@@ -82,7 +82,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 cli-health configure api_base http://localhost:15001/api/v1
-cli-health configure token TOKEN_VALUE
+cli-health configure token "<token>"
 ```
 
 Read values back without an argument:
@@ -133,6 +133,69 @@ cli-health command validate --command "future-tool launch" --policy docs --quali
 # Unsupported shell expression; CLI Health does not interpret pipelines or redirects.
 cli-health command validate --command "vrooli scenario test cli-health | tee out.log" --policy docs
 ```
+
+### DOCS-policy placeholder validation
+
+Under `--policy docs` (the policy knowledge-observatory dochealth uses for doc
+snippets), placeholder tokens are first-class instead of shell errors. The
+quoted-placeholder convention is the preferred documentation form:
+
+- `"<name>"` — a quoted named placeholder. It matches the manifest argument
+  slot it fills (positional name, flag name/alias, or bound proto field);
+  a name that matches no slot yields a `placeholder_name_mismatch` warning.
+- `"<a|b|c>"` — a quoted enum alternation. It must exactly equal the slot's
+  effective vocabulary — the manifest flag's `values` union the bound proto
+  field's enum values — or validation fails with `enum_placeholder_mismatch`
+  naming the expected list.
+- Literal example values are checked against descriptor-derived constraints
+  where they exist (type, buf.validate numeric bounds, string lengths, uuid
+  format, enum membership, manifest `values`); a violation yields
+  `invalid_literal_value`. Slots without constraint metadata pass silently.
+- Unquoted `<...>` groups parse leniently (they reach the same semantic checks
+  as their quoted form) but emit an `unquoted_placeholder` warning whose `fix`
+  field carries the byte-exact snippet with every group wrapped in double
+  quotes. `knowledge-observatory docs fix-placeholders <scenario>` applies
+  those fixes deterministically.
+- Real shell operators — pipes outside quotes, bare redirects, command
+  substitution, chaining — remain hard `unsupported_shell_syntax` errors under
+  every policy. Quoting is required precisely because a model pasting a doc
+  snippet verbatim must never execute a stray `<`, `>`, or `|`.
+
+| Verdict | DOCS-policy meaning |
+|---|---|
+| `valid` / `argument_shape_validated` | Path, flags, placeholders, and literals all check out (style warnings may still be attached) |
+| `invalid` | `enum_placeholder_mismatch`, `invalid_literal_value`, or a structural argument error |
+| `unsupported` | Genuine shell syntax (unchanged from other policies) |
+
+Non-DOCS policies (`skill`, `plan`, `action`) are unchanged: placeholders are
+not interpreted and unquoted `<`/`>` remain hard errors.
+
+```bash
+# Quoted placeholders validate to argument_shape_validated.
+cli-health command validate --command 'plan-manager author skill-pack "<session>" --complexity "<minor|moderate|major|architectural>"' --policy docs
+
+# A drifted enum alternation fails, naming the expected vocabulary.
+cli-health command validate --command 'plan-manager author skill-pack "<session>" --complexity "<minor|moderate>"' --policy docs
+```
+
+### Manifest `values` / `value_aliases`
+
+The enum vocabulary a placeholder is checked against is declared once, in the
+owning scenario's `cli/manifest.json` flag entry:
+
+```json
+{
+  "name": "complexity",
+  "values": ["minor", "moderate", "major", "architectural"],
+  "value_aliases": { "low": "minor", "medium": "moderate", "high": "major" }
+}
+```
+
+The runtime parser rejects out-of-vocabulary values listing the options,
+generated `--help` renders the choices, and DOCS-policy validation checks doc
+alternations against the same declaration — one source of truth, three
+surfaces. Aliases are accepted verbatim and passed through raw; the owning
+server keeps canonicalizing.
 
 ## Scenario commands
 

@@ -70,7 +70,7 @@ The Bookmark Intelligence Hub transforms scattered social media bookmarks into o
 **Required Before Launch**:
 - PostgreSQL resource operational
 - Huginn resource with bookmark scraping agents
-- Browserless resource for fallback content extraction
+- browser-automation-studio scenario for fallback content extraction (CaptureService, inline_dom)
 - Basic scenario-authenticator integration for multi-tenant support
 
 **Scenario Dependencies**:
@@ -86,7 +86,7 @@ The Bookmark Intelligence Hub transforms scattered social media bookmarks into o
 6. Learning system for continuous improvement (P1)
 
 **Risks**:
-- Social media API rate limiting (mitigated with intelligent backoff + browserless fallback)
+- Social media API rate limiting (mitigated with intelligent backoff + browser-automation-studio capture escalation)
 - Bot detection blocking (mitigated with user-agent rotation + stealth mode)
 - Content extraction accuracy (mitigated with multiple extraction methods + user feedback)
 
@@ -191,4 +191,4 @@ After this exists, these become possible:
 
 - Canonical PRD Template: scenarios/business-health/docs/reference/canonical-prd-template.md
 - Huginn Documentation: Agent-based automation patterns
-- Browserless API: Headless browser automation
+- browser-automation-studio: Headless browser automation (CaptureService, Connect-RPC)
