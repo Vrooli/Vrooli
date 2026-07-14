@@ -38,3 +38,15 @@ CREATE INDEX IF NOT EXISTS idx_adoptions_scenario
 
 CREATE INDEX IF NOT EXISTS idx_adoptions_created_at
   ON adoption_records(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS adoption_files (
+  adoption_id              TEXT NOT NULL,
+  library_path             TEXT NOT NULL,
+  adopted_path             TEXT NOT NULL,
+  source_sha256            TEXT NOT NULL DEFAULT '',
+  adopted_snapshot_sha256  TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (adoption_id, adopted_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_adoption_files_adoption
+  ON adoption_files(adoption_id, library_path);

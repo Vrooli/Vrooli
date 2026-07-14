@@ -37,6 +37,10 @@ func TestSQLiteRepository_CreateAndGet(t *testing.T) {
 		Scenario:       "swarm-manager",
 		AdoptedPath:    "ui/src/components/Button.tsx",
 		AdoptedVersion: "1.0.0",
+		Files: []adoptions.AdoptionFile{
+			{LibraryPath: "Button.tsx", AdoptedPath: "ui/src/components/Button.tsx", SourceSHA256: "entry", AdoptedSnapshotSHA256: "entry-snapshot"},
+			{LibraryPath: "button-state.ts", AdoptedPath: "ui/src/components/button-state.ts", SourceSHA256: "helper", AdoptedSnapshotSHA256: "helper-snapshot"},
+		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "adopt-fixed", a.ID)
@@ -45,11 +49,13 @@ func TestSQLiteRepository_CreateAndGet(t *testing.T) {
 	require.Equal(t, adoptions.LocalStatusClean, a.LocalStatus)
 	require.False(t, a.CreatedAt.IsZero())
 	require.True(t, a.RefreshedAt.IsZero())
+	require.Len(t, a.Files, 2)
 
 	got, err := repo.Get(ctx, a.ID)
 	require.NoError(t, err)
 	require.Equal(t, a.ID, got.ID)
 	require.Equal(t, "swarm-manager", got.Scenario)
+	require.Equal(t, a.Files, got.Files)
 }
 
 func TestSQLiteRepository_UpdateAppliedSnapshot(t *testing.T) {

@@ -53,6 +53,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '')
 		string(LibraryVersionStatusCurrent), string(LocalStatusClean), now.Format(timeFormat), now.Format(timeFormat)); err != nil {
 		return Adoption{}, fmt.Errorf("insert adoption: %w", err)
 	}
+	for _, file := range in.Files {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256) VALUES (?, ?, ?, ?, ?)`, id, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256); err != nil {
+			return Adoption{}, fmt.Errorf("insert adoption file %q: %w", file.AdoptedPath, err)
+		}
+	}
 	return s.Get(ctx, id)
 }
 
@@ -89,6 +94,23 @@ WHERE id = ?
 	return s.Get(ctx, id)
 }
 
+func (s *sqliteRepository) UpdateAppliedUnit(ctx context.Context, in AppliedUnitUpdate) (Adoption, error) {
+	updated, err := s.UpdateAppliedSnapshot(ctx, in.AppliedSnapshotUpdate)
+	if err != nil {
+		return Adoption{}, err
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM adoption_files WHERE adoption_id = ?`, in.ID); err != nil {
+		return Adoption{}, fmt.Errorf("clear adoption files: %w", err)
+	}
+	for _, file := range in.Files {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256) VALUES (?, ?, ?, ?, ?)`, in.ID, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256); err != nil {
+			return Adoption{}, fmt.Errorf("insert reapplied adoption file: %w", err)
+		}
+	}
+	updated.Files, err = s.listFiles(ctx, in.ID)
+	return updated, err
+}
+
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Adoption, error) {
 	row := s.db.QueryRowContext(ctx, selectAdoptionByIDSQL, id)
 	a, err := scanAdoption(row)
@@ -97,6 +119,10 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Adoption, error)
 	}
 	if err != nil {
 		return Adoption{}, fmt.Errorf("get adoption %q: %w", id, err)
+	}
+	a.Files, err = s.listFiles(ctx, a.ID)
+	if err != nil {
+		return Adoption{}, err
 	}
 	return a, nil
 }
@@ -145,7 +171,36 @@ LIMIT ?
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate adoptions: %w", err)
 	}
+	// Close the parent cursor before child lookups. SQLite's single-connection
+	// in-memory test database cannot service a nested query while rows is open.
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close adoptions rows: %w", err)
+	}
+	for i := range out {
+		files, err := s.listFiles(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		out[i].Files = files
+	}
 	return out, nil
+}
+
+func (s *sqliteRepository) listFiles(ctx context.Context, adoptionID string) ([]AdoptionFile, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT library_path, adopted_path, source_sha256, adopted_snapshot_sha256 FROM adoption_files WHERE adoption_id = ? ORDER BY library_path`, adoptionID)
+	if err != nil {
+		return nil, fmt.Errorf("list adoption files: %w", err)
+	}
+	defer rows.Close()
+	var files []AdoptionFile
+	for rows.Next() {
+		var file AdoptionFile
+		if err := rows.Scan(&file.LibraryPath, &file.AdoptedPath, &file.SourceSHA256, &file.AdoptedSnapshotSHA256); err != nil {
+			return nil, err
+		}
+		files = append(files, file)
+	}
+	return files, rows.Err()
 }
 
 func (s *sqliteRepository) Delete(ctx context.Context, id string) error {

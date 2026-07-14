@@ -23,12 +23,21 @@ func domainToProto(a adoptions.Adoption) *adoptionsv1.Adoption {
 		StatusDetail:         a.StatusDetail,
 		CreatedAt:            timestamppb.New(a.CreatedAt.UTC()),
 		SourceSha256:         a.SourceSHA256,
+		Files:                adoptionFilesToProto(a.Files),
 	}
 	if !a.RefreshedAt.IsZero() {
 		out.RefreshedAt = timestamppb.New(a.RefreshedAt.UTC())
 	}
 	if !a.AppliedAt.IsZero() {
 		out.AppliedAt = a.AppliedAt.UTC().Format("2006-01-02T15:04:05Z07:00")
+	}
+	return out
+}
+
+func adoptionFilesToProto(files []adoptions.AdoptionFile) []*adoptionsv1.AdoptionFile {
+	out := make([]*adoptionsv1.AdoptionFile, 0, len(files))
+	for _, file := range files {
+		out = append(out, &adoptionsv1.AdoptionFile{LibraryPath: file.LibraryPath, AdoptedPath: file.AdoptedPath, SourceSha256: file.SourceSHA256, AdoptedSnapshotSha256: file.AdoptedSnapshotSHA256})
 	}
 	return out
 }

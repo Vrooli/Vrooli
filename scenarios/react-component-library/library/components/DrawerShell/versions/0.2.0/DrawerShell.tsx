@@ -11,6 +11,8 @@
  * @warning Ingested by React Component Library. Preserve this provenance header.
  */
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEscapeKey } from "./useEscapeKey";
+import { useFocusTrap } from "./useFocusTrap";
 
 interface DrawerShellProps {
   /** Whether the drawer is mounted/visible. Returns null when false. */
@@ -73,39 +75,15 @@ export function DrawerShell({
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
+  useEscapeKey(open, onClose);
+  useFocusTrap(open, panelRef);
+
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement as HTMLElement | null;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      )).filter((element) => element.offsetParent !== null || element === document.activeElement);
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const activeElement = document.activeElement as HTMLElement | null;
-      if (!first || !last) return;
-      if (event.shiftKey && (activeElement === first || !panel.contains(activeElement))) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (activeElement === last || !panel.contains(activeElement))) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
     closeButtonRef.current?.focus();
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      previousFocus?.focus();
-    };
-  }, [onClose, open]);
+    return () => previousFocus?.focus();
+  }, [open]);
 
   if (!open) return null;
 

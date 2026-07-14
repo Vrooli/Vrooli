@@ -459,7 +459,7 @@ npm run dist:all   # Build for all platforms
 Comprehensive testing suite:
 - Package structure validation
 - Dependency verification
-- UI screenshot testing (via Browserless)
+- UI screenshot testing (via browser-automation-studio)
 - Platform compatibility checks
 - Performance profiling
 
@@ -735,7 +735,7 @@ Automated desktop build pipeline via `initialization/n8n/desktop-build-automatio
 2. Generates applications using templates
 3. Installs dependencies and builds TypeScript
 4. Packages for target platforms
-5. Performs UI testing via Browserless
+5. Performs UI testing via browser-automation-studio
 6. Sends completion notifications
 7. Handles error cases gracefully
 
@@ -761,7 +761,7 @@ NODE_ENV=production               # Environment mode
 
 # Build Configuration
 DESKTOP_BUILD_TIMEOUT=600000      # Build timeout (ms)
-BROWSERLESS_URL=http://localhost:3000  # Testing service (if browserless resource enabled)
+BAS_URL=http://localhost:4110  # Testing service (if browser-automation-studio enabled)
 ```
 
 ### Service Configuration (`.vrooli/service.json`)

@@ -101,7 +101,7 @@
       "path": "/api/v1/extension/test",
       "method": "POST",
       "summary": "Test extension",
-      "description": "Runs automated tests against a packaged extension using Browserless, returning pass/fail data.",
+      "description": "Runs automated tests against a packaged extension using a headless browser driver, returning pass/fail data.",
       "category": "extension",
       "request": {
         "type": "object",

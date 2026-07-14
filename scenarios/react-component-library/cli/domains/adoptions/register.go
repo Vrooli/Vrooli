@@ -19,6 +19,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AdoptionsService.ReapplyAdoption":     h.reapply,
 		"AdoptionsService.DeleteAdoption":      h.delete,
 		"AdoptionsService.RefreshAdoptions":    h.refresh,
+		"AdoptionsService.ReconcileAdoptions":  h.reconcile,
 		"AdoptionsService.ResolveAdoptionPath": h.resolvePath,
 		"AdoptionsService.SuggestAdoptions":    h.suggest,
 	}

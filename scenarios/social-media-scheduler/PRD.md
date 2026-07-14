@@ -96,7 +96,7 @@ This scenario transforms every content-generating scenario in Vrooli into a mult
   - integration_pattern: Direct API calls for real-time optimization
   - access_method: HTTP REST API with streaming for large content
 
-- **browserless**: Fallback posting mechanism and screenshot verification
+- **browser-automation-studio**: Fallback posting mechanism and screenshot verification
   - purpose: Backup posting method when APIs fail, plus visual verification
   - integration_pattern: Automated browser actions for complex posting flows
   - access_method: REST API with custom automation scripts

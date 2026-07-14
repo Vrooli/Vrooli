@@ -78,6 +78,7 @@ func (f *FakeRepository) Create(ctx context.Context, in adoptions.CreateInput) (
 		LocalStatus:           adoptions.LocalStatusClean,
 		CreatedAt:             f.NowFn(),
 		AppliedAt:             f.NowFn(),
+		Files:                 append([]adoptions.AdoptionFile(nil), in.Files...),
 	}
 	f.items[a.ID] = a
 	return a, nil
@@ -106,6 +107,19 @@ func (f *FakeRepository) UpdateAppliedSnapshot(_ context.Context, in adoptions.A
 	a.RefreshedAt = appliedAt
 	a.AppliedAt = appliedAt
 	a.DriftBacklogRef = ""
+	f.items[in.ID] = a
+	return a, nil
+}
+
+func (f *FakeRepository) UpdateAppliedUnit(ctx context.Context, in adoptions.AppliedUnitUpdate) (adoptions.Adoption, error) {
+	a, err := f.UpdateAppliedSnapshot(ctx, in.AppliedSnapshotUpdate)
+	if err != nil {
+		return adoptions.Adoption{}, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	a = f.items[in.ID]
+	a.Files = append([]adoptions.AdoptionFile(nil), in.Files...)
 	f.items[in.ID] = a
 	return a, nil
 }

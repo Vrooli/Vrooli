@@ -4,6 +4,7 @@
   "description": "Compact empty-state panel with icon, copy, and optional action slots.",
   "tags": ["feedback", "surface"],
   "slot": "ui-pattern",
+  "category": "feedback",
   "designStyles": [
     { "styleId": "vrooli-default", "affinity": "native" },
     { "styleId": "vrooli-command-display", "affinity": "compatible" },

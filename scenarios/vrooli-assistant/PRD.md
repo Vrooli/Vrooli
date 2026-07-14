@@ -79,10 +79,10 @@ optional:
     fallback: Linear search through postgres
     access_method: resource-qdrant CLI
     
-  - resource_name: browserless
+  - resource_name: browser-automation-studio
     purpose: Enhanced DOM capture for web scenarios
     fallback: Basic screenshot only
-    access_method: resource-browserless CLI
+    access_method: browser-automation-studio CLI
 ```
 
 ### Resource Integration Standards
@@ -424,7 +424,7 @@ discovery:
 ### External Dependencies
 - PostgreSQL - Issue and session storage
 - Qdrant (optional) - Vector search for pattern matching
-- Browserless (optional) - Enhanced DOM capture
+- browser-automation-studio (optional) - Enhanced DOM capture
 - System screenshot tools - scrot, gnome-screenshot, or imagemagick
 
 ### Standards & Compliance
@@ -462,7 +462,7 @@ structure:
 
 resources:
   required: [postgres]
-  optional: [qdrant, browserless, claude-code, agent-s2]
+  optional: [qdrant, browser-automation-studio, claude-code, agent-s2]
   health_timeout: 30
 
 tests:

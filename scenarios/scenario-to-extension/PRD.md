@@ -67,10 +67,10 @@ This capability fundamentally expands the scope of what Vrooli scenarios can acc
 ### Resource Dependencies
 ```yaml
 required:
-  - resource_name: browserless
+  - resource_name: browser-automation-studio
     purpose: Extension testing and screenshot validation
     integration_pattern: CLI command
-    access_method: resource-browserless screenshot
+    access_method: browser-automation-studio screenshot
 
 optional:
   - resource_name: postgres
@@ -88,7 +88,7 @@ optional:
 ```yaml
 integration_priorities:
   1_resource_cli:
-    - command: resource-browserless screenshot
+    - command: browser-automation-studio screenshot
       purpose: Validate extension UI and functionality
     - command: scenario-to-extension generate
       purpose: Create extension from scenario specification
@@ -201,7 +201,7 @@ published_events:
 consumed_events:
   - name: scenario.updated
     action: Regenerate extensions for updated scenarios
-  - name: resource.browserless.ready
+  - name: browser-automation-studio.ready
     action: Start extension testing pipeline
 ```
 
@@ -293,7 +293,7 @@ custom_commands:
 
 ### Upstream Dependencies
 **What capabilities must exist before this can function?**
-- **Browserless Resource**: Required for extension testing, screenshot validation, and browser automation
+- **browser-automation-studio**: Required for extension testing, screenshot validation, and browser automation
 - **Scenario API Framework**: Extensions need to communicate with scenario APIs for data exchange
 - **File System Access**: Template storage and extension output generation
 
@@ -320,7 +320,7 @@ provides_to:
     interface: API/CLI
     
 consumes_from:
-  - scenario: browserless
+  - scenario: browser-automation-studio
     capability: Browser automation and testing
     fallback: Manual testing instructions
     
@@ -430,7 +430,7 @@ discovery:
   metadata:
     description: "Transform scenarios into powerful browser extensions"
     keywords: [extension, browser, automation, web, chrome, firefox]
-    dependencies: [browserless]
+    dependencies: [browser-automation-studio]
     enhances: [all_scenarios_with_web_integration_needs]
 ```
 
@@ -482,14 +482,14 @@ structure:
     - initialization
 
 resources:
-  required: [browserless]
+  required: [browser-automation-studio]
   optional: [postgres, redis]
   health_timeout: 60
 
 tests:
-  - name: "Browserless is accessible"
+  - name: "browser-automation-studio is accessible"
     type: http
-    service: browserless
+    service: browser-automation-studio
     endpoint: /health
     method: GET
     expect:
@@ -522,7 +522,7 @@ tests:
       output_contains: ["Extension generated successfully"]
       
   - name: "Generated extension loads in browser"
-    type: browserless
+    type: browser-automation-studio
     action: load_extension
     extension_path: "/tmp/test-extension"
     expect:
@@ -588,7 +588,7 @@ tests:
 
 ### Related PRDs
 - web-scraper-manager.PRD.md - Primary consumer of extension capabilities
-- browserless.PRD.md - Critical dependency for extension testing
+- browser-automation-studio.PRD.md - Critical dependency for extension testing
 
 ### External Resources
 - Chrome Extension Developer Guide

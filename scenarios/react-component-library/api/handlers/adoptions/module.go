@@ -128,6 +128,10 @@ func (l *componentsLibrary) Get(ctx context.Context, id string) (components.Comp
 	return l.svc.Get(ctx, id)
 }
 
+func (l *componentsLibrary) List(ctx context.Context, q components.SearchQuery) ([]components.Component, error) {
+	return l.svc.List(ctx, q)
+}
+
 func (l *componentsLibrary) GetContent(ctx context.Context, id string) (components.Content, error) {
 	return l.svc.GetContent(ctx, id)
 }
@@ -152,6 +156,16 @@ func defaultScenariosRoot() (string, error) {
 // Endpoints is the machine-readable description of the adoptions
 // module's public surface.
 var Endpoints = []module.EndpointDescriptor{
+	{
+		ID:          "adoptions_reconcile",
+		Path:        adoptionsconnect.AdoptionsServiceReconcileAdoptionsProcedure,
+		Method:      "POST",
+		Summary:     "Backfill adoption records from on-disk provenance",
+		Description: "Scans scenario UI source read-only. Dry-run is default; apply writes only RCL adoption records without backlog reporting.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"apply": "boolean"}},
+		Response:    &module.Schema{Type: "object"},
+	},
 	{
 		ID:          "adoptions_list",
 		Path:        adoptionsconnect.AdoptionsServiceListAdoptionsProcedure,
@@ -306,7 +320,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        adoptionsconnect.AdoptionsServiceSuggestAdoptionsProcedure,
 		Method:      "POST",
 		Summary:     "Suggest catalog components a scenario should adopt",
-		Description: "Ranks non-adopted catalog components using real UI inventory matches, design-style fit, and dependency compatibility. Every score contribution is returned as a reason.",
+		Description: "Returns non-adopted catalog components using real UI inventory matches, design-style fit, and dependency compatibility. Every candidate carries human-readable reasons; no opaque score is emitted.",
 		Category:    "adoptions",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string (optional)", "limit": "int32 (optional)"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"suggestions": "array<AdoptionSuggestion>"}},

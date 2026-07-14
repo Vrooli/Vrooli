@@ -28,6 +28,7 @@ func domainToProto(c components.Component) *componentsv1.Component {
 		DisplayName:   c.DisplayName,
 		Description:   c.Description,
 		Slot:          c.Slot,
+		Category:      c.Category,
 		SourcePath:    c.SourcePath,
 		Version:       c.Version,
 		Tags:          tags,
@@ -102,10 +103,35 @@ func versionToProto(v components.ComponentVersion) *componentsv1.ComponentVersio
 		SourcePath:    v.SourcePath,
 		ContentSha256: v.ContentSHA256,
 		ChangelogMd:   v.ChangelogMD,
+		Files:         versionFilesToProto(v.Files),
+		ParityReport:  parityReportToProtoValue(v.ParityReport),
 		IndexedAt:     timestamppb.New(v.IndexedAt.UTC()),
 	}
 	if !v.ReleasedAt.IsZero() {
 		out.ReleasedAt = timestamppb.New(v.ReleasedAt.UTC())
+	}
+	return out
+}
+
+func parityReportToProto(report components.IngestParityReport) *componentsv1.IngestParityReport {
+	return parityReportToProtoValue(&report)
+}
+
+func parityReportToProtoValue(report *components.IngestParityReport) *componentsv1.IngestParityReport {
+	if report == nil {
+		return nil
+	}
+	out := &componentsv1.IngestParityReport{OriginFiles: append([]string(nil), report.OriginFiles...), HarvestedFiles: append([]string(nil), report.HarvestedFiles...), Acknowledged: report.Acknowledged}
+	for _, finding := range report.Findings {
+		out.Findings = append(out.Findings, &componentsv1.IngestFinding{Code: finding.Code, Message: finding.Message, SourceFile: finding.SourceFile})
+	}
+	return out
+}
+
+func versionFilesToProto(files []components.ComponentVersionFile) []*componentsv1.ComponentVersionFile {
+	out := make([]*componentsv1.ComponentVersionFile, 0, len(files))
+	for _, file := range files {
+		out = append(out, &componentsv1.ComponentVersionFile{Path: file.Path, ContentSha256: file.ContentSHA256, IsEntry: file.IsEntry})
 	}
 	return out
 }

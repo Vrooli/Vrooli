@@ -112,6 +112,37 @@ describe("ComponentEditor", () => {
     );
   });
 
+  it("collapses and restores the desktop Code and Info panels", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "// collapsible", sha256: "sha-panels" }),
+    );
+
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    try {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <ComponentEditor id="cmp-panels" libraryId="lib:Panels" onClose={() => {}} />,
+      );
+
+      const codeToggle = await screen.findByTestId("component-editor-toggle-code-panel");
+      const infoToggle = screen.getByTestId("component-editor-toggle-info-panel");
+      await user.click(codeToggle);
+      await user.click(infoToggle);
+      expect(codeToggle).toHaveAttribute("aria-pressed", "true");
+      expect(infoToggle).toHaveAttribute("aria-pressed", "true");
+      await user.click(codeToggle);
+      expect(codeToggle).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
   it("keeps Monaco syntax diagnostics while disabling misleading semantic diagnostics", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(

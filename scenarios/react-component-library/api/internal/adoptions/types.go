@@ -86,6 +86,16 @@ type Adoption struct {
 	// behind/modified. Cleared back to "" when status returns to current
 	// so a future drift files a fresh item.
 	DriftBacklogRef string
+	Files           []AdoptionFile
+}
+
+// AdoptionFile is the per-file provenance and snapshot for a vendored unit.
+// The parent fields remain the entry-file mirror for compatibility.
+type AdoptionFile struct {
+	LibraryPath           string
+	AdoptedPath           string
+	SourceSHA256          string
+	AdoptedSnapshotSHA256 string
 }
 
 // CreateInput is the explicit DTO the service hands to the repository
@@ -100,6 +110,7 @@ type CreateInput struct {
 	AdoptedVersion        string
 	SourceSHA256          string
 	AdoptedSnapshotSHA256 string
+	Files                 []AdoptionFile
 }
 
 type ApplyInput struct {
@@ -128,6 +139,25 @@ type ReapplyInput struct {
 	OverrideValidation    bool
 }
 
+// ReconcileInput intentionally defaults to dry-run. Apply is the only mode
+// that writes adoption records; scenario source trees are always read-only.
+type ReconcileInput struct{ Apply bool }
+
+type ReconcileFinding struct {
+	Scenario    string
+	AdoptedPath string
+	LibraryID   string
+	Version     string
+	Detail      string
+}
+
+type ReconcileResult struct {
+	Scanned         int
+	AlreadyRecorded int
+	Created         int
+	Findings        []ReconcileFinding
+}
+
 // AppliedSnapshotUpdate records the exact library version and bytes
 // last written into the scenario file during apply/reapply.
 type AppliedSnapshotUpdate struct {
@@ -136,6 +166,11 @@ type AppliedSnapshotUpdate struct {
 	SourceSHA256          string
 	AdoptedSnapshotSHA256 string
 	AppliedAt             time.Time
+}
+
+type AppliedUnitUpdate struct {
+	AppliedSnapshotUpdate
+	Files []AdoptionFile
 }
 
 // RefreshUpdate carries the per-row update Refresh writes back to the

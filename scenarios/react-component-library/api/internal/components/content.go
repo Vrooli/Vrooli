@@ -58,6 +58,14 @@ type WriteContentInput struct {
 	ExpectedSHA256 string // empty = no optimistic-concurrency check
 }
 
+// PathContentStore extends ContentStore for a companion in the current entry
+// file's version folder. Callers may only name a single file; version-folder
+// traversal is intentionally not a public content API.
+type PathContentStore interface {
+	ReadPath(ctx context.Context, c Component, path string) (Content, error)
+	WritePath(ctx context.Context, c Component, path string, in WriteContentInput) (Content, error)
+}
+
 // FSContentStore is the production ContentStore backed by os.* on a
 // fixed root. The path-traversal guard is enforced on every call —
 // filepath.Clean does the rejoin, and the result must remain under
@@ -77,6 +85,16 @@ func NewFSContentStore(root string) *FSContentStore {
 // ErrPathEscape when SourcePath resolves outside root, and the os.*
 // error (wrapped) on any other filesystem failure.
 func (s *FSContentStore) Read(_ context.Context, c Component) (Content, error) {
+	return s.ReadPath(context.Background(), c, "")
+}
+
+func (s *FSContentStore) ReadPath(_ context.Context, c Component, path string) (Content, error) {
+	if path != "" {
+		if filepath.Base(path) != path || !strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".tsx") {
+			return Content{}, ErrPathEscape{SourcePath: path, Root: s.root}
+		}
+		c.SourcePath = filepath.ToSlash(filepath.Join(filepath.Dir(c.SourcePath), path))
+	}
 	abs, err := s.resolve(c.SourcePath)
 	if err != nil {
 		return Content{}, err
@@ -96,6 +114,16 @@ func (s *FSContentStore) Read(_ context.Context, c Component) (Content, error) {
 // non-empty, it must match the current on-disk digest or
 // ErrContentConflict is returned without writing.
 func (s *FSContentStore) Write(_ context.Context, c Component, in WriteContentInput) (Content, error) {
+	return s.WritePath(context.Background(), c, "", in)
+}
+
+func (s *FSContentStore) WritePath(_ context.Context, c Component, path string, in WriteContentInput) (Content, error) {
+	if path != "" {
+		if filepath.Base(path) != path || (!strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".tsx")) {
+			return Content{}, ErrPathEscape{SourcePath: path, Root: s.root}
+		}
+		c.SourcePath = filepath.ToSlash(filepath.Join(filepath.Dir(c.SourcePath), path))
+	}
 	abs, err := s.resolve(c.SourcePath)
 	if err != nil {
 		return Content{}, err

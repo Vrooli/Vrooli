@@ -9,8 +9,9 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useParams } from "react-router-dom";
+import { useState } from "react";
 
-import { componentsClient } from "../api/components";
+import { componentsClient, type Component } from "../api/components";
 import { EmptyState } from "./ui/empty-state";
 import { useTranslation } from "../i18n";
 
@@ -27,7 +28,13 @@ export function SidebarComponentList({ onNavigate }: Props) {
     staleTime: 30_000,
   });
 
-  const items = data?.components ?? [];
+  const items = (data?.components ?? []) as Array<Component & { category?: string }>;
+  const groups = new Map<string, typeof items>();
+  for (const item of items) {
+    const key = `${item.slot || "other"}\u0000${item.category || "uncategorized"}`;
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
   return (
     <div data-testid="sidebar-component-list">
@@ -58,29 +65,45 @@ export function SidebarComponentList({ onNavigate }: Props) {
           />
         </div>
       )}
-      <ul className="flex flex-col">
-        {items.map((c) => (
-          <li key={c.id}>
-            <NavLink
-              to={`/components/${encodeURIComponent(c.id)}`}
-              onClick={onNavigate}
-              data-testid={`sidebar-component-${c.id}`}
-              data-active={active === c.id ? "true" : undefined}
-              className={({ isActive }) =>
-                [
-                  "block truncate rounded-control px-3 py-1.5 text-xs",
-                  isActive
-                    ? "bg-app-surface-muted font-medium text-app-foreground"
-                    : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
-                ].join(" ")
-              }
-              title={c.libraryId || c.displayName || c.id}
+      {Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([key, members]) => {
+        const [slot, category] = key.split("\u0000");
+        return (
+          <section key={key} data-testid={`sidebar-component-group-${slot}-${category}`}>
+            <button
+              type="button"
+              aria-expanded={!collapsedGroups.has(key)}
+              onClick={() => setCollapsedGroups((current) => {
+                const next = new Set(current);
+                if (next.has(key)) next.delete(key); else next.add(key);
+                return next;
+              })}
+              className="flex w-full items-center justify-between px-3 pt-2 text-left text-[10px] font-semibold uppercase tracking-wide text-app-muted-foreground hover:text-app-foreground"
             >
-              {c.displayName || c.libraryId || c.id}
-            </NavLink>
-          </li>
-        ))}
-      </ul>
+              <span>{(slot ?? "other").split("-").join(" ")} · {(category ?? "uncategorized").split("-").join(" ")}</span>
+              <span aria-hidden>{collapsedGroups.has(key) ? `▸ ${members.length}` : `▾ ${members.length}`}</span>
+            </button>
+            <ul className={collapsedGroups.has(key) ? "hidden" : "flex flex-col"}>
+              {members.map((c) => (
+                <li key={c.id}>
+                  <NavLink
+                    to={`/components/${encodeURIComponent(c.id)}`}
+                    onClick={onNavigate}
+                    data-testid={`sidebar-component-${c.id}`}
+                    data-active={active === c.id ? "true" : undefined}
+                    className={({ isActive }) => [
+                      "block truncate rounded-control px-3 py-1.5 text-xs",
+                      isActive ? "bg-app-surface-muted font-medium text-app-foreground" : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
+                    ].join(" ")}
+                    title={c.libraryId || c.displayName || c.id}
+                  >
+                    {c.displayName || c.libraryId || c.id}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
     </div>
   );
 }

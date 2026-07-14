@@ -75,7 +75,10 @@ func ParseDesignMDToTheme(src []byte, scenarioFallbackID string) (Theme, error) 
 		tokens["--color-"+slug(k)] = v
 	}
 	for k, v := range d.Rounded {
-		tokens["--rounded-"+slug(k)] = v
+		// The UI consumes the shared radius vocabulary. DESIGN.md retains
+		// `rounded` as its authoring field, but emitted token names are the
+		// canonical `--radius-*` contract.
+		tokens["--radius-"+slug(k)] = v
 	}
 	for k, v := range d.Spacing {
 		tokens["--spacing-"+slug(k)] = v

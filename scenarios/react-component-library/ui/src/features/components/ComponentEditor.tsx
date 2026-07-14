@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 import { ArrowLeft, Code2, Eye, Info, Save } from "lucide-react";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
 
 import { Button } from "../../components/ui/button";
 import { StatusBadge } from "../../components/ui/status-badge";
@@ -92,18 +92,28 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
   const { resolved: appResolvedTheme } = useTheme();
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
   const previewFramesRef = useRef(new Set<HTMLIFrameElement>());
+  const codePanelRef = usePanelRef();
+  const infoPanelRef = usePanelRef();
   const inspector = useComponentInspector(previewFrameRef);
+  const [selectedFile, setSelectedFile] = useState("");
+  const versionsQuery = useQuery({
+    queryKey: ["components", "versions", id],
+    queryFn: () => componentsClient.listComponentVersions({ componentId: id, limit: 100 }),
+  });
+  const activeVersion = selectedVersion || versionsQuery.data?.versions[0]?.version || "";
+  const activeVersionFiles = ((versionsQuery.data?.versions ?? []).find((version) => version.version === activeVersion)?.files ?? []) as Array<{ path: string; isEntry: boolean }>;
 
   const contentQuery = useQuery({
-    queryKey: ["components", "content", id, selectedVersion ?? "current"],
+    queryKey: ["components", "content", id, selectedVersion ?? "current", selectedFile],
     queryFn: async (): Promise<{ content: string; sha256: string }> => {
       if (!selectedVersion) {
-        const current = await componentsClient.getComponentContent({ id });
+        const current = await componentsClient.getComponentContent({ id, ...(selectedFile ? { path: selectedFile } : {}) });
         return { content: current.content, sha256: current.sha256 };
       }
       const historical = await componentsClient.getComponentVersionContent({
         componentId: id,
         version: selectedVersion,
+        ...(selectedFile ? { path: selectedFile } : {}),
       });
       return {
         content: historical.content,
@@ -125,6 +135,8 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
   const [readyExamples, setReadyExamples] = useState<ReadonlySet<string>>(() => new Set());
   const [previewReloadKey, setPreviewReloadKey] = useState(0);
   const [mode, setMode] = useState<"preview" | "code" | "info">("code");
+  const [codeCollapsed, setCodeCollapsed] = useState(false);
+  const [infoCollapsed, setInfoCollapsed] = useState(false);
   const initialDesktopLayout = useMemo(() => {
     try {
       const saved = window.localStorage.getItem(PANEL_LAYOUT_STORAGE_KEY);
@@ -163,11 +175,11 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
 
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
-      const data = ev.data as { type?: string; id?: string; message?: string; example?: string } | null;
+      const data = ev.data as { type?: string; id?: string; message?: string; example?: string; version?: string } | null;
       if (data && data.type === "preview-ready" && data.id === id) {
         setReadyExamples((current) => {
           const next = new Set(current);
-          next.add(data.example || "__default__");
+          next.add(`${data.version || "__current__"}:${data.example || "__default__"}`);
           return next;
         });
         setPreviewMessage("");
@@ -238,6 +250,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
         id,
         content: buffer,
         expectedSha256: baselineSha,
+        ...(selectedFile ? { path: selectedFile } : {}),
       }),
     onSuccess: (resp) => {
       setBaselineSha(resp.sha256);
@@ -281,6 +294,20 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
     } catch {
       // Layout persistence is a convenience; keep resizing usable if storage is blocked.
     }
+  };
+
+  const toggleDesktopPanel = (
+    panel: typeof codePanelRef,
+    setCollapsed: (collapsed: boolean) => void,
+  ) => {
+    if (!desktopLayout || !panel.current) return;
+    if (panel.current.isCollapsed()) {
+      panel.current.expand();
+      setCollapsed(false);
+      return;
+    }
+    panel.current.collapse();
+    setCollapsed(true);
   };
 
   return (
@@ -327,6 +354,30 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            <Button
+              type="button"
+              variant="secondary"
+              data-testid="component-editor-toggle-code-panel"
+              aria-pressed={codeCollapsed}
+              onClick={() => toggleDesktopPanel(codePanelRef, setCodeCollapsed)}
+              className="hidden h-8 px-2 text-xs lg:inline-flex"
+            >
+              {codeCollapsed
+                ? t("components.editor.showCode", { defaultValue: "Show code" })
+                : t("components.editor.hideCode", { defaultValue: "Hide code" })}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              data-testid="component-editor-toggle-info-panel"
+              aria-pressed={infoCollapsed}
+              onClick={() => toggleDesktopPanel(infoPanelRef, setInfoCollapsed)}
+              className="hidden h-8 px-2 text-xs lg:inline-flex"
+            >
+              {infoCollapsed
+                ? t("components.editor.showInfo", { defaultValue: "Show info" })
+                : t("components.editor.hideInfo", { defaultValue: "Hide info" })}
+            </Button>
             <Button
               data-testid={selectors.components.editor.closeButton}
               onClick={onClose}
@@ -418,9 +469,16 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
             onLayoutChanged={saveDesktopPanelLayout}
             className="h-full min-h-0"
           >
-          <Panel id="code" minSize="20%" defaultSize="38%" className={mode === "code" ? "" : "max-lg:hidden"}>
+          <Panel id="code" minSize="20%" defaultSize="38%" collapsible collapsedSize="0%" panelRef={codePanelRef} className={mode === "code" ? "" : "max-lg:hidden"}>
           <div className="flex h-full min-h-0 flex-col">
-            <div className="flex shrink-0 items-center justify-end border-b border-app-border bg-app-surface px-2 py-1.5">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
+              <div className="flex min-w-0 gap-1 overflow-x-auto" data-testid="component-editor-file-tabs">
+                {activeVersionFiles.map((file) => (
+                  <Button key={file.path} variant={selectedFile === file.path || (!selectedFile && file.isEntry) ? "primary" : "secondary"} className="h-7 shrink-0 px-2 text-xs" onClick={() => setSelectedFile(file.isEntry ? "" : file.path)}>
+                    {file.path}
+                  </Button>
+                ))}
+              </div>
               <Button
                 data-testid={selectors.components.editor.saveButton}
                 onClick={() => saveMutation.mutate()}
@@ -440,7 +498,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
             <Editor
               height="100%"
               language="typescript"
-              path={`${libraryId || id}.tsx`}
+              path={selectedFile || `${libraryId || id}.tsx`}
               value={buffer}
               onChange={(v) => setBuffer(v ?? "")}
               beforeMount={handleBeforeMount}
@@ -558,7 +616,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
           </div>
           </Panel>
           <Separator className="hidden w-1 shrink-0 bg-app-border hover:bg-app-primary lg:block" />
-          <Panel id="info" minSize="15%" defaultSize="20%" className={mode === "info" ? "" : "max-lg:hidden"}>
+          <Panel id="info" minSize="15%" defaultSize="20%" collapsible collapsedSize="0%" panelRef={infoPanelRef} className={mode === "info" ? "" : "max-lg:hidden"}>
             <aside data-testid={selectors.components.editor.infoDialog} className="h-full overflow-auto border-l border-app-border bg-app-surface p-4">
               <h3 className="mb-3 text-sm font-semibold text-app-foreground">{t(strings.components.editor.info)}</h3>
               {metadataSlot ?? <p className="text-sm text-app-muted-foreground">{t(strings.components.editor.noInfo)}</p>}

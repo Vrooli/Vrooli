@@ -2,7 +2,9 @@ package components_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -150,6 +152,86 @@ export default function DrawerShell() { const navigate = useNavigate(); return <
 	require.FileExists(t, filepath.Join(root, got.SourcePath))
 	require.Contains(t, got.ChecklistPath, "de-scenario-ification")
 	require.Len(t, got.Findings, 2)
+}
+
+func TestService_IngestComponentCopiesRelativeImportClosureAsOneVersionUnit(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	sources := map[string]string{
+		"ui/src/components/DrawerShell.tsx": `import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useEscapeKey } from "../hooks/useEscapeKey";
+export function DrawerShell() { useFocusTrap(); useEscapeKey(); return <div role="dialog" aria-modal="true" />; }`,
+		"ui/src/hooks/useFocusTrap.ts": `export function useFocusTrap() { window.addEventListener("keydown", () => {}); }`,
+		"ui/src/hooks/useEscapeKey.ts": `export function useEscapeKey() { return undefined; }`,
+	}
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(_ context.Context, scenario, sourceFile string) ([]byte, error) {
+		require.Equal(t, "web-console", scenario)
+		body, ok := sources[sourceFile]
+		if !ok {
+			return nil, errors.New("not found")
+		}
+		return []byte(body), nil
+	}))
+
+	got, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/DrawerShell.tsx", Slug: "drawer-shell", DisplayName: "DrawerShell",
+	})
+	require.NoError(t, err)
+	draft, err := svc.GetVersion(context.Background(), got.Component.ID, got.DraftVersion)
+	require.NoError(t, err)
+	require.Len(t, draft.Files, 3)
+	require.NotNil(t, draft.ParityReport)
+	require.Empty(t, draft.ParityReport.Findings)
+	require.Equal(t, []string{"DrawerShell.tsx", "useEscapeKey.ts", "useFocusTrap.ts"}, draft.ParityReport.OriginFiles)
+	require.Equal(t, []string{"DrawerShell.tsx", "useEscapeKey.ts", "useFocusTrap.ts"}, []string{draft.Files[0].Path, draft.Files[1].Path, draft.Files[2].Path})
+	require.True(t, draft.Files[0].IsEntry)
+	require.Contains(t, draft.Files[0].Content, `from "./useFocusTrap"`)
+	require.FileExists(t, filepath.Join(root, "components", "drawer-shell", "versions", got.DraftVersion, "useFocusTrap.ts"))
+	require.FileExists(t, filepath.Join(root, "components", "drawer-shell", "versions", got.DraftVersion, "useEscapeKey.ts"))
+
+	reharvested, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/DrawerShell.tsx", Slug: "drawer-shell", DisplayName: "DrawerShell", Version: "1.0.0",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "1.0.0-draft.1", reharvested.DraftVersion)
+	require.Equal(t, got.Component.ID, reharvested.Component.ID)
+	require.FileExists(t, filepath.Join(root, "components", "drawer-shell", "versions", reharvested.DraftVersion, "useFocusTrap.ts"))
+}
+
+func TestIngestBehaviorInventoryFlagsHistoricalFocusTrapLoss(t *testing.T) {
+	origin := `import { useFocusTrap } from "../hooks/useFocusTrap";
+export function Drawer() { return <div role="dialog" aria-modal="true" onKeyDown={() => {}} /> }`
+	harvested := `export function Drawer() { return <div role="dialog" /> }`
+	findings := components.BehaviorLossFindings(origin, harvested, "Drawer.tsx")
+	require.Len(t, findings, 3)
+	require.Contains(t, findings[0].Code, "behavior-lost")
+}
+
+func TestService_CreateComponentVersionRequiresExplicitParityWaiver(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(context.Context, string, string) ([]byte, error) {
+		return []byte(`export function DrawerShell() { return <div /> }`), nil
+	}))
+	created, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{Scenario: "web-console", SourceFile: "ui/src/components/DrawerShell.tsx", Slug: "drawer-shell"})
+	require.NoError(t, err)
+	report := components.IngestParityReport{Findings: []components.IngestFinding{{Code: "behavior-lost", Message: "fixture loss"}}}
+	raw, err := json.Marshal(report)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "drawer-shell", "versions", created.DraftVersion, "parity.json"), raw, 0o600))
+	_, err = components.NewIndexer(repo, root, nil).Run(context.Background())
+	require.NoError(t, err)
+	c, err := svc.GetByLibraryID(context.Background(), created.Component.LibraryID)
+	require.NoError(t, err)
+	_, err = svc.CreateComponentVersion(context.Background(), components.CreateComponentVersionInput{ComponentID: c.ID, Version: "1.0.0", FromVersion: created.DraftVersion, Intent: components.VersionIntentRelease})
+	var waiver components.ErrParityWaiverRequired
+	require.True(t, errors.As(err, &waiver))
+	got, err := svc.CreateComponentVersion(context.Background(), components.CreateComponentVersionInput{ComponentID: c.ID, Version: "1.0.0", FromVersion: created.DraftVersion, Intent: components.VersionIntentRelease, AcknowledgeParityWaiver: true})
+	require.NoError(t, err)
+	require.NotNil(t, got.Version.ParityReport)
+	require.True(t, got.Version.ParityReport.Acknowledged)
 }
 
 func seedStyleFitComponent(t *testing.T, repo *mocks.FakeRepository) components.Component {

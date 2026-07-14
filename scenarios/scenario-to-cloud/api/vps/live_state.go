@@ -271,7 +271,6 @@ func buildProcessState(
 		"redis":        "redis",
 		"qdrant":       "qdrant",
 		"ollama":       "ollama",
-		"browserless":  "browserless",
 		"minio":        "minio",
 	}
 

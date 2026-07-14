@@ -89,7 +89,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 				Path:    "/api/v1/extension/status/" + buildID,
 				URLVars: map[string]string{"build_id": buildID},
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to check status: %v", err)
 			}
@@ -126,7 +125,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 					Path:   "/api/v1/extension/generate",
 					Body:   req,
 				})
-
 				if err != nil {
 					t.Errorf("Failed to generate extension %d: %v", index, err)
 					done <- false
@@ -225,7 +223,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 				Method: "GET",
 				Path:   "/api/v1/extension/templates",
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to list templates: %v", err)
 			}
@@ -290,7 +287,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 				Method: "GET",
 				Path:   "/api/v1/health",
 			})
-
 			if err != nil {
 				t.Fatalf("Failed health check: %v", err)
 			}
@@ -328,7 +324,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 				Path:   "/api/v1/extension/generate",
 				Body:   req,
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to create build %d: %v", i, err)
 			}
@@ -393,10 +388,9 @@ func BenchmarkGenerateExtension(b *testing.B) {
 	}
 
 	cfg := &Config{
-		Port:           3201,
-		TemplatesPath:  env.TempDir + "/templates",
-		OutputPath:     env.TempDir + "/output",
-		BrowserlessURL: "http://localhost:3000",
+		Port:          3201,
+		TemplatesPath: env.TempDir + "/templates",
+		OutputPath:    env.TempDir + "/output",
 	}
 
 	config = cfg
@@ -428,10 +422,9 @@ func BenchmarkHealthCheck(b *testing.B) {
 	}
 
 	cfg := &Config{
-		Port:           3201,
-		TemplatesPath:  env.TempDir + "/templates",
-		OutputPath:     env.TempDir + "/output",
-		BrowserlessURL: "http://localhost:3000",
+		Port:          3201,
+		TemplatesPath: env.TempDir + "/templates",
+		OutputPath:    env.TempDir + "/output",
 	}
 
 	config = cfg

@@ -34,20 +34,29 @@ function versionPaths(manifestPath) {
   }
 
   const root = path.dirname(manifestPath);
-  return [...new Set(versions)].map((version) => {
-    const filePath = path.join(root, "versions", version, `${name}.tsx`);
-    const scenarioRelative = path.relative(scenarioDir, filePath);
-    if (scenarioRelative.startsWith("..") || path.isAbsolute(scenarioRelative)) {
-      throw new Error(`${filePath} escapes the scenario conformance boundary`);
+  return [...new Set(versions)].flatMap((version) => {
+    const versionDir = path.join(root, "versions", version);
+    if (!existsSync(versionDir)) {
+      throw new Error(`${manifestPath} points at missing version directory ${versionDir}`);
     }
-    const relative = path.relative(uiDir, filePath);
-    if (!existsSync(filePath)) {
-      throw new Error(`${manifestPath} points at missing catalog source ${filePath}`);
+    const sourceFiles = readdirSync(versionDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
+      .map((entry) => path.join(versionDir, entry.name))
+      .sort((a, b) => a.localeCompare(b));
+    if (sourceFiles.length === 0) {
+      throw new Error(`${manifestPath} version ${version} has no top-level TypeScript source files`);
     }
-    return {
-      scenarioRelative: scenarioRelative.split(path.sep).join("/"),
-      uiRelative: relative.split(path.sep).join("/"),
-    };
+    return sourceFiles.map((filePath) => {
+      const scenarioRelative = path.relative(scenarioDir, filePath);
+      if (scenarioRelative.startsWith("..") || path.isAbsolute(scenarioRelative)) {
+        throw new Error(`${filePath} escapes the scenario conformance boundary`);
+      }
+      const relative = path.relative(uiDir, filePath);
+      return {
+        scenarioRelative: scenarioRelative.split(path.sep).join("/"),
+        uiRelative: relative.split(path.sep).join("/"),
+      };
+    });
   });
 }
 
@@ -58,10 +67,10 @@ function catalogFiles() {
     .sort((a, b) => a.uiRelative.localeCompare(b.uiRelative));
 }
 
-function writeGeneratedTSConfig(files) {
+function writeGeneratedTSConfig(outputPath, files) {
   writeFileSync(
-    generatedTSConfig,
-    `${JSON.stringify({ extends: "./tsconfig.catalog.json", files }, null, 2)}\n`,
+    outputPath,
+    `${JSON.stringify({ extends: "./tsconfig.catalog.json", files, include: [] }, null, 2)}\n`,
   );
 }
 
@@ -75,7 +84,7 @@ const typeScriptFiles = files.map((file) => file.uiRelative);
 const eslintFiles = files.map((file) => file.scenarioRelative);
 
 try {
-  writeGeneratedTSConfig(typeScriptFiles);
+  writeGeneratedTSConfig(generatedTSConfig, typeScriptFiles);
   if (mode === "type-check" || mode === "check") {
     run("pnpm", ["exec", "tsc", "--noEmit", "--project", ".catalog-tsconfig.generated.json"]);
   }
@@ -84,6 +93,9 @@ try {
   }
   if (!["type-check", "lint", "check"].includes(mode)) {
     throw new Error(`unknown catalog conformance mode ${mode}`);
+  }
+  if (mode === "check") {
+    console.log("[REQ:CC-001] Catalog conformance passed for every declared component version.");
   }
 } finally {
   rmSync(generatedTSConfig, { force: true });

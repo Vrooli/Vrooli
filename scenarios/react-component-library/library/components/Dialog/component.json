@@ -4,6 +4,7 @@
   "description": "Accessible modal dialog shell with escape/backdrop dismissal and mobile-safe sizing.",
   "tags": ["overlay", "interactive"],
   "slot": "ui-pattern",
+  "category": "overlays",
   "designStyles": [
     { "styleId": "vrooli-default", "affinity": "native" },
     { "styleId": "vrooli-command-display", "affinity": "compatible" },

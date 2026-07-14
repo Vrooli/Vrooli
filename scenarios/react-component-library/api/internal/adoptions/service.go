@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,6 +33,7 @@ type Service interface {
 	Create(ctx context.Context, in CreateInput) (Adoption, error)
 	Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	Reapply(ctx context.Context, in ReapplyInput) (Adoption, string, error)
+	Reconcile(ctx context.Context, in ReconcileInput) (ReconcileResult, error)
 	List(ctx context.Context, q ListQuery) ([]Adoption, error)
 	Get(ctx context.Context, id string) (Adoption, error)
 	Delete(ctx context.Context, id string) error
@@ -56,8 +58,23 @@ type RefreshSummary struct {
 // full components.Service surface so tests don't need to build one.
 type LibraryReader interface {
 	Get(ctx context.Context, id string) (components.Component, error)
+	List(ctx context.Context, q components.SearchQuery) ([]components.Component, error)
 	GetContent(ctx context.Context, id string) (components.Content, error)
 	GetVersion(ctx context.Context, componentID, version string) (components.ComponentVersion, error)
+}
+
+// ProvenanceFile is one source file found by a read-only provenance scan.
+type ProvenanceFile struct {
+	Scenario    string
+	AdoptedPath string
+	LibraryID   string
+	Version     string
+	AdoptionID  string
+	Content     []byte
+}
+
+type ScenarioProvenanceScanner interface {
+	ScanProvenance(ctx context.Context) ([]ProvenanceFile, error)
 }
 
 // ScenarioFileReader is the target-scenario-tree seam Refresh uses to
@@ -259,43 +276,127 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	if exists {
-		existing, err := s.files.Read(ctx, in.Scenario, in.AdoptedPath)
+	_ = exists // entry existence is checked together with every unit target below.
+	adoptionID := uuid.NewString()
+	var importSites []string
+	now := s.clock.Now().UTC()
+	files := adoptionUnitFiles(v, in.AdoptedPath)
+	for _, file := range files {
+		exists, err := s.files.Exists(ctx, in.Scenario, file.AdoptedPath)
 		if err != nil {
 			return ApplyResult{}, err
 		}
-		// A normal apply may only create a new file. Replacement must be an
-		// explicit operator decision, and changed source must be confirmed.
+		if !exists {
+			continue
+		}
 		if !in.ReplaceExisting {
 			return ApplyResult{}, ErrInvalidAdoption{Field: "replace_existing", Reason: "target file already exists; set replace_existing to replace it"}
 		}
-		if hashBytes([]byte(stripSourceHeader(string(existing)))) != hashBytes([]byte(stripSourceHeader(v.Content))) && !in.ConfirmOverwrite {
-			return ApplyResult{}, ErrInvalidAdoption{Field: "confirm_overwrite", Reason: "existing target differs from the ingested library source"}
-		}
-	}
-	adoptionID := uuid.NewString()
-	var importSites []string
-	if finder, ok := s.files.(ScenarioImportSiteFinder); ok {
-		importSites, err = finder.FindImportSites(ctx, in.Scenario, in.AdoptedPath)
+		existing, err := s.files.Read(ctx, in.Scenario, file.AdoptedPath)
 		if err != nil {
 			return ApplyResult{}, err
 		}
+		if hashBytes([]byte(stripSourceHeader(string(existing)))) != hashBytes([]byte(stripSourceHeader(file.Content))) && !in.ConfirmOverwrite {
+			return ApplyResult{}, ErrInvalidAdoption{Field: "confirm_overwrite", Reason: "existing target differs from the ingested library source"}
+		}
 	}
-	now := s.clock.Now().UTC()
-	body := formatProvenance(v, adoptionID, now) + stripSourceHeader(v.Content)
-	written, err := s.files.Write(ctx, in.Scenario, in.AdoptedPath, []byte(body))
-	if err != nil {
-		return ApplyResult{}, err
+	adoptionFiles := make([]AdoptionFile, 0, len(files))
+	written := ""
+	entrySnapshot := ""
+	for _, file := range files {
+		fv := v
+		fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
+		body := formatProvenance(fv, adoptionID, now) + stripSourceHeader(file.Content)
+		path, err := s.files.Write(ctx, in.Scenario, file.AdoptedPath, []byte(body))
+		if err != nil {
+			return ApplyResult{}, err
+		}
+		if file.IsEntry {
+			written = path
+			entrySnapshot = hashBytes([]byte(body))
+		}
+		adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: hashBytes([]byte(body))})
+		if finder, ok := s.files.(ScenarioImportSiteFinder); ok {
+			sites, err := finder.FindImportSites(ctx, in.Scenario, file.AdoptedPath)
+			if err != nil {
+				return ApplyResult{}, err
+			}
+			importSites = append(importSites, sites...)
+		}
 	}
 	a, err := s.repo.Create(ctx, CreateInput{
 		ID:          adoptionID,
 		ComponentID: cmp.ID, LibraryID: cmp.LibraryID, Scenario: in.Scenario, AdoptedPath: in.AdoptedPath,
-		AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: hashBytes([]byte(body)),
+		AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, Files: adoptionFiles,
 	})
 	if err != nil {
 		return ApplyResult{}, err
 	}
 	return ApplyResult{Adoption: a, WrittenPath: written, ImportSites: importSites}, nil
+}
+
+type adoptionUnitFile struct {
+	components.ComponentVersionFile
+	AdoptedPath string
+}
+
+func adoptionUnitFiles(v components.ComponentVersion, entryTarget string) []adoptionUnitFile {
+	files := append([]components.ComponentVersionFile(nil), v.Files...)
+	if len(files) == 0 {
+		files = []components.ComponentVersionFile{{Path: filepath.Base(v.SourcePath), Content: v.Content, ContentSHA256: v.ContentSHA256, IsEntry: true}}
+	}
+	if files[0].Path == "" {
+		files[0].Path = filepath.Base(entryTarget)
+	}
+	out := make([]adoptionUnitFile, 0, len(files))
+	targets := make(map[string]string, len(files))
+	for _, file := range files {
+		target := filepath.ToSlash(filepath.Join(filepath.Dir(entryTarget), file.Path))
+		if file.IsEntry {
+			target = entryTarget
+		} else if isHookCompanion(file.Path, entryTarget) {
+			target = filepath.ToSlash(filepath.Join(filepath.Dir(filepath.Dir(entryTarget)), "hooks", file.Path))
+		}
+		targets[moduleKey(file.Path)] = target
+		out = append(out, adoptionUnitFile{ComponentVersionFile: file, AdoptedPath: target})
+	}
+	for i := range out {
+		out[i].Content = rewriteUnitImports(out[i].Content, out[i].AdoptedPath, targets)
+	}
+	return out
+}
+
+func isHookCompanion(path, entryTarget string) bool {
+	name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	entryDir := filepath.ToSlash(filepath.Dir(entryTarget))
+	return strings.HasPrefix(name, "use") && len(name) > 3 && name[3] >= 'A' && name[3] <= 'Z' &&
+		(strings.HasSuffix(entryDir, "/components") || entryDir == "components")
+}
+
+func moduleKey(path string) string {
+	base := filepath.ToSlash(filepath.Base(path))
+	return strings.TrimSuffix(base, filepath.Ext(base))
+}
+
+var unitImportRE = regexp.MustCompile(`["']\.[^"']+["']`)
+
+func rewriteUnitImports(body, adoptedPath string, targets map[string]string) string {
+	return unitImportRE.ReplaceAllStringFunc(body, func(match string) string {
+		quote, specifier := match[:1], match[1:len(match)-1]
+		target, ok := targets[moduleKey(specifier)]
+		if !ok {
+			return match
+		}
+		rel, err := filepath.Rel(filepath.Dir(adoptedPath), target)
+		if err != nil {
+			return match
+		}
+		module := strings.TrimSuffix(filepath.ToSlash(rel), filepath.Ext(rel))
+		if !strings.HasPrefix(module, ".") {
+			module = "./" + module
+		}
+		return quote + module + quote
+	})
 }
 
 func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, string, error) {
@@ -327,18 +428,30 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		return Adoption{}, "", err
 	}
 	now := s.clock.Now().UTC()
-	body := formatProvenance(v, row.ID, now) + stripSourceHeader(v.Content)
-	written, err := s.files.Write(ctx, row.Scenario, row.AdoptedPath, []byte(body))
-	if err != nil {
-		return Adoption{}, "", err
+	unit := adoptionUnitFiles(v, row.AdoptedPath)
+	adoptionFiles := make([]AdoptionFile, 0, len(unit))
+	written, entrySnapshot := "", ""
+	for _, file := range unit {
+		fv := v
+		fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
+		body := formatProvenance(fv, row.ID, now) + stripSourceHeader(file.Content)
+		path, err := s.files.Write(ctx, row.Scenario, file.AdoptedPath, []byte(body))
+		if err != nil {
+			return Adoption{}, "", err
+		}
+		snapshot := hashBytes([]byte(body))
+		if file.IsEntry {
+			written, entrySnapshot = path, snapshot
+		}
+		adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: snapshot})
 	}
-	updated, err := s.repo.UpdateAppliedSnapshot(ctx, AppliedSnapshotUpdate{
+	updated, err := s.repo.UpdateAppliedUnit(ctx, AppliedUnitUpdate{AppliedSnapshotUpdate: AppliedSnapshotUpdate{
 		ID:                    row.ID,
 		AdoptedVersion:        version,
 		SourceSHA256:          v.ContentSHA256,
-		AdoptedSnapshotSHA256: hashBytes([]byte(body)),
+		AdoptedSnapshotSHA256: entrySnapshot,
 		AppliedAt:             now,
-	})
+	}, Files: adoptionFiles})
 	if err != nil {
 		return Adoption{}, "", err
 	}
@@ -465,22 +578,28 @@ func (s *service) computeStatus(ctx context.Context, row Adoption) (LibraryVersi
 		}
 		return LibraryVersionStatusUnknown, LocalStatusUnknown, fmt.Sprintf("library lookup failed: %v", err)
 	}
-	adoptedBytes, err := s.files.Read(ctx, row.Scenario, row.AdoptedPath)
-	if err != nil {
+	files := row.Files
+	if len(files) == 0 {
+		files = []AdoptionFile{{AdoptedPath: row.AdoptedPath, AdoptedSnapshotSHA256: row.AdoptedSnapshotSHA256}}
+	}
+	localStatus := LocalStatusClean
+	detail := ""
+	for _, file := range files {
+		adoptedBytes, err := s.files.Read(ctx, row.Scenario, file.AdoptedPath)
+		if err == nil {
+			if file.AdoptedSnapshotSHA256 != "" && hashBytes(adoptedBytes) != file.AdoptedSnapshotSHA256 {
+				localStatus, detail = LocalStatusModified, fmt.Sprintf("adopted file %s diverges from applied snapshot", file.AdoptedPath)
+				break
+			}
+			continue
+		}
 		var missing ErrAdoptedFileMissing
 		if errors.As(err, &missing) {
 			libStatus, libDetail := s.libraryStatusFor(ctx, row, cmp)
-			return libStatus, LocalStatusMissing, firstNonEmpty("adopted file missing", libDetail)
+			return libStatus, LocalStatusMissing, firstNonEmpty("adopted file missing: "+file.AdoptedPath, libDetail)
 		}
 		libStatus, libDetail := s.libraryStatusFor(ctx, row, cmp)
 		return libStatus, LocalStatusUnknown, firstNonEmpty(fmt.Sprintf("adopted file read failed: %v", err), libDetail)
-	}
-	adoptedSHA := hashBytes(adoptedBytes)
-	localStatus := LocalStatusModified
-	detail := "adopted bytes diverge from applied snapshot"
-	if row.AdoptedSnapshotSHA256 != "" && adoptedSHA == row.AdoptedSnapshotSHA256 {
-		localStatus = LocalStatusClean
-		detail = ""
 	}
 	libStatus, libDetail := s.libraryStatusFor(ctx, row, cmp)
 	if libDetail != "" {
@@ -547,6 +666,67 @@ func NewFSScenarioFileReader(root string) *FSScenarioFileReader {
 }
 
 var _ ScenarioFileReader = (*FSScenarioFileReader)(nil)
+var _ ScenarioProvenanceScanner = (*FSScenarioFileReader)(nil)
+
+// ScanProvenance reads only scenario UI source files. It never writes target
+// scenarios; reconciliation owns the sole database mutation after this scan.
+func (r *FSScenarioFileReader) ScanProvenance(_ context.Context) ([]ProvenanceFile, error) {
+	entries, err := os.ReadDir(r.root)
+	if err != nil {
+		return nil, fmt.Errorf("list scenarios for provenance: %w", err)
+	}
+	var out []ProvenanceFile
+	for _, scenario := range entries {
+		if !scenario.IsDir() {
+			continue
+		}
+		base := filepath.Join(r.root, scenario.Name(), "ui", "src")
+		if _, err := os.Stat(base); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				if entry.Name() == "node_modules" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if entry.Type()&os.ModeSymlink != 0 || (!strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".tsx")) {
+				return nil
+			}
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			libraryID := provenanceField(string(raw), "@vrooliComponentSource")
+			version := provenanceField(string(raw), "@vrooliComponentVersion")
+			if libraryID == "" || version == "" {
+				return nil
+			}
+			rel, err := filepath.Rel(filepath.Join(r.root, scenario.Name()), path)
+			if err != nil {
+				return err
+			}
+			out = append(out, ProvenanceFile{Scenario: scenario.Name(), AdoptedPath: filepath.ToSlash(rel), LibraryID: libraryID, Version: version, AdoptionID: provenanceField(string(raw), "@vrooliComponentAdoption"), Content: raw})
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("scan provenance for %s: %w", scenario.Name(), err)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Scenario != out[j].Scenario {
+			return out[i].Scenario < out[j].Scenario
+		}
+		return out[i].AdoptedPath < out[j].AdoptedPath
+	})
+	return out, nil
+}
 
 func (r *FSScenarioFileReader) Read(_ context.Context, scenario, adoptedPath string) ([]byte, error) {
 	cleaned, err := r.resolve(scenario, adoptedPath)

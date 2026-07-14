@@ -42,6 +42,10 @@ func (s *stubLibrary) Get(_ context.Context, id string) (components.Component, e
 	return s.component, nil
 }
 
+func (s *stubLibrary) List(_ context.Context, _ components.SearchQuery) ([]components.Component, error) {
+	return []components.Component{s.component}, nil
+}
+
 func (s *stubLibrary) GetContent(_ context.Context, id string) (components.Content, error) {
 	if id != s.component.ID {
 		return components.Content{}, components.ErrComponentNotFound{IDOrLibraryID: id}
@@ -90,8 +94,9 @@ func sha256OfHandlerTests(s string) string {
 func TestModule_Shape(t *testing.T) {
 	r, _, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, adoptions.Endpoints, 7, "adoptions ships list, apply, reapply, delete, refresh, resolve-path, suggest")
-	require.Equal(t, "adoptions_resolve_path", adoptions.Endpoints[5].ID)
+	require.Len(t, adoptions.Endpoints, 8, "adoptions ships reconcile, list, apply, reapply, delete, refresh, resolve-path, suggest")
+	require.Equal(t, "adoptions_reconcile", adoptions.Endpoints[0].ID)
+	require.Equal(t, "adoptions_resolve_path", adoptions.Endpoints[6].ID)
 }
 
 func TestModule_CreateListRefreshDelete(t *testing.T) {

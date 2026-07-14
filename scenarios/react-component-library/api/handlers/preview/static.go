@@ -125,6 +125,7 @@ func writeHarnessError(w http.ResponseWriter, logger *log.Logger, id string, err
 
 type harnessExample struct {
 	Name        string
+	Version     string
 	DisplayName string
 	PropsJSON   string
 	SetupJSON   string
@@ -151,6 +152,7 @@ func (h *HarnessHandler) resolveExample(r *http.Request, id string) (harnessExam
 		}
 		return harnessExample{
 			Name:        ex.Name,
+			Version:     ex.Version,
 			DisplayName: ex.DisplayName,
 			PropsJSON:   ex.PropsJSON,
 			SetupJSON:   ex.SetupJSON,
@@ -217,6 +219,7 @@ const componentModuleURL = "data:text/javascript;base64,`)
 	sb.WriteString(`";
 const previewExample = {
   name: ` + jsString(ex.Name) + `,
+  version: ` + jsString(ex.Version) + `,
   displayName: ` + jsString(ex.DisplayName) + `,
   props: ` + jsonObjectLiteral(ex.PropsJSON) + `,
   setup: ` + jsonObjectLiteral(ex.SetupJSON) + `,
@@ -525,7 +528,7 @@ try {
     setTimeout(() => {
       try {
         assertPreviewExpectations();
-        parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, example: previewExample.name || "" }, "*");
+        parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, example: previewExample.name || "", version: previewExample.version || "" }, "*");
       } catch (e) {
         showPreviewError("preview: assertion failed - " + (e && e.stack || e));
       }

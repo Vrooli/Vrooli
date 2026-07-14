@@ -25,6 +25,10 @@ func (f *fakeComponentsService) GetContent(ctx context.Context, id string) (comp
 	return f.getContentFn(ctx, id)
 }
 
+func (f *fakeComponentsService) GetContentAt(ctx context.Context, id, _ string) (components.Content, error) {
+	return f.GetContent(ctx, id)
+}
+
 func (f *fakeComponentsService) Upsert(context.Context, components.UpsertInput) (components.Component, error) {
 	panic("not called")
 }
@@ -42,6 +46,10 @@ func (f *fakeComponentsService) List(context.Context, components.SearchQuery) ([
 }
 
 func (f *fakeComponentsService) UpdateContent(context.Context, string, components.WriteContentInput) (components.Content, error) {
+	panic("not called")
+}
+
+func (f *fakeComponentsService) UpdateContentAt(context.Context, string, string, components.WriteContentInput) (components.Content, error) {
 	panic("not called")
 }
 

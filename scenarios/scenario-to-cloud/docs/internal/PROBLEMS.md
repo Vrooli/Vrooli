@@ -10,7 +10,7 @@
 - **Inspect/log ergonomics**: P0 supports bounded log retrieval via `tail`, but does not yet support streaming (`--follow`) or advanced filtering (time ranges, multiple scenarios/resources).
 - **Tooling mismatch (repo-level)**: `scenario-completeness-scoring` attempts to auto-rebuild and fails with `go.work` workspace errors; this is outside `scenario-to-cloud` scope but affects reporting.
 - **Tooling mismatch (test-genie flags)**: `vrooli scenario status` invokes `test-genie` with a `-no-record` flag that the installed `test-genie` binary does not recognize; may require updating test-genie or the caller.
-- **Browserless dependency**: UI smoke + lighthouse checks require `BROWSERLESS_URL` (typically `http://localhost:4110`); if Browserless is not running, status checks and some test phases will be blocked.
+- **Browser-automation dependency**: UI smoke + lighthouse checks require `browser-automation-studio` (the Playwright driver) to be running; if it is not, status checks and some test phases will be blocked.
 - **E2E validations are still placeholders**: playbooks exist for preflight/setup/deploy/logs, but real VPS E2E automation is not wired into the default suite yet.
 
 ## Deferred (Explicit P2+)

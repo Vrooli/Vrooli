@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -148,6 +149,19 @@ func (h *connectHandler) RefreshAdoptions(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) ReconcileAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.ReconcileAdoptionsRequest]) (*connect.Response[adoptionsv1.ReconcileAdoptionsResponse], error) {
+	out, err := h.deps.Service.Reconcile(ctx, adoptions.ReconcileInput{Apply: req.Msg.Apply})
+	if err != nil {
+		h.deps.Logger.Printf("adoptions.ReconcileAdoptions: %v", err)
+		return nil, adoptions.ToConnectError(err)
+	}
+	resp := &adoptionsv1.ReconcileAdoptionsResponse{Scanned: int32(out.Scanned), AlreadyRecorded: int32(out.AlreadyRecorded), Created: int32(out.Created)}
+	for _, finding := range out.Findings {
+		resp.Findings = append(resp.Findings, &adoptionsv1.ReconcileFinding{Scenario: finding.Scenario, AdoptedPath: finding.AdoptedPath, LibraryId: finding.LibraryID, Version: finding.Version, Detail: finding.Detail})
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.SuggestAdoptionsRequest]) (*connect.Response[adoptionsv1.SuggestAdoptionsResponse], error) {
 	if h.deps.Components == nil || h.deps.Dependencies == nil || h.deps.Inventory == nil || h.deps.ScenariosRoot == "" {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("adoption suggestions are not configured"))
@@ -159,6 +173,14 @@ func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Requ
 	componentsList, err := h.deps.Components.List(ctx, components.SearchQuery{Limit: 500})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if componentID := strings.TrimSpace(req.Msg.ComponentId); componentID != "" {
+		componentsList = slices.DeleteFunc(componentsList, func(component components.Component) bool {
+			return component.ID != componentID
+		})
+		if len(componentsList) == 0 {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("component %q not found", componentID))
+		}
 	}
 	limit := int(req.Msg.Limit)
 	if limit <= 0 {
@@ -197,28 +219,22 @@ func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Requ
 					continue
 				}
 				reasons := []string{fmt.Sprintf("inventory surface %q matches %s", surface.FilePath, match)}
-				score := int32(40)
 				if style.Detail != "" {
 					reasons = append(reasons, style.Detail)
 				}
-				if style.Kind == components.StyleFitVerdictOK {
-					score += 25
-				}
 				if depVerdict.Kind == deps.VerdictWarn {
 					reasons = append(reasons, "dependency compatibility has warnings")
-					score -= 10
 				} else {
 					reasons = append(reasons, "dependencies are compatible")
-					score += 15
 				}
-				result = append(result, &adoptionsv1.AdoptionSuggestion{Scenario: scenario, ComponentId: component.ID, LibraryId: component.LibraryID, DisplayName: component.DisplayName, InventoryPath: surface.FilePath, Score: score, Reasons: reasons})
+				result = append(result, &adoptionsv1.AdoptionSuggestion{Scenario: scenario, ComponentId: component.ID, LibraryId: component.LibraryID, DisplayName: component.DisplayName, InventoryPath: surface.FilePath, Reasons: reasons})
 				break
 			}
 		}
 	}
 	sort.Slice(result, func(i, j int) bool {
-		if result[i].Score != result[j].Score {
-			return result[i].Score > result[j].Score
+		if result[i].Scenario != result[j].Scenario {
+			return result[i].Scenario < result[j].Scenario
 		}
 		return result[i].LibraryId < result[j].LibraryId
 	})
@@ -251,13 +267,28 @@ func (h *connectHandler) suggestionScenarios(requested string) ([]string, error)
 
 func suggestionMatch(component components.Component, displayName, path string) string {
 	haystack := normalizeSuggestionToken(displayName + " " + filepath.Base(path))
-	for _, candidate := range []string{component.Slug, component.DisplayName} {
+	for _, candidate := range suggestionTerms(component) {
 		normalized := normalizeSuggestionToken(candidate)
 		if len(normalized) > 2 && strings.Contains(haystack, normalized) {
 			return candidate
 		}
 	}
 	return ""
+}
+
+// suggestionTerms includes a component's identity plus the reusable surface
+// named by an intentionally thin "*Shell" wrapper. This keeps suggestions
+// explainable (DrawerShell -> drawer) without falling back to broad tags such
+// as "layout" or "surface", which produced noisy recommendations.
+func suggestionTerms(component components.Component) []string {
+	terms := []string{component.Slug, component.DisplayName}
+	for _, identity := range []string{component.Slug, component.DisplayName} {
+		normalized := normalizeSuggestionToken(identity)
+		if base, ok := strings.CutSuffix(normalized, "shell"); ok && len(base) > 2 {
+			terms = append(terms, base)
+		}
+	}
+	return terms
 }
 
 func normalizeSuggestionToken(value string) string {

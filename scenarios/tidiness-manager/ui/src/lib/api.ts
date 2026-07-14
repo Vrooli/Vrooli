@@ -326,7 +326,7 @@ export async function parseTypeOutput(scenario: string, tool: string, output: st
 const MOCK_SCENARIOS: ScenarioStats[] = [
   { scenario: "picker-wheel", light_issues: 3, ai_issues: 1, long_files: 2, visit_percent: 75, campaign_status: "active", total_files: 15, total_lines: 2400, last_scan: "2025-01-20T10:30:00Z" },
   { scenario: "tidiness-manager", light_issues: 8, ai_issues: 4, long_files: 5, visit_percent: 60, campaign_status: "completed", total_files: 32, total_lines: 5800, last_scan: "2025-01-19T14:20:00Z" },
-  { scenario: "landing-manager", light_issues: 12, ai_issues: 7, long_files: 8, visit_percent: 45, campaign_status: "none", total_files: 48, total_lines: 9200, last_scan: "2025-01-18T09:15:00Z" },
+  { scenario: "template-manager", light_issues: 12, ai_issues: 7, long_files: 8, visit_percent: 45, campaign_status: "none", total_files: 48, total_lines: 9200, last_scan: "2025-01-18T09:15:00Z" },
   { scenario: "deployment-manager", light_issues: 5, ai_issues: 2, long_files: 3, visit_percent: 80, campaign_status: "paused", total_files: 28, total_lines: 4100, last_scan: "2025-01-21T08:00:00Z" },
   { scenario: "scenario-auditor", light_issues: 2, ai_issues: 0, long_files: 1, visit_percent: 95, campaign_status: "none", total_files: 18, total_lines: 2100, last_scan: "2025-01-20T16:45:00Z" },
 ];

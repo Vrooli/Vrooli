@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -25,6 +26,8 @@ type sourceManifestFile struct {
 	Description        string   `json:"description"`
 	Tags               []string `json:"tags"`
 	Slot               string   `json:"slot,omitempty"`
+	Category           string   `json:"category,omitempty"`
+	Entry              string   `json:"entry,omitempty"`
 	Latest             string   `json:"latest"`
 	Draft              string   `json:"draft,omitempty"`
 	DeprecatedVersions []string `json:"deprecatedVersions"`
@@ -55,7 +58,7 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 	if strings.Contains(version, "-") {
 		return "", "", ErrInvalidHeader{SourcePath: "component.json", Field: "initialVersion", Reason: "initial component version must be a released semver-like version"}
 	}
-	fileName, err := normalizeTSXFileName(firstNonEmpty(in.FileName, slug+".tsx"))
+	files, fileName, err := normalizeVersionFiles(in.InitialFiles, firstNonEmpty(in.FileName, slug+".tsx"), in.InitialSource)
 	if err != nil {
 		return "", "", err
 	}
@@ -80,23 +83,29 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 		Description:        strings.TrimSpace(in.Description),
 		Tags:               cleanTags(in.Tags),
 		Slot:               strings.TrimSpace(in.Slot),
+		Entry:              fileName,
 		Latest:             version,
 		DeprecatedVersions: []string{},
 	}
 	if err := writeJSONFile(manifestAbs, mf); err != nil {
 		return "", "", err
 	}
-	source := strings.TrimSpace(in.InitialSource)
-	if source == "" {
-		source = defaultComponentSource(libraryID, displayName, mf.Description, version, mf.Tags)
-	} else {
-		source = ensureHeaderFields(source, libraryID, displayName, mf.Description, version, mf.Tags)
-	}
 	if err := os.MkdirAll(filepath.Dir(sourceAbs), 0o755); err != nil {
 		return "", "", fmt.Errorf("create component version dir: %w", err)
 	}
-	if err := os.WriteFile(sourceAbs, []byte(source), 0o600); err != nil {
-		return "", "", fmt.Errorf("write component source %q: %w", sourcePath, err)
+	for _, file := range files {
+		body := strings.TrimSpace(file.Content)
+		if file.IsEntry {
+			if body == "" {
+				body = defaultComponentSource(libraryID, displayName, mf.Description, version, mf.Tags)
+			} else {
+				body = ensureHeaderFields(body, libraryID, displayName, mf.Description, version, mf.Tags)
+			}
+		}
+		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			return "", "", fmt.Errorf("write component source %q: %w", filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), file.Path)), err)
+		}
 	}
 	return manifestPath, sourcePath, nil
 }
@@ -120,7 +129,7 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	if intent == VersionIntentDraft && !strings.Contains(version, "-") {
 		return "", ErrInvalidHeader{SourcePath: c.ManifestPath, Field: "version", Reason: "draft versions must be prerelease values"}
 	}
-	fileName, err := normalizeTSXFileName(firstNonEmpty(in.FileName, filepath.Base(c.SourcePath), normalizeSlug(c.DisplayName)+".tsx"))
+	files, fileName, err := normalizeVersionFiles(in.Files, firstNonEmpty(in.FileName, filepath.Base(c.SourcePath), normalizeSlug(c.DisplayName)+".tsx"), in.Source)
 	if err != nil {
 		return "", err
 	}
@@ -134,24 +143,49 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	} else if !os.IsNotExist(err) {
 		return "", fmt.Errorf("stat component source %q: %w", sourcePath, err)
 	}
-	source := strings.TrimSpace(in.Source)
-	if source == "" {
+	if len(in.Files) == 0 && strings.TrimSpace(in.Source) == "" {
 		from := firstNonEmpty(in.FromVersion, c.DraftVersion, c.LatestVersion, c.Version)
-		fromPath := filepath.ToSlash(filepath.Join("components", c.Slug, "versions", from, fileName))
-		if raw, err := os.ReadFile(filepath.Join(s.root, fromPath)); err == nil {
-			source = string(raw)
-		} else if raw, err := os.ReadFile(filepath.Join(s.root, c.SourcePath)); err == nil {
-			source = string(raw)
-		} else {
-			source = defaultComponentSource(c.LibraryID, c.DisplayName, c.Description, version, c.Tags)
+		fromDir := filepath.Join(s.root, "components", c.Slug, "versions", from)
+		if entries, err := os.ReadDir(fromDir); err == nil {
+			files = files[:0]
+			for _, entry := range entries {
+				if entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".ts") && !strings.HasSuffix(entry.Name(), ".tsx")) {
+					continue
+				}
+				raw, err := os.ReadFile(filepath.Join(fromDir, entry.Name()))
+				if err != nil {
+					return "", fmt.Errorf("read source to copy %q: %w", entry.Name(), err)
+				}
+				files = append(files, ComponentVersionFile{Path: entry.Name(), Content: string(raw), IsEntry: entry.Name() == fileName})
+			}
+			if len(files) > 0 {
+				sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+			}
+		}
+		if len(files) == 0 || !hasEntryFile(files) {
+			files, _, err = normalizeVersionFiles(nil, fileName, defaultComponentSource(c.LibraryID, c.DisplayName, c.Description, version, c.Tags))
+			if err != nil {
+				return "", err
+			}
 		}
 	}
-	source = setHeaderVersion(ensureHeaderFields(source, c.LibraryID, c.DisplayName, c.Description, version, c.Tags), version)
 	if err := os.MkdirAll(filepath.Dir(sourceAbs), 0o755); err != nil {
 		return "", fmt.Errorf("create component version dir: %w", err)
 	}
-	if err := os.WriteFile(sourceAbs, []byte(source), 0o600); err != nil {
-		return "", fmt.Errorf("write component source %q: %w", sourcePath, err)
+	for _, file := range files {
+		body := strings.TrimSpace(file.Content)
+		if file.IsEntry {
+			body = setHeaderVersion(ensureHeaderFields(body, c.LibraryID, c.DisplayName, c.Description, version, c.Tags), version)
+		}
+		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			return "", fmt.Errorf("write component source %q: %w", filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), file.Path)), err)
+		}
+	}
+	if in.ParityReport != nil {
+		if err := writeParityReport(filepath.Join(filepath.Dir(sourceAbs), "parity.json"), *in.ParityReport); err != nil {
+			return "", err
+		}
 	}
 	update := UpdateComponentManifestInput{
 		ComponentID:        c.ID,
@@ -166,11 +200,71 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		update.DraftVersion = version
 	} else {
 		update.LatestVersion = version
+		if in.FromVersion != "" && in.FromVersion == c.DraftVersion {
+			update.DraftVersion = ""
+		}
 	}
 	if err := s.UpdateManifest(context.Background(), c, update); err != nil {
 		return "", err
 	}
 	return sourcePath, nil
+}
+
+func writeParityReport(path string, report IngestParityReport) error {
+	raw, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode ingest parity report: %w", err)
+	}
+	if err := os.WriteFile(path, append(raw, '\n'), 0o600); err != nil {
+		return fmt.Errorf("write ingest parity report %q: %w", path, err)
+	}
+	return nil
+}
+
+func hasEntryFile(files []ComponentVersionFile) bool {
+	for _, file := range files {
+		if file.IsEntry {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeVersionFiles(files []ComponentVersionFile, fallbackName, fallbackSource string) ([]ComponentVersionFile, string, error) {
+	if len(files) == 0 {
+		name, err := normalizeTSXFileName(fallbackName)
+		if err != nil {
+			return nil, "", err
+		}
+		return []ComponentVersionFile{{Path: name, Content: fallbackSource, IsEntry: true}}, name, nil
+	}
+	normalized := make([]ComponentVersionFile, 0, len(files))
+	seen := map[string]bool{}
+	entry := ""
+	for _, file := range files {
+		path := strings.TrimSpace(file.Path)
+		if filepath.Base(path) != path || (!strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".tsx")) {
+			return nil, "", ErrInvalidHeader{SourcePath: path, Field: "files", Reason: "files must be .ts or .tsx basenames"}
+		}
+		if seen[path] {
+			return nil, "", ErrInvalidHeader{SourcePath: path, Field: "files", Reason: "duplicate file"}
+		}
+		seen[path] = true
+		if file.IsEntry {
+			if entry != "" {
+				return nil, "", ErrInvalidHeader{SourcePath: path, Field: "files", Reason: "exactly one entry file is required"}
+			}
+			if !strings.HasSuffix(path, ".tsx") {
+				return nil, "", ErrInvalidHeader{SourcePath: path, Field: "files", Reason: "entry file must be .tsx"}
+			}
+			entry = path
+		}
+		normalized = append(normalized, ComponentVersionFile{Path: path, Content: file.Content, IsEntry: file.IsEntry})
+	}
+	if entry == "" {
+		return nil, "", ErrInvalidHeader{SourcePath: "files", Field: "files", Reason: "exactly one entry file is required"}
+	}
+	return normalized, entry, nil
 }
 
 func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in UpdateComponentManifestInput) error {

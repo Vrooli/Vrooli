@@ -33,5 +33,9 @@ func ToConnectError(err error) error {
 	if errors.As(err, &conflict) {
 		return connect.NewError(connect.CodeFailedPrecondition, conflict)
 	}
+	var parity ErrParityWaiverRequired
+	if errors.As(err, &parity) {
+		return connect.NewError(connect.CodeFailedPrecondition, parity)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

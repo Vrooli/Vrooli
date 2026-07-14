@@ -19,7 +19,6 @@
       "redis-queue",
       "minio-media",
       "ollama-ai",
-      "browserless-fallback",
       "oauth-integration",
       "real-time-analytics"
     ],

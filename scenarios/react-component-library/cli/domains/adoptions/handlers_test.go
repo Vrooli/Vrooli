@@ -21,20 +21,22 @@ import (
 )
 
 type adoptionsService struct {
-	mu          sync.Mutex
-	listResp    *adoptionsv1.ListAdoptionsResponse
-	applyResp   *adoptionsv1.ApplyAdoptionResponse
-	reapplyResp *adoptionsv1.ReapplyAdoptionResponse
-	deleteResp  *adoptionsv1.DeleteAdoptionResponse
-	refreshResp *adoptionsv1.RefreshAdoptionsResponse
-	resolveResp *adoptionsv1.ResolveAdoptionPathResponse
-	suggestResp *adoptionsv1.SuggestAdoptionsResponse
-	listReqs    []*adoptionsv1.ListAdoptionsRequest
-	applyReqs   []*adoptionsv1.ApplyAdoptionRequest
-	reapplyReqs []*adoptionsv1.ReapplyAdoptionRequest
-	refreshReqs []*adoptionsv1.RefreshAdoptionsRequest
-	resolveReqs []*adoptionsv1.ResolveAdoptionPathRequest
-	suggestReqs []*adoptionsv1.SuggestAdoptionsRequest
+	mu            sync.Mutex
+	listResp      *adoptionsv1.ListAdoptionsResponse
+	applyResp     *adoptionsv1.ApplyAdoptionResponse
+	reapplyResp   *adoptionsv1.ReapplyAdoptionResponse
+	deleteResp    *adoptionsv1.DeleteAdoptionResponse
+	refreshResp   *adoptionsv1.RefreshAdoptionsResponse
+	resolveResp   *adoptionsv1.ResolveAdoptionPathResponse
+	suggestResp   *adoptionsv1.SuggestAdoptionsResponse
+	reconcileResp *adoptionsv1.ReconcileAdoptionsResponse
+	listReqs      []*adoptionsv1.ListAdoptionsRequest
+	applyReqs     []*adoptionsv1.ApplyAdoptionRequest
+	reapplyReqs   []*adoptionsv1.ReapplyAdoptionRequest
+	refreshReqs   []*adoptionsv1.RefreshAdoptionsRequest
+	resolveReqs   []*adoptionsv1.ResolveAdoptionPathRequest
+	suggestReqs   []*adoptionsv1.SuggestAdoptionsRequest
+	reconcileReqs []*adoptionsv1.ReconcileAdoptionsRequest
 }
 
 func (s *adoptionsService) ListAdoptions(_ context.Context, req *connect.Request[adoptionsv1.ListAdoptionsRequest]) (*connect.Response[adoptionsv1.ListAdoptionsResponse], error) {
@@ -82,6 +84,16 @@ func (s *adoptionsService) RefreshAdoptions(_ context.Context, req *connect.Requ
 		s.refreshResp = &adoptionsv1.RefreshAdoptionsResponse{}
 	}
 	return connect.NewResponse(s.refreshResp), nil
+}
+
+func (s *adoptionsService) ReconcileAdoptions(_ context.Context, req *connect.Request[adoptionsv1.ReconcileAdoptionsRequest]) (*connect.Response[adoptionsv1.ReconcileAdoptionsResponse], error) {
+	s.mu.Lock()
+	s.reconcileReqs = append(s.reconcileReqs, req.Msg)
+	s.mu.Unlock()
+	if s.reconcileResp == nil {
+		s.reconcileResp = &adoptionsv1.ReconcileAdoptionsResponse{}
+	}
+	return connect.NewResponse(s.reconcileResp), nil
 }
 
 func (s *adoptionsService) ResolveAdoptionPath(_ context.Context, req *connect.Request[adoptionsv1.ResolveAdoptionPathRequest]) (*connect.Response[adoptionsv1.ResolveAdoptionPathResponse], error) {

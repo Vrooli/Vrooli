@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import {
   makeComponent,
-  makeGetComponentContentResponse,
   makeIndexComponentsResponse,
   makeListComponentsResponse,
 } from "./mocks/factories";
@@ -179,7 +178,7 @@ describe("ComponentsCard", () => {
     });
   });
 
-  it("opens the editor when an item's Edit button is clicked", async () => {
+  it("uses the routed editor as the sole item entry point", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.listComponents).mockResolvedValue(
       makeListComponentsResponse({
@@ -188,22 +187,24 @@ describe("ComponentsCard", () => {
         ],
       }),
     );
-    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
-      makeGetComponentContentResponse({ content: "// hello\n" }),
-    );
-
-    const user = userEvent.setup();
     renderWithProviders(<ComponentsCard />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.components.itemEditButton)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/components/cmp-1");
     });
-    await user.click(screen.getByTestId(selectors.components.itemEditButton));
+    expect(screen.queryByTestId(selectors.components.itemEditButton)).not.toBeInTheDocument();
+    expect(componentsClient.getComponentContent).not.toHaveBeenCalled();
+  });
 
-    await waitFor(() => {
-      expect(screen.getByTestId(selectors.components.editor.panel)).toBeInTheDocument();
-    });
-    expect(componentsClient.getComponentContent).toHaveBeenCalledWith({ id: "cmp-1" });
+  it("keeps all server filters inside one collapsed filter control", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.listComponents).mockResolvedValue(makeListComponentsResponse());
+
+    renderWithProviders(<ComponentsCard />);
+
+    const filters = await screen.findByTestId("components-filters");
+    expect(filters).not.toHaveAttribute("open");
+    expect(filters.querySelectorAll("input")).toHaveLength(6);
   });
 
   it("invokes indexComponents when re-index is clicked", async () => {

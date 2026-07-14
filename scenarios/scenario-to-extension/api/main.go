@@ -28,14 +28,13 @@ import (
 
 // Configuration
 type Config struct {
-	Port           int    `json:"port"`
-	APIEndpoint    string `json:"api_endpoint"`
-	TemplatesPath  string `json:"templates_path"`
-	OutputPath     string `json:"output_path"`
-	BrowserlessURL string `json:"browserless_url"`
-	PostgresURL    string `json:"postgres_url"`
-	RedisURL       string `json:"redis_url"`
-	Debug          bool   `json:"debug"`
+	Port          int    `json:"port"`
+	APIEndpoint   string `json:"api_endpoint"`
+	TemplatesPath string `json:"templates_path"`
+	OutputPath    string `json:"output_path"`
+	PostgresURL   string `json:"postgres_url"`
+	RedisURL      string `json:"redis_url"`
+	Debug         bool   `json:"debug"`
 }
 
 // Extension generation request
@@ -329,12 +328,11 @@ func main() {
 func loadConfig() *Config {
 	// Note: API runs from api/ directory, so templates are one level up
 	config := &Config{
-		Port:           3201,
-		APIEndpoint:    "http://localhost:3201",
-		TemplatesPath:  "../templates",
-		OutputPath:     "./data/extensions",
-		BrowserlessURL: "http://localhost:3000",
-		Debug:          os.Getenv("DEBUG") == "true",
+		Port:          3201,
+		APIEndpoint:   "http://localhost:3201",
+		TemplatesPath: "../templates",
+		OutputPath:    "./data/extensions",
+		Debug:         os.Getenv("DEBUG") == "true",
 	}
 
 	// Override with environment variables
@@ -361,12 +359,8 @@ func loadConfig() *Config {
 		config.OutputPath = outputPath
 	}
 
-	if browserlessURL := os.Getenv("BROWSERLESS_URL"); browserlessURL != "" {
-		config.BrowserlessURL = browserlessURL
-	}
-
 	// Ensure output directory exists
-	if err := os.MkdirAll(config.OutputPath, 0755); err != nil {
+	if err := os.MkdirAll(config.OutputPath, 0o755); err != nil {
 		log.Printf("Warning: Failed to create output directory %s: %v", config.OutputPath, err)
 	}
 
@@ -594,7 +588,6 @@ func downloadExtensionHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = io.Copy(zipFile, srcFile)
 		return err
 	})
-
 	if err != nil {
 		log.Printf("Error creating ZIP archive for build %s: %v", buildID, err)
 		// Cannot send error response after headers are sent, just log it
@@ -638,18 +631,6 @@ func generateBuildID() string {
 	return fmt.Sprintf("build_%d_%s", time.Now().UnixNano(), hex.EncodeToString(randomBytes))
 }
 
-func checkBrowserlessHealth() bool {
-	// Browserless integration is intentionally simulated for development.
-	// The extension testing functionality returns mock data to support the UI
-	// without requiring a running browserless instance.
-	//
-	// To implement real browserless integration:
-	// 1. Make HTTP GET request to config.BrowserlessURL + "/health"
-	// 2. Check response status code (200 = healthy)
-	// 3. Return false on timeout or connection errors
-	return true
-}
-
 func checkTemplatesHealth() bool {
 	templatePath := filepath.Join(config.TemplatesPath, "vanilla", "manifest.json")
 	_, err := os.Stat(templatePath)
@@ -669,7 +650,7 @@ func generateExtension(build *ExtensionBuild) {
 	build.BuildLog = append(build.BuildLog, fmt.Sprintf("Starting extension generation at %s", time.Now().Format(time.RFC3339)))
 
 	// Create output directory
-	if err := os.MkdirAll(build.ExtensionPath, 0755); err != nil {
+	if err := os.MkdirAll(build.ExtensionPath, 0o755); err != nil {
 		build.Status = "failed"
 		build.ErrorLog = append(build.ErrorLog, fmt.Sprintf("Failed to create output directory: %v", err))
 		completedAt := time.Now()
@@ -765,7 +746,7 @@ func copyAndProcessTemplates(templatePath, outputPath string, build *ExtensionBu
 
 		// Create output directory if needed
 		outDir := filepath.Dir(outPath)
-		if err := os.MkdirAll(outDir, 0755); err != nil {
+		if err := os.MkdirAll(outDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", outDir, err)
 		}
 
@@ -777,7 +758,6 @@ func copyAndProcessTemplates(templatePath, outputPath string, build *ExtensionBu
 		build.BuildLog = append(build.BuildLog, fmt.Sprintf("Processed: %s", relPath))
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("template processing failed: %w", err)
 	}
@@ -914,21 +894,19 @@ func generateREADME(build *ExtensionBuild) error {
 
 func testExtension(req *ExtensionTestRequest) *ExtensionTestResult {
 	// Extension testing is intentionally simulated for development.
-	// This allows the UI and API to function without a browserless instance.
+	// This allows the UI and API to function without a live browser driver.
 	// All tests return successful results with mock timing data.
 	//
-	// To implement real browserless integration:
-	// 1. Start a Chrome instance via browserless API with the extension loaded
+	// To implement real integration, drive a headless browser via
+	// browser-automation-studio's playwright-driver:
+	// 1. Launch a Chrome instance with the extension loaded
 	// 2. Navigate to each test site in req.TestSites
 	// 3. Capture screenshots if req.Screenshot is true
 	// 4. Monitor console for JavaScript errors
 	// 5. Validate extension injection and functionality
 	// 6. Return actual pass/fail results based on test execution
-	//
-	// Browserless endpoint: config.BrowserlessURL
-	// Browserless docs: https://www.browserless.io/docs/
 
-	log.Printf("INFO: Extension testing is simulated (browserless integration not implemented)")
+	log.Printf("INFO: Extension testing is simulated (live browser-driver integration not implemented)")
 
 	results := make([]ExtensionSiteResult, 0, len(req.TestSites))
 	passed := 0

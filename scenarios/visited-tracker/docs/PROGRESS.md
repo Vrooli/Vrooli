@@ -1831,7 +1831,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
 - **Fixed requirements/index.json structure** (requirements/index.json)
   - Changed from duplicating requirements to importing module files
   - Now uses `imports` array referencing module.json files
-  - Follows parent-registry pattern (like landing-manager scenario)
+  - Follows the parent-registry pattern
   - Eliminates "Duplicate requirement id" errors during test sync
   - Resolves 10 CRITICAL/HIGH PRD linkage violations
 
@@ -2027,7 +2027,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
 - **Fixed endpoints.json structure** (.vrooli/endpoints.json)
   - Changed from object format (`endpoints.health`) to array format (`endpoints[0]`)
   - Converted 7 endpoints from object keys to array elements with `id`, `path`, `method`, `summary`, `description`, `category` fields
-  - Follows standard structure used by other scenarios (data-tools, landing-manager, etc.)
+  - Follows standard structure used by other scenarios (data-tools, etc.)
   - Resolved jq parsing error: "Cannot index object with number"
 
 - **Added endpoint documentation comments** (api/main.go:212-215)

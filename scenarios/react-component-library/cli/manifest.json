@@ -40,7 +40,8 @@
           "description": "Rank explainable component-adoption candidates from scenario UI inventory",
           "flags": [
             { "name": "scenario", "description": "Optional target scenario" },
-            { "name": "limit", "description": "Maximum suggestions (default 50)" }
+            { "name": "limit", "description": "Maximum suggestions (default 50)" },
+            { "name": "component-id", "description": "Optional component id; suggest target scenarios for this component" }
           ],
           "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "SuggestAdoptions" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
@@ -69,6 +70,13 @@
           "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal"] }
         },
         {
+		  "name": "reconcile",
+		  "description": "Scan existing scenario provenance and backfill missing adoption records (dry-run by default)",
+		  "flags": [{ "name": "apply", "description": "Write missing adoption records to the RCL store" }],
+		  "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ReconcileAdoptions" },
+		  "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+		},
+		{
           "name": "refresh",
           "description": "Recompute drift status for every adoption (or one component's)",
           "flags": [
@@ -175,7 +183,7 @@
         },
         {
           "name": "ingest",
-          "description": "Ingest a scenario-local TSX component as an indexed library draft",
+          "description": "Ingest a scenario-local TSX component and its relative-import companions as an indexed library draft",
           "positionals": [
             { "name": "scenario", "required": true, "description": "Origin scenario name" },
             { "name": "source-file", "required": true, "description": "TSX path relative to the origin scenario" },
@@ -185,7 +193,9 @@
             { "name": "display-name", "description": "Human-readable display name" },
             { "name": "description", "description": "Short component description" },
             { "name": "tags", "description": "Comma-separated tags" },
-            { "name": "slot", "description": "Target component slot" }
+            { "name": "slot", "description": "Target component slot" },
+            { "name": "version", "description": "Released version baseline when re-harvesting an existing component" },
+            { "name": "companion-files", "description": "Optional comma-separated origin .ts/.tsx companions not reachable by relative imports" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "IngestComponent" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"] }
@@ -203,6 +213,7 @@
             { "name": "release", "description": "Treat the new version as latest release" },
             { "name": "file-name", "description": "TSX file name in the new folder" },
             { "name": "source-file", "description": "Source file, or - for stdin" },
+            { "name": "acknowledge-parity-waiver", "description": "Explicitly waive behavior-loss findings while promoting an ingest draft" },
             { "name": "changelog", "description": "Changelog text for the version" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "CreateComponentVersion" },

@@ -141,7 +141,7 @@ graph TB
 - **Redis**: Job queue, rate limiting, real-time updates
 - **MinIO**: Media storage with platform-specific optimization
 - **Ollama**: AI-powered content optimization
-- **Browserless**: Fallback posting and screenshot verification
+- **browser-automation-studio**: Fallback posting and screenshot verification
 
 ## 🔧 Configuration
 

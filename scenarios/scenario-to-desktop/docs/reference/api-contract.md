@@ -115,7 +115,7 @@ Relationships: Tracks builds per scenario.
 | Event | Action |
 |-------|--------|
 | `scenario.updated` | Regenerate desktop applications for updated scenarios |
-| `resource.browserless.ready` | Start desktop app testing pipeline |
+| `browser-automation-studio.ready` | Start desktop app testing pipeline |
 
 ## Cross-Scenario Interactions
 
@@ -131,5 +131,5 @@ Relationships: Tracks builds per scenario.
 
 | Scenario | Capability | Fallback |
 |----------|-----------|----------|
-| browserless | Desktop application UI testing and screenshot capture | Manual testing instructions |
+| browser-automation-studio | Desktop application UI testing and screenshot capture | Manual testing instructions |
 | notification-hub | Build completion notifications | CLI output only |

@@ -213,7 +213,7 @@ curl http://localhost:18570/health
 
 ### External Dependencies
 - **n8n**: Currently configured but not used (no workflows implemented)
-- **browserless**: Configured for UI testing, not implemented
+- **browser-automation-studio**: Configured for UI testing, not implemented
 - **postgres/redis/minio**: Optional dependencies not utilized
 
 ## Next Agent Priorities

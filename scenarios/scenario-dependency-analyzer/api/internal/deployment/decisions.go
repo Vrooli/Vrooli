@@ -39,7 +39,7 @@ type ResourceClassification struct {
 //   - AI resources: ollama (local LLM), claude-code, openai, anthropic
 //   - Automation platforms: n8n, huginn, windmill
 //   - Storage services: minio, s3
-//   - Browser automation: browserless, playwright
+//   - Browser automation: playwright (legacy label: browserless)
 //   - Code execution: judge0, sandbox
 //
 // Heavy operations are those requiring significant CPU/memory/GPU:

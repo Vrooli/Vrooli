@@ -314,6 +314,7 @@ async function main() {
     }
 
     console.log(JSON.stringify({ ok: true, checked: componentTargets.length, results }, null, 2));
+    console.log("[REQ:CC-002] Preview sweep rendered every catalog component and example.");
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error), {
       url: baseURL(),

@@ -21,6 +21,7 @@ type Service interface {
 	GetByLibraryID(ctx context.Context, libraryID string) (Component, error)
 	List(ctx context.Context, q SearchQuery) ([]Component, error)
 	GetContent(ctx context.Context, id string) (Content, error)
+	GetContentAt(ctx context.Context, id, path string) (Content, error)
 	ListVersions(ctx context.Context, componentID string, limit int) ([]ComponentVersion, error)
 	GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error)
 	ListExamples(ctx context.Context, q ExampleQuery) ([]ComponentExample, error)
@@ -29,6 +30,7 @@ type Service interface {
 	ValidateDesignStyle(ctx context.Context, id string) error
 	ValidateStyleFit(ctx context.Context, componentID, version, scenario string) (StyleFitVerdict, error)
 	UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error)
+	UpdateContentAt(ctx context.Context, id, path string, in WriteContentInput) (Content, error)
 	InitializeComponent(ctx context.Context, in InitializeComponentInput) (InitializeComponentResult, error)
 	IngestComponent(ctx context.Context, in IngestComponentInput) (IngestComponentResult, error)
 	CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error)
@@ -130,12 +132,23 @@ func (s *service) List(ctx context.Context, q SearchQuery) ([]Component, error) 
 }
 
 func (s *service) GetContent(ctx context.Context, id string) (Content, error) {
+	return s.GetContentAt(ctx, id, "")
+}
+
+func (s *service) GetContentAt(ctx context.Context, id, path string) (Content, error) {
 	if s.content == nil {
 		return Content{}, errNoContentStore
 	}
 	c, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return Content{}, err
+	}
+	if path != "" {
+		store, ok := s.content.(PathContentStore)
+		if !ok {
+			return Content{}, errNoContentStore
+		}
+		return store.ReadPath(ctx, c, path)
 	}
 	return s.content.Read(ctx, c)
 }
@@ -223,6 +236,10 @@ func (s *service) GetVersionContent(ctx context.Context, componentID, version st
 }
 
 func (s *service) UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error) {
+	return s.UpdateContentAt(ctx, id, "", in)
+}
+
+func (s *service) UpdateContentAt(ctx context.Context, id, path string, in WriteContentInput) (Content, error) {
 	if s.content == nil {
 		return Content{}, errNoContentStore
 	}
@@ -230,7 +247,16 @@ func (s *service) UpdateContent(ctx context.Context, id string, in WriteContentI
 	if err != nil {
 		return Content{}, err
 	}
-	written, err := s.content.Write(ctx, c, in)
+	var written Content
+	if path != "" {
+		store, ok := s.content.(PathContentStore)
+		if !ok {
+			return Content{}, errNoContentStore
+		}
+		written, err = store.WritePath(ctx, c, path, in)
+	} else {
+		written, err = s.content.Write(ctx, c, in)
+	}
 	if err != nil {
 		return Content{}, err
 	}
@@ -277,6 +303,23 @@ func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponent
 	c, err := s.repo.Get(ctx, in.ComponentID)
 	if err != nil {
 		return CreateComponentVersionResult{}, err
+	}
+	intent := in.Intent
+	if intent == "" && !strings.Contains(in.Version, "-") {
+		intent = VersionIntentRelease
+	}
+	if intent == VersionIntentRelease {
+		from := firstNonEmpty(in.FromVersion, c.DraftVersion)
+		if from != "" {
+			if draft, err := s.repo.GetVersion(ctx, c.ID, from); err == nil && draft.ParityReport != nil {
+				if len(draft.ParityReport.Findings) > 0 && !in.AcknowledgeParityWaiver {
+					return CreateComponentVersionResult{}, ErrParityWaiverRequired{ComponentID: c.ID, Version: from, Findings: draft.ParityReport.Findings}
+				}
+				report := *draft.ParityReport
+				report.Acknowledged = in.AcknowledgeParityWaiver
+				in.ParityReport = &report
+			}
+		}
 	}
 	sourcePath, err := s.source.CreateVersion(ctx, c, in)
 	if err != nil {

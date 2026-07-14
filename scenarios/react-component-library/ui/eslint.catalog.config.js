@@ -20,7 +20,7 @@ export default tseslint.config(
       ...tseslint.configs.strictTypeChecked,
       jsxA11y.flatConfigs.strict,
     ],
-    files: ["../library/components/**/*.tsx", "library/components/**/*.tsx"],
+    files: ["../library/components/**/*.{ts,tsx}", "library/components/**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,

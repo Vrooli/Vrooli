@@ -229,9 +229,13 @@ func (h *handlers) ingest(ctx cliapp.RunContext) error {
 		DisplayName: ctx.Flag("display-name"),
 		Description: ctx.Flag("description"),
 		Slot:        ctx.Flag("slot"),
+		Version:     ctx.Flag("version"),
 	}
 	if rawTags := ctx.Flag("tags"); rawTags != "" {
 		req.Tags = splitCSV(rawTags)
+	}
+	if companions := ctx.Flag("companion-files"); companions != "" {
+		req.SourceFiles = splitCSV(companions)
 	}
 	resp, err := h.client.IngestComponent(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -254,11 +258,12 @@ func (h *handlers) ingest(ctx cliapp.RunContext) error {
 
 func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
 	req := &componentsv1.CreateComponentVersionRequest{
-		ComponentId: ctx.Positional("component-id"),
-		Version:     ctx.Positional("version"),
-		FromVersion: ctx.Flag("from-version"),
-		FileName:    ctx.Flag("file-name"),
-		ChangelogMd: ctx.Flag("changelog"),
+		ComponentId:             ctx.Positional("component-id"),
+		Version:                 ctx.Positional("version"),
+		FromVersion:             ctx.Flag("from-version"),
+		FileName:                ctx.Flag("file-name"),
+		ChangelogMd:             ctx.Flag("changelog"),
+		AcknowledgeParityWaiver: ctx.Flag("acknowledge-parity-waiver") == "true",
 	}
 	switch {
 	case ctx.Flag("draft") == "true":

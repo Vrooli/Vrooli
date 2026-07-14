@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 
 import { renderWithProviders } from "../test-utils";
@@ -82,6 +83,23 @@ describe("ComponentDetailPage", () => {
     );
 
     expect(screen.getByTestId("component-detail-missing-id")).toBeInTheDocument();
+  });
+
+  it("switches the information panel between overview, versions, and adoptions", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route path="/components/:id" element={<ComponentDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/components/cmp-42"] },
+    );
+
+    await screen.findByRole("tab", { name: "componentDetail.info.adoptions" });
+    expect(screen.getByRole("tab", { name: "componentDetail.info.overview" })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("tab", { name: "componentDetail.info.adoptions" }));
+    expect(screen.getByTestId("component-detail-adoptions")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
+    expect(screen.queryByTestId("component-detail-adoptions")).not.toBeInTheDocument();
   });
 
   it("renders loading while the component lookup is pending", () => {

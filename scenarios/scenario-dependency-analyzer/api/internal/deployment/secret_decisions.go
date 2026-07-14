@@ -28,7 +28,7 @@ type SecretClassification struct {
 //   - Object storage (minio, s3): access key + secret key
 //   - AI APIs (claude-code, anthropic, openai): API key
 //   - Vector DB (qdrant): API key
-//   - Browser automation (browserless, playwright): auth token
+//   - Browser automation (playwright; legacy label: browserless): auth token
 //   - Local AI (ollama): no secrets typically needed
 //
 // Returns nil if no secrets are required for this resource.

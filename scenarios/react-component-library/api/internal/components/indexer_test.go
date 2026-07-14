@@ -70,6 +70,53 @@ func TestIndexer_RunWalksAndUpserts(t *testing.T) {
 	require.Equal(t, []string{"layout", "container"}, got2.Tags)
 }
 
+func TestIndexer_RunIndexesEntryAndCompanionFiles(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/FocusTrap/component.json": {Data: []byte(`{"libraryId":"react-component-library:FocusTrap","displayName":"Focus Trap","slot":"ui-pattern","entry":"FocusTrap.tsx","latest":"1.0.0","deprecatedVersions":[]}`)},
+		"components/FocusTrap/versions/1.0.0/FocusTrap.tsx": {Data: []byte(`/**
+ * @libraryId react-component-library:FocusTrap
+ * @version 1.0.0
+ */
+import { cycle } from "./focus";
+export const FocusTrap = () => cycle();`)},
+		"components/FocusTrap/versions/1.0.0/focus.ts": {Data: []byte(`export const cycle = () => null;`)},
+	}
+	repo := mocks.NewFakeRepository()
+	res, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Indexed)
+	component, err := repo.GetByLibraryID(context.Background(), "react-component-library:FocusTrap")
+	require.NoError(t, err)
+	version, err := repo.GetVersion(context.Background(), component.ID, "1.0.0")
+	require.NoError(t, err)
+	require.Len(t, version.Files, 2)
+	require.Equal(t, "FocusTrap.tsx", version.Files[0].Path)
+	require.True(t, version.Files[0].IsEntry)
+	require.Equal(t, "focus.ts", version.Files[1].Path)
+}
+
+func TestIndexer_RunRejectsNestedCompanionFixture(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/FocusTrap/component.json": {Data: []byte(`{"libraryId":"react-component-library:FocusTrap","displayName":"Focus Trap","slot":"ui-pattern","entry":"FocusTrap.tsx","latest":"1.0.0","deprecatedVersions":[]}`)},
+		"components/FocusTrap/versions/1.0.0/FocusTrap.tsx": {Data: []byte(`/**
+ * @libraryId react-component-library:FocusTrap
+ * @version 1.0.0
+ */
+export const FocusTrap = () => null;`)},
+		// A nested source would be silently omitted by the flat adoption and
+		// conformance model. The indexer must reject this calibration fixture.
+		"components/FocusTrap/versions/1.0.0/hooks/useFocusTrap.ts": {Data: []byte(`export const useFocusTrap = () => undefined;`)},
+	}
+	res, err := components.NewIndexer(mocks.NewFakeRepository(), ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	require.Zero(t, res.Indexed)
+	require.Len(t, res.Errors, 1)
+	var invalid components.ErrInvalidHeader
+	require.ErrorAs(t, res.Errors[0], &invalid)
+	require.Equal(t, "version", invalid.Field)
+	require.Contains(t, invalid.Reason, "subdirectories are not supported")
+}
+
 func TestIndexer_RunReportsInvalidSlot(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/Button/component.json":            {Data: []byte(`{"libraryId":"react-component-library:Button","displayName":"Button","description":"","slot":"marketing-hero","tags":[],"latest":"1.0.0","deprecatedVersions":[]}`)},

@@ -90,7 +90,7 @@ func (h *handlers) apply(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) suggest(ctx cliapp.RunContext) error {
-	req := &adoptionsv1.SuggestAdoptionsRequest{Scenario: ctx.Flag("scenario")}
+	req := &adoptionsv1.SuggestAdoptionsRequest{Scenario: ctx.Flag("scenario"), ComponentId: ctx.Flag("component-id")}
 	if raw := ctx.Flag("limit"); raw != "" {
 		limit, err := strconv.Atoi(raw)
 		if err != nil {
@@ -107,7 +107,7 @@ func (h *handlers) suggest(ctx cliapp.RunContext) error {
 	}
 	rows := make([]string, 0, len(resp.Msg.Suggestions))
 	for _, suggestion := range resp.Msg.Suggestions {
-		rows = append(rows, fmt.Sprintf("%s → %s (%d): %s", suggestion.Scenario, suggestion.LibraryId, suggestion.Score, strings.Join(suggestion.Reasons, "; ")))
+		rows = append(rows, fmt.Sprintf("%s → %s: %s", suggestion.Scenario, suggestion.LibraryId, strings.Join(suggestion.Reasons, "; ")))
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d adoption suggestion(s).", len(rows))}, ResultsHeading: "Suggestions", Results: rows, RetrievalHints: []string{"`adoptions apply <component-id> <scenario> <adopted-path>` — act on a suggestion"}})
 }
@@ -171,6 +171,25 @@ func (h *handlers) refresh(ctx cliapp.RunContext) error {
 		ResultsHeading: "Adoptions",
 		Results:        results,
 	})
+}
+
+func (h *handlers) reconcile(ctx cliapp.RunContext) error {
+	resp, err := h.client.ReconcileAdoptions(context.Background(), connect.NewRequest(&adoptionsv1.ReconcileAdoptionsRequest{Apply: ctx.Flag("apply") == "true"}))
+	if err != nil {
+		return cliapp.WrapAPIError("reconcile adoptions", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no reconcile response")
+	}
+	rows := make([]string, 0, len(resp.Msg.Findings))
+	for _, finding := range resp.Msg.Findings {
+		rows = append(rows, fmt.Sprintf("%s:%s (%s@%s): %s", finding.Scenario, finding.AdoptedPath, finding.LibraryId, finding.Version, finding.Detail))
+	}
+	mode := "Dry-run"
+	if resp.Msg.Created > 0 && ctx.Flag("apply") == "true" {
+		mode = "Applied"
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("%s reconciliation: scanned %d provenance file(s), already recorded %d, records to create/created %d.", mode, resp.Msg.Scanned, resp.Msg.AlreadyRecorded, resp.Msg.Created)}, ResultsHeading: "Unresolved provenance", Results: rows, RetrievalHints: []string{"`adoptions reconcile --apply true` — write the proposed missing records"}})
 }
 
 func (h *handlers) resolvePath(ctx cliapp.RunContext) error {

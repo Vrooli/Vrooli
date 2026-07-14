@@ -134,10 +134,14 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 }
 
 type manifestFile struct {
-	LibraryID          string                   `json:"libraryId"`
-	DisplayName        string                   `json:"displayName"`
-	Description        string                   `json:"description"`
-	Slot               string                   `json:"slot"`
+	LibraryID   string `json:"libraryId"`
+	DisplayName string `json:"displayName"`
+	Description string `json:"description"`
+	Slot        string `json:"slot"`
+	// Category is catalog metadata, not source-header metadata. Keeping it in
+	// the manifest makes it stable across versions and available to list views.
+	Category           string                   `json:"category"`
+	Entry              string                   `json:"entry"`
 	Tags               []string                 `json:"tags"`
 	DesignStyles       []manifestDesignAffinity `json:"designStyles"`
 	Latest             string                   `json:"latest"`
@@ -183,6 +187,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		DisplayName:        strings.TrimSpace(mf.DisplayName),
 		Description:        strings.TrimSpace(mf.Description),
 		Slot:               string(slot),
+		Category:           strings.TrimSpace(mf.Category),
 		ManifestPath:       filepath.ToSlash(path),
 		LatestVersion:      strings.TrimSpace(mf.Latest),
 		DraftVersion:       strings.TrimSpace(mf.Draft),
@@ -232,16 +237,49 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		if err != nil {
 			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: err.Error()}
 		}
-		var tsx []fs.DirEntry
+		var sourceFiles []fs.DirEntry
 		for _, f := range files {
-			if !f.IsDir() && strings.HasSuffix(f.Name(), ".tsx") {
-				tsx = append(tsx, f)
+			if f.IsDir() {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: "subdirectories are not supported"}
+			}
+			if strings.HasSuffix(f.Name(), ".tsx") || strings.HasSuffix(f.Name(), ".ts") {
+				sourceFiles = append(sourceFiles, f)
 			}
 		}
-		if len(tsx) != 1 {
-			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: "expected exactly one .tsx file"}
+		entryName := strings.TrimSpace(mf.Entry)
+		if entryName != "" && (filepath.Base(entryName) != entryName || !strings.HasSuffix(entryName, ".tsx")) {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "entry", Reason: "must name a TSX file in the version folder"}
 		}
-		sourcePath := filepath.ToSlash(filepath.Join(versionPath, tsx[0].Name()))
+		if entryName == "" {
+			var entries []string
+			for _, f := range sourceFiles {
+				if strings.HasSuffix(f.Name(), ".tsx") {
+					entries = append(entries, f.Name())
+				}
+			}
+			if len(entries) != 1 {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: "expected exactly one entry .tsx file or component.json entry"}
+			}
+			entryName = entries[0]
+		}
+		var entryFound bool
+		var versionFiles []ComponentVersionFile
+		for _, f := range sourceFiles {
+			filePath := filepath.ToSlash(filepath.Join(versionPath, f.Name()))
+			body, err := fs.ReadFile(idx.fs, filePath)
+			if err != nil {
+				return IndexManifestInput{}, nil, fmt.Errorf("read %s: %w", filePath, err)
+			}
+			isEntry := f.Name() == entryName
+			if isEntry {
+				entryFound = true
+			}
+			versionFiles = append(versionFiles, ComponentVersionFile{Path: f.Name(), Content: string(body), ContentSHA256: digestBytes(body), IsEntry: isEntry})
+		}
+		if !entryFound {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "entry", Reason: "entry file not found"}
+		}
+		sourcePath := filepath.ToSlash(filepath.Join(versionPath, entryName))
 		src, err := fs.ReadFile(idx.fs, sourcePath)
 		if err != nil {
 			return IndexManifestInput{}, nil, fmt.Errorf("read %s: %w", sourcePath, err)
@@ -310,6 +348,10 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "draft", Reason: "must point to a draft/pre-release version"}
 			}
 		}
+		parity, err := idx.readParityReport(filepath.ToSlash(filepath.Join(versionPath, "parity.json")))
+		if err != nil {
+			return IndexManifestInput{}, nil, err
+		}
 		versions = append(versions, ComponentVersion{
 			LibraryID:     manifest.LibraryID,
 			Version:       version,
@@ -318,6 +360,8 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			Content:       string(src),
 			ContentSHA256: digestBytes(src),
 			Headers:       headers,
+			Files:         versionFiles,
+			ParityReport:  parity,
 		})
 		versionExamples, exampleFindings := idx.readVersionExamples(filepath.ToSlash(filepath.Join(versionPath, "examples.json")), manifest.LibraryID, version)
 		examples = append(examples, versionExamples...)
@@ -329,8 +373,27 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	if manifest.DraftVersion != "" && !draftFound {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "draft", Reason: "version folder not found"}
 	}
-	manifest.Category = strings.TrimSpace(latestHeaders["category"])
+	// Older catalog entries stored this in the entry header. Keep that as an
+	// import-time fallback only; new manifests own the canonical value.
+	if manifest.Category == "" {
+		manifest.Category = strings.TrimSpace(latestHeaders["category"])
+	}
 	return IndexManifestInput{Manifest: manifest, Versions: versions, Examples: examples, Headers: latestHeaders, Findings: findings}, latestHeaders, nil
+}
+
+func (idx *Indexer) readParityReport(sourcePath string) (*IngestParityReport, error) {
+	raw, err := fs.ReadFile(idx.fs, sourcePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", sourcePath, err)
+	}
+	var report IngestParityReport
+	if err := json.Unmarshal(raw, &report); err != nil {
+		return nil, ErrInvalidHeader{SourcePath: sourcePath, Field: "parity", Reason: err.Error()}
+	}
+	return &report, nil
 }
 
 func (idx *Indexer) readVersionExamples(sourcePath, libraryID, version string) ([]ComponentExample, []IndexFinding) {

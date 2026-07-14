@@ -98,10 +98,10 @@ required:
     integration_pattern: Scenario-specific workflows for build automation
     access_method: resource-n8n execute-workflow
     
-  - resource_name: browserless
+  - resource_name: browser-automation-studio
     purpose: Validate iOS web views and UI testing
     integration_pattern: Screenshot validation
-    access_method: resource-browserless CLI
+    access_method: browser-automation-studio CLI
     
 optional:
   - resource_name: minio
@@ -583,7 +583,7 @@ structure:
     - templates/ios
 
 resources:
-  required: [n8n, browserless]
+  required: [n8n, browser-automation-studio]
   optional: [minio, redis, postgres]
   health_timeout: 60
 

@@ -3,7 +3,7 @@
 ## Related Scenarios & Resources
 - **deployment-manager** and **scenario-dependency-analyzer** will consume desktop telemetry and bundle manifests once offline builds mature.
 - **app-monitor**/**Cloudflare tunnel** remain the primary exposure path for thin clients; **scenario-auditor** references deployment telemetry for health signals.
-- Resources that matter for bundling: `postgres` (build metadata), `redis` (cache), `browserless` (screenshot validation), and eventually local model runtimes for offline inference.
+- Capabilities that matter for bundling: `postgres` (build metadata), `redis` (cache), `browser-automation-studio` (screenshot validation), and eventually local model runtimes for offline inference.
 
 ## Open Questions
 - How will bundle manifests express dependency swaps (e.g., Ollama/Postgres replacements) so desktop runtime can honor them without shipping heavy services?

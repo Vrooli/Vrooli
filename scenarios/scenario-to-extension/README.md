@@ -11,7 +11,7 @@ The `scenario-to-extension` scenario provides a complete system for generating b
 - **🔧 Full Extension Generation**: Complete extensions with background services, content scripts, and popup interfaces
 - **📄 Specialized Templates**: Content script only, background only, or popup only variants
 - **🚀 Automated Build System**: Complete development tooling with hot reload and production builds  
-- **🧪 Integrated Testing**: Browserless-powered testing with screenshot validation
+- **🧪 Integrated Testing**: BAS/Playwright-powered testing with screenshot validation
 - **⚙️ API Integration**: Seamless connection between extensions and scenario APIs
 - **🎨 Modern UI**: Web-based management interface for generation and testing
 
@@ -20,7 +20,7 @@ The `scenario-to-extension` scenario provides a complete system for generating b
 ### Prerequisites
 
 - Vrooli platform running locally
-- Browserless resource available (for testing)
+- browser-automation-studio available (for testing)
 - Node.js 18+ (for extension builds)
 - Chrome or Firefox (for testing)
 
@@ -343,7 +343,7 @@ Create specialized templates for specific use cases:
 - **Extension Documentation**: Generated extensions include complete README files
 - **Chrome Extension APIs**: https://developer.chrome.com/extensions
 - **Firefox WebExtensions**: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions
-- **Browserless Testing**: https://browserless.io/docs
+- **Browser Automation (BAS/Playwright)**: scenarios/browser-automation-studio
 - **Vrooli Platform**: https://github.com/vrooli/vrooli
 
 ## 🐛 Troubleshooting

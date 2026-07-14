@@ -4,6 +4,7 @@
   "description": "Semantic status badge with accessible labels and token-bound color roles.",
   "tags": ["feedback", "status"],
   "slot": "ui-primitive",
+  "category": "feedback",
   "designStyles": [
     { "styleId": "vrooli-default", "affinity": "native" },
     { "styleId": "vrooli-command-display", "affinity": "native" },

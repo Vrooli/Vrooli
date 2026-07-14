@@ -12,6 +12,7 @@ type Repository interface {
 	// UpdateAppliedSnapshot persists the library version/hash snapshot
 	// written by a reapply without changing ownership metadata.
 	UpdateAppliedSnapshot(ctx context.Context, in AppliedSnapshotUpdate) (Adoption, error)
+	UpdateAppliedUnit(ctx context.Context, in AppliedUnitUpdate) (Adoption, error)
 
 	// Get fetches an adoption by primary ID. Returns
 	// ErrAdoptionNotFound when no row matches.

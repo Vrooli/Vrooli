@@ -57,7 +57,7 @@ Preferred stacks and architectural intent:
 
 ## 🤝 Dependencies & Launch Plan
 
-**Required resources**: None mandatory; optional resources include browserless (UI testing), postgres (template/build history), and redis (build cache)
+**Required resources**: None mandatory; optional dependencies include browser-automation-studio (UI testing), postgres (template/build history), and redis (build cache)
 
 **Scenario dependencies**:
 - deployment-manager for bundled builds and tier-2 automation

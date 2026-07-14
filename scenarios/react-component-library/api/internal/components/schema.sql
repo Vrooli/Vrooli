@@ -58,6 +58,25 @@ CREATE TABLE IF NOT EXISTS component_versions (
 CREATE INDEX IF NOT EXISTS idx_component_versions_component_status
   ON component_versions(component_id, status, version);
 
+-- A version is a file set. component_versions retains the entry-file mirror
+-- for existing query paths; this child table is authoritative for companions.
+CREATE TABLE IF NOT EXISTS component_version_files (
+  version_id      TEXT NOT NULL,
+  path            TEXT NOT NULL,
+  content         TEXT NOT NULL DEFAULT '',
+  content_sha256  TEXT NOT NULL,
+  is_entry        INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (version_id, path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_component_version_files_version
+  ON component_version_files(version_id, is_entry DESC, path);
+
+CREATE TABLE IF NOT EXISTS component_version_parity_reports (
+  version_id TEXT PRIMARY KEY,
+  report_json TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS component_headers (
   component_id  TEXT NOT NULL,
   field         TEXT NOT NULL,

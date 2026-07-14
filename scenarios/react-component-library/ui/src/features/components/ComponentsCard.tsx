@@ -12,7 +12,6 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { componentsClient, type Component } from "../../api/components";
 import { errorMessage } from "../../lib/errorMessage";
-import { ComponentEditor } from "./ComponentEditor";
 import { CreateComponentDialog } from "./CreateComponentDialog";
 
 const DESIGN_AFFINITY_NATIVE = 1;
@@ -29,6 +28,7 @@ function componentSearchValue(component: Component) {
     component.displayName,
     component.version,
     component.slot,
+    component.category,
     component.description,
     ...component.tags,
     ...component.designStyles.map((style) => `${style.styleId} ${formatAffinity(style.affinity)}`),
@@ -53,8 +53,6 @@ export function ComponentsCard() {
   const [category, setCategory] = useState("");
   const [styleId, setStyleId] = useState("");
   const [affinity, setAffinity] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
   const [showCreate, setShowCreate] = useState(false);
 
   const tags = tagsRaw
@@ -184,16 +182,6 @@ export function ComponentsCard() {
       className: "text-right",
       accessor: (component) => (
         <div className="flex items-center justify-end gap-2">
-          <Button
-            data-testid={selectors.components.itemEditButton}
-            onClick={() => {
-              setSelectedId(component.id);
-              setSelectedLibraryId(component.libraryId);
-            }}
-            className="h-8 px-3 text-xs"
-          >
-            {t(strings.components.editAction)}
-          </Button>
           <Link
             to={`/components/${component.id}`}
             className="inline-flex min-h-8 items-center justify-center rounded-control border border-app-border bg-app-surface px-3 text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
@@ -204,19 +192,6 @@ export function ComponentsCard() {
       ),
     },
   ];
-
-  if (selectedId) {
-    return (
-      <ComponentEditor
-        id={selectedId}
-        libraryId={selectedLibraryId}
-        onClose={() => {
-          setSelectedId(null);
-          setSelectedLibraryId("");
-        }}
-      />
-    );
-  }
 
   return (
     <section
@@ -246,68 +221,82 @@ export function ComponentsCard() {
 
       {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
 
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        <label className="block text-xs text-app-muted-foreground">
-          {t(strings.components.searchLabel)}
-          <Input
-            data-testid={selectors.components.searchInput}
-            value={match}
-            onChange={(e) => setMatch(e.target.value)}
-            placeholder={t(strings.components.searchPlaceholder)}
-            className="mt-1"
-          />
-        </label>
-        <label className="block text-xs text-app-muted-foreground">
-          {t(strings.components.tagLabel)}
-          <Input
-            data-testid={selectors.components.tagInput}
-            value={tag}
-            onChange={(e) => setTag(e.target.value)}
-            placeholder={t(strings.components.tagPlaceholder)}
-            className="mt-1"
-          />
-        </label>
-        <label className="block text-xs text-app-muted-foreground">
-          {t(strings.components.tagsFilterLabel)}
-          <Input
-            data-testid={selectors.components.tagsInput}
-            value={tagsRaw}
-            onChange={(e) => setTagsRaw(e.target.value)}
-            placeholder={t(strings.components.tagsFilterPlaceholder)}
-            className="mt-1"
-          />
-        </label>
-        <label className="block text-xs text-app-muted-foreground">
-          {t(strings.components.categoryLabel)}
-          <Input
-            data-testid={selectors.components.categoryInput}
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder={t(strings.components.categoryPlaceholder)}
-            className="mt-1"
-          />
-        </label>
-        <label className="block text-xs text-app-muted-foreground">
-          {t(strings.components.styleLabel)}
-          <Input
-            data-testid={selectors.components.styleInput}
-            value={styleId}
-            onChange={(e) => setStyleId(e.target.value)}
-            placeholder={t(strings.components.stylePlaceholder)}
-            className="mt-1"
-          />
-        </label>
-        <label className="block text-xs text-app-muted-foreground">
-          {t(strings.components.affinityLabel)}
-          <Input
-            data-testid={selectors.components.affinityInput}
-            value={affinity}
-            onChange={(e) => setAffinity(e.target.value)}
-            placeholder={t(strings.components.affinityPlaceholder)}
-            className="mt-1"
-          />
-        </label>
-      </div>
+      <details
+        data-testid="components-filters"
+        className="group mt-3 rounded-control border border-app-border bg-app-surface-muted p-2"
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-app-foreground">
+          {t("components.filters", { defaultValue: "Filters" })}
+          <span className="text-app-muted-foreground group-open:hidden">
+            {t("components.filtersShow", { defaultValue: "Show" })}
+          </span>
+          <span className="hidden text-app-muted-foreground group-open:inline">
+            {t("components.filtersHide", { defaultValue: "Hide" })}
+          </span>
+        </summary>
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.searchLabel)}
+            <Input
+              data-testid={selectors.components.searchInput}
+              value={match}
+              onChange={(e) => setMatch(e.target.value)}
+              placeholder={t(strings.components.searchPlaceholder)}
+              className="mt-1"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.tagLabel)}
+            <Input
+              data-testid={selectors.components.tagInput}
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              placeholder={t(strings.components.tagPlaceholder)}
+              className="mt-1"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.tagsFilterLabel)}
+            <Input
+              data-testid={selectors.components.tagsInput}
+              value={tagsRaw}
+              onChange={(e) => setTagsRaw(e.target.value)}
+              placeholder={t(strings.components.tagsFilterPlaceholder)}
+              className="mt-1"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.categoryLabel)}
+            <Input
+              data-testid={selectors.components.categoryInput}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder={t(strings.components.categoryPlaceholder)}
+              className="mt-1"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.styleLabel)}
+            <Input
+              data-testid={selectors.components.styleInput}
+              value={styleId}
+              onChange={(e) => setStyleId(e.target.value)}
+              placeholder={t(strings.components.stylePlaceholder)}
+              className="mt-1"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.affinityLabel)}
+            <Input
+              data-testid={selectors.components.affinityInput}
+              value={affinity}
+              onChange={(e) => setAffinity(e.target.value)}
+              placeholder={t(strings.components.affinityPlaceholder)}
+              className="mt-1"
+            />
+          </label>
+        </div>
+      </details>
 
       {componentsQuery.isLoading && (
         <p data-testid={selectors.components.loading} className="mt-3 text-app-foreground">

@@ -22,7 +22,7 @@ initialization/
 - Generates desktop applications using templates
 - Builds TypeScript and installs dependencies
 - Packages applications for distribution
-- Performs screenshot testing with Browserless
+- Performs screenshot testing with browser-automation-studio
 - Sends build completion notifications
 - Handles error cases gracefully
 
@@ -53,7 +53,7 @@ scenario-to-desktop generate picker-wheel --framework electron --template basic
 2. **Generation**: Creates desktop app from templates
 3. **Build**: Compiles TypeScript and installs dependencies
 4. **Packaging**: Creates distribution packages for target platforms
-5. **Testing**: Takes screenshots for UI validation (if Browserless available)
+5. **Testing**: Takes screenshots for UI validation (if browser-automation-studio available)
 6. **Notification**: Sends completion webhook with results
 7. **Response**: Returns build results to caller
 
@@ -66,7 +66,7 @@ scenario-to-desktop generate picker-wheel --framework electron --template basic
 **Integration Points**:
 - **scenario-to-desktop CLI**: Primary integration point
 - **scenario-to-desktop API**: Uses this workflow for async builds
-- **Browserless**: Optional screenshot testing
+- **browser-automation-studio**: Optional screenshot testing
 - **Notification services**: Build completion alerts
 
 ## 🚀 Deployment
@@ -86,7 +86,7 @@ The workflows use these environment variables:
 
 - `N8N_URL`: N8n instance URL (default: http://localhost:5678)
 - `DESKTOP_BUILD_TIMEOUT`: Build timeout in milliseconds (default: 600000)
-- `BROWSERLESS_URL`: Browserless instance URL for testing
+- `BAS_URL`: browser-automation-studio instance URL for testing
 - `CALLBACK_URL`: Default callback URL for build notifications
 
 ### Workflow Settings

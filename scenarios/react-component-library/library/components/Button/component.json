@@ -4,6 +4,7 @@
   "description": "Token-bound accessible action button with variant and size styling.",
   "tags": ["form", "interactive"],
   "slot": "ui-primitive",
+  "category": "actions",
   "designStyles": [
     { "styleId": "vrooli-default", "affinity": "native" },
     { "styleId": "vrooli-command-display", "affinity": "compatible" },

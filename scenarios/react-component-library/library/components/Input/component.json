@@ -4,6 +4,7 @@
   "description": "Token-bound text input with mobile-safe font sizing and accessible focus styling.",
   "tags": ["form", "interactive"],
   "slot": "ui-primitive",
+  "category": "forms",
   "designStyles": [
     { "styleId": "vrooli-default", "affinity": "native" },
     { "styleId": "vrooli-command-display", "affinity": "compatible" },

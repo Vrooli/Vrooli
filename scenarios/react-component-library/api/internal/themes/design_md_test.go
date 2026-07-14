@@ -62,7 +62,8 @@ func TestParseDesignMDToTheme(t *testing.T) {
 	require.Equal(t, "scenario:flow-verifier", theme.ID)
 	require.Equal(t, "scenario:flow-verifier", theme.Source)
 	require.Equal(t, "#2563eb", theme.Tokens["--color-primary"])
-	require.Equal(t, "0.375rem", theme.Tokens["--rounded-sm"])
+	require.Equal(t, "0.375rem", theme.Tokens["--radius-sm"])
+	require.NotContains(t, theme.Tokens, "--rounded-sm")
 	require.Equal(t, "0.25rem", theme.Tokens["--spacing-unit"])
 	require.Equal(t, "Inter", theme.Tokens["--typography-body-md-fontfamily"])
 }

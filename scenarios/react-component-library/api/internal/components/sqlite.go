@@ -3,6 +3,7 @@ package components
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -85,6 +86,12 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 	if err != nil {
 		return Component{}, err
 	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_files WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
+		return Component{}, fmt.Errorf("clear component version files for %q: %w", c.ID, err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_parity_reports WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
+		return Component{}, fmt.Errorf("clear component parity reports for %q: %w", c.ID, err)
+	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_versions WHERE component_id = ?`, c.ID); err != nil {
 		return Component{}, fmt.Errorf("clear component versions for %q: %w", c.ID, err)
 	}
@@ -117,6 +124,20 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 `, v.ID, v.ComponentID, v.LibraryID, v.Version, string(v.Status), v.SourcePath, v.Content, v.ContentSHA256,
 			v.ChangelogMD, v.IndexedAt.UTC().Format(timeFormat), formatOptionalTime(v.ReleasedAt)); err != nil {
 			return Component{}, fmt.Errorf("upsert component version %s@%s: %w", c.LibraryID, v.Version, err)
+		}
+		for _, file := range v.Files {
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO component_version_files (version_id, path, content, content_sha256, is_entry) VALUES (?, ?, ?, ?, ?)`, v.ID, file.Path, file.Content, file.ContentSHA256, file.IsEntry); err != nil {
+				return Component{}, fmt.Errorf("upsert component version file %s@%s/%s: %w", c.LibraryID, v.Version, file.Path, err)
+			}
+		}
+		if v.ParityReport != nil {
+			report, err := json.Marshal(v.ParityReport)
+			if err != nil {
+				return Component{}, fmt.Errorf("encode component parity report %s@%s: %w", c.LibraryID, v.Version, err)
+			}
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO component_version_parity_reports (version_id, report_json) VALUES (?, ?)`, v.ID, string(report)); err != nil {
+				return Component{}, fmt.Errorf("upsert component parity report %s@%s: %w", c.LibraryID, v.Version, err)
+			}
 		}
 	}
 	for _, ex := range in.Examples {
@@ -488,7 +509,24 @@ LIMIT ?
 		}
 		out = append(out, v)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close component version rows: %w", err)
+	}
+	for i := range out {
+		files, err := s.listVersionFiles(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		out[i].Files = files
+		out[i].ParityReport, err = s.getVersionParity(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func (s *sqliteRepository) GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error) {
@@ -504,7 +542,48 @@ WHERE component_id = ? AND version = ?
 	if err != nil {
 		return ComponentVersion{}, fmt.Errorf("get component version: %w", err)
 	}
+	v.Files, err = s.listVersionFiles(ctx, v.ID)
+	if err != nil {
+		return ComponentVersion{}, err
+	}
+	v.ParityReport, err = s.getVersionParity(ctx, v.ID)
+	if err != nil {
+		return ComponentVersion{}, err
+	}
 	return v, nil
+}
+
+func (s *sqliteRepository) getVersionParity(ctx context.Context, versionID string) (*IngestParityReport, error) {
+	var raw string
+	err := s.db.QueryRowContext(ctx, `SELECT report_json FROM component_version_parity_reports WHERE version_id = ?`, versionID).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get component parity report: %w", err)
+	}
+	var report IngestParityReport
+	if err := json.Unmarshal([]byte(raw), &report); err != nil {
+		return nil, fmt.Errorf("decode component parity report: %w", err)
+	}
+	return &report, nil
+}
+
+func (s *sqliteRepository) listVersionFiles(ctx context.Context, versionID string) ([]ComponentVersionFile, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT path, content, content_sha256, is_entry FROM component_version_files WHERE version_id = ? ORDER BY is_entry DESC, path ASC`, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("list component version files: %w", err)
+	}
+	defer rows.Close()
+	var files []ComponentVersionFile
+	for rows.Next() {
+		var f ComponentVersionFile
+		if err := rows.Scan(&f.Path, &f.Content, &f.ContentSHA256, &f.IsEntry); err != nil {
+			return nil, err
+		}
+		files = append(files, f)
+	}
+	return files, rows.Err()
 }
 
 func (s *sqliteRepository) ListExamples(ctx context.Context, q ExampleQuery) ([]ComponentExample, error) {

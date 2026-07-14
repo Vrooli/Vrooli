@@ -4,6 +4,7 @@
   "description": "Sortable, searchable, filterable token-bound table for dense operational data.",
   "tags": ["data", "table", "interactive"],
   "slot": "ui-pattern",
+  "category": "data-display",
   "designStyles": [
     { "styleId": "vrooli-default", "affinity": "native" },
     { "styleId": "vrooli-command-display", "affinity": "native" },

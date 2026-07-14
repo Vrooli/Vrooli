@@ -71,6 +71,38 @@ type ComponentVersion struct {
 	IndexedAt     time.Time
 	ReleasedAt    time.Time
 	Headers       map[string]string
+	Files         []ComponentVersionFile
+	ParityReport  *IngestParityReport
+}
+
+// ComponentVersionFile is one immutable member of a versioned component unit.
+// Path is relative to that version folder; the entry file remains mirrored on
+// ComponentVersion for callers that only need the renderable artifact.
+type ComponentVersionFile struct {
+	Path          string
+	Content       string
+	ContentSHA256 string
+	IsEntry       bool
+}
+
+// IngestParityReport is durable evidence of static behavior parity between
+// the origin source unit and the harvested library unit.
+type IngestParityReport struct {
+	OriginFiles    []string        `json:"originFiles"`
+	HarvestedFiles []string        `json:"harvestedFiles"`
+	Findings       []IngestFinding `json:"findings"`
+	Acknowledged   bool            `json:"acknowledged"`
+}
+
+// ErrParityWaiverRequired prevents a lossy ingest draft from becoming a
+// released artifact until an operator explicitly acknowledges the report.
+type ErrParityWaiverRequired struct {
+	ComponentID, Version string
+	Findings             []IngestFinding
+}
+
+func (e ErrParityWaiverRequired) Error() string {
+	return "ingest parity report has behavior-loss findings; acknowledge a parity waiver before release"
 }
 
 // ComponentManifest is the explicit DTO the manifest indexer hands to
@@ -230,6 +262,10 @@ type InitializeComponentInput struct {
 	InitialVersion string
 	FileName       string
 	InitialSource  string
+	// InitialFiles is the complete version unit. Paths are basenames relative
+	// to the version folder; exactly one member is the renderable entry.
+	// Empty retains the single-file InitialSource contract.
+	InitialFiles []ComponentVersionFile
 }
 
 type InitializeComponentResult struct {
@@ -253,8 +289,14 @@ type IngestFinding struct {
 }
 
 type IngestComponentInput struct {
-	Scenario    string
-	SourceFile  string
+	Scenario   string
+	SourceFile string
+	// SourceFiles optionally supplies companion paths relative to the origin
+	// scenario. Relative-import closure discovery supplements this list.
+	SourceFiles []string
+	// Version is the released semver baseline for a re-harvest. Empty keeps
+	// the original 0.1.0 bootstrap behavior.
+	Version     string
 	Slug        string
 	DisplayName string
 	Description string
@@ -268,6 +310,7 @@ type IngestComponentResult struct {
 	SourcePath    string
 	DraftVersion  string
 	Findings      []IngestFinding
+	ParityReport  IngestParityReport
 	ChecklistPath string
 }
 
@@ -285,7 +328,12 @@ type CreateComponentVersionInput struct {
 	Intent      VersionIntent
 	FileName    string
 	Source      string
-	ChangelogMD string
+	// Files replaces the single Source body when non-empty. Exactly one member
+	// must be marked IsEntry.
+	Files                   []ComponentVersionFile
+	ParityReport            *IngestParityReport
+	AcknowledgeParityWaiver bool
+	ChangelogMD             string
 }
 
 type CreateComponentVersionResult struct {

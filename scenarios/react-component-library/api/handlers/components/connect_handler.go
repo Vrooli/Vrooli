@@ -88,7 +88,7 @@ func (h *connectHandler) GetComponentByLibraryId(ctx context.Context, req *conne
 }
 
 func (h *connectHandler) GetComponentContent(ctx context.Context, req *connect.Request[componentsv1.GetComponentContentRequest]) (*connect.Response[componentsv1.GetComponentContentResponse], error) {
-	content, err := h.deps.Service.GetContent(ctx, req.Msg.Id)
+	content, err := h.deps.Service.GetContentAt(ctx, req.Msg.Id, req.Msg.Path)
 	if err != nil {
 		connectErr := components.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
@@ -132,6 +132,8 @@ func (h *connectHandler) IngestComponent(ctx context.Context, req *connect.Reque
 	out, err := h.deps.Service.IngestComponent(ctx, components.IngestComponentInput{
 		Scenario:    req.Msg.Scenario,
 		SourceFile:  req.Msg.SourceFile,
+		SourceFiles: append([]string(nil), req.Msg.SourceFiles...),
+		Version:     req.Msg.Version,
 		Slug:        req.Msg.Slug,
 		DisplayName: req.Msg.DisplayName,
 		Description: req.Msg.Description,
@@ -155,19 +157,21 @@ func (h *connectHandler) IngestComponent(ctx context.Context, req *connect.Reque
 		SourcePath:    out.SourcePath,
 		DraftVersion:  out.DraftVersion,
 		Findings:      findings,
+		ParityReport:  parityReportToProto(out.ParityReport),
 		ChecklistPath: out.ChecklistPath,
 	}), nil
 }
 
 func (h *connectHandler) CreateComponentVersion(ctx context.Context, req *connect.Request[componentsv1.CreateComponentVersionRequest]) (*connect.Response[componentsv1.CreateComponentVersionResponse], error) {
 	out, err := h.deps.Service.CreateComponentVersion(ctx, components.CreateComponentVersionInput{
-		ComponentID: req.Msg.ComponentId,
-		Version:     req.Msg.Version,
-		FromVersion: req.Msg.FromVersion,
-		Intent:      protoIntentToDomain(req.Msg.Intent),
-		FileName:    req.Msg.FileName,
-		Source:      req.Msg.Source,
-		ChangelogMD: req.Msg.ChangelogMd,
+		ComponentID:             req.Msg.ComponentId,
+		Version:                 req.Msg.Version,
+		FromVersion:             req.Msg.FromVersion,
+		Intent:                  protoIntentToDomain(req.Msg.Intent),
+		FileName:                req.Msg.FileName,
+		Source:                  req.Msg.Source,
+		ChangelogMD:             req.Msg.ChangelogMd,
+		AcknowledgeParityWaiver: req.Msg.AcknowledgeParityWaiver,
 	})
 	if err != nil {
 		connectErr := components.ToConnectError(err)
@@ -258,9 +262,22 @@ func (h *connectHandler) GetComponentVersionContent(ctx context.Context, req *co
 		}
 		return nil, connectErr
 	}
+	content := v.Content
+	if path := req.Msg.Path; path != "" {
+		found := false
+		for _, file := range v.Files {
+			if file.Path == path {
+				content, found = file.Content, true
+				break
+			}
+		}
+		if !found {
+			return nil, components.ToConnectError(components.ErrComponentNotFound{IDOrLibraryID: req.Msg.ComponentId + "@" + req.Msg.Version + "/" + path})
+		}
+	}
 	return connect.NewResponse(&componentsv1.GetComponentVersionContentResponse{
 		Version: versionToProto(v),
-		Content: v.Content,
+		Content: content,
 	}), nil
 }
 
@@ -285,7 +302,7 @@ func (h *connectHandler) ListComponentExamples(ctx context.Context, req *connect
 }
 
 func (h *connectHandler) UpdateComponentContent(ctx context.Context, req *connect.Request[componentsv1.UpdateComponentContentRequest]) (*connect.Response[componentsv1.UpdateComponentContentResponse], error) {
-	content, err := h.deps.Service.UpdateContent(ctx, req.Msg.Id, components.WriteContentInput{
+	content, err := h.deps.Service.UpdateContentAt(ctx, req.Msg.Id, req.Msg.Path, components.WriteContentInput{
 		Body:           req.Msg.Content,
 		ExpectedSHA256: req.Msg.ExpectedSha256,
 	})

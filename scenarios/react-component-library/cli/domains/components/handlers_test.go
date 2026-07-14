@@ -292,16 +292,17 @@ func TestComponentsIngest_ForwardsOriginAndRendersFindings(t *testing.T) {
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "scenario"}, {Name: "source-file"}, {Name: "slug"}},
-		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}},
+		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"scenario": "web-console", "source-file": "ui/src/components/DrawerShell.tsx", "slug": "drawer-shell"},
-		Flags:       map[string]string{"display-name": "Drawer Shell", "tags": "overlay,layout", "slot": "ui-pattern"},
+		Flags:       map[string]string{"display-name": "Drawer Shell", "tags": "overlay,layout", "slot": "ui-pattern", "companion-files": "ui/src/components/useFocusTrap.ts"},
 	})
 
 	require.NoError(t, h.ingest(ctx))
 	require.Len(t, svc.ingestReqs, 1)
 	require.Equal(t, "web-console", svc.ingestReqs[0].Scenario)
 	require.Equal(t, []string{"overlay", "layout"}, svc.ingestReqs[0].Tags)
+	require.Equal(t, []string{"ui/src/components/useFocusTrap.ts"}, svc.ingestReqs[0].SourceFiles)
 	require.Contains(t, out.String(), "draft 0.1.0-draft.1")
 	require.Contains(t, out.String(), "token-violation")
 }
@@ -571,6 +572,7 @@ func TestComponentsVersionCreate_ForwardsIntent(t *testing.T) {
 			{Name: "release"},
 			{Name: "file-name"},
 			{Name: "source-file"},
+			{Name: "acknowledge-parity-waiver"},
 			{Name: "changelog"},
 		},
 	}, cliapptest.TestRunContextOptions{
