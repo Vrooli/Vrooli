@@ -8,9 +8,10 @@ import (
 	"strings"
 )
 
-// FSPackageJSONReader resolves <scenariosRoot>/<scenario>/package.json
-// with a traversal guard. Mirrors the adoptions FSScenarioFileReader
-// shape so production wires both off the same scenariosRoot.
+// FSPackageJSONReader resolves a scenario package manifest with a traversal
+// guard. Vrooli React scenarios conventionally keep frontend dependencies in
+// ui/package.json, while a few scenarios retain package.json at the root, so
+// both canonical locations are supported in that order.
 type FSPackageJSONReader struct {
 	Root string
 }
@@ -31,11 +32,21 @@ func (r *FSPackageJSONReader) Read(_ context.Context, scenario string) ([]byte, 
 	if strings.ContainsAny(scenario, "/\\") || strings.Contains(scenario, "..") {
 		return nil, fmt.Errorf("invalid scenario name %q", scenario)
 	}
-	full := filepath.Join(r.Root, scenario, "package.json")
-	cleaned := filepath.Clean(full)
+	base := filepath.Join(r.Root, scenario)
+	cleaned := filepath.Clean(base)
 	rootClean := filepath.Clean(r.Root) + string(filepath.Separator)
 	if !strings.HasPrefix(cleaned, rootClean) {
 		return nil, fmt.Errorf("resolved path escapes root")
 	}
-	return os.ReadFile(cleaned)
+	for _, rel := range []string{"ui/package.json", "package.json"} {
+		path := filepath.Join(cleaned, rel)
+		bytes, err := os.ReadFile(path)
+		if err == nil {
+			return bytes, nil
+		}
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("scenario %q package.json missing: ui/package.json or package.json", scenario)
 }

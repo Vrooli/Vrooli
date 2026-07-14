@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -17,10 +18,90 @@ import (
 
 const (
 	PathSnapshotSchemaVersion = 1
+	// PathSnapshotPolicyVersion identifies the semantics used for a newly
+	// captured snapshot independently from the storage schema. Zero remains a
+	// readable legacy value; version one is the Git-aware metadata-default
+	// policy introduced with the estimate API.
+	PathSnapshotPolicyVersion = 1
 	maxSnapshotFileBytes      = 1 << 20 // 1 MiB; larger files are metadata only.
 	maxSnapshotObjectBytes    = 8 << 20 // A single snapshot may retain at most 8 MiB of text.
 	defaultPathSnapshotLease  = 7 * 24 * time.Hour
 )
+
+// PathSnapshotPolicy is explicit capture policy. New snapshots are metadata
+// only by default: a digest is evidence enough to compare a file later, while
+// retaining its body is an intentionally separate privacy and quota decision.
+type PathSnapshotPolicy struct {
+	IncludeIgnored bool `json:"include_ignored,omitempty"`
+	RetainContent  bool `json:"retain_content,omitempty"`
+}
+
+// PathSnapshotEstimate is the authoritative preflight result used by both
+// direct callers and collection capture. Source evidence remains
+// informational; this report never changes Test Genie behavior.
+type PathSnapshotEstimate struct {
+	PolicyVersion          int
+	Selections             []string
+	Policy                 PathSnapshotPolicy
+	EligibleFiles          int
+	EligibleBytes          int64
+	ExcludedIgnoredFiles   int
+	ExcludedIgnoredBytes   int64
+	ExcludedSensitiveFiles int
+	ExcludedBinaryFiles    int
+	OversizedFiles         int
+	RetainedContentBytes   int64
+	TopContributors        []PathSnapshotContributor
+	Issues                 []PathSnapshotIssue
+	Recommendations        []PathSnapshotRecommendation
+	entries                []resolvedPath
+}
+
+type PathSnapshotContributor struct {
+	Path  string
+	Files int
+	Bytes int64
+}
+
+type PathSnapshotIssue struct {
+	Code     string
+	Severity string // info | warning | repair-required | error
+	Detail   string
+}
+
+type PathSnapshotRecommendation struct {
+	Selection string
+	Reason    string
+}
+
+// PathSnapshotPolicyError is returned before any durable record is written
+// when an estimate says that a capture must be narrowed. Keeping the full
+// estimate allows both in-process callers and the RPC edge to give the author
+// the same actionable repair report.
+type PathSnapshotPolicyError struct{ Estimate PathSnapshotEstimate }
+
+func (e *PathSnapshotPolicyError) Error() string {
+	for _, issue := range e.Estimate.Issues {
+		if issue.Severity == "repair-required" || issue.Severity == "error" {
+			return "path snapshot selection requires repair: " + issue.Detail
+		}
+	}
+	return "path snapshot selection requires repair"
+}
+
+func (e PathSnapshotEstimate) RequiresRepair() bool {
+	for _, issue := range e.Issues {
+		if issue.Severity == "repair-required" || issue.Severity == "error" {
+			return true
+		}
+	}
+	return false
+}
+
+type resolvedPath struct {
+	entry PathEntry
+	data  []byte
+}
 
 type PathEntryState string
 
@@ -33,13 +114,15 @@ const (
 // PathSnapshot is immutable source evidence. It is not a Test Genie result and
 // must always be rendered/consumed as informational.
 type PathSnapshot struct {
-	Name          string      `json:"name"`
-	Branch        string      `json:"branch"`
-	CreatedAt     time.Time   `json:"created_at"`
-	ExpiresAt     time.Time   `json:"expires_at"`
-	SchemaVersion int         `json:"schema_version"`
-	Selections    []string    `json:"selections"`
-	Entries       []PathEntry `json:"entries"`
+	Name          string             `json:"name"`
+	Branch        string             `json:"branch"`
+	CreatedAt     time.Time          `json:"created_at"`
+	ExpiresAt     time.Time          `json:"expires_at"`
+	SchemaVersion int                `json:"schema_version"`
+	PolicyVersion int                `json:"policy_version,omitempty"`
+	Selections    []string           `json:"selections"`
+	Policy        PathSnapshotPolicy `json:"policy,omitempty"`
+	Entries       []PathEntry        `json:"entries"`
 }
 
 type PathEntry struct {
@@ -68,6 +151,9 @@ func (s PathSnapshot) Validate() error {
 	}
 	if s.SchemaVersion != PathSnapshotSchemaVersion {
 		return fmt.Errorf("unsupported path snapshot schema version %d", s.SchemaVersion)
+	}
+	if s.PolicyVersion != 0 && s.PolicyVersion != PathSnapshotPolicyVersion {
+		return fmt.Errorf("unsupported path snapshot policy version %d", s.PolicyVersion)
 	}
 	if s.CreatedAt.IsZero() || s.ExpiresAt.IsZero() || !s.ExpiresAt.After(s.CreatedAt) {
 		return fmt.Errorf("path snapshot requires a future retention expiry")
@@ -101,48 +187,41 @@ var deniedSnapshotPathPrefixes = []string{".git/", ".env", "secrets/", "credenti
 // and only retains bytes for bounded text files. Callers can compare exact
 // digests later without treating the result as behavioral evidence.
 func CapturePathSnapshot(root, name, branch string, selections []string, now time.Time) (PathSnapshot, map[string][]byte, error) {
-	return CapturePathSnapshotWithLease(root, name, branch, selections, now, defaultPathSnapshotLease)
+	return CapturePathSnapshotWithPolicyAndLease(root, name, branch, selections, PathSnapshotPolicy{}, now, defaultPathSnapshotLease)
 }
 
 // CapturePathSnapshotWithLease captures source evidence under an explicit,
 // bounded retention lease. Callers cannot retain bytes indefinitely by omitting
 // policy; the default wrapper above uses the safe seven-day lease.
 func CapturePathSnapshotWithLease(root, name, branch string, selections []string, now time.Time, lease time.Duration) (PathSnapshot, map[string][]byte, error) {
+	return CapturePathSnapshotWithPolicyAndLease(root, name, branch, selections, PathSnapshotPolicy{}, now, lease)
+}
+
+// CapturePathSnapshotWithPolicyAndLease persists the exact eligible set from
+// the resolver. Callers that want historical body retention must say so.
+func CapturePathSnapshotWithPolicyAndLease(root, name, branch string, selections []string, policy PathSnapshotPolicy, now time.Time, lease time.Duration) (PathSnapshot, map[string][]byte, error) {
 	if strings.TrimSpace(root) == "" || strings.TrimSpace(name) == "" || strings.TrimSpace(branch) == "" {
 		return PathSnapshot{}, nil, fmt.Errorf("path snapshot root, name, and branch are required")
-	}
-	patterns, err := normalizeSnapshotSelections(selections)
-	if err != nil {
-		return PathSnapshot{}, nil, err
 	}
 	if lease <= 0 || lease > 30*24*time.Hour {
 		return PathSnapshot{}, nil, fmt.Errorf("path snapshot retention lease must be between one nanosecond and 30 days")
 	}
-	created := now.UTC()
-	snapshot := PathSnapshot{Name: strings.TrimSpace(name), Branch: strings.TrimSpace(branch), CreatedAt: created, ExpiresAt: created.Add(lease), SchemaVersion: PathSnapshotSchemaVersion, Selections: patterns}
-	objects := map[string][]byte{}
-	entries := map[string]PathEntry{}
-	for _, pattern := range patterns {
-		matches, err := doublestar.Glob(os.DirFS(root), pattern)
-		if err != nil {
-			return PathSnapshot{}, nil, fmt.Errorf("expand path selection %q: %w", pattern, err)
-		}
-		for _, match := range matches {
-			match = filepath.ToSlash(match)
-			if _, seen := entries[match]; seen {
-				continue
-			}
-			entry, bytes, include := capturePathEntry(root, match)
-			if !include {
-				continue
-			}
-			entries[match] = entry
-			if entry.ContentRef != "" {
-				objects[entry.ContentRef] = bytes
-			}
-		}
+	estimate, err := EstimatePathSnapshot(root, selections, policy)
+	if err != nil {
+		return PathSnapshot{}, nil, err
 	}
-	for _, entry := range entries {
+	if estimate.RequiresRepair() {
+		return PathSnapshot{}, nil, &PathSnapshotPolicyError{Estimate: estimate}
+	}
+	created := now.UTC()
+	snapshot := PathSnapshot{Name: strings.TrimSpace(name), Branch: strings.TrimSpace(branch), CreatedAt: created, ExpiresAt: created.Add(lease), SchemaVersion: PathSnapshotSchemaVersion, PolicyVersion: PathSnapshotPolicyVersion, Selections: estimate.Selections, Policy: policy}
+	objects := map[string][]byte{}
+	for _, resolved := range estimate.entries {
+		entry := resolved.entry
+		if policy.RetainContent && entry.Type == "file" && entry.Size <= maxSnapshotFileBytes && !isBinary(resolved.data) {
+			entry.ContentRef = entry.Digest
+			objects[entry.ContentRef] = resolved.data
+		}
 		snapshot.Entries = append(snapshot.Entries, entry)
 	}
 	sort.Slice(snapshot.Entries, func(i, j int) bool { return snapshot.Entries[i].Path < snapshot.Entries[j].Path })
@@ -157,6 +236,224 @@ func CapturePathSnapshotWithLease(root, name, branch string, selections []string
 		return PathSnapshot{}, nil, err
 	}
 	return snapshot, objects, nil
+}
+
+// EstimatePathSnapshot resolves tracked files and non-ignored untracked files
+// through Git before touching content. Git failure is explicit: falling back to
+// a raw walk would silently reintroduce ignored dependency capture.
+func EstimatePathSnapshot(root string, selections []string, policy PathSnapshotPolicy) (PathSnapshotEstimate, error) {
+	patterns, err := normalizeSnapshotSelections(selections)
+	if err != nil {
+		return PathSnapshotEstimate{}, err
+	}
+	tracked, err := gitPathSet(root, "ls-files", "-z", "--cached")
+	if err != nil {
+		return PathSnapshotEstimate{}, fmt.Errorf("enumerate tracked source evidence paths: %w", err)
+	}
+	untracked, err := gitPathSet(root, "ls-files", "-z", "--others", "--exclude-standard")
+	if err != nil {
+		return PathSnapshotEstimate{}, fmt.Errorf("enumerate untracked source evidence paths: %w", err)
+	}
+	ignored, err := gitPathSet(root, "ls-files", "-z", "--others", "--ignored", "--exclude-standard")
+	if err != nil {
+		return PathSnapshotEstimate{}, fmt.Errorf("enumerate ignored source evidence paths: %w", err)
+	}
+	eligible := make(map[string]struct{}, len(tracked)+len(untracked))
+	for path := range tracked {
+		eligible[path] = struct{}{}
+	}
+	for path := range untracked {
+		eligible[path] = struct{}{}
+	}
+	if policy.IncludeIgnored {
+		for path := range ignored {
+			eligible[path] = struct{}{}
+		}
+	}
+	estimate := PathSnapshotEstimate{PolicyVersion: PathSnapshotPolicyVersion, Selections: patterns, Policy: policy}
+	for _, path := range sortedPaths(eligible) {
+		if !matchesPath(patterns, path) {
+			continue
+		}
+		if snapshotPathDenied(path) {
+			estimate.ExcludedSensitiveFiles++
+			continue
+		}
+		entry, data, include := capturePathEntry(root, path)
+		if !include || entry.State != PathEntryPresent {
+			continue
+		}
+		estimate.EligibleFiles++
+		estimate.EligibleBytes += entry.Size
+		if entry.Type == "binary" {
+			estimate.ExcludedBinaryFiles++
+		}
+		if entry.Size > maxSnapshotFileBytes {
+			estimate.OversizedFiles++
+		}
+		if policy.RetainContent && entry.Type == "file" && entry.Size <= maxSnapshotFileBytes && !isBinary(data) {
+			estimate.RetainedContentBytes += int64(len(data))
+		}
+		estimate.entries = append(estimate.entries, resolvedPath{entry: entry, data: data})
+	}
+	if !policy.IncludeIgnored {
+		for _, path := range sortedPaths(ignored) {
+			if !matchesPath(patterns, path) {
+				continue
+			}
+			info, statErr := os.Lstat(filepath.Join(root, filepath.FromSlash(path)))
+			if statErr == nil && !info.IsDir() {
+				estimate.ExcludedIgnoredFiles++
+				estimate.ExcludedIgnoredBytes += info.Size()
+			}
+		}
+	}
+	estimate.TopContributors = contributors(estimate.entries)
+	addEstimateIssues(&estimate)
+	return estimate, nil
+}
+
+func gitPathSet(root string, args ...string) (map[string]struct{}, error) {
+	cmd := exec.Command("git", append([]string{"--no-optional-locks", "-C", root}, args...)...)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	paths := map[string]struct{}{}
+	for _, raw := range bytes.Split(out, []byte{0}) {
+		path := filepath.ToSlash(strings.TrimSpace(string(raw)))
+		if path != "" {
+			paths[path] = struct{}{}
+		}
+	}
+	return paths, nil
+}
+
+func sortedPaths(set map[string]struct{}) []string {
+	out := make([]string, 0, len(set))
+	for path := range set {
+		out = append(out, path)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func matchesPath(patterns []string, path string) bool {
+	for _, pattern := range patterns {
+		if ok, _ := doublestar.Match(pattern, path); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func isBinary(data []byte) bool { return bytes.IndexByte(data, 0) >= 0 }
+
+func contributors(entries []resolvedPath) []PathSnapshotContributor {
+	byPath := map[string]*PathSnapshotContributor{}
+	for _, resolved := range entries {
+		parts := strings.Split(resolved.entry.Path, "/")
+		key := parts[0]
+		if len(parts) > 1 {
+			key += "/" + parts[1]
+		}
+		if byPath[key] == nil {
+			byPath[key] = &PathSnapshotContributor{Path: key}
+		}
+		byPath[key].Files++
+		byPath[key].Bytes += resolved.entry.Size
+	}
+	out := make([]PathSnapshotContributor, 0, len(byPath))
+	for _, item := range byPath {
+		out = append(out, *item)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Bytes == out[j].Bytes {
+			return out[i].Path < out[j].Path
+		}
+		return out[i].Bytes > out[j].Bytes
+	})
+	if len(out) > 8 {
+		out = out[:8]
+	}
+	return out
+}
+
+func addEstimateIssues(estimate *PathSnapshotEstimate) {
+	if estimate.Policy.RetainContent && estimate.RetainedContentBytes > maxSnapshotObjectBytes {
+		estimate.Issues = append(estimate.Issues, PathSnapshotIssue{Code: "retained_content_over_budget", Severity: "error", Detail: fmt.Sprintf("retained content projects %d bytes, above the %d-byte per-snapshot limit", estimate.RetainedContentBytes, maxSnapshotObjectBytes)})
+		estimate.Recommendations = append(estimate.Recommendations, contributorSelections(estimate.entries)...)
+	}
+	for _, selection := range estimate.Selections {
+		if selection == "packages/proto/gen/**" {
+			estimate.Issues = append(estimate.Issues, PathSnapshotIssue{Code: "generated_output_too_broad", Severity: "repair-required", Detail: "all generated proto output is broader than the affected namespaces"})
+			estimate.Recommendations = append(estimate.Recommendations, generatedNamespaceSelections(estimate.entries)...)
+		}
+		if selection == "scenarios/**" {
+			estimate.Issues = append(estimate.Issues, PathSnapshotIssue{Code: "scenarios_too_broad", Severity: "repair-required", Detail: "all scenarios are broader than the affected scenario boundary"})
+			estimate.Recommendations = append(estimate.Recommendations, scenarioSelections(estimate.entries)...)
+		}
+	}
+	if estimate.ExcludedIgnoredFiles > 0 {
+		estimate.Issues = append(estimate.Issues, PathSnapshotIssue{Code: "ignored_files_excluded", Severity: "info", Detail: fmt.Sprintf("%d ignored files excluded by default", estimate.ExcludedIgnoredFiles)})
+	}
+	if estimate.Policy.IncludeIgnored {
+		estimate.Issues = append(estimate.Issues, PathSnapshotIssue{Code: "ignored_files_included", Severity: "warning", Detail: "ignored files were explicitly included"})
+	}
+}
+
+func generatedNamespaceSelections(entries []resolvedPath) []PathSnapshotRecommendation {
+	return uniqueRecommendations(entries, func(path string) (string, bool) {
+		parts := strings.Split(path, "/")
+		if len(parts) < 5 || strings.Join(parts[:3], "/") != "packages/proto/gen" {
+			return "", false
+		}
+		if parts[3] == "manifests" {
+			return path, true
+		}
+		return strings.Join(parts[:5], "/") + "/**", true
+	}, "select only this generated language/namespace present in the estimate")
+}
+
+func scenarioSelections(entries []resolvedPath) []PathSnapshotRecommendation {
+	return uniqueRecommendations(entries, func(path string) (string, bool) {
+		parts := strings.Split(path, "/")
+		if len(parts) < 3 || parts[0] != "scenarios" {
+			return "", false
+		}
+		return "scenarios/" + parts[1] + "/**", true
+	}, "select this affected scenario present in the estimate")
+}
+
+func contributorSelections(entries []resolvedPath) []PathSnapshotRecommendation {
+	return uniqueRecommendations(entries, func(path string) (string, bool) {
+		parts := strings.Split(path, "/")
+		if len(parts) == 1 {
+			return path, true
+		}
+		return strings.Join(parts[:2], "/") + "/**", true
+	}, "narrow retained-content capture to this estimated contributor, or keep metadata-only mode")
+}
+
+func uniqueRecommendations(entries []resolvedPath, selection func(string) (string, bool), reason string) []PathSnapshotRecommendation {
+	seen := map[string]struct{}{}
+	var out []PathSnapshotRecommendation
+	for _, entry := range entries {
+		candidate, ok := selection(entry.entry.Path)
+		if !ok {
+			continue
+		}
+		if _, exists := seen[candidate]; exists {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		out = append(out, PathSnapshotRecommendation{Selection: candidate, Reason: reason})
+		if len(out) == 8 {
+			break
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Selection < out[j].Selection })
+	return out
 }
 
 func normalizeSnapshotSelections(selections []string) ([]string, error) {
@@ -224,7 +521,6 @@ func capturePathEntry(root, rel string) (PathEntry, []byte, bool) {
 		entry.Type, entry.Detail = "binary", "binary file retained as metadata only"
 		return entry, nil, true
 	}
-	entry.ContentRef = entry.Digest
 	return entry, data, true
 }
 

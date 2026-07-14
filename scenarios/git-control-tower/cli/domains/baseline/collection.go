@@ -131,6 +131,8 @@ func collectionFlags(fs *flag.FlagSet) (name, branch *string, json *bool) {
 func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 	fs := newFlagSet("baseline collection capture")
 	name, branch, asJSON := collectionFlags(fs)
+	includeIgnored := fs.Bool("include-ignored", false, "Include ignored source-evidence files explicitly")
+	retainContent := fs.Bool("retain-content", false, "Retain bounded source text explicitly (default: metadata only)")
 	var members, paths stringListFlag
 	fs.Var(&members, "member", "Required member as scenario[:baseline-name]; repeat for every scenario")
 	fs.Var(&paths, "path", "Safe repo-relative source-evidence glob; repeat (informational only)")
@@ -150,8 +152,9 @@ func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
 	defer cancel()
-	resp, err := clientFactory(core).StartCollectionCapture(ctx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: *name, Branch: *branch, Targets: targets, PathSelections: paths, CreatedBy: "agent"}))
+	resp, err := clientFactory(core).StartCollectionCapture(ctx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: *name, Branch: *branch, Targets: targets, PathSelections: paths, IncludeIgnored: *includeIgnored, RetainContent: *retainContent, CreatedBy: "agent"}))
 	if err != nil {
+		renderPathSnapshotPolicyError(err, *asJSON)
 		return err
 	}
 	if *asJSON {

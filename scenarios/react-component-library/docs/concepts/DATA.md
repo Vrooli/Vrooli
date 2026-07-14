@@ -21,6 +21,7 @@ uses SQLite as an indexed registry and adoption ledger.
 | Adoption records | adoptions | SQLite `adoption_records` | Apply/reapply service | Until deleted | Tracks scenario/path, adopted version, source sha, snapshot sha, and drift statuses. |
 | Adopted component files | adoptions | Target scenario filesystem | Target scenario owns local edits after apply | Until scenario changes/deletes file | Files receive `@vrooliComponent*` provenance comments. |
 | Dependency declarations | deps | SQLite `component_dep_declarations` | Version source header `@deps` | Rebuilt by index | Stores one row per component version, dependency name, range, and kind (`runtime`, `peer`, `dev`) for adoption validation. |
+| Adoption suggestions | adoptions | Derived at request time | Inventory surfaces + component registry + validation verdicts + adoption ledger | Not persisted | Suggestions carry their inventory path and human-readable reason strings; existing adoption pairs are excluded. |
 
 ## Schema Map
 

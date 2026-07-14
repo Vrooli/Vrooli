@@ -18,6 +18,7 @@
 package components
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -225,6 +226,7 @@ type InitializeComponentInput struct {
 	DisplayName    string
 	Description    string
 	Tags           []string
+	Slot           string
 	InitialVersion string
 	FileName       string
 	InitialSource  string
@@ -234,6 +236,39 @@ type InitializeComponentResult struct {
 	Component    Component
 	ManifestPath string
 	SourcePath   string
+}
+
+// ScenarioSourceReader reads a path relative to a named scenario's root. The
+// production implementation enforces traversal safety; components keeps this
+// as a narrow interface so ingest policy remains testable without filesystem
+// coupling.
+type ScenarioSourceReader interface {
+	Read(ctx context.Context, scenario, sourcePath string) ([]byte, error)
+}
+
+type IngestFinding struct {
+	Code       string
+	Message    string
+	SourceFile string
+}
+
+type IngestComponentInput struct {
+	Scenario    string
+	SourceFile  string
+	Slug        string
+	DisplayName string
+	Description string
+	Tags        []string
+	Slot        string
+}
+
+type IngestComponentResult struct {
+	Component     Component
+	ManifestPath  string
+	SourcePath    string
+	DraftVersion  string
+	Findings      []IngestFinding
+	ChecklistPath string
 }
 
 type VersionIntent string

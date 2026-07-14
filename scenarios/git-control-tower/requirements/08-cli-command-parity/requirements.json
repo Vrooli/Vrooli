@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-008 CLI command parity",
-    "last_validated_at": "2026-07-10T16:28:36-04:00"
+    "last_validated_at": "2026-07-13T20:02:25-04:00"
   },
   "requirements": [
     {
@@ -71,6 +71,30 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Proves one blocking read plus one non-blocking recovery read on EOF, with no retry for ordinary inspect or non-EOF errors."
+        }
+      ]
+    },
+    {
+      "id": "GCT-SOURCE-EVIDENCE-001",
+      "title": "Git-aware bounded informational source evidence",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "baseline",
+      "description": "Path-snapshot estimates and captures use tracked plus non-ignored untracked Git candidates by default, retain only metadata unless content retention is explicit, and return deterministic scope-repair guidance before source evidence can start behavioral collection work.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/path_snapshot_test.go::TestEstimatePathSnapshotUsesGitCandidatesAndFlagsBroadScopes",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers ignored dependency filtering, explicit ignored opt-in, individual-scenario safety, and generated-output repair guidance."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/path_snapshot_test.go::TestRetainedContentMustFitQuotaWhileMetadataDoesNot",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers metadata-only default and explicit retained-content quota preflight."
         }
       ]
     }

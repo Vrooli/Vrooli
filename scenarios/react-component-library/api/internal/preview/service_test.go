@@ -80,6 +80,10 @@ func (f *fakeComponentsService) InitializeComponent(context.Context, components.
 	panic("not called")
 }
 
+func (f *fakeComponentsService) IngestComponent(context.Context, components.IngestComponentInput) (components.IngestComponentResult, error) {
+	panic("not called")
+}
+
 func (f *fakeComponentsService) CreateComponentVersion(context.Context, components.CreateComponentVersionInput) (components.CreateComponentVersionResult, error) {
 	panic("not called")
 }

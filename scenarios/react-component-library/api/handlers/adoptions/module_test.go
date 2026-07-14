@@ -90,7 +90,7 @@ func sha256OfHandlerTests(s string) string {
 func TestModule_Shape(t *testing.T) {
 	r, _, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, adoptions.Endpoints, 6, "adoptions ships list, apply, reapply, delete, refresh, resolve-path")
+	require.Len(t, adoptions.Endpoints, 7, "adoptions ships list, apply, reapply, delete, refresh, resolve-path, suggest")
 	require.Equal(t, "adoptions_resolve_path", adoptions.Endpoints[5].ID)
 }
 
@@ -103,7 +103,7 @@ func TestModule_CreateListRefreshDelete(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(scenarioDir, "Button.tsx"), []byte("X"), 0o600))
 
 	rw := callConnect(r, adoptionsconnect.AdoptionsServiceApplyAdoptionProcedure,
-		`{"component_id":"cmp-btn","scenario":"swarm-manager","adopted_path":"Button.tsx","version":"1.0.0","confirm_overwrite":true}`)
+		`{"component_id":"cmp-btn","scenario":"swarm-manager","adopted_path":"Button.tsx","version":"1.0.0","replace_existing":true,"confirm_overwrite":true}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), "swarm-manager")
 

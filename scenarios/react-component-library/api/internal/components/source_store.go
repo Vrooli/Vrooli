@@ -24,6 +24,7 @@ type sourceManifestFile struct {
 	DisplayName        string   `json:"displayName"`
 	Description        string   `json:"description"`
 	Tags               []string `json:"tags"`
+	Slot               string   `json:"slot,omitempty"`
 	Latest             string   `json:"latest"`
 	Draft              string   `json:"draft,omitempty"`
 	DeprecatedVersions []string `json:"deprecatedVersions"`
@@ -78,6 +79,7 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 		DisplayName:        displayName,
 		Description:        strings.TrimSpace(in.Description),
 		Tags:               cleanTags(in.Tags),
+		Slot:               strings.TrimSpace(in.Slot),
 		Latest:             version,
 		DeprecatedVersions: []string{},
 	}

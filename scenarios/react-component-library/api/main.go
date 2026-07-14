@@ -157,6 +157,7 @@ func main() {
 	}
 	componentsInternal.SetServiceJSONReader(componentsSvc, componentsInternal.NewFSServiceJSONReader(scenariosRoot))
 	adoptionsSvc, scenariosReader := adoptionsH.BuildService(db, clock.System{}, adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
+	componentsInternal.SetScenarioSourceReader(componentsSvc, scenariosReader)
 
 	// Install the swarm-manager drift reporter so Refresh files a
 	// `fix` backlog item when an adoption first transitions to
@@ -197,6 +198,14 @@ func main() {
 	if err := themesSvc.EnsureBuiltinsSeeded(context.Background()); err != nil {
 		log.Fatalf("seed built-in themes: %v", err)
 	}
+	// Suggestions consume the same InventoryService.ScanScenario implementation
+	// as ui-health rather than maintaining a second filesystem interpretation.
+	inventoryScanner := inventoryH.NewConnectHandler(inventoryH.Deps{
+		Logger:        log.Default(),
+		Adoptions:     inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc},
+		ManifestLoad:  uimanifest.NewFSLoader(filepath.Dir(scenariosRoot)),
+		ScenariosRoot: scenariosRoot,
+	})
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
@@ -208,6 +217,7 @@ func main() {
 				&adoptionsH.IndexedSlotReader{Components: componentsSvc},
 				adoptionsH.LibraryFromComponents(componentsSvc),
 			),
+			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
 		),
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver)),
 		depsH.ModuleFromService(depsSvc, log.Default()),

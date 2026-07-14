@@ -20,6 +20,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AdoptionsService.DeleteAdoption":      h.delete,
 		"AdoptionsService.RefreshAdoptions":    h.refresh,
 		"AdoptionsService.ResolveAdoptionPath": h.resolvePath,
+		"AdoptionsService.SuggestAdoptions":    h.suggest,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -115,6 +115,17 @@
     "creating": "Creating…",
     "cancel": "Cancel"
   },
+  "ingest": {
+    "title": "Ingest scenario component",
+    "description": "Copy a scenario-local TSX component into a catalog draft and receive conformance findings.",
+    "scenario": "Origin scenario",
+    "sourceFile": "TSX path within scenario",
+    "slug": "Library slug",
+    "tags": "Tags (comma-separated)",
+    "submit": "Ingest draft",
+    "running": "Ingesting…",
+    "success": "Draft {{version}} created with {{findings}} finding(s)."
+  },
   "editor": {
       "title": "Editing {{libraryId}}",
       "loading": "Loading source…",
@@ -218,6 +229,8 @@
       "adoptedPathPlaceholder": "ui/src/components/Button.tsx",
       "adoptedVersionLabel": "Adopted version",
   "adoptedVersionPlaceholder": "1.0.0",
+  "replaceExistingLabel": "Replace an existing source file",
+  "replaceExistingHelp": "This requires confirmation when the target differs from the ingested library source.",
   "confirmAction": "Adopt",
   "confirmOverwriteAction": "Confirm overwrite",
   "cancelAction": "Cancel",
@@ -241,6 +254,12 @@
       "pathSourceHeuristic": "Heuristic — verify",
       "pathSourceFallback": "Fallback — verify",
       "pathResolving": "Resolving path…"
+    },
+    "suggestions": {
+      "title": "Suggested adoptions",
+      "subtitle": "Ranked from scenario inventory, design fit, and dependency compatibility.",
+      "adoptAction": "Adopt",
+      "empty": "No explainable adoption candidates found."
     },
     "status": {
       "current": "Current",
@@ -270,7 +289,13 @@
       "runAction": "Compare",
       "running": "Comparing…",
       "empty": "Pick two versions and press Compare.",
-      "summary": "{{from}} → {{to}} : +{{additions}} / -{{removals}} ({{rows}} rows)"
+      "summary": "{{from}} → {{to}} : +{{additions}} / -{{removals}} ({{rows}} rows)",
+      "viewerLabel": "Version diff",
+      "modeLabel": "Diff display mode",
+      "split": "Split",
+      "unified": "Unified",
+      "copy": "Copy",
+      "copied": "Copied"
     }
   },
   "errors": {

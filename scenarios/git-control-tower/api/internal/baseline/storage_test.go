@@ -79,11 +79,12 @@ func TestStorageCollectionRoundTripAndDelete(t *testing.T) {
 func TestStoragePathSnapshotsRetainSharedObjectsUntilLastManifestIsDeleted(t *testing.T) {
 	s := newTestStorage(t)
 	root := t.TempDir()
+	initSnapshotGitRepo(t, root)
 	path := filepath.Join(root, "dirty.txt")
 	if err := os.WriteFile(path, []byte("dirty start\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	first, objects, err := CapturePathSnapshot(root, "before", "agi", []string{"*.txt"}, time.Now())
+	first, objects, err := CapturePathSnapshotWithPolicyAndLease(root, "before", "agi", []string{"*.txt"}, PathSnapshotPolicy{RetainContent: true}, time.Now(), defaultPathSnapshotLease)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,6 +121,7 @@ func TestStoragePathSnapshotsRetainSharedObjectsUntilLastManifestIsDeleted(t *te
 func TestStorageSweepExpiredPathSnapshotsReclaimsManifestAndObjects(t *testing.T) {
 	s := newTestStorage(t)
 	root := t.TempDir()
+	initSnapshotGitRepo(t, root)
 	if err := os.WriteFile(filepath.Join(root, "expired.txt"), []byte("expired\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

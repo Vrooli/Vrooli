@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +30,7 @@ const defaultListLimit = 200
 // not belong in transport.
 type Service interface {
 	Create(ctx context.Context, in CreateInput) (Adoption, error)
-	Apply(ctx context.Context, in ApplyInput) (Adoption, string, error)
+	Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	Reapply(ctx context.Context, in ReapplyInput) (Adoption, string, error)
 	List(ctx context.Context, q ListQuery) ([]Adoption, error)
 	Get(ctx context.Context, id string) (Adoption, error)
@@ -70,6 +71,13 @@ type ScenarioFileWriter interface {
 	ScenarioFileReader
 	Exists(ctx context.Context, scenario, adoptedPath string) (bool, error)
 	Write(ctx context.Context, scenario, adoptedPath string, content []byte) (string, error)
+}
+
+// ScenarioImportSiteFinder reports source files that directly import a target
+// within a scenario tree. It is deliberately optional so narrow test fakes can
+// retain their read/write-only contract.
+type ScenarioImportSiteFinder interface {
+	FindImportSites(ctx context.Context, scenario, adoptedPath string) ([]string, error)
 }
 
 // DependencyValidator and StyleFitValidator keep adoption enforcement at the
@@ -210,25 +218,25 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Adoption, error) 
 	return s.repo.Create(ctx, in)
 }
 
-func (s *service) Apply(ctx context.Context, in ApplyInput) (Adoption, string, error) {
+func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error) {
 	in.ComponentID = strings.TrimSpace(in.ComponentID)
 	in.Scenario = strings.TrimSpace(in.Scenario)
 	in.AdoptedPath = strings.TrimSpace(in.AdoptedPath)
 	if in.ComponentID == "" {
-		return Adoption{}, "", ErrInvalidAdoption{Field: "component_id", Reason: "required"}
+		return ApplyResult{}, ErrInvalidAdoption{Field: "component_id", Reason: "required"}
 	}
 	if in.Scenario == "" {
-		return Adoption{}, "", ErrInvalidAdoption{Field: "scenario", Reason: "required"}
+		return ApplyResult{}, ErrInvalidAdoption{Field: "scenario", Reason: "required"}
 	}
 	if in.AdoptedPath == "" {
-		return Adoption{}, "", ErrInvalidAdoption{Field: "adopted_path", Reason: "required"}
+		return ApplyResult{}, ErrInvalidAdoption{Field: "adopted_path", Reason: "required"}
 	}
 	cmp, err := s.library.Get(ctx, in.ComponentID)
 	if err != nil {
 		if errors.As(err, &components.ErrComponentNotFound{}) {
-			return Adoption{}, "", ErrInvalidAdoption{Field: "component_id", Reason: "no component with that id"}
+			return ApplyResult{}, ErrInvalidAdoption{Field: "component_id", Reason: "no component with that id"}
 		}
-		return Adoption{}, "", err
+		return ApplyResult{}, err
 	}
 	version := strings.TrimSpace(in.Version)
 	if version == "" {
@@ -238,28 +246,46 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (Adoption, string, e
 		version = cmp.Version
 	}
 	if version == "" {
-		return Adoption{}, "", ErrInvalidAdoption{Field: "version", Reason: "component has no latest version"}
+		return ApplyResult{}, ErrInvalidAdoption{Field: "version", Reason: "component has no latest version"}
 	}
 	if err := s.validateAdoption(ctx, in.ComponentID, version, in.Scenario, in.OverrideValidation); err != nil {
-		return Adoption{}, "", err
+		return ApplyResult{}, err
 	}
 	exists, err := s.files.Exists(ctx, in.Scenario, in.AdoptedPath)
 	if err != nil {
-		return Adoption{}, "", err
-	}
-	if exists && !in.ConfirmOverwrite {
-		return Adoption{}, "", ErrInvalidAdoption{Field: "confirm_overwrite", Reason: "target file already exists"}
+		return ApplyResult{}, err
 	}
 	v, err := s.library.GetVersion(ctx, in.ComponentID, version)
 	if err != nil {
-		return Adoption{}, "", err
+		return ApplyResult{}, err
+	}
+	if exists {
+		existing, err := s.files.Read(ctx, in.Scenario, in.AdoptedPath)
+		if err != nil {
+			return ApplyResult{}, err
+		}
+		// A normal apply may only create a new file. Replacement must be an
+		// explicit operator decision, and changed source must be confirmed.
+		if !in.ReplaceExisting {
+			return ApplyResult{}, ErrInvalidAdoption{Field: "replace_existing", Reason: "target file already exists; set replace_existing to replace it"}
+		}
+		if hashBytes([]byte(stripSourceHeader(string(existing)))) != hashBytes([]byte(stripSourceHeader(v.Content))) && !in.ConfirmOverwrite {
+			return ApplyResult{}, ErrInvalidAdoption{Field: "confirm_overwrite", Reason: "existing target differs from the ingested library source"}
+		}
 	}
 	adoptionID := uuid.NewString()
+	var importSites []string
+	if finder, ok := s.files.(ScenarioImportSiteFinder); ok {
+		importSites, err = finder.FindImportSites(ctx, in.Scenario, in.AdoptedPath)
+		if err != nil {
+			return ApplyResult{}, err
+		}
+	}
 	now := s.clock.Now().UTC()
 	body := formatProvenance(v, adoptionID, now) + stripSourceHeader(v.Content)
 	written, err := s.files.Write(ctx, in.Scenario, in.AdoptedPath, []byte(body))
 	if err != nil {
-		return Adoption{}, "", err
+		return ApplyResult{}, err
 	}
 	a, err := s.repo.Create(ctx, CreateInput{
 		ID:          adoptionID,
@@ -267,9 +293,9 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (Adoption, string, e
 		AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: hashBytes([]byte(body)),
 	})
 	if err != nil {
-		return Adoption{}, "", err
+		return ApplyResult{}, err
 	}
-	return a, written, nil
+	return ApplyResult{Adoption: a, WrittenPath: written, ImportSites: importSites}, nil
 }
 
 func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, string, error) {
@@ -564,6 +590,63 @@ func (r *FSScenarioFileReader) Write(_ context.Context, scenario, adoptedPath st
 		return "", fmt.Errorf("write adopted file %q: %w", adoptedPath, err)
 	}
 	return cleaned, nil
+}
+
+// FindImportSites performs a narrow, deterministic import-specifier scan. It
+// intentionally reports only direct static/dynamic/require imports; callers
+// get actionable replacement evidence without pretending to build a full TS
+// dependency graph here.
+func (r *FSScenarioFileReader) FindImportSites(_ context.Context, scenario, adoptedPath string) ([]string, error) {
+	target, err := r.resolve(scenario, adoptedPath)
+	if err != nil {
+		return nil, err
+	}
+	base := filepath.Join(r.root, scenario)
+	sites := make([]string, 0)
+	err = filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == "node_modules" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 || path == target {
+			return nil
+		}
+		ext := filepath.Ext(path)
+		if ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
+			return nil
+		}
+		relTarget, err := filepath.Rel(filepath.Dir(path), target)
+		if err != nil {
+			return err
+		}
+		module := strings.TrimSuffix(filepath.ToSlash(relTarget), filepath.Ext(relTarget))
+		if !strings.HasPrefix(module, ".") {
+			module = "./" + module
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		text := string(content)
+		if strings.Contains(text, `"`+module+`"`) || strings.Contains(text, `'`+module+`'`) || strings.Contains(text, `"`+filepath.ToSlash(relTarget)+`"`) || strings.Contains(text, `'`+filepath.ToSlash(relTarget)+`'`) {
+			rel, err := filepath.Rel(base, path)
+			if err != nil {
+				return err
+			}
+			sites = append(sites, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("find import sites for %q: %w", adoptedPath, err)
+	}
+	sort.Strings(sites)
+	return sites, nil
 }
 
 func (r *FSScenarioFileReader) resolve(scenario, adoptedPath string) (string, error) {

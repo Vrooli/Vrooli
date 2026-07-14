@@ -2,6 +2,7 @@ package baseline
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"strings"
@@ -18,9 +19,11 @@ import (
 // behavioral oracle.
 func runPathSnapshot(core *cliapp.ScenarioApp, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("path requires capture, show, diff, or delete")
+		return fmt.Errorf("path requires estimate, capture, show, diff, or delete")
 	}
 	switch args[0] {
+	case "estimate":
+		return runPathEstimate(core, args[1:])
 	case "capture":
 		return runPathCapture(core, args[1:])
 	case "show":
@@ -30,7 +33,7 @@ func runPathSnapshot(core *cliapp.ScenarioApp, args []string) error {
 	case "delete":
 		return runPathDelete(core, args[1:])
 	default:
-		return fmt.Errorf("unknown path command %q (use capture, show, diff, or delete)", args[0])
+		return fmt.Errorf("unknown path command %q (use estimate, capture, show, diff, or delete)", args[0])
 	}
 }
 
@@ -45,6 +48,8 @@ func runPathCapture(core *cliapp.ScenarioApp, args []string) error {
 	fs := newFlagSet("baseline path capture")
 	name, branch, asJSON := pathFlags(fs)
 	retention := fs.Duration("retention", 0, "Bounded source-evidence retention (default: 168h; maximum: 720h)")
+	includeIgnored := fs.Bool("include-ignored", false, "Include ignored files explicitly")
+	retainContent := fs.Bool("retain-content", false, "Retain bounded text bodies explicitly (default: metadata only)")
 	var selections stringListFlag
 	fs.Var(&selections, "path", "Safe repo-relative glob; repeat for every selection")
 	if err := fs.Parse(args); err != nil {
@@ -56,8 +61,9 @@ func runPathCapture(core *cliapp.ScenarioApp, args []string) error {
 	if *retention < 0 || *retention%time.Second != 0 {
 		return fmt.Errorf("--retention must be a whole, positive number of seconds")
 	}
-	resp, err := clientFactory(core).CapturePathSnapshot(context.Background(), connect.NewRequest(&baselinesv1.CapturePathSnapshotRequest{Name: *name, Branch: *branch, Selections: []string(selections), RetentionSeconds: int64(retention.Seconds())}))
+	resp, err := clientFactory(core).CapturePathSnapshot(context.Background(), connect.NewRequest(&baselinesv1.CapturePathSnapshotRequest{Name: *name, Branch: *branch, Selections: []string(selections), RetentionSeconds: int64(retention.Seconds()), IncludeIgnored: *includeIgnored, RetainContent: *retainContent}))
 	if err != nil {
+		renderPathSnapshotPolicyError(err, *asJSON)
 		return err
 	}
 	if *asJSON {
@@ -65,6 +71,85 @@ func runPathCapture(core *cliapp.ScenarioApp, args []string) error {
 	}
 	printPathSnapshot(resp.Msg.GetSnapshot(), resp.Msg.GetResumed())
 	return nil
+}
+
+// renderPathSnapshotPolicyError unwraps the typed server detail rather than
+// leaving a direct capture caller with only a generic precondition error. The
+// estimate uses the exact same report, so the repair selections are truthful to
+// the capture that was refused before it wrote any evidence.
+func renderPathSnapshotPolicyError(err error, asJSON bool) {
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) {
+		return
+	}
+	for _, detail := range connectErr.Details() {
+		msg, detailErr := detail.Value()
+		if detailErr != nil {
+			continue
+		}
+		violation, ok := msg.(*baselinesv1.PathSnapshotPolicyViolation)
+		if !ok || violation.GetEstimate() == nil {
+			continue
+		}
+		if asJSON {
+			_ = printJSON(&baselinesv1.EstimatePathSnapshotResponse{Estimate: violation.GetEstimate()})
+			return
+		}
+		fmt.Println("Source evidence capture refused before writing a snapshot:")
+		printPathEstimate(violation.GetEstimate())
+		return
+	}
+}
+
+func runPathEstimate(core *cliapp.ScenarioApp, args []string) error {
+	fs := newFlagSet("baseline path estimate")
+	asJSON := fs.Bool("json", false, "Emit JSON")
+	includeIgnored := fs.Bool("include-ignored", false, "Include ignored files explicitly")
+	retainContent := fs.Bool("retain-content", false, "Project bounded text-body retention")
+	var selections stringListFlag
+	fs.Var(&selections, "path", "Safe repo-relative glob; repeat for every selection")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if len(selections) == 0 {
+		return fmt.Errorf("at least one --path is required")
+	}
+	resp, err := clientFactory(core).EstimatePathSnapshot(context.Background(), connect.NewRequest(&baselinesv1.EstimatePathSnapshotRequest{Selections: []string(selections), IncludeIgnored: *includeIgnored, RetainContent: *retainContent}))
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return printJSON(resp.Msg)
+	}
+	printPathEstimate(resp.Msg.GetEstimate())
+	return nil
+}
+
+func printPathEstimate(estimate *baselinesv1.PathSnapshotEstimate) {
+	if estimate == nil {
+		fmt.Println("No source-evidence estimate returned")
+		return
+	}
+	status := "safe"
+	if estimate.GetRepairRequired() {
+		status = "repair required"
+	}
+	mode := "metadata only"
+	if estimate.GetRetainContent() {
+		mode = "retained content"
+	}
+	fmt.Printf("Source evidence estimate: %s (%s; policy v%d)\n", status, mode, estimate.GetPolicyVersion())
+	fmt.Printf("  eligible: %d files, %d bytes; ignored excluded: %d files, %d bytes\n", estimate.GetEligibleFiles(), estimate.GetEligibleBytes(), estimate.GetExcludedIgnoredFiles(), estimate.GetExcludedIgnoredBytes())
+	fmt.Printf("  projected retained content: %d bytes\n", estimate.GetRetainedContentBytes())
+	for _, issue := range estimate.GetIssues() {
+		fmt.Printf("  %s [%s]: %s\n", issue.GetSeverity(), issue.GetCode(), issue.GetDetail())
+	}
+	for _, contributor := range estimate.GetTopContributors() {
+		fmt.Printf("  contributor: %s (%d files, %d bytes)\n", contributor.GetPath(), contributor.GetFiles(), contributor.GetBytes())
+	}
+	for _, recommendation := range estimate.GetRecommendations() {
+		fmt.Printf("  repair: --path %s  # %s\n", recommendation.GetSelection(), recommendation.GetReason())
+	}
 }
 
 func runPathShow(core *cliapp.ScenarioApp, args []string) error {
@@ -144,5 +229,9 @@ func printPathSnapshot(snapshot *baselinesv1.PathSnapshot, resumed bool) {
 	if resumed {
 		verb = "Resumed"
 	}
-	fmt.Printf("%s informational source evidence %q (%d entries; expires %s; bytes are never displayed)\n", verb, snapshot.GetName(), len(snapshot.GetEntries()), snapshot.GetExpiresAt())
+	mode := "metadata only"
+	if snapshot.GetRetainContent() {
+		mode = "retained content"
+	}
+	fmt.Printf("%s informational source evidence %q (%d entries; %s; policy v%d; expires %s; bytes are never displayed)\n", verb, snapshot.GetName(), len(snapshot.GetEntries()), mode, snapshot.GetPolicyVersion(), snapshot.GetExpiresAt())
 }

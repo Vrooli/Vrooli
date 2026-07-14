@@ -221,6 +221,37 @@ func (h *handlers) init(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) ingest(ctx cliapp.RunContext) error {
+	req := &componentsv1.IngestComponentRequest{
+		Scenario:    ctx.Positional("scenario"),
+		SourceFile:  ctx.Positional("source-file"),
+		Slug:        ctx.Positional("slug"),
+		DisplayName: ctx.Flag("display-name"),
+		Description: ctx.Flag("description"),
+		Slot:        ctx.Flag("slot"),
+	}
+	if rawTags := ctx.Flag("tags"); rawTags != "" {
+		req.Tags = splitCSV(rawTags)
+	}
+	resp, err := h.client.IngestComponent(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("ingest component", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
+		return fmt.Errorf("server returned no ingest response")
+	}
+	results := []string{resp.Msg.ManifestPath, resp.Msg.SourcePath}
+	for _, finding := range resp.Msg.Findings {
+		results = append(results, fmt.Sprintf("%s: %s", finding.Code, finding.Message))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Ingested %s as draft %s.", resp.Msg.Component.LibraryId, resp.Msg.DraftVersion)},
+		ResultsHeading: "Files and findings",
+		Results:        results,
+		RetrievalHints: []string{fmt.Sprintf("Review %s before promoting the draft.", resp.Msg.ChecklistPath)},
+	})
+}
+
 func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
 	req := &componentsv1.CreateComponentVersionRequest{
 		ComponentId: ctx.Positional("component-id"),

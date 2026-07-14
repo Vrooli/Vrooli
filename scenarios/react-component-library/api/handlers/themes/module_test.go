@@ -58,11 +58,11 @@ func TestModule_ListAndGetBuiltin(t *testing.T) {
 
 	rw := callConnect(r, themesconnect.ThemesServiceListBuiltinThemesProcedure, `{}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
-	require.Contains(t, rw.Body.String(), `"id":"vrooli-default"`)
+	require.Contains(t, rw.Body.String(), `"id":"light"`)
 
-	rw = callConnect(r, themesconnect.ThemesServiceGetBuiltinThemeProcedure, `{"id":"vrooli-default"}`)
+	rw = callConnect(r, themesconnect.ThemesServiceGetBuiltinThemeProcedure, `{"id":"light"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
-	require.Contains(t, rw.Body.String(), `"name":"Vrooli Default"`)
+	require.Contains(t, rw.Body.String(), `"name":"Light"`)
 }
 
 func TestModule_GetMissingBuiltinReturnsNotFound(t *testing.T) {

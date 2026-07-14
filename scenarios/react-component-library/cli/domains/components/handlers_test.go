@@ -34,6 +34,7 @@ type componentsService struct {
 	contentGetResp *componentsv1.GetComponentContentResponse
 	contentSetResp *componentsv1.UpdateComponentContentResponse
 	initResp       *componentsv1.InitializeComponentResponse
+	ingestResp     *componentsv1.IngestComponentResponse
 	versionResp    *componentsv1.CreateComponentVersionResponse
 	manifestResp   *componentsv1.UpdateComponentManifestResponse
 	examplesResp   *componentsv1.ListComponentExamplesResponse
@@ -45,6 +46,7 @@ type componentsService struct {
 	contentGetErr  error
 	contentSetErr  error
 	initErr        error
+	ingestErr      error
 	versionErr     error
 	manifestErr    error
 	examplesErr    error
@@ -54,10 +56,24 @@ type componentsService struct {
 	byLibIDReqs    []string
 	contentSetReqs []*componentsv1.UpdateComponentContentRequest
 	initReqs       []*componentsv1.InitializeComponentRequest
+	ingestReqs     []*componentsv1.IngestComponentRequest
 	versionReqs    []*componentsv1.CreateComponentVersionRequest
 	manifestReqs   []*componentsv1.UpdateComponentManifestRequest
 	examplesReqs   []*componentsv1.ListComponentExamplesRequest
 	styleFitReqs   []*componentsv1.ValidateStyleFitRequest
+}
+
+func (s *componentsService) IngestComponent(_ context.Context, req *connect.Request[componentsv1.IngestComponentRequest]) (*connect.Response[componentsv1.IngestComponentResponse], error) {
+	s.mu.Lock()
+	s.ingestReqs = append(s.ingestReqs, req.Msg)
+	s.mu.Unlock()
+	if s.ingestErr != nil {
+		return nil, s.ingestErr
+	}
+	if s.ingestResp == nil {
+		s.ingestResp = &componentsv1.IngestComponentResponse{Component: sampleComponent()}
+	}
+	return connect.NewResponse(s.ingestResp), nil
 }
 
 func (s *componentsService) ListComponents(_ context.Context, req *connect.Request[componentsv1.ListComponentsRequest]) (*connect.Response[componentsv1.ListComponentsResponse], error) {
@@ -263,6 +279,31 @@ func TestComponentsIndex_HumanReport(t *testing.T) {
 	require.Contains(t, body, "Scanned 3 file(s); indexed 2, skipped 1, deleted 0.")
 	require.Contains(t, body, "lib:Button")
 	require.Contains(t, body, "lib:Card")
+}
+
+func TestComponentsIngest_ForwardsOriginAndRendersFindings(t *testing.T) {
+	svc := &componentsService{ingestResp: &componentsv1.IngestComponentResponse{
+		Component: sampleComponent(), ManifestPath: "components/drawer-shell/component.json",
+		SourcePath:   "components/drawer-shell/versions/0.1.0-draft.1/drawer-shell.tsx",
+		DraftVersion: "0.1.0-draft.1", ChecklistPath: "docs/guides/de-scenario-ification-checklist.md",
+		Findings: []*componentsv1.IngestFinding{{Code: "token-violation", Message: "Use tokens."}},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "scenario"}, {Name: "source-file"}, {Name: "slug"}},
+		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"scenario": "web-console", "source-file": "ui/src/components/DrawerShell.tsx", "slug": "drawer-shell"},
+		Flags:       map[string]string{"display-name": "Drawer Shell", "tags": "overlay,layout", "slot": "ui-pattern"},
+	})
+
+	require.NoError(t, h.ingest(ctx))
+	require.Len(t, svc.ingestReqs, 1)
+	require.Equal(t, "web-console", svc.ingestReqs[0].Scenario)
+	require.Equal(t, []string{"overlay", "layout"}, svc.ingestReqs[0].Tags)
+	require.Contains(t, out.String(), "draft 0.1.0-draft.1")
+	require.Contains(t, out.String(), "token-violation")
 }
 
 func TestComponentsList_ForwardsFiltersAndRenders(t *testing.T) {

@@ -5,6 +5,7 @@ import {
   LocalStatus,
   ResolveSource,
   type Adoption,
+  type AdoptionSuggestion,
   type ListAdoptionsResponse,
   type RefreshAdoptionsResponse,
   type ResolveAdoptionPathRequest,
@@ -18,6 +19,7 @@ export const adoptionsClient = createClient(AdoptionsService, transport);
 export { LibraryVersionStatus, LocalStatus, ResolveSource };
 export type {
   Adoption,
+  AdoptionSuggestion,
   ListAdoptionsResponse,
   RefreshAdoptionsResponse,
   ResolveAdoptionPathRequest,

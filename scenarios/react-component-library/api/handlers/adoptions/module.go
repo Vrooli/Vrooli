@@ -25,6 +25,7 @@ import (
 	"react-component-library/internal/adoptions"
 	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
+	"react-component-library/internal/deps"
 	"react-component-library/internal/module"
 )
 
@@ -58,6 +59,17 @@ func WithResolver(resolver *adoptions.Resolver, slot SlotReader, library adoptio
 		d.Resolver = resolver
 		d.SlotReader = slot
 		d.Library = library
+	}
+}
+
+// WithSuggestions wires the real inventory, component, and dependency seams
+// used by the explainable adoption candidate RPC.
+func WithSuggestions(componentService components.Service, dependencyService deps.Service, inventory InventoryScanner, scenariosRoot string) ModuleOption {
+	return func(d *Deps) {
+		d.Components = componentService
+		d.Dependencies = dependencyService
+		d.Inventory = inventory
+		d.ScenariosRoot = scenariosRoot
 	}
 }
 
@@ -178,12 +190,13 @@ var Endpoints = []module.EndpointDescriptor{
 				"adopted_path":        "string",
 				"version":             "string (optional)",
 				"confirm_overwrite":   "bool",
+				"replace_existing":    "bool (explicitly replace an existing source file)",
 				"override_validation": "bool (explicitly allow a blocking dependency verdict)",
 			},
 		},
 		Response: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"adoption": "Adoption", "written_path": "string"},
+			Properties: map[string]string{"adoption": "Adoption", "written_path": "string", "import_sites": "array<string>"},
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing required field or unknown component_id"},
@@ -286,6 +299,20 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing component_id, scenario, or unsubstituted path token"},
 			{Status: 501, Code: "unimplemented", Description: "Resolver not configured (server lacks repo-root wiring)"},
+		},
+	},
+	{
+		ID:          "adoptions_suggest",
+		Path:        adoptionsconnect.AdoptionsServiceSuggestAdoptionsProcedure,
+		Method:      "POST",
+		Summary:     "Suggest catalog components a scenario should adopt",
+		Description: "Ranks non-adopted catalog components using real UI inventory matches, design-style fit, and dependency compatibility. Every score contribution is returned as a reason.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string (optional)", "limit": "int32 (optional)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"suggestions": "array<AdoptionSuggestion>"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Invalid scenario"},
+			{Status: 501, Code: "unimplemented", Description: "Suggestion dependencies not configured"},
 		},
 	},
 }

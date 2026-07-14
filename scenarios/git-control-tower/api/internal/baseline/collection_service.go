@@ -26,6 +26,7 @@ type StartCollectionCaptureRequest struct {
 	// PathSelections are optional scoped source evidence. They are captured
 	// once at collection creation and remain informational, never behavioral.
 	PathSelections []string
+	PathPolicy     PathSnapshotPolicy
 	CreatedBy      string
 	Reason         string
 }
@@ -37,6 +38,7 @@ type CapturePathSnapshotRequest struct {
 	Name       string
 	Selections []string
 	Retention  time.Duration
+	Policy     PathSnapshotPolicy
 }
 
 type CapturePathSnapshotResult struct {
@@ -146,7 +148,7 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 		collection, resumed = existing, true
 	} else if errors.Is(err, ErrNotFound) {
 		if len(req.PathSelections) > 0 {
-			captured, err := s.CapturePathSnapshot(ctx, CapturePathSnapshotRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Branch: branch, Name: req.Name, Selections: req.PathSelections})
+			captured, err := s.CapturePathSnapshot(ctx, CapturePathSnapshotRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Branch: branch, Name: req.Name, Selections: req.PathSelections, Policy: req.PathPolicy})
 			if err != nil {
 				return StartCollectionCaptureResult{}, fmt.Errorf("capture collection source evidence: %w", err)
 			}
@@ -278,7 +280,7 @@ func (s *Service) CapturePathSnapshot(_ context.Context, req CapturePathSnapshot
 	if lease <= 0 {
 		lease = defaultPathSnapshotLease
 	}
-	snapshot, objects, err := CapturePathSnapshotWithLease(req.RepoDir, req.Name, branch, req.Selections, s.now().UTC(), lease)
+	snapshot, objects, err := CapturePathSnapshotWithPolicyAndLease(req.RepoDir, req.Name, branch, req.Selections, req.Policy, s.now().UTC(), lease)
 	if err != nil {
 		return CapturePathSnapshotResult{}, err
 	}
@@ -289,6 +291,12 @@ func (s *Service) CapturePathSnapshot(_ context.Context, req CapturePathSnapshot
 		return CapturePathSnapshotResult{}, err
 	}
 	return CapturePathSnapshotResult{Snapshot: snapshot}, nil
+}
+
+// EstimatePathSnapshot is intentionally a thin service seam so capture and
+// callers share the resolver rather than duplicating Git or glob policy.
+func (s *Service) EstimatePathSnapshot(_ context.Context, repoDir string, selections []string, policy PathSnapshotPolicy) (PathSnapshotEstimate, error) {
+	return EstimatePathSnapshot(repoDir, selections, policy)
 }
 
 func (s *Service) StorageLoadPathSnapshot(repoID int64, branch, name string) (PathSnapshot, error) {

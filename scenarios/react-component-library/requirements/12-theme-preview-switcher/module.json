@@ -14,13 +14,13 @@
       "prd_ref": "OT-P1-006",
       "category": "theme",
       "criticality": "P1",
-      "description": "`builtin_themes` (id, name, tokens_json) is seeded at boot with: vrooli-default, neutral-light, neutral-dark, high-contrast. `ThemesService.ListBuiltinThemes` lists them; `GetBuiltinTheme` returns tokens. Seed is idempotent (skipped when table non-empty).",
+      "description": "`builtin_themes` (id, name, tokens_json) is seeded and migrated in place at boot with light, dark, and high-contrast token-contract themes. `ThemesService.ListBuiltinThemes` lists them; `GetBuiltinTheme` returns tokens. Seeding/migration is idempotent.",
       "tags": ["theme", "registry"],
       "validation": [
         {
           "type": "automated",
           "status": "complete",
-          "notes": "internal/themes/service_test.go::TestEnsureBuiltinsSeeded_PopulatesWhenEmpty + NoopWhenNonEmpty + GetBuiltin_NotFound. sqlite_test.go covers Upsert/Replace/List/Count round-trips against a real SQLite handle. UI selector remains follow-up work (TH-003 below)."
+          "notes": "Themes service migration/seed tests cover light, dark, and high-contrast contract tokens; UI ThemeSwitcher and preview bridge tests cover selection and follow-app behavior."
         }
       ]
     },

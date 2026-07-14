@@ -115,6 +115,17 @@
     "creating": "جارٍ الإنشاء…",
     "cancel": "إلغاء"
   },
+  "ingest": {
+    "title": "إدخال مكوّن من سيناريو",
+    "description": "انسخ مكوّن TSX محلياً من سيناريو إلى مسودة في الفهرس وتلقّ نتائج المطابقة.",
+    "scenario": "السيناريو المصدر",
+    "sourceFile": "مسار TSX داخل السيناريو",
+    "slug": "معرّف المكتبة",
+    "tags": "الوسوم (مفصولة بفواصل)",
+    "submit": "إدخال مسودة",
+    "running": "جارٍ الإدخال…",
+    "success": "أُنشئت المسودة {{version}} مع {{findings}} نتيجة."
+  },
   "editor": {
       "title": "تحرير {{libraryId}}",
       "loading": "جارٍ تحميل المصدر…",
@@ -218,6 +229,8 @@
       "adoptedPathPlaceholder": "ui/src/components/Button.tsx",
   "adoptedVersionLabel": "إصدار التبني",
   "adoptedVersionPlaceholder": "1.0.0",
+  "replaceExistingLabel": "Replace an existing source file",
+  "replaceExistingHelp": "This requires confirmation when the target differs from the ingested library source.",
   "confirmAction": "تبنٍّ",
   "confirmOverwriteAction": "تأكيد الاستبدال",
   "cancelAction": "إلغاء",
@@ -241,6 +254,12 @@
       "pathSourceHeuristic": "اكتشاف — تحقق",
       "pathSourceFallback": "احتياطي — تحقق",
       "pathResolving": "جارٍ حل المسار…"
+    },
+    "suggestions": {
+      "title": "Suggested adoptions",
+      "subtitle": "Ranked from scenario inventory, design fit, and dependency compatibility.",
+      "adoptAction": "Adopt",
+      "empty": "No explainable adoption candidates found."
     },
     "status": {
       "current": "محدث",
@@ -270,7 +289,13 @@
       "runAction": "قارن",
       "running": "جارٍ المقارنة…",
       "empty": "اختر إصدارين ثم اضغط [قارن].",
-      "summary": "{{from}} → {{to}} : +{{additions}} / -{{removals}} ({{rows}} سطراً)"
+      "summary": "{{from}} → {{to}} : +{{additions}} / -{{removals}} ({{rows}} سطراً)",
+      "viewerLabel": "فروقات الإصدار",
+      "modeLabel": "وضع عرض الفروقات",
+      "split": "مقسّم",
+      "unified": "موحّد",
+      "copy": "نسخ",
+      "copied": "نُسخ"
     }
   },
   "errors": {

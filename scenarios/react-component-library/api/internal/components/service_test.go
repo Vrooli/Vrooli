@@ -3,6 +3,7 @@ package components_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -126,6 +127,31 @@ func TestFSServiceJSONReaderGuardsTraversal(t *testing.T) {
 	require.ErrorContains(t, err, "invalid scenario name")
 }
 
+func TestService_IngestComponentCreatesIndexedDraftAndReportsFindings(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(_ context.Context, scenario, sourceFile string) ([]byte, error) {
+		require.Equal(t, "web-console", scenario)
+		require.Equal(t, "ui/src/components/DrawerShell.tsx", sourceFile)
+		return []byte(`import { useNavigate } from "react-router-dom";
+export default function DrawerShell() { const navigate = useNavigate(); return <div className="bg-red-500" onClick={() => navigate("/")} />; }`), nil
+	}))
+
+	got, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/DrawerShell.tsx", Slug: "drawer-shell",
+		DisplayName: "Drawer Shell", Tags: []string{"overlay"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "0.1.0-draft.1", got.DraftVersion)
+	require.Equal(t, "react-component-library:drawer-shell", got.Component.LibraryID)
+	require.Equal(t, got.DraftVersion, got.Component.DraftVersion)
+	require.FileExists(t, filepath.Join(root, got.ManifestPath))
+	require.FileExists(t, filepath.Join(root, got.SourcePath))
+	require.Contains(t, got.ChecklistPath, "de-scenario-ification")
+	require.Len(t, got.Findings, 2)
+}
+
 func seedStyleFitComponent(t *testing.T, repo *mocks.FakeRepository) components.Component {
 	t.Helper()
 	c, err := repo.UpsertManifest(context.Background(), components.IndexManifestInput{
@@ -149,4 +175,10 @@ type serviceJSONReaderFunc func(context.Context, string) ([]byte, error)
 
 func (f serviceJSONReaderFunc) Read(ctx context.Context, scenario string) ([]byte, error) {
 	return f(ctx, scenario)
+}
+
+type scenarioSourceReaderFunc func(context.Context, string, string) ([]byte, error)
+
+func (f scenarioSourceReaderFunc) Read(ctx context.Context, scenario, sourceFile string) ([]byte, error) {
+	return f(ctx, scenario, sourceFile)
 }

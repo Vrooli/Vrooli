@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -71,6 +72,7 @@ func (h *handlers) apply(ctx cliapp.RunContext) error {
 		Version:            ctx.Flag("version"),
 		ConfirmOverwrite:   ctx.Flag("confirm-overwrite") == "true",
 		OverrideValidation: ctx.Flag("override-validation") == "true",
+		ReplaceExisting:    ctx.Flag("replace-existing") == "true",
 	}
 	resp, err := h.client.ApplyAdoption(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -80,11 +82,41 @@ func (h *handlers) apply(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no adoption")
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Applied adoption %s to %s.", resp.Msg.Adoption.Id, resp.Msg.WrittenPath)},
+		Summary:        append([]string{fmt.Sprintf("Applied adoption %s to %s.", resp.Msg.Adoption.Id, resp.Msg.WrittenPath)}, formatImportSites(resp.Msg.ImportSites)...),
 		ResultsHeading: "Adoption",
 		Results:        []string{formatAdoption(resp.Msg.Adoption)},
 		RetrievalHints: []string{"`adoptions refresh` — compute drift status now"},
 	})
+}
+
+func (h *handlers) suggest(ctx cliapp.RunContext) error {
+	req := &adoptionsv1.SuggestAdoptionsRequest{Scenario: ctx.Flag("scenario")}
+	if raw := ctx.Flag("limit"); raw != "" {
+		limit, err := strconv.Atoi(raw)
+		if err != nil {
+			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+		}
+		req.Limit = int32(limit)
+	}
+	resp, err := h.client.SuggestAdoptions(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("suggest adoptions", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no suggestions")
+	}
+	rows := make([]string, 0, len(resp.Msg.Suggestions))
+	for _, suggestion := range resp.Msg.Suggestions {
+		rows = append(rows, fmt.Sprintf("%s → %s (%d): %s", suggestion.Scenario, suggestion.LibraryId, suggestion.Score, strings.Join(suggestion.Reasons, "; ")))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d adoption suggestion(s).", len(rows))}, ResultsHeading: "Suggestions", Results: rows, RetrievalHints: []string{"`adoptions apply <component-id> <scenario> <adopted-path>` — act on a suggestion"}})
+}
+
+func formatImportSites(sites []string) []string {
+	if len(sites) == 0 {
+		return []string{"No direct import sites found."}
+	}
+	return []string{fmt.Sprintf("Direct import sites (%d): %s", len(sites), strings.Join(sites, ", "))}
 }
 
 func (h *handlers) reapply(ctx cliapp.RunContext) error {

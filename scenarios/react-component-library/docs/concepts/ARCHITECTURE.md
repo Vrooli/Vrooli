@@ -117,6 +117,23 @@ The scenario does not own:
 Document dependency and resource decisions in
 [`INTEGRATIONS.md`](INTEGRATIONS.md), not here.
 
+## Harvest And Adoption Flow
+
+`ComponentsService.IngestComponent` is the scenario-to-catalog intake edge:
+it reads a declared scenario source file through the guarded scenario reader,
+creates a released baseline plus a draft, records origin headers, and returns
+de-scenario-ification findings. The CLI and Components page expose that same
+RPC; catalog lint/type checks and preview rendering remain the acceptance gate
+before a draft is promoted.
+
+`AdoptionsService.ApplyAdoption` is the reverse edge. It validates dependency
+and design-style fit server-side, stamps provenance/source hashes, and records
+the copied target. Replacing an existing source requires both
+`replace_existing` and confirmation when its body differs from the library
+source; the response reports direct import sites. `SuggestAdoptions` composes
+the existing InventoryService scan, style-fit verdict, dependency verdict, and
+adoption ledger to return only non-adopted, explainable candidates.
+
 ## Contracts And Data Flow
 
 Wire shapes do not live in TypeScript interfaces, Go structs, or

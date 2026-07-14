@@ -1,0 +1,44 @@
+{
+  "examples": [
+    {
+      "name": "basic-tabs",
+      "displayName": "Basic tabs",
+      "props": {
+        "items": [
+          { "id": "overview", "label": "Overview" },
+          { "id": "activity", "label": "Activity" },
+          { "id": "settings", "label": "Settings" }
+        ],
+        "activeId": "activity"
+      },
+      "expect": [{ "kind": "role", "role": "tab", "name": "Activity" }]
+    },
+    {
+      "name": "with-badge",
+      "displayName": "Unread badge",
+      "props": {
+        "items": [
+          { "id": "inbox", "label": "Inbox", "badge": "4" },
+          { "id": "archive", "label": "Archive" }
+        ],
+        "activeId": "inbox"
+      },
+      "expect": [{ "kind": "text", "value": "4" }]
+    },
+    {
+      "name": "closable-and-addable",
+      "displayName": "Closable tabs",
+      "props": {
+        "items": [
+          { "id": "one", "label": "One" },
+          { "id": "two", "label": "Two" }
+        ],
+        "activeId": "one",
+        "onClose": { "$handler": "noop" },
+        "onAdd": { "$handler": "noop" },
+        "addAriaLabel": "Create tab"
+      },
+      "expect": [{ "kind": "role", "role": "button", "name": "Create tab" }]
+    }
+  ]
+}

@@ -26,6 +26,7 @@ import { errorMessage } from "../../lib/errorMessage";
 interface Props {
   open: boolean;
   onClose: () => void;
+  initial?: { componentId: string; scenario: string } | null;
 }
 
 /**
@@ -38,7 +39,7 @@ interface Props {
  * server-side override_validation flag; direct RPC/CLI callers therefore get
  * the same protection as this UI.
  */
-export function CreateAdoptionDialog({ open, onClose }: Props) {
+export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
@@ -56,11 +57,12 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
   const [validating, setValidating] = useState(false);
   const [styleValidating, setStyleValidating] = useState(false);
   const [overwriteRequired, setOverwriteRequired] = useState(false);
+  const [replaceExisting, setReplaceExisting] = useState(false);
 
   useEffect(() => {
     if (!open) {
-      setComponentId("");
-      setScenario("");
+      setComponentId(initial?.componentId ?? "");
+      setScenario(initial?.scenario ?? "");
       setAdoptedPath("");
       setPathUserEdited(false);
       setPathSource(ResolveSource.UNSPECIFIED);
@@ -73,8 +75,9 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
       setValidating(false);
       setStyleValidating(false);
       setOverwriteRequired(false);
+      setReplaceExisting(false);
     }
-  }, [open]);
+  }, [open, initial]);
 
   // ResolveAdoptionPath pre-fills the adopted-path input from the target
   // scenario's UI manifest. Skips when the user has hand-edited the input —
@@ -178,6 +181,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
         adoptedPath: adoptedPath.trim(),
         version: adoptedVersion.trim(),
         confirmOverwrite: overwriteRequired,
+        ...(replaceExisting ? { replaceExisting: true } : {}),
         ...(kind === VerdictKind.BLOCK && ack ? { overrideValidation: true } : {}),
       }),
     onSuccess: () => {
@@ -300,6 +304,18 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
               placeholder={t(strings.adoptions.create.adoptedVersionPlaceholder)}
               className="mt-1"
             />
+          </label>
+          <label className="flex items-start gap-2 rounded-md border border-app-warning/30 bg-app-warning/10 p-2 text-xs text-app-foreground">
+            <input
+              type="checkbox"
+              aria-label={t(strings.adoptions.create.replaceExistingLabel)}
+              checked={replaceExisting}
+              onChange={(event) => setReplaceExisting(event.target.checked)}
+            />
+            <span>
+              <span className="block font-medium">{t(strings.adoptions.create.replaceExistingLabel)}</span>
+              <span className="text-app-muted-foreground">{t(strings.adoptions.create.replaceExistingHelp)}</span>
+            </span>
           </label>
         </div>
 

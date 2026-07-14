@@ -98,10 +98,29 @@ func pathSnapshotToProto(snapshot bl.PathSnapshot) *baselinesv1.PathSnapshot {
 		Name: snapshot.Name, Branch: snapshot.Branch, CreatedAt: rfc3339(snapshot.CreatedAt),
 		ExpiresAt:     rfc3339(snapshot.ExpiresAt),
 		SchemaVersion: int32(snapshot.SchemaVersion), Selections: append([]string(nil), snapshot.Selections...),
-		Classification: "informational-source-evidence",
+		Classification: "informational-source-evidence", IncludeIgnored: snapshot.Policy.IncludeIgnored, RetainContent: snapshot.Policy.RetainContent, PolicyVersion: int32(snapshot.PolicyVersion),
 	}
 	for _, entry := range snapshot.Entries {
 		out.Entries = append(out.Entries, pathEntryToProto(entry))
+	}
+	return out
+}
+
+func pathSnapshotEstimateToProto(estimate bl.PathSnapshotEstimate) *baselinesv1.PathSnapshotEstimate {
+	out := &baselinesv1.PathSnapshotEstimate{
+		Selections: append([]string(nil), estimate.Selections...), IncludeIgnored: estimate.Policy.IncludeIgnored, RetainContent: estimate.Policy.RetainContent,
+		EligibleFiles: int32(estimate.EligibleFiles), EligibleBytes: estimate.EligibleBytes, ExcludedIgnoredFiles: int32(estimate.ExcludedIgnoredFiles), ExcludedIgnoredBytes: estimate.ExcludedIgnoredBytes,
+		ExcludedSensitiveFiles: int32(estimate.ExcludedSensitiveFiles), ExcludedBinaryFiles: int32(estimate.ExcludedBinaryFiles), OversizedFiles: int32(estimate.OversizedFiles),
+		RetainedContentBytes: estimate.RetainedContentBytes, RepairRequired: estimate.RequiresRepair(), PolicyVersion: int32(estimate.PolicyVersion),
+	}
+	for _, contributor := range estimate.TopContributors {
+		out.TopContributors = append(out.TopContributors, &baselinesv1.PathSnapshotContributor{Path: contributor.Path, Files: int32(contributor.Files), Bytes: contributor.Bytes})
+	}
+	for _, issue := range estimate.Issues {
+		out.Issues = append(out.Issues, &baselinesv1.PathSnapshotIssue{Code: issue.Code, Severity: issue.Severity, Detail: issue.Detail})
+	}
+	for _, recommendation := range estimate.Recommendations {
+		out.Recommendations = append(out.Recommendations, &baselinesv1.PathSnapshotRecommendation{Selection: recommendation.Selection, Reason: recommendation.Reason})
 	}
 	return out
 }

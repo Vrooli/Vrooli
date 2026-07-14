@@ -74,6 +74,7 @@ func TestResumeCollectionCaptureReattachesDurablePendingMembers(t *testing.T) {
 func TestDeleteCollectionCleansAttachedSourceEvidence(t *testing.T) {
 	svc, _ := collectionService(t)
 	repo := t.TempDir()
+	initSnapshotGitRepo(t, repo)
 	if err := os.WriteFile(filepath.Join(repo, "dirty.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

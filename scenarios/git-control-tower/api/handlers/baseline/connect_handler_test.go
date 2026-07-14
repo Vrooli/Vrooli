@@ -3,6 +3,7 @@ package baseline
 import (
 	"context"
 	"os"
+	stdexec "os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -69,18 +70,22 @@ func (r *recordingRuns) PinRun(_ context.Context, _, _, _, _ string) error {
 	r.pins++
 	return nil
 }
+
 func (r *recordingRuns) UnpinRun(_ context.Context, _, _, _ string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.unpins++
 	return nil
 }
+
 func (r *recordingRuns) CompareRuns(_ context.Context, _, _, _, _ string) (bl.CompareResult, error) {
 	return r.compare, nil
 }
+
 func (r *recordingRuns) ListRunArtifacts(_ context.Context, _, runID string) (bl.ArtifactCatalog, error) {
 	return bl.ArtifactCatalog{RunID: runID, SchemaVersion: 1, Digest: "catalog-" + runID, Artifacts: []*runspb.ArtifactRef{{Id: "opaque-" + runID, Kind: "application/json"}}}, nil
 }
+
 func (r *recordingRuns) CompareRunVisuals(_ context.Context, _, _, _ string) ([]bl.VisualDelta, error) {
 	return []bl.VisualDelta{{Page: "/", Status: "identical"}}, nil
 }
@@ -188,6 +193,9 @@ func TestPathSnapshotHandlersReturnMetadataWithoutContent(t *testing.T) {
 	runs := &recordingRuns{}
 	srv, _ := newServerDeps(t, exec, runs)
 	repo := t.TempDir()
+	if out, err := stdexec.Command("git", "-C", repo, "init", "--quiet").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v (%s)", err, out)
+	}
 	if err := os.WriteFile(filepath.Join(repo, "dirty.txt"), []byte("dirty source bytes\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -199,6 +207,9 @@ func TestPathSnapshotHandlersReturnMetadataWithoutContent(t *testing.T) {
 	entry := before.Msg.GetSnapshot().GetEntries()[0]
 	if entry.GetDigest() == "" || entry.GetDetail() == "dirty source bytes\n" {
 		t.Fatalf("source bytes leaked or digest absent: %#v", entry)
+	}
+	if before.Msg.GetSnapshot().GetPolicyVersion() != bl.PathSnapshotPolicyVersion {
+		t.Fatalf("policy version = %d", before.Msg.GetSnapshot().GetPolicyVersion())
 	}
 	created, err := time.Parse(time.RFC3339Nano, before.Msg.GetSnapshot().GetCreatedAt())
 	if err != nil {

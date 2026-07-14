@@ -19,6 +19,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ComponentsService.GetComponent":               h.get,
 		"ComponentsService.GetComponentByLibraryId":    h.getByLibraryID,
 		"ComponentsService.InitializeComponent":        h.init,
+		"ComponentsService.IngestComponent":            h.ingest,
 		"ComponentsService.CreateComponentVersion":     h.versionCreate,
 		"ComponentsService.UpdateComponentManifest":    h.manifestUpdate,
 		"ComponentsService.GetComponentContent":        h.contentGet,

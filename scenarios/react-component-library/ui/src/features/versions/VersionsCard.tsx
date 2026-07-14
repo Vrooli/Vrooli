@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
@@ -7,13 +7,9 @@ import { Select } from "../../components/ui/select";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import {
-  versionsClient,
-  DiffOp,
-  type DiffRow,
-  type Version,
-} from "../../api/versions";
+import { versionsClient, type Version } from "../../api/versions";
 import { errorMessage } from "../../lib/errorMessage";
+import { VersionDiffViewer } from "./VersionDiffViewer";
 
 interface VersionsCardProps {
   componentId: string;
@@ -213,78 +209,12 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion }: 
                 rows: diff.rows.length,
               })}
             </p>
-            <div className="mt-2 overflow-auto">
-              <div
-                data-testid={selectors.versions.diff.table}
-                role="table"
-                className="w-full min-w-max font-mono text-[0.7rem]"
-              >
-                {diff.rows.map((r, i) => (
-                  <DiffRowView key={i} row={r} />
-                ))}
-              </div>
+            <div data-testid={selectors.versions.diff.table}>
+              <VersionDiffViewer rows={diff.rows} />
             </div>
           </>
         )}
       </div>
     </section>
   );
-}
-
-function DiffRowView({ row }: { row: DiffRow }) {
-  return (
-    <div
-      data-testid={selectors.versions.diff.row}
-      role="row"
-      className="grid grid-cols-2 align-top"
-    >
-      <CellView cell={row.left} side="left" />
-      <CellView cell={row.right} side="right" />
-    </div>
-  );
-}
-
-function CellView({ cell, side }: { cell: { lineNumber: number; text: string; op: DiffOp } | undefined; side: "left" | "right" }) {
-  if (!cell) return <div role="cell" />;
-  const cls =
-    cell.op === DiffOp.ADD
-      ? "bg-app-success/10 text-app-success"
-      : cell.op === DiffOp.REMOVE
-      ? "bg-app-danger/10 text-app-danger"
-      : cell.op === DiffOp.EMPTY
-      ? "bg-app-surface-muted text-app-muted-foreground"
-      : "text-app-muted-foreground";
-  const marker = cell.op === DiffOp.ADD ? "+" : cell.op === DiffOp.REMOVE ? "-" : " ";
-  return (
-    <div role="cell" className={`whitespace-pre px-2 py-0.5 ${cls}`} data-side={side}>
-      <span className="mr-2 inline-block w-5 select-none text-app-muted-foreground">
-        {cell.op === DiffOp.EMPTY ? "" : cell.lineNumber || ""}
-      </span>
-      <span className="mr-1 inline-block w-3 select-none">{marker}</span>
-      <HighlightedSource source={cell.text} />
-    </div>
-  );
-}
-
-function HighlightedSource({ source }: { source: string }) {
-  const [html, setHTML] = useState<string>();
-
-  useEffect(() => {
-    let active = true;
-    void import("shiki")
-      .then(({ codeToHtml }) => codeToHtml(source, { lang: "tsx", theme: "github-dark" }))
-      .then((rendered) => {
-        if (active) setHTML(rendered);
-      })
-      .catch(() => {
-        // The source remains visible if a language bundle cannot load.
-        if (active) setHTML(undefined);
-      });
-    return () => { active = false; };
-  }, [source]);
-
-  if (!html) return <>{source}</>;
-  // Shiki escapes source text before producing this markup; the component
-  // never accepts HTML from an API response as executable markup.
-  return <span className="inline [&_pre]:m-0 [&_pre]:inline [&_pre]:bg-transparent! [&_code]:bg-transparent!" dangerouslySetInnerHTML={{ __html: html }} />;
 }

@@ -57,6 +57,28 @@
           "notes": "Component test renders the page against fixture data covering each status; a11y test ensures status conveys non-color information."
         }
       ]
+    },
+    {
+      "id": "AD-004",
+      "title": "Replacement adoption is explicit and provenance-safe",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P0",
+      "description": "Apply supports explicit replace_existing mode, compares the existing source body after stripping provenance, requires confirm_overwrite on divergence, records source and snapshot hashes, and reports direct import sites.",
+      "tags": ["adoption", "replacement", "provenance"],
+      "validation": [{"type": "automated", "status": "complete", "notes": "internal/adoptions service test proves divergence confirmation, stamped provenance, and import-site reporting."}]
+    },
+    {
+      "id": "AD-005",
+      "title": "Explainable adoption suggestions",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P1",
+      "description": "SuggestAdoptions joins InventoryService.ScanScenario, the component registry, design-style fit, dependency compatibility, and adoption records. It excludes already adopted pairs and returns every ranking reason.",
+      "tags": ["adoption", "inventory", "recommendations"],
+      "validation": [{"type": "automated", "status": "complete", "notes": "Handler identity-match test plus live CLI probes across web-console and 20 real scenario candidates."}]
     }
   ]
 }

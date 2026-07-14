@@ -30,6 +30,7 @@ type Service interface {
 	ValidateStyleFit(ctx context.Context, componentID, version, scenario string) (StyleFitVerdict, error)
 	UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error)
 	InitializeComponent(ctx context.Context, in InitializeComponentInput) (InitializeComponentResult, error)
+	IngestComponent(ctx context.Context, in IngestComponentInput) (IngestComponentResult, error)
 	CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error)
 	UpdateComponentManifest(ctx context.Context, in UpdateComponentManifestInput) (Component, error)
 }
@@ -56,6 +57,7 @@ type service struct {
 	source   SourceStore
 	services ServiceJSONReader
 	listener ContentChangeListener
+	ingest   ScenarioSourceReader
 }
 
 func NewService(repo Repository) Service {
@@ -90,6 +92,15 @@ func SetContentChangeListener(svc Service, l ContentChangeListener) {
 func SetServiceJSONReader(svc Service, reader ServiceJSONReader) {
 	if s, ok := svc.(*service); ok {
 		s.services = reader
+	}
+}
+
+// SetScenarioSourceReader enables the ingest workflow to read a source file
+// from a sibling scenario through the same guarded filesystem seam adoptions
+// use. It is installed once during process wiring.
+func SetScenarioSourceReader(svc Service, reader ScenarioSourceReader) {
+	if s, ok := svc.(*service); ok {
+		s.ingest = reader
 	}
 }
 

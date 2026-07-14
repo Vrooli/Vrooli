@@ -128,6 +128,37 @@ func (h *connectHandler) InitializeComponent(ctx context.Context, req *connect.R
 	}), nil
 }
 
+func (h *connectHandler) IngestComponent(ctx context.Context, req *connect.Request[componentsv1.IngestComponentRequest]) (*connect.Response[componentsv1.IngestComponentResponse], error) {
+	out, err := h.deps.Service.IngestComponent(ctx, components.IngestComponentInput{
+		Scenario:    req.Msg.Scenario,
+		SourceFile:  req.Msg.SourceFile,
+		Slug:        req.Msg.Slug,
+		DisplayName: req.Msg.DisplayName,
+		Description: req.Msg.Description,
+		Tags:        append([]string(nil), req.Msg.Tags...),
+		Slot:        req.Msg.Slot,
+	})
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.IngestComponent(%q, %q): %v", req.Msg.Scenario, req.Msg.SourceFile, err)
+		}
+		return nil, connectErr
+	}
+	findings := make([]*componentsv1.IngestFinding, 0, len(out.Findings))
+	for _, finding := range out.Findings {
+		findings = append(findings, &componentsv1.IngestFinding{Code: finding.Code, Message: finding.Message, SourceFile: finding.SourceFile})
+	}
+	return connect.NewResponse(&componentsv1.IngestComponentResponse{
+		Component:     domainToProto(out.Component),
+		ManifestPath:  out.ManifestPath,
+		SourcePath:    out.SourcePath,
+		DraftVersion:  out.DraftVersion,
+		Findings:      findings,
+		ChecklistPath: out.ChecklistPath,
+	}), nil
+}
+
 func (h *connectHandler) CreateComponentVersion(ctx context.Context, req *connect.Request[componentsv1.CreateComponentVersionRequest]) (*connect.Response[componentsv1.CreateComponentVersionResponse], error) {
 	out, err := h.deps.Service.CreateComponentVersion(ctx, components.CreateComponentVersionInput{
 		ComponentID: req.Msg.ComponentId,

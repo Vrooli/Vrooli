@@ -28,11 +28,22 @@
           ],
           "flags": [
             { "name": "version", "description": "Library version to apply; defaults to latest" },
+            { "name": "replace-existing", "description": "Set to true to intentionally replace an existing scenario source file" },
             { "name": "confirm-overwrite", "description": "Set to true to overwrite an existing target file" },
             { "name": "override-validation", "description": "Explicitly allow a blocking dependency validation verdict" }
           ],
           "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ApplyAdoption" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "suggest",
+          "description": "Rank explainable component-adoption candidates from scenario UI inventory",
+          "flags": [
+            { "name": "scenario", "description": "Optional target scenario" },
+            { "name": "limit", "description": "Maximum suggestions (default 50)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "SuggestAdoptions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
           "name": "reapply",
@@ -161,6 +172,23 @@
           ],
           "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "InitializeComponent" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "ingest",
+          "description": "Ingest a scenario-local TSX component as an indexed library draft",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Origin scenario name" },
+            { "name": "source-file", "required": true, "description": "TSX path relative to the origin scenario" },
+            { "name": "slug", "required": true, "description": "Target library component slug" }
+          ],
+          "flags": [
+            { "name": "display-name", "description": "Human-readable display name" },
+            { "name": "description", "description": "Short component description" },
+            { "name": "tags", "description": "Comma-separated tags" },
+            { "name": "slot", "description": "Target component slot" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "IngestComponent" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"] }
         },
         {
           "name": "version-create",

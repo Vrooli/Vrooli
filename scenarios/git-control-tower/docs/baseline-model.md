@@ -84,19 +84,30 @@ printed collection wait command. Existing members cannot be removed, replaced,
 or re-anchored. An already edited scenario cannot obtain a trustworthy before
 baseline and must follow an explicit degraded/repair workflow instead.
 
-Collections may carry a separately captured path snapshot. Path snapshots use
-safe repo-relative glob selections, reject traversal and sensitive locations
-(`.git`, `.env`, `secrets`, `credentials`), exclude symlinks, retain binary or
-oversized files as metadata only, and keep permitted bounded text bytes in a
-private content-addressed store. They capture the worktree as it is, including
-uncommitted, untracked, and explicitly selected ignored files, so a later
-comparison is exact source evidence.
+Collections may carry separately captured path snapshots. Before capture, use
+the Git-aware estimate: by default it selects tracked files plus non-ignored
+untracked files, rejects traversal and sensitive locations (`.git`, `.env`,
+`secrets`, `credentials`), and excludes symlinks. Ignored files require
+`--include-ignored`; retaining text bodies requires `--retain-content`.
+Snapshots are metadata-only by default (path, mode, size, digest), while the
+explicit retained-content mode remains private and bounded. New snapshots also
+record source-policy version 1; zero remains the readable legacy value for
+historical manifests. The estimate lists
+eligible/excluded counts, projected retained bytes, contributors, issue codes,
+and repair selections before any Test Genie collection member starts.
 
 ```text
+git-control-tower baseline path estimate --path 'scenarios/foo/**'
 git-control-tower baseline path capture --name before --path 'scenarios/foo/**' --retention 168h
 git-control-tower baseline path capture --name after --path 'scenarios/foo/**'
 git-control-tower baseline path diff --before before --after after --path 'scenarios/foo/**'
 ```
+
+An individual `scenarios/<name>/**` selection is safe unless its measured
+estimate requires repair. Whole `scenarios/**` and `packages/proto/gen/**`
+selections are reported as repair-required with exact narrower paths discovered
+from the estimate (not placeholder globs); source
+evidence is informational and never a Test Genie verdict.
 
 Source deltas include additions, deletions, unambiguous digest-based renames,
 and metadata/content modifications, and are always labelled

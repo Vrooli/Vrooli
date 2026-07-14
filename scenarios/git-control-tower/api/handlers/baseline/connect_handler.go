@@ -419,15 +419,32 @@ func (s *Server) StartCollectionCapture(ctx context.Context, req *connect.Reques
 		targets = append(targets, bl.CollectionTarget{Scenario: target.GetScenario(), BaselineName: target.GetBaselineName(), Required: target.GetRequired()})
 	}
 	started, err := s.svc.StartCollectionCapture(ctx, bl.StartCollectionCaptureRequest{
-		RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, PathSelections: m.GetPathSelections(), CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
+		RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, PathSelections: m.GetPathSelections(), PathPolicy: bl.PathSnapshotPolicy{IncludeIgnored: m.GetIncludeIgnored(), RetainContent: m.GetRetainContent()}, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
 	})
 	if err != nil {
+		var policyErr *bl.PathSnapshotPolicyError
+		if errors.As(err, &policyErr) {
+			return nil, pathSnapshotPolicyConnectError(policyErr)
+		}
 		return nil, s.wrap("StartCollectionCapture", err)
 	}
 	for _, pending := range started.Pending {
 		s.finalizeCollectionCapture(ctx, rid, pending)
 	}
 	return connect.NewResponse(&baselinesv1.StartCollectionCaptureResponse{Collection: collectionToProto(started.Collection), Resumed: started.Resumed}), nil
+}
+
+func (s *Server) EstimatePathSnapshot(ctx context.Context, req *connect.Request[baselinesv1.EstimatePathSnapshotRequest]) (*connect.Response[baselinesv1.EstimatePathSnapshotResponse], error) {
+	m := req.Msg
+	_, repoDir, _, err := s.resolveTarget(ctx, m.GetRepoId(), "", false)
+	if err != nil {
+		return nil, s.wrap("EstimatePathSnapshot", err)
+	}
+	estimate, err := s.svc.EstimatePathSnapshot(ctx, repoDir, m.GetSelections(), bl.PathSnapshotPolicy{IncludeIgnored: m.GetIncludeIgnored(), RetainContent: m.GetRetainContent()})
+	if err != nil {
+		return nil, s.wrap("EstimatePathSnapshot", err)
+	}
+	return connect.NewResponse(&baselinesv1.EstimatePathSnapshotResponse{Estimate: pathSnapshotEstimateToProto(estimate)}), nil
 }
 
 // ExtendCollection appends newly discovered, pre-edit scenarios to an existing
@@ -559,11 +576,23 @@ func (s *Server) CapturePathSnapshot(ctx context.Context, req *connect.Request[b
 	if err != nil {
 		return nil, s.wrap("CapturePathSnapshot", err)
 	}
-	captured, err := s.svc.CapturePathSnapshot(ctx, bl.CapturePathSnapshotRequest{RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Selections: m.GetSelections(), Retention: time.Duration(m.GetRetentionSeconds()) * time.Second})
+	captured, err := s.svc.CapturePathSnapshot(ctx, bl.CapturePathSnapshotRequest{RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Selections: m.GetSelections(), Retention: time.Duration(m.GetRetentionSeconds()) * time.Second, Policy: bl.PathSnapshotPolicy{IncludeIgnored: m.GetIncludeIgnored(), RetainContent: m.GetRetainContent()}})
 	if err != nil {
+		var policyErr *bl.PathSnapshotPolicyError
+		if errors.As(err, &policyErr) {
+			return nil, pathSnapshotPolicyConnectError(policyErr)
+		}
 		return nil, s.wrap("CapturePathSnapshot", err)
 	}
 	return connect.NewResponse(&baselinesv1.CapturePathSnapshotResponse{Snapshot: pathSnapshotToProto(captured.Snapshot), Resumed: captured.Resumed}), nil
+}
+
+func pathSnapshotPolicyConnectError(policyErr *bl.PathSnapshotPolicyError) error {
+	cerr := connect.NewError(connect.CodeFailedPrecondition, policyErr)
+	if detail, err := connect.NewErrorDetail(&baselinesv1.PathSnapshotPolicyViolation{Estimate: pathSnapshotEstimateToProto(policyErr.Estimate)}); err == nil {
+		cerr.AddDetail(detail)
+	}
+	return cerr
 }
 
 func (s *Server) GetPathSnapshot(ctx context.Context, req *connect.Request[baselinesv1.GetPathSnapshotRequest]) (*connect.Response[baselinesv1.GetPathSnapshotResponse], error) {

@@ -60,12 +60,13 @@ func (f *fakeLibrary) GetVersion(_ context.Context, componentID, version string)
 			status = override
 		}
 	}
-	return components.ComponentVersion{ComponentID: componentID, Version: version, Status: status, Content: body, ContentSHA256: sha(body)}, nil
+	return components.ComponentVersion{ComponentID: componentID, LibraryID: f.byID[componentID].LibraryID, Version: version, Status: status, Content: body, ContentSHA256: sha(body)}, nil
 }
 
 // fakeFiles is a minimal ScenarioFileReader keyed by "<scenario>::<path>".
 type fakeFiles struct {
 	bytes map[string][]byte
+	sites map[string][]string
 }
 
 type validationDeps struct {
@@ -104,6 +105,10 @@ func (f *fakeFiles) Write(_ context.Context, scenario, p string, b []byte) (stri
 	}
 	f.bytes[scenario+"::"+p] = append([]byte(nil), b...)
 	return scenario + "/" + p, nil
+}
+
+func (f *fakeFiles) FindImportSites(_ context.Context, scenario, p string) ([]string, error) {
+	return append([]string(nil), f.sites[scenario+"::"+p]...), nil
 }
 
 func sha(s string) string {
@@ -362,18 +367,42 @@ func TestService_Apply_UsesSameIDInRecordAndProvenance(t *testing.T) {
 	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 
 	svc := adoptions.NewService(repo, lib, files, clk)
-	a, written, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+	result, err := svc.Apply(context.Background(), adoptions.ApplyInput{
 		ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "target/ui/src/Button.tsx", written)
-	require.NotEmpty(t, a.ID)
+	require.Equal(t, "target/ui/src/Button.tsx", result.WrittenPath)
+	require.NotEmpty(t, result.Adoption.ID)
 
 	adopted := string(files.bytes["target::ui/src/Button.tsx"])
 	require.Contains(t, adopted, "@vrooliComponentAdoption")
-	require.Contains(t, adopted, "@vrooliComponentAdoption "+a.ID)
+	require.Contains(t, adopted, "@vrooliComponentAdoption "+result.Adoption.ID)
 	require.NotContains(t, adopted, "@vrooliComponent libraryId")
-	require.Equal(t, sha(adopted), a.AdoptedSnapshotSHA256)
+	require.Equal(t, sha(adopted), result.Adoption.AdoptedSnapshotSHA256)
+}
+
+func TestService_ApplyReplaceExisting_RequiresConfirmationAndReportsImportSites(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{"cmp": {ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.0.0"}},
+		body: map[string]string{"cmp": "export function Button() { return <button />; }\n"},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{
+		"target::ui/src/Button.tsx": []byte("export function OldButton() { return <button />; }\n"),
+	}, sites: map[string][]string{
+		"target::ui/src/Button.tsx": {"ui/src/Toolbar.tsx", "ui/src/Workspace.tsx"},
+	}}
+	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)))
+
+	_, err := svc.Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", ReplaceExisting: true})
+	var invalid adoptions.ErrInvalidAdoption
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "confirm_overwrite", invalid.Field)
+
+	result, err := svc.Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", ReplaceExisting: true, ConfirmOverwrite: true})
+	require.NoError(t, err)
+	require.Equal(t, []string{"ui/src/Toolbar.tsx", "ui/src/Workspace.tsx"}, result.ImportSites)
+	require.Contains(t, string(files.bytes["target::ui/src/Button.tsx"]), "@vrooliComponentSource rcl:Button")
 }
 
 func TestService_ApplyAndReapply_BlockDependencyVerdictsUnlessExplicitlyOverridden(t *testing.T) {
@@ -393,7 +422,7 @@ func TestService_ApplyAndReapply_BlockDependencyVerdictsUnlessExplicitlyOverridd
 	styles := &validationStyles{}
 	adoptions.SetValidationGates(svc, dependency, styles)
 
-	_, _, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+	_, err := svc.Apply(context.Background(), adoptions.ApplyInput{
 		ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
 	})
 	var blocked adoptions.ErrAdoptionValidationBlocked
@@ -402,18 +431,18 @@ func TestService_ApplyAndReapply_BlockDependencyVerdictsUnlessExplicitlyOverridd
 	require.Equal(t, 1, dependency.calls)
 	require.Equal(t, 1, styles.calls, "style validation still runs when dependency validation blocks")
 
-	applied, _, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+	applied, err := svc.Apply(context.Background(), adoptions.ApplyInput{
 		ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", OverrideValidation: true,
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, applied.ID)
+	require.NotEmpty(t, applied.Adoption.ID)
 
-	_, _, err = svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: applied.ID, Version: "1.0.0"})
+	_, _, err = svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: applied.Adoption.ID, Version: "1.0.0"})
 	require.ErrorAs(t, err, &blocked)
 	require.Equal(t, 3, dependency.calls)
 	require.Equal(t, 3, styles.calls, "reapply also executes both validation gates")
 
-	_, _, err = svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: applied.ID, Version: "1.0.0", OverrideValidation: true})
+	_, _, err = svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: applied.Adoption.ID, Version: "1.0.0", OverrideValidation: true})
 	require.NoError(t, err)
 	require.Equal(t, 4, dependency.calls)
 	require.Equal(t, 4, styles.calls)

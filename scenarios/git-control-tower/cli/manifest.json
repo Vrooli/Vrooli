@@ -111,6 +111,17 @@
     { "service": "BaselinesService", "method": "StartDiff", "reason": "Hand-written in cli/domains/baseline (baseline diff) — custom Connect client; durable return-fast start with re-attach banner; not manifest-bound." },
     { "service": "BaselinesService", "method": "GetDiffResult", "reason": "Hand-written in cli/domains/baseline (baseline diff status) — custom Connect client with diff exit codes 0/1/2/3; not manifest-bound." },
     { "service": "BaselinesService", "method": "DeleteBaseline", "reason": "Hand-written in cli/domains/baseline (baseline delete) — custom Connect client; not manifest-bound." },
+    { "service": "BaselinesService", "method": "StartCollectionCapture", "reason": "Hand-written in cli/domains/baseline (collection capture) — producer-owned wait guidance; not manifest-bound." },
+    { "service": "BaselinesService", "method": "GetCollection", "reason": "Hand-written in cli/domains/baseline (collection show) — native collection wait/recovery rendering; not manifest-bound." },
+    { "service": "BaselinesService", "method": "ExtendCollection", "reason": "Hand-written in cli/domains/baseline (collection extend) — append-only member workflow; not manifest-bound." },
+    { "service": "BaselinesService", "method": "StartCollectionDiff", "reason": "Hand-written in cli/domains/baseline (collection diff) — durable producer operation rendering; not manifest-bound." },
+    { "service": "BaselinesService", "method": "GetCollectionDiff", "reason": "Hand-written in cli/domains/baseline (collection diff status) — native wait/recovery rendering; not manifest-bound." },
+    { "service": "BaselinesService", "method": "DeleteCollection", "reason": "Hand-written in cli/domains/baseline (collection delete); not manifest-bound." },
+    { "service": "BaselinesService", "method": "EstimatePathSnapshot", "reason": "Hand-written in cli/domains/baseline (path estimate) — renders contributor and scope-repair guidance; not manifest-bound." },
+    { "service": "BaselinesService", "method": "CapturePathSnapshot", "reason": "Hand-written in cli/domains/baseline (path capture) — explicit content/ignored policy flags; not manifest-bound." },
+    { "service": "BaselinesService", "method": "GetPathSnapshot", "reason": "Hand-written in cli/domains/baseline (path show); not manifest-bound." },
+    { "service": "BaselinesService", "method": "DiffPathSnapshots", "reason": "Hand-written in cli/domains/baseline (path diff) — informational source evidence rendering; not manifest-bound." },
+    { "service": "BaselinesService", "method": "DeletePathSnapshot", "reason": "Hand-written in cli/domains/baseline (path delete); not manifest-bound." },
     { "service": "RepoService", "method": "GetRepoStatus", "reason": "Legacy REST-backed repo domain; stays hand-written until RepoService migrates to Connect-RPC (see manifest description)." }
   ]
 }

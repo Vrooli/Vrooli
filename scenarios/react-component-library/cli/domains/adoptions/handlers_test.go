@@ -28,11 +28,13 @@ type adoptionsService struct {
 	deleteResp  *adoptionsv1.DeleteAdoptionResponse
 	refreshResp *adoptionsv1.RefreshAdoptionsResponse
 	resolveResp *adoptionsv1.ResolveAdoptionPathResponse
+	suggestResp *adoptionsv1.SuggestAdoptionsResponse
 	listReqs    []*adoptionsv1.ListAdoptionsRequest
 	applyReqs   []*adoptionsv1.ApplyAdoptionRequest
 	reapplyReqs []*adoptionsv1.ReapplyAdoptionRequest
 	refreshReqs []*adoptionsv1.RefreshAdoptionsRequest
 	resolveReqs []*adoptionsv1.ResolveAdoptionPathRequest
+	suggestReqs []*adoptionsv1.SuggestAdoptionsRequest
 }
 
 func (s *adoptionsService) ListAdoptions(_ context.Context, req *connect.Request[adoptionsv1.ListAdoptionsRequest]) (*connect.Response[adoptionsv1.ListAdoptionsResponse], error) {
@@ -96,6 +98,16 @@ func (s *adoptionsService) ResolveAdoptionPath(_ context.Context, req *connect.R
 	return connect.NewResponse(s.resolveResp), nil
 }
 
+func (s *adoptionsService) SuggestAdoptions(_ context.Context, req *connect.Request[adoptionsv1.SuggestAdoptionsRequest]) (*connect.Response[adoptionsv1.SuggestAdoptionsResponse], error) {
+	s.mu.Lock()
+	s.suggestReqs = append(s.suggestReqs, req.Msg)
+	s.mu.Unlock()
+	if s.suggestResp == nil {
+		s.suggestResp = &adoptionsv1.SuggestAdoptionsResponse{}
+	}
+	return connect.NewResponse(s.suggestResp), nil
+}
+
 func connectAPI(t *testing.T, svc *adoptionsService) http.Handler {
 	t.Helper()
 	path, handler := adoptionsconnect.NewAdoptionsServiceHandler(svc)
@@ -155,14 +167,14 @@ func TestAdoptionsApply_ForwardsPositionalsAndVersion(t *testing.T) {
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "component-id"}, {Name: "scenario"}, {Name: "adopted-path"}},
-		Flags:       []cliapp.Flag{{Name: "version"}, {Name: "confirm-overwrite"}, {Name: "override-validation"}},
+		Flags:       []cliapp.Flag{{Name: "version"}, {Name: "replace-existing"}, {Name: "confirm-overwrite"}, {Name: "override-validation"}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{
 			"component-id": "cmp-btn",
 			"scenario":     "swarm-manager",
 			"adopted-path": "ui/Button.tsx",
 		},
-		Flags: map[string]string{"version": "1.0.0", "confirm-overwrite": "true", "override-validation": "true"},
+		Flags: map[string]string{"version": "1.0.0", "replace-existing": "true", "confirm-overwrite": "true", "override-validation": "true"},
 	})
 	require.NoError(t, h.apply(ctx))
 	require.Len(t, svc.applyReqs, 1)
@@ -170,6 +182,7 @@ func TestAdoptionsApply_ForwardsPositionalsAndVersion(t *testing.T) {
 	require.Equal(t, "ui/Button.tsx", svc.applyReqs[0].AdoptedPath)
 	require.Equal(t, "1.0.0", svc.applyReqs[0].Version)
 	require.True(t, svc.applyReqs[0].ConfirmOverwrite)
+	require.True(t, svc.applyReqs[0].ReplaceExisting)
 	require.True(t, svc.applyReqs[0].OverrideValidation)
 }
 

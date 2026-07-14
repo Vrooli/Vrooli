@@ -81,6 +81,7 @@ react-component-library components content-get <component-id>
 react-component-library components content-set <component-id> ./Header.tsx --expected-sha256 <sha>
 react-component-library components versions <component-id>
 react-component-library components show-version <component-id> 0.1.0
+react-component-library components ingest web-console ui/src/components/DrawerShell.tsx drawer-shell --slot ui-pattern
 ```
 
 `init`, `version-create`, and `manifest-update` mutate
@@ -88,6 +89,25 @@ react-component-library components show-version <component-id> 0.1.0
 `library/components/<slug>/versions/<version>/*.tsx`, then re-index the
 registry. SQLite remains the indexed registry and adoption ledger; it is
 not the canonical component source.
+
+`ingest` creates an indexed baseline and a draft from a real scenario TSX
+source file. It returns origin provenance and de-scenario-ification findings;
+fix those findings and run catalog conformance plus preview rendering before
+promoting the draft.
+
+## Scenario commands — `adoptions`
+
+```bash
+react-component-library adoptions apply <component-id> web-console ui/src/components/adopted/Button.tsx
+react-component-library adoptions apply <component-id> web-console ui/src/components/Button.tsx --replace-existing true --confirm-overwrite true
+react-component-library adoptions suggest --scenario web-console --limit 10
+```
+
+Apply validates dependencies and design style at the server. Replacement mode
+is explicit and reports direct import sites; confirmation is required when the
+existing source body differs from the selected library version. Suggestions
+are ranked from real UI inventory and include their matching surface,
+style-fit, and dependency reasons.
 
 ## Output contracts
 

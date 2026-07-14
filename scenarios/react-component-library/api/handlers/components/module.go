@@ -236,6 +236,23 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "components_ingest",
+		Path:        componentsconnect.ComponentsServiceIngestComponentProcedure,
+		Method:      "POST",
+		Summary:     "Ingest a scenario component",
+		Description: "Copies a scenario-local TSX file into an indexed library component, creates a draft working version, and returns static de-scenario-ification findings.",
+		Category:    "components",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"scenario": "string", "source_file": "string", "slug": "string", "display_name": "string", "description": "string", "tags": "array<string>", "slot": "string",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"component": "Component", "manifest_path": "string", "source_path": "string", "draft_version": "string", "findings": "array<IngestFinding>", "checklist_path": "string"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Invalid scenario, source file, or component metadata"},
+			{Status: 409, Code: "already_exists", Description: "Component libraryId or slug already exists"},
+			{Status: 500, Code: "internal", Description: "Filesystem or repository failure"},
+		},
+	},
+	{
 		ID:          "components_version_create",
 		Path:        componentsconnect.ComponentsServiceCreateComponentVersionProcedure,
 		Method:      "POST",
@@ -414,5 +431,16 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No component version with that component_id/version pair"},
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
+	},
+	{
+		ID:          "components_examples_list",
+		Path:        componentsconnect.ComponentsServiceListComponentExamplesProcedure,
+		Method:      "POST",
+		Summary:     "List component examples",
+		Description: "Returns indexed example definitions for one component and optional version.",
+		Category:    "components",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"component_id": "string", "version": "string (optional)", "limit": "int32"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"examples": "array<ComponentExample>"}},
+		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Repository read failure"}},
 	},
 }

@@ -7,6 +7,7 @@
  * re-routing.
  */
 import { ComponentsCard } from "../features/components/ComponentsCard";
+import { IngestComponentForm } from "../features/components/IngestComponentForm";
 import { useTranslation } from "../i18n";
 
 export function ComponentsPage() {
@@ -24,6 +25,7 @@ export function ComponentsPage() {
           })}
         </p>
       </header>
+      <IngestComponentForm />
       <ComponentsCard />
     </div>
   );

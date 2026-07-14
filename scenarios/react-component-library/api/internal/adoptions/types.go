@@ -109,6 +109,16 @@ type ApplyInput struct {
 	Version            string
 	ConfirmOverwrite   bool
 	OverrideValidation bool
+	ReplaceExisting    bool
+}
+
+// ApplyResult keeps an adoption write and its immediate consumer evidence
+// together. ImportSites is intentionally computed after the write so callers
+// receive the locations that now consume the adopted target.
+type ApplyResult struct {
+	Adoption    Adoption
+	WrittenPath string
+	ImportSites []string
 }
 
 type ReapplyInput struct {

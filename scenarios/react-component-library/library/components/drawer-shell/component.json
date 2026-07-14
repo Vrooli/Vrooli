@@ -1,0 +1,14 @@
+{
+  "libraryId": "react-component-library:drawer-shell",
+  "displayName": "Drawer Shell",
+  "description": "Token-bound, self-contained drawer and modal shell.",
+  "tags": [
+    "overlay",
+    "drawer",
+    "layout"
+  ],
+  "slot": "ui-pattern",
+  "latest": "0.1.0",
+  "draft": "0.1.0-draft.1",
+  "deprecatedVersions": []
+}
