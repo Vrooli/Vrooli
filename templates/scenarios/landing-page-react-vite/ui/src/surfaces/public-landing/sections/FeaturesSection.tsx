@@ -79,7 +79,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
         <div className="mt-12 rounded-3xl border border-white/5 bg-white/5 p-6 text-sm text-slate-300">
           <p>
             Clause-style styling packs live under <code className="text-white">.vrooli/style-packs/</code>. Admins can regenerate
-            them via landing-manager, ensuring every generated scenario inherits the same professional case-study polish.
+            them through the template, ensuring every generated scenario inherits the same professional case-study polish.
           </p>
         </div>
       </div>

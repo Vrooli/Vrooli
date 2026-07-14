@@ -1,4 +1,4 @@
--- Seed Data for Landing Manager
+-- Seed Data for Landing Page
 
 -- Insert default admin user (OT-P0-008: ADMIN-AUTH)
 -- Email: admin@localhost

@@ -14,7 +14,7 @@ describe("API utilities", () => {
         ok: true,
         json: async () => ({
           status: "healthy",
-          service: "landing-manager",
+          service: "landing-page",
           timestamp: "2025-11-21T00:00:00Z",
         }),
       });
@@ -23,7 +23,7 @@ describe("API utilities", () => {
 
       expect(result).toEqual({
         status: "healthy",
-        service: "landing-manager",
+        service: "landing-page",
         timestamp: "2025-11-21T00:00:00Z",
       });
       expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -44,7 +44,7 @@ describe("API utilities", () => {
     it("should include correct headers", async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ status: "healthy", service: "landing-manager", timestamp: "" }),
+        json: async () => ({ status: "healthy", service: "landing-page", timestamp: "" }),
       });
 
       await fetchHealth();

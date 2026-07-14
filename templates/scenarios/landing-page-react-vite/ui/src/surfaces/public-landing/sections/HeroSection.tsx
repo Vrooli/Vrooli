@@ -66,7 +66,7 @@ export function HeroSection({ content }: HeroSectionProps) {
           </span>
           <div className="space-y-5">
             <h1 className="text-5xl leading-tight text-white md:text-6xl">
-              {content.title || 'Landing Manager · Automation Studio handoff'}
+              {content.title || 'Landing Page'}
             </h1>
             <p className="text-lg text-slate-300">
               {content.subtitle ||

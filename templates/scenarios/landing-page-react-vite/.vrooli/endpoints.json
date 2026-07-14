@@ -24,7 +24,7 @@
         }
       ],
       "cli_mapping": {
-        "command": "landing-manager status"
+        "command": "template-manager status"
       }
     },
     {
@@ -54,7 +54,7 @@
         }
       ],
       "cli_mapping": {
-        "command": "landing-manager template list"
+        "command": "template-manager registry list --kind scenario"
       }
     },
     {
@@ -91,7 +91,7 @@
         }
       ],
       "cli_mapping": {
-        "command": "landing-manager template show <id>"
+        "command": "template-manager registry show <id>"
       }
     },
     {
@@ -127,7 +127,7 @@
         }
       ],
       "cli_mapping": {
-        "command": "landing-manager generate <template> --name <name> --slug <slug>"
+        "command": "template-manager lifecycle generate <template> --id <slug> --display-name <name> --description <description>"
       }
     },
     {
@@ -162,7 +162,7 @@
         }
       ],
       "cli_mapping": {
-        "command": "landing-manager customize <scenario> --brief-file <file> [--preview]"
+        "command": "template-manager guidance next <scenario>"
       }
     },
     {

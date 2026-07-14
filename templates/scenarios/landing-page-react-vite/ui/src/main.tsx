@@ -26,7 +26,7 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__landi
 
   initIframeBridgeChild({
     parentOrigin,
-    appId: "landing-manager",
+    appId: "landing-page",
     captureLogs: {
       enabled: true,
       streaming: true,

@@ -10,7 +10,7 @@
       "requires_confirmation": "true",
       "routed_isolation": "true"
     },
-    "execution_mode": "mutating"
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1280,

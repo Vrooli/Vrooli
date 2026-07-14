@@ -268,13 +268,6 @@
         "required": false,
         "description": "Template recommendations based on user intent",
         "notes": "Optional for P2 features (semantic template search)"
-      },
-      "browserless": {
-        "type": "resource",
-        "enabled": false,
-        "required": false,
-        "description": "Screenshot generation for template previews",
-        "notes": "Optional for generating template thumbnails and admin portal previews"
       }
     }
   }

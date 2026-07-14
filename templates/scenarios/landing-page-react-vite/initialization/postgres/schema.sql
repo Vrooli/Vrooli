@@ -1,4 +1,4 @@
--- Landing Manager Database Schema
+-- Landing Page Database Schema
 
 -- Admin Users Table (OT-P0-008: ADMIN-AUTH)
 -- Stores admin credentials with bcrypt-hashed passwords

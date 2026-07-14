@@ -4,7 +4,7 @@
 
 ## Purpose Statement
 
-Landing Manager's runtime lets marketers spot conversion signals and react without touching the factory—Analytics explains what's happening, Customization lets them adjust variants/sections, and the public landing should guide prospects directly to a CTA or download.
+The landing runtime lets marketers spot conversion signals and react without touching source code—Analytics explains what's happening, Customization lets them adjust variants/sections, and the public landing should guide prospects directly to a CTA or download.
 
 ## Personas & Key Jobs
 

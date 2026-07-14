@@ -1,6 +1,6 @@
 # Landing Page Template (React + Vite)
 
-A production-ready landing page template with A/B testing, Stripe payments, analytics, and an admin portal. Used by `landing-manager` to generate monetizable landing pages for Vrooli scenarios.
+A production-ready landing page template with A/B testing, Stripe payments, analytics, and an admin portal. Used by `template-manager` to generate monetizable landing pages for Vrooli scenarios.
 
 Generated scenarios receive root-level `DESIGN.md` from the `vrooli-conversion-landing` design kit. Treat that file as the canonical landing-page design contract. `.vrooli/styling.json` and `.vrooli/style-packs/` are runtime/configuration layers that instantiate the contract for variants and admin customization.
 

@@ -16,6 +16,8 @@ replace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_CLI}}/api-core
 
 replace github.com/vrooli/cli-core => {{PACKAGES_REL_FROM_CLI}}/cli-core
 
+replace github.com/vrooli/binaryfetch => {{PACKAGES_REL_FROM_CLI}}/binaryfetch
+
 replace github.com/vrooli/vrooli/packages/proto => {{PACKAGES_REL_FROM_CLI}}/proto
 
 replace github.com/vrooli/vrooli => {{REPO_ROOT_REL_FROM_CLI}}

@@ -23,6 +23,8 @@ replace github.com/vrooli/measures-go => {{PACKAGES_REL_FROM_API}}/measures-go
 
 replace github.com/vrooli/ai-go => {{PACKAGES_REL_FROM_API}}/ai-go
 
+replace github.com/vrooli/binaryfetch => {{PACKAGES_REL_FROM_API}}/binaryfetch
+
 replace github.com/vrooli/vrooli/packages/proto => {{PACKAGES_REL_FROM_API}}/proto
 
 replace github.com/vrooli/vrooli => {{REPO_ROOT_REL_FROM_API}}

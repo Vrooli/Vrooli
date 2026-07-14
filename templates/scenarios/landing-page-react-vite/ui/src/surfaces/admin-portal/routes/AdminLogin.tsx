@@ -50,7 +50,7 @@ export function AdminLogin() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
             Admin Portal
           </h1>
-          <p className="text-slate-400 mt-2">Landing Manager</p>
+          <p className="text-slate-400 mt-2">Landing Page</p>
         </div>
 
         {/* Login Card */}

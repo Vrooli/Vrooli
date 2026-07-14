@@ -15,7 +15,7 @@
           "phase": "business",
           "status": "implemented",
           "notes": "Frontend aesthetics block implemented in catalog/saas/landing-page.json with style, colors, typography, layout, components, and animations guidelines",
-          "ref": "scenarios/landing-manager/api/templates/catalog/saas/landing-page.json"
+          "ref": "templates/scenarios/landing-page-react-vite/.vrooli/styling.json"
         }
       ],
       "status": "complete",

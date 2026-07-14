@@ -100,6 +100,6 @@ describe('AdminLayout [REQ:ADMIN-NAV,ADMIN-BREADCRUMB]', () => {
   it('should display brand name in header', () => {
     renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
 
-    expect(screen.getByText('Landing Manager')).toBeInTheDocument();
+    expect(screen.getByText('Landing Page')).toBeInTheDocument();
   });
 });

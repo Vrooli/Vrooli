@@ -76,6 +76,56 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 1.6.5 — 2026-07-11
+
+Makes the generated scenario baseline self-validating when Template Manager
+executes it from a retained temporary workspace.
+
+### Changed
+- Router construction and component-test routing opt into the supported React
+  Router v7 future behavior, eliminating inherited upgrade warnings.
+- The CLI test utility import guard now evaluates Go's production package graph
+  instead of maintaining a duplicate filesystem walker.
+- Starter requirements explicitly cover both seeded P0 operational targets.
+
+### Migration (for agents updating older scenarios)
+- [ ] Configure browser and memory data routers with
+      `v7_startTransition` and `v7_relativeSplatPath`; pass only
+      `v7_startTransition` to `RouterProvider`, then run the UI test suite.
+- [ ] Update the CLI production-import guard to inspect `go list -json ./...`
+      and confirm its test suite still rejects an import of
+      `internal/testutil` from production code.
+- [ ] Link the starter requirements to `OT-P0-001` and `OT-P0-002`, or replace
+      them with scenario-specific requirements, then update
+      `.vrooli/service.json::generation.template.version` to `1.6.5`.
+
+## 1.6.4 — 2026-07-10
+
+Keeps generated documentation within its scenario-local link boundary during
+deep validation.
+
+### Changed
+- Replaced cross-scenario Markdown links with typed project references for
+  monetization, CLI schema, CLI maturity, and port-allocation guidance.
+
+### Migration (for agents updating older scenarios)
+- [ ] Replace cross-scenario relative Markdown links in the affected generated
+      docs with the corresponding `path:` references, then run documentation
+      validation and update `.vrooli/service.json::generation.template.version`
+      to `1.6.4`.
+
+## 1.6.3 — 2026-07-10
+
+Removes an obsolete React Router transition flag that the installed router
+types reject during generated-scenario builds.
+
+### Changed
+- Browser and memory routers use their compatible default transition behavior.
+
+### Migration (for agents updating older scenarios)
+- [ ] Remove `v7_startTransition` from router and `RouterProvider` future
+      options, then run the UI type-check.
+
 ## 1.6.2 — 2026-07-10
 
 Gives the mobile and desktop navigation landmarks distinct responsive identities
@@ -85,17 +135,13 @@ so generated shells expose exactly one primary navigation landmark.
 - The bottom navigation is labelled as mobile navigation; the desktop sidebar
   remains the primary navigation landmark.
 - The shell accessibility regression test now verifies the landmark contract.
-- The browser and memory routers opt into React Router's v7 transition
-  scheduling so generated tests and runtime stay warning-free.
 
 ### Migration (for agents updating older scenarios)
 - [ ] Change the mobile bottom-nav accessible label to a localized mobile
       navigation label, leaving the desktop sidebar as the sole primary
       navigation landmark.
-- [ ] Pass `{ future: { v7_startTransition: true } }` when constructing the
-      browser and memory routers.
 - [ ] Run the scenario's AppShell accessibility test and update
-      `.vrooli/service.json::generation.template.version` to `1.6.2`.
+      `.vrooli/service.json::generation.template.version` to `1.6.3`.
 
 ## 1.6.1 — 2026-07-10
 

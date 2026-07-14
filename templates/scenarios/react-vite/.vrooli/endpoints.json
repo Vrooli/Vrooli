@@ -10,7 +10,7 @@
       "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
           "dependencies": "object",
           "readiness": "boolean",
@@ -32,12 +32,12 @@
             "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.health.Response",
+            "proto_full_name": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.shared.Response",
             "transport": "json",
             "conformance": "protojson"
           },
           "error": {
-            "proto_full_name": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.errors.ErrorEnvelope",
+            "proto_full_name": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.shared.ErrorEnvelope",
             "transport": "json",
             "conformance": "protojson"
           }
@@ -200,7 +200,7 @@
         }
       },
       "response": {
-        "type": "object",
+        "type": "UploadAttachmentResponse",
         "properties": {
           "attachment": "Attachment"
         }
@@ -242,7 +242,7 @@
             "conformance": "protojson"
           },
           "error": {
-            "proto_full_name": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.errors.ErrorEnvelope",
+            "proto_full_name": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.shared.ErrorEnvelope",
             "transport": "json",
             "conformance": "protojson"
           }

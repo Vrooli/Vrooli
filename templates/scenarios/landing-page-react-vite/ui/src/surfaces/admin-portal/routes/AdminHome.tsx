@@ -260,7 +260,7 @@ export function AdminHome() {
   return (
     <AdminLayout>
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-semibold mb-4">Landing Manager Admin</h1>
+        <h1 className="text-3xl font-semibold mb-4">Landing Page Admin</h1>
 
         <ExperienceGuidePanel
           onNavigateAnalytics={() => navigate('/admin/analytics')}

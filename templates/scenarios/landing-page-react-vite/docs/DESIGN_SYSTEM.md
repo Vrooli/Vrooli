@@ -2,7 +2,7 @@
 
 Root-level `DESIGN.md` is the canonical design contract for generated landing pages. This document explains the runtime configuration layer that instantiates that contract through `.vrooli/styling.json`, style packs, and variant-aware prompts.
 
-The landing-page-react-vite template now ships with a **structured design system** so every generated scenario can describe its look-and-feel with the same fidelity as its runtime configuration. This document explains how `.vrooli/styling.json`, the new `style-packs/` directory, and the landing-manager prompts work together to avoid “AI slop” gradients and enforce Clause-style case-study layouts by default.
+The landing-page-react-vite template now ships with a **structured design system** so every generated scenario can describe its look-and-feel with the same fidelity as its runtime configuration. This document explains how `.vrooli/styling.json`, the new `style-packs/` directory, and agent briefs work together to avoid “AI slop” gradients and enforce Clause-style case-study layouts by default.
 
 ## Files to read first
 
@@ -10,7 +10,7 @@ The landing-page-react-vite template now ships with a **structured design system
 | --- | --- |
 | `DESIGN.md` | Canonical conversion landing-page design contract copied from `templates/design/vrooli-conversion-landing`. |
 | `.vrooli/styling.json` | Active style pack loaded by the React surfaces at runtime. |
-| `.vrooli/style-packs/*.json` | Reusable packs (Clause case study today, more soon). Copy one of these into `styling.json` or ask landing-manager to randomize against them. |
+| `.vrooli/style-packs/*.json` | Reusable packs (Clause case study today, more soon). Copy one of these into `styling.json` or select one in an agent brief. |
 | `.vrooli/schemas/styling.schema.json` | Extended schema defining palette tokens, layout systems, component kits, imagery slots, and randomization metadata. |
 | `ui/src/shared/lib/stylingConfig.ts` | Imports styling.json and exposes it to Admin + Public surfaces. |
 | `docs/DESIGN_SYSTEM.md` (this file) | Human-readable briefing for agents and designers. |
@@ -48,7 +48,7 @@ When customizing:
 ## Style packs & randomization
 
 - Drop new packs inside `.vrooli/style-packs/`. Follow the exact schema—these packs should be copy-paste ready for `.vrooli/styling.json`.
-- Landing-manager’s upcoming style randomizer will:
+- A future style-randomizer workflow may:
   1. Pick a pack (Clause case study, ChronoTask floating panels, Fitme warm lifestyle, etc.).
   2. Optionally mutate `pairings`/`allowed_styles` to avoid repetition.
   3. Copy the chosen pack into `.vrooli/styling.json` before handing off to the agent.
@@ -62,14 +62,14 @@ When customizing:
 
 Whenever you ask an AI to restyle the landing page:
 
-1. Attach the entire `.vrooli/styling.json` to the prompt. Landing-manager now does this automatically when you use the “Agent Customization” UI/CLI.
+1. Attach the entire `.vrooli/styling.json` to the prompt when using an agent to customize the landing page.
 2. Include the anti-slop checklist:
    - **One accent color + one support accent** maximum.
    - **Real artifacts** only (screenshots, device frames, palettes). No mesh gradients or blobby shapes.
    - **Consistent component kit** (hero, panels, brand strip). Reuse them instead of inventing new ones per section.
    - **Section cadence**: Case-study hero → preview → wireframes → features/pricing.
    - **Typography**: Use the provided fonts; if substitutes are required, note them explicitly in `typography.scale`.
-3. Require a plan before code. Landing-manager now asks agents to summarize the vibe, palette, typography, section list, and key components prior to editing JSX/CSS.
+3. Require a plan before code: agents should summarize the vibe, palette, typography, section list, and key components prior to editing JSX/CSS.
 
 ## Updating the design
 
@@ -80,7 +80,7 @@ Whenever you ask an AI to restyle the landing page:
 
 ## Future work
 
-- **Style randomizer CLI**: `landing-manager styles randomize --family case-study` that copies a pack and logs the change.
+- **Style randomizer workflow**: select a style pack, copy it into `styling.json`, and log the change.
 - **Device frame component**: React primitive for layering screenshots with drop shadows according to `imagery.device_frames`.
 - **Schema validation hook**: add a dedicated check script (after we land `sg`) so any CI failure points directly to schema violations.
 

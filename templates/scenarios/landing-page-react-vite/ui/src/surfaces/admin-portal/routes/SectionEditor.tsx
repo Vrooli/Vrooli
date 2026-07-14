@@ -34,7 +34,7 @@ import { DownloadSection } from '../../public-landing/sections/DownloadSection';
  * [REQ:CUSTOM-SPLIT] [REQ:CUSTOM-LIVE]
  */
 const STYLING_CONFIG = getStylingConfig();
-const COMPARE_STORAGE_KEY = 'landing-manager-section-editor-compare';
+const COMPARE_STORAGE_KEY = 'landing-page-section-editor-compare';
 
 type PreviewRenderer = (params: {
   content: Record<string, unknown>;

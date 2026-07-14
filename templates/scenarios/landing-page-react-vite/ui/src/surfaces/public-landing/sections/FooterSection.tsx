@@ -62,7 +62,7 @@ export function FooterSection({ content }: FooterSectionProps) {
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-4 lg:col-span-2">
             <h3 className="text-2xl font-semibold text-white">
-              {content.company_name || 'Landing Manager'}
+              {content.company_name || 'Landing Page'}
             </h3>
             <p className="text-slate-400">
               {content.tagline || 'The Clause-inspired landing runtime that keeps analytics, download gating, and styling.json in lockstep.'}
@@ -106,7 +106,7 @@ export function FooterSection({ content }: FooterSectionProps) {
           ))}
         </div>
         <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
-          <p>{content.copyright || `© ${new Date().getFullYear()} Landing Manager. All rights reserved.`}</p>
+          <p>{content.copyright || `© ${new Date().getFullYear()} Landing Page. All rights reserved.`}</p>
           <div className="flex gap-6">
             <a href="/privacy" className="hover:text-white">
               Privacy Policy

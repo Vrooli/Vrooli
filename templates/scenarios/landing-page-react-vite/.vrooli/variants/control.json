@@ -104,7 +104,7 @@
       "enabled": true,
       "content": {
         "title": "Loved by launch-ready teams",
-        "subtitle": "Operators, agencies, and founders rely on landing-manager for fast GTM.",
+        "subtitle": "Operators, agencies, and founders rely on this landing-page template for fast GTM.",
         "testimonials": [
           {
             "name": "Jessie Patel",
@@ -152,7 +152,7 @@
       "enabled": true,
       "content": {
         "title": "Deploy Vrooli Ascension today",
-        "subtitle": "Landing-manager orchestrates content, billing, downloads, and analytics in one repo.",
+        "subtitle": "The landing runtime brings content, billing, downloads, and analytics together.",
         "cta_text": "Schedule onboarding",
         "cta_url": "/contact"
       }

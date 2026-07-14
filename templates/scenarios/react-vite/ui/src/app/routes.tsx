@@ -28,10 +28,13 @@ export const routes: RouteObject[] = [
   },
 ];
 
-// Opt in before React Router v7 makes transition scheduling the default. This
-// keeps generated scenarios free of runtime upgrade warnings in both browser
-// and memory-router test environments.
-const routerFuture = { v7_startTransition: true };
+// Opt in before React Router v7 makes these behaviors the defaults. Data
+// routers own both flags; RouterProvider owns transition scheduling only.
+const dataRouterFuture = {
+  v7_relativeSplatPath: true,
+  v7_startTransition: true,
+};
+const routerProviderFuture = { v7_startTransition: true };
 
 /**
  * Production router (uses real browser history). Built lazily so module load
@@ -41,8 +44,8 @@ const routerFuture = { v7_startTransition: true };
 export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
-  const router = createBrowserRouter(routes, { future: routerFuture });
-  return <RouterProvider router={router} future={routerFuture} />;
+  const router = createBrowserRouter(routes, { future: dataRouterFuture });
+  return <RouterProvider router={router} future={routerProviderFuture} />;
 }
 
 /**
@@ -50,6 +53,6 @@ export function AppRouter() {
  * specific starting URL. Only used by `routes.test.tsx`.
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
-  const router = createMemoryRouter(routes, { initialEntries, future: routerFuture });
-  return <RouterProvider router={router} future={routerFuture} />;
+  const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
+  return <RouterProvider router={router} future={routerProviderFuture} />;
 }

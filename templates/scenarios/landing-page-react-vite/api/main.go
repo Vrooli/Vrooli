@@ -398,7 +398,7 @@ func defaultSectionSeeds() []LandingSection {
 			Enabled:     true,
 			Content: map[string]interface{}{
 				"headline":    "Ready to Launch Your Landing Page?",
-				"subheadline": "Join thousands of marketers using Landing Manager",
+				"subheadline": "Join thousands of marketers using this landing page",
 				"cta_text":    "Start Building Now",
 				"cta_url":     "/signup",
 			},

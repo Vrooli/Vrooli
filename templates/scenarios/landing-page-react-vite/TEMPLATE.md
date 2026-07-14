@@ -1,6 +1,6 @@
 # Landing Page Template (React + Vite)
 
-This template is the canonical landing runtime used by landing-manager when generating Vrooli Ascension landing scenarios. Every generated scenario inherits this structure, so agents editing this directory are effectively editing **all future landing pages**.
+This template is the canonical landing runtime used by Template Manager when generating Vrooli Ascension landing scenarios. Every generated scenario inherits this structure, so agents editing this directory are effectively editing **all future landing pages**.
 
 ## Orientation: Where Everything Lives
 
@@ -123,7 +123,7 @@ These files are the only place agents should encode tone, CTA pairings, and pers
 Key takeaways:
 
 - Update `styling.json` when adjusting typography, CTA proportions, or iconography so both admin tools and AI instructions stay synchronized.
-- When swapping design languages, capture the entire pack under `.vrooli/style-packs/` and describe the intent (mood, artifacts, imagery slots) in `docs/DESIGN_SYSTEM.md` so landing-manager can cite it in its prompts.
+- When swapping design languages, capture the entire pack under `.vrooli/style-packs/` and describe the intent (mood, artifacts, imagery slots) in `docs/DESIGN_SYSTEM.md` so agents can apply it consistently.
 - Touch `variant_space.json` when you introduce a new axis or need to disable a combination. Admin axes selectors + tests rely on those IDs—avoid hard-coding them elsewhere.
 - The fallback config loader (`ui/src/shared/lib/fallbackLandingConfig.ts`) normalizes `.vrooli/variants/fallback.json`, guaranteeing deterministic ordering and enabled flags even offline. Extend that helper instead of duplicating normalization logic inside components.
 
