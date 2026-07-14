@@ -114,18 +114,6 @@ func (f *fakeRuns) CompareRunVisuals(_ context.Context, _, _, _ string) ([]Visua
 	return f.visualDeltas, nil
 }
 
-// fakeReachability returns a canned reachability result and records how many
-// times it was probed.
-type fakeReachability struct {
-	err    error
-	probes int
-}
-
-func (f *fakeReachability) Probe(_ context.Context) error {
-	f.probes++
-	return f.err
-}
-
 // fixedGit returns a CaptureGit func yielding a fixed state.
 func fixedGit(st git.State) func(context.Context, string) (git.State, error) {
 	return func(context.Context, string) (git.State, error) { return st, nil }

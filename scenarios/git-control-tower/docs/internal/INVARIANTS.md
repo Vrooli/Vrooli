@@ -62,6 +62,11 @@
   They never publish a failed snapshot or ready/not-comparable diff. The CLI may
   perform one non-blocking recovery read by the same run ID after unexpected EOF;
   it never retries `StartCapture`/`StartDiff` from that path.
+- **Baseline wait is outside the commit mutex.** `FinalizeCapture` can await
+  any durable Test Genie run concurrently. Only the terminal recheck, pin, and
+  manifest/intent write hold `captureMu`, so one stalled capture cannot block
+  an unrelated terminal capture. Duplicate finalizers still converge on one
+  owner-scoped pin and one manifest.
 - **Legacy retention reconciliation is checkpoint-after-effect.** A migratable
   V1 manifest is atomically rewritten to a V2 run anchor, then the service asks
   Test Genie for the idempotent `gct:baseline:<name>` pin, and only after success

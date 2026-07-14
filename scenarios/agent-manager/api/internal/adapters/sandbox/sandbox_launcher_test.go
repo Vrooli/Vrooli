@@ -51,6 +51,13 @@ type sandboxTestServer struct {
 	// "present" so existing happy-path tests don't need to set it.
 	homeOverlayState string
 
+	// identityLayout, when true, makes the mock report the identity layout
+	// (workspacePath == mergedDir, pathIllusion=false — copy driver / macOS).
+	// The default (false) reports the bwrap path-illusion layout
+	// (workspacePath="/workspace", pathIllusion=true) so existing
+	// translation tests keep their contract.
+	identityLayout bool
+
 	// Recorded request state for assertions.
 	startProcessBody  map[string]any
 	startProcessSeen  atomic.Bool
@@ -117,6 +124,25 @@ func (m *sandboxTestServer) handleGetSandbox(w http.ResponseWriter, r *http.Requ
 		// HomeOverlayAbsent / HomeOverlayUnsupported when needed.
 		state = string(HomeOverlayPresent)
 	}
+	// Report the negotiated workspace layout. Default = bwrap path-illusion
+	// ("/workspace", true); identityLayout flips to the copy/seatbelt layout
+	// where the agent-visible path equals the host merged dir.
+	workspacePath := "/workspace"
+	pathIllusion := true
+	containment := map[string]any{
+		"level":        "required",
+		"backend":      "bwrap",
+		"enforcements": []string{"filesystem-write-containment", "network-deny", "pid-namespace", "path-illusion"},
+	}
+	if m.identityLayout {
+		workspacePath = m.hostMergedDir
+		pathIllusion = false
+		containment = map[string]any{
+			"level":        "none",
+			"backend":      "none",
+			"enforcements": []string{},
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"id":               id,
@@ -124,6 +150,9 @@ func (m *sandboxTestServer) handleGetSandbox(w http.ResponseWriter, r *http.Requ
 		"projectRoot":      "/scope",
 		"status":           "active",
 		"mergedDir":        m.hostMergedDir,
+		"workspacePath":    workspacePath,
+		"pathIllusion":     pathIllusion,
+		"containment":      containment,
 		"homeOverlayState": state,
 	})
 }
@@ -731,33 +760,54 @@ func TestSSEParser_BasicEvents(t *testing.T) {
 	}
 }
 
+// nsPath is the agent-visible workspace path under the bwrap path-illusion
+// layout — the value workspace-sandbox reports as workspacePath and binds
+// the merged dir onto. Test-local (the production constant is server-owned).
+const nsPath = "/workspace"
+
 // TestTranslateHostPathToNamespace exercises the host→namespace path
-// rewriter directly. These cases pin the contract that bwrap's
-// `--bind <hostMerged> /workspace` enforces.
+// rewriter directly for BOTH layouts: the path-illusion layout (bwrap,
+// workspacePath="/workspace") rewrites host-merged prefixes onto the
+// reported path, and the identity layout (copy driver / macOS, workspacePath
+// == hostMerged) leaves values effectively unchanged.
 func TestTranslateHostPathToNamespace(t *testing.T) {
 	const host = "/home/alice/.local/share/workspace-sandbox/abc/merged"
-	cases := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{"empty input passes through", "", ""},
-		{"exact match → /workspace", host, SandboxNamespacePath},
-		{"subpath → /workspace/<rest>", host + "/sub/file.txt", SandboxNamespacePath + "/sub/file.txt"},
-		{"unrelated absolute path passes through", "/etc/hosts", "/etc/hosts"},
-		{"already namespace path passes through", SandboxNamespacePath + "/x", SandboxNamespacePath + "/x"},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got := translateHostPathToNamespace(c.in, host)
-			if got != c.want {
-				t.Errorf("translateHostPathToNamespace(%q, host) = %q; want %q", c.in, got, c.want)
+
+	t.Run("path-illusion layout", func(t *testing.T) {
+		cases := []struct {
+			name string
+			in   string
+			want string
+		}{
+			{"empty input passes through", "", ""},
+			{"exact match → workspacePath", host, nsPath},
+			{"subpath → workspacePath/<rest>", host + "/sub/file.txt", nsPath + "/sub/file.txt"},
+			{"unrelated absolute path passes through", "/etc/hosts", "/etc/hosts"},
+			{"already namespace path passes through", nsPath + "/x", nsPath + "/x"},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				got := translateHostPathToNamespace(c.in, host, nsPath)
+				if got != c.want {
+					t.Errorf("translateHostPathToNamespace(%q, host, %q) = %q; want %q", c.in, nsPath, got, c.want)
+				}
+			})
+		}
+	})
+
+	t.Run("identity layout (workspacePath == hostMerged)", func(t *testing.T) {
+		// pathIllusion=false ⇒ workspacePath == hostMerged, so every value
+		// maps back to itself (identity).
+		cases := []string{host, host + "/sub/file.txt", "/etc/hosts", ""}
+		for _, in := range cases {
+			if got := translateHostPathToNamespace(in, host, host); got != in {
+				t.Errorf("identity layout: translate(%q) = %q; want %q", in, got, in)
 			}
-		})
-	}
+		}
+	})
 
 	t.Run("empty hostMerged is identity", func(t *testing.T) {
-		got := translateHostPathToNamespace("/some/path", "")
+		got := translateHostPathToNamespace("/some/path", "", nsPath)
 		if got != "/some/path" {
 			t.Errorf("got %q; want identity passthrough", got)
 		}
@@ -765,7 +815,7 @@ func TestTranslateHostPathToNamespace(t *testing.T) {
 }
 
 // TestResolveWorkingDir pins the workdir contract:
-//   - empty → SandboxNamespacePath
+//   - empty → nsPath
 //   - host merged dir / subpath → translated
 //   - already in-namespace → unchanged
 //   - other absolute host path → *LaunchBlocked{workdir_outside_sandbox}
@@ -773,54 +823,72 @@ func TestResolveWorkingDir(t *testing.T) {
 	const host = "/home/x/.local/share/workspace-sandbox/sb1/merged"
 
 	t.Run("empty defaults to namespace path", func(t *testing.T) {
-		got, err := resolveWorkingDir("", host)
+		got, err := resolveWorkingDir("", host, nsPath)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if got != SandboxNamespacePath {
-			t.Errorf("got %q; want %q", got, SandboxNamespacePath)
+		if got != nsPath {
+			t.Errorf("got %q; want %q", got, nsPath)
 		}
 	})
 
 	t.Run("host merged path translates", func(t *testing.T) {
-		got, err := resolveWorkingDir(host, host)
+		got, err := resolveWorkingDir(host, host, nsPath)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if got != SandboxNamespacePath {
-			t.Errorf("got %q; want %q", got, SandboxNamespacePath)
+		if got != nsPath {
+			t.Errorf("got %q; want %q", got, nsPath)
 		}
 	})
 
 	t.Run("subpath of merged translates", func(t *testing.T) {
-		got, err := resolveWorkingDir(host+"/foo", host)
+		got, err := resolveWorkingDir(host+"/foo", host, nsPath)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		want := SandboxNamespacePath + "/foo"
+		want := nsPath + "/foo"
 		if got != want {
 			t.Errorf("got %q; want %q", got, want)
 		}
 	})
 
 	t.Run("already namespace path passes through", func(t *testing.T) {
-		got, err := resolveWorkingDir(SandboxNamespacePath, host)
+		got, err := resolveWorkingDir(nsPath, host, nsPath)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if got != SandboxNamespacePath {
-			t.Errorf("got %q; want %q", got, SandboxNamespacePath)
+		if got != nsPath {
+			t.Errorf("got %q; want %q", got, nsPath)
 		}
 	})
 
 	t.Run("unrelated host path is blocked", func(t *testing.T) {
-		_, err := resolveWorkingDir("/etc/hosts", host)
+		_, err := resolveWorkingDir("/etc/hosts", host, nsPath)
 		var blocked *LaunchBlocked
 		if !errors.As(err, &blocked) {
 			t.Fatalf("err = %T (%v); want *LaunchBlocked", err, err)
 		}
 		if blocked.Code != "workdir_outside_sandbox" {
 			t.Errorf("blocked.Code = %q; want workdir_outside_sandbox", blocked.Code)
+		}
+	})
+
+	// Identity layout: workspacePath == hostMerged (copy driver / macOS).
+	// The working dir stays the host merged dir; a subpath stays under it;
+	// an unrelated host path is still a contract violation.
+	t.Run("identity layout keeps host merged dir", func(t *testing.T) {
+		if got, err := resolveWorkingDir("", host, host); err != nil || got != host {
+			t.Fatalf("empty → %q (err=%v); want %q", got, err, host)
+		}
+		if got, err := resolveWorkingDir(host, host, host); err != nil || got != host {
+			t.Fatalf("host → %q (err=%v); want %q", got, err, host)
+		}
+		if got, err := resolveWorkingDir(host+"/foo", host, host); err != nil || got != host+"/foo" {
+			t.Fatalf("subpath → %q (err=%v); want %q", got, err, host+"/foo")
+		}
+		if _, err := resolveWorkingDir("/etc/hosts", host, host); err == nil {
+			t.Error("unrelated host path should still be blocked under identity layout")
 		}
 	})
 }
@@ -858,12 +926,12 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	mock.mu.Lock()
 	body := mock.startProcessBody
 	mock.mu.Unlock()
-	if got, _ := body["workingDir"].(string); got != SandboxNamespacePath {
-		t.Errorf("workingDir = %q; want %q (host path must be translated)", got, SandboxNamespacePath)
+	if got, _ := body["workingDir"].(string); got != nsPath {
+		t.Errorf("workingDir = %q; want %q (host path must be translated)", got, nsPath)
 	}
 	envAny, _ := body["env"].(map[string]any)
-	if got, _ := envAny["VROOLI_SANDBOX_MERGED"].(string); got != SandboxNamespacePath {
-		t.Errorf("env VROOLI_SANDBOX_MERGED = %q; want %q", got, SandboxNamespacePath)
+	if got, _ := envAny["VROOLI_SANDBOX_MERGED"].(string); got != nsPath {
+		t.Errorf("env VROOLI_SANDBOX_MERGED = %q; want %q", got, nsPath)
 	}
 	if _, ok := envAny["PATH"]; ok {
 		t.Errorf("env PATH should be omitted; workspace-sandbox owns vrooli-aware PATH construction")
@@ -874,6 +942,55 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	// vrooli-aware profile owns HOME, so it is dropped here.
 	if _, ok := envAny["HOME"]; ok {
 		t.Errorf("env HOME should be omitted; workspace-sandbox owns vrooli-aware HOME construction")
+	}
+
+	go func() {
+		time.Sleep(40 * time.Millisecond)
+		mock.markExited(remoteExitInfo{ExitCode: 0})
+	}()
+	_ = proc.Wait()
+}
+
+// TestSandboxLauncher_LaunchIdentityLayoutKeepsHostPath is the identity-
+// layout counterpart: when the server reports pathIllusion=false
+// (workspacePath == host merged dir — copy driver / macOS), the launcher
+// must NOT rewrite the workingDir to "/workspace" (which would not exist);
+// it keeps the host merged path so the agent runs against the real dir.
+func TestSandboxLauncher_LaunchIdentityLayoutKeepsHostPath(t *testing.T) {
+	const host = "/var/lib/workspace-sandbox/sb-identity/merged"
+
+	mock := newSandboxTestServer(717)
+	mock.hostMergedDir = host
+	mock.identityLayout = true
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	proc, err := launcher.Launch(ctx, runner.LaunchRequest{
+		Command:    "claude",
+		WorkingDir: host,
+		Env:        []string{"VROOLI_SANDBOX_MERGED=" + host},
+	})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
+
+	mock.mu.Lock()
+	body := mock.startProcessBody
+	mock.mu.Unlock()
+	if got, _ := body["workingDir"].(string); got != host {
+		t.Errorf("workingDir = %q; want %q (identity layout keeps host path)", got, host)
+	}
+	envAny, _ := body["env"].(map[string]any)
+	if got, _ := envAny["VROOLI_SANDBOX_MERGED"].(string); got != host {
+		t.Errorf("env VROOLI_SANDBOX_MERGED = %q; want %q (identity layout)", got, host)
 	}
 
 	go func() {
@@ -989,7 +1106,10 @@ func TestTranslateCommandToNamespace(t *testing.T) {
 			if state == "" {
 				state = HomeOverlayPresent
 			}
-			layout := NamespaceLayout{HostHome: c.hostHome, HomeOverlayState: state}
+			// These cases model the bwrap path-illusion layout, where
+			// unmapped host-absolute binaries must fall back to their
+			// basename + sandbox PATH.
+			layout := NamespaceLayout{HostHome: c.hostHome, HomeOverlayState: state, PathIllusion: true}
 			got, err := translateCommandToNamespace(c.command, layout)
 			if c.wantErr {
 				if err == nil {
@@ -1008,6 +1128,24 @@ func TestTranslateCommandToNamespace(t *testing.T) {
 				t.Errorf("got command %q; want %q", got, c.want)
 			}
 		})
+	}
+}
+
+// TestTranslateCommandToNamespace_IdentityLayoutKeepsHostPaths pins that
+// under an identity layout (pathIllusion=false — copy driver / macOS) a
+// host-absolute binary path with no system-bind mapping is left intact
+// rather than stripped to its basename: the process runs against real host
+// paths, so a binary outside /usr,/bin must still resolve.
+func TestTranslateCommandToNamespace_IdentityLayoutKeepsHostPaths(t *testing.T) {
+	layout := NamespaceLayout{HostHome: "/home/alice", HomeOverlayState: HomeOverlayPresent, PathIllusion: false}
+	for _, cmd := range []string{"/opt/homebrew/bin/claude", "/some/random/path/tool"} {
+		got, err := translateCommandToNamespace(cmd, layout)
+		if err != nil {
+			t.Fatalf("unexpected error for %q: %v", cmd, err)
+		}
+		if got != cmd {
+			t.Errorf("identity layout: translate(%q) = %q; want unchanged", cmd, got)
+		}
 	}
 }
 
@@ -1193,7 +1331,7 @@ func TestSandboxLauncher_LaunchBasenameFallback(t *testing.T) {
 
 // TestSandboxLauncher_LaunchRejectsUntranslatableHostPath verifies that a
 // WorkingDir that is neither under the sandbox nor under
-// SandboxNamespacePath is rejected as a contract violation, not silently
+// nsPath is rejected as a contract violation, not silently
 // passed through.
 func TestSandboxLauncher_LaunchRejectsUntranslatableHostPath(t *testing.T) {
 	mock := newSandboxTestServer(808)

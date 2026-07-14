@@ -169,6 +169,14 @@ class ServerFrame(_message.Message):
     abort: AbortJob
     def __init__(self, ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ...) -> None: ...
 
+class SignedServerFrame(_message.Message):
+    __slots__ = ("frame", "signature")
+    FRAME_FIELD_NUMBER: _ClassVar[int]
+    SIGNATURE_FIELD_NUMBER: _ClassVar[int]
+    frame: bytes
+    signature: bytes
+    def __init__(self, frame: _Optional[bytes] = ..., signature: _Optional[bytes] = ...) -> None: ...
+
 class NodeFrame(_message.Message):
     __slots__ = ("handshake", "heartbeat", "run_event")
     HANDSHAKE_FIELD_NUMBER: _ClassVar[int]

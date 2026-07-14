@@ -61,8 +61,10 @@ type CompareResult struct {
 	Phases  []*runspb.PhaseDiff
 }
 
-type PhaseDiff = runspb.PhaseDiff
-type ArtifactRef = runspb.ArtifactRef
+type (
+	PhaseDiff   = runspb.PhaseDiff
+	ArtifactRef = runspb.ArtifactRef
+)
 
 // ArtifactCatalog is Test Genie's path-free evidence catalog for one run.
 type ArtifactCatalog struct {

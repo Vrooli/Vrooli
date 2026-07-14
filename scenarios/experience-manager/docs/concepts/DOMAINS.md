@@ -90,7 +90,8 @@ belong in [`DATA.md`](DATA.md).
   evidence from Browser Automation Studio.
 - Primary archetype: validation / evidence.
 - Owns: AX snapshot parsing, binding-to-node matching, and structure claim
-  verdicts.
+  verdicts for declared accessible names, keyboard reachability, reading order,
+  and state affordances.
 - Does not own: browser automation, screenshot capture, JSON spec parsing, or
   studio authoring.
 - API: `api/internal/reconcile/`, registered through `api/internal/checks/`.

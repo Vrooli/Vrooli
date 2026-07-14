@@ -57,35 +57,15 @@ import (
 	"github.com/google/uuid"
 )
 
-// SandboxNamespacePath is the path at which the sandbox's merged
-// (overlayfs) workspace is bind-mounted inside the bwrap mount namespace.
-// It is the *only* path the agent process should see for its workspace —
-// host paths to the merged dir do not exist inside the namespace and will
-// fail bwrap's `--chdir` step before the runner ever launches.
-//
-// This constant must stay aligned with the `--bind <merged> /workspace`
-// arg emitted by workspace-sandbox/api/internal/driver/bwrap.go (the
-// `args = append(args, "--bind", s.MergedDir, "/workspace")` line). If
-// either side changes, both must change.
-//
-// DOC: see scenarios/agent-manager/docs/internal/SEAMS.md #SandboxLauncher
-// DOC: see scenarios/workspace-sandbox/docs/internal/SEAMS.md #BwrapMount
-const SandboxNamespacePath = "/workspace"
-
 // SandboxLauncher launches processes through workspace-sandbox /processes.
 type SandboxLauncher struct {
 	provider  *WorkspaceSandboxProvider
 	sandboxID uuid.UUID
 
-	// hostMergedOnce caches the host-side merged path lookup for this
-	// sandbox. SandboxLauncher is constructed per sandbox so once the
-	// path is resolved it can stay for the lifetime of the launcher.
-	hostMergedOnce sync.Once
-	hostMergedDir  string
-	hostMergedErr  error
-
-	// layoutOnce caches the NamespaceLayout (home-overlay state etc.)
-	// fetched from workspace-sandbox.
+	// layoutOnce caches the NamespaceLayout (host merged dir, reported
+	// agent-visible workspace path, path-illusion flag, home-overlay state)
+	// fetched from workspace-sandbox. SandboxLauncher is constructed per
+	// sandbox so a single lookup serves the launcher's lifetime.
 	layoutOnce sync.Once
 	layout     NamespaceLayout
 	layoutErr  error
@@ -99,16 +79,6 @@ func NewSandboxLauncher(provider *WorkspaceSandboxProvider, sandboxID uuid.UUID)
 		provider:  provider,
 		sandboxID: sandboxID,
 	}
-}
-
-// resolveHostMergedDir returns the host-side merged path for this sandbox,
-// caching the lookup. Used to recognize callers that pass the host path
-// where they should be passing the namespace path.
-func (l *SandboxLauncher) resolveHostMergedDir(ctx context.Context) (string, error) {
-	l.hostMergedOnce.Do(func() {
-		l.hostMergedDir, l.hostMergedErr = l.provider.GetWorkspacePath(ctx, l.sandboxID)
-	})
-	return l.hostMergedDir, l.hostMergedErr
 }
 
 // resolveNamespaceLayout fetches the workspace-sandbox-side metadata
@@ -125,6 +95,9 @@ func (l *SandboxLauncher) resolveNamespaceLayout(ctx context.Context) (Namespace
 		l.layout = NamespaceLayout{
 			HostHome:         os.Getenv("HOME"),
 			HomeOverlayState: sb.HomeOverlayState,
+			HostMerged:       sb.WorkDir,
+			WorkspacePath:    sb.WorkspacePath,
+			PathIllusion:     sb.PathIllusion,
 		}
 	})
 	return l.layout, l.layoutErr
@@ -146,6 +119,23 @@ type NamespaceLayout struct {
 	// namespace at the same host path; otherwise $HOME-prefixed paths
 	// MUST NOT be passed through unchanged.
 	HomeOverlayState HomeOverlayState
+
+	// HostMerged is the host-side overlay merged dir (Sandbox.WorkDir). It
+	// is the prefix host-absolute caller paths are recognized and rewritten
+	// from.
+	HostMerged string
+
+	// WorkspacePath is the agent-visible workspace path reported by
+	// workspace-sandbox — the target of host→namespace translation and the
+	// default working dir. "/workspace" under a path illusion, else the host
+	// merged dir (identity layout).
+	WorkspacePath string
+
+	// PathIllusion is true when the containment backend rewrites host paths
+	// onto WorkspacePath (bwrap). false means WorkspacePath == HostMerged and
+	// translation is identity; command basename fallback is then a no-op
+	// because host-absolute binaries resolve at their real paths.
+	PathIllusion bool
 }
 
 // PathEntries returns the PATH entries the sandbox profile exposes
@@ -214,9 +204,16 @@ func (e *ErrCommandHomeOverlayUnavailable) Code() string { return "SANDBOX_HOME_
 //   - $HOME/X with state==Present → unchanged
 //   - $HOME/X with state!=Present → ErrCommandHomeOverlayUnavailable
 //   - /usr/bin/X, /bin/X, /usr/local/bin/X → unchanged (system bind)
-//   - any other host-absolute path → path.Base(X)
+//   - any other host-absolute path, pathIllusion → path.Base(X)
+//   - any other host-absolute path, identity layout → unchanged
 //   - relative path / bare basename → unchanged
 //   - empty → unchanged
+//
+// The basename fallback exists only for the path-illusion layout, where
+// arbitrary host paths do not exist inside the namespace. Under an identity
+// layout (pathIllusion=false — copy driver, macOS seatbelt) the process
+// runs against real host paths, so stripping to a basename would break a
+// binary that legitimately lives outside the system bind dirs.
 //
 // DOC: home-overlay seam.
 func translateCommandToNamespace(command string, layout NamespaceLayout) (string, error) {
@@ -246,29 +243,37 @@ func translateCommandToNamespace(command string, layout NamespaceLayout) (string
 		strings.HasPrefix(command, "/bin/"):
 		return command, nil
 	}
-	// Host-absolute path with no known sandbox mapping. Strip to basename
-	// and rely on the sandbox PATH declared by the vrooli-aware profile.
+	if !layout.PathIllusion {
+		// Identity layout: the process sees real host paths, so a
+		// host-absolute binary path resolves as-is.
+		return command, nil
+	}
+	// Path-illusion layout: a host-absolute path with no known sandbox
+	// mapping does not exist inside the namespace. Strip to basename and
+	// rely on the sandbox PATH declared by the vrooli-aware profile.
 	return path.Base(command), nil
 }
 
 // translateHostPathToNamespace rewrites a value that may contain the
-// host-side merged path so that it points at the in-namespace mount.
+// host-side merged path so that it points at the agent-visible workspace
+// path reported by workspace-sandbox.
 //
 // Rules:
 //   - empty in → empty out (caller decides default).
-//   - exact match against hostMerged → SandboxNamespacePath.
+//   - exact match against hostMerged → workspacePath.
 //   - path with hostMerged as a clean directory prefix (e.g. a subpath of
-//     the merged dir) → SandboxNamespacePath + remainder.
+//     the merged dir) → workspacePath + remainder.
 //   - any other value → returned unchanged. Caller is responsible for
 //     deciding whether that value is a contract violation.
 //
 // hostMerged is the resolved host path of the sandbox merged dir
-// (e.g. /home/.../workspace-sandbox/<id>/merged). When it is empty the
-// helper acts as identity — the launcher will still validate workingDir
-// before POSTing.
+// (e.g. /home/.../workspace-sandbox/<id>/merged). workspacePath is the
+// server-reported agent-visible path. Under an identity layout
+// (pathIllusion=false) workspacePath == hostMerged, so the mapping is a
+// no-op rewrite. When hostMerged is empty the helper acts as identity.
 //
 // DOC: see scenarios/agent-manager/docs/internal/SEAMS.md #SandboxLauncher
-func translateHostPathToNamespace(value, hostMerged string) string {
+func translateHostPathToNamespace(value, hostMerged, workspacePath string) string {
 	if value == "" {
 		return ""
 	}
@@ -276,14 +281,14 @@ func translateHostPathToNamespace(value, hostMerged string) string {
 		return value
 	}
 	if value == hostMerged {
-		return SandboxNamespacePath
+		return workspacePath
 	}
 	prefix := hostMerged
 	if !strings.HasSuffix(prefix, "/") {
 		prefix += "/"
 	}
 	if strings.HasPrefix(value, prefix) {
-		return SandboxNamespacePath + "/" + strings.TrimPrefix(value, prefix)
+		return strings.TrimRight(workspacePath, "/") + "/" + strings.TrimPrefix(value, prefix)
 	}
 	return value
 }
@@ -323,36 +328,34 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	// exec/config.go for the matching profile-side guard.
 	delete(envMap, "HOME")
 
-	// Translate host paths to in-namespace paths. Inside the bwrap mount
-	// namespace the sandbox's merged dir is bind-mounted at
-	// SandboxNamespacePath, so any host path supplied by the caller must
-	// be rewritten before it crosses the API boundary. A host workdir
-	// outside the sandbox is a contract violation, not a fallback case.
-	hostMerged, hostErr := l.resolveHostMergedDir(ctx)
-	if hostErr != nil {
-		return nil, fmt.Errorf("SandboxLauncher: resolve host merged dir: %w", hostErr)
+	// Resolve the negotiated layout once (host merged dir, reported
+	// agent-visible workspace path, path-illusion flag, home-overlay state).
+	// All host→namespace translation is driven off these server-reported
+	// fields — never inferred from GOOS or driver id. A host workdir outside
+	// the sandbox is a contract violation, not a fallback case.
+	layout, layoutErr := l.resolveNamespaceLayout(ctx)
+	if layoutErr != nil {
+		return nil, fmt.Errorf("SandboxLauncher: resolve namespace layout: %w", layoutErr)
 	}
-	workingDir, wdErr := resolveWorkingDir(req.WorkingDir, hostMerged)
+	hostMerged := layout.HostMerged
+	workingDir, wdErr := resolveWorkingDir(req.WorkingDir, hostMerged, layout.WorkspacePath)
 	if wdErr != nil {
 		return nil, wdErr
 	}
-	envMap = translateEnvHostPaths(envMap, hostMerged)
+	envMap = translateEnvHostPaths(envMap, hostMerged, layout.WorkspacePath)
 
 	// Command + args translation: agent-manager's runners resolve binary
 	// paths via host-side exec.LookPath and pass the absolute host path.
-	// Inside the bwrap namespace those host paths usually don't exist
-	// (only the vrooli-aware bind layout is mounted), so the host path
-	// needs to be rewritten before crossing the API boundary.
+	// Under a path-illusion layout those host paths usually don't exist
+	// inside the namespace (only the vrooli-aware bind layout is mounted),
+	// so the host path needs to be rewritten before crossing the API
+	// boundary. Under an identity layout the paths are left intact.
 	//
 	// All three coding-agent runners use BuildEnvWrappedLaunchRequest,
 	// which sets Command="env" and stuffs the binary path into Args[1+].
 	// We must therefore translate Args entries too — Command="env" alone
 	// would resolve via PATH but bwrap's env shim then fails to exec the
 	// host-absolute binary path embedded in args.
-	layout, layoutErr := l.resolveNamespaceLayout(ctx)
-	if layoutErr != nil {
-		return nil, fmt.Errorf("SandboxLauncher: resolve namespace layout: %w", layoutErr)
-	}
 	command, err := translateCommandToNamespace(req.Command, layout)
 	if err != nil {
 		return nil, err
@@ -854,33 +857,38 @@ func (p *sseParser) next() (sseEvent, bool) {
 // helpers
 // =============================================================================
 
-// resolveWorkingDir picks the in-namespace workingDir for a launch request.
+// resolveWorkingDir picks the in-namespace workingDir for a launch request,
+// keyed off the server-reported agent-visible workspacePath.
 //
-//   - empty → SandboxNamespacePath (the merged-dir mount inside bwrap).
+//   - empty → workspacePath (the reported agent-visible workspace root).
+//   - already workspacePath (or a subpath) → returned unchanged.
 //   - matches the host merged dir (or a subpath of it) → translated to
-//     the corresponding in-namespace path.
-//   - already SandboxNamespacePath (or a subpath) → returned unchanged.
+//     the corresponding agent-visible path.
 //   - any other absolute host path → contract violation; returned as
 //     *LaunchBlocked{Code: "workdir_outside_sandbox"} so the runner can
 //     surface it on the run timeline rather than fail opaquely later.
-func resolveWorkingDir(requested, hostMerged string) (string, error) {
+//
+// Under an identity layout (pathIllusion=false) workspacePath == hostMerged,
+// so the two recognized branches collapse to the same host root.
+func resolveWorkingDir(requested, hostMerged, workspacePath string) (string, error) {
 	if requested == "" {
-		return SandboxNamespacePath, nil
+		return workspacePath, nil
 	}
-	// Already in-namespace (constant or any path under it).
-	if requested == SandboxNamespacePath ||
-		strings.HasPrefix(requested, SandboxNamespacePath+"/") {
+	// Already the reported workspace root or a path under it.
+	if workspacePath != "" &&
+		(requested == workspacePath ||
+			strings.HasPrefix(requested, strings.TrimSuffix(workspacePath, "/")+"/")) {
 		return requested, nil
 	}
 	if hostMerged != "" {
 		if requested == hostMerged ||
 			strings.HasPrefix(requested, strings.TrimSuffix(hostMerged, "/")+"/") {
-			return translateHostPathToNamespace(requested, hostMerged), nil
+			return translateHostPathToNamespace(requested, hostMerged, workspacePath), nil
 		}
 	}
 	return "", &LaunchBlocked{
 		Code:    "workdir_outside_sandbox",
-		Message: fmt.Sprintf("workingDir %q is outside the sandbox merged dir; sandbox-routed launches must run inside %s", requested, SandboxNamespacePath),
+		Message: fmt.Sprintf("workingDir %q is outside the sandbox workspace; sandbox-routed launches must run inside %s", requested, workspacePath),
 	}
 }
 
@@ -890,13 +898,13 @@ func resolveWorkingDir(requested, hostMerged string) (string, error) {
 // VROOLI_SANDBOX_MERGED contract specifically expects this translation
 // (the env var name documents semantics; the value must be visible to
 // the agent).
-func translateEnvHostPaths(env map[string]string, hostMerged string) map[string]string {
+func translateEnvHostPaths(env map[string]string, hostMerged, workspacePath string) map[string]string {
 	if len(env) == 0 || hostMerged == "" {
 		return env
 	}
 	out := make(map[string]string, len(env))
 	for k, v := range env {
-		out[k] = translateHostPathToNamespace(v, hostMerged)
+		out[k] = translateHostPathToNamespace(v, hostMerged, workspacePath)
 	}
 	return out
 }
@@ -927,7 +935,8 @@ func (p *WorkspaceSandboxProvider) LauncherFor(sandboxID uuid.UUID) runner.Launc
 
 // Compile-time interface checks.
 var (
-	_ runner.Launcher               = (*SandboxLauncher)(nil)
-	_ runner.LaunchedProcess        = (*sandboxLaunchedProcess)(nil)
-	_ runner.SandboxLauncherFactory = (*WorkspaceSandboxProvider)(nil)
+	_ runner.Launcher                   = (*SandboxLauncher)(nil)
+	_ runner.LaunchedProcess            = (*sandboxLaunchedProcess)(nil)
+	_ runner.SandboxLauncherFactory     = (*WorkspaceSandboxProvider)(nil)
+	_ runner.SandboxContainmentReporter = (*WorkspaceSandboxProvider)(nil)
 )

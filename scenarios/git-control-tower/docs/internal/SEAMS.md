@@ -2,6 +2,17 @@
 
 This document describes intentional boundaries ("seams") in git-control-tower. Seams are points where behavior can be substituted without invasive changes, primarily for testing and side-effect isolation.
 
+## Baseline lifecycle seams
+
+`api/internal/baseline.Service` separates durable-run waiting from the short
+terminal persistence boundary. `Executor` owns starting, waiting for, and
+reading Test Genie runs; `RunsClient` owns owner-scoped pinning; `Storage` owns
+atomic intent, manifest, and collection-member writes. Tests use controlled
+`Executor` fakes to hold one `AwaitResult` while proving a terminal sibling can
+commit. Handler logging is the observability seam: it emits collection
+finalizer start, terminal commit, and failure with collection, scenario, and
+run identifiers, without logging evidence payloads.
+
 ## Primary Seam: GitRunner Interface
 
 **Location**: `api/git_runner.go`

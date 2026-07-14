@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	_ adapterrunner.Launcher               = (*FakeLauncher)(nil)
-	_ adapterrunner.SandboxLauncherFactory = (*FakeSandboxLauncherFactory)(nil)
+	_ adapterrunner.Launcher                   = (*FakeLauncher)(nil)
+	_ adapterrunner.SandboxLauncherFactory     = (*FakeSandboxLauncherFactory)(nil)
+	_ adapterrunner.SandboxContainmentReporter = (*FakeSandboxLauncherFactory)(nil)
 )
 
 // FakeLauncher records launch requests and returns the configured process/error.
@@ -42,12 +43,19 @@ func (f *FakeLauncher) LaunchCalls() []adapterrunner.LaunchRequest {
 }
 
 // FakeSandboxLauncherFactory records the sandbox ID it was asked about and
-// returns Launcher.
+// returns Launcher. When Containment is set it also satisfies
+// runner.SandboxContainmentReporter so selector tests can drive the
+// protected-mode capability-gap path.
 type FakeSandboxLauncherFactory struct {
 	mu sync.Mutex
 
 	Launcher  adapterrunner.Launcher
 	calledIDs []uuid.UUID
+
+	// Containment, when non-nil, is returned by ContainmentFor (ok=true).
+	// Nil reports ok=false, modelling a factory that cannot report
+	// containment (older server / non-workspace-sandbox provider).
+	Containment *adapterrunner.Containment
 }
 
 func NewFakeSandboxLauncherFactory(launcher adapterrunner.Launcher) *FakeSandboxLauncherFactory {
@@ -59,6 +67,16 @@ func (f *FakeSandboxLauncherFactory) LauncherFor(sandboxID uuid.UUID) adapterrun
 	f.calledIDs = append(f.calledIDs, sandboxID)
 	f.mu.Unlock()
 	return f.Launcher
+}
+
+// ContainmentFor satisfies runner.SandboxContainmentReporter.
+func (f *FakeSandboxLauncherFactory) ContainmentFor(_ context.Context, _ uuid.UUID) (*adapterrunner.Containment, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.Containment == nil {
+		return nil, false
+	}
+	return f.Containment, true
 }
 
 func (f *FakeSandboxLauncherFactory) CalledIDs() []uuid.UUID {

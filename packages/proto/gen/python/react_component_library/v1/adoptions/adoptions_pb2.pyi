@@ -34,6 +34,15 @@ class ResolveSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RESOLVE_SOURCE_TEMPLATE_MANIFEST: _ClassVar[ResolveSource]
     RESOLVE_SOURCE_HEURISTIC: _ClassVar[ResolveSource]
     RESOLVE_SOURCE_FALLBACK: _ClassVar[ResolveSource]
+
+class ReconvergeAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RECONVERGE_ACTION_UNSPECIFIED: _ClassVar[ReconvergeAction]
+    RECONVERGE_ACTION_REAPPLIED: _ClassVar[ReconvergeAction]
+    RECONVERGE_ACTION_WOULD_REAPPLY: _ClassVar[ReconvergeAction]
+    RECONVERGE_ACTION_FLAGGED_MODIFIED: _ClassVar[ReconvergeAction]
+    RECONVERGE_ACTION_SKIPPED_UNRESOLVED: _ClassVar[ReconvergeAction]
+    RECONVERGE_ACTION_ERROR: _ClassVar[ReconvergeAction]
 LIBRARY_VERSION_STATUS_UNSPECIFIED: LibraryVersionStatus
 LIBRARY_VERSION_STATUS_CURRENT: LibraryVersionStatus
 LIBRARY_VERSION_STATUS_BEHIND: LibraryVersionStatus
@@ -50,6 +59,12 @@ RESOLVE_SOURCE_EXPLICIT: ResolveSource
 RESOLVE_SOURCE_TEMPLATE_MANIFEST: ResolveSource
 RESOLVE_SOURCE_HEURISTIC: ResolveSource
 RESOLVE_SOURCE_FALLBACK: ResolveSource
+RECONVERGE_ACTION_UNSPECIFIED: ReconvergeAction
+RECONVERGE_ACTION_REAPPLIED: ReconvergeAction
+RECONVERGE_ACTION_WOULD_REAPPLY: ReconvergeAction
+RECONVERGE_ACTION_FLAGGED_MODIFIED: ReconvergeAction
+RECONVERGE_ACTION_SKIPPED_UNRESOLVED: ReconvergeAction
+RECONVERGE_ACTION_ERROR: ReconvergeAction
 
 class Adoption(_message.Message):
     __slots__ = ("id", "component_id", "library_id", "scenario", "adopted_path", "adopted_version", "library_version_status", "local_status", "status_detail", "created_at", "refreshed_at", "source_sha256", "applied_at", "files")
@@ -286,3 +301,135 @@ class ReconcileAdoptionsResponse(_message.Message):
     created: int
     findings: _containers.RepeatedCompositeFieldContainer[ReconcileFinding]
     def __init__(self, scanned: _Optional[int] = ..., already_recorded: _Optional[int] = ..., created: _Optional[int] = ..., findings: _Optional[_Iterable[_Union[ReconcileFinding, _Mapping]]] = ...) -> None: ...
+
+class ReconvergeAdoptionsRequest(_message.Message):
+    __slots__ = ("scenario", "apply")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    apply: bool
+    def __init__(self, scenario: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
+
+class ReconvergeFileOutcome(_message.Message):
+    __slots__ = ("library_path", "adopted_path", "local_status")
+    LIBRARY_PATH_FIELD_NUMBER: _ClassVar[int]
+    ADOPTED_PATH_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_STATUS_FIELD_NUMBER: _ClassVar[int]
+    library_path: str
+    adopted_path: str
+    local_status: LocalStatus
+    def __init__(self, library_path: _Optional[str] = ..., adopted_path: _Optional[str] = ..., local_status: _Optional[_Union[LocalStatus, str]] = ...) -> None: ...
+
+class ReconvergeOutcome(_message.Message):
+    __slots__ = ("adoption_id", "scenario", "component_id", "library_id", "adopted_version", "target_version", "library_version_status", "local_status", "action", "detail", "files")
+    ADOPTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    ADOPTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    TARGET_VERSION_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_VERSION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_STATUS_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    adoption_id: str
+    scenario: str
+    component_id: str
+    library_id: str
+    adopted_version: str
+    target_version: str
+    library_version_status: LibraryVersionStatus
+    local_status: LocalStatus
+    action: ReconvergeAction
+    detail: str
+    files: _containers.RepeatedCompositeFieldContainer[ReconvergeFileOutcome]
+    def __init__(self, adoption_id: _Optional[str] = ..., scenario: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., adopted_version: _Optional[str] = ..., target_version: _Optional[str] = ..., library_version_status: _Optional[_Union[LibraryVersionStatus, str]] = ..., local_status: _Optional[_Union[LocalStatus, str]] = ..., action: _Optional[_Union[ReconvergeAction, str]] = ..., detail: _Optional[str] = ..., files: _Optional[_Iterable[_Union[ReconvergeFileOutcome, _Mapping]]] = ...) -> None: ...
+
+class ReconvergeAdoptionsResponse(_message.Message):
+    __slots__ = ("scanned", "behind", "reapplied", "flagged", "skipped", "errored", "outcomes")
+    SCANNED_FIELD_NUMBER: _ClassVar[int]
+    BEHIND_FIELD_NUMBER: _ClassVar[int]
+    REAPPLIED_FIELD_NUMBER: _ClassVar[int]
+    FLAGGED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    ERRORED_FIELD_NUMBER: _ClassVar[int]
+    OUTCOMES_FIELD_NUMBER: _ClassVar[int]
+    scanned: int
+    behind: int
+    reapplied: int
+    flagged: int
+    skipped: int
+    errored: int
+    outcomes: _containers.RepeatedCompositeFieldContainer[ReconvergeOutcome]
+    def __init__(self, scanned: _Optional[int] = ..., behind: _Optional[int] = ..., reapplied: _Optional[int] = ..., flagged: _Optional[int] = ..., skipped: _Optional[int] = ..., errored: _Optional[int] = ..., outcomes: _Optional[_Iterable[_Union[ReconvergeOutcome, _Mapping]]] = ...) -> None: ...
+
+class DiscoverAdoptionsRequest(_message.Message):
+    __slots__ = ("scenario", "min_similarity", "limit")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    MIN_SIMILARITY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    min_similarity: float
+    limit: int
+    def __init__(self, scenario: _Optional[str] = ..., min_similarity: _Optional[float] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class DiscoveryCandidate(_message.Message):
+    __slots__ = ("scenario", "adopted_path", "component_id", "library_id", "version", "display_name", "similarity", "shared_lines", "candidate_lines", "source_lines", "basename_match", "evidence")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    ADOPTED_PATH_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    SIMILARITY_FIELD_NUMBER: _ClassVar[int]
+    SHARED_LINES_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_LINES_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_LINES_FIELD_NUMBER: _ClassVar[int]
+    BASENAME_MATCH_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    adopted_path: str
+    component_id: str
+    library_id: str
+    version: str
+    display_name: str
+    similarity: float
+    shared_lines: int
+    candidate_lines: int
+    source_lines: int
+    basename_match: bool
+    evidence: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., display_name: _Optional[str] = ..., similarity: _Optional[float] = ..., shared_lines: _Optional[int] = ..., candidate_lines: _Optional[int] = ..., source_lines: _Optional[int] = ..., basename_match: _Optional[bool] = ..., evidence: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class DiscoverAdoptionsResponse(_message.Message):
+    __slots__ = ("scanned", "min_similarity", "candidates")
+    SCANNED_FIELD_NUMBER: _ClassVar[int]
+    MIN_SIMILARITY_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    scanned: int
+    min_similarity: float
+    candidates: _containers.RepeatedCompositeFieldContainer[DiscoveryCandidate]
+    def __init__(self, scanned: _Optional[int] = ..., min_similarity: _Optional[float] = ..., candidates: _Optional[_Iterable[_Union[DiscoveryCandidate, _Mapping]]] = ...) -> None: ...
+
+class ConfirmDiscoveryRequest(_message.Message):
+    __slots__ = ("scenario", "adopted_path", "component_id", "version")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    ADOPTED_PATH_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    adopted_path: str
+    component_id: str
+    version: str
+    def __init__(self, scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., component_id: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
+
+class ConfirmDiscoveryResponse(_message.Message):
+    __slots__ = ("adoption", "written_path", "similarity")
+    ADOPTION_FIELD_NUMBER: _ClassVar[int]
+    WRITTEN_PATH_FIELD_NUMBER: _ClassVar[int]
+    SIMILARITY_FIELD_NUMBER: _ClassVar[int]
+    adoption: Adoption
+    written_path: str
+    similarity: float
+    def __init__(self, adoption: _Optional[_Union[Adoption, _Mapping]] = ..., written_path: _Optional[str] = ..., similarity: _Optional[float] = ...) -> None: ...

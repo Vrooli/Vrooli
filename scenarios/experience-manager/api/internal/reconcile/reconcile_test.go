@@ -380,6 +380,26 @@ func TestAffordancePresentChecksExpectedControls(t *testing.T) {
 	}
 }
 
+func TestAccessibleNameClaimReconcilesDeclaredIntent(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.Elements = []spec.Element{{ID: "primary", Role: "button", Name: "Create report"}}
+	page.Claims = []spec.Claim{{ID: "primary-name", Type: "accessible-name", Statement: "The primary action has the declared accessible name.", Tier: "machine", Elements: []string{"primary"}, States: []string{"default"}}}
+	page.FloorOptOuts = allFloorOptOuts()
+	report.Spec.Pages["home"] = page
+	snapshot := passingSnapshot()
+	snapshot.Root.Children[1].Name = "Create report"
+	findings := (Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}).Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected accessible name claim to pass, got %+v", findings)
+	}
+	snapshot.Root.Children[1].Name = "Unnamed action"
+	findings = (Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}).Run(context.Background(), report)
+	if !hasCode(findings, spec.CodeClaimFailed) {
+		t.Fatalf("expected accessible name claim failure, got %+v", findings)
+	}
+}
+
 func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
 	snapshot := passingSnapshot()

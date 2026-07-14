@@ -95,6 +95,105 @@ func TestWorkspaceSandboxProvider_Get(t *testing.T) {
 	}
 }
 
+// TestWorkspaceSandboxProvider_Get_DecodesWorkspaceLayout pins that the
+// provider decodes the negotiated workspace contract (workspacePath,
+// pathIllusion, containment) and that GetWorkspacePath still returns the
+// host merged dir (not the illusion path) for host-side consumers.
+func TestWorkspaceSandboxProvider_Get_DecodesWorkspaceLayout(t *testing.T) {
+	sandboxID := uuid.New()
+	const merged = "/tmp/sandbox/merged"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":            sandboxID.String(),
+			"status":        "active",
+			"mergedDir":     merged,
+			"workspacePath": "/workspace",
+			"pathIllusion":  true,
+			"containment": map[string]interface{}{
+				"level":        "required",
+				"backend":      "bwrap",
+				"enforcements": []string{"filesystem-write-containment", "network-deny", "pid-namespace", "path-illusion"},
+			},
+			"createdAt": time.Now().Format(time.RFC3339),
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+
+	sb, err := provider.Get(context.Background(), sandboxID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if sb.WorkspacePath != "/workspace" {
+		t.Errorf("WorkspacePath = %q, want /workspace", sb.WorkspacePath)
+	}
+	if !sb.PathIllusion {
+		t.Error("PathIllusion = false, want true")
+	}
+	if sb.WorkDir != merged {
+		t.Errorf("WorkDir = %q, want %q (host merged dir)", sb.WorkDir, merged)
+	}
+	if sb.Containment == nil || sb.Containment.Backend != "bwrap" || len(sb.Containment.Enforcements) != 4 {
+		t.Errorf("Containment = %+v, want bwrap with 4 enforcements", sb.Containment)
+	}
+
+	// GetWorkspacePath must return the host merged dir so host-routed
+	// (tracking-mode) launches chdir into a real path.
+	got, err := provider.GetWorkspacePath(context.Background(), sandboxID)
+	if err != nil {
+		t.Fatalf("GetWorkspacePath: %v", err)
+	}
+	if got != merged {
+		t.Errorf("GetWorkspacePath = %q, want %q (host merged dir, not the illusion path)", got, merged)
+	}
+
+	// ContainmentFor reports the enforced containment.
+	cont, ok := provider.ContainmentFor(context.Background(), sandboxID)
+	if !ok || cont == nil {
+		t.Fatalf("ContainmentFor ok=%v cont=%v; want a report", ok, cont)
+	}
+	if len(cont.MissingProtectedEnforcements()) != 0 {
+		t.Errorf("fully contained sandbox reports missing: %v", cont.MissingProtectedEnforcements())
+	}
+}
+
+// TestWorkspaceSandboxProvider_Get_LayoutFallback pins graceful decoding of
+// an older workspace-sandbox that does not report the new fields: the
+// agent-visible path falls back to the host merged dir (identity), and
+// ContainmentFor degrades to ok=false rather than a false "contained" claim.
+func TestWorkspaceSandboxProvider_Get_LayoutFallback(t *testing.T) {
+	sandboxID := uuid.New()
+	const merged = "/tmp/sandbox/legacy/merged"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":        sandboxID.String(),
+			"status":    "active",
+			"mergedDir": merged,
+			"createdAt": time.Now().Format(time.RFC3339),
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+
+	sb, err := provider.Get(context.Background(), sandboxID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if sb.WorkspacePath != merged {
+		t.Errorf("WorkspacePath = %q, want fallback to %q", sb.WorkspacePath, merged)
+	}
+	if sb.PathIllusion {
+		t.Error("PathIllusion = true, want false for legacy server")
+	}
+	if _, ok := provider.ContainmentFor(context.Background(), sandboxID); ok {
+		t.Error("ContainmentFor ok=true for legacy server; want false (no report)")
+	}
+}
+
 func TestWorkspaceSandboxProvider_Get_NotFound(t *testing.T) {
 	sandboxID := uuid.New()
 

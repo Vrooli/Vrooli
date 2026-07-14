@@ -272,6 +272,29 @@ message ServerFrame {
   }
 }
 
+// SignedServerFrame is the mutual-auth envelope EVERY control-plane → node push
+// is wrapped in (SECURITY.md boundary 2, DECISIONS.md 2026-06-18). The control
+// plane signs the serialized ServerFrame with its long-lived Ed25519 identity
+// key (api internal/cpkeys); the node verifies the signature against the
+// control-plane public key it pinned at pairing BEFORE it acts on the frame, and
+// rejects anything unsigned or signed by the wrong key. This closes the CP→node
+// direction of mutual auth (the node→CP direction is the per-node key on the
+// heartbeat/token): a node never executes a job or provisioning command pushed
+// by an impostor control plane.
+//
+// The signature covers the EXACT `frame` bytes carried on the wire (a
+// proto-serialized ServerFrame); the node verifies over those bytes and only
+// then parses them, so verification never depends on a re-serialization matching
+// byte-for-byte. New push kinds need no change here — they extend the
+// ServerFrame oneof, which rides opaquely inside `frame`.
+message SignedServerFrame {
+  // The proto-serialized ServerFrame the signature covers.
+  bytes frame = 1;
+
+  // Ed25519 signature over `frame` by the control plane's identity key.
+  bytes signature = 2;
+}
+
 // NodeFrame documents the union of node → control-plane actions. In production
 // each variant is a discrete Connect-RPC call on the presence/runs services
 // (the node signs each with its Ed25519 key); this envelope keeps the contract

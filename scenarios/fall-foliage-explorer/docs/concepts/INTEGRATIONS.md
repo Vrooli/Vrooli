@@ -10,7 +10,7 @@ This document records resource and service dependencies, their failure modes, an
 - Redis
 - Ollama
 - Qdrant
-- Browserless optional fallback
+- browser-automation-studio optional fallback
 - App Monitor iframe bridge
 
 ## Vrooli Resources

@@ -1,22 +1,24 @@
 /**
  * @vrooliComponentSource react-component-library:SidebarShell
- * @vrooliComponentVersion 1.1.0
+ * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption template:react-vite:sidebar-shell
- * @vrooliComponentAppliedAt 2026-07-07T00:00:00Z
- * @vrooliComponentSourceSha256 27c971bd7d8722cdc09df51ccbf6e3196141e71324ccd8845b9d75bbf6870365
- * @vrooliComponentDriftHash 27c971bd7d8722cdc09df51ccbf6e3196141e71324ccd8845b9d75bbf6870365
+ * @vrooliComponentAppliedAt 2026-07-14T20:14:31Z
+ * @vrooliComponentSourceSha256 a191851f6b18d0195fdec6bfe430d59ef964fce7ca80b3b05e52d94b2760a036
+ * @vrooliComponentDriftHash a191851f6b18d0195fdec6bfe430d59ef964fce7ca80b3b05e52d94b2760a036
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import {
   type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
   forwardRef,
+  useEffect,
 } from "react";
 import { X } from "lucide-react";
-import { useSidebarMenuEscape } from "./sidebar-menu-escape";
 
 export interface SidebarShellProps {
   children: ReactNode;
@@ -35,8 +37,7 @@ export interface SidebarShellProps {
   backdropClassName?: string;
 }
 
-const joinClasses = (...classes: Array<string | undefined | false>) =>
-  classes.filter(Boolean).join(" ");
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
   function SidebarShell(
@@ -63,7 +64,16 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
     const isPersistent = mode === "persistent";
     const isDialogOpen = !isPersistent && mobileOpen;
 
-    useSidebarMenuEscape(isDialogOpen, onMobileClose);
+    useEffect(() => {
+      if (!isDialogOpen) return;
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          onMobileClose();
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [isDialogOpen, onMobileClose]);
 
     const style: CSSProperties = width ? { width } : {};
     const backdropClasses = isResponsive
@@ -100,7 +110,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
             type="button"
             data-testid="sidebar-shell-backdrop"
             aria-label={closeLabel}
-            className={joinClasses(backdropClasses, backdropClassName)}
+            className={cn(backdropClasses, backdropClassName)}
             style={{ background: "color-mix(in srgb, var(--color-shell) 60%, transparent)" }}
             onClick={onMobileClose}
           />
@@ -113,7 +123,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
           aria-modal={isDialogOpen ? "true" : undefined}
           aria-label={isDialogOpen ? mobileLabel : desktopLabel ?? mobileLabel}
           style={style}
-          className={joinClasses(
+          className={cn(
             panelClasses,
             visibilityClasses,
             safeAreaClasses,
@@ -135,14 +145,14 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
               </button>
             </div>
           )}
-          <div className={joinClasses("min-h-0 flex-1 overflow-auto", contentClassName)}>
+          <div className={cn("min-h-0 flex-1 overflow-auto", contentClassName)}>
             {children}
           </div>
           {resizeHandleProps && (
             <div
               data-testid="sidebar-shell-resize-handle"
               {...resizeHandleProps}
-              className={joinClasses(resizeHandleClasses, resizeHandleProps.className)}
+              className={cn(resizeHandleClasses, resizeHandleProps.className)}
             />
           )}
         </div>

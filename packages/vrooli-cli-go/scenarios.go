@@ -61,6 +61,19 @@ func (c *Client) ScenarioStatuses(ctx context.Context) (*cliv1.ScenarioStatusLis
 // The returned message carries success/error and the int32 port (0 when
 // unresolved), so callers branch on the typed fields rather than parsing stdout.
 func (c *Client) ScenarioPort(ctx context.Context, name, portName string) (*cliv1.ScenarioPortSingle, error) {
+	return c.scenarioPort(ctx, name, portName, "")
+}
+
+// ScenarioPortAtPath resolves a runtime port for a scenario launched from an
+// explicit physical directory, such as a generated validation workspace.
+func (c *Client) ScenarioPortAtPath(ctx context.Context, name, portName, path string) (*cliv1.ScenarioPortSingle, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, fmt.Errorf("scenario port: path is required")
+	}
+	return c.scenarioPort(ctx, name, portName, path)
+}
+
+func (c *Client) scenarioPort(ctx context.Context, name, portName, path string) (*cliv1.ScenarioPortSingle, error) {
 	if strings.TrimSpace(name) == "" {
 		return nil, fmt.Errorf("scenario port: name is required")
 	}
@@ -70,7 +83,11 @@ func (c *Client) ScenarioPort(ctx context.Context, name, portName string) (*cliv
 	ctx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	out, err := c.run(ctx, "scenario", "port", name, portName, "--json")
+	args := []string{"scenario", "port", name, portName, "--json"}
+	if strings.TrimSpace(path) != "" {
+		args = append(args, "--path", strings.TrimSpace(path))
+	}
+	out, err := c.run(ctx, args...)
 	if err != nil {
 		return nil, err
 	}

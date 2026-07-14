@@ -31,27 +31,30 @@ type OperatingModeTargetKind int32
 
 const (
 	OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_UNSPECIFIED OperatingModeTargetKind = 0
-	// A canonical plan-manager plan (execution id / slug).
-	OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN OperatingModeTargetKind = 1
-	// A plan file/reference not imported into swarm-manager.
-	OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_PLAN_REF OperatingModeTargetKind = 2
+	// A canonical, provider-neutral plan execution (resolved instance carries
+	// plan id + execution id). Renamed from the pre-cutover PLAN_MANAGER_PLAN;
+	// the wire number is unchanged.
+	OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION OperatingModeTargetKind = 1
 	// A swarm-manager initiative and its member items.
 	OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_INITIATIVE OperatingModeTargetKind = 3
+	// A single swarm-manager backlog item. Vocabulary is pinned; the runtime
+	// adapter arrives in a later phase.
+	OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM OperatingModeTargetKind = 4
 )
 
 // Enum value maps for OperatingModeTargetKind.
 var (
 	OperatingModeTargetKind_name = map[int32]string{
 		0: "OPERATING_MODE_TARGET_KIND_UNSPECIFIED",
-		1: "OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN",
-		2: "OPERATING_MODE_TARGET_KIND_PLAN_REF",
+		1: "OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION",
 		3: "OPERATING_MODE_TARGET_KIND_INITIATIVE",
+		4: "OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM",
 	}
 	OperatingModeTargetKind_value = map[string]int32{
-		"OPERATING_MODE_TARGET_KIND_UNSPECIFIED":       0,
-		"OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN": 1,
-		"OPERATING_MODE_TARGET_KIND_PLAN_REF":          2,
-		"OPERATING_MODE_TARGET_KIND_INITIATIVE":        3,
+		"OPERATING_MODE_TARGET_KIND_UNSPECIFIED":    0,
+		"OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION": 1,
+		"OPERATING_MODE_TARGET_KIND_INITIATIVE":     3,
+		"OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM":   4,
 	}
 )
 
@@ -2468,12 +2471,12 @@ const file_swarm_manager_v1_domain_operating_mode_proto_rawDesc = "" +
 	"\x1bOperatingModeExampleRunStep\x12\x1d\n" +
 	"\x05phase\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05phase\x12/\n" +
 	"\x06output\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06output\x12\x12\n" +
-	"\x04note\x18\x03 \x01(\tR\x04note*\xcb\x01\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note*\xf7\x01\n" +
 	"\x17OperatingModeTargetKind\x12*\n" +
-	"&OPERATING_MODE_TARGET_KIND_UNSPECIFIED\x10\x00\x120\n" +
-	",OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN\x10\x01\x12'\n" +
-	"#OPERATING_MODE_TARGET_KIND_PLAN_REF\x10\x02\x12)\n" +
-	"%OPERATING_MODE_TARGET_KIND_INITIATIVE\x10\x03*\xb3\x02\n" +
+	"&OPERATING_MODE_TARGET_KIND_UNSPECIFIED\x10\x00\x12-\n" +
+	")OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION\x10\x01\x12)\n" +
+	"%OPERATING_MODE_TARGET_KIND_INITIATIVE\x10\x03\x12+\n" +
+	"'OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM\x10\x04\"\x04\b\x02\x10\x02*#OPERATING_MODE_TARGET_KIND_PLAN_REF*\xb3\x02\n" +
 	"\x1cOperatingModeRunStrategyKind\x120\n" +
 	",OPERATING_MODE_RUN_STRATEGY_KIND_UNSPECIFIED\x10\x00\x127\n" +
 	"3OPERATING_MODE_RUN_STRATEGY_KIND_EXISTING_ITEM_FLOW\x10\x01\x125\n" +

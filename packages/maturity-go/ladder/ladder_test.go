@@ -146,7 +146,7 @@ func TestStandardsCountCap(t *testing.T) {
 
 // TestWarningDensityHoldsR1 is the fix-#1 regression: a warning-only scenario
 // with a finding backlog above the default density cap must NOT be waved through
-// R1 as "safe". This is the accessibility-compliance-hub case (95 security / 21
+// R1 as "safe". This is a high-security / low-overall-score case (95 security / 21
 // standards warnings, zero errors) that previously left the ladder inert.
 func TestWarningDensityHoldsR1(t *testing.T) {
 	sig := allClean()

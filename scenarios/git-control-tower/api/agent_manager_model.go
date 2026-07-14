@@ -210,12 +210,6 @@ type wireListProfilesResponse struct {
 	Total    int                `json:"total,omitempty"`
 }
 
-type wireEnsureProfileResponse struct {
-	Profile *wireAgentProfile `json:"profile,omitempty"`
-	Created bool              `json:"created,omitempty"`
-	Updated bool              `json:"updated,omitempty"`
-}
-
 // Wire request types (outbound, snake_case).
 
 type agentContextAttachment struct {

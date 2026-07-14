@@ -42,12 +42,20 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // adapter among several, not the base case.
 enum OperatingModeTargetKind {
   OPERATING_MODE_TARGET_KIND_UNSPECIFIED = 0;
-  // A canonical plan-manager plan (execution id / slug).
-  OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN = 1;
-  // A plan file/reference not imported into swarm-manager.
-  OPERATING_MODE_TARGET_KIND_PLAN_REF = 2;
+  // A canonical, provider-neutral plan execution (resolved instance carries
+  // plan id + execution id). Renamed from the pre-cutover PLAN_MANAGER_PLAN;
+  // the wire number is unchanged.
+  OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION = 1;
   // A swarm-manager initiative and its member items.
   OPERATING_MODE_TARGET_KIND_INITIATIVE = 3;
+  // A single swarm-manager backlog item. Vocabulary is pinned; the runtime
+  // adapter arrives in a later phase.
+  OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM = 4;
+
+  // 2 was the pre-cutover unmanaged plan-ref target kind, now removed
+  // (EXECUTION-MODES.md D6). Reserved so the number and name are never reused.
+  reserved 2;
+  reserved "OPERATING_MODE_TARGET_KIND_PLAN_REF";
 }
 
 // OperatingModeRunStrategyKind controls how rounds are dispatched and gated.

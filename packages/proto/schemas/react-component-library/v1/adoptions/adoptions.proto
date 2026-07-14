@@ -33,10 +33,31 @@ service AdoptionsService {
   rpc ReapplyAdoption(ReapplyAdoptionRequest) returns (ReapplyAdoptionResponse);
   rpc DeleteAdoption(DeleteAdoptionRequest) returns (DeleteAdoptionResponse);
   rpc RefreshAdoptions(RefreshAdoptionsRequest) returns (RefreshAdoptionsResponse);
+  rpc ReconcileAdoptions(ReconcileAdoptionsRequest) returns (ReconcileAdoptionsResponse);
+  // ReconvergeAdoptions closes the fleet drift loop: it batch-reconverges
+  // BEHIND adoptions to the current library version. A copy that is still
+  // CLEAN (unmodified vs its recorded snapshot) is re-applied through the same
+  // validated Reapply path; a MODIFIED copy is flagged for human review and
+  // never overwritten. Dry-run is the default; apply=true performs the writes.
+  // Output reports per-adoption and per-file outcomes.
+  rpc ReconvergeAdoptions(ReconvergeAdoptionsRequest) returns (ReconvergeAdoptionsResponse);
   // ResolveAdoptionPath returns the canonical filesystem path for an adopted
   // component, computed from the target scenario's UI manifest (or a
   // heuristic / fallback when the manifest is missing). Read-only.
   rpc ResolveAdoptionPath(ResolveAdoptionPathRequest) returns (ResolveAdoptionPathResponse);
+  // SuggestAdoptions ranks catalog components against scenario UI inventory.
+  // Results are explainable and exclude pairs already present in the adoption registry.
+  rpc SuggestAdoptions(SuggestAdoptionsRequest) returns (SuggestAdoptionsResponse);
+  // DiscoverAdoptions finds header-less scenario UI files whose content is
+  // content-similar to a library component version, surfacing them as
+  // candidates for provenance backfill. Read-only: it never writes. The
+  // signal is a Sørensen–Dice line-similarity score with a threshold; the
+  // operator confirms a candidate with ConfirmDiscovery.
+  rpc DiscoverAdoptions(DiscoverAdoptionsRequest) returns (DiscoverAdoptionsResponse);
+  // ConfirmDiscovery injects an @vrooliComponentSource provenance header into a
+  // header-less scenario file and creates its adoption record, attributed to
+  // the exact component + version echoed from a DiscoverAdoptions candidate.
+  rpc ConfirmDiscovery(ConfirmDiscoveryRequest) returns (ConfirmDiscoveryResponse);
 }
 
 enum LibraryVersionStatus {
@@ -93,6 +114,14 @@ message Adoption {
 
   string source_sha256 = 12;
   string applied_at = 13;
+  repeated AdoptionFile files = 14;
+}
+
+message AdoptionFile {
+  string library_path = 1;
+  string adopted_path = 2;
+  string source_sha256 = 3;
+  string adopted_snapshot_sha256 = 4;
 }
 
 message ListAdoptionsRequest {
@@ -120,11 +149,22 @@ message ApplyAdoptionRequest {
   string version = 4;
   // Required to overwrite an existing target file.
   bool confirm_overwrite = 5;
+  // Explicitly permits an apply that dependency validation classifies as
+  // blocking. Both dependency and style-fit validation still run and remain
+  // visible to callers; this flag records the operator's deliberate choice.
+  bool override_validation = 6;
+  // Declares that this apply intentionally replaces a previously existing
+  // scenario source file. When its source body differs from the selected
+  // library source, confirm_overwrite is required before any write occurs.
+  bool replace_existing = 7;
 }
 
 message ApplyAdoptionResponse {
   Adoption adoption = 1;
   string written_path = 2;
+  // Scenario-relative files that import the written target. This lets an
+  // operator see the immediate replacement blast radius in the apply result.
+  repeated string import_sites = 3;
 }
 
 message ReapplyAdoptionRequest {
@@ -133,6 +173,9 @@ message ReapplyAdoptionRequest {
   string version = 2;
   // Required when the adopted target has local modifications.
   bool confirm_local_overwrite = 3;
+  // Explicitly permits a reapply that dependency validation classifies as
+  // blocking. Both validation checks still run.
+  bool override_validation = 4;
 }
 
 message ReapplyAdoptionResponse {
@@ -186,6 +229,30 @@ message ResolveAdoptionPathResponse {
   repeated string warnings = 4;
 }
 
+message SuggestAdoptionsRequest {
+  // Optional target scenario. Empty scans the available scenario inventory.
+  string scenario = 1;
+  // Cap results. 0 uses the server default.
+  int32 limit = 2;
+  // Optional catalog component. When supplied, suggestions answer “where
+  // should this component be adopted?” instead of considering every component.
+  string component_id = 3;
+}
+
+message AdoptionSuggestion {
+  string scenario = 1;
+  string component_id = 2;
+  string library_id = 3;
+  string display_name = 4;
+  // Scenario-relative inventory surface that triggered this candidate.
+  string inventory_path = 5;
+  repeated string reasons = 7;
+}
+
+message SuggestAdoptionsResponse {
+  repeated AdoptionSuggestion suggestions = 1;
+}
+
 message RefreshAdoptionsResponse {
   // Updated rows after the refresh, in the same order ListAdoptions
   // would return them.
@@ -200,4 +267,144 @@ message RefreshAdoptionsResponse {
   int32 local_modified = 8;
   int32 local_missing = 9;
   int32 local_unknown = 10;
+}
+
+// ReconcileAdoptions inventories existing provenance-headed scenario UI files.
+// Dry-run is the default; apply=true only writes RCL's adoption store.
+message ReconcileAdoptionsRequest { bool apply = 1; }
+
+message ReconcileFinding {
+  string scenario = 1;
+  string adopted_path = 2;
+  string library_id = 3;
+  string version = 4;
+  string detail = 5;
+}
+
+message ReconcileAdoptionsResponse {
+  int32 scanned = 1;
+  int32 already_recorded = 2;
+  int32 created = 3;
+  repeated ReconcileFinding findings = 4;
+}
+
+// ReconvergeAction is the per-adoption disposition of a reconverge pass.
+enum ReconvergeAction {
+  RECONVERGE_ACTION_UNSPECIFIED = 0;
+  // BEHIND + CLEAN copy that was re-applied to the current library version.
+  RECONVERGE_ACTION_REAPPLIED = 1;
+  // Dry-run disposition for a BEHIND + CLEAN copy that would be re-applied.
+  RECONVERGE_ACTION_WOULD_REAPPLY = 2;
+  // BEHIND but the copy carries local edits — flagged for human review,
+  // never overwritten.
+  RECONVERGE_ACTION_FLAGGED_MODIFIED = 3;
+  // BEHIND but the copy is missing or its status is otherwise unresolved —
+  // left untouched for human review.
+  RECONVERGE_ACTION_SKIPPED_UNRESOLVED = 4;
+  // An apply-mode re-apply attempt failed (e.g. dependency validation blocked).
+  RECONVERGE_ACTION_ERROR = 5;
+}
+
+// ReconvergeAdoptions batch-reconverges BEHIND adoptions. Dry-run by default.
+message ReconvergeAdoptionsRequest {
+  // Optional adopter-scenario filter. Empty reconverges every BEHIND adoption.
+  string scenario = 1;
+  // Dry-run by default. apply=true re-applies CLEAN BEHIND copies.
+  bool apply = 2;
+}
+
+// ReconvergeFileOutcome is the per-file drift disposition inside one adoption.
+message ReconvergeFileOutcome {
+  string library_path = 1;
+  string adopted_path = 2;
+  LocalStatus local_status = 3;
+}
+
+// ReconvergeOutcome is the per-adoption result of a reconverge pass.
+message ReconvergeOutcome {
+  string adoption_id = 1;
+  string scenario = 2;
+  string component_id = 3;
+  string library_id = 4;
+  // Version stamped on the copy before reconverge.
+  string adopted_version = 5;
+  // Current library version reconverge targets (or the version actually
+  // re-applied to, in apply mode).
+  string target_version = 6;
+  LibraryVersionStatus library_version_status = 7;
+  LocalStatus local_status = 8;
+  ReconvergeAction action = 9;
+  string detail = 10;
+  repeated ReconvergeFileOutcome files = 11;
+}
+
+message ReconvergeAdoptionsResponse {
+  // Adoptions inspected.
+  int32 scanned = 1;
+  // Adoptions found BEHIND (the reconverge candidate set).
+  int32 behind = 2;
+  // Apply-mode: copies successfully re-applied.
+  int32 reapplied = 3;
+  // MODIFIED copies flagged for human review.
+  int32 flagged = 4;
+  // Missing/unresolved copies left for human review.
+  int32 skipped = 5;
+  // Apply attempts that failed.
+  int32 errored = 6;
+  repeated ReconvergeOutcome outcomes = 7;
+}
+
+// DiscoverAdoptions surfaces header-less scenario UI files that resemble a
+// library component version. Unlike ReconcileAdoptions (which trusts the
+// on-disk provenance header), discovery has no header to trust — it relies on
+// a content-similarity score and always defers the write to ConfirmDiscovery.
+message DiscoverAdoptionsRequest {
+  // Optional scenario filter. Empty scans every scenario UI tree.
+  string scenario = 1;
+  // Minimum Sørensen–Dice line similarity in [0,1] to surface a candidate.
+  // 0 uses the server default.
+  double min_similarity = 2;
+  // Cap results. 0 uses the server default.
+  int32 limit = 3;
+}
+
+// DiscoveryCandidate is one header-less file matched to a library version,
+// carrying the similarity evidence an operator reviews before confirming.
+message DiscoveryCandidate {
+  string scenario = 1;
+  string adopted_path = 2;
+  string component_id = 3;
+  string library_id = 4;
+  string version = 5;
+  string display_name = 6;
+  // Sørensen–Dice line similarity in [0,1] against the matched version file.
+  double similarity = 7;
+  int32 shared_lines = 8;
+  int32 candidate_lines = 9;
+  int32 source_lines = 10;
+  // True when the candidate file basename equals the library file basename.
+  bool basename_match = 11;
+  repeated string evidence = 12;
+}
+
+message DiscoverAdoptionsResponse {
+  int32 scanned = 1;
+  double min_similarity = 2;
+  repeated DiscoveryCandidate candidates = 3;
+}
+
+// ConfirmDiscovery names the exact component + version to attribute (echoed
+// from a prior DiscoveryCandidate). The server re-reads the file, verifies it
+// is still header-less, injects the provenance header, and creates the record.
+message ConfirmDiscoveryRequest {
+  string scenario = 1;
+  string adopted_path = 2;
+  string component_id = 3;
+  string version = 4;
+}
+
+message ConfirmDiscoveryResponse {
+  Adoption adoption = 1;
+  string written_path = 2;
+  double similarity = 3;
 }

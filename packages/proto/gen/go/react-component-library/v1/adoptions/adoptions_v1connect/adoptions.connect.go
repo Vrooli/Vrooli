@@ -51,12 +51,21 @@ const (
 	// AdoptionsServiceReconcileAdoptionsProcedure is the fully-qualified name of the AdoptionsService's
 	// ReconcileAdoptions RPC.
 	AdoptionsServiceReconcileAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReconcileAdoptions"
+	// AdoptionsServiceReconvergeAdoptionsProcedure is the fully-qualified name of the
+	// AdoptionsService's ReconvergeAdoptions RPC.
+	AdoptionsServiceReconvergeAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReconvergeAdoptions"
 	// AdoptionsServiceResolveAdoptionPathProcedure is the fully-qualified name of the
 	// AdoptionsService's ResolveAdoptionPath RPC.
 	AdoptionsServiceResolveAdoptionPathProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ResolveAdoptionPath"
 	// AdoptionsServiceSuggestAdoptionsProcedure is the fully-qualified name of the AdoptionsService's
 	// SuggestAdoptions RPC.
 	AdoptionsServiceSuggestAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/SuggestAdoptions"
+	// AdoptionsServiceDiscoverAdoptionsProcedure is the fully-qualified name of the AdoptionsService's
+	// DiscoverAdoptions RPC.
+	AdoptionsServiceDiscoverAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/DiscoverAdoptions"
+	// AdoptionsServiceConfirmDiscoveryProcedure is the fully-qualified name of the AdoptionsService's
+	// ConfirmDiscovery RPC.
+	AdoptionsServiceConfirmDiscoveryProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ConfirmDiscovery"
 )
 
 // AdoptionsServiceClient is a client for the
@@ -68,6 +77,13 @@ type AdoptionsServiceClient interface {
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
 	ReconcileAdoptions(context.Context, *connect.Request[adoptions.ReconcileAdoptionsRequest]) (*connect.Response[adoptions.ReconcileAdoptionsResponse], error)
+	// ReconvergeAdoptions closes the fleet drift loop: it batch-reconverges
+	// BEHIND adoptions to the current library version. A copy that is still
+	// CLEAN (unmodified vs its recorded snapshot) is re-applied through the same
+	// validated Reapply path; a MODIFIED copy is flagged for human review and
+	// never overwritten. Dry-run is the default; apply=true performs the writes.
+	// Output reports per-adoption and per-file outcomes.
+	ReconvergeAdoptions(context.Context, *connect.Request[adoptions.ReconvergeAdoptionsRequest]) (*connect.Response[adoptions.ReconvergeAdoptionsResponse], error)
 	// ResolveAdoptionPath returns the canonical filesystem path for an adopted
 	// component, computed from the target scenario's UI manifest (or a
 	// heuristic / fallback when the manifest is missing). Read-only.
@@ -75,6 +91,16 @@ type AdoptionsServiceClient interface {
 	// SuggestAdoptions ranks catalog components against scenario UI inventory.
 	// Results are explainable and exclude pairs already present in the adoption registry.
 	SuggestAdoptions(context.Context, *connect.Request[adoptions.SuggestAdoptionsRequest]) (*connect.Response[adoptions.SuggestAdoptionsResponse], error)
+	// DiscoverAdoptions finds header-less scenario UI files whose content is
+	// content-similar to a library component version, surfacing them as
+	// candidates for provenance backfill. Read-only: it never writes. The
+	// signal is a Sørensen–Dice line-similarity score with a threshold; the
+	// operator confirms a candidate with ConfirmDiscovery.
+	DiscoverAdoptions(context.Context, *connect.Request[adoptions.DiscoverAdoptionsRequest]) (*connect.Response[adoptions.DiscoverAdoptionsResponse], error)
+	// ConfirmDiscovery injects an @vrooliComponentSource provenance header into a
+	// header-less scenario file and creates its adoption record, attributed to
+	// the exact component + version echoed from a DiscoverAdoptions candidate.
+	ConfirmDiscovery(context.Context, *connect.Request[adoptions.ConfirmDiscoveryRequest]) (*connect.Response[adoptions.ConfirmDiscoveryResponse], error)
 }
 
 // NewAdoptionsServiceClient constructs a client for the
@@ -125,6 +151,12 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adoptionsServiceMethods.ByName("ReconcileAdoptions")),
 			connect.WithClientOptions(opts...),
 		),
+		reconvergeAdoptions: connect.NewClient[adoptions.ReconvergeAdoptionsRequest, adoptions.ReconvergeAdoptionsResponse](
+			httpClient,
+			baseURL+AdoptionsServiceReconvergeAdoptionsProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("ReconvergeAdoptions")),
+			connect.WithClientOptions(opts...),
+		),
 		resolveAdoptionPath: connect.NewClient[adoptions.ResolveAdoptionPathRequest, adoptions.ResolveAdoptionPathResponse](
 			httpClient,
 			baseURL+AdoptionsServiceResolveAdoptionPathProcedure,
@@ -135,6 +167,18 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+AdoptionsServiceSuggestAdoptionsProcedure,
 			connect.WithSchema(adoptionsServiceMethods.ByName("SuggestAdoptions")),
+			connect.WithClientOptions(opts...),
+		),
+		discoverAdoptions: connect.NewClient[adoptions.DiscoverAdoptionsRequest, adoptions.DiscoverAdoptionsResponse](
+			httpClient,
+			baseURL+AdoptionsServiceDiscoverAdoptionsProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("DiscoverAdoptions")),
+			connect.WithClientOptions(opts...),
+		),
+		confirmDiscovery: connect.NewClient[adoptions.ConfirmDiscoveryRequest, adoptions.ConfirmDiscoveryResponse](
+			httpClient,
+			baseURL+AdoptionsServiceConfirmDiscoveryProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("ConfirmDiscovery")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -148,8 +192,11 @@ type adoptionsServiceClient struct {
 	deleteAdoption      *connect.Client[adoptions.DeleteAdoptionRequest, adoptions.DeleteAdoptionResponse]
 	refreshAdoptions    *connect.Client[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse]
 	reconcileAdoptions  *connect.Client[adoptions.ReconcileAdoptionsRequest, adoptions.ReconcileAdoptionsResponse]
+	reconvergeAdoptions *connect.Client[adoptions.ReconvergeAdoptionsRequest, adoptions.ReconvergeAdoptionsResponse]
 	resolveAdoptionPath *connect.Client[adoptions.ResolveAdoptionPathRequest, adoptions.ResolveAdoptionPathResponse]
 	suggestAdoptions    *connect.Client[adoptions.SuggestAdoptionsRequest, adoptions.SuggestAdoptionsResponse]
+	discoverAdoptions   *connect.Client[adoptions.DiscoverAdoptionsRequest, adoptions.DiscoverAdoptionsResponse]
+	confirmDiscovery    *connect.Client[adoptions.ConfirmDiscoveryRequest, adoptions.ConfirmDiscoveryResponse]
 }
 
 // ListAdoptions calls vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions.
@@ -185,6 +232,12 @@ func (c *adoptionsServiceClient) ReconcileAdoptions(ctx context.Context, req *co
 	return c.reconcileAdoptions.CallUnary(ctx, req)
 }
 
+// ReconvergeAdoptions calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconvergeAdoptions.
+func (c *adoptionsServiceClient) ReconvergeAdoptions(ctx context.Context, req *connect.Request[adoptions.ReconvergeAdoptionsRequest]) (*connect.Response[adoptions.ReconvergeAdoptionsResponse], error) {
+	return c.reconvergeAdoptions.CallUnary(ctx, req)
+}
+
 // ResolveAdoptionPath calls
 // vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath.
 func (c *adoptionsServiceClient) ResolveAdoptionPath(ctx context.Context, req *connect.Request[adoptions.ResolveAdoptionPathRequest]) (*connect.Response[adoptions.ResolveAdoptionPathResponse], error) {
@@ -197,6 +250,18 @@ func (c *adoptionsServiceClient) SuggestAdoptions(ctx context.Context, req *conn
 	return c.suggestAdoptions.CallUnary(ctx, req)
 }
 
+// DiscoverAdoptions calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.DiscoverAdoptions.
+func (c *adoptionsServiceClient) DiscoverAdoptions(ctx context.Context, req *connect.Request[adoptions.DiscoverAdoptionsRequest]) (*connect.Response[adoptions.DiscoverAdoptionsResponse], error) {
+	return c.discoverAdoptions.CallUnary(ctx, req)
+}
+
+// ConfirmDiscovery calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.ConfirmDiscovery.
+func (c *adoptionsServiceClient) ConfirmDiscovery(ctx context.Context, req *connect.Request[adoptions.ConfirmDiscoveryRequest]) (*connect.Response[adoptions.ConfirmDiscoveryResponse], error) {
+	return c.confirmDiscovery.CallUnary(ctx, req)
+}
+
 // AdoptionsServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.adoptions.AdoptionsService service.
 type AdoptionsServiceHandler interface {
@@ -206,6 +271,13 @@ type AdoptionsServiceHandler interface {
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
 	ReconcileAdoptions(context.Context, *connect.Request[adoptions.ReconcileAdoptionsRequest]) (*connect.Response[adoptions.ReconcileAdoptionsResponse], error)
+	// ReconvergeAdoptions closes the fleet drift loop: it batch-reconverges
+	// BEHIND adoptions to the current library version. A copy that is still
+	// CLEAN (unmodified vs its recorded snapshot) is re-applied through the same
+	// validated Reapply path; a MODIFIED copy is flagged for human review and
+	// never overwritten. Dry-run is the default; apply=true performs the writes.
+	// Output reports per-adoption and per-file outcomes.
+	ReconvergeAdoptions(context.Context, *connect.Request[adoptions.ReconvergeAdoptionsRequest]) (*connect.Response[adoptions.ReconvergeAdoptionsResponse], error)
 	// ResolveAdoptionPath returns the canonical filesystem path for an adopted
 	// component, computed from the target scenario's UI manifest (or a
 	// heuristic / fallback when the manifest is missing). Read-only.
@@ -213,6 +285,16 @@ type AdoptionsServiceHandler interface {
 	// SuggestAdoptions ranks catalog components against scenario UI inventory.
 	// Results are explainable and exclude pairs already present in the adoption registry.
 	SuggestAdoptions(context.Context, *connect.Request[adoptions.SuggestAdoptionsRequest]) (*connect.Response[adoptions.SuggestAdoptionsResponse], error)
+	// DiscoverAdoptions finds header-less scenario UI files whose content is
+	// content-similar to a library component version, surfacing them as
+	// candidates for provenance backfill. Read-only: it never writes. The
+	// signal is a Sørensen–Dice line-similarity score with a threshold; the
+	// operator confirms a candidate with ConfirmDiscovery.
+	DiscoverAdoptions(context.Context, *connect.Request[adoptions.DiscoverAdoptionsRequest]) (*connect.Response[adoptions.DiscoverAdoptionsResponse], error)
+	// ConfirmDiscovery injects an @vrooliComponentSource provenance header into a
+	// header-less scenario file and creates its adoption record, attributed to
+	// the exact component + version echoed from a DiscoverAdoptions candidate.
+	ConfirmDiscovery(context.Context, *connect.Request[adoptions.ConfirmDiscoveryRequest]) (*connect.Response[adoptions.ConfirmDiscoveryResponse], error)
 }
 
 // NewAdoptionsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -258,6 +340,12 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		connect.WithSchema(adoptionsServiceMethods.ByName("ReconcileAdoptions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adoptionsServiceReconvergeAdoptionsHandler := connect.NewUnaryHandler(
+		AdoptionsServiceReconvergeAdoptionsProcedure,
+		svc.ReconvergeAdoptions,
+		connect.WithSchema(adoptionsServiceMethods.ByName("ReconvergeAdoptions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adoptionsServiceResolveAdoptionPathHandler := connect.NewUnaryHandler(
 		AdoptionsServiceResolveAdoptionPathProcedure,
 		svc.ResolveAdoptionPath,
@@ -268,6 +356,18 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		AdoptionsServiceSuggestAdoptionsProcedure,
 		svc.SuggestAdoptions,
 		connect.WithSchema(adoptionsServiceMethods.ByName("SuggestAdoptions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adoptionsServiceDiscoverAdoptionsHandler := connect.NewUnaryHandler(
+		AdoptionsServiceDiscoverAdoptionsProcedure,
+		svc.DiscoverAdoptions,
+		connect.WithSchema(adoptionsServiceMethods.ByName("DiscoverAdoptions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adoptionsServiceConfirmDiscoveryHandler := connect.NewUnaryHandler(
+		AdoptionsServiceConfirmDiscoveryProcedure,
+		svc.ConfirmDiscovery,
+		connect.WithSchema(adoptionsServiceMethods.ByName("ConfirmDiscovery")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/vrooli.react_component_library.v1.adoptions.AdoptionsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -284,10 +384,16 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 			adoptionsServiceRefreshAdoptionsHandler.ServeHTTP(w, r)
 		case AdoptionsServiceReconcileAdoptionsProcedure:
 			adoptionsServiceReconcileAdoptionsHandler.ServeHTTP(w, r)
+		case AdoptionsServiceReconvergeAdoptionsProcedure:
+			adoptionsServiceReconvergeAdoptionsHandler.ServeHTTP(w, r)
 		case AdoptionsServiceResolveAdoptionPathProcedure:
 			adoptionsServiceResolveAdoptionPathHandler.ServeHTTP(w, r)
 		case AdoptionsServiceSuggestAdoptionsProcedure:
 			adoptionsServiceSuggestAdoptionsHandler.ServeHTTP(w, r)
+		case AdoptionsServiceDiscoverAdoptionsProcedure:
+			adoptionsServiceDiscoverAdoptionsHandler.ServeHTTP(w, r)
+		case AdoptionsServiceConfirmDiscoveryProcedure:
+			adoptionsServiceConfirmDiscoveryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -321,10 +427,22 @@ func (UnimplementedAdoptionsServiceHandler) ReconcileAdoptions(context.Context, 
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconcileAdoptions is not implemented"))
 }
 
+func (UnimplementedAdoptionsServiceHandler) ReconvergeAdoptions(context.Context, *connect.Request[adoptions.ReconvergeAdoptionsRequest]) (*connect.Response[adoptions.ReconvergeAdoptionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconvergeAdoptions is not implemented"))
+}
+
 func (UnimplementedAdoptionsServiceHandler) ResolveAdoptionPath(context.Context, *connect.Request[adoptions.ResolveAdoptionPathRequest]) (*connect.Response[adoptions.ResolveAdoptionPathResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath is not implemented"))
 }
 
 func (UnimplementedAdoptionsServiceHandler) SuggestAdoptions(context.Context, *connect.Request[adoptions.SuggestAdoptionsRequest]) (*connect.Response[adoptions.SuggestAdoptionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.SuggestAdoptions is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) DiscoverAdoptions(context.Context, *connect.Request[adoptions.DiscoverAdoptionsRequest]) (*connect.Response[adoptions.DiscoverAdoptionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.DiscoverAdoptions is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) ConfirmDiscovery(context.Context, *connect.Request[adoptions.ConfirmDiscoveryRequest]) (*connect.Response[adoptions.ConfirmDiscoveryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ConfirmDiscovery is not implemented"))
 }

@@ -34,12 +34,12 @@ requires them.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| browser-automation-studio | declared (optional, `try_start`) | Single capture engine for reconciliation: per-page/state screenshot + accessibility tree. **Prerequisite:** BAS must add a11y-tree capture per execution step (to be filed before OT-P0-003 work). | `.vrooli/service.json` dependency; BAS Connect API. Degraded: reconciliation findings are skipped, never failed. |
+| browser-automation-studio | declared (optional, `try_start`) | Single capture engine for reconciliation: per-page/state screenshot + accessibility tree. | `.vrooli/service.json` dependency; BAS Connect API. Degraded: reconciliation records unavailable evidence and never marks a claim satisfied. |
 | image-tools | declared (optional, `on_demand`) | Optional AI-image rendering of spec pages in the workshop via its `openrouter-image` BYOK provider. Wireframe rendering never uses it. | `.vrooli/service.json` dependency; image-tools API. Degraded: AI render option unavailable; wireframe/compare unaffected. |
 | workflow-health | file-level seam (no runtime call in v1) | Studio scaffolds `bas/cases` stubs from spec entries; workflow-health catalogs, safety-gates, and executes them. Spec↔case reference integrity checked both directions. P2 journey coherence builds on its execution. | Shared `bas/` file conventions + spec entry IDs referenced from cases. |
 | business-health | sibling axis (no runtime call) | Validates this scenario's own PRD/requirements (business track); experience-manager is its experience-track mirror. | Canonical PRD template + requirements registry. |
 | test-genie | consumer | Discovers and gates the `experience` phase declaratively — no test-genie code changes. | `.vrooli/test-genie.json` (phase, `scenario-validation/v1` contract, presence-keyed applicability, maturity ladders). |
-| ui-health | boundary, not dependency | Charter split: ui-health owns built-correctly (manifest, interop lint, standards, runtime render, pixel regression); experience-manager owns intended-experience (spec, reconciliation, saliency, journeys). No shared findings. | See `docs/internal/DECISIONS.md` boundary decision. |
+| ui-health | boundary, not dependency | Charter split: ui-health owns built-correctly (including the axe harness and live runtime evidence); experience-manager owns declared intended-experience (accessible name, keyboard reachability, reading order, state affordances, reconciliation, saliency, journeys). No shared findings. | See `docs/internal/DECISIONS.md` boundary decision and [DOC: docs/reference/accessibility-validation.md]. |
 
 ## Third-Party Services
 

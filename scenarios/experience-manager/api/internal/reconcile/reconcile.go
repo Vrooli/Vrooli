@@ -590,6 +590,7 @@ func claimEvaluator(claimType string) claimEvaluatorFunc {
 		"element-present":                 evaluateElementPresenceClaim,
 		"single-dominant-action":          evaluateElementPresenceClaim,
 		"keyboard-reachable":              evaluateElementPresenceClaim,
+		"accessible-name":                 evaluateAccessibleNameClaim,
 		"affordance-present":              evaluateAffordancePresentClaim,
 		"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
 		"reading-order":                   evaluateReadingOrderClaim,
@@ -689,6 +690,38 @@ func evaluateElementPresenceClaim(page spec.PageDocument, claim spec.Claim, _ Ca
 		}
 	}
 	return claimEvaluation{Pass: pass, AXNodeJSON: axNodeJSON}
+}
+
+// evaluateAccessibleNameClaim proves only explicitly declared name intent. It
+// does not scan for generic WCAG defects; the expected label comes from the
+// element contract (or claim.params.name for an intentional override).
+func evaluateAccessibleNameClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) == 0 {
+		return claimEvaluation{Unverifiable: "accessible-name requires at least one declared element"}
+	}
+	override := paramString(claim.Params, "name")
+	for _, elementID := range claim.Elements {
+		node := findBoundNode(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID))
+		if node == nil {
+			return claimEvaluation{Pass: false, Failure: "declared element " + elementID + " was not found in the accessibility snapshot"}
+		}
+		expected := override
+		if expected == "" {
+			for _, element := range page.Elements {
+				if element.ID == elementID {
+					expected = element.Name
+					break
+				}
+			}
+		}
+		if strings.TrimSpace(expected) == "" {
+			return claimEvaluation{Unverifiable: "accessible-name requires element.name or claim.params.name"}
+		}
+		if !strings.EqualFold(strings.TrimSpace(node.Name), strings.TrimSpace(expected)) {
+			return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: fmt.Sprintf("accessible name %q does not match declared name %q", node.Name, expected)}
+		}
+	}
+	return claimEvaluation{Pass: true}
 }
 
 func evaluateVisibleWithoutScrollClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {

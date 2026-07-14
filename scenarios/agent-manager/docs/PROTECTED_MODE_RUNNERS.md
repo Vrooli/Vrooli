@@ -101,10 +101,36 @@ gate lives in `internal/domain/validation.go` and is pinned by
 | Coding-agent launch (every runner / every path) | `runner.SandboxLauncher.Launch` POSTs to `/processes`. The agent process runs inside bwrap with the sandbox's network and git guardrails applied at the OS level, not just on its file output. Applies to streaming Execute, durable-transcript Execute, durable-transcript Continue, and streaming Continue paths uniformly. |
 | Direct `/exec` calls (any caller using `Provider.ExecProcess`) | Git verb allowlist enforced server-side — non-listed verbs return structured 403. Surfaces as `ExecProcessResult.Blocked` for callers. |
 | `/processes` background launches (the runner-fork path) | Git verb allowlist enforced server-side. Surfaces as a typed `*sandbox.LaunchBlocked` on `Launcher.Launch`. |
-| Bwrap network isolation | `NetworkMode` translated by the adapter: `none`/empty → full isolation, `localhost` → vrooli-aware (loopback only), `full` → unrestricted. |
+| Network isolation | The agent process always launches under the `vrooli-aware` profile (`localhost` network mode); direct `/exec` calls translate `NetworkMode`: `none`/empty → full isolation, `localhost` → vrooli-aware, `full` → unrestricted. **Known gap:** no containment backend enforces loopback-only network, so `localhost` currently grants *unrestricted* network on every OS (tracked as scenario-qa bug `knw-1784006975589682125`). The launcher selector emits a warn run-event naming the missing `network-loopback-only` enforcement on every protected launch until a backend claims it. |
 | Resource limits | Forwarded via `/processes` body, clamped by workspace-sandbox `ExecutionConfig`. |
 | Apply-at-run-end | Identical between protected and tracking modes. Agent-manager lifecycle policy chooses `/turn-checkpoint` for continuable turns, which records provenance, applies acceptance filtering, and parks the sandbox as `checkpointed`; final apply paths use workspace-sandbox's final apply/approval endpoint. |
 | Exit code propagation | Both host and sandbox launches surface the exit code through `Wait()`'s error; `runner.extractExitCode` reads either via the `ExitCode() int` interface. |
+
+## Per-OS containment backend
+
+Protected mode's OS-level guardrails are carried out by a per-OS *containment
+backend* selected inside workspace-sandbox behind a platform-neutral seam. The
+sandbox reports the guarantees its backend actually enforces
+(`GET /api/v1/driver/containment`, mirrored into `runner.Containment`), and the
+launcher selector warns when the enforced set is missing anything protected mode
+depends on — `filesystem-write-containment` and `network-deny`
+(`Containment.MissingProtectedEnforcements`). Protected mode is never silently
+downgraded: the run proceeds, but the gap is surfaced loudly.
+
+| Enforcement | Linux (`bwrap`) | macOS (`seatbelt`) | Other (`none`) |
+|-------------|:---------------:|:------------------:|:--------------:|
+| `filesystem-write-containment` | ✅ | ✅ | ❌ |
+| `network-deny` | ✅ | ✅ | ❌ |
+| `pid-namespace` | ✅ | ❌ | ❌ |
+| `path-illusion` | ✅ | ❌ | ❌ |
+| **Protected mode honored (no gap warn)** | ✅ | ✅ | ❌ (both required enforcements missing) |
+
+macOS Seatbelt (via `sandbox-exec`) is **partial by design**: it enforces both
+protected-mode-required guarantees, so protected mode runs on macOS without a
+degradation warning, but it provides no path illusion (the workspace stays at
+its host `mergedDir`) and no pid-namespace isolation. See
+[workspace-sandbox EXECUTION_MODES.md](../../workspace-sandbox/docs/EXECUTION_MODES.md#per-os-containment)
+for the backend detail.
 
 ## Per-runner / per-path matrix
 

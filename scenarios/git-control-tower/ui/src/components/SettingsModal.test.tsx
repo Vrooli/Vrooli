@@ -88,11 +88,11 @@ describe("SettingsModal", () => {
           message: "ready",
         },
         {
-          id: "browserless",
-          name: "Browserless",
+          id: "browser-automation-studio",
+          name: "Browser Automation Studio",
           description: "Browser automation",
-          dependencyKind: "resource",
-          dependencySlug: "browserless",
+          dependencyKind: "scenario",
+          dependencySlug: "browser-automation-studio",
           features: ["smoke"],
           status: "unavailable",
           message: "not running",
@@ -108,7 +108,7 @@ describe("SettingsModal", () => {
 
     expect(await screen.findByText("1/2 active")).toBeInTheDocument();
     expect(screen.getByText("Test Genie")).toBeInTheDocument();
-    expect(screen.getByText("Browserless")).toBeInTheDocument();
+    expect(screen.getByText("Browser Automation Studio")).toBeInTheDocument();
     expect(screen.getByText("phase diagnostics")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "https://git-control-tower.test/api/v1/capabilities",

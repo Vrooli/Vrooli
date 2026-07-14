@@ -32,6 +32,7 @@ service ComponentsService {
   rpc GetComponentByLibraryId(GetComponentByLibraryIdRequest) returns (GetComponentByLibraryIdResponse);
   rpc IndexComponents(IndexComponentsRequest) returns (IndexComponentsResponse);
   rpc InitializeComponent(InitializeComponentRequest) returns (InitializeComponentResponse);
+  rpc IngestComponent(IngestComponentRequest) returns (IngestComponentResponse);
   rpc CreateComponentVersion(CreateComponentVersionRequest) returns (CreateComponentVersionResponse);
   rpc UpdateComponentManifest(UpdateComponentManifestRequest) returns (UpdateComponentManifestResponse);
   rpc GetComponentContent(GetComponentContentRequest) returns (GetComponentContentResponse);
@@ -97,6 +98,10 @@ message Component {
   // Advisory component-to-design-style fit declarations from component.json.
   // Search and adoption workflows use these as guidance, not hard gates.
   repeated ComponentDesignAffinity design_styles = 16;
+
+  // Stable operator-facing catalog category from component.json. This is
+  // deliberately distinct from the implementation slot.
+  string category = 17;
 }
 
 // ListComponentsRequest filters the registry view.
@@ -195,6 +200,53 @@ message InitializeComponentResponse {
   string source_path = 3;
 }
 
+// IngestComponent copies a scenario-local TSX component into the library,
+// records its source provenance, indexes it, and returns actionable static
+// conformance findings. The API owns all filesystem and catalog mutation.
+message IngestComponentRequest {
+  string scenario = 1;
+  string source_file = 2;
+  string slug = 3;
+  string display_name = 4;
+  string description = 5;
+  repeated string tags = 6;
+  string slot = 7;
+  // Optional origin companion paths. The API also discovers direct relative
+  // imports, so callers normally only need this for non-imported files.
+  repeated string source_files = 8;
+  string version = 9;
+  // accept_behavior_loss records an explicit operator decision to proceed
+  // with a harvest that the static behavior-inventory diff flags as dropping
+  // origin behavior (e.g. a focus-trap hook reachable only via an app-alias
+  // import the library cannot carry). It does NOT skip the check: the named
+  // losses are still computed and are persisted as an acknowledged parity
+  // report on the created version. Without it a lossy harvest fails.
+  bool accept_behavior_loss = 10;
+}
+
+message IngestFinding {
+  string code = 1;
+  string message = 2;
+  string source_file = 3;
+}
+
+message IngestComponentResponse {
+  Component component = 1;
+  string manifest_path = 2;
+  string source_path = 3;
+  string draft_version = 4;
+  repeated IngestFinding findings = 5;
+  string checklist_path = 6;
+  IngestParityReport parity_report = 7;
+}
+
+message IngestParityReport {
+  repeated string origin_files = 1;
+  repeated string harvested_files = 2;
+  repeated IngestFinding findings = 3;
+  bool acknowledged = 4;
+}
+
 enum ComponentVersionIntent {
   COMPONENT_VERSION_INTENT_UNSPECIFIED = 0;
   COMPONENT_VERSION_INTENT_DRAFT = 1;
@@ -209,6 +261,7 @@ message CreateComponentVersionRequest {
   string file_name = 5;
   string source = 6;
   string changelog_md = 7;
+  bool acknowledge_parity_waiver = 8;
 }
 
 message CreateComponentVersionResponse {
@@ -236,6 +289,9 @@ message UpdateComponentManifestResponse {
 // should resolve via List/Get first.
 message GetComponentContentRequest {
   string id = 1;
+  // Optional file path relative to the latest version folder. Empty selects
+  // the entry file for backward-compatible single-file callers.
+  string path = 2;
 }
 
 message GetComponentContentResponse {
@@ -268,6 +324,9 @@ message UpdateComponentContentRequest {
   // to the current on-disk SHA-256, the server returns FailedPrecondition
   // and the write is rejected.
   string expected_sha256 = 3;
+  // Optional file path relative to the latest version folder. Empty selects
+  // the entry file.
+  string path = 4;
 }
 
 message UpdateComponentContentResponse {
@@ -297,6 +356,14 @@ message ComponentVersion {
   string changelog_md = 8;
   google.protobuf.Timestamp indexed_at = 9;
   google.protobuf.Timestamp released_at = 10;
+  repeated ComponentVersionFile files = 11;
+  IngestParityReport parity_report = 12;
+}
+
+message ComponentVersionFile {
+  string path = 1;
+  string content_sha256 = 2;
+  bool is_entry = 3;
 }
 
 enum DesignAffinity {
@@ -324,6 +391,7 @@ message ListComponentVersionsResponse {
 message GetComponentVersionContentRequest {
   string component_id = 1;
   string version = 2;
+  string path = 3;
 }
 
 message GetComponentVersionContentResponse {

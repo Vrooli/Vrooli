@@ -827,7 +827,7 @@ func validTier(tier string) bool {
 
 func knownClaimType(t string) bool {
 	switch t {
-	case "element-present", "element-absent", "single-dominant-action", "visible-without-scroll", "reading-order", "state-covered", "state-distinct", "keyboard-reachable", "affordance-present", "no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "safe-area-tap-targets", "single-line-chrome", "tap-target-size", "custom":
+	case "element-present", "element-absent", "single-dominant-action", "visible-without-scroll", "reading-order", "state-covered", "state-distinct", "keyboard-reachable", "accessible-name", "affordance-present", "no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "safe-area-tap-targets", "single-line-chrome", "tap-target-size", "custom":
 		return true
 	default:
 		return false

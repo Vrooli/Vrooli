@@ -131,6 +131,26 @@ func TestFinalizeCaptureAttachmentTimeoutLeavesDurableIntentPending(t *testing.T
 	}
 }
 
+func TestFinalizeCaptureAnchorsTerminalFailedRun(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	failed := terminalResult()
+	failed.Success = false
+	failed.Phases = []PhaseStatus{{Name: "unit", Status: "failed"}}
+	exec := &fakeExecutor{result: failed}
+	runs := &fakeRuns{}
+	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+	pending, err := svc.StartCapture(context.Background(), CreateRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Name: "failed-evidence"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.FinalizeCapture(context.Background(), pending)
+	if err != nil {
+		t.Fatalf("terminal failed run should still anchor baseline evidence: %v", err)
+	}
+	if result.Manifest.RunID() != pending.Run.RunID || len(runs.pins) != 1 {
+		t.Fatalf("failed terminal anchor = %#v pins=%#v", result.Manifest.Run, runs.pins)
+	}
+}
+
 func TestFinalizeCaptureIsIdempotentUnderConcurrentRecovery(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
 	exec := &fakeExecutor{result: terminalResult()}
 	runs := &fakeRuns{}
@@ -161,6 +181,81 @@ func TestFinalizeCaptureIsIdempotentUnderConcurrentRecovery(t *testing.T) { // [
 	if len(runs.pins) != 1 || len(runs.unpins) != 0 {
 		t.Fatalf("pins=%v unpins=%v, want one retained claim", runs.pins, runs.unpins)
 	}
+}
+
+func TestFinalizeCaptureCommitsTerminalSiblingWhileAnotherWaits(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
+	exec := &blockingFinalizeExecutor{
+		firstAwaitStarted: make(chan struct{}),
+		releaseFirst:      make(chan struct{}),
+	}
+	runs := &fakeRuns{}
+	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+	blocked, err := svc.StartCapture(context.Background(), CreateRequest{RepoID: 1, RepoDir: "/repo", Scenario: "blocked", Name: "before"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminal, err := svc.StartCapture(context.Background(), CreateRequest{RepoID: 1, RepoDir: "/repo", Scenario: "terminal", Name: "before"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	blockedDone := make(chan error, 1)
+	go func() {
+		_, err := svc.FinalizeCapture(context.Background(), blocked)
+		blockedDone <- err
+	}()
+	<-exec.firstAwaitStarted
+
+	terminalDone := make(chan error, 1)
+	go func() {
+		_, err := svc.FinalizeCapture(context.Background(), terminal)
+		terminalDone <- err
+	}()
+	select {
+	case err := <-terminalDone:
+		if err != nil {
+			t.Fatalf("terminal sibling finalize: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("terminal sibling waited for an unrelated in-progress capture")
+	}
+	if len(runs.pins) != 1 {
+		t.Fatalf("terminal sibling pins=%d, want 1 before blocked wait is released", len(runs.pins))
+	}
+	if _, err := svc.Get(context.Background(), 1, "terminal", "agi", "before"); err != nil {
+		t.Fatalf("terminal sibling manifest missing: %v", err)
+	}
+
+	close(exec.releaseFirst)
+	if err := <-blockedDone; err != nil {
+		t.Fatalf("blocked finalize after release: %v", err)
+	}
+	if len(runs.pins) != 2 {
+		t.Fatalf("pins=%d, want exactly one per completed capture", len(runs.pins))
+	}
+}
+
+// blockingFinalizeExecutor makes the ordering contract observable without
+// sleeps: run-1 cannot return from AwaitResult until the test explicitly
+// releases it, while every other durable run is already terminal.
+type blockingFinalizeExecutor struct {
+	fakeExecutor
+	firstAwaitStarted chan struct{}
+	releaseFirst      chan struct{}
+}
+
+func (e *blockingFinalizeExecutor) AwaitResult(ctx context.Context, scenario, runID string) (ExecResult, error) {
+	if runID == "run-1" {
+		close(e.firstAwaitStarted)
+		select {
+		case <-e.releaseFirst:
+		case <-ctx.Done():
+			return ExecResult{}, ctx.Err()
+		}
+	}
+	result := terminalResult()
+	result.RunID = runID
+	return result, nil
 }
 
 func TestServiceLegacyMigrationReconcilesRetentionPinOnce(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]

@@ -1,10 +1,13 @@
 package baseline
 
 import (
+	"bytes"
 	"context"
+	"log"
 	"os"
 	stdexec "os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -186,6 +189,109 @@ func TestCollectionCaptureProjectsMemberCoverageAndResumes(t *testing.T) {
 	if err != nil || !resumed.Msg.GetResumed() || exec.calls != 3 {
 		t.Fatalf("resume = %#v err=%v calls=%d", resumed.Msg, err, exec.calls)
 	}
+}
+
+func TestCollectionCaptureAsyncFinalizersProjectSiblingAndLogLifecycle(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
+	exec := &blockingCollectionExecutor{firstAwaitStarted: make(chan struct{}), releaseFirst: make(chan struct{})}
+	runs := &recordingRuns{}
+	srv, _ := newServerDeps(t, exec, runs)
+	logs := &lifecycleLogBuffer{terminalCommit: make(chan struct{})}
+	srv.logger = log.New(logs, "", 0)
+
+	started, err := srv.StartCollectionCapture(context.Background(), connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{
+		Name: "before", Branch: "agi",
+		Targets: []*baselinesv1.CollectionTarget{
+			{Scenario: "blocked", BaselineName: "before", Required: true},
+			{Scenario: "terminal", BaselineName: "before", Required: true},
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if started.Msg.GetCollection().GetCoverage().GetPending() != 2 {
+		t.Fatalf("initial collection = %#v", started.Msg.GetCollection())
+	}
+	<-exec.firstAwaitStarted
+
+	partial, err := srv.GetCollection(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: "before", Branch: "agi"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	coverage := partial.Msg.GetCollection().GetCoverage()
+	if coverage.GetReady() != 1 || coverage.GetPending() != 1 || coverage.GetComplete() {
+		t.Fatalf("partial coverage = %#v", coverage)
+	}
+	if !strings.Contains(logs.String(), "finalizer started collection=before scenario=blocked run=run-1") {
+		t.Fatalf("lifecycle logs = %q", logs.String())
+	}
+
+	close(exec.releaseFirst)
+	complete, err := srv.GetCollection(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: "before", Branch: "agi", Wait: true}))
+	if err != nil || !complete.Msg.GetCollection().GetCoverage().GetComplete() {
+		t.Fatalf("complete collection = %#v err=%v", complete.Msg.GetCollection(), err)
+	}
+	select {
+	case <-logs.terminalCommit:
+	case <-time.After(time.Second):
+		t.Fatalf("terminal commit log missing: %q", logs.String())
+	}
+}
+
+// blockingCollectionExecutor holds the first collection member at the durable
+// Test Genie wait boundary. It lets the handler test assert progress through
+// the real asynchronous finalizer rather than substituting its test hook.
+type blockingCollectionExecutor struct {
+	recordingExecutor
+	firstAwaitStarted chan struct{}
+	releaseFirst      chan struct{}
+	firstAwaitOnce    sync.Once
+}
+
+func (e *blockingCollectionExecutor) AwaitResult(ctx context.Context, scenario, runID string) (bl.ExecResult, error) {
+	if runID == "run-1" {
+		e.firstAwaitOnce.Do(func() { close(e.firstAwaitStarted) })
+		select {
+		case <-e.releaseFirst:
+		case <-ctx.Done():
+			return bl.ExecResult{}, ctx.Err()
+		}
+	}
+	return e.recordingExecutor.AwaitResult(ctx, scenario, runID)
+}
+
+func (e *blockingCollectionExecutor) RunStatus(_ context.Context, _, runID string) (bl.RunStatusInfo, error) {
+	if runID == "run-1" {
+		select {
+		case <-e.releaseFirst:
+			return bl.RunStatusInfo{Status: "passed", Terminal: true, Success: true}, nil
+		default:
+			return bl.RunStatusInfo{Status: "in_progress", Terminal: false}, nil
+		}
+	}
+	return bl.RunStatusInfo{Status: "passed", Terminal: true, Success: true}, nil
+}
+
+type lifecycleLogBuffer struct {
+	mu             sync.Mutex
+	data           bytes.Buffer
+	terminalCommit chan struct{}
+	once           sync.Once
+}
+
+func (b *lifecycleLogBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	n, err := b.data.Write(p)
+	if strings.Contains(string(p), "terminal commit collection=") {
+		b.once.Do(func() { close(b.terminalCommit) })
+	}
+	return n, err
+}
+
+func (b *lifecycleLogBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.data.String()
 }
 
 func TestPathSnapshotHandlersReturnMetadataWithoutContent(t *testing.T) {

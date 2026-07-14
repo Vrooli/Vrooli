@@ -76,18 +76,6 @@
     {% endif %
     }
     
-    {% if "browserless" in resources.required %
-    }
-    "browserless": {
-      "base_url": "http://localhost:4110",
-      "health_endpoint": "/",
-      "screenshot_endpoint": "/chrome/screenshot",
-      "pdf_endpoint": "/chrome/pdf",
-      "timeout_seconds": 60
-    },
-    {% endif %
-    }
-    
     {% if "claude-code" in resources.required %
     }
     "claude_code": {

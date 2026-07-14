@@ -74,7 +74,7 @@
 - Automation handled via direct API calls and scheduled jobs (n8n workflows removed)
 
 **Optional Resources**:
-- Browserless – weather data scraping fallback
+- browser-automation-studio – weather data scraping fallback
 
 **Scenario Dependencies**: None (standalone scenario)
 

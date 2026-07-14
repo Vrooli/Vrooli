@@ -12,9 +12,9 @@ DESCRIPTOR: _descriptor.FileDescriptor
 class OperatingModeTargetKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     OPERATING_MODE_TARGET_KIND_UNSPECIFIED: _ClassVar[OperatingModeTargetKind]
-    OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN: _ClassVar[OperatingModeTargetKind]
-    OPERATING_MODE_TARGET_KIND_PLAN_REF: _ClassVar[OperatingModeTargetKind]
+    OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION: _ClassVar[OperatingModeTargetKind]
     OPERATING_MODE_TARGET_KIND_INITIATIVE: _ClassVar[OperatingModeTargetKind]
+    OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM: _ClassVar[OperatingModeTargetKind]
 
 class OperatingModeRunStrategyKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -81,9 +81,9 @@ class OperatingModeResultBindingKind(int, metaclass=_enum_type_wrapper.EnumTypeW
     OPERATING_MODE_RESULT_BINDING_KIND_UNSPECIFIED: _ClassVar[OperatingModeResultBindingKind]
     OPERATING_MODE_RESULT_BINDING_KIND_PROGRESS_ARTIFACT: _ClassVar[OperatingModeResultBindingKind]
 OPERATING_MODE_TARGET_KIND_UNSPECIFIED: OperatingModeTargetKind
-OPERATING_MODE_TARGET_KIND_PLAN_MANAGER_PLAN: OperatingModeTargetKind
-OPERATING_MODE_TARGET_KIND_PLAN_REF: OperatingModeTargetKind
+OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION: OperatingModeTargetKind
 OPERATING_MODE_TARGET_KIND_INITIATIVE: OperatingModeTargetKind
+OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM: OperatingModeTargetKind
 OPERATING_MODE_RUN_STRATEGY_KIND_UNSPECIFIED: OperatingModeRunStrategyKind
 OPERATING_MODE_RUN_STRATEGY_KIND_EXISTING_ITEM_FLOW: OperatingModeRunStrategyKind
 OPERATING_MODE_RUN_STRATEGY_KIND_SINGLE_PHASE_RUN: OperatingModeRunStrategyKind

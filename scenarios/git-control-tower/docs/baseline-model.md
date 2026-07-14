@@ -28,7 +28,10 @@ a routing key.
 
 `baseline snapshot` starts one comprehensive run with the `baseline` capture
 profile. Finalization persists the V2 manifest and pin idempotently, so client
-disconnects and restart recovery cannot create duplicate pins.
+disconnects and restart recovery cannot create duplicate pins. A ready baseline
+means that immutable terminal run evidence was pinned and persisted; it does
+not mean that every suite phase passed. A terminal failed run can therefore be
+valid baseline evidence, while a pending, missing, or unpinned run cannot.
 
 `baseline diff` compares the anchored run with one resolved current run. The
 result contains Test Genie's dynamic phase diffs plus typed evidence catalogs.
@@ -50,6 +53,10 @@ git-control-tower baseline delete --scenario S --name N
 
 Snapshot and diff operations are durable. Canceling a client detaches; it does
 not abort the Test Genie run. The status commands reattach to persisted intent.
+The server waits for Test Genie outside the short baseline commit critical
+section. Once a run is terminal, it rechecks the manifest, pins, and saves
+under that section so duplicate finalizers converge on exactly one anchor. An
+in-progress capture consequently cannot delay a separate terminal capture.
 
 ## Collections and scoped source evidence
 
@@ -72,6 +79,12 @@ Collection capture and diff are fast durable starts. Each normal CLI response
 prints its exact producer-owned `show --wait` or `diff status --wait` command;
 run that command once, and after an interruption rerun the same command rather
 than polling. The server owns the durable child handles and terminal result.
+Ordinary collection reads reconcile members whose durable runs are already
+terminal without waiting for pending members, so an API restart or detached
+tail cannot hide independent ready or failed coverage. A collection member is
+`ready` only after its immutable baseline anchor persists; it can be ready
+while another member remains `pending`, and neither status asserts a passing
+suite verdict.
 Collection diff starts persist a caller-supplied operation identity before any
 child run starts. Reusing the same identity with the same selected members
 reattaches to that operation; changing the selection is rejected. `--member`
@@ -173,7 +186,11 @@ shorter or longer whole-second lease up to 30 days; the resulting expiry is
 returned by the API and CLI. Capture sweeps expired manifests under the same
 store lock and garbage-collects unreferenced objects.
 
-Writes are atomic and guarded by branch-scoped locking. Concurrent finalizers
-for the same capture converge on one manifest and one pin. A detached HEAD is
-scoped using its abbreviated commit identity. Staleness is derived from the
-captured git/tree identity and current worktree state.
+Writes are atomic and guarded by branch-scoped locking. Test Genie terminal
+waits never hold the baseline commit mutex; concurrent finalizers for the same
+capture may await the same durable run but converge on one manifest and one
+pin during the short terminal commit. Collection members use the same rule, so
+a terminal sibling can persist while another member is still awaiting Test
+Genie. A detached HEAD is scoped using its abbreviated commit identity.
+Staleness is derived from the captured git/tree identity and current worktree
+state.

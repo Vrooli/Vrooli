@@ -474,12 +474,17 @@ func (s *Server) finalizeCollectionCapture(ctx context.Context, repoID int64, pe
 		s.finalizeCollection(ctx, repoID, pending)
 		return
 	}
+	s.logger.Printf("baselines.CollectionCapture: finalizer started collection=%s scenario=%s run=%s", pending.CollectionName, pending.Scenario, pending.Pending.Run.RunID)
 	tailCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), snapshotTailCeiling)
 	go func() {
 		defer cancel()
-		if _, err := s.svc.FinalizeCollectionCapture(tailCtx, repoID, pending); err != nil {
-			s.logger.Printf("baselines.StartCollectionCapture: finalize failed collection=%s scenario=%s run=%s: %v", pending.CollectionName, pending.Scenario, pending.Pending.Run.RunID, err)
+		collection, err := s.svc.FinalizeCollectionCapture(tailCtx, repoID, pending)
+		if err != nil {
+			s.logger.Printf("baselines.CollectionCapture: finalizer failed collection=%s scenario=%s run=%s: %v", pending.CollectionName, pending.Scenario, pending.Pending.Run.RunID, err)
+			return
 		}
+		coverage := collection.Coverage()
+		s.logger.Printf("baselines.CollectionCapture: terminal commit collection=%s scenario=%s run=%s ready=%d pending=%d failed=%d", pending.CollectionName, pending.Scenario, pending.Pending.Run.RunID, coverage.Ready, coverage.Pending, coverage.Failed)
 	}()
 }
 

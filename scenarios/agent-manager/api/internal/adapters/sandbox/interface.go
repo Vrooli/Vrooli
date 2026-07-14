@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -128,11 +129,36 @@ type CreateRequest struct {
 
 // Sandbox represents an active or stopped sandbox.
 type Sandbox struct {
-	ID               uuid.UUID         `json:"id"`
-	ScopePath        string            `json:"scopePath"`
-	ProjectRoot      string            `json:"projectRoot"`
-	Status           SandboxStatus     `json:"status"`
-	WorkDir          string            `json:"workDir"`
+	ID          uuid.UUID     `json:"id"`
+	ScopePath   string        `json:"scopePath"`
+	ProjectRoot string        `json:"projectRoot"`
+	Status      SandboxStatus `json:"status"`
+
+	// WorkDir is the host-side overlay merged dir. It is what host-routed
+	// (tracking-mode) launches chdir into and the base host path the
+	// SandboxLauncher translates onto the agent-visible WorkspacePath. Kept
+	// distinct from WorkspacePath so host-side consumers (diff/apply, host
+	// launches) never accidentally receive the in-namespace illusion path.
+	WorkDir string `json:"workDir"`
+
+	// WorkspacePath is the agent-visible workspace path reported by
+	// workspace-sandbox: "/workspace" when exec containment binds under a
+	// path illusion, else the host merged dir (identity). The single source
+	// of truth for the in-namespace working directory — never inferred from
+	// GOOS or driver id.
+	WorkspacePath string `json:"workspacePath"`
+
+	// PathIllusion is true when WorkspacePath differs from WorkDir because
+	// the containment backend rewrites host paths onto an illusory mount.
+	// false means path translation is identity.
+	PathIllusion bool `json:"pathIllusion"`
+
+	// Containment is the process-containment the sandbox actually enforces
+	// (level, backend, enforcements). Consumed by the launcher selector to
+	// surface degraded protected-mode runs. Nil when the server did not
+	// report it (older workspace-sandbox).
+	Containment *runner.Containment `json:"containment,omitempty"`
+
 	CreatedAt        time.Time         `json:"createdAt"`
 	Metadata         map[string]string `json:"metadata,omitempty"`
 	HomeOverlayState HomeOverlayState  `json:"homeOverlayState"`

@@ -1059,10 +1059,17 @@ type IngestComponentRequest struct {
 	Slot        string                 `protobuf:"bytes,7,opt,name=slot,proto3" json:"slot,omitempty"`
 	// Optional origin companion paths. The API also discovers direct relative
 	// imports, so callers normally only need this for non-imported files.
-	SourceFiles   []string `protobuf:"bytes,8,rep,name=source_files,json=sourceFiles,proto3" json:"source_files,omitempty"`
-	Version       string   `protobuf:"bytes,9,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SourceFiles []string `protobuf:"bytes,8,rep,name=source_files,json=sourceFiles,proto3" json:"source_files,omitempty"`
+	Version     string   `protobuf:"bytes,9,opt,name=version,proto3" json:"version,omitempty"`
+	// accept_behavior_loss records an explicit operator decision to proceed
+	// with a harvest that the static behavior-inventory diff flags as dropping
+	// origin behavior (e.g. a focus-trap hook reachable only via an app-alias
+	// import the library cannot carry). It does NOT skip the check: the named
+	// losses are still computed and are persisted as an acknowledged parity
+	// report on the created version. Without it a lossy harvest fails.
+	AcceptBehaviorLoss bool `protobuf:"varint,10,opt,name=accept_behavior_loss,json=acceptBehaviorLoss,proto3" json:"accept_behavior_loss,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *IngestComponentRequest) Reset() {
@@ -1156,6 +1163,13 @@ func (x *IngestComponentRequest) GetVersion() string {
 		return x.Version
 	}
 	return ""
+}
+
+func (x *IngestComponentRequest) GetAcceptBehaviorLoss() bool {
+	if x != nil {
+		return x.AcceptBehaviorLoss
+	}
+	return false
 }
 
 type IngestFinding struct {
@@ -2994,7 +3008,7 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\tcomponent\x18\x01 \x01(\v27.vrooli.react_component_library.v1.components.ComponentR\tcomponent\x12#\n" +
 	"\rmanifest_path\x18\x02 \x01(\tR\fmanifestPath\x12\x1f\n" +
 	"\vsource_path\x18\x03 \x01(\tR\n" +
-	"sourcePath\"\x93\x02\n" +
+	"sourcePath\"\xc5\x02\n" +
 	"\x16IngestComponentRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1f\n" +
 	"\vsource_file\x18\x02 \x01(\tR\n" +
@@ -3005,7 +3019,9 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\x04tags\x18\x06 \x03(\tR\x04tags\x12\x12\n" +
 	"\x04slot\x18\a \x01(\tR\x04slot\x12!\n" +
 	"\fsource_files\x18\b \x03(\tR\vsourceFiles\x12\x18\n" +
-	"\aversion\x18\t \x01(\tR\aversion\"^\n" +
+	"\aversion\x18\t \x01(\tR\aversion\x120\n" +
+	"\x14accept_behavior_loss\x18\n" +
+	" \x01(\bR\x12acceptBehaviorLoss\"^\n" +
 	"\rIngestFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1f\n" +

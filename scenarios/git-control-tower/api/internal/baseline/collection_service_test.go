@@ -47,6 +47,68 @@ func TestCollectionCaptureStartsEachMemberOnceAndFinalizesCoverage(t *testing.T)
 	}
 }
 
+func TestCollectionCaptureCommitsTerminalMemberWhileSiblingWaits(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
+	exec := &blockingFinalizeExecutor{
+		firstAwaitStarted: make(chan struct{}),
+		releaseFirst:      make(chan struct{}),
+	}
+	svc := NewService(Deps{
+		Storage: newTestStorage(t), Exec: exec, Runs: &fakeRuns{},
+		CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"}),
+	})
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{
+			{Scenario: "blocked", BaselineName: "before", Required: true},
+			{Scenario: "terminal", BaselineName: "before", Required: true},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(started.Pending) != 2 {
+		t.Fatalf("pending captures = %#v", started.Pending)
+	}
+
+	blockedDone := make(chan error, 1)
+	go func() {
+		_, err := svc.FinalizeCollectionCapture(context.Background(), 1, started.Pending[0])
+		blockedDone <- err
+	}()
+	<-exec.firstAwaitStarted
+
+	terminalDone := make(chan error, 1)
+	go func() {
+		_, err := svc.FinalizeCollectionCapture(context.Background(), 1, started.Pending[1])
+		terminalDone <- err
+	}()
+	var partial CollectionManifest
+	select {
+	case err := <-terminalDone:
+		if err != nil {
+			t.Fatalf("terminal member finalize: %v", err)
+		}
+		partial, err = svc.storage.LoadCollection(1, "agi", "before")
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("terminal collection member waited for blocked sibling")
+	}
+	if partial.Coverage().Ready != 1 || partial.Coverage().Pending != 1 || partial.Coverage().Complete() {
+		t.Fatalf("partial coverage = %#v", partial.Coverage())
+	}
+
+	close(exec.releaseFirst)
+	if err := <-blockedDone; err != nil {
+		t.Fatalf("blocked member finalize after release: %v", err)
+	}
+	complete, err := svc.storage.LoadCollection(1, "agi", "before")
+	if err != nil || !complete.Coverage().Complete() || complete.Coverage().Ready != 2 {
+		t.Fatalf("complete collection = %#v err=%v", complete, err)
+	}
+}
+
 func TestCollectionCaptureMarksOnlyFailedMemberAndPreservesOtherStarts(t *testing.T) {
 	svc, _ := collectionService(t)
 	svc.exec = &fakeExecutor{startErr: errors.New("test-genie unavailable")}

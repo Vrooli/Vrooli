@@ -123,7 +123,55 @@ func (s *LauncherSelector) PickFor(ctx context.Context, runID uuid.UUID, cfg *do
 		emitLauncherFallbackWarn(runID, sink, "factory returned nil launcher")
 		return host
 	}
+	// Capability honesty: protected-mode selection proceeds, but if the
+	// sandbox does not actually enforce the guarantees protected mode
+	// depends on, say so loudly and record the effective containment on the
+	// run timeline. Policy denial is a future lever; here we only surface the
+	// gap so a degraded protected run is never silent.
+	emitContainmentGapWarn(ctx, factory, runID, *sandboxID, sink)
 	return launcher
+}
+
+// emitContainmentGapWarn probes the selected sandbox's enforced containment
+// (when the factory can report it) and, if any protected-mode enforcement
+// is missing, emits a warn run-event naming exactly which enforcements are
+// absent alongside the effective containment. It additionally warns when
+// the backend lacks network-loopback-only enforcement, because the agent
+// always launches under the localhost-network profile. No-op when the
+// factory cannot report containment or the sink is nil.
+func emitContainmentGapWarn(ctx context.Context, factory SandboxLauncherFactory, runID, sandboxID uuid.UUID, sink EventSink) {
+	if sink == nil {
+		return
+	}
+	reporter, ok := factory.(SandboxContainmentReporter)
+	if !ok {
+		return
+	}
+	cont, ok := reporter.ContainmentFor(ctx, sandboxID)
+	if !ok {
+		return
+	}
+	if missing := cont.MissingProtectedEnforcements(); len(missing) > 0 {
+		msg := strings.Join([]string{
+			"protected mode requested but the sandbox does not enforce ",
+			strings.Join(missing, ", "),
+			" (effective containment: backend=", cont.Backend,
+			", level=", cont.Level,
+			", enforcements=[", strings.Join(cont.Enforcements, ", "), "])",
+		}, "")
+		_ = sink.Emit(domain.NewLogEvent(runID, "warn", msg))
+	}
+	// The sandbox launcher starts every protected agent under the
+	// vrooli-aware profile ("localhost" network mode), but no containment
+	// backend enforces loopback-only network — "localhost" currently
+	// grants unrestricted network (knw-1784006975589682125). Surface that
+	// on the run timeline so the run's true network posture is never
+	// silent; the warn disappears once a backend claims the enforcement.
+	if !cont.HasEnforcement(EnforcementNetworkLoopbackOnly) {
+		_ = sink.Emit(domain.NewLogEvent(runID, "warn",
+			"protected agent launches under the vrooli-aware profile (localhost network mode) but the containment backend lacks "+
+				EnforcementNetworkLoopbackOnly+" — the agent has unrestricted network access"))
+	}
 }
 
 // emitLauncherFallbackWarn surfaces a warn-level run log when protected

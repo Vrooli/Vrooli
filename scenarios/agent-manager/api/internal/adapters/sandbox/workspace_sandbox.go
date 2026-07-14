@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -171,13 +172,35 @@ func (p *WorkspaceSandboxProvider) Delete(ctx context.Context, id uuid.UUID) err
 	return nil
 }
 
-// GetWorkspacePath returns the path where agents should execute.
+// GetWorkspacePath returns the host-side overlay merged dir for the
+// sandbox. This is the working-dir base the orchestration layer records
+// and feeds to BOTH launch paths: host-routed (tracking-mode) launches
+// chdir into it directly, while the SandboxLauncher translates it onto the
+// server-reported in-namespace WorkspacePath. It therefore returns the
+// host path (WorkDir), never the "/workspace" illusion — a host launch
+// that chdir'd into "/workspace" would fail. Sandbox-routed callers that
+// need the agent-visible path read Sandbox.WorkspacePath instead (see the
+// launcher's resolveReportedLayout).
 func (p *WorkspaceSandboxProvider) GetWorkspacePath(ctx context.Context, id uuid.UUID) (string, error) {
 	sandbox, err := p.Get(ctx, id)
 	if err != nil {
 		return "", err
 	}
 	return sandbox.WorkDir, nil
+}
+
+// ContainmentFor reports the containment a sandbox actually enforces,
+// satisfying runner.SandboxContainmentReporter so the launcher selector can
+// surface degraded protected-mode runs. Returns ok=false when the sandbox
+// cannot be fetched or the server did not report containment (older
+// workspace-sandbox), so the caller degrades to silence rather than a false
+// "fully contained" claim.
+func (p *WorkspaceSandboxProvider) ContainmentFor(ctx context.Context, sandboxID uuid.UUID) (*runner.Containment, bool) {
+	sb, err := p.Get(ctx, sandboxID)
+	if err != nil || sb == nil || sb.Containment == nil {
+		return nil, false
+	}
+	return sb.Containment, true
 }
 
 // GetDiff generates a diff of changes made in the sandbox.
@@ -722,9 +745,21 @@ type wsSandboxResponse struct {
 	ProjectRoot      string            `json:"projectRoot"`
 	Status           string            `json:"status"`
 	MergedDir        string            `json:"mergedDir"`
+	WorkspacePath    string            `json:"workspacePath"`
+	PathIllusion     bool              `json:"pathIllusion"`
+	Containment      *wsContainment    `json:"containment,omitempty"`
 	HomeOverlayState string            `json:"homeOverlayState"`
 	CreatedAt        time.Time         `json:"createdAt"`
 	Metadata         map[string]string `json:"metadata,omitempty"`
+}
+
+// wsContainment decodes the workspace-sandbox containment report
+// (SandboxContainment on the server). Mapped onto runner.Containment so the
+// launcher selector reads it without importing this package.
+type wsContainment struct {
+	Level        string   `json:"level"`
+	Backend      string   `json:"backend"`
+	Enforcements []string `json:"enforcements"`
 }
 
 func (r *wsSandboxResponse) toSandbox() *Sandbox {
@@ -736,12 +771,30 @@ func (r *wsSandboxResponse) toSandbox() *Sandbox {
 		// guard fails fast rather than silently exec'ing into a missing path.
 		state = HomeOverlayAbsent
 	}
+	// Older workspace-sandbox versions do not report workspacePath; fall
+	// back to the host merged dir (identity layout) so path handling stays
+	// well-defined rather than empty.
+	workspacePath := r.WorkspacePath
+	if workspacePath == "" {
+		workspacePath = r.MergedDir
+	}
+	var containment *runner.Containment
+	if r.Containment != nil {
+		containment = &runner.Containment{
+			Level:        r.Containment.Level,
+			Backend:      r.Containment.Backend,
+			Enforcements: r.Containment.Enforcements,
+		}
+	}
 	return &Sandbox{
 		ID:               id,
 		ScopePath:        r.ScopePath,
 		ProjectRoot:      r.ProjectRoot,
 		Status:           SandboxStatus(r.Status),
 		WorkDir:          r.MergedDir,
+		WorkspacePath:    workspacePath,
+		PathIllusion:     r.PathIllusion,
+		Containment:      containment,
 		CreatedAt:        r.CreatedAt,
 		Metadata:         r.Metadata,
 		HomeOverlayState: state,

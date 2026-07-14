@@ -167,6 +167,120 @@ func TestLauncherSelectorPick_FactoryReturnsNilFallsBackWithWarning(t *testing.T
 	}
 }
 
+// TestLauncherSelectorPick_ProtectedContainmentGapWarns pins the capability
+// honesty contract: when a protected run selects a sandbox whose reported
+// containment is missing a protected-mode enforcement, the selector still
+// returns the sandbox launcher (tracking value survives) but emits a warn
+// run-event naming exactly the absent enforcements plus the effective
+// containment.
+func TestLauncherSelectorPick_ProtectedContainmentGapWarns(t *testing.T) {
+	host := mocks.NewFakeLauncher("host")
+	sandbox := mocks.NewFakeLauncher("sandbox")
+	factory := mocks.NewFakeSandboxLauncherFactory(sandbox)
+	// Uncontained sandbox: backend none, no enforcements.
+	factory.Containment = &adapterrunner.Containment{
+		Level: "none", Backend: "none", Enforcements: []string{},
+	}
+	selector := adapterrunner.NewLauncherSelector(host, factory)
+	sink := &recordingSink{}
+	cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}}
+	id := uuid.New()
+
+	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{
+		RunID: uuid.New(), ResolvedConfig: cfg, SandboxID: &id, EventSink: sink,
+	})
+	if picked != sandbox {
+		t.Fatalf("containment gap must not change selection; picked %v, want sandbox", picked)
+	}
+	// Warn must name every missing protected enforcement and the backend.
+	for _, needle := range []string{
+		adapterrunner.EnforcementFilesystemWriteContainment,
+		adapterrunner.EnforcementNetworkDeny,
+		"backend=none",
+	} {
+		if !sink.hasWarning(needle) {
+			t.Errorf("gap warn missing %q; events=%v", needle, sink.events)
+		}
+	}
+}
+
+// TestLauncherSelectorPick_ProtectedFullContainmentNoWarn pins that a fully
+// enforced sandbox (all protected enforcements present, including
+// loopback-only network) produces no gap warning.
+func TestLauncherSelectorPick_ProtectedFullContainmentNoWarn(t *testing.T) {
+	host := mocks.NewFakeLauncher("host")
+	sandbox := mocks.NewFakeLauncher("sandbox")
+	factory := mocks.NewFakeSandboxLauncherFactory(sandbox)
+	factory.Containment = &adapterrunner.Containment{
+		Level:   "required",
+		Backend: "bwrap",
+		Enforcements: []string{
+			adapterrunner.EnforcementFilesystemWriteContainment,
+			adapterrunner.EnforcementNetworkDeny,
+			adapterrunner.EnforcementPIDNamespace,
+			adapterrunner.EnforcementPathIllusion,
+			adapterrunner.EnforcementNetworkLoopbackOnly,
+		},
+	}
+	selector := adapterrunner.NewLauncherSelector(host, factory)
+	sink := &recordingSink{}
+	cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}}
+	id := uuid.New()
+
+	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{
+		RunID: uuid.New(), ResolvedConfig: cfg, SandboxID: &id, EventSink: sink,
+	})
+	if picked != sandbox {
+		t.Fatalf("picked %v, want sandbox", picked)
+	}
+	if sink.hasWarning("does not enforce") || sink.hasWarning("unrestricted network access") {
+		t.Errorf("fully contained sandbox must not warn; events=%v", sink.events)
+	}
+}
+
+// TestLauncherSelectorPick_LoopbackGapWarnsEvenWithFullBaseline pins the
+// honesty warn for the localhost==full-network gap
+// (knw-1784006975589682125): a sandbox whose backend provides every
+// baseline protected enforcement but not network-loopback-only must emit
+// the network-posture warn — the agent launches under the vrooli-aware
+// (localhost) profile yet gets unrestricted network — without emitting the
+// baseline gap warn.
+func TestLauncherSelectorPick_LoopbackGapWarnsEvenWithFullBaseline(t *testing.T) {
+	host := mocks.NewFakeLauncher("host")
+	sandbox := mocks.NewFakeLauncher("sandbox")
+	factory := mocks.NewFakeSandboxLauncherFactory(sandbox)
+	factory.Containment = &adapterrunner.Containment{
+		Level:   "required",
+		Backend: "bwrap",
+		Enforcements: []string{
+			adapterrunner.EnforcementFilesystemWriteContainment,
+			adapterrunner.EnforcementNetworkDeny,
+			adapterrunner.EnforcementPIDNamespace,
+			adapterrunner.EnforcementPathIllusion,
+		},
+	}
+	selector := adapterrunner.NewLauncherSelector(host, factory)
+	sink := &recordingSink{}
+	cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}}
+	id := uuid.New()
+
+	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{
+		RunID: uuid.New(), ResolvedConfig: cfg, SandboxID: &id, EventSink: sink,
+	})
+	if picked != sandbox {
+		t.Fatalf("loopback gap must not change selection; picked %v, want sandbox", picked)
+	}
+	if !sink.hasWarning(adapterrunner.EnforcementNetworkLoopbackOnly) {
+		t.Errorf("expected loopback-only gap warn; events=%v", sink.events)
+	}
+	if !sink.hasWarning("unrestricted network access") {
+		t.Errorf("loopback gap warn must state the real network posture; events=%v", sink.events)
+	}
+	if sink.hasWarning("protected mode requested but the sandbox does not enforce") {
+		t.Errorf("baseline gap warn must not fire when baseline enforcements are present; events=%v", sink.events)
+	}
+}
+
 func TestLauncherSelectorPick_NoConfigUsesHost(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	selector := adapterrunner.NewLauncherSelector(host, mocks.NewFakeSandboxLauncherFactory(mocks.NewFakeLauncher("sandbox")))

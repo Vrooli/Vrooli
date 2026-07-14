@@ -242,10 +242,7 @@ func (c baselineRunsClient) CompareRuns(ctx context.Context, scenario, runIDA, r
 	if err != nil {
 		return baseline.CompareResult{}, err
 	}
-	out := baseline.CompareResult{Verdict: resp.Msg.GetVerdict()}
-	for _, p := range resp.Msg.GetPhases() {
-		out.Phases = append(out.Phases, p)
-	}
+	out := baseline.CompareResult{Verdict: resp.Msg.GetVerdict(), Phases: append([]*runspb.PhaseDiff(nil), resp.Msg.GetPhases()...)}
 	return out, nil
 }
 

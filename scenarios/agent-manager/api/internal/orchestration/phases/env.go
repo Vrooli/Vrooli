@@ -20,9 +20,9 @@
 // shadow them.
 //
 // Note on VROOLI_SANDBOX_MERGED: workDir holds the *host* merged path
-// (returned by Provider.GetWorkspacePath). For sandbox-routed launches
-// the SandboxLauncher rewrites this value to SandboxNamespacePath
-// ("/workspace") before posting to workspace-sandbox /processes — see
+// (returned by Provider.GetWorkspacePath). For sandbox-routed launches the
+// SandboxLauncher rewrites this value onto the server-reported agent-visible
+// workspace path before posting to workspace-sandbox /processes — see
 // translateEnvHostPaths in the sandbox launcher. Host launches keep the
 // host path because the agent runs on the host filesystem.
 

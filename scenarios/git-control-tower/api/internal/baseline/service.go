@@ -177,23 +177,13 @@ func (s *Service) StartCapture(ctx context.Context, req CreateRequest) (PendingC
 	return pending, nil
 }
 
-// FinalizeCapture blocks until the started run is terminal, pins it once,
-// records its immutable run anchor, and writes the manifest. It runs on a server-owned
-// context so a disconnected client never abandons a half-pinned baseline.
+// FinalizeCapture blocks until the started run is terminal, then pins it once,
+// records its immutable run anchor, and writes the manifest. It runs on a
+// server-owned context so a disconnected client never abandons a half-pinned
+// baseline. captureMu deliberately protects only the terminal commit: Test
+// Genie waits may be long-lived, and must not prevent an unrelated terminal
+// capture from being committed.
 func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (CreateResult, error) {
-	s.captureMu.Lock()
-	defer s.captureMu.Unlock()
-	if existing, err := s.storage.Load(pending.Req.RepoID, pending.Manifest.Scenario, pending.Manifest.Branch, pending.Manifest.Name); err == nil {
-		if existing.RunID() == pending.Run.RunID {
-			_ = s.saveSnapshotIntent(ctx, pending, "ready", "")
-			return CreateResult{Manifest: existing, DirtyWarning: pending.DirtyWarning}, nil
-		}
-		return CreateResult{}, ErrAlreadyExists
-	} else if !errors.Is(err, ErrNotFound) {
-		return CreateResult{}, err
-	}
-	manifest := pending.Manifest
-
 	res, err := s.exec.AwaitResult(ctx, pending.Req.Scenario, pending.Run.RunID)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
@@ -205,6 +195,23 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", msg)
 		return CreateResult{}, errors.New(msg)
 	}
+
+	// The only shared critical section begins after terminal Test Genie truth is
+	// available. Rechecking storage here makes duplicate finalizers converge:
+	// they may both await the same durable run, but only one pins and writes.
+	s.captureMu.Lock()
+	defer s.captureMu.Unlock()
+	if existing, loadErr := s.storage.Load(pending.Req.RepoID, pending.Manifest.Scenario, pending.Manifest.Branch, pending.Manifest.Name); loadErr == nil {
+		if existing.RunID() == pending.Run.RunID {
+			_ = s.saveSnapshotIntent(ctx, pending, "ready", "")
+			return CreateResult{Manifest: existing, DirtyWarning: pending.DirtyWarning}, nil
+		}
+		return CreateResult{}, ErrAlreadyExists
+	} else if !errors.Is(loadErr, ErrNotFound) {
+		return CreateResult{}, loadErr
+	}
+
+	manifest := pending.Manifest
 	if err := s.attachRun(ctx, &manifest, pending.Req, res); err != nil {
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", err.Error())
 		return CreateResult{}, err

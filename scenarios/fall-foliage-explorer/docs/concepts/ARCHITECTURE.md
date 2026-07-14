@@ -33,7 +33,7 @@ The API owns persistence, validation, and fallback responses. The UI owns presen
 
 ## Shared Infrastructure
 
-The scenario depends on Vrooli lifecycle, PostgreSQL, Redis, Ollama, Qdrant, Browserless as an optional fallback, and app-monitor iframe proxy metadata.
+The scenario depends on Vrooli lifecycle, PostgreSQL, Redis, Ollama, Qdrant, browser-automation-studio as an optional fallback, and app-monitor iframe proxy metadata.
 
 ## Extension Rules
 

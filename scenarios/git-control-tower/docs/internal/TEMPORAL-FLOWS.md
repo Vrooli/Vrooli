@@ -20,7 +20,9 @@
   orphan an untracked pin.
 - Snapshot or diff caller cancellation cannot publish a false terminal result;
   detached work owns its own context and commits only after terminal Test Genie
-  truth is available.
+  truth is available. Snapshot finalizers await outside `captureMu`, then use
+  the mutex only for the terminal pin-and-save commit; an unrelated terminal
+  capture or collection member can make progress while another remains pending.
 
 ## Timing Assumptions
 
@@ -37,6 +39,10 @@
   dispatches its detached finalizer. Terminal Test Genie truth → one pin + V2
   manifest + ready intent. Resume through `snapshot status --run R [--wait]` or
   startup reattachment. Caller cancellation/deadline leaves the intent pending.
+- **Collection capture:** every member has its own durable snapshot intent and
+  asynchronous finalizer. Non-wait collection reads reconcile only terminal
+  members; `show --wait` is the explicit producer-owned reattachment. Member
+  readiness means immutable evidence persisted, not a passing suite verdict.
 - **Diff:** `StartDiff` persists the base/current run identities before detached
   comparison. Terminal comparison cache + ready intent is the commit boundary.
   Resume through `diff status --run R [--wait]`; an absent cache is recomputed
