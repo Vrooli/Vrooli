@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -114,6 +115,9 @@ func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stder
 			i++
 			value = args[i]
 		}
+		if !flag.acceptsValue(value) {
+			return nil, fmt.Errorf("invalid value %q for --%s: %s", value, flag.Name, valueChoices(flag))
+		}
 		ctx.flagValues[flag.Name] = value
 		if !ctx.flagSet[flag.Name] {
 			ctx.flagLists[flag.Name] = nil
@@ -133,6 +137,23 @@ func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stder
 	}
 	ctx.rawArgs = rawPositionals
 	return ctx, nil
+}
+
+// valueChoices renders a flag's declared vocabulary for error messages:
+// sorted values, then sorted alias=value synonyms when any exist.
+func valueChoices(f Flag) string {
+	values := append([]string(nil), f.Values...)
+	sort.Strings(values)
+	out := "must be one of " + strings.Join(values, ", ")
+	if len(f.ValueAliases) == 0 {
+		return out
+	}
+	aliases := make([]string, 0, len(f.ValueAliases))
+	for alias, target := range f.ValueAliases {
+		aliases = append(aliases, alias+"="+target)
+	}
+	sort.Strings(aliases)
+	return out + " (synonyms: " + strings.Join(aliases, ", ") + ")"
 }
 
 func splitFlagToken(arg string) (name, value string, hasValue bool) {

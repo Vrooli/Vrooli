@@ -23,6 +23,7 @@ import (
 	assetsH "landing-page-react-vite-api/handlers/assets"
 	brandingH "landing-page-react-vite-api/handlers/branding"
 	bundlesH "landing-page-react-vite-api/handlers/bundles"
+	configH "landing-page-react-vite-api/handlers/config"
 	contentH "landing-page-react-vite-api/handlers/content"
 	docsH "landing-page-react-vite-api/handlers/docs"
 	downloadH "landing-page-react-vite-api/handlers/download"
@@ -42,6 +43,7 @@ import (
 	contentsvc "landing-page-react-vite-api/internal/content"
 	docssvc "landing-page-react-vite-api/internal/docs"
 	downloadsvc "landing-page-react-vite-api/internal/download"
+	landingconfigsvc "landing-page-react-vite-api/internal/landingconfig"
 	metricssvc "landing-page-react-vite-api/internal/metrics"
 	paymentsettingssvc "landing-page-react-vite-api/internal/paymentsettings"
 	plansvc "landing-page-react-vite-api/internal/plan"
@@ -115,6 +117,9 @@ func main() {
 	downloadService := downloadsvc.NewService(db)
 	downloadAuthorizer := downloadsvc.NewAuthorizer(downloadService, downloadEntitlements{svc: accountService}, planService.BundleKey())
 
+	// Read-time aggregator composing the domains above into the public payload.
+	landingConfigService := landingconfigsvc.NewService(variantService, contentService, planService, downloadService, brandingService)
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, serviceName, version),
@@ -132,6 +137,7 @@ func main() {
 		resetH.Module(resetService, adminService, log.Default()),
 		downloadH.Module(downloadService, downloadAuthorizer, planService, log.Default()),
 		assetsH.Module(assetssvc.NewService(db), log.Default()),
+		configH.Module(landingConfigService, log.Default()),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

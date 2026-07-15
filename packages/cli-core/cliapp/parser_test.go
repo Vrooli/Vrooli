@@ -137,6 +137,73 @@ func TestParseArgsDefault(t *testing.T) {
 	}
 }
 
+func TestParseArgsValuesEnforcement(t *testing.T) {
+	schema := ArgSchema{Flags: []Flag{{
+		Name:         "complexity",
+		Values:       []string{"minor", "moderate", "major", "architectural"},
+		ValueAliases: map[string]string{"low": "minor", "medium": "moderate", "high": "major"},
+	}}}
+
+	t.Run("declared value accepted", func(t *testing.T) {
+		ctx, err := parseArgs(schema, []string{"--complexity", "major"}, nil, nil, nil)
+		if err != nil {
+			t.Fatalf("parseArgs: %v", err)
+		}
+		if got := ctx.Flag("complexity"); got != "major" {
+			t.Errorf("got %q, want %q", got, "major")
+		}
+	})
+
+	t.Run("synonym accepted and passed through raw", func(t *testing.T) {
+		ctx, err := parseArgs(schema, []string{"--complexity=low"}, nil, nil, nil)
+		if err != nil {
+			t.Fatalf("parseArgs: %v", err)
+		}
+		if got := ctx.Flag("complexity"); got != "low" {
+			t.Errorf("synonym must pass through unchanged: got %q, want %q", got, "low")
+		}
+	})
+
+	t.Run("invalid value rejected listing sorted options", func(t *testing.T) {
+		_, err := parseArgs(schema, []string{"--complexity", "banana"}, nil, nil, nil)
+		if err == nil {
+			t.Fatal("expected out-of-vocabulary error")
+		}
+		msg := err.Error()
+		for _, want := range []string{
+			`invalid value "banana" for --complexity`,
+			"architectural, major, minor, moderate",
+			"synonyms: high=major, low=minor, medium=moderate",
+		} {
+			if !strings.Contains(msg, want) {
+				t.Errorf("error missing %q; got: %v", want, err)
+			}
+		}
+	})
+
+	t.Run("default within vocabulary accepted", func(t *testing.T) {
+		withDefault := ArgSchema{Flags: []Flag{{
+			Name:    "complexity",
+			Values:  []string{"minor", "moderate"},
+			Default: "moderate",
+		}}}
+		ctx, err := parseArgs(withDefault, nil, nil, nil, nil)
+		if err != nil {
+			t.Fatalf("parseArgs: %v", err)
+		}
+		if got := ctx.Flag("complexity"); got != "moderate" {
+			t.Errorf("got %q, want %q", got, "moderate")
+		}
+	})
+
+	t.Run("flag without values accepts anything", func(t *testing.T) {
+		free := ArgSchema{Flags: []Flag{{Name: "title"}}}
+		if _, err := parseArgs(free, []string{"--title", "anything at all"}, nil, nil, nil); err != nil {
+			t.Fatalf("parseArgs: %v", err)
+		}
+	})
+}
+
 func TestParseArgsRepeatedValuedFlag(t *testing.T) {
 	schema := ArgSchema{Flags: []Flag{{Name: "endpoint"}}}
 	ctx, err := parseArgs(schema, []string{"--endpoint", "health", "--endpoint=notes_attach"}, nil, nil, nil)

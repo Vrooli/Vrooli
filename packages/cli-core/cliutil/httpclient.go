@@ -111,6 +111,11 @@ type HTTPClient struct {
 	token        string
 	dryRun       bool
 	headerSource func() map[string]string
+	// invocationHeaderSource is owned by cliapp's per-command preflight. It
+	// must remain distinct from an application header source: scenarios may
+	// require their own transport contract (for example, runtime attribution)
+	// in addition to common invocation provenance.
+	invocationHeaderSource func() map[string]string
 }
 
 type HTTPClientOptions struct {
@@ -159,6 +164,14 @@ func (h *HTTPClient) SetDryRun(enabled bool) {
 // Repeated calls replace the previous source. Pass nil to clear.
 func (h *HTTPClient) SetHeaderSource(fn func() map[string]string) {
 	h.headerSource = fn
+}
+
+// SetInvocationHeaderSource installs the per-command provenance source used by
+// cliapp. It composes with SetHeaderSource instead of replacing application
+// headers that are required by a scenario API contract. Repeated calls replace
+// only the prior invocation source.
+func (h *HTTPClient) SetInvocationHeaderSource(fn func() map[string]string) {
+	h.invocationHeaderSource = fn
 }
 
 func (h *HTTPClient) SetBaseOptions(opts APIBaseOptions) {
@@ -255,13 +268,19 @@ func (h *HTTPClient) ApplyRequestHeaders(req *http.Request) {
 	if h.dryRun {
 		req.Header.Set("X-Dry-Run", "true")
 	}
-	if h.headerSource != nil {
-		for k, v := range h.headerSource() {
-			if v == "" {
-				continue
-			}
-			req.Header.Set(k, v)
+	applyHeaderSource(req, h.headerSource)
+	applyHeaderSource(req, h.invocationHeaderSource)
+}
+
+func applyHeaderSource(req *http.Request, source func() map[string]string) {
+	if source == nil {
+		return
+	}
+	for k, v := range source() {
+		if v == "" {
+			continue
 		}
+		req.Header.Set(k, v)
 	}
 }
 

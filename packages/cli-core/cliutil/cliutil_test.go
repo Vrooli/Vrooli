@@ -429,6 +429,29 @@ func TestHTTPClientHeaderSourceClearsWhenNil(t *testing.T) {
 	}
 }
 
+func TestHTTPClientApplicationAndInvocationHeaderSourcesCompose(t *testing.T) {
+	gotHeaders := make(http.Header)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeaders = r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{BaseOptions: APIBaseOptions{DefaultBase: server.URL}})
+	client.SetHeaderSource(func() map[string]string { return map[string]string{"X-Vrooli-Attribution": "required"} })
+	client.SetInvocationHeaderSource(func() map[string]string { return map[string]string{"X-Vrooli-Invocation-ID": "invocation"} })
+
+	if _, err := client.Do(http.MethodPost, "/capture", nil, map[string]string{"ok": "true"}); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if got := gotHeaders.Get("X-Vrooli-Attribution"); got != "required" {
+		t.Fatalf("attribution header = %q, want required", got)
+	}
+	if got := gotHeaders.Get("X-Vrooli-Invocation-ID"); got != "invocation" {
+		t.Fatalf("invocation header = %q, want invocation", got)
+	}
+}
+
 func TestStringListFlagCollectsValues(t *testing.T) {
 	var list StringList
 	list.Set("a")

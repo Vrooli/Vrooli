@@ -6,7 +6,7 @@ Lightweight utilities for passing messages between host scenarios and embedded i
 
 ### Storage Shimming
 
-When running in sandboxed iframe contexts (like Browserless for UI smoke tests), `localStorage` and `sessionStorage` may be blocked. The bridge automatically shims them with in-memory implementations.
+When running in sandboxed/headless browser containers (for UI smoke tests), `localStorage` and `sessionStorage` may be blocked. The bridge automatically shims them with in-memory implementations.
 
 This happens automatically when you call `initIframeBridgeChild()`. You can also call `shimStorage()` explicitly if you need the shim earlier:
 
