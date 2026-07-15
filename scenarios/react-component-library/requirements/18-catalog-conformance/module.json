@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Static and browser gates that make the catalog source itself a tested surface.",
-    "last_validated_at": "2026-07-15T00:39:51-04:00",
+    "last_validated_at": "2026-07-15T00:51:16-04:00",
     "module": "catalog-conformance",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "CC-001",
       "title": "Latest and draft catalog TSX is type-checked and linted",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "ui/scripts/catalog-conformance.mjs",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "`pnpm run catalog:check` and `make lint-ui` passed after the catalog conformance scripts/configs were added. A temporary Button type error produced the expected TypeScript failure before removal."
         }
       ]
@@ -71,7 +71,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Cross-scenario unit evidence lives in experience-manager: `api/internal/reconcile/reconcile_test.go::TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence` proves component harness target construction and evidence persistence."
         },
         {

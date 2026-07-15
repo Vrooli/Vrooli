@@ -296,6 +296,54 @@
       "testId": "components-editor-example-title",
       "selector": "[data-testid=\"components-editor-example-title\"]"
     },
+    "components.editor.exampleFocus": {
+      "testId": "components-editor-example-focus",
+      "selector": "[data-testid=\"components-editor-example-focus\"]"
+    },
+    "components.editor.exampleCompare": {
+      "testId": "components-editor-example-compare",
+      "selector": "[data-testid=\"components-editor-example-compare\"]"
+    },
+    "components.editor.comparisonToolbar": {
+      "testId": "components-editor-comparison-toolbar",
+      "selector": "[data-testid=\"components-editor-comparison-toolbar\"]"
+    },
+    "components.editor.comparisonClear": {
+      "testId": "components-editor-comparison-clear",
+      "selector": "[data-testid=\"components-editor-comparison-clear\"]"
+    },
+    "components.editor.galleryStatus": {
+      "testId": "components-editor-gallery-status",
+      "selector": "[data-testid=\"components-editor-gallery-status\"]"
+    },
+    "components.editor.specimenError": {
+      "testId": "components-editor-specimen-error",
+      "selector": "[data-testid=\"components-editor-specimen-error\"]"
+    },
+    "components.editor.specimenRetry": {
+      "testId": "components-editor-specimen-retry",
+      "selector": "[data-testid=\"components-editor-specimen-retry\"]"
+    },
+    "components.editor.propsPanel": {
+      "testId": "components-editor-props-panel",
+      "selector": "[data-testid=\"components-editor-props-panel\"]"
+    },
+    "components.editor.propsDraft": {
+      "testId": "components-editor-props-draft",
+      "selector": "[data-testid=\"components-editor-props-draft\"]"
+    },
+    "components.editor.propsApply": {
+      "testId": "components-editor-props-apply",
+      "selector": "[data-testid=\"components-editor-props-apply\"]"
+    },
+    "components.editor.propsReset": {
+      "testId": "components-editor-props-reset",
+      "selector": "[data-testid=\"components-editor-props-reset\"]"
+    },
+    "components.editor.propsError": {
+      "testId": "components-editor-props-error",
+      "selector": "[data-testid=\"components-editor-props-error\"]"
+    },
     "components.editor.previewFrame": {
       "testId": "components-editor-preview-frame",
       "selector": "[data-testid=\"components-editor-preview-frame\"]"
@@ -388,6 +436,18 @@
       "testId": "components-emulator-toolbar",
       "selector": "[data-testid=\"components-emulator-toolbar\"]"
     },
+    "components.emulator.viewportToggle": {
+      "testId": "components-emulator-viewport-toggle",
+      "selector": "[data-testid=\"components-emulator-viewport-toggle\"]"
+    },
+    "components.emulator.viewportPanel": {
+      "testId": "components-emulator-viewport-panel",
+      "selector": "[data-testid=\"components-emulator-viewport-panel\"]"
+    },
+    "components.emulator.presetOption": {
+      "testId": "components-emulator-preset-option",
+      "selector": "[data-testid=\"components-emulator-preset-option\"]"
+    },
     "components.emulator.presetSelect": {
       "testId": "components-emulator-preset-select",
       "selector": "[data-testid=\"components-emulator-preset-select\"]"
@@ -452,6 +512,14 @@
       "testId": "components-theme-switcher",
       "selector": "[data-testid=\"components-theme-switcher\"]"
     },
+    "components.themeSwitcher.appearanceToggle": {
+      "testId": "components-theme-switcher-appearance-toggle",
+      "selector": "[data-testid=\"components-theme-switcher-appearance-toggle\"]"
+    },
+    "components.themeSwitcher.appearancePanel": {
+      "testId": "components-theme-switcher-appearance-panel",
+      "selector": "[data-testid=\"components-theme-switcher-appearance-panel\"]"
+    },
     "components.themeSwitcher.mode": {
       "testId": "components-theme-switcher-mode",
       "selector": "[data-testid=\"components-theme-switcher-mode\"]"
@@ -483,6 +551,14 @@
     "components.themeSwitcher.scenarioApply": {
       "testId": "components-theme-switcher-scenario-apply",
       "selector": "[data-testid=\"components-theme-switcher-scenario-apply\"]"
+    },
+    "components.themeSwitcher.visionFilterSelect": {
+      "testId": "components-theme-switcher-vision-filter",
+      "selector": "[data-testid=\"components-theme-switcher-vision-filter\"]"
+    },
+    "components.themeSwitcher.blurSlider": {
+      "testId": "components-theme-switcher-blur-slider",
+      "selector": "[data-testid=\"components-theme-switcher-blur-slider\"]"
     },
     "components.themeSwitcher.status": {
       "testId": "components-theme-switcher-status",

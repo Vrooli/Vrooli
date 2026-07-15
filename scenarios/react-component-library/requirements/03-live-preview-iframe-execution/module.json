@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-component preview harness that executes real React inside an isolated iframe, wired via @vrooli/iframe-bridge.",
-    "last_validated_at": "2026-07-15T00:39:51-04:00",
+    "last_validated_at": "2026-07-15T00:51:16-04:00",
     "module": "live-preview-iframe-execution",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,11 +11,11 @@
     {
       "id": "PR-001",
       "title": "Per-component harness page renders the actual React component (not placeholder HTML)",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "API serves `GET /preview/{component_id_or_library_id}/harness.html` returning an HTML shell that imports the component's bundled source and mounts it via `ReactDOM.createRoot`. The harness resolves optional `version` and `example` query params from indexed `examples.json`, supports stable `libraryId` URLs for external capture tooling, posts `preview-ready`/`preview-error`, and preserves same-origin runtime imports.",
+      "description": "API serves `GET /preview/{component_id_or_library_id}/harness.html` returning an HTML shell that imports the component's bundled source and mounts it via `ReactDOM.createRoot`. The harness resolves optional `version` and `example` query params from indexed `examples.json`, supports stable `libraryId` URLs for external capture tooling, posts identity-correlated `preview-ready`/`preview-error`, accepts only the documented data-only temporary props override/reset messages for its own example, and preserves same-origin runtime imports.",
       "tags": [
         "preview",
         "iframe",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/handlers/preview/module_test.go::TestModule_HarnessHTML",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Preview module tests prove the harness returns real same-origin HTML, inlines the bundled component module, includes runtime import maps, and posts preview-ready. TestModule_HarnessAcceptsLibraryID covers stable `libraryId` route IDs used by experience-component capture."
         }
       ]
@@ -34,7 +34,7 @@
     {
       "id": "PR-002",
       "title": "Reload-on-save: editor save triggers iframe NAV via the host bridge",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -48,7 +48,7 @@
           "type": "test",
           "ref": "ui/src/features/components/ComponentEditor.test.tsx::reloads the iframe when save returns a new sha256",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The editor iframe URL includes the returned sha/retry key as a cache-buster; saves that change content force a new harness navigation."
         }
       ]
@@ -122,7 +122,7 @@
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "The harness posts `preview-error` messages to the parent when render setup fails or the component has no callable export. The host editor listens for those messages, captures iframe load errors and preview timeouts, and renders a clear retryable failure state instead of leaving the preview waiting indefinitely.",
+      "description": "The harness posts identity-correlated `preview-error` messages to the parent when render setup fails or the component has no callable export. The host editor correlates messages with the registered component/example/version/frame, renders a retryable error only on the failed specimen, and reserves a gallery-level failure state for the case where every preview is unavailable.",
       "tags": [
         "preview",
         "failure-state",

@@ -12,6 +12,7 @@ This document is the canonical workflow map for ordered behavior.
 | Reapply component | adoptions | CLI/API `adoptions reapply` | Adopted file is overwritten from a selected version; local edits require confirmation | Service and handler tests |
 | Diff versions/adoptions | versions | CLI/API/UI diff request | Server returns aligned line diff rows | Versions service and handler tests |
 | Graduate scenario component | components / experience | Scenario UI component becomes reusable | TSX, examples, and experience-component claims land in the catalog as one versioned contract | Catalog conformance, preview e2e, experience phase |
+| Preview workspace experiment | preview | User focuses a rendered specimen and applies temporary JSON props | Exactly that iframe rerenders from an in-memory shallow merge; Reset/reload restores the indexed example | Component editor UI tests, preview harness tests, preview E2E, BAS workflow |
 
 ## Apply Component
 
@@ -62,7 +63,25 @@ claims together. Do not move TSX alone.
    `pnpm run test:preview-e2e` from `ui/`.
 7. Run `test-genie execute react-component-library experience --json`
    so Experience Manager captures the preview harness and reconciles
-   component machine claims against the BAS accessibility tree.
+component machine claims against the BAS accessibility tree.
+
+## Preview Workspace Experiment
+
+1. The editor queries indexed examples and renders each named example in its
+   own sandboxed harness iframe.
+2. The user can focus a specimen for inspection or add it to the bounded,
+   deterministic comparison workspace; this changes host UI state only.
+3. Try props presents the indexed `props` as JSON. Apply accepts only a JSON
+   object, posts it to the matching registered iframe, and the harness
+   shallow-merges it over indexed props using the existing `$` resolver.
+4. A malformed or non-object value remains in the host with an inline error;
+   it never reaches the iframe. A mismatched identity or message origin is
+   ignored.
+5. Reset, iframe reload, editor navigation, or unmount discards the override
+   and restores the indexed props. No source file, SQLite row, localStorage
+   entry, or write RPC is involved.
+6. `setup` is not executed in this flow. It remains an indexed field awaiting
+   a separate runtime contract.
 
 ## Deferred Flows
 

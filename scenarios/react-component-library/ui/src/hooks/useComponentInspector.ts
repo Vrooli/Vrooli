@@ -96,6 +96,10 @@ export function useComponentInspector(
 
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
+      // A gallery contains multiple same-origin harnesses. Inspection is an
+      // intentional single-specimen mode, so never let a background frame's
+      // hover/result replace the active frame's selection.
+      if (ev.source !== iframeRef.current?.contentWindow) return;
       const d = ev.data as { v?: number; t?: string; [k: string]: unknown } | null;
       if (!d || d.v !== 1 || typeof d.t !== "string") return;
       switch (d.t) {
@@ -129,7 +133,7 @@ export function useComponentInspector(
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, []);
+  }, [iframeRef]);
 
   const post = useCallback(
     (payload: Record<string, unknown>): boolean => {

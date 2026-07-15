@@ -49,19 +49,39 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-05-12 — iframe-bridge child wiring deferred
+### 2026-05-12 — iframe-bridge child wiring deferred (resolved for inspection)
 
-**Symptom:** The live-preview iframe announces first paint via a hand-rolled `postMessage({ type: "preview-ready" })` instead of going through `@vrooli/iframe-bridge/child`. Element-selection (req-06), full INSPECT/CAPTURE flow, and the bridge's structured log streaming are therefore unavailable from the preview harness.
+**Symptom:** The live-preview iframe announced first paint via a hand-rolled `postMessage({ type: "preview-ready" })` instead of going through `@vrooli/iframe-bridge/child`.
 
 **Root cause:** Slice 3 (req PR-001/002/003) scope-cut: getting real React execution inside the iframe was the gate, and bundling the bridge child into the per-component esbuild call adds a second resolver setup that wasn't needed for first-paint. Deferring to req-06 lets the bridge work land alongside the inspector UI that consumes it.
 
-**Workaround:** Host listens for the `preview-ready` postMessage to flip the "Rendered" badge; cache-busting via `?v=<sha>` covers reload-on-save. Sufficient for slice-3 acceptance.
+**Workaround:** No current user workaround is required. The harness now owns a narrow, data-only inspection wire contract alongside first-paint messages.
 
-**Real fix:** Bundle `@vrooli/iframe-bridge/child` into the esbuild Transform call (or switch to esbuild Build with a virtual entrypoint that imports both the component and the bridge) when req-06 lands. Bridge HELLO/READY/INSPECT then supersedes the ad-hoc message.
+**Real fix:** Inspection is implemented, but adopting the full generic bridge remains optional future consolidation work rather than a blocker for the preview workspace.
 
-**Owner:** unassigned (will be picked up with req-06).
+**Owner:** unassigned (only if full bridge consolidation is later prioritized).
 
 **Refs:** `docs/RESEARCH.md` (Preview harness bundling — Resolved contracts), `api/handlers/preview/static.go`, `requirements/06-element-selection-via-iframe-bridge/`.
+
+### 2026-07-15 — setup JSON has no preview runtime model
+
+**Symptom:** Indexed examples carry optional `setup`, which can look executable
+in the component editor even though the harness never evaluates it.
+
+**Root cause:** The examples-as-data index contract was deliberately broader
+than the first preview renderer's data-only resolver.
+
+**Workaround:** Use `props` and the documented `$` vocabulary for renderable
+examples. Try props is intentionally limited to a shallow JSON-object override.
+
+**Real fix:** Specify a safe, testable setup lifecycle and failure model in a
+separately scoped requirement before adding any execution semantics.
+
+**Owner:** unassigned.
+
+**Refs:** `docs/concepts/DATA.md#preview-session-boundary`,
+`docs/concepts/FLOWS.md#preview-workspace-experiment`,
+`requirements/17-examples-as-data/module.json`.
 
 ## Architecture Drift
 

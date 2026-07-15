@@ -19,8 +19,8 @@ function makeRef(): {
   return { ref, posts };
 }
 
-function postFromHarness(payload: Record<string, unknown>) {
-  window.dispatchEvent(new MessageEvent("message", { data: payload }));
+function postFromHarness(source: Window, payload: Record<string, unknown>) {
+  window.dispatchEvent(new MessageEvent("message", { data: payload, source }));
 }
 
 describe("useComponentInspector", () => {
@@ -45,7 +45,7 @@ describe("useComponentInspector", () => {
     const { ref } = makeRef();
     const { result } = renderHook(() => useComponentInspector(ref));
     act(() => {
-      postFromHarness({ v: 1, t: "INSPECT_STATE", active: true, reason: "start" });
+      postFromHarness(ref.current!.contentWindow!, { v: 1, t: "INSPECT_STATE", active: true, reason: "start" });
     });
     expect(result.current.active).toBe(true);
     expect(result.current.lastReason).toBe("start");
@@ -73,7 +73,7 @@ describe("useComponentInspector", () => {
       selectedAncestorIndex: 0,
     };
     act(() => {
-      postFromHarness({ v: 1, t: "INSPECT_HOVER", payload });
+      postFromHarness(ref.current!.contentWindow!, { v: 1, t: "INSPECT_HOVER", payload });
     });
     expect(result.current.hover?.meta.selector).toBe("button.primary");
     expect(result.current.selected?.meta.text).toBe("Click me");
@@ -83,7 +83,7 @@ describe("useComponentInspector", () => {
     const { ref } = makeRef();
     const { result } = renderHook(() => useComponentInspector(ref));
     act(() => {
-      postFromHarness({ v: 1, t: "INSPECT_STATE", active: true });
+      postFromHarness(ref.current!.contentWindow!, { v: 1, t: "INSPECT_STATE", active: true });
     });
     const payload = {
       meta: {
@@ -105,7 +105,7 @@ describe("useComponentInspector", () => {
       method: "pointer",
     };
     act(() => {
-      postFromHarness({ v: 1, t: "INSPECT_RESULT", payload });
+      postFromHarness(ref.current!.contentWindow!, { v: 1, t: "INSPECT_RESULT", payload });
     });
     expect(result.current.active).toBe(false);
     expect(result.current.hover).toBeNull();
@@ -117,8 +117,8 @@ describe("useComponentInspector", () => {
     const { ref } = makeRef();
     const { result } = renderHook(() => useComponentInspector(ref));
     act(() => {
-      postFromHarness({ t: "INSPECT_HOVER", payload: { meta: { tag: "x" } } });
-      postFromHarness({ v: 1, t: "RANDOM" });
+      postFromHarness(ref.current!.contentWindow!, { t: "INSPECT_HOVER", payload: { meta: { tag: "x" } } });
+      postFromHarness(ref.current!.contentWindow!, { v: 1, t: "RANDOM" });
     });
     expect(result.current.hover).toBeNull();
     expect(result.current.active).toBe(false);

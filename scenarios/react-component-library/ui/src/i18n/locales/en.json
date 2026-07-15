@@ -146,6 +146,21 @@
       "previewFailed": "Preview failed to render.",
       "previewTimeout": "Preview did not report ready before the timeout.",
       "previewRetry": "Retry",
+      "comparing": "Comparing selected specimens",
+      "showAllSpecimens": "Show all",
+      "specimenStatus": "{{ready}} of {{total}} specimens ready",
+      "focusSpecimen": "Focus",
+      "compareSpecimen": "Compare",
+      "tryProps": "Try props",
+      "tryPropsDescription": "Temporary for this specimen. It disappears when the preview reloads or you leave the editor.",
+      "indexedPropsLabel": "Indexed props, editable as JSON",
+      "propsApplied": "Applied to this specimen",
+      "applyTemporaryProps": "Apply temporary props",
+      "applyingProps": "Applying…",
+      "resetIndexedProps": "Reset to indexed props",
+      "propsObjectError": "Props must be a JSON object, for example { \"title\": \"Preview\" }.",
+      "propsJsonError": "Fix the JSON before applying the experiment.",
+      "propsRejected": "Props override was rejected.",
       "viewingVersion": "Viewing immutable version {{version}}. Select Current in the Info panel to edit.",
       "libraryIdLabel": "Library ID",
       "slotLabel": "Slot",
@@ -153,13 +168,17 @@
       "tagsLabel": "Tags"
     },
     "themeSwitcher": {
+      "appearanceLabel": "Appearance & visual checks",
+      "appearanceDescription": "Choose a color mode, token source, and visual simulation for every specimen in this preview session.",
       "modeLabel": "Color scheme",
+      "modeDescription": "System follows the app setting. Light and Dark force the preview's resolved color mode.",
       "mode": {
         "system": "System",
         "light": "Light",
         "dark": "Dark"
       },
       "packLabel": "Token pack",
+      "packDescription": "Packs override CSS custom properties; they do not change the selected color mode.",
       "noneOption": "No pack",
       "builtinOptionGroup": "Built-in palettes",
       "packNames": {
@@ -168,15 +187,26 @@
         "highContrast": "High Contrast"
       },
       "importLabel": "Import DESIGN.md",
+      "importDescription": "Enter a scenario ID to have the server parse that scenario's DESIGN.md into preview tokens.",
       "scenarioInputLabel": "Scenario id",
       "scenarioInputPlaceholder": "e.g. flow-verifier",
       "scenarioApply": "Apply",
+      "visualLabel": "Visual simulation",
+      "visualDescription": "Simulate color-vision conditions or blur the rendered preview without changing component data.",
       "loading": "Loading theme…",
       "applied": "Applied {{name}}"
     },
     "emulator": {
-      "presetLabel": "Preset",
-      "dimensionSeparator": "x",
+      "viewportLabel": "Viewport",
+      "viewportDescription": "Select a device or responsive size, then tune zoom and rotation for the whole preview session.",
+      "summary": "{{device}} · {{zoom}}%",
+      "responsiveLabel": "Responsive",
+      "responsiveDescription": "Enter custom dimensions only when Responsive is selected.",
+      "deviceGroups": {
+        "phone": "Phones",
+        "tablet": "Tablets",
+        "desktop": "Desktops"
+      },
       "toolbarLabel": "Device emulation controls",
       "widthLabel": "Viewport width",
       "heightLabel": "Viewport height",
@@ -184,7 +214,6 @@
       "zoomValue": "{{percent}}%",
       "rotate": "Rotate",
       "reset": "Reset emulator",
-      "more": "More controls",
       "visionFilterLabel": "Vision filter",
       "visionFilter": {
         "normal": "Normal",

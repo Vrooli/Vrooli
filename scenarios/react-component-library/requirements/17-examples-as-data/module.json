@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-version JSON examples that drive catalog previews, specimen galleries, CLI/API queries, and experience-component reconciliation.",
-    "last_validated_at": "2026-07-15T00:39:51-04:00",
+    "last_validated_at": "2026-07-15T00:51:16-04:00",
     "module": "examples-as-data",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,11 +11,11 @@
     {
       "id": "EX-001",
       "title": "Version folders may declare data-only component examples",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "Each component version may include `examples.json` beside the TSX source. Examples are pure JSON with stable `name`, optional display label, JSON `props`, optional `setup`, and optional `expect[]` assertions. Non-serializable React values use the documented `$` vocabulary and are resolved only inside the preview harness.",
+      "description": "Each component version may include `examples.json` beside the TSX source. Examples are pure JSON with stable `name`, optional display label, JSON `props`, optional `setup`, and optional `expect[]` assertions. Non-serializable React values use the documented `$` vocabulary and are resolved only inside the preview harness. The current preview contract does not execute `setup`; it is retained as indexed data until a separately specified runtime model exists.",
       "tags": [
         "examples",
         "preview",
@@ -26,14 +26,14 @@
           "type": "test",
           "ref": "api/internal/components/indexer_test.go::TestIndexer_RunIndexesVersionExamples",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves `examples.json` is parsed from version folders and indexed as component_examples rows. Verified passing 2026-07-14."
         },
         {
           "type": "test",
           "ref": "api/internal/components/indexer_test.go::TestIndexer_RunReportsInvalidExamplesWithoutRejectingComponent",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Invalid examples emit non-fatal findings rather than dropping otherwise valid component metadata. Verified passing 2026-07-14."
         }
       ]
@@ -56,7 +56,7 @@
           "type": "test",
           "ref": "cli/domains/components/handlers_test.go::TestComponentsExamples_ForwardsInputsAndRenders",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI test proves component id/version forwarding and rendered examples output. Verified passing 2026-07-14. (Requirement remains in_progress pending the live-round-trip manual check below.)"
         },
         {
@@ -69,11 +69,11 @@
     {
       "id": "EX-003",
       "title": "Specimen gallery renders every named example and checks expectations",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "The component editor preview mode renders one harness iframe per indexed example for the selected version. The harness resolves `$text`, `$node`, `$icon`, `$handler`, `$rowKey`, `$columns`, and `$filters`, then evaluates `expect[]` assertions after render and reports failures through the existing preview-error channel.",
+      "description": "The component editor preview mode renders one harness iframe per indexed example for the selected version in an adaptive, non-overlapping specimen grid. Users can focus or compare a bounded set of specimens, and each frame has its own readiness, error, retry, and inspection target. The harness resolves `$text`, `$node`, `$icon`, `$handler`, `$rowKey`, `$columns`, and `$filters`, then evaluates `expect[]` assertions after render and reports identity-correlated failures through preview-error. A user may temporarily shallow-merge a valid JSON object over one frame's indexed props; the experiment is session-only, resettable, and never changes the catalog.",
       "tags": [
         "examples",
         "gallery",
@@ -84,7 +84,7 @@
           "type": "test",
           "ref": "ui/src/features/components/ComponentEditor.test.tsx::renders example gallery iframes with named harness URLs",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "UI test proves the gallery emits named harness URLs for indexed examples."
         },
         {

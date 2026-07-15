@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Palette } from "lucide-react";
+import { Eye, Palette } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { themesClient, type Theme } from "../../api/themes";
-import { type ColorScheme } from "../../hooks/useDeviceFilters";
+import { type ColorScheme, type DeviceFiltersValue, type VisionFilter } from "../../hooks/useDeviceFilters";
 import { errorMessage } from "../../lib/errorMessage";
-import { cn } from "../../lib/utils";
+import { AnchoredMenu } from "./AnchoredMenu";
 
 interface Props {
   /** Posts to every live preview frame, not only the first gallery item. */
@@ -21,7 +22,7 @@ interface Props {
   /** Color-scheme mode — the single owner of light/dark. */
   colorScheme: ColorScheme;
   setColorScheme: (scheme: ColorScheme) => void;
-  className?: string;
+  filters: Pick<DeviceFiltersValue, "visionFilter" | "setVisionFilter" | "blurPx" | "setBlurPx" | "blurMin" | "blurMax">;
 }
 
 /**
@@ -82,14 +83,12 @@ export function ThemeSwitcher({
   previewReady,
   colorScheme,
   setColorScheme,
-  className,
+  filters,
 }: Props) {
   const { t } = useTranslation();
   const [selection, setSelection] = useState("");
   const [scenarioId, setScenarioId] = useState("");
   const [activeTheme, setActiveTheme] = useState<Theme | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
-  const importRef = useRef<HTMLDivElement | null>(null);
 
   const builtinsQuery = useQuery({
     queryKey: ["themes", "builtin"],
@@ -132,24 +131,6 @@ export function ThemeSwitcher({
     });
   }, [previewReady, activeTheme, postToFrames]);
 
-  useEffect(() => {
-    if (!importOpen) return undefined;
-    const onPointerDown = (ev: MouseEvent) => {
-      if (importRef.current && !importRef.current.contains(ev.target as Node)) {
-        setImportOpen(false);
-      }
-    };
-    const onKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === "Escape") setImportOpen(false);
-    };
-    window.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [importOpen]);
-
   const queryError = builtinThemeQuery.error ?? scenarioThemeQuery.error;
   const loading = builtinThemeQuery.isLoading || scenarioThemeQuery.isLoading;
   const packLabelFor = (theme: Theme): string => {
@@ -157,23 +138,31 @@ export function ThemeSwitcher({
     return key ? t(key) : theme.name || theme.id;
   };
 
+  const activeMode = MODE_OPTIONS.find((option) => option.value === colorScheme);
+
   return (
-    <div
-      data-testid={selectors.components.themeSwitcher.root}
-      className={cn(
-        "flex min-w-0 flex-wrap items-center gap-2 text-xs text-app-muted-foreground",
-        className,
-      )}
-      role="group"
-      aria-label={t(strings.components.themeSwitcher.modeLabel)}
-    >
-      {/* Axis 1 — color-scheme mode. Segmented, single owner of light/dark. */}
-      <div
-        data-testid={selectors.components.themeSwitcher.mode}
-        role="group"
-        aria-label={t(strings.components.themeSwitcher.modeLabel)}
-        className="inline-flex h-9 shrink-0 overflow-hidden rounded-md border border-app-border"
+    <div data-testid={selectors.components.themeSwitcher.root} className="min-w-0 text-xs">
+      <AnchoredMenu
+        label={t(strings.components.themeSwitcher.appearanceLabel)}
+        summary={t(activeMode?.label ?? strings.components.themeSwitcher.mode.system)}
+        icon={<Palette aria-hidden className="h-4 w-4" />}
+        triggerTestId={selectors.components.themeSwitcher.appearanceToggle}
+        panelTestId={selectors.components.themeSwitcher.appearancePanel}
       >
+        <p className="mb-3 text-xs leading-5 text-app-muted-foreground">
+          {t(strings.components.themeSwitcher.appearanceDescription)}
+        </p>
+        <section aria-labelledby="rcl-appearance-mode" className="border-b border-app-border pb-3">
+          <h3 id="rcl-appearance-mode" className="text-sm font-semibold text-app-foreground">
+            {t(strings.components.themeSwitcher.modeLabel)}
+          </h3>
+          <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.components.themeSwitcher.modeDescription)}</p>
+          <div
+            data-testid={selectors.components.themeSwitcher.mode}
+            role="group"
+            aria-label={t(strings.components.themeSwitcher.modeLabel)}
+            className="mt-2 inline-flex overflow-hidden rounded-md border border-app-border"
+          >
         {MODE_OPTIONS.map((option) => {
           const active = colorScheme === option.value;
           return (
@@ -191,16 +180,20 @@ export function ThemeSwitcher({
           );
         })}
       </div>
+        </section>
 
-      {/* Axis 2 — token pack. Token-override only; never touches mode. */}
-      <label className="inline-flex h-9 shrink-0 items-center gap-1.5">
-        <Palette aria-hidden className="h-4 w-4 text-app-muted-foreground" />
-        <span className="sr-only">{t(strings.components.themeSwitcher.packLabel)}</span>
+        <section aria-labelledby="rcl-appearance-tokens" className="border-b border-app-border py-3">
+          <h3 id="rcl-appearance-tokens" className="text-sm font-semibold text-app-foreground">
+            {t(strings.components.themeSwitcher.packLabel)}
+          </h3>
+          <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.components.themeSwitcher.packDescription)}</p>
+          <label className="mt-2 block">
+            <span className="sr-only">{t(strings.components.themeSwitcher.packLabel)}</span>
         <select
           data-testid={selectors.components.themeSwitcher.select}
           value={selection}
           onChange={(e) => setSelection(e.target.value)}
-          className="h-9 min-h-9 max-w-40 rounded-md border border-app-border bg-app-surface px-2 text-xs text-app-foreground"
+          className="h-9 min-h-9 w-full rounded-md border border-app-border bg-app-surface px-2 text-xs text-app-foreground"
         >
           <option value="">{t(strings.components.themeSwitcher.noneOption)}</option>
           <optgroup label={t(strings.components.themeSwitcher.builtinOptionGroup)}>
@@ -211,51 +204,75 @@ export function ThemeSwitcher({
             ))}
           </optgroup>
         </select>
-      </label>
-
-      {/* Scenario DESIGN.md import — disclosure keeps the row compact. */}
-      <div ref={importRef} className="relative shrink-0">
-        <Button
-          type="button"
-          data-testid={selectors.components.themeSwitcher.importToggle}
-          variant="secondary"
-          aria-expanded={importOpen}
-          className="h-9 min-h-9 rounded-md px-2 text-xs"
-          onClick={() => setImportOpen((open) => !open)}
-        >
-          {t(strings.components.themeSwitcher.importLabel)}
-        </Button>
-        {importOpen && (
-          <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-md border border-app-border bg-app-surface p-2 shadow-lg">
-            <label className="mb-1 block text-xs text-app-muted-foreground" htmlFor="rcl-theme-scenario-id">
-              {t(strings.components.themeSwitcher.scenarioInputLabel)}
-            </label>
+          </label>
+          <h4 className="mt-3 text-xs font-medium text-app-foreground">{t(strings.components.themeSwitcher.importLabel)}</h4>
+          <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.components.themeSwitcher.importDescription)}</p>
+          <label className="mt-2 block text-xs text-app-muted-foreground" htmlFor="rcl-theme-scenario-id">
+            {t(strings.components.themeSwitcher.scenarioInputLabel)}
+          </label>
+          <div className="mt-1 flex gap-2">
             <Input
               id="rcl-theme-scenario-id"
               data-testid={selectors.components.themeSwitcher.scenarioInput}
               value={scenarioId}
               onChange={(e) => setScenarioId(e.target.value)}
               placeholder={t(strings.components.themeSwitcher.scenarioInputPlaceholder)}
-              className="h-9 w-full rounded-md text-xs"
+              className="h-9 min-w-0 flex-1 rounded-md text-xs"
             />
             <Button
               type="button"
               data-testid={selectors.components.themeSwitcher.scenarioApply}
               variant="secondary"
-              className="mt-2 h-9 w-full rounded-md px-2 text-xs"
+              className="h-9 shrink-0 rounded-md px-2 text-xs"
               disabled={!scenarioId.trim()}
-              onClick={() => {
-                setSelection(`scenario:${scenarioId.trim()}`);
-                setImportOpen(false);
-              }}
+              onClick={() => setSelection(`scenario:${scenarioId.trim()}`)}
             >
               {t(strings.components.themeSwitcher.scenarioApply)}
             </Button>
           </div>
-        )}
-      </div>
+        </section>
 
-      {loading && (
+        <section aria-labelledby="rcl-appearance-vision" className="pt-3">
+          <h3 id="rcl-appearance-vision" className="flex items-center gap-1.5 text-sm font-semibold text-app-foreground">
+            <Eye aria-hidden className="h-4 w-4" />
+            {t(strings.components.themeSwitcher.visualLabel)}
+          </h3>
+          <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.components.themeSwitcher.visualDescription)}</p>
+          <label className="mt-2 block text-xs text-app-muted-foreground" htmlFor="rcl-appearance-vision-filter">
+            {t(strings.components.emulator.visionFilterLabel)}
+          </label>
+          <Select
+            id="rcl-appearance-vision-filter"
+            data-testid={selectors.components.themeSwitcher.visionFilterSelect}
+            value={filters.visionFilter}
+            onChange={(event) => filters.setVisionFilter(event.target.value as VisionFilter)}
+            className="mt-1 h-9 min-h-9 text-xs"
+            options={[
+              { value: "none", label: t(strings.components.emulator.visionFilter.normal) },
+              { value: "grayscale", label: t(strings.components.emulator.visionFilter.grayscale) },
+              { value: "protanopia", label: t(strings.components.emulator.visionFilter.protanopia) },
+              { value: "deuteranopia", label: t(strings.components.emulator.visionFilter.deuteranopia) },
+              { value: "tritanopia", label: t(strings.components.emulator.visionFilter.tritanopia) },
+            ]}
+          />
+          <label className="mt-3 flex items-center gap-2 text-xs text-app-muted-foreground" htmlFor="rcl-appearance-blur">
+            <span>{t(strings.components.emulator.blurLabel)}</span>
+            <Input
+              id="rcl-appearance-blur"
+              data-testid={selectors.components.themeSwitcher.blurSlider}
+              type="range"
+              min={filters.blurMin}
+              max={filters.blurMax}
+              step={1}
+              value={filters.blurPx}
+              onChange={(event) => filters.setBlurPx(Number(event.target.value))}
+              className="h-6 min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 accent-app-primary"
+            />
+            <span className="w-9 font-mono">{t(strings.components.emulator.blurValue, { px: filters.blurPx })}</span>
+          </label>
+        </section>
+
+        {loading && (
         <span
           data-testid={selectors.components.themeSwitcher.status}
           className="shrink-0 text-app-muted-foreground"
@@ -263,7 +280,7 @@ export function ThemeSwitcher({
           {t(strings.components.themeSwitcher.loading)}
         </span>
       )}
-      {activeTheme && !loading && (
+        {activeTheme && !loading && (
         <span
           data-testid={selectors.components.themeSwitcher.status}
           className="min-w-0 truncate text-app-success"
@@ -273,14 +290,15 @@ export function ThemeSwitcher({
           })}
         </span>
       )}
-      {queryError && (
+        {queryError && (
         <span
           data-testid={selectors.components.themeSwitcher.error}
           className="min-w-0 truncate text-app-danger"
         >
           {errorMessage(queryError, t)}
         </span>
-      )}
+        )}
+      </AnchoredMenu>
     </div>
   );
 }

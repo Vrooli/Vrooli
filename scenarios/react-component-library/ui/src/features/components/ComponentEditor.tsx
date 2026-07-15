@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
@@ -21,6 +21,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { EmulatorToolbar, EmulatorViewport } from "./EmulatorChrome";
 import { InspectorPanel } from "./InspectorPanel";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import { PropsExperimentPanel } from "./PropsExperimentPanel";
 import { AdoptionFileTree } from "./AdoptionFileTree";
 import { ADOPTION_TEMPLATES, DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
 import { VersionDiffViewer } from "../versions/VersionDiffViewer";
@@ -33,6 +34,15 @@ const DEFAULT_PANE_ORDER = ["files", "preview", "details"] as const;
 
 type WorkspacePane = (typeof DEFAULT_PANE_ORDER)[number];
 type FilesView = "tree" | "source" | "diff";
+type SpecimenIdentity = `${string}:${string}`;
+
+function specimenIdentity(example?: Pick<ComponentExample, "version" | "name">): SpecimenIdentity {
+  return `${example?.version || "__current__"}:${example?.name || "__default__"}`;
+}
+
+function withoutRecordKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  return Object.fromEntries(Object.entries(record).filter(([candidate]) => candidate !== key));
+}
 
 export interface ComparisonSession {
   fromLabel: string;
@@ -149,6 +159,7 @@ export function ComponentEditor({
   const { resolved: appResolvedTheme } = useTheme();
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
   const previewFramesRef = useRef(new Set<HTMLIFrameElement>());
+  const specimenFramesRef = useRef(new Map<SpecimenIdentity, HTMLIFrameElement>());
   const inspector = useComponentInspector(previewFrameRef);
   const [selectedFile, setSelectedFile] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_ADOPTION_TEMPLATE);
@@ -189,7 +200,14 @@ export function ComponentEditor({
   const [previewState, setPreviewState] = useState<"waiting" | "ready" | "error">("waiting");
   const [previewMessage, setPreviewMessage] = useState("");
   const [readyExamples, setReadyExamples] = useState<ReadonlySet<string>>(() => new Set());
-  const [previewReloadKey, setPreviewReloadKey] = useState(0);
+  const [specimenErrors, setSpecimenErrors] = useState<Record<string, string>>({});
+  const [specimenRetries, setSpecimenRetries] = useState<Record<string, number>>({});
+  const [comparedSpecimens, setComparedSpecimens] = useState<ReadonlySet<SpecimenIdentity>>(() => new Set());
+  const [activeSpecimen, setActiveSpecimen] = useState<SpecimenIdentity | null>(null);
+  const [specimenOverrides, setSpecimenOverrides] = useState<Record<string, Record<string, unknown>>>({});
+  const [overrideStatus, setOverrideStatus] = useState<Record<string, "idle" | "applying" | "applied" | "error">>({});
+  const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
+  const previewReloadKey = 0;
   const [mode, setMode] = useState<WorkspacePane>("files");
   const [workspace, setWorkspace] = useState<WorkspaceState>(loadWorkspaceState);
   const [filesView, setFilesView] = useState<FilesView>("source");
@@ -208,25 +226,74 @@ export function ComponentEditor({
     }
   }, []);
 
-  const registerPreviewFrame = useCallback((frame: HTMLIFrameElement | null) => {
-    if (!frame) return;
+  const postToSpecimen = useCallback((identity: SpecimenIdentity, message: unknown) => {
+    specimenFramesRef.current.get(identity)?.contentWindow?.postMessage(message, "*");
+  }, []);
+
+  const registerPreviewFrame = useCallback((identity: SpecimenIdentity, frame: HTMLIFrameElement | null) => {
+    const previous = specimenFramesRef.current.get(identity);
+    if (previous) previewFramesRef.current.delete(previous);
+    if (!frame) {
+      specimenFramesRef.current.delete(identity);
+      if (previewFrameRef.current === previous) previewFrameRef.current = null;
+      return;
+    }
+    specimenFramesRef.current.set(identity, frame);
     previewFramesRef.current.add(frame);
     if (!previewFrameRef.current) previewFrameRef.current = frame;
   }, []);
 
+  const activateSpecimen = useCallback((identity: SpecimenIdentity) => {
+    setActiveSpecimen(identity);
+    previewFrameRef.current = specimenFramesRef.current.get(identity) ?? null;
+  }, []);
+
+  const retrySpecimen = useCallback((identity: SpecimenIdentity) => {
+    setSpecimenErrors((current) => {
+      return withoutRecordKey(current, identity);
+    });
+    setSpecimenRetries((current) => ({ ...current, [identity]: (current[identity] ?? 0) + 1 }));
+  }, []);
+
+  const toggleComparison = useCallback((identity: SpecimenIdentity) => {
+    setComparedSpecimens((current) => {
+      const next = new Set(current);
+      if (next.has(identity)) next.delete(identity);
+      else if (next.size < 2) next.add(identity);
+      return next;
+    });
+    activateSpecimen(identity);
+  }, [activateSpecimen]);
+
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
       const data = ev.data as { type?: string; id?: string; message?: string; example?: string; version?: string } | null;
-      if (data && data.type === "preview-ready" && data.id === id) {
+      const identity: SpecimenIdentity = `${data?.version || "__current__"}:${data?.example || "__default__"}`;
+      const frame = specimenFramesRef.current.get(identity);
+      if (!data || data.id !== id || !frame || ev.source !== frame.contentWindow) return;
+      if (data.type === "preview-ready") {
         setReadyExamples((current) => {
           const next = new Set(current);
-          next.add(`${data.version || "__current__"}:${data.example || "__default__"}`);
+          next.add(identity);
           return next;
         });
-        setPreviewMessage("");
-      } else if (data && data.type === "preview-error" && data.id === id) {
-        setPreviewState("error");
-        setPreviewMessage(data.message || t(strings.components.editor.previewFailed));
+        setSpecimenErrors((current) => {
+          if (!current[identity]) return current;
+          return withoutRecordKey(current, identity);
+        });
+      } else if (data.type === "preview-error") {
+        setSpecimenErrors((current) => ({
+          ...current,
+          [identity]: data.message || t(strings.components.editor.previewFailed),
+        }));
+      } else if (data.type === "rcl-preview-props-applied") {
+        setOverrideStatus((current) => ({ ...current, [identity]: "applied" }));
+      } else if (data.type === "rcl-preview-props-reset") {
+        setOverrideStatus((current) => ({ ...current, [identity]: "idle" }));
+        setOverrideMessages((current) => ({ ...current, [identity]: "" }));
+      } else if (data.type === "rcl-preview-props-error") {
+        setOverrideStatus((current) => ({ ...current, [identity]: "error" }));
+        setOverrideMessages((current) => ({ ...current, [identity]: data.message || t(strings.components.editor.propsRejected) }));
       }
     };
     window.addEventListener("message", handler);
@@ -247,24 +314,33 @@ export function ComponentEditor({
     setPreviewState("waiting");
     setPreviewMessage("");
     setReadyExamples(new Set());
+    setSpecimenErrors({});
+    setSpecimenRetries({});
+    setSpecimenOverrides({});
+    setOverrideStatus({});
+    setOverrideMessages({});
   }, [baselineSha, previewReloadKey]);
 
-  const examples = examplesQuery.data?.examples ?? [];
+  const examples = useMemo(() => examplesQuery.data?.examples ?? [], [examplesQuery.data?.examples]);
   const expectedReadyCount = Math.max(1, examples.length);
 
   useEffect(() => {
+    if (activeSpecimen || examples.length === 0) return;
+    activateSpecimen(specimenIdentity(examples[0]));
+  }, [activeSpecimen, activateSpecimen, examples]);
+
+  useEffect(() => {
     if (previewState !== "waiting") return;
-    if (readyExamples.size >= expectedReadyCount) {
+    if (readyExamples.size + Object.keys(specimenErrors).length >= expectedReadyCount) {
       setPreviewState("ready");
     }
-  }, [expectedReadyCount, previewState, readyExamples]);
+  }, [expectedReadyCount, previewState, readyExamples, specimenErrors]);
 
   useEffect(() => {
     if (!contentQuery.data || previewState !== "waiting") return undefined;
     if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
     previewTimeoutRef.current = setTimeout(() => {
       setPreviewMessage(t(strings.components.editor.previewTimeout));
-      setPreviewState("error");
     }, PREVIEW_LOAD_TIMEOUT_MS);
     return () => {
       if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
@@ -319,13 +395,6 @@ export function ComponentEditor({
     monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (!saveMutation.isPending) saveMutation.mutate();
     });
-  };
-
-  const handlePreviewRetry = () => {
-    setPreviewState("waiting");
-    setPreviewMessage("");
-    setReadyExamples(new Set());
-    setPreviewReloadKey((current) => current + 1);
   };
 
   const visiblePanes = workspace.order.filter((pane) => workspace.visible[pane]);
@@ -445,6 +514,42 @@ export function ComponentEditor({
         </div>
       </header>
     );
+  };
+
+  const specimens: Array<ComponentExample | undefined> = examples.length > 0 ? examples : [undefined];
+  const comparisonActive = comparedSpecimens.size > 0;
+  const visibleSpecimens = comparisonActive
+    ? specimens.filter((example) => comparedSpecimens.has(specimenIdentity(example)))
+    : specimens;
+  const activeExample = specimens.find((example) => specimenIdentity(example) === activeSpecimen);
+  const activeSpecimenLabel = activeExample?.displayName || activeExample?.name;
+  const applyPropsOverride = (props: Record<string, unknown>) => {
+    if (!activeSpecimen) return;
+    const example = specimens.find((candidate) => specimenIdentity(candidate) === activeSpecimen);
+    setSpecimenOverrides((current) => ({ ...current, [activeSpecimen]: props }));
+    setOverrideStatus((current) => ({ ...current, [activeSpecimen]: "applying" }));
+    setOverrideMessages((current) => ({ ...current, [activeSpecimen]: "" }));
+    postToSpecimen(activeSpecimen, {
+      type: "rcl-preview-props-override",
+      componentId: id,
+      example: example?.name || "",
+      version: example?.version || "",
+      props,
+    });
+  };
+  const resetPropsOverride = () => {
+    if (!activeSpecimen) return;
+    const example = specimens.find((candidate) => specimenIdentity(candidate) === activeSpecimen);
+    setSpecimenOverrides((current) => {
+      return withoutRecordKey(current, activeSpecimen);
+    });
+    setOverrideStatus((current) => ({ ...current, [activeSpecimen]: "applying" }));
+    postToSpecimen(activeSpecimen, {
+      type: "rcl-preview-props-reset",
+      componentId: id,
+      example: example?.name || "",
+      version: example?.version || "",
+    });
   };
 
   return (
@@ -681,9 +786,83 @@ export function ComponentEditor({
                   {pane === "preview" && (
                     <div data-testid={selectors.components.editor.workspacePane} data-pane="preview" className="flex h-full min-h-0 flex-col overflow-hidden bg-app-background">
                       {paneHeader("preview", t(strings.components.editor.previewMode), <Eye aria-hidden className="h-3.5 w-3.5" />)}
-                      <div className="flex shrink-0 flex-col gap-1.5 border-b border-app-border bg-app-surface px-2 py-1.5"><ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} /><EmulatorToolbar emulator={emulator} filters={filters} /></div>
-                      <div className="relative min-h-0 flex-1"><EmulatorViewport emulator={emulator} filters={filters}><div data-testid={selectors.components.editor.gallery} className="h-full overflow-auto bg-app-background p-3" style={{ width: emulator.displayWidth, height: emulator.displayHeight }}>{examples.length > 0 ? <div className="grid min-w-0 gap-3">{examples.map((example) => <section key={`${example.version}:${example.name}`} data-testid={selectors.components.editor.exampleCard} className="min-w-0 rounded-md border border-app-border bg-app-surface"><header className="border-b border-app-border px-3 py-2"><h3 data-testid={selectors.components.editor.exampleTitle} className="truncate text-sm font-semibold text-app-foreground">{example.displayName || example.name}</h3></header><iframe data-testid={selectors.components.editor.previewFrame} title={`${t(strings.components.editor.previewHeading)} - ${example.displayName || example.name}`} src={harnessUrl(id, baselineSha, previewReloadKey, example, selectedVersion)} sandbox="allow-scripts allow-same-origin" ref={registerPreviewFrame} onLoad={() => postToPreviewFrames({ type: "rcl-resolved-theme", theme: resolvedPreviewTheme })} onError={() => { setPreviewState("error"); setPreviewMessage(t(strings.components.editor.previewFailed)); }} className="block h-[260px] w-full border-0 bg-white" /></section>)}</div> : <iframe data-testid={selectors.components.editor.previewFrame} title={t(strings.components.editor.previewHeading)} src={harnessUrl(id, baselineSha, previewReloadKey, undefined, selectedVersion)} sandbox="allow-scripts allow-same-origin" ref={registerPreviewFrame} onLoad={() => postToPreviewFrames({ type: "rcl-resolved-theme", theme: resolvedPreviewTheme })} onError={() => { setPreviewState("error"); setPreviewMessage(t(strings.components.editor.previewFailed)); }} className="block h-full w-full border-0 bg-white" />}</div>{previewState === "error" && <div data-testid={selectors.components.editor.previewError} className="absolute inset-3 flex items-center justify-center bg-app-background/85 p-4 text-center"><div className="max-w-md rounded-md border border-app-danger/40 bg-app-danger/10 p-4 text-app-danger shadow-xl"><p className="text-sm">{previewMessage || t(strings.components.editor.previewFailed)}</p><Button type="button" variant="secondary" className="mt-3 h-8 rounded-md px-3 text-xs" data-testid={selectors.components.editor.previewRetryButton} onClick={handlePreviewRetry}>{t(strings.components.editor.previewRetry)}</Button></div></div>}</EmulatorViewport></div>
-                      <InspectorPanel inspector={inspector} />
+                      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
+                        <ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} filters={filters} />
+                        <EmulatorToolbar emulator={emulator} />
+                      </div>
+                      <div className="relative min-h-0 flex-1">
+                        <EmulatorViewport emulator={emulator} filters={filters}>
+                          <div
+                            data-testid={selectors.components.editor.gallery}
+                            className="h-full overflow-auto bg-app-background p-3"
+                            style={{ width: emulator.displayWidth, height: emulator.displayHeight }}
+                          >
+                            {comparisonActive && (
+                              <div data-testid={selectors.components.editor.comparisonToolbar} className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-app-primary/30 bg-app-primary/10 px-3 py-2">
+                                <p className="text-xs text-app-foreground">{t(strings.components.editor.comparing)}</p>
+                                <Button data-testid={selectors.components.editor.comparisonClear} type="button" variant="secondary" className="h-7 px-2 text-xs" onClick={() => setComparedSpecimens(new Set())}>
+                                  {t(strings.components.editor.showAllSpecimens)}
+                                </Button>
+                              </div>
+                            )}
+                            <p data-testid={selectors.components.editor.galleryStatus} aria-live="polite" className="mb-2 text-xs text-app-muted-foreground">
+                              {previewMessage || t(strings.components.editor.specimenStatus, { ready: readyExamples.size, total: specimens.length })}
+                            </p>
+                            <div className={comparisonActive ? "grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2" : "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-3"}>
+                              {visibleSpecimens.map((example) => {
+                                const identity = specimenIdentity(example);
+                                const title = example?.displayName || example?.name || t(strings.components.editor.previewHeading);
+                                const error = specimenErrors[identity];
+                                const isActive = activeSpecimen === identity;
+                                const compared = comparedSpecimens.has(identity);
+                                return (
+                                  <section key={identity} data-testid={selectors.components.editor.exampleCard} data-specimen={identity} className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}>
+                                    <header className="flex items-center justify-between gap-2 border-b border-app-border px-3 py-2">
+                                      <h3 data-testid={selectors.components.editor.exampleTitle} className="min-w-0 truncate text-sm font-semibold text-app-foreground">{title}</h3>
+                                      <div className="flex shrink-0 gap-1">
+                                        <Button data-testid={selectors.components.editor.exampleFocus} type="button" variant={isActive ? "primary" : "secondary"} className="h-7 px-2 text-xs" onClick={() => activateSpecimen(identity)}>{t(strings.components.editor.focusSpecimen)}</Button>
+                                        {examples.length > 1 && <Button data-testid={selectors.components.editor.exampleCompare} type="button" variant={compared ? "primary" : "secondary"} aria-pressed={compared} disabled={!compared && comparedSpecimens.size >= 2} className="h-7 px-2 text-xs" onClick={() => toggleComparison(identity)}>{t(strings.components.editor.compareSpecimen)}</Button>}
+                                      </div>
+                                    </header>
+                                    {error ? (
+                                      <div data-testid={selectors.components.editor.specimenError} className="flex min-h-[18rem] flex-col items-center justify-center gap-3 bg-app-danger/5 p-4 text-center">
+                                        <p className="text-xs text-app-danger">{error}</p>
+                                        <Button data-testid={selectors.components.editor.specimenRetry} type="button" variant="secondary" className="h-8 px-3 text-xs" onClick={() => retrySpecimen(identity)}>{t(strings.components.editor.previewRetry)}</Button>
+                                      </div>
+                                    ) : (
+                                      <iframe
+                                        data-testid={selectors.components.editor.previewFrame}
+                                        data-specimen={identity}
+                                        title={`${t(strings.components.editor.previewHeading)} - ${title}`}
+                                        src={harnessUrl(id, baselineSha, previewReloadKey + (specimenRetries[identity] ?? 0), example, selectedVersion)}
+                                        sandbox="allow-scripts allow-same-origin"
+                                        ref={(frame) => registerPreviewFrame(identity, frame)}
+                                        onLoad={() => {
+                                          activateSpecimen(identity);
+                                          postToPreviewFrames({ type: "rcl-resolved-theme", theme: resolvedPreviewTheme });
+                                        }}
+                                        onError={() => setSpecimenErrors((current) => ({ ...current, [identity]: t(strings.components.editor.previewFailed) }))}
+                                        className="block h-[20rem] w-full border-0 bg-white"
+                                      />
+                                    )}
+                                  </section>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </EmulatorViewport>
+                      </div>
+                      {activeSpecimen && (
+                        <PropsExperimentPanel
+                          key={activeSpecimen}
+                          example={activeExample}
+                          status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")}
+                          message={overrideMessages[activeSpecimen]}
+                          onApply={applyPropsOverride}
+                          onReset={resetPropsOverride}
+                        />
+                      )}
+                      <InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} />
                     </div>
                   )}
                   {pane === "details" && (

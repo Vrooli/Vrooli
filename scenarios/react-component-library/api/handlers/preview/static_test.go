@@ -134,6 +134,22 @@ func TestRenderHarnessHTMLCanShowRuntimeImportFailure(t *testing.T) {
 	require.Contains(t, html, `type: "preview-error"`)
 }
 
+func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
+	html := renderHarnessHTML("cmp-1", internalpreview.Bundle{
+		JS:         "export default function Demo() { return null }",
+		SourcePath: "components/Demo.tsx",
+		SHA256:     "sha",
+	}, harnessExample{Name: "default", Version: "1.0.0", PropsJSON: `{"title":"Indexed"}`})
+	require.Contains(t, html, `const root = createRoot(document.getElementById("root"))`)
+	require.Contains(t, html, `const renderPreview = (override)`)
+	require.Contains(t, html, `rcl-preview-props-override`)
+	require.Contains(t, html, `rcl-preview-props-reset`)
+	require.Contains(t, html, `rcl-preview-props-applied`)
+	require.Contains(t, html, `rcl-preview-props-error`)
+	require.Contains(t, html, `data.componentId !== "cmp-1"`)
+	require.NotContains(t, html, `eval(`)
+}
+
 func withPackageRuntimeCandidates(t *testing.T, fn func(string) []string) {
 	t.Helper()
 	prev := packageRuntimeCandidatesFor

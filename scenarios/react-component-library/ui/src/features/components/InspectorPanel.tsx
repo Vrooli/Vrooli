@@ -7,6 +7,7 @@ import type { UseComponentInspectorReturn } from "../../hooks/useComponentInspec
 
 interface InspectorPanelProps {
   inspector: UseComponentInspectorReturn;
+  specimenLabel?: string;
 }
 
 /**
@@ -17,7 +18,7 @@ interface InspectorPanelProps {
  * Surface for req 06 (IS-001..003). Selection state is owned by
  * `useComponentInspector`; the panel is a pure renderer.
  */
-export function InspectorPanel({ inspector }: InspectorPanelProps) {
+export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps) {
   const { t } = useTranslation();
   const { active, selected, startInspect, stopInspect, lastReason } = inspector;
 
@@ -34,9 +35,12 @@ export function InspectorPanel({ inspector }: InspectorPanelProps) {
       className="mt-3 rounded-lg border border-app-border bg-app-surface p-3 backdrop-blur-sm"
     >
       <header className="flex items-center justify-between gap-3">
-        <h3 className="text-xs font-medium text-app-muted-foreground">
-          {t(strings.components.inspector.title)}
-        </h3>
+        <div className="min-w-0">
+          <h3 className="text-xs font-medium text-app-muted-foreground">
+            {t(strings.components.inspector.title)}
+          </h3>
+          {specimenLabel && <p className="truncate text-xs text-app-muted-foreground">{specimenLabel}</p>}
+        </div>
         <div className="flex items-center gap-2">
           <StatusBadge
             data-testid={selectors.components.inspector.statusBadge}

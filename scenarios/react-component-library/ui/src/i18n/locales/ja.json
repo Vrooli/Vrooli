@@ -142,6 +142,21 @@
       "previewFailed": "プレビューの描画に失敗しました。",
       "previewTimeout": "タイムアウト前にプレビューの準備完了が報告されませんでした。",
       "previewRetry": "再試行",
+      "comparing": "選択した表示例を比較中",
+      "showAllSpecimens": "すべて表示",
+      "specimenStatus": "{{total}} 件中 {{ready}} 件の表示例が準備完了",
+      "focusSpecimen": "フォーカス",
+      "compareSpecimen": "比較",
+      "tryProps": "props を試す",
+      "tryPropsDescription": "この表示例だけの一時的な変更です。プレビューの再読み込みまたはエディターを離れると消えます。",
+      "indexedPropsLabel": "インデックス済み props（JSON として編集可能）",
+      "propsApplied": "この表示例に適用しました",
+      "applyTemporaryProps": "一時 props を適用",
+      "applyingProps": "適用中…",
+      "resetIndexedProps": "インデックス済み props に戻す",
+      "propsObjectError": "props は JSON オブジェクトである必要があります。例: { \"title\": \"Preview\" }",
+      "propsJsonError": "実験を適用する前に JSON を修正してください。",
+      "propsRejected": "props の上書きは拒否されました。",
       "viewingVersion": "不変バージョン {{version}} を表示しています。編集するには情報パネルで現在のソースを選択してください。",
       "libraryIdLabel": "ライブラリID",
       "slotLabel": "スロット",
@@ -149,13 +164,17 @@
       "tagsLabel": "タグ"
     },
     "themeSwitcher": {
+      "appearanceLabel": "外観と視覚チェック",
+      "appearanceDescription": "このプレビューセッションのすべての表示例に、カラーモード、トークンソース、視覚シミュレーションを設定します。",
       "modeLabel": "カラースキーム",
+      "modeDescription": "システムはアプリ設定に従います。ライトとダークはプレビューのカラーモードを固定します。",
       "mode": {
         "system": "システム",
         "light": "ライト",
         "dark": "ダーク"
       },
       "packLabel": "トークンパック",
+      "packDescription": "パックは CSS カスタムプロパティを上書きします。カラーモードは変更しません。",
       "noneOption": "パックなし",
       "builtinOptionGroup": "ビルトインパレット",
       "packNames": {
@@ -164,15 +183,26 @@
         "highContrast": "ハイコントラスト"
       },
       "importLabel": "DESIGN.md を読み込む",
+      "importDescription": "シナリオ ID を入力すると、サーバーがそのシナリオの DESIGN.md をプレビュートークンとして解析します。",
       "scenarioInputLabel": "シナリオID",
       "scenarioInputPlaceholder": "例: flow-verifier",
       "scenarioApply": "適用",
+      "visualLabel": "視覚シミュレーション",
+      "visualDescription": "コンポーネントデータを変更せずに、色覚条件やぼかしをシミュレートします。",
       "loading": "テーマを読み込み中…",
       "applied": "{{name}} を適用"
     },
     "emulator": {
-      "presetLabel": "プリセット",
-      "dimensionSeparator": "x",
+      "viewportLabel": "ビューポート",
+      "viewportDescription": "デバイスまたはレスポンシブサイズを選び、プレビューセッション全体のズームと回転を調整します。",
+      "summary": "{{device}} · {{zoom}}%",
+      "responsiveLabel": "レスポンシブ",
+      "responsiveDescription": "カスタム寸法はレスポンシブを選択した場合にのみ入力できます。",
+      "deviceGroups": {
+        "phone": "スマートフォン",
+        "tablet": "タブレット",
+        "desktop": "デスクトップ"
+      },
       "toolbarLabel": "デバイスエミュレーション操作",
       "widthLabel": "ビューポート幅",
       "heightLabel": "ビューポート高さ",
@@ -180,7 +210,6 @@
       "zoomValue": "{{percent}}%",
       "rotate": "回転",
       "reset": "エミュレーターをリセット",
-      "more": "その他の操作",
       "visionFilterLabel": "視覚フィルター",
       "visionFilter": {
         "normal": "通常",

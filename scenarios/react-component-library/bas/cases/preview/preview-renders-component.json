@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "preview-renders-component",
-    "description": "Navigates to the seeded StatusBadge component editor at desktop width (where the code+preview panels render side by side) and asserts the preview host reaches the Rendered badge. This fails when the iframe recursively loads the app shell or when the preview runtime reports a browser render error. The mobile-only Preview/Code mode switch is hidden at this viewport (lg:hidden), so the preview badge is asserted directly rather than via a mode-switch click.",
+    "description": "Navigates to the seeded StatusBadge component editor at desktop width and proves the Preview Workspace is usable: all specimens become rendered, Appearance and Viewport each open an explanatory anchored control surface, a specimen can enter bounded comparison, and the active specimen exposes its temporary JSON props experiment. This fails when preview routing regresses, the compact controls are not wired, or gallery interaction is unavailable.",
     "requirement": "PR-001",
     "version": "1",
     "labels": {
@@ -54,6 +54,111 @@
         },
         "metadata": { "label": "Preview reached rendered state" }
       }
+    },
+    {
+      "id": "assert-gallery-status",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.editor.galleryStatus",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "The specimen gallery did not expose its per-specimen render status."
+        },
+        "metadata": { "label": "Specimen gallery reports its state" }
+      }
+    },
+    {
+      "id": "open-appearance",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/components.themeSwitcher.appearanceToggle" },
+        "metadata": { "label": "Open Appearance & visual checks" }
+      }
+    },
+    {
+      "id": "assert-appearance-panel",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.themeSwitcher.appearancePanel",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Appearance & visual checks did not open its anchored panel."
+        },
+        "metadata": { "label": "Appearance panel visible" }
+      }
+    },
+    {
+      "id": "close-appearance",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "keys": ["Escape"] },
+        "metadata": { "label": "Close Appearance panel" }
+      }
+    },
+    {
+      "id": "open-viewport",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/components.emulator.viewportToggle" },
+        "metadata": { "label": "Open Viewport" }
+      }
+    },
+    {
+      "id": "assert-viewport-panel",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.emulator.viewportPanel",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Viewport did not open the device and responsive-size control surface."
+        },
+        "metadata": { "label": "Viewport panel visible" }
+      }
+    },
+    {
+      "id": "close-viewport",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "keys": ["Escape"] },
+        "metadata": { "label": "Close Viewport panel" }
+      }
+    },
+    {
+      "id": "compare-specimen",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/components.editor.exampleCompare" },
+        "metadata": { "label": "Compare a named specimen" }
+      }
+    },
+    {
+      "id": "assert-comparison",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.editor.comparisonToolbar",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "A selected specimen did not enter comparison mode."
+        },
+        "metadata": { "label": "Comparison mode visible" }
+      }
+    },
+    {
+      "id": "assert-props-experiment",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.editor.propsPanel",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "The active specimen did not expose the temporary props experiment panel."
+        },
+        "metadata": { "label": "Temporary props experiment available" }
+      }
     }
   ],
   "edges": [
@@ -68,6 +173,16 @@
       "source": "wait-editor-panel",
       "target": "assert-rendered",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    }
+    },
+    { "id": "edge-rendered-gallery", "source": "assert-rendered", "target": "assert-gallery-status", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-gallery-appearance", "source": "assert-gallery-status", "target": "open-appearance", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-appearance-panel", "source": "open-appearance", "target": "assert-appearance-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-appearance-close", "source": "assert-appearance-panel", "target": "close-appearance", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-viewport-open", "source": "close-appearance", "target": "open-viewport", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-viewport-panel", "source": "open-viewport", "target": "assert-viewport-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-viewport-close", "source": "assert-viewport-panel", "target": "close-viewport", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-compare", "source": "close-viewport", "target": "compare-specimen", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-comparison", "source": "compare-specimen", "target": "assert-comparison", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-props", "source": "assert-comparison", "target": "assert-props-experiment", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

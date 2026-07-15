@@ -183,6 +183,30 @@ restores) and selects the comparison tab. This keeps comparison rendering in
 the code-oriented surface while preserving the Details pane as the metadata and
 history control surface.
 
+### Preview Workspace
+
+Preview is a bounded client-side experiment surface inside the workspace. The
+header deliberately has two primary entry points: **Appearance & visual
+checks** owns color mode, token-pack selection, DESIGN.md import, and visual
+simulations; **Viewport** owns device presets, responsive dimensions, zoom,
+and rotation. Both use an anchored dialog-style menu so compact controls retain
+their explanation and keyboard entry/exit behavior instead of consuming the
+toolbar continuously.
+
+The preview gallery keys every iframe by `version:example`. The host accepts a
+ready/error message only when its component, identity, and `contentWindow`
+match the registered frame, which makes an individual render failure retryable
+without suppressing the rest of the gallery. A bounded comparison set (two
+specimens) changes the gallery to an intentional side-by-side grid; it is not
+a freeform canvas and does not persist layout state.
+
+The active specimen is the only target of inspector and **Try props** traffic.
+Try props sends a shallow, data-only JSON-object override over the harness
+message bridge and can reset to indexed props. It is deliberately not stored,
+does not modify source/index data, and never evaluates example `setup`; the
+data contract and sequence are owned by [`DATA.md`](DATA.md#preview-session-boundary)
+and [`FLOWS.md`](FLOWS.md#preview-workspace-experiment).
+
 ## Contracts And Data Flow
 
 Wire shapes do not live in TypeScript interfaces, Go structs, or

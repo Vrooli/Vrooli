@@ -14,7 +14,7 @@
       "prd_ref": "OT-P0-004",
       "category": "emulator",
       "criticality": "P0",
-      "description": "Preset list includes at minimum: iPhone 14 (390x844), iPhone SE (375x667), iPad (768x1024), iPad Pro (1024x1366), Desktop 1280, Desktop 1440, Desktop 1920. Selecting a preset sets iframe width/height; mode label appears in the chrome.",
+      "description": "The Viewport menu lists at minimum iPhone 14 (390x844), iPhone SE (375x667), iPad (768x1024), iPad Pro (1024x1366), Desktop 1280, Desktop 1440, and Desktop 1920. Selecting a preset sets iframe width/height; device cards display their dimensions, and editable width/height controls are shown only for Responsive mode.",
       "tags": ["emulator", "ui"],
       "validation": [
         {

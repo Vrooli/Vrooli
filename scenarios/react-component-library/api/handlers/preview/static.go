@@ -394,7 +394,7 @@ const showPreviewError = (message) => {
   errEl.hidden = false;
   errEl.textContent = message;
   try {
-    parent.postMessage({ type: "preview-error", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, message }, "*");
+    parent.postMessage({ type: "preview-error", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, example: previewExample.name || "", version: previewExample.version || "", message }, "*");
   } catch (e) {}
 };
 const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
@@ -523,8 +523,31 @@ try {
   if (!Cmp) {
     showPreviewError("preview: component file exports neither a default nor a callable named export");
   } else {
-    const props = createNodeFactory(React, Icons)(previewExample.props || {});
-    createRoot(document.getElementById("root")).render(React.createElement(Cmp, props));
+    const root = createRoot(document.getElementById("root"));
+    const resolveProps = createNodeFactory(React, Icons);
+    const renderPreview = (override) => {
+      const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
+      const props = resolveProps({ ...(previewExample.props || {}), ...safeOverride });
+      root.render(React.createElement(Cmp, props));
+    };
+    renderPreview({});
+    window.addEventListener("message", (ev) => {
+      const data = ev && ev.data;
+      if (!data || (data.type !== "rcl-preview-props-override" && data.type !== "rcl-preview-props-reset")) return;
+      if (data.componentId !== ` + jsString(id) + ` || (data.example || "") !== (previewExample.name || "") || (data.version || "") !== (previewExample.version || "")) return;
+      if (data.type === "rcl-preview-props-override") {
+        const override = data.props;
+        if (!override || typeof override !== "object" || Array.isArray(override)) {
+          parent.postMessage({ type: "rcl-preview-props-error", id: ` + jsString(id) + `, example: previewExample.name || "", version: previewExample.version || "", message: "Props override must be a JSON object." }, "*");
+          return;
+        }
+        renderPreview(override);
+        parent.postMessage({ type: "rcl-preview-props-applied", id: ` + jsString(id) + `, example: previewExample.name || "", version: previewExample.version || "" }, "*");
+        return;
+      }
+      renderPreview({});
+      parent.postMessage({ type: "rcl-preview-props-reset", id: ` + jsString(id) + `, example: previewExample.name || "", version: previewExample.version || "" }, "*");
+    });
     setTimeout(() => {
       try {
         assertPreviewExpectations();

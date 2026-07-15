@@ -14,7 +14,7 @@
       "prd_ref": "OT-P1-001",
       "category": "filters",
       "criticality": "P1",
-      "description": "A three-way toggle posts a bridge message `colorScheme: 'system' | 'light' | 'dark'`. The harness child applies `color-scheme: <value>` on `:root` and toggles a `dark` class as needed.",
+      "description": "The Appearance & visual checks menu provides a three-way System/Light/Dark control that posts the resolved color-scheme state to each harness child. The harness applies `color-scheme: <value>` on `:root` and toggles a `dark` class as needed; token packs remain a separate CSS-token override axis.",
       "tags": ["filters", "iframe-bridge"],
       "validation": [
         {
@@ -31,7 +31,7 @@
       "prd_ref": "OT-P1-001",
       "category": "filters",
       "criticality": "P1",
-      "description": "Options: none, blur (0–10px slider), grayscale, protanopia, deuteranopia, tritanopia. Implemented via hidden SVG `<filter>` defs on the host page; `filter: url(#...)` is applied to the iframe wrapper. Colorblindness matrices match the values used by `app-monitor`'s `DeviceVisionFilterDefs`.",
+      "description": "The Appearance & visual checks menu offers none, blur (0–10px), grayscale, protanopia, deuteranopia, and tritanopia. Hidden SVG `<filter>` defs on the host page are composed into `filter: url(#...)` on the iframe wrapper. Colorblindness matrices match `app-monitor`'s `DeviceVisionFilterDefs`.",
       "tags": ["filters", "a11y"],
       "validation": [
         {

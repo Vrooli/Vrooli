@@ -29,6 +29,15 @@ import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 import type { ColorScheme } from "../../hooks/useDeviceFilters";
 
+const filters = {
+  visionFilter: "none" as const,
+  setVisionFilter: vi.fn(),
+  blurPx: 0,
+  setBlurPx: vi.fn(),
+  blurMin: 0,
+  blurMax: 10,
+};
+
 function makeBuiltinList() {
   return create(ListBuiltinThemesResponseSchema, {
     themes: [
@@ -87,6 +96,7 @@ function Harness({
       previewReady={true}
       colorScheme={colorScheme}
       setColorScheme={setColorScheme}
+      filters={filters}
     />
   );
 }
@@ -108,6 +118,7 @@ describe("ThemeSwitcher", () => {
     const postSpy = vi.fn();
     const user = userEvent.setup();
     renderWithProviders(<Harness postToFrames={postSpy} />);
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
 
     await waitFor(() => {
       expect(
@@ -134,7 +145,9 @@ describe("ThemeSwitcher", () => {
 
   it("re-labels the built-in Light/Dark packs so they never read as modes", async () => {
     const postSpy = vi.fn();
+    const user = userEvent.setup();
     renderWithProviders(<Harness postToFrames={postSpy} />);
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
 
     const select = screen.getByTestId(selectors.components.themeSwitcher.select);
     await waitFor(() => {
@@ -151,6 +164,7 @@ describe("ThemeSwitcher", () => {
     renderWithProviders(
       <Harness postToFrames={postSpy} setColorScheme={setColorScheme} colorScheme="dark" />,
     );
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
 
     const select = screen.getByTestId(selectors.components.themeSwitcher.select);
     await waitFor(() => {
@@ -177,6 +191,7 @@ describe("ThemeSwitcher", () => {
     renderWithProviders(
       <Harness postToFrames={postSpy} setColorScheme={setColorScheme} colorScheme="system" />,
     );
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
 
     await user.click(screen.getByTestId(selectors.components.themeSwitcher.modeDark));
     expect(setColorScheme).toHaveBeenCalledWith("dark");
@@ -185,12 +200,11 @@ describe("ThemeSwitcher", () => {
     expect(setColorScheme).toHaveBeenCalledWith("light");
   });
 
-  it("applies a scenario DESIGN.md pack from the import disclosure", async () => {
+  it("applies a scenario DESIGN.md pack from the described token-source section", async () => {
     const postSpy = vi.fn();
     const user = userEvent.setup();
     renderWithProviders(<Harness postToFrames={postSpy} />);
-
-    await user.click(screen.getByTestId(selectors.components.themeSwitcher.importToggle));
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
     await user.type(
       screen.getByTestId(selectors.components.themeSwitcher.scenarioInput),
       "flow-verifier",
@@ -206,5 +220,16 @@ describe("ThemeSwitcher", () => {
     expect(payload.type).toBe("rcl-theme-apply");
     expect(payload.themeId).toBe("flow-verifier");
     expect(payload.tokens["--color-primary"]).toBe("#ff00ff");
+  });
+
+  it("returns focus to the Appearance trigger after Escape", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness postToFrames={vi.fn()} />);
+    const trigger = screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle);
+    await user.click(trigger);
+    expect(screen.getByTestId(selectors.components.themeSwitcher.appearancePanel)).toHaveAttribute("role", "dialog");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByTestId(selectors.components.themeSwitcher.appearancePanel)).toBeNull();
+    expect(trigger).toHaveFocus();
   });
 });

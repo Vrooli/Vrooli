@@ -17,6 +17,7 @@ uses SQLite as an indexed registry and adoption ledger.
 | Component versions | versions | SQLite `component_versions`, `component_version_files` | Manifest indexer | Rebuilt by `components index` | `component_versions` mirrors the entry for legacy reads; `component_version_files` is the authoritative per-file path/content/hash set and carries a per-file `slot` so multi-file versions place each file independently. The table is single-owner: the former mirrored `internal/versions` schema was deleted so `internal/components/schema.sql` is the sole DDL. |
 | Reviewed template divergences | adoptions | `api/internal/adoptions/testdata/reviewed-template-divergences.json` | Human review (Git-tracked) | Until the divergence is resolved | Dated allowlist of explicitly-accepted mismatches between the react-vite template's vendored copies and catalog latest (path, library id, vendored version, catalog version, status, reason, report pointer). The parity test fails for any un-listed behind/deprecated copy and for stale entries, so the allowlist is an audit trail, not a suppression. |
 | Component examples | components | `library/components/<slug>/versions/<version>/examples.json` plus SQLite `component_examples` | Git-tracked examples file | Rebuilt by `components index` | Data-only example states for preview/specimen rendering. Each example has a stable `name`, display label, JSON `props`, optional `setup`, and optional `expect[]` assertions. Non-serializable props use `$` vocabulary values such as `{ "$text": "Save" }`; the preview harness resolves them at render time. |
+| Preview-session props overrides | preview host / harness | Component-editor React state and one registered iframe's memory | Volatile user input over the indexed example's `props` | Cleared by Reset, reload, navigation, or unmount | A valid JSON object is shallow-merged over the selected example's indexed props and resolved through the same `$` vocabulary. It is never written to `examples.json`, SQLite, localStorage, source, or an RPC. `setup` remains indexed data only; it has no runtime semantics in this workspace. |
 | Component headers | components | SQLite `component_headers` | Latest version source header | Rebuilt by `components index` | Stores non-structural header metadata. Identity, version, category, and deps are stored in typed columns/tables instead; conflicting structural header hints emit `header_disagreement` findings instead of owning projection facts. |
 | Component design affinities | components | SQLite `component_design_affinities` | `component.json` `designStyles[]` | Rebuilt by `components index` | Component-scoped, reconciled against `templates/design/*/metadata.json`, and carries optional rationale text for search, adoption workflows, and UI. Unknown style IDs emit non-fatal staleness findings so catalog drift is visible without dropping the component. |
 | Adoption records | adoptions | SQLite `adoption_records`, `adoption_files` | Apply/reapply service | Until deleted | Parent fields mirror the entry; `adoption_files` records every library/adopted path and per-file snapshot for unit drift. |
@@ -48,6 +49,16 @@ SQLite table needs a new column, index, or primary-key shape, apply a
 one-shot `/tmp/react-component-library/migrate-*.sql` migration with the
 scenario stopped. Do not recreate the database just to satisfy schema
 drift.
+
+## Preview-session boundary
+
+The editor treats the indexed example as the immutable baseline for every
+specimen. A Try props experiment is intentionally not a second example and is
+not an edit to the component: the host sends a data-only object to the matching
+iframe, the harness shallow-merges it over indexed `props`, and Reset restores
+the indexed object. The existing `setup` field is visible in the index contract
+but is not evaluated by the harness; no consumer may infer arbitrary code or
+setup-program execution from its presence.
 
 ## Cross-References
 

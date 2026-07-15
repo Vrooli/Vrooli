@@ -369,6 +369,38 @@ describe("ComponentEditor", () => {
     expect(screen.queryByTestId(selectors.components.editor.previewError)).not.toBeInTheDocument();
   });
 
+  it("sends a temporary props override only to the active named specimen", async () => {
+    const { componentsClient, listComponentExamples } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "v1", sha256: "sha-props" }),
+    );
+    vi.mocked(listComponentExamples).mockResolvedValueOnce(
+      makeListComponentExamplesResponse({
+        examples: [
+          makeComponentExample({ name: "primary", displayName: "Primary", propsJson: '{"title":"Short"}' }),
+          makeComponentExample({ name: "secondary", displayName: "Secondary", propsJson: '{"title":"Other"}' }),
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ComponentEditor id="cmp-props" libraryId="lib:Props" onClose={() => {}} />);
+    await user.click(await screen.findByTestId(selectors.components.editor.previewModeButton));
+    const frames = await screen.findAllByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+    const firstPost = vi.spyOn(frames[0]!.contentWindow!, "postMessage");
+    const secondPost = vi.spyOn(frames[1]!.contentWindow!, "postMessage");
+    fireEvent.change(screen.getByTestId<HTMLTextAreaElement>(selectors.components.editor.propsDraft), {
+      target: { value: '{"title":"A deliberately much longer value"}' },
+    });
+    await user.click(screen.getByTestId(selectors.components.editor.propsApply));
+    expect(firstPost).toHaveBeenCalledWith(expect.objectContaining({
+      type: "rcl-preview-props-override",
+      componentId: "cmp-props",
+      example: "primary",
+      props: { title: "A deliberately much longer value" },
+    }), "*");
+    expect(secondPost).not.toHaveBeenCalledWith(expect.objectContaining({ type: "rcl-preview-props-override" }), "*");
+  });
+
   it("reloads the iframe when save returns a new sha256", async () => {
     const { componentsClient } = await import("../../api/components");
     // First GET returns the pre-save sha; post-save invalidation triggers
@@ -404,7 +436,7 @@ describe("ComponentEditor", () => {
     });
   });
 
-  it("shows a retryable preview failure when the harness posts preview-error", async () => {
+  it("isolates a harness failure to its specimen and retries only that iframe", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-preview" }),
@@ -415,30 +447,27 @@ describe("ComponentEditor", () => {
       <ComponentEditor id="cmp-9" libraryId="lib:BrokenPreview" onClose={() => {}} />,
     );
 
-    await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+    const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
     await user.click(screen.getByRole("button", { name: "Preview" }));
 
     window.dispatchEvent(new MessageEvent("message", {
       data: {
         type: "preview-error",
         id: "cmp-9",
+        example: "",
+        version: "",
         message: "preview: render failed - boom",
       },
+      source: frame.contentWindow,
     }));
 
-    const error = await screen.findByTestId(selectors.components.editor.previewError);
+    const error = await screen.findByTestId(selectors.components.editor.specimenError);
     expect(error.textContent).toContain("preview: render failed - boom");
 
-    const before = screen
-      .getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame)
-      .getAttribute("src");
-    await user.click(screen.getByTestId(selectors.components.editor.previewRetryButton));
+    await user.click(screen.getByTestId(selectors.components.editor.specimenRetry));
 
     await waitFor(() => {
-      const after = screen
-        .getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame)
-        .getAttribute("src");
-      expect(after).not.toBe(before);
+      const after = screen.getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame).getAttribute("src");
       expect(after).toContain("r=1");
     });
   });
@@ -469,10 +498,12 @@ describe("ComponentEditor", () => {
       // The first-fetch baselineSha effect resets the ready set right after
       // mount, so a single announce can race. Re-announce until the badge
       // sticks — exactly what a live harness does on each (re)load.
+      const frame = screen.getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
       await waitFor(() => {
         window.dispatchEvent(
           new MessageEvent("message", {
-            data: { type: "preview-ready", id: "cmp-ready" },
+            data: { type: "preview-ready", id: "cmp-ready", example: "", version: "" },
+            source: frame.contentWindow,
           }),
         );
         expect(screen.getByTestId(selectors.components.editor.previewBadge)).toBeInTheDocument();

@@ -146,6 +146,21 @@
       "previewFailed": "فشل عرض المعاينة.",
       "previewTimeout": "لم تُبلغ المعاينة أنها جاهزة قبل انتهاء المهلة.",
       "previewRetry": "إعادة المحاولة",
+      "comparing": "تجري مقارنة النماذج المحددة",
+      "showAllSpecimens": "إظهار الكل",
+      "specimenStatus": "{{ready}} من {{total}} نماذج جاهزة",
+      "focusSpecimen": "تركيز",
+      "compareSpecimen": "مقارنة",
+      "tryProps": "تجربة props",
+      "tryPropsDescription": "هذا مؤقت لهذه العينة. يختفي عند إعادة تحميل المعاينة أو مغادرة المحرر.",
+      "indexedPropsLabel": "props المفهرسة، قابلة للتحرير كـ JSON",
+      "propsApplied": "طُبّق على هذه العينة",
+      "applyTemporaryProps": "تطبيق props مؤقتة",
+      "applyingProps": "جارٍ التطبيق…",
+      "resetIndexedProps": "إعادة إلى props المفهرسة",
+      "propsObjectError": "يجب أن تكون props كائن JSON، مثل { \"title\": \"Preview\" }.",
+      "propsJsonError": "أصلح JSON قبل تطبيق التجربة.",
+      "propsRejected": "رُفض تجاوز props.",
       "viewingVersion": "أنت تشاهد الإصدار غير القابل للتعديل {{version}}. اختر المصدر الحالي للتحرير من لوحة المعلومات.",
       "libraryIdLabel": "معرّف المكتبة",
       "slotLabel": "الفتحة",
@@ -153,13 +168,17 @@
       "tagsLabel": "الوسوم"
     },
     "themeSwitcher": {
+      "appearanceLabel": "المظهر والفحوص المرئية",
+      "appearanceDescription": "اختر وضع الألوان ومصدر الرموز والمحاكاة المرئية لكل نماذج هذه الجلسة.",
       "modeLabel": "نظام الألوان",
+      "modeDescription": "يتبع النظام إعداد التطبيق. يفرض الفاتح والداكن وضع لون المعاينة.",
       "mode": {
         "system": "النظام",
         "light": "فاتح",
         "dark": "داكن"
       },
       "packLabel": "حزمة الرموز",
+      "packDescription": "تتجاوز الحزم خصائص CSS المخصصة ولا تغيّر وضع الألوان المحدد.",
       "noneOption": "بدون حزمة",
       "builtinOptionGroup": "لوحات مدمجة",
       "packNames": {
@@ -168,15 +187,26 @@
         "highContrast": "تباين عالٍ"
       },
       "importLabel": "استيراد DESIGN.md",
+      "importDescription": "أدخل معرّف سيناريو لكي يحلل الخادم ملف DESIGN.md لذلك السيناريو إلى رموز معاينة.",
       "scenarioInputLabel": "معرّف السيناريو",
       "scenarioInputPlaceholder": "مثال: flow-verifier",
       "scenarioApply": "تطبيق",
+      "visualLabel": "محاكاة مرئية",
+      "visualDescription": "حاكِ حالات رؤية الألوان أو موّه المعاينة دون تغيير بيانات المكوّن.",
       "loading": "جارٍ تحميل السمة…",
       "applied": "تم تطبيق {{name}}"
     },
     "emulator": {
-      "presetLabel": "الإعداد المسبق",
-      "dimensionSeparator": "x",
+      "viewportLabel": "منفذ العرض",
+      "viewportDescription": "اختر جهازاً أو حجماً متجاوباً، ثم اضبط التكبير والتدوير لجلسة المعاينة كلها.",
+      "summary": "{{device}} · {{zoom}}%",
+      "responsiveLabel": "متجاوب",
+      "responsiveDescription": "أدخل الأبعاد المخصصة فقط عند اختيار متجاوب.",
+      "deviceGroups": {
+        "phone": "هواتف",
+        "tablet": "أجهزة لوحية",
+        "desktop": "أجهزة سطح المكتب"
+      },
       "toolbarLabel": "عناصر تحكم محاكاة الجهاز",
       "widthLabel": "عرض منفذ العرض",
       "heightLabel": "ارتفاع منفذ العرض",
@@ -184,7 +214,6 @@
       "zoomValue": "{{percent}}%",
       "rotate": "تدوير",
       "reset": "إعادة ضبط المحاكي",
-      "more": "عناصر تحكم إضافية",
       "visionFilterLabel": "مرشح الرؤية",
       "visionFilter": {
         "normal": "عادي",
