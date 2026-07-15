@@ -38,7 +38,7 @@ func TestPasswordResolve_StdinReadsPipeAndStripsOneNewline(t *testing.T) {
 		{"piped-secret\n", "piped-secret"},
 		{"piped-secret\r\n", "piped-secret"},
 		{"piped-secret", "piped-secret"},
-		{"piped-secret\r", "piped-secret\r"}, // bare CR is password material, not a pipe newline
+		{"piped-secret\r", "piped-secret\r"},     // bare CR is password material, not a pipe newline
 		{"trailing-space \n", "trailing-space "}, // inner whitespace is part of the password
 		{"multi\nline\n", "multi\nline"},         // only the final pipe newline is stripped
 		{"", ""},                                 // empty pipe = key-trusted, still explicit

@@ -324,6 +324,7 @@ const literalSelectors = {
     onboard: {
       form: "fleet-onboard-form",
       addNode: "fleet-onboard-add-node",
+      useThisMachine: "fleet-onboard-use-this-machine",
       stepIndicator: "fleet-onboard-step-indicator",
       next: "fleet-onboard-next",
       back: "fleet-onboard-back",

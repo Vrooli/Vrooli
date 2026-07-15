@@ -188,6 +188,8 @@ export const strings = {
       back: "fleet.onboard.back",
       connectIntro: "fleet.onboard.connectIntro",
       macHint: "fleet.onboard.macHint",
+      localSuggestionPrompt: "fleet.onboard.localSuggestionPrompt",
+      useThisMachine: "fleet.onboard.useThisMachine",
       moreLabel: "fleet.onboard.moreLabel",
       unlockIntro: "fleet.onboard.unlockIntro",
       passwordOptionalNote: "fleet.onboard.passwordOptionalNote",
@@ -265,6 +267,7 @@ export const strings = {
     signedIn: "session.signedIn",
     signOut: "session.signOut",
     accountHeading: "session.accountHeading",
+    firstTimeNote: "session.firstTimeNote",
     login: {
       title: "session.login.title",
       intro: "session.login.intro",
@@ -288,7 +291,6 @@ export const strings = {
       emailTaken: "session.register.emailTaken",
       invalidInput: "session.register.invalidInput",
     },
-    firstTimeNote: "session.firstTimeNote",
   },
 } as const;
 

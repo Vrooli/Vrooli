@@ -176,6 +176,8 @@
       "back": "Back",
       "connectIntro": "Tell us which machine to add. It must be reachable from this computer over SSH.",
       "macHint": "On a Mac: System Settings → General → Sharing → turn on Remote Login.",
+      "localSuggestionPrompt": "Adding the computer that runs Vrooli Bridge ({{name}})?",
+      "useThisMachine": "Use this machine",
       "moreLabel": "More options",
       "unlockIntro": "Enter the machine's login password. It's used once to install a secure key, then discarded — it is never stored.",
       "passwordOptionalNote": "Leave this blank if this computer can already sign in to the machine without a password.",
@@ -253,7 +255,12 @@
     "signedIn": "Signed in",
     "signOut": "Sign out",
     "accountHeading": "Account",
+    "firstTimeNote": "First time here? Create the owner account — it controls this fleet.",
     "login": {
+      "title": "Owner sign-in",
+      "intro": "Use your Vrooli owner account, or create one — a new account is signed in immediately.",
+      "tabSignIn": "Sign in",
+      "tabCreate": "Create account",
       "emailLabel": "Email",
       "emailPlaceholder": "you@example.com",
       "passwordLabel": "Password",
@@ -264,9 +271,7 @@
       "submitting": "Signing in…",
       "missingFields": "Enter your email and password.",
       "invalidCredentials": "Invalid email or password.",
-      "unavailable": "The authenticator is unavailable. Try again in a moment.",
-      "switchToRegister": "New here? Create the owner account",
-      "switchToSignIn": "Already have an account? Sign in"
+      "unavailable": "The authenticator is unavailable. Try again in a moment."
     },
     "register": {
       "submit": "Create account",

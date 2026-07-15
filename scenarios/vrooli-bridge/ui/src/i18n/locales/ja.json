@@ -175,6 +175,8 @@
       "back": "戻る",
       "connectIntro": "追加するマシンを教えてください。このコンピューターから SSH で接続できる必要があります。",
       "macHint": "Mac の場合: システム設定 → 一般 → 共有 → リモートログインをオンにします。",
+      "localSuggestionPrompt": "Vrooli Bridge を実行しているこのコンピューター（{{name}}）を追加しますか？",
+      "useThisMachine": "このマシンを使用",
       "moreLabel": "その他のオプション",
       "unlockIntro": "マシンのログインパスワードを入力してください。安全なキーをインストールするために一度だけ使用され、その後破棄されます。保存されることはありません。",
       "passwordOptionalNote": "このコンピューターがすでにパスワードなしでマシンにサインインできる場合は、空欄のままにしてください。",
@@ -250,7 +252,12 @@
     "signedIn": "サインイン済み",
     "signOut": "サインアウト",
     "accountHeading": "アカウント",
+    "firstTimeNote": "初めてですか？ オーナーアカウントを作成してください — このフリートを管理します。",
     "login": {
+      "title": "オーナーサインイン",
+      "intro": "Vrooli オーナーアカウントでサインインするか、新規作成してください。新しいアカウントはすぐにサインインされます。",
+      "tabSignIn": "サインイン",
+      "tabCreate": "アカウント作成",
       "emailLabel": "メールアドレス",
       "emailPlaceholder": "you@example.com",
       "passwordLabel": "パスワード",
@@ -261,9 +268,7 @@
       "submitting": "サインインしています…",
       "missingFields": "メールアドレスとパスワードを入力してください。",
       "invalidCredentials": "メールアドレスまたはパスワードが正しくありません。",
-      "unavailable": "認証サービスを利用できません。しばらくしてからもう一度お試しください。",
-      "switchToRegister": "はじめてですか？ オーナーアカウントを作成",
-      "switchToSignIn": "すでにアカウントをお持ちですか？ サインイン"
+      "unavailable": "認証サービスを利用できません。しばらくしてからもう一度お試しください。"
     },
     "register": {
       "submit": "アカウント作成",

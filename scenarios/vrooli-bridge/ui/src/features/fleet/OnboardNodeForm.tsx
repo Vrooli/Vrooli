@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, ChevronRight, Eye, EyeOff, Loader2, Rocket, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronRight, Eye, EyeOff, Loader2, Rocket, Server, XCircle } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -16,6 +16,7 @@ import {
 } from "../../api/onboard";
 import {
   isTerminalOnboarding,
+  useLocalNodeSuggestionQuery,
   useOnboardingQuery,
   useStartOnboardingMutation,
 } from "./queries";
@@ -326,6 +327,7 @@ function StepIndicator({ current }: { current: number }) {
 export function OnboardNodeForm() {
   const { t } = useTranslation();
   const start = useStartOnboardingMutation();
+  const localSuggestion = useLocalNodeSuggestionQuery();
 
   const [step, setStep] = useState(0);
   const [host, setHost] = useState("");
@@ -381,6 +383,17 @@ export function OnboardNodeForm() {
   }, [step]);
 
   const canLeaveConnect = host.trim().length > 0;
+
+  // The control plane's own machine, offered as a one-click prefill. Only shown
+  // when the server resolved a real OS user (the browser can't) — never a guess.
+  const suggestion = localSuggestion.data;
+  const canSuggestLocal = suggestion?.available === true && suggestion.host.length > 0;
+  const suggestionName = suggestion ? suggestion.hostname || suggestion.host : "";
+  const useThisMachine = () => {
+    if (!suggestion) return;
+    setHost(suggestion.host);
+    setUser(suggestion.user);
+  };
 
   const goNext = () => {
     if (step === 0 && !canLeaveConnect) return;
@@ -491,6 +504,22 @@ export function OnboardNodeForm() {
         {step === 0 && (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-app-foreground">{t(strings.fleet.onboard.connectIntro)}</p>
+            {canSuggestLocal && (
+              <div className="flex flex-wrap items-center gap-2 rounded-panel border border-app-primary/30 bg-app-primary/10 p-2">
+                <span className="text-xs text-app-foreground">
+                  {t(strings.fleet.onboard.localSuggestionPrompt, { name: suggestionName })}
+                </span>
+                <button
+                  type="button"
+                  data-testid={selectors.fleet.onboard.useThisMachine}
+                  onClick={useThisMachine}
+                  className="inline-flex items-center gap-1 rounded-control border border-app-primary/40 bg-app-surface px-2 py-1 text-xs font-medium text-app-primary hover:bg-app-primary/10"
+                >
+                  <Server aria-hidden="true" className="h-3.5 w-3.5" />
+                  {t(strings.fleet.onboard.useThisMachine)}
+                </button>
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <Field
                 id="fleet-onboard-host-input"

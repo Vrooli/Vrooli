@@ -94,6 +94,25 @@ export function useStartOnboardingMutation() {
   });
 }
 
+/** Canonical react-query key for the local-machine onboarding suggestion. */
+export const LOCAL_SUGGESTION_QUERY_KEY = ["fleet", "onboarding", "local-suggestion"] as const;
+
+/**
+ * Fetch the control plane's suggestion for onboarding its own machine (loopback
+ * host + the OS user the process runs as — a value the browser cannot resolve
+ * itself). Powers the wizard's "add this machine" one-click prefill. Owner-gated
+ * and static for the process lifetime, so it never refetches on its own; a
+ * failure or an unavailable suggestion simply hides the affordance.
+ */
+export function useLocalNodeSuggestionQuery() {
+  return useQuery({
+    queryKey: LOCAL_SUGGESTION_QUERY_KEY,
+    queryFn: () => onboardClient.getLocalNodeSuggestion({}),
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
 /** react-query key for a single onboarding op's live progress. */
 export const ONBOARDING_QUERY_KEY = (opId: string) => ["fleet", "onboarding", opId] as const;
 

@@ -9,14 +9,17 @@ import { selectors } from "../../consts/selectors";
 import { OnboardingState, OnboardingStepStatus, SourceMode } from "../../api/onboard";
 import { makeGetOnboardingResponse, makeStepEvent } from "./mocks/factories";
 
-const { startOnboarding, getOnboarding } = vi.hoisted(() => ({
+const { startOnboarding, getOnboarding, getLocalNodeSuggestion } = vi.hoisted(() => ({
   startOnboarding: vi.fn(),
   getOnboarding: vi.fn(),
+  // Default: no resolvable local suggestion, so the affordance is hidden unless a
+  // test opts in. Individual tests override this before rendering.
+  getLocalNodeSuggestion: vi.fn().mockResolvedValue({ host: "", user: "", hostname: "", available: false }),
 }));
 
 vi.mock("../../api/onboard", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/onboard")>();
-  return { ...actual, onboardClient: { startOnboarding, getOnboarding } };
+  return { ...actual, onboardClient: { startOnboarding, getOnboarding, getLocalNodeSuggestion } };
 });
 
 import { OnboardNodeForm } from "./OnboardNodeForm";
@@ -63,6 +66,33 @@ async function startOnboard(host = "node-01.example.com") {
   await user.click(screen.getByTestId(s.submit));
   return user;
 }
+
+describe("OnboardNodeForm local-machine suggestion", () => {
+  it('hides "use this machine" when the server has no resolvable suggestion', () => {
+    getLocalNodeSuggestion.mockResolvedValue({ host: "", user: "", hostname: "", available: false });
+    renderWithProviders(<OnboardNodeForm />);
+    expect(screen.queryByTestId(s.useThisMachine)).not.toBeInTheDocument();
+  });
+
+  it("prefills address + username from the server suggestion on one click", async () => {
+    getLocalNodeSuggestion.mockResolvedValue({
+      host: "127.0.0.1",
+      user: "studio",
+      hostname: "studio-box",
+      available: true,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<OnboardNodeForm />);
+
+    // The button appears once the (owner-gated) suggestion query resolves.
+    const button = await screen.findByTestId(s.useThisMachine);
+    // Fields start empty — the value comes from the server, never a hardcoded guess.
+    expect(screen.getByTestId(s.host)).toHaveValue("");
+    await user.click(button);
+    expect(screen.getByTestId(s.host)).toHaveValue("127.0.0.1");
+    expect(screen.getByTestId(s.user)).toHaveValue("studio");
+  });
+});
 
 describe("OnboardNodeForm wizard", () => {
   it("walks Connect → Unlock → Review, surfacing the fields for each step", async () => {
