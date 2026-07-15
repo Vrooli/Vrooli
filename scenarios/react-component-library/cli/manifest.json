@@ -76,6 +76,39 @@
 		  "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ReconcileAdoptions" },
 		  "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
 		},
+        {
+          "name": "reconverge",
+          "description": "Batch-reconverge BEHIND adoptions to the current library version: re-apply CLEAN copies, flag MODIFIED copies for human review (dry-run by default)",
+          "flags": [
+            { "name": "scenario", "description": "Optional adopter scenario to restrict the reconverge" },
+            { "name": "apply", "description": "Re-apply the CLEAN behind copies (default is dry-run)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ReconvergeAdoptions" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "discover",
+          "description": "Find header-less scenario UI files that content-match a library version and surface them as provenance-backfill candidates (read-only; review evidence, then confirm-discovery)",
+          "flags": [
+            { "name": "scenario", "description": "Optional scenario to restrict the scan" },
+            { "name": "min-similarity", "description": "Minimum Sørensen–Dice line similarity [0,1] to surface a candidate (default 0.6)" },
+            { "name": "limit", "description": "Maximum candidates (default 200)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "DiscoverAdoptions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "confirm-discovery",
+          "description": "Confirm a discovery candidate: inject its @vrooliComponentSource header and create the adoption record",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario holding the header-less file" },
+            { "name": "adopted-path", "required": true, "description": "Scenario-relative path of the file to tag" },
+            { "name": "component-id", "required": true, "description": "Library component id to attribute" },
+            { "name": "version", "required": true, "description": "Library version to attribute" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ConfirmDiscovery" },
+          "governance": { "effect": "write", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
 		{
           "name": "refresh",
           "description": "Recompute drift status for every adoption (or one component's)",
@@ -94,7 +127,9 @@
           ],
           "flags": [
             { "name": "override", "description": "Use this path instead and validate path safety" },
-            { "name": "feature", "description": "Feature folder name (required when the slot needs one)" }
+            { "name": "feature", "description": "Feature folder name (required when the slot needs one)" },
+            { "name": "version", "description": "Version whose full file set to place (defaults to the latest indexed version)" },
+            { "name": "template", "description": "Resolve placement against this template's UI manifest instead of chasing the scenario's service.json" }
           ],
           "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ResolveAdoptionPath" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
@@ -195,7 +230,8 @@
             { "name": "tags", "description": "Comma-separated tags" },
             { "name": "slot", "description": "Target component slot" },
             { "name": "version", "description": "Released version baseline when re-harvesting an existing component" },
-            { "name": "companion-files", "description": "Optional comma-separated origin .ts/.tsx companions not reachable by relative imports" }
+            { "name": "companion-files", "description": "Optional comma-separated origin .ts/.tsx companions not reachable by relative imports" },
+            { "name": "accept-behavior-loss", "description": "Record and accept a static behavior-inventory loss so the blocked harvest proceeds (losses persist on the draft's parity report)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "IngestComponent" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"] }

@@ -223,13 +223,14 @@ func (h *handlers) init(ctx cliapp.RunContext) error {
 
 func (h *handlers) ingest(ctx cliapp.RunContext) error {
 	req := &componentsv1.IngestComponentRequest{
-		Scenario:    ctx.Positional("scenario"),
-		SourceFile:  ctx.Positional("source-file"),
-		Slug:        ctx.Positional("slug"),
-		DisplayName: ctx.Flag("display-name"),
-		Description: ctx.Flag("description"),
-		Slot:        ctx.Flag("slot"),
-		Version:     ctx.Flag("version"),
+		Scenario:           ctx.Positional("scenario"),
+		SourceFile:         ctx.Positional("source-file"),
+		Slug:               ctx.Positional("slug"),
+		DisplayName:        ctx.Flag("display-name"),
+		Description:        ctx.Flag("description"),
+		Slot:               ctx.Flag("slot"),
+		Version:            ctx.Flag("version"),
+		AcceptBehaviorLoss: ctx.Flag("accept-behavior-loss") == "true",
 	}
 	if rawTags := ctx.Flag("tags"); rawTags != "" {
 		req.Tags = splitCSV(rawTags)
@@ -239,6 +240,11 @@ func (h *handlers) ingest(ctx cliapp.RunContext) error {
 	}
 	resp, err := h.client.IngestComponent(context.Background(), connect.NewRequest(req))
 	if err != nil {
+		// A blocked harvest (FailedPrecondition) already names the dropped
+		// behaviors in its message; point the operator at the override.
+		if connect.CodeOf(err) == connect.CodeFailedPrecondition {
+			return fmt.Errorf("%w\nRe-run with --accept-behavior-loss to record and accept these losses on the draft's parity report", err)
+		}
 		return cliapp.WrapAPIError("ingest component", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
@@ -248,8 +254,12 @@ func (h *handlers) ingest(ctx cliapp.RunContext) error {
 	for _, finding := range resp.Msg.Findings {
 		results = append(results, fmt.Sprintf("%s: %s", finding.Code, finding.Message))
 	}
+	summary := []string{fmt.Sprintf("Ingested %s as draft %s.", resp.Msg.Component.LibraryId, resp.Msg.DraftVersion)}
+	if report := resp.Msg.ParityReport; report != nil && report.Acknowledged && len(report.Findings) > 0 {
+		summary = append(summary, fmt.Sprintf("Accepted %d behavior-loss finding(s); recorded as an acknowledged parity report.", len(report.Findings)))
+	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Ingested %s as draft %s.", resp.Msg.Component.LibraryId, resp.Msg.DraftVersion)},
+		Summary:        summary,
 		ResultsHeading: "Files and findings",
 		Results:        results,
 		RetrievalHints: []string{fmt.Sprintf("Review %s before promoting the draft.", resp.Msg.ChecklistPath)},

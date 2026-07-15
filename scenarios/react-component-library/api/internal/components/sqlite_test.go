@@ -563,3 +563,81 @@ func TestSQLiteRepository_DeleteMissing(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, deleted)
 }
+
+// seedOrphanVersion inserts a component_versions row (plus one child
+// file row) whose component_id has no owning components registry row —
+// the soft-FK cruft a re-slug or withdrawal leaves behind.
+func seedOrphanVersion(t *testing.T, d *sql.DB, versionID, componentID, libraryID, version, sourcePath string) {
+	t.Helper()
+	_, err := d.ExecContext(context.Background(), `
+INSERT INTO component_versions
+  (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at)
+VALUES (?, ?, ?, ?, 'released', ?, '', 'sha', '', '2026-05-12T10:00:00Z', '')`,
+		versionID, componentID, libraryID, version, sourcePath)
+	require.NoError(t, err)
+	_, err = d.ExecContext(context.Background(),
+		`INSERT INTO component_version_files (version_id, path, content, content_sha256, is_entry) VALUES (?, ?, '', 'sha', 1)`,
+		versionID, sourcePath)
+	require.NoError(t, err)
+}
+
+func countRows(t *testing.T, d *sql.DB, query string, args ...any) int {
+	t.Helper()
+	var n int
+	require.NoError(t, d.QueryRowContext(context.Background(), query, args...).Scan(&n))
+	return n
+}
+
+func TestSQLiteRepository_SweepOrphans_RemovesRegistryOrphansKeepsParented(t *testing.T) {
+	d, repo, _ := newComponentsRawDB(t)
+	ctx := context.Background()
+
+	live, err := repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{
+			LibraryID:     "react-component-library:Button",
+			Slug:          "Button",
+			DisplayName:   "Button",
+			ManifestPath:  "components/Button/component.json",
+			LatestVersion: "1.0.0",
+		},
+		Versions: []components.ComponentVersion{{
+			LibraryID:     "react-component-library:Button",
+			Version:       "1.0.0",
+			Status:        components.VersionStatusReleased,
+			SourcePath:    "components/Button/versions/1.0.0/Button.tsx",
+			Content:       "export const Button = () => null;",
+			ContentSHA256: "sha-button",
+		}},
+	})
+	require.NoError(t, err)
+
+	seedOrphanVersion(t, d, "orphan-1", "cmp-gone", "react-component-library:tab-bar", "0.1.0",
+		"components/tab-bar/versions/0.1.0/tab-bar.tsx")
+	seedOrphanVersion(t, d, "orphan-2", "cmp-gone", "react-component-library:tab-bar", "0.1.0-draft.1",
+		"components/tab-bar/versions/0.1.0-draft.1/tab-bar.tsx")
+
+	orphans, err := repo.SweepOrphans(ctx)
+	require.NoError(t, err)
+	require.Len(t, orphans, 2, "both registry-orphaned rows must be reported")
+	// Ordered by library_id then version.
+	require.Equal(t, "react-component-library:tab-bar", orphans[0].LibraryID)
+	require.Equal(t, "0.1.0", orphans[0].Version)
+	require.Equal(t, "cmp-gone", orphans[0].ComponentID)
+	require.Equal(t, "0.1.0-draft.1", orphans[1].Version)
+
+	// Orphan version + child file rows are gone.
+	require.Zero(t, countRows(t, d,
+		`SELECT count(*) FROM component_versions WHERE component_id NOT IN (SELECT id FROM components)`))
+	require.Zero(t, countRows(t, d,
+		`SELECT count(*) FROM component_version_files WHERE version_id IN ('orphan-1','orphan-2')`))
+
+	// The registry-parented version is untouched.
+	kept, err := repo.ListVersions(ctx, live.ID, 10)
+	require.NoError(t, err)
+	require.Len(t, kept, 1)
+
+	// Idempotent: a second sweep finds nothing.
+	again, err := repo.SweepOrphans(ctx)
+	require.NoError(t, err)
+	require.Empty(t, again)
+}

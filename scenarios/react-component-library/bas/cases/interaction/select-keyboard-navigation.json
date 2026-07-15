@@ -1,0 +1,97 @@
+{
+  "metadata": {
+    "name": "select-keyboard-navigation",
+    "description": "Opens the Select@1.1.0 preview harness (example=selected, defaultValue=native) at top level, focuses the combobox, presses ArrowDown, and asserts the selected value advances from 'native' to 'compatible'. Proves the Select component honours keyboard option navigation, not merely that it renders a combobox.",
+    "requirement": "TC-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "select-keyboard-navigation",
+      "requirements_json": "[\"TC-006\",\"TC-004\"]"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1400,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-select-harness",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library:Select/harness.html?example=selected",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Select@1.1.0 harness (selected)" }
+      }
+    },
+    {
+      "id": "wait-select",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "select",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Select combobox rendered" }
+      },
+      "execution_settings": { "wait_after_ms": 300 }
+    },
+    {
+      "id": "focus-select",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const s = document.querySelector('select'); if (s) s.focus(); return s ? s.value : 'NONE'; })()",
+          "store_result": "initialValue"
+        },
+        "metadata": { "label": "Focus the combobox (starts on 'native')" }
+      }
+    },
+    {
+      "id": "press-arrow-down",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "keys": ["ArrowDown"] },
+        "metadata": { "label": "Press ArrowDown to move to the next option" }
+      }
+    },
+    {
+      "id": "stamp-select-value",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const s = document.querySelector('select'); const v = s ? s.value : ''; document.body.setAttribute('data-select-value', v); return v; })()",
+          "store_result": "selectValue"
+        },
+        "metadata": { "label": "Record the selected value after ArrowDown" }
+      }
+    },
+    {
+      "id": "assert-value-advanced",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-select-value=\"compatible\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "ArrowDown did not advance the Select value from 'native' to 'compatible' — keyboard option navigation regressed."
+        },
+        "metadata": { "label": "Selection advanced to the next option" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-select-harness", "target": "wait-select", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-select", "target": "focus-select", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "focus-select", "target": "press-arrow-down", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "press-arrow-down", "target": "stamp-select-value", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "stamp-select-value", "target": "assert-value-advanced", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

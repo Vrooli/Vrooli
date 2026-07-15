@@ -52,42 +52,42 @@
           "type": "test"
         },
         {
-          "notes": "Browserless smoke test: load the fleet-view URL; assert the coverage dashboard table renders at least one row with a status badge visible in the DOM",
+          "notes": "Browser smoke test: load the fleet-view URL; assert the coverage dashboard table renders at least one row with a status badge visible in the DOM",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Browserless smoke test: click a scenario row; assert the drill-down panel opens and contains at least one measure entry with tier and verdict fields rendered",
+          "notes": "Browser smoke test: click a scenario row; assert the drill-down panel opens and contains at least one measure entry with tier and verdict fields rendered",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Browserless smoke test: simulate API error by intercepting network; assert error state banner is displayed and no crash occurs",
+          "notes": "Browser smoke test: simulate API error by intercepting network; assert error state banner is displayed and no crash occurs",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Browserless smoke test: simulate empty API response; assert empty-state illustration is displayed",
+          "notes": "Browser smoke test: simulate empty API response; assert empty-state illustration is displayed",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Fleet-view page first contentful paint completes within 3 seconds for a fleet of up to 50 scenarios on CI Browserless",
+          "notes": "Fleet-view page first contentful paint completes within 3 seconds for a fleet of up to 50 scenarios on the CI browser smoke-test harness",
           "phase": "performance",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "EM rung displayed per scenario in the fleet view matches the rung computed by the EM ladder dimension calculator for the same scenario, verified by cross-checking API response and UI rendered value in Browserless test",
+          "notes": "EM rung displayed per scenario in the fleet view matches the rung computed by the EM ladder dimension calculator for the same scenario, verified by cross-checking API response and UI rendered value in the browser smoke test",
           "phase": "business",
           "ref": "",
           "status": "pending",

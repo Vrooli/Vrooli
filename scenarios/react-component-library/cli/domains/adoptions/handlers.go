@@ -192,12 +192,137 @@ func (h *handlers) reconcile(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("%s reconciliation: scanned %d provenance file(s), already recorded %d, records to create/created %d.", mode, resp.Msg.Scanned, resp.Msg.AlreadyRecorded, resp.Msg.Created)}, ResultsHeading: "Unresolved provenance", Results: rows, RetrievalHints: []string{"`adoptions reconcile --apply true` — write the proposed missing records"}})
 }
 
+func (h *handlers) reconverge(ctx cliapp.RunContext) error {
+	req := &adoptionsv1.ReconvergeAdoptionsRequest{
+		Scenario: ctx.Flag("scenario"),
+		Apply:    ctx.Flag("apply") == "true",
+	}
+	resp, err := h.client.ReconvergeAdoptions(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("reconverge adoptions", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no reconverge response")
+	}
+	rows := make([]string, 0, len(resp.Msg.Outcomes))
+	for _, o := range resp.Msg.Outcomes {
+		line := fmt.Sprintf("[%s] %s ← %s %s→%s (%s)", reconvergeActionLabel(o.Action), o.Scenario, o.LibraryId, o.AdoptedVersion, nonEmpty(o.TargetVersion, "?"), o.AdoptionId)
+		if o.Detail != "" {
+			line += " — " + o.Detail
+		}
+		for _, f := range o.Files {
+			line += fmt.Sprintf("\n      · %s [%s]", f.AdoptedPath, localStatusLabel(f.LocalStatus))
+		}
+		rows = append(rows, line)
+	}
+	mode := "Dry-run"
+	if req.Apply {
+		mode = "Applied"
+	}
+	summary := fmt.Sprintf("%s reconverge: scanned %d, behind %d, reapplied %d, flagged-modified %d, skipped %d, errored %d.",
+		mode, resp.Msg.Scanned, resp.Msg.Behind, resp.Msg.Reapplied, resp.Msg.Flagged, resp.Msg.Skipped, resp.Msg.Errored)
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{summary},
+		ResultsHeading: "Reconverge outcomes",
+		Results:        rows,
+		RetrievalHints: []string{
+			"`adoptions reconverge --apply true` — re-apply the CLEAN behind copies",
+			"`adoptions reapply <id> --confirm-local-overwrite true` — reconverge a flagged MODIFIED copy after review",
+		},
+	})
+}
+
+func reconvergeActionLabel(a adoptionsv1.ReconvergeAction) string {
+	switch a {
+	case adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_REAPPLIED:
+		return "reapplied"
+	case adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_WOULD_REAPPLY:
+		return "would-reapply"
+	case adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_FLAGGED_MODIFIED:
+		return "flagged-modified"
+	case adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_SKIPPED_UNRESOLVED:
+		return "skipped-unresolved"
+	case adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_ERROR:
+		return "error"
+	}
+	return "unspecified"
+}
+
+func (h *handlers) discover(ctx cliapp.RunContext) error {
+	req := &adoptionsv1.DiscoverAdoptionsRequest{Scenario: ctx.Flag("scenario")}
+	if raw := ctx.Flag("min-similarity"); raw != "" {
+		f, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return fmt.Errorf("invalid --min-similarity %q: %w", raw, err)
+		}
+		req.MinSimilarity = f
+	}
+	if raw := ctx.Flag("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			return fmt.Errorf("invalid --limit %q: %w", raw, err)
+		}
+		req.Limit = int32(n)
+	}
+	resp, err := h.client.DiscoverAdoptions(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("discover adoptions", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no discover response")
+	}
+	rows := make([]string, 0, len(resp.Msg.Candidates))
+	for _, c := range resp.Msg.Candidates {
+		rows = append(rows, fmt.Sprintf("%s:%s ~ %s@%s (dice %.3f, shared %d) %s",
+			c.Scenario, c.AdoptedPath, c.LibraryId, c.Version, c.Similarity, c.SharedLines, strings.Join(c.Evidence, " | ")))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Discovery: scanned %d header-less file(s) at min similarity %.2f, surfaced %d candidate(s).", resp.Msg.Scanned, resp.Msg.MinSimilarity, len(rows))},
+		ResultsHeading: "Candidates (review evidence before confirming)",
+		Results:        rows,
+		RetrievalHints: []string{"`adoptions confirm-discovery <scenario> <adopted-path> <component-id> <version>` — inject the provenance header and create the record for a confirmed true positive"},
+	})
+}
+
+func (h *handlers) confirmDiscovery(ctx cliapp.RunContext) error {
+	req := &adoptionsv1.ConfirmDiscoveryRequest{
+		Scenario:    ctx.Positional("scenario"),
+		AdoptedPath: ctx.Positional("adopted-path"),
+		ComponentId: ctx.Positional("component-id"),
+		Version:     ctx.Positional("version"),
+	}
+	resp, err := h.client.ConfirmDiscovery(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("confirm discovery", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Adoption == nil {
+		return fmt.Errorf("server returned no confirm response")
+	}
+	a := resp.Msg.Adoption
+	results := []string{
+		fmt.Sprintf("id:            %s", a.Id),
+		fmt.Sprintf("scenario:      %s", a.Scenario),
+		fmt.Sprintf("adopted_path:  %s", a.AdoptedPath),
+		fmt.Sprintf("component:     %s@%s", a.LibraryId, a.AdoptedVersion),
+		fmt.Sprintf("written_path:  %s", resp.Msg.WrittenPath),
+		fmt.Sprintf("similarity:    %.3f", resp.Msg.Similarity),
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Injected provenance header and recorded adoption for %s:%s.", a.Scenario, a.AdoptedPath)},
+		ResultsHeading: "Adoption",
+		Results:        results,
+		RetrievalHints: []string{"`adoptions refresh --component-id " + a.ComponentId + "` — inspect drift on the freshly tracked copy"},
+	})
+}
+
 func (h *handlers) resolvePath(ctx cliapp.RunContext) error {
 	req := &adoptionsv1.ResolveAdoptionPathRequest{
 		ComponentId:  ctx.Positional("component-id"),
 		Scenario:     ctx.Positional("scenario"),
 		OverridePath: ctx.Flag("override"),
 		Feature:      ctx.Flag("feature"),
+		Version:      ctx.Flag("version"),
+		Template:     ctx.Flag("template"),
 	}
 	resp, err := h.client.ResolveAdoptionPath(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -210,6 +335,27 @@ func (h *handlers) resolvePath(ctx cliapp.RunContext) error {
 		fmt.Sprintf("path:   %s", resp.Msg.Path),
 		fmt.Sprintf("source: %s", resolveSourceLabel(resp.Msg.Source)),
 		fmt.Sprintf("slot:   %s", nonEmpty(resp.Msg.Slot, "(unset)")),
+	}
+	// Full version file-set placement: where every companion lands. The tree
+	// mirrors the code panel's placement view so operators verify multi-file
+	// components (hooks, tokens) from the CLI.
+	if len(resp.Msg.Files) > 0 {
+		manifest := "no template manifest — flat fallback placement"
+		if resp.Msg.ManifestResolved {
+			manifest = fmt.Sprintf("template manifest: %s", nonEmpty(resp.Msg.Template, "(unknown)"))
+		}
+		results = append(results, "", "placement ("+manifest+"):")
+		for _, f := range resp.Msg.Files {
+			entry := ""
+			if f.IsEntry {
+				entry = " [entry]"
+			}
+			results = append(results, fmt.Sprintf("  %-22s -> %s  (%s · %s)%s",
+				f.LibraryPath, f.TargetPath, nonEmpty(f.Slot, "?"), f.SlotSource, entry))
+			for _, w := range f.Warnings {
+				results = append(results, "    warning: "+w)
+			}
+		}
 	}
 	for _, w := range resp.Msg.Warnings {
 		results = append(results, "warning: "+w)

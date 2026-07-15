@@ -34,7 +34,19 @@ type Repository interface {
 	ListExamples(ctx context.Context, q ExampleQuery) ([]ComponentExample, error)
 
 	// DeleteMissing removes registry rows whose LibraryID is not in
-	// keep. Used by the indexer at the end of a full walk so deleted
-	// files leave the registry. Returns the number of rows deleted.
+	// keep, cascading to that component's child rows (versions, files,
+	// parity, examples, headers, design affinities) since the soft-FK
+	// model has no ON DELETE CASCADE. Used by the indexer at the end of
+	// a full walk so deleted files leave the registry without stranding
+	// child rows. Returns the number of registry rows deleted.
 	DeleteMissing(ctx context.Context, keep []string) (int, error)
+
+	// SweepOrphans deletes every component-scoped row whose component_id
+	// has no owning row in the components registry (soft-FK cruft left
+	// by a re-slug or a withdrawn component before DeleteMissing began
+	// cascading). Returns the component_versions rows it removed so the
+	// indexer can emit a registry-orphan conformance finding per row.
+	// The index is rebuildable from Git, so the sweep is safe to run on
+	// every reindex.
+	SweepOrphans(ctx context.Context) ([]OrphanVersion, error)
 }

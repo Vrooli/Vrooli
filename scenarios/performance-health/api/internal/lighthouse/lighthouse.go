@@ -21,6 +21,8 @@ const (
 	OutcomeScored
 	OutcomeSkipped
 	OutcomeFailed
+	OutcomeConfigurationInvalid
+	OutcomeUnavailable
 )
 
 // PageScore is one Lighthouse run against one page.

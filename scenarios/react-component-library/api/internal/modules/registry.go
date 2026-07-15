@@ -98,6 +98,5 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(depsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(themesH.Schema),
-		apidb.SchemaProviderFunc(versionsH.Schema),
 	}
 }

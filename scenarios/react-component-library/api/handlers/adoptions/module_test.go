@@ -68,6 +68,17 @@ func (s *stubLibrary) GetVersion(_ context.Context, componentID, version string)
 	}, nil
 }
 
+func (s *stubLibrary) ListVersions(ctx context.Context, componentID string, _ int) ([]components.ComponentVersion, error) {
+	if componentID != s.component.ID {
+		return nil, nil
+	}
+	v, err := s.GetVersion(ctx, componentID, s.component.Version)
+	if err != nil {
+		return nil, err
+	}
+	return []components.ComponentVersion{v}, nil
+}
+
 func setupModule(t *testing.T) (*mux.Router, string, *stubLibrary) {
 	t.Helper()
 	d := db.NewSQLite(t)
@@ -94,9 +105,12 @@ func sha256OfHandlerTests(s string) string {
 func TestModule_Shape(t *testing.T) {
 	r, _, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, adoptions.Endpoints, 8, "adoptions ships reconcile, list, apply, reapply, delete, refresh, resolve-path, suggest")
+	require.Len(t, adoptions.Endpoints, 11, "adoptions ships reconcile, reconverge, list, apply, reapply, delete, refresh, resolve-path, suggest, discover, confirm-discovery")
 	require.Equal(t, "adoptions_reconcile", adoptions.Endpoints[0].ID)
-	require.Equal(t, "adoptions_resolve_path", adoptions.Endpoints[6].ID)
+	require.Equal(t, "adoptions_reconverge", adoptions.Endpoints[1].ID)
+	require.Equal(t, "adoptions_resolve_path", adoptions.Endpoints[7].ID)
+	require.Equal(t, "adoptions_discover", adoptions.Endpoints[9].ID)
+	require.Equal(t, "adoptions_confirm_discovery", adoptions.Endpoints[10].ID)
 }
 
 func TestModule_CreateListRefreshDelete(t *testing.T) {

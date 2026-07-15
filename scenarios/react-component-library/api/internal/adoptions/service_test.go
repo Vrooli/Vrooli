@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,11 +69,35 @@ func (f *fakeLibrary) GetVersion(_ context.Context, componentID, version string)
 	return components.ComponentVersion{ComponentID: componentID, LibraryID: f.byID[componentID].LibraryID, Version: version, Status: status, Content: body, ContentSHA256: sha(body)}, nil
 }
 
+func (f *fakeLibrary) ListVersions(ctx context.Context, componentID string, _ int) ([]components.ComponentVersion, error) {
+	var out []components.ComponentVersion
+	for key, v := range f.versions {
+		if strings.HasPrefix(key, componentID+"@") {
+			out = append(out, v)
+		}
+	}
+	if len(out) == 0 {
+		if _, ok := f.body[componentID]; ok {
+			v, err := f.GetVersion(ctx, componentID, f.byID[componentID].Version)
+			if err == nil {
+				out = append(out, v)
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Version < out[j].Version })
+	return out, nil
+}
+
 // fakeFiles is a minimal ScenarioFileReader keyed by "<scenario>::<path>".
 type fakeFiles struct {
 	bytes      map[string][]byte
 	sites      map[string][]string
 	provenance []adoptions.ProvenanceFile
+	untagged   []adoptions.CandidateFile
+}
+
+func (f *fakeFiles) ScanUntagged(context.Context) ([]adoptions.CandidateFile, error) {
+	return append([]adoptions.CandidateFile(nil), f.untagged...), nil
 }
 
 type validationDeps struct {

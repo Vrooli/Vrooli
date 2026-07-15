@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "name": "dialog-escape-close",
+    "description": "Drives the real adopted Dialog component (react-component-library:Dialog@1.1.0) as used live on the Adoptions page. Opens the create-adoption dialog via its trigger, confirms the role=dialog surface mounts, presses Escape, and asserts the dialog unmounts. Proves the Dialog's Escape-to-close contract behaviorally, not just that it renders.",
+    "requirement": "TC-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "dialog-escape-close",
+      "requirements_json": "[\"TC-006\",\"TC-004\"]"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1400,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-adoptions",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/adoptions",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the Adoptions page" }
+      }
+    },
+    {
+      "id": "wait-create-button",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"adoptions-create-button\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Create-adoption trigger visible" }
+      }
+    },
+    {
+      "id": "open-dialog",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid=\"adoptions-create-button\"]" },
+        "metadata": { "label": "Open the create-adoption dialog" }
+      }
+    },
+    {
+      "id": "assert-dialog-open",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[role=dialog]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "The adopted Dialog did not mount its role=dialog surface when the create trigger was clicked."
+        },
+        "metadata": { "label": "Dialog surface is open" }
+      }
+    },
+    {
+      "id": "press-escape",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "keys": ["Escape"] },
+        "metadata": { "label": "Press Escape to close the dialog" }
+      }
+    },
+    {
+      "id": "assert-dialog-closed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[role=dialog]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Dialog did not close on Escape — the Dialog component's Escape-to-close handler regressed."
+        },
+        "metadata": { "label": "Dialog closed after Escape" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-adoptions", "target": "wait-create-button", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-create-button", "target": "open-dialog", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "open-dialog", "target": "assert-dialog-open", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-dialog-open", "target": "press-escape", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "press-escape", "target": "assert-dialog-closed", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

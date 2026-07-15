@@ -54,23 +54,26 @@ func (r *CLIRunner) Run(ctx context.Context, scenario, path string) (Result, err
 	if err != nil {
 		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Reason: "could not resolve scenario root: " + err.Error()}, nil
 	}
+	if !hasUISurface(root) {
+		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Reason: "no browser UI surface"}, nil
+	}
 
 	cfg, err := loadConfig(root)
 	if err != nil {
-		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Reason: "invalid lighthouse config: " + err.Error()}, nil
+		return Result{Scenario: scenario, Outcome: OutcomeConfigurationInvalid, Reason: "invalid lighthouse config: " + err.Error()}, nil
 	}
-	if !cfg.Enabled || len(cfg.Pages) == 0 {
-		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Reason: "lighthouse is disabled or has no pages configured"}, nil
+	if err := cfg.validateAccessibilityContract(); err != nil {
+		return Result{Scenario: scenario, Outcome: OutcomeConfigurationInvalid, Reason: err.Error()}, nil
 	}
 
 	baseURL, err := r.resolveUIURL(ctx, scenario)
 	if err != nil || strings.TrimSpace(baseURL) == "" {
-		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Reason: "no resolvable UI URL for scenario"}, nil
+		return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Reason: "no resolvable UI URL for scenario"}, nil
 	}
 
 	lh, err := r.lookLighthouse(ctx)
 	if err != nil {
-		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Reason: "lighthouse CLI not available"}, nil
+		return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Reason: "lighthouse CLI not available"}, nil
 	}
 
 	categories := cfg.categories()
@@ -79,7 +82,7 @@ func (r *CLIRunner) Run(ctx context.Context, scenario, path string) (Result, err
 		url := joinURL(baseURL, page.Path)
 		scores, aerr := r.runAudit(ctx, lh, url, categories)
 		if aerr != nil {
-			return Result{Scenario: scenario, Outcome: OutcomeFailed, Pages: pages, Reason: fmt.Sprintf("lighthouse audit of %s failed: %v", url, aerr)}, nil
+			return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Pages: pages, Reason: fmt.Sprintf("lighthouse audit unavailable for %s: %v", url, aerr)}, nil
 		}
 		pages = append(pages, scorePage(url, scores, page.Thresholds))
 	}
@@ -170,6 +173,30 @@ type threshold struct {
 	Warn  float64 `json:"warn"`
 }
 
+func (c config) validateAccessibilityContract() error {
+	if !c.Enabled {
+		return errors.New("lighthouse is disabled for a browser UI; only non-browser surfaces may opt out")
+	}
+	if len(c.Pages) == 0 {
+		return errors.New("lighthouse pages are required for a browser UI")
+	}
+	for _, page := range c.Pages {
+		threshold, ok := page.Thresholds["accessibility"]
+		if !ok || threshold.Error <= 0 || threshold.Warn <= 0 {
+			return fmt.Errorf("page %q requires accessibility error and warn thresholds", page.ID)
+		}
+		if threshold.Warn < threshold.Error {
+			return fmt.Errorf("page %q accessibility warn threshold must be at least the error threshold", page.ID)
+		}
+	}
+	return nil
+}
+
+func hasUISurface(root string) bool {
+	info, err := os.Stat(filepath.Join(root, "ui", "package.json"))
+	return err == nil && !info.IsDir()
+}
+
 func (c config) categories() []string {
 	if c.GlobalOptions != nil && c.GlobalOptions.Lighthouse != nil &&
 		c.GlobalOptions.Lighthouse.Settings != nil &&
@@ -183,7 +210,7 @@ func loadConfig(root string) (config, error) {
 	raw, err := os.ReadFile(filepath.Join(root, ".vrooli", "lighthouse.json"))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return config{Enabled: false}, nil
+			return config{}, errors.New(".vrooli/lighthouse.json is missing")
 		}
 		return config{}, err
 	}

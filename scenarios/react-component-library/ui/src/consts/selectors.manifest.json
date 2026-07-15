@@ -1,0 +1,750 @@
+{
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "components.card": {
+      "testId": "components-card",
+      "selector": "[data-testid=\"components-card\"]"
+    },
+    "components.list": {
+      "testId": "components-list",
+      "selector": "[data-testid=\"components-list\"]"
+    },
+    "components.loading": {
+      "testId": "components-loading",
+      "selector": "[data-testid=\"components-loading\"]"
+    },
+    "components.empty": {
+      "testId": "components-empty",
+      "selector": "[data-testid=\"components-empty\"]"
+    },
+    "components.error": {
+      "testId": "components-error",
+      "selector": "[data-testid=\"components-error\"]"
+    },
+    "components.indexButton": {
+      "testId": "components-index-button",
+      "selector": "[data-testid=\"components-index-button\"]"
+    },
+    "components.create.button": {
+      "testId": "components-create-button",
+      "selector": "[data-testid=\"components-create-button\"]"
+    },
+    "components.create.dialog": {
+      "testId": "components-create-dialog",
+      "selector": "[data-testid=\"components-create-dialog\"]"
+    },
+    "components.create.slug": {
+      "testId": "components-create-slug",
+      "selector": "[data-testid=\"components-create-slug\"]"
+    },
+    "components.create.libraryId": {
+      "testId": "components-create-library-id",
+      "selector": "[data-testid=\"components-create-library-id\"]"
+    },
+    "components.create.displayName": {
+      "testId": "components-create-display-name",
+      "selector": "[data-testid=\"components-create-display-name\"]"
+    },
+    "components.create.description": {
+      "testId": "components-create-description",
+      "selector": "[data-testid=\"components-create-description\"]"
+    },
+    "components.create.tags": {
+      "testId": "components-create-tags",
+      "selector": "[data-testid=\"components-create-tags\"]"
+    },
+    "components.create.version": {
+      "testId": "components-create-version",
+      "selector": "[data-testid=\"components-create-version\"]"
+    },
+    "components.create.fileName": {
+      "testId": "components-create-file-name",
+      "selector": "[data-testid=\"components-create-file-name\"]"
+    },
+    "components.create.initialSource": {
+      "testId": "components-create-initial-source",
+      "selector": "[data-testid=\"components-create-initial-source\"]"
+    },
+    "components.create.submit": {
+      "testId": "components-create-submit",
+      "selector": "[data-testid=\"components-create-submit\"]"
+    },
+    "components.create.cancel": {
+      "testId": "components-create-cancel",
+      "selector": "[data-testid=\"components-create-cancel\"]"
+    },
+    "components.create.error": {
+      "testId": "components-create-error",
+      "selector": "[data-testid=\"components-create-error\"]"
+    },
+    "components.ingest.details": {
+      "testId": "components-ingest-details",
+      "selector": "[data-testid=\"components-ingest-details\"]"
+    },
+    "components.ingest.scenario": {
+      "testId": "components-ingest-scenario",
+      "selector": "[data-testid=\"components-ingest-scenario\"]"
+    },
+    "components.ingest.sourceFile": {
+      "testId": "components-ingest-source-file",
+      "selector": "[data-testid=\"components-ingest-source-file\"]"
+    },
+    "components.ingest.slug": {
+      "testId": "components-ingest-slug",
+      "selector": "[data-testid=\"components-ingest-slug\"]"
+    },
+    "components.ingest.tags": {
+      "testId": "components-ingest-tags",
+      "selector": "[data-testid=\"components-ingest-tags\"]"
+    },
+    "components.ingest.acceptLoss": {
+      "testId": "components-ingest-accept-loss",
+      "selector": "[data-testid=\"components-ingest-accept-loss\"]"
+    },
+    "components.ingest.submit": {
+      "testId": "components-ingest-submit",
+      "selector": "[data-testid=\"components-ingest-submit\"]"
+    },
+    "components.ingest.error": {
+      "testId": "components-ingest-error",
+      "selector": "[data-testid=\"components-ingest-error\"]"
+    },
+    "components.ingest.success": {
+      "testId": "components-ingest-success",
+      "selector": "[data-testid=\"components-ingest-success\"]"
+    },
+    "components.searchInput": {
+      "testId": "components-search-input",
+      "selector": "[data-testid=\"components-search-input\"]"
+    },
+    "components.tagInput": {
+      "testId": "components-tag-input",
+      "selector": "[data-testid=\"components-tag-input\"]"
+    },
+    "components.tagsInput": {
+      "testId": "components-tags-input",
+      "selector": "[data-testid=\"components-tags-input\"]"
+    },
+    "components.categoryInput": {
+      "testId": "components-category-input",
+      "selector": "[data-testid=\"components-category-input\"]"
+    },
+    "components.styleInput": {
+      "testId": "components-style-input",
+      "selector": "[data-testid=\"components-style-input\"]"
+    },
+    "components.affinityInput": {
+      "testId": "components-affinity-input",
+      "selector": "[data-testid=\"components-affinity-input\"]"
+    },
+    "components.summary": {
+      "testId": "components-summary",
+      "selector": "[data-testid=\"components-summary\"]"
+    },
+    "components.item": {
+      "testId": "components-item",
+      "selector": "[data-testid=\"components-item\"]"
+    },
+    "components.itemLibraryId": {
+      "testId": "components-item-library-id",
+      "selector": "[data-testid=\"components-item-library-id\"]"
+    },
+    "components.itemDisplayName": {
+      "testId": "components-item-display-name",
+      "selector": "[data-testid=\"components-item-display-name\"]"
+    },
+    "components.itemVersion": {
+      "testId": "components-item-version",
+      "selector": "[data-testid=\"components-item-version\"]"
+    },
+    "components.itemSlot": {
+      "testId": "components-item-slot",
+      "selector": "[data-testid=\"components-item-slot\"]"
+    },
+    "components.itemDesignStyles": {
+      "testId": "components-item-design-styles",
+      "selector": "[data-testid=\"components-item-design-styles\"]"
+    },
+    "components.itemTags": {
+      "testId": "components-item-tags",
+      "selector": "[data-testid=\"components-item-tags\"]"
+    },
+    "components.itemEditButton": {
+      "testId": "components-item-edit-button",
+      "selector": "[data-testid=\"components-item-edit-button\"]"
+    },
+    "components.editor.panel": {
+      "testId": "components-editor-panel",
+      "selector": "[data-testid=\"components-editor-panel\"]"
+    },
+    "components.editor.title": {
+      "testId": "components-editor-title",
+      "selector": "[data-testid=\"components-editor-title\"]"
+    },
+    "components.editor.loading": {
+      "testId": "components-editor-loading",
+      "selector": "[data-testid=\"components-editor-loading\"]"
+    },
+    "components.editor.error": {
+      "testId": "components-editor-error",
+      "selector": "[data-testid=\"components-editor-error\"]"
+    },
+    "components.editor.surface": {
+      "testId": "components-editor-surface",
+      "selector": "[data-testid=\"components-editor-surface\"]"
+    },
+    "components.editor.saveButton": {
+      "testId": "components-editor-save-button",
+      "selector": "[data-testid=\"components-editor-save-button\"]"
+    },
+    "components.editor.closeButton": {
+      "testId": "components-editor-close-button",
+      "selector": "[data-testid=\"components-editor-close-button\"]"
+    },
+    "components.editor.infoButton": {
+      "testId": "components-editor-info-button",
+      "selector": "[data-testid=\"components-editor-info-button\"]"
+    },
+    "components.editor.infoDialog": {
+      "testId": "components-editor-info-dialog",
+      "selector": "[data-testid=\"components-editor-info-dialog\"]"
+    },
+    "components.editor.dirtyBadge": {
+      "testId": "components-editor-dirty-badge",
+      "selector": "[data-testid=\"components-editor-dirty-badge\"]"
+    },
+    "components.editor.shaHash": {
+      "testId": "components-editor-sha-hash",
+      "selector": "[data-testid=\"components-editor-sha-hash\"]"
+    },
+    "components.editor.savedToast": {
+      "testId": "components-editor-saved-toast",
+      "selector": "[data-testid=\"components-editor-saved-toast\"]"
+    },
+    "components.editor.modeSwitch": {
+      "testId": "components-editor-mode-switch",
+      "selector": "[data-testid=\"components-editor-mode-switch\"]"
+    },
+    "components.editor.previewModeButton": {
+      "testId": "components-editor-preview-mode-button",
+      "selector": "[data-testid=\"components-editor-preview-mode-button\"]"
+    },
+    "components.editor.codeModeButton": {
+      "testId": "components-editor-code-mode-button",
+      "selector": "[data-testid=\"components-editor-code-mode-button\"]"
+    },
+    "components.editor.preview": {
+      "testId": "components-editor-preview",
+      "selector": "[data-testid=\"components-editor-preview\"]"
+    },
+    "components.editor.gallery": {
+      "testId": "components-editor-gallery",
+      "selector": "[data-testid=\"components-editor-gallery\"]"
+    },
+    "components.editor.exampleCard": {
+      "testId": "components-editor-example-card",
+      "selector": "[data-testid=\"components-editor-example-card\"]"
+    },
+    "components.editor.exampleTitle": {
+      "testId": "components-editor-example-title",
+      "selector": "[data-testid=\"components-editor-example-title\"]"
+    },
+    "components.editor.previewFrame": {
+      "testId": "components-editor-preview-frame",
+      "selector": "[data-testid=\"components-editor-preview-frame\"]"
+    },
+    "components.editor.previewBadge": {
+      "testId": "components-editor-preview-badge",
+      "selector": "[data-testid=\"components-editor-preview-badge\"]"
+    },
+    "components.editor.previewError": {
+      "testId": "components-editor-preview-error",
+      "selector": "[data-testid=\"components-editor-preview-error\"]"
+    },
+    "components.editor.previewRetryButton": {
+      "testId": "components-editor-preview-retry-button",
+      "selector": "[data-testid=\"components-editor-preview-retry-button\"]"
+    },
+    "components.editor.fileTree": {
+      "testId": "components-editor-file-tree",
+      "selector": "[data-testid=\"components-editor-file-tree\"]"
+    },
+    "components.editor.fileTreeNode": {
+      "testId": "components-editor-file-tree-node",
+      "selector": "[data-testid=\"components-editor-file-tree-node\"]"
+    },
+    "components.editor.fileTabs": {
+      "testId": "components-editor-file-tabs",
+      "selector": "[data-testid=\"components-editor-file-tabs\"]"
+    },
+    "components.editor.templateSelect": {
+      "testId": "components-editor-template-select",
+      "selector": "[data-testid=\"components-editor-template-select\"]"
+    },
+    "components.emulator.root": {
+      "testId": "components-emulator",
+      "selector": "[data-testid=\"components-emulator\"]"
+    },
+    "components.emulator.toolbar": {
+      "testId": "components-emulator-toolbar",
+      "selector": "[data-testid=\"components-emulator-toolbar\"]"
+    },
+    "components.emulator.presetSelect": {
+      "testId": "components-emulator-preset-select",
+      "selector": "[data-testid=\"components-emulator-preset-select\"]"
+    },
+    "components.emulator.dimensions": {
+      "testId": "components-emulator-dimensions",
+      "selector": "[data-testid=\"components-emulator-dimensions\"]"
+    },
+    "components.emulator.zoomValue": {
+      "testId": "components-emulator-zoom-value",
+      "selector": "[data-testid=\"components-emulator-zoom-value\"]"
+    },
+    "components.emulator.zoomIn": {
+      "testId": "components-emulator-zoom-in",
+      "selector": "[data-testid=\"components-emulator-zoom-in\"]"
+    },
+    "components.emulator.zoomOut": {
+      "testId": "components-emulator-zoom-out",
+      "selector": "[data-testid=\"components-emulator-zoom-out\"]"
+    },
+    "components.emulator.resetZoom": {
+      "testId": "components-emulator-reset-zoom",
+      "selector": "[data-testid=\"components-emulator-reset-zoom\"]"
+    },
+    "components.emulator.rotate": {
+      "testId": "components-emulator-rotate",
+      "selector": "[data-testid=\"components-emulator-rotate\"]"
+    },
+    "components.emulator.reset": {
+      "testId": "components-emulator-reset",
+      "selector": "[data-testid=\"components-emulator-reset\"]"
+    },
+    "components.emulator.viewport": {
+      "testId": "components-emulator-viewport",
+      "selector": "[data-testid=\"components-emulator-viewport\"]"
+    },
+    "components.emulator.visionFilterSelect": {
+      "testId": "components-emulator-vision-filter",
+      "selector": "[data-testid=\"components-emulator-vision-filter\"]"
+    },
+    "components.emulator.blurSlider": {
+      "testId": "components-emulator-blur-slider",
+      "selector": "[data-testid=\"components-emulator-blur-slider\"]"
+    },
+    "components.emulator.blurValue": {
+      "testId": "components-emulator-blur-value",
+      "selector": "[data-testid=\"components-emulator-blur-value\"]"
+    },
+    "components.emulator.filterDefs": {
+      "testId": "components-emulator-filter-defs",
+      "selector": "[data-testid=\"components-emulator-filter-defs\"]"
+    },
+    "components.emulator.overflowToggle": {
+      "testId": "components-emulator-overflow-toggle",
+      "selector": "[data-testid=\"components-emulator-overflow-toggle\"]"
+    },
+    "components.emulator.overflowPanel": {
+      "testId": "components-emulator-overflow-panel",
+      "selector": "[data-testid=\"components-emulator-overflow-panel\"]"
+    },
+    "components.themeSwitcher.root": {
+      "testId": "components-theme-switcher",
+      "selector": "[data-testid=\"components-theme-switcher\"]"
+    },
+    "components.themeSwitcher.mode": {
+      "testId": "components-theme-switcher-mode",
+      "selector": "[data-testid=\"components-theme-switcher-mode\"]"
+    },
+    "components.themeSwitcher.modeSystem": {
+      "testId": "components-theme-switcher-mode-system",
+      "selector": "[data-testid=\"components-theme-switcher-mode-system\"]"
+    },
+    "components.themeSwitcher.modeLight": {
+      "testId": "components-theme-switcher-mode-light",
+      "selector": "[data-testid=\"components-theme-switcher-mode-light\"]"
+    },
+    "components.themeSwitcher.modeDark": {
+      "testId": "components-theme-switcher-mode-dark",
+      "selector": "[data-testid=\"components-theme-switcher-mode-dark\"]"
+    },
+    "components.themeSwitcher.select": {
+      "testId": "components-theme-switcher-select",
+      "selector": "[data-testid=\"components-theme-switcher-select\"]"
+    },
+    "components.themeSwitcher.importToggle": {
+      "testId": "components-theme-switcher-import-toggle",
+      "selector": "[data-testid=\"components-theme-switcher-import-toggle\"]"
+    },
+    "components.themeSwitcher.scenarioInput": {
+      "testId": "components-theme-switcher-scenario-input",
+      "selector": "[data-testid=\"components-theme-switcher-scenario-input\"]"
+    },
+    "components.themeSwitcher.scenarioApply": {
+      "testId": "components-theme-switcher-scenario-apply",
+      "selector": "[data-testid=\"components-theme-switcher-scenario-apply\"]"
+    },
+    "components.themeSwitcher.status": {
+      "testId": "components-theme-switcher-status",
+      "selector": "[data-testid=\"components-theme-switcher-status\"]"
+    },
+    "components.themeSwitcher.error": {
+      "testId": "components-theme-switcher-error",
+      "selector": "[data-testid=\"components-theme-switcher-error\"]"
+    },
+    "components.inspector.panel": {
+      "testId": "components-inspector-panel",
+      "selector": "[data-testid=\"components-inspector-panel\"]"
+    },
+    "components.inspector.toggleButton": {
+      "testId": "components-inspector-toggle",
+      "selector": "[data-testid=\"components-inspector-toggle\"]"
+    },
+    "components.inspector.statusBadge": {
+      "testId": "components-inspector-status",
+      "selector": "[data-testid=\"components-inspector-status\"]"
+    },
+    "components.inspector.breadcrumb": {
+      "testId": "components-inspector-breadcrumb",
+      "selector": "[data-testid=\"components-inspector-breadcrumb\"]"
+    },
+    "components.inspector.breadcrumbItem": {
+      "testId": "components-inspector-breadcrumb-item",
+      "selector": "[data-testid=\"components-inspector-breadcrumb-item\"]"
+    },
+    "components.inspector.selectedTag": {
+      "testId": "components-inspector-selected-tag",
+      "selector": "[data-testid=\"components-inspector-selected-tag\"]"
+    },
+    "components.inspector.selectedSelector": {
+      "testId": "components-inspector-selected-selector",
+      "selector": "[data-testid=\"components-inspector-selected-selector\"]"
+    },
+    "components.inspector.selectedRect": {
+      "testId": "components-inspector-selected-rect",
+      "selector": "[data-testid=\"components-inspector-selected-rect\"]"
+    },
+    "components.inspector.selectedText": {
+      "testId": "components-inspector-selected-text",
+      "selector": "[data-testid=\"components-inspector-selected-text\"]"
+    },
+    "components.inspector.empty": {
+      "testId": "components-inspector-empty",
+      "selector": "[data-testid=\"components-inspector-empty\"]"
+    },
+    "components.inspector.overlay": {
+      "testId": "components-inspector-overlay",
+      "selector": "[data-testid=\"components-inspector-overlay\"]"
+    },
+    "adoptions.card": {
+      "testId": "adoptions-card",
+      "selector": "[data-testid=\"adoptions-card\"]"
+    },
+    "adoptions.list": {
+      "testId": "adoptions-list",
+      "selector": "[data-testid=\"adoptions-list\"]"
+    },
+    "adoptions.loading": {
+      "testId": "adoptions-loading",
+      "selector": "[data-testid=\"adoptions-loading\"]"
+    },
+    "adoptions.error": {
+      "testId": "adoptions-error",
+      "selector": "[data-testid=\"adoptions-error\"]"
+    },
+    "adoptions.empty": {
+      "testId": "adoptions-empty",
+      "selector": "[data-testid=\"adoptions-empty\"]"
+    },
+    "adoptions.summary": {
+      "testId": "adoptions-summary",
+      "selector": "[data-testid=\"adoptions-summary\"]"
+    },
+    "adoptions.refreshButton": {
+      "testId": "adoptions-refresh-button",
+      "selector": "[data-testid=\"adoptions-refresh-button\"]"
+    },
+    "adoptions.scenarioFilter": {
+      "testId": "adoptions-scenario-filter",
+      "selector": "[data-testid=\"adoptions-scenario-filter\"]"
+    },
+    "adoptions.item": {
+      "testId": "adoptions-item",
+      "selector": "[data-testid=\"adoptions-item\"]"
+    },
+    "adoptions.itemId": {
+      "testId": "adoptions-item-id",
+      "selector": "[data-testid=\"adoptions-item-id\"]"
+    },
+    "adoptions.itemScenario": {
+      "testId": "adoptions-item-scenario",
+      "selector": "[data-testid=\"adoptions-item-scenario\"]"
+    },
+    "adoptions.itemPath": {
+      "testId": "adoptions-item-path",
+      "selector": "[data-testid=\"adoptions-item-path\"]"
+    },
+    "adoptions.itemVersion": {
+      "testId": "adoptions-item-version",
+      "selector": "[data-testid=\"adoptions-item-version\"]"
+    },
+    "adoptions.itemLibraryId": {
+      "testId": "adoptions-item-library-id",
+      "selector": "[data-testid=\"adoptions-item-library-id\"]"
+    },
+    "adoptions.itemStatus": {
+      "testId": "adoptions-item-status",
+      "selector": "[data-testid=\"adoptions-item-status\"]"
+    },
+    "adoptions.itemStatusDetail": {
+      "testId": "adoptions-item-status-detail",
+      "selector": "[data-testid=\"adoptions-item-status-detail\"]"
+    },
+    "adoptions.itemRefreshedAt": {
+      "testId": "adoptions-item-refreshed-at",
+      "selector": "[data-testid=\"adoptions-item-refreshed-at\"]"
+    },
+    "adoptions.itemDeleteButton": {
+      "testId": "adoptions-item-delete-button",
+      "selector": "[data-testid=\"adoptions-item-delete-button\"]"
+    },
+    "adoptions.createButton": {
+      "testId": "adoptions-create-button",
+      "selector": "[data-testid=\"adoptions-create-button\"]"
+    },
+    "adoptions.createDialog": {
+      "testId": "adoptions-create-dialog",
+      "selector": "[data-testid=\"adoptions-create-dialog\"]"
+    },
+    "adoptions.createComponentId": {
+      "testId": "adoptions-create-component-id",
+      "selector": "[data-testid=\"adoptions-create-component-id\"]"
+    },
+    "adoptions.createScenario": {
+      "testId": "adoptions-create-scenario",
+      "selector": "[data-testid=\"adoptions-create-scenario\"]"
+    },
+    "adoptions.createAdoptedPath": {
+      "testId": "adoptions-create-adopted-path",
+      "selector": "[data-testid=\"adoptions-create-adopted-path\"]"
+    },
+    "adoptions.createAdoptedVersion": {
+      "testId": "adoptions-create-adopted-version",
+      "selector": "[data-testid=\"adoptions-create-adopted-version\"]"
+    },
+    "adoptions.createCancel": {
+      "testId": "adoptions-create-cancel",
+      "selector": "[data-testid=\"adoptions-create-cancel\"]"
+    },
+    "adoptions.createConfirm": {
+      "testId": "adoptions-create-confirm",
+      "selector": "[data-testid=\"adoptions-create-confirm\"]"
+    },
+    "adoptions.createVerdict": {
+      "testId": "adoptions-create-verdict",
+      "selector": "[data-testid=\"adoptions-create-verdict\"]"
+    },
+    "adoptions.createVerdictKind": {
+      "testId": "adoptions-create-verdict-kind",
+      "selector": "[data-testid=\"adoptions-create-verdict-kind\"]"
+    },
+    "adoptions.createVerdictIssue": {
+      "testId": "adoptions-create-verdict-issue",
+      "selector": "[data-testid=\"adoptions-create-verdict-issue\"]"
+    },
+    "adoptions.createVerdictAck": {
+      "testId": "adoptions-create-verdict-ack",
+      "selector": "[data-testid=\"adoptions-create-verdict-ack\"]"
+    },
+    "adoptions.createStyleVerdict": {
+      "testId": "adoptions-create-style-verdict",
+      "selector": "[data-testid=\"adoptions-create-style-verdict\"]"
+    },
+    "adoptions.createStyleVerdictKind": {
+      "testId": "adoptions-create-style-verdict-kind",
+      "selector": "[data-testid=\"adoptions-create-style-verdict-kind\"]"
+    },
+    "adoptions.createStyleVerdictDetail": {
+      "testId": "adoptions-create-style-verdict-detail",
+      "selector": "[data-testid=\"adoptions-create-style-verdict-detail\"]"
+    },
+    "adoptions.createError": {
+      "testId": "adoptions-create-error",
+      "selector": "[data-testid=\"adoptions-create-error\"]"
+    },
+    "adoptions.createPathSource": {
+      "testId": "adoptions-create-path-source",
+      "selector": "[data-testid=\"adoptions-create-path-source\"]"
+    },
+    "adoptions.createPathWarning": {
+      "testId": "adoptions-create-path-warning",
+      "selector": "[data-testid=\"adoptions-create-path-warning\"]"
+    },
+    "versions.card": {
+      "testId": "versions-card",
+      "selector": "[data-testid=\"versions-card\"]"
+    },
+    "versions.list": {
+      "testId": "versions-list",
+      "selector": "[data-testid=\"versions-list\"]"
+    },
+    "versions.loading": {
+      "testId": "versions-loading",
+      "selector": "[data-testid=\"versions-loading\"]"
+    },
+    "versions.error": {
+      "testId": "versions-error",
+      "selector": "[data-testid=\"versions-error\"]"
+    },
+    "versions.empty": {
+      "testId": "versions-empty",
+      "selector": "[data-testid=\"versions-empty\"]"
+    },
+    "versions.item": {
+      "testId": "versions-item",
+      "selector": "[data-testid=\"versions-item\"]"
+    },
+    "versions.itemId": {
+      "testId": "versions-item-id",
+      "selector": "[data-testid=\"versions-item-id\"]"
+    },
+    "versions.itemVersion": {
+      "testId": "versions-item-version",
+      "selector": "[data-testid=\"versions-item-version\"]"
+    },
+    "versions.itemSha": {
+      "testId": "versions-item-sha",
+      "selector": "[data-testid=\"versions-item-sha\"]"
+    },
+    "versions.itemRecordedAt": {
+      "testId": "versions-item-recorded-at",
+      "selector": "[data-testid=\"versions-item-recorded-at\"]"
+    },
+    "versions.itemChangelog": {
+      "testId": "versions-item-changelog",
+      "selector": "[data-testid=\"versions-item-changelog\"]"
+    },
+    "versions.itemDiffButton": {
+      "testId": "versions-item-diff-button",
+      "selector": "[data-testid=\"versions-item-diff-button\"]"
+    },
+    "versions.diff.card": {
+      "testId": "versions-diff-card",
+      "selector": "[data-testid=\"versions-diff-card\"]"
+    },
+    "versions.diff.fromSelect": {
+      "testId": "versions-diff-from",
+      "selector": "[data-testid=\"versions-diff-from\"]"
+    },
+    "versions.diff.toSelect": {
+      "testId": "versions-diff-to",
+      "selector": "[data-testid=\"versions-diff-to\"]"
+    },
+    "versions.diff.runButton": {
+      "testId": "versions-diff-run",
+      "selector": "[data-testid=\"versions-diff-run\"]"
+    },
+    "versions.diff.table": {
+      "testId": "versions-diff-table",
+      "selector": "[data-testid=\"versions-diff-table\"]"
+    },
+    "versions.diff.row": {
+      "testId": "versions-diff-row",
+      "selector": "[data-testid=\"versions-diff-row\"]"
+    },
+    "versions.diff.summary": {
+      "testId": "versions-diff-summary",
+      "selector": "[data-testid=\"versions-diff-summary\"]"
+    },
+    "versions.diff.empty": {
+      "testId": "versions-diff-empty",
+      "selector": "[data-testid=\"versions-diff-empty\"]"
+    },
+    "versions.diff.loading": {
+      "testId": "versions-diff-loading",
+      "selector": "[data-testid=\"versions-diff-loading\"]"
+    },
+    "versions.diff.error": {
+      "testId": "versions-diff-error",
+      "selector": "[data-testid=\"versions-diff-error\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  }
+}

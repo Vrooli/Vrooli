@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:DataTable
- * @vrooliComponentVersion 1.1.0
+ * @vrooliComponentVersion 1.1.2
  * @vrooliComponentAdoption 8972e254-d591-465c-81fb-574b4af91870
- * @vrooliComponentAppliedAt 2026-07-09T04:48:52Z
- * @vrooliComponentSourceSha256 bb8cfbf635c0ec7f08630e132403c0b540e2874362e450e19d68decea63d63b5
- * @vrooliComponentDriftHash bb8cfbf635c0ec7f08630e132403c0b540e2874362e450e19d68decea63d63b5
+ * @vrooliComponentAppliedAt 2026-07-14T20:41:17Z
+ * @vrooliComponentSourceSha256 c201e00d856b5f419d036552b899112efdfb523f4e16356b0dc8d06ddfa91ef8
+ * @vrooliComponentDriftHash c201e00d856b5f419d036552b899112efdfb523f4e16356b0dc8d06ddfa91ef8
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
@@ -12,7 +12,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Search } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { isValidElement, type ReactNode, useMemo, useState } from "react";
 
 export interface DataTableColumn<Row> {
   id: string;
@@ -40,11 +40,39 @@ export interface DataTableProps<Row> {
   filterLabel?: string;
   filters?: Array<DataTableFilter<Row>>;
   className?: string;
+  // Applied to the rendered <table> as data-testid. A generic test hook that
+  // adopters use to target the table without depending on markup structure.
+  tableTestId?: string;
+  // aria-label for the filter button group. Overrides filterLabel when set.
+  // Restored in 1.1.2 after 1.1.x dropped it (adopter a11y regression).
+  filterGroupLabel?: string;
+  // Formats the aria-label of each sortable column's sort button. Restored in
+  // 1.1.2 after 1.1.x dropped it (adopter a11y regression).
+  sortLabel?: (header: string) => string;
 }
 
 type SortDirection = "asc" | "desc";
 
 const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+
+// searchableText recursively extracts the visible text from a rendered accessor
+// node so a column with no explicit searchValue is still searchable by its
+// content. Restored in 1.1.1 after 1.1.0 dropped the fallback entirely.
+const searchableText = (value: ReactNode): string => {
+  if (value === null || value === undefined || typeof value === "boolean") {
+    return "";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "bigint") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(searchableText).join(" ");
+  }
+  if (isValidElement<{ children?: ReactNode }>(value)) {
+    return searchableText(value.props.children);
+  }
+  return "";
+};
 
 function compareValues(a: string | number, b: string | number) {
   if (typeof a === "number" && typeof b === "number") {
@@ -64,6 +92,9 @@ export function DataTable<Row>({
   filterLabel = "Table filters",
   filters = [],
   className,
+  tableTestId,
+  filterGroupLabel,
+  sortLabel = (header) => `Sort by ${header}`,
 }: DataTableProps<Row>) {
   const firstSortable = columns.find((column) => column.sortValue);
   const [query, setQuery] = useState("");
@@ -82,7 +113,7 @@ export function DataTable<Row>({
         return true;
       }
       return columns.some((column) => {
-        const value = column.searchValue ? column.searchValue(row) : "";
+        const value = column.searchValue ? column.searchValue(row) : searchableText(column.accessor(row));
         return value.toLowerCase().includes(normalizedQuery);
       });
     });
@@ -123,7 +154,7 @@ export function DataTable<Row>({
           />
         </label>
         {filters.length > 0 && (
-          <div className="flex flex-wrap gap-2" role="group" aria-label={filterLabel}>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={filterGroupLabel ?? filterLabel}>
             {filters.map((filter) => (
               <button
                 key={filter.id}
@@ -143,7 +174,7 @@ export function DataTable<Row>({
         )}
       </div>
       <div className="max-w-full overflow-x-auto">
-        <table className="w-full min-w-max border-collapse text-left text-sm">
+        <table data-testid={tableTestId} className="w-full min-w-max border-collapse text-left text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
             <tr>
@@ -155,6 +186,7 @@ export function DataTable<Row>({
                     {column.sortValue ? (
                       <button
                         type="button"
+                        aria-label={sortLabel(column.header)}
                         className="inline-flex min-h-9 items-center gap-1 rounded-control text-left hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
                         onClick={() => toggleSort(column)}
                       >

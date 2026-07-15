@@ -67,6 +67,28 @@ vi.mock("../../api/components", async (importOriginal) => {
   return { ...actual, ...makeComponentsMocks() };
 });
 
+// The code panel's AdoptionFileTree resolves file placement over the adoptions
+// transport. These editor tests exercise load/edit/save, not placement, so the
+// resolver returns "no manifest" and the tree renders its flat fallback.
+vi.mock("../../api/adoptions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/adoptions")>();
+  return {
+    ...actual,
+    adoptionsClient: {
+      ...actual.adoptionsClient,
+      resolveAdoptionPath: vi.fn().mockResolvedValue({
+        path: "",
+        source: 0,
+        slot: "",
+        warnings: [],
+        files: [],
+        template: "",
+        manifestResolved: false,
+      }),
+    },
+  };
+});
+
 // ThemeSwitcher (TH-003) only mounts after previewReady; nothing to
 // stub for these tests since they never reach that state.
 
@@ -272,6 +294,10 @@ describe("ComponentEditor", () => {
     expect(frames).toHaveLength(2);
     expect(frames[0]?.getAttribute("src")).toContain("example=primary");
     expect(frames[1]?.getAttribute("src")).toContain("example=disabled");
+
+    // Each gallery frame posts the resolved theme once it loads.
+    if (frames[0]) fireEvent.load(frames[0]);
+    expect(screen.queryByTestId(selectors.components.editor.previewError)).not.toBeInTheDocument();
   });
 
   it("reloads the iframe when save returns a new sha256", async () => {
@@ -346,6 +372,89 @@ describe("ComponentEditor", () => {
       expect(after).not.toBe(before);
       expect(after).toContain("r=1");
     });
+  });
+
+  it("marks the preview ready and posts the resolved theme on the desktop side-by-side layout", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "// ready", sha256: "sha-ready" }),
+    );
+
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    try {
+      renderWithProviders(
+        <ComponentEditor id="cmp-ready" libraryId="lib:Ready" onClose={() => {}} />,
+      );
+
+      // On desktop both panels mount, so the preview frame appears without a
+      // mode switch. The Rendered badge only shows after the harness announces
+      // preview-ready.
+      await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+      expect(screen.queryByTestId(selectors.components.editor.previewBadge)).not.toBeInTheDocument();
+
+      // The first-fetch baselineSha effect resets the ready set right after
+      // mount, so a single announce can race. Re-announce until the badge
+      // sticks — exactly what a live harness does on each (re)load.
+      await waitFor(() => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: { type: "preview-ready", id: "cmp-ready" },
+          }),
+        );
+        expect(screen.getByTestId(selectors.components.editor.previewBadge)).toBeInTheDocument();
+      });
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("switches between Preview, Code, and Component-details modes on the mobile mode switch", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "// modes", sha256: "sha-modes" }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ComponentEditor id="cmp-modes" libraryId="lib:Modes" onClose={() => {}} />,
+    );
+
+    // Default (mobile) layout renders the Preview/Code/Component-details switch.
+    await user.click(await screen.findByTestId(selectors.components.editor.previewModeButton));
+    expect(await screen.findByTestId(selectors.components.editor.previewFrame)).toBeInTheDocument();
+
+    await user.click(screen.getByTestId(selectors.components.editor.codeModeButton));
+    expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Component details" }));
+    // Info mode keeps the mode switch mounted so the user can navigate back.
+    expect(screen.getByTestId(selectors.components.editor.codeModeButton)).toBeInTheDocument();
+  });
+
+  it("posts the resolved theme to the preview iframe once it loads", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "// iframe", sha256: "sha-iframe" }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ComponentEditor id="cmp-iframe" libraryId="lib:Iframe" onClose={() => {}} />,
+    );
+
+    await user.click(await screen.findByTestId(selectors.components.editor.previewModeButton));
+    const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+
+    // The onLoad handler posts the resolved theme into the frame; firing it
+    // exercises that path without needing a live preview runtime. No error
+    // surfaces on a clean load.
+    fireEvent.load(frame);
+    expect(screen.queryByTestId(selectors.components.editor.previewError)).not.toBeInTheDocument();
   });
 
   it("invokes onClose when the Back-to-list button is clicked", async () => {

@@ -1,0 +1,97 @@
+{
+  "metadata": {
+    "name": "bottomnav-keyboard-navigation",
+    "description": "Opens the BottomNav@1.2.0 preview harness (example=mobile-primary) at top level, focuses the first navigation item, presses Tab, and asserts focus advances to a later item that is still inside the nav element. Proves BottomNav items are keyboard-reachable in sequence rather than only pointer-operable.",
+    "requirement": "TC-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "bottomnav-keyboard-navigation",
+      "requirements_json": "[\"TC-006\",\"TC-004\"]"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 420,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-bottomnav-harness",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library:BottomNav/harness.html?example=mobile-primary",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open BottomNav@1.2.0 harness (mobile-primary)" }
+      }
+    },
+    {
+      "id": "wait-nav",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "nav",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "BottomNav rendered" }
+      },
+      "execution_settings": { "wait_after_ms": 300 }
+    },
+    {
+      "id": "focus-first-item",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const items = Array.from(document.querySelectorAll('nav a, nav button')); if (items[0]) items[0].focus(); document.body.setAttribute('data-nav-count', String(items.length)); return items.length; })()",
+          "store_result": "navItemCount"
+        },
+        "metadata": { "label": "Focus the first navigation item" }
+      }
+    },
+    {
+      "id": "press-tab",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "keys": ["Tab"] },
+        "metadata": { "label": "Press Tab to advance to the next item" }
+      }
+    },
+    {
+      "id": "stamp-nav-advance",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const nav = document.querySelector('nav'); const items = Array.from(document.querySelectorAll('nav a, nav button')); const active = document.activeElement; const idx = items.indexOf(active); const advanced = !!(nav && nav.contains(active) && idx > 0); document.body.setAttribute('data-nav-advanced', advanced ? 'yes' : 'no'); return idx; })()",
+          "store_result": "activeIndex"
+        },
+        "metadata": { "label": "Record whether Tab advanced focus within the nav" }
+      }
+    },
+    {
+      "id": "assert-nav-advanced",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-nav-advanced=\"yes\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Tab did not move focus to a later BottomNav item — navigation items are not keyboard-reachable in sequence."
+        },
+        "metadata": { "label": "Focus advanced to a later nav item" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-bottomnav-harness", "target": "wait-nav", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-nav", "target": "focus-first-item", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "focus-first-item", "target": "press-tab", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "press-tab", "target": "stamp-nav-advance", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "stamp-nav-advance", "target": "assert-nav-advanced", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

@@ -162,6 +162,73 @@ func (h *connectHandler) ReconcileAdoptions(ctx context.Context, req *connect.Re
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) ReconvergeAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.ReconvergeAdoptionsRequest]) (*connect.Response[adoptionsv1.ReconvergeAdoptionsResponse], error) {
+	out, err := h.deps.Service.Reconverge(ctx, adoptions.ReconvergeInput{Scenario: req.Msg.Scenario, Apply: req.Msg.Apply})
+	if err != nil {
+		h.deps.Logger.Printf("adoptions.ReconvergeAdoptions: %v", err)
+		return nil, adoptions.ToConnectError(err)
+	}
+	resp := &adoptionsv1.ReconvergeAdoptionsResponse{
+		Scanned:   int32(out.Scanned),
+		Behind:    int32(out.Behind),
+		Reapplied: int32(out.Reapplied),
+		Flagged:   int32(out.Flagged),
+		Skipped:   int32(out.Skipped),
+		Errored:   int32(out.Errored),
+	}
+	for _, o := range out.Outcomes {
+		resp.Outcomes = append(resp.Outcomes, reconvergeOutcomeToProto(o))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) DiscoverAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.DiscoverAdoptionsRequest]) (*connect.Response[adoptionsv1.DiscoverAdoptionsResponse], error) {
+	out, err := h.deps.Service.Discover(ctx, adoptions.DiscoverInput{
+		Scenario:      req.Msg.Scenario,
+		MinSimilarity: req.Msg.MinSimilarity,
+		Limit:         int(req.Msg.Limit),
+	})
+	if err != nil {
+		h.deps.Logger.Printf("adoptions.DiscoverAdoptions: %v", err)
+		return nil, adoptions.ToConnectError(err)
+	}
+	resp := &adoptionsv1.DiscoverAdoptionsResponse{Scanned: int32(out.Scanned), MinSimilarity: out.MinSimilarity}
+	for _, c := range out.Candidates {
+		resp.Candidates = append(resp.Candidates, &adoptionsv1.DiscoveryCandidate{
+			Scenario:       c.Scenario,
+			AdoptedPath:    c.AdoptedPath,
+			ComponentId:    c.ComponentID,
+			LibraryId:      c.LibraryID,
+			Version:        c.Version,
+			DisplayName:    c.DisplayName,
+			Similarity:     c.Similarity,
+			SharedLines:    int32(c.SharedLines),
+			CandidateLines: int32(c.CandidateLines),
+			SourceLines:    int32(c.SourceLines),
+			BasenameMatch:  c.BasenameMatch,
+			Evidence:       c.Evidence,
+		})
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) ConfirmDiscovery(ctx context.Context, req *connect.Request[adoptionsv1.ConfirmDiscoveryRequest]) (*connect.Response[adoptionsv1.ConfirmDiscoveryResponse], error) {
+	out, err := h.deps.Service.ConfirmDiscovery(ctx, adoptions.ConfirmDiscoveryInput{
+		Scenario:    req.Msg.Scenario,
+		AdoptedPath: req.Msg.AdoptedPath,
+		ComponentID: req.Msg.ComponentId,
+		Version:     req.Msg.Version,
+	})
+	if err != nil {
+		connectErr := adoptions.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("adoptions.ConfirmDiscovery: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&adoptionsv1.ConfirmDiscoveryResponse{Adoption: domainToProto(out.Adoption), WrittenPath: out.WrittenPath, Similarity: out.Similarity}), nil
+}
+
 func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.SuggestAdoptionsRequest]) (*connect.Response[adoptionsv1.SuggestAdoptionsResponse], error) {
 	if h.deps.Components == nil || h.deps.Dependencies == nil || h.deps.Inventory == nil || h.deps.ScenariosRoot == "" {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("adoption suggestions are not configured"))

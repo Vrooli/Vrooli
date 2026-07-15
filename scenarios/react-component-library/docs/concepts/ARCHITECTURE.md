@@ -126,6 +126,16 @@ de-scenario-ification findings. The CLI and Components page expose that same
 RPC; catalog lint/type checks and preview rendering remain the acceptance gate
 before a draft is promoted.
 
+Ingest is a **blocking origin-parity gate**: when de-scenario-ification would
+drop behavior the origin file carried, the ingest is refused rather than
+silently accepted. Callers that have reviewed the loss opt in with
+`accept_behavior_loss`, which records each dropped-behavior finding on the
+draft's parity report as an explicit, audited override (the same
+review-with-a-record shape used elsewhere in this scenario — see the reviewed
+divergence allowlist in [`DATA.md`](DATA.md)). The origin-parity closure also
+resolves app-alias origins so a component ingested under one scenario alias is
+not mistaken for an untagged copy.
+
 `AdoptionsService.ApplyAdoption` is the reverse edge. It validates dependency
 and design-style fit server-side, stamps provenance/source hashes, and records
 the copied target. Replacing an existing source requires both
@@ -133,6 +143,28 @@ the copied target. Replacing an existing source requires both
 source; the response reports direct import sites. `SuggestAdoptions` composes
 the existing InventoryService scan, style-fit verdict, dependency verdict, and
 adoption ledger to return only non-adopted, explainable candidates.
+
+Two reconciliation edges keep the catalog and its adopters converged after the
+fact:
+
+- `DiscoverAdoptions` / `ConfirmDiscovery` find untagged vendored *copies* of
+  catalog components that carry no provenance header. Discovery scores each
+  candidate file against the catalog with a Sørensen–Dice content-similarity
+  metric and **never writes on its own** — it returns ranked candidates and a
+  human confirms before any provenance header is stamped (confirm-before-write).
+  A fleet run proved this does not over-claim: generic shadcn primitives that
+  merely resemble a catalog component are not treated as copies.
+- `ReconvergeAdoptions` re-applies the current library source onto adopters that
+  have fallen behind, so a version cut that restores dropped adopter affordances
+  can be pushed back out without hand-editing each scenario. Adopters under
+  `templates/**` are out of the write boundary and are reported (not rewritten);
+  reviewed, still-behind template copies are tracked in the reviewed divergence
+  allowlist rather than silently tolerated.
+
+`ResolveAdoptionPath` returns per-file placement (dual provenance: library slot
+plus adopting-template manifest) so a multi-file component version lands each
+file where the adopting template's UI manifest says it belongs; the code panel's
+file tree renders that placement.
 
 ## Contracts And Data Flow
 

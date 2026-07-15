@@ -19,7 +19,8 @@
     "test:coverage": "vitest run --coverage; unit_status=$?; node scripts/preview-e2e.mjs; preview_status=$?; test $unit_status -eq 0 -a $preview_status -eq 0",
     "test:preview-e2e": "node scripts/preview-e2e.mjs",
     "strings:gen": "node scripts/gen-strings.mjs",
-    "strings:check": "node scripts/gen-strings.mjs --check"
+    "strings:check": "node scripts/gen-strings.mjs --check",
+    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

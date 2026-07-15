@@ -154,6 +154,7 @@ func matchReconciledLibraryFile(version components.ComponentVersion, adoptedPath
 func reconcileFinding(file ProvenanceFile, detail string) ReconcileFinding {
 	return ReconcileFinding{Scenario: file.Scenario, AdoptedPath: file.AdoptedPath, LibraryID: file.LibraryID, Version: file.Version, Detail: detail}
 }
+
 func provenancePathKey(scenario, path string) string {
 	return scenario + "\x00" + filepath.ToSlash(path)
 }

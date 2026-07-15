@@ -18,12 +18,18 @@ func writeLighthouseConfig(t *testing.T, body string) string {
 	if err := os.WriteFile(filepath.Join(dir, "lighthouse.json"), []byte(body), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(root, "ui"), 0o755); err != nil {
+		t.Fatalf("mkdir ui: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "ui", "package.json"), []byte(`{"name":"demo-ui"}`), 0o644); err != nil {
+		t.Fatalf("write ui package: %v", err)
+	}
 	return root
 }
 
 const enabledConfig = `{
   "enabled": true,
-  "pages": [{"id":"home","path":"/","thresholds":{"performance":{"error":0.75,"warn":0.85}}}]
+  "pages": [{"id":"home","path":"/","thresholds":{"performance":{"error":0.75,"warn":0.85},"accessibility":{"error":0.90,"warn":0.95}}}]
 }`
 
 // [REQ:PH-LH-001] A page meeting its threshold SCORES with no violations.
@@ -78,8 +84,8 @@ func TestCLIRunnerSkipsWhenCLIAbsent(t *testing.T) {
 		LookLighthouse: func(context.Context) (string, error) { return "", errors.New("not installed") },
 	}
 	res, _ := r.Run(context.Background(), "demo", "")
-	if res.Outcome != OutcomeSkipped {
-		t.Fatalf("expected SKIPPED, got %#v", res)
+	if res.Outcome != OutcomeUnavailable {
+		t.Fatalf("expected UNAVAILABLE, got %#v", res)
 	}
 }
 
@@ -91,19 +97,28 @@ func TestCLIRunnerSkipsWhenNoUIURL(t *testing.T) {
 		ResolveUIURL: func(context.Context, string) (string, error) { return "", errors.New("no ui") },
 	}
 	res, _ := r.Run(context.Background(), "demo", "")
-	if res.Outcome != OutcomeSkipped {
-		t.Fatalf("expected SKIPPED, got %#v", res)
+	if res.Outcome != OutcomeUnavailable {
+		t.Fatalf("expected UNAVAILABLE, got %#v", res)
 	}
 }
 
 // [REQ:PH-LH-002] A disabled config (or no config file) → clean SKIP before any
 // CLI/URL resolution.
-func TestCLIRunnerSkipsWhenDisabled(t *testing.T) {
+func TestCLIRunnerRejectsDisabledConfigForBrowserUI(t *testing.T) {
 	root := writeLighthouseConfig(t, `{"enabled": false}`)
 	r := &CLIRunner{Resolve: func(_, _ string) (string, error) { return root, nil }}
 	res, _ := r.Run(context.Background(), "demo", "")
-	if res.Outcome != OutcomeSkipped {
-		t.Fatalf("expected SKIPPED, got %#v", res)
+	if res.Outcome != OutcomeConfigurationInvalid {
+		t.Fatalf("expected configuration failure, got %#v", res)
+	}
+}
+
+func TestCLIRunnerRejectsMissingAccessibilityThreshold(t *testing.T) {
+	root := writeLighthouseConfig(t, `{"enabled":true,"pages":[{"id":"home","path":"/","thresholds":{"performance":{"error":0.75,"warn":0.85}}}]}`)
+	r := &CLIRunner{Resolve: func(_, _ string) (string, error) { return root, nil }}
+	res, _ := r.Run(context.Background(), "demo", "")
+	if res.Outcome != OutcomeConfigurationInvalid {
+		t.Fatalf("expected configuration failure, got %#v", res)
 	}
 }
 

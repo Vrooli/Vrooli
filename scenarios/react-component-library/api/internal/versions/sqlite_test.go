@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
+	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/testutil/db"
 	"react-component-library/internal/testutil/mocks"
@@ -18,9 +19,11 @@ import (
 func newVersionsDB(t *testing.T) (versions.Repository, *mocks.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
+	// component_versions is owned by the components domain schema; the
+	// versions domain is a read/append consumer of that table.
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
-		apidb.SchemaProviderFunc(versions.Schema),
+		apidb.SchemaProviderFunc(components.Schema),
 	))
 	clk := mocks.NewFakeClock(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC))
 	return versions.NewSQLiteRepository(d, clk), clk

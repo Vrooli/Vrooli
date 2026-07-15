@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -68,22 +69,114 @@ func (h *connectHandler) ResolveAdoptionPath(ctx context.Context, req *connect.R
 	if name == "" {
 		name = comp.DisplayName
 	}
-	out, err := h.deps.Resolver.Resolve(adoptions.ResolveInput{
-		ComponentSlot: slot,
-		ComponentName: name,
-		Scenario:      req.Msg.Scenario,
-		Override:      req.Msg.OverridePath,
-		Feature:       req.Msg.Feature,
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	resp := &adoptionsv1.ResolveAdoptionPathResponse{}
+
+	// Legacy single-path resolution needs a concrete scenario. Template-only
+	// requests (the code panel's scenario-agnostic preview) skip it; the entry
+	// summary is derived from the version placement below instead.
+	if req.Msg.Scenario != "" || req.Msg.OverridePath != "" {
+		out, err := h.deps.Resolver.Resolve(adoptions.ResolveInput{
+			ComponentSlot: slot,
+			ComponentName: name,
+			Scenario:      req.Msg.Scenario,
+			Override:      req.Msg.OverridePath,
+			Feature:       req.Msg.Feature,
+		})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		resp.Path = out.Path
+		resp.Source = toProtoSource(out.Source)
+		resp.Slot = out.Slot
+		resp.Warnings = out.Warnings
+	} else if req.Msg.Template == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("ResolveAdoptionPath: scenario or template is required"))
 	}
-	return connect.NewResponse(&adoptionsv1.ResolveAdoptionPathResponse{
-		Path:     out.Path,
-		Source:   toProtoSource(out.Source),
-		Slot:     out.Slot,
-		Warnings: out.Warnings,
-	}), nil
+
+	// Full file-set placement. Non-fatal: a version lookup failure leaves the
+	// response as the single entry path (the summary above) so the caller
+	// still gets a usable answer.
+	if files := h.resolveVersionFiles(ctx, req.Msg, name, slot); files != nil {
+		resp.Files = files.protoFiles
+		resp.Template = files.template
+		resp.ManifestResolved = files.manifestResolved
+		// Template-only mode: derive the entry summary from the placement.
+		if resp.Path == "" {
+			for _, f := range files.protoFiles {
+				if f.IsEntry {
+					resp.Path = f.TargetPath
+					resp.Source = f.Source
+					resp.Slot = f.Slot
+					resp.Warnings = append(resp.Warnings, f.Warnings...)
+					break
+				}
+			}
+		}
+	}
+	return connect.NewResponse(resp), nil
+}
+
+type versionPlacement struct {
+	protoFiles       []*adoptionsv1.ResolvedVersionFile
+	template         string
+	manifestResolved bool
+}
+
+// resolveVersionFiles fetches the version's file set and places each member at
+// its slot-derived path. Returns nil when the file set can't be determined
+// (the caller then relies on the single entry path). An explicit override or a
+// missing Components service short-circuits to nil — overrides only name the
+// entry file, so a multi-file tree would be misleading.
+func (h *connectHandler) resolveVersionFiles(ctx context.Context, msg *adoptionsv1.ResolveAdoptionPathRequest, name, slot string) *versionPlacement {
+	if h.deps.Components == nil || msg.OverridePath != "" {
+		return nil
+	}
+	version := strings.TrimSpace(msg.Version)
+	if version == "" {
+		if c, err := h.deps.Components.Get(ctx, msg.ComponentId); err == nil {
+			version = c.LatestVersion
+			if version == "" {
+				version = c.Version
+			}
+		}
+	}
+	var files []components.ComponentVersionFile
+	if version != "" {
+		if v, err := h.deps.Components.GetVersion(ctx, msg.ComponentId, version); err == nil {
+			files = v.Files
+		} else {
+			h.deps.Logger.Printf("ResolveAdoptionPath: version %q lookup failed for %q: %v", version, msg.ComponentId, err)
+		}
+	}
+
+	in := adoptions.VersionResolveInput{
+		ComponentName: name,
+		ComponentSlot: slot,
+		Scenario:      msg.Scenario,
+		Template:      msg.Template,
+		Feature:       msg.Feature,
+	}
+	for _, f := range files {
+		in.Files = append(in.Files, adoptions.FileInput{Path: f.Path, IsEntry: f.IsEntry, Slot: f.Slot})
+	}
+	out, err := h.deps.Resolver.ResolveVersion(in)
+	if err != nil {
+		h.deps.Logger.Printf("ResolveAdoptionPath: version placement failed for %q: %v", msg.ComponentId, err)
+		return nil
+	}
+	placement := &versionPlacement{template: out.Template, manifestResolved: out.ManifestResolved}
+	for _, rf := range out.Files {
+		placement.protoFiles = append(placement.protoFiles, &adoptionsv1.ResolvedVersionFile{
+			LibraryPath: rf.LibraryPath,
+			TargetPath:  rf.TargetPath,
+			Slot:        rf.Slot,
+			Source:      toProtoSource(rf.Source),
+			SlotSource:  string(rf.SlotSource),
+			IsEntry:     rf.IsEntry,
+			Warnings:    rf.Warnings,
+		})
+	}
+	return placement
 }
 
 func toProtoSource(s adoptions.ResolveSource) adoptionsv1.ResolveSource {

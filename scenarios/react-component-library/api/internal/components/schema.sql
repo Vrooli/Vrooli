@@ -58,6 +58,14 @@ CREATE TABLE IF NOT EXISTS component_versions (
 CREATE INDEX IF NOT EXISTS idx_component_versions_component_status
   ON component_versions(component_id, status, version);
 
+-- Supports the versions domain's history reads (Latest/List order by
+-- indexed_at DESC per component). The UNIQUE(component_id, version)
+-- constraint above already provides the (component_id, version) lookup
+-- index, so no separate one is declared. component_versions is owned
+-- solely by this schema — the versions domain is a read/append consumer.
+CREATE INDEX IF NOT EXISTS idx_component_versions_component_recorded
+  ON component_versions(component_id, indexed_at DESC);
+
 -- A version is a file set. component_versions retains the entry-file mirror
 -- for existing query paths; this child table is authoritative for companions.
 CREATE TABLE IF NOT EXISTS component_version_files (
@@ -66,6 +74,11 @@ CREATE TABLE IF NOT EXISTS component_version_files (
   content         TEXT NOT NULL DEFAULT '',
   content_sha256  TEXT NOT NULL,
   is_entry        INTEGER NOT NULL DEFAULT 0,
+  -- Explicit per-file placement slot (e.g. "hook" for a companion). Empty
+  -- means "unspecified": the adoption path resolver derives the slot from an
+  -- extension heuristic (use*.ts -> hook) or the component's declared slot.
+  -- Authored via component.json `fileSlots`. Explicit metadata wins.
+  slot            TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (version_id, path)
 );
 

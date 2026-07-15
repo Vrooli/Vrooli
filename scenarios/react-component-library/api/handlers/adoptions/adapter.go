@@ -42,6 +42,45 @@ func adoptionFilesToProto(files []adoptions.AdoptionFile) []*adoptionsv1.Adoptio
 	return out
 }
 
+func reconvergeOutcomeToProto(o adoptions.ReconvergeOutcome) *adoptionsv1.ReconvergeOutcome {
+	out := &adoptionsv1.ReconvergeOutcome{
+		AdoptionId:           o.AdoptionID,
+		Scenario:             o.Scenario,
+		ComponentId:          o.ComponentID,
+		LibraryId:            o.LibraryID,
+		AdoptedVersion:       o.AdoptedVersion,
+		TargetVersion:        o.TargetVersion,
+		LibraryVersionStatus: libraryStatusToProto(o.LibraryVersionStatus),
+		LocalStatus:          localStatusToProto(o.LocalStatus),
+		Action:               reconvergeActionToProto(o.Action),
+		Detail:               o.Detail,
+	}
+	for _, file := range o.Files {
+		out.Files = append(out.Files, &adoptionsv1.ReconvergeFileOutcome{
+			LibraryPath: file.LibraryPath,
+			AdoptedPath: file.AdoptedPath,
+			LocalStatus: localStatusToProto(file.LocalStatus),
+		})
+	}
+	return out
+}
+
+func reconvergeActionToProto(a adoptions.ReconvergeAction) adoptionsv1.ReconvergeAction {
+	switch a {
+	case adoptions.ReconvergeActionReapplied:
+		return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_REAPPLIED
+	case adoptions.ReconvergeActionWouldReapply:
+		return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_WOULD_REAPPLY
+	case adoptions.ReconvergeActionFlaggedModified:
+		return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_FLAGGED_MODIFIED
+	case adoptions.ReconvergeActionSkippedUnresolved:
+		return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_SKIPPED_UNRESOLVED
+	case adoptions.ReconvergeActionError:
+		return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_ERROR
+	}
+	return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_UNSPECIFIED
+}
+
 func libraryStatusToProto(s adoptions.LibraryVersionStatus) adoptionsv1.LibraryVersionStatus {
 	switch s {
 	case adoptions.LibraryVersionStatusCurrent:

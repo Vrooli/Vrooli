@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Testing seams and coverage targets per unit-testing-architecture-steer: SQLite-backed repos, mocked handlers, UI component tests, BAS flows.",
-    "last_validated_at": "2026-07-10T09:48:00-04:00",
+    "last_validated_at": "2026-07-14T21:39:13-04:00",
     "module": "testing-coverage",
     "prd_ref": "PRD.md",
     "priority": "P0",

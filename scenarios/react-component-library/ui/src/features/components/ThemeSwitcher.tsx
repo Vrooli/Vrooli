@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Palette } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -7,6 +8,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { themesClient, type Theme } from "../../api/themes";
+import { type ColorScheme } from "../../hooks/useDeviceFilters";
 import { errorMessage } from "../../lib/errorMessage";
 import { cn } from "../../lib/utils";
 
@@ -14,28 +16,80 @@ interface Props {
   /** Posts to every live preview frame, not only the first gallery item. */
   postToFrames: (message: unknown) => void;
   /** Set true once the harness has posted "preview-ready"; we re-apply
-   *  the active theme on every reload so it survives save-driven nav. */
+   *  the active pack on every reload so it survives save-driven nav. */
   previewReady: boolean;
-  /** Re-applies a chosen override after the app bridge changes theme. */
-  appResolvedTheme: "light" | "dark";
+  /** Color-scheme mode — the single owner of light/dark. */
+  colorScheme: ColorScheme;
+  setColorScheme: (scheme: ColorScheme) => void;
   className?: string;
 }
 
 /**
- * ThemeSwitcher — TH-003 surface.
+ * ThemeSwitcher — the preview theming control (TH-003 surface).
  *
- * Lists built-in themes + lets the user load a scenario's
- * DESIGN.md-derived theme. The chosen theme's normalized CSS-custom-
- * property tokens are posted to the preview harness via
- * `{type:"rcl-theme-apply", themeId, tokens}`. The harness child sets
- * each token on :root so component CSS variables resolve to the new
- * values immediately.
+ * Theming has two orthogonal axes, and this control makes each one a
+ * single-owner surface so they can no longer fight:
+ *
+ *  1. **Color-scheme mode** (System / Light / Dark) — a segmented toggle
+ *     bound to `useDeviceFilters().colorScheme`. ComponentEditor derives
+ *     the resolved light/dark from it and is the *only* sender of
+ *     `rcl-resolved-theme`. Picking a token pack must never move it.
+ *  2. **Token pack** — a built-in palette or a scenario's DESIGN.md-derived
+ *     palette. The chosen pack's normalized CSS-custom-property tokens are
+ *     posted via `{type:"rcl-theme-apply", themeId, tokens}` (an override
+ *     axis only). It never posts `rcl-resolved-theme`.
+ *
+ * Built-in packs are re-labelled (Slate / Midnight / High Contrast) so a
+ * pack name can never be mistaken for a color-scheme mode.
  */
-export function ThemeSwitcher({ postToFrames, previewReady, appResolvedTheme, className }: Props) {
+
+/** Server pack id → display-name string key. Renames the built-in packs
+ *  so none collide with the color-scheme mode labels (System/Light/Dark).
+ *  Unknown ids (future packs, scenario imports) keep their server name. */
+function builtinPackKey(id: string) {
+  switch (id) {
+    case "light":
+      return strings.components.themeSwitcher.packNames.slate;
+    case "dark":
+      return strings.components.themeSwitcher.packNames.midnight;
+    case "high-contrast":
+      return strings.components.themeSwitcher.packNames.highContrast;
+    default:
+      return null;
+  }
+}
+
+const MODE_OPTIONS = [
+  {
+    value: "system",
+    label: strings.components.themeSwitcher.mode.system,
+    testid: selectors.components.themeSwitcher.modeSystem,
+  },
+  {
+    value: "light",
+    label: strings.components.themeSwitcher.mode.light,
+    testid: selectors.components.themeSwitcher.modeLight,
+  },
+  {
+    value: "dark",
+    label: strings.components.themeSwitcher.mode.dark,
+    testid: selectors.components.themeSwitcher.modeDark,
+  },
+] as const satisfies ReadonlyArray<{ value: ColorScheme; label: string; testid: string }>;
+
+export function ThemeSwitcher({
+  postToFrames,
+  previewReady,
+  colorScheme,
+  setColorScheme,
+  className,
+}: Props) {
   const { t } = useTranslation();
   const [selection, setSelection] = useState("");
   const [scenarioId, setScenarioId] = useState("");
   const [activeTheme, setActiveTheme] = useState<Theme | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const importRef = useRef<HTMLDivElement | null>(null);
 
   const builtinsQuery = useQuery({
     queryKey: ["themes", "builtin"],
@@ -65,80 +119,146 @@ export function ThemeSwitcher({ postToFrames, previewReady, appResolvedTheme, cl
     setActiveTheme(theme);
   }, [builtinThemeQuery.data, scenarioThemeQuery.data]);
 
-  // Re-apply the active theme on every (re)load — the harness JS state
-  // is wiped when the iframe reloads after a save, so we resend.
+  // Re-apply the active pack on every (re)load — the harness JS state is
+  // wiped when the iframe reloads after a save, so we resend. The pack is a
+  // token-override axis ONLY: it posts `rcl-theme-apply` and never
+  // `rcl-resolved-theme`, leaving light/dark ownership with the mode toggle.
   useEffect(() => {
     if (!previewReady) return;
-    // Empty selection is deliberately "Follow app": clear any previous
-    // overrides and leave resolved-theme ownership with ComponentEditor.
-    if (!activeTheme) {
-      postToFrames({ type: "rcl-theme-apply", themeId: "", tokens: {} });
-      return;
-    }
-    const resolvedTheme = activeTheme.id === "dark" ? "dark" : "light";
-    postToFrames({ type: "rcl-resolved-theme", theme: resolvedTheme });
     postToFrames({
       type: "rcl-theme-apply",
-      themeId: activeTheme.id,
-      tokens: { ...activeTheme.tokens },
+      themeId: activeTheme?.id ?? "",
+      tokens: activeTheme ? { ...activeTheme.tokens } : {},
     });
-  }, [previewReady, activeTheme, appResolvedTheme, postToFrames]);
+  }, [previewReady, activeTheme, postToFrames]);
+
+  useEffect(() => {
+    if (!importOpen) return undefined;
+    const onPointerDown = (ev: MouseEvent) => {
+      if (importRef.current && !importRef.current.contains(ev.target as Node)) {
+        setImportOpen(false);
+      }
+    };
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") setImportOpen(false);
+    };
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [importOpen]);
 
   const queryError = builtinThemeQuery.error ?? scenarioThemeQuery.error;
   const loading = builtinThemeQuery.isLoading || scenarioThemeQuery.isLoading;
+  const packLabelFor = (theme: Theme): string => {
+    const key = builtinPackKey(theme.id);
+    return key ? t(key) : theme.name || theme.id;
+  };
 
   return (
     <div
       data-testid={selectors.components.themeSwitcher.root}
-      className={cn("flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-app-muted-foreground", className)}
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-2 text-xs text-app-muted-foreground",
+        className,
+      )}
+      role="group"
+      aria-label={t(strings.components.themeSwitcher.modeLabel)}
     >
-      <label className="flex items-center gap-1.5">
-        <span className="text-app-muted-foreground">
-          {t(strings.components.themeSwitcher.label)}
-        </span>
+      {/* Axis 1 — color-scheme mode. Segmented, single owner of light/dark. */}
+      <div
+        data-testid={selectors.components.themeSwitcher.mode}
+        role="group"
+        aria-label={t(strings.components.themeSwitcher.modeLabel)}
+        className="inline-flex h-9 shrink-0 overflow-hidden rounded-md border border-app-border"
+      >
+        {MODE_OPTIONS.map((option) => {
+          const active = colorScheme === option.value;
+          return (
+            <Button
+              key={option.value}
+              type="button"
+              data-testid={option.testid}
+              variant={active ? "primary" : "secondary"}
+              aria-pressed={active}
+              className="h-9 min-h-9 rounded-none border-0 px-2.5 text-xs"
+              onClick={() => setColorScheme(option.value)}
+            >
+              {t(option.label)}
+            </Button>
+          );
+        })}
+      </div>
+
+      {/* Axis 2 — token pack. Token-override only; never touches mode. */}
+      <label className="inline-flex h-9 shrink-0 items-center gap-1.5">
+        <Palette aria-hidden className="h-4 w-4 text-app-muted-foreground" />
+        <span className="sr-only">{t(strings.components.themeSwitcher.packLabel)}</span>
         <select
           data-testid={selectors.components.themeSwitcher.select}
           value={selection}
           onChange={(e) => setSelection(e.target.value)}
-          className="h-7 max-w-32 rounded-md border border-app-border bg-app-surface px-2 text-xs text-app-foreground"
+          className="h-9 min-h-9 max-w-40 rounded-md border border-app-border bg-app-surface px-2 text-xs text-app-foreground"
         >
           <option value="">{t(strings.components.themeSwitcher.noneOption)}</option>
           <optgroup label={t(strings.components.themeSwitcher.builtinOptionGroup)}>
             {(builtinsQuery.data?.themes ?? []).map((th) => (
               <option key={th.id} value={`builtin:${th.id}`}>
-                {th.name || th.id}
+                {packLabelFor(th)}
               </option>
             ))}
           </optgroup>
         </select>
       </label>
 
-      <label className="flex items-center gap-1.5">
-        <span className="text-app-muted-foreground">
-          {t(strings.components.themeSwitcher.scenarioInputLabel)}
-        </span>
-        <Input
-          data-testid={selectors.components.themeSwitcher.scenarioInput}
-          value={scenarioId}
-          onChange={(e) => setScenarioId(e.target.value)}
-          placeholder={t(strings.components.themeSwitcher.scenarioInputPlaceholder)}
-          className="h-7 w-36 rounded-md text-xs"
-        />
+      {/* Scenario DESIGN.md import — disclosure keeps the row compact. */}
+      <div ref={importRef} className="relative shrink-0">
         <Button
-          data-testid={selectors.components.themeSwitcher.scenarioApply}
+          type="button"
+          data-testid={selectors.components.themeSwitcher.importToggle}
           variant="secondary"
-          className="h-7 rounded-md px-2 text-xs"
-          disabled={!scenarioId.trim()}
-          onClick={() => setSelection(`scenario:${scenarioId.trim()}`)}
+          aria-expanded={importOpen}
+          className="h-9 min-h-9 rounded-md px-2 text-xs"
+          onClick={() => setImportOpen((open) => !open)}
         >
-          {t(strings.components.themeSwitcher.scenarioApply)}
+          {t(strings.components.themeSwitcher.importLabel)}
         </Button>
-      </label>
+        {importOpen && (
+          <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-md border border-app-border bg-app-surface p-2 shadow-lg">
+            <label className="mb-1 block text-xs text-app-muted-foreground" htmlFor="rcl-theme-scenario-id">
+              {t(strings.components.themeSwitcher.scenarioInputLabel)}
+            </label>
+            <Input
+              id="rcl-theme-scenario-id"
+              data-testid={selectors.components.themeSwitcher.scenarioInput}
+              value={scenarioId}
+              onChange={(e) => setScenarioId(e.target.value)}
+              placeholder={t(strings.components.themeSwitcher.scenarioInputPlaceholder)}
+              className="h-9 w-full rounded-md text-xs"
+            />
+            <Button
+              type="button"
+              data-testid={selectors.components.themeSwitcher.scenarioApply}
+              variant="secondary"
+              className="mt-2 h-9 w-full rounded-md px-2 text-xs"
+              disabled={!scenarioId.trim()}
+              onClick={() => {
+                setSelection(`scenario:${scenarioId.trim()}`);
+                setImportOpen(false);
+              }}
+            >
+              {t(strings.components.themeSwitcher.scenarioApply)}
+            </Button>
+          </div>
+        )}
+      </div>
 
       {loading && (
         <span
           data-testid={selectors.components.themeSwitcher.status}
-          className="text-app-muted-foreground"
+          className="shrink-0 text-app-muted-foreground"
         >
           {t(strings.components.themeSwitcher.loading)}
         </span>
@@ -146,17 +266,17 @@ export function ThemeSwitcher({ postToFrames, previewReady, appResolvedTheme, cl
       {activeTheme && !loading && (
         <span
           data-testid={selectors.components.themeSwitcher.status}
-          className="text-app-success"
+          className="min-w-0 truncate text-app-success"
         >
           {t(strings.components.themeSwitcher.applied, {
-            name: activeTheme.name || activeTheme.id,
+            name: packLabelFor(activeTheme),
           })}
         </span>
       )}
       {queryError && (
         <span
           data-testid={selectors.components.themeSwitcher.error}
-          className="text-app-danger"
+          className="min-w-0 truncate text-app-danger"
         >
           {errorMessage(queryError, t)}
         </span>

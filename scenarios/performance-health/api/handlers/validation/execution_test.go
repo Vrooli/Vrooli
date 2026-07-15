@@ -89,7 +89,7 @@ func TestExecutionOrchestratorPersistsThenGates(t *testing.T) {
 	writer := &fakeSampleWriter{}
 	o := NewExecutionOrchestrator(ExecutionDeps{Benchmark: bench, Lighthouse: lh, Trend: writer})
 
-	findings, _ := o.Run(context.Background(), "demo", "")
+	findings, _, _ := o.Run(context.Background(), "demo", "")
 
 	if !bench.called || !lh.called {
 		t.Fatalf("expected benchmark and lighthouse to run; bench=%v lh=%v", bench.called, lh.called)
@@ -119,7 +119,7 @@ func TestExecutionOrchestratorSkipNotFailOnProducerError(t *testing.T) {
 	writer := &fakeSampleWriter{}
 	o := NewExecutionOrchestrator(ExecutionDeps{Benchmark: bench, Lighthouse: lh, Trend: writer})
 
-	findings, _ := o.Run(context.Background(), "demo", "")
+	findings, _, _ := o.Run(context.Background(), "demo", "")
 	if len(findings) != 0 {
 		t.Errorf("producer errors must not produce findings, got %v", findingCodeList(findings))
 	}
@@ -136,7 +136,7 @@ func TestExecutionOrchestratorBrokenBuild(t *testing.T) {
 		Reason:  "go build failed: syntax error",
 	}}
 	o := NewExecutionOrchestrator(ExecutionDeps{Benchmark: bench, Trend: &fakeSampleWriter{}})
-	findings, _ := o.Run(context.Background(), "demo", "")
+	findings, _, _ := o.Run(context.Background(), "demo", "")
 	if !hasCode(findings, "PERF_BUILD_FAILED") {
 		t.Errorf("expected PERF_BUILD_FAILED, got %v", findingCodeList(findings))
 	}
@@ -147,9 +147,18 @@ func TestExecutionOrchestratorBrokenBuild(t *testing.T) {
 func TestExecutionOrchestratorLighthouseSkippedNoFinding(t *testing.T) {
 	lh := &fakeLighthouse{res: lighthouse.Result{Outcome: lighthouse.OutcomeSkipped, Reason: "no UI"}}
 	o := NewExecutionOrchestrator(ExecutionDeps{Lighthouse: lh, Trend: &fakeSampleWriter{}})
-	findings, _ := o.Run(context.Background(), "demo", "")
+	findings, _, _ := o.Run(context.Background(), "demo", "")
 	if len(findings) != 0 {
 		t.Errorf("skipped lighthouse must not fail, got %v", findingCodeList(findings))
+	}
+}
+
+func TestExecutionOrchestratorLighthouseConfigurationFails(t *testing.T) {
+	lh := &fakeLighthouse{res: lighthouse.Result{Outcome: lighthouse.OutcomeConfigurationInvalid, Reason: "accessibility thresholds missing"}}
+	o := NewExecutionOrchestrator(ExecutionDeps{Lighthouse: lh})
+	findings, _, _ := o.Run(context.Background(), "demo", "")
+	if !hasCode(findings, "PERF_LIGHTHOUSE_ACCESSIBILITY_CONFIG") {
+		t.Fatalf("expected configuration finding, got %v", findingCodeList(findings))
 	}
 }
 
@@ -174,9 +183,9 @@ type recordingExecution struct {
 	measured bool
 }
 
-func (r *recordingExecution) Run(_ context.Context, _, _ string) ([]phassessment.Finding, bool) {
+func (r *recordingExecution) Run(_ context.Context, _, _ string) ([]phassessment.Finding, bool, string) {
 	r.calls++
-	return r.findings, r.measured
+	return r.findings, r.measured, ""
 }
 
 // TestIncludeExecutionDivergence proves the flag is honored end-to-end:

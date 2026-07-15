@@ -17,6 +17,7 @@ import (
 
 	"react-component-library/handlers/versions"
 	"react-component-library/internal/clock"
+	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/testutil/db"
 	internalversions "react-component-library/internal/versions"
@@ -33,7 +34,7 @@ func setupModule(t *testing.T) (*mux.Router, internalversions.Service) {
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
-		apidb.SchemaProviderFunc(internalversions.Schema),
+		apidb.SchemaProviderFunc(components.Schema),
 	))
 	resolver := &fakeAdoptions{content: map[string]string{
 		"adp-1": "library shared\nadopted line",

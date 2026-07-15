@@ -37,5 +37,9 @@ func ToConnectError(err error) error {
 	if errors.As(err, &parity) {
 		return connect.NewError(connect.CodeFailedPrecondition, parity)
 	}
+	var behaviorLoss ErrHarvestBehaviorLoss
+	if errors.As(err, &behaviorLoss) {
+		return connect.NewError(connect.CodeFailedPrecondition, behaviorLoss)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

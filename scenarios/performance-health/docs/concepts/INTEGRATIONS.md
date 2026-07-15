@@ -57,8 +57,8 @@ yet wired in this documentation-first initialization.
 
 | Service | Status | Reason | Contract |
 |---|---|---|---|
-| Lighthouse CLI | planned | The performance-health-owned Lighthouse runner uses its own Chrome (NOT via BAS); silent-skips when absent. | `.vrooli/lighthouse.json` thresholds. |
-| Chrome / Browserless | planned (indirect) | Reached via BAS perf-capture and the Lighthouse runner; the audit pipeline skips cleanly when unavailable. | indirect, through BAS / Lighthouse. |
+| Lighthouse CLI | planned | The performance-health-owned Lighthouse runner uses its own Chrome (NOT via BAS). Browser UI scenarios must declare per-route accessibility error and warning thresholds; unavailable execution is degraded rather than passed. | `.vrooli/lighthouse.json` thresholds. |
+| Chrome | planned (indirect) | Reached via BAS perf-capture and the Lighthouse runner; the audit pipeline skips cleanly when unavailable. | indirect, through BAS / Lighthouse. |
 
 ## Failure Modes
 

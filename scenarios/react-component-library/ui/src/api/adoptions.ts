@@ -10,6 +10,7 @@ import {
   type RefreshAdoptionsResponse,
   type ResolveAdoptionPathRequest,
   type ResolveAdoptionPathResponse,
+  type ResolvedVersionFile,
 } from "@vrooli/proto-types/react-component-library/v1/adoptions/adoptions_pb";
 
 import { transport } from "./client";
@@ -24,4 +25,5 @@ export type {
   RefreshAdoptionsResponse,
   ResolveAdoptionPathRequest,
   ResolveAdoptionPathResponse,
+  ResolvedVersionFile,
 };

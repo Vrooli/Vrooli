@@ -39,9 +39,6 @@ func Module(db *sql.DB, clk clock.Clock, resolver versions.AdoptionResolver, log
 	}
 }
 
-// Schema re-exports internal/versions.Schema for the modules registry.
-func Schema() string { return versions.Schema() }
-
 // BuildService is the seam main.go calls to construct one
 // versions.Service that other layers (the components content-change
 // listener, the CLI handlers test) can share.

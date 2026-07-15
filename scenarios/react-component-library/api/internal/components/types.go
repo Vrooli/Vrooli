@@ -20,6 +20,7 @@ package components
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -83,6 +84,11 @@ type ComponentVersionFile struct {
 	Content       string
 	ContentSHA256 string
 	IsEntry       bool
+	// Slot is the explicit placement slot for this file (e.g. "hook" for a
+	// companion). Empty means unspecified — the adoption path resolver derives
+	// the slot from an extension heuristic or the component's declared slot.
+	// Authored via component.json `fileSlots`; explicit metadata wins.
+	Slot string
 }
 
 // IngestParityReport is durable evidence of static behavior parity between
@@ -103,6 +109,27 @@ type ErrParityWaiverRequired struct {
 
 func (e ErrParityWaiverRequired) Error() string {
 	return "ingest parity report has behavior-loss findings; acknowledge a parity waiver before release"
+}
+
+// ErrHarvestBehaviorLoss blocks a harvest whose static behavior inventory
+// shows origin behavior signals absent from the harvested unit — the failure
+// mode that once let DrawerShell be harvested with its focus-trap hook
+// silently dropped. The harvest fails unless the caller passes
+// accept_behavior_loss, which does not skip the check but records the named
+// losses as an acknowledged parity report on the created version.
+type ErrHarvestBehaviorLoss struct {
+	Scenario   string
+	SourceFile string
+	Findings   []IngestFinding
+}
+
+func (e ErrHarvestBehaviorLoss) Error() string {
+	losses := make([]string, 0, len(e.Findings))
+	for _, f := range e.Findings {
+		losses = append(losses, f.Message)
+	}
+	return fmt.Sprintf("harvest of %s:%s drops %d origin behavior signal(s): %s; re-run with --accept-behavior-loss to record and accept these losses",
+		e.Scenario, e.SourceFile, len(e.Findings), strings.Join(losses, "; "))
 }
 
 // ComponentManifest is the explicit DTO the manifest indexer hands to
@@ -199,7 +226,29 @@ const (
 	IndexFindingHeaderDisagreement IndexFindingKind = "header_disagreement"
 	IndexFindingStaleDesignStyle   IndexFindingKind = "stale_design_style"
 	IndexFindingInvalidExample     IndexFindingKind = "invalid_example"
+	// IndexFindingRegistryOrphan is emitted when a component_versions
+	// row (or its sibling child rows) has no owning row in the
+	// components registry — soft-FK cruft the reindex sweep removes.
+	IndexFindingRegistryOrphan IndexFindingKind = "registry_orphan"
+	// IndexFindingMissingDesignAffinity is emitted when a component's
+	// manifest declares no design-style affinities. Authored components
+	// carry 2-3; a promoted harvest with none is catalog-incomplete and
+	// renders "No design affinities declared" in the detail view. Soft
+	// conformance signal — it never blocks the reindex.
+	IndexFindingMissingDesignAffinity IndexFindingKind = "missing_design_affinity"
 )
+
+// OrphanVersion is a component_versions row whose component_id has no
+// owning row in the components registry — soft-FK cruft left when a
+// component is re-slugged or withdrawn without clearing its child
+// rows. Returned by Repository.SweepOrphans so the indexer can emit a
+// registry-orphan conformance finding for each removed row.
+type OrphanVersion struct {
+	ComponentID string
+	LibraryID   string
+	Version     string
+	SourcePath  string
+}
 
 type IndexFinding struct {
 	Kind       IndexFindingKind
@@ -253,12 +302,16 @@ type ComponentExample struct {
 }
 
 type InitializeComponentInput struct {
-	LibraryID      string
-	Slug           string
-	DisplayName    string
-	Description    string
-	Tags           []string
-	Slot           string
+	LibraryID   string
+	Slug        string
+	DisplayName string
+	Description string
+	Tags        []string
+	Slot        string
+	// Category is catalog metadata persisted on the manifest. Ingest supplies
+	// it (defaulting when the harvester leaves it blank) so drafts land with the
+	// same catalog fields authored components carry.
+	Category       string
 	InitialVersion string
 	FileName       string
 	InitialSource  string
@@ -266,6 +319,10 @@ type InitializeComponentInput struct {
 	// to the version folder; exactly one member is the renderable entry.
 	// Empty retains the single-file InitialSource contract.
 	InitialFiles []ComponentVersionFile
+	// ScaffoldExamples writes a starter examples.json into the created version
+	// folder when the caller supplies none. Ingest sets it so every harvested
+	// draft carries the examples contract authored components ship with.
+	ScaffoldExamples bool
 }
 
 type InitializeComponentResult struct {
@@ -302,6 +359,12 @@ type IngestComponentInput struct {
 	Description string
 	Tags        []string
 	Slot        string
+	Category    string
+	// AcceptBehaviorLoss records an explicit decision to harvest despite the
+	// behavior-inventory diff reporting dropped origin behavior. It never skips
+	// the diff — the losses are still named and persisted as an acknowledged
+	// parity report on the created version.
+	AcceptBehaviorLoss bool
 }
 
 type IngestComponentResult struct {
@@ -334,6 +397,9 @@ type CreateComponentVersionInput struct {
 	ParityReport            *IngestParityReport
 	AcknowledgeParityWaiver bool
 	ChangelogMD             string
+	// ScaffoldExamples writes a starter examples.json into the created version
+	// folder when the caller supplies none. Ingest sets it for harvested drafts.
+	ScaffoldExamples bool
 }
 
 type CreateComponentVersionResult struct {

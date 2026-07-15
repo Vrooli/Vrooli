@@ -10,7 +10,16 @@
     "accessibility"
   ],
   "slot": "ui-pattern",
+  "fileSlots": {
+    "useFocusTrap.ts": "hook",
+    "useEscapeKey.ts": "hook"
+  },
   "category": "overlays",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native", "reason": "token-bound surface built entirely on design-system tokens and safe-area variables" },
+    { "styleId": "vrooli-command-display", "affinity": "native", "reason": "the primary full-page and compact drawer surface for command and dashboard shells" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "discouraged", "reason": "a full-bleed modal drawer overwhelms marketing and landing layouts" }
+  ],
   "latest": "1.0.0",
   "deprecatedVersions": []
 }

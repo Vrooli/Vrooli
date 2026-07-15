@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-version JSON examples that drive catalog previews, specimen galleries, CLI/API queries, and experience-component reconciliation.",
-    "last_validated_at": "2026-07-10T09:48:00-04:00",
+    "last_validated_at": "2026-07-14T14:20:21-04:00",
     "module": "examples-as-data",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -27,14 +27,14 @@
           "ref": "api/internal/components/indexer_test.go::TestIndexer_RunIndexesVersionExamples",
           "phase": "unit",
           "status": "failing",
-          "notes": "Proves `examples.json` is parsed from version folders and indexed as component_examples rows."
+          "notes": "Proves `examples.json` is parsed from version folders and indexed as component_examples rows. Verified passing 2026-07-14."
         },
         {
           "type": "test",
           "ref": "api/internal/components/indexer_test.go::TestIndexer_RunReportsInvalidExamplesWithoutRejectingComponent",
           "phase": "unit",
           "status": "failing",
-          "notes": "Invalid examples emit non-fatal findings rather than dropping otherwise valid component metadata."
+          "notes": "Invalid examples emit non-fatal findings rather than dropping otherwise valid component metadata. Verified passing 2026-07-14."
         }
       ]
     },
@@ -57,7 +57,7 @@
           "ref": "cli/domains/components/handlers_test.go::TestComponentsExamples_ForwardsInputsAndRenders",
           "phase": "unit",
           "status": "failing",
-          "notes": "CLI test proves component id/version forwarding and rendered examples output."
+          "notes": "CLI test proves component id/version forwarding and rendered examples output. Verified passing 2026-07-14. (Requirement remains in_progress pending the live-round-trip manual check below.)"
         },
         {
           "type": "manual",

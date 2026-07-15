@@ -5,6 +5,12 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+import { installChunkReloadGuard } from '@vrooli/api-base'
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next
+// navigation. This guard reloads once (rate-limited) instead.
+installChunkReloadGuard()
 
 declare global {
   interface Window {

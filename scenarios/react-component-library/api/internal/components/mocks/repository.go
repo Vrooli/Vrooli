@@ -6,6 +6,7 @@ package mocks
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -291,10 +292,42 @@ func (f *FakeRepository) DeleteMissing(ctx context.Context, keep []string) (int,
 		if _, ok := keepSet[lib]; !ok {
 			delete(f.items, id)
 			delete(f.libToID, lib)
+			// Cascade: mirror the soft-FK cleanup the sqlite repo does
+			// so deleting a registry row leaves no orphaned children.
+			delete(f.versions, id)
+			delete(f.examples, id)
 			deleted++
 		}
 	}
 	return deleted, nil
+}
+
+func (f *FakeRepository) SweepOrphans(ctx context.Context) ([]components.OrphanVersion, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var orphans []components.OrphanVersion
+	for cid, vers := range f.versions {
+		if _, ok := f.items[cid]; ok {
+			continue
+		}
+		for _, v := range vers {
+			orphans = append(orphans, components.OrphanVersion{
+				ComponentID: cid,
+				LibraryID:   v.LibraryID,
+				Version:     v.Version,
+				SourcePath:  v.SourcePath,
+			})
+		}
+		delete(f.versions, cid)
+		delete(f.examples, cid)
+	}
+	sort.Slice(orphans, func(i, j int) bool {
+		if orphans[i].LibraryID != orphans[j].LibraryID {
+			return orphans[i].LibraryID < orphans[j].LibraryID
+		}
+		return orphans[i].Version < orphans[j].Version
+	})
+	return orphans, nil
 }
 
 func (f *FakeRepository) ListVersions(ctx context.Context, componentID string, limit int) ([]components.ComponentVersion, error) {

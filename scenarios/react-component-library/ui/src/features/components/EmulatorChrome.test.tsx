@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
@@ -10,7 +10,7 @@ import {
   useDeviceEmulation,
 } from "../../hooks/useDeviceEmulation";
 import { useDeviceFilters } from "../../hooks/useDeviceFilters";
-import { EmulatorChrome } from "./EmulatorChrome";
+import { EmulatorChrome, TOOLBAR_INLINE_MIN_WIDTH } from "./EmulatorChrome";
 
 function Harness() {
   const emulator = useDeviceEmulation();
@@ -172,15 +172,11 @@ describe("EmulatorChrome", () => {
     ).toContain("4px");
   });
 
-  it("color-scheme select reflects the chosen option", async () => {
-    const user = userEvent.setup();
+  it("does not own a color-scheme control (moved to the ThemeSwitcher)", () => {
     renderWithProviders(<FiltersHarness />);
-    const select = screen.getByTestId<HTMLSelectElement>(
-      selectors.components.emulator.colorSchemeSelect,
-    );
-    expect(select.value).toBe("system");
-    await user.selectOptions(select, "dark");
-    expect(select.value).toBe("dark");
+    expect(
+      screen.queryByTestId("components-emulator-color-scheme"),
+    ).toBeNull();
   });
 
   it("SVG filter defs are emitted when filters are wired", () => {
@@ -202,5 +198,119 @@ describe("EmulatorChrome", () => {
     );
     const viewport = screen.getByTestId(selectors.components.emulator.viewport);
     expect(viewport.style.transform).toContain("scale(0.9)");
+  });
+
+  describe("responsive priority collapse", () => {
+    const globalRef = globalThis as { ResizeObserver?: typeof ResizeObserver };
+    let restore: (() => void) | null = null;
+
+    // Drive the ResizeObserver-based collapse deterministically: install a
+    // ResizeObserver that reports the width under test synchronously on
+    // observe(), so the hook's measured width is exactly `width`.
+    function withContainerWidth(width: number) {
+      const original = globalRef.ResizeObserver;
+      class MockResizeObserver {
+        private readonly cb: ResizeObserverCallback;
+        constructor(cb: ResizeObserverCallback) {
+          this.cb = cb;
+        }
+        observe(): void {
+          this.cb([{ contentRect: { width } } as unknown as ResizeObserverEntry], this);
+        }
+        unobserve(): void {}
+        disconnect(): void {}
+      }
+      globalRef.ResizeObserver = MockResizeObserver;
+      restore = () => {
+        globalRef.ResizeObserver = original;
+      };
+    }
+
+    afterEach(() => {
+      restore?.();
+      restore = null;
+    });
+
+    it("keeps secondary controls inline and hides the overflow toggle when wide", () => {
+      withContainerWidth(TOOLBAR_INLINE_MIN_WIDTH + 200);
+      renderWithProviders(<FiltersHarness />);
+      expect(
+        screen.getByTestId(selectors.components.emulator.visionFilterSelect),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId(selectors.components.emulator.blurSlider),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByTestId(selectors.components.emulator.overflowToggle),
+      ).toBeNull();
+    });
+
+    it("folds vision/blur/rotate into an overflow menu when narrow", async () => {
+      const user = userEvent.setup();
+      withContainerWidth(TOOLBAR_INLINE_MIN_WIDTH - 240);
+      renderWithProviders(<FiltersHarness />);
+
+      // Secondary controls are not inline until the menu is opened.
+      expect(
+        screen.queryByTestId(selectors.components.emulator.visionFilterSelect),
+      ).toBeNull();
+      expect(
+        screen.queryByTestId(selectors.components.emulator.rotate),
+      ).toBeNull();
+      // Primary device controls remain inline.
+      expect(
+        screen.getByTestId(selectors.components.emulator.presetSelect),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId(selectors.components.emulator.zoomValue),
+      ).toBeInTheDocument();
+
+      const toggle = screen.getByTestId(selectors.components.emulator.overflowToggle);
+      await user.click(toggle);
+
+      const panel = screen.getByTestId(selectors.components.emulator.overflowPanel);
+      expect(panel).toBeInTheDocument();
+      expect(
+        screen.getByTestId(selectors.components.emulator.visionFilterSelect),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId(selectors.components.emulator.blurSlider),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId(selectors.components.emulator.rotate),
+      ).toBeInTheDocument();
+    });
+
+    it("closes the open overflow menu on an outside click and on Escape", async () => {
+      const user = userEvent.setup();
+      withContainerWidth(TOOLBAR_INLINE_MIN_WIDTH - 240);
+      renderWithProviders(<FiltersHarness />);
+
+      const toggle = screen.getByTestId(selectors.components.emulator.overflowToggle);
+      await user.click(toggle);
+      expect(
+        screen.getByTestId(selectors.components.emulator.overflowPanel),
+      ).toBeInTheDocument();
+
+      // A mousedown outside the panel dismisses it.
+      fireEvent.mouseDown(document.body);
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId(selectors.components.emulator.overflowPanel),
+        ).toBeNull();
+      });
+
+      // Reopen, then Escape dismisses it.
+      await user.click(toggle);
+      expect(
+        screen.getByTestId(selectors.components.emulator.overflowPanel),
+      ).toBeInTheDocument();
+      fireEvent.keyDown(window, { key: "Escape" });
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId(selectors.components.emulator.overflowPanel),
+        ).toBeNull();
+      });
+    });
   });
 });

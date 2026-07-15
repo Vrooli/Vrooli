@@ -83,6 +83,7 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 		Description:        strings.TrimSpace(in.Description),
 		Tags:               cleanTags(in.Tags),
 		Slot:               strings.TrimSpace(in.Slot),
+		Category:           strings.TrimSpace(in.Category),
 		Entry:              fileName,
 		Latest:             version,
 		DeprecatedVersions: []string{},
@@ -105,6 +106,11 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
 		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 			return "", "", fmt.Errorf("write component source %q: %w", filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), file.Path)), err)
+		}
+	}
+	if in.ScaffoldExamples {
+		if err := scaffoldExamplesFile(filepath.Dir(sourceAbs)); err != nil {
+			return "", "", err
 		}
 	}
 	return manifestPath, sourcePath, nil
@@ -187,6 +193,11 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 			return "", err
 		}
 	}
+	if in.ScaffoldExamples {
+		if err := scaffoldExamplesFile(filepath.Dir(sourceAbs)); err != nil {
+			return "", err
+		}
+	}
 	update := UpdateComponentManifestInput{
 		ComponentID:        c.ID,
 		DisplayName:        c.DisplayName,
@@ -208,6 +219,37 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		return "", err
 	}
 	return sourcePath, nil
+}
+
+// scaffoldExamplesJSON is the starter examples contract written into a freshly
+// harvested version folder. It carries one renderable default example so the
+// preview surface is never empty and harvesters have a template to expand into
+// the 3+ meaningful examples authored components ship with.
+const scaffoldExamplesJSON = `{
+  "examples": [
+    {
+      "name": "default",
+      "displayName": "Default",
+      "props": {},
+      "expect": []
+    }
+  ]
+}
+`
+
+// scaffoldExamplesFile writes the starter examples.json into versionDir unless
+// the caller already supplied one — curated examples always win over the stub.
+func scaffoldExamplesFile(versionDir string) error {
+	path := filepath.Join(versionDir, "examples.json")
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat examples scaffold %q: %w", path, err)
+	}
+	if err := os.WriteFile(path, []byte(scaffoldExamplesJSON), 0o600); err != nil {
+		return fmt.Errorf("write examples scaffold %q: %w", path, err)
+	}
+	return nil
 }
 
 func writeParityReport(path string, report IngestParityReport) error {

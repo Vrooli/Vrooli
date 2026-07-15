@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { componentsClient } from "../../api/components";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
@@ -15,18 +16,21 @@ export function IngestComponentForm() {
   const [sourceFile, setSourceFile] = useState("");
   const [slug, setSlug] = useState("");
   const [tags, setTags] = useState("");
+  const [acceptBehaviorLoss, setAcceptBehaviorLoss] = useState(false);
   const ingest = useMutation({
     mutationFn: () => componentsClient.ingestComponent({
       scenario,
       sourceFile,
       slug,
       tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      acceptBehaviorLoss,
     }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["components"] }),
   });
+  const acceptedLosses = ingest.data?.parityReport?.acknowledged ? ingest.data.parityReport.findings.length : 0;
 
   return (
-    <details className="rounded-xl border border-app-border bg-app-surface p-4">
+    <details data-testid={selectors.components.ingest.details} className="rounded-xl border border-app-border bg-app-surface p-4">
       <summary className="cursor-pointer text-sm font-medium text-app-foreground">{t(strings.components.ingest.title)}</summary>
       <p className="mt-2 text-xs text-app-muted-foreground">{t(strings.components.ingest.description)}</p>
       <form
@@ -36,18 +40,23 @@ export function IngestComponentForm() {
           ingest.mutate();
         }}
       >
-        <Input value={scenario} onChange={(event) => setScenario(event.target.value)} placeholder={t(strings.components.ingest.scenario)} required />
-        <Input value={sourceFile} onChange={(event) => setSourceFile(event.target.value)} placeholder={t(strings.components.ingest.sourceFile)} required />
-        <Input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder={t(strings.components.ingest.slug)} required />
-        <Input value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t(strings.components.ingest.tags)} />
+        <Input data-testid={selectors.components.ingest.scenario} value={scenario} onChange={(event) => setScenario(event.target.value)} placeholder={t(strings.components.ingest.scenario)} required />
+        <Input data-testid={selectors.components.ingest.sourceFile} value={sourceFile} onChange={(event) => setSourceFile(event.target.value)} placeholder={t(strings.components.ingest.sourceFile)} required />
+        <Input data-testid={selectors.components.ingest.slug} value={slug} onChange={(event) => setSlug(event.target.value)} placeholder={t(strings.components.ingest.slug)} required />
+        <Input data-testid={selectors.components.ingest.tags} value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t(strings.components.ingest.tags)} />
+        <label className="flex items-center gap-2 text-xs text-app-muted-foreground md:col-span-2">
+          <input data-testid={selectors.components.ingest.acceptLoss} type="checkbox" checked={acceptBehaviorLoss} onChange={(event) => setAcceptBehaviorLoss(event.target.checked)} />
+          {t(strings.components.ingest.acceptBehaviorLoss)}
+        </label>
         <div className="md:col-span-2">
-          <Button type="submit" disabled={ingest.isPending}>{ingest.isPending ? t(strings.components.ingest.running) : t(strings.components.ingest.submit)}</Button>
+          <Button data-testid={selectors.components.ingest.submit} type="submit" disabled={ingest.isPending}>{ingest.isPending ? t(strings.components.ingest.running) : t(strings.components.ingest.submit)}</Button>
         </div>
       </form>
-      {ingest.error && <p className="mt-2 text-xs text-app-danger">{errorMessage(ingest.error, t)}</p>}
+      {ingest.error && <p data-testid={selectors.components.ingest.error} className="mt-2 text-xs text-app-danger">{errorMessage(ingest.error, t)}</p>}
       {ingest.data && (
-        <p className="mt-2 text-xs text-app-success">
+        <p data-testid={selectors.components.ingest.success} className="mt-2 text-xs text-app-success">
           {t(strings.components.ingest.success, { version: ingest.data.draftVersion, findings: ingest.data.findings.length })}
+          {acceptedLosses > 0 && ` ${t(strings.components.ingest.acceptedNotice, { findings: acceptedLosses })}`}
         </p>
       )}
     </details>

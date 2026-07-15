@@ -1,0 +1,98 @@
+{
+  "metadata": {
+    "name": "drawershell-focus-trap-broken",
+    "description": "CALIBRATION / PLANTED-ERROR fixture. Identical to bas/cases/interaction/drawershell-focus-trap.json except it targets DrawerShell@0.1.0, a real historical version that predates useFocusTrap (its version folder has no useFocusTrap.ts). Run this via BAS execute-adhoc: it MUST FAIL at assert-focus-trapped because focus escapes the panel after Tab. This proves the focus-trap playbook can actually detect a broken component, so a green run of the registered playbook is trustworthy. It is intentionally NOT under bas/cases/ so 'test-genie registry build' never registers it into the green suite.",
+    "requirement": "TC-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "drawershell-focus-trap-calibration",
+      "requirements_json": "[\"TC-006\"]",
+      "calibration": "expected-failure"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1400,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-drawer-harness",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library:DrawerShell/harness.html?example=full-open&version=0.1.0",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open DrawerShell@0.1.0 harness (no focus trap)" }
+      }
+    },
+    {
+      "id": "wait-drawer-dialog",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[role=dialog]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Drawer dialog panel rendered" }
+      },
+      "execution_settings": { "wait_after_ms": 300 }
+    },
+    {
+      "id": "focus-close-button",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const b = document.querySelector('[role=dialog] button'); if (b) b.focus(); return document.activeElement ? document.activeElement.tagName : 'NONE'; })()",
+          "store_result": "focusedTag"
+        },
+        "metadata": { "label": "Move focus to the in-panel close button" }
+      }
+    },
+    {
+      "id": "press-tab-twice",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "keys": ["Tab", "Tab"] },
+        "metadata": { "label": "Press Tab twice to attempt to leave the panel" }
+      }
+    },
+    {
+      "id": "stamp-focus-location",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const p = document.querySelector('[role=dialog]'); const inside = !!(p && p.contains(document.activeElement)); document.body.setAttribute('data-focus-trapped', inside ? 'yes' : 'no'); return inside; })()",
+          "store_result": "focusTrapped"
+        },
+        "metadata": { "label": "Record whether focus stayed inside the dialog panel" }
+      }
+    },
+    {
+      "id": "assert-focus-trapped",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-focus-trapped=\"yes\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "EXPECTED CALIBRATION FAILURE: DrawerShell@0.1.0 has no focus trap, so focus escaped the panel after Tab. If this assertion PASSES, the focus-trap playbook is not actually discriminating and cannot be trusted."
+        },
+        "metadata": { "label": "Focus remained trapped inside the drawer (expected to FAIL here)" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-drawer-harness", "target": "wait-drawer-dialog", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-drawer-dialog", "target": "focus-close-button", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "focus-close-button", "target": "press-tab-twice", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "press-tab-twice", "target": "stamp-focus-location", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "stamp-focus-location", "target": "assert-focus-trapped", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

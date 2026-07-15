@@ -240,6 +240,35 @@ func TestIndexer_RunFlagsUnknownDesignStyleWithoutRejecting(t *testing.T) {
 	require.Contains(t, res.Findings[0].Detail, "missing-style")
 }
 
+// TestIndexer_RunFlagsMissingDesignAffinityWithoutRejecting is the calibration
+// for the promote-time affinity conformance gate: a released component that
+// declares no design-style affinities must surface a soft finding (never a hard
+// error) so the catalog gap is visible on every reindex.
+func TestIndexer_RunFlagsMissingDesignAffinityWithoutRejecting(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `["form"]`, `[]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+	}
+	repo := mocks.NewFakeRepository()
+	idx := components.NewIndexer(repo, ".", fs)
+
+	res, err := idx.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Indexed)
+	require.Empty(t, res.Errors)
+	require.Len(t, res.Findings, 1)
+	require.Equal(t, components.IndexFindingMissingDesignAffinity, res.Findings[0].Kind)
+	require.Equal(t, "designStyles", res.Findings[0].Field)
+	require.Equal(t, "none", res.Findings[0].Actual)
+	require.Contains(t, res.Findings[0].Detail, "react-component-library:Button")
+
+	// A declared affinity clears the finding — the gate is not a false positive.
+	fs["components/Button/component.json"] = &fstest.MapFile{Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `["form"]`, `[{"styleId":"vrooli-default","affinity":"native"}]`))}
+	res, err = components.NewIndexer(mocks.NewFakeRepository(), ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	require.Empty(t, res.Findings)
+}
+
 func TestIndexer_RunReportsInvalidDesignAffinity(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/Button/component.json":            {Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `[]`, `[{"styleId":"vrooli-default","affinity":"bespoke"}]`))},
@@ -357,8 +386,52 @@ func TestIndexer_RunDeletesMissingOnRerun(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestIndexer_RunEmitsRegistryOrphanFindingAndSweeps(t *testing.T) {
+	d, repo, _ := newComponentsRawDB(t)
+	// Pre-existing cruft: a version row whose registry parent is gone.
+	seedOrphanVersion(t, d, "orphan-1", "cmp-gone", "react-component-library:tab-bar", "0.1.0",
+		"components/tab-bar/versions/0.1.0/tab-bar.tsx")
+
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `["form"]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+	}
+	res, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	require.Empty(t, res.Errors)
+	require.Equal(t, 1, res.Indexed)
+
+	var orphanFindings []components.IndexFinding
+	for _, f := range res.Findings {
+		if f.Kind == components.IndexFindingRegistryOrphan {
+			orphanFindings = append(orphanFindings, f)
+		}
+	}
+	require.Len(t, orphanFindings, 1, "the registry-orphaned version must surface a conformance finding")
+	require.Equal(t, "cmp-gone", orphanFindings[0].Actual)
+	require.Equal(t, "component_id", orphanFindings[0].Field)
+
+	// The orphan is swept, and the live component indexed this run
+	// survives the sweep-before-DeleteMissing ordering.
+	require.Zero(t, countRows(t, d,
+		`SELECT count(*) FROM component_versions WHERE component_id NOT IN (SELECT id FROM components)`))
+	got, err := repo.GetByLibraryID(context.Background(), "react-component-library:Button")
+	require.NoError(t, err)
+	require.NotEmpty(t, got.ID)
+
+	// A clean re-run emits no orphan finding.
+	res2, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	for _, f := range res2.Findings {
+		require.NotEqual(t, components.IndexFindingRegistryOrphan, f.Kind, "steady state must be orphan-free")
+	}
+}
+
+// manifest builds a catalog-complete fixture (one declared affinity) so it does
+// not trip the missing-design-affinity conformance finding. Tests that need an
+// affinity-less manifest call manifestWithStyles with an empty designStyles set.
 func manifest(libraryID, displayName, tags string) string {
-	return manifestWithStyles(libraryID, displayName, tags, `[]`)
+	return manifestWithStyles(libraryID, displayName, tags, `[{"styleId":"vrooli-default","affinity":"native"}]`)
 }
 
 func manifestWithStyles(libraryID, displayName, tags, designStyles string) string {

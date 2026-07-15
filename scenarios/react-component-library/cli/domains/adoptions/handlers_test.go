@@ -21,22 +21,48 @@ import (
 )
 
 type adoptionsService struct {
-	mu            sync.Mutex
-	listResp      *adoptionsv1.ListAdoptionsResponse
-	applyResp     *adoptionsv1.ApplyAdoptionResponse
-	reapplyResp   *adoptionsv1.ReapplyAdoptionResponse
-	deleteResp    *adoptionsv1.DeleteAdoptionResponse
-	refreshResp   *adoptionsv1.RefreshAdoptionsResponse
-	resolveResp   *adoptionsv1.ResolveAdoptionPathResponse
-	suggestResp   *adoptionsv1.SuggestAdoptionsResponse
-	reconcileResp *adoptionsv1.ReconcileAdoptionsResponse
-	listReqs      []*adoptionsv1.ListAdoptionsRequest
-	applyReqs     []*adoptionsv1.ApplyAdoptionRequest
-	reapplyReqs   []*adoptionsv1.ReapplyAdoptionRequest
-	refreshReqs   []*adoptionsv1.RefreshAdoptionsRequest
-	resolveReqs   []*adoptionsv1.ResolveAdoptionPathRequest
-	suggestReqs   []*adoptionsv1.SuggestAdoptionsRequest
-	reconcileReqs []*adoptionsv1.ReconcileAdoptionsRequest
+	mu             sync.Mutex
+	listResp       *adoptionsv1.ListAdoptionsResponse
+	applyResp      *adoptionsv1.ApplyAdoptionResponse
+	reapplyResp    *adoptionsv1.ReapplyAdoptionResponse
+	deleteResp     *adoptionsv1.DeleteAdoptionResponse
+	refreshResp    *adoptionsv1.RefreshAdoptionsResponse
+	resolveResp    *adoptionsv1.ResolveAdoptionPathResponse
+	suggestResp    *adoptionsv1.SuggestAdoptionsResponse
+	reconcileResp  *adoptionsv1.ReconcileAdoptionsResponse
+	reconvergeResp *adoptionsv1.ReconvergeAdoptionsResponse
+	reconvergeReqs []*adoptionsv1.ReconvergeAdoptionsRequest
+	listReqs       []*adoptionsv1.ListAdoptionsRequest
+	applyReqs      []*adoptionsv1.ApplyAdoptionRequest
+	reapplyReqs    []*adoptionsv1.ReapplyAdoptionRequest
+	refreshReqs    []*adoptionsv1.RefreshAdoptionsRequest
+	resolveReqs    []*adoptionsv1.ResolveAdoptionPathRequest
+	suggestReqs    []*adoptionsv1.SuggestAdoptionsRequest
+	reconcileReqs  []*adoptionsv1.ReconcileAdoptionsRequest
+	discoverResp   *adoptionsv1.DiscoverAdoptionsResponse
+	discoverReqs   []*adoptionsv1.DiscoverAdoptionsRequest
+	confirmResp    *adoptionsv1.ConfirmDiscoveryResponse
+	confirmReqs    []*adoptionsv1.ConfirmDiscoveryRequest
+}
+
+func (s *adoptionsService) DiscoverAdoptions(_ context.Context, req *connect.Request[adoptionsv1.DiscoverAdoptionsRequest]) (*connect.Response[adoptionsv1.DiscoverAdoptionsResponse], error) {
+	s.mu.Lock()
+	s.discoverReqs = append(s.discoverReqs, req.Msg)
+	s.mu.Unlock()
+	if s.discoverResp == nil {
+		s.discoverResp = &adoptionsv1.DiscoverAdoptionsResponse{}
+	}
+	return connect.NewResponse(s.discoverResp), nil
+}
+
+func (s *adoptionsService) ConfirmDiscovery(_ context.Context, req *connect.Request[adoptionsv1.ConfirmDiscoveryRequest]) (*connect.Response[adoptionsv1.ConfirmDiscoveryResponse], error) {
+	s.mu.Lock()
+	s.confirmReqs = append(s.confirmReqs, req.Msg)
+	s.mu.Unlock()
+	if s.confirmResp == nil {
+		s.confirmResp = &adoptionsv1.ConfirmDiscoveryResponse{Adoption: sampleAdoption(), WrittenPath: "/tmp/Input.tsx", Similarity: 0.97}
+	}
+	return connect.NewResponse(s.confirmResp), nil
 }
 
 func (s *adoptionsService) ListAdoptions(_ context.Context, req *connect.Request[adoptionsv1.ListAdoptionsRequest]) (*connect.Response[adoptionsv1.ListAdoptionsResponse], error) {
@@ -94,6 +120,16 @@ func (s *adoptionsService) ReconcileAdoptions(_ context.Context, req *connect.Re
 		s.reconcileResp = &adoptionsv1.ReconcileAdoptionsResponse{}
 	}
 	return connect.NewResponse(s.reconcileResp), nil
+}
+
+func (s *adoptionsService) ReconvergeAdoptions(_ context.Context, req *connect.Request[adoptionsv1.ReconvergeAdoptionsRequest]) (*connect.Response[adoptionsv1.ReconvergeAdoptionsResponse], error) {
+	s.mu.Lock()
+	s.reconvergeReqs = append(s.reconvergeReqs, req.Msg)
+	s.mu.Unlock()
+	if s.reconvergeResp == nil {
+		s.reconvergeResp = &adoptionsv1.ReconvergeAdoptionsResponse{}
+	}
+	return connect.NewResponse(s.reconvergeResp), nil
 }
 
 func (s *adoptionsService) ResolveAdoptionPath(_ context.Context, req *connect.Request[adoptionsv1.ResolveAdoptionPathRequest]) (*connect.Response[adoptionsv1.ResolveAdoptionPathResponse], error) {
@@ -162,6 +198,105 @@ func TestAdoptionsList_ForwardsFiltersAndRenders(t *testing.T) {
 	require.Equal(t, int32(50), svc.listReqs[0].Limit)
 	require.Contains(t, out.String(), "Found 1 adoption(s).")
 	require.Contains(t, out.String(), "behind")
+}
+
+func TestAdoptionsDiscover_ForwardsThresholdAndRendersEvidence(t *testing.T) {
+	svc := &adoptionsService{discoverResp: &adoptionsv1.DiscoverAdoptionsResponse{
+		Scanned:       3,
+		MinSimilarity: 0.7,
+		Candidates: []*adoptionsv1.DiscoveryCandidate{{
+			Scenario: "experience-manager", AdoptedPath: "ui/src/components/ui/input.tsx",
+			ComponentId: "cmp-input", LibraryId: "rcl:Input", Version: "1.1.0",
+			Similarity: 0.97, SharedLines: 24, Evidence: []string{"Sørensen–Dice line similarity 0.970 against rcl:Input@1.1.0 (Input.tsx)"},
+		}},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "scenario"}, {Name: "min-similarity"}, {Name: "limit"}},
+	}, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"scenario": "experience-manager", "min-similarity": "0.7", "limit": "50"},
+	})
+	require.NoError(t, h.discover(ctx))
+	require.Len(t, svc.discoverReqs, 1)
+	require.Equal(t, "experience-manager", svc.discoverReqs[0].Scenario)
+	require.InDelta(t, 0.7, svc.discoverReqs[0].MinSimilarity, 0.001)
+	require.Equal(t, int32(50), svc.discoverReqs[0].Limit)
+	require.Contains(t, out.String(), "surfaced 1 candidate(s)")
+	require.Contains(t, out.String(), "rcl:Input")
+}
+
+func TestAdoptionsReconverge_ForwardsScopeAndRendersOutcomes(t *testing.T) {
+	svc := &adoptionsService{reconvergeResp: &adoptionsv1.ReconvergeAdoptionsResponse{
+		Scanned: 9, Behind: 9, Reapplied: 8, Flagged: 1,
+		Outcomes: []*adoptionsv1.ReconvergeOutcome{
+			{
+				Scenario: "template-manager", LibraryId: "rcl:Button", AdoptionId: "row-1",
+				AdoptedVersion: "1.1.0", TargetVersion: "1.2.0",
+				Action: adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_REAPPLIED,
+				Files: []*adoptionsv1.ReconvergeFileOutcome{{
+					AdoptedPath: "ui/src/components/ui/button.tsx",
+					LocalStatus: adoptionsv1.LocalStatus_LOCAL_STATUS_CLEAN,
+				}},
+			},
+			{
+				Scenario: "template-manager", LibraryId: "rcl:StatusBadge", AdoptionId: "row-2",
+				AdoptedVersion: "1.0.0", TargetVersion: "1.1.0",
+				Action: adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_FLAGGED_MODIFIED,
+				Files: []*adoptionsv1.ReconvergeFileOutcome{{
+					AdoptedPath: "ui/src/components/ui/status-badge.tsx",
+					LocalStatus: adoptionsv1.LocalStatus_LOCAL_STATUS_MODIFIED,
+				}},
+			},
+		},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "scenario"}, {Name: "apply"}},
+	}, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"scenario": "template-manager", "apply": "true"},
+	})
+	require.NoError(t, h.reconverge(ctx))
+	require.Len(t, svc.reconvergeReqs, 1)
+	require.Equal(t, "template-manager", svc.reconvergeReqs[0].Scenario)
+	require.True(t, svc.reconvergeReqs[0].Apply)
+	require.Contains(t, out.String(), "Applied reconverge")
+	require.Contains(t, out.String(), "reapplied 8")
+	require.Contains(t, out.String(), "flagged-modified")
+	require.Contains(t, out.String(), "rcl:Button")
+}
+
+func TestAdoptionsDiscover_RejectsBadThreshold(t *testing.T) {
+	core := clitest.NewTestApp(t, connectAPI(t, &adoptionsService{}))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "scenario"}, {Name: "min-similarity"}, {Name: "limit"}},
+	}, cliapptest.TestRunContextOptions{Flags: map[string]string{"min-similarity": "high"}})
+	require.Error(t, h.discover(ctx))
+}
+
+func TestAdoptionsConfirmDiscovery_ForwardsPositionals(t *testing.T) {
+	svc := &adoptionsService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "scenario"}, {Name: "adopted-path"}, {Name: "component-id"}, {Name: "version"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{
+			"scenario":     "experience-manager",
+			"adopted-path": "ui/src/components/ui/input.tsx",
+			"component-id": "cmp-input",
+			"version":      "1.1.0",
+		},
+	})
+	require.NoError(t, h.confirmDiscovery(ctx))
+	require.Len(t, svc.confirmReqs, 1)
+	require.Equal(t, "experience-manager", svc.confirmReqs[0].Scenario)
+	require.Equal(t, "ui/src/components/ui/input.tsx", svc.confirmReqs[0].AdoptedPath)
+	require.Equal(t, "cmp-input", svc.confirmReqs[0].ComponentId)
+	require.Equal(t, "1.1.0", svc.confirmReqs[0].Version)
+	require.Contains(t, out.String(), "Injected provenance header")
 }
 
 func TestAdoptionsList_RejectsBadLimit(t *testing.T) {

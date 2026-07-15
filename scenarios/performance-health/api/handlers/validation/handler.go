@@ -126,8 +126,9 @@ func (h *Handler) validate(ctx context.Context, scenario, path string, includeEx
 	var executionFindings []phassessment.Finding
 	executed := includeExecution && h.execution != nil
 	measured := false
+	executionDegradedReason := ""
 	if executed {
-		executionFindings, measured = h.execution.Run(ctx, scenario, path)
+		executionFindings, measured, executionDegradedReason = h.execution.Run(ctx, scenario, path)
 	}
 	res, err := h.readiness.Validate(ctx, scenario, path)
 	if err != nil {
@@ -151,6 +152,10 @@ func (h *Handler) validate(ctx context.Context, scenario, path string, includeEx
 	}
 	if out.Status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
 		out.Status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+	}
+	if executionDegradedReason != "" && out.Status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		out.Status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+		out.DegradedReason = strings.TrimSpace(firstNonEmpty(out.DegradedReason, executionDegradedReason))
 	}
 	// Skip honesty: when we were asked to measure (include_execution) but every
 	// producer cleanly skipped — no buildable surface, no toolchain, no resolvable

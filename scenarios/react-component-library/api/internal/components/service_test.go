@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
 	"react-component-library/internal/components"
@@ -154,6 +155,53 @@ export default function DrawerShell() { const navigate = useNavigate(); return <
 	require.Len(t, got.Findings, 2)
 }
 
+// TestService_IngestScaffoldsCatalogMetadataContract asserts a fresh harvest
+// lands catalog-complete: the manifest carries slot, category, and tags (slot
+// and category defaulted when the harvester omits them), and every created
+// version folder ships an examples.json stub. This is the contract that keeps
+// harvested drafts indistinguishable from authored components at ingest time.
+func TestService_IngestScaffoldsCatalogMetadataContract(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(_ context.Context, _, _ string) ([]byte, error) {
+		return []byte(`export default function Panel() { return <div className="rounded-control p-2">Panel</div>; }`), nil
+	}))
+
+	got, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel",
+		DisplayName: "Panel", Tags: []string{"surface"},
+		// Slot and Category deliberately omitted: the scaffold must default them.
+	})
+	require.NoError(t, err)
+
+	manifestRaw, err := os.ReadFile(filepath.Join(root, got.ManifestPath))
+	require.NoError(t, err)
+	var mf struct {
+		Slot     string   `json:"slot"`
+		Category string   `json:"category"`
+		Tags     []string `json:"tags"`
+	}
+	require.NoError(t, json.Unmarshal(manifestRaw, &mf))
+	require.Equal(t, "ui-pattern", mf.Slot)
+	require.Equal(t, "uncategorized", mf.Category)
+	require.Equal(t, []string{"surface"}, mf.Tags)
+
+	// Both the released baseline and the working draft carry the examples stub.
+	for _, version := range []string{"0.1.0", got.DraftVersion} {
+		examplesRaw, err := os.ReadFile(filepath.Join(root, "components", "panel", "versions", version, "examples.json"))
+		require.NoError(t, err, "examples.json missing for version %s", version)
+		var ef struct {
+			Examples []struct {
+				Name string `json:"name"`
+			} `json:"examples"`
+		}
+		require.NoError(t, json.Unmarshal(examplesRaw, &ef))
+		require.Len(t, ef.Examples, 1)
+		require.Equal(t, "default", ef.Examples[0].Name)
+	}
+}
+
 func TestService_IngestComponentCopiesRelativeImportClosureAsOneVersionUnit(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()
@@ -206,6 +254,68 @@ export function Drawer() { return <div role="dialog" aria-modal="true" onKeyDown
 	findings := components.BehaviorLossFindings(origin, harvested, "Drawer.tsx")
 	require.Len(t, findings, 3)
 	require.Contains(t, findings[0].Code, "behavior-lost")
+}
+
+// TestService_IngestBlocksBehaviorLossUnlessAccepted is the permanent
+// planted-error calibration for the origin-parity gate. It reconstructs the
+// historical DrawerShell failure: a focus-trap hook reachable only through an
+// app-alias import the harvest cannot carry, so the listener behavior is
+// dropped. The gate must fail the harvest naming the dropped listener, and
+// must only proceed when the caller explicitly accepts the loss — recording
+// the named losses as an acknowledged parity report.
+func TestService_IngestBlocksBehaviorLossUnlessAccepted(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	sources := map[string]string{
+		"ui/src/components/DrawerShell.tsx": `import { useFocusTrap } from "@/hooks/useFocusTrap";
+export function DrawerShell() { useFocusTrap(); return <div role="dialog" aria-modal="true" />; }`,
+		"ui/src/hooks/useFocusTrap.ts": `export function useFocusTrap() { window.addEventListener("keydown", () => {}); }`,
+	}
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(_ context.Context, _ string, sourceFile string) ([]byte, error) {
+		body, ok := sources[sourceFile]
+		if !ok {
+			return nil, errors.New("not found: " + sourceFile)
+		}
+		return []byte(body), nil
+	}))
+
+	in := components.IngestComponentInput{Scenario: "web-console", SourceFile: "ui/src/components/DrawerShell.tsx", Slug: "drawer-shell", DisplayName: "Drawer Shell"}
+
+	// (a) Without the override the harvest is blocked and names the loss.
+	_, err := svc.IngestComponent(context.Background(), in)
+	var loss components.ErrHarvestBehaviorLoss
+	require.True(t, errors.As(err, &loss), "expected ErrHarvestBehaviorLoss, got %v", err)
+	require.NotEmpty(t, loss.Findings)
+	require.Contains(t, err.Error(), "addEventListener")
+	require.Contains(t, err.Error(), "accept-behavior-loss")
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(components.ToConnectError(err)))
+	// A blocked harvest creates nothing.
+	_, notFoundErr := svc.GetByLibraryID(context.Background(), "react-component-library:drawer-shell")
+	require.True(t, errors.As(notFoundErr, &components.ErrComponentNotFound{}))
+
+	// (b) With the override the harvest proceeds and records the losses.
+	accepted := in
+	accepted.AcceptBehaviorLoss = true
+	got, err := svc.IngestComponent(context.Background(), accepted)
+	require.NoError(t, err)
+	require.NotEmpty(t, got.ParityReport.Findings)
+	require.True(t, got.ParityReport.Acknowledged)
+
+	draft, err := svc.GetVersion(context.Background(), got.Component.ID, got.DraftVersion)
+	require.NoError(t, err)
+	require.NotNil(t, draft.ParityReport)
+	require.True(t, draft.ParityReport.Acknowledged)
+	require.NotEmpty(t, draft.ParityReport.Findings)
+	require.Contains(t, draft.ParityReport.Findings[0].Message, "addEventListener")
+
+	// The acceptance is durable on the version's parity.json audit trail.
+	raw, err := os.ReadFile(filepath.Join(root, "components", "drawer-shell", "versions", got.DraftVersion, "parity.json"))
+	require.NoError(t, err)
+	var onDisk components.IngestParityReport
+	require.NoError(t, json.Unmarshal(raw, &onDisk))
+	require.True(t, onDisk.Acknowledged)
+	require.NotEmpty(t, onDisk.Findings)
 }
 
 func TestService_CreateComponentVersionRequiresExplicitParityWaiver(t *testing.T) {

@@ -124,6 +124,23 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 		return result, fmt.Errorf("walk %s: %w", idx.root, walkErr)
 	}
 
+	// Sweep registry-orphaned rows before DeleteMissing runs. At this
+	// point every current component has just been re-upserted and stale
+	// components still hold their registry row, so the only orphans here
+	// are genuine cruft (a prior re-slug or withdrawal that deleted the
+	// registry row without clearing its children). Each swept version
+	// row surfaces a conformance finding so the cleanup is never silent.
+	orphans, oerr := idx.repo.SweepOrphans(ctx)
+	if oerr != nil {
+		result.Errors = append(result.Errors, fmt.Errorf("sweep orphans: %w", oerr))
+	}
+	for _, o := range orphans {
+		result.Findings = append(result.Findings, registryOrphanFinding(o))
+	}
+
+	// DeleteMissing removes stale registry rows (manifests gone from
+	// disk) and cascades their children — expected churn, so it emits no
+	// finding.
 	deleted, derr := idx.repo.DeleteMissing(ctx, result.LibraryIDs)
 	if derr != nil {
 		result.Errors = append(result.Errors, fmt.Errorf("delete missing: %w", derr))
@@ -133,6 +150,30 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	return result, nil
 }
 
+func registryOrphanFinding(o OrphanVersion) IndexFinding {
+	return IndexFinding{
+		Kind:       IndexFindingRegistryOrphan,
+		SourcePath: o.SourcePath,
+		Field:      "component_id",
+		Expected:   "component_versions row with an owning components registry row",
+		Actual:     o.ComponentID,
+		Detail: fmt.Sprintf("removed registry-orphaned version %s@%s (component_id %s has no registry parent)",
+			o.LibraryID, o.Version, o.ComponentID),
+	}
+}
+
+func missingDesignAffinityFinding(sourcePath, libraryID string) IndexFinding {
+	return IndexFinding{
+		Kind:       IndexFindingMissingDesignAffinity,
+		SourcePath: sourcePath,
+		Field:      "designStyles",
+		Expected:   "at least one declared design-style affinity",
+		Actual:     "none",
+		Detail: fmt.Sprintf("component %q declares no design-style affinities; authored catalog components carry 2-3",
+			libraryID),
+	}
+}
+
 type manifestFile struct {
 	LibraryID   string `json:"libraryId"`
 	DisplayName string `json:"displayName"`
@@ -140,8 +181,12 @@ type manifestFile struct {
 	Slot        string `json:"slot"`
 	// Category is catalog metadata, not source-header metadata. Keeping it in
 	// the manifest makes it stable across versions and available to list views.
-	Category           string                   `json:"category"`
-	Entry              string                   `json:"entry"`
+	Category string `json:"category"`
+	Entry    string `json:"entry"`
+	// FileSlots pins an explicit placement slot per version-unit basename
+	// (e.g. {"useFocusTrap.ts": "hook"}). Authoritative over the resolver's
+	// extension heuristic. Applies across all versions of the component.
+	FileSlots          map[string]string        `json:"fileSlots"`
 	Tags               []string                 `json:"tags"`
 	DesignStyles       []manifestDesignAffinity `json:"designStyles"`
 	Latest             string                   `json:"latest"`
@@ -224,6 +269,13 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	var versions []ComponentVersion
 	var examples []ComponentExample
 	findings := append([]IndexFinding(nil), staleFindings...)
+	// A promoted component with no declared affinities is catalog-incomplete:
+	// its detail view reads "No design affinities declared" while authored
+	// peers carry 2-3. Surface it as a soft conformance finding (never a hard
+	// error) so the gap is visible on every reindex without blocking the walk.
+	if len(manifest.DesignStyles) == 0 {
+		findings = append(findings, missingDesignAffinityFinding(path, manifest.LibraryID))
+	}
 	var latestFound bool
 	var draftFound bool
 	latestHeaders := map[string]string{"libraryId": manifest.LibraryID}
@@ -274,7 +326,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			if isEntry {
 				entryFound = true
 			}
-			versionFiles = append(versionFiles, ComponentVersionFile{Path: f.Name(), Content: string(body), ContentSHA256: digestBytes(body), IsEntry: isEntry})
+			versionFiles = append(versionFiles, ComponentVersionFile{Path: f.Name(), Content: string(body), ContentSHA256: digestBytes(body), IsEntry: isEntry, Slot: strings.TrimSpace(mf.FileSlots[f.Name()])})
 		}
 		if !entryFound {
 			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "entry", Reason: "entry file not found"}

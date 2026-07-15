@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Header-comment-driven indexer that walks the components root and upserts a SQLite-backed registry of shared UI primitives.",
-    "last_validated_at": "2026-07-10T09:48:00-04:00",
+    "last_validated_at": "2026-07-14T14:20:21-04:00",
     "module": "component-registry-and-header-format",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -24,10 +24,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunIndexesManifestVersionsAndStyles",
+          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunWalksAndUpserts",
           "phase": "unit",
           "status": "failing",
-          "notes": "Synthetic-root indexer coverage proves manifest/version walking, JSDoc header parsing, SQLite upsert through the repository, and typed projection of current catalog metadata."
+          "notes": "TestIndexer_RunWalksAndUpserts proves root walking, JSDoc header parsing, and SQLite upsert through the repository; TestIndexer_RunIndexesEntryAndCompanionFiles covers the multi-file entry+companion unit. Ref updated from the retired TestIndexer_RunIndexesManifestVersionsAndStyles name. Verified passing 2026-07-14 (whole internal/components package green)."
         }
       ]
     },
@@ -47,10 +47,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunReportsInvalidHeaders",
+          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunReportsMalformedHeaderErrors",
           "phase": "unit",
           "status": "failing",
-          "notes": "Indexer tests cover missing/malformed required header fields and structured non-fatal findings such as invalid examples and structural header disagreement."
+          "notes": "TestIndexer_RunReportsMalformedHeaderErrors covers missing/malformed required header fields; TestIndexer_RunFindsHeaderVersionDisagreementWithoutRejecting and its status/deps siblings cover structural non-fatal findings. Ref updated from the retired TestIndexer_RunReportsInvalidHeaders name. Verified passing 2026-07-14."
         }
       ]
     },
@@ -69,17 +69,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunIndexesManifestVersionsAndStyles",
+          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunWalksAndUpserts",
           "phase": "unit",
           "status": "failing",
-          "notes": "The canonical JSDoc block form is exercised through the indexer fixtures; malformed and disagreement paths are covered by adjacent indexer tests."
+          "notes": "The canonical JSDoc block form is exercised through the indexer fixtures in TestIndexer_RunWalksAndUpserts; malformed and disagreement paths are covered by adjacent indexer tests. Ref updated from the retired TestIndexer_RunIndexesManifestVersionsAndStyles name. Verified passing 2026-07-14."
         }
       ]
     },
     {
       "id": "CR-004",
       "title": "Component manifests index slot and design-style affinity metadata",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "registry",
       "criticality": "P0",
@@ -93,15 +93,16 @@
       "validation": [
         {
           "type": "test",
-          "status": "not_implemented",
-          "notes": "api/internal/components/indexer_test.go covers valid style affinity parsing, invalid affinity rejection, invalid slot rejection, and unknown style-id rejection; sqlite_test.go covers affinity rationale persistence and style/affinity search."
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestIndexer_RunReportsInvalidDesignAffinity, TestIndexer_RunReportsInvalidSlot, and TestIndexer_RunFlagsUnknownDesignStyleWithoutRejecting in indexer_test.go cover affinity/slot validation; sqlite_test.go covers affinity rationale persistence and style/affinity search. Verified passing 2026-07-14 (internal/components package green)."
         }
       ]
     },
     {
       "id": "CR-005",
       "title": "Latest-version headers populate typed facets and non-structural component_headers",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "registry",
       "criticality": "P1",
@@ -114,8 +115,10 @@
       "validation": [
         {
           "type": "test",
-          "status": "not_implemented",
-          "notes": "api/internal/components/sqlite_test.go::TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet verifies header sync, structural-field exclusion, typed category promotion, and category filtering. api/internal/components/indexer_test.go covers structural header disagreement findings for @version, @status, and malformed @deps while typed projection facts remain authoritative."
+          "ref": "api/internal/components/sqlite_test.go::TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/components/sqlite_test.go::TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet verifies header sync, structural-field exclusion, typed category promotion, and category filtering. api/internal/components/indexer_test.go covers structural header disagreement findings for @version, @status, and malformed @deps while typed projection facts remain authoritative. Verified passing 2026-07-14."
         }
       ]
     },

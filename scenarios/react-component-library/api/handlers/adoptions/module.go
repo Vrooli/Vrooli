@@ -140,6 +140,10 @@ func (l *componentsLibrary) GetVersion(ctx context.Context, componentID, version
 	return l.svc.GetVersion(ctx, componentID, version)
 }
 
+func (l *componentsLibrary) ListVersions(ctx context.Context, componentID string, limit int) ([]components.ComponentVersion, error) {
+	return l.svc.ListVersions(ctx, componentID, limit)
+}
+
 // defaultScenariosRoot resolves the on-disk scenarios root via the canonical
 // repo-contract discovery (VROOLI_SOURCE_ROOT / VROOLI_ROOT env vars, then
 // CWD, then the executable's directory) plus the contract's declared
@@ -165,6 +169,16 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "adoptions",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"apply": "boolean"}},
 		Response:    &module.Schema{Type: "object"},
+	},
+	{
+		ID:          "adoptions_reconverge",
+		Path:        adoptionsconnect.AdoptionsServiceReconvergeAdoptionsProcedure,
+		Method:      "POST",
+		Summary:     "Reconverge BEHIND adoptions to the current library version",
+		Description: "Batch-reconverges BEHIND adoptions: re-applies CLEAN copies through the validated Reapply path and flags MODIFIED copies for human review without overwriting them. Dry-run is default; apply performs the re-applies. Reports per-adoption and per-file outcomes.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string (filter)", "apply": "boolean"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"outcomes": "array<ReconvergeOutcome>"}},
 	},
 	{
 		ID:          "adoptions_list",
@@ -327,6 +341,34 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Invalid scenario"},
 			{Status: 501, Code: "unimplemented", Description: "Suggestion dependencies not configured"},
+		},
+	},
+	{
+		ID:          "adoptions_discover",
+		Path:        adoptionsconnect.AdoptionsServiceDiscoverAdoptionsProcedure,
+		Method:      "POST",
+		Summary:     "Discover header-less vendored copies by content similarity",
+		Description: "Walks scenario UI trees for source files with no @vrooliComponentSource header and scores each against every library component version (Sørensen–Dice line similarity). Read-only: candidates carry similarity evidence for operator review; ConfirmDiscovery performs any write.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string (optional)", "min_similarity": "double (0 = server default 0.6)", "limit": "int32 (optional)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scanned": "int32", "min_similarity": "double", "candidates": "array<DiscoveryCandidate>"}},
+		Errors: []module.ErrorDesc{
+			{Status: 500, Code: "internal", Description: "Scanner or repository failure"},
+		},
+	},
+	{
+		ID:          "adoptions_confirm_discovery",
+		Path:        adoptionsconnect.AdoptionsServiceConfirmDiscoveryProcedure,
+		Method:      "POST",
+		Summary:     "Confirm a discovery candidate and backfill its provenance",
+		Description: "Injects an @vrooliComponentSource header into a header-less scenario file and creates its adoption record, attributed to the named component + version. Refuses files that already carry a header or are already tracked.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "adopted_path": "string", "component_id": "string", "version": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"adoption": "Adoption", "written_path": "string", "similarity": "double"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing field, file already tagged, or already tracked"},
+			{Status: 404, Code: "not_found", Description: "Unknown component_id or version"},
+			{Status: 500, Code: "internal", Description: "Repository or filesystem failure"},
 		},
 	},
 }

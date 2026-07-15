@@ -21,6 +21,8 @@ import { errorMessage } from "../../lib/errorMessage";
 import { EmulatorToolbar, EmulatorViewport } from "./EmulatorChrome";
 import { InspectorPanel } from "./InspectorPanel";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import { AdoptionFileTree } from "./AdoptionFileTree";
+import { ADOPTION_TEMPLATES, DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
 const PANEL_LAYOUT_STORAGE_KEY = "rcl.component-editor.desktop-layout.v1";
@@ -96,6 +98,7 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
   const infoPanelRef = usePanelRef();
   const inspector = useComponentInspector(previewFrameRef);
   const [selectedFile, setSelectedFile] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_ADOPTION_TEMPLATE);
   const versionsQuery = useQuery({
     queryKey: ["components", "versions", id],
     queryFn: () => componentsClient.listComponentVersions({ componentId: id, limit: 100 }),
@@ -471,19 +474,24 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
           >
           <Panel id="code" minSize="20%" defaultSize="38%" collapsible collapsedSize="0%" panelRef={codePanelRef} className={mode === "code" ? "" : "max-lg:hidden"}>
           <div className="flex h-full min-h-0 flex-col">
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
-              <div className="flex min-w-0 gap-1 overflow-x-auto" data-testid="component-editor-file-tabs">
-                {activeVersionFiles.map((file) => (
-                  <Button key={file.path} variant={selectedFile === file.path || (!selectedFile && file.isEntry) ? "primary" : "secondary"} className="h-7 shrink-0 px-2 text-xs" onClick={() => setSelectedFile(file.isEntry ? "" : file.path)}>
-                    {file.path}
-                  </Button>
-                ))}
+            <div className="flex shrink-0 items-start justify-between gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
+              <div className="min-w-0 flex-1 overflow-y-auto" style={{ maxHeight: "10rem" }}>
+                <AdoptionFileTree
+                  componentId={id}
+                  version={selectedVersion}
+                  files={activeVersionFiles}
+                  selectedFile={selectedFile}
+                  onSelectFile={setSelectedFile}
+                  template={selectedTemplate}
+                  templates={ADOPTION_TEMPLATES}
+                  onSelectTemplate={setSelectedTemplate}
+                />
               </div>
               <Button
                 data-testid={selectors.components.editor.saveButton}
                 onClick={() => saveMutation.mutate()}
                 disabled={readOnly || !dirty || saveMutation.isPending || contentQuery.isLoading}
-                className="h-7 gap-1.5 rounded-md px-2 text-xs"
+                className="h-7 shrink-0 gap-1.5 rounded-md px-2 text-xs"
               >
                 <Save aria-hidden className="h-3.5 w-3.5" />
                 {saveMutation.isPending
@@ -525,11 +533,12 @@ export function ComponentEditor({ id, libraryId, onClose, metadataSlot, selected
             data-testid={selectors.components.editor.preview}
             className="flex h-full min-h-0 flex-col overflow-hidden bg-app-background"
           >
-            <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
+            <div className="flex shrink-0 flex-col gap-1.5 border-b border-app-border bg-app-surface px-2 py-1.5">
               <ThemeSwitcher
                 postToFrames={postToPreviewFrames}
                 previewReady={previewReady}
-                appResolvedTheme={resolvedPreviewTheme}
+                colorScheme={filters.colorScheme}
+                setColorScheme={filters.setColorScheme}
               />
               <EmulatorToolbar emulator={emulator} filters={filters} />
             </div>

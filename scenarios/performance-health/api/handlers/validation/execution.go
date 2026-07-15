@@ -23,7 +23,7 @@ import (
 // PASS. This is the seam the shared validate handler calls; the production
 // implementation is *ExecutionOrchestrator, tests drive a fake.
 type ExecutionRunner interface {
-	Run(ctx context.Context, scenario, path string) (findings []phassessment.Finding, measured bool)
+	Run(ctx context.Context, scenario, path string) (findings []phassessment.Finding, measured bool, degradedReason string)
 }
 
 // benchmarkRunner times a scenario's build surfaces (build time + bundle size).
@@ -102,11 +102,12 @@ func NewExecutionOrchestrator(deps ExecutionDeps) *ExecutionOrchestrator {
 // Run orchestrates the producers, persists a combined sample, and returns the
 // findings plus whether any surface was measured. It never returns an error:
 // producer failures degrade to skip-not-fail.
-func (o *ExecutionOrchestrator) Run(ctx context.Context, scenario, path string) ([]phassessment.Finding, bool) {
+func (o *ExecutionOrchestrator) Run(ctx context.Context, scenario, path string) ([]phassessment.Finding, bool, string) {
 	if o == nil {
-		return nil, false
+		return nil, false, "performance execution orchestrator is unavailable"
 	}
 	var findings []phassessment.Finding
+	var degradedReason string
 	sample := trend.Sample{Scenario: scenario, Note: "validate-execution"}
 	measured := false
 
@@ -133,8 +134,15 @@ func (o *ExecutionOrchestrator) Run(ctx context.Context, scenario, path string) 
 		res, err := o.lighthouse.Score(ctx, scenario, path)
 		if err != nil {
 			o.logf("execution: lighthouse %s degraded: %v", scenario, err)
-		} else if res.Outcome == lighthouse.OutcomeScored {
-			findings = append(findings, lighthouseFindings(res)...)
+		} else {
+			switch res.Outcome {
+			case lighthouse.OutcomeScored:
+				findings = append(findings, lighthouseFindings(res)...)
+			case lighthouse.OutcomeConfigurationInvalid:
+				findings = append(findings, phassessment.Finding{Code: "PERF_LIGHTHOUSE_ACCESSIBILITY_CONFIG", Severity: "error", Title: "Lighthouse accessibility configuration is required", Message: res.Reason})
+			case lighthouse.OutcomeUnavailable, lighthouse.OutcomeFailed:
+				degradedReason = firstNonEmpty(degradedReason, res.Reason)
+			}
 		}
 	}
 
@@ -143,7 +151,7 @@ func (o *ExecutionOrchestrator) Run(ctx context.Context, scenario, path string) 
 			o.logf("execution: persist trend sample for %s: %v", scenario, err)
 		}
 	}
-	return findings, measured
+	return findings, measured, degradedReason
 }
 
 // foldBenchmark copies the build/bundle measurements into sample so the budgets

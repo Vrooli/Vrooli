@@ -140,6 +140,230 @@ func (r *Resolver) Resolve(in ResolveInput) (ResolveResult, error) {
 	}, nil
 }
 
+// SlotSource enumerates how the resolver decided a file's slot. Distinct from
+// ResolveSource (which explains how the PATH was resolved once the slot is
+// known). The UI shows both so a reviewer can trust a placement.
+type SlotSource string
+
+const (
+	// SlotSourceExplicit — the file carried authored slot metadata (component
+	// version file `slot` column / component.json fileSlots).
+	SlotSourceExplicit SlotSource = "explicit"
+	// SlotSourceHeuristic — the slot came from a filename/extension rule
+	// (e.g. use*.ts -> hook, *.css -> theme-token).
+	SlotSourceHeuristic SlotSource = "heuristic"
+	// SlotSourceComponent — a non-entry file with no better signal inherited
+	// the component's declared slot.
+	SlotSourceComponent SlotSource = "component"
+	// SlotSourceEntry — the entry file, placed at the component's declared slot.
+	SlotSourceEntry SlotSource = "entry"
+)
+
+// FileInput is one member of a version unit the caller wants placed.
+type FileInput struct {
+	// Path is the basename within the version unit (e.g. "useFocusTrap.ts").
+	Path string
+	// IsEntry marks the version's renderable entry file.
+	IsEntry bool
+	// Slot is explicit authored slot metadata; empty means "derive".
+	Slot string
+}
+
+// VersionResolveInput resolves an entire version unit's file set.
+type VersionResolveInput struct {
+	// ComponentName is the entry component's PascalCase name.
+	ComponentName string
+	// ComponentSlot is the component's declared slot (drives entry placement).
+	ComponentSlot string
+	// Scenario chases service.json -> template manifest. Ignored when Template
+	// is set; still echoed for labeling.
+	Scenario string
+	// Template, when set, resolves placement directly against the named
+	// template's manifest (scenario-agnostic).
+	Template string
+	// Feature is the optional feature folder name.
+	Feature string
+	// Files is the full version unit. Exactly one entry expected.
+	Files []FileInput
+}
+
+// ResolvedFile is one placed file with full provenance.
+type ResolvedFile struct {
+	LibraryPath string
+	TargetPath  string
+	Slot        string
+	Source      ResolveSource
+	SlotSource  SlotSource
+	IsEntry     bool
+	Warnings    []string
+}
+
+// VersionResolveResult is the placed file set plus manifest provenance.
+type VersionResolveResult struct {
+	// Template whose manifest drove placement; empty when none resolved.
+	Template string
+	// ManifestResolved is true when a template UI manifest authoritatively
+	// placed the files (the UI trusts the tree; otherwise it renders flat).
+	ManifestResolved bool
+	Files            []ResolvedFile
+	Warnings         []string
+}
+
+// ResolveVersion places every file of a version unit at its slot-derived
+// target path. The entry file uses the component's declared slot; companions
+// derive their slot from explicit metadata (wins), then a filename heuristic,
+// then the component slot. Each file records both how its slot was chosen
+// (SlotSource) and how its path was resolved (Source).
+func (r *Resolver) ResolveVersion(in VersionResolveInput) (VersionResolveResult, error) {
+	if in.ComponentName == "" {
+		return VersionResolveResult{}, errors.New("resolveVersion: componentName is required")
+	}
+	if in.Scenario == "" && in.Template == "" {
+		return VersionResolveResult{}, errors.New("resolveVersion: scenario or template is required")
+	}
+
+	// Load the placement manifest. Template wins (scenario-agnostic preview);
+	// otherwise chase the scenario's service.json.
+	var (
+		mf         uimanifest.Manifest
+		mfErr      error
+		templateID = in.Template
+	)
+	if in.Template != "" {
+		mf, mfErr = r.Loader.LoadTemplate(in.Template)
+	} else {
+		mf, mfErr = r.Loader.Load(in.Scenario)
+	}
+	manifestOK := mfErr == nil
+	if manifestOK {
+		if mf.Contract.Template != "" {
+			templateID = mf.Contract.Template
+		}
+	} else {
+		templateID = ""
+	}
+
+	files := in.Files
+	if len(files) == 0 {
+		// No indexed files — synthesize a single entry from the component name
+		// so callers still get the entry placement.
+		files = []FileInput{{Path: in.ComponentName + ".tsx", IsEntry: true}}
+	}
+
+	res := VersionResolveResult{Template: templateID, ManifestResolved: manifestOK}
+	if !manifestOK && mfErr != nil {
+		res.Warnings = append(res.Warnings, "template manifest unavailable; using flat fallback placement: "+mfErr.Error())
+	}
+
+	for _, f := range files {
+		slotName, slotSrc := r.deriveSlot(f, in.ComponentSlot)
+		rf := ResolvedFile{LibraryPath: f.Path, Slot: slotName, SlotSource: slotSrc, IsEntry: f.IsEntry}
+
+		// Name token for path substitution: entry uses the component name;
+		// companions use their own basename (minus extension) so hooks land as
+		// {dir}/useFocusTrap.ts rather than {dir}/DrawerShell.ts.
+		nameToken := in.ComponentName
+		if !f.IsEntry {
+			nameToken = baseName(f.Path)
+		}
+
+		if manifestOK {
+			name, slot, ok := pickSlot(mf, slotName)
+			if ok {
+				sub := ResolveInput{ComponentName: nameToken, Feature: in.Feature}
+				path, err := substitutePattern(slot, sub)
+				if err == nil {
+					if gerr := guardWithinScenario(path); gerr == nil {
+						rf.TargetPath = preserveExtension(path, f.Path)
+						rf.Source = SourceTemplateManifest
+						rf.Slot = name
+						res.Files = append(res.Files, rf)
+						continue
+					}
+				}
+				rf.Warnings = append(rf.Warnings, fmt.Sprintf("slot %q pattern did not substitute cleanly; using fallback", name))
+			}
+		}
+
+		// Fallback placement — manifest absent or slot unusable.
+		rf.TargetPath = fallbackPath(slotName, f)
+		rf.Source = SourceFallback
+		res.Files = append(res.Files, rf)
+	}
+
+	return res, nil
+}
+
+// deriveSlot picks a file's slot: explicit authored metadata wins, then a
+// filename heuristic, then (entry) the component slot, then component slot for
+// companions with no signal.
+func (r *Resolver) deriveSlot(f FileInput, componentSlot string) (string, SlotSource) {
+	if s := strings.TrimSpace(f.Slot); s != "" {
+		return s, SlotSourceExplicit
+	}
+	if s, ok := heuristicSlot(f.Path); ok {
+		return s, SlotSourceHeuristic
+	}
+	if f.IsEntry {
+		return componentSlot, SlotSourceEntry
+	}
+	return componentSlot, SlotSourceComponent
+}
+
+// heuristicSlot infers a slot from a filename. Conservative: only the
+// unambiguous conventions. Returns false when nothing matches.
+func heuristicSlot(basename string) (string, bool) {
+	name := baseName(basename)
+	switch {
+	case strings.HasPrefix(name, "use") && len(name) > 3 && unicode.IsUpper([]rune(name)[3]) &&
+		(strings.HasSuffix(basename, ".ts") || strings.HasSuffix(basename, ".tsx")):
+		// use<Upper>… .ts(x) — a React hook.
+		return "hook", true
+	case strings.HasSuffix(basename, ".css"):
+		return "theme-token", true
+	}
+	return "", false
+}
+
+// fallbackPath places a file when no manifest resolved. Hooks land under
+// ui/src/hooks; everything else under ui/src/components, preserving the
+// library basename.
+func fallbackPath(slotName string, f FileInput) string {
+	switch slotName {
+	case "hook":
+		return "ui/src/hooks/" + f.Path
+	case "theme-token":
+		return "ui/src/theme/" + f.Path
+	case "api-client":
+		return "ui/src/api/" + f.Path
+	case "lib-util":
+		return "ui/src/lib/" + f.Path
+	}
+	return "ui/src/components/" + f.Path
+}
+
+// baseName strips the file extension from a basename.
+func baseName(p string) string {
+	b := filepath.Base(p)
+	if ext := filepath.Ext(b); ext != "" {
+		return strings.TrimSuffix(b, ext)
+	}
+	return b
+}
+
+// preserveExtension keeps the resolved path's directory + stem but restores the
+// library file's extension when the slot pattern assumed a different one. This
+// matters for companions whose pattern is {dir}/{camelName}.ts but whose source
+// is .tsx (or vice versa) — the placed file must keep its real extension.
+func preserveExtension(resolved, libraryPath string) string {
+	libExt := filepath.Ext(libraryPath)
+	resExt := filepath.Ext(resolved)
+	if libExt == "" || libExt == resExt {
+		return resolved
+	}
+	return strings.TrimSuffix(resolved, resExt) + libExt
+}
+
 // pickSlot resolves the slot name to use: caller-supplied first, then the
 // manifest default, then the conventional "shared-component" fallback.
 func pickSlot(mf uimanifest.Manifest, hint string) (string, uimanifest.Slot, bool) {

@@ -42,8 +42,11 @@ func BehaviorLossFindings(origin, harvested, sourceFile string) []IngestFinding 
 		kind          string
 		before, after []string
 	}{
-		{"hook", from.Hooks, to.Hooks}, {"keyboard-handler", from.Keyboard, to.Keyboard},
-		{"aria", from.ARIA, to.ARIA}, {"role", from.Roles, to.Roles}, {"event-listener", from.Listeners, to.Listeners},
+		{"hook", from.Hooks, to.Hooks},
+		{"keyboard-handler", from.Keyboard, to.Keyboard},
+		{"aria", from.ARIA, to.ARIA},
+		{"role", from.Roles, to.Roles},
+		{"event-listener", from.Listeners, to.Listeners},
 	} {
 		missing := missingSignals(check.before, check.after)
 		for _, signal := range missing {

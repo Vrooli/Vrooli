@@ -14,6 +14,12 @@ const (
 	ingestReleaseVersion = "0.1.0"
 	ingestDraftVersion   = "0.1.0-draft.1"
 	ingestChecklistPath  = "docs/guides/de-scenario-ification-checklist.md"
+	// ingestDefaultSlot / ingestDefaultCategory keep harvested drafts catalog-
+	// complete: a component landing without a slot or category would sort and
+	// filter differently from authored peers. Harvesters refine both while
+	// promoting; the defaults guarantee the fields are never absent.
+	ingestDefaultSlot     = string(ComponentSlotUIPattern)
+	ingestDefaultCategory = "uncategorized"
 )
 
 // IngestComponent turns a scenario-local TSX file into an indexed catalog
@@ -29,6 +35,12 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 	in.Slug = normalizeSlug(in.Slug)
 	if in.Scenario == "" || in.SourceFile == "" || in.Slug == "" {
 		return IngestComponentResult{}, fmt.Errorf("scenario, source_file, and slug are required")
+	}
+	if in.Slot = strings.TrimSpace(in.Slot); in.Slot == "" {
+		in.Slot = ingestDefaultSlot
+	}
+	if in.Category = strings.TrimSpace(in.Category); in.Category == "" {
+		in.Category = ingestDefaultCategory
 	}
 	if !strings.HasSuffix(in.SourceFile, ".tsx") {
 		return IngestComponentResult{}, fmt.Errorf("source_file must be a .tsx file")
@@ -58,8 +70,26 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 	findings := inspectIngestSource(raw, in.SourceFile)
 	releaseFiles := ingestFilesForVersion(unit, libraryID, displayName, description, releaseVersion, in.Tags, in.Scenario, in.SourceFile)
 	releaseSource := releaseFiles[0].Content
-	findings = append(findings, BehaviorLossFindings(joinIngestUnit(unit), joinIngestUnit(releaseFiles), in.SourceFile)...)
+	// The origin inventory must count behavior that lives in companions the
+	// harvest cannot carry — app-alias imports (`@/`, `~/`) resolve into the
+	// origin scenario, not the flat library unit, so any hook/listener/aria
+	// they contribute is dropped. This is the exact shape of the historical
+	// DrawerShell focus-trap loss. Files reachable by relative import are
+	// already in `unit`, so they appear on both sides and are not flagged.
+	origin := joinIngestUnit(unit)
+	if extras := readDroppedOriginCompanions(ctx, s.ingest, in.Scenario, unit); extras != "" {
+		origin += "\n" + extras
+	}
+	findings = append(findings, BehaviorLossFindings(origin, joinIngestUnit(releaseFiles), in.SourceFile)...)
 	report := IngestParityReport{OriginFiles: ingestFilePaths(unit), HarvestedFiles: ingestFilePaths(releaseFiles), Findings: behaviorFindings(findings)}
+	if len(report.Findings) > 0 {
+		if !in.AcceptBehaviorLoss {
+			return IngestComponentResult{}, ErrHarvestBehaviorLoss{Scenario: in.Scenario, SourceFile: in.SourceFile, Findings: report.Findings}
+		}
+		// Accepting the loss does not erase it: the named losses stay on the
+		// parity report and it is marked acknowledged as a durable audit trail.
+		report.Acknowledged = true
+	}
 	draftFiles := ingestFilesForVersion(unit, libraryID, displayName, description, draftVersion, in.Tags, in.Scenario, in.SourceFile)
 	draftSource := draftFiles[0].Content
 	existing, existingErr := s.repo.GetByLibraryID(ctx, libraryID)
@@ -67,8 +97,11 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 		return IngestComponentResult{}, existingErr
 	}
 	if existingErr == nil {
-		draft, err := s.CreateComponentVersion(ctx, CreateComponentVersionInput{ComponentID: existing.ID, Version: draftVersion, Intent: VersionIntentDraft,
-			FileName: draftFiles[0].Path, Source: draftSource, Files: draftFiles, ParityReport: &report})
+		draft, err := s.CreateComponentVersion(ctx, CreateComponentVersionInput{
+			ComponentID: existing.ID, Version: draftVersion, Intent: VersionIntentDraft,
+			FileName: draftFiles[0].Path, Source: draftSource, Files: draftFiles, ParityReport: &report,
+			ScaffoldExamples: true,
+		})
 		if err != nil {
 			return IngestComponentResult{}, err
 		}
@@ -76,8 +109,9 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 	}
 	created, err := s.InitializeComponent(ctx, InitializeComponentInput{
 		LibraryID: libraryID, Slug: in.Slug, DisplayName: displayName,
-		Description: description, Tags: in.Tags, Slot: in.Slot, InitialVersion: releaseVersion,
+		Description: description, Tags: in.Tags, Slot: in.Slot, Category: in.Category, InitialVersion: releaseVersion,
 		FileName: releaseFiles[0].Path, InitialSource: releaseSource, InitialFiles: releaseFiles,
+		ScaffoldExamples: true,
 	})
 	if err != nil {
 		return IngestComponentResult{}, err
@@ -85,6 +119,7 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 	draft, err := s.CreateComponentVersion(ctx, CreateComponentVersionInput{
 		ComponentID: created.Component.ID, Version: draftVersion, Intent: VersionIntentDraft,
 		FileName: draftFiles[0].Path, Source: draftSource, Files: draftFiles, ParityReport: &report,
+		ScaffoldExamples: true,
 	})
 	if err != nil {
 		return IngestComponentResult{}, err
@@ -114,6 +149,56 @@ func behaviorFindings(findings []IngestFinding) []IngestFinding {
 }
 
 var relativeImportRE = regexp.MustCompile(`(?:\bfrom\s*|\bimport\s*\()\s*["'](\.[^"']+)["']`)
+
+// aliasImportRE matches app-alias imports (`@/…`, `~/…`). Unlike relative
+// imports these are never carried into the flat library unit, so the behavior
+// they contribute is dropped by the harvest.
+var aliasImportRE = regexp.MustCompile(`(?:\bfrom\s*|\bimport\s*\()\s*["']([@~]/[^"']+)["']`)
+
+// readDroppedOriginCompanions returns the joined source of app-aliased
+// companions referenced by the origin unit that the harvest cannot carry.
+// Resolution is best-effort against the origin scenario; a companion that
+// cannot be read contributes nothing (honest degrade — no phantom loss).
+func readDroppedOriginCompanions(ctx context.Context, reader ScenarioSourceReader, scenario string, unit []ComponentVersionFile) string {
+	if reader == nil {
+		return ""
+	}
+	seen := map[string]bool{}
+	var parts []string
+	for _, file := range unit {
+		for _, match := range aliasImportRE.FindAllStringSubmatch(file.Content, -1) {
+			specifier := match[1]
+			if seen[specifier] {
+				continue
+			}
+			seen[specifier] = true
+			if body, ok := resolveAliasCompanion(ctx, reader, scenario, specifier); ok {
+				parts = append(parts, body)
+			}
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+func resolveAliasCompanion(ctx context.Context, reader ScenarioSourceReader, scenario, specifier string) (string, bool) {
+	rest := path.Clean(strings.TrimPrefix(strings.TrimPrefix(specifier, "@/"), "~/"))
+	if rest == "." || strings.HasPrefix(rest, "../") {
+		return "", false
+	}
+	for _, prefix := range []string{"ui/src/", "src/", ""} {
+		base := prefix + rest
+		candidates := []string{base}
+		if path.Ext(base) == "" {
+			candidates = append(candidates, base+".ts", base+".tsx", path.Join(base, "index.ts"), path.Join(base, "index.tsx"))
+		}
+		for _, candidate := range candidates {
+			if raw, err := reader.Read(ctx, scenario, candidate); err == nil {
+				return string(raw), true
+			}
+		}
+	}
+	return "", false
+}
 
 // readIngestUnit reads the entry plus a transitive closure of sibling TS/TSX
 // imports. Library version folders are deliberately flat, therefore a source

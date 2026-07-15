@@ -9,7 +9,7 @@ The Scenario Auditor is Vrooli's permanent quality gatekeeper, ensuring every sc
 ### 🛡️ Comprehensive Standards Enforcement
 - **API Standards**: Go best practices, security patterns, documentation requirements
 - **Configuration Standards**: service.json schema compliance, lifecycle completeness  
-- **UI Standards**: Browserless testing practices, accessibility, performance
+- **UI Standards**: BAS/Playwright testing practices, accessibility, performance
 - **Testing Standards**: Phase-based structure, coverage requirements, integration patterns
 
 ### 🔧 Rule Engine
@@ -369,7 +369,7 @@ Runtime signature: Go-based rules must expose an exported `Check` function with 
 ## 📚 Resources
 
 - [Product Requirements Document](PRD.md)
-- [UI Testing Best Practices](../resources/browserless/docs/UI_TESTING_BEST_PRACTICES.md)
+- [UI Testing Best Practices (BAS/Playwright)](../browser-automation-studio/README.md)
 - [Phase-Based Testing Guide](test/README.md)
 - [Rule Creation Documentation](docs/RULE_CREATION.md)
 

@@ -587,7 +587,7 @@
               "failureRate":  1
             },
             {
-              "scenario":  "accessibility-compliance-hub",
+              "scenario":  "template-manager",
               "executed":  14,
               "failures":  14,
               "failureRate":  1
@@ -605,7 +605,7 @@
               "failureRate":  1
             },
             {
-              "scenario":  "landing-manager",
+              "scenario":  "template-manager",
               "executed":  2,
               "failures":  2,
               "failureRate":  1
@@ -791,7 +791,7 @@
               "failureRate":  1
             },
             {
-              "scenario":  "accessibility-compliance-hub",
+              "scenario":  "template-manager",
               "executed":  14,
               "failures":  14,
               "failureRate":  1
@@ -987,7 +987,7 @@
               "failureRate":  1
             },
             {
-              "scenario":  "accessibility-compliance-hub",
+              "scenario":  "template-manager",
               "executed":  14,
               "failures":  14,
               "failureRate":  1
@@ -1377,7 +1377,7 @@
               "failureRate":  1
             },
             {
-              "scenario":  "accessibility-compliance-hub",
+              "scenario":  "template-manager",
               "executed":  14,
               "failures":  14,
               "failureRate":  1

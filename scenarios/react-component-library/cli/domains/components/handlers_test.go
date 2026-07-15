@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -292,7 +293,7 @@ func TestComponentsIngest_ForwardsOriginAndRendersFindings(t *testing.T) {
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "scenario"}, {Name: "source-file"}, {Name: "slug"}},
-		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}},
+		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}, {Name: "accept-behavior-loss"}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"scenario": "web-console", "source-file": "ui/src/components/DrawerShell.tsx", "slug": "drawer-shell"},
 		Flags:       map[string]string{"display-name": "Drawer Shell", "tags": "overlay,layout", "slot": "ui-pattern", "companion-files": "ui/src/components/useFocusTrap.ts"},
@@ -305,6 +306,48 @@ func TestComponentsIngest_ForwardsOriginAndRendersFindings(t *testing.T) {
 	require.Equal(t, []string{"ui/src/components/useFocusTrap.ts"}, svc.ingestReqs[0].SourceFiles)
 	require.Contains(t, out.String(), "draft 0.1.0-draft.1")
 	require.Contains(t, out.String(), "token-violation")
+	require.False(t, svc.ingestReqs[0].AcceptBehaviorLoss)
+}
+
+func TestComponentsIngest_BlockedHarvestNamesLossAndPointsAtOverride(t *testing.T) {
+	svc := &componentsService{ingestErr: connect.NewError(connect.CodeFailedPrecondition,
+		errors.New("harvest of web-console:ui/src/components/DrawerShell.tsx drops 1 origin behavior signal(s): harvest removed event-listener signal addEventListener"))}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "scenario"}, {Name: "source-file"}, {Name: "slug"}},
+		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}, {Name: "accept-behavior-loss"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"scenario": "web-console", "source-file": "ui/src/components/DrawerShell.tsx", "slug": "drawer-shell"},
+	})
+
+	err := h.ingest(ctx)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "addEventListener")
+	require.Contains(t, err.Error(), "--accept-behavior-loss")
+}
+
+func TestComponentsIngest_AcceptBehaviorLossForwardsOverride(t *testing.T) {
+	svc := &componentsService{ingestResp: &componentsv1.IngestComponentResponse{
+		Component: sampleComponent(), ManifestPath: "components/drawer-shell/component.json",
+		SourcePath:   "components/drawer-shell/versions/0.1.0-draft.1/drawer-shell.tsx",
+		DraftVersion: "0.1.0-draft.1", ChecklistPath: "docs/guides/de-scenario-ification-checklist.md",
+		ParityReport: &componentsv1.IngestParityReport{Acknowledged: true, Findings: []*componentsv1.IngestFinding{{Code: "behavior-lost", Message: "harvest removed event-listener signal addEventListener"}}},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "scenario"}, {Name: "source-file"}, {Name: "slug"}},
+		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}, {Name: "accept-behavior-loss"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"scenario": "web-console", "source-file": "ui/src/components/DrawerShell.tsx", "slug": "drawer-shell"},
+		Flags:       map[string]string{"accept-behavior-loss": "true"},
+	})
+
+	require.NoError(t, h.ingest(ctx))
+	require.Len(t, svc.ingestReqs, 1)
+	require.True(t, svc.ingestReqs[0].AcceptBehaviorLoss)
+	require.Contains(t, out.String(), "Accepted 1 behavior-loss finding(s)")
 }
 
 func TestComponentsList_ForwardsFiltersAndRenders(t *testing.T) {

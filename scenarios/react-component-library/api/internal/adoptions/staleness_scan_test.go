@@ -91,7 +91,102 @@ func TestReactViteTemplateVendoredComponentsMatchCatalogLatest(t *testing.T) {
 		catalog,
 	)
 	require.NoError(t, err)
-	require.Empty(t, findings, "react-vite template vendored components must match react-component-library catalog latest")
+
+	// templates/** is outside the RCL write boundary, so a vendored copy can be
+	// legitimately behind the catalog for a cycle. Rather than silently skip the
+	// invariant, we allow ONLY divergences a reviewer has explicitly recorded in
+	// the reviewed-divergence allowlist. Every other behind/deprecated copy still
+	// fails, and a stale allowlist entry (one whose divergence has been resolved)
+	// also fails so the trail cannot rot into a permanent suppression list.
+	allow, err := adoptions.LoadReviewedDivergences(
+		filepath.Join("testdata", "reviewed-template-divergences.json"),
+	)
+	require.NoError(t, err)
+
+	unreviewed, stale := adoptions.PartitionReviewedFindings(findings, allow)
+	require.Empty(t, unreviewed,
+		"react-vite template vendored components must match catalog latest or be recorded in "+
+			"testdata/reviewed-template-divergences.json (see %s)", allow.Report)
+	require.Empty(t, stale,
+		"reviewed-divergence allowlist has entries that no longer match any real divergence — "+
+			"remove them from testdata/reviewed-template-divergences.json")
+}
+
+// TestReviewedDivergenceAllowlist_DoesNotMaskUnlistedStaleCopies is the
+// calibration for the allowlist gate: it proves the allowlist excuses ONLY the
+// exact divergence it names and does not blanket-suppress other stale copies.
+func TestReviewedDivergenceAllowlist_DoesNotMaskUnlistedStaleCopies(t *testing.T) {
+	allow := adoptions.ReviewedDivergenceAllowlist{
+		Divergences: []adoptions.ReviewedDivergence{{
+			Path:            "ui/src/components/ui/data-table.tsx",
+			LibraryID:       "react-component-library:DataTable",
+			VendoredVersion: "1.1.0",
+			CatalogVersion:  "1.1.2",
+			Status:          "behind",
+			Reason:          "reviewed",
+		}},
+	}
+
+	listed := adoptions.FileScanFinding{
+		Path:           "ui/src/components/ui/data-table.tsx",
+		LibraryID:      "react-component-library:DataTable",
+		AdoptedVersion: "1.1.0",
+		LatestVersion:  "1.1.2",
+		Status:         adoptions.LibraryVersionStatusBehind,
+	}
+	// A different behind copy that nobody reviewed.
+	unlisted := adoptions.FileScanFinding{
+		Path:           "ui/src/components/ui/button.tsx",
+		LibraryID:      "react-component-library:Button",
+		AdoptedVersion: "1.0.0",
+		LatestVersion:  "1.2.0",
+		Status:         adoptions.LibraryVersionStatusBehind,
+	}
+	// The SAME file the allowlist names, but drifted to a newer behind version
+	// than the reviewer recorded — the stale review must NOT excuse it.
+	drifted := adoptions.FileScanFinding{
+		Path:           "ui/src/components/ui/data-table.tsx",
+		LibraryID:      "react-component-library:DataTable",
+		AdoptedVersion: "1.1.1",
+		LatestVersion:  "1.1.2",
+		Status:         adoptions.LibraryVersionStatusBehind,
+	}
+
+	unreviewed, stale := adoptions.PartitionReviewedFindings(
+		[]adoptions.FileScanFinding{listed, unlisted, drifted}, allow,
+	)
+
+	unreviewedPaths := map[string]adoptions.FileScanFinding{}
+	for _, f := range unreviewed {
+		unreviewedPaths[f.Path+"@"+f.AdoptedVersion] = f
+	}
+	require.NotContains(t, unreviewedPaths, listed.Path+"@"+listed.AdoptedVersion,
+		"the exact reviewed divergence must be excused")
+	require.Contains(t, unreviewedPaths, unlisted.Path+"@"+unlisted.AdoptedVersion,
+		"an unlisted behind copy must still fail the gate")
+	require.Contains(t, unreviewedPaths, drifted.Path+"@"+drifted.AdoptedVersion,
+		"a copy that drifted past the reviewed version must still fail the gate")
+	require.Empty(t, stale, "the reviewed entry matched a real finding, so it is not stale")
+}
+
+// TestReviewedDivergenceAllowlist_FlagsStaleEntries proves that once a reviewed
+// divergence is resolved (no matching finding remains), the allowlist entry is
+// reported as stale so it cannot linger as a silent permanent suppression.
+func TestReviewedDivergenceAllowlist_FlagsStaleEntries(t *testing.T) {
+	allow := adoptions.ReviewedDivergenceAllowlist{
+		Divergences: []adoptions.ReviewedDivergence{{
+			Path:            "ui/src/components/ui/data-table.tsx",
+			LibraryID:       "react-component-library:DataTable",
+			VendoredVersion: "1.1.0",
+			CatalogVersion:  "1.1.2",
+			Status:          "behind",
+			Reason:          "reviewed",
+		}},
+	}
+
+	unreviewed, stale := adoptions.PartitionReviewedFindings(nil, allow)
+	require.Empty(t, unreviewed)
+	require.Len(t, stale, 1, "an allowlist entry matching no finding must be reported stale")
 }
 
 func writeFile(t *testing.T, root, rel, content string) {
@@ -140,6 +235,25 @@ func loadRealCatalog(root string) (*realCatalog, error) {
 			ID:            id,
 			LibraryID:     strings.TrimSpace(doc.LibraryID),
 			LatestVersion: strings.TrimSpace(doc.Latest),
+		}
+		// Register every cut version the library actually carries (from the
+		// on-disk versions/ directory) so a vendored copy pinned to a real but
+		// older version is classified as `behind`, not `unknown`. Without this
+		// the catalog only knows `latest` and every older-but-valid vendored
+		// version reads as unknown, which understates the divergence.
+		versionsDir := filepath.Join(root, entry.Name(), "versions")
+		if versionEntries, verr := os.ReadDir(versionsDir); verr == nil {
+			for _, versionEntry := range versionEntries {
+				if !versionEntry.IsDir() {
+					continue
+				}
+				version := strings.TrimSpace(versionEntry.Name())
+				catalog.versionsByComponentID[id] = append(catalog.versionsByComponentID[id], version)
+				// Mirror the real indexer, which defaults on-disk versions to
+				// "released" unless a header/component.json marks them draft or
+				// deprecated (handled below, overriding this).
+				catalog.versionStatusByKey[id+"@"+version] = components.VersionStatusReleased
+			}
 		}
 		if doc.Latest != "" {
 			catalog.versionsByComponentID[id] = append(catalog.versionsByComponentID[id], strings.TrimSpace(doc.Latest))

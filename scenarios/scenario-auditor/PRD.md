@@ -27,7 +27,7 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 ### Functional Requirements
 - **Must Have (P0)**
   - [x] service.json validation against schema and lifecycle requirements
-  - [x] UI testing best practices enforcement from browserless documentation
+  - [x] UI testing best practices enforcement from browser-automation-studio (BAS/Playwright) documentation
   - [x] Phase-based testing structure validation (unit, integration, business, etc.)
   - [x] API security standards enforcement (existing functionality enhanced)
   - [x] Toggleable rule system with persistent user preferences
@@ -60,7 +60,7 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 ### Quality Gates
 - [x] All P0 requirements implemented and tested (75.2% rules coverage, 34.4% overall)
 - [x] Rule engine validates service.json files correctly (validated via CLI scans)
-- [x] UI practices validation matches browserless documentation (rules implemented and tested)
+- [x] UI practices validation matches browser-automation-studio (BAS/Playwright) documentation (rules implemented and tested)
 - [x] Phase-based testing structure properly detected (comprehensive test phase structure exists)
 - [x] AI rule creation working (createRuleHandler implemented, endpoint functional)
 - [x] AI rule editing working (editRuleWithAIHandler implemented, endpoint functional)
@@ -193,7 +193,7 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 
 ### Capability Validated When:
 - [x] Successfully validates service.json files against all defined rules (config rules validate lifecycle, ports, health checks)
-- [x] Enforces UI testing best practices from browserless documentation (UI rules check component structure, accessibility)
+- [x] Enforces UI testing best practices from browser-automation-studio (BAS/Playwright) documentation (UI rules check component structure, accessibility)
 - [x] Detects and validates phase-based testing structures (test rules validate directory structure and phase scripts)
 - [x] Provides AI-powered rule creation capabilities (createRuleHandler working, tested via integration tests)
 - [x] Provides AI-powered rule editing capabilities (editRuleWithAIHandler working, tested via integration tests)

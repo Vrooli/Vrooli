@@ -34,6 +34,9 @@ type Service interface {
 	Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	Reapply(ctx context.Context, in ReapplyInput) (Adoption, string, error)
 	Reconcile(ctx context.Context, in ReconcileInput) (ReconcileResult, error)
+	Reconverge(ctx context.Context, in ReconvergeInput) (ReconvergeResult, error)
+	Discover(ctx context.Context, in DiscoverInput) (DiscoverResult, error)
+	ConfirmDiscovery(ctx context.Context, in ConfirmDiscoveryInput) (ConfirmDiscoveryResult, error)
 	List(ctx context.Context, q ListQuery) ([]Adoption, error)
 	Get(ctx context.Context, id string) (Adoption, error)
 	Delete(ctx context.Context, id string) error
@@ -61,6 +64,10 @@ type LibraryReader interface {
 	List(ctx context.Context, q components.SearchQuery) ([]components.Component, error)
 	GetContent(ctx context.Context, id string) (components.Content, error)
 	GetVersion(ctx context.Context, componentID, version string) (components.ComponentVersion, error)
+	// ListVersions returns every indexed version of a component (entry + unit
+	// file bodies populated) so discovery can score a header-less file against
+	// each release, not just the latest. limit <= 0 means "all".
+	ListVersions(ctx context.Context, componentID string, limit int) ([]components.ComponentVersion, error)
 }
 
 // ProvenanceFile is one source file found by a read-only provenance scan.
@@ -75,6 +82,23 @@ type ProvenanceFile struct {
 
 type ScenarioProvenanceScanner interface {
 	ScanProvenance(ctx context.Context) ([]ProvenanceFile, error)
+}
+
+// CandidateFile is one header-less source file found by the discovery scan.
+// It is the inverse of ProvenanceFile: no @vrooliComponentSource header, so
+// only its path and raw content are known — discovery must infer the library
+// origin by content similarity.
+type CandidateFile struct {
+	Scenario    string
+	AdoptedPath string
+	Content     []byte
+}
+
+// ScenarioCandidateScanner walks scenario UI trees and returns the header-less
+// source files discovery scores against library versions. It reuses the same
+// filesystem walk as ScanProvenance so there is a single scanner, not two.
+type ScenarioCandidateScanner interface {
+	ScanUntagged(ctx context.Context) ([]CandidateFile, error)
 }
 
 // ScenarioFileReader is the target-scenario-tree seam Refresh uses to
@@ -665,17 +689,31 @@ func NewFSScenarioFileReader(root string) *FSScenarioFileReader {
 	return &FSScenarioFileReader{root: root}
 }
 
-var _ ScenarioFileReader = (*FSScenarioFileReader)(nil)
-var _ ScenarioProvenanceScanner = (*FSScenarioFileReader)(nil)
+var (
+	_ ScenarioFileReader        = (*FSScenarioFileReader)(nil)
+	_ ScenarioProvenanceScanner = (*FSScenarioFileReader)(nil)
+	_ ScenarioCandidateScanner  = (*FSScenarioFileReader)(nil)
+)
 
-// ScanProvenance reads only scenario UI source files. It never writes target
-// scenarios; reconciliation owns the sole database mutation after this scan.
-func (r *FSScenarioFileReader) ScanProvenance(_ context.Context) ([]ProvenanceFile, error) {
+// scannedSource is one .ts/.tsx file yielded by walkScenarioSources: its
+// scenario-relative path plus raw bytes. Both ScanProvenance and ScanUntagged
+// classify these; neither re-walks the tree.
+type scannedSource struct {
+	scenario    string
+	adoptedPath string
+	content     []byte
+}
+
+// walkScenarioSources is the single filesystem walk shared by ScanProvenance
+// (header-tagged files) and ScanUntagged (header-less candidates). It reads
+// every non-symlink .ts/.tsx file under each scenario's ui/src tree, skipping
+// node_modules. It never writes.
+func (r *FSScenarioFileReader) walkScenarioSources() ([]scannedSource, error) {
 	entries, err := os.ReadDir(r.root)
 	if err != nil {
-		return nil, fmt.Errorf("list scenarios for provenance: %w", err)
+		return nil, fmt.Errorf("list scenarios for scan: %w", err)
 	}
-	var out []ProvenanceFile
+	var out []scannedSource
 	for _, scenario := range entries {
 		if !scenario.IsDir() {
 			continue
@@ -703,28 +741,63 @@ func (r *FSScenarioFileReader) ScanProvenance(_ context.Context) ([]ProvenanceFi
 			if err != nil {
 				return err
 			}
-			libraryID := provenanceField(string(raw), "@vrooliComponentSource")
-			version := provenanceField(string(raw), "@vrooliComponentVersion")
-			if libraryID == "" || version == "" {
-				return nil
-			}
 			rel, err := filepath.Rel(filepath.Join(r.root, scenario.Name()), path)
 			if err != nil {
 				return err
 			}
-			out = append(out, ProvenanceFile{Scenario: scenario.Name(), AdoptedPath: filepath.ToSlash(rel), LibraryID: libraryID, Version: version, AdoptionID: provenanceField(string(raw), "@vrooliComponentAdoption"), Content: raw})
+			out = append(out, scannedSource{scenario: scenario.Name(), adoptedPath: filepath.ToSlash(rel), content: raw})
 			return nil
 		})
 		if err != nil {
-			return nil, fmt.Errorf("scan provenance for %s: %w", scenario.Name(), err)
+			return nil, fmt.Errorf("scan sources for %s: %w", scenario.Name(), err)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if out[i].Scenario != out[j].Scenario {
-			return out[i].Scenario < out[j].Scenario
+		if out[i].scenario != out[j].scenario {
+			return out[i].scenario < out[j].scenario
 		}
-		return out[i].AdoptedPath < out[j].AdoptedPath
+		return out[i].adoptedPath < out[j].adoptedPath
 	})
+	return out, nil
+}
+
+// ScanProvenance reads only scenario UI source files. It never writes target
+// scenarios; reconciliation owns the sole database mutation after this scan.
+func (r *FSScenarioFileReader) ScanProvenance(_ context.Context) ([]ProvenanceFile, error) {
+	sources, err := r.walkScenarioSources()
+	if err != nil {
+		return nil, err
+	}
+	var out []ProvenanceFile
+	for _, src := range sources {
+		libraryID := provenanceField(string(src.content), "@vrooliComponentSource")
+		version := provenanceField(string(src.content), "@vrooliComponentVersion")
+		if libraryID == "" || version == "" {
+			continue
+		}
+		out = append(out, ProvenanceFile{Scenario: src.scenario, AdoptedPath: src.adoptedPath, LibraryID: libraryID, Version: version, AdoptionID: provenanceField(string(src.content), "@vrooliComponentAdoption"), Content: src.content})
+	}
+	return out, nil
+}
+
+// ScanUntagged returns the inverse set: every .ts/.tsx file that has NO
+// @vrooliComponentSource/@vrooliComponentVersion header. These are the files
+// discovery scores for similarity; a real vendored copy that lost its header
+// is exactly the drift-blind case this closes.
+func (r *FSScenarioFileReader) ScanUntagged(_ context.Context) ([]CandidateFile, error) {
+	sources, err := r.walkScenarioSources()
+	if err != nil {
+		return nil, err
+	}
+	var out []CandidateFile
+	for _, src := range sources {
+		libraryID := provenanceField(string(src.content), "@vrooliComponentSource")
+		version := provenanceField(string(src.content), "@vrooliComponentVersion")
+		if libraryID != "" && version != "" {
+			continue // already tagged; ScanProvenance/Reconcile owns these
+		}
+		out = append(out, CandidateFile{Scenario: src.scenario, AdoptedPath: src.adoptedPath, Content: src.content})
+	}
 	return out, nil
 }
 

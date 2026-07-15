@@ -46,9 +46,12 @@ type Defaults struct {
 	Slot string `json:"slot"`
 }
 
-// Loader resolves a scenario name to its template's UI manifest.
+// Loader resolves a scenario name to its template's UI manifest. LoadTemplate
+// reads a template's manifest directly, skipping scenario resolution — used by
+// callers that want scenario-agnostic placement against a named template.
 type Loader interface {
 	Load(scenario string) (Manifest, error)
+	LoadTemplate(templateID string) (Manifest, error)
 }
 
 // FSLoader reads from the local filesystem rooted at RepoRoot.
