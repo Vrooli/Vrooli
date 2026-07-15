@@ -146,6 +146,22 @@ describe("ComponentEditor", () => {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     }));
+    const paneRects = { files: 0, preview: 100, details: 200 } as const;
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const pane = this.querySelector<HTMLElement>("[data-pane]")?.dataset.pane as keyof typeof paneRects | undefined;
+      const left = pane ? paneRects[pane] : 0;
+      return {
+        bottom: 100,
+        height: 100,
+        left,
+        right: left + 100,
+        top: 0,
+        width: 100,
+        x: left,
+        y: 0,
+        toJSON: () => ({}),
+      };
+    });
     try {
       window.localStorage.removeItem("rcl.component-editor.workspace.v2");
       const user = userEvent.setup();
@@ -165,16 +181,41 @@ describe("ComponentEditor", () => {
       await user.click(screen.getByTestId(selectors.components.editor.filesFontDecrease));
       await user.click(screen.getByTestId(selectors.components.editor.filesTreeTab));
 
-      const detailsMoveLeft = screen
-        .getAllByTestId(selectors.components.editor.workspacePaneMoveLeft)
-        .find((button) => button.getAttribute("data-pane") === "details");
-      expect(detailsMoveLeft).toBeDefined();
-      await user.click(detailsMoveLeft!);
       expect(
         screen
-          .getAllByTestId(selectors.components.editor.workspacePane)
-          .map((pane) => pane.getAttribute("data-pane")),
-      ).toEqual(["files", "details", "preview"]);
+          .getAllByTestId(selectors.components.editor.workspacePaneDragHandle)
+          .map((handle) => handle.getAttribute("data-pane")),
+      ).toEqual(["files", "preview", "details"]);
+
+      const detailsHandle = screen
+        .getAllByTestId(selectors.components.editor.workspacePaneDragHandle)
+        .find((handle) => handle.getAttribute("data-pane") === "details");
+      expect(detailsHandle).toBeDefined();
+      detailsHandle!.focus();
+      fireEvent.keyDown(detailsHandle!, { key: " ", code: "Space" });
+      await waitFor(() => expect(detailsHandle).toHaveAttribute("aria-pressed", "true"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      fireEvent.keyDown(detailsHandle!, { key: "ArrowLeft", code: "ArrowLeft" });
+      const dropIndicator = screen.getByTestId(selectors.components.editor.workspacePaneDropIndicator);
+      const dropTarget = dropIndicator.getAttribute("data-pane") as "files" | "preview";
+      const expectedOrder = dropTarget === "files"
+        ? ["details", "files", "preview"]
+        : ["files", "details", "preview"];
+      expect(dropTarget).toBeTruthy();
+      expect(dropIndicator).toHaveAttribute("data-edge", "before");
+      fireEvent.keyDown(detailsHandle!, { key: " ", code: "Space" });
+      await waitFor(() => {
+        expect(
+          screen
+            .getAllByTestId(selectors.components.editor.workspacePane)
+            .map((pane) => pane.getAttribute("data-pane")),
+        ).toEqual(expectedOrder);
+      });
+      expect(JSON.parse(window.localStorage.getItem("rcl.component-editor.workspace.v2") ?? "{}").layout).toEqual({
+        preview: 42,
+        files: 38,
+        details: 20,
+      });
 
       const filesClose = screen
         .getAllByTestId(selectors.components.editor.workspacePaneClose)
@@ -191,6 +232,7 @@ describe("ComponentEditor", () => {
       await user.click(filesRestore!);
       expect(screen.getAllByTestId(selectors.components.editor.workspacePane)).toHaveLength(3);
     } finally {
+      rectSpy.mockRestore();
       window.matchMedia = originalMatchMedia;
     }
   });

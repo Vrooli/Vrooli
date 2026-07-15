@@ -392,13 +392,13 @@
       "testId": "components-editor-workspace-pane-restore",
       "selector": "[data-testid=\"components-editor-workspace-pane-restore\"]"
     },
-    "components.editor.workspacePaneMoveLeft": {
-      "testId": "components-editor-workspace-pane-move-left",
-      "selector": "[data-testid=\"components-editor-workspace-pane-move-left\"]"
+    "components.editor.workspacePaneDragHandle": {
+      "testId": "components-editor-workspace-pane-drag-handle",
+      "selector": "[data-testid=\"components-editor-workspace-pane-drag-handle\"]"
     },
-    "components.editor.workspacePaneMoveRight": {
-      "testId": "components-editor-workspace-pane-move-right",
-      "selector": "[data-testid=\"components-editor-workspace-pane-move-right\"]"
+    "components.editor.workspacePaneDropIndicator": {
+      "testId": "components-editor-workspace-pane-drop-indicator",
+      "selector": "[data-testid=\"components-editor-workspace-pane-drop-indicator\"]"
     },
     "components.editor.filesTreeTab": {
       "testId": "components-editor-files-tree-tab",
