@@ -279,7 +279,7 @@ describe('section.service', () => {
 
   describe('COMPARE_STORAGE_KEY', () => {
     it('has the expected constant value', () => {
-      expect(COMPARE_STORAGE_KEY).toBe('landing-manager-section-editor-compare');
+      expect(COMPARE_STORAGE_KEY).toBe('landing-page-business-suite-section-editor-compare');
     });
   });
 });

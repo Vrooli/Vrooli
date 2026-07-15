@@ -29,6 +29,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ExecutionService.SyncBaseline":      h.syncBaseline,
 		"ExecutionService.AmendScope":        h.amendScope,
 		"ExecutionService.AdoptBaseline":     h.adoptBaseline,
+		"ExecutionService.RepairSourceScope": h.repairSourceScope,
 		"ExecutionService.GetNext":           h.next,
 		"ExecutionService.TransitionPhase":   h.transition,
 		"ExecutionService.Complete":          h.complete,

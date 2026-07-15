@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	internalexecution "plan-manager/internal/execution"
 	internalvalidation "plan-manager/internal/validation"
 
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
@@ -26,6 +27,43 @@ type gctCollectionClient struct {
 
 func newGCTCollectionClient() internalvalidation.BaselineCollectionClient {
 	return gctCollectionClient{resolver: discovery.NewResolver(discovery.ResolverConfig{}), http: http.DefaultClient}
+}
+
+func newGCTSourcePreflighter() internalexecution.SourceEvidencePreflighter {
+	return gctCollectionClient{resolver: discovery.NewResolver(discovery.ResolverConfig{}), http: http.DefaultClient}
+}
+
+func (c gctCollectionClient) EstimateSourceEvidence(ctx context.Context, repoPaths []string) (internalexecution.SourceEvidencePreflight, error) {
+	baseURL, err := c.resolver.ResolveScenarioURLDefault(ctx, "git-control-tower")
+	if err != nil {
+		return internalexecution.SourceEvidencePreflight{}, fmt.Errorf("resolve git-control-tower URL: %w", err)
+	}
+	client := baselinesconnect.NewBaselinesServiceClient(c.http, baseURL)
+	resp, err := client.EstimatePathSnapshot(ctx, connect.NewRequest(&baselinesv1.EstimatePathSnapshotRequest{Selections: repoPaths}))
+	if err != nil {
+		return internalexecution.SourceEvidencePreflight{}, fmt.Errorf("estimate git-control-tower source evidence: %w", err)
+	}
+	estimate := resp.Msg.GetEstimate()
+	if estimate == nil {
+		return internalexecution.SourceEvidencePreflight{}, fmt.Errorf("git-control-tower returned no source-evidence estimate")
+	}
+	out := internalexecution.SourceEvidencePreflight{
+		PolicyVersion: int(estimate.GetPolicyVersion()), IncludeIgnored: estimate.GetIncludeIgnored(), RetainContent: estimate.GetRetainContent(),
+		EligibleFiles: int(estimate.GetEligibleFiles()), EligibleBytes: estimate.GetEligibleBytes(),
+		ExcludedIgnoredFiles: int(estimate.GetExcludedIgnoredFiles()), ExcludedIgnoredBytes: estimate.GetExcludedIgnoredBytes(),
+		ExcludedSensitiveFiles: int(estimate.GetExcludedSensitiveFiles()), ExcludedBinaryFiles: int(estimate.GetExcludedBinaryFiles()), OversizedFiles: int(estimate.GetOversizedFiles()),
+		RetainedContentBytes: estimate.GetRetainedContentBytes(), RepairRequired: estimate.GetRepairRequired(),
+	}
+	for _, contributor := range estimate.GetTopContributors() {
+		out.TopContributors = append(out.TopContributors, internalexecution.SourceEvidenceContributor{Path: contributor.GetPath(), Files: int(contributor.GetFiles()), Bytes: contributor.GetBytes()})
+	}
+	for _, issue := range estimate.GetIssues() {
+		out.Issues = append(out.Issues, internalexecution.SourceEvidenceIssue{Code: issue.GetCode(), Severity: issue.GetSeverity(), Detail: issue.GetDetail()})
+	}
+	for _, recommendation := range estimate.GetRecommendations() {
+		out.Recommendations = append(out.Recommendations, internalexecution.SourceEvidenceRecommendation{Selection: recommendation.GetSelection(), Reason: recommendation.GetReason()})
+	}
+	return out, nil
 }
 
 func (c gctCollectionClient) StartCollectionCapture(ctx context.Context, req internalvalidation.BaselineCollectionCaptureRequest) (internalvalidation.BaselineCollectionCaptureResult, error) {

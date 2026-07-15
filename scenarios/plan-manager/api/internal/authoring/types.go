@@ -169,6 +169,27 @@ type CommandIssue struct {
 	Message string
 }
 
+// SourceEvidenceAdvisor provides the optional, authoritative preflight from
+// Git Control Tower. It is advisory during authoring: the deterministic
+// readiness gate remains the finalizer's authority, while this seam warns an
+// author early when a selected source scope would be unsafe to capture.
+type SourceEvidenceAdvisor interface {
+	AdviseSourceEvidence(context.Context, []string) (SourceEvidenceAdvisory, error)
+}
+
+type SourceEvidenceAdvisory struct {
+	EligibleFiles   int
+	EligibleBytes   int64
+	RepairRequired  bool
+	Issues          []SourceEvidenceIssue
+	Recommendations []SourceEvidenceRecommendation
+}
+
+type (
+	SourceEvidenceIssue          struct{ Code, Severity, Detail string }
+	SourceEvidenceRecommendation struct{ Selection, Reason string }
+)
+
 type ReferenceResolver interface {
 	Resolve(ctx context.Context, ref planmodel.Reference) (planmodel.Reference, error)
 }

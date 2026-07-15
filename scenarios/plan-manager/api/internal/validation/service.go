@@ -656,15 +656,31 @@ func (s *service) SyncValidation(ctx context.Context, operationID string) (Valid
 			op.QueueReason = "producer diff has not reached readable durable state: " + readErr.Error()
 			continue
 		}
-		if result.Classification != "clean" && result.Classification != "regression" {
+		switch result.Classification {
+		case "clean":
+			child.Status, child.TerminalAt, child.ExternalID, child.Detail = ChildTerminal, s.now(), result.OperationID, result.Detail
+			child.Verdict = VerdictPass
+		case "regression":
+			child.Status, child.TerminalAt, child.ExternalID, child.Detail = ChildTerminal, s.now(), result.OperationID, result.Detail
+			child.Verdict = VerdictFail
+		case "not-comparable":
+			// A not-comparable diff is a TERMINAL producer outcome — a required
+			// member went failed/skipped/stale or collection coverage was
+			// incomplete, so the aggregate is not usable as a gate. It is
+			// inconclusive (VerdictUnknown), NOT a regression, but it must
+			// terminalize the ticket: leaving it non-terminal wedges the ticket
+			// forever, and because unkeyed `validate start` coalesces to any active
+			// (non-terminal) ticket, every subsequent start returns the wedged one.
+			// Terminalizing lets the next `validate start` mint a fresh ticket
+			// naturally (knw-1784053356805823492).
+			child.Status, child.TerminalAt, child.ExternalID = ChildTerminal, s.now(), result.OperationID
+			child.Verdict = VerdictUnknown
+			child.Detail = joinDetails("collection diff not comparable: a required member is missing or incomparable (failed/skipped/stale); fix the member and re-run validation", result.Detail)
+		default:
+			// Still computing (e.g. not-ready) — remain non-terminal and wait for
+			// the producer to reach a terminal classification.
 			op.QueueReason = "producer diff remains " + result.Classification
 			continue
-		}
-		child.Status, child.TerminalAt, child.ExternalID, child.Detail = ChildTerminal, s.now(), result.OperationID, result.Detail
-		if result.Classification == "clean" {
-			child.Verdict = VerdictPass
-		} else {
-			child.Verdict = VerdictFail
 		}
 	}
 	allTerminal := len(op.Children) > 0

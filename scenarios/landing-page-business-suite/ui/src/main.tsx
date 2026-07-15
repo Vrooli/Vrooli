@@ -32,7 +32,7 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__landi
 
   initIframeBridgeChild({
     parentOrigin,
-    appId: "landing-manager",
+    appId: "landing-page-business-suite",
     captureLogs: {
       enabled: true,
       streaming: true,

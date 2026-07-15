@@ -1,16 +1,7 @@
 {
   "_note": "Reviewed, explicitly-accepted divergences between the react-vite template's vendored components and the react-component-library catalog latest. This is an audit allowlist, NOT a suppression: TestReactViteTemplateVendoredComponentsMatchCatalogLatest fails for ANY behind/deprecated vendored copy that is not listed here, and it also fails if a listed entry no longer matches a real finding (stale entries must be removed). Mirrors the --accept-behavior-loss override semantics: divergence is tolerated only with a dated, named, reasoned record. Regenerate the reasoning from docs/reports when template writes come back into scope and the copies are reconverged.",
-  "reviewedAt": "2026-07-14",
+  "reviewedAt": "2026-07-15",
   "report": "scenarios/react-component-library/docs/reports/2026-07-14-react-vite-template-divergence.md",
   "scanRoot": "templates/scenarios/react-vite",
-  "divergences": [
-    {
-      "path": "ui/src/components/ui/data-table.tsx",
-      "libraryId": "react-component-library:DataTable",
-      "vendoredVersion": "1.1.0",
-      "catalogVersion": "1.1.2",
-      "status": "behind",
-      "reason": "Phase 6 restored four generic adopter affordances the DataTable 1.1.x line had dropped (tableTestId + searchableText in 1.1.1; filterGroupLabel + sortLabel in 1.1.2). The react-vite copy's own local delta (tableTestId) is now absorbed upstream, so reconverging it to 1.1.2 lands clean. It remains behind only because templates/** is out of the write boundary this cycle; template refresh is tracked as a follow-up in the report."
-    }
-  ]
+  "divergences": []
 }

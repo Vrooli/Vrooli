@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -159,6 +160,29 @@ func legacyBaselineAdoptionStep(executionID string) GuidedStep {
 }
 
 func baselineRequiredStep(state BaselineSetState) GuidedStep {
+	if state.Status == BaselineSetStatusScopeRepairRequired {
+		instructions := []string{
+			"Git Control Tower's immediate source-evidence estimate requires a narrower selection. Behavioral collection members remain required; source evidence is informational and was not silently omitted.",
+			fmt.Sprintf("Measured estimate: %d eligible files, %d bytes; %d ignored files excluded; projected retained content %d bytes.", state.SourcePreflight.EligibleFiles, state.SourcePreflight.EligibleBytes, state.SourcePreflight.ExcludedIgnoredFiles, state.SourcePreflight.RetainedContentBytes),
+		}
+		for _, contributor := range state.SourcePreflight.TopContributors {
+			instructions = append(instructions, fmt.Sprintf("Contributor: %s (%d files, %d bytes)", contributor.Path, contributor.Files, contributor.Bytes))
+		}
+		for _, recommendation := range state.SourcePreflight.Recommendations {
+			instructions = append(instructions, "Repair selection: "+recommendation.Selection+" ("+recommendation.Reason+")")
+		}
+		recommendation := "<boundary-contained-path>"
+		if len(state.SourcePreflight.Recommendations) > 0 {
+			recommendation = state.SourcePreflight.Recommendations[0].Selection
+		}
+		return GuidedStep{
+			StepKind: "baseline_scope_repair_required", Title: "Baseline Source Scope Repair Required", Summary: state.Detail, Instructions: instructions,
+			NextActions: []NextAction{{ID: "baseline-scope-repair", Kind: NextActionRecommended, Label: "Repair and re-estimate source scope", Reason: "Plan Manager boundary-checks the replacement and asks GCT again; it will issue capture only if that estimate is safe.", Argv: []string{"exec", "baseline-scope-repair", "<execution-id>", "--paths", recommendation, "--reason", "<why this narrow selection is relevant>"}}},
+		}
+	}
+	if state.PreflightUnavailable {
+		return GuidedStep{StepKind: "baseline_preflight_unavailable", Title: "Baseline Source Preflight Unavailable", Summary: state.Detail, Instructions: []string{"Do not assume source evidence is safe while Git Control Tower is unavailable. Restore the provider and continue so Plan Manager can issue a fresh authoritative preflight."}}
+	}
 	return GuidedStep{
 		StepKind: "baseline_required", Title: "Baseline Required",
 		Summary:      "Git Control Tower must capture the immutable before-state before normal phase work can begin.",
@@ -169,6 +193,14 @@ func baselineRequiredStep(state BaselineSetState) GuidedStep {
 			{ID: "baseline-sync", Kind: NextActionRecovery, Label: "Synchronize baseline evidence", Reason: "Read durable GCT state after the producer reaches a terminal result.", Argv: state.SyncArgv},
 		},
 	}
+}
+
+func pathsToArgv(paths []string) []string {
+	out := make([]string, 0, len(paths)*2)
+	for _, path := range paths {
+		out = append(out, "--path", path)
+	}
+	return out
 }
 
 func phasePrimaryAction(executionID, planID, phaseID string, ctx PhaseContext) NextAction {

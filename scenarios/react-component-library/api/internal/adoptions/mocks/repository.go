@@ -124,6 +124,24 @@ func (f *FakeRepository) UpdateAppliedUnit(ctx context.Context, in adoptions.App
 	return a, nil
 }
 
+func (f *FakeRepository) Rebaseline(_ context.Context, in adoptions.RebaselineInput) (adoptions.Adoption, error) {
+	if strings.TrimSpace(in.ID) == "" {
+		return adoptions.Adoption{}, adoptions.ErrInvalidAdoption{Field: "id", Reason: "required"}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	a, ok := f.items[in.ID]
+	if !ok {
+		return adoptions.Adoption{}, adoptions.ErrAdoptionNotFound{ID: in.ID}
+	}
+	a.AdoptedSnapshotSHA256 = in.AdoptedSnapshotSHA256
+	if in.Files != nil {
+		a.Files = append([]adoptions.AdoptionFile(nil), in.Files...)
+	}
+	f.items[in.ID] = a
+	return a, nil
+}
+
 func (f *FakeRepository) Get(ctx context.Context, id string) (adoptions.Adoption, error) {
 	f.GetCalls.Add(1)
 	if f.GetErr != nil {

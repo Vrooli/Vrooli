@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:DataTable
- * @vrooliComponentVersion 1.1.2
+ * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption template:react-vite:data-table
- * @vrooliComponentAppliedAt 2026-07-14T20:41:16Z
- * @vrooliComponentSourceSha256 c201e00d856b5f419d036552b899112efdfb523f4e16356b0dc8d06ddfa91ef8
- * @vrooliComponentDriftHash c201e00d856b5f419d036552b899112efdfb523f4e16356b0dc8d06ddfa91ef8
+ * @vrooliComponentAppliedAt 2026-07-15T03:05:52Z
+ * @vrooliComponentSourceSha256 8f743927ac49c317d429a0e74f856ea6ede6746b87c75d5d8a55b7c2703fad1f
+ * @vrooliComponentDriftHash 8f743927ac49c317d429a0e74f856ea6ede6746b87c75d5d8a55b7c2703fad1f
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
@@ -160,7 +160,7 @@ export function DataTable<Row>({
                 key={filter.id}
                 type="button"
                 className={cn(
-                  "min-h-9 rounded-control border px-3 text-sm font-medium transition",
+                  "min-h-11 rounded-control border px-3 text-sm font-medium transition",
                   activeFilter === filter.id
                     ? "border-app-primary bg-app-primary text-app-primary-foreground"
                     : "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
@@ -174,7 +174,7 @@ export function DataTable<Row>({
         )}
       </div>
       <div className="max-w-full overflow-x-auto">
-        <table data-testid={tableTestId} className="w-full min-w-max border-collapse text-left text-sm">
+        <table data-testid={tableTestId} className="w-full table-fixed border-collapse text-left text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
             <tr>
@@ -187,7 +187,7 @@ export function DataTable<Row>({
                       <button
                         type="button"
                         aria-label={sortLabel(column.header)}
-                        className="inline-flex min-h-9 items-center gap-1 rounded-control text-left hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+                        className="inline-flex min-h-11 items-center gap-1 rounded-control text-left hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
                         onClick={() => toggleSort(column)}
                       >
                         <span>{column.header}</span>
@@ -212,7 +212,7 @@ export function DataTable<Row>({
               filteredRows.map((row, index) => (
                 <tr key={getRowKey(row, index)} className="border-t border-app-border">
                   {columns.map((column) => (
-                    <td key={column.id} className={cn("px-3 py-3 align-middle text-app-foreground", column.className)}>
+                    <td key={column.id} className={cn("break-words px-3 py-3 align-middle text-app-foreground", column.className)}>
                       {column.accessor(row)}
                     </td>
                   ))}

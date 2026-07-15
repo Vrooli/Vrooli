@@ -47,27 +47,6 @@ func degraded(src AutofillSource, key SectionKey, detail string) AutofillResult 
 	return AutofillResult{Source: src, SectionKey: key, Filled: false, Degraded: true, Detail: detail}
 }
 
-// appendAcceptedReference appends one reviewed locator line to the references
-// section content and marks it filled (author-reviewed, not autofilled).
-func appendAcceptedReference(sess *Session, ref planmodel.Reference) {
-	idx := indexOf(sess.Sections, SectionReferences)
-	if idx < 0 {
-		return
-	}
-	line := "[" + referenceMarker(ref.Kind) + ": " + ref.Target + "]"
-	existing := strings.TrimRight(sess.Sections[idx].Content, "\n")
-	if strings.Contains(existing, line) {
-		return
-	}
-	if strings.TrimSpace(existing) == "" {
-		sess.Sections[idx].Content = line
-	} else {
-		sess.Sections[idx].Content = existing + "\n" + line
-	}
-	sess.Sections[idx].Filled = true
-	sess.Sections[idx].Autofilled = false
-}
-
 func hasReferencesOrNoCodeReason(content string) bool {
 	if strings.TrimSpace(noCodeRefsReason(content)) != "" {
 		return true

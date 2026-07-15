@@ -123,6 +123,9 @@ func TestEvaluatePreflightModeDegradesUnavailableDependencies(t *testing.T) {
 }
 
 func readyPlan() planmodel.Plan {
+	boundary := planmodel.ChangeBoundary{
+		AcceptanceAllow: []string{"scenarios/plan-manager/**"},
+	}
 	return planmodel.Plan{
 		ID:                 "p1",
 		Slug:               "p1",
@@ -135,10 +138,12 @@ func readyPlan() planmodel.Plan {
 		ValidationStrategy: "Run readiness unit tests.",
 		DefinitionOfDone:   "Readiness findings are deterministic.",
 		Constraints:        "NO_CODE_REFS: readiness unit fixture has no plan-level code references.",
-		ChangeBoundary: planmodel.ChangeBoundary{
-			AcceptanceAllow: []string{"scenarios/plan-manager/**"},
+		ChangeBoundary:     boundary,
+		BaselineSet:        planmodel.BaselineSetFromBoundary(boundary, "p1-baseline"),
+		RegressionAnchor: planmodel.RegressionAnchor{
+			Strategy:     planmodel.AnchorStrategyChangeBoundary,
+			BaselineName: "p1-baseline",
 		},
-		RegressionAnchor: planmodel.RegressionAnchor{Strategy: planmodel.AnchorStrategyChangeBoundary},
 		RelevantContext: []planmodel.RelevantContextItem{
 			noContextItem(planmodel.RelevantContextScopeGlobal, ""),
 			noSkillContextItem(),

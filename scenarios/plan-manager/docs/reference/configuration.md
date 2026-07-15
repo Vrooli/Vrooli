@@ -128,7 +128,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 plan-manager configure api_base http://localhost:15001/api/v1
-plan-manager configure token <token>
+plan-manager configure token "<token>"
 ```
 
 ## API-base resolution precedence

@@ -1,4 +1,4 @@
--- Landing Manager Database Schema
+-- Landing Page Business Suite Database Schema
 --
 -- NOTE: Variant, section, and branding configuration is now stored in JSON files
 -- (config/variants/*.json and config/branding.json) and loaded into memory at startup.

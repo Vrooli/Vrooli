@@ -113,6 +113,17 @@ type fakeFreshener struct {
 	calls  int
 }
 
+type fakePreflight struct {
+	result execution.SourceEvidencePreflight
+	err    error
+	calls  int
+}
+
+func (f *fakePreflight) EstimateSourceEvidence(_ context.Context, _ []string) (execution.SourceEvidencePreflight, error) {
+	f.calls++
+	return f.result, f.err
+}
+
 func (f *fakeFreshener) SyncBaseline(_ context.Context, _ string) (execution.FreshenResult, error) {
 	f.calls++
 	return f.result, f.err
@@ -184,6 +195,17 @@ func newHarnessWithFreshenerAndValidator(t *testing.T, plan internalplans.Plan, 
 	store := &fakePlanStore{plan: plan}
 	sink := &recordingSink{}
 	svc := execution.NewService(execution.Deps{Repo: execution.NewSQLiteRepository(d, clk), Plans: store, Validator: validator, Log: &fakeLog{}, Velocity: sink, Baseline: freshener, Clock: clk})
+	return harness{svc: svc, store: store, sink: sink, log: &fakeLog{}, clock: clk}
+}
+
+func newHarnessWithPreflight(t *testing.T, plan internalplans.Plan, preflight execution.SourceEvidencePreflighter) harness {
+	t.Helper()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(execution.Schema)))
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	store := &fakePlanStore{plan: plan}
+	sink := &recordingSink{}
+	svc := execution.NewService(execution.Deps{Repo: execution.NewSQLiteRepository(d, clk), Plans: store, Log: &fakeLog{}, Velocity: sink, Preflight: preflight, Clock: clk})
 	return harness{svc: svc, store: store, sink: sink, log: &fakeLog{}, clock: clk}
 }
 
@@ -772,6 +794,41 @@ func TestCompleteAssemblesHandoffAndCapturesVelocity(t *testing.T) {
 	require.Equal(t, execution.CompletenessFull, points[0].Completeness)
 }
 
+// TestCompleteIsIdempotent pins the desired behavior for a repeated completion:
+// once an execution has produced a full handoff, calling Complete again returns
+// that same handoff without error and without writing a second handoff or a
+// second velocity point. Previously the second call re-ran the completion gates
+// and could reject an already-complete execution with a validation error
+// (knw-1784053356805823492).
+func TestCompleteIsIdempotent(t *testing.T) {
+	validator := fakeValidator{
+		hasResult: true,
+		result:    execution.ValidationResult{Verdict: "pass", Staleness: internalplans.StalenessFresh},
+	}
+	plan := threePhasePlan()
+	for i := range plan.Phases {
+		plan.Phases[i].Status = internalplans.PhaseStatusDone
+	}
+	h := newHarness(t, plan, validator)
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-c")
+	require.NoError(t, err)
+
+	first, _, _, err := h.svc.Complete(context.Background(), e.ID, execution.CompletionInputs{})
+	require.NoError(t, err)
+	require.Equal(t, execution.CompletenessFull, first.Completeness)
+
+	second, nudges, _, err := h.svc.Complete(context.Background(), e.ID, execution.CompletionInputs{})
+	require.NoError(t, err, "completing an already-complete execution must not error")
+	require.Equal(t, first.ID, second.ID, "the same handoff is returned, not a new one")
+	require.Equal(t, execution.CompletenessFull, second.Completeness)
+	require.NotEmpty(t, nudges, "completion nudges are still returned on the idempotent path")
+
+	require.Len(t, h.sink.emitted, 1, "the idempotent second completion must not emit a second velocity point")
+	points, _, err := h.svc.GetVelocity(context.Background(), "plan-1")
+	require.NoError(t, err)
+	require.Len(t, points, 1, "no duplicate velocity point is persisted")
+}
+
 func TestCompleteKeepsLocalVelocityWhenSinkFails(t *testing.T) {
 	plan := threePhasePlan()
 	for i := range plan.Phases {
@@ -918,6 +975,29 @@ func TestFreshenPersistsBaselineSetCheckpointAcrossStatusReads(t *testing.T) {
 	require.NotEmpty(t, loaded.BaselineSet.CapturedAt)
 	require.Equal(t, "run-gct", loaded.BaselineSet.Members[0].RunID)
 	require.Equal(t, "paths-before", loaded.BaselineSet.PathSnapshots[0].Name)
+}
+
+func TestSourceEvidenceRepairDoesNotIssueCaptureCommand(t *testing.T) {
+	plan := threePhasePlan()
+	plan.ChangeBoundary.AcceptanceAllow = append(plan.ChangeBoundary.AcceptanceAllow, "packages/proto/**")
+	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"plan-manager"}, RepoPaths: []string{"packages/proto/gen/**"}}
+	preflight := &fakePreflight{result: execution.SourceEvidencePreflight{EligibleFiles: 12, EligibleBytes: 4096, RepairRequired: true, TopContributors: []execution.SourceEvidenceContributor{{Path: "packages/proto", Files: 12, Bytes: 4096}}, Issues: []execution.SourceEvidenceIssue{{Code: "generated_output_too_broad", Severity: "repair-required", Detail: "all generated output is too broad"}}, Recommendations: []execution.SourceEvidenceRecommendation{{Selection: "packages/proto/gen/go/plan-manager/**", Reason: "affected namespace"}}}}
+	h := newHarnessWithPreflight(t, plan, preflight)
+	e, pctx, step, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+	require.Equal(t, execution.BaselineSetStatusScopeRepairRequired, pctx.BaselineSet.Status)
+	require.Empty(t, pctx.BaselineSet.CaptureArgv)
+	require.Equal(t, "baseline_scope_repair_required", step.StepKind)
+	require.Equal(t, 1, preflight.calls)
+	require.Contains(t, step.Instructions, "Repair selection: packages/proto/gen/go/plan-manager/** (affected namespace)")
+	require.Contains(t, step.Instructions, "Contributor: packages/proto (12 files, 4096 bytes)")
+	preflight.result = execution.SourceEvidencePreflight{EligibleFiles: 2, EligibleBytes: 128}
+	repaired, repairedContext, repairedStep, err := h.svc.RepairSourceScope(context.Background(), e.ID, execution.SourceScopeRepairRequest{Paths: []string{"packages/proto/gen/go/plan-manager/**"}, Reason: "only generated Plan Manager bindings changed"})
+	require.NoError(t, err)
+	require.Equal(t, execution.BaselineSetStatusRequired, repaired.BaselineSet.Status)
+	require.NotEmpty(t, repaired.BaselineSet.CaptureArgv)
+	require.Equal(t, []string{"packages/proto/gen/go/plan-manager/**"}, repairedContext.BaselineSet.RepoPaths)
+	require.Equal(t, "baseline_required", repairedStep.StepKind)
 }
 
 func TestScopeAmendmentRequiresAndRendersTheAmendedProducerSelection(t *testing.T) {

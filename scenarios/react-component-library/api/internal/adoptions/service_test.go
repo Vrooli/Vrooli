@@ -584,8 +584,12 @@ func TestService_ReconcileDryRunAndApplyGroupsProvenanceWithoutReporter(t *testi
 		Scenario:    "other",
 		AdoptedPath: "ui/src/Other.tsx",
 	})
+	// Library bodies match the on-disk copies verbatim, so reconcile records a
+	// genuinely-clean baseline. (Production GetVersion always populates Content;
+	// drift is decided by comparing the local body to the library body, not by
+	// blindly hashing the local file.)
 	lib := &fakeLibrary{byID: map[string]components.Component{"cmp": {ID: "cmp", LibraryID: "rcl:Drawer", LatestVersion: "1.0.0"}}, versions: map[string]components.ComponentVersion{
-		"cmp@1.0.0": {ComponentID: "cmp", LibraryID: "rcl:Drawer", Version: "1.0.0", Status: components.VersionStatusReleased, Files: []components.ComponentVersionFile{{Path: "Drawer.tsx", ContentSHA256: sha("drawer"), IsEntry: true}, {Path: "useFocusTrap.ts", ContentSHA256: sha("focus")}}},
+		"cmp@1.0.0": {ComponentID: "cmp", LibraryID: "rcl:Drawer", Version: "1.0.0", Status: components.VersionStatusReleased, Files: []components.ComponentVersionFile{{Path: "Drawer.tsx", Content: "entry", ContentSHA256: sha("entry"), IsEntry: true}, {Path: "useFocusTrap.ts", Content: "hook", ContentSHA256: sha("hook")}}},
 	}}
 	files := &fakeFiles{bytes: map[string][]byte{"target::ui/src/components/drawer.tsx": []byte("entry"), "target::ui/src/hooks/useFocusTrap.ts": []byte("hook")}, provenance: []adoptions.ProvenanceFile{
 		{Scenario: "target", AdoptedPath: "ui/src/components/drawer.tsx", LibraryID: "rcl:Drawer", Version: "1.0.0", AdoptionID: "known-unit", Content: []byte("entry")},

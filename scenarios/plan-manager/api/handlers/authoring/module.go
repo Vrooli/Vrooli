@@ -41,17 +41,18 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, storePat
 	})
 	runner := internalauthoring.DefaultRunner()
 	svc := internalauthoring.NewService(internalauthoring.Deps{
-		Store:     internalauthoring.NewSQLiteStore(db, clk),
-		Writer:    planWriter{svc: plansSvc},
-		Reader:    planWriter{svc: plansSvc},
-		Anchor:    internalauthoring.DefaultAnchorIntentDeriver(),
-		Skills:    internalauthoring.NewCommandSkillPackDiscoverer(runner),
-		Commands:  newCLIHealthCommandValidator(),
-		Resolver:  internalvalidation.NewFileResolver(""),
-		Renderer:  planRenderer{},
-		Posture:   posturePreparer{maturity: maturity},
-		StorePath: storePath,
-		Clock:     clk,
+		Store:          internalauthoring.NewSQLiteStore(db, clk),
+		Writer:         planWriter{svc: plansSvc},
+		Reader:         planWriter{svc: plansSvc},
+		Anchor:         internalauthoring.DefaultAnchorIntentDeriver(),
+		Skills:         internalauthoring.NewCommandSkillPackDiscoverer(runner),
+		Commands:       newCLIHealthCommandValidator(),
+		SourceEvidence: newGCTSourceEvidenceAdvisor(),
+		Resolver:       internalvalidation.NewFileResolver(""),
+		Renderer:       planRenderer{},
+		Posture:        posturePreparer{maturity: maturity},
+		StorePath:      storePath,
+		Clock:          clk,
 	})
 	connectPath, connectHandler := authoringconnect.NewAuthoringServiceHandler(NewConnectHandler(Deps{
 		Service: svc,

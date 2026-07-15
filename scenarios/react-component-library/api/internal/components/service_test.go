@@ -130,6 +130,31 @@ func TestFSServiceJSONReaderGuardsTraversal(t *testing.T) {
 	require.ErrorContains(t, err, "invalid scenario name")
 }
 
+// TestFSServiceJSONReaderResolvesTemplateScenarioKey covers the template
+// adoption key form "../templates/scenarios/<id>": it must resolve next to
+// the scenarios root (so reapply against a vendored template copy can run
+// style-fit) while still rejecting traversal inside the template id.
+func TestFSServiceJSONReaderResolvesTemplateScenarioKey(t *testing.T) {
+	repoRoot := t.TempDir()
+	scenariosRoot := filepath.Join(repoRoot, "scenarios")
+	serviceDir := filepath.Join(repoRoot, "templates", "scenarios", "react-vite", ".vrooli")
+	require.NoError(t, os.MkdirAll(scenariosRoot, 0o755))
+	require.NoError(t, os.MkdirAll(serviceDir, 0o755))
+	payload := []byte(`{"generation":{"design":{"id":"vrooli-default"}}}`)
+	require.NoError(t, os.WriteFile(filepath.Join(serviceDir, "service.json"), payload, 0o600))
+
+	reader := components.NewFSServiceJSONReader(scenariosRoot)
+
+	got, err := reader.Read(context.Background(), "../templates/scenarios/react-vite")
+	require.NoError(t, err)
+	require.Equal(t, payload, got)
+
+	_, err = reader.Read(context.Background(), "../templates/scenarios/../../secrets")
+	require.ErrorContains(t, err, "invalid scenario name")
+	_, err = reader.Read(context.Background(), "../templates/scenarios/react-vite/nested")
+	require.ErrorContains(t, err, "invalid scenario name")
+}
+
 func TestService_IngestComponentCreatesIndexedDraftAndReportsFindings(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()

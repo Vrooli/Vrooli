@@ -24,17 +24,28 @@ func NewFSPackageJSONReader(root string) *FSPackageJSONReader {
 
 var _ PackageJSONReader = (*FSPackageJSONReader)(nil)
 
+// templateScenarioPrefix is the scenario-key form adoption records use for
+// vendored template copies: "../templates/scenarios/<id>", resolved relative
+// to the scenarios root (matching adoptions.FSScenarioFileReader).
+const templateScenarioPrefix = "../templates/scenarios/"
+
 func (r *FSPackageJSONReader) Read(_ context.Context, scenario string) ([]byte, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return nil, fmt.Errorf("scenario required")
 	}
-	if strings.ContainsAny(scenario, "/\\") || strings.Contains(scenario, "..") {
+	root := r.Root
+	name := scenario
+	if tmpl, ok := strings.CutPrefix(scenario, templateScenarioPrefix); ok {
+		root = filepath.Clean(filepath.Join(r.Root, "..", "templates", "scenarios"))
+		name = tmpl
+	}
+	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
 		return nil, fmt.Errorf("invalid scenario name %q", scenario)
 	}
-	base := filepath.Join(r.Root, scenario)
+	base := filepath.Join(root, name)
 	cleaned := filepath.Clean(base)
-	rootClean := filepath.Clean(r.Root) + string(filepath.Separator)
+	rootClean := filepath.Clean(root) + string(filepath.Separator)
 	if !strings.HasPrefix(cleaned, rootClean) {
 		return nil, fmt.Errorf("resolved path escapes root")
 	}

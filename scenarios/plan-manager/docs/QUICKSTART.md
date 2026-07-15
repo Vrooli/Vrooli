@@ -60,7 +60,7 @@ automatically):
 
 ```bash
 plan-manager status
-plan-manager <domain> <command>   # e.g. list/create commands for your domain
+plan-manager "<domain>" "<command>"   # e.g. list/create commands for your domain
 ```
 
 Or directly via HTTP:

@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -318,32 +319,163 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 	if err != nil {
 		return err
 	}
-	current := sourceManifestFile{
-		LibraryID:          c.LibraryID,
-		DisplayName:        firstNonEmpty(c.DisplayName, c.Slug),
-		Description:        c.Description,
-		Tags:               cleanTags(c.Tags),
-		Latest:             c.LatestVersion,
-		Draft:              c.DraftVersion,
-		DeprecatedVersions: []string{},
+
+	// Read-modify-write on the raw JSON object. UpdateManifest owns only a small
+	// set of fields (identity, tags, version pointers); every other key on disk —
+	// slot, category, entry, fileSlots, designStyles, and any author-added or
+	// future field — is preserved verbatim in its original position. A prior
+	// struct round-trip silently dropped unknown fields, so designStyles
+	// affinities had to be hand-restored after every version cut (bug c71f56c0).
+	raw, _ := os.ReadFile(abs)
+	manifest, order, err := decodeOrderedObject(raw)
+	if err != nil {
+		return ErrInvalidHeader{SourcePath: manifestPath, Field: "component.json", Reason: fmt.Sprintf("not a JSON object: %v", err)}
 	}
-	if raw, err := os.ReadFile(abs); err == nil {
-		_ = json.Unmarshal(raw, &current)
-	}
-	current.DisplayName = firstNonEmpty(strings.TrimSpace(in.DisplayName), current.DisplayName)
-	current.Description = strings.TrimSpace(in.Description)
+
+	setManifestField(manifest, &order, "libraryId", c.LibraryID)
+	displayName := firstNonEmpty(strings.TrimSpace(in.DisplayName), stringField(manifest, "displayName"), c.DisplayName, c.Slug)
+	setManifestField(manifest, &order, "displayName", displayName)
+	setManifestField(manifest, &order, "description", strings.TrimSpace(in.Description))
 	if in.Tags != nil {
-		current.Tags = cleanTags(in.Tags)
+		setManifestField(manifest, &order, "tags", cleanTags(in.Tags))
+	} else if _, ok := manifest["tags"]; !ok {
+		setManifestField(manifest, &order, "tags", cleanTags(c.Tags))
 	}
-	current.Latest = firstNonEmpty(strings.TrimSpace(in.LatestVersion), current.Latest)
-	current.Draft = strings.TrimSpace(in.DraftVersion)
-	if in.DeprecatedVersions != nil {
-		current.DeprecatedVersions = cleanTags(in.DeprecatedVersions)
-	}
-	if current.Latest == "" {
+	latest := firstNonEmpty(strings.TrimSpace(in.LatestVersion), stringField(manifest, "latest"), c.LatestVersion)
+	if latest == "" {
 		return ErrInvalidHeader{SourcePath: manifestPath, Field: "latest", Reason: "required"}
 	}
-	return writeJSONFile(abs, current)
+	setManifestField(manifest, &order, "latest", latest)
+	setManifestField(manifest, &order, "draft", strings.TrimSpace(in.DraftVersion))
+	if in.DeprecatedVersions != nil {
+		setManifestField(manifest, &order, "deprecatedVersions", cleanTags(in.DeprecatedVersions))
+	} else if _, ok := manifest["deprecatedVersions"]; !ok {
+		setManifestField(manifest, &order, "deprecatedVersions", []string{})
+	}
+
+	encoded, err := marshalOrderedObject(manifest, order)
+	if err != nil {
+		return fmt.Errorf("encode component manifest: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		return fmt.Errorf("create component manifest dir: %w", err)
+	}
+	if err := os.WriteFile(abs, encoded, 0o600); err != nil {
+		return fmt.Errorf("write component manifest: %w", err)
+	}
+	return nil
+}
+
+// decodeOrderedObject parses a JSON object into its key→value map plus the key
+// order as they appear on disk, so a rewrite can preserve field ordering. Empty
+// input yields an empty object, not an error (a fresh manifest is seeded by the
+// caller).
+func decodeOrderedObject(data []byte) (map[string]json.RawMessage, []string, error) {
+	manifest := map[string]json.RawMessage{}
+	var order []string
+	if len(bytes.TrimSpace(data)) == 0 {
+		return manifest, order, nil
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, nil, err
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	tok, err := dec.Token()
+	if err != nil {
+		return nil, nil, err
+	}
+	if delim, ok := tok.(json.Delim); !ok || delim != '{' {
+		return nil, nil, fmt.Errorf("expected a JSON object")
+	}
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return nil, nil, err
+		}
+		key, ok := keyTok.(string)
+		if !ok {
+			return nil, nil, fmt.Errorf("expected string object key")
+		}
+		order = append(order, key)
+		var skip json.RawMessage
+		if err := dec.Decode(&skip); err != nil {
+			return nil, nil, err
+		}
+	}
+	return manifest, order, nil
+}
+
+// setManifestField writes value into manifest under key, appending key to order
+// when it is new so existing fields keep their on-disk position.
+func setManifestField(manifest map[string]json.RawMessage, order *[]string, key string, value any) {
+	if _, ok := manifest[key]; !ok {
+		*order = append(*order, key)
+	}
+	encoded, _ := json.Marshal(value)
+	manifest[key] = encoded
+}
+
+// stringField returns the string value stored under key, or "" when the key is
+// absent or not a JSON string.
+func stringField(manifest map[string]json.RawMessage, key string) string {
+	raw, ok := manifest[key]
+	if !ok {
+		return ""
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return ""
+	}
+	return s
+}
+
+// marshalOrderedObject re-emits the object in the given key order using the same
+// two-space indentation json.MarshalIndent produces, so preserved fields render
+// identically to the ones this package writes. Keys present in the map but not in
+// order (defensive) are appended deterministically.
+func marshalOrderedObject(manifest map[string]json.RawMessage, order []string) ([]byte, error) {
+	seen := make(map[string]bool, len(order))
+	emitted := make([]string, 0, len(manifest))
+	for _, key := range order {
+		if seen[key] {
+			continue
+		}
+		if _, ok := manifest[key]; ok {
+			seen[key] = true
+			emitted = append(emitted, key)
+		}
+	}
+	extra := make([]string, 0)
+	for key := range manifest {
+		if !seen[key] {
+			extra = append(extra, key)
+		}
+	}
+	sort.Strings(extra)
+	emitted = append(emitted, extra...)
+
+	var buf bytes.Buffer
+	buf.WriteString("{\n")
+	for i, key := range emitted {
+		keyJSON, err := json.Marshal(key)
+		if err != nil {
+			return nil, err
+		}
+		var value bytes.Buffer
+		if err := json.Indent(&value, manifest[key], "  ", "  "); err != nil {
+			return nil, err
+		}
+		buf.WriteString("  ")
+		buf.Write(keyJSON)
+		buf.WriteString(": ")
+		buf.Write(value.Bytes())
+		if i < len(emitted)-1 {
+			buf.WriteByte(',')
+		}
+		buf.WriteByte('\n')
+	}
+	buf.WriteString("}\n")
+	return buf.Bytes(), nil
 }
 
 func (s *FSContentStore) resolveCreatable(sourcePath string) (string, error) {

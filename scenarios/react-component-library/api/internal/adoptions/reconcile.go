@@ -104,25 +104,166 @@ func (s *service) reconcileFiles(ctx context.Context, files []ProvenanceFile, ap
 		result.Created++
 		recordedIDs[created.ID] = true
 	}
+	if apply {
+		healed, err := s.healPoisonedSnapshots(ctx, existing)
+		if err != nil {
+			return result, err
+		}
+		result.Healed = healed
+	}
 	return result, nil
 }
 
+// healPoisonedSnapshots re-derives honest baselines for already-recorded rows
+// whose snapshot was captured from a locally-modified copy — the backfill
+// hash-masking defect, where a modified file reads CLEAN because its snapshot is
+// its own (already-edited) bytes. Only rows that currently read CLEAN yet are not
+// provably clean against the adopted library version are touched, so honestly
+// clean and honestly modified rows are never churned. Corrected rows re-read
+// MODIFIED, which makes reconverge treat them as untouchable.
+func (s *service) healPoisonedSnapshots(ctx context.Context, rows []Adoption) (int, error) {
+	healed := 0
+	for _, row := range rows {
+		if len(row.Files) == 0 {
+			// Parent-only rows are guarded at reconverge time; there is no
+			// per-file baseline to re-derive here.
+			continue
+		}
+		_, localStatus, _ := s.computeStatus(ctx, row)
+		if localStatus != LocalStatusClean {
+			continue
+		}
+		corrected, entrySnapshot, changed := s.honestSnapshots(ctx, row)
+		if !changed {
+			continue
+		}
+		rebaselined, err := s.repo.Rebaseline(ctx, RebaselineInput{ID: row.ID, AdoptedSnapshotSHA256: entrySnapshot, Files: corrected})
+		if err != nil {
+			return healed, err
+		}
+		libStatus, ls, detail := s.computeStatus(ctx, rebaselined)
+		if _, err := s.repo.ApplyRefresh(ctx, []RefreshUpdate{{ID: row.ID, LibraryVersionStatus: libStatus, LocalStatus: ls, StatusDetail: detail, RefreshedAt: s.clock.Now().UTC()}}); err != nil {
+			return healed, err
+		}
+		healed++
+	}
+	return healed, nil
+}
+
+// honestSnapshots recomputes each file's pristine snapshot from the adopted
+// library version, mirroring reconciledSnapshot but reading the file from disk.
+// It returns the corrected files, the entry snapshot, and whether any value
+// changed. A genuinely clean file keeps hashBytes(on-disk); a file that no longer
+// matches the library body (or whose body cannot be loaded) gets the pristine
+// library body hash, which forces MODIFIED.
+func (s *service) honestSnapshots(ctx context.Context, row Adoption) ([]AdoptionFile, string, bool) {
+	v, err := s.library.GetVersion(ctx, row.ComponentID, row.AdoptedVersion)
+	if err != nil {
+		return nil, "", false
+	}
+	targets := make(map[string]string, len(row.Files))
+	for _, f := range row.Files {
+		targets[moduleKey(firstNonEmpty(f.LibraryPath, filepath.Base(f.AdoptedPath)))] = f.AdoptedPath
+	}
+	out := make([]AdoptionFile, 0, len(row.Files))
+	entrySnapshot := ""
+	changed := false
+	for _, f := range row.Files {
+		snapshot := f.AdoptedSnapshotSHA256
+		libFile, ok := libraryFileByPath(v, f.LibraryPath)
+		onDisk, readErr := s.files.Read(ctx, row.Scenario, f.AdoptedPath)
+		if ok && readErr == nil {
+			expected := expectedAppliedBody(libFile, f.AdoptedPath, targets)
+			if strings.TrimSpace(libFile.Content) != "" && stripSourceHeader(string(onDisk)) == expected {
+				snapshot = hashBytes(onDisk)
+			} else {
+				snapshot = hashBytes([]byte(expected))
+			}
+		}
+		if snapshot != f.AdoptedSnapshotSHA256 {
+			changed = true
+		}
+		cf := f
+		cf.AdoptedSnapshotSHA256 = snapshot
+		out = append(out, cf)
+		if f.AdoptedPath == row.AdoptedPath {
+			entrySnapshot = snapshot
+		}
+	}
+	if entrySnapshot == "" && len(out) > 0 {
+		entrySnapshot = out[0].AdoptedSnapshotSHA256
+	}
+	return out, entrySnapshot, changed
+}
+
 func reconcileAdoptionFiles(group []ProvenanceFile, version components.ComponentVersion) ([]AdoptionFile, AdoptionFile, error) {
-	files := make([]AdoptionFile, 0, len(group))
-	var entry AdoptionFile
+	// First pass: resolve each scanned file to its library file and build the
+	// module→adopted-path map the import rewriter needs to reconstruct the exact
+	// bytes an apply of this version would have written to the on-disk layout.
+	type resolvedFile struct {
+		scanned ProvenanceFile
+		library components.ComponentVersionFile
+	}
+	resolved := make([]resolvedFile, 0, len(group))
+	targets := make(map[string]string, len(group))
 	for _, scanned := range group {
 		libraryFile, ok := matchReconciledLibraryFile(version, scanned.AdoptedPath)
 		if !ok {
 			return nil, AdoptionFile{}, fmt.Errorf("no library file matches %s", scanned.AdoptedPath)
 		}
-		file := AdoptionFile{LibraryPath: libraryFile.Path, AdoptedPath: scanned.AdoptedPath, SourceSHA256: libraryFile.ContentSHA256, AdoptedSnapshotSHA256: hashBytes(scanned.Content)}
+		resolved = append(resolved, resolvedFile{scanned: scanned, library: libraryFile})
+		targets[moduleKey(libraryFile.Path)] = scanned.AdoptedPath
+	}
+
+	files := make([]AdoptionFile, 0, len(group))
+	var entry AdoptionFile
+	for _, r := range resolved {
+		snapshot, _ := reconciledSnapshot(r.scanned, r.library, targets)
+		file := AdoptionFile{LibraryPath: r.library.Path, AdoptedPath: r.scanned.AdoptedPath, SourceSHA256: r.library.ContentSHA256, AdoptedSnapshotSHA256: snapshot}
 		files = append(files, file)
-		if libraryFile.IsEntry || entry.AdoptedPath == "" {
+		if r.library.IsEntry || entry.AdoptedPath == "" {
 			entry = file
 		}
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].AdoptedPath < files[j].AdoptedPath })
 	return files, entry, nil
+}
+
+// reconciledSnapshot computes the honest AdoptedSnapshotSHA256 for a pre-existing
+// vendored file discovered by a provenance scan, and reports whether the copy is
+// provably a clean copy of the referenced library version.
+//
+// The recorded snapshot is the baseline computeStatus later compares the on-disk
+// file against. It MUST be derived from the library version — never blindly from
+// the local file — or a copy that already carried local edits at backfill time
+// would masquerade as CLEAN (the knw-1784076189438860926 incident: a modified
+// data-table.tsx read CLEAN and was silently overwritten by reconverge).
+//
+// Drift is decided by comparing the local body against the exact bytes an apply
+// of this version would have written (JSDoc/provenance header ignored, relative
+// import specifiers rewritten to the unit's on-disk layout):
+//   - a genuine clean copy → snapshot is the file's current on-disk bytes, so a
+//     later edit is detected as drift from this confirmed-pristine baseline and
+//     reconverge may safely fast-forward it;
+//   - a locally modified copy, or one whose library body cannot be loaded, →
+//     snapshot is the pristine library body hash, which never equals the on-disk
+//     bytes (they carry a header and/or divergent content). computeStatus reports
+//     MODIFIED immediately and reconverge refuses to overwrite it.
+func reconciledSnapshot(scanned ProvenanceFile, libraryFile components.ComponentVersionFile, targets map[string]string) (string, bool) {
+	expected := expectedAppliedBody(libraryFile, scanned.AdoptedPath, targets)
+	local := stripSourceHeader(string(scanned.Content))
+	if strings.TrimSpace(libraryFile.Content) != "" && local == expected {
+		return hashBytes(scanned.Content), true
+	}
+	return hashBytes([]byte(expected)), false
+}
+
+// expectedAppliedBody reconstructs, header-stripped, the exact body an apply of
+// libraryFile would have written to adoptedPath: the library body with its
+// JSDoc/provenance header removed and relative import specifiers rewritten to the
+// unit's on-disk layout (targets maps a module basename to its adopted path).
+func expectedAppliedBody(libraryFile components.ComponentVersionFile, adoptedPath string, targets map[string]string) string {
+	return rewriteUnitImports(stripSourceHeader(libraryFile.Content), adoptedPath, targets)
 }
 
 func matchReconciledLibraryFile(version components.ComponentVersion, adoptedPath string) (components.ComponentVersionFile, bool) {
@@ -146,7 +287,7 @@ func matchReconciledLibraryFile(version components.ComponentVersion, adoptedPath
 		return version.Files[0], true
 	}
 	if filepath.Base(version.SourcePath) == name {
-		return components.ComponentVersionFile{Path: name, ContentSHA256: version.ContentSHA256, IsEntry: true}, true
+		return components.ComponentVersionFile{Path: name, Content: version.Content, ContentSHA256: version.ContentSHA256, IsEntry: true}, true
 	}
 	return components.ComponentVersionFile{}, false
 }

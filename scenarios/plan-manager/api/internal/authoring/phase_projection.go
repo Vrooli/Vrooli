@@ -99,7 +99,7 @@ func parseValidationScope(content string) (planmodel.ValidationScope, error) {
 		}
 		return planmodel.ValidationScope{Mode: planmodel.ValidationScopeNarrow, Boundary: boundary}, nil
 	}
-	return planmodel.ValidationScope{}, fmt.Errorf("validation scope must start with narrow: or full_plan:")
+	return planmodel.ValidationScope{}, fmt.Errorf("validation scope must start with a narrow: or full_plan: prefix")
 }
 
 func syncPhaseSection(sess Session) Session {

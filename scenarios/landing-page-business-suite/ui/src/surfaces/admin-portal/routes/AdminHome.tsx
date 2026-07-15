@@ -65,7 +65,7 @@ export function AdminHome() {
       <div className={LAYOUT.sectionSpacing}>
         <PageHeader
           variant="icon-title"
-          title="Landing Manager Admin"
+          title="Landing Page Business Suite Admin"
           icon={Home}
           iconBgClass="bg-slate-500/10"
           iconColorClass="text-slate-400"

@@ -19,6 +19,6 @@ Organize requirement modules by PRD operational targets, keeping the filesystem 
 - Keep this README under 100 lines and link to shared docs (`docs/testing/guides/requirement-tracking-quick-start.md`) for schema details.
 
 ## Factory vs Template Scope
-- Factory (landing-manager) owns template registry, generation UX, and handoff.
+- Template Manager owns template registry, generation, validation, and lifecycle guidance.
 - Template-owned features (admin portal, A/B testing, metrics, Stripe, customization UX) should move to the template payload and be validated in the generated scenario, not here.
 - Requirements will be realigned in the next pass; current structure still mirrors landing-page targets.

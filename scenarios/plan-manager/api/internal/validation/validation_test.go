@@ -734,6 +734,64 @@ func TestBaselineSetFinalValidationUsesTypedFullCollectionDiff(t *testing.T) {
 	require.Equal(t, "before", collections.diffRead.Name)
 }
 
+// TestSyncTerminalizesNotComparableDiffAndUnwedgesStart pins the fix for the
+// validation wedge (knw-1784053356805823492): a git-control-tower collection diff
+// that comes back "not-comparable" (a required member went failed/skipped/stale,
+// or coverage was incomplete) is a TERMINAL producer outcome, so Sync must
+// terminalize the ticket with an inconclusive verdict — not leave it forever
+// "remains not-comparable". Because an unkeyed `validate start` coalesces to any
+// active (non-terminal) ticket, a non-terminal wedge made every subsequent start
+// return the same stuck ticket; terminalizing lets the next start mint a fresh
+// one naturally.
+func TestSyncTerminalizesNotComparableDiffAndUnwedgesStart(t *testing.T) {
+	store := newFakeDurableStore()
+	plan := durableValidationPlan()
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
+	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "not-comparable", Detail: "bar:skipped:not-comparable"}}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo", "bar"}, Complete: true}, ok: true},
+	})
+
+	first, dedup, err := svc.StartValidation(context.Background(), "p1", "", "")
+	require.NoError(t, err)
+	require.False(t, dedup)
+
+	synced, err := svc.SyncValidation(context.Background(), first.ID)
+	require.NoError(t, err)
+	require.True(t, synced.Terminal(), "a not-comparable diff must terminalize the ticket, never wedge it")
+	require.Equal(t, validation.ChildTerminal, synced.Children[0].Status)
+	require.Equal(t, validation.VerdictUnknown, synced.Children[0].Verdict, "not-comparable is inconclusive, not a regression")
+	require.Equal(t, validation.VerdictUnknown, synced.Result.Verdict)
+	require.Contains(t, synced.Children[0].Detail, "not comparable")
+
+	// A subsequent unkeyed start must NOT coalesce to the terminalized ticket.
+	next, dedup, err := svc.StartValidation(context.Background(), "p1", "", "")
+	require.NoError(t, err)
+	require.False(t, dedup, "start after a terminalized ticket must mint a fresh ticket, not return the old one")
+	require.NotEqual(t, first.ID, next.ID, "a fresh ticket id is issued")
+}
+
+// TestSyncKeepsNotReadyDiffPending confirms the terminalization is scoped to
+// terminal producer outcomes only: a still-computing "not-ready" diff must
+// remain non-terminal so the ticket keeps waiting for the producer.
+func TestSyncKeepsNotReadyDiffPending(t *testing.T) {
+	store := newFakeDurableStore()
+	plan := durableValidationPlan()
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
+	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "not-ready"}}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo", "bar"}, Complete: true}, ok: true},
+	})
+	op, _, err := svc.StartValidation(context.Background(), "p1", "", "")
+	require.NoError(t, err)
+	synced, err := svc.SyncValidation(context.Background(), op.ID)
+	require.NoError(t, err)
+	require.False(t, synced.Terminal(), "a not-ready diff is still computing and must not terminalize")
+	require.Contains(t, synced.QueueReason, "not-ready")
+}
+
 func TestBaselineSetPhaseValidationUsesOnlyExplicitNarrowScope(t *testing.T) {
 	store := newFakeDurableStore()
 	plan := durableValidationPlan()

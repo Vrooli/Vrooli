@@ -105,3 +105,28 @@ own.
    1.1.1 and 1.1.2 cuts this phase; manually restored each time. Filed as a bug
    (plan ledger `c71f56c0`). Worth a defect fix so future version cuts do not
    silently strip component metadata.
+
+## Addendum 2026-07-15 — follow-ups closed
+
+Both follow-ups above are done:
+
+1. **Template reconverged.** DataTable's four EM mobile-floor affordances
+   (44px `min-h-11` tap targets on filter chips and sort buttons, `table-fixed`
+   layout, `break-words` cells) were absorbed upstream as **DataTable 1.2.0**,
+   and all five adopters (template-manager, cleanup-manager, experience-manager,
+   react-component-library, and the react-vite template copy) now sit at
+   `1.2.0 current/clean`. The five header-artifact react-vite copies
+   (StatusBadge, Select, Input, EmptyState, Card) were re-stamped clean at their
+   current versions. The reviewed-divergence allowlist entry for data-table was
+   removed; `TestReactViteTemplateVendoredComponentsMatchCatalogLatest` passes
+   with an empty allowlist. Reapplying into the template required teaching the
+   style-fit (`components.FSServiceJSONReader`) and dependency
+   (`deps.FSPackageJSONReader`) readers the `../templates/scenarios/<id>`
+   scenario-key form (traversal-guarded, unit-tested).
+2. **`components version-create` metadata strip fixed** (separate bug-fix
+   session): `designStyles`/`fileSlots` survive the round-trip; verified on the
+   1.2.0 cut.
+
+Remaining known local divergence fleet-wide: template-manager's `bottom-nav.tsx`
+(`pb-[max(env(safe-area-inset-bottom,0px),1.75rem)]` floor instead of `pb-safe`)
+— honest `local=modified`, a candidate for a future BottomNav absorption.

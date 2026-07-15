@@ -27,13 +27,13 @@ vrooli setup --yes yes
 
 ---
 
-## Option 1: Using Landing Manager (Recommended)
+## Option 1: Using Template Manager (Recommended)
 
-Landing Manager generates complete landing pages from this template.
+Template Manager generates complete landing pages from this template.
 
 ```bash
 # Generate a new landing page
-vrooli scenario start landing-manager
+template-manager lifecycle generate landing-page-react-vite --id <your-slug> --display-name "<Your Landing Page>" --description "<brief description>"
 
 # Follow the prompts to configure your landing page
 # This creates a new scenario in scenarios/<your-slug>/

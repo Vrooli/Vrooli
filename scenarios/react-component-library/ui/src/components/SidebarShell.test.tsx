@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 import userEvent from "@testing-library/user-event";
 
 import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.0.0/SidebarShell";
@@ -8,7 +9,7 @@ describe("SidebarShell", () => {
   afterEach(() => cleanup());
 
   it("renders a persistent desktop sidebar and applies the supplied width", () => {
-    render(
+    renderWithProviders(
       <SidebarShell
         mobileOpen={false}
         onMobileClose={() => {}}
@@ -31,7 +32,7 @@ describe("SidebarShell", () => {
   });
 
   it("renders an open mobile dialog as a full-width safe-area sheet", () => {
-    render(
+    renderWithProviders(
       <SidebarShell
         mobileOpen
         onMobileClose={() => {}}
@@ -58,7 +59,7 @@ describe("SidebarShell", () => {
   it("calls onMobileClose from backdrop, close button, and Escape", async () => {
     const onMobileClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <SidebarShell
         mobileOpen
         onMobileClose={onMobileClose}
@@ -77,7 +78,7 @@ describe("SidebarShell", () => {
   });
 
   it("renders resize handle props on desktop", () => {
-    render(
+    renderWithProviders(
       <SidebarShell
         mobileOpen={false}
         onMobileClose={() => {}}
@@ -99,7 +100,7 @@ describe("SidebarShell", () => {
   });
 
   it("can force overlay mode at any viewport width", () => {
-    render(
+    renderWithProviders(
       <SidebarShell
         mode="overlay"
         mobileOpen
@@ -126,7 +127,7 @@ describe("SidebarShell", () => {
 
   it("can force persistent mode and suppress mobile drawer chrome", () => {
     const onMobileClose = vi.fn();
-    render(
+    renderWithProviders(
       <SidebarShell
         mode="persistent"
         mobileOpen

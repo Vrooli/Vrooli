@@ -1,13 +1,8 @@
 /**
- * @vrooliComponentSource react-component-library:DataTable
- * @vrooliComponentVersion 1.2.0
- * @vrooliComponentAdoption 8972e254-d591-465c-81fb-574b4af91870
- * @vrooliComponentAppliedAt 2026-07-15T03:05:52Z
- * @vrooliComponentSourceSha256 8f743927ac49c317d429a0e74f856ea6ede6746b87c75d5d8a55b7c2703fad1f
- * @vrooliComponentDriftHash 8f743927ac49c317d429a0e74f856ea6ede6746b87c75d5d8a55b7c2703fad1f
- *
- * This file was copied from React Component Library. Local edits are allowed;
- * run "react-component-library adoptions refresh" to inspect drift.
+ * @libraryId react-component-library:DataTable
+ * @version 1.2.0
+ * @status released
+ * @deps {"react":"^18","lucide-react":"^0.424.0","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
  */
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";

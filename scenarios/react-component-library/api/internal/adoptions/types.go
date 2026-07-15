@@ -155,7 +155,24 @@ type ReconcileResult struct {
 	Scanned         int
 	AlreadyRecorded int
 	Created         int
-	Findings        []ReconcileFinding
+	// Healed counts already-recorded rows whose snapshot was captured from a
+	// non-pristine copy (read CLEAN but the bytes are not the library's) and was
+	// re-derived from the library so the row now reads MODIFIED honestly. Only
+	// apply mode heals; dry-run leaves records untouched.
+	Healed   int
+	Findings []ReconcileFinding
+}
+
+// RebaselineInput corrects the recorded pristine snapshot of an existing
+// adoption without re-applying library bytes to disk and without forcing the row
+// to current/clean (unlike AppliedSnapshotUpdate). It is the heal seam for
+// records whose snapshot was captured from a locally-modified copy — making a
+// modified file masquerade as CLEAN. The caller supplies honest snapshots and
+// recomputes drift status afterward.
+type RebaselineInput struct {
+	ID                    string
+	AdoptedSnapshotSHA256 string
+	Files                 []AdoptionFile
 }
 
 // ReconvergeInput drives the batch drift-reconverge flow. It defaults to

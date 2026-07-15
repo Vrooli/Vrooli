@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 import userEvent from "@testing-library/user-event";
 
 import { BottomNav } from "../../../library/components/BottomNav/versions/1.0.0/BottomNav";
@@ -8,7 +9,7 @@ describe("BottomNav", () => {
   afterEach(() => cleanup());
 
   it("renders link items with active page state", () => {
-    render(
+    renderWithProviders(
       <BottomNav
         label="Primary"
         items={[
@@ -38,7 +39,7 @@ describe("BottomNav", () => {
     const onItemSelect = vi.fn();
     const user = userEvent.setup();
 
-    render(
+    renderWithProviders(
       <BottomNav
         label="Primary"
         onItemSelect={onItemSelect}
@@ -64,7 +65,7 @@ describe("BottomNav", () => {
     const onItemSelect = vi.fn();
     const user = userEvent.setup();
 
-    render(
+    renderWithProviders(
       <BottomNav
         label="Primary"
         onItemSelect={onItemSelect}

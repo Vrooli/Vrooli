@@ -13,7 +13,13 @@
           "flags": [
             {
               "name": "status",
-              "description": "Filter by status (draft|active|complete|archived)"
+              "description": "Filter by status (draft|active|complete|archived)",
+              "values": [
+                "draft",
+                "active",
+                "complete",
+                "archived"
+              ]
             },
             {
               "name": "workspace",
@@ -96,14 +102,14 @@
               "name": "non-goals",
               "description": "Explicit exclusions"
             },
-    {
-      "name": "dod",
-      "description": "Definition of Done"
-    },
-    {
-      "name": "workspace",
-      "description": "Workspace root (defaults to the current repository)"
-    }
+            {
+              "name": "dod",
+              "description": "Definition of Done"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root (defaults to the current repository)"
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -396,7 +402,16 @@
             },
             {
               "name": "kind",
-              "description": "Context kind: command, search, doc, code_ref, req_ref, skill, note"
+              "description": "Context kind: command, search, doc, code_ref, req_ref, skill, note",
+              "values": [
+                "skill",
+                "doc",
+                "command",
+                "search",
+                "code_ref",
+                "req_ref",
+                "note"
+              ]
             },
             {
               "name": "label",
@@ -425,7 +440,14 @@
             },
             {
               "name": "repeat",
-              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed"
+              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed",
+              "values": [
+                "once_per_execution",
+                "on_resume",
+                "every_phase",
+                "phase_entry",
+                "as_needed"
+              ]
             }
           ],
           "binding": {
@@ -538,7 +560,12 @@
             },
             {
               "name": "kind",
-              "description": "Reference kind: code, doc, req"
+              "description": "Reference kind: code, doc, req",
+              "values": [
+                "code",
+                "doc",
+                "req"
+              ]
             },
             {
               "name": "target",
@@ -751,7 +778,11 @@
             },
             {
               "name": "conflict-policy",
-              "description": "Duplicate/conflict behavior (report_only|skip_existing)"
+              "description": "Duplicate/conflict behavior (report_only|skip_existing)",
+              "values": [
+                "report_only",
+                "skip_existing"
+              ]
             },
             {
               "name": "workspace",
@@ -848,18 +879,18 @@
               "name": "reminders",
               "description": "Phase-scoped reminders, comma-separated"
             },
-        {
-          "name": "baseline-scope",
-          "description": "Explicit baseline/validation commands for this phase, comma-separated"
-        },
-        {
-          "name": "validation-scope",
-          "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
-        },
-        {
-          "name": "workspace",
-          "description": "Workspace root (defaults to the current repository)"
-        }
+            {
+              "name": "baseline-scope",
+              "description": "Explicit baseline/validation commands for this phase, comma-separated"
+            },
+            {
+              "name": "validation-scope",
+              "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root (defaults to the current repository)"
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -928,7 +959,13 @@
             },
             {
               "name": "status",
-              "description": "Phase status (todo|active|done|blocked)"
+              "description": "Phase status (todo|active|done|blocked)",
+              "values": [
+                "todo",
+                "active",
+                "done",
+                "blocked"
+              ]
             },
             {
               "name": "context",
@@ -938,18 +975,18 @@
               "name": "reminders",
               "description": "Phase-scoped reminders, comma-separated"
             },
-        {
-          "name": "baseline-scope",
-          "description": "Explicit baseline/validation commands for this phase, comma-separated"
-        },
-        {
-          "name": "validation-scope",
-          "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
-        },
-        {
-          "name": "workspace",
-          "description": "Workspace root (defaults to the current repository)"
-        }
+            {
+              "name": "baseline-scope",
+              "description": "Explicit baseline/validation commands for this phase, comma-separated"
+            },
+            {
+              "name": "validation-scope",
+              "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root (defaults to the current repository)"
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -968,15 +1005,40 @@
           "name": "validation-scope",
           "description": "Safely repair one persisted phase's validation scope without replacing its other fields",
           "positionals": [
-            {"name": "plan", "required": true, "description": "Plan id or slug"},
-            {"name": "phase", "required": true, "description": "Phase id"}
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "phase",
+              "required": true,
+              "description": "Phase id"
+            }
           ],
           "flags": [
-            {"name": "validation-scope", "required": true, "description": "full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"},
-            {"name": "workspace", "description": "Workspace root (defaults to the current repository)"}
+            {
+              "name": "validation-scope",
+              "required": true,
+              "description": "full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root (defaults to the current repository)"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "UpdatePhase"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "UpdatePhase"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -1601,7 +1663,22 @@
             },
             {
               "name": "complexity",
-              "description": "Optional prompt-manager discovery complexity, e.g. architectural"
+              "description": "Optional prompt-manager discovery complexity: minor|moderate|major|architectural (synonyms low/medium/high are normalized; omit for prompt-manager default)",
+              "values": [
+                "minor",
+                "moderate",
+                "major",
+                "architectural"
+              ],
+              "value_aliases": {
+                "low": "minor",
+                "small": "minor",
+                "medium": "moderate",
+                "high": "major",
+                "large": "major",
+                "xhigh": "architectural",
+                "max": "architectural"
+              }
             }
           ],
           "binding": {
@@ -1635,7 +1712,16 @@
             {
               "name": "kind",
               "required": true,
-              "description": "Context kind: skill, doc, command, search, code_ref, req_ref, note"
+              "description": "Context kind: skill, doc, command, search, code_ref, req_ref, note",
+              "values": [
+                "skill",
+                "doc",
+                "command",
+                "search",
+                "code_ref",
+                "req_ref",
+                "note"
+              ]
             },
             {
               "name": "label",
@@ -1672,7 +1758,14 @@
             },
             {
               "name": "repeat",
-              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed"
+              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed",
+              "values": [
+                "once_per_execution",
+                "on_resume",
+                "every_phase",
+                "phase_entry",
+                "as_needed"
+              ]
             }
           ],
           "binding": {
@@ -1740,7 +1833,16 @@
             {
               "name": "kind",
               "required": true,
-              "description": "Context kind: skill, doc, command, search, code_ref, req_ref, note"
+              "description": "Context kind: skill, doc, command, search, code_ref, req_ref, note",
+              "values": [
+                "skill",
+                "doc",
+                "command",
+                "search",
+                "code_ref",
+                "req_ref",
+                "note"
+              ]
             },
             {
               "name": "label",
@@ -1777,7 +1879,14 @@
             },
             {
               "name": "repeat",
-              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed"
+              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed",
+              "values": [
+                "once_per_execution",
+                "on_resume",
+                "every_phase",
+                "phase_entry",
+                "as_needed"
+              ]
             }
           ],
           "binding": {
@@ -2240,29 +2349,128 @@
         {
           "name": "scope-amend",
           "description": "Record an auditable phase validation scope expansion within the captured baseline inventory",
-          "positionals": [{"name": "execution", "required": true, "description": "Execution id"}],
-          "flags": [
-            {"name": "phase", "description": "Phase id", "required": true},
-            {"name": "members", "description": "Comma-separated additional captured scenario members", "required": true},
-            {"name": "reason", "description": "Why implementation scope expanded", "required": true},
-            {"name": "author", "description": "Actor recording the amendment"}
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "ExecutionService", "method": "AmendScope"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id",
+              "required": true
+            },
+            {
+              "name": "members",
+              "description": "Comma-separated additional captured scenario members",
+              "required": true
+            },
+            {
+              "name": "reason",
+              "description": "Why implementation scope expanded",
+              "required": true
+            },
+            {
+              "name": "author",
+              "description": "Actor recording the amendment"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "AmendScope"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "baseline-adopt",
           "description": "Explicitly recapture or degrade a legacy execution baseline; never starts or waits for GCT",
-          "positionals": [{"name": "execution", "required": true, "description": "Execution id"}],
-          "flags": [
-            {"name": "mode", "description": "recapture or degraded", "required": true},
-            {"name": "name", "description": "Collection name for recapture"},
-            {"name": "members", "description": "Comma-separated members for recapture"},
-            {"name": "paths", "description": "Comma-separated informational source paths"},
-            {"name": "reason", "description": "Honest adoption/degradation reason", "required": true}
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "ExecutionService", "method": "AdoptBaseline"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "flags": [
+            {
+              "name": "mode",
+              "description": "recapture or degraded",
+              "required": true
+            },
+            {
+              "name": "name",
+              "description": "Collection name for recapture"
+            },
+            {
+              "name": "members",
+              "description": "Comma-separated members for recapture"
+            },
+            {
+              "name": "paths",
+              "description": "Comma-separated informational source paths"
+            },
+            {
+              "name": "reason",
+              "description": "Honest adoption/degradation reason",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "AdoptBaseline"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "baseline-scope-repair",
+          "description": "Replace a repair-required informational source selection within the plan boundary and re-estimate it through Git Control Tower",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "paths",
+              "description": "Comma-separated replacement source globs within the authored change boundary",
+              "required": true
+            },
+            {
+              "name": "reason",
+              "description": "Why this narrower source selection is relevant",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "RepairSourceScope"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "next",
@@ -2306,7 +2514,13 @@
             {
               "name": "status",
               "description": "Target status (todo|active|done|blocked)",
-              "required": true
+              "required": true,
+              "values": [
+                "todo",
+                "active",
+                "done",
+                "blocked"
+              ]
             },
             {
               "name": "validation-override-reason",
@@ -2366,13 +2580,35 @@
         {
           "name": "partial-handoff",
           "description": "Persist an honest resumable handoff without marking the execution complete",
-          "positionals": [{"name": "execution", "required": true, "description": "Execution id"}],
-          "flags": [
-            {"name": "tokens", "description": "Tokens consumed (velocity)"},
-            {"name": "iterations", "description": "Iteration count (velocity)"}
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "ExecutionService", "method": "PartialHandoff"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "flags": [
+            {
+              "name": "tokens",
+              "description": "Tokens consumed (velocity)"
+            },
+            {
+              "name": "iterations",
+              "description": "Iteration count (velocity)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "PartialHandoff"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "handoff",
@@ -2502,7 +2738,14 @@
             },
             {
               "name": "severity",
-              "description": "Severity: info|low|medium|high|critical"
+              "description": "Severity: info|low|medium|high|critical",
+              "values": [
+                "info",
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ]
             },
             {
               "name": "detail",
@@ -2560,7 +2803,14 @@
             },
             {
               "name": "severity",
-              "description": "Severity: info|low|medium|high|critical"
+              "description": "Severity: info|low|medium|high|critical",
+              "values": [
+                "info",
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ]
             },
             {
               "name": "detail",
@@ -2584,11 +2834,24 @@
             },
             {
               "name": "signal-type",
-              "description": "Scenario QA signal type: code-defect|regression|prompt-confusion|data-shape-mismatch|unexpected-error|unknown"
+              "description": "Scenario QA signal type: code-defect|regression|prompt-confusion|data-shape-mismatch|unexpected-error|unknown",
+              "values": [
+                "code-defect",
+                "regression",
+                "prompt-confusion",
+                "data-shape-mismatch",
+                "unexpected-error",
+                "unknown"
+              ]
             },
             {
               "name": "report-severity",
-              "description": "Scenario QA severity: blocker|major|minor"
+              "description": "Scenario QA severity: blocker|major|minor",
+              "values": [
+                "blocker",
+                "major",
+                "minor"
+              ]
             },
             {
               "name": "repro",
@@ -2776,15 +3039,33 @@
             },
             {
               "name": "type",
-              "description": "Filter by type: decision|finding|bug_report|record|note"
+              "description": "Filter by type: decision|finding|bug_report|record|note",
+              "values": [
+                "decision",
+                "finding",
+                "bug_report",
+                "record",
+                "note"
+              ]
             },
             {
               "name": "triage",
-              "description": "Filter findings by triage: candidate|promoted|dismissed"
+              "description": "Filter findings by triage: candidate|promoted|dismissed",
+              "values": [
+                "candidate",
+                "promoted",
+                "dismissed"
+              ]
             },
             {
               "name": "sync-status",
-              "description": "Filter by sync status: local|pending|synced|sync_failed"
+              "description": "Filter by sync status: local|pending|synced|sync_failed",
+              "values": [
+                "local",
+                "pending",
+                "synced",
+                "sync_failed"
+              ]
             }
           ],
           "binding": {
@@ -2849,7 +3130,12 @@
             },
             {
               "name": "triage",
-              "description": "New triage state for a finding: candidate|promoted|dismissed"
+              "description": "New triage state for a finding: candidate|promoted|dismissed",
+              "values": [
+                "candidate",
+                "promoted",
+                "dismissed"
+              ]
             },
             {
               "name": "add-evidence",
@@ -2913,7 +3199,11 @@
             {
               "name": "to",
               "description": "Target type: bug|record",
-              "required": true
+              "required": true,
+              "values": [
+                "bug",
+                "record"
+              ]
             },
             {
               "name": "title",

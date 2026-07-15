@@ -2,6 +2,9 @@ package authoring_test
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -379,6 +382,101 @@ func TestDiscoverSkillPackDegradesWithoutBlocking(t *testing.T) {
 	require.Empty(t, violations)
 	require.Empty(t, updated.RelevantContext)
 	require.NotEqual(t, "context_discovery", step.StepKind)
+}
+
+// TestDiscoverSkillPackNormalizesAndValidatesComplexity pins the complexity
+// boundary: prompt-manager's levels pass through, agent-habit synonyms are
+// mapped, empty omits the flag, and unknown values fail fast naming the
+// vocabulary instead of degrading on a downstream 400.
+func TestDiscoverSkillPackNormalizesAndValidatesComplexity(t *testing.T) {
+	ctx := context.Background()
+	emptyPack := `{"results":[],"readCommand":"","budgetStatus":"ok"}`
+
+	cases := []struct {
+		name           string
+		complexity     string
+		wantForwarded  string // "" means the --complexity flag must be absent
+		wantErrorNames bool
+	}{
+		{name: "canonical level passes through", complexity: "architectural", wantForwarded: "architectural"},
+		{name: "case and whitespace normalized", complexity: "  MAJOR ", wantForwarded: "major"},
+		{name: "synonym high maps to major", complexity: "high", wantForwarded: "major"},
+		{name: "synonym low maps to minor", complexity: "low", wantForwarded: "minor"},
+		{name: "synonym medium maps to moderate", complexity: "medium", wantForwarded: "moderate"},
+		{name: "empty omits the flag", complexity: "", wantForwarded: ""},
+		{name: "unknown value rejected naming levels", complexity: "huge", wantErrorNames: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotArgs []string
+			runner := func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				gotArgs = args
+				return []byte(emptyPack), nil
+			}
+			svc := newService(t, authoring.Deps{
+				Writer: &fakePlanWriter{},
+				Skills: authoring.NewCommandSkillPackDiscoverer(runner),
+			})
+			sess, _, err := svc.StartSession(ctx, "Complexity probe", "complexity-probe-"+strings.ReplaceAll(tc.name, " ", "-"), "")
+			require.NoError(t, err)
+
+			_, result, _, _, _, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"anything"}, tc.complexity)
+			if tc.wantErrorNames {
+				require.Error(t, err)
+				require.ErrorAs(t, err, &authoring.ErrInvalidSession{})
+				require.Contains(t, err.Error(), "minor, moderate, major, architectural")
+				require.Nil(t, gotArgs, "prompt-manager must not be invoked for an invalid complexity")
+				return
+			}
+			require.NoError(t, err)
+			require.False(t, result.Degraded)
+			joined := strings.Join(gotArgs, " ")
+			if tc.wantForwarded == "" {
+				require.NotContains(t, joined, "--complexity")
+			} else {
+				require.Contains(t, joined, "--complexity "+tc.wantForwarded)
+			}
+		})
+	}
+}
+
+// TestDiscoverSkillPackDegradedReasonCarriesOutputAndRecovery pins the
+// observability contract: a failing prompt-manager call surfaces the command's
+// own diagnostic (not just "exit status 1") plus the manual fallback commands.
+func TestDiscoverSkillPackDegradedReasonCarriesOutputAndRecovery(t *testing.T) {
+	ctx := context.Background()
+	runner := func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+		out := []byte("Error: discover failed: api error (400): complexity must be one of: minor, moderate, major, architectural\n")
+		return out, fmt.Errorf("run prompt-manager discover: exit status 1")
+	}
+	svc := newService(t, authoring.Deps{
+		Writer: &fakePlanWriter{},
+		Skills: authoring.NewCommandSkillPackDiscoverer(runner),
+	})
+	sess, _, err := svc.StartSession(ctx, "Degraded probe", "degraded-probe", "")
+	require.NoError(t, err)
+
+	_, result, _, _, _, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"anything"}, "architectural")
+	require.NoError(t, err, "discovery failure degrades, never blocks")
+	require.True(t, result.Degraded)
+	require.Contains(t, result.DegradedReason, "exit status 1")
+	require.Contains(t, result.DegradedReason, "api error (400)", "the command's own diagnostic must survive into the degraded reason")
+	require.Contains(t, result.DegradedReason, "fallback:", "degraded reason must name the manual recovery path")
+	require.Contains(t, result.DegradedReason, "context-submit "+sess.ID)
+}
+
+// TestDiscoveryComplexityContract pins plan-manager's complexity vocabulary to
+// prompt-manager's enforcement source. Prompt-manager owns the contract; when
+// its levels change, this fails here instead of at authoring time. Skips when
+// the sibling scenario is not present (out-of-repo builds).
+func TestDiscoveryComplexityContract(t *testing.T) {
+	source := filepath.Join("..", "..", "..", "..", "prompt-manager", "api", "aisearch", "handlers.go")
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		t.Skipf("prompt-manager source not available at %s: %v", source, err)
+	}
+	require.Contains(t, string(raw), "complexity must be one of: minor, moderate, major, architectural",
+		"prompt-manager's discovery complexity vocabulary changed; update normalizeDiscoveryComplexity (context_workflow.go) and this pin together")
 }
 
 // fakeSkillResolver returns canned steered suggestions (the D7 seam's future

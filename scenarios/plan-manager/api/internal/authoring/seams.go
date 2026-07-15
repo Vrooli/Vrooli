@@ -141,9 +141,30 @@ func (d cmdSkillPackDiscoverer) DiscoverSkillPack(ctx context.Context, title str
 	}
 	out, err := d.run(ctx, "prompt-manager", args...)
 	if err != nil {
+		// The runner returns combined output alongside the error; without it a
+		// prompt-manager 400 (e.g. an invalid --complexity value) degrades into an
+		// opaque "exit status 1" the authoring agent cannot self-correct from.
+		if detail := firstOutputLine(out); detail != "" {
+			return SkillPackResult{}, fmt.Errorf("%w: %s", err, detail)
+		}
 		return SkillPackResult{}, err
 	}
 	return parseSkillPackDiscovery(out)
+}
+
+// firstOutputLine extracts the first non-empty line of command output for
+// error context, keeping degraded reasons single-line and bounded.
+func firstOutputLine(out []byte) string {
+	for _, line := range strings.Split(string(out), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			const max = 300
+			if len(line) > max {
+				return line[:max] + "…"
+			}
+			return line
+		}
+	}
+	return ""
 }
 
 type promptManagerDiscoverResponse struct {

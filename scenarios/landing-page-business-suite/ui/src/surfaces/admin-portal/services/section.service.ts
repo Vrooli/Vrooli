@@ -10,7 +10,7 @@ export const STYLING_CONFIG = getStylingConfig();
 /**
  * LocalStorage key for comparison variant preferences
  */
-export const COMPARE_STORAGE_KEY = 'landing-manager-section-editor-compare';
+export const COMPARE_STORAGE_KEY = 'landing-page-business-suite-section-editor-compare';
 
 /**
  * Get variant styling guidance for a specific variant

@@ -678,6 +678,12 @@ func phaseUpdateOnlyChangesValidationScope(ctx cliapp.RunContext) bool {
 		"title", "intent", "affected-areas", "steps", "expected-outputs", "validation",
 		"acceptance", "risks-hazards", "handoff-notes", "status", "context", "reminders", "baseline-scope",
 	} {
+		// `phase validation-scope` shares this handler but declares only
+		// --validation-scope/--workspace; probing an undeclared flag panics,
+		// so treat undeclared as not provided.
+		if !ctx.FlagDeclared(name) {
+			continue
+		}
 		if strings.TrimSpace(ctx.Flag(name)) != "" {
 			return false
 		}

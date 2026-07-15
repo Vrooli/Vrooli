@@ -1,5 +1,5 @@
 /**
- * Production server for Landing Manager UI
+ * Production server for Landing Page Business Suite UI
  *
  * Uses @vrooli/api-base to automatically handle:
  * - /health endpoint with API connectivity checks

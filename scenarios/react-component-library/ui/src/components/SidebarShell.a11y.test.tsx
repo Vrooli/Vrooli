@@ -1,5 +1,6 @@
 import { afterEach, describe, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 
 import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.0.0/SidebarShell";
 import { expectNoA11yViolations } from "../test-utils";
@@ -8,7 +9,7 @@ describe("SidebarShell accessibility", () => {
   afterEach(() => cleanup());
 
   it("renders the open mobile dialog without axe violations", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <SidebarShell
         mobileOpen
         onMobileClose={() => {}}

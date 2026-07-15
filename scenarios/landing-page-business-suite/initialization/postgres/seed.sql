@@ -1,4 +1,4 @@
--- Seed Data for Landing Manager
+-- Seed Data for Landing Page Business Suite
 --
 -- NOTE: Variant, section, and branding configuration is now stored in JSON files
 -- (config/variants/*.json and config/branding.json) and loaded into memory at startup.

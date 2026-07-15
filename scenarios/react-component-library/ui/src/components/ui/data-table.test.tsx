@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 
 import { DataTable, type DataTableColumn, type DataTableFilter } from "./data-table";
@@ -47,7 +48,7 @@ const filters: Array<DataTableFilter<Row>> = [
 ];
 
 const renderTable = (overrides: Partial<React.ComponentProps<typeof DataTable<Row>>> = {}) =>
-  render(
+  renderWithProviders(
     <DataTable
       rows={rows}
       columns={columns}
@@ -145,7 +146,7 @@ describe("DataTable", () => {
         accessor: (row) => [<em key="e">{row.name}</em>, null, row.active, ` #${row.score}`],
       },
     ];
-    render(
+    renderWithProviders(
       <DataTable
         rows={rows}
         columns={mixedColumns}
@@ -177,7 +178,7 @@ describe("DataTable", () => {
   it("renders with all optional props defaulted (no filters, labels, or test id)", () => {
     // Exercises the default-parameter branches: no filters group, default
     // filterLabel/filterGroupLabel/sortLabel, and no tableTestId.
-    render(
+    renderWithProviders(
       <DataTable
         rows={rows}
         columns={columns}
@@ -199,7 +200,7 @@ describe("DataTable", () => {
       // rather than throwing or recursing into undefined.
       { id: "icon", header: "Icon", accessor: () => <br /> },
     ];
-    render(
+    renderWithProviders(
       <DataTable rows={rows} columns={emptyEl} getRowKey={(row) => row.id} caption="Icons" tableTestId="people-table" />,
     );
     // Searching for a name still works (the childless element contributes no

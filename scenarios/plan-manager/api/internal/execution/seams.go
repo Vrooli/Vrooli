@@ -72,6 +72,41 @@ type BaselineSynchronizer interface {
 	SyncBaseline(ctx context.Context, planID string) (FreshenResult, error)
 }
 
+// SourceEvidencePreflighter is the optional, authoritative GCT estimate seam.
+// It deliberately carries no filesystem behavior: Plan Manager records GCT's
+// answer and never reconstructs selection policy locally.
+type SourceEvidencePreflighter interface {
+	EstimateSourceEvidence(ctx context.Context, repoPaths []string) (SourceEvidencePreflight, error)
+}
+
+type SourceEvidencePreflight struct {
+	PolicyVersion          int
+	IncludeIgnored         bool
+	RetainContent          bool
+	EligibleFiles          int
+	EligibleBytes          int64
+	ExcludedIgnoredFiles   int
+	ExcludedIgnoredBytes   int64
+	ExcludedSensitiveFiles int
+	ExcludedBinaryFiles    int
+	OversizedFiles         int
+	RetainedContentBytes   int64
+	RepairRequired         bool
+	TopContributors        []SourceEvidenceContributor
+	Issues                 []SourceEvidenceIssue
+	Recommendations        []SourceEvidenceRecommendation
+}
+
+type (
+	SourceEvidenceIssue          struct{ Code, Severity, Detail string }
+	SourceEvidenceRecommendation struct{ Selection, Reason string }
+	SourceEvidenceContributor    struct {
+		Path  string
+		Files int
+		Bytes int64
+	}
+)
+
 // FreshenResult reports the outcome of the execution-start freshen step.
 // BaselineCaptured=false with a Detail is honest degradation (git-control-tower
 // down or anchor intent still a placeholder) — never a fabricated capture.

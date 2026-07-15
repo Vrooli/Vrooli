@@ -80,10 +80,11 @@ type BaselineSetStatus string
 const BaselineSetStateSchemaVersion = 2
 
 const (
-	BaselineSetStatusRequired BaselineSetStatus = "required"
-	BaselineSetStatusComplete BaselineSetStatus = "complete"
-	BaselineSetStatusPartial  BaselineSetStatus = "partial"
-	BaselineSetStatusDegraded BaselineSetStatus = "degraded"
+	BaselineSetStatusRequired            BaselineSetStatus = "required"
+	BaselineSetStatusScopeRepairRequired BaselineSetStatus = "scope_repair_required"
+	BaselineSetStatusComplete            BaselineSetStatus = "complete"
+	BaselineSetStatusPartial             BaselineSetStatus = "partial"
+	BaselineSetStatusDegraded            BaselineSetStatus = "degraded"
 )
 
 // BaselineSetState is durable execution evidence, not authored plan policy.
@@ -114,6 +115,11 @@ type BaselineSetState struct {
 	// or degraded partial-handoff path.
 	LegacyAdoptionRequired bool
 	LastSyncedAt           string
+	// SourcePreflight is a direct GCT estimate captured immediately before the
+	// producer ticket is rendered. It is advisory source evidence only; member
+	// coverage remains the behavioral gate.
+	SourcePreflight      SourceEvidencePreflight
+	PreflightUnavailable bool
 }
 
 // ScopeAmendment is an append-only explanation of a phase's real validation
@@ -138,6 +144,13 @@ type ScopeAmendmentRequest struct {
 	Members []string
 	Author  string
 	Reason  string
+}
+
+// SourceScopeRepairRequest replaces only the informational source selection
+// for one execution ticket. Behavioral collection members are immutable.
+type SourceScopeRepairRequest struct {
+	Paths  []string
+	Reason string
 }
 
 // BaselineAdoptionMode makes legacy execution repair explicit. Recapture only

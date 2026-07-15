@@ -902,6 +902,10 @@ func (r *FSScenarioFileReader) FindImportSites(_ context.Context, scenario, adop
 	return sites, nil
 }
 
+// resolve maps (scenario, adoptedPath) onto disk. Scenario is either a plain
+// scenario name under root, or a template key ("../templates/scenarios/<id>")
+// pointing at a vendored template copy; only adoptedPath is traversal-guarded
+// against escaping the resolved scenario dir.
 func (r *FSScenarioFileReader) resolve(scenario, adoptedPath string) (string, error) {
 	base := filepath.Join(r.root, scenario)
 	cleaned := filepath.Clean(filepath.Join(base, adoptedPath))

@@ -112,7 +112,7 @@ export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               <Link to="/admin" className="text-xl font-semibold hover:text-blue-400 transition-colors">
-                Landing Manager
+                Landing Page Business Suite
               </Link>
               <nav className="hidden md:flex gap-1">
                 {/* Direct links */}

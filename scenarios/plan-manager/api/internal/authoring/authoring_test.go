@@ -274,22 +274,23 @@ func (r *fakePlanReader) RenderPlan(_ context.Context, idOrSlug, workspaceRoot s
 	return "# " + idOrSlug, nil
 }
 
-// fakeAnchor is an AnchorIntentDeriver whose returned intent block the test
-// dials. Derivation is deterministic (no dependency), so there is no error path.
-type fakeAnchor struct {
-	out string
-}
-
-func (f fakeAnchor) DeriveAnchorIntent(_ context.Context, _, _ string, _ planmodel.ChangeBoundary) string {
-	return f.out
-}
-
 type fakeSkillPackDiscoverer struct {
 	result        authoring.SkillPackResult
 	err           error
 	gotTitle      string
 	gotConcepts   []string
 	gotComplexity string
+}
+
+type fakeSourceEvidenceAdvisor struct {
+	result authoring.SourceEvidenceAdvisory
+	err    error
+	paths  []string
+}
+
+func (f *fakeSourceEvidenceAdvisor) AdviseSourceEvidence(_ context.Context, paths []string) (authoring.SourceEvidenceAdvisory, error) {
+	f.paths = append([]string(nil), paths...)
+	return f.result, f.err
 }
 
 func (f *fakeSkillPackDiscoverer) DiscoverSkillPack(_ context.Context, title string, concepts []string, complexity string) (authoring.SkillPackResult, error) {
@@ -433,7 +434,12 @@ func TestDiscoverSkillPackPreservesManualSkillsAndDegradesWhenUnavailable(t *tes
 
 func TestReferenceGateRequiresReferenceOrExplicitReason(t *testing.T) {
 	writer := &fakePlanWriter{}
-	svc := newService(t, authoring.Deps{Writer: writer})
+	advisor := &fakeSourceEvidenceAdvisor{result: authoring.SourceEvidenceAdvisory{
+		RepairRequired:  true,
+		Issues:          []authoring.SourceEvidenceIssue{{Code: "generated_output_too_broad", Severity: "repair-required", Detail: "packages/proto/gen/** is too broad"}},
+		Recommendations: []authoring.SourceEvidenceRecommendation{{Selection: "packages/proto/gen/go/plan-manager/**", Reason: "affected namespace"}},
+	}}
+	svc := newService(t, authoring.Deps{Writer: writer, SourceEvidence: advisor})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
@@ -448,7 +454,7 @@ func TestReferenceGateRequiresReferenceOrExplicitReason(t *testing.T) {
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "An approach.")
 	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**\n- packages/proto/**")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "Strategy: change_boundary")
 	require.NoError(t, err)
@@ -478,10 +484,20 @@ func TestReferenceGateRequiresReferenceOrExplicitReason(t *testing.T) {
 
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: docs-only plan")
 	require.NoError(t, err)
-	valid, violations, _, err = svc.ValidateStructure(ctx, sess.ID)
+	valid, violations, step, err := svc.ValidateStructure(ctx, sess.ID)
 	require.NoError(t, err)
 	require.True(t, valid)
 	require.Empty(t, violations)
+	require.Equal(t, []string{"packages/proto/**"}, advisor.paths)
+	require.Contains(t, strings.Join(step.Instructions, "\n"), "generated_output_too_broad")
+	require.Contains(t, strings.Join(step.Instructions, "\n"), "packages/proto/gen/go/plan-manager/**")
+
+	advisor.err = errors.New("git-control-tower unavailable")
+	valid, violations, step, err = svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.True(t, valid, "an advisory outage must not create a false readiness failure")
+	require.Empty(t, violations)
+	require.Contains(t, strings.Join(step.Instructions, "\n"), "source_evidence_advisory_unavailable")
 }
 
 func TestPhaseContextGateRequiresContextOrExplicitNoContextReason(t *testing.T) {

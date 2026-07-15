@@ -83,7 +83,31 @@ func baselineSetToProto(state internalexecution.BaselineSetState) *executionv1.B
 		Pending: int32(state.Pending), Failed: int32(state.Failed), Skipped: int32(state.Skipped), Stale: int32(state.Stale), Detail: state.Detail,
 		Members: baselineSetMembersToProto(state.Members), PathSnapshots: baselineSetPathSnapshotsToProto(state.PathSnapshots),
 		CaptureArgv: append([]string(nil), state.CaptureArgv...), WaitArgv: append([]string(nil), state.WaitArgv...), SyncArgv: append([]string(nil), state.SyncArgv...), LastSyncedAt: state.LastSyncedAt,
+		SourcePreflight: sourcePreflightToProto(state.SourcePreflight), PreflightUnavailable: state.PreflightUnavailable,
 	}
+}
+
+func sourcePreflightToProto(preflight internalexecution.SourceEvidencePreflight) *executionv1.SourceEvidencePreflight {
+	if preflight.PolicyVersion == 0 && preflight.EligibleFiles == 0 && preflight.EligibleBytes == 0 && !preflight.RepairRequired && len(preflight.Issues) == 0 && len(preflight.Recommendations) == 0 {
+		return nil
+	}
+	out := &executionv1.SourceEvidencePreflight{
+		PolicyVersion: int32(preflight.PolicyVersion), IncludeIgnored: preflight.IncludeIgnored, RetainContent: preflight.RetainContent,
+		EligibleFiles: int32(preflight.EligibleFiles), EligibleBytes: preflight.EligibleBytes,
+		ExcludedIgnoredFiles: int32(preflight.ExcludedIgnoredFiles), ExcludedIgnoredBytes: preflight.ExcludedIgnoredBytes,
+		ExcludedSensitiveFiles: int32(preflight.ExcludedSensitiveFiles), ExcludedBinaryFiles: int32(preflight.ExcludedBinaryFiles), OversizedFiles: int32(preflight.OversizedFiles),
+		RetainedContentBytes: preflight.RetainedContentBytes, RepairRequired: preflight.RepairRequired,
+	}
+	for _, contributor := range preflight.TopContributors {
+		out.TopContributors = append(out.TopContributors, &executionv1.SourceEvidenceContributor{Path: contributor.Path, Files: int32(contributor.Files), Bytes: contributor.Bytes})
+	}
+	for _, issue := range preflight.Issues {
+		out.Issues = append(out.Issues, &executionv1.SourceEvidenceIssue{Code: issue.Code, Severity: issue.Severity, Detail: issue.Detail})
+	}
+	for _, recommendation := range preflight.Recommendations {
+		out.Recommendations = append(out.Recommendations, &executionv1.SourceEvidenceRecommendation{Selection: recommendation.Selection, Reason: recommendation.Reason})
+	}
+	return out
 }
 
 func baselineSetMembersToProto(members []internalexecution.BaselineSetMember) []*executionv1.BaselineSetMember {

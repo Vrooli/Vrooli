@@ -86,7 +86,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 plan-manager configure api_base http://localhost:15001/api/v1
-plan-manager configure token <token>
+plan-manager configure token "<token>"
 ```
 
 Read values back without an argument:
@@ -130,6 +130,14 @@ plan explicitly before execution with `plan-manager plans update <plan>
 an honest recapture or degraded partial-handoff path. New/current plans instead
 derive their collection from a `change_boundary` anchor; use `--baseline-mode
 current --anchor-strategy change_boundary` when repairing one.
+
+When a current plan's Git Control Tower preflight reports a source scope repair,
+`exec continue` deliberately has no capture command. Use
+`plan-manager exec baseline-scope-repair <execution> --paths '<narrow-glob>'
+--reason '<why>'`; replacements must remain inside the authored change boundary
+and are re-estimated by GCT before Plan Manager restores the normal producer
+capture/wait/sync sequence. Source evidence remains informational—this command
+does not change behavioral collection members or Test Genie coverage.
 
 ## `author` — the guided composer wizard
 

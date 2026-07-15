@@ -2,11 +2,10 @@ package authoring
 
 import (
 	"context"
-	"fmt"
+	"strconv"
 	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
-	"plan-manager/internal/readiness"
 )
 
 func (s *service) SubmitRelevantContextItem(ctx context.Context, sessionID, phaseID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
@@ -185,6 +184,51 @@ func (s *service) RemoveRelevantContextItem(ctx context.Context, sessionID, phas
 	return sess, violations, step, nil
 }
 
+// discoveryComplexityLevels is prompt-manager's discovery complexity
+// vocabulary. Prompt-manager owns this contract (its API rejects anything
+// else with a 400); TestDiscoveryComplexityContract pins the two in sync.
+var discoveryComplexityLevels = []string{"minor", "moderate", "major", "architectural"}
+
+// discoveryComplexitySynonyms maps the size vocabularies agents habitually
+// reach for onto prompt-manager's levels, so a guessed "high" becomes a
+// working call instead of a degraded skill pack.
+var discoveryComplexitySynonyms = map[string]string{
+	"low":    "minor",
+	"small":  "minor",
+	"medium": "moderate",
+	"high":   "major",
+	"large":  "major",
+	"xhigh":  "architectural",
+	"max":    "architectural",
+}
+
+// normalizeDiscoveryComplexity validates the optional complexity value before
+// it is shelled out to prompt-manager: empty stays empty (prompt-manager
+// defaults to moderate), canonical levels pass, common synonyms are mapped,
+// and anything else is rejected naming the valid values — failing fast beats
+// a degraded discovery.
+func normalizeDiscoveryComplexity(complexity string) (string, error) {
+	complexity = strings.ToLower(strings.TrimSpace(complexity))
+	if complexity == "" {
+		return "", nil
+	}
+	for _, level := range discoveryComplexityLevels {
+		if complexity == level {
+			return complexity, nil
+		}
+	}
+	if mapped, ok := discoveryComplexitySynonyms[complexity]; ok {
+		return mapped, nil
+	}
+	return "", ErrInvalidSession{Reason: "complexity " + strconv.Quote(complexity) + " is not a prompt-manager discovery level; use one of: " + strings.Join(discoveryComplexityLevels, ", ") + " (or omit the flag)"}
+}
+
+// skillPackRecoveryHint names the known-good manual fallback so a degraded
+// discovery is recoverable without tribal knowledge.
+func skillPackRecoveryHint(sessionID string) string {
+	return "; fallback: run `prompt-manager discover \"<concept>\" --type skill --json` directly, then add each skill via `plan-manager author context-submit " + sessionID + " --kind skill --label \"<name>\" --command \"prompt-manager skill read <slug>\" --reason \"<why>\"`"
+}
+
 func (s *service) DiscoverSkillPack(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, SkillPackResult, []planmodel.RelevantContextItem, []planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
 	// Skill discovery shells out and can take tens of seconds — run it against a
 	// pre-lock read so prompt-manager never holds the session lock; only the
@@ -193,11 +237,15 @@ func (s *service) DiscoverSkillPack(ctx context.Context, sessionID string, conce
 	if err != nil {
 		return Session{}, SkillPackResult{}, nil, nil, nil, GuidedStep{}, err
 	}
+	complexity, err = normalizeDiscoveryComplexity(complexity)
+	if err != nil {
+		return Session{}, SkillPackResult{}, nil, nil, nil, GuidedStep{}, err
+	}
 	var result SkillPackResult
 	if s.skills == nil {
 		result = SkillPackResult{Degraded: true, DegradedReason: "prompt-manager skill discovery unavailable"}
 	} else if result, err = s.skills.DiscoverSkillPack(ctx, sess.Title, concepts, complexity); err != nil {
-		result = SkillPackResult{Degraded: true, DegradedReason: err.Error()}
+		result = SkillPackResult{Degraded: true, DegradedReason: err.Error() + skillPackRecoveryHint(sessionID)}
 	}
 	for _, suggestion := range s.skillSteer.SuggestSkills(ctx, sessionBoundary(sess)) {
 		if item, ok := steeredSkillItem(suggestion); ok {
@@ -237,34 +285,6 @@ func (s *service) DiscoverSkillPack(ctx context.Context, sessionID string, conce
 		return Session{}, SkillPackResult{}, nil, nil, nil, GuidedStep{}, err
 	}
 	return sess, result, added, kept, violations, stepForCurrentSessionState(sess), nil
-}
-
-type commandReadinessAdapter struct {
-	validator CommandReferenceValidator
-}
-
-func (a commandReadinessAdapter) ValidateCommandReference(ctx context.Context, req readiness.CommandRequest) (readiness.CommandResult, error) {
-	if a.validator == nil {
-		return readiness.CommandResult{}, fmt.Errorf("CLI Health command validator unavailable")
-	}
-	got, err := a.validator.ValidateCommandReference(ctx, CommandReferenceRequest{
-		CommandText: req.CommandText,
-		Qualifiers:  append([]string(nil), req.Qualifiers...),
-	})
-	if err != nil {
-		return readiness.CommandResult{}, err
-	}
-	issues := make([]readiness.CommandIssue, 0, len(got.Issues))
-	for _, issue := range got.Issues {
-		issues = append(issues, readiness.CommandIssue{Code: issue.Code, Message: issue.Message})
-	}
-	return readiness.CommandResult{
-		Verdict:         got.Verdict,
-		ValidationLevel: got.ValidationLevel,
-		Issues:          issues,
-		Suggestions:     append([]string(nil), got.Suggestions...),
-		Guidance:        append([]string(nil), got.Guidance...),
-	}, nil
 }
 
 // runAutofill runs one source against the session in place. It NEVER fabricates a

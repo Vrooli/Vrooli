@@ -23,3 +23,27 @@ func TestFSPackageJSONReader_PrefersUIManifestAndFallsBackToRoot(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, `{"name":"root"}`, string(rootManifest))
 }
+
+// TestFSPackageJSONReader_ResolvesTemplateScenarioKey covers the template
+// adoption key form "../templates/scenarios/<id>": it must resolve next to
+// the scenarios root (so reapply against a vendored template copy can run
+// dependency validation) while still rejecting traversal inside the id.
+func TestFSPackageJSONReader_ResolvesTemplateScenarioKey(t *testing.T) {
+	repoRoot := t.TempDir()
+	scenariosRoot := filepath.Join(repoRoot, "scenarios")
+	templateUI := filepath.Join(repoRoot, "templates", "scenarios", "react-vite", "ui")
+	require.NoError(t, os.MkdirAll(scenariosRoot, 0o755))
+	require.NoError(t, os.MkdirAll(templateUI, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(templateUI, "package.json"), []byte(`{"name":"template"}`), 0o600))
+
+	reader := NewFSPackageJSONReader(scenariosRoot)
+
+	got, err := reader.Read(context.Background(), "../templates/scenarios/react-vite")
+	require.NoError(t, err)
+	require.JSONEq(t, `{"name":"template"}`, string(got))
+
+	_, err = reader.Read(context.Background(), "../templates/scenarios/../../secrets")
+	require.ErrorContains(t, err, "invalid scenario name")
+	_, err = reader.Read(context.Background(), "../other")
+	require.ErrorContains(t, err, "invalid scenario name")
+}

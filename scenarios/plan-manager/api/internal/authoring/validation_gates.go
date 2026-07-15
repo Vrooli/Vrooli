@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/markedrefs"
 
@@ -125,13 +126,21 @@ func sessionViolations(sess Session) []StructureViolation {
 }
 
 func (s *service) readinessViolations(ctx context.Context, sess Session) []StructureViolation {
+	violations, _ := s.readinessAssessment(ctx, sess)
+	return violations
+}
+
+// readinessAssessment pairs the deterministic finalization gate with an
+// intentionally bounded GCT advisory. Advisory failures are visible in the
+// guided step but never convert a dependency outage into a readiness failure.
+func (s *service) readinessAssessment(ctx context.Context, sess Session) ([]StructureViolation, []string) {
 	out := sessionViolations(sess)
 	if len(out) > 0 {
-		return out
+		return out, nil
 	}
 	draft, err := sessionToPlan(sess)
 	if err != nil {
-		return append(out, StructureViolation{SectionKey: SectionPhases, Message: err.Error()})
+		return append(out, StructureViolation{SectionKey: SectionPhases, Message: err.Error()}), nil
 	}
 	if s.posture != nil {
 		draft = s.posture.PreparePosture(ctx, draft)
@@ -148,7 +157,41 @@ func (s *service) readinessViolations(ctx context.Context, sess Session) []Struc
 			Message:    fmt.Sprintf("readiness %s at %s: %s", finding.Code, finding.Location, finding.Message),
 		})
 	}
+	if len(out) > 0 {
+		return out, nil
+	}
+	return out, s.sourceEvidenceAdvisory(ctx, draft.ChangeBoundary.RepoPaths())
+}
+
+func (s *service) sourceEvidenceAdvisory(ctx context.Context, repoPaths []string) []string {
+	if s.sourceEvidence == nil || len(repoPaths) == 0 {
+		return nil
+	}
+	advisoryCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	advisory, err := s.sourceEvidence.AdviseSourceEvidence(advisoryCtx, repoPaths)
+	if err != nil {
+		return []string{fmt.Sprintf("WARNING source_evidence_advisory_unavailable: %v. Deterministic readiness remains valid; retry validation before execution.", err)}
+	}
+	var out []string
+	for _, issue := range advisory.Issues {
+		out = append(out, fmt.Sprintf("SOURCE EVIDENCE %s %s: %s", strings.ToUpper(issue.Severity), issue.Code, issue.Detail))
+	}
+	if advisory.RepairRequired && len(advisory.Issues) == 0 {
+		out = append(out, "SOURCE EVIDENCE REPAIR REQUIRED: narrow the source selection before execution baseline capture.")
+	}
+	for _, recommendation := range advisory.Recommendations {
+		out = append(out, fmt.Sprintf("Source-evidence recommendation: use %q (%s).", recommendation.Selection, recommendation.Reason))
+	}
 	return out
+}
+
+func appendSourceEvidenceAdvisory(step GuidedStep, advisory []string) GuidedStep {
+	if len(advisory) == 0 {
+		return step
+	}
+	step.Instructions = append(advisory, step.Instructions...)
+	return step
 }
 
 func sectionForQualityLocation(location string) SectionKey {

@@ -619,6 +619,21 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
+			// Regression: this command's narrow ArgSchema (only
+			// --validation-scope/--workspace) used to panic when the shared
+			// phaseUpdate handler probed undeclared flags like --title.
+			name: "phase validation-scope repairs scope via its own narrow schema", group: "phase", cmd: "validation-scope",
+			argv: []string{"plan-p", "phase-1", "--validation-scope", "narrow:scenarios/workspace-sandbox/**"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.UpdatePhaseRequest)
+				require.Equal(t, "plan-p", m.GetPlanId())
+				require.Equal(t, "phase-1", m.GetPhase().GetId())
+				scope := m.GetPhase().GetValidationScope()
+				require.Equal(t, sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_NARROW, scope.GetMode())
+				require.Equal(t, []string{"scenarios/workspace-sandbox/**"}, scope.GetBoundary().GetAcceptanceAllow())
+			},
+		},
+		{
 			name: "phase add maps comma-separated list flags", group: "phase", cmd: "add",
 			argv: []string{"plan-p", "--title", "Ph", "--context", "kind=doc;label=Testing docs;target=docs/TESTING.md;reason=Use server-owned wait protocol;instruction=Read before running tests,kind=command;command=prompt-manager skill read scientific-debugging;repeat=on_resume", "--reminders", "never stash", "--baseline-scope", "git-control-tower baseline diff --scenario x"},
 			assert: func(t *testing.T, req proto.Message) {

@@ -32,6 +32,7 @@ type Service interface {
 	SyncBaseline(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error)
 	AmendScope(ctx context.Context, executionID string, req ScopeAmendmentRequest) (Execution, PhaseContext, GuidedStep, error)
 	AdoptBaseline(ctx context.Context, executionID string, req BaselineAdoptionRequest) (Execution, PhaseContext, GuidedStep, error)
+	RepairSourceScope(ctx context.Context, executionID string, req SourceScopeRepairRequest) (Execution, PhaseContext, GuidedStep, error)
 	Resume(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	ContinueExecution(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error)
@@ -51,6 +52,7 @@ type service struct {
 	log       LogLedger
 	velocity  VelocitySink
 	baseline  BaselineSynchronizer
+	preflight SourceEvidencePreflighter
 	clock     clock.Clock
 }
 
@@ -67,6 +69,7 @@ type Deps struct {
 	Log       LogLedger
 	Velocity  VelocitySink
 	Baseline  BaselineSynchronizer
+	Preflight SourceEvidencePreflighter
 	Clock     clock.Clock
 }
 
@@ -87,6 +90,7 @@ func NewService(d Deps) Service {
 		log:       d.Log,
 		velocity:  sink,
 		baseline:  d.Baseline,
+		preflight: d.Preflight,
 		clock:     clk,
 	}
 }
@@ -133,6 +137,9 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 	s.ensureBaselineTicket(ctx, &e, plan)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, mode)
 	s.applyFreshenContext(&pctx, e)
+	if e.BaselineSet.Status == BaselineSetStatusScopeRepairRequired || e.BaselineSet.PreflightUnavailable {
+		return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	}
 	return e, pctx, stepForStarted(e), nil
 }
 
@@ -322,6 +329,22 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 	if err != nil {
 		return Handoff{}, nil, GuidedStep{}, err
 	}
+	// Idempotent completion: an execution that already produced a full handoff
+	// returns it again instead of re-running the completion gates. Without this a
+	// second `exec complete` (e.g. after a transient client error, or an operator
+	// retry) re-validated and could fail with a validation error even though the
+	// completion had already landed (knw-1784053356805823492). The last phase
+	// transitioning to done sets e.Complete=true but writes NO handoff, so the
+	// FIRST real completion still runs every gate below.
+	if e.Complete {
+		if h, ok, herr := s.repo.GetHandoff(ctx, e.ID); herr != nil {
+			return Handoff{}, nil, GuidedStep{}, herr
+		} else if ok && h.Completeness == CompletenessFull {
+			logSummary, _ := s.logLedger(ctx, e.ID)
+			nudges := s.completionNudges(plan, logSummary)
+			return h, nudges, stepForComplete(e.ID, nudges), nil
+		}
+	}
 	if computeCompleteness(plan.Phases) != CompletenessFull {
 		return Handoff{}, nil, GuidedStep{}, ErrInvalidExecution{Reason: "normal completion requires every phase done; use partial-handoff for an honest incomplete handoff"}
 	}
@@ -413,9 +436,11 @@ func (s *service) PartialHandoff(ctx context.Context, executionID string, inputs
 	logSummary, logEntries := s.logLedger(ctx, e.ID)
 	lastVal, hasVal, staleness := s.lastValidation(ctx, plan, e.CurrentPhaseID)
 	now := s.now()
-	handoff := Handoff{ID: uuid.NewString(), ExecutionID: e.ID, PlanID: plan.ID, Completeness: CompletenessPartial,
+	handoff := Handoff{
+		ID: uuid.NewString(), ExecutionID: e.ID, PlanID: plan.ID, Completeness: CompletenessPartial,
 		ResumePhaseID: resumePhaseID(plan.Phases), LogSummary: logSummary, LogEntries: logEntries, LastValidation: lastVal,
-		HasValidation: hasVal, Staleness: staleness, AssembledAt: now, ChangeBoundary: plan.ChangeBoundary}
+		HasValidation: hasVal, Staleness: staleness, AssembledAt: now, ChangeBoundary: plan.ChangeBoundary,
+	}
 	point := VelocityPoint{ID: uuid.NewString(), PlanID: plan.ID, RunID: e.RunID, WallTimeSeconds: s.wallTime(e.StartedAt, now), Tokens: inputs.Tokens, Iterations: inputs.Iterations, Completeness: CompletenessPartial, RecordedAt: now}
 	e.Complete, e.UpdatedAt = false, now
 	if err := s.repo.WithTx(ctx, func(repo Repository) error {
@@ -548,6 +573,29 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 		return
 	}
 	name := strings.TrimSpace(plan.BaselineSet.Name)
+	state := BaselineSetState{
+		Version: BaselineSetStateSchemaVersion, Name: name,
+		ScenarioTargets: append([]string(nil), plan.BaselineSet.ScenarioTargets...),
+		RepoPaths:       append([]string(nil), plan.BaselineSet.RepoPaths...),
+		Status:          BaselineSetStatusRequired,
+		Detail:          "baseline capture has not been started; run the producer-owned capture action, use GCT's printed wait command, then synchronize this ticket",
+		WaitArgv:        []string{"git-control-tower", "baseline", "collection", "show", "--name", name, "--wait", "--json"},
+		SyncArgv:        []string{"plan-manager", "exec", "baseline-sync", e.ID},
+	}
+	if len(plan.BaselineSet.RepoPaths) > 0 && s.preflight != nil {
+		preflight, preflightErr := s.preflight.EstimateSourceEvidence(ctx, plan.BaselineSet.RepoPaths)
+		if preflightErr != nil {
+			state.PreflightUnavailable = true
+			state.Detail = "Git Control Tower source-evidence preflight is unavailable: " + preflightErr.Error()
+			state.Status = BaselineSetStatusDegraded
+		} else {
+			state.SourcePreflight = preflight
+			if preflight.RepairRequired {
+				state.Status = BaselineSetStatusScopeRepairRequired
+				state.Detail = sourcePreflightDetail(preflight)
+			}
+		}
+	}
 	capture := []string{"git-control-tower", "baseline", "collection", "capture", "--name", name}
 	for _, scenario := range plan.BaselineSet.ScenarioTargets {
 		capture = append(capture, "--member", scenario)
@@ -555,18 +603,91 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 	for _, path := range plan.BaselineSet.RepoPaths {
 		capture = append(capture, "--path", path)
 	}
-	e.BaselineSet = BaselineSetState{
-		Version: BaselineSetStateSchemaVersion, Name: name,
-		ScenarioTargets: append([]string(nil), plan.BaselineSet.ScenarioTargets...),
-		RepoPaths:       append([]string(nil), plan.BaselineSet.RepoPaths...),
-		Status:          BaselineSetStatusRequired,
-		Detail:          "baseline capture has not been started; run the producer-owned capture action, use GCT's printed wait command, then synchronize this ticket",
-		CaptureArgv:     capture,
-		WaitArgv:        []string{"git-control-tower", "baseline", "collection", "show", "--name", name, "--wait", "--json"},
-		SyncArgv:        []string{"plan-manager", "exec", "baseline-sync", e.ID},
+	if state.Status == BaselineSetStatusRequired {
+		state.CaptureArgv = capture
 	}
+	e.BaselineSet = state
 	e.FreshenStatus, e.FreshenDetail, e.UpdatedAt = "baseline_required", e.BaselineSet.Detail, s.now()
 	_ = s.repo.SaveExecution(ctx, *e)
+}
+
+func sourcePreflightDetail(preflight SourceEvidencePreflight) string {
+	for _, issue := range preflight.Issues {
+		if issue.Severity == "repair-required" || issue.Severity == "error" {
+			return "source evidence scope repair required: " + issue.Detail
+		}
+	}
+	return "source evidence scope repair required by Git Control Tower"
+}
+
+// RepairSourceScope is the sole execution-time repair lane for informational
+// source evidence. It never changes GCT collection members or plan boundary;
+// replacements must be strictly contained by the authored allow globs and are
+// immediately re-estimated by the authoritative provider.
+func (s *service) RepairSourceScope(ctx context.Context, executionID string, req SourceScopeRepairRequest) (Execution, PhaseContext, GuidedStep, error) {
+	e, err := s.getExecution(ctx, executionID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	plan, err := s.plans.GetPlan(ctx, e.PlanID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	if e.BaselineSet.Status != BaselineSetStatusScopeRepairRequired {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "source-scope repair requires a repair-required baseline checkpoint"}
+	}
+	if len(req.Paths) == 0 || strings.TrimSpace(req.Reason) == "" {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "replacement source paths and repair reason are required"}
+	}
+	for _, path := range req.Paths {
+		if !sourcePathWithinBoundary(path, plan.ChangeBoundary.AcceptanceAllow) {
+			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "replacement source path is outside the plan change boundary: " + path}
+		}
+	}
+	if s.preflight == nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "Git Control Tower source-evidence preflight is unavailable"}
+	}
+	preflight, err := s.preflight.EstimateSourceEvidence(ctx, req.Paths)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "source-evidence preflight failed: " + err.Error()}
+	}
+	e.BaselineSet.RepoPaths = append([]string(nil), req.Paths...)
+	e.BaselineSet.SourcePreflight, e.BaselineSet.PreflightUnavailable = preflight, false
+	if preflight.RepairRequired {
+		e.BaselineSet.Detail = sourcePreflightDetail(preflight)
+		e.UpdatedAt = s.now()
+		_ = s.repo.SaveExecution(ctx, e)
+		pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
+		s.applyFreshenContext(&pctx, e)
+		return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	}
+	capture := []string{"git-control-tower", "baseline", "collection", "capture", "--name", e.BaselineSet.Name}
+	for _, scenario := range e.BaselineSet.ScenarioTargets {
+		capture = append(capture, "--member", scenario)
+	}
+	for _, path := range e.BaselineSet.RepoPaths {
+		capture = append(capture, "--path", path)
+	}
+	e.BaselineSet.Status, e.BaselineSet.Detail, e.BaselineSet.CaptureArgv = BaselineSetStatusRequired, "source scope repaired and re-estimated; run the producer-owned capture action", capture
+	e.UpdatedAt = s.now()
+	if err := s.repo.SaveExecution(ctx, e); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
+	s.applyFreshenContext(&pctx, e)
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+}
+
+func sourcePathWithinBoundary(path string, allows []string) bool {
+	path = strings.Trim(strings.ReplaceAll(strings.TrimSpace(path), "\\", "/"), "/")
+	for _, allow := range allows {
+		allow = strings.Trim(strings.ReplaceAll(strings.TrimSpace(allow), "\\", "/"), "/")
+		base := strings.TrimSuffix(allow, "**")
+		if path == allow || (base != "" && strings.HasPrefix(path, base)) {
+			return true
+		}
+	}
+	return false
 }
 
 // SyncBaseline is a one-shot nonblocking typed read of GCT's durable collection
@@ -1049,19 +1170,23 @@ func (s *service) lastValidation(ctx context.Context, plan planmodel.Plan, phase
 func (s *service) requireValidationForDone(ctx context.Context, e Execution, plan planmodel.Plan, phaseID, overrideReason string) error {
 	res, hasVal, staleness := s.lastValidation(ctx, plan, phaseID)
 	// Legacy executions remain readable and can finish their already-authored
-	// phase workflow. New collection-ticketed executions require provenance.
-	valid := validationIsRecentPass(res, hasVal, staleness)
+	// phase workflow. New collection-ticketed executions require execution-bound
+	// provenance and scenario coverage — but a PHASE transition is satisfied by a
+	// fresh phase-scoped pass whose scope covers the phase. Full-inventory is a
+	// plan-COMPLETION concern, so it is intentionally NOT demanded here.
+	var reason string
 	if e.BaselineSet.Name != "" {
-		valid = validationIsRecentPassForExecution(res, hasVal, staleness, e.ID, e.PhaseValidationGenerations[phaseID], false)
-		valid = valid && containsMembers(res.SelectedMembers, effectivePhaseMinimum(e, plan, phaseID))
+		reason = validationGateFailure(res, hasVal, staleness, e.ID, e.PhaseValidationGenerations[phaseID], false, effectivePhaseMinimum(e, plan, phaseID))
+	} else {
+		reason = validationBlockerReason(res, hasVal, staleness)
 	}
-	if valid {
+	if reason == "" {
 		return nil
 	}
 	if strings.TrimSpace(overrideReason) != "" {
 		return nil
 	}
-	return ErrValidationRequired{PhaseID: phaseID, Reason: validationBlockerReason(res, hasVal, staleness)}
+	return ErrValidationRequired{PhaseID: phaseID, Reason: reason}
 }
 
 // effectivePhaseMinimum is the actual execution-owned selector for a phase.
@@ -1122,23 +1247,49 @@ func containsMembers(selected, required []string) bool {
 
 func (s *service) requireFinalValidation(ctx context.Context, e Execution, plan planmodel.Plan) error {
 	res, hasVal, staleness := s.lastValidation(ctx, plan, "")
-	if validationIsRecentPassForExecution(res, hasVal, staleness, e.ID, e.PhaseValidationGenerations[""], true) {
+	// Completion legitimately demands a fresh, execution-bound, full-inventory
+	// pass — full-inventory is a plan-completion concern (never a per-phase one).
+	reason := validationGateFailure(res, hasVal, staleness, e.ID, e.PhaseValidationGenerations[""], true, nil)
+	if reason == "" {
 		return nil
 	}
-	return ErrInvalidExecution{Reason: "full collection Definition-of-Done validation is required before completion: " + validationBlockerReason(res, hasVal, staleness)}
-}
-
-func validationIsRecentPassForExecution(res ValidationResult, hasVal bool, staleness planmodel.StalenessTier, executionID string, generation int, requireFullInventory bool) bool {
-	if !validationIsRecentPass(res, hasVal, staleness) || res.ExecutionID != executionID || res.ScopeGeneration != generation {
-		return false
-	}
-	return !requireFullInventory || res.FullInventory
+	return ErrInvalidExecution{Reason: "full collection Definition-of-Done validation is required before completion: " + reason}
 }
 
 func validationIsRecentPass(res ValidationResult, hasVal bool, staleness planmodel.StalenessTier) bool {
 	return hasVal && res.Verdict == "pass" && staleness == planmodel.StalenessFresh
 }
 
+// validationGateFailure returns an empty string when the stored validation
+// satisfies the execution-bound done/completion gate, otherwise a precise reason
+// naming the FIRST failing condition. The gate predicate checks more than
+// verdict+staleness (execution binding, scope generation, full-inventory,
+// scenario coverage); reporting only the staleness here produced the
+// contradictory "staleness is fresh" rejection (knw-1784053356805823492) when the
+// real blocker was one of the provenance conditions. Every rejection message must
+// name the condition that actually failed, never one that passed.
+func validationGateFailure(res ValidationResult, hasVal bool, staleness planmodel.StalenessTier, executionID string, generation int, requireFullInventory bool, requiredMembers []string) string {
+	if reason := validationBlockerReason(res, hasVal, staleness); reason != "" {
+		return reason
+	}
+	if res.ExecutionID != executionID {
+		return "last validation was bound to a different execution (" + orUnknown(res.ExecutionID) + "); run validation for this execution"
+	}
+	if res.ScopeGeneration != generation {
+		return fmt.Sprintf("last validation covered scope generation %d but this phase is at generation %d; re-run validation after the scope change", res.ScopeGeneration, generation)
+	}
+	if requireFullInventory && !res.FullInventory {
+		return "last validation was phase-scoped, but full-inventory Definition-of-Done validation is required for completion"
+	}
+	if len(requiredMembers) > 0 && !containsMembers(res.SelectedMembers, requiredMembers) {
+		return "last validation did not cover required scenario(s): " + strings.Join(missingMembers(res.SelectedMembers, requiredMembers), ", ")
+	}
+	return ""
+}
+
+// validationBlockerReason reports why the LAST STORED validation is not a fresh
+// pass. It returns "" exactly when validationIsRecentPass is true, so a fresh
+// passing validation never yields a (self-contradictory) blocker message.
 func validationBlockerReason(res ValidationResult, hasVal bool, staleness planmodel.StalenessTier) string {
 	if !hasVal {
 		return "no stored validation result"
@@ -1146,7 +1297,26 @@ func validationBlockerReason(res ValidationResult, hasVal bool, staleness planmo
 	if res.Verdict != "pass" {
 		return "last validation verdict is " + orUnknown(res.Verdict)
 	}
-	return "last validation staleness is " + orUnknown(string(staleness))
+	if staleness != planmodel.StalenessFresh {
+		return "last validation staleness is " + orUnknown(string(staleness))
+	}
+	return ""
+}
+
+// missingMembers lists required members not present in selected, preserving the
+// required order so the rejection message is deterministic.
+func missingMembers(selected, required []string) []string {
+	set := make(map[string]struct{}, len(selected))
+	for _, member := range selected {
+		set[member] = struct{}{}
+	}
+	var missing []string
+	for _, member := range required {
+		if _, ok := set[member]; !ok {
+			missing = append(missing, member)
+		}
+	}
+	return missing
 }
 
 func orUnknown(value string) string {

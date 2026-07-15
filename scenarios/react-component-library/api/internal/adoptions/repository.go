@@ -14,6 +14,12 @@ type Repository interface {
 	UpdateAppliedSnapshot(ctx context.Context, in AppliedSnapshotUpdate) (Adoption, error)
 	UpdateAppliedUnit(ctx context.Context, in AppliedUnitUpdate) (Adoption, error)
 
+	// Rebaseline overwrites only the recorded pristine snapshot hashes (parent +
+	// per-file) of an existing row, leaving version / status / applied_at /
+	// drift_backlog_ref untouched. It is the heal seam for poisoned snapshots;
+	// callers recompute drift status separately via ApplyRefresh.
+	Rebaseline(ctx context.Context, in RebaselineInput) (Adoption, error)
+
 	// Get fetches an adoption by primary ID. Returns
 	// ErrAdoptionNotFound when no row matches.
 	Get(ctx context.Context, id string) (Adoption, error)

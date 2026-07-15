@@ -21,7 +21,8 @@
  */
 import { useEffect, useRef } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 
 import { SpatialGroup } from "./SpatialGroup";
 import { makeMockSpatialNavController } from "../test-utils";
@@ -63,7 +64,7 @@ const Harness = (props: {
 describe("SpatialGroup", () => {
   it("registers a spatial focus group on mount and runs the cleanup on unmount", () => {
     const ctrl = makeMockSpatialNavController();
-    const { unmount } = render(<Harness controller={ctrl} mode="spatial" options={{ wrap: true }} />);
+    const { unmount } = renderWithProviders(<Harness controller={ctrl} mode="spatial" options={{ wrap: true }} />);
 
     expect(ctrl.registerGroup).toHaveBeenCalledTimes(1);
     const [el, mode, opts] = ctrl.registerGroup.mock.calls[0] as [HTMLElement, string, unknown];
@@ -78,7 +79,7 @@ describe("SpatialGroup", () => {
 
   it("pushes a modal scope on mount and pops it on unmount", () => {
     const ctrl = makeMockSpatialNavController();
-    const { unmount } = render(<Harness controller={ctrl} mode="modal" />);
+    const { unmount } = renderWithProviders(<Harness controller={ctrl} mode="modal" />);
 
     expect(ctrl.pushScope).toHaveBeenCalledTimes(1);
     expect(ctrl.popScope).not.toHaveBeenCalled();
@@ -90,7 +91,7 @@ describe("SpatialGroup", () => {
 
   it("re-runs the effect when mode changes (spatial→modal cleans up registerGroup, registers modal scope)", () => {
     const ctrl = makeMockSpatialNavController();
-    const { rerender, unmount } = render(<Harness controller={ctrl} mode="spatial" />);
+    const { rerender, unmount } = renderWithProviders(<Harness controller={ctrl} mode="spatial" />);
 
     expect(ctrl.registerGroup).toHaveBeenCalledTimes(1);
     expect(ctrl.cleanup).not.toHaveBeenCalled();

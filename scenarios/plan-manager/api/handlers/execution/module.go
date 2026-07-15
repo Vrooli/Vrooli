@@ -74,8 +74,9 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Velocity:  internalexecution.DefaultVelocitySink(), // stub; no MoM wire (v1)
 		// GCT state is read only through this sync seam. The execution service
 		// persists and renders producer tickets, but never starts or waits for GCT.
-		Baseline: baselineSynchronizerAdapter{svc: validationSvc},
-		Clock:    clk,
+		Baseline:  baselineSynchronizerAdapter{svc: validationSvc},
+		Preflight: newGCTSourcePreflighter(),
+		Clock:     clk,
 	})
 
 	connectPath, connectHandler := executionconnect.NewExecutionServiceHandler(NewConnectHandler(Deps{
@@ -283,6 +284,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("execution_sync_baseline", executionconnect.ExecutionServiceSyncBaselineProcedure, "Synchronize baseline evidence", "Reads the producer-owned GCT collection once and persists typed coverage without starting or waiting for capture."),
 	endpoint("execution_amend_scope", executionconnect.ExecutionServiceAmendScopeProcedure, "Amend validation scope", "Records an auditable expansion within the captured baseline inventory and invalidates prior phase evidence."),
 	endpoint("execution_adopt_baseline", executionconnect.ExecutionServiceAdoptBaselineProcedure, "Adopt legacy baseline", "Creates a producer ticket or an explicit degraded legacy state without starting or waiting for capture."),
+	endpoint("execution_repair_source_scope", executionconnect.ExecutionServiceRepairSourceScopeProcedure, "Repair baseline source scope", "Boundary-checks and re-estimates an informational source-evidence replacement before capture can be issued."),
 	endpoint("execution_get_next", executionconnect.ExecutionServiceGetNextProcedure, "Advance to next phase", "Advances the runner's pointer to the next actionable phase and returns its injected context."),
 	endpoint("execution_transition_phase", executionconnect.ExecutionServiceTransitionPhaseProcedure, "Transition phase status", "Performs a typed phase-status transition; plan status is recomputed from the phase-status set."),
 	endpoint("execution_complete", executionconnect.ExecutionServiceCompleteProcedure, "Complete the run", "Runs the thin guided completion process, assembles the canonical handoff, and captures a velocity point (OT-P1-001/002)."),

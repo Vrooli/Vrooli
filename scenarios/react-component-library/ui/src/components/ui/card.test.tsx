@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
 
@@ -7,7 +8,7 @@ describe("Card primitives", () => {
   afterEach(() => cleanup());
 
   it("renders each part with its base classes merged with a custom className", () => {
-    render(
+    renderWithProviders(
       <Card data-testid="card" className="custom-card">
         <CardHeader data-testid="header" className="custom-header">
           <CardTitle data-testid="title" className="custom-title">
@@ -42,7 +43,7 @@ describe("Card primitives", () => {
   });
 
   it("passes arbitrary DOM props through to the underlying element", () => {
-    render(
+    renderWithProviders(
       <Card aria-label="panel" role="group">
         <span>content</span>
       </Card>,

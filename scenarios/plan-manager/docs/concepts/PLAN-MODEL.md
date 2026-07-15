@@ -143,6 +143,16 @@ behavioral coverage must be complete before it is treated as a usable oracle.
 Selected source paths are captured as **informational source evidence** only;
 their changes never substitute for a Test Genie regression verdict.
 
+Immediately before rendering its producer-owned capture command, Plan Manager
+asks Git Control Tower for the authoritative source estimate. An individual
+scenario glob is accepted when that measured estimate is safe; broad
+`scenarios/**` or `packages/proto/gen/**` selections can instead put the
+checkpoint into `scope_repair_required`. That state records GCT's counts,
+issue codes, and boundary-preserving recommendations and deliberately renders
+no capture command. A preflight transport failure is degraded rather than a
+fabricated safe result. Repair must be re-estimated before normal collection
+capture resumes; behavioral members are unchanged throughout.
+
 The checkpoint also keeps the collection branch, each member's baseline/run and
 capture status, and metadata-only path-snapshot references. This is recovery and
 operator provenance: source bytes remain private in GCT. Validation captures a

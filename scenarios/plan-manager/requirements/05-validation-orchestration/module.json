@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-005 — baseline-aware validation: compute the exact check set, run on request, verify DoD.",
-    "last_validated_at": "2026-07-10T16:28:06-04:00",
+    "last_validated_at": "2026-07-13T20:02:43-04:00",
     "module": "validation-orchestration",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -142,6 +142,35 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Covers start/show/wait/resume request mapping and one inspect reconnect after unexpected EOF."
+        }
+      ]
+    },
+    {
+      "id": "PM-VALID-005",
+      "title": "Use Git Control Tower preflight before issuing source capture",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "validation",
+      "description": "Plan Manager records Git Control Tower's source-evidence estimate at execution start and must not render a capture command when the current measured selection requires scope repair or the provider is unavailable.",
+      "tags": [
+        "validation",
+        "baseline",
+        "source-evidence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestSourceEvidenceRepairDoesNotIssueCaptureCommand",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves repair-required preflight has no producer capture argv and preserves GCT's scoped recommendation."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/execution/convert_test.go::TestExecutionToProto",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves preflight evidence is exposed through the typed execution contract."
         }
       ]
     }

@@ -111,6 +111,32 @@ func (s *sqliteRepository) UpdateAppliedUnit(ctx context.Context, in AppliedUnit
 	return updated, err
 }
 
+func (s *sqliteRepository) Rebaseline(ctx context.Context, in RebaselineInput) (Adoption, error) {
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return Adoption{}, ErrInvalidAdoption{Field: "id", Reason: "required"}
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE adoption_records SET adopted_snapshot_sha256 = ? WHERE id = ?`, in.AdoptedSnapshotSHA256, id)
+	if err != nil {
+		return Adoption{}, fmt.Errorf("rebaseline snapshot %q: %w", id, err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return Adoption{}, ErrAdoptionNotFound{ID: id}
+	}
+	if in.Files != nil {
+		if _, err := s.db.ExecContext(ctx, `DELETE FROM adoption_files WHERE adoption_id = ?`, id); err != nil {
+			return Adoption{}, fmt.Errorf("clear adoption files: %w", err)
+		}
+		for _, file := range in.Files {
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256) VALUES (?, ?, ?, ?, ?)`, id, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256); err != nil {
+				return Adoption{}, fmt.Errorf("insert rebaselined adoption file: %w", err)
+			}
+		}
+	}
+	return s.Get(ctx, id)
+}
+
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Adoption, error) {
 	row := s.db.QueryRowContext(ctx, selectAdoptionByIDSQL, id)
 	a, err := scanAdoption(row)

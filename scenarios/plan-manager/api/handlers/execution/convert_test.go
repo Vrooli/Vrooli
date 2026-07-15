@@ -22,7 +22,7 @@ func TestExecutionToProto(t *testing.T) {
 		Complete:       true,
 		StartedAt:      "t0",
 		UpdatedAt:      "t1",
-		BaselineSet:    internalexecution.BaselineSetState{Version: 1, Name: "before", Status: internalexecution.BaselineSetStatusComplete, Required: 2, Ready: 2, CollectionBranch: "agi", Members: []internalexecution.BaselineSetMember{{Scenario: "git-control-tower", RunID: "run-gct", GitSHA: "abc123"}}, PathSnapshots: []internalexecution.BaselineSetPathSnapshot{{Name: "paths-before", Branch: "agi"}}},
+		BaselineSet:    internalexecution.BaselineSetState{Version: 1, Name: "before", Status: internalexecution.BaselineSetStatusComplete, Required: 2, Ready: 2, CollectionBranch: "agi", Members: []internalexecution.BaselineSetMember{{Scenario: "git-control-tower", RunID: "run-gct", GitSHA: "abc123"}}, PathSnapshots: []internalexecution.BaselineSetPathSnapshot{{Name: "paths-before", Branch: "agi"}}, SourcePreflight: internalexecution.SourceEvidencePreflight{PolicyVersion: 1, EligibleFiles: 3, ExcludedIgnoredFiles: 2, RepairRequired: true, TopContributors: []internalexecution.SourceEvidenceContributor{{Path: "packages/proto", Files: 3, Bytes: 42}}, Issues: []internalexecution.SourceEvidenceIssue{{Code: "broad", Severity: "repair-required", Detail: "narrow it"}}}},
 	})
 	require.Equal(t, "e1", got.GetId())
 	require.Equal(t, "p1", got.GetPlanId())
@@ -37,6 +37,11 @@ func TestExecutionToProto(t *testing.T) {
 	require.Equal(t, "run-gct", got.GetBaselineSet().GetMembers()[0].GetRunId())
 	require.Equal(t, "abc123", got.GetBaselineSet().GetMembers()[0].GetGitSha())
 	require.Equal(t, "paths-before", got.GetBaselineSet().GetPathSnapshots()[0].GetName())
+	require.True(t, got.GetBaselineSet().GetSourcePreflight().GetRepairRequired())
+	require.EqualValues(t, 1, got.GetBaselineSet().GetSourcePreflight().GetPolicyVersion())
+	require.EqualValues(t, 2, got.GetBaselineSet().GetSourcePreflight().GetExcludedIgnoredFiles())
+	require.Equal(t, "packages/proto", got.GetBaselineSet().GetSourcePreflight().GetTopContributors()[0].GetPath())
+	require.Equal(t, "broad", got.GetBaselineSet().GetSourcePreflight().GetIssues()[0].GetCode())
 }
 
 func TestPhaseContextToProtoIncludesPresentParts(t *testing.T) {

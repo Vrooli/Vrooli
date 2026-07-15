@@ -150,6 +150,14 @@ func (h *handlers) adoptBaseline(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Recorded explicit legacy baseline adoption state."}, Changes: formatStep(resp.Msg.GetStep()), NextCommand: formatRecommendedActions(resp.Msg.GetStep())})
 }
 
+func (h *handlers) repairSourceScope(ctx cliapp.RunContext) error {
+	resp, err := h.client.RepairSourceScope(context.Background(), connect.NewRequest(&executionv1.RepairSourceScopeRequest{ExecutionId: ctx.Positional("execution"), Path: commaSeparated(ctx.Flag("paths")), Reason: ctx.Flag("reason")}))
+	if err != nil {
+		return cliapp.WrapAPIError("repair baseline source scope", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Re-estimated replacement source evidence scope."}, Changes: formatStep(resp.Msg.GetStep()), NextCommand: formatRecommendedActions(resp.Msg.GetStep())})
+}
+
 func (h *handlers) next(ctx cliapp.RunContext) error {
 	resp, err := h.client.GetNext(context.Background(), connect.NewRequest(&executionv1.GetNextRequest{
 		ExecutionId: ctx.Positional("execution"),

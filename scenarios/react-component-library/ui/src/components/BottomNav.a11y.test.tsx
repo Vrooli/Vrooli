@@ -1,5 +1,6 @@
 import { afterEach, describe, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 
 import { BottomNav } from "../../../library/components/BottomNav/versions/1.0.0/BottomNav";
 import { expectNoA11yViolations } from "../test-utils";
@@ -8,7 +9,7 @@ describe("BottomNav accessibility", () => {
   afterEach(() => cleanup());
 
   it("renders without axe violations", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BottomNav
         label="Primary"
         items={[

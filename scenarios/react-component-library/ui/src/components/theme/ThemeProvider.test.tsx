@@ -1,3 +1,7 @@
+// provider-free-exception: this suite mounts ThemeProvider itself; the
+// canonical renderWithProviders wrapper already includes a ThemeProvider, and
+// nesting a second one would have both instances fighting over
+// documentElement state.
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

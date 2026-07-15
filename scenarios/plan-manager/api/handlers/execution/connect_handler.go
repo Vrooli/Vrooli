@@ -113,6 +113,14 @@ func (h *connectHandler) AdoptBaseline(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&executionv1.AdoptBaselineResponse{Execution: executionToProto(e), Context: phaseContextToProto(pctx), Step: guidedStepToProto(step)}), nil
 }
 
+func (h *connectHandler) RepairSourceScope(ctx context.Context, req *connect.Request[executionv1.RepairSourceScopeRequest]) (*connect.Response[executionv1.RepairSourceScopeResponse], error) {
+	e, pctx, step, err := h.deps.Service.RepairSourceScope(ctx, req.Msg.GetExecutionId(), internalexecution.SourceScopeRepairRequest{Paths: req.Msg.GetPath(), Reason: req.Msg.GetReason()})
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.RepairSourceScopeResponse{Execution: executionToProto(e), Context: phaseContextToProto(pctx), Step: guidedStepToProto(step)}), nil
+}
+
 func (h *connectHandler) GetNext(ctx context.Context, req *connect.Request[executionv1.GetNextRequest]) (*connect.Response[executionv1.GetNextResponse], error) {
 	pctx, complete, step, err := h.deps.Service.GetNext(ctx, req.Msg.GetExecutionId())
 	if err != nil {

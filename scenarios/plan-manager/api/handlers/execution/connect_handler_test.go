@@ -81,6 +81,11 @@ func (f *fakeExecutionService) AdoptBaseline(_ context.Context, executionID stri
 	return f.execution, f.pctx, f.step, f.err
 }
 
+func (f *fakeExecutionService) RepairSourceScope(_ context.Context, executionID string, _ internalexecution.SourceScopeRepairRequest) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
+	f.gotExecutionID = executionID
+	return f.execution, f.pctx, f.step, f.err
+}
+
 func (f *fakeExecutionService) GetNext(_ context.Context, executionID string) (internalexecution.PhaseContext, bool, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
 	return f.pctx, f.complete, f.step, f.err

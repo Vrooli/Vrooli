@@ -44,6 +44,7 @@ type service struct {
 	skills          SkillPackDiscoverer
 	skillSteer      SkillApplicabilityResolver
 	commands        CommandReferenceValidator
+	sourceEvidence  SourceEvidenceAdvisor
 	resolver        ReferenceResolver
 	templateSeed    TemplateSeeder
 	renderer        PlanRenderer
@@ -71,13 +72,16 @@ type PosturePreparer interface {
 // the author, never a false fill). TemplateSeeder is optional (nil => the default
 // skeleton; a template id is then ignored).
 type Deps struct {
-	Store          SessionStore
-	Writer         PlanWriter
-	Reader         PlanReader
-	Anchor         AnchorIntentDeriver
-	Skills         SkillPackDiscoverer
-	SkillResolver  SkillApplicabilityResolver
-	Commands       CommandReferenceValidator
+	Store         SessionStore
+	Writer        PlanWriter
+	Reader        PlanReader
+	Anchor        AnchorIntentDeriver
+	Skills        SkillPackDiscoverer
+	SkillResolver SkillApplicabilityResolver
+	Commands      CommandReferenceValidator
+	// SourceEvidence is optional and advisory. A failed GCT lookup never makes
+	// an otherwise deterministic-ready plan fail author validation.
+	SourceEvidence SourceEvidenceAdvisor
 	Resolver       ReferenceResolver
 	TemplateSeeder TemplateSeeder
 	Renderer       PlanRenderer
@@ -113,6 +117,7 @@ func NewService(d Deps) Service {
 		skills:          d.Skills,
 		skillSteer:      resolverOrNoop(d.SkillResolver),
 		commands:        d.Commands,
+		sourceEvidence:  d.SourceEvidence,
 		resolver:        d.Resolver,
 		templateSeed:    d.TemplateSeeder,
 		renderer:        d.Renderer,
@@ -231,9 +236,10 @@ func (s *service) ContinueAuthoring(ctx context.Context, sessionID string) (Sess
 	}
 	work := selectWorkItem(sess, nil)
 	if work.Kind == WorkItemReview {
-		violations := s.readinessViolations(ctx, sess)
+		violations, advisory := s.readinessAssessment(ctx, sess)
 		violations = append(violations, s.commandViolationsForSections(ctx, sess.Sections)...)
 		work = selectWorkItem(sess, violations)
+		work.Step = appendSourceEvidenceAdvisory(work.Step, advisory)
 	}
 	return sess, work.Section, work.Phase, work.Ready, work.Violations, onlyRecommendedAction(work.Step), nil
 }
@@ -243,10 +249,10 @@ func (s *service) ValidateStructure(ctx context.Context, sessionID string) (bool
 	if err != nil {
 		return false, nil, GuidedStep{}, err
 	}
-	violations := s.readinessViolations(ctx, sess)
+	violations, advisory := s.readinessAssessment(ctx, sess)
 	violations = append(violations, s.commandViolationsForSections(ctx, sess.Sections)...)
 	valid := len(violations) == 0
-	return valid, violations, stepForValidation(sess, valid, violations), nil
+	return valid, violations, appendSourceEvidenceAdvisory(stepForValidation(sess, valid, violations), advisory), nil
 }
 
 func (s *service) Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, GuidedStep, error) {
