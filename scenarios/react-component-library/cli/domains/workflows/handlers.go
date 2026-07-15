@@ -101,6 +101,19 @@ func (h *handlers) retry(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Workflow queued with depth %d.", resp.Msg.QueueDepth)}, ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
 }
+func (h *handlers) promotionReadiness(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetPromotionReadiness(context.Background(), connect.NewRequest(&workflowspb.GetPromotionReadinessRequest{AssetId: ctx.Positional("asset-id"), OriginScenario: ctx.Flag("origin-scenario"), Version: ctx.Flag("version")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get promotion readiness", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Readiness == nil {
+		return fmt.Errorf("server returned no promotion readiness")
+	}
+	r := resp.Msg.Readiness
+	rows := append([]string{}, r.Blockers...)
+	rows = append(rows, fmt.Sprintf("examples %d/%d; parity=%t; origin replacement=%t clean=%t", r.AvailableExampleCount, r.RequiredExampleCount, r.ParityReportPresent, r.OriginReplacementPresent, r.OriginReplacementClean))
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Promotion readiness for %s@%s: %t.", r.LibraryId, r.SelectedVersion, r.Ready)}, ResultsHeading: "Evidence and blockers", Results: rows, RetrievalHints: []string{r.NextValidationCommand}})
+}
 
 func parseKind(value string) (workflowspb.WorkflowKind, error) {
 	switch value {

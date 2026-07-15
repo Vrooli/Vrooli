@@ -59,7 +59,7 @@ export function AppShell({ children }: Props) {
     <div
       ref={shellRef}
       data-testid="app-shell"
-      className="flex min-h-full w-full bg-app-background text-app-foreground"
+      className="flex h-dvh min-h-0 w-full overflow-hidden bg-app-background text-app-foreground"
     >
       <SidebarShell
         ref={sidebarRef}
@@ -90,8 +90,8 @@ export function AppShell({ children }: Props) {
           data-testid="app-main"
           className={
             isComponentDetail
-              ? "pb-safe flex min-h-0 min-w-0 flex-1 flex-col p-0 pb-20 md:pb-0"
-              : "pb-safe min-w-0 flex-1 px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-8"
+              ? "pb-safe flex min-h-0 min-w-0 flex-1 flex-col overflow-auto p-0 pb-20 md:pb-0"
+              : "pb-safe min-w-0 flex-1 overflow-auto px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-8"
           }
         >
           {children ?? <Outlet />}

@@ -6,12 +6,14 @@ import {
   LocalStatus,
   ListAdoptionsResponseSchema,
   RefreshAdoptionsResponseSchema,
+  SuggestAdoptionsResponseSchema,
   type Adoption,
   type ListAdoptionsResponse,
   type RefreshAdoptionsResponse,
+  type SuggestAdoptionsResponse,
 } from "@vrooli/proto-types/react-component-library/v1/adoptions/adoptions_pb";
 
-export type { Adoption, ListAdoptionsResponse, RefreshAdoptionsResponse };
+export type { Adoption, ListAdoptionsResponse, RefreshAdoptionsResponse, SuggestAdoptionsResponse };
 export { LibraryVersionStatus, LocalStatus };
 
 export const makeAdoption = (
@@ -54,5 +56,13 @@ export const makeRefreshAdoptionsResponse = (
     localModified: 0,
     localMissing: 0,
     localUnknown: 0,
+    ...overrides,
+  });
+
+export const makeSuggestAdoptionsResponse = (
+  overrides: MessageInitShape<typeof SuggestAdoptionsResponseSchema> = {},
+): SuggestAdoptionsResponse =>
+  create(SuggestAdoptionsResponseSchema, {
+    suggestions: [],
     ...overrides,
   });

@@ -64,6 +64,36 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) listEffective(ctx cliapp.RunContext) error {
+	req := &adoptionsv1.ListEffectiveAdoptionsRequest{ComponentId: ctx.Positional("component-id")}
+	if raw := ctx.Flag("limit"); raw != "" {
+		limit, err := strconv.Atoi(raw)
+		if err != nil {
+			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+		}
+		req.Limit = int32(limit)
+	}
+	resp, err := h.client.ListEffectiveAdoptions(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("list effective adoptions", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no effective-adoptions response")
+	}
+	rows := make([]string, 0, len(resp.Msg.Adoptions))
+	for _, effective := range resp.Msg.Adoptions {
+		if effective.ParentAdoption == nil {
+			continue
+		}
+		kind := "direct"
+		if effective.Mediated {
+			kind = "indirect"
+		}
+		rows = append(rows, fmt.Sprintf("%s %s@%s via %s (%s)", kind, effective.SourceLibraryId, effective.SourceVersion, effective.ParentAdoption.Scenario, effective.ParentAdoption.Id))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d effective adoption(s).", len(rows))}, ResultsHeading: "Effective adoptions", Results: rows})
+}
+
 func (h *handlers) apply(ctx cliapp.RunContext) error {
 	req := &adoptionsv1.ApplyAdoptionRequest{
 		ComponentId:        ctx.Positional("component-id"),
@@ -107,7 +137,7 @@ func (h *handlers) suggest(ctx cliapp.RunContext) error {
 	}
 	rows := make([]string, 0, len(resp.Msg.Suggestions))
 	for _, suggestion := range resp.Msg.Suggestions {
-		rows = append(rows, fmt.Sprintf("%s → %s: %s", suggestion.Scenario, suggestion.LibraryId, strings.Join(suggestion.Reasons, "; ")))
+		rows = append(rows, fmt.Sprintf("[%s] %s → %s: %s", suggestion.Classification, suggestion.Scenario, suggestion.LibraryId, strings.Join(suggestion.Reasons, "; ")))
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d adoption suggestion(s).", len(rows))}, ResultsHeading: "Suggestions", Results: rows, RetrievalHints: []string{"`adoptions apply <component-id> <scenario> <adopted-path>` — act on a suggestion"}})
 }

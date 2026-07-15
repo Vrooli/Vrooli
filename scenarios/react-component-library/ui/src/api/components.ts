@@ -6,8 +6,6 @@ import {
 } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 
 import { transport } from "./client";
-import { API_BASE, decodeApiError } from "./client";
-import { buildApiUrl } from "@vrooli/api-base";
 
 export const DesignAffinity = {
   UNSPECIFIED: 0,
@@ -82,32 +80,14 @@ export async function listComponentExamples(
 
 export type { Component, ListComponentsResponse };
 
-// Asset is the forward-compatible catalog projection. The local generated
-// package can lag a freshly generated server contract during development, so
-// this narrow RCL-only JSON reader preserves the typed client for all existing
-// operations while exposing the new server-projected fields without a browser
-// call to any external scenario.
-export type CatalogAsset = Omit<Component, "assetKind" | "metrics"> & {
-  assetKind: 1 | 2;
-  metrics?: { directAdoptionCount: number; versionCount: number };
-};
+// Catalog callers use the generated Connect contract directly. Keeping this
+// alias makes the asset terminology explicit without a raw JSON fallback.
+export type CatalogAsset = Component;
 
-export async function listCatalogAssets(input: { limit?: number; match?: string; assetKind: 1 | 2 }): Promise<{ components: CatalogAsset[] }> {
-  const response = await fetch(buildApiUrl("/vrooli.react_component_library.v1.components.ComponentsService/ListComponents", { baseUrl: API_BASE }), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!response.ok) throw await decodeApiError(response);
-  return await response.json() as { components: CatalogAsset[] };
+export async function listCatalogAssets(input: { limit?: number; match?: string; assetKind: 1 | 2 }): Promise<ListComponentsResponse> {
+  return baseComponentsClient.listComponents(input);
 }
 
 export async function getCatalogAsset(id: string): Promise<{ component?: CatalogAsset }> {
-  const response = await fetch(buildApiUrl("/vrooli.react_component_library.v1.components.ComponentsService/GetComponent", { baseUrl: API_BASE }), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  });
-  if (!response.ok) throw await decodeApiError(response);
-  return await response.json() as { component?: CatalogAsset };
+  return baseComponentsClient.getComponent({ id });
 }

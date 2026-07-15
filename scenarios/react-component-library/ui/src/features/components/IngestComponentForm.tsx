@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { componentsClient } from "../../api/components";
 import { Button } from "../../components/ui/button";
@@ -8,6 +8,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
+import { workflowsClient } from "../../api/workflows";
 
 export function IngestComponentForm() {
   const { t } = useTranslation();
@@ -28,6 +29,11 @@ export function IngestComponentForm() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["components"] }),
   });
   const acceptedLosses = ingest.data?.parityReport?.acknowledged ? ingest.data.parityReport.findings.length : 0;
+  const readiness = useQuery({
+    queryKey: ["promotion-readiness", ingest.data?.component?.id, scenario, ingest.data?.draftVersion],
+    queryFn: () => workflowsClient.getPromotionReadiness({ assetId: ingest.data!.component!.id, originScenario: scenario, version: ingest.data!.draftVersion }),
+    enabled: Boolean(ingest.data?.component?.id && scenario),
+  });
 
   return (
     <details data-testid={selectors.components.ingest.details} className="rounded-xl border border-app-border bg-app-surface p-4">
@@ -54,10 +60,18 @@ export function IngestComponentForm() {
       </form>
       {ingest.error && <p data-testid={selectors.components.ingest.error} className="mt-2 text-xs text-app-danger">{errorMessage(ingest.error, t)}</p>}
       {ingest.data && (
-        <p data-testid={selectors.components.ingest.success} className="mt-2 text-xs text-app-success">
-          {t(strings.components.ingest.success, { version: ingest.data.draftVersion, findings: ingest.data.findings.length })}
-          {acceptedLosses > 0 && ` ${t(strings.components.ingest.acceptedNotice, { findings: acceptedLosses })}`}
-        </p>
+        <div className="mt-2 space-y-2 text-xs">
+          <p data-testid={selectors.components.ingest.success} className="text-app-success">
+            {t(strings.components.ingest.success, { version: ingest.data.draftVersion, findings: ingest.data.findings.length })}
+            {acceptedLosses > 0 && ` ${t(strings.components.ingest.acceptedNotice, { findings: acceptedLosses })}`}
+          </p>
+          {readiness.data?.readiness && <section aria-label={t("components.ingest.promotionReadiness", { defaultValue: "Promotion readiness" })} className="rounded-control border border-app-border p-2 text-app-muted-foreground">
+            <p className="font-medium text-app-foreground">{readiness.data.readiness.ready ? t("components.ingest.promotionReady", { defaultValue: "Promotion evidence is complete." }) : t("components.ingest.promotionBlocked", { defaultValue: "Promotion evidence is incomplete." })}</p>
+            <p>{t("components.ingest.promotionExamples", { defaultValue: "Examples: {{available}}/{{required}}", available: readiness.data.readiness.availableExampleCount, required: readiness.data.readiness.requiredExampleCount })}</p>
+            {readiness.data.readiness.blockers.map((blocker) => <p key={blocker} className="text-app-danger">{blocker}</p>)}
+            <p className="mt-1 font-mono">{readiness.data.readiness.nextValidationCommand}</p>
+          </section>}
+        </div>
       )}
     </details>
   );

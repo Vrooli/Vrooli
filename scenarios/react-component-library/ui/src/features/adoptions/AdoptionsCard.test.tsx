@@ -9,6 +9,7 @@ import {
   makeAdoption,
   makeListAdoptionsResponse,
   makeRefreshAdoptionsResponse,
+  makeSuggestAdoptionsResponse,
 } from "./mocks/factories";
 import { makeAdoptionsMocks } from "./mocks/adoptions";
 
@@ -127,5 +128,25 @@ describe("AdoptionsCard", () => {
     await waitFor(() => {
       expect(adoptionsClient.deleteAdoption).toHaveBeenCalledWith({ id: "ad-99" });
     });
+  });
+
+  it("labels discovery suggestions as heuristic candidates", async () => {
+    const { adoptionsClient } = await import("../../api/adoptions");
+    vi.mocked(adoptionsClient.suggestAdoptions).mockResolvedValueOnce(
+      makeSuggestAdoptionsResponse({
+        suggestions: [{
+          componentId: "hook-focus-trap",
+          displayName: "useFocusTrap",
+          scenario: "web-console",
+          reasons: ["matching import inventory"],
+          classification: 1,
+        }],
+      }),
+    );
+
+    renderWithProviders(<AdoptionsCard />);
+
+    expect(await screen.findByText("Heuristic candidate — review before adopting")).toBeInTheDocument();
+    expect(screen.getByText("matching import inventory")).toBeInTheDocument();
   });
 });

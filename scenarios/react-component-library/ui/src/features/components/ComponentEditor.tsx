@@ -25,6 +25,7 @@ import { PropsExperimentPanel } from "./PropsExperimentPanel";
 import { AdoptionFileTree } from "./AdoptionFileTree";
 import { ADOPTION_TEMPLATES, DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
 import { VersionDiffViewer } from "../versions/VersionDiffViewer";
+import { AssetWorkspace } from "../assets/AssetWorkspace";
 import type { DiffRow } from "../../api/versions";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
@@ -56,10 +57,10 @@ interface WorkspaceState {
   layout: Record<string, number>;
 }
 
-function loadWorkspaceState(): WorkspaceState {
+function loadWorkspaceState(renderable: boolean): WorkspaceState {
   const fallback: WorkspaceState = {
     order: [...DEFAULT_PANE_ORDER],
-    visible: { files: true, preview: true, details: true },
+    visible: { files: true, preview: renderable, details: true },
     layout: DEFAULT_DESKTOP_PANEL_LAYOUT,
   };
   try {
@@ -75,7 +76,8 @@ function loadWorkspaceState(): WorkspaceState {
       next[pane] = saved.visible?.[pane] ?? true;
       return next;
     }, {} as Record<WorkspacePane, boolean>);
-    if (!Object.values(visible).some(Boolean)) visible.preview = true;
+    if (!renderable) visible.preview = false;
+    if (!Object.values(visible).some(Boolean)) visible.files = true;
     const layout = { ...fallback.layout, ...(saved.layout ?? {}) };
     return { order: uniqueOrder, visible, layout };
   } catch {
@@ -130,6 +132,8 @@ interface ComponentEditorProps {
   selectedVersion?: string;
   comparison?: ComparisonSession | null;
   onCloseComparison?: () => void;
+  /** Hooks share the source/details workspace but intentionally omit preview. */
+  renderable?: boolean;
 }
 
 /**
@@ -150,6 +154,7 @@ export function ComponentEditor({
   selectedVersion,
   comparison,
   onCloseComparison,
+  renderable = true,
 }: ComponentEditorProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -209,7 +214,7 @@ export function ComponentEditor({
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
   const previewReloadKey = 0;
   const [mode, setMode] = useState<WorkspacePane>("files");
-  const [workspace, setWorkspace] = useState<WorkspaceState>(loadWorkspaceState);
+  const [workspace, setWorkspace] = useState<WorkspaceState>(() => loadWorkspaceState(renderable));
   const [filesView, setFilesView] = useState<FilesView>("source");
   const [wordWrap, setWordWrap] = useState<"on" | "off">("on");
   const [fontSize, setFontSize] = useState(13);
@@ -397,7 +402,7 @@ export function ComponentEditor({
     });
   };
 
-  const visiblePanes = workspace.order.filter((pane) => workspace.visible[pane]);
+  const visiblePanes = workspace.order.filter((pane) => pane !== "preview" || renderable).filter((pane) => workspace.visible[pane]);
 
   useEffect(() => {
     try {
@@ -418,6 +423,7 @@ export function ComponentEditor({
   }, [comparison]);
 
   const showPane = (pane: WorkspacePane) => {
+    if (pane === "preview" && !renderable) return;
     setWorkspace((current) => ({
       ...current,
       visible: { ...current.visible, [pane]: true },
@@ -553,11 +559,7 @@ export function ComponentEditor({
   };
 
   return (
-    <section
-      data-testid={selectors.components.editor.panel}
-      aria-label={t(strings.components.editor.title, { libraryId })}
-      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-background"
-    >
+    <AssetWorkspace testId={selectors.components.editor.panel} label={t(strings.components.editor.title, { libraryId })}>
       <header className="shrink-0 border-b border-app-border bg-app-surface">
         <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-2">
           <div className="min-w-0">
@@ -605,7 +607,7 @@ export function ComponentEditor({
                 {t("components.editor.addPane", { defaultValue: "Add pane" })}
               </summary>
               <div className="absolute right-0 z-20 mt-1 w-40 rounded-control border border-app-border bg-app-surface p-1 shadow-lg">
-                {DEFAULT_PANE_ORDER.filter((pane) => !workspace.visible[pane]).map((pane) => (
+              {DEFAULT_PANE_ORDER.filter((pane) => (pane !== "preview" || renderable) && !workspace.visible[pane]).map((pane) => (
                   <Button
                     key={pane}
                     data-testid={selectors.components.editor.workspacePaneRestore}
@@ -622,14 +624,14 @@ export function ComponentEditor({
                         : t(strings.components.editor.info)}
                   </Button>
                 ))}
-                {DEFAULT_PANE_ORDER.every((pane) => workspace.visible[pane]) && (
+                {DEFAULT_PANE_ORDER.filter((pane) => pane !== "preview" || renderable).every((pane) => workspace.visible[pane]) && (
                   <p className="px-2 py-1 text-xs text-app-muted-foreground">
                     {t("components.editor.allPanesOpen", { defaultValue: "All panes are open" })}
                   </p>
                 )}
               </div>
             </details>
-            <Button
+            {renderable && <Button
               data-testid={selectors.components.editor.closeButton}
               onClick={onClose}
               className="h-8 gap-1.5 rounded-md px-2 text-xs"
@@ -637,7 +639,7 @@ export function ComponentEditor({
             >
               <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
               {t(strings.components.editor.close)}
-            </Button>
+            </Button>}
           </div>
         </div>
 
@@ -729,7 +731,7 @@ export function ComponentEditor({
                   className={mode === pane ? "" : "max-lg:hidden"}
                 >
                   {pane === "files" && (
-                    <div data-testid={selectors.components.editor.workspacePane} data-pane="files" className="flex h-full min-h-0 flex-col bg-app-background">
+                    <div data-testid={renderable ? selectors.components.editor.workspacePane : selectors.assets.hookSource} data-pane="files" className="flex h-full min-h-0 flex-col bg-app-background">
                       {paneHeader("files", t("components.editor.files", { defaultValue: "Files" }), <FileCode2 aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 min-w-0 gap-1 overflow-x-auto border-b border-app-border bg-app-surface px-2 py-1.5">
                         <Button data-testid={selectors.components.editor.filesTreeTab} type="button" variant={filesView === "tree" ? "primary" : "secondary"} className="h-7 shrink-0 px-2 text-xs" onClick={() => setFilesView("tree")}>{t("components.editor.fileTree", { defaultValue: "Files" })}</Button>
@@ -887,6 +889,6 @@ export function ComponentEditor({
           {t(strings.components.editor.saved)}
         </p>
       )}
-    </section>
+    </AssetWorkspace>
   );
 }

@@ -96,6 +96,23 @@ type AdoptionFile struct {
 	AdoptedPath           string
 	SourceSHA256          string
 	AdoptedSnapshotSHA256 string
+	// SourceAsset* is immutable per-file attribution. A root adoption can
+	// materialize dependency assets, so the parent Adoption.ComponentID is not
+	// sufficient to establish which catalog asset supplied this file.
+	SourceAssetID   string
+	SourceLibraryID string
+	SourceVersion   string
+}
+
+// EffectiveAdoption is a provenance-backed asset use. ParentAdoption remains
+// the direct operator action; Mediated distinguishes a dependency file from a
+// root file supplied by that same parent.
+type EffectiveAdoption struct {
+	SourceAssetID   string
+	SourceLibraryID string
+	SourceVersion   string
+	Mediated        bool
+	ParentAdoption  Adoption
 }
 
 // CreateInput is the explicit DTO the service hands to the repository

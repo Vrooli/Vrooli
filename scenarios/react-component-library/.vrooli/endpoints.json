@@ -70,6 +70,34 @@
       ]
     },
     {
+      "id": "adoptions_list_effective",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListEffectiveAdoptions",
+      "method": "POST",
+      "summary": "List direct and mediated adoptions for a component",
+      "description": "Returns every adoption that makes the selected component present in a scenario, including provenance through a parent component adoption.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string (required)",
+          "limit": "int32 (max rows, 0 = server default)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<EffectiveAdoption>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
       "id": "adoptions_apply",
       "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ApplyAdoption",
       "method": "POST",
@@ -1296,6 +1324,14 @@
       "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/RetryWorkflow",
       "method": "POST",
       "summary": "Retry assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_promotion_readiness",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/GetPromotionReadiness",
+      "method": "POST",
+      "summary": "Read promotion readiness evidence",
       "description": "",
       "category": "workflows"
     }

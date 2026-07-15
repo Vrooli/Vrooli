@@ -14,15 +14,27 @@ type Service interface {
 	Refresh(context.Context, string) (Workflow, error)
 	Stop(context.Context, string) (Workflow, error)
 	Retry(context.Context, string, string) (Workflow, int, error)
+	PromotionReadiness(context.Context, PromotionReadinessInput) (PromotionReadiness, error)
 }
 
 type service struct {
 	repo       Repository
 	dispatcher Dispatcher
+	readiness  PromotionReadinessReader
 }
 
-func NewService(repo Repository, dispatcher Dispatcher) Service {
-	return &service{repo: repo, dispatcher: dispatcher}
+func NewService(repo Repository, dispatcher Dispatcher, readiness ...PromotionReadinessReader) Service {
+	s := &service{repo: repo, dispatcher: dispatcher}
+	if len(readiness) > 0 {
+		s.readiness = readiness[0]
+	}
+	return s
+}
+func (s *service) PromotionReadiness(ctx context.Context, in PromotionReadinessInput) (PromotionReadiness, error) {
+	if s.readiness == nil {
+		return PromotionReadiness{}, fmt.Errorf("promotion readiness reader not configured")
+	}
+	return s.readiness.PromotionReadiness(ctx, in)
 }
 
 func (s *service) Start(ctx context.Context, in StartInput) (Workflow, int, error) {

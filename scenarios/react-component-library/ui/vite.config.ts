@@ -8,7 +8,17 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
 const packageAlias = {
   react: resolve(rootDir, "node_modules/react"),
   "lucide-react": resolve(rootDir, "node_modules/lucide-react"),
+  // Generated proto modules are TypeScript source files. Resolve the local
+  // package directory directly so Vite/Vitest can follow its extensionless
+  // generated subpath imports (for example `.../deps/deps_pb`).
+  "@vrooli/proto-types": resolve(rootDir, "../../../packages/proto/gen/typescript"),
 };
+const protoRuntimeAliases = [
+  { find: /^@bufbuild\/protobuf\/codegenv2$/, replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/codegenv2/index.js") },
+  { find: /^@bufbuild\/protobuf\/wkt$/, replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/wkt/index.js") },
+  { find: /^@bufbuild\/protobuf$/, replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/index.js") },
+];
+const packageAliasEntries = Object.entries(packageAlias).map(([find, replacement]) => ({ find, replacement }));
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -41,15 +51,17 @@ export default defineConfig(({ mode }): UserConfig => {
     plugins: [react(), stringsCodegen()],
     resolve: {
       alias: isProfile
-        ? {
-            ...packageAlias,
-            "react-dom/client": "react-dom/profiling",
+        ? [...protoRuntimeAliases, ...packageAliasEntries, {
+            find: "react-dom/client",
+            replacement: "react-dom/profiling",
             // Internal references inside react-dom/client.js do
             // `require('react-dom')`, which would resolve back to the
             // stripped-prod bundle. Force them through the profiling entry too.
-            "react-dom$": "react-dom/profiling",
-          }
-        : packageAlias,
+          }, {
+            find: "react-dom$",
+            replacement: "react-dom/profiling",
+          }]
+        : [...protoRuntimeAliases, ...packageAliasEntries],
     },
     esbuild: isProfile
       ? {

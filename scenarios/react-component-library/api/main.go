@@ -143,6 +143,9 @@ func main() {
 	if err := componentsInternal.EnsureSchemaMigrations(context.Background(), db); err != nil {
 		log.Fatalf("schema migration failed: %v", err)
 	}
+	if err := adoptionsInternal.EnsureSchemaMigrations(context.Background(), db); err != nil {
+		log.Fatalf("adoption schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
@@ -228,7 +231,7 @@ func main() {
 		previewH.ModuleWithDeps(componentsSvc, depsSvc, log.Default()),
 		themesH.ModuleFromService(themesSvc, log.Default()),
 		versionsH.Module(db, clock.System{}, versionsResolver, log.Default()),
-		workflowsH.Module(db, clock.System{}, workflowsInternal.NewAgentManagerDispatcher(), log.Default()),
+		workflowsH.ModuleWithReadiness(db, clock.System{}, workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

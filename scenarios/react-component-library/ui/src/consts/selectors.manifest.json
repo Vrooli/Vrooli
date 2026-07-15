@@ -12,6 +12,22 @@
       "testId": "app-description",
       "selector": "[data-testid=\"app-description\"]"
     },
+    "assets.hookWorkspace": {
+      "testId": "hook-detail-page",
+      "selector": "[data-testid=\"hook-detail-page\"]"
+    },
+    "assets.hookSource": {
+      "testId": "hook-workspace-source",
+      "selector": "[data-testid=\"hook-workspace-source\"]"
+    },
+    "assets.hookDetails": {
+      "testId": "hook-workspace-details",
+      "selector": "[data-testid=\"hook-workspace-details\"]"
+    },
+    "assets.hookAdoptions": {
+      "testId": "hook-effective-adoptions",
+      "selector": "[data-testid=\"hook-effective-adoptions\"]"
+    },
     "health.card": {
       "testId": "health-card",
       "selector": "[data-testid=\"health-card\"]"

@@ -105,12 +105,13 @@ func sha256OfHandlerTests(s string) string {
 func TestModule_Shape(t *testing.T) {
 	r, _, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, adoptions.Endpoints, 11, "adoptions ships reconcile, reconverge, list, apply, reapply, delete, refresh, resolve-path, suggest, discover, confirm-discovery")
+	require.Len(t, adoptions.Endpoints, 12, "adoptions ships reconcile, reconverge, direct/effective lists, apply, reapply, delete, refresh, resolve-path, suggest, discover, confirm-discovery")
 	require.Equal(t, "adoptions_reconcile", adoptions.Endpoints[0].ID)
 	require.Equal(t, "adoptions_reconverge", adoptions.Endpoints[1].ID)
-	require.Equal(t, "adoptions_resolve_path", adoptions.Endpoints[7].ID)
-	require.Equal(t, "adoptions_discover", adoptions.Endpoints[9].ID)
-	require.Equal(t, "adoptions_confirm_discovery", adoptions.Endpoints[10].ID)
+	require.Equal(t, "adoptions_list_effective", adoptions.Endpoints[3].ID)
+	require.Equal(t, "adoptions_resolve_path", adoptions.Endpoints[8].ID)
+	require.Equal(t, "adoptions_discover", adoptions.Endpoints[10].ID)
+	require.Equal(t, "adoptions_confirm_discovery", adoptions.Endpoints[11].ID)
 }
 
 func TestModule_CreateListRefreshDelete(t *testing.T) {

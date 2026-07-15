@@ -77,6 +77,18 @@ func (h *connectHandler) ListAdoptions(ctx context.Context, req *connect.Request
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) ListEffectiveAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptionsv1.ListEffectiveAdoptionsResponse], error) {
+	out, err := h.deps.Service.ListEffective(ctx, req.Msg.ComponentId, int(req.Msg.Limit))
+	if err != nil {
+		return nil, adoptions.ToConnectError(err)
+	}
+	resp := &adoptionsv1.ListEffectiveAdoptionsResponse{Adoptions: make([]*adoptionsv1.EffectiveAdoption, 0, len(out))}
+	for _, effective := range out {
+		resp.Adoptions = append(resp.Adoptions, effectiveAdoptionToProto(effective))
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request[adoptionsv1.ApplyAdoptionRequest]) (*connect.Response[adoptionsv1.ApplyAdoptionResponse], error) {
 	result, err := h.deps.Service.Apply(ctx, adoptions.ApplyInput{
 		ComponentID:        req.Msg.ComponentId,
@@ -268,6 +280,20 @@ func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Requ
 			alreadyAdopted[row.ComponentID] = true
 		}
 		for _, component := range componentsList {
+			// A dependency materialized by another root adoption is already
+			// present in this scenario too. Suggestions must never ask an
+			// operator to adopt the same asset twice merely because its use is
+			// mediated rather than direct.
+			effective, err := h.deps.Service.ListEffective(ctx, component.ID, 1024)
+			if err != nil {
+				return nil, adoptions.ToConnectError(err)
+			}
+			for _, use := range effective {
+				if use.ParentAdoption.Scenario == scenario {
+					alreadyAdopted[component.ID] = true
+					break
+				}
+			}
 			if alreadyAdopted[component.ID] {
 				continue
 			}
@@ -294,7 +320,8 @@ func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Requ
 				} else {
 					reasons = append(reasons, "dependencies are compatible")
 				}
-				result = append(result, &adoptionsv1.AdoptionSuggestion{Scenario: scenario, ComponentId: component.ID, LibraryId: component.LibraryID, DisplayName: component.DisplayName, InventoryPath: surface.FilePath, Reasons: reasons})
+				reasons = append([]string{"heuristic inventory candidate; review before using the separate adoption action"}, reasons...)
+				result = append(result, &adoptionsv1.AdoptionSuggestion{Scenario: scenario, ComponentId: component.ID, LibraryId: component.LibraryID, DisplayName: component.DisplayName, InventoryPath: surface.FilePath, Reasons: reasons, Classification: adoptionsv1.RecommendationClass_RECOMMENDATION_CLASS_HEURISTIC})
 				break
 			}
 		}

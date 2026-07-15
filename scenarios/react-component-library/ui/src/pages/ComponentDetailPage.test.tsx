@@ -50,6 +50,19 @@ vi.mock("../api/components", async (importOriginal) => {
   };
 });
 
+vi.mock("../api/adoptions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/adoptions")>();
+  return {
+    ...actual,
+    adoptionsClient: {
+      listAdoptions: vi.fn().mockResolvedValue({ adoptions: [] }),
+      listEffectiveAdoptions: vi.fn().mockResolvedValue({ adoptions: [] }),
+      suggestAdoptions: vi.fn().mockResolvedValue({ suggestions: [] }),
+      refreshAdoptions: vi.fn(),
+    },
+  };
+});
+
 import { ComponentDetailPage } from "./ComponentDetailPage";
 import { componentsClient, getCatalogAsset } from "../api/components";
 
@@ -116,6 +129,25 @@ describe("ComponentDetailPage", () => {
     expect(screen.queryByTestId("component-detail-adoptions")).not.toBeInTheDocument();
   });
 
+  it("shows version and adoption totals in the detail tab notification bubbles", async () => {
+    vi.mocked(getCatalogAsset).mockResolvedValueOnce({
+      component: {
+        id: "cmp-42",
+        libraryId: "react-component-library:DrawerShell",
+        displayName: "DrawerShell",
+        metrics: { versionCount: 3, directAdoptionCount: 2 },
+      },
+    } as Awaited<ReturnType<typeof getCatalogAsset>>);
+
+    renderWithProviders(
+      <Routes><Route path="/components/:id" element={<ComponentDetailPage />} /></Routes>,
+      { routerEntries: ["/components/cmp-42"] },
+    );
+
+    expect(await screen.findByRole("tab", { name: "componentDetail.info.versions" })).toHaveTextContent("3");
+    expect(screen.getByRole("tab", { name: "componentDetail.info.adoptions" })).toHaveTextContent("2");
+  });
+
   it("links a component's shared hook dependencies from its overview", async () => {
     renderWithProviders(
       <Routes>
@@ -126,6 +158,33 @@ describe("ComponentDetailPage", () => {
 
     expect(await screen.findByRole("link", { name: "react-component-library:useFocusTrap" })).toHaveAttribute("href", "/assets/react-component-library%3AuseFocusTrap");
     expect(screen.getByRole("link", { name: "react-component-library:useEscapeKey" })).toHaveAttribute("href", "/assets/react-component-library%3AuseEscapeKey");
+  });
+
+  it("gives a hook Files, Details, versions, and mediated-adoption tabs without a preview", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getCatalogAsset).mockResolvedValueOnce({
+      component: {
+        id: "hook-42",
+        libraryId: "react-component-library:useFocusTrap",
+        displayName: "useFocusTrap",
+        assetKind: 2,
+        sourcePath: "useFocusTrap.ts",
+        metrics: { versionCount: 2, directAdoptionCount: 0, effectiveAdoptionCount: 1 },
+      },
+    } as Awaited<ReturnType<typeof getCatalogAsset>>);
+    vi.mocked(componentsClient.getComponent).mockResolvedValueOnce({
+      component: { id: "hook-42", libraryId: "react-component-library:useFocusTrap" },
+    } as Awaited<ReturnType<typeof componentsClient.getComponent>>);
+
+    renderWithProviders(<Routes><Route path="/assets/:id" element={<ComponentDetailPage />} /></Routes>, { routerEntries: ["/assets/hook-42"] });
+
+    expect(await screen.findByTestId("monaco-stub")).toBeInTheDocument();
+    expect(screen.getByTestId("hook-workspace-source")).toBeInTheDocument();
+    expect(screen.getByTestId("hook-workspace-details")).toBeInTheDocument();
+    expect(screen.queryByTestId("components-editor-preview-frame")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
+    await user.click(screen.getByRole("tab", { name: "componentDetail.info.adoptions" }));
+    expect(screen.getByTestId("hook-effective-adoptions")).toBeInTheDocument();
   });
 
   it("renders loading while the component lookup is pending", () => {

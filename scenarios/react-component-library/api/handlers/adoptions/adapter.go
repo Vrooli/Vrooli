@@ -37,9 +37,13 @@ func domainToProto(a adoptions.Adoption) *adoptionsv1.Adoption {
 func adoptionFilesToProto(files []adoptions.AdoptionFile) []*adoptionsv1.AdoptionFile {
 	out := make([]*adoptionsv1.AdoptionFile, 0, len(files))
 	for _, file := range files {
-		out = append(out, &adoptionsv1.AdoptionFile{LibraryPath: file.LibraryPath, AdoptedPath: file.AdoptedPath, SourceSha256: file.SourceSHA256, AdoptedSnapshotSha256: file.AdoptedSnapshotSHA256})
+		out = append(out, &adoptionsv1.AdoptionFile{LibraryPath: file.LibraryPath, AdoptedPath: file.AdoptedPath, SourceSha256: file.SourceSHA256, AdoptedSnapshotSha256: file.AdoptedSnapshotSHA256, SourceAssetId: file.SourceAssetID, SourceLibraryId: file.SourceLibraryID, SourceVersion: file.SourceVersion})
 	}
 	return out
+}
+
+func effectiveAdoptionToProto(e adoptions.EffectiveAdoption) *adoptionsv1.EffectiveAdoption {
+	return &adoptionsv1.EffectiveAdoption{SourceAssetId: e.SourceAssetID, SourceLibraryId: e.SourceLibraryID, SourceVersion: e.SourceVersion, Mediated: e.Mediated, ParentAdoption: domainToProto(e.ParentAdoption)}
 }
 
 func reconvergeOutcomeToProto(o adoptions.ReconvergeOutcome) *adoptionsv1.ReconvergeOutcome {

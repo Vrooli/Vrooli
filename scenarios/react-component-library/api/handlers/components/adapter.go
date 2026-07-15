@@ -43,8 +43,9 @@ func domainToProto(c components.Component) *componentsv1.Component {
 		AssetKind:     assetKindToProto(c.AssetKind),
 		Dependencies:  assetDependenciesToProto(c.Dependencies),
 		Metrics: &componentsv1.AssetMetrics{
-			DirectAdoptionCount: int32(c.Metrics.DirectAdoptionCount),
-			VersionCount:        int32(c.Metrics.VersionCount),
+			DirectAdoptionCount:    int32(c.Metrics.DirectAdoptionCount),
+			EffectiveAdoptionCount: int32(c.Metrics.EffectiveAdoptionCount),
+			VersionCount:           int32(c.Metrics.VersionCount),
 		},
 	}
 }

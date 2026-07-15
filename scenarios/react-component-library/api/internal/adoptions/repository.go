@@ -27,6 +27,7 @@ type Repository interface {
 	// List returns adoptions matching q, ordered newest-created first.
 	// q.Limit <= 0 uses the service default.
 	List(ctx context.Context, q ListQuery) ([]Adoption, error)
+	ListEffective(ctx context.Context, componentID string, limit int) ([]EffectiveAdoption, error)
 
 	// Delete removes the adoption by ID. Returns ErrAdoptionNotFound
 	// when no row matches.

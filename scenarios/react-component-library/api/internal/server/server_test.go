@@ -46,8 +46,16 @@ func TestServer_MountsEachModule(t *testing.T) {
 			}).Methods(http.MethodGet)
 		},
 	}
+	previewModule := module.Module{
+		Name: "preview",
+		Mount: func(r *mux.Router) {
+			r.HandleFunc("/preview/component/harness.html", func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte("preview-ok"))
+			}).Methods(http.MethodGet)
+		},
+	}
 
-	srv := server.New(newTestDeps(), moduleA, moduleB)
+	srv := server.New(newTestDeps(), moduleA, moduleB, previewModule)
 	require.True(t, aMounted, "module A's Mount must be invoked")
 	require.True(t, bMounted, "module B's Mount must be invoked")
 
@@ -56,9 +64,19 @@ func TestServer_MountsEachModule(t *testing.T) {
 	respA, payloadA := live.Do(t, http.MethodGet, "/a", nil)
 	require.Equal(t, http.StatusOK, respA.StatusCode)
 	require.Equal(t, "a-ok", string(payloadA))
+	require.Equal(t, "max-age=31536000; includeSubDomains", respA.Header.Get("Strict-Transport-Security"))
+	require.Equal(t, "nosniff", respA.Header.Get("X-Content-Type-Options"))
+	require.Equal(t, "DENY", respA.Header.Get("X-Frame-Options"))
+	require.Equal(t, "0", respA.Header.Get("X-XSS-Protection"))
 
 	respB, _ := live.Do(t, http.MethodGet, "/b", nil)
 	require.Equal(t, http.StatusTeapot, respB.StatusCode)
+
+	preview, previewPayload := live.Do(t, http.MethodGet, "/preview/component/harness.html", nil)
+	require.Equal(t, http.StatusOK, preview.StatusCode)
+	require.Equal(t, "preview-ok", string(previewPayload))
+	require.Equal(t, "SAMEORIGIN", preview.Header.Get("X-Frame-Options"))
+	require.Equal(t, "frame-ancestors 'self'", preview.Header.Get("Content-Security-Policy"))
 }
 
 // TestServer_ZeroModules proves the variadic surface accepts zero

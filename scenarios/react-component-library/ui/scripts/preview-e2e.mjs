@@ -6,7 +6,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const DEFAULT_CHROME = "/usr/bin/google-chrome";
-const COMPONENT_LINK_SELECTOR = '[data-testid^="sidebar-component-"]';
+const LIST_COMPONENTS_PATH = "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents";
 
 const require = createRequire(import.meta.url);
 
@@ -82,13 +82,13 @@ function safeArtifactPart(value) {
 }
 
 async function selectResolvedTheme(page, theme) {
-  for (let attempts = 0; attempts < 3; attempts += 1) {
-    const resolved = await page.locator("html").getAttribute("data-resolved-theme");
-    if (resolved === theme) return;
-    await page.locator('[data-testid="theme-toggle"]').click();
-    await page.waitForTimeout(100);
+  const mode = page.locator(`[data-testid="components-theme-switcher-mode-${theme}"]`);
+  if (!await mode.isVisible()) {
+    await page.locator('[data-testid="components-theme-switcher-appearance-toggle"]').click();
+    await mode.waitFor({ state: "visible", timeout: 5_000 });
   }
-  throw new Error(`app theme did not resolve to ${theme}`);
+  await mode.click();
+  await page.waitForTimeout(100);
 }
 
 async function captureThemeTier(page, frameElements, componentID) {
@@ -137,35 +137,23 @@ async function captureThemeTier(page, frameElements, componentID) {
   return captures;
 }
 
-async function componentTargetsFromSidebar(page) {
+async function renderableComponentTargets() {
   if (process.env.RCL_PREVIEW_COMPONENT_ID) {
     return [{
       id: process.env.RCL_PREVIEW_COMPONENT_ID,
       label: process.env.RCL_PREVIEW_COMPONENT_ID,
     }];
   }
-  await page.goto(`${baseURL()}/components`, { waitUntil: "domcontentloaded" });
-  await page.locator('[data-testid="app-shell"]').waitFor({ state: "visible", timeout: 15_000 });
-  const sidebarError = await page
-    .locator('[data-testid="sidebar-component-list-error"]')
-    .innerText({ timeout: 250 })
-    .catch(() => "");
-  if (sidebarError.trim() !== "") {
-    throw new Error(`component list failed to load: ${sidebarError}`);
-  }
-  await page.locator(COMPONENT_LINK_SELECTOR).first().waitFor({ state: "attached", timeout: 15_000 });
-  const targets = await page.locator(COMPONENT_LINK_SELECTOR).evaluateAll((links) => (
-    links
-      .map((link) => {
-        const href = link.getAttribute("href") || "";
-        const id = href.split("/components/")[1] || "";
-        return {
-          id: decodeURIComponent(id.split(/[?#]/)[0] || ""),
-          label: (link.textContent || "").trim(),
-        };
-      })
-      .filter((target) => target.id)
-  ));
+  const response = await fetch(`${baseURL()}${LIST_COMPONENTS_PATH}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ limit: 500, assetKind: 1 }),
+  });
+  if (!response.ok) throw new Error(`typed catalog query failed: ${response.status} ${await response.text()}`);
+  const payload = await response.json();
+  const targets = (payload.components || [])
+    .filter((component) => component.id)
+    .map((component) => ({ id: component.id, label: component.displayName || component.libraryId || component.id }));
   const byID = new Map();
   for (const target of targets) {
     byID.set(target.id, target);
@@ -174,7 +162,7 @@ async function componentTargetsFromSidebar(page) {
 }
 
 async function assertComponentPreview(page, componentID) {
-  const url = `${baseURL()}/components/${componentID}`;
+  const assetPath = `/assets/${encodeURIComponent(componentID)}`;
   const logs = [];
   const responses = [];
 
@@ -196,7 +184,13 @@ async function assertComponentPreview(page, componentID) {
   page.on("response", onResponse);
 
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded" });
+    // Enter through the catalog and follow its current asset route. This
+    // proves the catalog link contract while the server independently supports
+    // refreshing the resulting detail deep link.
+    await page.goto(`${baseURL()}/`, { waitUntil: "domcontentloaded" });
+    const assetLink = page.locator('[data-testid="app-main"]').locator(`a[href="${assetPath}"]`);
+    await assetLink.waitFor({ state: "visible", timeout: 15_000 });
+    await assetLink.click();
     await page.locator('[data-testid="components-editor-panel"]').waitFor({ state: "visible", timeout: 15_000 });
     // Desktop shows Preview, Code, and Info together. The segmented switcher
     // is intentionally mobile-only, so only use it when it is actually shown.
@@ -226,7 +220,7 @@ async function assertComponentPreview(page, componentID) {
     }
     const frameResults = [];
     for (const previewFrame of previewFrames) {
-      if (previewFrame.url().includes("/components/")) {
+      if (previewFrame.url().includes("/assets/")) {
         throw new Error(`preview frame recursively loaded the app route: ${previewFrame.url()}`);
       }
       await previewFrame.locator("#root > *").first().waitFor({ state: "attached", timeout: 10_000 });
@@ -286,7 +280,7 @@ async function main() {
 
   try {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    const componentTargets = await componentTargetsFromSidebar(page);
+    const componentTargets = await renderableComponentTargets();
     if (componentTargets.length === 0) {
       throw new Error("component list returned no IDs");
     }

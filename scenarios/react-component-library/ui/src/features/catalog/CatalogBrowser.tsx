@@ -25,17 +25,23 @@ const assetKindForTab: Record<KindTab, 1 | 2> = {
   hooks: 2,
 };
 
-function adoptionCount(asset: CatalogAsset) {
-  return asset.metrics?.directAdoptionCount ?? 0;
+function adoptionCounts(asset: CatalogAsset) {
+  return {
+    direct: asset.metrics?.directAdoptionCount ?? 0,
+    effective: asset.metrics?.effectiveAdoptionCount ?? 0,
+  };
 }
 
 function AssetRow({ asset, presentation, selected, onNavigate }: { asset: CatalogAsset; presentation: Presentation; selected: boolean; onNavigate?: () => void }) {
   const { t } = useTranslation();
+  const isHook = (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
+  const counts = adoptionCounts(asset);
   const content = (
     <>
       <span className="truncate font-medium">{asset.displayName || asset.libraryId}</span>
-      <span className="rounded-pill bg-app-surface-muted px-1.5 py-0.5 text-[11px] text-app-muted-foreground">
-        {t("catalog.adoptions", { defaultValue: "{{count}} adoptions", count: adoptionCount(asset) })}
+      <span className="flex gap-1 text-[11px] text-app-muted-foreground">
+        <span className="rounded-pill bg-app-surface-muted px-1.5 py-0.5">{t("catalog.adoptions", { defaultValue: "{{count}} adoptions", count: counts.direct })}</span>
+        {isHook && <span className="rounded-pill bg-app-surface-muted px-1.5 py-0.5">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: counts.effective })}</span>}
       </span>
     </>
   );
@@ -130,7 +136,7 @@ export function CatalogBrowser({ compact = false, onNavigate }: Props) {
       {query.isLoading && <p role="status" className="text-xs text-app-muted-foreground">{t("catalog.loading", { defaultValue: "Loading catalog…" })}</p>}
       {query.error && <p role="alert" className="text-xs text-app-danger">{t("catalog.error", { defaultValue: "The catalog could not be loaded." })}</p>}
       {!query.isLoading && !query.error && assets.length === 0 && <p className="rounded-control border border-dashed border-app-border p-3 text-sm text-app-muted-foreground">{t("catalog.empty", { defaultValue: "No matching assets." })}</p>}
-      {presentation === "tree" ? <div className="space-y-3">{groups.map(([group, groupedAssets]) => <section key={group}><div className="mb-1 flex items-center justify-between px-1 text-xs font-medium uppercase text-app-muted-foreground"><span>{group}</span><span>{groupedAssets.reduce((total, asset) => total + adoptionCount(asset), 0)}</span></div><div className="space-y-1">{groupedAssets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation="tree" selected={selectedID === asset.id} onNavigate={onNavigate} />)}</div></section>)}</div> : <div className={presentation === "cards" ? "grid gap-2 sm:grid-cols-2" : "space-y-1"}>{assets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation={presentation} selected={selectedID === asset.id} onNavigate={onNavigate} />)}</div>}
+      {presentation === "tree" ? <div className="space-y-3">{groups.map(([group, groupedAssets]) => <section key={group}><div className="mb-1 flex items-center justify-between px-1 text-xs font-medium uppercase text-app-muted-foreground"><span>{group}</span><span>{groupedAssets.reduce((total, asset) => total + adoptionCounts(asset).direct, 0)}</span></div><div className="space-y-1">{groupedAssets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation="tree" selected={selectedID === asset.id} onNavigate={onNavigate} />)}</div></section>)}</div> : <div className={presentation === "cards" ? "grid gap-2 sm:grid-cols-2" : "space-y-1"}>{assets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation={presentation} selected={selectedID === asset.id} onNavigate={onNavigate} />)}</div>}
     </section>
   );
 }

@@ -10,6 +10,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	"react-component-library/internal/adoptions"
+	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/testutil/db"
 	"react-component-library/internal/testutil/mocks"
@@ -144,6 +145,62 @@ func TestSQLiteRepository_ListFiltersAndOrders(t *testing.T) {
 	byComponent, err := repo.List(ctx, adoptions.ListQuery{ComponentID: "cmp-a", Limit: 100})
 	require.NoError(t, err)
 	require.Len(t, byComponent, 2)
+}
+
+func TestSQLiteRepository_ListEffectiveReturnsMediatedParent(t *testing.T) {
+	repo, _ := newAdoptionsDB(t)
+	created, err := repo.Create(context.Background(), adoptions.CreateInput{
+		ID: "drawer-adoption", ComponentID: "drawer", LibraryID: "rcl:DrawerShell", Scenario: "target", AdoptedPath: "ui/src/components/DrawerShell.tsx", AdoptedVersion: "2.0.0",
+		Files: []adoptions.AdoptionFile{
+			{LibraryPath: "DrawerShell.tsx", AdoptedPath: "ui/src/components/DrawerShell.tsx", SourceAssetID: "drawer", SourceLibraryID: "rcl:DrawerShell", SourceVersion: "2.0.0"},
+			{LibraryPath: "useFocusTrap.ts", AdoptedPath: "ui/src/hooks/useFocusTrap.ts", SourceAssetID: "focus-hook", SourceLibraryID: "rcl:useFocusTrap", SourceVersion: "1.0.0"},
+		},
+	})
+	require.NoError(t, err)
+
+	effective, err := repo.ListEffective(context.Background(), "focus-hook", 10)
+	require.NoError(t, err)
+	require.Len(t, effective, 1)
+	require.True(t, effective[0].Mediated)
+	require.Equal(t, "rcl:useFocusTrap", effective[0].SourceLibraryID)
+	require.Equal(t, "1.0.0", effective[0].SourceVersion)
+	require.Equal(t, created.ID, effective[0].ParentAdoption.ID)
+	require.Equal(t, "drawer", effective[0].ParentAdoption.ComponentID)
+}
+
+func TestEnsureSchemaMigrations_BackfillsUniqueDependencyFileAttribution(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	require.NoError(t, apidb.EnsureSchemas(ctx, d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(components.Schema),
+		apidb.SchemaProviderFunc(adoptions.Schema),
+	))
+	_, err := d.ExecContext(ctx, `
+INSERT INTO components (id, library_id, slug, source_path, indexed_at, updated_at) VALUES
+  ('drawer', 'rcl:DrawerShell', 'drawer-shell', 'DrawerShell.tsx', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+  ('focus', 'rcl:useFocusTrap', 'use-focus-trap', 'useFocusTrap.ts', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+INSERT INTO component_versions (id, component_id, library_id, version, status, source_path, content_sha256, indexed_at) VALUES
+  ('drawer-v1', 'drawer', 'rcl:DrawerShell', '1.0.0', 'released', 'DrawerShell.tsx', 'drawer-sha', '2026-01-01T00:00:00Z'),
+  ('focus-v1', 'focus', 'rcl:useFocusTrap', '1.0.0', 'released', 'useFocusTrap.ts', 'focus-sha', '2026-01-01T00:00:00Z');
+INSERT INTO component_version_files (version_id, path, content_sha256, is_entry) VALUES
+  ('drawer-v1', 'DrawerShell.tsx', 'drawer-sha', 1),
+  ('focus-v1', 'useFocusTrap.ts', 'focus-sha', 1);
+INSERT INTO component_asset_dependencies (component_id, library_id, version) VALUES ('drawer', 'rcl:useFocusTrap', '1.0.0');
+INSERT INTO adoption_records (id, component_id, library_id, scenario, adopted_path, adopted_version, created_at) VALUES
+  ('drawer-adoption', 'drawer', 'rcl:DrawerShell', 'target', 'ui/src/components/DrawerShell.tsx', '1.0.0', '2026-01-01T00:00:00Z');
+INSERT INTO adoption_files (adoption_id, library_path, adopted_path) VALUES
+  ('drawer-adoption', 'DrawerShell.tsx', 'ui/src/components/DrawerShell.tsx'),
+  ('drawer-adoption', 'useFocusTrap.ts', 'ui/src/hooks/useFocusTrap.ts');`)
+	require.NoError(t, err)
+
+	require.NoError(t, adoptions.EnsureSchemaMigrations(ctx, d))
+	repo := adoptions.NewSQLiteRepository(d, mocks.NewFakeClock(time.Now()))
+	effective, err := repo.ListEffective(ctx, "focus", 10)
+	require.NoError(t, err)
+	require.Len(t, effective, 1)
+	require.True(t, effective[0].Mediated)
+	require.Equal(t, "rcl:useFocusTrap", effective[0].SourceLibraryID)
 }
 
 func TestSQLiteRepository_DeleteAndApplyRefresh(t *testing.T) {

@@ -23,6 +23,7 @@ import (
 type adoptionsService struct {
 	mu             sync.Mutex
 	listResp       *adoptionsv1.ListAdoptionsResponse
+	effectiveResp  *adoptionsv1.ListEffectiveAdoptionsResponse
 	applyResp      *adoptionsv1.ApplyAdoptionResponse
 	reapplyResp    *adoptionsv1.ReapplyAdoptionResponse
 	deleteResp     *adoptionsv1.DeleteAdoptionResponse
@@ -73,6 +74,13 @@ func (s *adoptionsService) ListAdoptions(_ context.Context, req *connect.Request
 		s.listResp = &adoptionsv1.ListAdoptionsResponse{}
 	}
 	return connect.NewResponse(s.listResp), nil
+}
+
+func (s *adoptionsService) ListEffectiveAdoptions(_ context.Context, _ *connect.Request[adoptionsv1.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptionsv1.ListEffectiveAdoptionsResponse], error) {
+	if s.effectiveResp == nil {
+		s.effectiveResp = &adoptionsv1.ListEffectiveAdoptionsResponse{}
+	}
+	return connect.NewResponse(s.effectiveResp), nil
 }
 
 func (s *adoptionsService) ApplyAdoption(_ context.Context, req *connect.Request[adoptionsv1.ApplyAdoptionRequest]) (*connect.Response[adoptionsv1.ApplyAdoptionResponse], error) {

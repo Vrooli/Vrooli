@@ -1,4 +1,5 @@
 import { pathToFileURL } from 'node:url'
+import path from 'node:path'
 import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
 
 const connectRpcPath = /^\/vrooli\.react_component_library\.v1\./
@@ -6,6 +7,11 @@ const previewPath = /^\/preview(?:\/|$)/
 
 export function shouldProxyToApi(path) {
   return connectRpcPath.test(path) || previewPath.test(path)
+}
+
+export function isAssetDetailRoute(routePath) {
+  const match = /^\/assets\/([^/]+)$/.exec(routePath)
+  return Boolean(match && !path.extname(match[1]))
 }
 
 export function startReactComponentLibraryServer() {
@@ -16,6 +22,17 @@ export function startReactComponentLibraryServer() {
     serviceName: 'react-component-library',
     corsOrigins: '*',
     setupRoutes(app) {
+      // api-base correctly treats /assets/* as static asset requests to avoid
+      // returning HTML for a missing JS/CSS file. The catalog deliberately
+      // uses the same prefix for its SPA detail route, so claim only a
+      // extensionless single segment before that generic safeguard runs.
+      app.get('/assets/:id', (req, res, next) => {
+        if (!isAssetDetailRoute(req.path)) {
+          next()
+          return
+        }
+        res.sendFile(path.resolve(process.cwd(), 'dist', 'index.html'))
+      })
       app.use((req, res, next) => {
         if (!shouldProxyToApi(req.path)) {
           next()

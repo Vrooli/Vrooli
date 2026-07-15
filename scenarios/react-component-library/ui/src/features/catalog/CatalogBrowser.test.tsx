@@ -54,17 +54,19 @@ describe("CatalogBrowser", () => {
     vi.clearAllMocks();
   });
 
-  it("switches independently between component and hook catalogs with adoption counts", async () => {
+  it("shows direct adoption counts for components and effective counts only for hooks", async () => {
     const user = userEvent.setup();
     renderWithProviders(<CatalogBrowser />);
 
     expect(await screen.findByTestId(selectors.catalog.asset)).toHaveTextContent(component.displayName);
     expect(screen.getByText(strings.catalog.adoptions)).toBeInTheDocument();
+    expect(screen.queryByText(/effective/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: strings.catalog.hooks }));
 
     await waitFor(() => expect(screen.getByTestId(selectors.catalog.asset)).toHaveTextContent(hook.displayName));
     expect(screen.getByText(strings.catalog.adoptions)).toBeInTheDocument();
+    expect(screen.getByText(/effective/i)).toBeInTheDocument();
     await waitFor(() => expect(listCatalogAssets).toHaveBeenLastCalledWith(expect.objectContaining({ assetKind: 2 })));
   });
 

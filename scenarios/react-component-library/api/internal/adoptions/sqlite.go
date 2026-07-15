@@ -54,7 +54,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '')
 		return Adoption{}, fmt.Errorf("insert adoption: %w", err)
 	}
 	for _, file := range in.Files {
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256) VALUES (?, ?, ?, ?, ?)`, id, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256); err != nil {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256, source_asset_id, source_library_id, source_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256, file.SourceAssetID, file.SourceLibraryID, file.SourceVersion); err != nil {
 			return Adoption{}, fmt.Errorf("insert adoption file %q: %w", file.AdoptedPath, err)
 		}
 	}
@@ -103,7 +103,7 @@ func (s *sqliteRepository) UpdateAppliedUnit(ctx context.Context, in AppliedUnit
 		return Adoption{}, fmt.Errorf("clear adoption files: %w", err)
 	}
 	for _, file := range in.Files {
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256) VALUES (?, ?, ?, ?, ?)`, in.ID, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256); err != nil {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256, source_asset_id, source_library_id, source_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, in.ID, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256, file.SourceAssetID, file.SourceLibraryID, file.SourceVersion); err != nil {
 			return Adoption{}, fmt.Errorf("insert reapplied adoption file: %w", err)
 		}
 	}
@@ -129,7 +129,7 @@ func (s *sqliteRepository) Rebaseline(ctx context.Context, in RebaselineInput) (
 			return Adoption{}, fmt.Errorf("clear adoption files: %w", err)
 		}
 		for _, file := range in.Files {
-			if _, err := s.db.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256) VALUES (?, ?, ?, ?, ?)`, id, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256); err != nil {
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256, source_asset_id, source_library_id, source_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256, file.SourceAssetID, file.SourceLibraryID, file.SourceVersion); err != nil {
 				return Adoption{}, fmt.Errorf("insert rebaselined adoption file: %w", err)
 			}
 		}
@@ -212,8 +212,32 @@ LIMIT ?
 	return out, nil
 }
 
+func (s *sqliteRepository) ListEffective(ctx context.Context, componentID string, limit int) ([]EffectiveAdoption, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT a.id, a.component_id, a.library_id, a.scenario, a.adopted_path, a.adopted_version, a.source_sha256, a.adopted_snapshot_sha256, a.library_version_status, a.local_status, a.status_detail, a.created_at, a.refreshed_at, a.applied_at, a.drift_backlog_ref,
+       f.source_asset_id, f.source_library_id, f.source_version
+FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id
+WHERE f.source_asset_id = ?
+ORDER BY a.created_at DESC, a.id ASC, f.adopted_path ASC
+LIMIT ?`, componentID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list effective adoptions: %w", err)
+	}
+	defer rows.Close()
+	out := make([]EffectiveAdoption, 0)
+	for rows.Next() {
+		var effective EffectiveAdoption
+		if err := rows.Scan(&effective.ParentAdoption.ID, &effective.ParentAdoption.ComponentID, &effective.ParentAdoption.LibraryID, &effective.ParentAdoption.Scenario, &effective.ParentAdoption.AdoptedPath, &effective.ParentAdoption.AdoptedVersion, &effective.ParentAdoption.SourceSHA256, &effective.ParentAdoption.AdoptedSnapshotSHA256, new(string), new(string), &effective.ParentAdoption.StatusDetail, new(string), new(string), new(string), &effective.ParentAdoption.DriftBacklogRef, &effective.SourceAssetID, &effective.SourceLibraryID, &effective.SourceVersion); err != nil {
+			return nil, fmt.Errorf("scan effective adoption: %w", err)
+		}
+		effective.Mediated = effective.ParentAdoption.ComponentID != effective.SourceAssetID
+		out = append(out, effective)
+	}
+	return out, rows.Err()
+}
+
 func (s *sqliteRepository) listFiles(ctx context.Context, adoptionID string) ([]AdoptionFile, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT library_path, adopted_path, source_sha256, adopted_snapshot_sha256 FROM adoption_files WHERE adoption_id = ? ORDER BY library_path`, adoptionID)
+	rows, err := s.db.QueryContext(ctx, `SELECT library_path, adopted_path, source_sha256, adopted_snapshot_sha256, source_asset_id, source_library_id, source_version FROM adoption_files WHERE adoption_id = ? ORDER BY library_path`, adoptionID)
 	if err != nil {
 		return nil, fmt.Errorf("list adoption files: %w", err)
 	}
@@ -221,7 +245,7 @@ func (s *sqliteRepository) listFiles(ctx context.Context, adoptionID string) ([]
 	var files []AdoptionFile
 	for rows.Next() {
 		var file AdoptionFile
-		if err := rows.Scan(&file.LibraryPath, &file.AdoptedPath, &file.SourceSHA256, &file.AdoptedSnapshotSHA256); err != nil {
+		if err := rows.Scan(&file.LibraryPath, &file.AdoptedPath, &file.SourceSHA256, &file.AdoptedSnapshotSHA256, &file.SourceAssetID, &file.SourceLibraryID, &file.SourceVersion); err != nil {
 			return nil, err
 		}
 		files = append(files, file)

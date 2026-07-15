@@ -45,8 +45,14 @@ CREATE TABLE IF NOT EXISTS adoption_files (
   adopted_path             TEXT NOT NULL,
   source_sha256            TEXT NOT NULL DEFAULT '',
   adopted_snapshot_sha256  TEXT NOT NULL DEFAULT '',
+  source_asset_id          TEXT NOT NULL DEFAULT '',
+  source_library_id        TEXT NOT NULL DEFAULT '',
+  source_version           TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (adoption_id, adopted_path)
 );
 
 CREATE INDEX IF NOT EXISTS idx_adoption_files_adoption
   ON adoption_files(adoption_id, library_path);
+
+CREATE INDEX IF NOT EXISTS idx_adoption_files_source_asset
+  ON adoption_files(source_asset_id, adoption_id);

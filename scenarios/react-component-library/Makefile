@@ -87,7 +87,9 @@ fmt-go: ## Format Go code
 	fi
 
 fmt-ui: ## Format UI code
-	@true
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run lint:fix && pnpm run strings:check; \
+	fi
 
 lint: lint-go lint-ui ## Lint all code
 
@@ -109,7 +111,7 @@ lint-go: ## Lint Go code
 
 lint-ui: ## Lint UI code
 	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run lint && pnpm run lint:catalog && pnpm run type-check:catalog; \
+		cd ui && pnpm run lint && pnpm run type-check; \
 	fi
 
 check: fmt lint test ## Run full quality gates
@@ -118,7 +120,7 @@ setup: ## Run scenario setup lifecycle
 	@vrooli scenario setup "$(SCENARIO_NAME)"
 
 temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
-	@flow-verifier verify check --root .
+	@flow-verifier verify check --root "$(CURDIR)"
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"

@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 
-import { makeListAdoptionsResponse, makeRefreshAdoptionsResponse } from "./factories";
+import { makeListAdoptionsResponse, makeRefreshAdoptionsResponse, makeSuggestAdoptionsResponse } from "./factories";
 
 export interface AdoptionsMocks {
   adoptionsClient: {
@@ -10,6 +10,7 @@ export interface AdoptionsMocks {
     deleteAdoption: ReturnType<typeof vi.fn>;
     refreshAdoptions: ReturnType<typeof vi.fn>;
     resolveAdoptionPath: ReturnType<typeof vi.fn>;
+    suggestAdoptions: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -26,5 +27,6 @@ export const makeAdoptionsMocks = (): AdoptionsMocks => ({
       slot: "ui-primitive",
       warnings: [],
     }),
+    suggestAdoptions: vi.fn().mockResolvedValue(makeSuggestAdoptionsResponse()),
   },
 });

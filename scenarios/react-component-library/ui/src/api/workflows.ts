@@ -1,40 +1,23 @@
-import { buildApiUrl } from "@vrooli/api-base";
+import { createClient } from "@connectrpc/connect";
+import {
+  WorkflowsService,
+  type PromotionReadiness,
+  type Workflow,
+} from "@vrooli/proto-types/react-component-library/v1/workflows/workflows_pb";
 
-import { API_BASE, decodeApiError } from "./client";
+import { transport } from "./client";
 
-export interface Workflow {
-  id: string;
-  assetId: string;
-  sourceScenario: string;
-  targetScenario: string;
-  sourcePath: string;
-  status: number;
-  summary: string;
-  error: string;
-  canStop: boolean;
-  canRetry: boolean;
-}
+const client = createClient(WorkflowsService, transport);
 
-function normalizeWorkflowsResponse(value: unknown): { workflows: Workflow[] } {
-  if (!value || typeof value !== "object") return { workflows: [] };
-
-  const { workflows } = value as { workflows?: unknown };
-  return { workflows: Array.isArray(workflows) ? workflows as Workflow[] : [] };
-}
-
-async function request<T>(procedure: string, input: object): Promise<T> {
-  const response = await fetch(buildApiUrl(`/vrooli.react_component_library.v1.workflows.WorkflowsService/${procedure}`, { baseUrl: API_BASE }), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!response.ok) throw await decodeApiError(response);
-  return await response.json() as T;
-}
-
+// All workflow reads and writes use the generated Connect client. A workflow
+// is only assisted execution state; callers must query promotion readiness to
+// establish canonicalization evidence.
 export const workflowsClient = {
-  startWorkflow: (input: { kind: 1 | 2; sourceScenario?: string; targetScenario?: string; sourcePath?: string; assetId?: string; idempotencyKey: string }) => request<{ workflow: Workflow }>("StartWorkflow", input),
-  listWorkflows: async (input: { activeOnly?: boolean; limit?: number }) => normalizeWorkflowsResponse(await request<unknown>("ListWorkflows", input)),
-  stopWorkflow: (input: { id: string }) => request<{ workflow: Workflow }>("StopWorkflow", input),
-  retryWorkflow: (input: { id: string; idempotencyKey: string }) => request<{ workflow: Workflow }>("RetryWorkflow", input),
+  startWorkflow: (input: { kind: 1 | 2; sourceScenario?: string; targetScenario?: string; sourcePath?: string; assetId?: string; idempotencyKey: string }) => client.startWorkflow(input),
+  listWorkflows: (input: { activeOnly?: boolean; limit?: number; assetId?: string; targetScenario?: string }) => client.listWorkflows(input),
+  stopWorkflow: (input: { id: string }) => client.stopWorkflow(input),
+  retryWorkflow: (input: { id: string; idempotencyKey: string }) => client.retryWorkflow(input),
+  getPromotionReadiness: (input: { assetId: string; originScenario: string; version?: string }) => client.getPromotionReadiness(input),
 };
+
+export type { PromotionReadiness, Workflow };

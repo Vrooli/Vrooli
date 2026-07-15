@@ -410,6 +410,7 @@ func (s *sqliteRepository) loadAssetProjection(ctx context.Context, assets []*Co
 	if err != nil {
 		return fmt.Errorf("load asset dependencies: %w", err)
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var id string
 		var dep AssetDependency
@@ -419,12 +420,18 @@ func (s *sqliteRepository) loadAssetProjection(ctx context.Context, assets []*Co
 		}
 		byID[id].Dependencies = append(byID[id].Dependencies, dep)
 	}
-	if err := rows.Close(); err != nil {
-		return fmt.Errorf("close asset dependencies: %w", err)
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate asset dependencies: %w", err)
 	}
 	rows, err = s.db.QueryContext(ctx, `
 SELECT c.id,
   (SELECT COUNT(*) FROM adoption_records a WHERE a.component_id = c.id),
+  (
+    SELECT COUNT(DISTINCT a.id)
+    FROM adoption_records a
+    LEFT JOIN adoption_files f ON f.adoption_id = a.id
+    WHERE a.component_id = c.id OR f.source_asset_id = c.id
+  ),
   (SELECT COUNT(*) FROM component_versions v WHERE v.component_id = c.id)
 FROM components c WHERE c.id IN (`+placeholders+`)`, ids...)
 	if err != nil {
@@ -452,11 +459,11 @@ FROM components c WHERE c.id IN (`+placeholders+`)`, ids...)
 	defer rows.Close()
 	for rows.Next() {
 		var id string
-		var directAdoptions, versions int
-		if err := rows.Scan(&id, &directAdoptions, &versions); err != nil {
+		var directAdoptions, effectiveAdoptions, versions int
+		if err := rows.Scan(&id, &directAdoptions, &effectiveAdoptions, &versions); err != nil {
 			return fmt.Errorf("scan asset metrics: %w", err)
 		}
-		byID[id].Metrics = AssetMetrics{DirectAdoptionCount: directAdoptions, VersionCount: versions}
+		byID[id].Metrics = AssetMetrics{DirectAdoptionCount: directAdoptions, EffectiveAdoptionCount: effectiveAdoptions, VersionCount: versions}
 	}
 	return rows.Err()
 }
@@ -632,6 +639,7 @@ ORDER BY library_id, version`)
 	if err != nil {
 		return nil, fmt.Errorf("scan registry-orphaned versions: %w", err)
 	}
+	defer rows.Close()
 	var orphans []OrphanVersion
 	for rows.Next() {
 		var o OrphanVersion

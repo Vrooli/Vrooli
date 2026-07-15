@@ -8,6 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"react-component-library/internal/adoptions"
+	adoptionmocks "react-component-library/internal/adoptions/mocks"
+	"react-component-library/internal/components"
+	componentmocks "react-component-library/internal/components/mocks"
 	"react-component-library/internal/testutil/db"
 	"react-component-library/internal/testutil/mocks"
 )
@@ -22,6 +26,34 @@ type fakeDispatcher struct {
 	dispatches     []StartInput
 	refreshRuns    []string
 	stoppedRuns    []string
+}
+
+func TestPromotionReadinessRequiresParityExamplesAndCleanOriginReplacement(t *testing.T) {
+	ctx := context.Background()
+	componentRepo := componentmocks.NewFakeRepository()
+	componentSvc := components.NewService(componentRepo)
+	component, err := componentRepo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{LibraryID: "react-component-library:DrawerShell", Slug: "drawer-shell", DisplayName: "DrawerShell", LatestVersion: "1.0.0", DraftVersion: "1.0.0-draft.1", Dependencies: []components.AssetDependency{{LibraryID: "react-component-library:useFocusTrap", Version: "1.0.0"}}},
+		Versions: []components.ComponentVersion{{Version: "1.0.0-draft.1", ParityReport: &components.IngestParityReport{OriginFiles: []string{"DrawerShell.tsx", "useFocusTrap.ts"}}}},
+		Examples: []components.ComponentExample{{Version: "1.0.0-draft.1", Name: "default"}},
+	})
+	require.NoError(t, err)
+	adoptionRepo := adoptionmocks.NewFakeRepository()
+	adoptionRepo.Seed(adoptions.Adoption{ID: "origin", ComponentID: component.ID, Scenario: "web-console", AdoptedVersion: "1.0.0-draft.1", LibraryVersionStatus: adoptions.LibraryVersionStatusCurrent, LocalStatus: adoptions.LocalStatusClean})
+	adoptionSvc := adoptions.NewService(adoptionRepo, nil, nil, mocks.NewFakeClock(time.Now()))
+	reader := NewPromotionReadinessReader(componentSvc, adoptionSvc)
+
+	got, err := reader.PromotionReadiness(ctx, PromotionReadinessInput{AssetID: component.ID, OriginScenario: "web-console"})
+	require.NoError(t, err)
+	require.True(t, got.Ready)
+	require.Equal(t, []string{"react-component-library:useFocusTrap"}, got.DependencyLibraryIDs)
+	require.True(t, got.OriginReplacementPresent)
+	require.True(t, got.OriginReplacementClean)
+
+	blocked, err := reader.PromotionReadiness(ctx, PromotionReadinessInput{AssetID: component.ID, OriginScenario: "other"})
+	require.NoError(t, err)
+	require.False(t, blocked.Ready)
+	require.Contains(t, blocked.Blockers, "origin scenario has no recorded replacement adoption at selected version")
 }
 
 func (f *fakeDispatcher) Dispatch(_ context.Context, in StartInput) (DispatchResult, error) {

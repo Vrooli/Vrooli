@@ -204,6 +204,20 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "adoptions_list_effective",
+		Path:        adoptionsconnect.AdoptionsServiceListEffectiveAdoptionsProcedure,
+		Method:      "POST",
+		Summary:     "List direct and mediated adoptions for a component",
+		Description: "Returns every adoption that makes the selected component present in a scenario, including provenance through a parent component adoption.",
+		Category:    "adoptions",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"component_id": "string (required)",
+			"limit":        "int32 (max rows, 0 = server default)",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"adoptions": "array<EffectiveAdoption>"}},
+		Errors:   []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Repository read failure"}},
+	},
+	{
 		ID:          "adoptions_apply",
 		Path:        adoptionsconnect.AdoptionsServiceApplyAdoptionProcedure,
 		Method:      "POST",

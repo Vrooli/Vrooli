@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { shouldProxyToApi } from './server.js'
+import { isAssetDetailRoute, shouldProxyToApi } from './server.js'
 
 describe('ui server route proxying', () => {
   it('forwards preview harness and runtime routes to the API before SPA fallback', () => {
@@ -14,5 +14,12 @@ describe('ui server route proxying', () => {
     expect(shouldProxyToApi('/components')).toBe(false)
     expect(shouldProxyToApi('/previewing')).toBe(false)
     expect(shouldProxyToApi('/assets/index.js')).toBe(false)
+  })
+
+  it('claims catalog details without intercepting emitted static files', () => {
+    expect(isAssetDetailRoute('/assets/cmp-7')).toBe(true)
+    expect(isAssetDetailRoute('/assets/react-component-library%3AuseFocusTrap')).toBe(true)
+    expect(isAssetDetailRoute('/assets/index.js')).toBe(false)
+    expect(isAssetDetailRoute('/assets/cmp-7/files/source.ts')).toBe(false)
   })
 })

@@ -188,6 +188,24 @@ func (f *FakeRepository) List(ctx context.Context, q adoptions.ListQuery) ([]ado
 	return out, nil
 }
 
+func (f *FakeRepository) ListEffective(_ context.Context, componentID string, limit int) ([]adoptions.EffectiveAdoption, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []adoptions.EffectiveAdoption
+	for _, adoption := range f.items {
+		for _, file := range adoption.Files {
+			if file.SourceAssetID != componentID {
+				continue
+			}
+			out = append(out, adoptions.EffectiveAdoption{SourceAssetID: file.SourceAssetID, SourceLibraryID: file.SourceLibraryID, SourceVersion: file.SourceVersion, Mediated: adoption.ComponentID != file.SourceAssetID, ParentAdoption: adoption})
+		}
+	}
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
 func (f *FakeRepository) Delete(ctx context.Context, id string) error {
 	f.DeleteCalls.Add(1)
 	if f.DeleteErr != nil {

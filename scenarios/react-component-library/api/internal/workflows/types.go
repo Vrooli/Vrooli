@@ -47,6 +47,26 @@ type StartInput struct {
 	ConfirmOverwrite, OverrideValidation                                  bool
 }
 
+// PromotionReadiness is a read-only evidence report. It never treats an
+// assisted-workflow terminal state as proof that catalog or origin mutation
+// succeeded; those facts are read from the components/adoptions domains.
+type PromotionReadiness struct {
+	AssetID, LibraryID, SelectedVersion, OriginScenario string
+	DependencyLibraryIDs, OriginFiles, ParityFindings   []string
+	RequiredExampleCount, AvailableExampleCount         int
+	ParityReportPresent, ParityWaived                   bool
+	OriginReplacementPresent, OriginReplacementClean    bool
+	Blockers                                            []string
+	Ready                                               bool
+	NextValidationCommand                               string
+}
+
+type PromotionReadinessInput struct{ AssetID, OriginScenario, Version string }
+
+type PromotionReadinessReader interface {
+	PromotionReadiness(context.Context, PromotionReadinessInput) (PromotionReadiness, error)
+}
+
 type DispatchResult struct {
 	TaskID, RunID string
 	Status        Status

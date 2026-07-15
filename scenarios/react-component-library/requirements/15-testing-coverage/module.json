@@ -136,7 +136,7 @@
           "ref": "ui/scripts/preview-e2e.mjs",
           "phase": "workflow",
           "status": "failing",
-          "notes": "`pnpm run test:preview-e2e` passed across the catalog examples during Phase 6."
+          "notes": "`pnpm run test:preview-e2e` is the dedicated browser workflow gate for catalog examples; it is kept out of the bounded unit coverage command."
         },
         {
           "type": "manual",

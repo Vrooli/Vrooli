@@ -6,7 +6,8 @@ This document maps the product capability boundaries for the scenario.
 
 | Domain | Purpose | Owns Data | Surfaces | Source Paths |
 |---|---|---|---|---|
-| components | Index Git-tracked component and hook manifests, versions, dependency pins, and catalog metrics. | `components`, `component_asset_dependencies`, manifest files, version source paths | API, CLI, UI | `api/internal/components/`, `api/handlers/components/`, `cli/domains/components/`, `ui/src/features/` |
+| components | Index Git-tracked component and hook manifests, versions, dependency pins, catalog metrics, and catalog conformance automation. | `components`, `component_asset_dependencies`, manifest files, version source paths | API, CLI, UI | `api/internal/components/`, `api/handlers/components/`, `cli/domains/components/`, `ui/src/features/`, `ui/scripts/catalog-conformance.mjs`, `ui/scripts/preview-e2e.mjs` |
+| inventory | Scan a scenario's UI inventory to supply adoption recommendations. | Derived scan results only; no durable product data | API | `api/handlers/inventory/`, `api/internal/uimanifest/` |
 | versions | Browse and diff indexed component release artifacts. | `component_versions` release snapshots | API, CLI, UI | `api/internal/versions/`, `api/handlers/versions/`, `cli/domains/versions/`, `ui/src/features/versions/` |
 | adoptions | Copy a dependency closure into target scenarios and track per-asset provenance/drift. | `adoption_records`, target scenario files | API, CLI, UI | `api/internal/adoptions/`, `api/handlers/adoptions/`, `cli/domains/adoptions/`, `ui/src/features/adoptions/` |
 | deps | Validate component `@deps` declarations against target scenarios. | Dependency declaration rows | API, UI support | `api/internal/deps/`, `api/handlers/deps/`, `ui/src/api/deps.ts` |

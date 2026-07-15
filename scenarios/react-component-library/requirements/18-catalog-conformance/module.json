@@ -50,7 +50,7 @@
           "ref": "ui/scripts/preview-e2e.mjs",
           "phase": "workflow",
           "status": "failing",
-          "notes": "`node ui/scripts/preview-e2e.mjs` passed across 11 components and 34 example frames in both themes (68 screenshots). The required Test Genie unit-phase integration is `ui/package.json:test:coverage`, with .vrooli/testing.json unit.require_runtime=true."
+          "notes": "`node ui/scripts/preview-e2e.mjs` passed across 11 components and 34 example frames in both themes (68 screenshots). The browser sweep is intentionally a workflow gate; `ui/package.json:test:coverage` remains bounded to Vitest coverage."
         }
       ]
     },

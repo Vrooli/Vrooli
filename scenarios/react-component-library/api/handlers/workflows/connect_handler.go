@@ -67,6 +67,16 @@ func (h *connectHandler) RetryWorkflow(c context.Context, r *connect.Request[wor
 	}
 	return connect.NewResponse(&workflowsv1.RetryWorkflowResponse{Workflow: toProto(w), QueueDepth: int32(q)}), nil
 }
+func (h *connectHandler) GetPromotionReadiness(c context.Context, r *connect.Request[workflowsv1.GetPromotionReadinessRequest]) (*connect.Response[workflowsv1.GetPromotionReadinessResponse], error) {
+	out, err := h.svc.PromotionReadiness(c, internal.PromotionReadinessInput{AssetID: r.Msg.AssetId, OriginScenario: r.Msg.OriginScenario, Version: r.Msg.Version})
+	if err != nil {
+		return nil, toError(err)
+	}
+	return connect.NewResponse(&workflowsv1.GetPromotionReadinessResponse{Readiness: readinessToProto(out)}), nil
+}
+func readinessToProto(in internal.PromotionReadiness) *workflowsv1.PromotionReadiness {
+	return &workflowsv1.PromotionReadiness{AssetId: in.AssetID, LibraryId: in.LibraryID, SelectedVersion: in.SelectedVersion, OriginScenario: in.OriginScenario, DependencyLibraryIds: append([]string(nil), in.DependencyLibraryIDs...), OriginFiles: append([]string(nil), in.OriginFiles...), RequiredExampleCount: int32(in.RequiredExampleCount), AvailableExampleCount: int32(in.AvailableExampleCount), ParityReportPresent: in.ParityReportPresent, ParityWaived: in.ParityWaived, ParityFindings: append([]string(nil), in.ParityFindings...), OriginReplacementPresent: in.OriginReplacementPresent, OriginReplacementClean: in.OriginReplacementClean, Blockers: append([]string(nil), in.Blockers...), Ready: in.Ready, NextValidationCommand: in.NextValidationCommand}
+}
 func startInput(m *workflowsv1.StartWorkflowRequest) internal.StartInput {
 	return internal.StartInput{Kind: kindFromProto(m.Kind), AssetID: m.AssetId, SourceScenario: m.SourceScenario, TargetScenario: m.TargetScenario, SourcePath: m.SourcePath, RequestedVersion: m.RequestedVersion, IdempotencyKey: m.IdempotencyKey, ConfirmOverwrite: m.ConfirmOverwrite, OverrideValidation: m.OverrideValidation}
 }

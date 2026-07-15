@@ -12,6 +12,7 @@ package server
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"react-component-library/internal/clock"
 	"react-component-library/internal/middleware"
@@ -70,5 +71,25 @@ func New(d Deps, modules ...module.Module) *Server {
 // middleware. This is what main.go listens on and what
 // internal/testutil/httpx.NewLiveServer wraps for handler tests.
 func (s *Server) Handler() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
+	return securityHeaders(handlers.RecoveryHandler()(s.router))
+}
+
+// securityHeaders establishes the baseline browser-facing API policy once at
+// the router boundary, before any domain handler can write a response.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// Preview harnesses are deliberately embedded by the scenario UI through
+		// its same-origin /preview proxy. Keep every other API response
+		// unframeable, while allowing that one trusted embedding relationship.
+		if strings.HasPrefix(r.URL.Path, "/preview/") {
+			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+		} else {
+			w.Header().Set("X-Frame-Options", "DENY")
+		}
+		w.Header().Set("X-XSS-Protection", "0")
+		next.ServeHTTP(w, r)
+	})
 }

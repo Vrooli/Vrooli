@@ -463,7 +463,7 @@ func TestService_ApplyPlacesHookCompanionsInHookSlotAndRewritesImports(t *testin
 	require.NotContains(t, files.bytes, "target::ui/src/components/useFocusTrap.ts")
 }
 
-func TestService_ApplyMaterializesPinnedHookDependencyOnceWithIndependentProvenance(t *testing.T) {
+func TestService_ApplyMaterializesPinnedHookDependencyAsMediatedProvenance(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{byID: map[string]components.Component{
 		"panel": {ID: "panel", LibraryID: "rcl:FocusTrapPanel", DisplayName: "FocusTrapPanel", AssetKind: components.AssetKindComponent, LatestVersion: "1.0.0", Dependencies: []components.AssetDependency{{LibraryID: "rcl:useFocusTrap", Version: "1.0.0"}}},
@@ -480,11 +480,16 @@ func TestService_ApplyMaterializesPinnedHookDependencyOnceWithIndependentProvena
 	require.Contains(t, string(files.bytes["target::ui/src/hooks/useFocusTrap.ts"]), "useFocusTrap")
 	rows, err := repo.List(context.Background(), adoptions.ListQuery{Limit: 10})
 	require.NoError(t, err)
-	require.Len(t, rows, 2)
-	for _, row := range rows {
-		require.NotEmpty(t, row.ID)
-		require.Len(t, row.Files, 1)
+	require.Len(t, rows, 1)
+	require.Equal(t, result.Adoption.ID, rows[0].ID)
+	require.Len(t, rows[0].Files, 2)
+	byAsset := map[string]adoptions.AdoptionFile{}
+	for _, file := range rows[0].Files {
+		byAsset[file.SourceAssetID] = file
 	}
+	require.Equal(t, "rcl:FocusTrapPanel", byAsset["panel"].SourceLibraryID)
+	require.Equal(t, "rcl:useFocusTrap", byAsset["hook"].SourceLibraryID)
+	require.Equal(t, "1.0.0", byAsset["hook"].SourceVersion)
 }
 
 func TestService_ReapplyRefreshesEveryFileInAUnit(t *testing.T) {

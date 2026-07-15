@@ -295,6 +295,12 @@ const literalSelectors = {
     eyebrow: "app-eyebrow",
     description: "app-description",
   },
+  assets: {
+    hookWorkspace: "hook-detail-page",
+    hookSource: "hook-workspace-source",
+    hookDetails: "hook-workspace-details",
+    hookAdoptions: "hook-effective-adoptions",
+  },
   health: {
     card: "health-card",
     loading: "health-loading",

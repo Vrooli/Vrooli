@@ -420,6 +420,7 @@ export function AdoptionsCard({ componentId }: { componentId?: string }) {
             <div key={`${item.scenario}-${item.componentId}`} className="flex items-start justify-between gap-3 rounded-control border border-app-border p-3 text-xs">
               <div>
                 <div className="font-medium text-app-foreground">{item.displayName} <span className="text-app-muted-foreground">→ {item.scenario}</span></div>
+                <p className="mt-1 text-app-muted-foreground">{item.classification === 1 ? t("adoptions.suggestions.heuristic", { defaultValue: "Heuristic candidate — review before adopting" }) : t("adoptions.suggestions.unavailable", { defaultValue: "Unavailable candidate" })}</p>
                 <p className="mt-1 text-app-muted-foreground">{item.reasons.join(" · ")}</p>
               </div>
               <Button size="sm" onClick={() => { setSuggestion(item); setCreateOpen(true); }}>{t(strings.adoptions.suggestions.adoptAction)}</Button>

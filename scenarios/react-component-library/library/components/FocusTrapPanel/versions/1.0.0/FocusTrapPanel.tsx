@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react";
 
-import { useFocusTrap } from "../../../hooks/useFocusTrap/versions/1.0.0/useFocusTrap";
+import { useFocusTrap } from "../../../DrawerShell/versions/1.0.0/useFocusTrap";
 
 export interface FocusTrapPanelProps {
   open?: boolean;

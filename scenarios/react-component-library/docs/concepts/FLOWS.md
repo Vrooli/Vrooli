@@ -9,6 +9,7 @@ This document is the canonical workflow map for ordered behavior.
 | Index library | components | CLI/API/UI `components index` | Manifests and version folders are validated and reflected in SQLite | Indexer, repository, handler, CLI tests |
 | Apply component | adoptions | CLI/API/UI `adoptions apply` | Selected version source is copied into a target scenario with provenance and an adoption row | Service, handler, CLI, UI tests |
 | Assisted extract/adopt | workflows | CLI/API/UI `workflows start` | RCL records a scoped Agent Manager task/run and exposes honest queued/running/terminal status | Workflow service, handler, CLI tests |
+| Promotion readiness | workflows | CLI/API/UI `workflows promotion-readiness` | Read-only evidence report joins parity, examples, dependency closure, origin replacement, and drift | Workflow readiness service, handler, CLI, UI tests |
 | Refresh drift | adoptions | CLI/API/UI `adoptions refresh` | Adoption rows receive separate library-version and local-edit statuses | Service status matrix and UI tests |
 | Reapply component | adoptions | CLI/API `adoptions reapply` | Adopted file is overwritten from a selected version; local edits require confirmation | Service and handler tests |
 | Diff versions/adoptions | versions | CLI/API/UI diff request | Server returns aligned line diff rows | Versions service and handler tests |
@@ -24,8 +25,10 @@ This document is the canonical workflow map for ordered behavior.
 4. Write a provenance header with library id, version, adoption id,
    applied timestamp, and source sha.
 5. Copy the full editable source body into the target scenario.
-6. Insert a provenance row with source and adopted snapshot hashes for each
-   materialized asset exactly once.
+6. Insert one direct parent adoption plus a provenance row for each materialized
+   asset exactly once. Dependency rows retain their originating asset, library,
+   and version so hooks can report mediated effective usage and link back to
+   the parent component adoption.
 
 ## Assisted Work
 
@@ -36,6 +39,20 @@ This document is the canonical workflow map for ordered behavior.
    Manager and no polling loop claims success.
 4. Terminal agent state remains evidence only. Direct RCL ingest/apply/reapply
    still performs parity, validation, overwrite, and provenance decisions.
+
+## Promotion Readiness
+
+`GetPromotionReadiness` is the read-only checkpoint between harvest and calling
+an asset canonical. It reads the selected version's origin parity report
+(including an explicit waiver), dependency closure, examples, and the origin
+scenario's recorded replacement adoption plus drift status. It is ready only
+when all those facts are available and clean. It never writes catalog or
+scenario files, and Agent Manager terminal state is not proof of promotion.
+
+The explicit mutation sequence remains: ingest the source, create the selected
+release, apply or reapply it to the origin with the existing confirmations,
+refresh drift, and run the returned validation command. Candidate suggestions
+are separately read-only and do not authorize rollout.
 
 ## Refresh Drift
 

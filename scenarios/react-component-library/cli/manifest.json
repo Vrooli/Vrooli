@@ -19,6 +19,14 @@
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
+          "name": "list-effective",
+          "description": "List direct and mediated usage for one catalog asset",
+          "positionals": [{ "name": "component-id", "required": true, "description": "Catalog asset id" }],
+          "flags": [{ "name": "limit", "description": "Maximum number of rows (default 200)" }],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ListEffectiveAdoptions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
           "name": "apply",
           "description": "Copy a component version into a target scenario and record the adoption",
           "positionals": [
@@ -450,6 +458,17 @@
           "flags": [{ "name": "idempotency-key", "description": "Required replay-safe retry key" }],
           "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "RetryWorkflow" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "promotion-readiness",
+          "description": "Read the parity, examples, dependency closure, origin replacement, and drift evidence required before calling an asset canonical",
+          "positionals": [{ "name": "asset-id", "required": true, "description": "Catalog asset id" }],
+          "flags": [
+            { "name": "origin-scenario", "description": "Origin scenario that must have a clean replacement adoption" },
+            { "name": "version", "description": "Selected catalog version; defaults to the draft or latest version" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "GetPromotionReadiness" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     }

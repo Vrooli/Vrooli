@@ -38,6 +38,7 @@ type Service interface {
 	Discover(ctx context.Context, in DiscoverInput) (DiscoverResult, error)
 	ConfirmDiscovery(ctx context.Context, in ConfirmDiscoveryInput) (ConfirmDiscoveryResult, error)
 	List(ctx context.Context, q ListQuery) ([]Adoption, error)
+	ListEffective(ctx context.Context, componentID string, limit int) ([]EffectiveAdoption, error)
 	Get(ctx context.Context, id string) (Adoption, error)
 	Delete(ctx context.Context, id string) error
 	Refresh(ctx context.Context, componentID string) ([]Adoption, RefreshSummary, error)
@@ -333,12 +334,15 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 		}
 	}
 
-	var root Adoption
+	// One adoption represents the operator's root apply. Dependency assets are
+	// materialized as files attributed to that root, not independent direct
+	// adoptions. This preserves the parent relationship required to distinguish
+	// direct component usage from mediated hook usage.
+	adoptionID := uuid.NewString()
+	adoptionFiles := make([]AdoptionFile, 0)
 	written := ""
+	entrySnapshot := ""
 	for _, plan := range plans {
-		adoptionID := uuid.NewString()
-		adoptionFiles := make([]AdoptionFile, 0, len(plan.Files))
-		entrySnapshot := ""
 		for _, file := range plan.Files {
 			fv := plan.Version
 			fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
@@ -347,13 +351,13 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 			if err != nil {
 				return ApplyResult{}, err
 			}
-			if file.IsEntry {
+			if file.IsEntry && plan.Asset.ID == cmp.ID {
 				entrySnapshot = hashBytes([]byte(body))
 				if plan.Asset.ID == cmp.ID {
 					written = path
 				}
 			}
-			adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: hashBytes([]byte(body))})
+			adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: hashBytes([]byte(body)), SourceAssetID: plan.Asset.ID, SourceLibraryID: plan.Asset.LibraryID, SourceVersion: plan.Version.Version})
 			if finder, ok := s.files.(ScenarioImportSiteFinder); ok {
 				sites, err := finder.FindImportSites(ctx, in.Scenario, file.AdoptedPath)
 				if err != nil {
@@ -362,13 +366,10 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 				importSites = append(importSites, sites...)
 			}
 		}
-		a, err := s.repo.Create(ctx, CreateInput{ID: adoptionID, ComponentID: plan.Asset.ID, LibraryID: plan.Asset.LibraryID, Scenario: in.Scenario, AdoptedPath: plan.EntryTarget, AdoptedVersion: plan.Version.Version, SourceSHA256: plan.Version.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, Files: adoptionFiles})
-		if err != nil {
-			return ApplyResult{}, err
-		}
-		if plan.Asset.ID == cmp.ID {
-			root = a
-		}
+	}
+	root, err := s.repo.Create(ctx, CreateInput{ID: adoptionID, ComponentID: cmp.ID, LibraryID: cmp.LibraryID, Scenario: in.Scenario, AdoptedPath: in.AdoptedPath, AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, Files: adoptionFiles})
+	if err != nil {
+		return ApplyResult{}, err
 	}
 	return ApplyResult{Adoption: root, WrittenPath: written, ImportSites: importSites}, nil
 }
@@ -557,7 +558,7 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		if file.IsEntry {
 			written, entrySnapshot = path, snapshot
 		}
-		adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: snapshot})
+		adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: snapshot, SourceAssetID: row.ComponentID, SourceLibraryID: row.LibraryID, SourceVersion: version})
 	}
 	updated, err := s.repo.UpdateAppliedUnit(ctx, AppliedUnitUpdate{AppliedSnapshotUpdate: AppliedSnapshotUpdate{
 		ID:                    row.ID,
@@ -602,6 +603,16 @@ func (s *service) List(ctx context.Context, q ListQuery) ([]Adoption, error) {
 		q.Limit = defaultListLimit
 	}
 	return s.repo.List(ctx, q)
+}
+
+func (s *service) ListEffective(ctx context.Context, componentID string, limit int) ([]EffectiveAdoption, error) {
+	if strings.TrimSpace(componentID) == "" {
+		return nil, ErrInvalidAdoption{Field: "component_id", Reason: "required"}
+	}
+	if limit <= 0 {
+		limit = defaultListLimit
+	}
+	return s.repo.ListEffective(ctx, componentID, limit)
 }
 
 func (s *service) Get(ctx context.Context, id string) (Adoption, error) {

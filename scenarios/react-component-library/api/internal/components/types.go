@@ -72,8 +72,9 @@ type AssetDependency struct {
 // AssetMetrics are server-projected catalog counts. They must be populated in
 // batch for list operations so presentation modes never issue per-row counts.
 type AssetMetrics struct {
-	DirectAdoptionCount int
-	VersionCount        int
+	DirectAdoptionCount    int
+	EffectiveAdoptionCount int
+	VersionCount           int
 }
 
 // ComponentVersionStatus classifies a version folder.
