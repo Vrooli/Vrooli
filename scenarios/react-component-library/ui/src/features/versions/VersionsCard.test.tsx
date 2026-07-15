@@ -133,6 +133,28 @@ describe("VersionsCard", () => {
     expect(table.textContent).toContain("BETA");
   });
 
+  it("hands a completed comparison to the enclosing Files workspace", async () => {
+    const { versionsClient } = await import("../../api/versions");
+    const diff = makeDiffVersionsResponse({ fromLabel: "1.0.0", toLabel: "1.0.1" });
+    vi.mocked(versionsClient.listVersions).mockResolvedValueOnce(
+      makeListVersionsResponse({
+        versions: [makeVersion({ version: "1.0.0" }), makeVersion({ version: "1.0.1" })],
+      }),
+    );
+    vi.mocked(versionsClient.diffVersions).mockResolvedValueOnce(diff);
+    const onCompare = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<VersionsCard componentId="cmp-1" onCompare={onCompare} />);
+
+    await waitFor(() => expect(screen.getAllByTestId(selectors.versions.item)).toHaveLength(2));
+    await user.selectOptions(screen.getByTestId(selectors.versions.diff.fromSelect), "1.0.0");
+    await user.selectOptions(screen.getByTestId(selectors.versions.diff.toSelect), "1.0.1");
+    await user.click(screen.getByTestId(selectors.versions.diff.runButton));
+
+    await waitFor(() => expect(onCompare).toHaveBeenCalledWith(diff));
+    expect(screen.queryByTestId(selectors.versions.diff.table)).not.toBeInTheDocument();
+  });
+
   it("run button is disabled until both sides are chosen", async () => {
     const { versionsClient } = await import("../../api/versions");
     vi.mocked(versionsClient.listVersions).mockResolvedValueOnce(

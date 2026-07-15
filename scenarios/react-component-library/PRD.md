@@ -14,9 +14,9 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Component registry & header-driven indexing | Disk-walking indexer parses `component.json`, version folders, `@libraryId` / `@version` / `@deps` header comments, and per-version `examples.json`, then upserts SQLite-backed registry, version, dependency, style-affinity, and example projections; malformed structural headers reject with a structured, actionable error and non-fatal contract drift is reported as findings.
+- [x] OT-P0-001 | Component registry & header-driven indexing | Disk-walking indexer parses `component.json`, version folders, `@libraryId` / `@version` / `@deps` header comments, and per-version `examples.json`, then upserts SQLite-backed registry, version, dependency, style-affinity, and example projections; malformed structural headers reject with a structured, actionable error and non-fatal contract drift is reported as findings.
 - [ ] OT-P0-002 | Monaco editor with safe content I/O | TSX editing, save, format-on-type; all reads/writes routed through `package:api-core/storage` with path-traversal rejection.
-- [ ] OT-P0-003 | Live preview executes real React in an isolated iframe | Per-component harness renders the actual component (no placeholder HTML), supports versioned named examples and stable `libraryId` harness URLs, reports preview-ready/error to the host, and reloads on save through cache-busted iframe navigation.
+- [x] OT-P0-003 | Live preview executes real React in an isolated iframe | Per-component harness renders the actual component (no placeholder HTML), supports versioned named examples and stable `libraryId` harness URLs, reports preview-ready/error to the host, and reloads on save through cache-busted iframe navigation.
 - [x] OT-P0-004 | Multi-viewport emulator | Device presets (mobile/tablet/desktop and named devices), continuous zoom 10–200%, rotate, reset; state persists across sessions.
 - [x] OT-P0-005 | Search and filter the registry | Name and description substring match plus tag/category facets; p95 query under 100ms on the test corpus.
 - [x] OT-P0-006 | Adoption workflow with drift status | `adoption_records` track scenario, path, adopted version; status = current/behind/modified/unknown computed on refresh.
@@ -26,7 +26,7 @@
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | DevTools-style visual filters | Color-scheme toggle (system/light/dark) and a vision-filter dropdown (blur 0–10px, grayscale, protanopia, deuteranopia, tritanopia) applied to the preview iframe.
 - [ ] OT-P1-002 | Element selection via `@vrooli/iframe-bridge` | Hover overlay rect, ancestor breadcrumb, element screenshot, selector capture; selection feeds the AI chat panel context.
-- [ ] OT-P1-003 | Adoption-drift backlog integration | When refresh detects "behind"/"modified", file a `fix` backlog item via `swarm-manager`'s CLI; never raw HTTP; dedupe via the recorded `drift_backlog_ref`.
+- [x] OT-P1-003 | Adoption-drift backlog integration | When refresh detects "behind"/"modified", file a `fix` backlog item via `swarm-manager`'s CLI; never raw HTTP; dedupe via the recorded `drift_backlog_ref`.
 - [x] OT-P1-004 | Dependency compatibility check on adopt | Component declares `@deps` (JSON in header); on adopt, validate against the target scenario's `package.json`; warn on missing/mismatch, block on incompatible-major.
 - [x] OT-P1-005 | Version tracking with a real diff viewer | Each save records a new version; UI renders a side-by-side unified diff between any two versions and between the library version and an adopted copy.
 - [x] OT-P1-006 | Theme-preview switcher | Pick from built-in themes or load a target scenario's `DESIGN.md`-derived theme; tokens mount as CSS custom properties on the harness `:root` before render. Resolver is a server endpoint, never client-derived.

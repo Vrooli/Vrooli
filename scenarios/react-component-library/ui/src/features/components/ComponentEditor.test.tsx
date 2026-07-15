@@ -134,7 +134,7 @@ describe("ComponentEditor", () => {
     );
   });
 
-  it("collapses and restores the desktop Code and Info panels", async () => {
+  it("closes and restores every desktop workspace pane through the add-pane control", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "// collapsible", sha256: "sha-panels" }),
@@ -147,21 +147,90 @@ describe("ComponentEditor", () => {
       removeEventListener: vi.fn(),
     }));
     try {
+      window.localStorage.removeItem("rcl.component-editor.workspace.v2");
       const user = userEvent.setup();
       renderWithProviders(
         <ComponentEditor id="cmp-panels" libraryId="lib:Panels" onClose={() => {}} />,
       );
 
-      const codeToggle = await screen.findByTestId("component-editor-toggle-code-panel");
-      const infoToggle = screen.getByTestId("component-editor-toggle-info-panel");
-      await user.click(codeToggle);
-      await user.click(infoToggle);
-      expect(codeToggle).toHaveAttribute("aria-pressed", "true");
-      expect(infoToggle).toHaveAttribute("aria-pressed", "true");
-      await user.click(codeToggle);
-      expect(codeToggle).toHaveAttribute("aria-pressed", "false");
+      await screen.findByTestId("monaco-stub");
+      expect(screen.getAllByTestId(selectors.components.editor.workspacePane)).toHaveLength(3);
+
+      await user.click(screen.getByTestId(selectors.components.editor.filesWrapButton));
+      expect(screen.getByTestId(selectors.components.editor.filesWrapButton)).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+      await user.click(screen.getByTestId(selectors.components.editor.filesFontIncrease));
+      await user.click(screen.getByTestId(selectors.components.editor.filesFontDecrease));
+      await user.click(screen.getByTestId(selectors.components.editor.filesTreeTab));
+
+      const detailsMoveLeft = screen
+        .getAllByTestId(selectors.components.editor.workspacePaneMoveLeft)
+        .find((button) => button.getAttribute("data-pane") === "details");
+      expect(detailsMoveLeft).toBeDefined();
+      await user.click(detailsMoveLeft!);
+      expect(
+        screen
+          .getAllByTestId(selectors.components.editor.workspacePane)
+          .map((pane) => pane.getAttribute("data-pane")),
+      ).toEqual(["files", "details", "preview"]);
+
+      const filesClose = screen
+        .getAllByTestId(selectors.components.editor.workspacePaneClose)
+        .find((button) => button.getAttribute("data-pane") === "files");
+      expect(filesClose).toBeDefined();
+      await user.click(filesClose!);
+      expect(screen.getAllByTestId(selectors.components.editor.workspacePane)).toHaveLength(2);
+
+      await user.click(screen.getByTestId(selectors.components.editor.workspaceAddPane));
+      const filesRestore = screen
+        .getAllByTestId(selectors.components.editor.workspacePaneRestore)
+        .find((button) => button.getAttribute("data-pane") === "files");
+      expect(filesRestore).toBeDefined();
+      await user.click(filesRestore!);
+      expect(screen.getAllByTestId(selectors.components.editor.workspacePane)).toHaveLength(3);
     } finally {
       window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("opens the Files diff tab when a comparison arrives from Details", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "// comparison source", sha256: "sha-diff" }),
+    );
+    window.localStorage.setItem(
+      "rcl.component-editor.workspace.v2",
+      JSON.stringify({
+        order: ["preview", "details", "files"],
+        visible: { files: false, preview: true, details: true },
+      }),
+    );
+
+    try {
+      const onCloseComparison = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(
+        <ComponentEditor
+          id="cmp-diff"
+          libraryId="lib:Diff"
+          onClose={() => {}}
+          comparison={{ fromLabel: "1.0.0", toLabel: "1.0.1", rows: [] }}
+          onCloseComparison={onCloseComparison}
+        />,
+      );
+
+      await screen.findByRole("button", { name: "Diff: 1.0.0 → 1.0.1" });
+      expect(
+        screen
+          .getAllByTestId(selectors.components.editor.workspacePane)
+          .some((pane) => pane.getAttribute("data-pane") === "files"),
+      ).toBe(true);
+      await user.click(screen.getByTestId(selectors.components.editor.filesDiffClose));
+      expect(onCloseComparison).toHaveBeenCalledTimes(1);
+    } finally {
+      window.localStorage.removeItem("rcl.component-editor.workspace.v2");
     }
   });
 

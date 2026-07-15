@@ -7,7 +7,7 @@ import { Select } from "../../components/ui/select";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { versionsClient, type Version } from "../../api/versions";
+import { versionsClient, type DiffVersionsResponse, type Version } from "../../api/versions";
 import { errorMessage } from "../../lib/errorMessage";
 import { VersionDiffViewer } from "./VersionDiffViewer";
 
@@ -15,6 +15,8 @@ interface VersionsCardProps {
   componentId: string;
   selectedVersion?: string;
   onSelectVersion?: (version: string | undefined) => void;
+  /** Lets the enclosing code workspace own comparison rendering. */
+  onCompare?: (diff: DiffVersionsResponse) => void;
 }
 
 const EMPTY_VERSIONS: Version[] = [];
@@ -26,7 +28,7 @@ const EMPTY_VERSIONS: Version[] = [];
  *
  * Surface for req 11 (VR-001..003).
  */
-export function VersionsCard({ componentId, selectedVersion, onSelectVersion }: VersionsCardProps) {
+export function VersionsCard({ componentId, selectedVersion, onSelectVersion, onCompare }: VersionsCardProps) {
   const { t } = useTranslation();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -38,6 +40,7 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion }: 
 
   const diffMutation = useMutation({
     mutationFn: () => versionsClient.diffVersions({ componentId, from, to }),
+    onSuccess: (diff) => onCompare?.(diff),
   });
 
   const versions: Version[] = versionsQuery.data?.versions ?? EMPTY_VERSIONS;
@@ -195,7 +198,7 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion }: 
           </p>
         )}
 
-        {diff && (
+        {diff && !onCompare && (
           <>
             <p
               data-testid={selectors.versions.diff.summary}

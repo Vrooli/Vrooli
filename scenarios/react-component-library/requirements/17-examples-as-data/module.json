@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-version JSON examples that drive catalog previews, specimen galleries, CLI/API queries, and experience-component reconciliation.",
-    "last_validated_at": "2026-07-14T14:20:21-04:00",
+    "last_validated_at": "2026-07-15T00:39:51-04:00",
     "module": "examples-as-data",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "EX-001",
       "title": "Version folders may declare data-only component examples",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -26,14 +26,14 @@
           "type": "test",
           "ref": "api/internal/components/indexer_test.go::TestIndexer_RunIndexesVersionExamples",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Proves `examples.json` is parsed from version folders and indexed as component_examples rows. Verified passing 2026-07-14."
         },
         {
           "type": "test",
           "ref": "api/internal/components/indexer_test.go::TestIndexer_RunReportsInvalidExamplesWithoutRejectingComponent",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Invalid examples emit non-fatal findings rather than dropping otherwise valid component metadata. Verified passing 2026-07-14."
         }
       ]
@@ -56,7 +56,7 @@
           "type": "test",
           "ref": "cli/domains/components/handlers_test.go::TestComponentsExamples_ForwardsInputsAndRenders",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI test proves component id/version forwarding and rendered examples output. Verified passing 2026-07-14. (Requirement remains in_progress pending the live-round-trip manual check below.)"
         },
         {
@@ -69,7 +69,7 @@
     {
       "id": "EX-003",
       "title": "Specimen gallery renders every named example and checks expectations",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -84,14 +84,14 @@
           "type": "test",
           "ref": "ui/src/features/components/ComponentEditor.test.tsx::renders example gallery iframes with named harness URLs",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "UI test proves the gallery emits named harness URLs for indexed examples."
         },
         {
           "type": "test",
           "ref": "ui/scripts/preview-e2e.mjs",
           "phase": "workflow",
-          "status": "failing",
+          "status": "implemented",
           "notes": "`pnpm run test:preview-e2e` passed across all 11 catalog components and their example frames during Phase 6."
         }
       ]

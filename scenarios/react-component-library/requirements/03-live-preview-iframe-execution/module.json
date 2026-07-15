@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-component preview harness that executes real React inside an isolated iframe, wired via @vrooli/iframe-bridge.",
-    "last_validated_at": "2026-07-14T20:22:52-04:00",
+    "last_validated_at": "2026-07-15T00:39:51-04:00",
     "module": "live-preview-iframe-execution",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PR-001",
       "title": "Per-component harness page renders the actual React component (not placeholder HTML)",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/handlers/preview/module_test.go::TestModule_HarnessHTML",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Preview module tests prove the harness returns real same-origin HTML, inlines the bundled component module, includes runtime import maps, and posts preview-ready. TestModule_HarnessAcceptsLibraryID covers stable `libraryId` route IDs used by experience-component capture."
         }
       ]
@@ -34,7 +34,7 @@
     {
       "id": "PR-002",
       "title": "Reload-on-save: editor save triggers iframe NAV via the host bridge",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -48,7 +48,7 @@
           "type": "test",
           "ref": "ui/src/features/components/ComponentEditor.test.tsx::reloads the iframe when save returns a new sha256",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The editor iframe URL includes the returned sha/retry key as a cache-buster; saves that change content force a new harness navigation."
         }
       ]

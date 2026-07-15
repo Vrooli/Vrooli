@@ -166,6 +166,23 @@ plus adopting-template manifest) so a multi-file component version lands each
 file where the adopting template's UI manifest says it belongs; the code panel's
 file tree renders that placement.
 
+## Component Workspace
+
+The component detail editor is a client-side workspace with three independently
+visible panes: **Files**, **Preview**, and **Details**. Its ordered visibility
+and desktop split sizes are persisted in browser storage, keeping individual
+inspection workflows intact without making layout a server-side concern. A pane
+header supplies keyboard-accessible move-left, move-right, and close actions;
+the global Add pane menu restores any closed pane.
+
+Files owns source inspection and editing. Its tabs switch between the complete
+placement tree, available version files, and an ephemeral comparison tab.
+Details owns version selection and comparison intent; once the versions service
+returns a diff, the detail page hands that response to Files, which opens (or
+restores) and selects the comparison tab. This keeps comparison rendering in
+the code-oriented surface while preserving the Details pane as the metadata and
+history control surface.
+
 ## Contracts And Data Flow
 
 Wire shapes do not live in TypeScript interfaces, Go structs, or

@@ -312,6 +312,58 @@
       "testId": "components-editor-preview-retry-button",
       "selector": "[data-testid=\"components-editor-preview-retry-button\"]"
     },
+    "components.editor.workspaceAddPane": {
+      "testId": "components-editor-workspace-add-pane",
+      "selector": "[data-testid=\"components-editor-workspace-add-pane\"]"
+    },
+    "components.editor.workspacePane": {
+      "testId": "components-editor-workspace-pane",
+      "selector": "[data-testid=\"components-editor-workspace-pane\"]"
+    },
+    "components.editor.workspacePaneClose": {
+      "testId": "components-editor-workspace-pane-close",
+      "selector": "[data-testid=\"components-editor-workspace-pane-close\"]"
+    },
+    "components.editor.workspacePaneRestore": {
+      "testId": "components-editor-workspace-pane-restore",
+      "selector": "[data-testid=\"components-editor-workspace-pane-restore\"]"
+    },
+    "components.editor.workspacePaneMoveLeft": {
+      "testId": "components-editor-workspace-pane-move-left",
+      "selector": "[data-testid=\"components-editor-workspace-pane-move-left\"]"
+    },
+    "components.editor.workspacePaneMoveRight": {
+      "testId": "components-editor-workspace-pane-move-right",
+      "selector": "[data-testid=\"components-editor-workspace-pane-move-right\"]"
+    },
+    "components.editor.filesTreeTab": {
+      "testId": "components-editor-files-tree-tab",
+      "selector": "[data-testid=\"components-editor-files-tree-tab\"]"
+    },
+    "components.editor.filesSourceTab": {
+      "testId": "components-editor-files-source-tab",
+      "selector": "[data-testid=\"components-editor-files-source-tab\"]"
+    },
+    "components.editor.filesDiffClose": {
+      "testId": "components-editor-files-diff-close",
+      "selector": "[data-testid=\"components-editor-files-diff-close\"]"
+    },
+    "components.editor.filesRevertButton": {
+      "testId": "components-editor-files-revert-button",
+      "selector": "[data-testid=\"components-editor-files-revert-button\"]"
+    },
+    "components.editor.filesWrapButton": {
+      "testId": "components-editor-files-wrap-button",
+      "selector": "[data-testid=\"components-editor-files-wrap-button\"]"
+    },
+    "components.editor.filesFontDecrease": {
+      "testId": "components-editor-files-font-decrease",
+      "selector": "[data-testid=\"components-editor-files-font-decrease\"]"
+    },
+    "components.editor.filesFontIncrease": {
+      "testId": "components-editor-files-font-increase",
+      "selector": "[data-testid=\"components-editor-files-font-increase\"]"
+    },
     "components.editor.fileTree": {
       "testId": "components-editor-file-tree",
       "selector": "[data-testid=\"components-editor-file-tree\"]"

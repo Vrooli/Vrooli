@@ -17,7 +17,7 @@ import { StatusBadge } from "../components/ui/status-badge";
 import { componentsClient } from "../api/components";
 import { strings } from "../consts/strings";
 import { CreateAdoptionDialog } from "../features/adoptions/CreateAdoptionDialog";
-import { ComponentEditor } from "../features/components/ComponentEditor";
+import { ComponentEditor, type ComparisonSession } from "../features/components/ComponentEditor";
 import { VersionsCard } from "../features/versions/VersionsCard";
 import { useTranslation } from "../i18n";
 
@@ -42,6 +42,7 @@ export function ComponentDetailPage() {
   const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
+  const [comparison, setComparison] = useState<ComparisonSession | null>(null);
   const [infoTab, setInfoTab] = useState<InfoTab>("overview");
   const [selectedAdoptionID, setSelectedAdoptionID] = useState("");
   const [createTarget, setCreateTarget] = useState<{ componentId: string; scenario: string } | null>(null);
@@ -116,6 +117,8 @@ export function ComponentDetailPage() {
           void navigate("/components");
         }}
         selectedVersion={selectedVersion}
+        comparison={comparison}
+        onCloseComparison={() => setComparison(null)}
         metadataSlot={(
           <div className="space-y-4">
             <div role="tablist" aria-label={t("componentDetail.info.tabs", { defaultValue: "Component information" })} className="flex border-b border-app-border">
@@ -140,7 +143,7 @@ export function ComponentDetailPage() {
                 {designStyles.length === 0 ? <p className="mt-2 text-xs text-app-muted-foreground">{t("componentDetail.info.noAffinities", { defaultValue: "No design affinities declared." })}</p> : <ul className="mt-2 space-y-1 text-xs">{designStyles.map((affinity) => <li key={affinity.styleId}>{affinity.styleId}: {affinity.reason || affinity.affinity}</li>)}</ul>}
               </section>
             </>}
-            {infoTab === "versions" && <VersionsCard componentId={component.id} selectedVersion={selectedVersion} onSelectVersion={setSelectedVersion} />}
+            {infoTab === "versions" && <VersionsCard componentId={component.id} selectedVersion={selectedVersion} onSelectVersion={setSelectedVersion} onCompare={setComparison} />}
             {infoTab === "adoptions" && <section data-testid="component-detail-adoptions" className="space-y-3 text-sm text-app-foreground">
               <div className="flex items-center justify-between"><h3 className="font-medium">{t("componentDetail.info.adoptions", { defaultValue: "Adoptions" })}</h3><Button size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>{refreshMutation.isPending ? t(strings.adoptions.refreshing) : t(strings.adoptions.refreshAction)}</Button></div>
               {adoptionsQuery.isLoading ? <p className="text-xs text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : adoptions.length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No scenarios have adopted this component yet." })} /> : <div className="space-y-2">{adoptions.map((adoption) => <Button key={adoption.id} type="button" variant="secondary" onClick={() => setSelectedAdoptionID(adoption.id)} className={`h-auto w-full rounded-control border p-2 text-left ${selectedAdoption?.id === adoption.id ? "border-app-primary" : "border-app-border"}`}><div className="flex items-center justify-between gap-2"><span className="font-medium">{adoption.scenario}</span><StatusBadge tone={statusTone(adoption.libraryVersionStatus, adoption.localStatus)}>{statusLabel(adoption.libraryVersionStatus, adoption.localStatus)}</StatusBadge></div><p className="mt-1 font-mono text-xs text-app-muted-foreground">{adoption.adoptedVersion} · {adoption.adoptedPath}</p></Button>)}</div>}
