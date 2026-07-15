@@ -1,0 +1,55 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "happy-path",
+  "mode": "backlog-conclude",
+  "label": "Continue, then complete",
+  "description": "Two rounds: the first classifies continue and loops conclude; the second classifies complete and the loop stops.",
+  "branch": "conclude → conclude (progress=continue), then guarded stop (progress=complete)",
+  "scenario": "A representative Backlog Conclusion run over one plan-less research item that needs two rounds to finish.",
+  "steps": [
+    {
+      "phase": "conclude",
+      "output": {
+        "handoff": {
+          "summary": "Round 1 of the conclusion investigated the item and drafted the deliverable; more remains.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Continue drafting the conclusion.",
+          "changed_files": [
+            "conclusion.md"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "continue"
+        }
+      },
+      "note": "handoff.progress=continue L1-derives at the edge → loops conclude"
+    },
+    {
+      "phase": "conclude",
+      "output": {
+        "handoff": {
+          "summary": "Round 2 finished the conclusion deliverable.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Hand off to review.",
+          "changed_files": [
+            "conclusion.md"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "complete"
+        }
+      },
+      "note": "handoff.progress=complete L1-derives at the edge → guarded stop"
+    }
+  ],
+  "expected_path": [
+    "conclude",
+    "conclude"
+  ]
+}

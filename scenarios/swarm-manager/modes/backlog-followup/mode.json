@@ -1,0 +1,340 @@
+{
+  "kind": "operating-mode",
+  "id": "backlog-followup",
+  "label": "Backlog Follow-up",
+  "description": "A follow-up run after an item's execution completed, to extend or amend the delivered work. Reads the completed deliverable and follow-up context. Implements the execution-followup operation.",
+  "best_for": [
+    "Extending or amending a completed item's delivered work"
+  ],
+  "not_for": [
+    "Remediating review gaps \u2014 use backlog-fixup",
+    "The primary execution \u2014 use execution-run"
+  ],
+  "tradeoffs": [
+    "Runs after completion",
+    "May be a fresh run or a continuation of the parent run"
+  ],
+  "when_in_doubt_pick_instead": "backlog-fixup",
+  "target": {
+    "kind": "backlog-item"
+  },
+  "input_contract": {
+    "specs": [
+      {
+        "id": "execution.mode_id",
+        "type": "string",
+        "required": true,
+        "sensitivity": "public",
+        "retention": "value",
+        "description": "Stable operating-mode identity for this execution."
+      },
+      {
+        "id": "execution.phase_id",
+        "type": "string",
+        "required": true,
+        "sensitivity": "public",
+        "retention": "value",
+        "description": "Current phase identity within the pinned graph."
+      },
+      {
+        "id": "execution.round_number",
+        "type": "integer",
+        "required": true,
+        "minimum": 1,
+        "sensitivity": "public",
+        "retention": "value",
+        "description": "One-based round number within the immutable execution."
+      },
+      {
+        "id": "execution.agent_profile_key",
+        "type": "string",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Agent Manager profile selected for the current phase."
+      },
+      {
+        "id": "execution.operator_note",
+        "type": "string",
+        "max_length": 32768,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Optional operator guidance for the current round."
+      },
+      {
+        "id": "execution.prior_rounds",
+        "type": "array",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Durable prior round envelopes available to the current round."
+      },
+      {
+        "id": "execution.mode_artifacts",
+        "type": "array",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Declared artifacts accumulated under the mode execution."
+      },
+      {
+        "id": "item.title",
+        "type": "string",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Backlog item title."
+      },
+      {
+        "id": "item.description",
+        "type": "string",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Backlog item description."
+      },
+      {
+        "id": "item.status",
+        "type": "string",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Current backlog item status."
+      },
+      {
+        "id": "item.spec",
+        "type": "string",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "The item's authorable spec/research document content."
+      },
+      {
+        "id": "item.plan_ref",
+        "type": "object",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "The item's current readiness plan reference, when bound."
+      }
+    ],
+    "sources": [
+      {
+        "input_id": "execution.mode_id",
+        "kind": "generic_provider",
+        "capability": "generic.operating_mode"
+      },
+      {
+        "input_id": "execution.phase_id",
+        "kind": "generic_provider",
+        "capability": "generic.phase"
+      },
+      {
+        "input_id": "execution.round_number",
+        "kind": "generic_provider",
+        "capability": "generic.round_number"
+      },
+      {
+        "input_id": "execution.agent_profile_key",
+        "kind": "generic_provider",
+        "capability": "generic.agent_profile_key"
+      },
+      {
+        "input_id": "execution.operator_note",
+        "kind": "generic_provider",
+        "capability": "generic.operator_note"
+      },
+      {
+        "input_id": "execution.prior_rounds",
+        "kind": "generic_provider",
+        "capability": "generic.prior_rounds"
+      },
+      {
+        "input_id": "execution.mode_artifacts",
+        "kind": "generic_provider",
+        "capability": "generic.mode_artifacts"
+      },
+      {
+        "input_id": "item.title",
+        "kind": "target_adapter",
+        "capability": "target.item_title"
+      },
+      {
+        "input_id": "item.description",
+        "kind": "target_adapter",
+        "capability": "target.item_description"
+      },
+      {
+        "input_id": "item.status",
+        "kind": "target_adapter",
+        "capability": "target.item_status"
+      },
+      {
+        "input_id": "item.spec",
+        "kind": "target_adapter",
+        "capability": "target.item_spec"
+      },
+      {
+        "input_id": "item.plan_ref",
+        "kind": "target_adapter",
+        "capability": "target.item_plan_ref"
+      }
+    ],
+    "aliases": [
+      {
+        "name": "OPERATING_MODE",
+        "input_id": "execution.mode_id"
+      },
+      {
+        "name": "PHASE",
+        "input_id": "execution.phase_id"
+      },
+      {
+        "name": "ROUND_NUMBER",
+        "input_id": "execution.round_number"
+      },
+      {
+        "name": "AGENT_PROFILE_KEY",
+        "input_id": "execution.agent_profile_key"
+      },
+      {
+        "name": "OPERATOR_NOTE",
+        "input_id": "execution.operator_note"
+      },
+      {
+        "name": "PRIOR_ROUNDS_JSON",
+        "input_id": "execution.prior_rounds"
+      },
+      {
+        "name": "MODE_ARTIFACTS_JSON",
+        "input_id": "execution.mode_artifacts"
+      },
+      {
+        "name": "ITEM_TITLE",
+        "input_id": "item.title"
+      },
+      {
+        "name": "ITEM_DESCRIPTION",
+        "input_id": "item.description"
+      },
+      {
+        "name": "ITEM_STATUS",
+        "input_id": "item.status"
+      },
+      {
+        "name": "ITEM_SPEC",
+        "input_id": "item.spec"
+      },
+      {
+        "name": "ITEM_PLAN_REF",
+        "input_id": "item.plan_ref"
+      }
+    ]
+  },
+  "run_strategy": {
+    "kind": "sequential_handoff"
+  },
+  "prompt": {
+    "catalog_prefix": "swarm-manager-backlog-followup"
+  },
+  "artifact": {
+    "root": "modes/backlog-followup"
+  },
+  "profile": {
+    "default_profile_key": "swarm-manager/deep-work"
+  },
+  "ui": {
+    "workspace_tab_id": "operating-mode"
+  },
+  "phase_graph": {
+    "start_phase": "followup",
+    "phases": [
+      {
+        "id": "followup",
+        "kind": "execute",
+        "activity_purpose": "backlog_followup",
+        "reads": [
+          "OPERATING_MODE",
+          "PHASE",
+          "ROUND_NUMBER",
+          "AGENT_PROFILE_KEY",
+          "OPERATOR_NOTE",
+          "PRIOR_ROUNDS_JSON",
+          "MODE_ARTIFACTS_JSON",
+          "ITEM_TITLE",
+          "ITEM_DESCRIPTION",
+          "ITEM_STATUS",
+          "ITEM_SPEC",
+          "ITEM_PLAN_REF"
+        ],
+        "profile_key": "swarm-manager/deep-work",
+        "writes_repo": true,
+        "prompt": {
+          "suffix": "followup",
+          "title": "Backlog Follow-up Run",
+          "trigger": "Operator requests a follow-up run after the item completed",
+          "purpose": "Extend or amend the delivered work after an item completed, reading the completed deliverable and any follow-up context, emitting a handoff."
+        },
+        "declared_output": {
+          "fields": [
+            {
+              "name": "handoff",
+              "type": "object",
+              "required": true,
+              "description": "The structured handoff the next round consumes.",
+              "fields": [
+                {
+                  "name": "summary",
+                  "type": "string",
+                  "required": true,
+                  "description": "Concise statement of what this round did."
+                },
+                {
+                  "name": "blockers",
+                  "type": "array",
+                  "required": true,
+                  "description": "Known blockers; use a single item such as \"none\" when there are none."
+                },
+                {
+                  "name": "next_step",
+                  "type": "string",
+                  "required": true,
+                  "description": "The immediate next step after this round."
+                },
+                {
+                  "name": "changed_files",
+                  "type": "array",
+                  "required": true,
+                  "description": "Repository/spec paths changed; use a single item such as \"none\" when nothing changed."
+                },
+                {
+                  "name": "tests",
+                  "type": "array",
+                  "required": true,
+                  "description": "Checks run for this round; use \"none\" when not applicable."
+                }
+              ]
+            }
+          ]
+        },
+        "transitions": [
+          {
+            "classify": {
+              "field": "progress",
+              "enum": [
+                "continue",
+                "complete",
+                "blocked"
+              ],
+              "from": "handoff",
+              "description": "Whether more follow-up work remains (continue), the follow-up is complete (complete), or it is blocked (blocked)."
+            },
+            "routes": {
+              "continue": [
+                "followup"
+              ],
+              "complete": [],
+              "blocked": []
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

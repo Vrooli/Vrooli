@@ -1,0 +1,72 @@
+{
+  "kind": "agentops-operation-contract",
+  "id": "review-round",
+  "version": "1.0.0",
+  "summary": "One review round over completed work.",
+  "description": "One agent round that reviews completed execution work: gathers evidence (screenshots, api tests, cli output, config diffs, recordings) and returns a classification and assessment (mirrors internal/review/service.go). The mode emits the raw classification {ready, ready_with_notes, needs_work, not_assessable}; this contract normalizes it to accepted/changes-requested/failed. Requires review artifacts, which both backlog-item and initiative provide.",
+  "target_requirements": {
+    "capabilities": [
+      "provides-review-artifacts"
+    ]
+  },
+  "result": {
+    "fields": [
+      {
+        "name": "verdict",
+        "type": "string",
+        "required": true,
+        "enum": [
+          "accepted",
+          "changes-requested",
+          "failed"
+        ],
+        "description": "Normalized acceptance verdict. The review mode's raw classification (ready/ready_with_notes -\u003e accepted, needs_work -\u003e changes-requested, not_assessable -\u003e needs-attention, invalid -\u003e failed) maps onto this closed set."
+      },
+      {
+        "name": "handoff",
+        "type": "object",
+        "required": true,
+        "description": "The review handoff: assessment, classification, evidence gathered, and improvement suggestions."
+      }
+    ]
+  },
+  "outcomes": [
+    {
+      "name": "accepted",
+      "disposition": "success",
+      "description": "The reviewed work meets its criteria; the workflow completes."
+    },
+    {
+      "name": "changes-requested",
+      "disposition": "needs-decision",
+      "description": "Specific fixable gaps were found; the workflow requests a revision/fixup."
+    },
+    {
+      "name": "failed",
+      "disposition": "failed",
+      "description": "The review round itself failed (unassessable or invalid)."
+    },
+    {
+      "name": "needs-attention",
+      "disposition": "abstain",
+      "description": "The verdict could not be derived honestly; the round abstains to operator attention."
+    }
+  ],
+  "evidence_expectations": [
+    {
+      "subject_kind": "backlog-item",
+      "action": "review-round-recorded",
+      "min_confidence": "observed",
+      "min_count": 1
+    }
+  ],
+  "cancellation": {
+    "cancelable": true,
+    "cancel_is_cooperative": true,
+    "in_flight_disposition": "canceled"
+  },
+  "retry": {
+    "retryable": true,
+    "retry_is_new_attempt": true
+  }
+}

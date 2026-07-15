@@ -1,0 +1,34 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "complete-first",
+  "mode": "backlog-revision",
+  "label": "Complete in one round",
+  "description": "A single round finishes the unit of work; the classified edge stops the loop immediately.",
+  "branch": "revise \u2192 guarded stop (progress=complete)",
+  "scenario": "A Backlog Revision run where one round is sufficient.",
+  "steps": [
+    {
+      "phase": "revise",
+      "output": {
+        "handoff": {
+          "summary": "Backlog Revision finished in a single round.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Hand off to the next stage.",
+          "changed_files": [
+            "spec.md"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "complete"
+        }
+      },
+      "note": "handoff.progress=complete L1-derives at the edge \u2192 guarded stop"
+    }
+  ],
+  "expected_path": [
+    "revise"
+  ]
+}

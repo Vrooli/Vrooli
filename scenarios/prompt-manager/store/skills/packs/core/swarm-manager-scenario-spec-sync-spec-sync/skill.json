@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-scenario-spec-sync-spec-sync",
+  "name": "Scenario Spec Sync Run",
+  "description": "read a scenario's implementation and update its spec artifacts to match the actual behavior",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "swarm-manager",
+    "operating-mode",
+    "agent-operations",
+    "scenario-spec-sync"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-14T00:00:00Z",
+  "updatedAt": "2026-07-14T00:00:00Z"
+}

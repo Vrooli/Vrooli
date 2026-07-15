@@ -1,0 +1,8 @@
+{
+  "kind": "agentops-operation-binding",
+  "operation": "workshop-finalize",
+  "operation_version": "1.0.0",
+  "layer": "system-default",
+  "mode": "backlog-finalize",
+  "mode_revision": "1.0.0"
+}

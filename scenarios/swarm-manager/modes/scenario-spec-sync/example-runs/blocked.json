@@ -1,0 +1,34 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "blocked",
+  "mode": "scenario-spec-sync",
+  "label": "Blocked on first round",
+  "description": "One round classifies blocked; the loop stops and the round parks for operator attention.",
+  "branch": "spec-sync → guarded stop (progress=blocked)",
+  "scenario": "A Scenario Spec Sync run that cannot proceed because the scenario source is unreadable.",
+  "steps": [
+    {
+      "phase": "spec-sync",
+      "output": {
+        "handoff": {
+          "summary": "Spec sync cannot proceed: the scenario source tree could not be read.",
+          "blockers": [
+            "scenario source unreadable"
+          ],
+          "next_step": "Operator must restore the scenario source or cancel the run.",
+          "changed_files": [
+            "none"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "blocked"
+        }
+      },
+      "note": "handoff.progress=blocked L1-derives at the edge → guarded stop, parks for operator attention"
+    }
+  ],
+  "expected_path": [
+    "spec-sync"
+  ]
+}

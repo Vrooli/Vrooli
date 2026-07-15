@@ -1,0 +1,35 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "blocked",
+  "mode": "execution-drain",
+  "label": "Drain: blocked",
+  "description": "The first slice hits a blocker; the delegated drain stops and the parent guarded-stops for operator attention.",
+  "branch": "execute \u2192(sub progress=blocked) guarded stop",
+  "scenario": "Round 1 cannot complete its slice; the handoff records the blocker and the drain stops.",
+  "steps": [
+    {
+      "phase": "execute",
+      "output": {
+        "handoff": {
+          "summary": "Could not complete plan phase 1: a prerequisite is missing.",
+          "blockers": [
+            "blocked on a missing prerequisite"
+          ],
+          "next_step": "Operator: resolve the prerequisite.",
+          "changed_files": [
+            "none"
+          ],
+          "tests": [
+            "none"
+          ],
+          "frontier": "Plan phase 1 (blocked).",
+          "progress": "blocked"
+        }
+      },
+      "note": "sub-mode stop (blocked) \u2192 parent guarded-stops for operator attention"
+    }
+  ],
+  "expected_path": [
+    "execute"
+  ]
+}

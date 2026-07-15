@@ -1,0 +1,56 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "happy-path",
+  "mode": "scenario-spec-sync",
+  "label": "Continue, then complete",
+  "description": "Two rounds: the first classifies continue and loops spec-sync; the second classifies complete and the loop stops.",
+  "branch": "spec-sync → spec-sync (progress=continue), then guarded stop (progress=complete)",
+  "scenario": "A representative Scenario Spec Sync run over one scenario that needs two rounds to reconcile its spec with its implementation.",
+  "steps": [
+    {
+      "phase": "spec-sync",
+      "output": {
+        "handoff": {
+          "summary": "Round 1 reconciled the PRD and README with the implementation; docs/ still lags.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Sync the remaining docs/ pages.",
+          "changed_files": [
+            "PRD.md",
+            "README.md"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "continue"
+        }
+      },
+      "note": "handoff.progress=continue L1-derives at the edge → loops spec-sync"
+    },
+    {
+      "phase": "spec-sync",
+      "output": {
+        "handoff": {
+          "summary": "Round 2 finished syncing docs/; the spec now matches the implementation.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Hand off for archive.",
+          "changed_files": [
+            "docs/OPERATIONS.md"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "complete"
+        }
+      },
+      "note": "handoff.progress=complete L1-derives at the edge → guarded stop"
+    }
+  ],
+  "expected_path": [
+    "spec-sync",
+    "spec-sync"
+  ]
+}

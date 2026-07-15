@@ -1,0 +1,540 @@
+{
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "streamConfig.enginePicker": {
+      "testId": "stream-config-engine-picker",
+      "selector": "[data-testid=\"stream-config-engine-picker\"]"
+    },
+    "streamConfig.switchPrompt": {
+      "testId": "stream-config-switch-prompt",
+      "selector": "[data-testid=\"stream-config-switch-prompt\"]"
+    },
+    "streamConfig.confirmSwitch": {
+      "testId": "stream-config-confirm-switch",
+      "selector": "[data-testid=\"stream-config-confirm-switch\"]"
+    },
+    "streamConfig.cancelSwitch": {
+      "testId": "stream-config-cancel-switch",
+      "selector": "[data-testid=\"stream-config-cancel-switch\"]"
+    },
+    "streamConfig.stallRejectsInput": {
+      "testId": "stream-config-stall-rejects-input",
+      "selector": "[data-testid=\"stream-config-stall-rejects-input\"]"
+    },
+    "streamConfig.saveOverlap": {
+      "testId": "stream-config-save-overlap",
+      "selector": "[data-testid=\"stream-config-save-overlap\"]"
+    },
+    "dictationStudio.modeFree": {
+      "testId": "dictation-mode-free",
+      "selector": "[data-testid=\"dictation-mode-free\"]"
+    },
+    "dictationStudio.modeScripted": {
+      "testId": "dictation-mode-scripted",
+      "selector": "[data-testid=\"dictation-mode-scripted\"]"
+    },
+    "dictationStudio.recordStart": {
+      "testId": "dictation-record-start",
+      "selector": "[data-testid=\"dictation-record-start\"]"
+    },
+    "dictationStudio.recordCancel": {
+      "testId": "dictation-record-cancel",
+      "selector": "[data-testid=\"dictation-record-cancel\"]"
+    },
+    "dictationStudio.recordState": {
+      "testId": "dictation-record-state",
+      "selector": "[data-testid=\"dictation-record-state\"]"
+    },
+    "dictationStudio.streamStatus": {
+      "testId": "dictation-stream-status",
+      "selector": "[data-testid=\"dictation-stream-status\"]"
+    },
+    "dictationStudio.recordError": {
+      "testId": "dictation-record-error",
+      "selector": "[data-testid=\"dictation-record-error\"]"
+    },
+    "dictationStudio.audioMeter": {
+      "testId": "dictation-audio-meter",
+      "selector": "[data-testid=\"dictation-audio-meter\"]"
+    },
+    "dictationStudio.turnDetails": {
+      "testId": "dictation-turn-details",
+      "selector": "[data-testid=\"dictation-turn-details\"]"
+    },
+    "dictationStudio.turnCaptureStatus": {
+      "testId": "dictation-turn-capture-status",
+      "selector": "[data-testid=\"dictation-turn-capture-status\"]"
+    },
+    "dictationStudio.turnSentStatus": {
+      "testId": "dictation-turn-sent-status",
+      "selector": "[data-testid=\"dictation-turn-sent-status\"]"
+    },
+    "dictationStudio.turnDoneStatus": {
+      "testId": "dictation-turn-done-status",
+      "selector": "[data-testid=\"dictation-turn-done-status\"]"
+    },
+    "dictationStudio.turnDoneReady": {
+      "testId": "dictation-turn-done-ready",
+      "selector": "[data-testid=\"dictation-turn-done-ready\"]"
+    },
+    "dictationStudio.turnProcessedStatus": {
+      "testId": "dictation-turn-processed-status",
+      "selector": "[data-testid=\"dictation-turn-processed-status\"]"
+    },
+    "dictationStudio.turnProcessedReady": {
+      "testId": "dictation-turn-processed-ready",
+      "selector": "[data-testid=\"dictation-turn-processed-ready\"]"
+    },
+    "dictationStudio.exportDiagnostic": {
+      "testId": "dictation-export-diagnostic",
+      "selector": "[data-testid=\"dictation-export-diagnostic\"]"
+    },
+    "dictationStudio.transcriptEditor": {
+      "testId": "dictation-transcript-editor",
+      "selector": "[data-testid=\"dictation-transcript-editor\"]"
+    },
+    "dictationStudio.tagInput": {
+      "testId": "dictation-tag-input",
+      "selector": "[data-testid=\"dictation-tag-input\"]"
+    },
+    "dictationStudio.saveClip": {
+      "testId": "dictation-save-clip",
+      "selector": "[data-testid=\"dictation-save-clip\"]"
+    },
+    "dictationStudio.corpusList": {
+      "testId": "dictation-corpus-list",
+      "selector": "[data-testid=\"dictation-corpus-list\"]"
+    },
+    "dictationStudio.evalTable": {
+      "testId": "dictation-eval-table",
+      "selector": "[data-testid=\"dictation-eval-table\"]"
+    },
+    "dictationStudio.evalSummary": {
+      "testId": "dictation-eval-summary",
+      "selector": "[data-testid=\"dictation-eval-summary\"]"
+    },
+    "dictationStudio.evalClips": {
+      "testId": "dictation-eval-clips",
+      "selector": "[data-testid=\"dictation-eval-clips\"]"
+    },
+    "dictationStudio.lengthCurveChart": {
+      "testId": "dictation-length-curve-chart",
+      "selector": "[data-testid=\"dictation-length-curve-chart\"]"
+    },
+    "dictationStudio.promptInput": {
+      "testId": "dictation-prompt-input",
+      "selector": "[data-testid=\"dictation-prompt-input\"]"
+    },
+    "dictationStudio.scriptPicker": {
+      "testId": "dictation-script-picker",
+      "selector": "[data-testid=\"dictation-script-picker\"]"
+    },
+    "dictationStudio.scriptDetails": {
+      "testId": "dictation-script-details",
+      "selector": "[data-testid=\"dictation-script-details\"]"
+    },
+    "dictationStudio.startExperiment": {
+      "testId": "dictation-start-experiment",
+      "selector": "[data-testid=\"dictation-start-experiment\"]"
+    },
+    "dictationStudio.refreshExperiments": {
+      "testId": "dictation-refresh-experiments",
+      "selector": "[data-testid=\"dictation-refresh-experiments\"]"
+    },
+    "dictationStudio.experimentName": {
+      "testId": "dictation-experiment-name",
+      "selector": "[data-testid=\"dictation-experiment-name\"]"
+    },
+    "dictationStudio.experimentEngines": {
+      "testId": "dictation-experiment-engines",
+      "selector": "[data-testid=\"dictation-experiment-engines\"]"
+    },
+    "dictationStudio.experimentLongForm": {
+      "testId": "dictation-experiment-long-form",
+      "selector": "[data-testid=\"dictation-experiment-long-form\"]"
+    },
+    "dictationStudio.experimentSeed": {
+      "testId": "dictation-experiment-seed",
+      "selector": "[data-testid=\"dictation-experiment-seed\"]"
+    },
+    "dictationStudio.experimentTargetDuration": {
+      "testId": "dictation-experiment-target-duration",
+      "selector": "[data-testid=\"dictation-experiment-target-duration\"]"
+    },
+    "dictationStudio.experimentGapMs": {
+      "testId": "dictation-experiment-gap-ms",
+      "selector": "[data-testid=\"dictation-experiment-gap-ms\"]"
+    },
+    "dictationStudio.experimentTagContains": {
+      "testId": "dictation-experiment-tag-contains",
+      "selector": "[data-testid=\"dictation-experiment-tag-contains\"]"
+    },
+    "dictationStudio.experimentRealtimeRepeats": {
+      "testId": "dictation-experiment-realtime-repeats",
+      "selector": "[data-testid=\"dictation-experiment-realtime-repeats\"]"
+    },
+    "dictationStudio.experimentLatencyTailSeconds": {
+      "testId": "dictation-experiment-latency-tail-seconds",
+      "selector": "[data-testid=\"dictation-experiment-latency-tail-seconds\"]"
+    },
+    "dictationStudio.experimentOverlapMaxWindow": {
+      "testId": "dictation-experiment-overlap-max-window",
+      "selector": "[data-testid=\"dictation-experiment-overlap-max-window\"]"
+    },
+    "dictationStudio.experimentSweepDurations": {
+      "testId": "dictation-experiment-sweep-durations",
+      "selector": "[data-testid=\"dictation-experiment-sweep-durations\"]"
+    },
+    "dictationStudio.experimentDroppedSpanThreshold": {
+      "testId": "dictation-experiment-dropped-span-threshold",
+      "selector": "[data-testid=\"dictation-experiment-dropped-span-threshold\"]"
+    },
+    "dictationStudio.experimentChunkMs": {
+      "testId": "dictation-experiment-chunk-ms",
+      "selector": "[data-testid=\"dictation-experiment-chunk-ms\"]"
+    },
+    "dictationStudio.experimentOverlapMaxStall": {
+      "testId": "dictation-experiment-overlap-max-stall",
+      "selector": "[data-testid=\"dictation-experiment-overlap-max-stall\"]"
+    },
+    "dictationStudio.experimentOverlapWindow": {
+      "testId": "dictation-experiment-overlap-window",
+      "selector": "[data-testid=\"dictation-experiment-overlap-window\"]"
+    },
+    "dictationStudio.experimentOverlapCommitRuns": {
+      "testId": "dictation-experiment-overlap-commit-runs",
+      "selector": "[data-testid=\"dictation-experiment-overlap-commit-runs\"]"
+    },
+    "dictationStudio.experimentVadSilence": {
+      "testId": "dictation-experiment-vad-silence",
+      "selector": "[data-testid=\"dictation-experiment-vad-silence\"]"
+    },
+    "dictationStudio.experimentSpeakerFallback": {
+      "testId": "dictation-experiment-speaker-fallback",
+      "selector": "[data-testid=\"dictation-experiment-speaker-fallback\"]"
+    },
+    "dictationStudio.experimentAdvanced": {
+      "testId": "dictation-experiment-advanced",
+      "selector": "[data-testid=\"dictation-experiment-advanced\"]"
+    },
+    "dictationStudio.clipPicker": {
+      "testId": "dictation-clip-picker",
+      "selector": "[data-testid=\"dictation-clip-picker\"]"
+    },
+    "dictationStudio.clipPickerCount": {
+      "testId": "dictation-clip-picker-count",
+      "selector": "[data-testid=\"dictation-clip-picker-count\"]"
+    },
+    "dictationStudio.clipPickerSelectAll": {
+      "testId": "dictation-clip-picker-select-all",
+      "selector": "[data-testid=\"dictation-clip-picker-select-all\"]"
+    },
+    "dictationStudio.clipPickerClear": {
+      "testId": "dictation-clip-picker-clear",
+      "selector": "[data-testid=\"dictation-clip-picker-clear\"]"
+    },
+    "dictationStudio.experimentNoiseTypes": {
+      "testId": "dictation-experiment-noise-types",
+      "selector": "[data-testid=\"dictation-experiment-noise-types\"]"
+    },
+    "dictationStudio.experimentSnrDb": {
+      "testId": "dictation-experiment-snr-db",
+      "selector": "[data-testid=\"dictation-experiment-snr-db\"]"
+    },
+    "dictationStudio.experimentCompetingVoices": {
+      "testId": "dictation-experiment-competing-voices",
+      "selector": "[data-testid=\"dictation-experiment-competing-voices\"]"
+    },
+    "dictationStudio.experimentSpeakerProfile": {
+      "testId": "dictation-experiment-speaker-profile",
+      "selector": "[data-testid=\"dictation-experiment-speaker-profile\"]"
+    },
+    "dictationStudio.experimentLiveProgress": {
+      "testId": "dictation-experiment-live-progress",
+      "selector": "[data-testid=\"dictation-experiment-live-progress\"]"
+    },
+    "dictationStudio.experimentResults": {
+      "testId": "dictation-experiment-results",
+      "selector": "[data-testid=\"dictation-experiment-results\"]"
+    },
+    "dictationStudio.experimentConditions": {
+      "testId": "dictation-experiment-conditions",
+      "selector": "[data-testid=\"dictation-experiment-conditions\"]"
+    },
+    "dictationStudio.compareExperiments": {
+      "testId": "dictation-compare-experiments",
+      "selector": "[data-testid=\"dictation-compare-experiments\"]"
+    },
+    "dictationStudio.compareResults": {
+      "testId": "dictation-compare-results",
+      "selector": "[data-testid=\"dictation-compare-results\"]"
+    },
+    "wakeWord.label": {
+      "testId": "wake-word-label",
+      "selector": "[data-testid=\"wake-word-label\"]"
+    },
+    "wakeWord.threshold": {
+      "testId": "wake-word-threshold",
+      "selector": "[data-testid=\"wake-word-threshold\"]"
+    },
+    "wakeWord.record": {
+      "testId": "wake-word-record",
+      "selector": "[data-testid=\"wake-word-record\"]"
+    },
+    "wakeWord.save": {
+      "testId": "wake-word-save",
+      "selector": "[data-testid=\"wake-word-save\"]"
+    },
+    "wakeWord.delete": {
+      "testId": "wake-word-delete",
+      "selector": "[data-testid=\"wake-word-delete\"]"
+    },
+    "wakeWord.sampleCount": {
+      "testId": "wake-word-sample-count",
+      "selector": "[data-testid=\"wake-word-sample-count\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "speakerAdmin.profileName": {
+      "description": "Speaker profile display-name cell by profile id",
+      "selectorPattern": "[data-testid=\"speaker-profile-name-${id}\"]",
+      "testIdPattern": "speaker-profile-name-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "speakerAdmin.profileModel": {
+      "description": "Speaker profile model cell by profile id",
+      "selectorPattern": "[data-testid=\"speaker-profile-model-${id}\"]",
+      "testIdPattern": "speaker-profile-model-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "speakerAdmin.clipRow": {
+      "description": "Enrollment clip row by clip id",
+      "selectorPattern": "[data-testid=\"speaker-clip-row-${id}\"]",
+      "testIdPattern": "speaker-clip-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "streamConfig.engineRow": {
+      "description": "Selectable STT engine row by engine id",
+      "selectorPattern": "[data-testid=\"engine-row-${id}\"]",
+      "testIdPattern": "engine-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "streamConfig.engineSelect": {
+      "description": "Select-engine button by engine id",
+      "selectorPattern": "[data-testid=\"engine-select-${id}\"]",
+      "testIdPattern": "engine-select-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "wakeWord.sampleRow": {
+      "description": "Recorded wake-word sample row by index",
+      "selectorPattern": "[data-testid=\"wake-word-sample-${index}\"]",
+      "testIdPattern": "wake-word-sample-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.clipRow": {
+      "description": "Corpus clip row by clip id",
+      "selectorPattern": "[data-testid=\"dictation-clip-row-${id}\"]",
+      "testIdPattern": "dictation-clip-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.clipDelete": {
+      "description": "Delete-clip button by clip id",
+      "selectorPattern": "[data-testid=\"dictation-clip-delete-${id}\"]",
+      "testIdPattern": "dictation-clip-delete-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.evalRow": {
+      "description": "Eval comparison table row by strategy key",
+      "selectorPattern": "[data-testid=\"dictation-eval-row-${strategy}\"]",
+      "testIdPattern": "dictation-eval-row-${strategy}",
+      "params": [
+        {
+          "name": "strategy",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.evalClip": {
+      "description": "Eval per-clip drilldown row by strategy and clip id",
+      "selectorPattern": "[data-testid=\"dictation-eval-clip-${strategy}-${clipId}\"]",
+      "testIdPattern": "dictation-eval-clip-${strategy}-${clipId}",
+      "params": [
+        {
+          "name": "strategy",
+          "type": "string"
+        },
+        {
+          "name": "clipId",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.experimentRow": {
+      "description": "Experiment history row by experiment id",
+      "selectorPattern": "[data-testid=\"dictation-experiment-row-${id}\"]",
+      "testIdPattern": "dictation-experiment-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.experimentWait": {
+      "description": "Wait button by experiment id",
+      "selectorPattern": "[data-testid=\"dictation-experiment-wait-${id}\"]",
+      "testIdPattern": "dictation-experiment-wait-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.experimentReport": {
+      "description": "Report button by experiment id",
+      "selectorPattern": "[data-testid=\"dictation-experiment-report-${id}\"]",
+      "testIdPattern": "dictation-experiment-report-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.experimentCancel": {
+      "description": "Cancel button by experiment id",
+      "selectorPattern": "[data-testid=\"dictation-experiment-cancel-${id}\"]",
+      "testIdPattern": "dictation-experiment-cancel-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.experimentCancelConfirm": {
+      "description": "Confirm-cancel button by experiment id",
+      "selectorPattern": "[data-testid=\"dictation-experiment-cancel-confirm-${id}\"]",
+      "testIdPattern": "dictation-experiment-cancel-confirm-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.experimentCancelDismiss": {
+      "description": "Dismiss-cancel button by experiment id",
+      "selectorPattern": "[data-testid=\"dictation-experiment-cancel-dismiss-${id}\"]",
+      "testIdPattern": "dictation-experiment-cancel-dismiss-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.experimentCompare": {
+      "description": "Compare-selection checkbox by experiment id",
+      "selectorPattern": "[data-testid=\"dictation-experiment-compare-${id}\"]",
+      "testIdPattern": "dictation-experiment-compare-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "dictationStudio.clipPick": {
+      "description": "Corpus clip-picker checkbox by clip id",
+      "selectorPattern": "[data-testid=\"dictation-clip-pick-${id}\"]",
+      "testIdPattern": "dictation-clip-pick-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

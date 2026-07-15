@@ -1,0 +1,21 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "ready-with-notes",
+  "mode": "backlog-review",
+  "label": "Ready with notes",
+  "description": "A single review round classifies ready_with_notes; the terminal review phase records the verdict and stops. Maps to accepted with recorded notes.",
+  "branch": "review (terminal, verdict=ready_with_notes)",
+  "scenario": "The review agent assesses the work and returns verdict=ready_with_notes.",
+  "steps": [
+    {
+      "phase": "review",
+      "output": {
+        "verdict": "ready_with_notes"
+      },
+      "note": "verdict=ready_with_notes recorded; terminal phase, no onward route"
+    }
+  ],
+  "expected_path": [
+    "review"
+  ]
+}

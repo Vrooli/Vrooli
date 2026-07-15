@@ -1,0 +1,13 @@
+{
+  "kind": "agentops-target-capability",
+  "target_kind": "initiative",
+  "provides": [
+    "provides-plan-ref",
+    "provides-plan-context",
+    "provides-member-items",
+    "provides-acceptance-criteria",
+    "provides-review-artifacts",
+    "provides-evidence-ledger",
+    "provides-execution-workspace"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "not-assessable",
+  "mode": "initiative-review-loop",
+  "label": "Not assessable (needs attention)",
+  "description": "A single review round classifies not_assessable; the terminal review phase records the verdict and stops. Cannot be assessed; abstains to operator attention.",
+  "branch": "review (terminal, verdict=not_assessable)",
+  "scenario": "The review agent assesses the work and returns verdict=not_assessable.",
+  "steps": [
+    {
+      "phase": "review",
+      "output": {
+        "verdict": "not_assessable"
+      },
+      "note": "verdict=not_assessable recorded; terminal phase, no onward route"
+    }
+  ],
+  "expected_path": [
+    "review"
+  ]
+}

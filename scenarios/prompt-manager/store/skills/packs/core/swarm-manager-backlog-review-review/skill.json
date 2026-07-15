@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-backlog-review-review",
+  "name": "Backlog Review Round",
+  "description": "a **review** round over a completed backlog-item execution",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "swarm-manager",
+    "operating-mode",
+    "agent-operations",
+    "backlog-review"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-14T00:00:00Z",
+  "updatedAt": "2026-07-14T00:00:00Z"
+}

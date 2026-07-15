@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agentops/operation-contract/v1",
+  "title": "Agent operation contract",
+  "description": "A named, versioned operation contract: the provider-neutral definition of one agentic unit of work that a backlog item or initiative can run. It declares WHAT the operation is and requires — its semantic description, required target capabilities, typed caller inputs, typed result fields, the closed set of standard outcomes, evidence expectations, and cancellation/retry semantics — independently of WHICH operating mode implements it. Modes declare implementations; adapters declare capabilities (target-capability.schema.json); bindings choose a mode per target (operation-binding.schema.json). This separation is the whole point of the declarative-operations model: one coherent agentic unit = one operating-mode execution, correlated by a durable domain workflow instance (EXECUTION-MODES.md D4/D5). A contract NEVER names a Go function, service, mode, shell command, or file path — implementation is chosen by binding, not baked into the contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "summary", "target_requirements", "result", "outcomes"],
+  "properties": {
+    "kind": { "const": "agentops-operation-contract" },
+    "id": { "$ref": "#/$defs/OperationId" },
+    "version": { "$ref": "#/$defs/SemVer", "description": "Immutable contract version. Callers pin it; provenance records it. A behavior change is a new version, never an in-place edit." },
+    "summary": { "type": "string", "minLength": 1, "description": "One-line semantic description of the operation." },
+    "description": { "type": "string", "description": "Longer operator-facing description of the methodology this operation performs and when it runs." },
+    "target_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capabilities"],
+      "description": "The target capabilities this operation requires. Every bound target kind must provide all of them (checked by CheckOperationTargetCompatibility); a contract that requires only capabilities shared by backlog-item and initiative is reusable across both.",
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/CapabilityId" }
+        }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/CallerInput" },
+      "description": "Typed caller inputs the operation accepts. Names are prompt-facing aliases; each declares type, requiredness, and retention. Sensitive inputs may not be retained by value (mirrors the operating-mode caller-input contract)."
+    },
+    "result": { "$ref": "#/$defs/ResultSchema" },
+    "outcomes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/Outcome" },
+      "description": "The closed set of standard terminal/branch outcomes this operation can report. Bindings and workflow policies route on these; an outcome outside this set is a contract violation."
+    },
+    "evidence_expectations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/EvidenceExpectation" },
+      "description": "Canonical evidence facts a completed operation is expected to have produced, expressed in the same normalized vocabulary as operating-mode evidence requirements (subject_kind + action + min_confidence)."
+    },
+    "cancellation": { "$ref": "#/$defs/CancellationPolicy" },
+    "retry": { "$ref": "#/$defs/RetryPolicy" }
+  },
+  "$defs": {
+    "OperationId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "Kebab-case operation identity — a NOUN-ish behavior name (e.g. review-round, execution-run), never a verb-object target composite (no backlog-item-workshop). Stable once published."
+    },
+    "SemVer": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "CapabilityId": {
+      "type": "string",
+      "enum": [
+        "provides-plan-ref",
+        "provides-plan-context",
+        "provides-spec-document",
+        "provides-review-artifacts",
+        "provides-evidence-ledger",
+        "provides-member-items",
+        "provides-acceptance-criteria",
+        "provides-clarification-thread",
+        "provides-execution-workspace"
+      ]
+    },
+    "CallerInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "retention"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$", "description": "Prompt-facing SCREAMING_SNAKE alias." },
+        "type": { "type": "string", "enum": ["string", "integer", "number", "boolean", "object", "array"] },
+        "required": { "type": "boolean", "default": false },
+        "sensitivity": { "type": "string", "enum": ["public", "internal", "sensitive"], "default": "internal" },
+        "retention": { "type": "string", "enum": ["value", "digest", "omit"], "description": "How the input is retained for replay. A sensitive input must not use value retention." },
+        "description": { "type": "string" }
+      }
+    },
+    "ResultSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields"],
+      "description": "The typed structured result an operation execution emits. Fields carry names, types, enums, and requiredness — the same generic field vocabulary the operating-mode resolution ladder validates against.",
+      "properties": {
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ResultField" }
+        }
+      }
+    },
+    "ResultField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
+        "type": { "type": "string", "enum": ["string", "integer", "number", "boolean", "object", "array"] },
+        "required": { "type": "boolean", "default": false },
+        "enum": { "type": "array", "minItems": 1, "items": { "type": ["string", "number", "integer", "boolean"] } },
+        "description": { "type": "string" }
+      }
+    },
+    "Outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "disposition"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$", "description": "Outcome id (e.g. completed, changes-requested, blocked, needs-attention)." },
+        "disposition": {
+          "type": "string",
+          "enum": ["success", "continue", "needs-decision", "blocked", "failed", "abstain"],
+          "description": "How the workflow should treat the outcome. abstain routes to operator attention (never fabricated), matching the operating-mode ladder's needs_attention."
+        },
+        "description": { "type": "string" }
+      }
+    },
+    "EvidenceExpectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "action", "min_confidence"],
+      "properties": {
+        "subject_kind": { "type": "string", "minLength": 1, "maxLength": 96 },
+        "action": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "producer": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "min_confidence": { "type": "string", "enum": ["reported", "observed", "authoritative", "operator_verified"] },
+        "min_count": { "type": "integer", "minimum": 1, "default": 1 }
+      }
+    },
+    "CancellationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Cancellation semantics. cancel_is_cooperative distinguishes a cooperative cancel (the run finishes its current unit and stops) from an abort (immediate). in_flight_disposition records the terminal state a cancelled-in-flight execution lands in.",
+      "properties": {
+        "cancelable": { "type": "boolean", "default": true },
+        "cancel_is_cooperative": { "type": "boolean", "default": true },
+        "in_flight_disposition": { "type": "string", "enum": ["canceled", "needs-attention", "failed"], "default": "canceled" }
+      }
+    },
+    "RetryPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Retry semantics. retry_is_new_attempt pins the invariant (INVARIANTS.md Retry-as-New-Attempt) that a retry is a fresh execution parented to the prior one, never an in-place mutation.",
+      "properties": {
+        "retryable": { "type": "boolean", "default": true },
+        "retry_is_new_attempt": { "type": "boolean", "default": true },
+        "max_attempts": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

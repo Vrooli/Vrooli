@@ -1,0 +1,82 @@
+{
+  "kind": "agentops-operation-contract",
+  "id": "research-conclude",
+  "version": "1.0.0",
+  "summary": "Execute a plan-less item to produce its conclusion deliverable.",
+  "description": "The primary execution of a research/idea item that has no execution plan_ref: the agent works the item to produce its conclusion deliverable directly (mirrors internal/execution/service_control.go startConclusionSpawnLocked and the plan-less path of internal/execution/retry.go). Distinct from execution-run, which drains a bound plan; a research conclusion has no plan to drain. complete -> the deliverable is produced and review opens; blocked -> the work cannot proceed.",
+  "target_requirements": {
+    "capabilities": [
+      "provides-execution-workspace",
+      "provides-spec-document"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "OPERATOR_NOTE",
+      "type": "string",
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "Optional operator guidance for the conclusion run (a retry-as-new-attempt carries its note here too)."
+    }
+  ],
+  "result": {
+    "fields": [
+      {
+        "name": "handoff",
+        "type": "object",
+        "required": true,
+        "description": "Structured handoff: summary, blockers, next step, changed files, tests. The single artifact the next round consumes and the classifier derives progress from."
+      },
+      {
+        "name": "progress",
+        "type": "string",
+        "required": true,
+        "enum": [
+          "continue",
+          "complete",
+          "blocked"
+        ],
+        "description": "Routing signal derived from the handoff: continue (another round is warranted), complete (the operation's unit of work is done), or blocked (needs operator attention)."
+      }
+    ]
+  },
+  "outcomes": [
+    {
+      "name": "completed",
+      "disposition": "success",
+      "description": "The operation's unit of work finished; the workflow advances (e.g. opens review)."
+    },
+    {
+      "name": "continue",
+      "disposition": "continue",
+      "description": "Another round of the same operation is warranted; the loop continues."
+    },
+    {
+      "name": "blocked",
+      "disposition": "blocked",
+      "description": "Progress is blocked; the round parks for operator attention."
+    },
+    {
+      "name": "needs-attention",
+      "disposition": "abstain",
+      "description": "The classifier could not derive an honest outcome; the round abstains to operator attention."
+    }
+  ],
+  "evidence_expectations": [
+    {
+      "subject_kind": "backlog-item",
+      "action": "execution-conclusion-recorded",
+      "min_confidence": "observed",
+      "min_count": 1
+    }
+  ],
+  "cancellation": {
+    "cancelable": true,
+    "cancel_is_cooperative": true,
+    "in_flight_disposition": "canceled"
+  },
+  "retry": {
+    "retryable": true,
+    "retry_is_new_attempt": true
+  }
+}

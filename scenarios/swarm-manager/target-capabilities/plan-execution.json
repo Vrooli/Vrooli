@@ -1,0 +1,9 @@
+{
+  "kind": "agentops-target-capability",
+  "target_kind": "plan-execution",
+  "provides": [
+    "provides-plan-context",
+    "provides-plan-ref",
+    "provides-execution-workspace"
+  ]
+}

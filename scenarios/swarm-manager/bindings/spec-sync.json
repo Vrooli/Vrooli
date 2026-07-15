@@ -1,0 +1,8 @@
+{
+  "kind": "agentops-operation-binding",
+  "operation": "spec-sync",
+  "operation_version": "1.0.0",
+  "layer": "system-default",
+  "mode": "scenario-spec-sync",
+  "mode_revision": "1.0.0"
+}

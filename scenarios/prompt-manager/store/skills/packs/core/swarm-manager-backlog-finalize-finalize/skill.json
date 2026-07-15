@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-backlog-finalize-finalize",
+  "name": "Backlog Workshop Finalize",
+  "description": "the **finalize** round for a backlog item that has reached workshop readiness (all decisions answered)",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "swarm-manager",
+    "operating-mode",
+    "agent-operations",
+    "backlog-finalize"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-14T00:00:00Z",
+  "updatedAt": "2026-07-14T00:00:00Z"
+}

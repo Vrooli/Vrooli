@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Dictation Studio compares provider, strategy, policy, fault, and replay cells using persisted provider-neutral metrics and promotion verdicts.",
+      "id": "ATD-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "complete",
+      "title": "Provider-neutral evidence",
+      "validation": [
+        {
+          "notes": "[REQ:ATD-P1-001] Provider-neutral recipe cells, reports, lifecycle RPCs, and experiment events are mapped by the Dictation Studio client.",
+          "ref": "ui/src/services/experiment.test.ts",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Mobile users can inspect coverage, recover retained audio, and export metadata-only diagnostics without developer tools.",
+      "id": "ATD-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "complete",
+      "title": "Mobile recovery and diagnostics",
+      "validation": [
+        {
+          "notes": "[REQ:ATD-P1-002] Responsive Turn details shows coverage, durability, and terminal outcome; export is a bounded metadata-only record without transcript or audio. Physical-device qualification remains a separate P2 gate.",
+          "ref": "ui/src/features/dictation-studio/DictationRecorder.test.tsx::shows coverage and exports a metadata-only turn diagnostic",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}

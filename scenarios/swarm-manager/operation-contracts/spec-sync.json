@@ -1,0 +1,82 @@
+{
+  "kind": "agentops-operation-contract",
+  "id": "spec-sync",
+  "version": "1.0.0",
+  "summary": "Sync a scenario's spec artifacts to match its implementation.",
+  "description": "One or more agent rounds that read a scenario's implementation code and update its spec artifacts (PRD.md, requirements/, README.md, docs/) to match the actual behavior (mirrors internal/execution/service_queue.go QueueSpecSyncArchive). Targets a scenario workspace directly — there is no backlog item, plan, or review state; the deliverable is the scenario's own synced spec. On completion the execution service archives + removes the scenario directory. complete -> the spec is synced; blocked -> the sync cannot proceed.",
+  "target_requirements": {
+    "capabilities": [
+      "provides-execution-workspace",
+      "provides-spec-document"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "OPERATOR_NOTE",
+      "type": "string",
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "Optional operator guidance for the spec-sync run."
+    }
+  ],
+  "result": {
+    "fields": [
+      {
+        "name": "handoff",
+        "type": "object",
+        "required": true,
+        "description": "Structured handoff: summary, blockers, next step, changed files, tests. The single artifact the next round consumes and the classifier derives progress from."
+      },
+      {
+        "name": "progress",
+        "type": "string",
+        "required": true,
+        "enum": [
+          "continue",
+          "complete",
+          "blocked"
+        ],
+        "description": "Routing signal derived from the handoff: continue (another round is warranted), complete (the operation's unit of work is done), or blocked (needs operator attention)."
+      }
+    ]
+  },
+  "outcomes": [
+    {
+      "name": "completed",
+      "disposition": "success",
+      "description": "The operation's unit of work finished; the workflow advances (the execution service archives the scenario)."
+    },
+    {
+      "name": "continue",
+      "disposition": "continue",
+      "description": "Another round of the same operation is warranted; the loop continues."
+    },
+    {
+      "name": "blocked",
+      "disposition": "blocked",
+      "description": "Progress is blocked; the round parks for operator attention."
+    },
+    {
+      "name": "needs-attention",
+      "disposition": "abstain",
+      "description": "The classifier could not derive an honest outcome; the round abstains to operator attention."
+    }
+  ],
+  "evidence_expectations": [
+    {
+      "subject_kind": "scenario",
+      "action": "spec-sync-recorded",
+      "min_confidence": "observed",
+      "min_count": 1
+    }
+  ],
+  "cancellation": {
+    "cancelable": true,
+    "cancel_is_cooperative": true,
+    "in_flight_disposition": "canceled"
+  },
+  "retry": {
+    "retryable": true,
+    "retry_is_new_attempt": true
+  }
+}

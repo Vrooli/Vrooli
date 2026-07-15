@@ -1,0 +1,28 @@
+{
+  "kind": "agentops-transition-policy",
+  "id": "backlog-item-default",
+  "version": "1.0.0",
+  "domain_kind": "backlog-item",
+  "transitions": [
+    { "from_state": "running", "on_outcome": "completed", "action": "open-review", "to_state": "awaiting-decision" },
+    { "from_state": "running", "on_outcome": "completed", "operation": "workshop-finalize", "action": "bind-plan", "to_state": "running" },
+    { "from_state": "running", "on_outcome": "continue", "action": "commit-workshop-round", "to_state": "running" },
+    { "from_state": "running", "on_outcome": "blocked", "action": "escalate-needs-attention", "to_state": "blocked" },
+    { "from_state": "running", "on_outcome": "needs-attention", "action": "escalate-needs-attention", "to_state": "blocked" },
+    { "from_state": "running", "operation": "clarification-start", "action": "start-clarification", "to_state": "running" },
+    { "from_state": "running", "operation": "clarification-continue", "action": "resolve-clarification", "to_state": "running" },
+    { "from_state": "running", "operation": "review-round", "action": "commit-review-round", "to_state": "running" },
+    { "from_state": "running", "operation": "evidence-request", "action": "request-evidence", "to_state": "running" },
+    { "from_state": "running", "operation": "execution-followup", "action": "commit-execution-round", "to_state": "running" },
+    { "from_state": "running", "operation": "execution-fixup", "action": "commit-execution-round", "to_state": "running" },
+    { "from_state": "running", "operation": "research-conclude", "action": "commit-execution-round", "to_state": "running" },
+    { "from_state": "awaiting-decision", "operation": "clarification-start", "action": "start-clarification", "to_state": "awaiting-decision" },
+    { "from_state": "awaiting-decision", "operation": "clarification-continue", "action": "resolve-clarification", "to_state": "awaiting-decision" },
+    { "from_state": "blocked", "operation": "clarification-start", "action": "start-clarification", "to_state": "blocked" },
+    { "from_state": "blocked", "operation": "clarification-continue", "action": "resolve-clarification", "to_state": "blocked" },
+    { "from_state": "awaiting-decision", "on_outcome": "accepted", "action": "complete-item", "to_state": "terminal-complete" },
+    { "from_state": "awaiting-decision", "on_outcome": "changes-requested", "action": "request-revision", "to_state": "running" },
+    { "from_state": "awaiting-decision", "on_outcome": "failed", "action": "fail-item", "to_state": "terminal-failed" },
+    { "from_state": "awaiting-decision", "on_outcome": "needs-attention", "action": "escalate-needs-attention", "to_state": "blocked" }
+  ]
+}

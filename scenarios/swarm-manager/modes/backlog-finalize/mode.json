@@ -1,0 +1,344 @@
+{
+  "kind": "operating-mode",
+  "id": "backlog-finalize",
+  "label": "Backlog Finalize",
+  "description": "The workshop's terminal round: with all decisions answered and readiness reached, author the implementation plan and hand off the readiness plan_ref (bound by the domain bind-plan action). Implements the workshop-finalize operation.",
+  "best_for": [
+    "An item that has reached workshop readiness and needs its plan_ref bound"
+  ],
+  "not_for": [
+    "Items with open decisions \u2014 keep synthesizing in backlog-workshop"
+  ],
+  "tradeoffs": [
+    "Single terminal round",
+    "Emits the readiness plan_ref; the domain performs the bind-plan action"
+  ],
+  "when_in_doubt_pick_instead": "backlog-workshop",
+  "target": {
+    "kind": "backlog-item"
+  },
+  "input_contract": {
+    "specs": [
+      {
+        "id": "execution.mode_id",
+        "type": "string",
+        "required": true,
+        "sensitivity": "public",
+        "retention": "value",
+        "description": "Stable operating-mode identity for this execution."
+      },
+      {
+        "id": "execution.phase_id",
+        "type": "string",
+        "required": true,
+        "sensitivity": "public",
+        "retention": "value",
+        "description": "Current phase identity within the pinned graph."
+      },
+      {
+        "id": "execution.round_number",
+        "type": "integer",
+        "required": true,
+        "minimum": 1,
+        "sensitivity": "public",
+        "retention": "value",
+        "description": "One-based round number within the immutable execution."
+      },
+      {
+        "id": "execution.agent_profile_key",
+        "type": "string",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Agent Manager profile selected for the current phase."
+      },
+      {
+        "id": "execution.operator_note",
+        "type": "string",
+        "max_length": 32768,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Optional operator guidance for the current round."
+      },
+      {
+        "id": "execution.prior_rounds",
+        "type": "array",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Durable prior round envelopes available to the current round."
+      },
+      {
+        "id": "execution.mode_artifacts",
+        "type": "array",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Declared artifacts accumulated under the mode execution."
+      },
+      {
+        "id": "item.title",
+        "type": "string",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Backlog item title."
+      },
+      {
+        "id": "item.description",
+        "type": "string",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Backlog item description."
+      },
+      {
+        "id": "item.status",
+        "type": "string",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Current backlog item status."
+      },
+      {
+        "id": "item.spec",
+        "type": "string",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "The item's authorable spec/research document content."
+      },
+      {
+        "id": "item.plan_ref",
+        "type": "object",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "The item's current readiness plan reference, when bound."
+      }
+    ],
+    "sources": [
+      {
+        "input_id": "execution.mode_id",
+        "kind": "generic_provider",
+        "capability": "generic.operating_mode"
+      },
+      {
+        "input_id": "execution.phase_id",
+        "kind": "generic_provider",
+        "capability": "generic.phase"
+      },
+      {
+        "input_id": "execution.round_number",
+        "kind": "generic_provider",
+        "capability": "generic.round_number"
+      },
+      {
+        "input_id": "execution.agent_profile_key",
+        "kind": "generic_provider",
+        "capability": "generic.agent_profile_key"
+      },
+      {
+        "input_id": "execution.operator_note",
+        "kind": "generic_provider",
+        "capability": "generic.operator_note"
+      },
+      {
+        "input_id": "execution.prior_rounds",
+        "kind": "generic_provider",
+        "capability": "generic.prior_rounds"
+      },
+      {
+        "input_id": "execution.mode_artifacts",
+        "kind": "generic_provider",
+        "capability": "generic.mode_artifacts"
+      },
+      {
+        "input_id": "item.title",
+        "kind": "target_adapter",
+        "capability": "target.item_title"
+      },
+      {
+        "input_id": "item.description",
+        "kind": "target_adapter",
+        "capability": "target.item_description"
+      },
+      {
+        "input_id": "item.status",
+        "kind": "target_adapter",
+        "capability": "target.item_status"
+      },
+      {
+        "input_id": "item.spec",
+        "kind": "target_adapter",
+        "capability": "target.item_spec"
+      },
+      {
+        "input_id": "item.plan_ref",
+        "kind": "target_adapter",
+        "capability": "target.item_plan_ref"
+      }
+    ],
+    "aliases": [
+      {
+        "name": "OPERATING_MODE",
+        "input_id": "execution.mode_id"
+      },
+      {
+        "name": "PHASE",
+        "input_id": "execution.phase_id"
+      },
+      {
+        "name": "ROUND_NUMBER",
+        "input_id": "execution.round_number"
+      },
+      {
+        "name": "AGENT_PROFILE_KEY",
+        "input_id": "execution.agent_profile_key"
+      },
+      {
+        "name": "OPERATOR_NOTE",
+        "input_id": "execution.operator_note"
+      },
+      {
+        "name": "PRIOR_ROUNDS_JSON",
+        "input_id": "execution.prior_rounds"
+      },
+      {
+        "name": "MODE_ARTIFACTS_JSON",
+        "input_id": "execution.mode_artifacts"
+      },
+      {
+        "name": "ITEM_TITLE",
+        "input_id": "item.title"
+      },
+      {
+        "name": "ITEM_DESCRIPTION",
+        "input_id": "item.description"
+      },
+      {
+        "name": "ITEM_STATUS",
+        "input_id": "item.status"
+      },
+      {
+        "name": "ITEM_SPEC",
+        "input_id": "item.spec"
+      },
+      {
+        "name": "ITEM_PLAN_REF",
+        "input_id": "item.plan_ref"
+      }
+    ]
+  },
+  "run_strategy": {
+    "kind": "sequential_handoff"
+  },
+  "prompt": {
+    "catalog_prefix": "swarm-manager-backlog-finalize"
+  },
+  "artifact": {
+    "root": "modes/backlog-finalize"
+  },
+  "profile": {
+    "default_profile_key": "swarm-manager/deep-work"
+  },
+  "ui": {
+    "workspace_tab_id": "operating-mode"
+  },
+  "phase_graph": {
+    "start_phase": "finalize",
+    "phases": [
+      {
+        "id": "finalize",
+        "kind": "review",
+        "activity_purpose": "backlog_finalize",
+        "reads": [
+          "OPERATING_MODE",
+          "PHASE",
+          "ROUND_NUMBER",
+          "AGENT_PROFILE_KEY",
+          "OPERATOR_NOTE",
+          "PRIOR_ROUNDS_JSON",
+          "MODE_ARTIFACTS_JSON",
+          "ITEM_TITLE",
+          "ITEM_DESCRIPTION",
+          "ITEM_STATUS",
+          "ITEM_SPEC",
+          "ITEM_PLAN_REF"
+        ],
+        "profile_key": "swarm-manager/deep-work",
+        "prompt": {
+          "suffix": "finalize",
+          "title": "Backlog Workshop Finalize",
+          "trigger": "Operator starts the backlog-finalize phase",
+          "purpose": "Finalize the workshop once all decisions are answered and readiness is reached: author the implementation plan and hand off the readiness plan_ref for binding."
+        },
+        "declared_output": {
+          "fields": [
+            {
+              "name": "handoff",
+              "type": "object",
+              "required": true,
+              "description": "The structured handoff the next round consumes.",
+              "fields": [
+                {
+                  "name": "summary",
+                  "type": "string",
+                  "required": true,
+                  "description": "Concise statement of what this round did."
+                },
+                {
+                  "name": "blockers",
+                  "type": "array",
+                  "required": true,
+                  "description": "Known blockers; use a single item such as \"none\" when there are none."
+                },
+                {
+                  "name": "next_step",
+                  "type": "string",
+                  "required": true,
+                  "description": "The immediate next step after this round."
+                },
+                {
+                  "name": "changed_files",
+                  "type": "array",
+                  "required": true,
+                  "description": "Repository/spec paths changed; use a single item such as \"none\" when nothing changed."
+                },
+                {
+                  "name": "tests",
+                  "type": "array",
+                  "required": true,
+                  "description": "Checks run for this round; use \"none\" when not applicable."
+                }
+              ]
+            },
+            {
+              "name": "plan_ref",
+              "type": "object",
+              "required": false,
+              "description": "The canonical readiness plan reference authored on the terminal complete round: {provider:'plan-manager', plan_id, slug, role:'execution_spec'}. Optional — absent on continue/blocked rounds; present on complete. The domain bind-plan action reads and validates it fail-closed."
+            }
+          ]
+        },
+        "transitions": [
+          {
+            "classify": {
+              "field": "progress",
+              "enum": [
+                "continue",
+                "complete",
+                "blocked"
+              ],
+              "from": "handoff",
+              "description": "Whether more work remains before readiness (continue), the plan is authored and ready to bind (complete), or finalization is blocked (blocked)."
+            },
+            "routes": {
+              "continue": [
+                "finalize"
+              ],
+              "complete": [],
+              "blocked": []
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

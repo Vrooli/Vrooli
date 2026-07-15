@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.identity;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity;identity_v1";
+
+// =============================================================================
+// IDENTITY DOMAIN — same-origin owner sign-in / registration facade
+// =============================================================================
+//
+// @stability beta
+//
+// Vrooli Bridge does not own identity — accounts, passwords, and JWT signing
+// live in the scenario-authenticator scenario (docs/concepts/INTEGRATIONS.md).
+// A browser must NEVER make a cross-origin call to a sibling scenario; every
+// inter-scenario hop is API-to-API. So the control plane exposes this thin
+// SAME-ORIGIN facade that its own UI calls to sign in or register. The bridge
+// API then forwards the request to scenario-authenticator — resolved by name
+// via api-core/discovery, no hardcoded port — and relays the issued owner JWT
+// back.
+//
+// This service owns NO credential logic: it stores nothing, mints no tokens,
+// and verifies no passwords. It is a forwarder whose only job is to keep the
+// browser on a single origin. The returned owner JWT is presented on the
+// owner-gated fleet RPCs (registry, dispatch, onboard, provision, …), which the
+// control plane then verifies LOCALLY against the authenticator's published
+// RS256 public key (internal/auth) — this is the "Owner → control plane"
+// authorization boundary in docs/internal/SECURITY.md.
+//
+// Both RPCs are unauthenticated: they necessarily precede the caller holding a
+// token. scenario-authenticator auto-issues a JWT on register, so a brand-new
+// owner is signed in immediately and can register their first node in one flow.
+//
+// Consumed by:
+//   - API: handlers/identity/connect_handler.go
+//   - UI:  ui/src/features/session/ (sign in / create account)
+// =============================================================================
+
+service IdentityService {
+  // Login forwards email + password to scenario-authenticator and returns the
+  // issued owner JWT. Invalid credentials map to CodeUnauthenticated; an
+  // unreachable authenticator maps to CodeUnavailable.
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // Register creates an owner account in scenario-authenticator and returns the
+  // issued owner JWT (the account is signed in immediately). A duplicate email
+  // maps to CodeAlreadyExists; a weak or malformed input to CodeInvalidArgument.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  // The owner JWT to present on owner-gated calls. Returned to the caller; the
+  // control plane does not store it. Expiry means signing in again — there is
+  // deliberately no refresh flow until one actually exists end-to-end.
+  string token = 1;
+
+  // Resolved owner identity, echoed for display ("signed in as ...").
+  string email = 2;
+  string user_id = 3;
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+
+  // Optional human-facing display name.
+  string username = 3;
+}
+
+message RegisterResponse {
+  string token = 1;
+  string email = 2;
+  string user_id = 3;
+}

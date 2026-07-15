@@ -1,0 +1,55 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "happy-path",
+  "mode": "backlog-evidence",
+  "label": "Continue, then complete",
+  "description": "Two rounds: the first classifies continue and loops gather; the second classifies complete and the loop stops.",
+  "branch": "gather \u2192 gather (progress=continue), then guarded stop (progress=complete)",
+  "scenario": "A representative Backlog Evidence Request run over one backlog item that needs two rounds to finish.",
+  "steps": [
+    {
+      "phase": "gather",
+      "output": {
+        "handoff": {
+          "summary": "Round 1 of Backlog Evidence Request advanced the work; more remains.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Continue with the next round.",
+          "changed_files": [
+            "spec.md"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "continue"
+        }
+      },
+      "note": "handoff.progress=continue L1-derives at the edge \u2192 loops gather"
+    },
+    {
+      "phase": "gather",
+      "output": {
+        "handoff": {
+          "summary": "Round 2 of Backlog Evidence Request finished the unit of work.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Hand off to the next stage.",
+          "changed_files": [
+            "spec.md"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "complete"
+        }
+      },
+      "note": "handoff.progress=complete L1-derives at the edge \u2192 guarded stop"
+    }
+  ],
+  "expected_path": [
+    "gather",
+    "gather"
+  ]
+}

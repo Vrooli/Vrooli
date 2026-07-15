@@ -1,0 +1,21 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "changes-requested",
+  "mode": "initiative-review-loop",
+  "label": "Needs work (changes requested)",
+  "description": "A single review round classifies needs_work; the terminal review phase records the verdict and stops. Specific gaps must be addressed before acceptance.",
+  "branch": "review (terminal, verdict=needs_work)",
+  "scenario": "The review agent assesses the work and returns verdict=needs_work.",
+  "steps": [
+    {
+      "phase": "review",
+      "output": {
+        "verdict": "needs_work"
+      },
+      "note": "verdict=needs_work recorded; terminal phase, no onward route"
+    }
+  ],
+  "expected_path": [
+    "review"
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "kind": "operating-mode",
+  "id": "execution-drain",
+  "label": "Execution Drain",
+  "description": "The primary execution of a unit of work as a plan drain: delegate to the generic phased-plan-drain (executed_by) to drain the bound plan slice-by-slice, then stop when the plan completes or blocks. Reuses the drain mechanics rather than duplicating them. Implements the execution-run and execution-retry operations.",
+  "best_for": [
+    "Draining an item's bound plan as its primary execution",
+    "Retrying a failed execution as a fresh drain"
+  ],
+  "not_for": [
+    "Remediating review gaps \u2014 use backlog-fixup",
+    "Exploratory work without a stable plan \u2014 use holistic-loop"
+  ],
+  "tradeoffs": [
+    "Reuses phased-plan-drain via one-level delegation \u2014 execution mechanics live once",
+    "complete opens review; blocked parks for operator attention"
+  ],
+  "when_in_doubt_pick_instead": "phased-plan-drain",
+  "target": {
+    "kind": "plan-execution"
+  },
+  "run_strategy": {
+    "kind": "sequential_handoff"
+  },
+  "artifact": {
+    "root": "modes/execution-drain"
+  },
+  "profile": {
+    "default_profile_key": "swarm-manager/deep-work"
+  },
+  "ui": {
+    "workspace_tab_id": "operating-mode"
+  },
+  "phase_graph": {
+    "start_phase": "execute",
+    "phases": [
+      {
+        "id": "execute",
+        "kind": "execute",
+        "executed_by": "phased-plan-drain",
+        "transitions": [
+          {
+            "when": {
+              "op": "eq",
+              "field": "progress",
+              "value": "complete"
+            },
+            "to": []
+          },
+          {
+            "when": {
+              "op": "eq",
+              "field": "progress",
+              "value": "blocked"
+            },
+            "to": []
+          }
+        ]
+      }
+    ]
+  },
+  "input_contract": {
+    "specs": [],
+    "sources": [],
+    "aliases": []
+  },
+  "prompt": {
+    "catalog_prefix": "swarm-manager-execution-drain"
+  }
+}

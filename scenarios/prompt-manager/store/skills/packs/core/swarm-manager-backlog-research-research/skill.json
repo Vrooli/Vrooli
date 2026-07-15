@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-backlog-research-research",
+  "name": "Backlog Research Round",
+  "description": "an autonomous **research** round over a single backlog item",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "swarm-manager",
+    "operating-mode",
+    "agent-operations",
+    "backlog-research"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-14T00:00:00Z",
+  "updatedAt": "2026-07-14T00:00:00Z"
+}

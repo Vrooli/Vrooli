@@ -1,0 +1,438 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.onboard;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard;onboard_v1";
+
+// =============================================================================
+// ONBOARD DOMAIN — durable, orchestrated one-shot node onboarding over SSH
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the OnboardService: the owner points the control plane at a
+// raw host (SSH reachable) and the control plane drives that host from bare OS
+// to a paired, ONLINE, auto-starting fleet agent in one durable operation. It
+// is the orchestration tier that sequences the artifacts the earlier phases
+// built — the SSH first-touch capability (phase 1), the server-side pairing
+// code (phase 3), and the idempotent node bootstrap script (phase 4) — into a
+// single server-owned op the operator kicks off and walks away from.
+//
+// A StartOnboarding becomes a server-owned, durable OnboardingOp that survives
+// client AND control-plane disconnect, is re-attachable by id with a block-once
+// WaitOnboarding (no polling), and collects the bootstrap script's streamed,
+// persisted step-by-step progress and terminal outcome. This mirrors the
+// provision domain's run-lifecycle philosophy rather than reinventing it: the
+// control plane owns the op record; the orchestrator reports progress against it
+// as it drives the remote host.
+//
+// State machine (explicit, persisted; monotonic except for the terminal fan-in):
+//
+//   PENDING → SSH_SETUP → PUSHING_SCRIPT → BOOTSTRAPPING → VERIFYING
+//                                                            ├→ SUCCEEDED
+//                                                            ├→ FAILED
+//                                                            └→ CANCELLED
+//
+// Every phase and every bootstrap step is persisted as an append-only
+// OnboardingStepEvent, so a re-attaching client (or an operator after a
+// control-plane restart) reads the exact progress the run reached.
+//
+// Secrets NEVER touch the durable record: the owner's SSH password is
+// request-scoped (StartOnboarding carries it once; the SSH first-touch zeroes
+// it after installing the key) and the single-use pairing code is issued
+// SERVER-SIDE and injected into the remote bootstrap via stdin — never argv,
+// never a persisted field, never a log line.
+//
+// All verbs are OWNER-gated operator verbs; there is no node-facing RPC here
+// (the node's progress arrives over the SSH channel the orchestrator owns, not
+// a callback).
+//
+// Consumed by:
+//   - API: handlers/onboard/connect_handler.go implements the generated handler.
+//   - CLI: cli/domains/onboard (phase 7) via the generated Connect-Go client.
+//   - UI: the onboarding form (phase 7).
+// =============================================================================
+
+// OnboardingState is an onboarding op's lifecycle state. PENDING/SSH_SETUP/
+// PUSHING_SCRIPT/BOOTSTRAPPING/VERIFYING are non-terminal; SUCCEEDED/FAILED/
+// CANCELLED are terminal. WaitOnboarding returns once the op reaches a terminal
+// state (or its wait deadline elapses).
+enum OnboardingState {
+  ONBOARDING_STATE_UNSPECIFIED = 0;
+
+  // The op record exists; the orchestrator has not yet started work.
+  ONBOARDING_STATE_PENDING = 1;
+
+  // Establishing passwordless SSH to the host (generate key, copy it with the
+  // owner password, retest) — the phase-1 first-touch flow.
+  ONBOARDING_STATE_SSH_SETUP = 2;
+
+  // Copying the bootstrap script to the host (SCP).
+  ONBOARDING_STATE_PUSHING_SCRIPT = 3;
+
+  // Running the bootstrap script remotely; the orchestrator parses the script's
+  // VBOOTSTRAP stdout markers into persisted step events.
+  ONBOARDING_STATE_BOOTSTRAPPING = 4;
+
+  // The bootstrap reported success; confirming the node is ONLINE in the fleet
+  // with its control-plane key pinned.
+  ONBOARDING_STATE_VERIFYING = 5;
+
+  // Terminal: the node is paired, ONLINE, and auto-starting.
+  ONBOARDING_STATE_SUCCEEDED = 6;
+
+  // Terminal: onboarding failed. failure_reason carries the taxonomy code and
+  // the op is safe to retry (every step is idempotent).
+  ONBOARDING_STATE_FAILED = 7;
+
+  // Terminal: the operator cancelled the op (CancelOnboarding). The remote host
+  // may be partially set up; a re-run converges (idempotent).
+  ONBOARDING_STATE_CANCELLED = 8;
+}
+
+// SourceMode selects how the node acquires the Vrooli source it builds from.
+// PINNED_REVISION (the default, fleet-safe path) has the node git-clone/fetch a
+// pushed commit, so its provenance is an exact, fetchable revision. WORKING_TREE
+// is the owner development/validation path: the control plane ships its LOCAL
+// working tree (tracked + modified + untracked-non-ignored files) to the node
+// over the established SSH channel, so uncommitted work onboards without a commit
+// or push — at the cost of honest "dirty" provenance (the node is pinned to no
+// fetchable commit, only a base HEAD + a content digest). Fleet rolls stay
+// PINNED_REVISION-only; a WORKING_TREE node is flagged needs-reprovision.
+enum SourceMode {
+  // Unspecified defaults to PINNED_REVISION at the boundary.
+  SOURCE_MODE_UNSPECIFIED = 0;
+
+  // The node clones/fetches the target revision from the clone remote. Default.
+  SOURCE_MODE_PINNED_REVISION = 1;
+
+  // The control plane ships its local working tree over SSH; provenance is the
+  // base HEAD sha + a content digest, marked dirty. Owner development/validation
+  // mode only — fleet rolls exclude these nodes.
+  SOURCE_MODE_WORKING_TREE = 2;
+}
+
+// OnboardingStepStatus is the disposition of one step in an onboarding op. It
+// mirrors the bootstrap script's step-start/step-ok/step-skip/step-fail markers
+// and the orchestrator's own phase milestones.
+enum OnboardingStepStatus {
+  ONBOARDING_STEP_STATUS_UNSPECIFIED = 0;
+
+  // The step has begun (bootstrap `step-start`, or an orchestrator phase start).
+  ONBOARDING_STEP_STATUS_STARTED = 1;
+
+  // The step completed successfully (`step-ok` / `run-ok`).
+  ONBOARDING_STEP_STATUS_OK = 2;
+
+  // The step was skipped because its work was already done (`step-skip`).
+  ONBOARDING_STEP_STATUS_SKIPPED = 3;
+
+  // The step failed (`step-fail` / `run-fail`, or an orchestrator phase error).
+  ONBOARDING_STEP_STATUS_FAILED = 4;
+}
+
+// OnboardingOp is the durable, server-owned record of one StartOnboarding.
+message OnboardingOp {
+  // Server-owned op id, assigned at StartOnboarding.
+  string id = 1;
+
+  // The SSH target the op onboards.
+  string host = 2;
+  int32 port = 3;
+  string user = 4;
+
+  // The fleet label the node self-reports (bootstrap `--node-name`).
+  string node_name = 5;
+
+  // The git revision the node is brought to (bootstrap `--revision`).
+  string target_revision = 6;
+
+  // The source repo cloned on the node (bootstrap `--repo-url`).
+  string repo_url = 7;
+
+  // Current lifecycle state.
+  OnboardingState state = 8;
+
+  // The fleet node id, known once the bootstrap redeems the pairing code
+  // (captured from the pair-redeem / run-ok marker). Empty until then.
+  string node_id = 9;
+
+  // On a terminal FAILED/CANCELLED op, the taxonomy reason (see the API
+  // FailureReason constants); empty otherwise.
+  string failure_reason = 10;
+
+  // The bootstrap script's terminal exit code, meaningful once the op has run
+  // the script (0 on success; 2 usage, 3 unsupported platform, 4 pairing, 1
+  // other — see bootstrap/README.md).
+  int32 exit_code = 11;
+
+  // When the op was created (StartOnboarding), work began, and it reached a
+  // terminal state. started_at / finished_at are unset until the corresponding
+  // transition.
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp started_at = 13;
+  google.protobuf.Timestamp finished_at = 14;
+
+  // How the node acquired its source. PINNED_REVISION pins target_revision;
+  // WORKING_TREE ships the control plane's local tree, and the provenance below
+  // records what was shipped.
+  SourceMode source_mode = 15;
+
+  // WORKING_TREE only: the base commit the shipped tree sat on (the control
+  // plane's HEAD at ship time). Empty in PINNED_REVISION mode (target_revision
+  // is the pinned commit). Rendered loudly with a "+dirty" marker so a dirty node
+  // is visibly not a pinned node.
+  string base_revision = 16;
+
+  // WORKING_TREE only: a deterministic digest over the shipped file list and
+  // per-file content, so re-shipping changed work is detectable (it re-runs
+  // node-side setup) and two nodes on the same working tree are comparable. Empty
+  // in PINNED_REVISION mode.
+  string working_tree_digest = 17;
+}
+
+// OnboardingStepEvent is one entry in an op's append-only progress history. It
+// captures both the orchestrator's own phase milestones (step_id like
+// "ssh-setup", "push-script", "sync-tree" (working-tree mode), "verify-online")
+// and every bootstrap script step (step_id ∈ detect-os, prereqs, clone, setup,
+// toolchain, build-agent, build-cli, node-key, pair-redeem, pin-verify,
+// service-install, autostart, verify-online, plus "run" for the
+// run-start/run-ok/run-fail envelope).
+message OnboardingStepEvent {
+  string op_id = 1;
+
+  // Monotonic per-op sequence so a re-attaching client can order/dedupe events.
+  uint64 sequence = 2;
+
+  // Stable step identifier (see the message comment for the vocabulary).
+  string step_id = 3;
+
+  // The step's disposition.
+  OnboardingStepStatus status = 4;
+
+  // Single-line human-readable detail (the bootstrap marker's `detail=` field,
+  // or an orchestrator note). Never carries secret material.
+  string detail = 5;
+
+  google.protobuf.Timestamp emitted_at = 6;
+}
+
+service OnboardService {
+  // StartOnboarding validates the request, creates a durable onboarding op, and
+  // kicks off the server-owned orchestration (SSH first-touch → push script →
+  // remote bootstrap → verify online). Owner-gated. The owner's SSH password is
+  // used once for the SSH key install and never persisted; the pairing code is
+  // issued server-side. Honours X-Dry-Run: it validates and returns dry_run=true
+  // BEFORE creating an op or touching the host. The response carries the op id;
+  // the operator then blocks on WaitOnboarding.
+  rpc StartOnboarding(StartOnboardingRequest) returns (StartOnboardingResponse);
+
+  // GetOnboarding returns one op by id with its full persisted step-event
+  // history. Owner-gated. Re-attaching after a client disconnect is just calling
+  // GetOnboarding again.
+  rpc GetOnboarding(GetOnboardingRequest) returns (GetOnboardingResponse);
+
+  // ListOnboardings returns onboarding ops newest-first, optionally filtered by
+  // host. Owner-gated.
+  rpc ListOnboardings(ListOnboardingsRequest) returns (ListOnboardingsResponse);
+
+  // WaitOnboarding blocks server-side and returns EXACTLY ONCE when the op
+  // reaches a terminal state, carrying the terminal op. It does not stream. If
+  // the wait deadline (timeout_seconds) elapses first it returns the still-
+  // running op with timed_out=true (the CLI maps that to exit 124). This is the
+  // block-once verb — clients never poll. Owner-gated.
+  rpc WaitOnboarding(WaitOnboardingRequest) returns (WaitOnboardingResponse);
+
+  // CancelOnboarding requests cancellation of a non-terminal op. The orchestrator
+  // aborts the in-flight remote work at the next boundary and drives the op to
+  // CANCELLED. Cancelling an already-terminal op is a no-op that returns the
+  // terminal op. Owner-gated.
+  rpc CancelOnboarding(CancelOnboardingRequest) returns (CancelOnboardingResponse);
+
+  // GetLocalNodeSuggestion returns onboarding defaults for the machine the
+  // control plane itself runs on, so the UI can offer a one-click "add this
+  // machine" prefill. The username is the OS user the control-plane process
+  // runs as (resolved server-side — the browser cannot know it); the host is
+  // the loopback address. Owner-gated, read-only, no side effects.
+  rpc GetLocalNodeSuggestion(GetLocalNodeSuggestionRequest) returns (GetLocalNodeSuggestionResponse);
+}
+
+message StartOnboardingRequest {
+  // SSH target. host is required; port defaults to 22 and user to root when 0/"".
+  string host = 1;
+  int32 port = 2;
+  string user = 3;
+
+  // The owner's SSH password, used ONCE to install the bridge's onboarding key
+  // on first touch and then zeroed. Optional when the host already trusts the
+  // bridge key (passwordless SSH already works). NEVER persisted or logged.
+  string ssh_password = 4;
+
+  // Fleet label for the node (bootstrap `--node-name`); defaults to the host's
+  // hostname on the node when empty.
+  string node_name = 5;
+
+  // The git revision to bring the node to (bootstrap `--revision`). Phase 6
+  // defaults this; for now an explicit value is expected.
+  string target_revision = 6;
+
+  // Source repo to clone on the node (bootstrap `--repo-url`); the bootstrap
+  // default is used when empty.
+  string repo_url = 7;
+
+  // Node checkout location (bootstrap `--checkout-dir`); the bootstrap default
+  // is used when empty.
+  string checkout_dir = 8;
+
+  // The control-plane base URL the node pairs/dials back to (bootstrap
+  // `--control-plane-url`). Phase 6 defaults this via @cp; for now an explicit
+  // value is expected.
+  string control_plane_url = 9;
+
+  // Verb namespaces the node self-reports (bootstrap `--capabilities`).
+  repeated string capabilities = 10;
+
+  // Dial-out verification budget in seconds (bootstrap `--verify-timeout`); 0
+  // uses the bootstrap default.
+  int32 verify_timeout_seconds = 11;
+
+  // Skip `make setup` on the node (bootstrap `--skip-setup`): the node pairs and
+  // comes online but cannot run jobs until setup runs later.
+  bool skip_setup = 12;
+
+  // Assume prerequisites (git/go/pnpm/curl) are already present on the node
+  // (bootstrap `--skip-prereqs`).
+  bool skip_prereqs = 13;
+
+  // Install a scoped passwordless-sudo drop-in for the SSH user while the owner
+  // password is still held at first touch, so every later privileged step
+  // (elevated setup, apt prereqs, enable-linger) works over non-interactive SSH.
+  // First-class clients default this ON (the operator is explicitly handing over
+  // admin credentials); pass false to decline. Declining never fails onboarding.
+  // The password rides the SSH channel to `sudo -S` on stdin only — never argv,
+  // a persisted field, or a log line. See the API onboard.SudoState taxonomy.
+  bool provision_sudo = 14;
+
+  // Setup profile — the operator-chosen shape of the node-side `vrooli setup`
+  // the bootstrap runs. The bootstrap threads these into `make setup
+  // SETUP_ARGS=…` so project-level setup is the sole machine-provisioning
+  // authority on the node. Each is validated at the API boundary (shell
+  // metacharacters rejected, mirroring the cprev revision filter) so no
+  // shell-injectable value can reach the remote script. Empty falls through to
+  // the node's `vrooli setup` defaults.
+
+  // Host environment profile (bootstrap `--setup-environment` → `vrooli setup
+  // --environment`). One of development | production | minimal, or empty for the
+  // node default (development).
+  string setup_environment = 15;
+
+  // Resource selection (bootstrap `--setup-resources` → `vrooli setup
+  // --resources`). enabled | none | a comma-separated resource list, or empty
+  // for the node default.
+  string setup_resources = 16;
+
+  // Scenario selection (bootstrap `--setup-scenarios` → `vrooli setup
+  // --scenarios`). none | all | a comma-separated scenario list, or empty for
+  // the node default.
+  string setup_scenarios = 17;
+
+  // Apply optional (non-required) host safeguards too (bootstrap
+  // `--include-optional` → `vrooli setup --include-optional`). Default false.
+  bool include_optional = 18;
+
+  // How the node acquires its source. UNSPECIFIED/PINNED_REVISION (the default)
+  // has the node clone/fetch target_revision, which must be pushed (the cprev
+  // preflight hard-fails an unpushed commit). WORKING_TREE ships the control
+  // plane's LOCAL working tree over SSH so uncommitted work onboards without a
+  // commit or push; it is the owner's development/validation mode and records
+  // honest dirty provenance (base HEAD + content digest). Fleet rolls stay
+  // PINNED_REVISION-only.
+  SourceMode source_mode = 19;
+}
+
+message StartOnboardingResponse {
+  // The server-owned durable op id to wait on / re-attach by. Empty on a
+  // dry-run (no op is created).
+  string op_id = 1;
+
+  // True when X-Dry-Run short-circuited: the request validated and would have
+  // been dispatched, but no op was created and the host was not touched.
+  bool dry_run = 2;
+
+  // Echo of the validated SSH target so the caller can confirm what would be
+  // onboarded.
+  string host = 3;
+  int32 port = 4;
+  string user = 5;
+}
+
+message GetOnboardingRequest {
+  string id = 1;
+}
+
+message GetOnboardingResponse {
+  OnboardingOp op = 1;
+
+  // The full persisted step-event history for the op, in sequence order.
+  repeated OnboardingStepEvent events = 2;
+}
+
+message ListOnboardingsRequest {
+  // Optional host filter; empty returns every host's ops.
+  string host = 1;
+
+  // Optional cap on the number of ops returned (0 = server default).
+  int32 limit = 2;
+}
+
+message ListOnboardingsResponse {
+  // Ops ordered newest-first by created_at.
+  repeated OnboardingOp ops = 1;
+}
+
+message WaitOnboardingRequest {
+  string id = 1;
+
+  // How long to block before returning timed_out=true. 0 uses the server's
+  // default wait budget; the call still returns once if the op is terminal.
+  int64 timeout_seconds = 2;
+}
+
+message WaitOnboardingResponse {
+  OnboardingOp op = 1;
+
+  // True when the wait deadline elapsed before the op reached a terminal state;
+  // the op carried here is the latest non-terminal snapshot.
+  bool timed_out = 2;
+}
+
+message CancelOnboardingRequest {
+  string id = 1;
+}
+
+message CancelOnboardingResponse {
+  // The op after the cancellation request (CANCELLED, or the already-terminal
+  // state if it finished first).
+  OnboardingOp op = 1;
+}
+
+message GetLocalNodeSuggestionRequest {}
+
+message GetLocalNodeSuggestionResponse {
+  // Loopback address of the control-plane machine ("127.0.0.1").
+  string host = 1;
+
+  // OS user the control-plane process runs as — the SSH user to onboard the
+  // local machine with. Resolved server-side; the browser cannot know it.
+  string user = 2;
+
+  // The control-plane machine's hostname, for display ("this machine (studio-01)").
+  string hostname = 3;
+
+  // False when the server could not resolve the local user (e.g. an unnamed
+  // container user); the UI then hides the "use this machine" affordance rather
+  // than prefilling a wrong value.
+  bool available = 4;
+}

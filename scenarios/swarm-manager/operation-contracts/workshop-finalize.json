@@ -1,0 +1,87 @@
+{
+  "kind": "agentops-operation-contract",
+  "id": "workshop-finalize",
+  "version": "1.0.0",
+  "summary": "Finalize the workshop and bind the readiness plan_ref.",
+  "description": "The workshop's terminal round: all decisions answered and readiness reached, the agent authors the implementation plan and binds it as the item's plan_ref (mirrors the finalize mode of internal/backlog/research.go, which requires \u003e=1 round, no pending decisions, and readiness). complete -\u003e plan_ref bound and the item is execution-ready.",
+  "target_requirements": {
+    "capabilities": [
+      "provides-spec-document",
+      "provides-plan-ref"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "OPERATOR_NOTE",
+      "type": "string",
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "Optional operator guidance for finalization."
+    }
+  ],
+  "result": {
+    "fields": [
+      {
+        "name": "handoff",
+        "type": "object",
+        "required": true,
+        "description": "Structured handoff: summary, blockers, next step, changed files, tests. The single artifact the next round consumes and the classifier derives progress from."
+      },
+      {
+        "name": "progress",
+        "type": "string",
+        "required": true,
+        "enum": [
+          "continue",
+          "complete",
+          "blocked"
+        ],
+        "description": "Routing signal derived from the handoff: continue (another round is warranted), complete (the operation's unit of work is done), or blocked (needs operator attention)."
+      },
+      {
+        "name": "plan_ref",
+        "type": "object",
+        "description": "The canonical readiness plan reference the finalize round authored and hands off for the domain bind-plan action: {provider:'plan-manager', plan_id, slug, role:'execution_spec'}. Present on the terminal complete round; the domain bind-plan action reads and validates it (fail-closed)."
+      }
+    ]
+  },
+  "outcomes": [
+    {
+      "name": "completed",
+      "disposition": "success",
+      "description": "The operation's unit of work finished; the workflow advances (e.g. opens review)."
+    },
+    {
+      "name": "continue",
+      "disposition": "continue",
+      "description": "Another round of the same operation is warranted; the loop continues."
+    },
+    {
+      "name": "blocked",
+      "disposition": "blocked",
+      "description": "Progress is blocked; the round parks for operator attention."
+    },
+    {
+      "name": "needs-attention",
+      "disposition": "abstain",
+      "description": "The classifier could not derive an honest outcome; the round abstains to operator attention."
+    }
+  ],
+  "evidence_expectations": [
+    {
+      "subject_kind": "backlog-item",
+      "action": "readiness-plan-bound",
+      "min_confidence": "observed",
+      "min_count": 1
+    }
+  ],
+  "cancellation": {
+    "cancelable": true,
+    "cancel_is_cooperative": true,
+    "in_flight_disposition": "canceled"
+  },
+  "retry": {
+    "retryable": true,
+    "retry_is_new_attempt": true
+  }
+}

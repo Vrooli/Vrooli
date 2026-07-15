@@ -1,0 +1,57 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "happy-path",
+  "mode": "execution-drain",
+  "label": "Drain: continue then complete",
+  "description": "The delegated phased-plan-drain drains the plan in two slices: continue loops the delegated execute inline, complete ends the delegation and the parent guarded-stops.",
+  "branch": "execute \u2192(sub progress=continue) execute inline, then execute \u2192(sub progress=complete) guarded stop",
+  "scenario": "A two-phase bound plan drains cleanly: round 1 handoff classifies continue (delegation loops), round 2 classifies complete (parent stops).",
+  "steps": [
+    {
+      "phase": "execute",
+      "output": {
+        "handoff": {
+          "summary": "Completed plan phase 1.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Drain the next slice.",
+          "changed_files": [
+            "scenarios/x/main.go"
+          ],
+          "tests": [
+            "go test ./..."
+          ],
+          "frontier": "Plan phase 2.",
+          "progress": "continue"
+        }
+      },
+      "note": "sub-mode classified edge derives continue \u2192 delegated phase loops inline"
+    },
+    {
+      "phase": "execute",
+      "output": {
+        "handoff": {
+          "summary": "Completed plan phase 2; plan fully drained.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Open review.",
+          "changed_files": [
+            "scenarios/x/cleanup.go"
+          ],
+          "tests": [
+            "go test ./..."
+          ],
+          "frontier": "None \u2014 fully drained.",
+          "progress": "complete"
+        }
+      },
+      "note": "sub-mode stop (complete) \u2192 parent guard guarded-stops"
+    }
+  ],
+  "expected_path": [
+    "execute",
+    "execute"
+  ]
+}

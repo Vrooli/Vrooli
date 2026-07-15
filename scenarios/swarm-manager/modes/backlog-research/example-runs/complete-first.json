@@ -1,0 +1,42 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "complete-first",
+  "mode": "backlog-research",
+  "label": "Complete in one round",
+  "description": "A single round finishes the unit of work; the classified edge stops the loop immediately.",
+  "branch": "research \u2192 guarded stop (progress=complete)",
+  "scenario": "A Backlog Research run where one round is sufficient.",
+  "steps": [
+    {
+      "phase": "research",
+      "output": {
+        "handoff": {
+          "summary": "Backlog Research finished in a single round.",
+          "blockers": [
+            "none"
+          ],
+          "next_step": "Hand off to the next stage.",
+          "changed_files": [
+            "spec.md"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "complete"
+        },
+        "decisions": [],
+        "self_assessment": {
+          "problem_clarity": 3,
+          "scope_defined": 3,
+          "approach_solid": 3,
+          "testable": 3,
+          "risk_awareness": 3
+        }
+      },
+      "note": "handoff.progress=complete L1-derives at the edge \u2192 guarded stop"
+    }
+  ],
+  "expected_path": [
+    "research"
+  ]
+}

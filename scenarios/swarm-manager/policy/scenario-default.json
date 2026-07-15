@@ -1,0 +1,12 @@
+{
+  "kind": "agentops-transition-policy",
+  "id": "scenario-default",
+  "version": "1.0.0",
+  "domain_kind": "scenario",
+  "transitions": [
+    { "from_state": "running", "on_outcome": "completed", "action": "commit-execution-round", "to_state": "terminal-complete" },
+    { "from_state": "running", "on_outcome": "continue", "action": "commit-execution-round", "to_state": "running" },
+    { "from_state": "running", "on_outcome": "blocked", "action": "commit-execution-round", "to_state": "terminal-failed" },
+    { "from_state": "running", "on_outcome": "needs-attention", "action": "commit-execution-round", "to_state": "terminal-failed" }
+  ]
+}

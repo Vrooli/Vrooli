@@ -1,0 +1,16 @@
+{
+  "kind": "agentops-transition-policy",
+  "id": "initiative-default",
+  "version": "1.0.0",
+  "domain_kind": "initiative",
+  "transitions": [
+    { "from_state": "running", "operation": "initiative-review", "action": "commit-initiative-review", "to_state": "running" },
+    { "from_state": "running", "on_outcome": "completed", "action": "open-review", "to_state": "awaiting-decision" },
+    { "from_state": "running", "on_outcome": "blocked", "action": "escalate-needs-attention", "to_state": "blocked" },
+    { "from_state": "running", "on_outcome": "needs-attention", "action": "escalate-needs-attention", "to_state": "blocked" },
+    { "from_state": "awaiting-decision", "on_outcome": "accepted", "action": "mark-initiative-reviewed", "to_state": "terminal-complete" },
+    { "from_state": "awaiting-decision", "on_outcome": "changes-requested", "action": "request-revision", "to_state": "running" },
+    { "from_state": "awaiting-decision", "on_outcome": "failed", "action": "fail-item", "to_state": "terminal-failed" },
+    { "from_state": "awaiting-decision", "on_outcome": "needs-attention", "action": "escalate-needs-attention", "to_state": "blocked" }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "blocked",
+  "mode": "backlog-finalize",
+  "label": "Blocked",
+  "description": "The round hits a real blocker; the classified edge derives blocked and the loop stops for operator attention.",
+  "branch": "finalize \u2192 guarded stop (progress=blocked)",
+  "scenario": "A Backlog Finalize run that cannot proceed and stops honestly instead of guessing.",
+  "steps": [
+    {
+      "phase": "finalize",
+      "output": {
+        "handoff": {
+          "summary": "Backlog Finalize could not proceed: an upstream dependency is unresolved.",
+          "blockers": [
+            "blocked on an unresolved upstream dependency"
+          ],
+          "next_step": "Operator: resolve the dependency, then restart.",
+          "changed_files": [
+            "none"
+          ],
+          "tests": [
+            "none"
+          ],
+          "progress": "blocked"
+        }
+      },
+      "note": "handoff.progress=blocked L1-derives at the edge \u2192 guarded stop for operator attention"
+    }
+  ],
+  "expected_path": [
+    "finalize"
+  ]
+}

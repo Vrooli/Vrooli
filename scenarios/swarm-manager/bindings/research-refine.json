@@ -1,0 +1,8 @@
+{
+  "kind": "agentops-operation-binding",
+  "operation": "research-refine",
+  "operation_version": "1.0.0",
+  "layer": "system-default",
+  "mode": "backlog-research",
+  "mode_revision": "1.1.0"
+}

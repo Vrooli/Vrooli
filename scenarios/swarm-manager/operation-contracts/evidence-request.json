@@ -1,0 +1,83 @@
+{
+  "kind": "agentops-operation-contract",
+  "id": "evidence-request",
+  "version": "1.0.0",
+  "summary": "Gather additional evidence for a review round.",
+  "description": "A targeted sub-round of a review that gathers the specific additional evidence an operator requested, appending it to the open review round (mirrors internal/review/rounds.go RequestMoreEvidence). continue -\u003e the request thread stays open; complete -\u003e the requested evidence was gathered.",
+  "target_requirements": {
+    "capabilities": [
+      "provides-review-artifacts",
+      "provides-evidence-ledger"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "EVIDENCE_REQUEST",
+      "type": "string",
+      "required": true,
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "The specific evidence the operator is asking the agent to gather."
+    }
+  ],
+  "result": {
+    "fields": [
+      {
+        "name": "handoff",
+        "type": "object",
+        "required": true,
+        "description": "Structured handoff: summary, blockers, next step, changed files, tests. The single artifact the next round consumes and the classifier derives progress from."
+      },
+      {
+        "name": "progress",
+        "type": "string",
+        "required": true,
+        "enum": [
+          "continue",
+          "complete",
+          "blocked"
+        ],
+        "description": "Routing signal derived from the handoff: continue (another round is warranted), complete (the operation's unit of work is done), or blocked (needs operator attention)."
+      }
+    ]
+  },
+  "outcomes": [
+    {
+      "name": "completed",
+      "disposition": "success",
+      "description": "The operation's unit of work finished; the workflow advances (e.g. opens review)."
+    },
+    {
+      "name": "continue",
+      "disposition": "continue",
+      "description": "Another round of the same operation is warranted; the loop continues."
+    },
+    {
+      "name": "blocked",
+      "disposition": "blocked",
+      "description": "Progress is blocked; the round parks for operator attention."
+    },
+    {
+      "name": "needs-attention",
+      "disposition": "abstain",
+      "description": "The classifier could not derive an honest outcome; the round abstains to operator attention."
+    }
+  ],
+  "evidence_expectations": [
+    {
+      "subject_kind": "backlog-item",
+      "action": "review-evidence-gathered",
+      "min_confidence": "observed",
+      "min_count": 1
+    }
+  ],
+  "cancellation": {
+    "cancelable": true,
+    "cancel_is_cooperative": true,
+    "in_flight_disposition": "canceled"
+  },
+  "retry": {
+    "retryable": true,
+    "retry_is_new_attempt": true
+  }
+}

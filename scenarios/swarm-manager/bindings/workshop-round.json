@@ -1,0 +1,8 @@
+{
+  "kind": "agentops-operation-binding",
+  "operation": "workshop-round",
+  "operation_version": "1.0.0",
+  "layer": "system-default",
+  "mode": "backlog-workshop",
+  "mode_revision": "1.1.0"
+}

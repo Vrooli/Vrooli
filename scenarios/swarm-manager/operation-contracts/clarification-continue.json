@@ -1,0 +1,81 @@
+{
+  "kind": "agentops-operation-contract",
+  "id": "clarification-continue",
+  "version": "1.0.0",
+  "summary": "Continue an item's clarification thread.",
+  "description": "A follow-up turn on an active clarification thread (mirrors internal/backlog/clarification.go ContinueClarification, a ContinueRun on the existing clarification run). continue -\u003e more turns expected; complete -\u003e resolved; blocked -\u003e thread inactive/expired.",
+  "target_requirements": {
+    "capabilities": [
+      "provides-clarification-thread"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "USER_MESSAGE",
+      "type": "string",
+      "required": true,
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "The operator's follow-up message on the active thread."
+    }
+  ],
+  "result": {
+    "fields": [
+      {
+        "name": "handoff",
+        "type": "object",
+        "required": true,
+        "description": "Structured handoff: summary, blockers, next step, changed files, tests. The single artifact the next round consumes and the classifier derives progress from."
+      },
+      {
+        "name": "progress",
+        "type": "string",
+        "required": true,
+        "enum": [
+          "continue",
+          "complete",
+          "blocked"
+        ],
+        "description": "Routing signal derived from the handoff: continue (another round is warranted), complete (the operation's unit of work is done), or blocked (needs operator attention)."
+      }
+    ]
+  },
+  "outcomes": [
+    {
+      "name": "completed",
+      "disposition": "success",
+      "description": "The operation's unit of work finished; the workflow advances (e.g. opens review)."
+    },
+    {
+      "name": "continue",
+      "disposition": "continue",
+      "description": "Another round of the same operation is warranted; the loop continues."
+    },
+    {
+      "name": "blocked",
+      "disposition": "blocked",
+      "description": "Progress is blocked; the round parks for operator attention."
+    },
+    {
+      "name": "needs-attention",
+      "disposition": "abstain",
+      "description": "The classifier could not derive an honest outcome; the round abstains to operator attention."
+    }
+  ],
+  "evidence_expectations": [
+    {
+      "subject_kind": "backlog-item",
+      "action": "clarification-thread-updated",
+      "min_confidence": "observed",
+      "min_count": 1
+    }
+  ],
+  "cancellation": {
+    "cancelable": true,
+    "cancel_is_cooperative": true,
+    "in_flight_disposition": "canceled"
+  },
+  "retry": {
+    "retryable": false
+  }
+}

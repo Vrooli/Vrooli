@@ -1,0 +1,12 @@
+{
+  "kind": "agentops-target-capability",
+  "target_kind": "backlog-item",
+  "provides": [
+    "provides-spec-document",
+    "provides-review-artifacts",
+    "provides-evidence-ledger",
+    "provides-clarification-thread",
+    "provides-execution-workspace",
+    "provides-plan-ref"
+  ]
+}

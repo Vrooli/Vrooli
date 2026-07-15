@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agentops/execution-provenance/v1",
+  "title": "Operation execution provenance",
+  "description": "The immutable provenance record pinned when an operation execution starts. It captures every input that determined WHAT ran and HOW it was resolved, so an execution is fully attributable and reproducible after the fact even as the registry, prompts, and policies evolve. Every field is required and immutable; the completeness validator (agentops.ValidateProvenance) rejects any missing or malformed field before an agent run is allowed to start. Digests are sha256. This mirrors the operating-mode invariant that every phase-mode execution pins one transitive compiled input contract and digest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "operation",
+    "operation_version",
+    "binding",
+    "mode",
+    "mode_revision",
+    "compiled_mode_digest",
+    "prompt_catalog_revision",
+    "prompt_catalog_digest",
+    "target",
+    "caller_input_digest",
+    "policy_revision",
+    "workflow_instance_id"
+  ],
+  "properties": {
+    "kind": { "const": "agentops-execution-provenance" },
+    "operation": { "$ref": "#/$defs/OperationId" },
+    "operation_version": { "$ref": "#/$defs/SemVer" },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer", "owner_kind", "owner_id"],
+      "description": "The binding that selected the mode: which precedence layer won and which scope owned it.",
+      "properties": {
+        "layer": { "type": "string", "enum": ["authorized-invocation", "backlog-item-override", "initiative-override", "system-default"] },
+        "owner_kind": { "type": "string", "enum": ["backlog-item", "initiative", "invocation", "system"] },
+        "owner_id": { "type": "string", "minLength": 1, "description": "Scope id, or the literal `system` for a system-default binding." }
+      }
+    },
+    "mode": { "$ref": "#/$defs/ModeId" },
+    "mode_revision": { "type": "string", "minLength": 1 },
+    "compiled_mode_digest": { "$ref": "#/$defs/Sha256", "description": "Digest of the compiled mode snapshot (the immutable definition bundle) the execution ran against." },
+    "prompt_catalog_revision": { "type": "string", "minLength": 1 },
+    "prompt_catalog_digest": { "$ref": "#/$defs/Sha256" },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["backlog-item", "initiative", "plan-execution", "scenario"] },
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "caller_input_digest": { "$ref": "#/$defs/Sha256", "description": "Digest of the canonical caller-input snapshot (or the digest of an empty snapshot when the operation takes no inputs)." },
+    "policy_revision": { "type": "string", "minLength": 1, "description": "Revision of the transition policy / domain-action policy in force for this execution." },
+    "workflow_instance_id": { "type": "string", "minLength": 1, "description": "The durable domain workflow instance this execution is correlated under." }
+  },
+  "$defs": {
+    "OperationId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+    "ModeId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+    "SemVer": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "Sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

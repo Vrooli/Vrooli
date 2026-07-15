@@ -1,0 +1,376 @@
+{
+  "kind": "operating-mode",
+  "id": "backlog-clarify",
+  "label": "Backlog Clarify",
+  "description": "A workshop clarification thread over an item decision: answer the operator's question and assess impact. Loops on continue for follow-up turns; complete resolves the thread. Implements the clarification-start and clarification-continue operations.",
+  "best_for": [
+    "Clarifying a specific workshop decision with the operator",
+    "Multi-turn back-and-forth on a decision"
+  ],
+  "not_for": [
+    "Full workshop synthesis \u2014 use backlog-workshop"
+  ],
+  "tradeoffs": [
+    "Scoped to one decision thread",
+    "Impact assessment drives whether the round/decision is invalidated by the domain"
+  ],
+  "when_in_doubt_pick_instead": "backlog-workshop",
+  "target": {
+    "kind": "backlog-item"
+  },
+  "input_contract": {
+    "specs": [
+      {
+        "id": "execution.mode_id",
+        "type": "string",
+        "required": true,
+        "sensitivity": "public",
+        "retention": "value",
+        "description": "Stable operating-mode identity for this execution."
+      },
+      {
+        "id": "execution.phase_id",
+        "type": "string",
+        "required": true,
+        "sensitivity": "public",
+        "retention": "value",
+        "description": "Current phase identity within the pinned graph."
+      },
+      {
+        "id": "execution.round_number",
+        "type": "integer",
+        "required": true,
+        "minimum": 1,
+        "sensitivity": "public",
+        "retention": "value",
+        "description": "One-based round number within the immutable execution."
+      },
+      {
+        "id": "execution.agent_profile_key",
+        "type": "string",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Agent Manager profile selected for the current phase."
+      },
+      {
+        "id": "execution.operator_note",
+        "type": "string",
+        "max_length": 32768,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Optional operator guidance for the current round."
+      },
+      {
+        "id": "execution.user_question",
+        "type": "string",
+        "max_length": 32768,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "The operator's question about the workshop decision (clarification-start). Empty on a continue turn."
+      },
+      {
+        "id": "execution.decision_topic",
+        "type": "string",
+        "max_length": 32768,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "The workshop decision topic being clarified (clarification-start). Empty on a continue turn."
+      },
+      {
+        "id": "execution.user_message",
+        "type": "string",
+        "max_length": 32768,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "The operator's follow-up message on the active clarification thread (clarification-continue). Empty on the opening turn."
+      },
+      {
+        "id": "execution.prior_rounds",
+        "type": "array",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Durable prior round envelopes available to the current round."
+      },
+      {
+        "id": "execution.mode_artifacts",
+        "type": "array",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Declared artifacts accumulated under the mode execution."
+      },
+      {
+        "id": "item.title",
+        "type": "string",
+        "required": true,
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Backlog item title."
+      },
+      {
+        "id": "item.description",
+        "type": "string",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Backlog item description."
+      },
+      {
+        "id": "item.status",
+        "type": "string",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "Current backlog item status."
+      },
+      {
+        "id": "item.spec",
+        "type": "string",
+        "sensitivity": "internal",
+        "retention": "value",
+        "description": "The item's authorable spec/research document content."
+      }
+    ],
+    "sources": [
+      {
+        "input_id": "execution.mode_id",
+        "kind": "generic_provider",
+        "capability": "generic.operating_mode"
+      },
+      {
+        "input_id": "execution.phase_id",
+        "kind": "generic_provider",
+        "capability": "generic.phase"
+      },
+      {
+        "input_id": "execution.round_number",
+        "kind": "generic_provider",
+        "capability": "generic.round_number"
+      },
+      {
+        "input_id": "execution.agent_profile_key",
+        "kind": "generic_provider",
+        "capability": "generic.agent_profile_key"
+      },
+      {
+        "input_id": "execution.operator_note",
+        "kind": "generic_provider",
+        "capability": "generic.operator_note"
+      },
+      {
+        "input_id": "execution.user_question",
+        "kind": "generic_provider",
+        "capability": "generic.user_question"
+      },
+      {
+        "input_id": "execution.decision_topic",
+        "kind": "generic_provider",
+        "capability": "generic.decision_topic"
+      },
+      {
+        "input_id": "execution.user_message",
+        "kind": "generic_provider",
+        "capability": "generic.user_message"
+      },
+      {
+        "input_id": "execution.prior_rounds",
+        "kind": "generic_provider",
+        "capability": "generic.prior_rounds"
+      },
+      {
+        "input_id": "execution.mode_artifacts",
+        "kind": "generic_provider",
+        "capability": "generic.mode_artifacts"
+      },
+      {
+        "input_id": "item.title",
+        "kind": "target_adapter",
+        "capability": "target.item_title"
+      },
+      {
+        "input_id": "item.description",
+        "kind": "target_adapter",
+        "capability": "target.item_description"
+      },
+      {
+        "input_id": "item.status",
+        "kind": "target_adapter",
+        "capability": "target.item_status"
+      },
+      {
+        "input_id": "item.spec",
+        "kind": "target_adapter",
+        "capability": "target.item_spec"
+      }
+    ],
+    "aliases": [
+      {
+        "name": "OPERATING_MODE",
+        "input_id": "execution.mode_id"
+      },
+      {
+        "name": "PHASE",
+        "input_id": "execution.phase_id"
+      },
+      {
+        "name": "ROUND_NUMBER",
+        "input_id": "execution.round_number"
+      },
+      {
+        "name": "AGENT_PROFILE_KEY",
+        "input_id": "execution.agent_profile_key"
+      },
+      {
+        "name": "OPERATOR_NOTE",
+        "input_id": "execution.operator_note"
+      },
+      {
+        "name": "USER_QUESTION",
+        "input_id": "execution.user_question"
+      },
+      {
+        "name": "DECISION_TOPIC",
+        "input_id": "execution.decision_topic"
+      },
+      {
+        "name": "USER_MESSAGE",
+        "input_id": "execution.user_message"
+      },
+      {
+        "name": "PRIOR_ROUNDS_JSON",
+        "input_id": "execution.prior_rounds"
+      },
+      {
+        "name": "MODE_ARTIFACTS_JSON",
+        "input_id": "execution.mode_artifacts"
+      },
+      {
+        "name": "ITEM_TITLE",
+        "input_id": "item.title"
+      },
+      {
+        "name": "ITEM_DESCRIPTION",
+        "input_id": "item.description"
+      },
+      {
+        "name": "ITEM_STATUS",
+        "input_id": "item.status"
+      },
+      {
+        "name": "ITEM_SPEC",
+        "input_id": "item.spec"
+      }
+    ]
+  },
+  "run_strategy": {
+    "kind": "sequential_handoff"
+  },
+  "prompt": {
+    "catalog_prefix": "swarm-manager-backlog-clarify"
+  },
+  "artifact": {
+    "root": "modes/backlog-clarify"
+  },
+  "profile": {
+    "default_profile_key": "swarm-manager/default"
+  },
+  "ui": {
+    "workspace_tab_id": "operating-mode"
+  },
+  "phase_graph": {
+    "start_phase": "clarify",
+    "phases": [
+      {
+        "id": "clarify",
+        "kind": "investigate",
+        "activity_purpose": "backlog_clarify",
+        "reads": [
+          "OPERATING_MODE",
+          "PHASE",
+          "ROUND_NUMBER",
+          "AGENT_PROFILE_KEY",
+          "OPERATOR_NOTE",
+          "USER_QUESTION",
+          "DECISION_TOPIC",
+          "USER_MESSAGE",
+          "PRIOR_ROUNDS_JSON",
+          "MODE_ARTIFACTS_JSON",
+          "ITEM_TITLE",
+          "ITEM_DESCRIPTION",
+          "ITEM_STATUS",
+          "ITEM_SPEC"
+        ],
+        "profile_key": "swarm-manager/default",
+        "prompt": {
+          "suffix": "clarify",
+          "title": "Backlog Clarification Turn",
+          "trigger": "Operator starts (or continues) the backlog-clarify thread",
+          "purpose": "Answer the operator's question about a workshop decision and assess its impact (none/decision/round), emitting a handoff and whether the thread stays open."
+        },
+        "declared_output": {
+          "fields": [
+            {
+              "name": "handoff",
+              "type": "object",
+              "required": true,
+              "description": "The structured handoff the next round consumes.",
+              "fields": [
+                {
+                  "name": "summary",
+                  "type": "string",
+                  "required": true,
+                  "description": "Concise statement of what this round did."
+                },
+                {
+                  "name": "blockers",
+                  "type": "array",
+                  "required": true,
+                  "description": "Known blockers; use a single item such as \"none\" when there are none."
+                },
+                {
+                  "name": "next_step",
+                  "type": "string",
+                  "required": true,
+                  "description": "The immediate next step after this round."
+                },
+                {
+                  "name": "changed_files",
+                  "type": "array",
+                  "required": true,
+                  "description": "Repository/spec paths changed; use a single item such as \"none\" when nothing changed."
+                },
+                {
+                  "name": "tests",
+                  "type": "array",
+                  "required": true,
+                  "description": "Checks run for this round; use \"none\" when not applicable."
+                }
+              ]
+            }
+          ]
+        },
+        "transitions": [
+          {
+            "classify": {
+              "field": "progress",
+              "enum": [
+                "continue",
+                "complete",
+                "blocked"
+              ],
+              "from": "handoff",
+              "description": "Whether the clarification thread stays open for more turns (continue), the clarification resolved (complete), or the item is busy/inactive (blocked)."
+            },
+            "routes": {
+              "continue": [
+                "clarify"
+              ],
+              "complete": [],
+              "blocked": []
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

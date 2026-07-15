@@ -1,0 +1,128 @@
+{
+  "kind": "agentops-operation-contract",
+  "id": "research-refine",
+  "version": "1.0.0",
+  "summary": "Autonomous research pass refining a backlog item's spec.",
+  "description": "One agent round that investigates the item's kind, deliverable, prior workshop history and attached context, and refines the spec/research toward readiness. Mirrors internal/backlog/research.go: it produces a workshop round envelope and either continues (another round is warranted), completes (the spec is ready for synthesis/finalize), or blocks.",
+  "target_requirements": {
+    "capabilities": [
+      "provides-spec-document"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "OPERATOR_NOTE",
+      "type": "string",
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "Optional operator guidance for this research round."
+    },
+    {
+      "name": "USER_PROMPT",
+      "type": "string",
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "The operator's research prompt/instruction driving this refinement pass (legacy research request text)."
+    },
+    {
+      "name": "CONTEXT_PATHS",
+      "type": "string",
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "Repository paths/files the operator attached as research context, one per line."
+    },
+    {
+      "name": "CONTEXT_TARGETS",
+      "type": "string",
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "Named targets (scenarios, resources, components) the operator scoped the research to, one per line."
+    },
+    {
+      "name": "CONTEXT_REQUIREMENTS",
+      "type": "string",
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "Explicit requirements or acceptance notes the operator attached to fold into the spec."
+    },
+    {
+      "name": "GAP_REPORT",
+      "type": "string",
+      "sensitivity": "internal",
+      "retention": "value",
+      "description": "A prior readiness/gap report identifying what the spec still lacks, to steer this round."
+    }
+  ],
+  "result": {
+    "fields": [
+      {
+        "name": "handoff",
+        "type": "object",
+        "required": true,
+        "description": "Structured handoff: summary, blockers, next step, changed files, tests. The single artifact the next round consumes and the classifier derives progress from."
+      },
+      {
+        "name": "progress",
+        "type": "string",
+        "required": true,
+        "enum": [
+          "continue",
+          "complete",
+          "blocked"
+        ],
+        "description": "Routing signal derived from the handoff: continue (another round is warranted), complete (the operation's unit of work is done), or blocked (needs operator attention)."
+      },
+      {
+        "name": "decisions",
+        "type": "array",
+        "required": true,
+        "description": "The lettered-option decisions this round surfaces for the operator, each an object {id, topic, text, context?, options:[{key, label, rationale, recommended?}]}. An empty array when the round surfaces no new decisions; the operator answers each by selecting an option key or providing freeform."
+      },
+      {
+        "name": "self_assessment",
+        "type": "object",
+        "required": true,
+        "description": "The agent's 5-dimension readiness self-assessment {problem_clarity, scope_defined, approach_solid, testable, risk_awareness}, each an integer 0-3. An INPUT to the workshop service's readiness computation (which applies round-count boosts), not the final readiness verdict."
+      }
+    ]
+  },
+  "outcomes": [
+    {
+      "name": "completed",
+      "disposition": "success",
+      "description": "The operation's unit of work finished; the workflow advances (e.g. opens review)."
+    },
+    {
+      "name": "continue",
+      "disposition": "continue",
+      "description": "Another round of the same operation is warranted; the loop continues."
+    },
+    {
+      "name": "blocked",
+      "disposition": "blocked",
+      "description": "Progress is blocked; the round parks for operator attention."
+    },
+    {
+      "name": "needs-attention",
+      "disposition": "abstain",
+      "description": "The classifier could not derive an honest outcome; the round abstains to operator attention."
+    }
+  ],
+  "evidence_expectations": [
+    {
+      "subject_kind": "backlog-item",
+      "action": "workshop-round-recorded",
+      "min_confidence": "observed",
+      "min_count": 1
+    }
+  ],
+  "cancellation": {
+    "cancelable": true,
+    "cancel_is_cooperative": true,
+    "in_flight_disposition": "canceled"
+  },
+  "retry": {
+    "retryable": true,
+    "retry_is_new_attempt": true
+  }
+}

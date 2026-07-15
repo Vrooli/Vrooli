@@ -1,0 +1,21 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "happy-path",
+  "mode": "initiative-review-loop",
+  "label": "Ready (accepted)",
+  "description": "A single review round classifies ready; the terminal review phase records the verdict and stops. Initiative meets its criteria.",
+  "branch": "review (terminal, verdict=ready)",
+  "scenario": "The review agent assesses the work and returns verdict=ready.",
+  "steps": [
+    {
+      "phase": "review",
+      "output": {
+        "verdict": "ready"
+      },
+      "note": "verdict=ready recorded; terminal phase, no onward route"
+    }
+  ],
+  "expected_path": [
+    "review"
+  ]
+}
