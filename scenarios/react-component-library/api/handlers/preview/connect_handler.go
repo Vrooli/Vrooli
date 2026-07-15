@@ -58,6 +58,10 @@ func toConnectError(err error) error {
 	if errors.As(err, &bundleErr) {
 		return connect.NewError(connect.CodeInvalidArgument, bundleErr)
 	}
+	var notRenderable preview.ErrNotRenderable
+	if errors.As(err, &notRenderable) {
+		return connect.NewError(connect.CodeFailedPrecondition, notRenderable)
+	}
 	// Anything else is a components-domain pass-through (NotFound,
 	// PathEscape, …) — delegate to the canonical mapper.
 	return components.ToConnectError(err)

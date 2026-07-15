@@ -42,13 +42,14 @@ func NewConnectHandler(d Deps) *connectHandler {
 
 func (h *connectHandler) ListComponents(ctx context.Context, req *connect.Request[componentsv1.ListComponentsRequest]) (*connect.Response[componentsv1.ListComponentsResponse], error) {
 	out, err := h.deps.Service.List(ctx, components.SearchQuery{
-		Match:    req.Msg.Match,
-		Tag:      req.Msg.Tag,
-		Tags:     append([]string(nil), req.Msg.Tags...),
-		Category: req.Msg.Category,
-		StyleID:  req.Msg.StyleId,
-		Affinity: req.Msg.Affinity,
-		Limit:    int(req.Msg.Limit),
+		Match:     req.Msg.Match,
+		Tag:       req.Msg.Tag,
+		Tags:      append([]string(nil), req.Msg.Tags...),
+		Category:  req.Msg.Category,
+		StyleID:   req.Msg.StyleId,
+		Affinity:  req.Msg.Affinity,
+		AssetKind: protoAssetKindToDomain(req.Msg.AssetKind),
+		Limit:     int(req.Msg.Limit),
 	})
 	if err != nil {
 		h.deps.Logger.Printf("components.ListComponents: %v", err)

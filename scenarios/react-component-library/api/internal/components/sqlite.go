@@ -51,6 +51,8 @@ func (s *sqliteRepository) Upsert(ctx context.Context, in UpsertInput) (Componen
 		DraftVersion:  in.DraftVersion,
 		Tags:          in.Tags,
 		DesignStyles:  in.DesignStyles,
+		AssetKind:     in.AssetKind,
+		Dependencies:  in.Dependencies,
 	}
 	if manifest.Slug == "" {
 		manifest.Slug = slugFromLibraryID(in.LibraryID)
@@ -63,6 +65,9 @@ func (s *sqliteRepository) Upsert(ctx context.Context, in UpsertInput) (Componen
 		return Component{}, err
 	}
 	if err := s.replaceDesignAffinities(ctx, c.ID, in.DesignStyles); err != nil {
+		return Component{}, err
+	}
+	if err := s.replaceAssetDependencies(ctx, c.ID, in.Dependencies); err != nil {
 		return Component{}, err
 	}
 	return s.Get(ctx, c.ID)
@@ -171,6 +176,9 @@ ON CONFLICT(component_id, version, name) DO UPDATE SET
 	if err := s.replaceDesignAffinities(ctx, c.ID, in.Manifest.DesignStyles); err != nil {
 		return Component{}, err
 	}
+	if err := s.replaceAssetDependencies(ctx, c.ID, in.Manifest.Dependencies); err != nil {
+		return Component{}, err
+	}
 	return s.Get(ctx, c.ID)
 }
 
@@ -199,14 +207,15 @@ func (s *sqliteRepository) upsertComponent(ctx context.Context, in ComponentMani
 	}
 
 	if _, err := s.db.ExecContext(ctx, `
-INSERT INTO components (id, library_id, slug, display_name, description, slot, category, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO components (id, library_id, slug, display_name, description, slot, category, asset_kind, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(library_id) DO UPDATE SET
   slug         = excluded.slug,
   display_name = excluded.display_name,
   description  = excluded.description,
   slot         = excluded.slot,
   category     = excluded.category,
+  asset_kind   = excluded.asset_kind,
   source_path  = excluded.source_path,
   version      = excluded.version,
   latest_version = excluded.latest_version,
@@ -215,7 +224,7 @@ ON CONFLICT(library_id) DO UPDATE SET
   tags         = excluded.tags,
   updated_at   = excluded.updated_at
 `,
-		id, in.LibraryID, slug, in.DisplayName, in.Description, in.Slot, in.Category, sourcePath, in.LatestVersion, in.LatestVersion, in.DraftVersion, in.ManifestPath,
+		id, in.LibraryID, slug, in.DisplayName, in.Description, in.Slot, in.Category, assetKindOrDefault(in.AssetKind), sourcePath, in.LatestVersion, in.LatestVersion, in.DraftVersion, in.ManifestPath,
 		tagsCol, indexedAt.Format(timeFormat), now.Format(timeFormat),
 	); err != nil {
 		return Component{}, fmt.Errorf("upsert component %q: %w", in.LibraryID, err)
@@ -238,6 +247,9 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Component, error
 	if err := s.loadDesignAffinities(ctx, &c); err != nil {
 		return Component{}, err
 	}
+	if err := s.loadAssetProjection(ctx, []*Component{&c}); err != nil {
+		return Component{}, err
+	}
 	return c, nil
 }
 
@@ -254,6 +266,9 @@ func (s *sqliteRepository) GetByLibraryID(ctx context.Context, libraryID string)
 		return Component{}, err
 	}
 	if err := s.loadDesignAffinities(ctx, &c); err != nil {
+		return Component{}, err
+	}
+	if err := s.loadAssetProjection(ctx, []*Component{&c}); err != nil {
 		return Component{}, err
 	}
 	return c, nil
@@ -302,6 +317,10 @@ func (s *sqliteRepository) List(ctx context.Context, q SearchQuery) ([]Component
 		clauses = append(clauses, `lower(category) = ?`)
 		args = append(args, strings.ToLower(cat))
 	}
+	if q.AssetKind.Valid() {
+		clauses = append(clauses, `asset_kind = ?`)
+		args = append(args, string(q.AssetKind))
+	}
 	styleID := strings.TrimSpace(q.StyleID)
 	affinity := strings.TrimSpace(q.Affinity)
 	if styleID != "" || affinity != "" {
@@ -331,7 +350,7 @@ func (s *sqliteRepository) List(ctx context.Context, q SearchQuery) ([]Component
 		orderBy = "ORDER BY display_name COLLATE NOCASE ASC, library_id ASC"
 	}
 	query := fmt.Sprintf(`
-SELECT id, library_id, slug, display_name, description, slot, category, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
+SELECT id, library_id, slug, display_name, description, slot, category, asset_kind, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
 FROM components
 %s
 %s
@@ -364,7 +383,94 @@ LIMIT ?
 			return nil, err
 		}
 	}
+	assets := make([]*Component, 0, len(out))
+	for i := range out {
+		assets = append(assets, &out[i])
+	}
+	if err := s.loadAssetProjection(ctx, assets); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+// loadAssetProjection uses a fixed number of batched queries. Catalog list
+// presentation never performs one count query per asset.
+func (s *sqliteRepository) loadAssetProjection(ctx context.Context, assets []*Component) error {
+	if len(assets) == 0 {
+		return nil
+	}
+	ids := make([]any, 0, len(assets))
+	byID := make(map[string]*Component, len(assets))
+	for _, asset := range assets {
+		ids = append(ids, asset.ID)
+		byID[asset.ID] = asset
+	}
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
+	rows, err := s.db.QueryContext(ctx, `SELECT component_id, library_id, version FROM component_asset_dependencies WHERE component_id IN (`+placeholders+`) ORDER BY component_id, library_id, version`, ids...)
+	if err != nil {
+		return fmt.Errorf("load asset dependencies: %w", err)
+	}
+	for rows.Next() {
+		var id string
+		var dep AssetDependency
+		if err := rows.Scan(&id, &dep.LibraryID, &dep.Version); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan asset dependency: %w", err)
+		}
+		byID[id].Dependencies = append(byID[id].Dependencies, dep)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close asset dependencies: %w", err)
+	}
+	rows, err = s.db.QueryContext(ctx, `
+SELECT c.id,
+  (SELECT COUNT(*) FROM adoption_records a WHERE a.component_id = c.id),
+  (SELECT COUNT(*) FROM component_versions v WHERE v.component_id = c.id)
+FROM components c WHERE c.id IN (`+placeholders+`)`, ids...)
+	if err != nil {
+		// Components repository tests (and isolated tooling) intentionally apply
+		// only the components schema. Keep that seam usable while production's
+		// all-domain schema supplies adoption_records for the direct count.
+		if !strings.Contains(err.Error(), "no such table: adoption_records") {
+			return fmt.Errorf("load asset metrics: %w", err)
+		}
+		rows, err = s.db.QueryContext(ctx, `SELECT component_id, COUNT(*) FROM component_versions WHERE component_id IN (`+placeholders+`) GROUP BY component_id`, ids...)
+		if err != nil {
+			return fmt.Errorf("load asset version metrics: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			var versionCount int
+			if err := rows.Scan(&id, &versionCount); err != nil {
+				return fmt.Errorf("scan asset version metric: %w", err)
+			}
+			byID[id].Metrics.VersionCount = versionCount
+		}
+		return rows.Err()
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var directAdoptions, versions int
+		if err := rows.Scan(&id, &directAdoptions, &versions); err != nil {
+			return fmt.Errorf("scan asset metrics: %w", err)
+		}
+		byID[id].Metrics = AssetMetrics{DirectAdoptionCount: directAdoptions, VersionCount: versions}
+	}
+	return rows.Err()
+}
+
+func (s *sqliteRepository) replaceAssetDependencies(ctx context.Context, componentID string, deps []AssetDependency) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_asset_dependencies WHERE component_id = ?`, componentID); err != nil {
+		return fmt.Errorf("clear asset dependencies for %q: %w", componentID, err)
+	}
+	for _, dep := range deps {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO component_asset_dependencies (component_id, library_id, version) VALUES (?, ?, ?)`, componentID, dep.LibraryID, dep.Version); err != nil {
+			return fmt.Errorf("insert asset dependency %s@%s for %q: %w", dep.LibraryID, dep.Version, componentID, err)
+		}
+	}
+	return nil
 }
 
 func (s *sqliteRepository) replaceDesignAffinities(ctx context.Context, componentID string, affinities []ComponentDesignAffinity) error {
@@ -507,6 +613,7 @@ func (s *sqliteRepository) deleteOrphanChildRows(ctx context.Context) error {
 		`DELETE FROM component_examples WHERE component_id NOT IN (SELECT id FROM components)`,
 		`DELETE FROM component_headers WHERE component_id NOT IN (SELECT id FROM components)`,
 		`DELETE FROM component_design_affinities WHERE component_id NOT IN (SELECT id FROM components)`,
+		`DELETE FROM component_asset_dependencies WHERE component_id NOT IN (SELECT id FROM components)`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
@@ -691,11 +798,11 @@ LIMIT ?
 
 const (
 	selectComponentByIDSQL = `
-SELECT id, library_id, slug, display_name, description, slot, category, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
+SELECT id, library_id, slug, display_name, description, slot, category, asset_kind, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
 FROM components WHERE id = ?
 `
 	selectComponentByLibraryIDSQL = `
-SELECT id, library_id, slug, display_name, description, slot, category, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
+SELECT id, library_id, slug, display_name, description, slot, category, asset_kind, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
 FROM components WHERE library_id = ?
 `
 )
@@ -711,7 +818,7 @@ func scanComponent(s rowScanner) (Component, error) {
 		indexedRaw string
 		updatedRaw string
 	)
-	if err := s.Scan(&c.ID, &c.LibraryID, &c.Slug, &c.DisplayName, &c.Description, &c.Slot, &c.Category, &c.SourcePath, &c.Version, &c.LatestVersion, &c.DraftVersion, &c.ManifestPath, &tagsRaw, &indexedRaw, &updatedRaw); err != nil {
+	if err := s.Scan(&c.ID, &c.LibraryID, &c.Slug, &c.DisplayName, &c.Description, &c.Slot, &c.Category, &c.AssetKind, &c.SourcePath, &c.Version, &c.LatestVersion, &c.DraftVersion, &c.ManifestPath, &tagsRaw, &indexedRaw, &updatedRaw); err != nil {
 		return Component{}, err
 	}
 	if tagsRaw != "" {
@@ -728,6 +835,13 @@ func scanComponent(s rowScanner) (Component, error) {
 	c.IndexedAt = indexed
 	c.UpdatedAt = updated
 	return c, nil
+}
+
+func assetKindOrDefault(kind AssetKind) AssetKind {
+	if !kind.Valid() {
+		return AssetKindComponent
+	}
+	return kind
 }
 
 func scanComponentVersion(s rowScanner) (ComponentVersion, error) {

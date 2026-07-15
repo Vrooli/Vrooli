@@ -45,6 +45,35 @@ type Component struct {
 	UpdatedAt     time.Time
 	Headers       map[string]string
 	DesignStyles  []ComponentDesignAffinity
+	AssetKind     AssetKind
+	Dependencies  []AssetDependency
+	Metrics       AssetMetrics
+}
+
+// AssetKind distinguishes a renderable catalog component from a reusable,
+// non-renderable hook. The Components domain retains its stable API name while
+// acting as the library-asset projection.
+type AssetKind string
+
+const (
+	AssetKindComponent AssetKind = "component"
+	AssetKindHook      AssetKind = "hook"
+)
+
+func (k AssetKind) Valid() bool { return k == AssetKindComponent || k == AssetKindHook }
+
+// AssetDependency pins a consuming asset to one immutable version of another
+// library asset. The resolver expands these edges into a deterministic closure.
+type AssetDependency struct {
+	LibraryID string
+	Version   string
+}
+
+// AssetMetrics are server-projected catalog counts. They must be populated in
+// batch for list operations so presentation modes never issue per-row counts.
+type AssetMetrics struct {
+	DirectAdoptionCount int
+	VersionCount        int
 }
 
 // ComponentVersionStatus classifies a version folder.
@@ -148,6 +177,8 @@ type ComponentManifest struct {
 	DeprecatedVersions []string
 	Tags               []string
 	DesignStyles       []ComponentDesignAffinity
+	AssetKind          AssetKind
+	Dependencies       []AssetDependency
 }
 
 // UpsertInput is retained as a convenience alias for older tests and
@@ -168,6 +199,8 @@ type UpsertInput struct {
 	Tags          []string
 	Headers       map[string]string
 	DesignStyles  []ComponentDesignAffinity
+	AssetKind     AssetKind
+	Dependencies  []AssetDependency
 }
 
 // IndexManifestInput is the full registry payload for one component
@@ -272,13 +305,14 @@ type IndexFinding struct {
 // looks up the canonical `@category` header field; only components
 // declaring that header value match.
 type SearchQuery struct {
-	Match    string
-	Tag      string
-	Tags     []string
-	Category string
-	StyleID  string
-	Affinity string
-	Limit    int
+	Match     string
+	Tag       string
+	Tags      []string
+	Category  string
+	StyleID   string
+	Affinity  string
+	AssetKind AssetKind
+	Limit     int
 }
 
 type ExampleQuery struct {

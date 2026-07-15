@@ -71,6 +71,16 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		StyleId:  ctx.Flag("style"),
 		Affinity: ctx.Flag("affinity"),
 	}
+	if rawKind := strings.TrimSpace(ctx.Flag("asset-kind")); rawKind != "" {
+		switch strings.ToLower(rawKind) {
+		case "component":
+			req.AssetKind = componentsv1.AssetKind_ASSET_KIND_COMPONENT
+		case "hook":
+			req.AssetKind = componentsv1.AssetKind_ASSET_KIND_HOOK
+		default:
+			return fmt.Errorf("--asset-kind must be component or hook (got %q)", rawKind)
+		}
+	}
 	if rawTags := ctx.Flag("tags"); rawTags != "" {
 		// Comma-separated multi-tag OR. Trim entries silently — the
 		// repository drops blanks too, so `--tags ,form,` is fine.

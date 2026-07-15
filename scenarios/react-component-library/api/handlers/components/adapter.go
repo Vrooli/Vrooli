@@ -40,7 +40,38 @@ func domainToProto(c components.Component) *componentsv1.Component {
 		DraftVersion:  c.DraftVersion,
 		LatestVersion: c.LatestVersion,
 		DesignStyles:  designAffinitiesToProto(c.DesignStyles),
+		AssetKind:     assetKindToProto(c.AssetKind),
+		Dependencies:  assetDependenciesToProto(c.Dependencies),
+		Metrics: &componentsv1.AssetMetrics{
+			DirectAdoptionCount: int32(c.Metrics.DirectAdoptionCount),
+			VersionCount:        int32(c.Metrics.VersionCount),
+		},
 	}
+}
+
+func assetKindToProto(kind components.AssetKind) componentsv1.AssetKind {
+	if kind == components.AssetKindHook {
+		return componentsv1.AssetKind_ASSET_KIND_HOOK
+	}
+	return componentsv1.AssetKind_ASSET_KIND_COMPONENT
+}
+
+func protoAssetKindToDomain(kind componentsv1.AssetKind) components.AssetKind {
+	if kind == componentsv1.AssetKind_ASSET_KIND_HOOK {
+		return components.AssetKindHook
+	}
+	if kind == componentsv1.AssetKind_ASSET_KIND_COMPONENT {
+		return components.AssetKindComponent
+	}
+	return ""
+}
+
+func assetDependenciesToProto(in []components.AssetDependency) []*componentsv1.AssetDependency {
+	out := make([]*componentsv1.AssetDependency, 0, len(in))
+	for _, dep := range in {
+		out = append(out, &componentsv1.AssetDependency{LibraryId: dep.LibraryID, Version: dep.Version})
+	}
+	return out
 }
 
 func designAffinitiesToProto(in []components.ComponentDesignAffinity) []*componentsv1.ComponentDesignAffinity {
@@ -131,7 +162,7 @@ func parityReportToProtoValue(report *components.IngestParityReport) *components
 func versionFilesToProto(files []components.ComponentVersionFile) []*componentsv1.ComponentVersionFile {
 	out := make([]*componentsv1.ComponentVersionFile, 0, len(files))
 	for _, file := range files {
-		out = append(out, &componentsv1.ComponentVersionFile{Path: file.Path, ContentSha256: file.ContentSHA256, IsEntry: file.IsEntry})
+		out = append(out, &componentsv1.ComponentVersionFile{Path: file.Path, ContentSha256: file.ContentSHA256, IsEntry: file.IsEntry, Slot: file.Slot})
 	}
 	return out
 }

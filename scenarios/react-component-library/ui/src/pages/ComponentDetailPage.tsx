@@ -8,13 +8,13 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { adoptionsClient } from "../api/adoptions";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/empty-state";
 import { StatusBadge } from "../components/ui/status-badge";
-import { componentsClient } from "../api/components";
+import { componentsClient, getCatalogAsset, type CatalogAsset } from "../api/components";
 import { strings } from "../consts/strings";
 import { CreateAdoptionDialog } from "../features/adoptions/CreateAdoptionDialog";
 import { ComponentEditor, type ComparisonSession } from "../features/components/ComponentEditor";
@@ -36,6 +36,24 @@ function statusLabel(library: number, local: number) {
   return `${libraryLabel} / ${localLabel}`;
 }
 
+function isHook(asset: CatalogAsset) {
+  return (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
+}
+
+function HookWorkspace({ asset, onClose }: { asset: CatalogAsset; onClose: () => void }) {
+  const { t } = useTranslation();
+  const content = useQuery({
+    queryKey: ["components", "content", asset.id],
+    queryFn: () => componentsClient.getComponentContent({ id: asset.id }),
+  });
+  return <div data-testid="hook-detail-page" className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 p-4">
+    <header className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-app-muted-foreground">{t("catalog.hook", { defaultValue: "Hook" })}</p><h1 className="text-xl font-semibold">{asset.displayName || asset.libraryId}</h1><p className="mt-1 font-mono text-xs text-app-muted-foreground">{asset.libraryId}</p></div><Button variant="secondary" onClick={onClose}>{t(strings.components.editor.close)}</Button></header>
+    <div className="flex flex-wrap gap-2 text-xs"><StatusBadge tone="info">{t("catalog.noPreview", { defaultValue: "No live preview — hooks are non-renderable." })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.versionsCount", { defaultValue: "{{count}} versions", count: asset.metrics?.versionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.adoptions", { defaultValue: "{{count}} adoptions", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge></div>
+    <section className="rounded-panel border border-app-border"><div className="border-b border-app-border px-3 py-2 text-sm font-medium">{t("catalog.source", { defaultValue: "Source" })}</div>{content.isLoading ? <p className="p-3 text-sm text-app-muted-foreground">{t("componentDetail.loading", { defaultValue: "Loading component…" })}</p> : content.error ? <p role="alert" className="p-3 text-sm text-app-danger">{t("catalog.sourceError", { defaultValue: "Source could not be loaded." })}</p> : <pre className="max-h-[48vh] overflow-auto p-3 text-xs leading-5"><code>{content.data?.content}</code></pre>}</section>
+    <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />
+  </div>;
+}
+
 export function ComponentDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -49,8 +67,26 @@ export function ComponentDetailPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["components", "get", id],
-    queryFn: () => componentsClient.getComponent({ id: id ?? "" }),
+    queryFn: async () => {
+      try {
+        const byID = await componentsClient.getComponent({ id: id ?? "" });
+        if (byID.component) return byID;
+      } catch {
+        // Dependency links use a stable library ID; fall through to that
+        // canonical lookup when the route parameter is not a UUID.
+      }
+      return componentsClient.getComponentByLibraryId({ libraryId: id ?? "" });
+    },
     enabled: !!id,
+  });
+  // The generated UI client may lag the catalog's newly generated asset-kind
+  // field. Keep established component reads on that client, then enrich the
+  // record with the RCL-owned catalog projection when it is available.
+  const catalogAsset = useQuery({
+    queryKey: ["catalog", "get", id],
+    queryFn: () => getCatalogAsset(id ?? ""),
+    enabled: Boolean(id) && Boolean(data?.component),
+    retry: false,
   });
 
   const adoptionsQuery = useQuery({
@@ -92,12 +128,16 @@ export function ComponentDetailPage() {
     );
   }
 
-  const component = data.component;
+  const component = (catalogAsset.data?.component ?? data.component) as CatalogAsset;
+  if (isHook(component)) {
+    return <HookWorkspace asset={component} onClose={() => { void navigate("/"); }} />;
+  }
   // Proto clients provide empty collections, while test and older persisted
   // projections can omit these optional-shaped values entirely.
   const headers = (component.headers as Record<string, string> | undefined) ?? {};
   const tags = (component.tags as string[] | undefined) ?? [];
   const designStyles = (component.designStyles as typeof component.designStyles | undefined) ?? [];
+  const dependencies = (component.dependencies as Array<{ libraryId: string; version: string }> | undefined) ?? [];
   const adoptions = adoptionsQuery.data?.adoptions ?? [];
   const selectedAdoption = adoptions.find((adoption) => adoption.id === selectedAdoptionID) ?? adoptions[0];
   const suggestions = suggestionsQuery.data?.suggestions ?? [];
@@ -114,7 +154,7 @@ export function ComponentDetailPage() {
         id={component.id}
         libraryId={component.libraryId || component.id}
         onClose={() => {
-          void navigate("/components");
+          void navigate("/");
         }}
         selectedVersion={selectedVersion}
         comparison={comparison}
@@ -141,6 +181,10 @@ export function ComponentDetailPage() {
               <section className="rounded-lg border border-app-border bg-app-surface-muted p-3 text-sm text-app-foreground">
                 <h3 className="font-medium">{t("componentDetail.info.affinities", { defaultValue: "Design affinities" })}</h3>
                 {designStyles.length === 0 ? <p className="mt-2 text-xs text-app-muted-foreground">{t("componentDetail.info.noAffinities", { defaultValue: "No design affinities declared." })}</p> : <ul className="mt-2 space-y-1 text-xs">{designStyles.map((affinity) => <li key={affinity.styleId}>{affinity.styleId}: {affinity.reason || affinity.affinity}</li>)}</ul>}
+              </section>
+              <section className="rounded-lg border border-app-border bg-app-surface-muted p-3 text-sm text-app-foreground">
+                <h3 className="font-medium">{t("componentDetail.info.dependencies", { defaultValue: "Shared assets" })}</h3>
+                {dependencies.length === 0 ? <p className="mt-2 text-xs text-app-muted-foreground">{t("componentDetail.info.noDependencies", { defaultValue: "No shared assets declared." })}</p> : <ul className="mt-2 space-y-1 text-xs">{dependencies.map((dependency) => <li key={`${dependency.libraryId}@${dependency.version}`}><Link to={`/assets/${encodeURIComponent(dependency.libraryId)}`} className="font-mono text-app-primary underline-offset-2 hover:underline">{dependency.libraryId}</Link><span className="text-app-muted-foreground"> · {dependency.version}</span></li>)}</ul>}
               </section>
             </>}
             {infoTab === "versions" && <VersionsCard componentId={component.id} selectedVersion={selectedVersion} onSelectVersion={setSelectedVersion} onCompare={setComparison} />}

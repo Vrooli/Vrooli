@@ -3,6 +3,7 @@ package components_test
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"testing/fstest"
 
@@ -11,6 +12,26 @@ import (
 	"react-component-library/internal/components"
 	"react-component-library/internal/components/mocks"
 )
+
+func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	result, err := components.NewIndexer(repo, ".", os.DirFS("../../../library")).Run(context.Background())
+	require.NoError(t, err)
+	require.NotEmpty(t, result.LibraryIDs)
+
+	drawer, err := repo.GetByLibraryID(context.Background(), "react-component-library:DrawerShell")
+	require.NoError(t, err)
+	require.Equal(t, []components.AssetDependency{
+		{LibraryID: "react-component-library:useFocusTrap", Version: "1.0.0"},
+		{LibraryID: "react-component-library:useEscapeKey", Version: "1.0.0"},
+	}, drawer.Dependencies)
+
+	for _, libraryID := range []string{"react-component-library:useFocusTrap", "react-component-library:useEscapeKey"} {
+		hook, err := repo.GetByLibraryID(context.Background(), libraryID)
+		require.NoError(t, err)
+		require.Equal(t, components.AssetKindHook, hook.AssetKind)
+	}
+}
 
 const buttonTSX = `/**
  * @libraryId   react-component-library:Button
@@ -93,6 +114,38 @@ export const FocusTrap = () => cycle();`)},
 	require.Equal(t, "FocusTrap.tsx", version.Files[0].Path)
 	require.True(t, version.Files[0].IsEntry)
 	require.Equal(t, "focus.ts", version.Files[1].Path)
+}
+
+func TestIndexer_RunIndexesHookAsNonRenderableAsset(t *testing.T) {
+	fs := fstest.MapFS{
+		"hooks/useFocusTrap/component.json":                     {Data: []byte(`{"libraryId":"react-component-library:useFocusTrap","displayName":"useFocusTrap","assetKind":"hook","latest":"1.0.0","dependencies":[]}`)},
+		"hooks/useFocusTrap/versions/1.0.0/useFocusTrap.ts":     {Data: []byte(`export const useFocusTrap = () => undefined;`)},
+		"hooks/useEscapeKey/component.json":                     {Data: []byte(`{"libraryId":"react-component-library:useEscapeKey","displayName":"useEscapeKey","assetKind":"hook","latest":"1.0.0","dependencies":[]}`)},
+		"hooks/useEscapeKey/versions/1.0.0/useEscapeKey.ts":     {Data: []byte(`export const useEscapeKey = () => undefined;`)},
+		"components/DrawerShell/component.json":                 {Data: []byte(`{"libraryId":"react-component-library:DrawerShell","displayName":"DrawerShell","slot":"ui-pattern","latest":"1.0.0","dependencies":[{"libraryId":"react-component-library:useFocusTrap","version":"1.0.0"},{"libraryId":"react-component-library:useEscapeKey","version":"1.0.0"}]}`)},
+		"components/DrawerShell/versions/1.0.0/DrawerShell.tsx": {Data: []byte(`export const DrawerShell = () => null;`)},
+	}
+	repo := mocks.NewFakeRepository()
+	res, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 3, res.Indexed)
+
+	hook, err := repo.GetByLibraryID(context.Background(), "react-component-library:useFocusTrap")
+	require.NoError(t, err)
+	require.Equal(t, components.AssetKindHook, hook.AssetKind)
+	require.Empty(t, hook.Slot)
+	escapeKey, err := repo.GetByLibraryID(context.Background(), "react-component-library:useEscapeKey")
+	require.NoError(t, err)
+	require.Equal(t, components.AssetKindHook, escapeKey.AssetKind)
+	require.Empty(t, escapeKey.Slot)
+
+	component, err := repo.GetByLibraryID(context.Background(), "react-component-library:DrawerShell")
+	require.NoError(t, err)
+	require.Equal(t, components.AssetKindComponent, component.AssetKind)
+	require.Equal(t, []components.AssetDependency{
+		{LibraryID: "react-component-library:useFocusTrap", Version: "1.0.0"},
+		{LibraryID: "react-component-library:useEscapeKey", Version: "1.0.0"},
+	}, component.Dependencies)
 }
 
 func TestIndexer_RunRejectsNestedCompanionFixture(t *testing.T) {

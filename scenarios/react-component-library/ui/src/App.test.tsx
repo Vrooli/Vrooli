@@ -1,8 +1,8 @@
 /**
  * App tests — composition smoke + route resolution.
  *
- * Asserts: (1) the operational shell mounts (brand + sidebar nav),
- * (2) each top-level route resolves to its page,
+ * Asserts: (1) the operational shell mounts around the catalog workspace,
+ * (2) only the catalog, asset detail, and settings routes resolve,
  * (3) navigating between routes does not remount the shell.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -50,20 +50,20 @@ describe("App composition", () => {
     await waitFor(() => {
       expect(screen.getByTestId("app-shell")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("nav-dashboard")).toBeInTheDocument();
+    expect(screen.getAllByTestId("catalog-browser")).not.toHaveLength(0);
   });
 
-  it("renders the dashboard stub at /", async () => {
+  it("renders the catalog workspace at /", async () => {
     renderWithProviders(<App />, { routerEntries: ["/"] });
     await waitFor(() => {
-      expect(screen.getByTestId("dashboard-page")).toBeInTheDocument();
+      expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
     });
   });
 
-  it("renders the components stub at /components", async () => {
+  it("does not retain the removed components route", async () => {
     renderWithProviders(<App />, { routerEntries: ["/components"] });
     await waitFor(() => {
-      expect(screen.getByTestId("components-page")).toBeInTheDocument();
+      expect(screen.getByTestId("not-found-page")).toBeInTheDocument();
     });
   });
 

@@ -463,6 +463,17 @@ const literalSelectors = {
       overlay: "components-inspector-overlay",
     },
   },
+  catalog: {
+    browser: "catalog-browser",
+    componentsTab: "catalog-components-tab",
+    hooksTab: "catalog-hooks-tab",
+    search: "catalog-search",
+    presentation: "catalog-presentation-toggle",
+    asset: "catalog-asset",
+  },
+  workflows: {
+    activeMenu: "active-work-menu",
+  },
   adoptions: {
     card: "adoptions-card",
     list: "adoptions-list",

@@ -87,6 +87,8 @@ func (f *FakeRepository) Upsert(ctx context.Context, in components.UpsertInput) 
 		UpdatedAt:     now,
 		Headers:       copyHeaders(in.Headers),
 		DesignStyles:  append([]components.ComponentDesignAffinity(nil), in.DesignStyles...),
+		AssetKind:     in.AssetKind,
+		Dependencies:  append([]components.AssetDependency(nil), in.Dependencies...),
 	}
 	f.items[id] = c
 	return c, nil
@@ -98,6 +100,7 @@ func (f *FakeRepository) UpsertManifest(ctx context.Context, in components.Index
 		Description: in.Manifest.Description, Slot: in.Manifest.Slot, Category: in.Manifest.Category, ManifestPath: in.Manifest.ManifestPath,
 		Version: in.Manifest.LatestVersion, LatestVersion: in.Manifest.LatestVersion, DraftVersion: in.Manifest.DraftVersion,
 		Tags: in.Manifest.Tags, Headers: in.Headers, DesignStyles: in.Manifest.DesignStyles,
+		AssetKind: in.Manifest.AssetKind, Dependencies: in.Manifest.Dependencies,
 	})
 	if err != nil {
 		return components.Component{}, err
@@ -183,6 +186,9 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 	}
 	var out []components.Component
 	for _, c := range f.items {
+		if q.AssetKind.Valid() && c.AssetKind != q.AssetKind {
+			continue
+		}
 		if matchL != "" {
 			hay := strings.ToLower(c.LibraryID + " " + c.DisplayName + " " + c.Description + " " + c.Slot + " " + c.SourcePath)
 			if !strings.Contains(hay, matchL) {

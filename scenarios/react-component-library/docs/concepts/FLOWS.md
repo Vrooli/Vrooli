@@ -8,6 +8,7 @@ This document is the canonical workflow map for ordered behavior.
 |---|---|---|---|---|
 | Index library | components | CLI/API/UI `components index` | Manifests and version folders are validated and reflected in SQLite | Indexer, repository, handler, CLI tests |
 | Apply component | adoptions | CLI/API/UI `adoptions apply` | Selected version source is copied into a target scenario with provenance and an adoption row | Service, handler, CLI, UI tests |
+| Assisted extract/adopt | workflows | CLI/API/UI `workflows start` | RCL records a scoped Agent Manager task/run and exposes honest queued/running/terminal status | Workflow service, handler, CLI tests |
 | Refresh drift | adoptions | CLI/API/UI `adoptions refresh` | Adoption rows receive separate library-version and local-edit statuses | Service status matrix and UI tests |
 | Reapply component | adoptions | CLI/API `adoptions reapply` | Adopted file is overwritten from a selected version; local edits require confirmation | Service and handler tests |
 | Diff versions/adoptions | versions | CLI/API/UI diff request | Server returns aligned line diff rows | Versions service and handler tests |
@@ -16,14 +17,25 @@ This document is the canonical workflow map for ordered behavior.
 
 ## Apply Component
 
-1. Resolve component by id.
+1. Resolve the component and its manifest-pinned dependency closure.
 2. Use requested version, or the manifest latest when no version is
    supplied.
 3. Reject an existing target path unless overwrite is confirmed.
 4. Write a provenance header with library id, version, adoption id,
    applied timestamp, and source sha.
 5. Copy the full editable source body into the target scenario.
-6. Insert the adoption row with source and adopted snapshot hashes.
+6. Insert a provenance row with source and adopted snapshot hashes for each
+   materialized asset exactly once.
+
+## Assisted Work
+
+1. The user supplies extract source or adopt target plus an idempotency key.
+2. RCL persists a queued workflow before dispatching a narrow server-authored
+   Agent Manager task/run.
+3. Refresh/stop/retry operate on the durable ledger; no browser talks to Agent
+   Manager and no polling loop claims success.
+4. Terminal agent state remains evidence only. Direct RCL ingest/apply/reapply
+   still performs parity, validation, overwrite, and provenance decisions.
 
 ## Refresh Drift
 

@@ -54,6 +54,29 @@ describe("ComponentsCard", () => {
     expect(screen.queryByTestId(selectors.components.list)).not.toBeInTheDocument();
   });
 
+  it("opens creation from either empty-state entry point and keeps re-index available", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.listComponents).mockResolvedValue(makeListComponentsResponse());
+    const user = userEvent.setup();
+    renderWithProviders(<ComponentsCard />);
+
+    await screen.findByTestId(selectors.components.empty);
+    await user.click(screen.getByTestId(selectors.components.create.button));
+    expect(screen.getByTestId(selectors.components.create.dialog)).toBeInTheDocument();
+    await user.click(screen.getByTestId(selectors.components.create.cancel));
+    expect(screen.queryByTestId(selectors.components.create.dialog)).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Create component" }).at(-1)!);
+    expect(screen.getByTestId(selectors.components.create.dialog)).toBeInTheDocument();
+    await user.click(screen.getByTestId(selectors.components.create.cancel));
+
+    const indexButtons = screen.getAllByRole("button", { name: "Re-index" });
+    const emptyStateIndexButton = indexButtons.at(-1);
+    if (!emptyStateIndexButton) throw new Error("empty-state re-index button not rendered");
+    await user.click(emptyStateIndexButton);
+    await waitFor(() => expect(componentsClient.indexComponents).toHaveBeenCalledOnce());
+  });
+
   it("renders indexed components with libraryId, displayName, version, tags", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.listComponents).mockResolvedValueOnce(

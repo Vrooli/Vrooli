@@ -6,20 +6,10 @@
   },
   "nav": {
     "label": "主なナビゲーション",
-    "bottomLabel": "メイン",
     "openDrawer": "ナビゲーションを開く",
     "closeDrawer": "ナビゲーションを閉じる",
     "drawerLabel": "ナビゲーションドロワー",
-    "dashboard": "ダッシュボード",
-    "components": "コンポーネント",
-    "adoptions": "採用状況",
     "settings": "設定"
-  },
-  "sidebar": {
-    "components": "コンポーネント",
-    "loading": "読み込み中…",
-    "error": "コンポーネントの読み込みに失敗しました",
-    "empty": "まだコンポーネントが登録されていません"
   },
   "theme": {
     "light": "ライトテーマ",
@@ -28,13 +18,6 @@
   },
   "route": {
     "loading": "読み込み中…"
-  },
-  "dashboard": {
-    "title": "ダッシュボード",
-    "subtitle": "コンポーネントライブラリとローカル API の概要。",
-    "componentsTitle": "登録済みコンポーネント",
-    "loading": "—",
-    "openLibrary": "ライブラリを開く"
   },
   "settings": {
     "title": "設定",
@@ -53,6 +36,35 @@
     "loading": "コンポーネントを読み込み中…",
     "notFound": "コンポーネントが見つかりません。"
   },
+  "catalog": {
+    "title": "ライブラリワークスペース",
+    "subtitle": "再利用可能なコンポーネントと、描画しないフックを見つけます。",
+    "components": "コンポーネント",
+    "hooks": "フック",
+    "hook": "フック",
+    "search": "カタログを検索",
+    "searchPlaceholder": "アセットを検索",
+    "adoptions": "{{count}} 件の採用",
+    "versionsCount": "{{count}} バージョン",
+    "noPreview": "ライブプレビューはありません。フックは描画対象ではありません。",
+    "source": "ソース",
+    "sourceError": "ソースを読み込めませんでした。",
+    "addManual": "コンポーネントを追加",
+    "addAssisted": "支援付き抽出",
+    "assistedDescription": "カタログ管理者の実行をキューに入れます。カタログへの書き込みには React Component Library の直接 API を使用します。",
+    "sourceScenario": "ソースシナリオ",
+    "sourcePath": "ソースパス",
+    "sourcePathPlaceholder": "例: ui/src/components/Example.tsx",
+    "assistedError": "支援付き抽出をキューに入れられませんでした。",
+    "assistedStarting": "開始中…",
+    "assistedStart": "抽出を開始"
+  },
+  "workflows": {
+    "active": "進行中の作業",
+    "none": "進行中の支援作業はありません。",
+    "stop": "停止",
+    "retry": "再試行"
+  },
   "health": {
     "title": "API ステータス",
     "loading": "API のステータスを確認中…",
@@ -68,7 +80,6 @@
   },
   "components": {
     "title": "コンポーネントライブラリ",
-    "subtitle": "コンポーネントは @libraryId ヘッダーによってソースルートから検出されます。編集するとライブプレビューが開きます。",
     "loading": "コンポーネントを読み込み中…",
     "empty": "まだコンポーネントがありません。最初のライブラリコンポーネントを作成するか、既存の Git 管理ソースを再インデックスしてください。",
     "indexAction": "再インデックス",
@@ -235,7 +246,6 @@
   },
   "adoptions": {
     "title": "採用状況",
-    "subtitle": "ライブラリのコンポーネントを採用したシナリオを把握し、ドリフトを検出します。",
     "loading": "読み込み中…",
     "empty": "採用レコードはまだありません。CLI で `react-component-library adoptions create` を実行してください。",
     "refreshAction": "更新",

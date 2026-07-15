@@ -5,6 +5,7 @@ import (
 	"react-component-library/cli/domains/components"
 	"react-component-library/cli/domains/preview"
 	"react-component-library/cli/domains/versions"
+	"react-component-library/cli/domains/workflows"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -23,6 +24,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifestBytes []byte) ([]cliapp.
 		components.Register,
 		preview.Register,
 		versions.Register,
+		workflows.Register,
 	}
 	groups := make([]cliapp.SubcommandGroup, 0, len(registrars))
 	for _, r := range registrars {

@@ -15,6 +15,10 @@
     "useEscapeKey.ts": "hook"
   },
   "category": "overlays",
+  "dependencies": [
+    { "libraryId": "react-component-library:useFocusTrap", "version": "1.0.0" },
+    { "libraryId": "react-component-library:useEscapeKey", "version": "1.0.0" }
+  ],
   "designStyles": [
     { "styleId": "vrooli-default", "affinity": "native", "reason": "token-bound surface built entirely on design-system tokens and safe-area variables" },
     { "styleId": "vrooli-command-display", "affinity": "native", "reason": "the primary full-page and compact drawer surface for command and dashboard shells" },

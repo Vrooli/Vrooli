@@ -156,6 +156,7 @@
             { "name": "category", "description": "Filter by @category header value" },
             { "name": "style", "description": "Filter by component.json designStyles styleId" },
             { "name": "affinity", "description": "Filter by design style affinity (native, compatible, discouraged)" },
+            { "name": "asset-kind", "description": "Filter by asset kind: component or hook" },
             { "name": "limit", "description": "Maximum number of rows (default 200)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "ListComponents" },
@@ -385,6 +386,70 @@
           ],
           "binding": { "kind": "connect-rpc", "service": "VersionsService", "method": "DiffVersions" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "workflows",
+      "description": "Start and observe durable assisted extraction and adoption work",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Create an attributable assisted extract or adopt workflow",
+          "flags": [
+            { "name": "kind", "description": "Workflow kind: extract or adopt" },
+            { "name": "asset-id", "description": "Catalog asset id for adoption work" },
+            { "name": "source-scenario", "description": "Narrow source scenario for extraction" },
+            { "name": "source-path", "description": "Source path for extraction" },
+            { "name": "target-scenario", "description": "Narrow target scenario for adoption" },
+            { "name": "version", "description": "Pinned requested version" },
+            { "name": "idempotency-key", "description": "Required replay-safe request key" },
+            { "name": "confirm-overwrite", "description": "Pass explicit overwrite confirmation to the direct RCL path" },
+            { "name": "override-validation", "description": "Pass explicit validation override to the direct RCL path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "StartWorkflow" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "list",
+          "description": "List durable assisted workflows",
+          "flags": [
+            { "name": "asset-id", "description": "Filter by catalog asset id" },
+            { "name": "target-scenario", "description": "Filter by target scenario" },
+            { "name": "active", "description": "Only queued, running, or parked work" },
+            { "name": "limit", "description": "Maximum workflows to return" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ListWorkflows" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Get a workflow by id",
+          "positionals": [{ "name": "id", "required": true, "description": "Workflow id" }],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "GetWorkflow" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "refresh",
+          "description": "Synchronize one workflow from Agent Manager once",
+          "positionals": [{ "name": "id", "required": true, "description": "Workflow id" }],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "RefreshWorkflow" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "stop",
+          "description": "Request that Agent Manager stop active workflow execution",
+          "positionals": [{ "name": "id", "required": true, "description": "Workflow id" }],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "StopWorkflow" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "retry",
+          "description": "Retry a terminal workflow with a new idempotency key",
+          "positionals": [{ "name": "id", "required": true, "description": "Workflow id" }],
+          "flags": [{ "name": "idempotency-key", "description": "Required replay-safe retry key" }],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "RetryWorkflow" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     }

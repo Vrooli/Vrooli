@@ -6,12 +6,13 @@ This document maps the product capability boundaries for the scenario.
 
 | Domain | Purpose | Owns Data | Surfaces | Source Paths |
 |---|---|---|---|---|
-| components | Index Git-tracked component manifests and source versions. | `components`, manifest files, version source paths | API, CLI, UI | `api/internal/components/`, `api/handlers/components/`, `cli/domains/components/`, `ui/src/features/components/` |
+| components | Index Git-tracked component and hook manifests, versions, dependency pins, and catalog metrics. | `components`, `component_asset_dependencies`, manifest files, version source paths | API, CLI, UI | `api/internal/components/`, `api/handlers/components/`, `cli/domains/components/`, `ui/src/features/` |
 | versions | Browse and diff indexed component release artifacts. | `component_versions` release snapshots | API, CLI, UI | `api/internal/versions/`, `api/handlers/versions/`, `cli/domains/versions/`, `ui/src/features/versions/` |
-| adoptions | Copy component source into target scenarios and track provenance/drift. | `adoption_records`, target scenario files | API, CLI, UI | `api/internal/adoptions/`, `api/handlers/adoptions/`, `cli/domains/adoptions/`, `ui/src/features/adoptions/` |
+| adoptions | Copy a dependency closure into target scenarios and track per-asset provenance/drift. | `adoption_records`, target scenario files | API, CLI, UI | `api/internal/adoptions/`, `api/handlers/adoptions/`, `cli/domains/adoptions/`, `ui/src/features/adoptions/` |
 | deps | Validate component `@deps` declarations against target scenarios. | Dependency declaration rows | API, UI support | `api/internal/deps/`, `api/handlers/deps/`, `ui/src/api/deps.ts` |
 | preview | Bundle component source for iframe preview. | No durable product data | API, UI | `api/internal/preview/`, `api/handlers/preview/`, `ui/src/features/components/` |
 | themes | Resolve built-in and scenario-derived theme tokens. | Built-in theme rows | API, UI | `api/internal/themes/`, `api/handlers/themes/`, `ui/src/features/components/` |
+| workflows | Persist and observe assisted extraction/adoption tasks; Agent Manager is execution evidence only. | `assisted_workflows` | API, CLI, UI | `api/internal/workflows/`, `api/handlers/workflows/`, `cli/domains/workflows/`, `ui/src/components/ActiveWorkMenu.tsx` |
 | health | Report runtime readiness. | No product data | API, CLI, UI | `api/handlers/health/`, `ui/src/features/health/` |
 
 ## Domain Notes
@@ -25,7 +26,8 @@ This document maps the product capability boundaries for the scenario.
   edits are detected.
 - `versions` now represents version-folder release artifacts, not
   save-history snapshots.
-- One target file per adopted component is the current constraint.
+- An adoption resolves a deterministic, deduplicated, version-pinned closure;
+  each asset receives its own provenance record and no overwrite is inferred.
 
 ## Non-Domains
 

@@ -17,6 +17,7 @@ import (
 // preview service only uses GetContent; the rest panics so we notice
 // if the surface widens unintentionally.
 type fakeComponentsService struct {
+	getFn               func(ctx context.Context, id string) (components.Component, error)
 	getContentFn        func(ctx context.Context, id string) (components.Content, error)
 	getVersionContentFn func(ctx context.Context, id, version string) (components.Content, error)
 }
@@ -33,8 +34,11 @@ func (f *fakeComponentsService) Upsert(context.Context, components.UpsertInput) 
 	panic("not called")
 }
 
-func (f *fakeComponentsService) Get(context.Context, string) (components.Component, error) {
-	panic("not called")
+func (f *fakeComponentsService) Get(ctx context.Context, id string) (components.Component, error) {
+	if f.getFn != nil {
+		return f.getFn(ctx, id)
+	}
+	return components.Component{ID: id, LibraryID: "react-component-library:PreviewFixture", AssetKind: components.AssetKindComponent, LatestVersion: "1.0.0"}, nil
 }
 
 func (f *fakeComponentsService) GetByLibraryID(context.Context, string) (components.Component, error) {
@@ -184,6 +188,22 @@ func TestService_GetBundleVersion_UsesImmutableVersionContent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "versions/1.0.0/Historical.tsx", bundle.SourcePath)
 	require.Contains(t, bundle.JS, "Historical")
+}
+
+func TestService_GetBundle_RejectsHookAsset(t *testing.T) {
+	comp := &fakeComponentsService{
+		getFn: func(_ context.Context, id string) (components.Component, error) {
+			return components.Component{ID: id, LibraryID: "react-component-library:useFocusTrap", AssetKind: components.AssetKindHook}, nil
+		},
+		getContentFn: func(context.Context, string) (components.Content, error) {
+			t.Fatal("hook preview must not read render content")
+			return components.Content{}, nil
+		},
+	}
+	_, err := NewService(comp, NewEsbuilder()).GetBundle(context.Background(), "hook-1")
+	var notRenderable ErrNotRenderable
+	require.ErrorAs(t, err, &notRenderable)
+	require.Contains(t, err.Error(), "cannot be previewed")
 }
 
 func TestEsbuilderBundlesRelativeImports(t *testing.T) {

@@ -5,18 +5,10 @@ import { AppShell } from "./components/AppShell";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useHostShortcutRelay } from "./hooks/useHostShortcutRelay";
 import { useTranslation } from "./i18n";
+import { CatalogBrowser } from "./features/catalog/CatalogBrowser";
 
-const DashboardPage = lazy(() =>
-  import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })),
-);
-const ComponentsPage = lazy(() =>
-  import("./pages/ComponentsPage").then((m) => ({ default: m.ComponentsPage })),
-);
 const ComponentDetailPage = lazy(() =>
   import("./pages/ComponentDetailPage").then((m) => ({ default: m.ComponentDetailPage })),
-);
-const AdoptionsPage = lazy(() =>
-  import("./pages/AdoptionsPage").then((m) => ({ default: m.AdoptionsPage })),
 );
 const SettingsPage = lazy(() =>
   import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
@@ -54,10 +46,8 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route path="/" element={<Page><DashboardPage /></Page>} />
-        <Route path="/components" element={<Page><ComponentsPage /></Page>} />
-        <Route path="/components/:id" element={<Page><ComponentDetailPage /></Page>} />
-        <Route path="/adoptions" element={<Page><AdoptionsPage /></Page>} />
+        <Route path="/" element={<Page><CatalogBrowser /></Page>} />
+        <Route path="/assets/:id" element={<Page><ComponentDetailPage /></Page>} />
         <Route path="/settings" element={<Page><SettingsPage /></Page>} />
         <Route path="*" element={<Page><NotFoundPage /></Page>} />
       </Route>

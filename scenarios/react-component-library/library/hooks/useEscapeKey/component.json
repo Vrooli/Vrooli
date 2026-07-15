@@ -1,0 +1,9 @@
+{
+  "libraryId": "react-component-library:useEscapeKey",
+  "displayName": "useEscapeKey",
+  "description": "Reusable Escape-key dismissal hook for accessible overlays.",
+  "assetKind": "hook",
+  "tags": ["accessibility", "keyboard", "overlay"],
+  "latest": "1.0.0",
+  "dependencies": []
+}

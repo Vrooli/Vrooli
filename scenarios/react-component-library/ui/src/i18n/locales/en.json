@@ -6,20 +6,10 @@
   },
   "nav": {
     "label": "Primary navigation",
-    "bottomLabel": "Primary",
     "openDrawer": "Open navigation",
     "closeDrawer": "Close navigation",
     "drawerLabel": "Navigation drawer",
-    "dashboard": "Dashboard",
-    "components": "Components",
-    "adoptions": "Adoptions",
     "settings": "Settings"
-  },
-  "sidebar": {
-    "components": "Components",
-    "loading": "Loading…",
-    "error": "Failed to load components",
-    "empty": "No components indexed yet"
   },
   "theme": {
     "light": "Light theme",
@@ -28,13 +18,6 @@
   },
   "route": {
     "loading": "Loading…"
-  },
-  "dashboard": {
-    "title": "Dashboard",
-    "subtitle": "Overview of the component library and the local API.",
-    "componentsTitle": "Indexed components",
-    "loading": "—",
-    "openLibrary": "Open library"
   },
   "settings": {
     "title": "Settings",
@@ -52,6 +35,35 @@
     "missingId": "No component id in URL.",
     "loading": "Loading component…",
     "notFound": "Component not found."
+  },
+  "catalog": {
+    "title": "Library workspace",
+    "subtitle": "Find reusable components and non-renderable hooks.",
+    "components": "Components",
+    "hooks": "Hooks",
+    "hook": "Hook",
+    "search": "Search catalog",
+    "searchPlaceholder": "Search assets",
+    "adoptions": "{{count}} adoptions",
+    "versionsCount": "{{count}} versions",
+    "noPreview": "No live preview — hooks are non-renderable.",
+    "source": "Source",
+    "sourceError": "Source could not be loaded.",
+    "addManual": "Add component",
+    "addAssisted": "Assisted extraction",
+    "assistedDescription": "Queue a catalog-maintainer run. It will use direct React Component Library APIs for any catalog writes.",
+    "sourceScenario": "Source scenario",
+    "sourcePath": "Source path",
+    "sourcePathPlaceholder": "e.g. ui/src/components/Example.tsx",
+    "assistedError": "Unable to queue assisted extraction.",
+    "assistedStarting": "Starting…",
+    "assistedStart": "Start extraction"
+  },
+  "workflows": {
+    "active": "Active work",
+    "none": "No active assisted work.",
+    "stop": "Stop",
+    "retry": "Retry"
   },
   "health": {
     "title": "API Health",
@@ -71,7 +83,6 @@
   },
   "components": {
     "title": "Component Library",
-    "subtitle": "Components are indexed from the source root by their @libraryId header. Edit one to open the live preview.",
     "loading": "Loading components…",
     "empty": "No components yet. Create the first library component or re-index Git-tracked source that already exists on disk.",
     "indexAction": "Re-index",
@@ -239,7 +250,6 @@
   },
   "adoptions": {
     "title": "Adoptions",
-    "subtitle": "Track which scenarios have adopted library components and detect drift.",
     "loading": "Loading adoptions…",
     "empty": "No adoption records yet. Use `react-component-library adoptions create` from the CLI.",
     "refreshAction": "Refresh",

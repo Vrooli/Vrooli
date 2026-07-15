@@ -1,0 +1,123 @@
+package components
+
+import (
+	"context"
+	"fmt"
+	"sort"
+	"strings"
+)
+
+// DependencyReader is the narrow catalog seam used to expand manifest-pinned
+// asset dependencies. Components Service and its test fakes satisfy it.
+type DependencyReader interface {
+	Get(context.Context, string) (Component, error)
+	GetByLibraryID(context.Context, string) (Component, error)
+	GetVersion(context.Context, string, string) (ComponentVersion, error)
+}
+
+// ResolvedAsset is one immutable asset version in a dependency closure.
+// Assets are ordered dependencies-first, then the requested root, so callers
+// can materialize imports without a second sort or per-edge lookup.
+type ResolvedAsset struct {
+	Asset   Component
+	Version ComponentVersion
+}
+
+// ErrAssetDependency is returned when a manifest pin cannot be resolved.
+type ErrAssetDependency struct {
+	FromLibraryID, LibraryID, Version string
+	Cause                             error
+}
+
+func (e ErrAssetDependency) Error() string {
+	return fmt.Sprintf("asset dependency %s@%s required by %s cannot be resolved: %v", e.LibraryID, e.Version, e.FromLibraryID, e.Cause)
+}
+
+func (e ErrAssetDependency) Unwrap() error { return e.Cause }
+
+// ErrAssetDependencyCycle preserves the complete dependency path so callers
+// can tell an authored cycle from a generic version-resolution failure.
+type ErrAssetDependencyCycle struct{ Path []string }
+
+func (e ErrAssetDependencyCycle) Error() string {
+	return "asset dependency cycle: " + strings.Join(e.Path, " -> ")
+}
+
+// ResolveDependencyClosure resolves rootID at rootVersion (or the asset's
+// latest version when omitted) and every manifest-declared, version-pinned
+// dependency. The result is stable across index order: dependency edges are
+// traversed by library id then version, duplicate pins are emitted once, and
+// cycles are rejected before a caller can write partial output.
+func ResolveDependencyClosure(ctx context.Context, reader DependencyReader, rootID, rootVersion string) ([]ResolvedAsset, error) {
+	root, err := reader.Get(ctx, strings.TrimSpace(rootID))
+	if err != nil {
+		return nil, err
+	}
+	rootVersion = strings.TrimSpace(rootVersion)
+	if rootVersion == "" {
+		rootVersion = firstAssetVersion(root.LatestVersion, root.Version)
+	}
+	if rootVersion == "" {
+		return nil, ErrAssetDependency{FromLibraryID: root.LibraryID, LibraryID: root.LibraryID, Cause: fmt.Errorf("asset has no indexed version")}
+	}
+
+	state := make(map[string]uint8)
+	resolved := make(map[string]ResolvedAsset)
+	order := make([]string, 0)
+	path := make([]string, 0)
+	var visit func(Component, string, string) error
+	visit = func(asset Component, version, from string) error {
+		key := asset.LibraryID + "@" + version
+		switch state[key] {
+		case 1:
+			cycle := append(append([]string(nil), path...), key)
+			return ErrAssetDependencyCycle{Path: cycle}
+		case 2:
+			return nil
+		}
+		state[key] = 1
+		path = append(path, key)
+		declarations := append([]AssetDependency(nil), asset.Dependencies...)
+		sort.Slice(declarations, func(i, j int) bool {
+			if declarations[i].LibraryID == declarations[j].LibraryID {
+				return declarations[i].Version < declarations[j].Version
+			}
+			return declarations[i].LibraryID < declarations[j].LibraryID
+		})
+		for _, dep := range declarations {
+			dependency, err := reader.GetByLibraryID(ctx, dep.LibraryID)
+			if err != nil {
+				return ErrAssetDependency{FromLibraryID: asset.LibraryID, LibraryID: dep.LibraryID, Version: dep.Version, Cause: err}
+			}
+			if err := visit(dependency, dep.Version, asset.LibraryID); err != nil {
+				return err
+			}
+		}
+		immutable, err := reader.GetVersion(ctx, asset.ID, version)
+		if err != nil {
+			return ErrAssetDependency{FromLibraryID: from, LibraryID: asset.LibraryID, Version: version, Cause: err}
+		}
+		resolved[key] = ResolvedAsset{Asset: asset, Version: immutable}
+		order = append(order, key)
+		state[key] = 2
+		path = path[:len(path)-1]
+		return nil
+	}
+	if err := visit(root, rootVersion, root.LibraryID); err != nil {
+		return nil, err
+	}
+	out := make([]ResolvedAsset, 0, len(order))
+	for _, key := range order {
+		out = append(out, resolved[key])
+	}
+	return out, nil
+}
+
+func firstAssetVersion(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}

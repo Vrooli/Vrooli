@@ -357,9 +357,9 @@ func TestComponentsList_ForwardsFiltersAndRenders(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "asset-kind"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{
-		Flags: map[string]string{"match": "btn", "tag": "form", "style": "vrooli-default", "affinity": "native", "limit": "50"},
+		Flags: map[string]string{"match": "btn", "tag": "form", "style": "vrooli-default", "affinity": "native", "asset-kind": "hook", "limit": "50"},
 	})
 
 	require.NoError(t, h.list(ctx))
@@ -371,6 +371,7 @@ func TestComponentsList_ForwardsFiltersAndRenders(t *testing.T) {
 	require.Empty(t, svc.listReqs[0].Category)
 	require.Equal(t, "vrooli-default", svc.listReqs[0].StyleId)
 	require.Equal(t, "native", svc.listReqs[0].Affinity)
+	require.Equal(t, componentsv1.AssetKind_ASSET_KIND_HOOK, svc.listReqs[0].AssetKind)
 	require.Contains(t, out.String(), "Found 1 component(s).")
 	require.Contains(t, out.String(), "lib:Button")
 	require.Contains(t, out.String(), "v1.0.0")
@@ -453,7 +454,7 @@ func TestComponentsList_ForwardsMultiTagAndCategory(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "asset-kind"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"tags": " form , , layout ", "category": "controls"},
 	})
@@ -469,7 +470,7 @@ func TestComponentsList_RejectsBadLimit(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &componentsService{}))
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "asset-kind"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"limit": "abc"},
 	})
@@ -487,7 +488,7 @@ func TestComponentsList_JSONIsProtoWireShape(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "asset-kind"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{JSON: true})
 
 	require.NoError(t, h.list(ctx))

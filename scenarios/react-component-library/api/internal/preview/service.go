@@ -78,27 +78,39 @@ func (s *service) GetBundle(ctx context.Context, id string) (Bundle, error) {
 
 func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bundle, error) {
 	version = strings.TrimSpace(version)
-	var (
-		content components.Content
-		err     error
-	)
-	if version == "" {
-		content, err = s.components.GetContent(ctx, id)
-	} else {
-		content, err = s.components.GetVersionContent(ctx, id, version)
-	}
+	asset, err := s.components.Get(ctx, id)
 	if err != nil {
 		return Bundle{}, err
 	}
-	var declarations []deps.Declaration
-	if s.deps != nil {
-		c, err := s.components.Get(ctx, id)
-		if err != nil {
+	if asset.AssetKind == components.AssetKindHook {
+		return Bundle{}, ErrNotRenderable{AssetID: asset.ID, LibraryID: asset.LibraryID}
+	}
+	// Resolve the complete pinned asset graph before bundling. Relative imports
+	// remain bundled from the catalog source tree, while this explicit check
+	// prevents previewing a component whose declared hook/component closure is
+	// missing or cyclic.
+	if len(asset.Dependencies) > 0 {
+		if _, err := components.ResolveDependencyClosure(ctx, s.components, id, version); err != nil {
 			return Bundle{}, err
 		}
+	}
+	var (
+		content    components.Content
+		contentErr error
+	)
+	if version == "" {
+		content, contentErr = s.components.GetContent(ctx, id)
+	} else {
+		content, contentErr = s.components.GetVersionContent(ctx, id, version)
+	}
+	if contentErr != nil {
+		return Bundle{}, contentErr
+	}
+	var declarations []deps.Declaration
+	if s.deps != nil {
 		dependencyVersion := version
 		if dependencyVersion == "" {
-			dependencyVersion = c.LatestVersion
+			dependencyVersion = asset.LatestVersion
 		}
 		declarations, err = s.deps.ListForComponentVersion(ctx, id, dependencyVersion)
 		if err != nil {
@@ -116,6 +128,18 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 		Warnings:     warnings,
 		Dependencies: declarations,
 	}, nil
+}
+
+// ErrNotRenderable makes hook preview rejection explicit. Hooks are
+// first-class assets but do not have a React render surface; callers should
+// inspect their versioned source and adopt them through a component closure.
+type ErrNotRenderable struct {
+	AssetID   string
+	LibraryID string
+}
+
+func (e ErrNotRenderable) Error() string {
+	return fmt.Sprintf("asset %q is a hook and cannot be previewed; inspect its source or select a consuming component", e.LibraryID)
 }
 
 // ErrBundle wraps an esbuild failure with the diagnostics esbuild

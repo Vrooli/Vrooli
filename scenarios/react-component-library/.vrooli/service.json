@@ -14,59 +14,6 @@
       "go-api"
     ]
   },
-  "generation": {
-    "template": {
-      "id": "react-vite",
-      "version": "0.1.0"
-    },
-    "generated_at": "2026-05-12T15:51:13Z",
-    "design": {
-      "id": "vrooli-default",
-      "version": "0.2.0",
-      "adapter": "react-vite-tailwind"
-    },
-    "manifest_sha": "56ebeae608251c87b0ebd6856dfb30f81d28bd68e2d4b55f37f9ed0a2ae7501d",
-    "content_sha": "cddd285114520b1bea27e67f6f2ad5c256eab8e8f7a114678116a7a70815d654"
-  },
-  "cli": {
-    "enabled": true,
-    "command": "react-component-library",
-    "adapter": {
-      "kind": "go_module",
-      "module_dir": "cli"
-    },
-    "artifacts": {
-      "manifest": {},
-      "build_metadata": {}
-    },
-    "install": [
-      {
-        "os": [
-          "linux",
-          "darwin"
-        ],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": [
-          "windows"
-        ],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
-    "invoke": {
-      "kind": "installed_command",
-      "command": "react-component-library"
-    },
-    "freshness": {
-      "inputs": [
-        "cli/**",
-        ".vrooli/service.json"
-      ]
-    }
-  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -130,12 +77,12 @@
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o react-component-library-api .",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o react-component-library-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -143,7 +90,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
         }
       ]
@@ -153,7 +100,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api \u0026\u0026 ./react-component-library-api",
+          "run": "cd api && ./react-component-library-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -162,7 +109,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js",
+          "run": "cd ui && node server.js",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {
@@ -208,7 +155,79 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Optional server-side dispatcher for attributable assisted extraction and adoption workflows; direct RCL APIs remain available when it is unavailable.",
+        "config": {
+          "profiles": {
+            "reconcile": true,
+            "mode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-profiles/catalog-maintainer.json"
+            ]
+          }
+        }
+    }
+    },
+    "resources": {}
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-05-12T15:51:13Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "56ebeae608251c87b0ebd6856dfb30f81d28bd68e2d4b55f37f9ed0a2ae7501d",
+    "content_sha": "cddd285114520b1bea27e67f6f2ad5c256eab8e8f7a114678116a7a70815d654"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "react-component-library",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "react-component-library"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/react-component-library.db"
   },

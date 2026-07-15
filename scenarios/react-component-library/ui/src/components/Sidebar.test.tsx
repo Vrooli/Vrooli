@@ -7,14 +7,13 @@ import { SidebarContent } from "./Sidebar";
 describe("SidebarContent", () => {
   afterEach(() => cleanup());
 
-  it("renders brand and primary nav targets", () => {
+  it("renders the brand without a redundant route list", () => {
     renderWithProviders(<SidebarContent />);
     expect(screen.getByTestId("app-sidebar-content")).toBeInTheDocument();
     expect(screen.getByTestId("app-brand")).toHaveAttribute("href", "/");
-    expect(screen.getByTestId("nav-dashboard")).toHaveAttribute("href", "/");
-    expect(screen.getByTestId("nav-components")).toHaveAttribute("href", "/components");
-    expect(screen.getByTestId("nav-adoptions")).toHaveAttribute("href", "/adoptions");
-    expect(screen.getByTestId("nav-settings")).toHaveAttribute("href", "/settings");
+    expect(screen.queryByTestId("nav-dashboard")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("nav-components")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("nav-adoptions")).not.toBeInTheDocument();
   });
 
   it("renders header and inventory slots when provided", () => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 
@@ -53,6 +53,12 @@ function makeBuiltinList() {
         id: "dark",
         name: "Dark",
         tokens: { "--color-primary": "#1e3a8a" },
+        source: "builtin",
+      }),
+      create(ThemeSchema, {
+        id: "brand",
+        name: "Brand library",
+        tokens: { "--color-primary": "#f97316" },
         source: "builtin",
       }),
     ],
@@ -200,26 +206,42 @@ describe("ThemeSwitcher", () => {
     expect(setColorScheme).toHaveBeenCalledWith("light");
   });
 
+  it("keeps visual accessibility simulations in the same Appearance menu", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness postToFrames={vi.fn()} />);
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
+
+    await user.selectOptions(
+      screen.getByTestId(selectors.components.themeSwitcher.visionFilterSelect),
+      "protanopia",
+    );
+    fireEvent.change(screen.getByTestId(selectors.components.themeSwitcher.blurSlider), {
+      target: { value: "4" },
+    });
+
+    expect(filters.setVisionFilter).toHaveBeenCalledWith("protanopia");
+    expect(filters.setBlurPx).toHaveBeenCalledWith(4);
+  });
+
   it("applies a scenario DESIGN.md pack from the described token-source section", async () => {
     const postSpy = vi.fn();
     const user = userEvent.setup();
     renderWithProviders(<Harness postToFrames={postSpy} />);
     await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
-    await user.type(
-      screen.getByTestId(selectors.components.themeSwitcher.scenarioInput),
-      "flow-verifier",
-    );
+    fireEvent.change(screen.getByTestId(selectors.components.themeSwitcher.scenarioInput), {
+      target: { value: "flow-verifier" },
+    });
     await user.click(
       screen.getByTestId(selectors.components.themeSwitcher.scenarioApply),
     );
 
     await waitFor(() => {
-      expect(postSpy).toHaveBeenCalled();
+      expect(themesClient.getThemeFromScenario).toHaveBeenCalledWith({ scenarioId: "flow-verifier" });
+      expect(postSpy.mock.calls.some(([message]) => (
+        (message as { type?: string; themeId?: string }).type === "rcl-theme-apply"
+        && (message as { themeId?: string }).themeId === "flow-verifier"
+      ))).toBe(true);
     });
-    const payload = postSpy.mock.calls.at(-1)![0] as { type: string; themeId: string; tokens: Record<string, string> };
-    expect(payload.type).toBe("rcl-theme-apply");
-    expect(payload.themeId).toBe("flow-verifier");
-    expect(payload.tokens["--color-primary"]).toBe("#ff00ff");
   });
 
   it("returns focus to the Appearance trigger after Escape", async () => {

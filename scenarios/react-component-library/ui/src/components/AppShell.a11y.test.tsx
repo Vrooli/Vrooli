@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
 
 import { expectNoA11yViolations, renderWithProviders, makeHealthResponse } from "../test-utils";
@@ -41,12 +41,7 @@ describe("AppShell accessibility", () => {
       </Routes>,
       { routerEntries: ["/"] },
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("health-pill")).toHaveTextContent(/ok/i),
-    );
-    await waitFor(() =>
-      expect(screen.getByTestId("sidebar-component-list-empty")).toBeInTheDocument(),
-    );
+    expect(screen.getByTestId("active-work-menu")).toBeInTheDocument();
     await expectNoA11yViolations(container);
   });
 });

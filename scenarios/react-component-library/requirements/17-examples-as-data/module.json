@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-version JSON examples that drive catalog previews, specimen galleries, CLI/API queries, and experience-component reconciliation.",
-    "last_validated_at": "2026-07-15T00:51:16-04:00",
+    "last_validated_at": "2026-07-15T01:58:56-04:00",
     "module": "examples-as-data",
     "prd_ref": "PRD.md",
     "priority": "P0",

@@ -17,12 +17,12 @@ import { SidebarShell } from "../../../library/components/SidebarShell/versions/
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useTranslation } from "../i18n";
-import { HealthPill } from "./HealthPill";
+import { Settings as SettingsIcon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ActiveWorkMenu } from "./ActiveWorkMenu";
 import { MobileHeader } from "./MobileHeader";
-import { MobileNav } from "./MobileNav";
 import { SidebarContent } from "./Sidebar";
-import { SidebarComponentList } from "./SidebarComponentList";
-import { ThemeToggle } from "./ThemeToggle";
+import { CatalogBrowser } from "../features/catalog/CatalogBrowser";
 
 const SIDEBAR_STORAGE = "react-component-library.sidebar.width.v1";
 
@@ -52,13 +52,8 @@ export function AppShell({ children }: Props) {
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
 
-  const headerSlot = (
-    <div className="flex items-center gap-1">
-      <HealthPill />
-      <ThemeToggle />
-    </div>
-  );
-  const isComponentDetail = /^\/components\/[^/]+/.test(location.pathname);
+  const headerSlot = <div className="flex items-center gap-1"><ActiveWorkMenu /><Link to="/settings" aria-label={t("nav.settings", { defaultValue: "Settings" })} className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><SettingsIcon aria-hidden className="h-4 w-4" /></Link></div>;
+  const isComponentDetail = /^\/assets\/[^/]+/.test(location.pathname);
 
   return (
     <div
@@ -85,7 +80,7 @@ export function AppShell({ children }: Props) {
         <SidebarContent
           onNavigate={closeDrawer}
           headerSlot={headerSlot}
-          inventorySlot={<SidebarComponentList onNavigate={closeDrawer} />}
+          inventorySlot={<CatalogBrowser compact onNavigate={closeDrawer} />}
         />
       </SidebarShell>
 
@@ -101,7 +96,6 @@ export function AppShell({ children }: Props) {
         >
           {children ?? <Outlet />}
         </main>
-        <MobileNav />
       </div>
     </div>
   );

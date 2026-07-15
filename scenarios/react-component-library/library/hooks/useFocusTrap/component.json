@@ -1,0 +1,9 @@
+{
+  "libraryId": "react-component-library:useFocusTrap",
+  "displayName": "useFocusTrap",
+  "description": "Reusable focus containment primitive for accessible overlays.",
+  "assetKind": "hook",
+  "tags": ["accessibility", "focus", "overlay"],
+  "latest": "1.0.0",
+  "dependencies": []
+}

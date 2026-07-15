@@ -26,6 +26,11 @@ func EnsureSchemaMigrations(ctx context.Context, db schemaMigrator) error {
 			sql:    `ALTER TABLE components ADD COLUMN category TEXT NOT NULL DEFAULT '';`,
 		},
 		{
+			table:  "components",
+			column: "asset_kind",
+			sql:    `ALTER TABLE components ADD COLUMN asset_kind TEXT NOT NULL DEFAULT 'component';`,
+		},
+		{
 			table:  "component_design_affinities",
 			column: "reason",
 			sql:    `ALTER TABLE component_design_affinities ADD COLUMN reason TEXT NOT NULL DEFAULT '';`,

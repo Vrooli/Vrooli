@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 
@@ -33,7 +33,7 @@ describe("AppShell", () => {
   });
   afterEach(() => cleanup());
 
-  it("renders shell, sidebar, mobile header/nav, and the child route content", async () => {
+  it("renders shell, catalog drawer access, and the child route content", () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppShell />}>
@@ -46,11 +46,9 @@ describe("AppShell", () => {
     expect(screen.getByTestId("sidebar-shell")).toBeInTheDocument();
     expect(screen.getByTestId("app-sidebar-content")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-header")).toBeInTheDocument();
-    expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
+    expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
     expect(screen.getByTestId("child")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByTestId("health-pill")).toBeInTheDocument(),
-    );
+    expect(screen.getByTestId("active-work-menu")).toBeInTheDocument();
   });
 
   it("does not wrap content in a centered card or eyebrow text", () => {
@@ -71,10 +69,10 @@ describe("AppShell", () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppShell />}>
-          <Route path="/components/:id" element={<div>detail</div>} />
+          <Route path="/assets/:id" element={<div>detail</div>} />
         </Route>
       </Routes>,
-      { routerEntries: ["/components/cmp-1"] },
+      { routerEntries: ["/assets/cmp-1"] },
     );
 
     const main = screen.getByTestId("app-main");

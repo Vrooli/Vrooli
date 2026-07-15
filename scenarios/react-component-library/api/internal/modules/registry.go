@@ -32,6 +32,7 @@ import (
 	previewH "react-component-library/handlers/preview"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
+	workflowsH "react-component-library/handlers/workflows"
 
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
@@ -39,6 +40,7 @@ import (
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
 	themesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/themes"
 	versionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions"
+	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workflows"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory"
 )
 
@@ -56,6 +58,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, previewH.Endpoints...)
 	out = append(out, themesH.Endpoints...)
 	out = append(out, versionsH.Endpoints...)
+	out = append(out, workflowsH.Endpoints...)
 	return out
 }
 
@@ -80,6 +83,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "preview", File: previewv1.File_react_component_library_v1_preview_preview_proto},
 		{Module: "themes", File: themesv1.File_react_component_library_v1_themes_themes_proto},
 		{Module: "versions", File: versionsv1.File_react_component_library_v1_versions_versions_proto},
+		{Module: "workflows", File: workflowsv1.File_react_component_library_v1_workflows_workflows_proto},
 	}
 }
 
@@ -98,5 +102,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(depsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(themesH.Schema),
+		apidb.SchemaProviderFunc(workflowsH.Schema),
 	}
 }

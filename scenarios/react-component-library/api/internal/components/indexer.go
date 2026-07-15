@@ -14,9 +14,9 @@ import (
 	"strings"
 )
 
-// Indexer walks a configured filesystem root for component manifests
-// under components/*/component.json and upserts the manifest plus its
-// version folders into the Repository. A final DeleteMissing call
+// Indexer walks a configured filesystem root for asset manifests under
+// components/*/component.json and hooks/*/component.json and upserts the
+// manifest plus its version folders into the Repository. A final DeleteMissing call
 // removes rows whose manifests no longer exist, so deleted components
 // leave the registry without manual intervention.
 //
@@ -182,7 +182,12 @@ type manifestFile struct {
 	// Category is catalog metadata, not source-header metadata. Keeping it in
 	// the manifest makes it stable across versions and available to list views.
 	Category string `json:"category"`
-	Entry    string `json:"entry"`
+	// AssetKind is optional for backwards compatibility: the authored root is
+	// authoritative for legacy manifests. New manifests may state it explicitly
+	// as a guard against moving a manifest into the wrong root.
+	AssetKind    string            `json:"assetKind"`
+	Dependencies []AssetDependency `json:"dependencies"`
+	Entry        string            `json:"entry"`
 	// FileSlots pins an explicit placement slot per version-unit basename
 	// (e.g. {"useFocusTrap.ts": "hook"}). Authoritative over the resolver's
 	// extension heuristic. Applies across all versions of the component.
@@ -222,9 +227,20 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "component.json", Reason: err.Error()}
 	}
 	slug := filepath.Base(filepath.Dir(path))
-	slot, err := normalizeComponentSlot(mf.Slot)
+	assetKind, err := assetKindForManifestPath(path, mf.AssetKind)
 	if err != nil {
+		return IndexManifestInput{}, nil, err
+	}
+	slot, err := normalizeComponentSlot(mf.Slot)
+	if err != nil && assetKind == AssetKindComponent {
 		return IndexManifestInput{}, nil, errInvalidHeader(path, "slot", err.Error())
+	}
+	if assetKind == AssetKindHook && strings.TrimSpace(mf.Slot) != "" {
+		return IndexManifestInput{}, nil, errInvalidHeader(path, "slot", "hooks are non-renderable and must not declare a UI slot")
+	}
+	deps, err := normalizeAssetDependencies(path, mf.Dependencies)
+	if err != nil {
+		return IndexManifestInput{}, nil, err
 	}
 	manifest := ComponentManifest{
 		LibraryID:          strings.TrimSpace(mf.LibraryID),
@@ -238,6 +254,8 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		DraftVersion:       strings.TrimSpace(mf.Draft),
 		DeprecatedVersions: append([]string(nil), mf.DeprecatedVersions...),
 		Tags:               append([]string(nil), mf.Tags...),
+		AssetKind:          assetKind,
+		Dependencies:       deps,
 	}
 	designStyles, err := parseManifestDesignStyles(path, mf.DesignStyles)
 	if err != nil {
@@ -299,18 +317,18 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			}
 		}
 		entryName := strings.TrimSpace(mf.Entry)
-		if entryName != "" && (filepath.Base(entryName) != entryName || !strings.HasSuffix(entryName, ".tsx")) {
-			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "entry", Reason: "must name a TSX file in the version folder"}
+		if entryName != "" && (filepath.Base(entryName) != entryName || !validEntryExtension(entryName, assetKind)) {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "entry", Reason: entryFileRequirement(assetKind)}
 		}
 		if entryName == "" {
 			var entries []string
 			for _, f := range sourceFiles {
-				if strings.HasSuffix(f.Name(), ".tsx") {
+				if validEntryExtension(f.Name(), assetKind) {
 					entries = append(entries, f.Name())
 				}
 			}
 			if len(entries) != 1 {
-				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: "expected exactly one entry .tsx file or component.json entry"}
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: "expected exactly one " + entryFileRequirement(assetKind) + " or component.json entry"}
 			}
 			entryName = entries[0]
 		}
@@ -431,6 +449,60 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		manifest.Category = strings.TrimSpace(latestHeaders["category"])
 	}
 	return IndexManifestInput{Manifest: manifest, Versions: versions, Examples: examples, Headers: latestHeaders, Findings: findings}, latestHeaders, nil
+}
+
+func assetKindForManifestPath(path, declared string) (AssetKind, error) {
+	clean := filepath.ToSlash(path)
+	var inferred AssetKind
+	switch {
+	case strings.HasPrefix(clean, "components/"):
+		inferred = AssetKindComponent
+	case strings.HasPrefix(clean, "hooks/"):
+		inferred = AssetKindHook
+	default:
+		return "", ErrInvalidHeader{SourcePath: path, Field: "asset root", Reason: "manifest must be under components/ or hooks/"}
+	}
+	if declared == "" {
+		return inferred, nil
+	}
+	kind := AssetKind(strings.ToLower(strings.TrimSpace(declared)))
+	if !kind.Valid() || kind != inferred {
+		return "", ErrInvalidHeader{SourcePath: path, Field: "assetKind", Reason: "must match authored asset root " + string(inferred)}
+	}
+	return kind, nil
+}
+
+func normalizeAssetDependencies(path string, in []AssetDependency) ([]AssetDependency, error) {
+	seen := map[string]struct{}{}
+	out := make([]AssetDependency, 0, len(in))
+	for _, dep := range in {
+		dep.LibraryID = strings.TrimSpace(dep.LibraryID)
+		dep.Version = strings.TrimSpace(dep.Version)
+		if dep.LibraryID == "" || dep.Version == "" {
+			return nil, ErrInvalidHeader{SourcePath: path, Field: "dependencies", Reason: "each dependency requires libraryId and version"}
+		}
+		key := dep.LibraryID + "\x00" + dep.Version
+		if _, exists := seen[key]; exists {
+			return nil, ErrInvalidHeader{SourcePath: path, Field: "dependencies", Reason: "duplicate dependency " + dep.LibraryID + "@" + dep.Version}
+		}
+		seen[key] = struct{}{}
+		out = append(out, dep)
+	}
+	return out, nil
+}
+
+func validEntryExtension(name string, kind AssetKind) bool {
+	if kind == AssetKindHook {
+		return strings.HasSuffix(name, ".ts") && !strings.HasSuffix(name, ".tsx")
+	}
+	return strings.HasSuffix(name, ".tsx")
+}
+
+func entryFileRequirement(kind AssetKind) string {
+	if kind == AssetKindHook {
+		return "TS file in the version folder"
+	}
+	return "TSX file in the version folder"
 }
 
 func (idx *Indexer) readParityReport(sourcePath string) (*IngestParityReport, error) {

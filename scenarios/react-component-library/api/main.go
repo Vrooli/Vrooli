@@ -26,6 +26,7 @@ import (
 	previewH "react-component-library/handlers/preview"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
+	workflowsH "react-component-library/handlers/workflows"
 
 	"react-component-library/internal/uimanifest"
 
@@ -33,6 +34,7 @@ import (
 	componentsInternal "react-component-library/internal/components"
 	depsInternal "react-component-library/internal/deps"
 	themesInternal "react-component-library/internal/themes"
+	workflowsInternal "react-component-library/internal/workflows"
 )
 
 // componentsDepsObserver is the bridge from the components indexer's
@@ -226,6 +228,7 @@ func main() {
 		previewH.ModuleWithDeps(componentsSvc, depsSvc, log.Default()),
 		themesH.ModuleFromService(themesSvc, log.Default()),
 		versionsH.Module(db, clock.System{}, versionsResolver, log.Default()),
+		workflowsH.Module(db, clock.System{}, workflowsInternal.NewAgentManagerDispatcher(), log.Default()),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

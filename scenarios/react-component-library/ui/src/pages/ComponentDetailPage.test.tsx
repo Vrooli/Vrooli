@@ -23,6 +23,7 @@ vi.mock("../api/components", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/components")>();
   return {
     ...actual,
+    getCatalogAsset: vi.fn(),
     componentsClient: {
       listComponents: vi.fn(),
       getComponent: vi.fn().mockResolvedValue({
@@ -50,11 +51,24 @@ vi.mock("../api/components", async (importOriginal) => {
 });
 
 import { ComponentDetailPage } from "./ComponentDetailPage";
-import { componentsClient } from "../api/components";
+import { componentsClient, getCatalogAsset } from "../api/components";
 
 describe("ComponentDetailPage", () => {
   beforeEach(() => {
-    // ensure clean state
+    vi.mocked(componentsClient.getComponentByLibraryId).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof componentsClient.getComponentByLibraryId>>,
+    );
+    vi.mocked(getCatalogAsset).mockResolvedValue({
+      component: {
+        id: "cmp-42",
+        libraryId: "react-component-library:DrawerShell",
+        displayName: "DrawerShell",
+        dependencies: [
+          { libraryId: "react-component-library:useFocusTrap", version: "1.0.0" },
+          { libraryId: "react-component-library:useEscapeKey", version: "1.0.0" },
+        ],
+      },
+    } as Awaited<ReturnType<typeof getCatalogAsset>>);
   });
   afterEach(() => cleanup());
 
@@ -100,6 +114,18 @@ describe("ComponentDetailPage", () => {
     expect(screen.getByTestId("component-detail-adoptions")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
     expect(screen.queryByTestId("component-detail-adoptions")).not.toBeInTheDocument();
+  });
+
+  it("links a component's shared hook dependencies from its overview", async () => {
+    renderWithProviders(
+      <Routes>
+        <Route path="/components/:id" element={<ComponentDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/components/cmp-42"] },
+    );
+
+    expect(await screen.findByRole("link", { name: "react-component-library:useFocusTrap" })).toHaveAttribute("href", "/assets/react-component-library%3AuseFocusTrap");
+    expect(screen.getByRole("link", { name: "react-component-library:useEscapeKey" })).toHaveAttribute("href", "/assets/react-component-library%3AuseEscapeKey");
   });
 
   it("renders loading while the component lookup is pending", () => {

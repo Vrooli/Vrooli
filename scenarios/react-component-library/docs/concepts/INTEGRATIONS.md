@@ -40,7 +40,7 @@ requires them.
 
 | Service | Status | Reason | Contract |
 |---|---|---|---|
-| None yet. | not-applicable | Generated scenario has no third-party dependency. | Add when PRD/requirements require external APIs, webhooks, auth, payments, or data feeds. |
+| Agent Manager | optional scenario dependency | RCL resolves it server-to-server through lifecycle discovery to dispatch and observe scoped assisted workflows. | If unavailable, RCL stores `unavailable` workflow state; direct catalog APIs remain authoritative and the browser never dispatches Agent Manager. |
 
 ## Failure Modes
 

@@ -35,6 +35,15 @@ func (f *fakeLibrary) Get(_ context.Context, id string) (components.Component, e
 	return c, nil
 }
 
+func (f *fakeLibrary) GetByLibraryID(_ context.Context, libraryID string) (components.Component, error) {
+	for _, component := range f.byID {
+		if component.LibraryID == libraryID {
+			return component, nil
+		}
+	}
+	return components.Component{}, components.ErrComponentNotFound{IDOrLibraryID: libraryID}
+}
+
 func (f *fakeLibrary) List(_ context.Context, _ components.SearchQuery) ([]components.Component, error) {
 	rows := make([]components.Component, 0, len(f.byID))
 	for _, component := range f.byID {
@@ -452,6 +461,30 @@ func TestService_ApplyPlacesHookCompanionsInHookSlotAndRewritesImports(t *testin
 	require.Contains(t, string(files.bytes["target::ui/src/components/Drawer.tsx"]), `from "../hooks/useFocusTrap"`)
 	require.Contains(t, string(files.bytes["target::ui/src/hooks/useFocusTrap.ts"]), "useFocusTrap")
 	require.NotContains(t, files.bytes, "target::ui/src/components/useFocusTrap.ts")
+}
+
+func TestService_ApplyMaterializesPinnedHookDependencyOnceWithIndependentProvenance(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{byID: map[string]components.Component{
+		"panel": {ID: "panel", LibraryID: "rcl:FocusTrapPanel", DisplayName: "FocusTrapPanel", AssetKind: components.AssetKindComponent, LatestVersion: "1.0.0", Dependencies: []components.AssetDependency{{LibraryID: "rcl:useFocusTrap", Version: "1.0.0"}}},
+		"hook":  {ID: "hook", LibraryID: "rcl:useFocusTrap", DisplayName: "useFocusTrap", AssetKind: components.AssetKindHook, LatestVersion: "1.0.0"},
+	}, versions: map[string]components.ComponentVersion{
+		"panel@1.0.0": {ComponentID: "panel", LibraryID: "rcl:FocusTrapPanel", Version: "1.0.0", SourcePath: "components/FocusTrapPanel/versions/1.0.0/FocusTrapPanel.tsx", ContentSHA256: sha("panel"), Files: []components.ComponentVersionFile{{Path: "FocusTrapPanel.tsx", Content: `import { useFocusTrap } from "../../../hooks/useFocusTrap/versions/1.0.0/useFocusTrap"; export const Panel = () => useFocusTrap;`, ContentSHA256: sha("panel"), IsEntry: true}}},
+		"hook@1.0.0":  {ComponentID: "hook", LibraryID: "rcl:useFocusTrap", Version: "1.0.0", SourcePath: "hooks/useFocusTrap/versions/1.0.0/useFocusTrap.ts", ContentSHA256: sha("hook"), Files: []components.ComponentVersionFile{{Path: "useFocusTrap.ts", Content: "export const useFocusTrap = () => {};", ContentSHA256: sha("hook"), IsEntry: true}}},
+	}}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	result, err := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "panel", Scenario: "target", AdoptedPath: "ui/src/components/FocusTrapPanel.tsx"})
+	require.NoError(t, err)
+	require.Equal(t, "panel", result.Adoption.ComponentID)
+	require.Contains(t, string(files.bytes["target::ui/src/components/FocusTrapPanel.tsx"]), `from "../hooks/useFocusTrap"`)
+	require.Contains(t, string(files.bytes["target::ui/src/hooks/useFocusTrap.ts"]), "useFocusTrap")
+	rows, err := repo.List(context.Background(), adoptions.ListQuery{Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	for _, row := range rows {
+		require.NotEmpty(t, row.ID)
+		require.Len(t, row.Files, 1)
+	}
 }
 
 func TestService_ReapplyRefreshesEveryFileInAUnit(t *testing.T) {

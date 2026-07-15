@@ -47,7 +47,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
       await queryClient.invalidateQueries({ queryKey: ["components"] });
       onClose();
       if (resp.component?.id) {
-        void navigate(`/components/${resp.component.id}`);
+        void navigate(`/assets/${resp.component.id}`);
       }
     },
   });

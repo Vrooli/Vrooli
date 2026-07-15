@@ -73,7 +73,11 @@ between surfaces is impossible.
 
 ## Registry Projection Flow
 
-Component source remains Git-tracked under `library/components/<slug>/`.
+Library assets remain Git-tracked under `library/components/<slug>/` and
+`library/hooks/<slug>/`. Components retain their stable IDs; the shared
+projection adds `asset_kind`, pinned manifest dependency edges, and batch
+metrics (direct adoptions and versions). Hooks are first-class source assets,
+but intentionally non-renderable.
 `component.json` owns stable manifest fields, including `slot` and
 `designStyles`; version folders own immutable/draft `.tsx` source plus
 JSDoc headers such as `@version`, `@status`, `@deps`, and `@category`.
@@ -143,6 +147,14 @@ the copied target. Replacing an existing source requires both
 source; the response reports direct import sites. `SuggestAdoptions` composes
 the existing InventoryService scan, style-fit verdict, dependency verdict, and
 adoption ledger to return only non-adopted, explainable candidates.
+
+`WorkflowsService` is an RCL-owned, durable observation ledger for assisted
+extract/adopt requests. Its server-side adapter discovers Agent Manager,
+creates a narrowly scoped task/run using the catalog-maintainer profile, and
+records run identity, status, and event sequence. A completed agent run is
+never a mutation acknowledgement: only direct ingest/apply/reapply APIs own
+catalog and adoption provenance, and unavailable Agent Manager state is stored
+explicitly rather than retried from the browser.
 
 Two reconciliation edges keep the catalog and its adopters converged after the
 fact:

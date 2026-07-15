@@ -6,20 +6,10 @@
   },
   "nav": {
     "label": "التنقل الأساسي",
-    "bottomLabel": "أساسي",
     "openDrawer": "فتح التنقل",
     "closeDrawer": "إغلاق التنقل",
     "drawerLabel": "درج التنقل",
-    "dashboard": "لوحة المعلومات",
-    "components": "المكوّنات",
-    "adoptions": "حالات التبني",
     "settings": "الإعدادات"
-  },
-  "sidebar": {
-    "components": "المكوّنات",
-    "loading": "جارٍ التحميل…",
-    "error": "تعذر تحميل المكوّنات",
-    "empty": "لا توجد مكوّنات مفهرسة بعد"
   },
   "theme": {
     "light": "السمة الفاتحة",
@@ -28,13 +18,6 @@
   },
   "route": {
     "loading": "جارٍ التحميل…"
-  },
-  "dashboard": {
-    "title": "لوحة المعلومات",
-    "subtitle": "نظرة عامة على مكتبة المكوّنات وواجهة API المحلية.",
-    "componentsTitle": "المكوّنات المفهرسة",
-    "loading": "—",
-    "openLibrary": "فتح المكتبة"
   },
   "settings": {
     "title": "الإعدادات",
@@ -52,6 +35,35 @@
     "missingId": "لا يوجد معرّف مكوّن في عنوان URL.",
     "loading": "جارٍ تحميل المكوّن…",
     "notFound": "المكوّن غير موجود."
+  },
+  "catalog": {
+    "title": "مساحة عمل المكتبة",
+    "subtitle": "اعثر على المكوّنات القابلة لإعادة الاستخدام والخطافات غير القابلة للعرض.",
+    "components": "المكوّنات",
+    "hooks": "الخطافات",
+    "hook": "خطاف",
+    "search": "ابحث في الفهرس",
+    "searchPlaceholder": "ابحث عن الأصول",
+    "adoptions": "{{count}} اعتمادًا",
+    "versionsCount": "{{count}} إصدارات",
+    "noPreview": "لا توجد معاينة حية — الخطافات غير قابلة للعرض.",
+    "source": "المصدر",
+    "sourceError": "تعذر تحميل المصدر.",
+    "addManual": "أضف مكوّنًا",
+    "addAssisted": "استخراج بمساعدة",
+    "assistedDescription": "ضع مهمة أمين الفهرس في الطابور. ستستخدم واجهات React Component Library المباشرة لأي كتابة في الفهرس.",
+    "sourceScenario": "سيناريو المصدر",
+    "sourcePath": "مسار المصدر",
+    "sourcePathPlaceholder": "مثال: ui/src/components/Example.tsx",
+    "assistedError": "تعذر وضع الاستخراج المساعد في الطابور.",
+    "assistedStarting": "جارٍ البدء…",
+    "assistedStart": "ابدأ الاستخراج"
+  },
+  "workflows": {
+    "active": "العمل النشط",
+    "none": "لا يوجد عمل مساعد نشط.",
+    "stop": "إيقاف",
+    "retry": "إعادة المحاولة"
   },
   "health": {
     "title": "حالة API",
@@ -71,7 +83,6 @@
   },
   "components": {
     "title": "مكتبة المكوّنات",
-    "subtitle": "يتم اكتشاف المكوّنات من جذر المصدر عبر ترويسة @libraryId. عدّل أحدها لفتح المعاينة المباشرة.",
     "loading": "جارٍ تحميل المكوّنات…",
     "empty": "لا توجد مكوّنات بعد. أنشئ أول مكوّن في المكتبة أو أعد فهرسة المصدر الموجود على القرص.",
     "indexAction": "إعادة الفهرسة",
@@ -239,7 +250,6 @@
   },
   "adoptions": {
     "title": "حالات التبني",
-    "subtitle": "تتبع السيناريوهات التي تبنّت مكوّنات المكتبة واكتشف الانحراف.",
     "loading": "جارٍ التحميل…",
     "empty": "لا توجد سجلات تبنٍ بعد. استخدم `react-component-library adoptions create` من سطر الأوامر.",
     "refreshAction": "تحديث",

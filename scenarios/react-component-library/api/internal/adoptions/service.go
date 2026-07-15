@@ -301,62 +301,152 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 		return ApplyResult{}, err
 	}
 	_ = exists // entry existence is checked together with every unit target below.
-	adoptionID := uuid.NewString()
-	var importSites []string
-	now := s.clock.Now().UTC()
-	files := adoptionUnitFiles(v, in.AdoptedPath)
-	for _, file := range files {
-		exists, err := s.files.Exists(ctx, in.Scenario, file.AdoptedPath)
-		if err != nil {
-			return ApplyResult{}, err
-		}
-		if !exists {
-			continue
-		}
-		if !in.ReplaceExisting {
-			return ApplyResult{}, ErrInvalidAdoption{Field: "replace_existing", Reason: "target file already exists; set replace_existing to replace it"}
-		}
-		existing, err := s.files.Read(ctx, in.Scenario, file.AdoptedPath)
-		if err != nil {
-			return ApplyResult{}, err
-		}
-		if hashBytes([]byte(stripSourceHeader(string(existing)))) != hashBytes([]byte(stripSourceHeader(file.Content))) && !in.ConfirmOverwrite {
-			return ApplyResult{}, ErrInvalidAdoption{Field: "confirm_overwrite", Reason: "existing target differs from the ingested library source"}
-		}
-	}
-	adoptionFiles := make([]AdoptionFile, 0, len(files))
-	written := ""
-	entrySnapshot := ""
-	for _, file := range files {
-		fv := v
-		fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
-		body := formatProvenance(fv, adoptionID, now) + stripSourceHeader(file.Content)
-		path, err := s.files.Write(ctx, in.Scenario, file.AdoptedPath, []byte(body))
-		if err != nil {
-			return ApplyResult{}, err
-		}
-		if file.IsEntry {
-			written = path
-			entrySnapshot = hashBytes([]byte(body))
-		}
-		adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: hashBytes([]byte(body))})
-		if finder, ok := s.files.(ScenarioImportSiteFinder); ok {
-			sites, err := finder.FindImportSites(ctx, in.Scenario, file.AdoptedPath)
-			if err != nil {
-				return ApplyResult{}, err
-			}
-			importSites = append(importSites, sites...)
-		}
-	}
-	a, err := s.repo.Create(ctx, CreateInput{
-		ID:          adoptionID,
-		ComponentID: cmp.ID, LibraryID: cmp.LibraryID, Scenario: in.Scenario, AdoptedPath: in.AdoptedPath,
-		AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, Files: adoptionFiles,
-	})
+	closure, err := s.resolveAdoptionClosure(ctx, cmp, v)
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	return ApplyResult{Adoption: a, WrittenPath: written, ImportSites: importSites}, nil
+	plans := adoptionPlansForClosure(closure, in.AdoptedPath)
+	if err := ensureDistinctAdoptionTargets(plans); err != nil {
+		return ApplyResult{}, err
+	}
+	var importSites []string
+	now := s.clock.Now().UTC()
+	for _, plan := range plans {
+		for _, file := range plan.Files {
+			exists, err := s.files.Exists(ctx, in.Scenario, file.AdoptedPath)
+			if err != nil {
+				return ApplyResult{}, err
+			}
+			if !exists {
+				continue
+			}
+			if !in.ReplaceExisting {
+				return ApplyResult{}, ErrInvalidAdoption{Field: "replace_existing", Reason: "target file already exists; set replace_existing to replace it"}
+			}
+			existing, err := s.files.Read(ctx, in.Scenario, file.AdoptedPath)
+			if err != nil {
+				return ApplyResult{}, err
+			}
+			if hashBytes([]byte(stripSourceHeader(string(existing)))) != hashBytes([]byte(stripSourceHeader(file.Content))) && !in.ConfirmOverwrite {
+				return ApplyResult{}, ErrInvalidAdoption{Field: "confirm_overwrite", Reason: "existing target differs from the ingested library source"}
+			}
+		}
+	}
+
+	var root Adoption
+	written := ""
+	for _, plan := range plans {
+		adoptionID := uuid.NewString()
+		adoptionFiles := make([]AdoptionFile, 0, len(plan.Files))
+		entrySnapshot := ""
+		for _, file := range plan.Files {
+			fv := plan.Version
+			fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
+			body := formatProvenance(fv, adoptionID, now) + stripSourceHeader(file.Content)
+			path, err := s.files.Write(ctx, in.Scenario, file.AdoptedPath, []byte(body))
+			if err != nil {
+				return ApplyResult{}, err
+			}
+			if file.IsEntry {
+				entrySnapshot = hashBytes([]byte(body))
+				if plan.Asset.ID == cmp.ID {
+					written = path
+				}
+			}
+			adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: hashBytes([]byte(body))})
+			if finder, ok := s.files.(ScenarioImportSiteFinder); ok {
+				sites, err := finder.FindImportSites(ctx, in.Scenario, file.AdoptedPath)
+				if err != nil {
+					return ApplyResult{}, err
+				}
+				importSites = append(importSites, sites...)
+			}
+		}
+		a, err := s.repo.Create(ctx, CreateInput{ID: adoptionID, ComponentID: plan.Asset.ID, LibraryID: plan.Asset.LibraryID, Scenario: in.Scenario, AdoptedPath: plan.EntryTarget, AdoptedVersion: plan.Version.Version, SourceSHA256: plan.Version.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, Files: adoptionFiles})
+		if err != nil {
+			return ApplyResult{}, err
+		}
+		if plan.Asset.ID == cmp.ID {
+			root = a
+		}
+	}
+	return ApplyResult{Adoption: root, WrittenPath: written, ImportSites: importSites}, nil
+}
+
+type adoptionPlan struct {
+	Asset       components.Component
+	Version     components.ComponentVersion
+	EntryTarget string
+	Files       []adoptionUnitFile
+}
+
+func (s *service) resolveAdoptionClosure(ctx context.Context, root components.Component, version components.ComponentVersion) ([]components.ResolvedAsset, error) {
+	if len(root.Dependencies) == 0 {
+		return []components.ResolvedAsset{{Asset: root, Version: version}}, nil
+	}
+	reader, ok := any(s.library).(components.DependencyReader)
+	if !ok {
+		return nil, fmt.Errorf("asset dependency reader is not configured")
+	}
+	return components.ResolveDependencyClosure(ctx, reader, root.ID, version.Version)
+}
+
+func adoptionPlansForClosure(closure []components.ResolvedAsset, rootTarget string) []adoptionPlan {
+	targets := make(map[string]string, len(closure)*2)
+	for _, resolved := range closure {
+		target := rootTarget
+		if resolved.Asset.ID != closure[len(closure)-1].Asset.ID {
+			target = dependencyEntryTarget(rootTarget, resolved.Asset, resolved.Version)
+		}
+		targets[moduleKey(resolved.Version.SourcePath)] = target
+		targets[moduleKey(resolved.Asset.DisplayName)] = target
+	}
+	plans := make([]adoptionPlan, 0, len(closure))
+	for _, resolved := range closure {
+		target := rootTarget
+		if resolved.Asset.ID != closure[len(closure)-1].Asset.ID {
+			target = dependencyEntryTarget(rootTarget, resolved.Asset, resolved.Version)
+		}
+		files := adoptionUnitFiles(resolved.Version, target)
+		for i := range files {
+			files[i].Content = rewriteUnitImports(files[i].Content, files[i].AdoptedPath, targets)
+		}
+		plans = append(plans, adoptionPlan{Asset: resolved.Asset, Version: resolved.Version, EntryTarget: target, Files: files})
+	}
+	return plans
+}
+
+func dependencyEntryTarget(rootTarget string, asset components.Component, version components.ComponentVersion) string {
+	dir := filepath.ToSlash(filepath.Dir(rootTarget))
+	if strings.HasSuffix(dir, "/components") || dir == "components" {
+		dir = filepath.ToSlash(filepath.Dir(dir))
+	}
+	if asset.AssetKind == components.AssetKindHook {
+		dir = filepath.ToSlash(filepath.Join(dir, "hooks"))
+	} else {
+		dir = filepath.ToSlash(filepath.Join(dir, "components"))
+	}
+	ext := filepath.Ext(version.SourcePath)
+	if ext == "" {
+		ext = ".ts"
+		if asset.AssetKind == components.AssetKindComponent {
+			ext = ".tsx"
+		}
+	}
+	return filepath.ToSlash(filepath.Join(dir, asset.DisplayName+ext))
+}
+
+func ensureDistinctAdoptionTargets(plans []adoptionPlan) error {
+	seen := map[string]string{}
+	for _, plan := range plans {
+		for _, file := range plan.Files {
+			if owner, exists := seen[file.AdoptedPath]; exists && owner != plan.Asset.LibraryID {
+				return fmt.Errorf("asset dependency target collision at %q between %s and %s", file.AdoptedPath, owner, plan.Asset.LibraryID)
+			}
+			seen[file.AdoptedPath] = plan.Asset.LibraryID
+		}
+	}
+	return nil
 }
 
 type adoptionUnitFile struct {

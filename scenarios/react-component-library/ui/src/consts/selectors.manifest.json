@@ -612,6 +612,34 @@
       "testId": "components-inspector-overlay",
       "selector": "[data-testid=\"components-inspector-overlay\"]"
     },
+    "catalog.browser": {
+      "testId": "catalog-browser",
+      "selector": "[data-testid=\"catalog-browser\"]"
+    },
+    "catalog.componentsTab": {
+      "testId": "catalog-components-tab",
+      "selector": "[data-testid=\"catalog-components-tab\"]"
+    },
+    "catalog.hooksTab": {
+      "testId": "catalog-hooks-tab",
+      "selector": "[data-testid=\"catalog-hooks-tab\"]"
+    },
+    "catalog.search": {
+      "testId": "catalog-search",
+      "selector": "[data-testid=\"catalog-search\"]"
+    },
+    "catalog.presentation": {
+      "testId": "catalog-presentation-toggle",
+      "selector": "[data-testid=\"catalog-presentation-toggle\"]"
+    },
+    "catalog.asset": {
+      "testId": "catalog-asset",
+      "selector": "[data-testid=\"catalog-asset\"]"
+    },
+    "workflows.activeMenu": {
+      "testId": "active-work-menu",
+      "selector": "[data-testid=\"active-work-menu\"]"
+    },
     "adoptions.card": {
       "testId": "adoptions-card",
       "selector": "[data-testid=\"adoptions-card\"]"

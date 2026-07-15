@@ -1,0 +1,16 @@
+{
+  "name": "react-component-library-catalog-maintainer",
+  "profileKey": "react-component-library/catalog-maintainer",
+  "description": "Constrained RCL catalog assistant. It may inspect one requested source scope and must invoke the authoritative RCL ingest or adoption path; a completed agent run is never evidence that RCL mutation committed.",
+  "roleRef": "code.smart",
+  "maxTurns": 40,
+  "timeout": "900s",
+  "allowedTools": [
+    "Read",
+    "Glob",
+    "Grep",
+    "Bash"
+  ],
+  "skipPermissionPrompt": false,
+  "createdBy": "react-component-library"
+}
